@@ -22,6 +22,8 @@
 #ifndef CURVEFS_SRC_CLIENT_S3_CLIENT_S3_ADAPTOR_H_
 #define CURVEFS_SRC_CLIENT_S3_CLIENT_S3_ADAPTOR_H_
 
+#include <bthread/execution_queue.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,6 +32,7 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/inode_cache_manager.h"
@@ -43,6 +46,7 @@ namespace client {
 
 using ::curve::common::Thread;
 using curvefs::client::common::S3ClientAdaptorOption;
+using curvefs::client::common::DiskCacheType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
 using curvefs::metaserver::S3ChunkInfoList;
@@ -60,8 +64,8 @@ class S3ClientAdaptor {
      * @brief Initailize s3 client
      * @param[in] options the options for s3 client
      */
-    virtual CURVEFS_ERROR Init(const S3ClientAdaptorOption& option,
-                               S3Client* client,
+    virtual CURVEFS_ERROR Init(const S3ClientAdaptorOption &option,
+                               S3Client *client,
                                std::shared_ptr<InodeCacheManager> inodeManager,
                                std::shared_ptr<MdsClient> mdsClient) = 0;
     /**
@@ -69,15 +73,15 @@ class S3ClientAdaptor {
      * @param[in] options the options for s3 client
      */
     virtual int Write(uint64_t inodeId, uint64_t offset, uint64_t length,
-                      const char* buf) = 0;
-    virtual int Read(Inode* inode, uint64_t offset, uint64_t length,
-                     char* buf) = 0;
-    virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t size) = 0;
+                      const char *buf) = 0;
+    virtual int Read(Inode *inode, uint64_t offset, uint64_t length,
+                     char *buf) = 0;
+    virtual CURVEFS_ERROR Truncate(Inode *inode, uint64_t size) = 0;
     virtual void ReleaseCache(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR Flush(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR FsSync() = 0;
     virtual int Stop() = 0;
-    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) = 0;
+    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) = 0;
     virtual void SetFsId(uint32_t fsId) = 0;
 };
 
@@ -90,7 +94,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
      * @brief Initailize s3 client
      * @param[in] options the options for s3 client
      */
-    CURVEFS_ERROR Init(const S3ClientAdaptorOption& option, S3Client* client,
+    CURVEFS_ERROR Init(const S3ClientAdaptorOption &option, S3Client *client,
                        std::shared_ptr<InodeCacheManager> inodeManager,
                        std::shared_ptr<MdsClient> mdsClient);
     /**
@@ -98,30 +102,28 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
      * @param[in] options the options for s3 client
      */
     int Write(uint64_t inodeId, uint64_t offset, uint64_t length,
-              const char* buf);
-    int Read(Inode* inode, uint64_t offset, uint64_t length, char* buf);
-    CURVEFS_ERROR Truncate(Inode* inode, uint64_t size);
+              const char *buf);
+    int Read(Inode *inode, uint64_t offset, uint64_t length, char *buf);
+    CURVEFS_ERROR Truncate(Inode *inode, uint64_t size);
     void ReleaseCache(uint64_t inodeId);
     CURVEFS_ERROR Flush(uint64_t inodeId);
     CURVEFS_ERROR FsSync();
     int Stop();
-    uint64_t GetBlockSize() {
-        return blockSize_;
+    uint64_t GetBlockSize() { return blockSize_; }
+    uint64_t GetChunkSize() { return chunkSize_; }
+    std::shared_ptr<FsCacheManager> GetFsCacheManager() {
+        return fsCacheManager_;
     }
-    uint64_t GetChunkSize() {
-        return chunkSize_;
+    uint32_t GetFlushInterval() { return flushIntervalSec_; }
+    S3Client *GetS3Client() { return client_; }
+    uint32_t GetPrefetchBlocks() {
+        return prefetchBlocks_;
     }
     std::shared_ptr<FsCacheManager> GetFsCacheManager() {
         return fsCacheManager_;
     }
-    uint32_t GetFlushInterval() {
-        return flushIntervalSec_;
-    }
-    bool EnableDiskCache() {
+    uint32_t EnableDiskCache() {
         return enableDiskCache_;
-    }
-    S3Client* GetS3Client() {
-        return client_;
     }
     std::shared_ptr<InodeCacheManager> GetInodeCacheManager() {
         return inodeManager_;
@@ -129,32 +131,51 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<DiskCacheManagerImpl> GetDiskCacheManager() {
         return diskCacheManagerImpl_;
     }
-    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId);
+    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId);
     void FsSyncSignal() {
         std::lock_guard<std::mutex> lk(mtx_);
-        LOG(INFO) << "fs sync signal";
+        VLOG(3) << "fs sync signal";
         cond_.notify_one();
     }
     void FsSyncSignalAndDataCacheInc() {
         std::lock_guard<std::mutex> lk(mtx_);
         fsCacheManager_->DataCacheNumInc();
-        LOG(INFO) << "fs sync signal";
+        VLOG(3) << "fs sync signal";
         cond_.notify_one();
     }
-    void SetFsId(uint32_t fsId) {
-        fsId_ = fsId;
-    }
-    uint32_t GetFsId() {
-        return fsId_;
-    }
+    void SetFsId(uint32_t fsId) { fsId_ = fsId; }
+    uint32_t GetFsId() { return fsId_; }
+
 
  private:
     void BackGroundFlush();
 
+    using AsyncDownloadTask = std::function<void()>;
+
+    std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>
+      downloadTaskQueues_;
+
+    static int ExecAsyncDownloadTask(void* meta, bthread::TaskIterator<AsyncDownloadTask>& iter);  // NOLINT
+
+ public:
+    void PushAsyncTask(const AsyncDownloadTask& task) {
+        static thread_local unsigned int seed = time(nullptr);
+
+        int idx = rand_r(&seed) % downloadTaskQueues_.size();
+        int rc = bthread::execution_queue_execute(
+                   downloadTaskQueues_[idx], task);
+
+        if (CURVE_UNLIKELY(rc != 0)) {
+            task();
+        }
+    }
+
  private:
-    S3Client* client_;
+    S3Client *client_;
     uint64_t blockSize_;
     uint64_t chunkSize_;
+    uint32_t prefetchBlocks_;
+    uint32_t prefetchExecQueueNum_;
     std::string allocateServerEps_;
     uint32_t flushIntervalSec_;
     uint32_t memCacheNearfullRatio_;
@@ -167,7 +188,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
-    bool enableDiskCache_;
+    uint32_t enableDiskCache_;
     std::shared_ptr<MdsClient> mdsClient_;
     uint32_t fsId_;
 };
