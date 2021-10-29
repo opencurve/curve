@@ -37,6 +37,12 @@ using PartitionID = uint32_t;
 
 using Mutex = ::bthread::Mutex;
 
+enum DiskCacheType {
+    Disable = 0,
+    OnlyRead = 1,
+    ReadWrite = 2
+};
+
 enum class MetaServerOpType {
     GetDentry,
     ListDentry,

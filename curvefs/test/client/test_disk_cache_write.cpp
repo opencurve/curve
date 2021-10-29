@@ -58,7 +58,7 @@ class TestDiskCacheWrite : public ::testing::Test {
         diskCacheWrite_ = std::make_shared<DiskCacheWrite>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
 
-        diskCacheWrite_->Init(client_, wrapper_, "test");
+        diskCacheWrite_->Init(client_, wrapper_, "test", 1);
     }
 
     virtual void TearDown() {

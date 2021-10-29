@@ -44,7 +44,8 @@ class DiskCacheRead : public DiskCacheBase {
                    const std::string cacheDir);
     virtual int ReadDiskFile(const std::string name,
                   char* buf, uint64_t offset, uint64_t length);
-
+    virtual int WriteDiskFile(const std::string fileName,
+                              const char* buf, uint64_t length);
     virtual int LinkWriteToRead(const std::string fileName,
                    const std::string fullWriteDir,
                    const std::string fullReadDir);

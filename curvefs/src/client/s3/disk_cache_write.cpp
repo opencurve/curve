@@ -33,17 +33,17 @@ namespace curvefs {
 namespace client {
 
 void DiskCacheWrite::Init(S3Client *client,
-                          std::shared_ptr<PosixWrapper> posixWrapper,
-                          const std::string cacheDir) {
+                    std::shared_ptr<PosixWrapper> posixWrapper,
+                    const std::string cacheDir, uint64_t asyncLoadPeriodMs) {
     client_ = client;
     posixWrapper_ = posixWrapper;
+    asyncLoadPeriodMs_ = asyncLoadPeriodMs;
     DiskCacheBase::Init(posixWrapper, cacheDir);
 }
 
 void DiskCacheWrite::AsyncUploadEnqueue(const std::string objName) {
     std::lock_guard<bthread::Mutex> lk(mtx_);
     waitUpload_.push_back(objName);
-    cond_.notify_one();
 }
 
 int DiskCacheWrite::UploadFile(const std::string name) {
@@ -123,7 +123,7 @@ int DiskCacheWrite::AsyncUploadFunc() {
         return -1;
     }
     VLOG(6) << "async upload function start.";
-    while (true) {
+    while (sleeper_.wait_for(std::chrono::milliseconds(asyncLoadPeriodMs_))) {
         if (!isRunning_) {
             LOG(INFO) << "async upload thread stop.";
             return 0;
@@ -131,9 +131,8 @@ int DiskCacheWrite::AsyncUploadFunc() {
         toUpload.clear();
         {
             std::unique_lock<bthread::Mutex> lk(mtx_);
-            while (waitUpload_.empty()) {
-                cond_.wait(lk);
-            }
+            if (waitUpload_.empty())
+                continue;
             toUpload.swap(waitUpload_);
         }
         VLOG(3) << "async upload file size = " << toUpload.size();
@@ -163,6 +162,7 @@ int DiskCacheWrite::AsyncUploadRun() {
 int DiskCacheWrite::AsyncUploadStop() {
     if (isRunning_.exchange(false)) {
         LOG(INFO) << "stop AsyncUpload thread...";
+        sleeper_.interrupt();
         backEndThread_.join();
         LOG(INFO) << "stop AsyncUpload thread ok.";
         return -1;

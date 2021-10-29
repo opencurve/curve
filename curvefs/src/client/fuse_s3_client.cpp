@@ -33,10 +33,8 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
-
     s3Client_ = std::make_shared<S3ClientImpl>();
     s3Client_->Init(option.s3Opt.s3AdaptrOpt);
-
     ret = s3Adaptor_->Init(option.s3Opt.s3ClientAdaptorOpt, s3Client_.get(),
                            inodeManager_, mdsClient_);
     return ret;

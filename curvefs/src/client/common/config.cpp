@@ -100,13 +100,17 @@ void InitBlockDeviceOption(Configuration *conf,
 
 void InitDiskCacheOption(Configuration *conf,
                          DiskCacheOption *diskCacheOption) {
-    conf->GetValueFatalIfFail("diskCache.enableDiskCache",
-                              &diskCacheOption->enableDiskCache);
+    uint32_t diskCacheType;
+    conf->GetValueFatalIfFail("diskCache.diskCacheType",
+                              &diskCacheType);
+    diskCacheOption->diskCacheType = (DiskCacheType)diskCacheType;
     conf->GetValueFatalIfFail("diskCache.forceFlush",
                               &diskCacheOption->forceFlush);
     conf->GetValueFatalIfFail("diskCache.cacheDir", &diskCacheOption->cacheDir);
     conf->GetValueFatalIfFail("diskCache.trimCheckIntervalSec",
                               &diskCacheOption->trimCheckIntervalSec);
+    conf->GetValueFatalIfFail("diskCache.asyncLoadPeriodMs",
+                              &diskCacheOption->asyncLoadPeriodMs);
     conf->GetValueFatalIfFail("diskCache.fullRatio",
                               &diskCacheOption->fullRatio);
     conf->GetValueFatalIfFail("diskCache.safeRatio",
@@ -118,6 +122,10 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.blockSize);
     conf->GetValueFatalIfFail("s3.chunksize",
                               &s3Opt->s3ClientAdaptorOpt.chunkSize);
+    conf->GetValueFatalIfFail("s3.prefetchBlocks",
+                              &s3Opt->s3ClientAdaptorOpt.prefetchBlocks);
+    conf->GetValueFatalIfFail("s3.prefetchExecQueueNum",
+                              &s3Opt->s3ClientAdaptorOpt.prefetchExecQueueNum);
     conf->GetValueFatalIfFail("s3.intervalSec",
                               &s3Opt->s3ClientAdaptorOpt.intervalSec);
     conf->GetValueFatalIfFail("s3.flushIntervalSec",

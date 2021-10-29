@@ -30,10 +30,12 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/s3/client_s3.h"
+#include "curvefs/src/client/common/common.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
 
@@ -231,11 +233,13 @@ class FileCacheManager {
                            char *dataBuf, std::vector<S3ReadRequest> *requests,
                            uint64_t fsId, uint64_t inodeId);
     int HandleReadRequest(const std::vector<S3ReadRequest>& requests,
-                          std::vector<S3ReadResponse>* responses);
+                          std::vector<S3ReadResponse>* responses,
+                          uint64_t fileLen);
     std::vector<ObjectChunkInfo> GetReadChunks(
         const S3ChunkInfoList& s3ChunkInfoList, uint64_t blockSize);
     std::vector<ObjectChunkInfo> SortByOffset(
         std::vector<ObjectChunkInfo> chunks);
+    void PrefetchS3Objs(std::vector<std::string> prefetchObjs);
     std::vector<S3ChunkInfo> CutOverLapChunks(const S3ChunkInfo& newChunk,
                                               const S3ChunkInfo& oldChunk);
 
@@ -246,6 +250,8 @@ class FileCacheManager {
     RWLock rwLock_;
     curve::common::Mutex mtx_;
     S3ClientAdaptorImpl *s3ClientAdaptor_;
+    curve::common::Mutex downloadMtx_;
+    std::set<std::string> downloadingObj_;
 };
 
 class FsCacheManager {
@@ -311,6 +317,8 @@ class FsCacheManager {
     }
 
     bool WriteCacheIsFull() {
+        if (writeCacheMaxByte_ <= 0)
+            return true;
         return wDataCacheByte_.load(std::memory_order_relaxed) >
                writeCacheMaxByte_;
     }

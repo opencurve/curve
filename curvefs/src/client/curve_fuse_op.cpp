@@ -85,7 +85,6 @@ int InitFuseClient(const char *confPath, const char *fsType) {
 
     fuseClientOption = new FuseClientOption();
     curvefs::client::common::InitFuseClientOption(&conf, fuseClientOption);
-
     if (fsTypeStr == "s3") {
         g_ClientInstance = new FuseS3Client();
     } else if (fsTypeStr == "volume") {
