@@ -30,7 +30,7 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(std::string(kVersionCmd),
                         CurvefsToolCreator<version::VersionTool>::Create);
 
-    // umountfs
+    // umount-fs
     RegisterCurvefsTool(std::string(kUmountCmd),
                         CurvefsToolCreator<umountfs::UmountfsTool>::Create);
 
@@ -38,6 +38,34 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(
         std::string(kBuildTopologyCmd),
         CurvefsToolCreator<mds::topology::CurvefsBuildTopologyTool>::Create);
+
+    // usage-metadata
+    RegisterCurvefsTool(std::string(kMetedataUsageCmd),
+                        CurvefsToolCreator<space::MatedataUsageTool>::Create);
+
+    // status-mds
+    RegisterCurvefsTool(std::string(kMdsStatusCmd),
+                        CurvefsToolCreator<status::MdsStatusTool>::Create);
+    // status-metaserver
+    RegisterCurvefsTool(
+        std::string(kMetaserverStatusCmd),
+        CurvefsToolCreator<status::MetaserverStatusTool>::Create);
+
+    // status-etcd
+    RegisterCurvefsTool(std::string(kEtcdStatusCmd),
+                        CurvefsToolCreator<status::EtcdStatusTool>::Create);
+
+    // list-fs-partition
+    RegisterCurvefsTool(std::string(kFsPartitionListCmd),
+                        CurvefsToolCreator<list::FsPartitionListTool>::Create);
+
+    // list-fs
+    RegisterCurvefsTool(std::string(kFsInfoListCmd),
+                        CurvefsToolCreator<list::FsInfoListTool>::Create);
+
+    // query-copyset
+    RegisterCurvefsTool(std::string(kCopysetQueryCmd),
+                        CurvefsToolCreator<query::CopysetQueryTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(

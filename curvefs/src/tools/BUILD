@@ -46,29 +46,54 @@ cc_binary(
     ],
 )
 
-
 # tools lib
 cc_library(
     name = "curvefs_tools_lib",
     srcs = glob([
+        "curvefs_tool.cpp",
         "curvefs_tool_factory.cpp",
-        "version/curvefs_version_tool.cpp",
         "umountfs/curvefs_umountfs_tool.cpp",
         "curvefs_tool_define.cpp",
-        "topology/curvefs_build_topology_tool.cpp",
+        "curvefs_tool_metric.cpp",
+        "build/curvefs_build_topology_tool.cpp",
+        "version/curvefs_version_tool.cpp",
+        "space/curvefs_metadata_usage_tool.cpp",
+        "space/curvefs_space_base_tool.cpp",
+        "status/curvefs_status_base_tool.cpp",
+        "status/curvefs_mds_status.cpp",
+        "status/curvefs_metaserver_status.cpp",
+        "status/curvefs_etcd_status.cpp",
+        "status/curvefs_copyset_status.cpp",
+        "query/curvefs_copyset_query.cpp",
+        "list/curvefs_fs_partition_list.cpp",
+        "list/curvefs_fsinfo_list.cpp",
+        "status/curvefs_metaserver_status.cpp",
+        "list/curvefs_copysetid_list.cpp",
+
     ]),
     hdrs = glob([
         "curvefs_tool.h",
         "curvefs_tool_factory.h",
         "curvefs_tool_define.h",
+        "curvefs_tool_metric.h",
         "version/curvefs_version_tool.h",
         "curvefs_tool_abstract_creator.h",
         "umountfs/curvefs_umountfs_tool.h",
-        "topology/curvefs_build_topology_tool.h",
+        "build/curvefs_build_topology_tool.h",
+        "space/curvefs_metadata_usage_tool.h",
+        "space/curvefs_space_base_tool.h",
+        "status/curvefs_status_base_tool.h",
+        "status/curvefs_mds_status.h",
+        "status/curvefs_copyset_status.h",
+        "query/curvefs_copyset_query.h",
+        "list/curvefs_fs_partition_list.h",
+        "list/curvefs_fsinfo_list.h",
+        "status/curvefs_metaserver_status.h",
+        "status/curvefs_etcd_status.h",
+        "list/curvefs_copysetid_list.h",
     ]),
     copts = COPTS,
     linkopts = [
-        "-lpthread"
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -77,8 +102,12 @@ cc_library(
         "//external:glog",
         "//external:json",
         "//curvefs/src/mds/common:fs_mds_common",
-        "//src/common:curve_common",
+        "//curvefs/src/mds/topology:curvefs_deal_peerid",
+        "//src/mds/topology:topology",
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/proto:space_cc_proto",
+        "//curvefs/proto:copyset_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
     ],
 )

@@ -16,55 +16,60 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-27
+ * Created Date: 2021-10-30
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+
+#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
+#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
 
 #include <brpc/channel.h>
-#include <brpc/server.h>
 #include <gflags/gflags.h>
 
-#include <cstdlib>  // std::system
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <sstream>
+#include <map>
+#include <queue>
+#include <set>
 #include <string>
-#include <thread>  //NOLINT
 #include <utility>
 #include <vector>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/mds/topology/deal_peerid.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/status/curvefs_copyset_status.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace query {
 
-class UmountfsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
-                                           curvefs::mds::UmountFsResponse,
-                                           curvefs::mds::MdsService_Stub> {
+using StatusType = curvefs::metaserver::copyset::CopysetStatusResponse;
+
+class CopysetQueryTool
+    : public CurvefsToolRpc<curvefs::mds::topology::GetCopysetsInfoRequest,
+                            curvefs::mds::topology::GetCopysetsInfoResponse,
+                            curvefs::mds::topology::TopologyService_Stub> {
  public:
-    explicit UmountfsTool(const std::string& cmd = kUmountCmd)
-        : CurvefsToolRpc(cmd) {}
+    explicit CopysetQueryTool(const std::string& cmd = kCopysetQueryCmd,
+                              bool show = true)
+        : CurvefsToolRpc(cmd) {
+        show_ = show;
+    }
     void PrintHelp() override;
-
-    int RunCommand() override;
     int Init() override;
-
-    void InitHostsAddr() override;
+    std::map<uint32_t, std::vector<StatusType>> GetId2Status();
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+    std::map<uint32_t, std::vector<StatusType>> id2Status_;
+    std::set<uint32_t> avaliableCopysetId;  // save  no error copysetId
 };
 
-}  // namespace umountfs
+}  // namespace query
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_

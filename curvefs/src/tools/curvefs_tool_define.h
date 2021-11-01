@@ -26,37 +26,85 @@
 #include <gflags/gflags.h>
 
 #include <functional>
+#include <sstream>
 #include <string>
+#include <vector>
 
+#include "curvefs/proto/copyset.pb.h"
+#include "curvefs/proto/heartbeat.pb.h"
 #include "src/common/configuration.h"
 
 namespace curvefs {
 namespace tools {
 
+/* command */
 // programe name
 const char kProgrameName[] = "curvefs-tool";
-
 // version
 const char kVersionCmd[] = "version";
-
 // build-topology
 const char kBuildTopologyCmd[] = "build-topology";
-
 // umount
-const char kUmountCmd[] = "umountfs";
+const char kUmountCmd[] = "umount-fs";
+// metadata-usage
+const char kMetedataUsageCmd[] = "usage-metadata";
+// mds-status
+const char kMdsStatusCmd[] = "status-mds";
+// metaserver-status
+const char kMetaserverStatusCmd[] = "status-metaserver";
+// etcd-status
+const char kEtcdStatusCmd[] = "status-etcd";
+// copysets-status
+// check the cluster of copysets status
+const char kCopysetsStatusCmd[] = "status-copysets";
+// copyset-query
+const char kCopysetQueryCmd[] = "query-copyset";
+// list-fs-partition
+const char kFsPartitionListCmd[] = "list-fs-partition";
+// fsinfo-list
+const char kFsInfoListCmd[] = "list-fs";
+// list-fs-copysetid
+const char kFsCopysetIdListCmd[] = "list-fs-copysetid";
+// no-invoke Used for commands that are not directly invoked
+const char kNoInvokeCmd[] = "no-invoke";
 
 // configure
 const char kConfPathHelp[] = "[-confPath=/etc/curvefs/tools.conf]";
-
 // kHelp
 const char kHelpStr[] =
-    "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
+    "Usage: curvefs_tool [Command] [OPTIONS...]\n"
     "COMMANDS:\n"  // NOLINT
     "version: show the version of cluster\n"
     "build-topology: build cluster topology based on topo.json\n"
-    "umountfs: umount curvefs from local and cluster"
+    "umount-fs: umount curvefs from local and cluster\n"
+    "usage-metadata: show the metadata usage of cluster\n"
+    "status-mds: show the status of mds\n"
+    "status-metaserver: show the status of metaserver\n"
+    "status-etcd: show the status of etcd\n"
+    "query-copyset: query copyset by copysetId\n"
+    "list-fs-partition: list partition in fs \n"
+    "list-fs: list all fs in cluster\n"
     "You can specify the config path by -confPath to avoid typing too many "
     "options\n";  // NOLINT
+
+/* Status Host Type */
+const char kHostTypeMds[] = "mds";
+const char kHostTypeMetaserver[] = "metaserver";
+const char kHostTypeEtcd[] = "etcd";
+
+/* Metric */
+const char kVersionUri[] = "/version";
+const char kStatusUri[] = "/vars/status";
+const char kMdsStatusUri[] = "/vars/curvefs_mds_status";
+const char kEtcdVersionUri[] = "/version";
+const char kEtcdStatusUri[] = "/v2/stats/self";
+const char kEtcdClusterVersionKey[] = "etcdcluster";
+const char kMdsStatusKey[] = "curvefs_mds_status";
+const char kEtcdStateKey[] = "state";
+const char kHostLeaderValue[] = "leader";
+const char kHostFollowerValue[] = "follower";
+const char kEtcdLeaderValue[] = "StateLeader";
+const char kEtcdFollowerValue[] = "StateFollower";
 
 }  // namespace tools
 }  // namespace curvefs
@@ -64,10 +112,9 @@ const char kHelpStr[] =
 namespace curvefs {
 namespace mds {
 namespace topology {
-// topology
+/* topology */
 const int kRetCodeCommonErr = -1;
 const int kRetCodeRedirectMds = -2;
-
 const char kPools[] = "pools";
 const char kPool[] = "pool";
 const char kServers[] = "servers";
@@ -81,6 +128,7 @@ const char kZone[] = "zone";
 const char kReplicasNum[] = "replicasnum";
 const char kCopysetNum[] = "copysetnum";
 const char kZoneNum[] = "zonenum";
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
@@ -93,9 +141,36 @@ void SetFlagInfo(curve::common::Configuration* conf,
                  google::CommandLineFlagInfo* info, const std::string& key,
                  FlagInfoT* flag);
 
+/* update flags */
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetMdsAddr;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRpcTimeoutMs;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRpcRetryTimes;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetMetaserverAddr;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetEtcdAddr;
+
+/* translate to string */
+std::string StrVec2Str(const std::vector<std::string>&);
+
+std::string HeartbeatCopysetInfo2Str(const mds::heartbeat::CopySetInfo&);
+
+std::string CommomPeer2Str(const common::Peer&);
+
+std::string CommomPartitionInfo2Str(const common::PartitionInfo&);
+
+std::string MetadataserverCopysetCopysetStatusResponse2Str(
+    const metaserver::copyset::CopysetStatusResponse&);
+
+std::string CopysetOpStatus2Str(const metaserver::copyset::COPYSET_OP_STATUS&);
 
 }  // namespace tools
 }  // namespace curvefs

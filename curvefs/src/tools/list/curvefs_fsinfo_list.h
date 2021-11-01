@@ -16,25 +16,17 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-27
+ * Created Date: 2021-10-31
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+
+#ifndef CURVEFS_SRC_TOOLS_LIST_CURVEFS_FSINFO_LIST_H_
+#define CURVEFS_SRC_TOOLS_LIST_CURVEFS_FSINFO_LIST_H_
 
 #include <brpc/channel.h>
-#include <brpc/server.h>
 #include <gflags/gflags.h>
 
-#include <cstdlib>  // std::system
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <thread>  //NOLINT
-#include <utility>
-#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
@@ -43,28 +35,27 @@
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace list {
 
-class UmountfsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
-                                           curvefs::mds::UmountFsResponse,
-                                           curvefs::mds::MdsService_Stub> {
+class FsInfoListTool
+    : public CurvefsToolRpc<curvefs::mds::ListClusterFsInfoRequest,
+                            curvefs::mds::ListClusterFsInfoResponse,
+                            curvefs::mds::MdsService_Stub> {
  public:
-    explicit UmountfsTool(const std::string& cmd = kUmountCmd)
-        : CurvefsToolRpc(cmd) {}
+    explicit FsInfoListTool(const std::string& cmd = kFsInfoListCmd,
+                            bool show = true)
+        : CurvefsToolRpc(cmd) {
+        show_ = show;
+    }
     void PrintHelp() override;
-
-    int RunCommand() override;
     int Init() override;
-
-    void InitHostsAddr() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
 };
-
-}  // namespace umountfs
+}  // namespace list
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_LIST_CURVEFS_FSINFO_LIST_H_

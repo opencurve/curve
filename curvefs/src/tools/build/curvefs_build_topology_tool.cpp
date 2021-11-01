@@ -20,11 +20,10 @@
  * Author: wanghai01
  */
 
-#include "curvefs/src/tools/topology/curvefs_build_topology_tool.h"
+#include "curvefs/src/tools/build/curvefs_build_topology_tool.h"
 
 DECLARE_string(mds_addr);
 DECLARE_string(cluster_map);
-DECLARE_uint32(rpcTimeOutMs);
 DECLARE_string(confPath);
 DECLARE_string(op);
 
@@ -42,8 +41,8 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
         LOG(INFO) << "conf: " << FLAGS_mds_addr;
     }
 
-    if (GetCommandLineFlagInfo("rpcTimeOutMs", &info) && info.is_default) {
-        conf->GetUInt32Value("rpcTimeoutMs", &FLAGS_rpcTimeOutMs);
+    if (GetCommandLineFlagInfo("rpcTimeoutMs", &info) && info.is_default) {
+        conf->GetUInt32Value("rpcTimeoutMs", &FLAGS_rpcTimeoutMs);
     }
 
     if (GetCommandLineFlagInfo("cluster_map", &info) && info.is_default) {
@@ -323,7 +322,7 @@ int CurvefsBuildTopologyTool::ListPool(std::list<PoolInfo>* poolInfos) {
     ListPoolRequest request;
     ListPoolResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "ListPool send request: " << request.DebugString();
@@ -355,7 +354,7 @@ int CurvefsBuildTopologyTool::GetZonesInPool(PoolIdType poolid,
     request.set_poolid(poolid);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "ListZoneInPool, send request: " << request.DebugString();
@@ -388,7 +387,7 @@ int CurvefsBuildTopologyTool::GetServersInZone(
     ListZoneServerResponse response;
     request.set_zoneid(zoneid);
     brpc::Controller cntl;
-    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "ListZoneServer, send request: " << request.DebugString();
@@ -429,7 +428,7 @@ int CurvefsBuildTopologyTool::CreatePool() {
         request.set_redundanceandplacementpolicy(rapString);
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "CreatePool, send request: " << request.DebugString();
@@ -468,7 +467,7 @@ int CurvefsBuildTopologyTool::CreateZone() {
         request.set_poolname(it.poolName);
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "CreateZone, send request: " << request.DebugString();
@@ -511,7 +510,7 @@ int CurvefsBuildTopologyTool::CreateServer() {
         request.set_poolname(it.poolName);
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "CreateServer, send request: " << request.DebugString();

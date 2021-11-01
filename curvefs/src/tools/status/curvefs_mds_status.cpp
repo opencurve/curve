@@ -16,39 +16,39 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-14
+ * Created Date: 2021-10-28
  * Author: chengyi01
  */
+#include "curvefs/src/tools/status/curvefs_mds_status.h"
 
-#ifndef CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-#define CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-
-#include <gflags/gflags.h>
-
-#include <iostream>
-#include <memory>
-#include <string>
-
-#include "curvefs/src/tools/curvefs_tool.h"
-#include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
-#include "curvefs/src/tools/curvefs_tool_define.h"
+DECLARE_string(mdsAddr);
 
 namespace curvefs {
 namespace tools {
-namespace version {
+namespace status {
 
-class VersionTool : public CurvefsTool {
- public:
-    explicit VersionTool(const std::string& command = kVersionCmd)
-        : CurvefsTool(command) {}
-    void PrintHelp() override;
+void MdsStatusTool::PrintHelp() {
+    StatusBaseTool::PrintHelp();
+    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
+    std::cout << std::endl;
+}
 
-    int RunCommand() override;
-    int Init() override;
-};
+int MdsStatusTool::Init() {
+    versionSubUri_ = kVersionUri;
+    StatusSubUri_ = kMdsStatusUri;
+    statusKey_ = kMdsStatusKey;
+    return StatusBaseTool::Init();
+}
 
-}  // namespace version
+void MdsStatusTool::InitHostsAddr() {
+    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
+}
+
+void MdsStatusTool::AddUpdateFlags() {
+    AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
+    StatusBaseTool::AddUpdateFlags();
+}
+
+}  // namespace status
 }  // namespace tools
 }  // namespace curvefs
-
-#endif  // CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
