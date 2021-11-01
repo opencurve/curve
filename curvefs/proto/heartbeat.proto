@@ -28,6 +28,19 @@ message CopySetInfo {
     required uint64 epoch = 4;
     required common.Peer leaderPeer = 5;
     repeated common.PartitionInfo partitionInfoList = 6;
+    optional ConfigChangeInfo configChangeInfo = 7;
+};
+
+message ConfigChangeInfo {
+    required common.Peer peer = 1;
+    required ConfigChangeType type = 2;
+    required bool finished = 3;
+    optional CandidateError err = 4;
+};
+
+message CandidateError {
+    required uint32 errType = 1;
+    required string errMsg = 2;
 };
 
 message MetaServerHeartbeatRequest {
@@ -44,6 +57,32 @@ message MetaServerHeartbeatRequest {
     required uint64 memoryUsed = 11;  // KB
 };
 
+enum ConfigChangeType {
+    TRANSFER_LEADER = 1;
+    ADD_PEER = 2;
+    REMOVE_PEER = 3;
+    NONE = 4;
+    CHANGE_PEER = 5;
+};
+
+message CopySetConf {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    repeated common.Peer peers = 3;
+    required uint64 epoch = 4;
+    optional ConfigChangeType type = 5;
+    // configchangeItem is the target node
+    // for TRANSFER_LEADER: the target peer;
+    // for ADD_PEER: the peer to add;
+    // for REMOVE_PEER: the peer to delete;
+    // for CHANGE_PEER: the peer to add;
+    optional common.Peer configchangeItem = 6;
+    // oldPeer, This will only be assigned when ConfigChangeType=CHANGE_PEER,
+    // Indicates the peer to be deleted.
+    // The metaserver receives CHANGE_PEER and put together a new conf based on peers, configchangeItem, and oldPeer
+    optional common.Peer oldPeer = 7;
+};
+
 enum HeartbeatStatusCode {
     hbOK = 0;
     hbMetaServerUnknown = 1;
@@ -54,6 +93,7 @@ enum HeartbeatStatusCode {
 
 message MetaServerHeartbeatResponse {
     required HeartbeatStatusCode statusCode = 1;
+    repeated CopySetConf needUpdateCopysets = 2;
 };
 
 service HeartbeatService {

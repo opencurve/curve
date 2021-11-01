@@ -23,16 +23,16 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
 
-#include <string>
-#include <vector>
 #include <memory>
 #include <set>
+#include <string>
+#include <vector>
 
-#include "curvefs/proto/topology.pb.h"
 #include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/mds.pb.h"
-#include "curvefs/src/mds/topology/topology.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/metaserverclient/metaserver_client.h"
+#include "curvefs/src/mds/topology/topology.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "src/common/timeutility.h"
@@ -50,7 +50,7 @@ using curvefs::mds::MetaserverClient;
 class TopologyManager {
  public:
     TopologyManager(const std::shared_ptr<Topology> &topology,
-        std::shared_ptr<MetaserverClient> metaserverClient)
+                    std::shared_ptr<MetaserverClient> metaserverClient)
         : topology_(topology), metaserverClient_(metaserverClient) {}
 
     virtual ~TopologyManager() {}
@@ -58,16 +58,16 @@ class TopologyManager {
     virtual void Init(const TopologyOption &option);
 
     virtual void RegistMetaServer(const MetaServerRegistRequest *request,
-                                   MetaServerRegistResponse *response);
+                                  MetaServerRegistResponse *response);
 
     virtual void ListMetaServer(const ListMetaServerRequest *request,
-                                 ListMetaServerResponse *response);
+                                ListMetaServerResponse *response);
 
     virtual void GetMetaServer(const GetMetaServerInfoRequest *request,
-                                GetMetaServerInfoResponse *response);
+                               GetMetaServerInfoResponse *response);
 
     virtual void DeleteMetaServer(const DeleteMetaServerRequest *request,
-                                   DeleteMetaServerResponse *response);
+                                  DeleteMetaServerResponse *response);
 
     virtual void RegistServer(const ServerRegistRequest *request,
                               ServerRegistResponse *response);
@@ -106,28 +106,32 @@ class TopologyManager {
                           ListPoolResponse *response);
 
     virtual void CreatePartitions(const CreatePartitionRequest *request,
-                        CreatePartitionResponse *response);
+                                  CreatePartitionResponse *response);
 
-    virtual TopoStatusCode CreatePartitionsAndGetMinPartition(FsIdType fsId,
-                        PartitionInfo *partition);
+    virtual TopoStatusCode CreatePartitionsAndGetMinPartition(
+        FsIdType fsId, PartitionInfo *partition);
 
     virtual void CommitTx(const CommitTxRequest *request,
-                        CommitTxResponse *response);
+                          CommitTxResponse *response);
 
     virtual void GetMetaServerListInCopysets(
-                  const GetMetaServerListInCopySetsRequest *request,
-                  GetMetaServerListInCopySetsResponse *response);
+        const GetMetaServerListInCopySetsRequest *request,
+        GetMetaServerListInCopySetsResponse *response);
 
     virtual void ListPartition(const ListPartitionRequest *request,
-                  ListPartitionResponse *response);
+                               ListPartitionResponse *response);
 
     virtual void GetCopysetOfPartition(
-                  const GetCopysetOfPartitionRequest *request,
-                  GetCopysetOfPartitionResponse *response);
+        const GetCopysetOfPartitionRequest *request,
+        GetCopysetOfPartitionResponse *response);
 
     virtual TopoStatusCode GetCopysetMembers(const PoolIdType poolId,
-                           const CopySetIdType copysetId,
-                           std::set<std::string> *addrs);
+                                             const CopySetIdType copysetId,
+                                             std::set<std::string> *addrs);
+
+    virtual bool CreateCopysetNodeOnMetaServer(PoolIdType poolId,
+                                               CopySetIdType copysetId,
+                                               MetaServerIdType metaServerId);
 
     virtual void GetCopysetsInfo(const GetCopysetsInfoRequest* request,
                                  GetCopysetsInfoResponse* response);

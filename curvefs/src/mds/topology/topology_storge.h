@@ -24,14 +24,14 @@
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_
 
 #include <list>
-#include <unordered_map>
-#include <string>
-#include <memory>
 #include <map>
+#include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "curvefs/src/mds/topology/topology_item.h"
 #include "curvefs/src/mds/topology/topology_config.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 
 namespace curvefs {
 namespace mds {
@@ -83,7 +83,6 @@ class TopologyStorage {
     virtual bool LoadClusterInfo(std::vector<ClusterInformation> *info) = 0;
     virtual bool StorageClusterInfo(const ClusterInformation &info) = 0;
 };
-
 
 }  // namespace topology
 }  // namespace mds

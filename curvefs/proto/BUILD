@@ -114,3 +114,14 @@ proto_library(
     srcs = ["heartbeat.proto"],
     deps = [":curvefs_common_proto"],
 )
+
+cc_proto_library(
+    name = "curvefs_schedule_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":curvefs_schedule_proto"],
+)
+
+proto_library(
+    name = "curvefs_schedule_proto",
+    srcs = ["schedule.proto"],
+)

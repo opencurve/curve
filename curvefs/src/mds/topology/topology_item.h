@@ -69,7 +69,7 @@ class Pool {
 
  public:
     Pool()
-        : id_(UNINTIALIZE_ID),
+        : id_(UNINITIALIZE_ID),
           name_(""),
           createTime_(0),
           avaliable_(true),
@@ -138,7 +138,7 @@ class Pool {
 
 class Zone {
  public:
-    Zone() : id_(UNINTIALIZE_ID), name_(""), poolId_(UNINTIALIZE_ID) {}
+    Zone() : id_(UNINITIALIZE_ID), name_(""), poolId_(UNINITIALIZE_ID) {}
     Zone(PoolIdType id, const std::string &name, PoolIdType poolId)
         : id_(id), name_(name), poolId_(poolId) {}
 
@@ -169,14 +169,14 @@ class Zone {
 class Server {
  public:
     Server()
-        : id_(UNINTIALIZE_ID),
+        : id_(UNINITIALIZE_ID),
           hostName_(""),
           internalHostIp_(""),
           internalPort_(0),
           externalHostIp_(""),
           externalPort_(0),
-          zoneId_(UNINTIALIZE_ID),
-          poolId_(UNINTIALIZE_ID) {}
+          zoneId_(UNINITIALIZE_ID),
+          poolId_(UNINITIALIZE_ID) {}
     Server(ServerIdType id, const std::string &hostName,
            const std::string &internalHostIp, uint32_t internalPort,
            const std::string &externalHostIp, uint32_t externalPort,
@@ -234,8 +234,10 @@ class Server {
 class MetaServerSpace {
  public:
     MetaServerSpace(uint64_t diskCapacity = 0, uint64_t diskUsed = 0,
-                    uint64_t memoryUsed = 0) : diskCapacity_(diskCapacity),
-                    diskUsed_(diskUsed), memoryUsed_(memoryUsed) {}
+                    uint64_t memoryUsed = 0)
+        : diskCapacity_(diskCapacity),
+          diskUsed_(diskUsed),
+          memoryUsed_(memoryUsed) {}
 
     void SetDiskCapacity(uint64_t capacity) { diskCapacity_ = capacity; }
     uint64_t GetDiskCapacity() const { return diskCapacity_; }
@@ -243,6 +245,7 @@ class MetaServerSpace {
     uint64_t GetDiskUsed() const { return diskUsed_; }
     void SetMemoryUsed(uint64_t memoryUsed) { memoryUsed_ = memoryUsed; }
     uint64_t GetMemoryUsed() const { return memoryUsed_; }
+
  private:
     uint64_t diskCapacity_;
     uint64_t diskUsed_;
@@ -252,10 +255,10 @@ class MetaServerSpace {
 class MetaServer {
  public:
     MetaServer()
-        : id_(UNINTIALIZE_ID),
+        : id_(UNINITIALIZE_ID),
           hostName_(""),
           token_(""),
-          serverId_(UNINTIALIZE_ID),
+          serverId_(UNINITIALIZE_ID),
           internalHostIp_(""),
           internalPort_(0),
           externalHostIp_(""),
@@ -390,20 +393,24 @@ struct CopysetIdInfo {
 class CopySetInfo {
  public:
     CopySetInfo()
-        : poolId_(UNINTIALIZE_ID),
-          copySetId_(UNINTIALIZE_ID),
-          leader_(UNINTIALIZE_ID),
+        : poolId_(UNINITIALIZE_ID),
+          copySetId_(UNINITIALIZE_ID),
+          leader_(UNINITIALIZE_ID),
           epoch_(0),
           partitionNum_(0),
+          hasCandidate_(false),
+          candidate_(UNINITIALIZE_ID),
           dirty_(false),
           available_(true) {}
 
     CopySetInfo(PoolIdType poolId, CopySetIdType id)
         : poolId_(poolId),
           copySetId_(id),
-          leader_(UNINTIALIZE_ID),
+          leader_(UNINITIALIZE_ID),
           epoch_(0),
           partitionNum_(0),
+          hasCandidate_(false),
+          candidate_(UNINITIALIZE_ID),
           dirty_(false),
           available_(true) {}
 
@@ -414,6 +421,8 @@ class CopySetInfo {
           epoch_(v.epoch_),
           peers_(v.peers_),
           partitionNum_(v.partitionNum_),
+          hasCandidate_(v.hasCandidate_),
+          candidate_(v.candidate_),
           dirty_(v.dirty_),
           available_(v.available_) {}
 
@@ -427,12 +436,18 @@ class CopySetInfo {
         epoch_ = v.epoch_;
         peers_ = v.peers_;
         partitionNum_ = v.partitionNum_;
+        hasCandidate_ = v.hasCandidate_;
+        candidate_ = v.candidate_;
         dirty_ = v.dirty_;
         available_ = v.available_;
         return *this;
     }
 
+    void SetPoolId(PoolIdType poolId) { poolId_ = poolId; }
+
     PoolIdType GetPoolId() const { return poolId_; }
+
+    void SetCopySetId(CopySetIdType copySetId) { copySetId_ = copySetId; }
 
     CopySetIdType GetId() const { return copySetId_; }
 
@@ -468,6 +483,23 @@ class CopySetInfo {
 
     void ReducePartitionNum() { partitionNum_ -= 1; }
 
+    bool HasCandidate() const { return hasCandidate_; }
+
+    void SetCandidate(MetaServerIdType id) {
+        hasCandidate_ = true;
+        candidate_ = id;
+    }
+
+    MetaServerIdType GetCandidate() const {
+        if (hasCandidate_) {
+            return candidate_;
+        } else {
+            return UNINITIALIZE_ID;
+        }
+    }
+
+    void ClearCandidate() { hasCandidate_ = false; }
+
     bool GetDirtyFlag() const { return dirty_; }
 
     void SetDirtyFlag(bool dirty) { dirty_ = dirty; }
@@ -499,6 +531,8 @@ class CopySetInfo {
     // TODO(chengyi01): replace it whith partitionIds.size()
     uint64_t partitionNum_;
     std::set<PartitionIdType> partitionIds_;
+    bool hasCandidate_;
+    MetaServerIdType candidate_;
 
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly
@@ -527,16 +561,16 @@ struct PartitionStatistic {
 class Partition {
  public:
     Partition()
-        : fsId_(UNINTIALIZE_ID),
-          poolId_(UNINTIALIZE_ID),
-          copySetId_(UNINTIALIZE_ID),
-          partitionId_(UNINTIALIZE_ID),
+        : fsId_(UNINITIALIZE_ID),
+          poolId_(UNINITIALIZE_ID),
+          copySetId_(UNINITIALIZE_ID),
+          partitionId_(UNINITIALIZE_ID),
           idStart_(0),
           idEnd_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
-          inodeNum_(UNINTIALIZE_COUNT),
-          dentryNum_(UNINTIALIZE_COUNT) {}
+          inodeNum_(UNINITIALIZE_COUNT),
+          dentryNum_(UNINITIALIZE_COUNT) {}
 
     Partition(FsIdType fsId, PoolIdType poolId, CopySetIdType copySetId,
               PartitionIdType partitionId, uint64_t idStart, uint64_t idEnd)
@@ -548,8 +582,8 @@ class Partition {
           idEnd_(idEnd),
           txId_(0),
           status_(PartitionStatus::READWRITE),
-          inodeNum_(UNINTIALIZE_COUNT),
-          dentryNum_(UNINTIALIZE_COUNT) {}
+          inodeNum_(UNINITIALIZE_COUNT),
+          dentryNum_(UNINITIALIZE_COUNT) {}
 
     Partition(const Partition &v)
         : fsId_(v.fsId_),
@@ -589,8 +623,8 @@ class Partition {
         idEnd_ = v.end();
         txId_ = v.txid();
         status_ = v.status();
-        inodeNum_ = v.has_inodenum() ? v.inodenum() : UNINTIALIZE_COUNT;
-        dentryNum_ = v.has_dentrynum() ? v.dentrynum() : UNINTIALIZE_COUNT;
+        inodeNum_ = v.has_inodenum() ? v.inodenum() : UNINITIALIZE_COUNT;
+        dentryNum_ = v.has_dentrynum() ? v.dentrynum() : UNINITIALIZE_COUNT;
     }
 
     explicit operator common::PartitionInfo() const {

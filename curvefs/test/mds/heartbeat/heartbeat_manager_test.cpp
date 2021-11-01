@@ -28,6 +28,7 @@
 
 #include "curvefs/src/mds/heartbeat/metaserver_healthy_checker.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
+#include "curvefs/test/mds/mock/mock_coordinator.h"
 #include "src/common/timeutility.h"
 
 using ::curvefs::mds::topology::MockIdGenerator;
@@ -55,8 +56,9 @@ class TestHeartbeatManager : public ::testing::Test {
         option.offLineTimeOutMs = 30000;
         topology_ = std::make_shared<MockTopology>(idGenerator_,
                                                    tokenGenerator_, storage_);
+        coordinator_ = std::make_shared<MockCoordinator>();
         heartbeatManager_ =
-            std::make_shared<HeartbeatManager>(option, topology_);
+            std::make_shared<HeartbeatManager>(option, topology_, coordinator_);
     }
 
     void TearDown() override {}
@@ -67,6 +69,7 @@ class TestHeartbeatManager : public ::testing::Test {
     std::shared_ptr<MockStorage> storage_;
     std::shared_ptr<MockTopology> topology_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
+    std::shared_ptr<Coordinator> coordinator_;
 };
 
 MetaServerHeartbeatRequest GetMetaServerHeartbeatRequestForTest() {
@@ -347,7 +350,9 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
         .WillOnce(DoAll(SetArgPointee<2>(metaServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(metaServer3), Return(true)));
-    EXPECT_CALL(*topology_, GetCopySet(_, _)).WillOnce(Return(false));
+    EXPECT_CALL(*topology_, GetCopySet(_, _)).WillOnce(Return(false))
+        .WillOnce(Return(false));
+
     heartbeatManager_->MetaServerHeartbeat(request, &response);
     ASSERT_EQ(HeartbeatStatusCode::hbOK, response.statuscode());
 }
@@ -436,6 +441,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_LargerThan_mdsRecord_UpdateSuccess) {
     recordCopySetInfo.SetEpoch(1);
     recordCopySetInfo.SetLeader(2);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)));
 
     EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
@@ -485,6 +491,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_LargerThan_mdsRecord_UpdateFail) {
     recordCopySetInfo.SetEpoch(1);
     recordCopySetInfo.SetLeader(2);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)));
 
     EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
@@ -534,6 +541,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_EqualTo_mdsRecord) {
     recordCopySetInfo.SetEpoch(2);
     recordCopySetInfo.SetLeader(2);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)));
 
     heartbeatManager_->MetaServerHeartbeat(request, &response);
@@ -580,6 +588,7 @@ TEST_F(TestHeartbeatManager, test_reqEpoch_SmallThan_mdsRecord) {
     recordCopySetInfo.SetEpoch(100);
     recordCopySetInfo.SetLeader(2);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)));
 
     heartbeatManager_->MetaServerHeartbeat(request, &response);
@@ -636,6 +645,7 @@ TEST_F(TestHeartbeatManager, test_update_partition) {
     recordCopySetInfo.SetEpoch(1);
     recordCopySetInfo.SetLeader(2);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(recordCopySetInfo), Return(true)));
 
     EXPECT_CALL(*topology_, UpdateCopySetTopo(_))

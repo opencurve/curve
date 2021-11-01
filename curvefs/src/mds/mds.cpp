@@ -67,6 +67,7 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     InitSpaceOption(&options_.spaceOptions);
     InitMetaServerOption(&options_.metaserverOptions);
     InitTopologyOption(&options_.topologyOptions);
+    InitScheduleOption(&options_.scheduleOption);
 }
 
 void MDS::InitSpaceOption(SpaceOptions* spaceOption) {
@@ -103,6 +104,27 @@ void MDS::InitTopologyOption(TopologyOption* topologyOption) {
                                &topologyOption->UpdateMetricIntervalSec);
 }
 
+void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
+    conf_->GetValueFatalIfFail("mds.enable.recover.scheduler",
+                               &scheduleOption->enableRecoverScheduler);
+
+    conf_->GetValueFatalIfFail("mds.recover.scheduler.intervalSec",
+                               &scheduleOption->recoverSchedulerIntervalSec);
+
+    conf_->GetValueFatalIfFail("mds.schduler.operator.concurrent",
+                               &scheduleOption->operatorConcurrent);
+    conf_->GetValueFatalIfFail("mds.schduler.transfer.limitSec",
+                               &scheduleOption->transferLeaderTimeLimitSec);
+    conf_->GetValueFatalIfFail("mds.scheduler.add.limitSec",
+                               &scheduleOption->addPeerTimeLimitSec);
+    conf_->GetValueFatalIfFail("mds.scheduler.remove.limitSec",
+                               &scheduleOption->removePeerTimeLimitSec);
+    conf_->GetValueFatalIfFail("mds.scheduler.change.limitSec",
+                               &scheduleOption->changePeerTimeLimitSec);
+    conf_->GetValueFatalIfFail("mds.scheduler.metaserver.cooling.timeSec",
+                               &scheduleOption->metaserverCoolingTimeSec);
+}
+
 void MDS::Init() {
     LOG(INFO) << "Init MDS start";
 
@@ -117,6 +139,7 @@ void MDS::Init() {
     InitTopology(options_.topologyOptions);
     InitTopologyMetricService(options_.topologyOptions);
     InitTopologyManager(options_.topologyOptions);
+    InitCoordinator();
     InitHeartbeatManager();
 
     fsManager_ = std::make_shared<FsManager>(
@@ -158,6 +181,14 @@ void MDS::InitTopologyMetricService(const TopologyOption& option) {
     LOG(INFO) << "init topologyMetricService success.";
 }
 
+void MDS::InitCoordinator() {
+    auto scheduleMetrics = std::make_shared<ScheduleMetrics>(topology_);
+    auto topoAdapter =
+        std::make_shared<TopoAdapterImpl>(topology_, topologyManager_);
+    coordinator_ = std::make_shared<Coordinator>(topoAdapter);
+    coordinator_->InitScheduler(options_.scheduleOption, scheduleMetrics);
+}
+
 void MDS::Run() {
     LOG(INFO) << "Run MDS";
     if (!inited_) {
@@ -167,6 +198,7 @@ void MDS::Run() {
 
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
     topologyMetricService_->Run();
+    coordinator_->Run();
     heartbeatManager_->Run();
 
     brpc::Server server;
@@ -206,6 +238,7 @@ void MDS::Stop() {
     }
     brpc::AskToQuit();
     heartbeatManager_->Stop();
+    coordinator_->Stop();
     topologyMetricService_->Stop();
     topology_->Stop();
     fsManager_->Uninit();
@@ -317,6 +350,8 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
                                &heartbeatOption->heartbeatMissTimeOutMs);
     conf_->GetValueFatalIfFail("mds.heartbeat.offlinetimeoutMs",
                                &heartbeatOption->offLineTimeOutMs);
+    conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
+                               &heartbeatOption->cleanFollowerAfterMs);
 }
 
 void MDS::InitHeartbeatManager() {
@@ -324,8 +359,9 @@ void MDS::InitHeartbeatManager() {
     HeartbeatOption heartbeatOption;
     InitHeartbeatOption(&heartbeatOption);
 
-    heartbeatManager_ =
-        std::make_shared<HeartbeatManager>(heartbeatOption, topology_);
+    heartbeatOption.mdsStartTime = steady_clock::now();
+    heartbeatManager_ = std::make_shared<HeartbeatManager>(
+        heartbeatOption, topology_, coordinator_);
     heartbeatManager_->Init();
 }
 

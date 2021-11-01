@@ -332,7 +332,7 @@ bool TopologyStorageEtcd::StorageCopySet(const CopySetInfo &data) {
     bool ret = codec_->EncodeCopySetData(data, &value);
     if (!ret) {
         LOG(ERROR) << "EncodeCopySetData err"
-                   << ", logicalPoolId = " << data.GetPoolId()
+                   << ", poolId = " << data.GetPoolId()
                    << ", copysetId = " << data.GetId();
         return false;
     }
@@ -340,7 +340,7 @@ bool TopologyStorageEtcd::StorageCopySet(const CopySetInfo &data) {
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "Put Copyset into etcd err"
                    << ", errcode = " << errCode
-                   << ", logicalPoolId = " << data.GetPoolId()
+                   << ", poolId = " << data.GetPoolId()
                    << ", copysetId = " << data.GetId();
         return false;
     }
@@ -420,7 +420,7 @@ bool TopologyStorageEtcd::DeleteCopySet(CopySetKey key) {
     if (errCode != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "delete Copyset from etcd err"
                    << ", errcode = " << errCode
-                   << ", logicalPoolId = " << key.first
+                   << ", poolId = " << key.first
                    << ", copysetId = " << key.second;
         return false;
     }

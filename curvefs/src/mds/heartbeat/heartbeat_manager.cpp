@@ -32,7 +32,7 @@ using ::curvefs::mds::topology::MetaServer;
 using ::curvefs::mds::topology::CopySetKey;
 using ::curvefs::mds::topology::PoolIdType;
 using ::curvefs::mds::topology::CopySetIdType;
-using ::curvefs::mds::topology::UNINTIALIZE_ID;
+using ::curvefs::mds::topology::UNINITIALIZE_ID;
 using ::curvefs::mds::topology::SplitPeerId;
 using ::curvefs::mds::topology::TopoStatusCode;
 using ::curvefs::mds::topology::MetaServerSpace;
@@ -40,13 +40,18 @@ using ::curvefs::mds::topology::MetaServerSpace;
 namespace curvefs {
 namespace mds {
 namespace heartbeat {
-HeartbeatManager::HeartbeatManager(const HeartbeatOption &option,
-                                   const std::shared_ptr<Topology> &topology)
+HeartbeatManager::HeartbeatManager(
+    const HeartbeatOption &option, const std::shared_ptr<Topology> &topology,
+    const std::shared_ptr<Coordinator> &coordinator)
     : topology_(topology) {
     healthyChecker_ =
         std::make_shared<MetaserverHealthyChecker>(option, topology);
 
     topoUpdater_ = std::make_shared<TopoUpdater>(topology);
+
+    copysetConfGenerator_ = std::make_shared<CopysetConfGenerator>(
+        topology, coordinator, option.mdsStartTime,
+        option.cleanFollowerAfterMs);
 
     isStop_ = true;
     metaserverHealthyCheckerRunInter_ = option.heartbeatMissTimeOutMs;
@@ -138,6 +143,16 @@ void HeartbeatManager::MetaServerHeartbeat(
             continue;
         }
 
+        // forward reported copyset info to CopysetConfGenerator
+        CopySetConf conf;
+        ConfigChangeInfo configChInfo;
+        if (copysetConfGenerator_->GenCopysetConf(
+                request.metaserverid(), reportCopySetInfo,
+                value.configchangeinfo(), &conf)) {
+            CopySetConf *res = response->add_needupdatecopysets();
+            *res = conf;
+        }
+
         // convert partitionInfo from heartbeat format to topology format
         std::list<::curvefs::mds::topology::Partition> topoPartitionList;
         for (int32_t i = 0; i < value.partitioninfolist_size(); i++) {
@@ -200,10 +215,10 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
 
     // set peers
     std::set<MetaServerIdType> peers;
-    MetaServerIdType leader = UNINTIALIZE_ID;
+    MetaServerIdType leader = UNINITIALIZE_ID;
     for (const auto& value : info.peers()) {
         MetaServerIdType res = GetMetaserverIdByPeerStr(value.address());
-        if (UNINTIALIZE_ID == res) {
+        if (UNINITIALIZE_ID == res) {
             LOG(ERROR) << "heartbeat manager can not get metaServerInfo"
                           " according to report ipPort: "
                        << value.address();
@@ -217,7 +232,7 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
     }
     topoCopysetInfo.SetCopySetMembers(peers);
 
-    if (leader == UNINTIALIZE_ID) {
+    if (leader == UNINITIALIZE_ID) {
         LOG(WARNING) << "leader not found, poolid: " << info.poolid()
                      << ", copysetid: " << info.copysetid();
     }
@@ -248,7 +263,7 @@ MetaServerIdType HeartbeatManager::GetMetaserverIdByPeerStr(
 
     LOG(ERROR) << "heartbeatManager can not get metaServer ip: " << ip
                << ", port: " << port << " from topology";
-    return UNINTIALIZE_ID;
+    return UNINITIALIZE_ID;
 }
 }  // namespace heartbeat
 }  // namespace mds

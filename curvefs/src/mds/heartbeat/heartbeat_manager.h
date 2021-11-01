@@ -31,8 +31,10 @@
 
 #include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/heartbeat/copyset_conf_generator.h"
 #include "curvefs/src/mds/heartbeat/metaserver_healthy_checker.h"
 #include "curvefs/src/mds/heartbeat/topo_updater.h"
+#include "curvefs/src/mds/schedule/coordinator.h"
 #include "curvefs/src/mds/topology/topology.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
@@ -40,6 +42,7 @@
 using ::curvefs::mds::topology::PoolIdType;
 using ::curvefs::mds::topology::CopySetIdType;
 using ::curvefs::mds::topology::Topology;
+using ::curvefs::mds::schedule::Coordinator;
 
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
@@ -61,7 +64,8 @@ namespace heartbeat {
 class HeartbeatManager {
  public:
     HeartbeatManager(const HeartbeatOption &option,
-                     const std::shared_ptr<Topology> &topology);
+                     const std::shared_ptr<Topology> &topology,
+                     const std::shared_ptr<Coordinator> &coordinator);
 
     ~HeartbeatManager() { Stop(); }
 
@@ -139,12 +143,15 @@ class HeartbeatManager {
  private:
     // Dependencies of heartbeat
     std::shared_ptr<Topology> topology_;
+    std::shared_ptr<Coordinator> coordinator_;
 
     // healthyChecker_ health checker running in background thread
     std::shared_ptr<MetaserverHealthyChecker> healthyChecker_;
 
     // topoUpdater_ update epoch, copyset relationship of topology
     std::shared_ptr<TopoUpdater> topoUpdater_;
+
+    std::shared_ptr<CopysetConfGenerator> copysetConfGenerator_;
 
     // Manage metaserverHealthyChecker threads
     Thread backEndThread_;

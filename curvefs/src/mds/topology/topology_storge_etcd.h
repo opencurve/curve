@@ -23,13 +23,13 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_ETCD_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_ETCD_H_
 
-#include <vector>
 #include <map>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
-#include "curvefs/src/mds/topology/topology_storge.h"
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
+#include "curvefs/src/mds/topology/topology_storge.h"
 #include "src/kvstorageclient/etcd_client.h"
 
 namespace curvefs {
@@ -43,7 +43,7 @@ class TopologyStorageEtcd : public TopologyStorage {
  public:
     TopologyStorageEtcd(std::shared_ptr<KVStorageClient> client,
                         std::shared_ptr<TopologyStorageCodec> codec)
-                        : client_(client), codec_(codec) {}
+        : client_(client), codec_(codec) {}
 
     bool LoadPool(std::unordered_map<PoolIdType, Pool> *poolMap,
                   PoolIdType *maxPoolId) override;
@@ -54,7 +54,8 @@ class TopologyStorageEtcd : public TopologyStorage {
     bool LoadMetaServer(
         std::unordered_map<MetaServerIdType, MetaServer> *metaServerMap,
         MetaServerIdType *maxMetaServerId) override;
-    bool LoadCopySet(std::map<CopySetKey, CopySetInfo> *copySetMap,
+    bool LoadCopySet(
+        std::map<CopySetKey, CopySetInfo> *copySetMap,
         std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) override;
     bool LoadPartition(
         std::unordered_map<PartitionIdType, Partition> *partitionMap,

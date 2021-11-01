@@ -28,18 +28,19 @@
 #include <memory>
 #include <string>
 
+#include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/src/mds/chunkid_allocator.h"
 #include "curvefs/src/mds/fs_manager.h"
+#include "curvefs/src/mds/heartbeat/heartbeat_service.h"
+#include "curvefs/src/mds/schedule/coordinator.h"
+#include "curvefs/src/mds/topology/topology.h"
+#include "curvefs/src/mds/topology/topology_config.h"
+#include "curvefs/src/mds/topology/topology_metric.h"
+#include "curvefs/src/mds/topology/topology_service.h"
+#include "curvefs/src/mds/topology/topology_storge_etcd.h"
 #include "src/common/configuration.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/leader_election/leader_election.h"
-#include "curvefs/src/mds/topology/topology_config.h"
-#include "curvefs/src/mds/topology/topology.h"
-#include "curvefs/src/mds/topology/topology_service.h"
-#include "curvefs/src/mds/topology/topology_storge_etcd.h"
-#include "curvefs/src/mds/topology/topology_metric.h"
-#include "curvefs/src/mds/heartbeat/heartbeat_service.h"
-#include "curvefs/proto/heartbeat.pb.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::TopologyOption;
@@ -54,6 +55,10 @@ using ::curvefs::mds::topology::TopologyMetricService;
 using ::curvefs::mds::heartbeat::HeartbeatServiceImpl;
 using ::curvefs::mds::heartbeat::HeartbeatOption;
 using ::curve::kvstorage::EtcdClientImp;
+using ::curvefs::mds::schedule::Coordinator;
+using ::curvefs::mds::schedule::ScheduleOption;
+using ::curvefs::mds::schedule::ScheduleMetrics;
+using ::curvefs::mds::schedule::TopoAdapterImpl;
 
 namespace curvefs {
 namespace mds {
@@ -74,6 +79,7 @@ struct MDSOptions {
 
     TopologyOption topologyOptions;
     HeartbeatOption heartbeatOption;
+    ScheduleOption scheduleOption;
 };
 
 class MDS {
@@ -104,19 +110,22 @@ class MDS {
     void InitLeaderElection(const LeaderElectionOptions& option);
 
     void InitHeartbeatOption(HeartbeatOption* heartbeatOption);
+    void InitScheduleOption(ScheduleOption* scheduleOption);
 
  private:
-    void InitSpaceOption(SpaceOptions *spaceOption);
-    void InitMetaServerOption(MetaserverOptions *metaserverOption);
-    void InitTopologyOption(TopologyOption *topologyOption);
+    void InitSpaceOption(SpaceOptions* spaceOption);
+    void InitMetaServerOption(MetaserverOptions* metaserverOption);
+    void InitTopologyOption(TopologyOption* topologyOption);
 
-    void InitTopology(const TopologyOption &option);
+    void InitTopology(const TopologyOption& option);
 
-    void InitTopologyManager(const TopologyOption &option);
+    void InitTopologyManager(const TopologyOption& option);
 
     void InitTopologyMetricService(const TopologyOption& option);
 
     void InitHeartbeatManager();
+
+    void InitCoordinator();
 
  private:
     // mds configuration items
@@ -132,6 +141,7 @@ class MDS {
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
     std::shared_ptr<TopologyImpl> topology_;
     std::shared_ptr<TopologyManager> topologyManager_;
+    std::shared_ptr<Coordinator> coordinator_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     std::shared_ptr<TopologyMetricService> topologyMetricService_;
     MDSOptions options_;
