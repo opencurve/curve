@@ -80,7 +80,16 @@ message CopysetStatusResponse {
     optional CopysetStatus copysetStatus = 2;
 };
 
+message CopysetsStatusRequest {
+    repeated CopysetStatusRequest copysets = 1;
+}
+
+message CopysetsStatusResponse {
+    repeated CopysetStatusResponse status = 1;
+}
+
 service CopysetService {
     rpc CreateCopysetNode(CreateCopysetRequest) returns (CreateCopysetResponse);
     rpc GetCopysetStatus(CopysetStatusRequest) returns (CopysetStatusResponse);
+    rpc GetCopysetsStatus(CopysetsStatusRequest) returns (CopysetsStatusResponse);
 }

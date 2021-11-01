@@ -16,39 +16,24 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-14
+ * Created Date: 2021-10-22
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-#define CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
+#define CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
 
-#include <gflags/gflags.h>
-
-#include <iostream>
-#include <memory>
+#include <sstream>
 #include <string>
-
-#include "curvefs/src/tools/curvefs_tool.h"
-#include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
-#include "curvefs/src/tools/curvefs_tool_define.h"
 
 namespace curvefs {
 namespace tools {
-namespace version {
+namespace space {
 
-class VersionTool : public CurvefsTool {
- public:
-    explicit VersionTool(const std::string& command = kVersionCmd)
-        : CurvefsTool(command) {}
-    void PrintHelp() override;
+std::string ToReadableByte(uint64_t byte);
 
-    int RunCommand() override;
-    int Init() override;
-};
-
-}  // namespace version
+}  // namespace space
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_

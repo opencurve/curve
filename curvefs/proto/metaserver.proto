@@ -292,7 +292,15 @@ message MetaServerMetadata {
     required uint32 id = 2;
     required string token = 3;
     // required uint32 checksum = 4;
-};
+}
+
+message GetAllCopysetsIdRequest {
+}
+
+message GetAllCopysetsIdResponse {
+    required MetaStatusCode statusCode = 1;
+    repeated uint32 copysetsId = 2;
+}
 
 service MetaServerService {
     // dentry interface
@@ -313,4 +321,7 @@ service MetaServerService {
     // partition interface
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
     rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
+
+    // get all copysets id
+    rpc GetAllCopysetId(GetAllCopysetsIdRequest) returns (GetAllCopysetsIdResponse);
 }

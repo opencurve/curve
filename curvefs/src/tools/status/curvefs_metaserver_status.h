@@ -16,39 +16,39 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-14
+ * Created Date: 2021-10-29
  * Author: chengyi01
  */
+#ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_METASERVER_STATUS_H_
+#define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_METASERVER_STATUS_H_
 
-#ifndef CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-#define CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-
-#include <gflags/gflags.h>
-
-#include <iostream>
-#include <memory>
 #include <string>
+#include <vector>
 
-#include "curvefs/src/tools/curvefs_tool.h"
-#include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/status/curvefs_status_base_tool.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace version {
+namespace status {
 
-class VersionTool : public CurvefsTool {
+class MetaserverStatusTool : public StatusBaseTool {
  public:
-    explicit VersionTool(const std::string& command = kVersionCmd)
-        : CurvefsTool(command) {}
+    explicit MetaserverStatusTool(
+        const std::string& cmd = kMetaserverStatusCmd,
+        const std::string& hostType = kHostTypeMetaserver)
+        : StatusBaseTool(cmd, hostType) {}
     void PrintHelp() override;
+    void InitHostsAddr() override;
 
-    int RunCommand() override;
-    int Init() override;
+ protected:
+    void AddUpdateFlags() override;
+    int ProcessMetrics() override;
 };
 
-}  // namespace version
+}  // namespace status
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_METASERVER_STATUS_H_

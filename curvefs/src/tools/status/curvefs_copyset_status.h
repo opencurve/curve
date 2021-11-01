@@ -16,55 +16,50 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-27
+ * Created Date: 2021-10-31
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+
+#ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
+#define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
 
 #include <brpc/channel.h>
-#include <brpc/server.h>
-#include <gflags/gflags.h>
 
-#include <cstdlib>  // std::system
-#include <functional>
-#include <iostream>
 #include <memory>
-#include <sstream>
 #include <string>
-#include <thread>  //NOLINT
-#include <utility>
-#include <vector>
 
-#include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/copyset.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/list/curvefs_fs_partition_list.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace status {
 
-class UmountfsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
-                                           curvefs::mds::UmountFsResponse,
-                                           curvefs::mds::MdsService_Stub> {
+class CopysetStatusTool
+    : public CurvefsToolRpc<
+          curvefs::metaserver::copyset::CopysetsStatusRequest,
+          curvefs::metaserver::copyset::CopysetsStatusResponse,
+          curvefs::metaserver::copyset::CopysetService_Stub> {
  public:
-    explicit UmountfsTool(const std::string& cmd = kUmountCmd)
-        : CurvefsToolRpc(cmd) {}
-    void PrintHelp() override;
+    explicit CopysetStatusTool(const std::string& cmd = kNoInvokeCmd,
+                               bool show = false)
+        : CurvefsToolRpc(cmd) {
+        show_ = show;
+    }
 
-    int RunCommand() override;
+    int RunCommand();
     int Init() override;
-
-    void InitHostsAddr() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
 };
 
-}  // namespace umountfs
+}  // namespace status
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
