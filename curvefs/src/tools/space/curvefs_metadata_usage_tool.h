@@ -16,54 +16,55 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-27
+ * Created Date: 2021-10-22
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
 
-#include <brpc/channel.h>
-#include <brpc/server.h>
-#include <gflags/gflags.h>
+#ifndef CURVEFS_SRC_TOOLS_SPACE_CURVEFS_METADATA_USAGE_TOOL_H_
+#define CURVEFS_SRC_TOOLS_SPACE_CURVEFS_METADATA_USAGE_TOOL_H_
 
-#include <cstdlib>  // std::system
 #include <functional>
 #include <iostream>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <thread>  //NOLINT
-#include <utility>
 #include <vector>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/space.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/space/curvefs_space_base_tool.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace space {
 
-class UmountfsTool
-    : public CurvefsToolRpc<
-          brpc::Channel, brpc::Controller, curvefs::mds::UmountFsRequest,
-          curvefs::mds::UmountFsResponse, curvefs::mds::MdsService_Stub> {
+/**
+ * @brief  this class is used to query the metadata usage of cluster
+ *
+ * @details
+ */
+class MatedataUsageTool
+    : public CurvefsToolRpc<brpc::Channel, brpc::Controller,
+                            curvefs::mds::StatMetadataUsageRequest,
+                            curvefs::mds::StatMetadataUsageResponse,
+                            curvefs::mds::MdsService_Stub> {
  public:
-    UmountfsTool()
-        : CurvefsToolRpc(std::string(kUmountCmd), std::string(kProgrameName)) {}
+    MatedataUsageTool()
+        : CurvefsToolRpc(std::string(kMetedataUsageCmd),
+                         std::string(kProgrameName)) {}
     void PrintHelp() override;
-
-    int RunCommand() override;
-    int Init() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+
+ private:
+    int Init() override;
 };
 
-}  // namespace umountfs
+}  // namespace space
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_SPACE_CURVEFS_METADATA_USAGE_TOOL_H_
