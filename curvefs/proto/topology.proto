@@ -381,12 +381,25 @@ message CommitTxResponse {
 }
 
 message GetCopysetInfoRequest {
-    required uint32 copysetId = 1;
+    repeated uint32 copysetId = 1;
 }
 
 message GetCopysetInfoResponse {
     required TopoStatusCode statusCode = 1;
-    required curvefs.mds.heartbeat.CopySetInfo copysetInfo = 2;
+    repeated curvefs.mds.heartbeat.CopySetInfo copysetInfo = 2;
+}
+
+message ListPartitionsRequest {
+    repeated uint32 fsId = 1;
+}
+
+message PartitionInfoList {
+    repeated common.PartitionInfo partitionInfoList = 1;
+}
+
+message ListPartitionsResponse {
+    required TopoStatusCode statusCode = 1;
+    map<uint32, PartitionInfoList> fsId2partitionList = 2;
 }
 
 service TopologyService {
@@ -417,4 +430,5 @@ service TopologyService {
     rpc GetCopysetOfPartition(GetCopysetOfPartitionRequest) returns (GetCopysetOfPartitionResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
     rpc GetCopysetInfo (GetCopysetInfoRequest) returns (GetCopysetInfoResponse);
+    rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
 }
