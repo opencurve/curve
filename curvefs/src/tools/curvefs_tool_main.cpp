@@ -41,6 +41,7 @@ DECLARE_int32(health_check_interval);
 int main(int argc, char** argv) {
     google::SetUsageMessage(curvefs::tools::kHelpStr);
     google::ParseCommandLineFlags(&argc, &argv, true);
+    google::InitGoogleLogging(argv[0]);
 
     if (argc < 2) {
         std::cout << curvefs::tools::kHelpStr << std::endl;

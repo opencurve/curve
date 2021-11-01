@@ -26,15 +26,15 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+<<<<<<< HEAD
 #include "curvefs/src/tools/space/space_base_tool.h"
-#include "src/common/string_util.h"
-
-namespace curvefs {
+=======
 namespace tools {
 namespace space {
 
@@ -55,8 +55,13 @@ class MatedataUsageTool
     void PrintHelp() override;
 
  protected:
+<<<<<<< HEAD
     void AddUpdateFlagsFuncs() override;
     bool AfterSendRequestToService(const std::string& host) override;
+=======
+    void AddUpdateFlags() override;
+    bool AfterSendRequestToHost(const std::string& host) override;
+>>>>>>> dcb6dde5
 
  private:
     int Init() override;

@@ -46,7 +46,6 @@ cc_binary(
     ],
 )
 
-
 # tools lib
 cc_library(
     name = "curvefs_tools_lib",
@@ -54,24 +53,42 @@ cc_library(
         "curvefs_tool_factory.cpp",
         "umountfs/curvefs_umountfs_tool.cpp",
         "curvefs_tool_define.cpp",
+        "curvefs_tool_metric.cpp",
         "topology/curvefs_build_topology_tool.cpp",
         "version/curvefs_version_tool.cpp",
-        "space/curvefs_metadata_usage_tool.cpp"
+        "space/curvefs_metadata_usage_tool.cpp",
+        "space/curvefs_space_base_tool.cpp",
+        "status/curvefs_status_base_tool.cpp",
+        "status/curvefs_mds_status.cpp",
+        "status/curvefs_metaserver_status.cpp",
+        "status/curvefs_etcd_status.cpp",
+        "status/curvefs_copyset_status.cpp",
+        "query/curvefs_copyset_query.cpp",
+        "query/curvefs_partition_list.cpp",
+        "query/curvefs_fsinfo_list.cpp",
+        "status/curvefs_cluster_copyset_status.cpp",
     ]),
     hdrs = glob([
         "curvefs_tool.h",
         "curvefs_tool_factory.h",
         "curvefs_tool_define.h",
+        "curvefs_tool_metric.h",
         "version/curvefs_version_tool.h",
         "curvefs_tool_abstract_creator.h",
         "umountfs/curvefs_umountfs_tool.h",
         "topology/curvefs_build_topology_tool.h",
         "space/curvefs_metadata_usage_tool.h",
         "space/curvefs_space_base_tool.h",
+        "status/curvefs_status_base_tool.h",
+        "status/curvefs_mds_status.h",
+        "status/curvefs_copyset_status.h",
+        "query/curvefs_copyset_query.h",
+        "query/curvefs_partition_list.h",
+        "query/curvefs_fsinfo_list.h",
+        "status/curvefs_cluster_copyset_status.h",
     ]),
     copts = COPTS,
     linkopts = [
-        "-lpthread"
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -84,5 +101,6 @@ cc_library(
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:curvefs_topology_cc_proto",
         "//curvefs/proto:space_cc_proto",
+        "//curvefs/proto:copyset_cc_proto",
     ],
 )

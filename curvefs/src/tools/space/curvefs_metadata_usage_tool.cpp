@@ -30,15 +30,15 @@ namespace space {
 
 void MatedataUsageTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -mdsAddr=" << FLAGS_mdsAddr;
+    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
     std::cout << std::endl;
 }
 
-void MatedataUsageTool::AddUpdateFlagsFuncs() {
+void MatedataUsageTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
 }
 
-bool MatedataUsageTool::AfterSendRequestToService(const std::string& host) {
+bool MatedataUsageTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
     if (controller_->Failed() ||
         response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
@@ -61,9 +61,7 @@ bool MatedataUsageTool::AfterSendRequestToService(const std::string& host) {
 
 int MatedataUsageTool::Init() {
     CurvefsToolRpc::Init();
-
-    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddressStr_);
-
+    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
     service_stub_func_ =
         std::bind(&curvefs::mds::MdsService_Stub::StatMetadataUsage,
                   service_stub_.get(), std::placeholders::_1,
