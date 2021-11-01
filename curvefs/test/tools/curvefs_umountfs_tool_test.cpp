@@ -28,6 +28,7 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
+#include <queue>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
@@ -94,7 +95,7 @@ TEST_F(UmountfsToolTest, test_umount_failed) {
     ASSERT_EQ(ret, -1);
 }
 
-// connect to nds failed
+// connect to mds failed
 TEST_F(UmountfsToolTest, test_umount_connect_failed) {
     FLAGS_mdsAddr = "127.0.0.1:6700";
     int ret = ut_.Run();
@@ -124,8 +125,11 @@ TEST_F(UmountfsToolTest, test_umount_tool_init) {
     std::shared_ptr<brpc::Channel> channel = std::make_shared<brpc::Channel>();
     std::shared_ptr<brpc::Controller> controller =
         std::make_shared<brpc::Controller>();
-    std::shared_ptr<curvefs::mds::UmountFsRequest> request =
-        std::make_shared<curvefs::mds::UmountFsRequest>();
+    curvefs::mds::UmountFsRequest request;
+    request.set_fsname("123");
+    request.set_mountpoint(FLAGS_mountpoint);
+    std::queue<curvefs::mds::UmountFsRequest> requestQueue;
+    requestQueue.push(request);
     std::shared_ptr<curvefs::mds::UmountFsResponse> response =
         std::make_shared<curvefs::mds::UmountFsResponse>();
 
@@ -136,9 +140,14 @@ TEST_F(UmountfsToolTest, test_umount_tool_init) {
 
     std::shared_ptr<curvefs::mds::MdsService_Stub> service_stub =
         std::make_shared<curvefs::mds::MdsService_Stub>(channel.get());
-    ut_.CurvefsToolRpc::Init(channel, controller, request, response,
-                             service_stub);
-    int ret = ut_.Run();
+
+    ut_.CurvefsToolRpc::Init(
+        channel, controller, requestQueue, response, service_stub,
+        std::bind(&curvefs::mds::MdsService_Stub::UmountFs, service_stub.get(),
+                  std::placeholders::_1, std::placeholders::_2,
+                  std::placeholders::_3, nullptr));
+
+    int ret = ut_.RunCommand();
     ASSERT_EQ(ret, 0);
 }
 

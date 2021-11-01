@@ -16,41 +16,45 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-14
+ * Created Date: 2021-10-31
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-#define CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_FSINFO_LIST_H_
+#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_FSINFO_LIST_H_
 
+#include <brpc/channel.h>
 #include <gflags/gflags.h>
 
-#include <iostream>
-#include <memory>
 #include <string>
 
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
-#include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace version {
-
-class VersionTool : public CurvefsTool {
+namespace query {
+class FsInfoListTool
+    : public CurvefsToolRpc<brpc::Channel, brpc::Controller,
+                            curvefs::mds::ListClusterFsInfoRequest,
+                            curvefs::mds::ListClusterFsInfoResponse,
+                            curvefs::mds::MdsService_Stub> {
  public:
-    VersionTool()
-        : CurvefsTool(std::string(kVersionCmd), std::string(kProgrameName)) {}
-    VersionTool(const std::string& command, const std::string& programe)
-        : CurvefsTool(command, programe) {}
+    explicit FsInfoListTool(bool show = true)
+        : CurvefsToolRpc(std::string(kFsInfoListCmd)) {
+        show_ = show;
+    }
     void PrintHelp() override;
-
-    int RunCommand() override;
     int Init() override;
-};
 
-}  // namespace version
+ protected:
+    void AddUpdateFlags() override;
+    bool AfterSendRequestToHost(const std::string& host) override;
+};
+}  // namespace query
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_FSINFO_LIST_H_

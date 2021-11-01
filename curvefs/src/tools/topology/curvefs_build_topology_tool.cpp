@@ -42,8 +42,8 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
         LOG(INFO) << "conf: " << FLAGS_mds_addr;
     }
 
-    if (GetCommandLineFlagInfo("rpcTimeOutMs", &info) && info.is_default) {
-        conf->GetUInt32Value("rpcTimeoutMs", &FLAGS_rpcTimeOutMs);
+    if (GetCommandLineFlagInfo("rpcTimeOut", &info) && info.is_default) {
+        conf->GetUInt32Value("rpcTimeout", &FLAGS_rpcTimeOutMs);
     }
 
     if (GetCommandLineFlagInfo("cluster_map", &info) && info.is_default) {

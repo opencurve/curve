@@ -33,7 +33,8 @@ namespace umountfs {
 void UmountfsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsname=" << FLAGS_fsname
-              << " -mountpoint=" << FLAGS_mountpoint;
+              << " -mountpoint=" << FLAGS_mountpoint
+              << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
     std::cout << std::endl;
 }
 
@@ -55,13 +56,10 @@ int UmountfsTool::RunCommand() {
         std::thread sysUmount(std::system, command.c_str());
 
         // umount from cluster
-        if (!SendRequestToServices()) {
-            std::cerr << "send request to all mds failed." << std::endl;
-            ret = -1;
-        }
+        ret = CurvefsToolRpc::RunCommand();
         sysUmount.join();
     } catch (std::exception& e) {
-        std::cerr << "umount " << localPath
+        std::cerr << "system umount " << localPath
                   << " failed, error info: " << e.what() << std::endl;
         ret = -1;
     }
@@ -69,25 +67,29 @@ int UmountfsTool::RunCommand() {
 }
 
 int UmountfsTool::Init() {
-    CurvefsToolRpc::Init();
+    int ret = CurvefsToolRpc::Init();
 
-    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddressStr_);
-
-    request_->set_fsname(FLAGS_fsname);
-    request_->set_mountpoint(FLAGS_mountpoint);
+    // adjust the unique element of the queue
+    requestQueue_.front().set_fsname(FLAGS_fsname);
+    requestQueue_.front().set_mountpoint(FLAGS_mountpoint);
 
     service_stub_func_ =
         std::bind(&curvefs::mds::MdsService_Stub::UmountFs, service_stub_.get(),
                   std::placeholders::_1, std::placeholders::_2,
                   std::placeholders::_3, nullptr);
-    return 0;
+    return ret;
 }
 
-void UmountfsTool::AddUpdateFlagsFuncs() {
+void UmountfsTool::InitHostsAddr() {
+    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
+}
+
+void UmountfsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
 }
 
-bool UmountfsTool::AfterSendRequestToService(const std::string& host) {
+bool UmountfsTool::AfterSendRequestToHost(const std::string& host) {
+    bool ret = false;
     if (controller_->Failed()) {
         std::cerr << "umountfs " << FLAGS_mountpoint << " from mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
@@ -97,9 +99,9 @@ bool UmountfsTool::AfterSendRequestToService(const std::string& host) {
                   << response_->statuscode() << "\n";
     } else {
         std::cout << "umount fs from cluster success.\n";
-        return true;
+        ret = true;
     }
-    return false;
+    return ret;
 }
 
 }  // namespace umountfs

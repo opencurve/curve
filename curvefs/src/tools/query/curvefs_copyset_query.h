@@ -16,56 +16,51 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-27
+ * Created Date: 2021-10-30
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+
+#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
+#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
 
 #include <brpc/channel.h>
-#include <brpc/server.h>
 #include <gflags/gflags.h>
 
-#include <cstdlib>  // std::system
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <thread>  //NOLINT
 #include <utility>
 #include <vector>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/status/curvefs_copyset_status.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace query {
 
-class UmountfsTool
-    : public CurvefsToolRpc<
-          brpc::Channel, brpc::Controller, curvefs::mds::UmountFsRequest,
-          curvefs::mds::UmountFsResponse, curvefs::mds::MdsService_Stub> {
+class CopysetQueryTool
+    : public CurvefsToolRpc<brpc::Channel, brpc::Controller,
+                            curvefs::mds::topology::GetCopysetInfoRequest,
+                            curvefs::mds::topology::GetCopysetInfoResponse,
+                            curvefs::mds::topology::TopologyService_Stub> {
  public:
-    UmountfsTool()
-        : CurvefsToolRpc(std::string(kUmountCmd), std::string(kProgrameName)) {}
+    explicit CopysetQueryTool(bool show = true)
+        : CurvefsToolRpc(std::string(kCopysetQueryCmd)) {
+        show_ = show;
+    }
     void PrintHelp() override;
-
-    int RunCommand() override;
     int Init() override;
-
-    void InitHostsAddr() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
 };
 
-}  // namespace umountfs
+}  // namespace query
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
