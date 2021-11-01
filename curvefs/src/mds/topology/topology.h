@@ -158,6 +158,11 @@ class Topology {
         ZoneIdType id, MetaServerFilter filter = [](const MetaServer &) {
             return true;
         }) const = 0;
+    virtual std::list<MetaServerIdType> GetMetaServerInPool(
+        PoolIdType id, MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const = 0;
+
     // get server list
     virtual std::list<ServerIdType> GetServerInZone(
         ZoneIdType id,
@@ -179,6 +184,16 @@ class Topology {
             return true;
         }) const = 0;
 
+    virtual std::vector<CopySetKey> GetCopySetsInCluster(
+        CopySetFilter filter = [](const CopySetInfo &) {
+            return true;
+        }) const = 0;
+
+    virtual std::vector<CopySetKey> GetCopySetsInMetaServer(
+        MetaServerIdType id, CopySetFilter filter = [](const CopySetInfo &) {
+            return true;
+        }) const = 0;
+
     // get partition list
     virtual std::list<Partition> GetPartitionOfFs(FsIdType id,
                                                   PartitionFilter filter =
@@ -191,15 +206,17 @@ class Topology {
         }) const = 0;
 
     // choose randomly
-    virtual TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out,
+    virtual TopoStatusCode ChooseSinglePoolRandom(
+        PoolIdType *out,
         const std::set<PoolIdType> &unavailablePools) const = 0;
 
-    virtual TopoStatusCode ChooseZonesInPool(PoolIdType poolId,
-                                  std::set<ZoneIdType> *zones,
-                                  const std::set<ZoneIdType> &unavailableZones,
-                                  int count) const = 0;
-    virtual TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
-                        MetaServerIdType *metaServerId) const = 0;
+    virtual TopoStatusCode ChooseZonesInPool(
+        PoolIdType poolId, std::set<ZoneIdType> *zones,
+        const std::set<ZoneIdType> &unavailableZones, int count) const = 0;
+
+    virtual TopoStatusCode ChooseSingleMetaServerInZone(
+        ZoneIdType zoneId, MetaServerIdType *metaServerId,
+        const std::set<MetaServerIdType> &excludeMetaservers = {}) const = 0;
     virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
 
     virtual std::vector<CopySetInfo> ListCopysetInfo() const = 0;
@@ -337,6 +354,11 @@ class TopologyImpl : public Topology {
                                                         [](const MetaServer &) {
                                                             return true;
                                                         }) const override;
+    std::list<MetaServerIdType> GetMetaServerInPool(PoolIdType id,
+                                                    MetaServerFilter filter =
+                                                        [](const MetaServer &) {
+                                                            return true;
+                                                        }) const override;
 
     // get server list
     std::list<ServerIdType> GetServerInZone(ZoneIdType id,
@@ -352,6 +374,11 @@ class TopologyImpl : public Topology {
                                         }) const override;
 
     // get copyset list
+    std::vector<CopySetKey> GetCopySetsInCluster(CopySetFilter filter =
+                                                     [](const CopySetInfo &) {
+                                                         return true;
+                                                     }) const override;
+
     std::vector<CopySetIdType> GetCopySetsInPool(PoolIdType poolId,
                                                  CopySetFilter filter =
                                                      [](const CopySetInfo &) {
@@ -363,6 +390,11 @@ class TopologyImpl : public Topology {
                                                        [](const CopySetInfo &) {
                                                            return true;
                                                        }) const override;
+
+    std::vector<CopySetKey> GetCopySetsInMetaServer(
+        MetaServerIdType id, CopySetFilter filter = [](const CopySetInfo &) {
+            return true;
+        }) const override;
 
     // get partition list
     std::list<Partition> GetPartitionOfFs(FsIdType id,
@@ -378,14 +410,19 @@ class TopologyImpl : public Topology {
                                                      }) const override;
 
     // choose random
-    TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out,
+    TopoStatusCode ChooseSinglePoolRandom(
+        PoolIdType *out,
         const std::set<PoolIdType> &unavailablePools) const override;
-    TopoStatusCode ChooseZonesInPool(PoolIdType poolId,
-        std::set<ZoneIdType> *zones,
-        const std::set<ZoneIdType> &unavailableZones,
-        int count) const override;
-    TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
-                            MetaServerIdType *metaServerId) const override;
+
+    TopoStatusCode ChooseZonesInPool(
+        PoolIdType poolId, std::set<ZoneIdType> *zones,
+        const std::set<ZoneIdType> &unavailableZones, int count) const override;
+
+    TopoStatusCode ChooseSingleMetaServerInZone(
+        ZoneIdType zoneId, MetaServerIdType *metaServerId,
+        const std::set<MetaServerIdType> &excludeMetaservers = {})
+        const override;
+
     uint32_t GetPartitionNumberOfFs(FsIdType fsId);
 
     TopoStatusCode GetPoolIdByMetaserverId(MetaServerIdType id,

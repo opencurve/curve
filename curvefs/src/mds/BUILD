@@ -43,6 +43,8 @@ cc_library(
         "//src/idgenerator",
         "//src/kvstorageclient:kvstorage_client",
         "//src/leader_election",
+        "//curvefs/src/mds/schedule:curvefs_schedule",
+        "//curvefs/src/mds/schedule/scheduleService:curvefs_schedule_service",
     ],
 )
 

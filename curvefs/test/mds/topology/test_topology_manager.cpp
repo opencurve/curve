@@ -291,7 +291,7 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_AllocateIdFail) {
     MetaServerRegistResponse response;
 
     EXPECT_CALL(*idGenerator_, GenMetaServerId())
-        .WillOnce(Return(UNINTIALIZE_ID));
+        .WillOnce(Return(UNINITIALIZE_ID));
 
     serviceManager_->RegistMetaServer(&request, &response);
 
@@ -561,7 +561,7 @@ TEST_F(TestTopologyManager, test_RegistServer_AllocateIdFail) {
 
     ServerRegistResponse response;
 
-    EXPECT_CALL(*idGenerator_, GenServerId()).WillOnce(Return(UNINTIALIZE_ID));
+    EXPECT_CALL(*idGenerator_, GenServerId()).WillOnce(Return(UNINITIALIZE_ID));
 
     serviceManager_->RegistServer(&request, &response);
 
@@ -947,7 +947,7 @@ TEST_F(TestTopologyManager, test_CreateZone_AllocateIdFail) {
     request.set_zonename("zone1");
     request.set_poolname("poolname1");
 
-    EXPECT_CALL(*idGenerator_, GenZoneId()).WillOnce(Return(UNINTIALIZE_ID));
+    EXPECT_CALL(*idGenerator_, GenZoneId()).WillOnce(Return(UNINITIALIZE_ID));
 
     CreateZoneResponse response;
 
@@ -1129,7 +1129,7 @@ TEST_F(TestTopologyManager, test_createPool_Fail) {
     request.set_redundanceandplacementpolicy(
         "{\"replicaNum\":3, \"copysetNum\":1, \"zoneNum\":3}");
 
-    EXPECT_CALL(*idGenerator_, GenPoolId()).WillOnce(Return(UNINTIALIZE_ID));
+    EXPECT_CALL(*idGenerator_, GenPoolId()).WillOnce(Return(UNINITIALIZE_ID));
 
     serviceManager_->CreatePool(&request, &response);
 

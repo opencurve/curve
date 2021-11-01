@@ -307,16 +307,27 @@ class MockTopology : public TopologyImpl {
     MOCK_CONST_METHOD2(GetCopysetOfPartition,
                        std::vector<CopySetInfo>(PartitionIdType id,
                                                 CopySetFilter filter));
+    MOCK_CONST_METHOD1(GetCopySetsInCluster,
+                       std::vector<CopySetKey>(CopySetFilter filter));
+    MOCK_CONST_METHOD2(GetCopySetsInMetaServer,
+                       std::vector<CopySetKey>(MetaServerIdType id,
+                                               CopySetFilter filter));
+    MOCK_CONST_METHOD2(GetCopySetsInPool,
+                       std::vector<CopySetIdType>(PoolIdType poolId,
+                                                  CopySetFilter filter));
+    MOCK_CONST_METHOD2(GetCopySetInfosInPool,
+                       std::vector<CopySetInfo>(PoolIdType poolId,
+                                                CopySetFilter filter));
 
     // choose randomly
-    MOCK_CONST_METHOD2(ChooseSinglePoolRandom,
-                       TopoStatusCode(PoolIdType *data,
+    MOCK_CONST_METHOD2(
+        ChooseSinglePoolRandom,
+        TopoStatusCode(PoolIdType *data,
                        const std::set<PoolIdType> &unavailablePools));
-    MOCK_CONST_METHOD4(ChooseZonesInPool,
-                       TopoStatusCode(PoolIdType poolId,
-                       std::set<ZoneIdType> *zones,
-                       const std::set<ZoneIdType> unavailableZones,
-                       int count));
+    MOCK_CONST_METHOD4(
+        ChooseZonesInPool,
+        TopoStatusCode(PoolIdType poolId, std::set<ZoneIdType> *zones,
+                       const std::set<ZoneIdType> unavailableZones, int count));
     MOCK_CONST_METHOD2(ChooseSingleMetaServerInZone,
                        TopoStatusCode(ZoneIdType zoneId,
                                       MetaServerIdType *msId));
@@ -402,6 +413,9 @@ class MockTopologyManager : public TopologyManager {
                  TopoStatusCode(const PoolIdType poolId,
                                 const CopySetIdType copysetId,
                                 std::set<std::string> *addrs));
+    MOCK_METHOD3(CreateCopysetNodeOnMetaServer,
+                 bool(PoolIdType poolId, CopySetIdType copysetId,
+                      MetaServerIdType metaServerId));
 };
 
 }  // namespace topology

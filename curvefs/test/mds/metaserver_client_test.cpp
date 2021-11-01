@@ -25,8 +25,8 @@
 #include <brpc/server.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_cli2.h"
+#include "curvefs/test/mds/mock/mock_metaserver.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -53,7 +53,7 @@ using curvefs::metaserver::copyset::CreateCopysetResponse;
 using curvefs::metaserver::copyset::COPYSET_OP_STATUS;
 
 namespace brpc {
-    DECLARE_int32(health_check_interval);
+DECLARE_int32(health_check_interval);
 }  // namespace brpc
 
 auto gg = []() {
@@ -123,17 +123,17 @@ TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                                     uid, gid, mode, addrs), FSStatusCode::OK);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeExist) {
@@ -155,17 +155,17 @@ TEST_F(MetaserverClientTest, CreateRootInodeExist) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                        uid, gid, mode, addrs), FSStatusCode::INODE_EXIST);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::INODE_EXIST);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeGetLeaderFail) {
@@ -185,12 +185,12 @@ TEST_F(MetaserverClientTest, CreateRootInodeGetLeaderFail) {
 
     GetLeaderResponse2 GetLeaderResponse;
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                uid, gid, mode, addrs), FSStatusCode::NOT_FOUND);
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::NOT_FOUND);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeRpcFail) {
@@ -213,12 +213,12 @@ TEST_F(MetaserverClientTest, CreateRootInodeRpcFail) {
     GetLeaderResponse.mutable_leader()->set_address("127.0.0.1:6705:0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
         .Times(2)
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                uid, gid, mode, addrs), FSStatusCode::RPC_ERROR);
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::RPC_ERROR);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeFail) {
@@ -240,17 +240,17 @@ TEST_F(MetaserverClientTest, CreateRootInodeFail) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                uid, gid, mode, addrs), FSStatusCode::INSERT_ROOT_INODE_ERROR);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::INSERT_ROOT_INODE_ERROR);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
@@ -273,10 +273,9 @@ TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .Times(2)
         .WillOnce(DoAll(
@@ -287,8 +286,9 @@ TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
             SetArgPointee<2>(response1),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                uid, gid, mode, addrs), FSStatusCode::OK);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
@@ -311,10 +311,9 @@ TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
         .Times(2)
         .WillOnce(DoAll(
@@ -325,8 +324,9 @@ TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
             SetArgPointee<2>(response1),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId,
-                uid, gid, mode, addrs), FSStatusCode::OK);
+    ASSERT_EQ(client.CreateRootInode(fsId, poolId, copysetId, partitionId, uid,
+                                     gid, mode, addrs),
+              FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, DeleteInodeSuccess) {
@@ -438,8 +438,7 @@ TEST_F(MetaserverClientTest, GetLeaderNoResponseFail) {
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
                   Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-    ASSERT_EQ(client.GetLeader(ctx, &leader),
-        FSStatusCode::NOT_FOUND);
+    ASSERT_EQ(client.GetLeader(ctx, &leader), FSStatusCode::NOT_FOUND);
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionSuccess) {
@@ -455,17 +454,16 @@ TEST_F(MetaserverClientTest, CreatePartitionSuccess) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-    EXPECT_CALL(mockMetaserverService_, CreatePartition(_, _, _, _))
         .WillOnce(
-            DoAll(SetArgPointee<2>(response),
-                  Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
-                   curvefs::metaserver::CreatePartitionResponse>)));
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, CreatePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
+                              curvefs::metaserver::CreatePartitionResponse>)));
     ASSERT_EQ(client.CreatePartition(0, 1, 2, 3, 1, 100, addrs),
-        FSStatusCode::OK);
+              FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionGetLeaderFailed) {
@@ -480,12 +478,11 @@ TEST_F(MetaserverClientTest, CreatePartitionGetLeaderFailed) {
     response.set_statuscode(MetaStatusCode::PARTITION_EXIST);
     GetLeaderResponse2 GetLeaderResponse;
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     ASSERT_EQ(client.CreatePartition(0, 1, 2, 3, 1, 100, addrs),
-        FSStatusCode::NOT_FOUND);
+              FSStatusCode::NOT_FOUND);
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionFailed) {
@@ -501,17 +498,16 @@ TEST_F(MetaserverClientTest, CreatePartitionFailed) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
-    EXPECT_CALL(mockMetaserverService_, CreatePartition(_, _, _, _))
         .WillOnce(
-            DoAll(SetArgPointee<2>(response),
-                  Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
-                   curvefs::metaserver::CreatePartitionResponse>)));
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, CreatePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
+                              curvefs::metaserver::CreatePartitionResponse>)));
     ASSERT_EQ(client.CreatePartition(0, 1, 2, 3, 1, 100, addrs),
-        FSStatusCode::PARTITION_EXIST);
+              FSStatusCode::PARTITION_EXIST);
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionRetrySuccess) {
@@ -529,22 +525,21 @@ TEST_F(MetaserverClientTest, CreatePartitionRetrySuccess) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillOnce(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreatePartition(_, _, _, _))
         .Times(2)
-        .WillOnce(
-            DoAll(SetArgPointee<2>(response),
-                  Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
-                   curvefs::metaserver::CreatePartitionResponse>)))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(response1),
-                  Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
-                   curvefs::metaserver::CreatePartitionResponse>)));
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
+                              curvefs::metaserver::CreatePartitionResponse>)))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response1),
+            Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
+                              curvefs::metaserver::CreatePartitionResponse>)));
     ASSERT_EQ(client.CreatePartition(0, 1, 2, 3, 1, 100, addrs),
-        FSStatusCode::OK);
+              FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionRefreshLeaderSuccess) {
@@ -562,22 +557,21 @@ TEST_F(MetaserverClientTest, CreatePartitionRefreshLeaderSuccess) {
     GetLeaderResponse2 GetLeaderResponse;
     GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
     EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
-        .WillRepeatedly(DoAll(
-            SetArgPointee<2>(GetLeaderResponse),
-            Invoke(
-                RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
     EXPECT_CALL(mockMetaserverService_, CreatePartition(_, _, _, _))
         .Times(2)
-        .WillOnce(
-            DoAll(SetArgPointee<2>(response),
-                  Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
-                   curvefs::metaserver::CreatePartitionResponse>)))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(response1),
-                  Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
-                   curvefs::metaserver::CreatePartitionResponse>)));
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
+                              curvefs::metaserver::CreatePartitionResponse>)))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response1),
+            Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
+                              curvefs::metaserver::CreatePartitionResponse>)));
     ASSERT_EQ(client.CreatePartition(0, 1, 2, 3, 1, 100, addrs),
-        FSStatusCode::OK);
+              FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetSuccess) {
@@ -591,8 +585,8 @@ TEST_F(MetaserverClientTest, CreateCopySetSuccess) {
     CreateCopysetResponse response;
     response.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     EXPECT_CALL(mockCopysetService_, CreateCopysetNode(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(response),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
             Invoke(RpcService<CreateCopysetRequest, CreateCopysetResponse>)));
     ASSERT_EQ(client.CreateCopySet(1, {2}, addrs), FSStatusCode::OK);
 }
@@ -630,13 +624,69 @@ TEST_F(MetaserverClientTest, CreateCopySetFailed) {
     CreateCopysetResponse response;
     response.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
     EXPECT_CALL(mockCopysetService_, CreateCopysetNode(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(response),
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
             Invoke(RpcService<CreateCopysetRequest, CreateCopysetResponse>)));
     ASSERT_EQ(client.CreateCopySet(1, {2}, addrs),
-        FSStatusCode::CREATE_COPYSET_ERROR);
+              FSStatusCode::CREATE_COPYSET_ERROR);
 }
 
+TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverSuccess) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    MetaserverClient client(options);
+    std::string addr = "127.0.0.1:6704";
 
+    CreateCopysetResponse response;
+    response.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    EXPECT_CALL(mockCopysetService_, CreateCopysetNode(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<CreateCopysetRequest, CreateCopysetResponse>)));
+    ASSERT_EQ(client.CreateCopySetOnOneMetaserver(1, 2, addr),
+              FSStatusCode::OK);
+}
+
+TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverRpcFailed) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    MetaserverClient client(options);
+    std::string addr = "127.0.0.1:6705";
+
+    ASSERT_EQ(client.CreateCopySetOnOneMetaserver(1, 2, addr),
+              FSStatusCode::RPC_ERROR);
+}
+
+TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverRpcFailed2) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcRetryTimes = 1;
+    options.rpcTimeoutMs = 500;
+    options.rpcRetryIntervalUs = 1000;
+    MetaserverClient client(options);
+    std::string addr = "127.0.0.1:6705";
+
+    ASSERT_EQ(client.CreateCopySetOnOneMetaserver(1, 2, addr),
+              FSStatusCode::RPC_ERROR);
+}
+
+TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverSetFailed) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    MetaserverClient client(options);
+    std::string addr = "127.0.0.1:6704";
+
+    CreateCopysetResponse response;
+    response.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+    EXPECT_CALL(mockCopysetService_, CreateCopysetNode(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<CreateCopysetRequest, CreateCopysetResponse>)));
+    ASSERT_EQ(client.CreateCopySetOnOneMetaserver(1, 2, addr),
+              FSStatusCode::CREATE_COPYSET_ERROR);
+}
 }  // namespace mds
 }  // namespace curvefs

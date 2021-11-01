@@ -80,13 +80,13 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
 
     ServerIdType serverId =
         topology_->FindServerByHostIpPort(request->hostip(), request->port());
-    if (serverId == static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+    if (serverId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_SERVER_NOT_FOUND);
         return;
     }
 
     MetaServerIdType metaServerId = topology_->AllocateMetaServerId();
-    if (metaServerId == static_cast<MetaServerIdType>(UNINTIALIZE_ID)) {
+    if (metaServerId == static_cast<MetaServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
         return;
     }
@@ -218,18 +218,18 @@ void TopologyManager::RegistServer(const ServerRegistRequest *request,
     // check whether there's any duplicated ip&port
     if (topology_->FindServerByHostIpPort(request->internalip(),
                                           internalPort) !=
-        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        static_cast<ServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_IP_PORT_DUPLICATED);
         return;
     } else if (topology_->FindServerByHostIpPort(request->externalip(),
                                                  externalPort) !=
-               static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+               static_cast<ServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_IP_PORT_DUPLICATED);
         return;
     }
 
     ServerIdType serverId = topology_->AllocateServerId();
-    if (serverId == static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+    if (serverId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
         return;
     }
@@ -397,13 +397,13 @@ void TopologyManager::CreateZone(const CreateZoneRequest *request,
         return;
     }
     if (topology_->FindZone(request->zonename(), pPool.GetId()) !=
-        static_cast<PoolIdType>(UNINTIALIZE_ID)) {
+        static_cast<PoolIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_NAME_DUPLICATED);
         return;
     }
 
     ZoneIdType zid = topology_->AllocateZoneId();
-    if (zid == static_cast<ZoneIdType>(UNINTIALIZE_ID)) {
+    if (zid == static_cast<ZoneIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
         return;
     }
@@ -484,13 +484,13 @@ void TopologyManager::ListPoolZone(const ListPoolZoneRequest *request,
 void TopologyManager::CreatePool(const CreatePoolRequest *request,
                                  CreatePoolResponse *response) {
     if (topology_->FindPool(request->poolname()) !=
-        static_cast<PoolIdType>(UNINTIALIZE_ID)) {
+        static_cast<PoolIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_NAME_DUPLICATED);
         return;
     }
 
     PoolIdType pid = topology_->AllocatePoolId();
-    if (pid == static_cast<PoolIdType>(UNINTIALIZE_ID)) {
+    if (pid == static_cast<PoolIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
         return;
     }
@@ -649,7 +649,7 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
         uint64_t idEnd = (pNumber + 1) * option_.idNumberInPartition - 1;
         PartitionIdType partitionId = topology_->AllocatePartitionId();
         LOG(INFO) << "CreatePartiton partitionId = " << partitionId;
-        if (partitionId == static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        if (partitionId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
             response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
             return;
         }
@@ -691,17 +691,42 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
     }
 }
 
+bool TopologyManager::CreateCopysetNodeOnMetaServer(
+    PoolIdType poolId, CopySetIdType copysetId, MetaServerIdType metaServerId) {
+    MetaServer metaserver;
+    std::string addr;
+    if (topology_->GetMetaServer(metaServerId, &metaserver)) {
+        addr = metaserver.GetInternalHostIp() + ":" +
+               std::to_string(metaserver.GetInternalPort());
+    } else {
+        LOG(ERROR) << "Get metaserver info failed.";
+        return false;
+    }
+
+    FSStatusCode retcode = metaserverClient_->CreateCopySetOnOneMetaserver(
+        poolId, copysetId, addr);
+    if (FSStatusCode::OK != retcode) {
+        LOG(ERROR) << "CreateCopysetNodeOnMetaServer fail, poolId = " << poolId
+                   << ", copysetId = " << copysetId
+                   << ", metaServerId = " << metaServerId << ", addr = " << addr
+                   << ", ret = " << FSStatusCode_Name(retcode);
+        return false;
+    }
+    return true;
+}
+
 TopoStatusCode TopologyManager::CreateCopyset() {
     PoolIdType poolId;
     std::set<PoolIdType> unavailablePools;
+
     std::set<MetaServerIdType> metaServerIds;
     std::set<std::string> metaServerAddrs;
-    int replicaNum;
+    uint16_t replicaNum;
     do {
         metaServerIds.clear();
         metaServerAddrs.clear();
-        TopoStatusCode ret = topology_->ChooseSinglePoolRandom(&poolId,
-                                                    unavailablePools);
+        TopoStatusCode ret =
+            topology_->ChooseSinglePoolRandom(&poolId, unavailablePools);
         if (TopoStatusCode::TOPO_OK != ret) {
             LOG(ERROR) << "Select Pool failed when create partition"
                        << ", error msg = " << TopoStatusCode_Name(ret);
@@ -732,7 +757,7 @@ TopoStatusCode TopologyManager::CreateCopyset() {
             for (auto zoneId : zones) {
                 MetaServerIdType metaServerId;
                 ret = topology_->ChooseSingleMetaServerInZone(zoneId,
-                                                        &metaServerId);
+                                                              &metaServerId);
                 if (TopoStatusCode::TOPO_OK != ret) {
                     LOG(WARNING) << "Select metaServer failed when create"
                                  << " partition zoneId = " << zoneId
@@ -766,9 +791,9 @@ TopoStatusCode TopologyManager::CreateCopyset() {
 
     // send create copyset request
     std::set<CopySetIdType> copysetIds;
-    for (int i = 0; i < option_.createCopysetNumber; i++) {
+    for (uint32_t i = 0; i < option_.createCopysetNumber; i++) {
         CopySetIdType copysetId = topology_->AllocateCopySetId(poolId);
-        if (copysetId == static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        if (copysetId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
             return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
         }
         copysetIds.emplace(copysetId);
@@ -862,11 +887,11 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
         info->set_end(partition.GetIdEnd());
         info->set_txid(partition.GetTxId());
         info->set_status(partition.GetStatus());
-        if (partition.GetInodeNum() != UNINTIALIZE_COUNT) {
+        if (partition.GetInodeNum() != UNINITIALIZE_COUNT) {
             info->set_inodenum(partition.GetInodeNum());
         }
 
-        if (partition.GetDentryNum() != UNINTIALIZE_COUNT) {
+        if (partition.GetDentryNum() != UNINITIALIZE_COUNT) {
             info->set_dentrynum(partition.GetDentryNum());
         }
     }

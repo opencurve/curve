@@ -43,7 +43,7 @@ void DefaultIdGenerator::initMetaServerIdGenerator(MetaServerIdType idMax) {
 void DefaultIdGenerator::initCopySetIdGenerator(
     const std::map<PoolIdType, CopySetIdType> &idMaxMap) {
   copySetIdGentor_.clear();
-  for (auto it : idMaxMap) {
+  for (const auto &it : idMaxMap) {
     copySetIdGentor_[it.first].init(it.second);
   }
 }

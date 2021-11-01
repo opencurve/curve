@@ -24,12 +24,12 @@
 #define CURVEFS_SRC_MDS_METASERVERCLIENT_METASERVER_CLIENT_H_
 
 #include <brpc/channel.h>
-#include <string>
 #include <set>
+#include <string>
+#include "curvefs/proto/cli2.pb.h"
+#include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/proto/copyset.pb.h"
-#include "curvefs/proto/cli2.pb.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
 
 using curvefs::metaserver::FsFileType;
@@ -69,26 +69,31 @@ class MetaserverClient {
     virtual FSStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
     virtual FSStatusCode CreateRootInode(uint32_t fsId, uint32_t poolId,
-                        uint32_t copysetId, uint32_t partitionId, uint32_t uid,
-                        uint32_t gid, uint32_t mode,
-                        const std::set<std::string> &addrs);
+                                         uint32_t copysetId,
+                                         uint32_t partitionId, uint32_t uid,
+                                         uint32_t gid, uint32_t mode,
+                                         const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreatePartition(uint32_t fsId, uint32_t poolId,
-                                 uint32_t copysetId, uint32_t partitionId,
-                                 uint64_t idStart, uint64_t idEnd,
-                                 const std::set<std::string> &addrs);
+                                         uint32_t copysetId,
+                                         uint32_t partitionId, uint64_t idStart,
+                                         uint64_t idEnd,
+                                         const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreateCopySet(uint32_t poolId,
-                                std::set<uint32_t> copysetIds,
-                                const std::set<std::string> &addrs);
+                                       std::set<uint32_t> copysetIds,
+                                       const std::set<std::string> &addrs);
+
+    virtual FSStatusCode CreateCopySetOnOneMetaserver(uint32_t poolId,
+                                                      uint32_t copysetId,
+                                                      const std::string &addr);
 
  private:
     template <typename T, typename Request, typename Response>
-    FSStatusCode SendRpc2MetaServer(Request* request, Response* response,
-                         const LeaderCtx &ctx,
-                         void (T::*func)(google::protobuf::RpcController*,
-                            const Request*, Response*,
-                            google::protobuf::Closure*));
+    FSStatusCode SendRpc2MetaServer(
+        Request *request, Response *response, const LeaderCtx &ctx,
+        void (T::*func)(google::protobuf::RpcController *, const Request *,
+                        Response *, google::protobuf::Closure *));
 
  private:
     MetaserverOptions options_;

@@ -73,10 +73,10 @@ FSStatusCode MetaserverClient::SendRpc2MetaServer(Request* request,
         if (cntl.Failed()) {
             if (cntl.ErrorCode() == EHOSTDOWN ||
                 cntl.ErrorCode() == brpc::ELOGOFF) {
-                    refreshLeader = true;
-                } else {
-                    refreshLeader = false;
-                }
+                refreshLeader = true;
+            } else {
+                refreshLeader = false;
+            }
         } else {
             switch (response->statuscode()) {
                 case MetaStatusCode::OVERLOAD:
@@ -108,8 +108,7 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
 
     for (const std::string &item : ctx.addrs) {
         if (channel_.Init(item.c_str(), nullptr) != 0) {
-            LOG(ERROR) << "Init channel to metaserver: " << item
-                       << " failed!";
+            LOG(ERROR) << "Init channel to metaserver: " << item << " failed!";
             continue;
         }
 
@@ -144,10 +143,10 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
     return FSStatusCode::NOT_FOUND;
 }
 
-FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t poolId,
-                    uint32_t copysetId, uint32_t partitionId, uint32_t uid,
-                    uint32_t gid, uint32_t mode,
-                    const std::set<std::string> &addrs) {
+FSStatusCode MetaserverClient::CreateRootInode(
+    uint32_t fsId, uint32_t poolId, uint32_t copysetId, uint32_t partitionId,
+    uint32_t uid, uint32_t gid, uint32_t mode,
+    const std::set<std::string> &addrs) {
     CreateRootInodeRequest request;
     CreateRootInodeResponse response;
     request.set_poolid(poolId);
@@ -182,8 +181,9 @@ FSStatusCode MetaserverClient::CreateRootInode(uint32_t fsId, uint32_t poolId,
                 return FSStatusCode::INODE_EXIST;
             default:
                 LOG(ERROR) << "CreateInode failed, request = "
-                        << request.ShortDebugString()
-                        << ", response statuscode = " << response.statuscode();
+                           << request.ShortDebugString()
+                           << ", response statuscode = "
+                           << response.statuscode();
                 return FSStatusCode::INSERT_ROOT_INODE_ERROR;
         }
     }
@@ -232,10 +232,9 @@ FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     return FSStatusCode::OK;
 }
 
-FSStatusCode MetaserverClient::CreatePartition(uint32_t fsId, uint32_t poolId,
-                                    uint32_t copysetId, uint32_t partitionId,
-                                    uint64_t idStart, uint64_t idEnd,
-                                    const std::set<std::string> &addrs) {
+FSStatusCode MetaserverClient::CreatePartition(
+    uint32_t fsId, uint32_t poolId, uint32_t copysetId, uint32_t partitionId,
+    uint64_t idStart, uint64_t idEnd, const std::set<std::string> &addrs) {
     curvefs::metaserver::CreatePartitionRequest request;
     curvefs::metaserver::CreatePartitionResponse response;
     PartitionInfo *partition = request.mutable_partition();
@@ -272,15 +271,17 @@ FSStatusCode MetaserverClient::CreatePartition(uint32_t fsId, uint32_t poolId,
                 return FSStatusCode::PARTITION_EXIST;
             default:
                 LOG(ERROR) << "CreatePartition failed, request = "
-                        << request.ShortDebugString()
-                        << ", response statuscode = " << response.statuscode();
+                           << request.ShortDebugString()
+                           << ", response statuscode = "
+                           << response.statuscode();
                 return FSStatusCode::CREATE_PARTITION_ERROR;
         }
     }
 }
 
-FSStatusCode MetaserverClient::CreateCopySet(uint32_t poolId,
-    std::set<uint32_t> copysetIds, const std::set<std::string> &addrs) {
+FSStatusCode MetaserverClient::CreateCopySet(
+    uint32_t poolId, std::set<uint32_t> copysetIds,
+    const std::set<std::string> &addrs) {
     CreateCopysetRequest request;
     CreateCopysetResponse response;
     for (auto id : copysetIds) {
@@ -294,8 +295,7 @@ FSStatusCode MetaserverClient::CreateCopySet(uint32_t poolId,
 
     for (const std::string &item : addrs) {
         if (channel_.Init(item.c_str(), nullptr) != 0) {
-            LOG(ERROR) << "Init channel to metaserver: " << item
-                       << " failed!";
+            LOG(ERROR) << "Init channel to metaserver: " << item << " failed!";
             return FSStatusCode::RPC_ERROR;
         }
 
@@ -320,8 +320,8 @@ FSStatusCode MetaserverClient::CreateCopySet(uint32_t poolId,
 
         if (response.status() != COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
             LOG(ERROR) << "Create copyset failed."
-                       << " from " << cntl.remote_side()
-                       << " to " << cntl.local_side()
+                       << " from " << cntl.remote_side() << " to "
+                       << cntl.local_side()
                        << " request = " << request.ShortDebugString()
                        << " error code = " << response.status();
             return FSStatusCode::CREATE_COPYSET_ERROR;
@@ -330,5 +330,49 @@ FSStatusCode MetaserverClient::CreateCopySet(uint32_t poolId,
     return FSStatusCode::OK;
 }
 
+FSStatusCode MetaserverClient::CreateCopySetOnOneMetaserver(
+    uint32_t poolId, uint32_t copysetId, const std::string &addr) {
+    CreateCopysetRequest request;
+    CreateCopysetResponse response;
+
+    auto copyset = request.add_copysets();
+    copyset->set_poolid(poolId);
+    copyset->set_copysetid(copysetId);
+
+    if (channel_.Init(addr.c_str(), nullptr) != 0) {
+        LOG(ERROR) << "Init channel to metaserver: " << addr << " failed!";
+        return FSStatusCode::RPC_ERROR;
+    }
+
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(options_.rpcTimeoutMs);
+    CopysetService_Stub stub(&channel_);
+    stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
+
+    uint32_t maxRetry = options_.rpcRetryTimes;
+    while (cntl.Failed() && maxRetry > 0) {
+        maxRetry--;
+        bthread_usleep(options_.rpcRetryIntervalUs);
+        cntl.Reset();
+        cntl.set_timeout_ms(options_.rpcTimeoutMs);
+        stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
+    }
+    if (cntl.Failed()) {
+        LOG(ERROR) << "Create copyset failed"
+                   << ", Rpc error = " << cntl.ErrorText();
+        return FSStatusCode::RPC_ERROR;
+    }
+
+    if (response.status() != COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+        LOG(ERROR) << "Create copyset failed."
+                   << " from " << cntl.remote_side() << " to "
+                   << cntl.local_side()
+                   << " request = " << request.ShortDebugString()
+                   << " error code = " << response.status();
+        return FSStatusCode::CREATE_COPYSET_ERROR;
+    }
+
+    return FSStatusCode::OK;
+}
 }  // namespace mds
 }  // namespace curvefs

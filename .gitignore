@@ -84,6 +84,7 @@ runlog/
 curvefs/devops/projects/
 curvefs/devops/ssh/
 curvefs/devops/inventory
+curvefs/BUILD_MODE
 *.pyc
 .facts/
 *retry

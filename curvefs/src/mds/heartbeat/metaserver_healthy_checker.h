@@ -63,6 +63,13 @@ struct HeartbeatOption {
     // setting the metaserver to offline status and alarm.
     // scheduling will depend on this status of metaserver
     uint64_t offLineTimeOutMs;
+
+    // start cleaning copysets on chunkservers after
+    // starting mds for this peroid of time
+    uint64_t cleanFollowerAfterMs;
+
+    // the time when the mds start (fetch from system)
+    steady_clock::time_point mdsStartTime;
 };
 
 struct HeartbeatInfo {

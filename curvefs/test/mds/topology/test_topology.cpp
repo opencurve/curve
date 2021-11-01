@@ -1228,7 +1228,7 @@ TEST_F(TestTopology, FindPool_PoolNotFound) {
     std::string poolName = "pool1";
     PoolIdType ret = topology_->FindPool(poolName);
 
-    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<PoolIdType>(UNINITIALIZE_ID),
                                       ret);
 }
 
@@ -1247,7 +1247,7 @@ TEST_F(TestTopology, FindZone_ZoneNotFound) {
     std::string poolName = "poolName";
     std::string zoneName = "zoneName";
     ZoneIdType ret = topology_->FindZone(zoneName, poolName);
-    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ZoneIdType>(UNINITIALIZE_ID),
                                       ret);
 }
 
@@ -1267,7 +1267,7 @@ TEST_F(TestTopology, FindZone_ZoneNotFound2) {
     std::string poolName = "poolName";
     std::string zoneName = "zoneName";
     ZoneIdType ret = topology_->FindZone(zoneName, poolId);
-    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ZoneIdType>(UNINITIALIZE_ID),
                                       ret);
 }
 
@@ -1285,7 +1285,7 @@ TEST_F(TestTopology, FindServerByHostName_success) {
 TEST_F(TestTopology, FindServerByHostName_ServerNotFound) {
     std::string hostName = "host1";
     ServerIdType ret = topology_->FindServerByHostName(hostName);
-    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ServerIdType>(UNINITIALIZE_ID),
                                         ret);
 }
 
@@ -1325,7 +1325,7 @@ TEST_F(TestTopology, FindSeverByHostIp_ServerNotFound) {
             0);
 
     ServerIdType ret = topology_->FindServerByHostIpPort("ip3", 0);
-    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ServerIdType>(UNINITIALIZE_ID),
                                         ret);
 }
 

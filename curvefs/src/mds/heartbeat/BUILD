@@ -32,5 +32,6 @@ cc_library(
         "//external:glog",
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",
+        "//curvefs/src/mds/schedule:curvefs_schedule",
     ],
 )

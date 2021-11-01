@@ -104,8 +104,7 @@ std::string TopologyStorageCodec::EncodeCopySetKey(const CopySetKey &id) {
     size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
     key.resize(prefixLen + sizeof(uint64_t) + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), id.first);
-    EncodeBigEndian(&(key[prefixLen + sizeof(uint64_t)]),
-        id.second);
+    EncodeBigEndian(&(key[prefixLen + sizeof(uint64_t)]), id.second);
     return key;
 }
 
@@ -150,4 +149,3 @@ bool TopologyStorageCodec::DecodeCluserInfoData(const std::string &value,
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
-

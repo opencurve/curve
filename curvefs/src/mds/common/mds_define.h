@@ -37,8 +37,8 @@ typedef uint32_t CopySetIdType;
 typedef uint64_t EpochType;
 typedef uint32_t UserIdType;
 
-const uint32_t UNINTIALIZE_ID = 0u;
-const uint32_t UNINTIALIZE_COUNT = UINT32_MAX;
+const uint32_t UNINITIALIZE_ID = 0u;
+const uint32_t UNINITIALIZE_COUNT = UINT32_MAX;
 
 }  // namespace topology
 }  // namespace mds

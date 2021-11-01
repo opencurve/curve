@@ -112,7 +112,7 @@ TopoStatusCode TopologyImpl::AddServer(const Server &data) {
 
 TopoStatusCode TopologyImpl::AddMetaServer(const MetaServer &data) {
     // find the pool that the meatserver belongs to
-    PoolIdType poolId = UNINTIALIZE_ID;
+    PoolIdType poolId = UNINITIALIZE_ID;
     TopoStatusCode ret = GetPoolIdByServerId(data.GetServerId(), &poolId);
     if (ret != TopoStatusCode::TOPO_OK) {
         return ret;
@@ -295,7 +295,7 @@ TopoStatusCode TopologyImpl::UpdateMetaServerOnlineState(
 
 TopoStatusCode TopologyImpl::GetPoolIdByMetaserverId(MetaServerIdType id,
                                                      PoolIdType *poolIdOut) {
-    *poolIdOut = UNINTIALIZE_ID;
+    *poolIdOut = UNINITIALIZE_ID;
     MetaServer metaserver;
     if (!GetMetaServer(id, &metaserver)) {
         LOG(ERROR) << "TopologyImpl::GetPoolIdByMetaserverId "
@@ -308,7 +308,7 @@ TopoStatusCode TopologyImpl::GetPoolIdByMetaserverId(MetaServerIdType id,
 
 TopoStatusCode TopologyImpl::GetPoolIdByServerId(ServerIdType id,
                                                  PoolIdType *poolIdOut) {
-    *poolIdOut = UNINTIALIZE_ID;
+    *poolIdOut = UNINITIALIZE_ID;
     Server server;
     if (!GetServer(id, &server)) {
         LOG(ERROR) << "TopologyImpl::GetPoolIdByServerId "
@@ -324,7 +324,7 @@ TopoStatusCode TopologyImpl::GetPoolIdByServerId(ServerIdType id,
 TopoStatusCode TopologyImpl::UpdateMetaServerSpace(const MetaServerSpace &space,
                                                    MetaServerIdType id) {
     // find pool it belongs to
-    PoolIdType belongPoolId = UNINTIALIZE_ID;
+    PoolIdType belongPoolId = UNINITIALIZE_ID;
     TopoStatusCode ret = GetPoolIdByMetaserverId(id, &belongPoolId);
     if (ret != TopoStatusCode::TOPO_OK) {
         return ret;
@@ -396,7 +396,7 @@ PoolIdType TopologyImpl::FindPool(const std::string &poolName) const {
             return it->first;
         }
     }
-    return static_cast<PoolIdType>(UNINTIALIZE_ID);
+    return static_cast<PoolIdType>(UNINITIALIZE_ID);
 }
 
 ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
@@ -414,7 +414,7 @@ ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
             return it->first;
         }
     }
-    return static_cast<ZoneIdType>(UNINTIALIZE_ID);
+    return static_cast<ZoneIdType>(UNINITIALIZE_ID);
 }
 
 ServerIdType TopologyImpl::FindServerByHostName(
@@ -425,7 +425,7 @@ ServerIdType TopologyImpl::FindServerByHostName(
             return it->first;
         }
     }
-    return static_cast<ServerIdType>(UNINTIALIZE_ID);
+    return static_cast<ServerIdType>(UNINITIALIZE_ID);
 }
 
 ServerIdType TopologyImpl::FindServerByHostIpPort(const std::string &hostIp,
@@ -446,7 +446,7 @@ ServerIdType TopologyImpl::FindServerByHostIpPort(const std::string &hostIp,
             }
         }
     }
-    return static_cast<ServerIdType>(UNINTIALIZE_ID);
+    return static_cast<ServerIdType>(UNINITIALIZE_ID);
 }
 
 bool TopologyImpl::GetPool(PoolIdType poolId, Pool *out) const {
@@ -738,6 +738,17 @@ std::list<MetaServerIdType> TopologyImpl::GetMetaServerInZone(
     return ret;
 }
 
+std::list<MetaServerIdType> TopologyImpl::GetMetaServerInPool(
+    PoolIdType id, MetaServerFilter filter) const {
+    std::list<MetaServerIdType> ret;
+    std::list<ZoneIdType> zoneList = GetZoneInPool(id);
+    for (ZoneIdType z : zoneList) {
+        std::list<MetaServerIdType> temp = GetMetaServerInZone(z, filter);
+        ret.splice(ret.begin(), temp);
+    }
+    return ret;
+}
+
 std::list<ServerIdType> TopologyImpl::GetServerInZone(
     ZoneIdType id, ServerFilter filter) const {
     std::list<ServerIdType> ret;
@@ -774,6 +785,18 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInPool(
     return ret;
 }
 
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster(
+    CopySetFilter filter) const {
+    std::vector<CopySetKey> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
+    for (const auto &it : copySetMap_) {
+        if (filter(it.second)) {
+            ret.push_back(it.first);
+        }
+    }
+    return ret;
+}
+
 std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInPool(
     PoolIdType poolId, CopySetFilter filter) const {
     std::vector<CopySetInfo> ret;
@@ -781,6 +804,18 @@ std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInPool(
     for (const auto &it : copySetMap_) {
         if (filter(it.second) && it.first.first == poolId) {
             ret.push_back(it.second);
+        }
+    }
+    return ret;
+}
+
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInMetaServer(
+    MetaServerIdType id, CopySetFilter filter) const {
+    std::vector<CopySetKey> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
+    for (const auto &it : copySetMap_) {
+        if (filter(it.second) && it.second.GetCopySetMembers().count(id) > 0) {
+            ret.push_back(it.first);
         }
     }
     return ret;
@@ -832,7 +867,7 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
 
     // update pool capacity
     for (auto pair : metaServerMap_) {
-        PoolIdType poolId = UNINTIALIZE_ID;
+        PoolIdType poolId = UNINITIALIZE_ID;
         TopoStatusCode ret =
             GetPoolIdByMetaserverId(pair.second.GetId(), &poolId);
         if (ret != TopoStatusCode::TOPO_OK) {
@@ -871,17 +906,17 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
     LOG(INFO) << "[TopologyImpl::init], LoadPartition success, "
               << "partition num = " << partitionMap_.size();
 
-    for (auto it : zoneMap_) {
+    for (const auto &it : zoneMap_) {
         PoolIdType poolid = it.second.GetPoolId();
         poolMap_[poolid].AddZone(it.first);
     }
 
-    for (auto it : serverMap_) {
+    for (const auto &it : serverMap_) {
         ZoneIdType zid = it.second.GetZoneId();
         zoneMap_[zid].AddServer(it.first);
     }
 
-    for (auto it : metaServerMap_) {
+    for (const auto &it : metaServerMap_) {
         ServerIdType sId = it.second.GetServerId();
         serverMap_[sId].AddMetaServer(it.first);
     }
@@ -960,7 +995,7 @@ TopoStatusCode TopologyImpl::SetCopySetAvalFlag(const CopySetKey &key,
         return TopoStatusCode::TOPO_OK;
     } else {
         LOG(WARNING) << "SetCopySetAvalFlag can not find copyset, "
-                     << "logicalPoolId = " << key.first
+                     << "poolId = " << key.first
                      << ", copysetId = " << key.second;
         return TopoStatusCode::TOPO_COPYSET_NOT_FOUND;
     }
@@ -1102,8 +1137,8 @@ int TopologyImpl::GetOneRandomNumber(int start, int end) const {
     return dis(gen);
 }
 
-TopoStatusCode TopologyImpl::ChooseSinglePoolRandom(PoolIdType *out,
-    const std::set<PoolIdType> &unavailablePools) const {
+TopoStatusCode TopologyImpl::ChooseSinglePoolRandom(
+    PoolIdType *out, const std::set<PoolIdType> &unavailablePools) const {
     poolMutex_.RDLock();
     std::unordered_map<PoolIdType, Pool> tmpPoolMap = poolMap_;
     poolMutex_.Unlock();
@@ -1128,10 +1163,9 @@ TopoStatusCode TopologyImpl::ChooseSinglePoolRandom(PoolIdType *out,
     return TopoStatusCode::TOPO_OK;
 }
 
-TopoStatusCode TopologyImpl::ChooseZonesInPool(PoolIdType poolId,
-    std::set<ZoneIdType> *zones,
-    const std::set<ZoneIdType> &unavailableZones,
-    int count) const {
+TopoStatusCode TopologyImpl::ChooseZonesInPool(
+    PoolIdType poolId, std::set<ZoneIdType> *zones,
+    const std::set<ZoneIdType> &unavailableZones, int count) const {
     std::list<ZoneIdType> zoneList = GetZoneInPool(poolId);
 
     // erase unavailable zone
@@ -1176,8 +1210,21 @@ TopoStatusCode TopologyImpl::ChooseZonesInPool(PoolIdType poolId,
 }
 
 TopoStatusCode TopologyImpl::ChooseSingleMetaServerInZone(
-    ZoneIdType zoneId, MetaServerIdType *metaServerId) const {
-    std::list<MetaServerIdType> metaServerList = GetMetaServerInZone(zoneId);
+    ZoneIdType zoneId, MetaServerIdType *metaServerId,
+    const std::set<MetaServerIdType> &excludeMetaservers) const {
+    std::list<MetaServerIdType> metaServerList =
+        GetMetaServerInZone(zoneId, [](const MetaServer  &ms) {
+            return ms.GetOnlineState() == OnlineState::ONLINE;
+        });
+    // erase exclude metaserver
+    for (const auto &metaserver : excludeMetaservers) {
+        auto it =
+            std::find(metaServerList.begin(), metaServerList.end(), metaserver);
+        if (it != metaServerList.end()) {
+            metaServerList.erase(it);
+        }
+    }
+
     if (metaServerList.empty()) {
         LOG(ERROR) << "Choose metaserver in zone failed,"
                    << " the metaserver is empty."
@@ -1192,10 +1239,11 @@ TopoStatusCode TopologyImpl::ChooseSingleMetaServerInZone(
         // check metaserver online status
         MetaServer metaserver;
         if (GetMetaServer(*iter, &metaserver)) {
-            // TODO(wanghai01): consider the space used by per copyset more details later  // NOLINT
+            // TODO(wanghai01): consider the space used by per copyset more
+            // details later  // NOLINT
             uint64_t leftSpace =
-                    metaserver.GetMetaServerSpace().GetDiskCapacity() -
-                    metaserver.GetMetaServerSpace().GetDiskUsed();
+                metaserver.GetMetaServerSpace().GetDiskCapacity() -
+                metaserver.GetMetaServerSpace().GetDiskUsed();
             if (ONLINE == metaserver.GetOnlineState() && leftSpace > 0) {
                 *metaServerId = *iter;
                 return TopoStatusCode::TOPO_OK;

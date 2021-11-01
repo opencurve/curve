@@ -23,8 +23,8 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_TOKEN_GENERATOR_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_TOKEN_GENERATOR_H_
 
-#include <string>
 #include <ctime>
+#include <string>
 
 namespace curvefs {
 namespace mds {
@@ -38,12 +38,9 @@ class TopologyTokenGenerator {
     virtual std::string GenToken() = 0;
 };
 
-
 class DefaultTokenGenerator : public TopologyTokenGenerator {
  public:
-    DefaultTokenGenerator() {
-        std::srand(std::time(nullptr));
-    }
+    DefaultTokenGenerator() { std::srand(std::time(nullptr)); }
     virtual ~DefaultTokenGenerator() {}
     virtual std::string GenToken();
 };
