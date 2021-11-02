@@ -58,24 +58,32 @@ class CopysetNodeWrapper {
     virtual ~CopysetNodeWrapper() {}
     CopysetNode* copysetNode_;
     virtual bool IsLeaderTerm() {
+        if (copysetNode_ == nullptr) return false;
         return copysetNode_->IsLeaderTerm();
     }
-    CopysetNode* get() {
+    virtual bool IsValid() {
+        return copysetNode_ != nullptr;
+    }
+    CopysetNode* Get() {
         return copysetNode_;
     }
 };
 
 class S3CompactWorkQueueImpl : public TaskThreadPool<> {
  public:
-    S3CompactWorkQueueImpl(std::shared_ptr<S3Adapter> s3Adapter,
+    S3CompactWorkQueueImpl(std::shared_ptr<S3AdapterManager> s3adapterManager,
+                           std::shared_ptr<S3InfoCache> s3infoCache,
                            const S3CompactWorkQueueOption& opts)
-        : s3Adapter_(s3Adapter), opts_(opts) {}
+        : s3adapterManager_(s3adapterManager),
+          s3infoCache_(s3infoCache),
+          opts_(opts) {}
 
-    std::shared_ptr<S3Adapter> s3Adapter_;
+    std::shared_ptr<S3AdapterManager> s3adapterManager_;
+    std::shared_ptr<S3InfoCache> s3infoCache_;
     S3CompactWorkQueueOption opts_;
     std::deque<InodeKey> compactingInodes_;
     void Enqueue(std::shared_ptr<InodeStorage> inodeStorage, InodeKey inodeKey,
-                 PartitionInfo pinfo, CopysetNode* copysetNodeWrapper);
+                 PartitionInfo pinfo, CopysetNode* copyset);
     std::function<void()> Dequeue();
     void ThreadFunc();
 
@@ -119,24 +127,28 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     std::vector<uint64_t> GetNeedCompact(
         const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&
             s3chunkinfoMap);
-    void DeleteObjs(const std::vector<std::string>& objsAdded);
+    void DeleteObjs(const std::vector<std::string>& objsAdded,
+                    S3Adapter* s3adapter);
     std::list<struct Node> BuildValidList(
         const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen);
     int ReadFullChunk(const std::list<struct Node>& validList, uint64_t fsId,
                       uint64_t inodeId, uint64_t blockSize,
                       std::string* fullChunk, uint64_t* newChunkId,
-                      uint64_t* newCompaction);
+                      uint64_t* newCompaction, S3Adapter* s3adapter);
     virtual MetaStatusCode UpdateInode(CopysetNode* copysetNode,
                                        const PartitionInfo& pinfo,
                                        const Inode& inode);
     int WriteFullChunk(const std::string& fullChunk, uint64_t fsId,
                        uint64_t inodeId, uint64_t blockSize,
                        uint64_t newChunkid, uint64_t newCompaction,
-                       std::vector<std::string>* objsAdded);
+                       std::vector<std::string>* objsAdded,
+                       S3Adapter* s3adapter);
     // func bind with task
     void CompactChunks(std::shared_ptr<InodeStorage> inodeStorage,
-                       const InodeKey& inodeKey, const PartitionInfo& pinfo,
-                       CopysetNodeWrapper* copysetNodeWrapper);
+                       InodeKey inodeKey, PartitionInfo pinfo,
+                       std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper,
+                       std::shared_ptr<S3AdapterManager> s3adapterManager,
+                       std::shared_ptr<S3InfoCache> s3infoCache);
 };
 
 }  // namespace metaserver

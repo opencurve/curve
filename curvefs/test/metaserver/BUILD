@@ -32,7 +32,7 @@ cc_test(
             "metaserver_s3_test.cpp",
             "mock_s3compactwq_impl.h",
             "s3compactwq_test.cpp",
-           "mock_s3_adapter.h"
+            "mock_s3_adapter.h"
         ],
     ),
     copts = CURVE_TEST_COPTS,
@@ -125,7 +125,8 @@ cc_test(
     srcs = glob(
                [ "s3compactwq_test.cpp",
                  "mock_s3compactwq_impl.h",
-                 "mock_s3_adapter.h"]
+                 "mock_s3_adapter.h",
+                 "mock_s3infocache.h"]
                ),
     copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],

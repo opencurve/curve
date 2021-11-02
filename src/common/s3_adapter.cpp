@@ -150,6 +150,27 @@ void S3Adapter::Shutdown() {
     std::call_once(S3SHUTDOWN_FLAG, shutdownSDK);
 }
 
+void S3Adapter::Reinit(const std::string& ak, const std::string& sk,
+                       const std::string& endpoint, S3AdapterOption option) {
+    Deinit();
+    option.ak = ak;
+    option.sk = sk;
+    option.s3Address = endpoint;
+    Init(option);
+}
+
+std::string S3Adapter::GetS3Ak() {
+    return std::string(s3Ak_.c_str(), s3Ak_.size());
+}
+
+std::string S3Adapter::GetS3Sk() {
+    return std::string(s3Sk_.c_str(), s3Sk_.c_str());
+}
+
+std::string S3Adapter::GetS3Endpoint() {
+    return std::string(s3Address_.c_str(), s3Address_.c_str());
+}
+
 int S3Adapter::CreateBucket() {
     Aws::S3::Model::CreateBucketRequest request;
     request.SetBucket(bucketName_);

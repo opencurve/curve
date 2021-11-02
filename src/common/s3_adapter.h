@@ -139,6 +139,23 @@ class S3Adapter {
      */
     virtual void Shutdown();
     /**
+     * reinit s3client with new AWSCredentials
+     */
+    virtual void Reinit(const std::string& ak, const std::string& sk,
+                        const std::string& endpoint, S3AdapterOption option);
+    /**
+     * get s3 ak
+     */
+    virtual std::string GetS3Ak();
+    /**
+     * get s3 sk
+     */
+    virtual std::string GetS3Sk();
+    /**
+     * get s3 endpoint
+     */
+    virtual std::string GetS3Endpoint();
+    /**
      * 创建存储快照数据的桶（桶名称由配置文件指定，需要全局唯一）
      * @return: 0 创建成功/ -1 创建失败
      */

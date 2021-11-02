@@ -24,9 +24,13 @@
 #define CURVEFS_SRC_METASERVER_S3COMPACT_MANAGER_H_
 
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
+#include "curvefs/proto/common.pb.h"
 #include "curvefs/src/metaserver/s3compact.h"
+#include "curvefs/src/metaserver/s3infocache.h"
 #include "src/common/configuration.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/s3_adapter.h"
@@ -35,22 +39,45 @@ using curve::common::Configuration;
 using curve::common::InterruptibleSleeper;
 using curve::common::RWLock;
 using curve::common::S3Adapter;
+using curvefs::common::S3Info;
 
 namespace curvefs {
 namespace metaserver {
 
 using curve::common::S3AdapterOption;
 
+class S3AdapterManager {
+ private:
+    std::mutex mtx_;
+    bool inited_;
+    uint64_t size_;  // same size as queueSize
+    std::vector<std::unique_ptr<S3Adapter>> s3adapters_;
+    std::vector<bool> used_;
+    S3AdapterOption opts_;
+
+ public:
+    explicit S3AdapterManager(uint64_t size, const S3AdapterOption& opts)
+        : inited_(false), size_(size), opts_(opts) {}
+    virtual ~S3AdapterManager() {}
+    virtual void Init();
+    virtual void Deinit();
+    virtual std::pair<uint64_t, S3Adapter*> GetS3Adapter();
+    virtual void ReleaseS3Adapter(uint64_t index);
+    virtual S3AdapterOption GetBasicS3AdapterOption();
+};
+
 struct S3CompactWorkQueueOption {
     S3AdapterOption s3opts;
     bool enable;
     uint64_t threadNum;
     uint64_t queueSize;
-    uint64_t blockSize;
-    uint64_t chunkSize;
     uint64_t fragmentThreshold;
     uint64_t maxChunksPerCompact;
     uint64_t enqueueSleepMS;
+    std::vector<std::string> mdsAddrs;
+    std::string metaserverIpStr;
+    uint64_t metaserverPort;
+    uint64_t s3infocacheSize;
 
     void Init(std::shared_ptr<Configuration> conf);
 };
@@ -59,7 +86,8 @@ class S3CompactWorkQueueImpl;
 class S3CompactManager {
  private:
     S3CompactWorkQueueOption opts_;
-    std::shared_ptr<S3Adapter> s3Adapter_;
+    std::shared_ptr<S3InfoCache> s3infoCache_;
+    std::shared_ptr<S3AdapterManager> s3adapterManager_;
     std::shared_ptr<S3CompactWorkQueueImpl> s3compactworkqueueImpl_;
     std::vector<std::shared_ptr<S3Compact>> s3compacts_;
     curve::common::RWLock rwLock_;
