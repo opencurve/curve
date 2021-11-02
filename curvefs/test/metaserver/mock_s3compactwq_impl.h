@@ -30,6 +30,7 @@
 #include <string>
 
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
+#include "curvefs/test/metaserver/mock_s3infocache.h"
 
 using curve::common::S3Adapter;
 using curvefs::metaserver::copyset::CopysetNode;
@@ -40,9 +41,11 @@ namespace metaserver {
 
 class MockS3CompactWorkQueueImpl : public S3CompactWorkQueueImpl {
  public:
-    MockS3CompactWorkQueueImpl(std::shared_ptr<S3Adapter> s3Adapter,
-                               const S3CompactWorkQueueOption& opts)
-        : S3CompactWorkQueueImpl(s3Adapter, opts) {}
+    MockS3CompactWorkQueueImpl(
+        std::shared_ptr<S3AdapterManager> s3AdapterManager,
+        std::shared_ptr<S3InfoCache> s3infoCache,
+        const S3CompactWorkQueueOption& opts)
+        : S3CompactWorkQueueImpl(s3AdapterManager, s3infoCache, opts) {}
     MOCK_METHOD3(UpdateInode, MetaStatusCode(CopysetNode*, const PartitionInfo&,
                                              const Inode&));
 };
@@ -51,6 +54,7 @@ class MockCopysetNodeWrapper : public CopysetNodeWrapper {
  public:
     MockCopysetNodeWrapper() : CopysetNodeWrapper(nullptr) {}
     MOCK_METHOD0(IsLeaderTerm, bool());
+    MOCK_METHOD0(IsValid, bool());
 };
 
 }  // namespace metaserver

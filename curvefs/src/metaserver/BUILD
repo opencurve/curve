@@ -61,6 +61,7 @@ cc_library(
     deps = [
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/src/common:curvefs_common",
+        "//curvefs/proto:mds_cc_proto",
         "//external:gflags",
         "//external:glog",
         "//src/common:curve_s3_adapter",

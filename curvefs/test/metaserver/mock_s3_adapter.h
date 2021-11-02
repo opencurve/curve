@@ -28,7 +28,9 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
+#include "curvefs/src/metaserver/s3compact_manager.h"
 #include "src/common/s3_adapter.h"
 
 using ::curve::common::S3Adapter;
@@ -37,6 +39,16 @@ using ::testing::Return;
 namespace curvefs {
 namespace metaserver {
 
+class MockS3AdapterManager : public S3AdapterManager {
+ public:
+    MockS3AdapterManager(uint64_t size, const S3AdapterOption& opts)
+        : S3AdapterManager(size, opts) {}
+    ~MockS3AdapterManager() {}
+    MOCK_METHOD0(Init, void());
+    MOCK_METHOD0(GetS3Adapter, std::pair<uint64_t, S3Adapter*>());
+    MOCK_METHOD1(ReleaseS3Adapter, void(uint64_t));
+};
+
 class MockS3Adapter : public S3Adapter {
  public:
     MockS3Adapter() {}
@@ -44,6 +56,12 @@ class MockS3Adapter : public S3Adapter {
 
     MOCK_METHOD1(Init, void(const std::string&));
     MOCK_METHOD0(Deinit, void());
+    MOCK_METHOD4(Reinit, void(const std::string&, const std::string&,
+                              const std::string&, S3AdapterOption opt));
+    MOCK_METHOD0(GetS3Ak, std::string());
+    MOCK_METHOD0(GetS3Sk, std::string());
+    MOCK_METHOD0(GetS3Endpoint, std::string());
+    MOCK_METHOD0(GetBucketName, std::string());
     MOCK_METHOD2(PutObject, int(const Aws::String&, const std::string&));
     MOCK_METHOD2(GetObject, int(const Aws::String&, std::string*));
     MOCK_METHOD1(DeleteObject, int(const Aws::String&));

@@ -27,12 +27,14 @@
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
 #include "curvefs/test/metaserver/mock_s3_adapter.h"
 #include "curvefs/test/metaserver/mock_s3compactwq_impl.h"
+#include "curvefs/test/metaserver/mock_s3infocache.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
+using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
@@ -45,15 +47,24 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         opts_.enable = true;
         opts_.threadNum = 1;
         opts_.queueSize = 1;
-        opts_.blockSize = 4;
-        opts_.chunkSize = 64;
         opts_.fragmentThreshold = 20;
         opts_.maxChunksPerCompact = 10;
+        uint64_t s3adapterSize = 10;
+        S3AdapterOption opts;
+        s3adapterManager_ =
+            std::make_shared<MockS3AdapterManager>(s3adapterSize, opts);
         s3adapter_ = std::make_shared<MockS3Adapter>();
+        uint64_t cacheCapacity = 10;
+        std::vector<std::string> mdsAddrs{"10.0.0.2:1000", "10.0.0.3:10001"};
+        butil::EndPoint metaserverAddr;
+        s3infoCache_ = std::make_shared<MockS3InfoCache>(
+            cacheCapacity, mdsAddrs, metaserverAddr);
         inodeStorage_ = std::make_shared<MemoryInodeStorage>();
-        impl_ = std::make_shared<S3CompactWorkQueueImpl>(s3adapter_, opts_);
-        mockImpl_ =
-            std::make_shared<MockS3CompactWorkQueueImpl>(s3adapter_, opts_);
+        impl_ = std::make_shared<S3CompactWorkQueueImpl>(s3adapterManager_,
+                                                         s3infoCache_, opts_);
+        mockImpl_ = std::make_shared<MockS3CompactWorkQueueImpl>(
+            s3adapterManager_, s3infoCache_, opts_);
+        mockCopysetNodeWrapper_ = std::make_shared<MockCopysetNodeWrapper>();
     }
 
     void TearDown() override {
@@ -62,11 +73,13 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
 
  protected:
     S3CompactWorkQueueOption opts_;
+    std::shared_ptr<MockS3AdapterManager> s3adapterManager_;
     std::shared_ptr<MockS3Adapter> s3adapter_;
+    std::shared_ptr<MockS3InfoCache> s3infoCache_;
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<S3CompactWorkQueueImpl> impl_;
     std::shared_ptr<MockS3CompactWorkQueueImpl> mockImpl_;
-    MockCopysetNodeWrapper mockCopysetNodeWrapper_;
+    std::shared_ptr<MockCopysetNodeWrapper> mockCopysetNodeWrapper_;
 };
 
 TEST_F(S3CompactWorkQueueImplTest, test_GetNeedCWrapperompact) {
@@ -107,7 +120,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_DeleteObjs) {
     objs.emplace_back("obj1");
     objs.emplace_back("obj2");
     EXPECT_CALL(*s3adapter_, DeleteObject(_)).WillRepeatedly(Return(0));
-    impl_->DeleteObjs(objs);
+    impl_->DeleteObjs(objs, s3adapter_.get());
 }
 
 TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
@@ -310,7 +323,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
 
     validList.emplace_back(0, 1, 0, 0, 0, true);
     ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                               &newChunkid, &newCompaction);
+                               &newChunkid, &newCompaction, s3adapter_.get());
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(newChunkid, 0);
     ASSERT_EQ(newCompaction, 1);
@@ -320,7 +333,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     validList.emplace_back(1, 11, 0, 0, 0, false);
     validList.emplace_back(13, 14, 2, 0, 0, false);
     ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                               &newChunkid, &newCompaction);
+                               &newChunkid, &newCompaction, s3adapter_.get());
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(newChunkid, 2);
     ASSERT_EQ(newCompaction, 1);
@@ -330,7 +343,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     EXPECT_CALL(*s3adapter_, GetObject(_, _)).WillRepeatedly(Return(-1));
     validList.emplace_back(0, 1, 1, 1, 0, false);
     ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                               &newChunkid, &newCompaction);
+                               &newChunkid, &newCompaction, s3adapter_.get());
     ASSERT_EQ(ret, -1);
 }
 
@@ -338,18 +351,21 @@ TEST_F(S3CompactWorkQueueImplTest, test_WriteFullChunk) {
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(0));
     std::string fullChunk(10, '0');
     std::vector<std::string> objsAdded;
-    int ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded);
+    int ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded,
+                                    s3adapter_.get());
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(objsAdded[0], "1_100_2_0_3");
     ASSERT_EQ(objsAdded[1], "1_100_2_1_3");
     ASSERT_EQ(objsAdded[2], "1_100_2_2_3");
 
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(-1));
-    ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded);
+    ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded,
+                                s3adapter_.get());
     ASSERT_EQ(ret, -1);
 }
 
 TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
+    uint64_t blockSize = 4;
     Inode tmp;
     auto mock_updateinode = [&](CopysetNode* copysetNode,
                                 const PartitionInfo& pinfo,
@@ -363,19 +379,50 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
     EXPECT_CALL(*s3adapter_, DeleteObject(_)).WillRepeatedly(Return(0));
     auto mock_getobj = [&](const Aws::String& key, std::string* data) {
         data->clear();
-        data->append(opts_.blockSize, '\0');
+        data->append(blockSize, '\0');
         return 0;
     };
     EXPECT_CALL(*s3adapter_, GetObject(_, _))
         .WillRepeatedly(testing::Invoke(mock_getobj));
 
-    EXPECT_CALL(mockCopysetNodeWrapper_, IsLeaderTerm())
+    EXPECT_CALL(*mockCopysetNodeWrapper_, IsLeaderTerm())
         .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*mockCopysetNodeWrapper_, IsValid())
+        .WillRepeatedly(Return(true));
+
+    auto pairResult = std::make_pair(0, s3adapter_.get());
+    EXPECT_CALL(*s3adapterManager_, GetS3Adapter())
+        .WillRepeatedly(Return(pairResult));
+
+    EXPECT_CALL(*s3adapterManager_, ReleaseS3Adapter(_))
+        .WillRepeatedly(Return());
+
+    auto mock_gets3info_success = [&](uint64_t fsid, S3Info* s3info) {
+        s3info->set_ak("1");
+        s3info->set_sk("2");
+        s3info->set_endpoint("3");
+        s3info->set_bucketname("4");
+        s3info->set_blocksize(blockSize);
+        return 0;
+    };
+
+    EXPECT_CALL(*s3infoCache_, GetS3Info(_, _))
+        .WillRepeatedly(testing::Invoke(mock_gets3info_success));
+    EXPECT_CALL(*s3infoCache_, InvalidateS3Info(_)).WillRepeatedly(Return());
+
+    std::string v = "5";
+    EXPECT_CALL(*s3adapter_, GetS3Ak()).WillRepeatedly(Return(v));
+    EXPECT_CALL(*s3adapter_, GetS3Sk()).WillRepeatedly(Return(v));
+    EXPECT_CALL(*s3adapter_, GetS3Endpoint()).WillRepeatedly(Return(v));
+    EXPECT_CALL(*s3adapter_, Reinit(_, _, _, _)).WillRepeatedly(Return());
+    EXPECT_CALL(*s3adapter_, GetBucketName()).WillRepeatedly(Return(v));
 
     PartitionInfo partitioninfo_;
     // inode not exist
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(0, 1), partitioninfo_,
-                             &mockCopysetNodeWrapper_);
+                             mockCopysetNodeWrapper_, s3adapterManager_,
+                             s3infoCache_);
     // s3chunkinfomap size 0
     Inode inode1;
     inode1.set_fsid(1);
@@ -386,7 +433,8 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
     *inode1.mutable_s3chunkinfomap() = s3chunkinfoMap;
     ASSERT_EQ(inodeStorage_->Insert(inode1), MetaStatusCode::OK);
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
-                             &mockCopysetNodeWrapper_);
+                             mockCopysetNodeWrapper_, s3adapterManager_,
+                             s3infoCache_);
     // normal
     S3ChunkInfoList l0;
     S3ChunkInfoList l1;
@@ -411,7 +459,8 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
     (*inode1.mutable_s3chunkinfomap())[0] = l0;
     ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
-                             &mockCopysetNodeWrapper_);
+                             mockCopysetNodeWrapper_, s3adapterManager_,
+                             s3infoCache_);
     ASSERT_EQ(tmp.s3chunkinfomap().size(), 1);
     const auto& l = tmp.s3chunkinfomap().at(0);
     ASSERT_EQ(l.s3chunks_size(), 1);
@@ -426,16 +475,24 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
     inode1.set_nlink(0);
     ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
-                             &mockCopysetNodeWrapper_);
+                             mockCopysetNodeWrapper_, s3adapterManager_,
+                             s3infoCache_);
     EXPECT_CALL(*mockImpl_, UpdateInode(_, _, _))
         .WillRepeatedly(Return(MetaStatusCode::UNKNOWN_ERROR));
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
-                             &mockCopysetNodeWrapper_);
+                             mockCopysetNodeWrapper_, s3adapterManager_,
+                             s3infoCache_);
+    auto mock_gets3info_fail = [&](uint64_t fsid, S3Info* s3info) {
+        return -1;
+    };
+    EXPECT_CALL(*s3infoCache_, GetS3Info(_, _))
+        .WillRepeatedly(testing::Invoke(mock_gets3info_fail));
     // copysetnode is not leader
-    EXPECT_CALL(mockCopysetNodeWrapper_, IsLeaderTerm())
+    EXPECT_CALL(*mockCopysetNodeWrapper_, IsLeaderTerm())
         .WillRepeatedly(Return(true));
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
-                             &mockCopysetNodeWrapper_);
+                             mockCopysetNodeWrapper_, s3adapterManager_,
+                             s3infoCache_);
 }
 }  // namespace metaserver
 }  // namespace curvefs

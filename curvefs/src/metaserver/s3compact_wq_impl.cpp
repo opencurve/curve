@@ -59,10 +59,10 @@ void S3CompactWorkQueueImpl::Enqueue(std::shared_ptr<InodeStorage> inodeStorage,
         notFull_.wait(guard);
     }
     compactingInodes_.push_back(inodeKey);
-    CopysetNodeWrapper copysetNodeWrapper(copysetNode);
-    auto task =
-        std::bind(&S3CompactWorkQueueImpl::CompactChunks, this, inodeStorage,
-                  std::ref(inodeKey), std::ref(pinfo), &copysetNodeWrapper);
+    auto copysetNodeWrapper = std::make_shared<CopysetNodeWrapper>(copysetNode);
+    auto task = std::bind(&S3CompactWorkQueueImpl::CompactChunks, this,
+                          inodeStorage, inodeKey, pinfo, copysetNodeWrapper,
+                          s3adapterManager_, s3infoCache_);
     // am i copysetnode leader?_
     queue_.push_back(std::move(task));
     notEmpty_.notify_one();
@@ -107,10 +107,11 @@ std::vector<uint64_t> S3CompactWorkQueueImpl::GetNeedCompact(
     return needCompact;
 }
 
-void S3CompactWorkQueueImpl::DeleteObjs(const std::vector<std::string>& objs) {
+void S3CompactWorkQueueImpl::DeleteObjs(const std::vector<std::string>& objs,
+                                        S3Adapter* s3adapter) {
     for (const auto& obj : objs) {
         const Aws::String aws_key(obj.c_str(), obj.size());
-        s3Adapter_->DeleteObject(aws_key);  // don't care success or not
+        s3adapter->DeleteObject(aws_key);  // don't care success or not
     }
 }
 
@@ -216,7 +217,7 @@ S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
 int S3CompactWorkQueueImpl::ReadFullChunk(
     const std::list<struct S3CompactWorkQueueImpl::Node>& validList,
     uint64_t fsId, uint64_t inodeId, uint64_t blockSize, std::string* fullChunk,
-    uint64_t* newChunkid, uint64_t* newCompaction) {
+    uint64_t* newChunkid, uint64_t* newCompaction, S3Adapter* s3adapter) {
     for (auto curr = validList.begin(); curr != validList.end();) {
         auto next = std::next(curr);
         if (curr->zero) {
@@ -232,7 +233,7 @@ int S3CompactWorkQueueImpl::ReadFullChunk(
                 curr->chunkid, index, curr->compaction, fsId, inodeId);
             std::string buf;
             const Aws::String aws_key(objName.c_str(), objName.size());
-            int ret = s3Adapter_->GetObject(aws_key, &buf);
+            int ret = s3adapter->GetObject(aws_key, &buf);
             if (ret != 0) {
                 LOG(WARNING) << "Get S3 obj " << objName << " failed.";
                 return ret;
@@ -284,6 +285,7 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(CopysetNode* copysetNode,
     *request.mutable_s3chunkinfomap() = inode.s3chunkinfomap();
     UpdateInodeResponse response;
     S3CompactWorkQueueImpl::UpdateInodeClosure done;
+    // if copysetnode change to nullptr, maybe crash
     auto UpdateInodeOp = new UpdateInodeOperator(copysetNode, nullptr, &request,
                                                  &response, &done);
     UpdateInodeOp->Propose();
@@ -294,7 +296,7 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(CopysetNode* copysetNode,
 int S3CompactWorkQueueImpl::WriteFullChunk(
     const std::string& fullChunk, uint64_t fsId, uint64_t inodeId,
     uint64_t blockSize, uint64_t newChunkid, uint64_t newCompaction,
-    std::vector<std::string>* objsAdded) {
+    std::vector<std::string>* objsAdded, S3Adapter* s3adapter) {
     uint64_t chunkLen = fullChunk.length();
     for (uint64_t index = 0; index * blockSize < chunkLen; index += 1) {
         std::string objName = curvefs::common::s3util::GenObjName(
@@ -302,11 +304,11 @@ int S3CompactWorkQueueImpl::WriteFullChunk(
         const Aws::String aws_key(objName.c_str(), objName.size());
         int ret;
         if (chunkLen > (index + 1) * blockSize) {
-            ret = s3Adapter_->PutObject(
+            ret = s3adapter->PutObject(
                 aws_key, fullChunk.substr(index * blockSize, blockSize));
         } else {
             // last block
-            ret = s3Adapter_->PutObject(
+            ret = s3adapter->PutObject(
                 aws_key, fullChunk.substr(index * blockSize,
                                           chunkLen - index * blockSize));
         }
@@ -321,8 +323,10 @@ int S3CompactWorkQueueImpl::WriteFullChunk(
 }
 
 void S3CompactWorkQueueImpl::CompactChunks(
-    std::shared_ptr<InodeStorage> inodeStorage, const InodeKey& inodeKey,
-    const PartitionInfo& pinfo, CopysetNodeWrapper* copysetNodeWrapper) {
+    std::shared_ptr<InodeStorage> inodeStorage, InodeKey inodeKey,
+    PartitionInfo pinfo, std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper,
+    std::shared_ptr<S3AdapterManager> s3adapterManager,
+    std::shared_ptr<S3InfoCache> s3infoCache) {
     // am i copysetnode leader?
     if (!copysetNodeWrapper->IsLeaderTerm()) return;
 
@@ -357,8 +361,41 @@ void S3CompactWorkQueueImpl::CompactChunks(
     }
 
     // let's compact
+    // 0. get s3adapter&s3info, set s3adapter
+    // include ak, sk, addr, bucket, blocksize
+    uint64_t blockSize;
+    auto pairResult = s3adapterManager->GetS3Adapter();
+    uint64_t s3adapterIndex = pairResult.first;
+    S3Adapter* s3adapter = pairResult.second;
+    if (s3adapter == nullptr) {
+        VLOG(6) << "s3compact: fail to get s3adapter";
+        return;
+    }
+
+    S3Info s3info;
+    int status = s3infoCache->GetS3Info(fsId, &s3info);
+    if (status == 0) {
+        blockSize = s3info.blocksize();
+        if (s3adapter->GetS3Ak() != s3info.ak() ||
+            s3adapter->GetS3Sk() != s3info.sk() ||
+            s3adapter->GetS3Endpoint() != s3info.endpoint()) {
+            s3adapter->Reinit(s3info.ak(), s3info.sk(), s3info.endpoint(),
+                              s3adapterManager_->GetBasicS3AdapterOption());
+        }
+        Aws::String bucketName(s3info.bucketname().c_str(),
+                               s3info.bucketname().size());
+        if (s3adapter->GetBucketName() != bucketName) {
+            s3adapter->SetBucketName(bucketName);
+        }
+        VLOG(6) << "s3compact: set s3info success, ak: " << s3info.ak()
+                << ", sk: " << s3info.sk()
+                << ", endpoint: " << s3info.endpoint()
+                << ", bucket: " << s3info.bucketname();
+    } else {
+        VLOG(6) << "s3compact: fail to get s3info " << fsId;
+        return;
+    }
     // 1. write new objs, each chunk one by one
-    uint64_t blockSize = opts_.blockSize;
     std::vector<std::string> objsAdded;
     std::vector<uint64_t> indexToDelete;
     for (const auto& index : needCompact) {
@@ -380,18 +417,22 @@ void S3CompactWorkQueueImpl::CompactChunks(
         uint64_t newChunkid = 0;
         uint64_t newCompaction = 0;
         int ret = ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                                &newChunkid, &newCompaction);
+                                &newChunkid, &newCompaction, s3adapter);
         if (ret != 0) {
             LOG(WARNING) << "S3Compact ReadFullChunk failed, index " << index;
-            DeleteObjs(objsAdded);
+            s3infoCache_->InvalidateS3Info(fsId);
+            DeleteObjs(objsAdded, s3adapter);
+            s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
             return;
         }
         // 1.3 then write objs with newChunkid and newCompaction
         ret = WriteFullChunk(fullChunk, fsId, inodeId, blockSize, newChunkid,
-                             newCompaction, &objsAdded);
+                             newCompaction, &objsAdded, s3adapter);
         if (ret != 0) {
             LOG(WARNING) << "S3Compact WriteFullChunk failed, index " << index;
-            DeleteObjs(objsAdded);
+            s3infoCache_->InvalidateS3Info(fsId);
+            DeleteObjs(objsAdded, s3adapter);
+            s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
             return;
         }
         // 1.4 update inode locally
@@ -411,12 +452,14 @@ void S3CompactWorkQueueImpl::CompactChunks(
     }
 
     // 2. update inode
-    ret = UpdateInode(copysetNodeWrapper->get(), pinfo, inode);
+    if (!copysetNodeWrapper->IsValid()) return;
+    ret = UpdateInode(copysetNodeWrapper->Get(), pinfo, inode);
     if (ret != MetaStatusCode::OK) {
         LOG(WARNING) << "S3Compact UpdateInode failed, inodeKey = "
                      << inodeKey.fsId << "," << inodeKey.inodeId
                      << ", ret = " << MetaStatusCode_Name(ret);
-        DeleteObjs(objsAdded);
+        DeleteObjs(objsAdded, s3adapter);
+        s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
         return;
     }
 
@@ -432,11 +475,12 @@ void S3CompactWorkQueueImpl::CompactChunks(
                     chunkinfo.chunkid(), (off - chunkinfo.offset()) / blockSize,
                     chunkinfo.compaction(), fsId, inodeId);
                 const Aws::String aws_key(objName.c_str(), objName.size());
-                s3Adapter_->DeleteObject(aws_key);  // don't care success or not
+                s3adapter->DeleteObject(aws_key);  // don't care success or not
                 off += blockSize;
             }
         }
     }
+    s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
 }
 
 }  // namespace metaserver
