@@ -17,7 +17,16 @@ project_log_root: "{{ curvefs_project_log_home }}/client"
 project_config_src: "{{ playbook_dir | dirname }}/conf"
 project_config_dsv: "="
 project_core_method: "{{ curvefs_core_method }}"
+
+# FIXME: static link jemalloc or use a better way to preload it
+#   uses find to find libjemalloc.so, because different distributions have different libraries
+#   e.g.:
+#     Debian 9 only has libjemalloc1 which includes `/usr/lib/x86_64-linux-gnu/libjemalloc.so.1`
+#     Debian 10 only has libjemalloc2 which includes `/usr/lib/x86_64-linux-gnu/libjemalloc.so.2`
+#     And both of them don't include a symbolic link like `libjemalloc.so` that points to the real shared library
+#     The same thing happened in CentOS 7 and CentOS 8
 project_mount_command: >
+  LD_PRELOAD=`find /usr/ -name "libjemalloc.so*" -print -quit 2>/dev/null`
   {{ project_root_dest }}/sbin/curve-fuse
   {{ curvefs_client_mount_args | trim }}
   -o conf={{ project_root_dest }}/conf/client.conf
