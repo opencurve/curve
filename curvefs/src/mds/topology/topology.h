@@ -167,12 +167,27 @@ class Topology {
         PoolIdType id,
         ZoneFilter filter = [](const Zone &) { return true; }) const = 0;
 
+    // get copyset list
+    virtual std::vector<CopySetIdType> GetCopySetsInPool(
+        PoolIdType poolId, CopySetFilter filter = [](const CopySetInfo &) {
+            return true;
+        }) const = 0;
+
+    virtual std::vector<CopySetInfo> GetCopySetInfosInPool(
+        PoolIdType poolId, CopySetFilter filter = [](const CopySetInfo &) {
+            return true;
+        }) const = 0;
+
     // get partition list
     virtual std::list<Partition> GetPartitionOfFs(FsIdType id,
                                                   PartitionFilter filter =
                                                       [](const Partition &) {
                                                           return true;
                                                       }) const = 0;
+    virtual std::list<Partition> GetPartitionInfosInPool(
+        PoolIdType poolId, PartitionFilter filter = [](const Partition &) {
+            return true;
+        }) const = 0;
 
     // choose randomly
     virtual TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out,
@@ -329,12 +344,31 @@ class TopologyImpl : public Topology {
                                             return true;
                                         }) const override;
 
+    // get copyset list
+    std::vector<CopySetIdType> GetCopySetsInPool(PoolIdType poolId,
+                                                 CopySetFilter filter =
+                                                     [](const CopySetInfo &) {
+                                                         return true;
+                                                     }) const override;
+
+    std::vector<CopySetInfo> GetCopySetInfosInPool(PoolIdType poolId,
+                                                   CopySetFilter filter =
+                                                       [](const CopySetInfo &) {
+                                                           return true;
+                                                       }) const override;
+
     // get partition list
     std::list<Partition> GetPartitionOfFs(FsIdType id,
                                           PartitionFilter filter =
                                               [](const Partition &) {
                                                   return true;
                                               }) const override;
+
+    std::list<Partition> GetPartitionInfosInPool(PoolIdType poolId,
+                                                 PartitionFilter filter =
+                                                     [](const Partition &) {
+                                                         return true;
+                                                     }) const override;
 
     // choose random
     TopoStatusCode ChooseSinglePoolRandom(PoolIdType *out,
@@ -350,8 +384,7 @@ class TopologyImpl : public Topology {
     TopoStatusCode GetPoolIdByMetaserverId(MetaServerIdType id,
                                            PoolIdType *poolIdOut);
 
-    TopoStatusCode GetPoolIdByServerId(ServerIdType id,
-                                           PoolIdType *poolIdOut);
+    TopoStatusCode GetPoolIdByServerId(ServerIdType id, PoolIdType *poolIdOut);
 
  private:
     TopoStatusCode LoadClusterInfo();

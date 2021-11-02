@@ -42,6 +42,8 @@ struct TopologyOption {
     uint32_t createCopysetNumber;
     // create partition number
     uint32_t createPartitionNumber;
+    // time interval for updating topology metric
+    uint32_t UpdateMetricIntervalSec;
 
     TopologyOption()
         : topologyUpdateToRepoSec(0),
@@ -49,7 +51,8 @@ struct TopologyOption {
           idNumberInPartition(16777216),
           choosePoolPolicy(0),
           createCopysetNumber(10),
-          createPartitionNumber(1) {}
+          createPartitionNumber(3),
+          UpdateMetricIntervalSec(60) {}
 };
 
 }  // namespace topology

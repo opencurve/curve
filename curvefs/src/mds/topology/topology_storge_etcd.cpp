@@ -44,7 +44,7 @@ bool TopologyStorageEtcd::LoadPool(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (uint32_t i = 0; i < out.size(); i++) {
         Pool data;
         errCode = codec_->DecodePoolData(out[i], &data);
         if (!errCode) {
@@ -80,7 +80,7 @@ bool TopologyStorageEtcd::LoadZone(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (uint32_t i = 0; i < out.size(); i++) {
         Zone data;
         errCode = codec_->DecodeZoneData(out[i], &data);
         if (!errCode) {
@@ -116,7 +116,7 @@ bool TopologyStorageEtcd::LoadServer(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (uint32_t i = 0; i < out.size(); i++) {
         Server data;
         errCode = codec_->DecodeServerData(out[i], &data);
         if (!errCode) {
@@ -152,7 +152,7 @@ bool TopologyStorageEtcd::LoadMetaServer(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (uint32_t i = 0; i < out.size(); i++) {
         MetaServer data;
         errCode = codec_->DecodeMetaServerData(out[i], &data);
         if (!errCode) {
@@ -189,7 +189,7 @@ bool TopologyStorageEtcd::LoadCopySet(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (uint32_t i = 0; i < out.size(); i++) {
         CopySetInfo data;
         errCode = codec_->DecodeCopySetData(out[i], &data);
         if (!errCode) {
@@ -227,7 +227,7 @@ bool TopologyStorageEtcd::LoadPartition(
         LOG(ERROR) << "etcd list err:" << errCode;
         return false;
     }
-    for (int i = 0; i < out.size(); i++) {
+    for (uint32_t i = 0; i < out.size(); i++) {
         Partition data;
         errCode = codec_->DecodePartitionData(out[i], &data);
         if (!errCode) {
@@ -473,7 +473,7 @@ bool TopologyStorageEtcd::UpdatePartitions(
     std::vector<std::string> keys(datas.size());
     std::vector<std::string> values(datas.size());
 
-    for (int i = 0; i < datas.size(); i++) {
+    for (uint32_t i = 0; i < datas.size(); i++) {
         keys[i] = codec_->EncodePartitionKey(datas[i].GetPartitionId());
         bool ret = codec_->EncodePartitionData(datas[i], &values[i]);
         if (!ret) {

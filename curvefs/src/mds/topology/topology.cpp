@@ -651,6 +651,18 @@ std::list<Partition> TopologyImpl::GetPartitionOfFs(
     return ret;
 }
 
+std::list<Partition> TopologyImpl::GetPartitionInfosInPool(
+    PoolIdType poolId, PartitionFilter filter) const {
+    std::list<Partition> ret;
+    ReadLockGuard rlockPartitionMap(partitionMutex_);
+    for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
+        if (filter(it->second) && it->second.GetPoolId() == poolId) {
+            ret.push_back(it->second);
+        }
+    }
+    return ret;
+}
+
 // getList
 std::vector<MetaServerIdType> TopologyImpl::GetMetaServerInCluster(
     MetaServerFilter filter) const {
@@ -744,6 +756,30 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInPool(PoolIdType id,
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
         if (filter(it->second) && it->second.GetPoolId() == id) {
             ret.push_back(it->first);
+        }
+    }
+    return ret;
+}
+
+std::vector<CopySetIdType> TopologyImpl::GetCopySetsInPool(
+    PoolIdType poolId, CopySetFilter filter) const {
+    std::vector<CopySetIdType> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
+    for (const auto &it : copySetMap_) {
+        if (filter(it.second) && it.first.first == poolId) {
+            ret.push_back(it.first.second);
+        }
+    }
+    return ret;
+}
+
+std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInPool(
+    PoolIdType poolId, CopySetFilter filter) const {
+    std::vector<CopySetInfo> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
+    for (const auto &it : copySetMap_) {
+        if (filter(it.second) && it.first.first == poolId) {
+            ret.push_back(it.second);
         }
     }
     return ret;
