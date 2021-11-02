@@ -37,6 +37,7 @@
 #include "curvefs/src/mds/topology/topology.h"
 #include "curvefs/src/mds/topology/topology_service.h"
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
+#include "curvefs/src/mds/topology/topology_metric.h"
 #include "curvefs/src/mds/heartbeat/heartbeat_service.h"
 #include "curvefs/proto/heartbeat.pb.h"
 
@@ -49,6 +50,7 @@ using ::curvefs::mds::topology::DefaultTokenGenerator;
 using ::curvefs::mds::topology::TopologyStorageEtcd;
 using ::curvefs::mds::topology::TopologyStorageCodec;
 using ::curvefs::mds::topology::TopologyServiceImpl;
+using ::curvefs::mds::topology::TopologyMetricService;
 using ::curvefs::mds::heartbeat::HeartbeatServiceImpl;
 using ::curvefs::mds::heartbeat::HeartbeatOption;
 using ::curve::kvstorage::EtcdClientImp;
@@ -112,6 +114,8 @@ class MDS {
 
     void InitTopologyManager(const TopologyOption &option);
 
+    void InitTopologyMetricService(const TopologyOption& option);
+
     void InitHeartbeatManager();
 
  private:
@@ -129,6 +133,7 @@ class MDS {
     std::shared_ptr<TopologyImpl> topology_;
     std::shared_ptr<TopologyManager> topologyManager_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
+    std::shared_ptr<TopologyMetricService> topologyMetricService_;
     MDSOptions options_;
 
     bool etcdClientInited_;

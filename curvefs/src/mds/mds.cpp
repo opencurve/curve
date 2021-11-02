@@ -65,13 +65,13 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     InitTopologyOption(&options_.topologyOptions);
 }
 
-void MDS::InitSpaceOption(SpaceOptions *spaceOption) {
+void MDS::InitSpaceOption(SpaceOptions* spaceOption) {
     conf_->GetValueFatalIfFail("space.addr", &spaceOption->spaceAddr);
     conf_->GetValueFatalIfFail("space.rpcTimeoutMs",
                                &spaceOption->rpcTimeoutMs);
 }
 
-void MDS::InitMetaServerOption(MetaserverOptions *metaserverOption) {
+void MDS::InitMetaServerOption(MetaserverOptions* metaserverOption) {
     conf_->GetValueFatalIfFail("metaserver.addr",
                                &metaserverOption->metaserverAddr);
     conf_->GetValueFatalIfFail("metaserver.rpcTimeoutMs",
@@ -82,25 +82,21 @@ void MDS::InitMetaServerOption(MetaserverOptions *metaserverOption) {
                                &metaserverOption->rpcRetryIntervalUs);
 }
 
-void MDS::InitTopologyOption(TopologyOption *topologyOption) {
-    conf_->GetValueFatalIfFail(
-        "mds.topology.TopologyUpdateToRepoSec",
-        &topologyOption->topologyUpdateToRepoSec);
-    conf_->GetValueFatalIfFail(
-        "mds.topology.PartitionNumberInCopyset",
-        &topologyOption->partitionNumberInCopyset);
-    conf_->GetValueFatalIfFail(
-        "mds.topology.IdNumberInPartition",
-        &topologyOption->idNumberInPartition);
-    conf_->GetValueFatalIfFail(
-        "mds.topology.ChoosePoolPolicy",
-        &topologyOption->choosePoolPolicy);
-    conf_->GetValueFatalIfFail(
-        "mds.topology.CreateCopysetNumber",
-        &topologyOption->createCopysetNumber);
-    conf_->GetValueFatalIfFail(
-        "mds.topology.CreatePartitionNumber",
-        &topologyOption->createPartitionNumber);
+void MDS::InitTopologyOption(TopologyOption* topologyOption) {
+    conf_->GetValueFatalIfFail("mds.topology.TopologyUpdateToRepoSec",
+                               &topologyOption->topologyUpdateToRepoSec);
+    conf_->GetValueFatalIfFail("mds.topology.PartitionNumberInCopyset",
+                               &topologyOption->partitionNumberInCopyset);
+    conf_->GetValueFatalIfFail("mds.topology.IdNumberInPartition",
+                               &topologyOption->idNumberInPartition);
+    conf_->GetValueFatalIfFail("mds.topology.ChoosePoolPolicy",
+                               &topologyOption->choosePoolPolicy);
+    conf_->GetValueFatalIfFail("mds.topology.CreateCopysetNumber",
+                               &topologyOption->createCopysetNumber);
+    conf_->GetValueFatalIfFail("mds.topology.CreatePartitionNumber",
+                               &topologyOption->createPartitionNumber);
+    conf_->GetValueFatalIfFail("mds.topology.UpdateMetricIntervalSec",
+                               &topologyOption->UpdateMetricIntervalSec);
 }
 
 void MDS::Init() {
@@ -115,6 +111,7 @@ void MDS::Init() {
 
     // init topology
     InitTopology(options_.topologyOptions);
+    InitTopologyMetricService(options_.topologyOptions);
     InitTopologyManager(options_.topologyOptions);
     InitHeartbeatManager();
 
@@ -129,8 +126,8 @@ void MDS::Init() {
     LOG(INFO) << "Init MDS success";
 }
 
-void MDS::InitTopology(const TopologyOption &option) {
-    auto topologyIdGenerator  = std::make_shared<DefaultIdGenerator>();
+void MDS::InitTopology(const TopologyOption& option) {
+    auto topologyIdGenerator = std::make_shared<DefaultIdGenerator>();
     auto topologyTokenGenerator = std::make_shared<DefaultTokenGenerator>();
 
     auto codec = std::make_shared<TopologyStorageCodec>();
@@ -145,10 +142,16 @@ void MDS::InitTopology(const TopologyOption &option) {
 }
 
 void MDS::InitTopologyManager(const TopologyOption& option) {
-    topologyManager_ = std::make_shared<TopologyManager>(topology_,
-                                                metaserverClient_);
+    topologyManager_ =
+        std::make_shared<TopologyManager>(topology_, metaserverClient_);
     topologyManager_->Init(option);
     LOG(INFO) << "init topologyManager success.";
+}
+
+void MDS::InitTopologyMetricService(const TopologyOption& option) {
+    topologyMetricService_ = std::make_shared<TopologyMetricService>(topology_);
+    topologyMetricService_->Init(option);
+    LOG(INFO) << "init topologyMetricService success.";
 }
 
 void MDS::Run() {
@@ -159,15 +162,15 @@ void MDS::Run() {
     }
 
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
+    topologyMetricService_->Run();
     heartbeatManager_->Run();
 
     brpc::Server server;
     // add heartbeat service
     HeartbeatServiceImpl heartbeatService(heartbeatManager_);
     LOG_IF(FATAL, server.AddService(&heartbeatService,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+                                    brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add heartbeatService error";
-
 
     // add mds service
     MdsServiceImpl mdsService(fsManager_, chunkIdAllocator_);
@@ -200,6 +203,7 @@ void MDS::Stop() {
     }
     brpc::AskToQuit();
     heartbeatManager_->Stop();
+    topologyMetricService_->Stop();
     topology_->Stop();
     fsManager_->Uninit();
 }
