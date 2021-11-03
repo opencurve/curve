@@ -6,6 +6,7 @@ prefix?= "$(PWD)/devops/projects"
 release?= 0
 only?= "*"
 hosts?= "*"
+tag?= "curvefs:unknown"
 
 define deploy_begin
 	@bash util/deploy.sh begin
@@ -34,6 +35,9 @@ build:
 
 install:
 	@bash util/install.sh --prefix=$(prefix) --only=$(only)
+
+image:
+	@bash util/image.sh $(tag)
 
 deploy:
 	$(call deploy_begin)

@@ -66,7 +66,7 @@ _EOC_
 
 get_options() {
     local long_opts="start,stop,restart,status,version,daemon,args:,help"
-    local args=`getopt -o 0d --long $long_opts -n "$0" -- "$@"`
+    local args=`getopt -o od --long $long_opts -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do

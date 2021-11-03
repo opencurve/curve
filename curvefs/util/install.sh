@@ -96,7 +96,7 @@ get_options() {
 }
 
 create_project_dir() {
-    mkdir -p $1/{conf,logs,sbin,lib}
+    mkdir -p $1/{conf,logs,sbin,lib,data}
     if [ $? -eq 0 ]; then
         success "create project directory $1 success\n"
     else
@@ -179,7 +179,7 @@ download_etcd() {
         curl -L $src -o $tmpfile &&
         tar -zxvf $tmpfile -C $dst --strip-components=1 >/dev/null 2>&1
 
-    local ret = $?
+    local ret=$?
     rm -rf $tmpfile
     if [ $ret -ne 0 ]; then
         die "download etcd-$g_etcd_version failed\n"
