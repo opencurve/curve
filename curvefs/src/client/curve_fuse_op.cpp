@@ -46,6 +46,25 @@ static FuseClientOption *fuseClientOption = nullptr;
 
 DECLARE_int32(v);
 
+namespace {
+
+void EnableSplice(struct fuse_conn_info* conn) {
+    if (conn->capable & FUSE_CAP_SPLICE_MOVE) {
+        conn->want |= FUSE_CAP_SPLICE_MOVE;
+        LOG(INFO) << "FUSE_CAP_SPLICE_MOVE enabled";
+    }
+    if (conn->capable & FUSE_CAP_SPLICE_READ) {
+        conn->want |= FUSE_CAP_SPLICE_READ;
+        LOG(INFO) << "FUSE_CAP_SPLICE_READ enabled";
+    }
+    if (conn->capable & FUSE_CAP_SPLICE_WRITE) {
+        conn->want |= FUSE_CAP_SPLICE_WRITE;
+        LOG(INFO) << "FUSE_CAP_SPLICE_WRITE enabled";
+    }
+}
+
+}  // namespace
+
 int InitGlog(const char *confPath, const char *argv0) {
     Configuration conf;
     conf.SetConfigPath(confPath);
@@ -116,6 +135,8 @@ void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     if (ret != CURVEFS_ERROR::OK) {
         LOG(FATAL) << "FuseOpInit failed, ret = " << ret;
     }
+
+    EnableSplice(conn);
 }
 
 void FuseOpDestroy(void *userdata) {
@@ -199,7 +220,6 @@ void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
 void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                 struct fuse_file_info *fi) {
     std::unique_ptr<char[]> buffer(new char[size]);
-    memset(buffer.get(), 0, size);
     size_t rSize = 0;
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpRead(req, ino, size, off, fi,
                                                      buffer.get(), &rSize);
@@ -207,7 +227,15 @@ void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
         FuseReplyErrByErrCode(req, ret);
         return;
     }
-    fuse_reply_buf(req, buffer.get(), rSize);
+
+    struct fuse_bufvec bufvec;
+    bufvec.count = 1;
+    bufvec.off = 0;
+    bufvec.idx = 0;
+    bufvec.buf[0].size = rSize;
+    bufvec.buf[0].mem = buffer.get();
+
+    fuse_reply_data(req, &bufvec, FUSE_BUF_SPLICE_MOVE);
 }
 
 void FuseOpWrite(fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size,
