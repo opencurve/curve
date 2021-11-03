@@ -230,7 +230,8 @@ MetaStatusCode MetaStoreImpl::CreatePartition(
     PartitionInfo partition = request->partition();
     auto it = partitionMap_.find(partition.partitionid());
     if (it != partitionMap_.end()) {
-        status = MetaStatusCode::PARTITION_EXIST;
+        // keep idempotence
+        status = MetaStatusCode::OK;
         response->set_statuscode(status);
         return status;
     }
