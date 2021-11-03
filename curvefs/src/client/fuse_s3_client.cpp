@@ -116,6 +116,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
     }
+    LOG(INFO) << "Write end, off = " << off
+              << ", size = " << *wSize
+              << ", inodeid = " << ino
+              << ", fsId = " << inodeWrapper->GetFsId();
     return ret;
 }
 
@@ -167,7 +171,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     inodeWrapper->SwapInode(&newInode);
     inodeManager_->ShipToFlush(inodeWrapper);
 
-    VLOG(6) << "read end, read size = " << *rSize;
+    VLOG(6) << "read end, off = " << off
+            <<", size = " << *rSize
+            << ", inodeid = " << ino
+            << ", fsId = " << inodeWrapper->GetFsId();
     return ret;
 }
 
