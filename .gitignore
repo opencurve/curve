@@ -87,3 +87,5 @@ curvefs/devops/inventory
 *.pyc
 .facts/
 *retry
+
+curvefs/docker/curvefs

@@ -68,6 +68,7 @@ Devops
 | :---                                     | :---                                          |
 | make build [only=ONLY] [release=1]       | compile                                       |
 | make install [only=ONLY] [prefix=PREFIX] | install                                       |
+| [sudo] make image tag=TAG                | make docker image (maybe need sudo privilege) |
 | make deploy                              | deploy all                                    |
 | make core [only=ONLY] [hosts=HOSTS]      | sync binary file                              |
 | make config [only=ONLY] [hosts=HOSTS]    | sync config file                              |
