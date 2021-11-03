@@ -12,5 +12,9 @@
       tags: [mount]
 
     - name: umount fs
-      shell: "fusermount3 -u {{ curvefs_client_mount_path }}"
+      shell:
+        sudo curvefs_tool umountfs
+        -mdsAddr={{ groups.mds | join_peer(hostvars, "mds_listen_port") }}
+        -mountpoint={{ ansible_hostname }}:{{ curvefs_client_mount_path }}
+        -fsname={{ curvefs_client_mount_fsname }}
       tags: [umount]

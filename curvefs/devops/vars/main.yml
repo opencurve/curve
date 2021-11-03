@@ -17,6 +17,7 @@ curvefs_project_log_home: "/tmp/{{ inventory_hostname }}/curvefs"
 curvefs_wait_service_timeout: 20
 curvefs_core_method: "sync_direct"  # (sync_direct|sync_tarball|download_sync|deb|rpm)
 curvefs_client_mount_path: "{{ client_mount_path }}"
+curvefs_client_mount_fsname: "{{ client_mount_fsname }}"
 curvefs_client_mount_args: >
   -o default_permissions
   -o allow_other

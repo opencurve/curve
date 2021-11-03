@@ -179,7 +179,7 @@ download_etcd() {
         curl -L $src -o $tmpfile &&
         tar -zxvf $tmpfile -C $dst --strip-components=1 >/dev/null 2>&1
 
-    local ret = $?
+    local ret=$?
     rm -rf $tmpfile
     if [ $ret -ne 0 ]; then
         die "download etcd-$g_etcd_version failed\n"

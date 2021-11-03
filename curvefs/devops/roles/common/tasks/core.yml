@@ -10,5 +10,12 @@
       dest_port={{ ansible_ssh_port }}
       checksum=True
     when: project_core_method == "sync_direct"
+  # TODO(@Wine93): support tarball, deb, rpm scheme
 
-    # TODO(@Wine93): support tarball, deb, rpm scheme
+  - name: install tools
+    synchronize: >
+      src={{ playbook_dir }}/projects/tools/sbin/curvefs_tool
+      dest=/usr/bin/curvefs_tool
+      dest_port={{ ansible_ssh_port }}
+      checksum=True
+      rsync_path="sudo rsync"
