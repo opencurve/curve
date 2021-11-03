@@ -139,7 +139,7 @@ TEST_F(MetastoreTest, partition) {
 
     ret = metastore.CreatePartition(&createPartitionRequest,
                                     &createPartitionResponse);
-    ASSERT_EQ(ret, MetaStatusCode::PARTITION_EXIST);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
     ASSERT_EQ(createPartitionResponse.statuscode(), ret);
 
     DeletePartitionRequest deletePartitionRequest;
@@ -672,7 +672,7 @@ TEST_F(MetastoreTest, persist_success) {
 
     ret = metastore.CreatePartition(&createPartitionRequest,
                                     &createPartitionResponse);
-    ASSERT_EQ(ret, MetaStatusCode::PARTITION_EXIST);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
     ASSERT_EQ(createPartitionResponse.statuscode(), ret);
 
     // create partition2
