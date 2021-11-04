@@ -8,7 +8,6 @@ from lib import shell_operator
 import threading
 import random
 import time
-import mythread
 
 def add_config():
     etcd = []
