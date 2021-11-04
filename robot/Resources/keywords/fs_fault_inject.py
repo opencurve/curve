@@ -9,8 +9,6 @@ import random
 import time
 import threading
 import time
-import mythread
-import test_curve_stability_nbd
 import re
 import string
 import types
@@ -114,16 +112,20 @@ def start_fs_fio():
     ssh.close()
 
 def check_fuse_iops(limit=1):
-    return 1
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    for d in  config.fs_mount_dir:
-        pid = get_fuse_pid(d)
-        ori_cmd = "pidstat -d 2 2 | grep %s |grep Average | awk '{print $5}'"%pid
+    ori_cmd = "sudo netstat -lntp |grep curve-fuse |awk '{print $4}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    for port in rs[1]:
+        port = port.strip()
+        logger.info("get port %s ops" %port)
+        ori_cmd = "sudo curl -s http://" + port + "/vars" +  " | grep \'user_write_bps :\'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        KB_wr = float("".join(rs[1]).strip())
-        logger.info("kb_wr=%f" %KB_wr)
-        assert KB_wr > limit,"now write is fail,KB_wr/s is %d"%KB_wr
+        assert rs[3] == 0,"get bps fail,rs is %s"%rs[1]
+        write_bps = "".join(rs[1]).strip().split(":")[-1]
+        logger.info("now port %s bps is %s"%(port,write_bps))
+        if write_bps.isdigit():
+            assert int(write_bps) > limit,"get port %s user_write_bps %s is lower than %d"%(port,write_bps,limit)
 
 def check_vdbench_output():
     try:
@@ -189,7 +191,7 @@ def wait_op_finish():
     ori_cmd1 = "ps -ef|grep -v grep | grep fio"
     ori_cmd2 = "ps -ef|grep -v grep | grep vdbench"
     starttime = time.time()
-    while time.time() - starttime < 600:
+    while time.time() - starttime < 1000:
         rs1 = shell_operator.ssh_exec(ssh, ori_cmd1)
         rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
         if rs1[1] == [] and rs2[1] == []:
@@ -250,6 +252,6 @@ def multi_mdtest_exec(numjobs,filenum,filesize):
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
-    ori_cmd = "mpirun --allow-run-as-root -np %d mdtest -n %d -w %d -e %d -y -u -i 3 -N 1 -F -R -d %s"%(numjobs,filenum,filesize,filesize)
+    ori_cmd = "mpirun --allow-run-as-root -np %d mdtest -n %d -w %d -e %d -y -u -i 3 -N 1 -F -R -d %s"%(numjobs,filenum,filesize,filesize,test_dir)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"mdtest error, output %s"%rs[1]
