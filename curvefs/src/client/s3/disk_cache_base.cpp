@@ -55,7 +55,9 @@ int DiskCacheBase::CreateIoDir(bool writreDir) {
     FullDirPath = cacheDir_ + "/" + cacheIoDir_;
     ret = IsFileExist(FullDirPath);
     if (!ret) {
-        if (posixWrapper_->mkdir(FullDirPath.c_str(), 0755) < 0) {
+        ret = posixWrapper_->mkdir(FullDirPath.c_str(), 0755);
+        if ((ret < 0) &&
+            (errno != EEXIST)) {
             LOG(ERROR) << "create cache dir error. errno = " << errno
                        << ", dir = " << FullDirPath;
             return -1;
