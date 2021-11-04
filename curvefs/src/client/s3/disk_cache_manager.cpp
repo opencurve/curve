@@ -116,7 +116,8 @@ int DiskCacheManager::CreateDir() {
     ret = posixWrapper_->stat(cacheDir_.c_str(), &statFile);
     if (ret < 0) {
         ret = posixWrapper_->mkdir(cacheDir_.c_str(), 0755);
-        if (ret < 0) {
+        if ((ret < 0) &&
+            (errno != EEXIST)) {
             LOG(ERROR) << "create cache dir error. errno = " << errno
                        << ", dir = " << cacheDir_;
             return -1;

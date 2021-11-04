@@ -74,7 +74,7 @@ TEST_F(TestDiskCacheBase, CreateIoDir) {
     EXPECT_CALL(*wrapper_, mkdir(_, _))
         .WillOnce(Return(-1));
     int ret = diskCacheBase_->CreateIoDir(true);
-    ASSERT_EQ(-1, ret);
+    ASSERT_EQ(0, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillOnce(Return(-1));
