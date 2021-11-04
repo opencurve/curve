@@ -32,12 +32,13 @@ namespace curvefs {
 namespace client {
 
 CURVEFS_ERROR
-S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
+S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption& option, S3Client* client,
                           std::shared_ptr<InodeCacheManager> inodeManager,
                           std::shared_ptr<MdsClient> mdsClient) {
     pendingReq_ = 0;
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
+    pageSize_ = option.pageSize;
     if (chunkSize_ % blockSize_ != 0) {
         LOG(ERROR) << "chunkSize:" << chunkSize_
                    << " is not integral multiple for the blockSize:"
@@ -101,7 +102,7 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
 }
 
 int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
-                               uint64_t length, const char *buf) {
+                               uint64_t length, const char* buf) {
     VLOG(6) << "write start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
 
@@ -153,7 +154,7 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     return ret;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
+CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
     uint64_t fileSize = inode->length();
 
     if (size <= fileSize) {
@@ -183,7 +184,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
             LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
             return CURVEFS_ERROR::INTERNAL;
         }
-        S3ChunkInfo *tmp;
+        S3ChunkInfo* tmp;
         auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
         auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
         if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
@@ -196,7 +197,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
             tmp->set_zero(true);
             s3ChunkInfoMap->insert({index, s3chunkInfoList});
         } else {
-            S3ChunkInfoList &s3chunkInfoList = s3chunkInfoListIter->second;
+            S3ChunkInfoList& s3chunkInfoList = s3chunkInfoListIter->second;
             tmp = s3chunkInfoList.add_s3chunks();
             tmp->set_chunkid(chunkId);
             tmp->set_offset(offset);
@@ -239,7 +240,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::FsSync() {
 }
 
 FSStatusCode S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
-                                                 uint64_t *chunkId) {
+                                                 uint64_t* chunkId) {
     return mdsClient_->AllocS3ChunkId(fsId, chunkId);
 }
 

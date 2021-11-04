@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 
+#include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/test/client/mock_chunk_cache_manager.h"
 #include "src/common/concurrent/count_down_event.h"
@@ -37,17 +38,29 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
     uint64_t dataCacheByte = 4ull * 1024 * 1024;      // 4MiB
     uint64_t maxReadCacheByte = 16ull * 1024 * 1024;  // 16MiB
     uint64_t maxWriteCacheByte = maxReadCacheByte;
-
-    FsCacheManager manager(nullptr, maxReadCacheByte, maxWriteCacheByte);
+    char *buf = new char[smallDataCacheByte];
+    S3ClientAdaptorOption option;
+    option.blockSize = 1 * 1024 * 1024;
+    option.chunkSize = 4 * 1024 * 1024;
+    option.pageSize = 64 * 1024;
+    option.intervalSec = 5000;
+    option.flushIntervalSec = 5000;
+    option.readCacheMaxByte = 104857600;
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
+    S3ClientAdaptorImpl *s3ClientAdaptor_ = new S3ClientAdaptorImpl();
+    s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr);
+    s3ClientAdaptor_->SetFsId(2);
+    FsCacheManager manager(s3ClientAdaptor_, maxReadCacheByte,
+                           maxWriteCacheByte);
     auto mockCacheMgr = std::make_shared<MockChunkCacheManager>();
 
     {
-        EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_))
-            .Times(0);
+        EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_)).Times(0);
 
         for (size_t i = 0; i < maxReadCacheByte / smallDataCacheByte; ++i) {
-            manager.Set(std::make_shared<DataCache>(nullptr, mockCacheMgr.get(),
-                                                    0, smallDataCacheByte));
+            manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
+                                                    mockCacheMgr.get(), 0,
+                                                    smallDataCacheByte, buf));
         }
     }
 
@@ -58,8 +71,8 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
         EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_))
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
-        manager.Set(std::make_shared<DataCache>(nullptr, mockCacheMgr.get(), 0,
-                                                dataCacheByte));
+        manager.Set(std::make_shared<DataCache>(
+            s3ClientAdaptor_, mockCacheMgr.get(), 0, dataCacheByte, buf));
 
         counter.Wait();
     }
@@ -72,9 +85,8 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
 
-        manager.Set(std::make_shared<DataCache>(nullptr, mockCacheMgr.get(), 0,
-                                                dataCacheByte));
-
+        manager.Set(std::make_shared<DataCache>(
+            s3ClientAdaptor_, mockCacheMgr.get(), 0, dataCacheByte, buf));
         counter.Wait();
     }
 }

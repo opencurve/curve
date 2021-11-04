@@ -88,42 +88,50 @@ struct ObjectChunkInfo {
     uint64_t objectOffset;  // s3 object's begin in the block
 };
 
+struct PageData {
+    uint64_t index;
+    char *data;
+};
+using PageDataMap = std::map<uint64_t, PageData *>;
+
 class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
               ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
-              uint64_t len, const char *data)
-        : s3ClientAdaptor_(s3ClientAdaptor),
-          chunkCacheManager_(chunkCacheManager), chunkPos_(chunkPos), len_(len),
-          dirty_(true), delete_(false), inReadCache_(false) {
-        data_ = new char[len];
-        memcpy(data_, data, len);
-        createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
-    }
-    DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
-              ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
-              uint64_t len)
-        : s3ClientAdaptor_(s3ClientAdaptor),
-          chunkCacheManager_(chunkCacheManager),
-          chunkPos_(chunkPos),
-          len_(len),
-          dirty_(false),
-          delete_(false),
-          inReadCache_(false) {
-        data_ = new char[len];
-        createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
-    }
+              uint64_t len, const char *data);
     virtual ~DataCache() {
-        delete[] data_;
-        data_ = nullptr;
+        auto iter = dataMap_.begin();
+        for (; iter != dataMap_.end(); iter++) {
+            auto pageIter = iter->second.begin();
+            for (; pageIter != iter->second.end(); pageIter++) {
+                delete[] pageIter->second->data;
+                delete pageIter->second;
+            }
+        }
     }
 
     void Write(uint64_t chunkPos, uint64_t len, const char *data,
                const std::vector<DataCachePtr> &mergeDataCacheVer);
     uint64_t GetChunkPos() { return chunkPos_; }
     uint64_t GetLen() { return len_; }
+    PageData *GetPageData(uint64_t blockIndex, uint64_t pageIndex) {
+        PageDataMap &pdMap = dataMap_[blockIndex];
+        if (pdMap.count(pageIndex)) {
+            return pdMap[pageIndex];
+        }
+        return nullptr;
+    }
 
-    char *GetData() { return data_; }
+    void ErasePageData(uint64_t blockIndex, uint64_t pageIndex) {
+        curve::common::LockGuard lg(mtx_);
+        PageDataMap &pdMap = dataMap_[blockIndex];
+        auto iter = pdMap.find(pageIndex);
+        if (iter != pdMap.end()) {
+            pdMap.erase(iter);
+        }
+    }
+
+    uint64_t GetActualLen() { return actualLen_; }
 
     CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
     void Release();
@@ -145,47 +153,49 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
     void UnLock() {
         mtx_.unlock();
     }
+    void CopyDataCacheToBuf(uint64_t offset, uint64_t len, char *data);
+    void MergeDataCacheToDataCache(DataCachePtr mergeDataCache,
+                                   uint64_t dataOffset, uint64_t len);
 
  private:
     void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
                               uint64_t chunkId, uint64_t offset, uint64_t len);
-    void Swap(char *newData, uint64_t newLen) {
-        delete[] data_;
-        data_ = newData;
-        len_ = newLen;
-    }
+    void CopyBufToDataCache(uint64_t dataCachePos, uint64_t len,
+                             const char *data);
+    void AddDataBefore(uint64_t len, const char *data);
 
  private:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     ChunkCacheManager* chunkCacheManager_;
-    uint64_t chunkPos_;
-    uint64_t len_;
-    char *data_;
+    uint64_t chunkPos_;  // useful chunkPos
+    uint64_t len_;  // useful len
+    uint64_t actualChunkPos_;  // after alignment the actual chunkPos
+    uint64_t actualLen_;  // after alignment the actual len
     curve::common::Mutex mtx_;
     uint64_t createTime_;
     std::atomic<bool> dirty_;
     std::atomic<bool> delete_;
     std::atomic<bool> inReadCache_;
+    std::map<uint64_t, PageDataMap> dataMap_;  // first is block index
 };
 
 class S3ReadResponse {
  public:
-    explicit S3ReadResponse(DataCachePtr dataCache) : dataCache_(dataCache) {}
-    virtual ~S3ReadResponse() {}
+    explicit S3ReadResponse(uint64_t length)
+        : data_(new char[length]), len_(length) {}
 
-    char *GetDataBuf() { return dataCache_->GetData(); }
+    char *GetDataBuf() { return data_.get(); }
 
     void SetReadOffset(uint64_t readOffset) { readOffset_ = readOffset; }
 
     uint64_t GetReadOffset() { return readOffset_; }
 
-    uint64_t GetBufLen() { return dataCache_->GetLen(); }
-
-    DataCachePtr GetDataCache() { return dataCache_; }
+    uint64_t GetBufLen() { return len_; }
 
  private:
     uint64_t readOffset_;
-    DataCachePtr dataCache_;
+    std::unique_ptr<char[]> data_;
+    uint64_t len_;
 };
 
 class ChunkCacheManager {
@@ -274,6 +284,9 @@ class FileCacheManager {
                            std::vector<uint64_t> *deletingReq,
                            std::vector<S3ReadRequest> *requests, char *dataBuf,
                            uint64_t fsId, uint64_t inodeId);
+    int HandleReadRequest(const std::vector<S3ReadRequest> &requests,
+                          std::vector<S3ReadResponse> *responses,
+                          uint64_t fileLen);
 
  private:
     friend class AsyncPrefetchCallback;
@@ -307,7 +320,6 @@ class FsCacheManager {
     void Get(std::list<DataCachePtr>::iterator iter);
 
     CURVEFS_ERROR FsSync(bool force);
-    void BackGroundFlush();
     uint64_t GetDataCacheNum() {
         return wDataCacheNum_.load(std::memory_order_relaxed);
     }
