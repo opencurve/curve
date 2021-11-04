@@ -56,6 +56,7 @@ namespace curve {
 namespace common {
 
 struct GetObjectAsyncContext;
+struct PutObjectAsyncContext;
 class S3Adapter;
 
 struct S3AdapterOption {
@@ -91,6 +92,22 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     off_t offset;
     size_t len;
     GetObjectAsyncCallBack cb;
+    int retCode;
+};
+
+/*
+typedef std::function<void(const S3Adapter*,
+    const std::shared_ptr<PutObjectAsyncContext>&)>
+        PutObjectAsyncCallBack;
+*/
+typedef std::function<void(const std::shared_ptr<PutObjectAsyncContext>&)>
+        PutObjectAsyncCallBack;
+
+struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
+    std::string key;
+    void *buffer;
+    size_t bufferSize;
+    PutObjectAsyncCallBack cb;
     int retCode;
 };
 
@@ -144,6 +161,7 @@ class S3Adapter {
      * @return:0 上传成功/ -1 上传失败
      */
     virtual int PutObject(const Aws::String &key, const std::string &data);
+    virtual void PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context);
     /**
      * Get object from s3,
      * note：this function is only used for control plane to get small data,

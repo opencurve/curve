@@ -44,6 +44,7 @@ class MockS3Adapter : public curve::common::S3Adapter {
     MOCK_METHOD1(Init, void(const std::string&));
     MOCK_METHOD3(PutObject, int(const Aws::String&, const void* buffer,
                                 const int bufferSize));
+    MOCK_METHOD1(PutObjectAsync, void(std::shared_ptr<PutObjectAsyncContext>));
     MOCK_METHOD4(GetObject, int(const std::string&, char*, off_t, size_t));
     MOCK_METHOD1(GetObjectAsync, void(std::shared_ptr<GetObjectAsyncContext>));
 };

@@ -43,15 +43,18 @@ class ClientS3Test : public testing::Test {
         client_ = new S3ClientImpl();
         s3Client_ = std::make_shared<MockS3Adapter>();
         client_->SetAdapter(s3Client_);
+        Aws::InitAPI(awsOptions_);
     }
 
     virtual void TearDown() {
         delete client_;
+        Aws::ShutdownAPI(awsOptions_);
     }
 
  protected:
     S3ClientImpl* client_;
     std::shared_ptr<MockS3Adapter> s3Client_;
+    Aws::SDKOptions awsOptions_;
 };
 
 TEST_F(ClientS3Test, upload) {
@@ -66,6 +69,7 @@ TEST_F(ClientS3Test, upload) {
         .WillOnce(Return(-1));
     ASSERT_EQ(0, client_->Upload(obj, buf, len));
     ASSERT_EQ(-1, client_->Upload(obj, buf, len));
+    delete buf;
 }
 
 TEST_F(ClientS3Test, download) {
@@ -80,7 +84,44 @@ TEST_F(ClientS3Test, download) {
         .WillOnce(Return(-1));
     ASSERT_EQ(0, client_->Download(obj, buf, offset, len));
     ASSERT_EQ(-1, client_->Download(obj, buf, offset, len));
+    delete buf;
 }
+
+TEST_F(ClientS3Test, uploadync) {
+    const std::string obj("test");
+    uint64_t len = 1024;
+    char* buf = new char[len];
+    std::shared_ptr<PutObjectAsyncContext> context =
+      std::make_shared<PutObjectAsyncContext>();
+    context->key = "name";
+    context->buffer = buf;
+    context->bufferSize = 1;
+    context->cb = nullptr;
+    EXPECT_CALL(*s3Client_, PutObjectAsync(_))
+        .WillOnce(Return());
+    client_->UploadAsync(context);
+    delete buf;
+}
+
+TEST_F(ClientS3Test, downloadAsync) {
+    const std::string obj("test");
+    uint64_t offset = 0;
+    uint64_t len = 1024;
+    char* buf = new char[len];
+
+    auto context = std::make_shared<GetObjectAsyncContext>();
+    context->key = "name";
+    context->buf = buf;
+    context->offset = 1;
+    context->len = 10;
+    context->cb = nullptr;
+
+    EXPECT_CALL(*s3Client_, GetObjectAsync(_))
+        .WillOnce(Return());
+    client_->DownloadAsync(context);
+    delete buf;
+}
+
 
 }  // namespace client
 }  // namespace curvefs

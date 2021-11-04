@@ -30,6 +30,7 @@ namespace curvefs {
 namespace client {
 
 using curve::common::GetObjectAsyncContext;
+using curve::common::PutObjectAsyncContext;
 class S3Client {
  public:
     S3Client() {}
@@ -37,6 +38,8 @@ class S3Client {
     virtual void Init(const curve::common::S3AdapterOption& option) = 0;
     virtual int Upload(const std::string& name, const char* buf,
                        uint64_t length) = 0;
+    virtual void UploadAsync(
+        std::shared_ptr<PutObjectAsyncContext> context) = 0;
     virtual int Download(const std::string& name, char* buf, uint64_t offset,
                          uint64_t length) = 0;
     virtual void DownloadAsync(
@@ -51,6 +54,7 @@ class S3ClientImpl : public S3Client {
     virtual ~S3ClientImpl() {}
     void Init(const curve::common::S3AdapterOption& option);
     int Upload(const std::string& name, const char* buf, uint64_t length);
+    void UploadAsync(std::shared_ptr<PutObjectAsyncContext> context);
     int Download(const std::string& name, char* buf, uint64_t offset,
                  uint64_t length);
     void DownloadAsync(std::shared_ptr<GetObjectAsyncContext> context);

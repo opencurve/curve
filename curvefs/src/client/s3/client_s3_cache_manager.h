@@ -56,6 +56,7 @@ using FileCacheManagerPtr = std::shared_ptr<FileCacheManager>;
 using ChunkCacheManagerPtr = std::shared_ptr<ChunkCacheManager>;
 using DataCachePtr = std::shared_ptr<DataCache>;
 using curve::common::GetObjectAsyncCallBack;
+using curve::common::PutObjectAsyncCallBack;
 using curve::common::S3Adapter;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;

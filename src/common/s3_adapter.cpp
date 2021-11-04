@@ -257,6 +257,51 @@ int S3Adapter::PutObject(const Aws::String &key,
     }
 */
 
+void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
+    Aws::S3::Model::PutObjectRequest request;
+    request.SetBucket(bucketName_);
+    request.SetKey(context->key.c_str());
+
+    std::shared_ptr<Aws::StringStream> input_data =
+                Aws::MakeShared<Aws::StringStream>("stream",
+                static_cast<char *>(const_cast<void *>(context->buffer)));
+
+    input_data->rdbuf()->pubsetbuf(static_cast<char *>(
+                const_cast<void *>(context->buffer)), context->bufferSize);
+    input_data->rdbuf()->pubseekpos(context->bufferSize);
+    input_data->seekg(0);
+    request.SetBody(input_data);
+
+    Aws::S3::PutObjectResponseReceivedHandler handler = [&] (
+        const Aws::S3::S3Client* client,
+        const Aws::S3::Model::PutObjectRequest& request,
+        const Aws::S3::Model::PutObjectOutcome& response,
+        const std::shared_ptr<const Aws::Client::AsyncCallerContext>& awsCtx) {
+        std::shared_ptr<const PutObjectAsyncContext> cctx =
+            std::dynamic_pointer_cast<const PutObjectAsyncContext>(awsCtx);
+        std::shared_ptr<PutObjectAsyncContext> ctx =
+            std::const_pointer_cast<PutObjectAsyncContext>(cctx);
+        if (response.IsSuccess()) {
+            const Aws::S3::Model::PutObjectResult &result =
+                response.GetResult();
+            LOG(ERROR) << "PutObjectAsync successs";
+            ctx->retCode = 0;
+        } else {
+            LOG(ERROR) << "PutObjectAsync error: "
+                       << response.GetError().GetExceptionName()
+                       << "message: " << response.GetError().GetMessage()
+                       << "resend: " << context->key;
+            PutObjectAsync(context);
+            return;
+        }
+        ctx->cb(ctx);
+    };
+    if (throttle_) {
+        throttle_->Add(true, context->bufferSize);
+    }
+    s3Client_->PutObjectAsync(request, handler, context);
+}
+
 int S3Adapter::GetObject(const Aws::String &key,
                   std::string *data) {
     Aws::S3::Model::GetObjectRequest request;
