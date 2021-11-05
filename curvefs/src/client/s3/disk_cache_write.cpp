@@ -63,7 +63,7 @@ int DiskCacheWrite::UploadFile(const std::string name) {
         return -1;
     }
     off_t fileSize = statFile.st_size;
-    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDONLY);
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDONLY, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno
                    << ", file = " << name;
@@ -239,7 +239,7 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + fileName;
-    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT);
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno
                    << ", file = " << fileName;

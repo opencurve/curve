@@ -35,7 +35,7 @@ using curvefs::common::PosixWrapper;
 class MockPosixWrapper : public PosixWrapper {
  public:
     ~MockPosixWrapper() {}
-    MOCK_METHOD2(open, int(const char *, int));
+    MOCK_METHOD3(open, int(const char *, int, mode_t));
     MOCK_METHOD1(close, int(int));
     MOCK_METHOD1(remove, int(const char*));
     MOCK_METHOD2(mkdir, int(const char*, mode_t));

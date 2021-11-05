@@ -46,7 +46,7 @@ int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + name;
-    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDONLY);
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDONLY, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. file = " << name
                    << ", errno = " << errno;
@@ -144,7 +144,7 @@ int DiskCacheRead::WriteDiskFile(const std::string fileName,
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + fileName;
-    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR|O_CREAT);
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR|O_CREAT, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno
                    << ", file = " << fileName;
