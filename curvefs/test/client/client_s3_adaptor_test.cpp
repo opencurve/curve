@@ -1873,6 +1873,88 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read5) {
     gObjectDataMaps.clear();
 }
 
+TEST_F(ClientS3AdaptorTest, test_flush_write_and_read6) {
+    curvefs::metaserver::Inode inode;
+
+    InitInode(&inode);
+    uint64_t offset = 1024;
+    uint64_t len = 1 * 1024 * 1024 - 2048;
+    char* buf = new char[len];
+    memset(buf, 'a', len);
+
+    uint64_t chunkId = 25;
+    uint64_t chunkId1 = 26;
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockS3Client_, Upload(_, _, _))
+        .WillRepeatedly(Invoke(S3Upload));
+    EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
+        .WillRepeatedly(Invoke(S3Download));
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    // inode.set_length(offset + len);
+
+    std::shared_ptr<FsCacheManager> fsCacheManager =
+        s3ClientAdaptor_->GetFsCacheManager();
+    ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
+    inode = inodeWrapper->GetInodeUnlocked();
+    inode.set_length(offset + len);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(1, inode.s3chunkinfomap_size());
+
+    offset = 2048;
+    len = 512 * 1024;
+    memset(buf, 'b', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+
+    fsCacheManager = s3ClientAdaptor_->GetFsCacheManager();
+    ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(1, inode.s3chunkinfomap_size());
+
+    s3ClientAdaptor_->ReleaseCache(inode.inodeid());
+    inode = inodeWrapper->GetInodeUnlocked();
+    inode.set_length(1024 * 1024);
+    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+    auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
+    ASSERT_EQ(2, s3chunkInfoListIter->second.s3chunks_size());
+
+    offset = 1024;
+    len = 1024 * 1024 - 2048;
+    char* readBuf = new char[len + 1];
+    memset(readBuf, 'c', len);
+    memset(readBuf + len, 0, 1);
+    char* expectBuf = new char[len + 1];
+    memset(expectBuf, 'a', len);
+    memset(expectBuf + 1024, 'b', 512 * 1024);
+    memset(expectBuf + len, 0, 1);
+
+    s3ClientAdaptor_->Read(&inode, offset, len, readBuf);
+    EXPECT_STREQ(expectBuf, readBuf);
+
+    // cleanup
+    delete buf;
+    delete readBuf;
+    delete expectBuf;
+    std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
+    for (; iter != gObjectDataMaps.end(); iter++) {
+        delete iter->second.buf;
+        iter->second.buf = NULL;
+    }
+    gObjectDataMaps.clear();
+}
+
 TEST_F(ClientS3AdaptorTest, test_fssync_success_and_fail) {
     curvefs::metaserver::Inode inode;
 
