@@ -171,6 +171,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeExist) {
 TEST_F(MetaserverClientTest, CreateRootInodeGetLeaderFail) {
     MetaserverOptions options;
     options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 1000;
     MetaserverClient client(options);
     uint32_t fsId = 0;
     uint32_t poolId = 0;

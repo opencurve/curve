@@ -75,6 +75,11 @@ class MdsServiceImpl : public MdsService {
                          const ::curvefs::mds::AllocateS3ChunkRequest* request,
                          ::curvefs::mds::AllocateS3ChunkResponse* response,
                          ::google::protobuf::Closure* done);
+    void ListClusterFsInfo(
+        ::google::protobuf::RpcController* controller,
+        const ::curvefs::mds::ListClusterFsInfoRequest* request,
+        ::curvefs::mds::ListClusterFsInfoResponse* response,
+        ::google::protobuf::Closure* done);
 
  private:
     std::shared_ptr<FsManager> fsManager_;

@@ -935,6 +935,47 @@ TopoStatusCode TopologyManager::GetCopysetMembers(
     return TopoStatusCode::TOPO_OK;
 }
 
+void TopologyManager::GetCopysetInfo(const GetCopysetInfoRequest* request,
+                                     GetCopysetInfoResponse* response) {
+    CopySetKey key(request->poolid(), request->copysetid());
+    CopySetInfo info;
+    auto copySetInfo = new curvefs::mds::topology::Copyset();
+    if (topology_->GetCopySet(key, &info)) {
+        copySetInfo->set_poolid(info.GetPoolId());
+        copySetInfo->set_copysetid(info.GetId());
+        MetaServer ms;
+        for (auto msId : info.GetCopySetMembers()) {
+            if (topology_->GetMetaServer(msId, &ms)) {
+                common::Peer* peer = copySetInfo->add_peers();
+                peer->set_id(ms.GetId());
+                peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+                                                        ms.GetInternalPort()));
+
+                response->set_statuscode(TopoStatusCode::TOPO_OK);
+            } else {
+                LOG(ERROR) << "GetMetaServer failed, metaserverId = " << msId;
+                response->set_statuscode(
+                    TopoStatusCode::TOPO_METASERVER_NOT_FOUND);
+            }
+        }
+    } else {
+        LOG(ERROR) << "Get copyset failed."
+                   << " poolId = " << request->poolid()
+                   << " copysetId = " << request->copysetid();
+        response->set_statuscode(TopoStatusCode::TOPO_COPYSET_NOT_FOUND);
+    }
+
+    // Regardless of success or failure, copysetid and poolid must be set
+    response->set_allocated_copysetinfo(copySetInfo);
+}
+
+void TopologyManager::GetCopysetsInfo(const GetCopysetsInfoRequest* request,
+                                      GetCopysetsInfoResponse* response) {
+    for (auto const& i : request->copysets()) {
+        GetCopysetInfo(&i, response->add_copysetsinfo());
+    }
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

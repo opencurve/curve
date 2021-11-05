@@ -150,6 +150,10 @@ class FsManager {
     FSStatusCode GetFsInfo(const std::string& fsName, uint32_t fsId,
                            FsInfo* fsInfo);
 
+    void GetAllFsInfo(
+        ::google::protobuf::RepeatedPtrField< ::curvefs::mds::FsInfo>*
+            fsInfoVec);
+
  private:
     // return 0: ExactlySame; 1: uncomplete, -1: neither
     int IsExactlySameOrCreateUnComplete(const std::string& fsName,

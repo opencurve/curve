@@ -126,6 +126,12 @@ uint64_t MemoryFsStorage::NextFsId() {
     return id_.fetch_add(1, std::memory_order_relaxed);
 }
 
+void MemoryFsStorage::GetAll(std::vector<FsInfoWrapper>* fsInfoVec) {
+    for (const auto& it : fsInfoMap_) {
+        fsInfoVec->push_back(it.second);
+    }
+}
+
 PersisKVStorage::PersisKVStorage(
     const std::shared_ptr<curve::kvstorage::KVStorageClient>& storage)
     : storage_(storage),
@@ -326,6 +332,13 @@ bool PersisKVStorage::RemoveFromStorage(const FsInfoWrapper& fs) {
     }
 
     return true;
+}
+
+void PersisKVStorage::GetAll(std::vector<FsInfoWrapper>* fsInfoVec) {
+    ReadLockGuard lock(idToNameLock_);
+    for (const auto& it : fs_) {
+        fsInfoVec->push_back(it.second);
+    }
 }
 
 }  // namespace mds

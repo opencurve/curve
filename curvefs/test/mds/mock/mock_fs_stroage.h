@@ -27,6 +27,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <vector>
 
 #include "curvefs/src/mds/fs_storage.h"
 
@@ -48,6 +49,7 @@ class MockFsStorage : public FsStorage {
     MOCK_METHOD1(Exist, bool(uint64_t));
     MOCK_METHOD1(Exist, bool(const std::string&));
     MOCK_METHOD0(NextFsId, uint64_t());
+    MOCK_METHOD1(GetAll, void(std::vector<FsInfoWrapper>* fsInfoVec));
 };
 
 }  // namespace mds

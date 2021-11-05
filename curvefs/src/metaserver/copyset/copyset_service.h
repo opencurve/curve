@@ -45,10 +45,19 @@ class CopysetServiceImpl : public CopysetService {
                           CopysetStatusResponse* response,
                           google::protobuf::Closure* done) override;
 
+    void GetCopysetsStatus(google::protobuf::RpcController* controller,
+                           const CopysetsStatusRequest* request,
+                           CopysetsStatusResponse* response,
+                           google::protobuf::Closure* done) override;
+
  private:
     COPYSET_OP_STATUS CreateOneCopyset(
         const CreateCopysetRequest::Copyset& copyset);
 
+    void GetOneCopysetStatus(const CopysetStatusRequest& request,
+                             CopysetStatusResponse* response);
+
+ private:
     CopysetNodeManager* manager_;
 };
 

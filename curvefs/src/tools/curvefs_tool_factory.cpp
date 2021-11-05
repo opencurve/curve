@@ -55,10 +55,6 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(std::string(kEtcdStatusCmd),
                         CurvefsToolCreator<status::EtcdStatusTool>::Create);
 
-    // list-fs-partition
-    RegisterCurvefsTool(std::string(kFsPartitionListCmd),
-                        CurvefsToolCreator<list::FsPartitionListTool>::Create);
-
     // list-fs
     RegisterCurvefsTool(std::string(kFsInfoListCmd),
                         CurvefsToolCreator<list::FsInfoListTool>::Create);
