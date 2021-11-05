@@ -665,8 +665,8 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
         for (; chunkIter != addChunks.end(); chunkIter++) {
             ObjectChunkInfo addChunk;
             addChunk.s3ChunkInfo = *chunkIter;
-            if (addChunk.s3ChunkInfo.offset() % blockSize ==
-            chunkTmp.s3ChunkInfo.offset() % blockSize) {
+            if (addChunk.s3ChunkInfo.offset() / blockSize ==
+            chunkTmp.s3ChunkInfo.offset() / blockSize) {
                 addChunk.objectOffset =
                     chunkTmp.s3ChunkInfo.offset() % blockSize;
             }  else {
