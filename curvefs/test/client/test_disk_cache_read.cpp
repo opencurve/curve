@@ -69,7 +69,7 @@ class TestDiskCacheRead : public ::testing::Test {
 
 
 TEST_F(TestDiskCacheRead, ReadDiskFile) {
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(-1));
     std::string fileName = "test";
     uint64_t length = 10;
@@ -78,7 +78,7 @@ TEST_F(TestDiskCacheRead, ReadDiskFile) {
                                 length, length);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, lseek(_, _, _))
         .WillOnce(Return(-1));
@@ -89,7 +89,7 @@ TEST_F(TestDiskCacheRead, ReadDiskFile) {
                             length, length);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, lseek(_, _, _))
         .WillOnce(Return(0));
@@ -102,7 +102,7 @@ TEST_F(TestDiskCacheRead, ReadDiskFile) {
                             length, length);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, lseek(_, _, _))
         .WillOnce(Return(0));
@@ -115,7 +115,7 @@ TEST_F(TestDiskCacheRead, ReadDiskFile) {
                             length, length);
     ASSERT_EQ(length-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, lseek(_, _, _))
         .WillOnce(Return(0));
@@ -195,7 +195,7 @@ TEST_F(TestDiskCacheRead, LoadAllCacheReadFile) {
 }
 
 TEST_F(TestDiskCacheRead, WriteDiskFile) {
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(-1));
     std::string fileName = "test";
     uint64_t length = 10;
@@ -204,7 +204,7 @@ TEST_F(TestDiskCacheRead, WriteDiskFile) {
                                  length);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(-1));
@@ -215,7 +215,7 @@ TEST_F(TestDiskCacheRead, WriteDiskFile) {
                                  length);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(length+1));
@@ -226,7 +226,7 @@ TEST_F(TestDiskCacheRead, WriteDiskFile) {
                                  length);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(length));

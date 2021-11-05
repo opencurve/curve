@@ -29,8 +29,8 @@
 namespace curvefs {
 namespace common {
 
-int PosixWrapper::open(const char *pathname, int flags) {
-    return ::open(pathname, flags);
+int PosixWrapper::open(const char *pathname, int flags, mode_t mode) {
+    return ::open(pathname, flags, mode);
 }
 
 int PosixWrapper::close(int fd) {

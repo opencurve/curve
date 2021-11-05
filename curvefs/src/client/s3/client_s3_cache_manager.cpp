@@ -1437,7 +1437,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             }
         }
 
-        while (pendingReq.load(std::memory_order_seq_cst)) {
+        if (pendingReq.load(std::memory_order_seq_cst)) {
             VLOG(9) << "wait for pendingReq";
             cond.Wait();
         }

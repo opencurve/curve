@@ -92,7 +92,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(-1));
     ret = diskCacheWrite_->UploadFile(fileName);
     ASSERT_EQ(-1, ret);
@@ -101,7 +101,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -113,7 +113,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -129,7 +129,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -147,7 +147,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -165,7 +165,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -185,7 +185,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -204,7 +204,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
 }
 
 TEST_F(TestDiskCacheWrite, WriteDiskFile) {
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(-1));
     std::string fileName = "test";
     uint64_t length = 10;
@@ -213,7 +213,7 @@ TEST_F(TestDiskCacheWrite, WriteDiskFile) {
                                  length, true);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(0));
@@ -224,7 +224,7 @@ TEST_F(TestDiskCacheWrite, WriteDiskFile) {
                              length, true);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(length));
@@ -237,7 +237,7 @@ TEST_F(TestDiskCacheWrite, WriteDiskFile) {
                              length, true);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(length));
@@ -250,7 +250,7 @@ TEST_F(TestDiskCacheWrite, WriteDiskFile) {
                              length, true);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, write(_, _, length))
         .WillOnce(Return(length));
@@ -340,7 +340,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .Times(2)
         .WillOnce(Return(dirent))
         .WillOnce(ReturnNull());
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, malloc(_))
         .WillOnce(Return(&path));
@@ -371,7 +371,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .Times(2)
         .WillOnce(Return(dirent))
         .WillOnce(ReturnNull());
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, malloc(_))
         .WillOnce(Return(&path));
@@ -403,7 +403,7 @@ TEST_F(TestDiskCacheWrite, UploadAndRemove) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -425,7 +425,7 @@ TEST_F(TestDiskCacheWrite, UploadAndRemove) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
@@ -449,7 +449,7 @@ TEST_F(TestDiskCacheWrite, AsyncUploadRun) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillRepeatedly(Return(0));
     std::string path = "test";
-    EXPECT_CALL(*wrapper_, open(_, _))
+    EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*wrapper_, malloc(_))
         .WillRepeatedly(Return(&path));

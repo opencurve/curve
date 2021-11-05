@@ -37,6 +37,7 @@ namespace client {
 
 using curvefs::common::PosixWrapper;
 
+#define MODE 0644
 class DiskCacheBase {
  public:
     DiskCacheBase() {}

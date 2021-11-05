@@ -39,7 +39,7 @@ class PosixWrapper {
  public:
     PosixWrapper() {}
     virtual ~PosixWrapper() {}
-    virtual int open(const char *pathname, int flags);
+    virtual int open(const char *pathname, int flags, mode_t mode);
     virtual int close(int fd);
     virtual int remove(const char *pathname);
     virtual int mkdir(const char *pathname, mode_t mode);
