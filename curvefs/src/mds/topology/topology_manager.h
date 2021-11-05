@@ -129,6 +129,12 @@ class TopologyManager {
                            const CopySetIdType copysetId,
                            std::set<std::string> *addrs);
 
+    virtual void GetCopysetInfo(const GetCopysetInfoRequest* request,
+                                GetCopysetInfoResponse* response);
+
+    virtual void GetCopysetsInfo(const GetCopysetsInfoRequest* request,
+                                 GetCopysetsInfoResponse* response);
+
  private:
     TopoStatusCode CreateCopyset();
 

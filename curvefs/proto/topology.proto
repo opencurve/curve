@@ -398,15 +398,9 @@ message GetCopysetInfoRequest {
     required uint32 copysetId = 2;
 }
 
-message CopysetInfo {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    repeated common.Peer peers = 3;
-}
-
 message GetCopysetInfoResponse {
     required TopoStatusCode statusCode = 1;
-    optional CopysetInfo copysetInfo = 2;
+    optional Copyset copysetInfo = 2;
 }
 
 message GetCopysetsInfoRequest {
@@ -416,7 +410,6 @@ message GetCopysetsInfoRequest {
 message GetCopysetsInfoResponse {
     repeated GetCopysetInfoResponse copysetsInfo = 1;
 }
-
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
@@ -444,7 +437,8 @@ service TopologyService {
     rpc ListPartition(ListPartitionRequest) returns (ListPartitionResponse);
     rpc GetCopysetOfPartition(GetCopysetOfPartitionRequest) returns (GetCopysetOfPartitionResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
-    rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
+    // TODO(chengyi01): rm GetCopysetInfo, only keep GetCopysetsInfo
     rpc GetCopysetInfo (GetCopysetInfoRequest) returns (GetCopysetInfoResponse);
     rpc GetCopysetsInfo (GetCopysetsInfoRequest) returns (GetCopysetsInfoResponse);
+    rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
 }

@@ -63,59 +63,18 @@ void CopysetServiceImpl::GetCopysetStatus(
     const CopysetStatusRequest* request, CopysetStatusResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
-    LOG(INFO) << "Receive GetCopysetStatus request: ["
-              << request->ShortDebugString() << "]";
+    return GetOneCopysetStatus(*request, response);
+}
 
-    auto* node =
-        manager_->GetCopysetNode(request->poolid(), request->copysetid());
+void CopysetServiceImpl::GetCopysetsStatus(
+    google::protobuf::RpcController* controller,
+    const CopysetsStatusRequest* request, CopysetsStatusResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
 
-    if (!node) {
-        response->set_status(
-            COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(WARNING) << "GetCopysetStauts failed, copyset "
-                     << ToGroupIdString(request->poolid(), request->copysetid())
-                     << " not exists";
-        return;
+    for (int i = 0; i < request->copysets_size(); ++i) {
+        GetOneCopysetStatus(request->copysets(i), response->add_status());
     }
-
-    bool match = (request->peer().address() == node->GetPeerId().to_string());
-    if (!match) {
-        response->set_status(
-            COPYSET_OP_STATUS::COPYSET_OP_STATUS_PEER_MISMATCH);
-        LOG(WARNING) << "GetCopysetStatus failed, request peer "
-                     << request->peer().ShortDebugString()
-                     << " is not identical to current node's peer id "
-                     << node->GetPeerId();
-        return;
-    }
-
-    braft::NodeStatus status;
-    node->GetStatus(&status);
-    auto* copysetStatus = response->mutable_copysetstatus();
-
-    copysetStatus->set_state(status.state);
-    copysetStatus->mutable_peer()->set_address(status.peer_id.to_string());
-    copysetStatus->mutable_leader()->set_address(status.leader_id.to_string());
-    copysetStatus->set_readonly(status.readonly);
-    copysetStatus->set_term(status.term);
-    copysetStatus->set_committedindex(status.committed_index);
-    copysetStatus->set_knownappliedindex(status.known_applied_index);
-    copysetStatus->set_pendingindex(status.pending_index);
-    copysetStatus->set_pendingqueuesize(status.pending_queue_size);
-    copysetStatus->set_applyingindex(status.applying_index);
-    copysetStatus->set_firstindex(status.first_index);
-    copysetStatus->set_lastindex(status.last_index);
-    copysetStatus->set_diskindex(status.disk_index);
-
-    copysetStatus->set_epoch(node->GetConfEpoch());
-
-    if (request->queryhash()) {
-        // TODO(wuhanqing): implement hash
-    }
-
-    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    LOG(INFO) << "GetCopysetStatus success, copyset "
-              << ToGroupIdString(request->poolid(), request->copysetid());
 }
 
 COPYSET_OP_STATUS CopysetServiceImpl::CreateOneCopyset(
@@ -158,6 +117,59 @@ COPYSET_OP_STATUS CopysetServiceImpl::CreateOneCopyset(
                      << " failed";
         return COPYSET_OP_STATUS_FAILURE_UNKNOWN;
     }
+}
+
+void CopysetServiceImpl::GetOneCopysetStatus(
+    const CopysetStatusRequest& request, CopysetStatusResponse* response) {
+    auto* node =
+        manager_->GetCopysetNode(request.poolid(), request.copysetid());
+
+    if (!node) {
+        LOG(WARNING) << "GetCopysetStauts failed, copyset "
+                     << ToGroupIdString(request.poolid(), request.copysetid())
+                     << " not exists";
+        response->set_status(
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
+        return;
+    }
+
+    bool match = (request.peer().address() == node->GetPeerId().to_string());
+    if (!match) {
+        LOG(WARNING) << "GetCopysetStatus failed, request peer "
+                     << request.peer().ShortDebugString()
+                     << " is not identical to current node's peer id "
+                     << node->GetPeerId();
+        response->set_status(
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_PEER_MISMATCH);
+        return;
+    }
+
+    braft::NodeStatus status;
+    node->GetStatus(&status);
+
+    auto* copysetStatus = response->mutable_copysetstatus();
+
+    copysetStatus->set_state(status.state);
+    copysetStatus->mutable_peer()->set_address(status.peer_id.to_string());
+    copysetStatus->mutable_leader()->set_address(status.leader_id.to_string());
+    copysetStatus->set_readonly(status.readonly);
+    copysetStatus->set_term(status.term);
+    copysetStatus->set_committedindex(status.committed_index);
+    copysetStatus->set_knownappliedindex(status.known_applied_index);
+    copysetStatus->set_pendingindex(status.pending_index);
+    copysetStatus->set_pendingqueuesize(status.pending_queue_size);
+    copysetStatus->set_applyingindex(status.applying_index);
+    copysetStatus->set_firstindex(status.first_index);
+    copysetStatus->set_lastindex(status.last_index);
+    copysetStatus->set_diskindex(status.disk_index);
+
+    copysetStatus->set_epoch(node->GetConfEpoch());
+
+    if (request.queryhash()) {
+        // TODO(wuhanqing): implement hash
+    }
+
+    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
 }
 
 }  // namespace copyset

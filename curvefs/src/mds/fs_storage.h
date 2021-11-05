@@ -24,18 +24,19 @@
 #define CURVEFS_SRC_MDS_FS_STORAGE_H_
 
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <limits>
+#include <vector>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/mds/common/types.h"
+#include "curvefs/src/mds/fs_info_wrapper.h"
+#include "curvefs/src/mds/idgenerator/fs_id_generator.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/idgenerator/etcd_id_generator.h"
 #include "src/kvstorageclient/etcd_client.h"
-#include "curvefs/src/mds/fs_info_wrapper.h"
-#include "curvefs/src/mds/idgenerator/fs_id_generator.h"
-#include "curvefs/src/mds/common/types.h"
 
 namespace curvefs {
 namespace mds {
@@ -65,6 +66,7 @@ class FsStorage {
     virtual bool Exist(const std::string& fsName) = 0;
 
     virtual uint64_t NextFsId() = 0;
+    virtual void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) = 0;
 };
 
 class MemoryFsStorage : public FsStorage {
@@ -145,6 +147,13 @@ class MemoryFsStorage : public FsStorage {
     bool Exist(const std::string &fsName) override;
 
     uint64_t NextFsId() override;
+    /**
+     * @brief Get the All fsinfo
+     *
+     * @param fsInfo
+     * @details
+     */
+    void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) override;
 
  private:
     std::unordered_map<std::string, FsInfoWrapper> fsInfoMap_;
@@ -174,6 +183,8 @@ class PersisKVStorage : public FsStorage {
     bool Exist(const std::string& fsName) override;
 
     uint64_t NextFsId() override;
+
+    void GetAll(std::vector<FsInfoWrapper>* fsInfoVec) override;
 
  private:
     bool LoadAllFs();

@@ -246,5 +246,18 @@ void MdsServiceImpl::AllocateS3Chunk(
                   << ", response: " << response->ShortDebugString();
     }
 }
+
+void MdsServiceImpl::ListClusterFsInfo(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::mds::ListClusterFsInfoRequest* request,
+    ::curvefs::mds::ListClusterFsInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard guard(done);
+    fsManager_->GetAllFsInfo(response->mutable_fsinfo());
+    LOG(INFO) << "ListClusterFsInfo success, response: "
+              << response->ShortDebugString();
+    return;
+}
+
 }  // namespace mds
 }  // namespace curvefs

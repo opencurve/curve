@@ -31,7 +31,6 @@
 #include "curvefs/proto/copyset.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "curvefs/src/tools/list/curvefs_fs_partition_list.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
