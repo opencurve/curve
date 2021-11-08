@@ -127,7 +127,7 @@ struct FuseClientOption {
     double attrTimeOut;
     double entryTimeOut;
     uint32_t listDentryLimit;
-    uint32_t flushPeriodMs;
+    uint32_t flushPeriodSec;
     uint32_t maxNameLength;
     uint64_t iCacheLruSize;
     uint64_t dCacheLruSize;
