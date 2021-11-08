@@ -178,8 +178,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->entryTimeOut);
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",
                               &clientOption->listDentryLimit);
-    conf->GetValueFatalIfFail("fuseClient.flushPeriodMs",
-                              &clientOption->flushPeriodMs);
+    conf->GetValueFatalIfFail("fuseClient.flushPeriodSec",
+                              &clientOption->flushPeriodSec);
     conf->GetValueFatalIfFail("fuseClient.maxNameLength",
                               &clientOption->maxNameLength);
     conf->GetValueFatalIfFail("fuseClient.iCacheLruSize",

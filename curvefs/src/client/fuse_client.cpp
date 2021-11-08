@@ -128,7 +128,7 @@ void FuseClient::Fini() {
 }
 
 void FuseClient::FlushInodeLoop() {
-    while (sleeper_.wait_for(std::chrono::seconds(option_.flushPeriodMs))) {
+    while (sleeper_.wait_for(std::chrono::seconds(option_.flushPeriodSec))) {
         FlushInode();
     }
 }
