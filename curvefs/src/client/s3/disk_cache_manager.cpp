@@ -230,7 +230,7 @@ void DiskCacheManager::TrimCache() {
             LOG(INFO) << "trim thread end.";
             return;
         }
-        LOG(INFO) << "trim thread wake up.";
+        VLOG(9) << "trim thread wake up.";
         if (IsDiskCacheFull()) {
             LOG(INFO) << "disk cache full, begin trim.";
             std::string cacheReadFullDir;
@@ -247,7 +247,7 @@ void DiskCacheManager::TrimCache() {
                 std::set<std::string>::iterator cacheKeyIter;
                 cacheKeyIter = cachedObjNameTmp.begin();
                 if (cacheKeyIter == cachedObjNameTmp.end()) {
-                    LOG(ERROR) << "remove disk file error"
+                    VLOG(3) << "remove disk file error"
                                << ", cachedObjName is empty.";
                     break;
                 }
