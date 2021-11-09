@@ -653,6 +653,7 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
                 (chunkTmp.s3ChunkInfo.offset() < (tmp.offset() + tmp.len()))) {
                 addChunks = CutOverLapChunks(tmp, chunkTmp.s3ChunkInfo);
                 waitingDel.push_back(j);
+                break;
             }
         }
 
@@ -664,10 +665,15 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
         for (; chunkIter != addChunks.end(); chunkIter++) {
             ObjectChunkInfo addChunk;
             addChunk.s3ChunkInfo = *chunkIter;
+            VLOG(9) << "add chunk offset:" << addChunk.s3ChunkInfo.offset()
+                    << ",len:" << addChunk.s3ChunkInfo.len();
+            VLOG(9) << "chunkTmp offset:" << chunkTmp.s3ChunkInfo.offset()
+                    << ", len:" << chunkTmp.s3ChunkInfo.len()
+                    << ", objectoffset:" << chunkTmp.objectOffset;
             if (addChunk.s3ChunkInfo.offset() / blockSize ==
             chunkTmp.s3ChunkInfo.offset() / blockSize) {
                 addChunk.objectOffset =
-                    chunkTmp.s3ChunkInfo.offset() % blockSize;
+                    chunkTmp.objectOffset;
             }  else {
                 addChunk.objectOffset = 0;
             }
