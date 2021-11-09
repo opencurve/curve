@@ -180,16 +180,9 @@ int S3Adapter::PutObject(const Aws::String &key,
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
+    request.SetBody(Aws::MakeShared<Aws::StringStream>(
+        "stream", Aws::String(static_cast<const char*>(buffer), bufferSize)));
 
-    std::shared_ptr<Aws::StringStream> input_data =
-                Aws::MakeShared<Aws::StringStream>("stream",
-                static_cast<char *>(const_cast<void *>(buffer)));
-
-    input_data->rdbuf()->pubsetbuf(static_cast<char *>(
-                const_cast<void *>(buffer)), bufferSize);
-    input_data->rdbuf()->pubseekpos(bufferSize);
-    input_data->seekg(0);
-    request.SetBody(input_data);
     auto response = s3Client_->PutObject(request);
     if (response.IsSuccess()) {
             return 0;
@@ -261,16 +254,9 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(context->key.c_str());
-
-    std::shared_ptr<Aws::StringStream> input_data =
-                Aws::MakeShared<Aws::StringStream>("stream",
-                static_cast<char *>(const_cast<void *>(context->buffer)));
-
-    input_data->rdbuf()->pubsetbuf(static_cast<char *>(
-                const_cast<void *>(context->buffer)), context->bufferSize);
-    input_data->rdbuf()->pubseekpos(context->bufferSize);
-    input_data->seekg(0);
-    request.SetBody(input_data);
+    request.SetBody(Aws::MakeShared<Aws::StringStream>(
+        "stream",
+        Aws::String(static_cast<char*>(context->buffer), context->bufferSize)));
 
     Aws::S3::PutObjectResponseReceivedHandler handler = [&] (
         const Aws::S3::S3Client* client,
