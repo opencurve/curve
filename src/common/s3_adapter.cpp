@@ -284,7 +284,6 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         if (response.IsSuccess()) {
             const Aws::S3::Model::PutObjectResult &result =
                 response.GetResult();
-            LOG(ERROR) << "PutObjectAsync successs";
             ctx->retCode = 0;
         } else {
             LOG(ERROR) << "PutObjectAsync error: "

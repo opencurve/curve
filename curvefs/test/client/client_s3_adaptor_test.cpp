@@ -1897,7 +1897,18 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read6) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
+    EXPECT_CALL(mockS3Client_, UploadAsync(_))
+        .WillRepeatedly(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                S3Data& tmp = gObjectDataMaps[context->key];
+                tmp.len = context->bufferSize;
+                tmp.buf = new char[context->bufferSize];
+                strncpy(tmp.buf,
+                  reinterpret_cast<char*>(context->buffer),
+                  context->bufferSize);
+                context->retCode = 0;
+                context->cb(context);
+    }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     // inode.set_length(offset + len);
 
