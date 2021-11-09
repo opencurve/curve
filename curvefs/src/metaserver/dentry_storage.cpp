@@ -44,6 +44,11 @@ bool MemoryDentryStorage::BelongSameOne(const Dentry& lhs, const Dentry& rhs) {
            EQUAL(name) && lhs.txid() <= rhs.txid();
 }
 
+bool MemoryDentryStorage::IsSameDentry(const Dentry& lhs, const Dentry& rhs) {
+    return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) &&
+           EQUAL(inodeid);
+}
+
 inline bool MemoryDentryStorage::HasDeleteMarkFlag(const Dentry& dentry) {
     return (dentry.flag() & DentryFlag::DELETE_MARK_FLAG) != 0;
 }
@@ -89,7 +94,7 @@ MetaStatusCode MemoryDentryStorage::Insert(const Dentry& dentry) {
     auto iter = Find(dentry, true);
     if (iter != dentryTree_.end()) {
         // Idempotence
-        if (*iter == dentry) {
+        if (IsSameDentry(*iter, dentry)) {
             return MetaStatusCode::OK;
         }
         return MetaStatusCode::DENTRY_EXIST;
