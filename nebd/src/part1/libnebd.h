@@ -119,7 +119,7 @@ int nebd_lib_pwrite(int fd, const void* buf, off_t offset, size_t length);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_discard(int fd, NebdClientAioContext* context);
+int nebd_lib_discard(int fd, struct NebdClientAioContext* context);
 
 /**
  *  @brief 读文件，异步函数
@@ -127,7 +127,7 @@ int nebd_lib_discard(int fd, NebdClientAioContext* context);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_aio_pread(int fd, NebdClientAioContext* context);
+int nebd_lib_aio_pread(int fd, struct NebdClientAioContext* context);
 
 /**
  *  @brief 写文件，异步函数
@@ -135,7 +135,7 @@ int nebd_lib_aio_pread(int fd, NebdClientAioContext* context);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_aio_pwrite(int fd, NebdClientAioContext* context);
+int nebd_lib_aio_pwrite(int fd, struct NebdClientAioContext* context);
 
 /**
  *  @brief sync文件
@@ -165,7 +165,7 @@ int nebd_lib_resize(int fd, int64_t size);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_flush(int fd, NebdClientAioContext* context);
+int nebd_lib_flush(int fd, struct NebdClientAioContext* context);
 
 /**
  *  @brief 获取文件info
