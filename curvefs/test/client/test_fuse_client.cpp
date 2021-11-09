@@ -1092,9 +1092,16 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
             return TopoStatusCode::TOPO_INTERNAL_ERROR;
         }));
 
-    // step5: delete old inode
-    EXPECT_CALL(*inodeManager_, DeleteInode(oldInodeId))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
+    // step5: unlink old inode
+    Inode inode;
+    inode.set_inodeid(oldInodeId);
+    inode.set_nlink(1);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(oldInodeId, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                        Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInode(_))
+        .WillOnce(Return(MetaStatusCode::OK));
 
     // step6: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
