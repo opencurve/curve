@@ -52,7 +52,7 @@ class RenameOperator {
     CURVEFS_ERROR Precheck();
     CURVEFS_ERROR PrepareTx();
     CURVEFS_ERROR CommitTx();
-    void DeleteOldInode();
+    void UnlinkOldInode();
     void UpdateCache();
 
  private:

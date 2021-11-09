@@ -205,14 +205,21 @@ CURVEFS_ERROR RenameOperator::CommitTx() {
     return CURVEFS_ERROR::OK;
 }
 
-void RenameOperator::DeleteOldInode() {
+void RenameOperator::UnlinkOldInode() {
     if (oldInodeId_ == 0) {
         return;
     }
 
-    auto rc = inodeManager_->DeleteInode(oldInodeId_);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(oldInodeId_, inodeWrapper);
     if (rc != CURVEFS_ERROR::OK) {
-        LOG_ERROR("DeleteOldInode", rc);
+        LOG_ERROR("GetInode", rc);
+        return;
+    }
+
+    rc = inodeWrapper->UnLinkLocked();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("UnLink", rc);
     }
 }
 
