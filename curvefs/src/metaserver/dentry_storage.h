@@ -103,6 +103,7 @@ class MemoryDentryStorage : public DentryStorage {
 
  private:
     bool BelongSameOne(const Dentry& lhs, const Dentry& rhs);
+    bool IsSameDentry(const Dentry& lhs, const Dentry& rhs);
 
     bool HasDeleteMarkFlag(const Dentry& dentry);
 
