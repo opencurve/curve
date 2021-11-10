@@ -66,7 +66,7 @@
       include_tasks: copy_file_to_remote.yml
     - name: install nebd lib
       vars:
-        remote_dir_name: "{{ curve_lib_dir }}/nebd"
+        remote_dir_name: "{{ curve_lib_dir }}"
         local_file_path: "{{ local_nebd_package_path }}/lib/"
         file_mode: 0644
       include_tasks: copy_file_to_remote.yml
