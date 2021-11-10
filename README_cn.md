@@ -85,6 +85,9 @@ Ceph: L/N
 ### 测试用例编译及运行
 [测试用例编译及运行](docs/cn/build_and_run.md#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E7%BC%96%E8%AF%91%E5%8F%8A%E6%89%A7%E8%A1%8C)
 
+### FIO curve块存储引擎
+fio的curve块存储引擎代码已经上传到 https://github.com/skypexu/fio/tree/nebd_engine ，请自行编译测试（依赖nebd库），fio命令行示例：`./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+  
 ### 编码规范
 CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，请您也遵循这一指南来提交您的代码。
 
