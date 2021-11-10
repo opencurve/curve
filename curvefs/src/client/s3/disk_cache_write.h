@@ -41,6 +41,7 @@ namespace client {
 
 using curvefs::common::PosixWrapper;
 using curve::common::InterruptibleSleeper;
+using curve::common::PutObjectAsyncCallBack;
 
 class DiskCacheWrite : public DiskCacheBase {
  public:
@@ -67,9 +68,9 @@ class DiskCacheWrite : public DiskCacheBase {
     */
     virtual int UploadAllCacheWriteFile();
     /**
-    * @brief upload file and then remove from write cache
+    * @brief remove from write cache
     */
-    virtual int UploadAndRemove(const std::string fileName);
+    virtual int RemoveFile(const std::string fileName);
     /**
      * @brief upload file in write cache to S3 
      * @param[in] name file name

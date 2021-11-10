@@ -26,6 +26,8 @@
 #include <errno.h>
 #include <dirent.h>
 
+#include <vector>
+
 #include "curvefs/src/client/s3/disk_cache_write.h"
 
 namespace curvefs {
@@ -100,13 +102,18 @@ int DiskCacheWrite::UploadFile(const std::string name) {
         posixWrapper_->close(fd);
         return -1;
     }
-    ret = client_->Upload(name, buffer, fileSize);
-    if (ret < 0) {
-        LOG(ERROR) << "upload object fail. object: " << name;
-        posixWrapper_->free(buffer);
-        posixWrapper_->close(fd);
-        return -1;
-    }
+    PutObjectAsyncCallBack cb =
+        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+            RemoveFile(context->key);
+            VLOG(6) << "PutObjectAsyncCallBack success, "
+                    << "remove file: " << context->key;
+    };
+    auto context = std::make_shared<PutObjectAsyncContext>();
+    context->key = name;
+    context->buffer = buffer;
+    context->bufferSize = fileSize;
+    context->cb = cb;
+    client_->UploadAsync(context);
     posixWrapper_->free(buffer);
     posixWrapper_->close(fd);
     VLOG(6) << "async upload file success, file = " << name;
@@ -139,7 +146,7 @@ int DiskCacheWrite::AsyncUploadFunc() {
         std::list<std::string>::iterator iter;
         int ret;
         for (iter = toUpload.begin(); iter != toUpload.end(); iter++) {
-            ret = UploadAndRemove(*iter);
+            ret = UploadFile(*iter);
             if (ret < 0) {
                 LOG(ERROR) << "upload and remove file fail, file = " << *iter;
                 continue;
@@ -196,7 +203,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             continue;
 
         std::string fileName = cacheWriteDirent->d_name;
-        doRet = UploadAndRemove(fileName);
+        doRet = UploadFile(fileName);
         if (doRet < 0) {
             LOG(ERROR) << "upload and remove file fail, file = " << fileName;
             continue;
@@ -211,24 +218,18 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     return 0;
 }
 
-int DiskCacheWrite::UploadAndRemove(const std::string fileName) {
-    // upload file to S3
-    int ret = UploadFile(fileName);
-    if (ret < 0) {
-        LOG(ERROR) << "async upload file fail, file = " << fileName;
-        return -1;
-    }
+int DiskCacheWrite::RemoveFile(const std::string fileName) {
     // del disk file
     std::string fileFullPath;
     fileFullPath = GetCacheIoFullDir();
     std::string fullFileName = fileFullPath + "/" + fileName;
-    ret = posixWrapper_->remove(fullFileName.c_str());
+    int ret = posixWrapper_->remove(fullFileName.c_str());
     if (ret < 0) {
         LOG(ERROR) << "remove disk file error, file = " << fileName
                    << ", errno = " << errno;
         return -1;
     }
-    VLOG(6) << "upload and remove file success, file = " << fileName;
+    VLOG(6) << "remove file success, file = " << fileName;
     return 0;
 }
 
