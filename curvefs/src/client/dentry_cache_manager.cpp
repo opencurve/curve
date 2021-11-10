@@ -28,6 +28,8 @@
 #include <utility>
 #include <unordered_map>
 
+using ::curvefs::metaserver::MetaStatusCode_Name;
+
 namespace curvefs {
 namespace client {
 
@@ -67,8 +69,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
 
     MetaStatusCode ret = metaClient_->GetDentry(fsId_, parent, name, out);
     if (ret != MetaStatusCode::OK) {
-        LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
-            << "metaClient_ GetDentry failed, ret = " << ret
+        LOG_IF(ERROR, ret != MetaStatusCode::NOT_FOUND)
+            << "metaClient_ GetDentry failed, MetaStatusCode = " << ret
+            << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
             << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
@@ -82,7 +85,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
     curve::common::WriteLockGuard lg(mtx_);
     MetaStatusCode ret = metaClient_->CreateDentry(dentry);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "metaClient_ CreateDentry failed, ret = " << ret
+        LOG(ERROR) << "metaClient_ CreateDentry failed, MetaStatusCode = "
+                   << ret
+                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", parent = " << dentry.parentinodeid()
                    << ", name = " << dentry.name();
         return MetaStatusCodeToCurvefsErrCode(ret);
@@ -99,7 +104,8 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
     dCache_->Remove(key);
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
-        LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
+        LOG(ERROR) << "metaClient_ DeleteInode failed, MetaStatusCode = " << ret
+                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
@@ -123,7 +129,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
             if (MetaStatusCode::NOT_FOUND == ret) {
                 return CURVEFS_ERROR::OK;
             }
-            LOG(ERROR) << "metaClient_ ListDentry failed, ret = " << ret
+            LOG(ERROR) << "metaClient_ ListDentry failed, MetaStatusCode = "
+                       << ret
+                       << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", parent = " << parent << ", last = " << last
                        << ", count = " << limit;
             return MetaStatusCodeToCurvefsErrCode(ret);

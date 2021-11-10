@@ -48,11 +48,8 @@ enum class CURVEFS_ERROR {
     MOUNT_FAILED = -14,
 };
 
-inline std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {
-    // TODO(xuchaojie): to print enum name
-    os << static_cast<int>(code);
-    return os;
-}
+
+std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code);
 
 CURVEFS_ERROR MetaStatusCodeToCurvefsErrCode(
     ::curvefs::metaserver::MetaStatusCode code);

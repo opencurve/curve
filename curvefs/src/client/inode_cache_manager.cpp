@@ -29,6 +29,7 @@
 #include <utility>
 
 using ::curvefs::metaserver::Inode;
+using ::curvefs::metaserver::MetaStatusCode_Name;
 
 namespace curvefs {
 namespace client {
@@ -52,8 +53,10 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     Inode inode;
     MetaStatusCode ret2 = metaClient_->GetInode(fsId_, inodeid, &inode);
     if (ret2 != MetaStatusCode::OK) {
-        LOG(ERROR) << "metaClient_ GetInode failed, ret = " << ret2
-                   << ", inodeid = " << inodeid;
+        LOG_IF(ERROR, ret2 != MetaStatusCode::NOT_FOUND)
+            << "metaClient_ GetInode failed, MetaStatusCode = " << ret2
+            << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret2)
+            << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret2);
     }
 
@@ -79,7 +82,8 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     Inode inode;
     MetaStatusCode ret = metaClient_->CreateInode(param, &inode);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "metaClient_ CreateInode failed, ret = " << ret;
+        LOG(ERROR) << "metaClient_ CreateInode failed, MetaStatusCode = " << ret
+                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret);
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     uint64_t inodeid = inode.inodeid();
@@ -103,7 +107,8 @@ CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeid) {
     iCache_->Remove(inodeid);
     MetaStatusCode ret = metaClient_->DeleteInode(fsId_, inodeid);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
-        LOG(ERROR) << "metaClient_ DeleteInode failed, ret = " << ret
+        LOG(ERROR) << "metaClient_ DeleteInode failed, MetaStatusCode = " << ret
+                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }

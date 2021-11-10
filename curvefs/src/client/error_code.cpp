@@ -23,10 +23,39 @@
 
 #include "curvefs/src/client/error_code.h"
 
+#include <map>
+#include <string>
+
 namespace curvefs {
 namespace client {
 
 using ::curvefs::metaserver::MetaStatusCode;
+
+std::map<CURVEFS_ERROR, std::string> err2Msg = {
+    {CURVEFS_ERROR::OK, "OK"},
+    {CURVEFS_ERROR::INTERNAL, "internal error"},
+    {CURVEFS_ERROR::UNKNOWN, "unknown"},
+    {CURVEFS_ERROR::EXISTS, "inode or dentry already exist"},
+    {CURVEFS_ERROR::NOTEXIST, "inode or dentry not exist"},
+    {CURVEFS_ERROR::NO_SPACE, "no space to alloc"},
+    {CURVEFS_ERROR::BAD_FD, "bad fd"},
+    {CURVEFS_ERROR::INVALIDPARAM, "invalid param"},
+    {CURVEFS_ERROR::NOPERMISSION, "no permission"},
+    {CURVEFS_ERROR::NOTEMPTY, "dir not empty"},
+    {CURVEFS_ERROR::NOFLUSH, "no flush"},
+    {CURVEFS_ERROR::NOTSUPPORT, "not support"},
+    {CURVEFS_ERROR::NAMETOOLONG, "name too long"},
+    {CURVEFS_ERROR::MOUNT_POINT_EXIST, "mount point already exist"},
+    {CURVEFS_ERROR::MOUNT_FAILED, "mount failed"},
+};
+
+std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {
+    os << static_cast<int>(code)
+       << "["
+       << err2Msg[code]
+       << "]";
+    return os;
+}
 
 CURVEFS_ERROR MetaStatusCodeToCurvefsErrCode(
     MetaStatusCode code) {

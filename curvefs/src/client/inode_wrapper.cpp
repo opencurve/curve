@@ -24,6 +24,8 @@
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
+using ::curvefs::metaserver::MetaStatusCode_Name;
+
 namespace curvefs {
 namespace client {
 
@@ -35,7 +37,9 @@ CURVEFS_ERROR InodeWrapper::Sync() {
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
 
         if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+            LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = "
+                       << ret
+                       << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", inodeid = " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
@@ -55,7 +59,8 @@ CURVEFS_ERROR InodeWrapper::LinkLocked() {
     if (ret != MetaStatusCode::OK) {
         inode_.set_nlink(old);
         inode_.set_ctime(oldCTime);
-        LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+        LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = " << ret
+                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
@@ -78,7 +83,9 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
         VLOG(6) << "UnLinkInode, inodeid = " << inode_.inodeid()
                 << ", nlink = " << inode_.nlink();
         if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+            LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = "
+                       << ret
+                       << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", inodeid = " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
@@ -121,7 +128,8 @@ CURVEFS_ERROR InodeWrapper::SetOpenFlag(bool flag) {
     MetaStatusCode ret = metaClient_->UpdateInode(inode_);
     if (ret != MetaStatusCode::OK) {
         inode_.set_openflag(old);
-        LOG(ERROR) << "metaClient_ UpdateInode failed, ret = " << ret
+        LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = " << ret
+                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
