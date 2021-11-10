@@ -85,6 +85,9 @@ Want to try on it? Take it easy! We'll help you step by step, but make sure you'
 ### Compile test cases and run
 [test cases compiling and running](docs/en/build_and_run_en.md#test-case-compilation-and-execution)
 
+### FIO curve block storage engine
+Fio curve engine is added, you can clone https://github.com/skypexu/fio/tree/nebd_engine and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+
 ### Coding style guides
 CURVE is coded following [Google C++ Style Guide strictly](https://google.github.io/styleguide/cppguide.html). Please follow this guideline if you're trying to contribute your codes.
 
