@@ -1363,15 +1363,28 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlinkFailed) {
     EXPECT_CALL(*inodeManager_, CreateInode(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
         .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
 
     fuse_entry_param e;
+    // create inode failed
     CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name, &e);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
+    EXPECT_CALL(*inodeManager_, DeleteInode(ino))
+        .WillOnce(Return(CURVEFS_ERROR::OK))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+
+    // create dentry failed
+    ret = client_->FuseOpSymlink(req, link, parent, name, &e);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+
+    // also delete inode failed
     ret = client_->FuseOpSymlink(req, link, parent, name, &e);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
@@ -1440,30 +1453,45 @@ TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
-        .WillOnce(Return(MetaStatusCode::OK));
+        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))   // link
+        .WillOnce(Return(MetaStatusCode::OK))  // link
+        .WillOnce(Return(MetaStatusCode::OK))  // link
+        .WillOnce(Return(MetaStatusCode::OK))  // unlink
+        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));  // unlink
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
 
     fuse_entry_param e;
+    // get inode failed
     CURVEFS_ERROR ret = client_->FuseOpLink(req, ino, newparent, newname, &e);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
     Inode inode2 = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(nlink, inode2.nlink());
 
+    // link failed
     ret = client_->FuseOpLink(req, ino, newparent, newname, &e);
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
     Inode inode3 = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(nlink, inode3.nlink());
 
+    // create dentry failed
     ret = client_->FuseOpLink(req, ino, newparent, newname, &e);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
     Inode inode4 = inodeWrapper->GetInodeUnlocked();
-    ASSERT_EQ(nlink + 1, inode4.nlink());
+    ASSERT_EQ(nlink, inode4.nlink());
+
+    // also unlink failed
+    ret = client_->FuseOpLink(req, ino, newparent, newname, &e);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+    Inode inode5 = inodeWrapper->GetInodeUnlocked();
+    ASSERT_EQ(nlink, inode5.nlink());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpReadLink) {
