@@ -129,6 +129,8 @@ curve.root_password=root_password
 curve.config_path=conf/cs_client.conf
 # s3配置文件
 s3.config_path=conf/s3.conf
+# Curve File time to live
+curve.curve_file_timeout_s=30
 
 #
 # Local FileSystem settings

@@ -57,7 +57,7 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
     }
 
     int numChunkServers = cluster.GetClusterSize();
-    if (*scatterWidth >= (numChunkServers - 1)) {
+    if (*scatterWidth > (numChunkServers - 1)) {
         // It's impossible that scatterWidth is lager than cluster size
         return false;
     }

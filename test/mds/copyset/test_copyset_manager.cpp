@@ -109,7 +109,7 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
     ASSERT_TRUE(manager.Init(constrait));
 
     {
-        // 180个chunkserver，3个zone，6000个copyset
+        // 180 chunkservers, 3 zones, 6000 copysets
         TestCluster cluster;
         cluster.SetMassiveCluster(180, 3);
 
@@ -121,7 +121,7 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
     }
 
     {
-        // 180个chunkserver，3个zone，9000个copyset
+        // 180 chunkservers, 3 zones, 9000 copysets
         TestCluster cluster;
         cluster.SetMassiveCluster(180, 3);
 
@@ -133,7 +133,7 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
     }
 
     {
-        // 240个chunkserver 3个zone， 9000个copyset
+        // 240 chunkservers, 3 zones, 9000 copysets
         TestCluster cluster;
         cluster.SetMassiveCluster(240, 3);
 
@@ -145,7 +145,7 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
     }
 
     {
-        // 240个chunkserver 3个zone， 12000个copyset
+        // 240 chunkservers, 3 zones, 12000 copysets
         TestCluster cluster;
         cluster.SetMassiveCluster(240, 3);
 
@@ -154,6 +154,43 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
         ASSERT_TRUE(manager.GenCopyset(cluster,
             12000, &scatterWidth, &out));
         ASSERT_EQ(12000, out.size());
+    }
+
+    {
+        // 3 chunkservers, 3 zone, 100 copysets
+        TestCluster cluster;
+        cluster.SetUniformCluster();
+
+        std::vector<Copyset> out;
+        uint32_t scatterWidth = 2;
+        ASSERT_TRUE(manager.GenCopyset(cluster,
+            100, &scatterWidth, &out));
+        ASSERT_EQ(100, out.size());
+    }
+
+    {
+        // 1 chunkserver, 1 zone, 100 copysets
+        TestCluster cluster;
+        cluster.SetMassiveCluster(1, 1);
+
+        std::vector<Copyset> out;
+        uint32_t scatterWidth = 0;
+
+        CopysetOption option;
+        option.copysetRetryTimes = 10;
+        option.scatterWidthFloatingPercentage = 20;
+        CopysetManager manager2(option);
+
+        CopysetConstrait constrait;
+        constrait.zoneNum = 1;
+        constrait.zoneChoseNum = 1;
+        constrait.replicaNum = 1;
+
+        ASSERT_TRUE(manager2.Init(constrait));
+
+        ASSERT_TRUE(manager2.GenCopyset(cluster,
+            100, &scatterWidth, &out));
+        ASSERT_EQ(100, out.size());
     }
 }
 
