@@ -42,6 +42,7 @@
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
 using ::curvefs::mds::topology::PartitionTxId;
+using ::curvefs::mds::FSStatusCode_Name;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -160,7 +161,9 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                 return ret2;
             }
         } else {
-            LOG(ERROR) << "GetFsInfo failed, ret = " << ret
+            LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
+                       << ", FSStatusCode_Name = "
+                       << FSStatusCode_Name(ret)
                        << ", fsName = " << fsName;
             return CURVEFS_ERROR::INTERNAL;
         }
@@ -173,7 +176,10 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     }
     ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
-        LOG(ERROR) << "MountFs failed, ret = " << ret << ", fsName = " << fsName
+        LOG(ERROR) << "MountFs failed, FSStatusCode = " << ret
+                   << ", FSStatusCode_Name = "
+                   << FSStatusCode_Name(ret)
+                   << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointWithHost;
         return CURVEFS_ERROR::MOUNT_FAILED;
     }
@@ -210,7 +216,9 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     }
     FSStatusCode ret = mdsClient_->UmountFs(fsName, mountPointWithHost);
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_NOT_EXIST) {
-        LOG(ERROR) << "UmountFs failed, ret = " << ret
+        LOG(ERROR) << "UmountFs failed, FSStatusCode = " << ret
+                   << ", FSStatusCode_Name = "
+                   << FSStatusCode_Name(ret)
                    << ", fsName = " << fsName
                    << ", mountPoint = " << mountPointWithHost;
         return;

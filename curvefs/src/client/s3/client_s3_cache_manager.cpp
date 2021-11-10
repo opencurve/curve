@@ -1458,7 +1458,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
                     inodeId, inodeWrapper);
             if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "get inode fail, ret:" << ret;
+                LOG(WARNING) << "get inode fail, ret:" << ret;
                 dirty_.store(true, std::memory_order_release);
                 return ret;
             }
