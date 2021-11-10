@@ -675,6 +675,13 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name
                    << ", mode = " << param.mode;
+
+        CURVEFS_ERROR ret2 =
+            inodeManager_->DeleteInode(inodeWrapper->GetInodeId());
+        if (ret2 != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "Also delete inode failed, ret = " << ret2
+                       << ", inodeid = " << inodeWrapper->GetInodeId();
+        }
         return ret;
     }
 
@@ -712,6 +719,12 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << newparent << ", name = " << newname;
+
+        CURVEFS_ERROR ret2 = inodeWrapper->UnLinkLocked();
+        if (ret2 != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "Also unlink inode failed, ret = " << ret2
+                       << ", inodeid = " << inodeWrapper->GetInodeId();
+        }
         return ret;
     }
 
