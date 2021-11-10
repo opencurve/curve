@@ -38,6 +38,7 @@ using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::Mock;
 using ::testing::DoAll;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::ReturnNull;
@@ -54,6 +55,7 @@ class TestDiskCacheWrite : public ::testing::Test {
     ~TestDiskCacheWrite() {}
 
     virtual void SetUp() {
+        Aws::InitAPI(awsOptions_);
         client_ = new MockS3Client();
         diskCacheWrite_ = std::make_shared<DiskCacheWrite>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
@@ -66,11 +68,12 @@ class TestDiskCacheWrite : public ::testing::Test {
         Mock::VerifyAndClear(wrapper_.get());
         delete client_;
         Mock::VerifyAndClear(diskCacheWrite_.get());
+        Aws::ShutdownAPI(awsOptions_);
     }
-
     std::shared_ptr<DiskCacheWrite> diskCacheWrite_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
     MockS3Client *client_;
+    Aws::SDKOptions awsOptions_;
 };
 
 
@@ -177,28 +180,13 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillRepeatedly(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(-1));
-    ret = diskCacheWrite_->UploadFile(fileName);
-    ASSERT_EQ(-1, ret);
-
-    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .Times(2)
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, close(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, malloc(_))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, memset(_, _, _))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, free(_))
-        .WillOnce(Return());
-    EXPECT_CALL(*wrapper_, read(_, _, _))
-        .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*client_, UploadAsync(_))
+        .WillRepeatedly(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                context->key = "test";
+                context->retCode = 0;
+                context->cb(context);
+    }));
     ret = diskCacheWrite_->UploadFile(fileName);
     ASSERT_EQ(0, ret);
 }
@@ -350,18 +338,19 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .WillOnce(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, Upload(_, _, _))
+    EXPECT_CALL(*client_, UploadAsync(_))
+        .WillRepeatedly(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                context->key = "test";
+                context->retCode = 0;
+                context->cb(context);
+    }));
+    EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
-
-    EXPECT_CALL(*wrapper_, remove(_))
-        .WillOnce(Return(-1));
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
-        .WillOnce(Return(0));
+        .WillOnce(Return(-1));
     int ret = diskCacheWrite_->UploadAllCacheWriteFile();
-    ASSERT_EQ(0, ret);
-
-    dir = opendir(".");
-    dirent = readdir(dir);
+    ASSERT_EQ(-1, ret);
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(3)
         .WillRepeatedly(Return(0));
@@ -381,10 +370,14 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
         .WillOnce(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(0));
-
-    EXPECT_CALL(*wrapper_, remove(_))
+    EXPECT_CALL(*client_, UploadAsync(_))
+        .WillRepeatedly(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                context->key = "test";
+                context->retCode = 0;
+                context->cb(context);
+    }));
+    EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(0));
@@ -392,56 +385,16 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
     ASSERT_EQ(0, ret);
 }
 
-TEST_F(TestDiskCacheWrite, UploadAndRemove) {
+TEST_F(TestDiskCacheWrite, RemoveFile) {
     std::string file = "test";
-    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
-    int ret = diskCacheWrite_->UploadAndRemove(file);
-    ASSERT_EQ(-1, ret);
-
-    std::string path = "test";
-    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .Times(2)
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, close(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, malloc(_))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, memset(_, _, _))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, free(_))
-        .WillOnce(Return());
-    EXPECT_CALL(*wrapper_, read(_, _, _))
-        .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, remove(_))
         .WillOnce(Return(-1));
-    ret = diskCacheWrite_->UploadAndRemove(file);
+    int ret = diskCacheWrite_->RemoveFile(file);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .Times(2)
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, close(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, malloc(_))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, memset(_, _, _))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, free(_))
-        .WillOnce(Return());
-    EXPECT_CALL(*wrapper_, read(_, _, _))
-        .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, remove(_))
         .WillOnce(Return(0));
-    ret = diskCacheWrite_->UploadAndRemove(file);
+    ret = diskCacheWrite_->RemoveFile(file);
     ASSERT_EQ(0, ret);
 }
 
