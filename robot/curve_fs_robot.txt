@@ -159,6 +159,7 @@ init failover cluster
      deploy all servers
      check fs cluster ok
      mount test dir
+     sleep  5
      check fuse mount success
      write check data
      cp check data
