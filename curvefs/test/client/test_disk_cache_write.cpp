@@ -76,20 +76,20 @@ class TestDiskCacheWrite : public ::testing::Test {
     Aws::SDKOptions awsOptions_;
 };
 
-
-TEST_F(TestDiskCacheWrite, UploadFile) {
-    uint64_t length = 10;
+TEST_F(TestDiskCacheWrite, ReadFile) {
+    uint64_t length;
+    char* buf;
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillOnce(Return(-1));
     std::string fileName = "test";
-    int ret = diskCacheWrite_->UploadFile(fileName);
+    int ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-    ret = diskCacheWrite_->UploadFile(fileName);
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
@@ -97,7 +97,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*wrapper_, open(_, _, _))
         .WillOnce(Return(-1));
-    ret = diskCacheWrite_->UploadFile(fileName);
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     std::string path = "test";
@@ -110,7 +110,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, malloc(_))
         .WillOnce(ReturnNull());
-    ret = diskCacheWrite_->UploadFile(fileName);
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
@@ -126,7 +126,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, free(_))
         .WillOnce(Return());
-    ret = diskCacheWrite_->UploadFile(fileName);
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
@@ -144,7 +144,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillOnce(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(-1));
-    ret = diskCacheWrite_->UploadFile(fileName);
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
@@ -162,7 +162,7 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillOnce(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(length - 1));
-    ret = diskCacheWrite_->UploadFile(fileName);
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
@@ -180,6 +180,37 @@ TEST_F(TestDiskCacheWrite, UploadFile) {
         .WillRepeatedly(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(239772865546436));
+
+    ret = diskCacheWrite_->ReadFile(fileName, &buf, &length);
+    ASSERT_EQ(0, ret);
+}
+
+TEST_F(TestDiskCacheWrite, UploadFile) {
+    uint64_t length = 10;
+    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
+        .WillOnce(Return(-1));
+    std::string fileName = "test";
+    int ret = diskCacheWrite_->UploadFile(fileName);
+    ASSERT_EQ(-1, ret);
+
+    std::string path = "test";
+    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
+        .Times(2)
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*wrapper_, open(_, _, _))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, close(_))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, malloc(_))
+        .WillOnce(Return(&path));
+    EXPECT_CALL(*wrapper_, memset(_, _, _))
+        .WillOnce(Return(&path));
+    EXPECT_CALL(*wrapper_, free(_))
+        .WillRepeatedly(Return());
+    EXPECT_CALL(*wrapper_, read(_, _, _))
+        .WillOnce(Return(239772865546436));
+    EXPECT_CALL(*wrapper_, remove(_))
+        .WillOnce(Return(0));
     EXPECT_CALL(*client_, UploadAsync(_))
         .WillRepeatedly(Invoke(
             [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
@@ -281,9 +312,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
     dir = opendir(".");
     dirent = readdir(dir);
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .Times(2)
-        .WillOnce(Return(0))
-        .WillOnce(Return(-1));
+        .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, opendir(NotNull()))
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
@@ -310,7 +339,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(0));
     ret = diskCacheWrite_->UploadAllCacheWriteFile();
-    ASSERT_EQ(0, ret);
+    ASSERT_EQ(-1, ret);
 }
 
 TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
@@ -321,67 +350,40 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
     dirent = readdir(dir);
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .Times(3)
-        .WillRepeatedly(Return(0));
+        .WillOnce(Return(0))
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, opendir(NotNull()))
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
         .WillOnce(Return(dirent))
         .WillOnce(ReturnNull());
+    EXPECT_CALL(*wrapper_, closedir(NotNull()))
+        .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, open(_, _, _))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper_, close(_))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, malloc(_))
         .WillOnce(Return(&path));
     EXPECT_CALL(*wrapper_, memset(_, _, _))
         .WillOnce(Return(&path));
     EXPECT_CALL(*wrapper_, free(_))
-        .WillOnce(Return());
+        .WillRepeatedly(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
         .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, UploadAsync(_))
+
+     EXPECT_CALL(*client_, UploadAsync(_))
         .WillRepeatedly(Invoke(
             [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
                 context->key = "test";
                 context->retCode = 0;
                 context->cb(context);
     }));
-    EXPECT_CALL(*wrapper_, close(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, closedir(NotNull()))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper_, remove(_))
+        .WillRepeatedly(Return(0));
     int ret = diskCacheWrite_->UploadAllCacheWriteFile();
-    ASSERT_EQ(-1, ret);
-    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .Times(3)
-        .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, opendir(NotNull()))
-        .WillOnce(Return(dir));
-    EXPECT_CALL(*wrapper_, readdir(NotNull()))
-        .Times(2)
-        .WillOnce(Return(dirent))
-        .WillOnce(ReturnNull());
-    EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, malloc(_))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, memset(_, _, _))
-        .WillOnce(Return(&path));
-    EXPECT_CALL(*wrapper_, free(_))
-        .WillOnce(Return());
-    EXPECT_CALL(*wrapper_, read(_, _, _))
-        .WillOnce(Return(239772865546436));
-    EXPECT_CALL(*client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                context->key = "test";
-                context->retCode = 0;
-                context->cb(context);
-    }));
-    EXPECT_CALL(*wrapper_, close(_))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*wrapper_, closedir(NotNull()))
-        .WillOnce(Return(0));
-    ret = diskCacheWrite_->UploadAllCacheWriteFile();
     ASSERT_EQ(0, ret);
 }
 
@@ -402,22 +404,29 @@ TEST_F(TestDiskCacheWrite, AsyncUploadRun) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillRepeatedly(Return(0));
     std::string path = "test";
+    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*wrapper_, open(_, _, _))
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*wrapper_, close(_))
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*wrapper_, malloc(_))
         .WillRepeatedly(Return(&path));
     EXPECT_CALL(*wrapper_, memset(_, _, _))
-        .WillRepeatedly(Return((&path)));
+        .WillRepeatedly(Return(&path));
     EXPECT_CALL(*wrapper_, free(_))
         .WillRepeatedly(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
-        .WillRepeatedly(Return(9223372036854775807));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillRepeatedly(Return(0));
+        .WillRepeatedly(Return(239772865546436));
     EXPECT_CALL(*wrapper_, remove(_))
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*wrapper_, close(_))
-        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*client_, UploadAsync(_))
+        .WillRepeatedly(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                context->key = "test";
+                context->retCode = 0;
+                context->cb(context);
+    }));
     diskCacheWrite_->AsyncUploadEnqueue("test");
     diskCacheWrite_->AsyncUploadEnqueue("test");
     int ret = diskCacheWrite_->AsyncUploadRun();

@@ -74,6 +74,7 @@ class DiskCacheManager {
     int LinkWriteToRead(const std::string fileName,
                        const std::string fullWriteDir,
                        const std::string fullReadDir);
+    int UploadAllCacheWriteFile();
     /**
      * @brief get use ratio of cache disk
      * @return the use ratio

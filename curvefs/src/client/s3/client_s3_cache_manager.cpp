@@ -152,12 +152,12 @@ int FileCacheManager::Write(uint64_t offset, uint64_t length,
         writeOffset += writeLen;
         chunkPos = (chunkPos + writeLen) % chunkSize;
     }
-
     return writeOffset;
 }
 
 void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
                                   uint64_t writeLen, const char *dataBuf) {
+  LOG(INFO) << "WriteChunk00";
     ChunkCacheManagerPtr chunkCacheManager =
         FindOrCreateChunkCacheManager(index);
     curve::common::LockGuard lg(chunkCacheManager->mtx_);  // todo
@@ -170,7 +170,7 @@ void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
         chunkCacheManager->CreateWriteDataCache(s3ClientAdaptor_, chunkPos,
                                                 writeLen, dataBuf);
     }
-
+LOG(INFO) << "WriteChunk11";
     return;
 }
 
@@ -437,6 +437,13 @@ void FileCacheManager::PrefetchS3Objs(std::vector<std::string> prefetchObjs) {
 
             VLOG(9) << "prefetch end: " << context->key
                        << ", len: " << context->len;
+            if (context->retCode != 0) {
+                if (context->buf != nullptr)
+                    delete context->buf;
+                curve::common::LockGuard lg(downloadMtx_);
+                downloadingObj_.erase(context->key);
+                return;
+            }
             if (s3ClientAdaptor_->GetDiskCacheManager()->WriteReadDirect(
                 context->key, context->buf, context->len) < 0) {
                 LOG(ERROR) << "write read directly failed";
@@ -1334,7 +1341,6 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             return;
         }
     }
-
     return;
 }
 
