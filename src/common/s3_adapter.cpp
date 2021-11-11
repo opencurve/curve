@@ -59,6 +59,12 @@ void InitS3AdaptorOption(Configuration *conf,
         &s3Opt->bpsReadMB));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsWriteMB",
         &s3Opt->bpsWriteMB));
+
+    if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
+                              &s3Opt->maxAsyncRequestInflightBytes)) {
+        LOG(WARNING) << "Not found s3.max_async_request_inflight_bytes in conf";
+        s3Opt->maxAsyncRequestInflightBytes = 0;
+    }
 }
 
 void S3Adapter::Init(const std::string &path) {
@@ -112,6 +118,11 @@ void S3Adapter::Init(const S3AdapterOption &option) {
 
     throttle_ = new Throttle();
     throttle_->UpdateThrottleParams(params);
+
+    inflightBytesThrottler_.reset(new AsyncRequestBytesThrottler(
+        option.maxAsyncRequestInflightBytes == 0
+            ? UINT64_MAX
+            : option.maxAsyncRequestInflightBytes));
 }
 
 void S3Adapter::Deinit() {
@@ -258,32 +269,42 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         "stream",
         Aws::String(static_cast<char*>(context->buffer), context->bufferSize)));
 
-    Aws::S3::PutObjectResponseReceivedHandler handler = [&] (
-        const Aws::S3::S3Client* client,
-        const Aws::S3::Model::PutObjectRequest& request,
-        const Aws::S3::Model::PutObjectOutcome& response,
-        const std::shared_ptr<const Aws::Client::AsyncCallerContext>& awsCtx) {
-        std::shared_ptr<const PutObjectAsyncContext> cctx =
-            std::dynamic_pointer_cast<const PutObjectAsyncContext>(awsCtx);
-        std::shared_ptr<PutObjectAsyncContext> ctx =
-            std::const_pointer_cast<PutObjectAsyncContext>(cctx);
-        if (response.IsSuccess()) {
-            const Aws::S3::Model::PutObjectResult &result =
-                response.GetResult();
-            ctx->retCode = 0;
-        } else {
-            LOG(ERROR) << "PutObjectAsync error: "
-                       << response.GetError().GetExceptionName()
-                       << "message: " << response.GetError().GetMessage()
-                       << "resend: " << context->key;
-            PutObjectAsync(context);
-            return;
-        }
-        ctx->cb(ctx);
-    };
+    auto originCallback = context->cb;
+    auto wrapperCallback =
+        [this,
+         originCallback](const std::shared_ptr<PutObjectAsyncContext>& ctx) {
+            inflightBytesThrottler_->OnComplete(ctx->bufferSize);
+            ctx->cb = originCallback;
+            ctx->cb(ctx);
+        };
+
+    Aws::S3::PutObjectResponseReceivedHandler handler =
+        [&](const Aws::S3::S3Client* client,
+            const Aws::S3::Model::PutObjectRequest& request,
+            const Aws::S3::Model::PutObjectOutcome& response,
+            const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
+                awsCtx) {
+            std::shared_ptr<PutObjectAsyncContext> ctx =
+                std::const_pointer_cast<PutObjectAsyncContext>(
+                    std::dynamic_pointer_cast<const PutObjectAsyncContext>(
+                        awsCtx));
+
+            LOG_IF(ERROR, !response.IsSuccess())
+                << "PutObjectAsync error: "
+                << response.GetError().GetExceptionName()
+                << "message: " << response.GetError().GetMessage()
+                << "resend: " << context->key;
+
+            ctx->retCode = (response.IsSuccess() ? 0 : -1);
+            ctx->cb(ctx);
+        };
+
     if (throttle_) {
         throttle_->Add(true, context->bufferSize);
     }
+
+    inflightBytesThrottler_->OnStart(context->bufferSize);
+    context->cb = std::move(wrapperCallback);
     s3Client_->PutObjectAsync(request, handler, context);
 }
 
@@ -338,33 +359,49 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
     request.SetKey(context->key.c_str());
     request.SetRange(("bytes=" + std::to_string(context->offset) + "-" + std::to_string(context->offset + context->len)).c_str()); //NOLINT
 
-    Aws::S3::GetObjectResponseReceivedHandler handler = [this] (
-        const Aws::S3::S3Client* client,
-        const Aws::S3::Model::GetObjectRequest& request,
-        const Aws::S3::Model::GetObjectOutcome& response,
-        const std::shared_ptr<const Aws::Client::AsyncCallerContext>& awsCtx) {
-        std::shared_ptr<const GetObjectAsyncContext> cctx =
-            std::dynamic_pointer_cast<const GetObjectAsyncContext>(awsCtx);
-        std::shared_ptr<GetObjectAsyncContext> ctx =
-            std::const_pointer_cast<GetObjectAsyncContext>(cctx);
-        if (response.IsSuccess()) {
-            const Aws::S3::Model::GetObjectResult &result =
-                response.GetResult();
-            Aws::S3::Model::GetObjectResult &ret =
-                const_cast<Aws::S3::Model::GetObjectResult&>(result);
-            ret.GetBody().rdbuf()->sgetn(ctx->buf, ctx->len);  // NOLINT
-            ctx->retCode = 0;
-        } else {
-            LOG(ERROR) << "GetObjectAsync error: "
-                    << response.GetError().GetExceptionName()
-                    << response.GetError().GetMessage();
-            ctx->retCode = -1;
-        }
-        ctx->cb(this, ctx);
-    };
+    auto originCallback = context->cb;
+    auto wrapperCallback =
+        [this, originCallback](
+            const S3Adapter* adapter,
+            const std::shared_ptr<GetObjectAsyncContext>& ctx) {
+            inflightBytesThrottler_->OnComplete(ctx->len);
+            ctx->cb = originCallback;
+            ctx->cb(this, ctx);
+        };
+
+    Aws::S3::GetObjectResponseReceivedHandler handler =
+        [this](const Aws::S3::S3Client* client,
+               const Aws::S3::Model::GetObjectRequest& request,
+               const Aws::S3::Model::GetObjectOutcome& response,
+               const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
+                   awsCtx) {
+            std::shared_ptr<GetObjectAsyncContext> ctx =
+                std::const_pointer_cast<GetObjectAsyncContext>(
+                    std::dynamic_pointer_cast<const GetObjectAsyncContext>(
+                        awsCtx));
+
+            if (response.IsSuccess()) {
+                const Aws::S3::Model::GetObjectResult& result =
+                    response.GetResult();
+                Aws::S3::Model::GetObjectResult& ret =
+                    const_cast<Aws::S3::Model::GetObjectResult&>(result);
+                ret.GetBody().rdbuf()->sgetn(ctx->buf, ctx->len);  // NOLINT
+                ctx->retCode = 0;
+            } else {
+                LOG(ERROR) << "GetObjectAsync error: "
+                           << response.GetError().GetExceptionName()
+                           << response.GetError().GetMessage();
+                ctx->retCode = -1;
+            }
+            ctx->cb(this, ctx);
+        };
+
     if (throttle_) {
         throttle_->Add(true, context->len);
     }
+
+    inflightBytesThrottler_->OnStart(context->len);
+    context->cb = std::move(wrapperCallback);
     s3Client_->GetObjectAsync(request, handler, context);
 }
 
@@ -524,5 +561,21 @@ int S3Adapter::AbortMultiUpload(const Aws::String &key,
             return -1;
         }
 }
+
+void S3Adapter::AsyncRequestBytesThrottler::OnStart(uint64_t len) {
+    std::unique_lock<std::mutex> lock(mtx_);
+    while (inflightBytes_ + len > maxInflightBytes_) {
+        cond_.wait(lock);
+    }
+
+    inflightBytes_ += len;
+}
+
+void S3Adapter::AsyncRequestBytesThrottler::OnComplete(uint64_t len) {
+    std::unique_lock<std::mutex> lock(mtx_);
+    inflightBytes_ -= len;
+    cond_.notify_all();
+}
+
 }  // namespace common
 }  // namespace curve

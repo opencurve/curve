@@ -25,6 +25,8 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
 #include <aws/core/utils/memory/AWSMemory.h>  //NOLINT
 #include <aws/core/Aws.h>   //NOLINT
 #include <aws/s3/S3Client.h>  //NOLINT
@@ -71,6 +73,7 @@ struct S3AdapterOption {
     int connectTimeout;
     int requestTimeout;
     int asyncThreadNum;
+    uint64_t maxAsyncRequestInflightBytes;
     uint64_t iopsTotalLimit;
     uint64_t iopsReadLimit;
     uint64_t iopsWriteLimit;
@@ -256,6 +259,26 @@ class S3Adapter {
     }
 
  private:
+    class AsyncRequestBytesThrottler {
+     public:
+        explicit AsyncRequestBytesThrottler(uint64_t maxInflightBytes)
+            : maxInflightBytes_(maxInflightBytes),
+              inflightBytes_(0),
+              mtx_(),
+              cond_() {}
+
+        void OnStart(uint64_t len);
+        void OnComplete(uint64_t len);
+
+     private:
+        const uint64_t maxInflightBytes_;
+        uint64_t inflightBytes_;
+
+        std::mutex mtx_;
+        std::condition_variable cond_;
+    };
+
+ private:
     // S3服务器地址，由配置文件指定
     Aws::String s3Address_;
     // 用于用户认证的AK/SK，需要从对象存储的用户管理中申请，并在配置文件中指定
@@ -270,6 +293,8 @@ class S3Adapter {
     Configuration conf_;
 
     Throttle *throttle_;
+
+    std::unique_ptr<AsyncRequestBytesThrottler> inflightBytesThrottler_;
 };
 }  // namespace common
 }  // namespace curve

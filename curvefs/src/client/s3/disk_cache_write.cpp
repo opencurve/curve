@@ -102,12 +102,20 @@ int DiskCacheWrite::UploadFile(const std::string name) {
         posixWrapper_->close(fd);
         return -1;
     }
+
     PutObjectAsyncCallBack cb =
-        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
-            RemoveFile(context->key);
-            VLOG(6) << "PutObjectAsyncCallBack success, "
-                    << "remove file: " << context->key;
-    };
+        [&](const std::shared_ptr<PutObjectAsyncContext>& context) {
+            if (context->retCode == 0) {
+                RemoveFile(context->key);
+                VLOG(6) << "PutObjectAsyncCallBack success, "
+                        << "remove file: " << context->key;
+                return;
+            }
+
+            LOG(WARNING) << "Put object failed, key: " << context->key;
+            client_->UploadAsync(context);
+        };
+
     auto context = std::make_shared<PutObjectAsyncContext>();
     context->key = name;
     context->buffer = buffer;
