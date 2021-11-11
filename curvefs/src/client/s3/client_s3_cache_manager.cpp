@@ -309,12 +309,17 @@ int FileCacheManager::HandleReadRequest(
     std::vector<std::pair<ChunkCacheManagerPtr, DataCachePtr>> DataCacheVec;
 
     GetObjectAsyncCallBack cb =
-        [&pendingReq, &cond](
-            const S3Adapter* adapter,
+        [&](const S3Adapter* adapter,
             const std::shared_ptr<GetObjectAsyncContext>& context) {
-            //  todo failed branch
-            pendingReq.fetch_sub(1, std::memory_order_relaxed);
-            cond.Signal();
+            if (context->retCode == 0) {
+                pendingReq.fetch_sub(1, std::memory_order_relaxed);
+                cond.Signal();
+                return;
+            }
+
+            LOG(WARNING) << "Get Object failed, key: " << context->key
+                         << ", offset: " << context->offset;
+            s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
         };
 
     for (; iter != requests.end(); iter++) {
@@ -447,6 +452,11 @@ class AsyncPrefetchCallback {
             VLOG(3) << "prefetch inode: " << inode_
                     << " end, but file cache is released, key: "
                     << context->key;
+            return;
+        }
+
+        if (context->retCode != 0) {
+            LOG(WARNING) << "prefetch failed, key: " << context->key;
             return;
         }
 
@@ -1436,14 +1446,21 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 << ",Len:" << tmpLen << ",blockPos:" << blockPos
                 << ",blockIndex:" << blockIndex;
         PutObjectAsyncCallBack cb =
-                [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
-                if (pendingReq.fetch_sub(1) == 1) {
-                    VLOG(9) << "pendingReq is over";
-                    cond.Signal();
+            [&](const std::shared_ptr<PutObjectAsyncContext>& context) {
+                if (context->retCode == 0) {
+                    if (pendingReq.fetch_sub(1) == 1) {
+                        VLOG(9) << "pendingReq is over";
+                        cond.Signal();
+                    }
+                    VLOG(9) << "PutObjectAsyncCallBack: " << context->key
+                            << " pendingReq is: " << pendingReq;
+                    return;
                 }
-                VLOG(9) << "PutObjectAsyncCallBack: " << context->key
-                          << " pendingReq is: " << pendingReq;
-        };
+
+                LOG(WARNING) << "Put object failed, key: " << context->key;
+                s3ClientAdaptor_->GetS3Client()->UploadAsync(context);
+            };
+
         std::vector<std::shared_ptr<PutObjectAsyncContext>> uploadTasks;
         while (tmpLen > 0) {
             if (blockPos + tmpLen > blockSize) {
