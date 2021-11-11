@@ -180,12 +180,13 @@ int FileCacheManager::Write(uint64_t offset, uint64_t length,
         writeOffset += writeLen;
         chunkPos = (chunkPos + writeLen) % chunkSize;
     }
-
     return writeOffset;
 }
 
 void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
                                   uint64_t writeLen, const char *dataBuf) {
+    VLOG(9) << "WriteChunk start, index: " << index
+            << ", chunkPos: " << chunkPos;
     ChunkCacheManagerPtr chunkCacheManager =
         FindOrCreateChunkCacheManager(index);
     WriteLockGuard readLockGuard(chunkCacheManager->rwLockChunk_);  // todo
@@ -198,7 +199,8 @@ void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
         chunkCacheManager->WriteNewDataCache(s3ClientAdaptor_, chunkPos,
                                              writeLen, dataBuf);
     }
-
+    VLOG(9) << "WriteChunk end, index: " << index
+            << ", chunkPos: " << chunkPos;
     return;
 }
 
@@ -507,7 +509,6 @@ class AsyncPrefetchCallback {
 
 void FileCacheManager::PrefetchS3Objs(std::vector<std::string> prefetchObjs) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
-
     for (auto &obj : prefetchObjs) {
         std::string name = obj;
         curve::common::LockGuard lg(downloadMtx_);
@@ -1413,7 +1414,6 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             return;
         }
     }
-
     return;
 }
 
@@ -1500,6 +1500,8 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             };
 
         std::vector<std::shared_ptr<PutObjectAsyncContext>> uploadTasks;
+        bool useDiskCache = s3ClientAdaptor_->IsReadWriteCache() &&
+        !s3ClientAdaptor_->GetDiskCacheManager()->IsDiskCacheFull();
         while (tmpLen > 0) {
             if (blockPos + tmpLen > blockSize) {
                 n = blockSize - blockPos;
@@ -1510,7 +1512,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             objectName = curvefs::common::s3util::GenObjName(
                 chunkId, blockIndex, 0, fsId, inodeId);
             int ret = 0;
-            if (s3ClientAdaptor_->IsReadWriteCache()) {
+            if (useDiskCache) {
                 ret = s3ClientAdaptor_->GetDiskCacheManager()->Write(
                     objectName, data + writeOffset, n);
             } else {
