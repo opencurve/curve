@@ -74,6 +74,7 @@ class DiskCacheManager {
     int LinkWriteToRead(const std::string fileName,
                        const std::string fullWriteDir,
                        const std::string fullReadDir);
+    int UploadAllCacheWriteFile();
     /**
      * @brief get use ratio of cache disk
      * @return the use ratio
@@ -110,7 +111,6 @@ class DiskCacheManager {
     bthread::Mutex mtx_;
 
     S3Client *client_;
-
     std::shared_ptr<PosixWrapper> posixWrapper_;
 };
 

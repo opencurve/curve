@@ -71,6 +71,8 @@ class DiskCacheWrite : public DiskCacheBase {
     * @brief remove from write cache
     */
     virtual int RemoveFile(const std::string fileName);
+    virtual int ReadFile(const std::string name, char** buf,
+      uint64_t* size);
     /**
      * @brief upload file in write cache to S3 
      * @param[in] name file name
