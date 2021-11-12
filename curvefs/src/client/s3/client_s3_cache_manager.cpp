@@ -651,9 +651,11 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
             if ((tmp.offset() < (chunkTmp.s3ChunkInfo.offset() +
                 chunkTmp.s3ChunkInfo.len())) &&
                 (chunkTmp.s3ChunkInfo.offset() < (tmp.offset() + tmp.len()))) {
-                addChunks = CutOverLapChunks(tmp, chunkTmp.s3ChunkInfo);
+                std::vector<S3ChunkInfo> tmpAddChunks =
+                    CutOverLapChunks(tmp, chunkTmp.s3ChunkInfo);
+                addChunks.insert(addChunks.end(),
+                    tmpAddChunks.begin(), tmpAddChunks.end());
                 waitingDel.push_back(j);
-                break;
             }
         }
 
