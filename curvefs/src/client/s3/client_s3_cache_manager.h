@@ -88,6 +88,12 @@ struct ObjectChunkInfo {
     uint64_t objectOffset;  // s3 object's begin in the block
 };
 
+struct FlushParam {
+uint64_t chunkId;
+uint64_t offset;  // offset in file
+uint64_t writeOffset;  // offset after one write
+};
+
 class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
@@ -124,8 +130,7 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
     uint64_t GetLen() { return len_; }
 
     char *GetData() { return data_; }
-
-    CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
+    CURVEFS_ERROR Flush(uint64_t inodeId, bool force, FlushParam* singleFlush);
     void Release();
     bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
     void SetDelete() { return delete_.store(true, std::memory_order_release); }
@@ -147,8 +152,6 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
     }
 
  private:
-    void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
-                              uint64_t chunkId, uint64_t offset, uint64_t len);
     void Swap(char *newData, uint64_t newLen) {
         delete[] data_;
         data_ = newData;
@@ -208,6 +211,10 @@ class ChunkCacheManager {
     void ReadByReadCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
                          uint64_t dataBufOffset,
                          std::vector<ReadRequest> *requests);
+    CURVEFS_ERROR UpdateInode(uint64_t inodeId,
+      const std::vector<FlushParam>& totalFlush);
+    void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
+      const FlushParam& singleFlush);
     CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
     uint64_t GetIndex() { return index_; }
     bool IsEmpty() {

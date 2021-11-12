@@ -1219,9 +1219,13 @@ TEST_F(ClientS3AdaptorTest, test_flush_first_write) {
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(mockInodeManager_, ShipToFlush(_))
+        .WillRepeatedly(Return());
     CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
 
+
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
 
     std::shared_ptr<FsCacheManager> fsCacheManager =

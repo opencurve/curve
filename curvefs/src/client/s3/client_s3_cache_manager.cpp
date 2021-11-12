@@ -1208,6 +1208,7 @@ void ChunkCacheManager::ReleaseWriteDataCache(const DataCachePtr &dataCache) {
 }
 
 CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
+    VLOG(9) << "chunk flush start, inodeId: " << inodeId;
     std::map<uint64_t, DataCachePtr> tmp;
     curve::common::LockGuard lg(flushMtx_);
     CURVEFS_ERROR ret;
@@ -1215,13 +1216,17 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
         WriteLockGuard writeLockGuard(rwLockWrite_);
         tmp = dataWCacheMap_;
     }
+    std::vector<FlushParam> totalFlush;
+    FlushParam singleFlush;
+    memset(&singleFlush,0,sizeof(FlushParam));
+    auto size = tmp.size();
     auto iter = tmp.begin();
     for (; iter != tmp.end(); iter++) {
         VLOG(9) << "Flush datacache chunkPos:" << iter->second->GetChunkPos()
                 << ",len:" << iter->second->GetLen() << ",inodeId:" << inodeId
                 << ",chunkIndex:" << index_;
         assert(iter->second->IsDirty());
-        ret = iter->second->Flush(inodeId, force);
+        ret = iter->second->Flush(inodeId, force, &singleFlush);
         if ((ret != CURVEFS_ERROR::OK) && (ret != CURVEFS_ERROR::NOFLUSH) &&
             ret != CURVEFS_ERROR::NOTEXIST) {
             LOG(WARNING) << "dataCache flush failed. ret:" << ret
@@ -1232,6 +1237,8 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
 
         if (ret == CURVEFS_ERROR::OK) {
             iter->second->Lock();
+            totalFlush.push_back(singleFlush);
+            LOG(INFO) << "whs offset02: " << singleFlush.writeOffset;
             if (!iter->second->IsDirty()) {
                 VLOG(9) << "ReleaseWriteDataCache chunkPos:"
                         << iter->second->GetChunkPos()
@@ -1253,8 +1260,74 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
             ReleaseWriteDataCache(iter->second);
         }
     }
-
+    auto iterwhs = totalFlush.begin();
+    for (; iterwhs != totalFlush.end(); iterwhs++) {
+        LOG(ERROR) << "whs : " << iterwhs->writeOffset;
+    }
+    ret = UpdateInode(inodeId, totalFlush);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "update inode fail, ret: " << ret;
+        return ret;
+    }
+    VLOG(9) << "chunk flush end, inodeId: " << inodeId;
     return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR ChunkCacheManager::UpdateInode(uint64_t inodeId,
+  const std::vector<FlushParam>& totalFlush) {
+    VLOG(9) <<"update inode start: "<< inodeId;
+    auto iterwhs = totalFlush.begin();
+    for (; iterwhs != totalFlush.end(); iterwhs++) {
+        LOG(ERROR) << "whs-2 : " << iterwhs->writeOffset;
+    }
+    uint64_t chunkIndex = GetIndex();
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret =
+        s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
+            inodeId, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(WARNING) << "get inode fail, ret:" << ret;
+        return ret;
+    }
+
+    FlushParam singleFlush;
+    memset(&singleFlush,0,sizeof(FlushParam));
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    Inode* inode = inodeWrapper->GetMutableInodeUnlocked();
+    auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
+
+    bool exist = true;
+    for (int i = 0; i < totalFlush.size(); i++) {
+        auto s3chunkInfoListIter = s3ChunkInfoMap->find(chunkIndex);
+        if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
+            exist = false;
+        } else {
+            exist = true;
+        }
+        singleFlush = totalFlush[i];
+        if (exist) {
+            S3ChunkInfoList &s3ChunkInfoList = s3chunkInfoListIter->second;
+            UpdateInodeChunkInfo(&s3ChunkInfoList, singleFlush);
+        } else {
+            S3ChunkInfoList s3ChunkInfoList;
+            UpdateInodeChunkInfo(&s3ChunkInfoList, singleFlush);
+            s3ChunkInfoMap->insert({chunkIndex, s3ChunkInfoList});
+        }
+    }
+    s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
+    VLOG(9) << "update inode end: " << inodeId;
+    return CURVEFS_ERROR::OK;
+}
+
+void ChunkCacheManager::UpdateInodeChunkInfo(
+  S3ChunkInfoList *s3ChunkInfoList, const FlushParam& singleFlush) {
+    S3ChunkInfo *tmp = s3ChunkInfoList->add_s3chunks();
+    tmp->set_chunkid(singleFlush.chunkId);
+    tmp->set_compaction(0);
+    tmp->set_offset(singleFlush.offset);
+    tmp->set_len(singleFlush.writeOffset);
+    tmp->set_size(singleFlush.writeOffset);
+    tmp->set_zero(false);
 }
 
 void ChunkCacheManager::UpdateWrteCacheMap(uint64_t oldChunkPos,
@@ -1411,7 +1484,8 @@ void DataCache::Release() {
     chunkCacheManager_->ReleaseReadDataCache(chunkPos_);
 }
 
-CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
+CURVEFS_ERROR DataCache::Flush(uint64_t inodeId,
+  bool force, FlushParam* singleFlush) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint32_t flushIntervalSec = s3ClientAdaptor_->GetFlushInterval();
@@ -1419,13 +1493,19 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
     uint64_t blockPos;
     uint64_t blockIndex;
     uint64_t chunkIndex = chunkCacheManager_->GetIndex();
-    uint64_t offset;
+    // *offset = 0;
+    // uint64_t *offset = &singleFlush->offset;
+    uint64_t offset = 0;
     uint64_t tmpLen;
     uint64_t n = 0;
     std::string objectName;
-    uint32_t writeOffset = 0;
+    // uint64_t *writeOffset = &singleFlush->writeOffset;
+    // *writeOffset = 0;
+    uint64_t writeOffset = 0;
     bool isFlush = true;
-    uint64_t chunkId;
+    // *chunkId = 0;
+    // uint64_t *chunkId = &singleFlush->chunkId;
+    uint64_t chunkId = 0;
     uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
     char *data;
     curve::common::CountDownEvent cond(1);
@@ -1496,7 +1576,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             } else {
                 n = tmpLen;
             }
-
+            LOG(INFO) << "whs offset --: " << writeOffset << "LEN :" << len_;
             objectName = curvefs::common::s3util::GenObjName(
                 chunkId, blockIndex, 0, fsId, inodeId);
             int ret = 0;
@@ -1537,60 +1617,16 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             VLOG(9) << "wait for pendingReq";
             cond.Wait();
         }
-
-        delete[] data;
-        VLOG(9) << "update inode start, chunkId:" << chunkId
-                << ",offset:" << offset << ",len:" << writeOffset
-                << ",inodeId:" << inodeId << ",chunkIndex:" << chunkIndex;
-        {
-            std::shared_ptr<InodeWrapper> inodeWrapper;
-            CURVEFS_ERROR ret =
-                s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
-                    inodeId, inodeWrapper);
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(WARNING) << "get inode fail, ret:" << ret;
-                dirty_.store(true, std::memory_order_release);
-                return ret;
-            }
-            ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
-            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
-            auto s3chunkInfoListIter = s3ChunkInfoMap->find(chunkIndex);
-            if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
-                S3ChunkInfoList s3ChunkInfoList;
-                UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
-                                     writeOffset);
-                s3ChunkInfoMap->insert({chunkIndex, s3ChunkInfoList});
-            } else {
-                S3ChunkInfoList &s3ChunkInfoList = s3chunkInfoListIter->second;
-                UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
-                                     writeOffset);
-            }
-            s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
-        }
-
-        VLOG(9) << "data flush end, inodeId: " << inodeId;
+        if (data != nullptr)
+            delete []data;
+        LOG(INFO) << "whs offset01: " << writeOffset;
+        singleFlush->offset = offset;
+        singleFlush->writeOffset = writeOffset;
+        singleFlush->chunkId = chunkId;
         return CURVEFS_ERROR::OK;
     }
     mtx_.unlock();
     return CURVEFS_ERROR::NOFLUSH;
-}
-
-void DataCache::UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
-                                     uint64_t chunkId, uint64_t offset,
-                                     uint64_t len) {
-    S3ChunkInfo *tmp = s3ChunkInfoList->add_s3chunks();
-
-    tmp->set_chunkid(chunkId);
-    tmp->set_compaction(0);
-    tmp->set_offset(offset);
-    tmp->set_len(len);
-    tmp->set_size(len);
-    tmp->set_zero(false);
-    VLOG(6) << "UpdateInodeChunkInfo chunkId:" << chunkId
-            << ",offset:" << offset << ", len:" << len
-            << ",s3chunks size:" << s3ChunkInfoList->s3chunks_size();
-    return;
 }
 
 FsCacheManager::ReadCacheReleaseExecutor::ReadCacheReleaseExecutor()

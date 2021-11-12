@@ -151,7 +151,7 @@ int DiskCacheRead::WriteDiskFile(const std::string fileName,
         return fd;
     }
     ssize_t writeLen = posixWrapper_->write(fd, buf, length);
-    if (writeLen < length) {
+    if (writeLen < 0 || writeLen < length) {
         LOG(ERROR) << "write disk file error. ret = " << writeLen
                    << ", file = " << fileName;
         posixWrapper_->close(fd);

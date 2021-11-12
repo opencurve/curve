@@ -101,7 +101,6 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
