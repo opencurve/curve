@@ -164,10 +164,10 @@ ret=`lsblk|grep chunkserver|wc -l`
 for i in `seq 0 $((${ret}-1))`
 do
   curve-format -allocatePercent={{ chunk_alloc_percent }} \
-  -filePoolDir=/data/chunkserver$i/chunkfilepool \
-  -filePoolMetaPath=/data/chunkserver$i/chunkfilepool.meta \
+  -filePoolDir=$dataDir/chunkserver$i/chunkfilepool \
+  -filePoolMetaPath=$dataDir/chunkserver$i/chunkfilepool.meta \
   -fileSize={{ chunk_size }} \
-  -fileSystemPath=/data/chunkserver$i/chunkfilepool  &
+  -fileSystemPath=$dataDir/chunkserver$i/chunkfilepool  &
 done
 wait
 }
@@ -182,10 +182,10 @@ function release_disk_reserved_space {
 
 function deploy_one_walfile_pool {
   curve-format -allocatePercent={{ wal_segment_alloc_percent }} \
-  -filePoolDir=/data/chunkserver$1/walfilepool \
-  -filePoolMetaPath=/data/chunkserver$1/walfilepool.meta \
+  -filePoolDir=$dataDir/chunkserver$1/walfilepool \
+  -filePoolMetaPath=$dataDir/chunkserver$1/walfilepool.meta \
   -fileSize={{ chunkserver_walfilepool_segment_size }} \
-  -fileSystemPath=/data/chunkserver$1/walfilepool  &
+  -fileSystemPath=$dataDir/chunkserver$1/walfilepool  &
 }
 
 
