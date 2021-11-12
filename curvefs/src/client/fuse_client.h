@@ -197,6 +197,8 @@ class FuseClient {
 
     virtual void FlushInode();
 
+    virtual void FlushInodeAll();
+
     virtual void FlushAll();
 
  protected:

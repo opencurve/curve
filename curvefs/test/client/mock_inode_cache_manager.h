@@ -53,6 +53,8 @@ class MockInodeCacheManager : public InodeCacheManager {
         const std::shared_ptr<InodeWrapper> &inodeWrapper));
 
     MOCK_METHOD0(FlushAll, void());
+
+    MOCK_METHOD0(FlushInodeOnce, void());
 };
 
 }  // namespace client
