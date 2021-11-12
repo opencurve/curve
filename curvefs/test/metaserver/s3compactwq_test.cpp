@@ -340,9 +340,9 @@ TEST_F(S3CompactWorkQueueImplTest, test_WriteFullChunk) {
     std::vector<std::string> objsAdded;
     int ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded);
     ASSERT_EQ(ret, 0);
-    ASSERT_EQ(objsAdded[0], "2_0_3_1_100");
-    ASSERT_EQ(objsAdded[1], "2_1_3_1_100");
-    ASSERT_EQ(objsAdded[2], "2_2_3_1_100");
+    ASSERT_EQ(objsAdded[0], "1_100_2_0_3");
+    ASSERT_EQ(objsAdded[1], "1_100_2_1_3");
+    ASSERT_EQ(objsAdded[2], "1_100_2_2_3");
 
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(-1));
     ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded);
