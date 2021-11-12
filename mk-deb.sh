@@ -510,6 +510,7 @@ then
 fi
 # step 4.1 prepare for nebd-package
 cp -r nebd/nebd-package build/
+mkdir -p build/nebd-package/usr/include/nebd
 mkdir -p build/nebd-package/usr/bin
 mkdir -p build/nebd-package/usr/lib/nebd
 
@@ -526,6 +527,7 @@ do
     cp -f $i build/k8s-nebd-package/usr/lib/nebd
 done
 
+cp nebd/src/part1/libnebd.h build/nebd-package/usr/include/nebd
 cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/usr/bin
 cp bazel-bin/nebd/src/part2/nebd-server build/k8s-nebd-package/usr/bin
 

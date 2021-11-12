@@ -449,6 +449,7 @@ fi
 echo "end copy"
 
 # step 4.1 prepare for nebd-package
+mkdir -p build/nebd-package/include/nebd
 mkdir -p build/nebd-package/bin
 mkdir -p build/nebd-package/lib/nebd
 
@@ -457,6 +458,7 @@ do
     cp -f $i build/nebd-package/lib/nebd
 done
 
+cp nebd/src/part1/libnebd.h build/nebd-package/include/nebd
 cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/bin
 
 # step 4.2 prepare for curve-nbd package
