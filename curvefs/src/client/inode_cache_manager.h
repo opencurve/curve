@@ -72,6 +72,8 @@ class InodeCacheManager {
 
     virtual void FlushAll() = 0;
 
+    virtual void FlushInodeOnce() = 0;
+
  protected:
     uint32_t fsId_;
 };
@@ -114,8 +116,7 @@ class InodeCacheManagerImpl : public InodeCacheManager {
 
     void FlushAll() override;
 
- private:
-    void FlushInodeOnce();
+    void FlushInodeOnce() override;
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;

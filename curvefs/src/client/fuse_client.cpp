@@ -771,11 +771,13 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
-void FuseClient::FlushInode() { inodeManager_->FlushAll(); }
+void FuseClient::FlushInode() { inodeManager_->FlushInodeOnce(); }
+
+void FuseClient::FlushInodeAll() { inodeManager_->FlushAll(); }
 
 void FuseClient::FlushAll() {
     FlushData();
-    FlushInode();
+    FlushInodeAll();
 }
 
 }  // namespace client
