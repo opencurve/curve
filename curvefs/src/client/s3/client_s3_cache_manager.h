@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include <vector>
 #include <set>
+#include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
@@ -55,6 +56,7 @@ class S3ReadRequest;
 using FileCacheManagerPtr = std::shared_ptr<FileCacheManager>;
 using ChunkCacheManagerPtr = std::shared_ptr<ChunkCacheManager>;
 using DataCachePtr = std::shared_ptr<DataCache>;
+using WeakDataCachePtr = std::weak_ptr<DataCache>;
 using curve::common::GetObjectAsyncCallBack;
 using curve::common::PutObjectAsyncCallBack;
 using curve::common::S3Adapter;
@@ -110,7 +112,7 @@ class DataCache {
         //  dirty_.exchange(false, std::memory_order_acq_rel);
     }
     virtual ~DataCache() {
-        delete data_;
+        delete[] data_;
         data_ = nullptr;
     }
 
@@ -129,7 +131,7 @@ class DataCache {
     void UpdateInodeChunkInfo(S3ChunkInfoList* s3ChunkInfoList,
                               uint64_t chunkId, uint64_t offset, uint64_t len);
     void Swap(char *newData, uint64_t newLen) {
-        delete data_;
+        delete[] data_;
         data_ = newData;
         len_ = newLen;
     }
@@ -200,7 +202,8 @@ class ChunkCacheManager {
  private:
     uint64_t index_;
     std::map<uint64_t, DataCachePtr> dataWCacheMap_;  // first is pos in chunk
-    std::map<uint64_t, std::list<DataCachePtr>::iterator>
+    std::map<uint64_t, std::pair<std::list<DataCachePtr>::iterator,
+                                 WeakDataCachePtr>>
         dataRCacheMap_;   // first is pos in chunk
     RWLock rwLockWrite_;  //  for write cache
     RWLock rwLockRead_;   //  for read cache
@@ -222,6 +225,10 @@ class FileCacheManager {
     int Write(uint64_t offset, uint64_t length, const char *dataBuf);
     int Read(Inode *inode, uint64_t offset, uint64_t length, char *dataBuf);
     bool IsEmpty() { return chunkCacheMap_.empty(); }
+
+    uint64_t GetInodeId() const {
+        return inode_;
+    }
 
  private:
     void WriteChunk(uint64_t index, uint64_t chunkPos, uint64_t writeLen,
@@ -245,6 +252,8 @@ class FileCacheManager {
                                               const S3ChunkInfo& oldChunk);
 
  private:
+    friend class AsyncPrefetchCallback;
+
     uint64_t fsId_;
     uint64_t inode_;
     std::map<uint64_t, ChunkCacheManagerPtr> chunkCacheMap_;  // first is index
@@ -268,7 +277,10 @@ class FsCacheManager {
     FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
                                                      uint64_t inodeId);
     void ReleaseFileCacheManager(uint64_t inodeId);
-    std::list<DataCachePtr>::iterator Set(DataCachePtr dataCache);
+
+    std::pair<std::list<DataCachePtr>::iterator, WeakDataCachePtr> Set(
+        DataCachePtr dataCache);
+
     void Delete(std::list<DataCachePtr>::iterator iter);
     void Get(std::list<DataCachePtr>::iterator iter);
     CURVEFS_ERROR FsSync(bool force);
