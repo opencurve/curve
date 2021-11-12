@@ -67,7 +67,8 @@ void FsCacheManager::ReleaseFileCacheManager(uint64_t inodeId) {
     return;
 }
 
-std::list<DataCachePtr>::iterator FsCacheManager::Set(DataCachePtr dataCache) {
+std::pair<std::list<DataCachePtr>::iterator, WeakDataCachePtr>
+FsCacheManager::Set(DataCachePtr dataCache) {
     WriteLockGuard writeLockGuard(rwLockLru_);
 
     VLOG(3) << "lru current byte:" << lruByte_
@@ -76,19 +77,23 @@ std::list<DataCachePtr>::iterator FsCacheManager::Set(DataCachePtr dataCache) {
     // trim cache without consider dataCache's size, because its size is
     // expected to be very smaller than `readCacheMaxByte_`
     while (lruByte_ >= readCacheMaxByte_) {
-        auto &trimDataCache = lruReadDataCacheList_.back();
+        auto& trimDataCache = lruReadDataCacheList_.back();
         VLOG(3) << "lru release data cache, size: " << trimDataCache->GetLen();
         lruByte_ -= trimDataCache->GetLen();
         trimDataCache->Release();
         lruReadDataCacheList_.pop_back();
     }
     lruByte_ += dataCache->GetLen();
+
+    WeakDataCachePtr weak = dataCache;
     lruReadDataCacheList_.push_front(std::move(dataCache));
-    return lruReadDataCacheList_.begin();
+    return {lruReadDataCacheList_.begin(), weak};
 }
 
 void FsCacheManager::Get(std::list<DataCachePtr>::iterator iter) {
     WriteLockGuard writeLockGuard(rwLockLru_);
+
+    LOG(INFO) << (*iter)->GetLen();
 
     lruReadDataCacheList_.splice(lruReadDataCacheList_.begin(),
                                  lruReadDataCacheList_, iter);
@@ -122,6 +127,8 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
             WriteLockGuard writeLockGuard(rwLock_);
             auto iter1 = fileCacheManagerMap_.find(iter->first);
             if (iter1 != fileCacheManagerMap_.end()) {
+                VLOG(9) << "Release FileCacheManager, inode id: "
+                        << iter1->second->GetInodeId();
                 fileCacheManagerMap_.erase(iter1);
             }
         }
@@ -302,8 +309,9 @@ int FileCacheManager::HandleReadRequest(
     std::vector<std::pair<ChunkCacheManagerPtr, DataCachePtr>> DataCacheVec;
 
     GetObjectAsyncCallBack cb =
-        [&](const S3Adapter *adapter,
-            const std::shared_ptr<GetObjectAsyncContext> &context) {
+        [&pendingReq, &cond](
+            const S3Adapter* adapter,
+            const std::shared_ptr<GetObjectAsyncContext>& context) {
             //  todo failed branch
             pendingReq.fetch_sub(1, std::memory_order_relaxed);
             cond.Signal();
@@ -422,21 +430,45 @@ int FileCacheManager::HandleReadRequest(
     return 0;
 }
 
+class AsyncPrefetchCallback {
+ public:
+    AsyncPrefetchCallback(uint64_t inode, S3ClientAdaptorImpl* s3Client)
+        : inode_(inode), s3Client_(s3Client) {}
+
+    void operator()(const S3Adapter*,
+                    const std::shared_ptr<GetObjectAsyncContext>& context) {
+        VLOG(9) << "prefetch end: " << context->key << ", len " << context->len;
+
+        std::unique_ptr<char[]> guard(context->buf);
+        auto fileCache =
+            s3Client_->GetFsCacheManager()->FindFileCacheManager(inode_);
+
+        if (!fileCache) {
+            VLOG(3) << "prefetch inode: " << inode_
+                    << " end, but file cache is released, key: "
+                    << context->key;
+            return;
+        }
+
+        int ret = s3Client_->GetDiskCacheManager()->WriteReadDirect(
+            context->key, context->buf, context->len);
+        LOG_IF(ERROR, ret < 0)
+            << "write read directly failed, key: " << context->key;
+
+        {
+            curve::common::LockGuard lg(fileCache->downloadMtx_);
+            fileCache->downloadingObj_.erase(context->key);
+        }
+    }
+
+ private:
+    const uint64_t inode_;
+    S3ClientAdaptorImpl* s3Client_;
+};
+
 void FileCacheManager::PrefetchS3Objs(std::vector<std::string> prefetchObjs) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
-     GetObjectAsyncCallBack cb =
-        [&](const S3Adapter *adapter,
-            const std::shared_ptr<GetObjectAsyncContext> &context) {
-            VLOG(9) << "prefetch end: " << context->key
-                       << ", len: " << context->len;
-            if (s3ClientAdaptor_->GetDiskCacheManager()->WriteReadDirect(
-                context->key, context->buf, context->len) < 0) {
-                LOG(ERROR) << "write read directly failed";
-            }
-            delete context->buf;
-            curve::common::LockGuard lg(downloadMtx_);
-            downloadingObj_.erase(context->key);
-    };
+
     for (auto &obj : prefetchObjs) {
         std::string name = obj;
         curve::common::LockGuard lg(downloadMtx_);
@@ -453,22 +485,20 @@ void FileCacheManager::PrefetchS3Objs(std::vector<std::string> prefetchObjs) {
         VLOG(9) << "download start: " << name
                     << ", size: " << downloadingObj_.size();
         downloadingObj_.emplace(name);
-        auto task = [=]() {
-            char* dataCacheS3 = new char[blockSize];
-            if (dataCacheS3 == nullptr) {
-                LOG(ERROR) << "malloc failed, size = " << blockSize;
-                return;
-            }
-            memset(dataCacheS3, 0, blockSize);
+
+        auto inode = inode_;
+        auto s3ClientAdaptor = s3ClientAdaptor_;
+        auto task = [name, inode, s3ClientAdaptor, blockSize]() {
+            char *dataCacheS3 = new char[blockSize];
             auto context = std::make_shared<GetObjectAsyncContext>();
             context->key = name;
             context->buf = dataCacheS3;
             context->offset = 0;
             context->len = blockSize;
-            context->cb = cb;
+            context->cb = AsyncPrefetchCallback{inode, s3ClientAdaptor};
             VLOG(9) << "prefetch start: " << context->key
                        << ", len: " << context->len;
-            s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
+            s3ClientAdaptor->GetS3Client()->DownloadAsync(context);
         };
         s3ClientAdaptor_->PushAsyncTask(task);
     }
@@ -786,8 +816,8 @@ void FileCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
 }
 
 void FileCacheManager::ReleaseCache() {
-    auto iter = chunkCacheMap_.begin();
     WriteLockGuard writeLockGuard(rwLock_);
+    auto iter = chunkCacheMap_.begin();
 
     for (; iter != chunkCacheMap_.end(); iter++) {
         iter->second->ReleaseCache(s3ClientAdaptor_);
@@ -948,11 +978,17 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
         --iter;
     }
 
-    for (; iter != dataRCacheMap_.end(); iter++) {
+    for (; iter != dataRCacheMap_.end();) {
+        DataCachePtr dataCache = iter->second.second.lock();
+        if (!dataCache) {
+            iter = dataRCacheMap_.erase(iter);
+            continue;
+        }
+
         ReadRequest request;
-        std::list<DataCachePtr>::iterator dcpIter = iter->second;
-        uint64_t dcChunkPos = (*dcpIter)->GetChunkPos();
-        uint64_t dcLen = (*dcpIter)->GetLen();
+        uint64_t dcChunkPos = dataCache->GetChunkPos();
+        uint64_t dcLen = dataCache->GetLen();
+
         VLOG(9) << "ReadByReadCache chunkPos:" << chunkPos
                 << ",readLen:" << readLen << ",dcChunkPos:" << dcChunkPos
                 << ",dcLen:" << dcLen << ",dataBufOffset:" << dataBufOffset;
@@ -960,7 +996,9 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             break;
         } else if ((chunkPos + readLen > dcChunkPos) &&
                    (chunkPos < dcChunkPos)) {
-            s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second);
+            if (!dataCache.unique()) {
+                s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second.first);
+            }
             request.len = dcChunkPos - chunkPos;
             request.chunkPos = chunkPos;
             request.index = index_;
@@ -968,7 +1006,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             VLOG(9) << "request: index:" << index_ << ",chunkPos:" << chunkPos
                     << ",len:" << request.len << ",bufOffset:" << dataBufOffset;
             requests->emplace_back(request);
-            char *cacheData = (*dcpIter)->GetData();
+            char *cacheData = dataCache->GetData();
             /*
                  -----               ReadData
                     ------           DataCache
@@ -990,8 +1028,11 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             }
         } else if ((chunkPos >= dcChunkPos) &&
                    (chunkPos < dcChunkPos + dcLen)) {
-            char *cacheData = (*dcpIter)->GetData();
-            s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second);
+            char *cacheData = dataCache->GetData();
+
+            if (!dataCache.unique()) {
+                s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second.first);
+            }
             /*
                      ----              ReadData
                    ---------           DataCache
@@ -1013,9 +1054,9 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                 dataBufOffset = dcChunkPos + dcLen - chunkPos + dataBufOffset;
                 chunkPos = dcChunkPos + dcLen;
             }
-        } else {
-            continue;
         }
+
+        ++iter;
     }
 
     if (readLen > 0) {
@@ -1098,33 +1139,38 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
     WriteLockGuard writeLockGuard(rwLockRead_);
     std::vector<uint64_t> deleteKeyVec;
     auto iter = dataRCacheMap_.begin();
-    for (; iter != dataRCacheMap_.end(); iter++) {
+    for (; iter != dataRCacheMap_.end();) {
         if (chunkPos + len <= iter->first) {
             break;
         }
-        std::list<DataCachePtr>::iterator dcpIter = iter->second;
-        uint64_t dcChunkPos = (*dcpIter)->GetChunkPos();
-        uint64_t dcLen = (*dcpIter)->GetLen();
+
+        auto dataCache = iter->second.second.lock();
+        if (!dataCache) {
+            iter = dataRCacheMap_.erase(iter);
+            continue;
+        }
+
+        uint64_t dcChunkPos = dataCache->GetChunkPos();
+        uint64_t dcLen = dataCache->GetLen();
         if ((chunkPos + len > dcChunkPos) && (chunkPos < dcChunkPos + dcLen)) {
             VLOG(9) << "read cache chunkPos:" << chunkPos << ",len:" << len
                     << "is overlap with datacache chunkPos:" << dcChunkPos
                     << ",len:" << dcLen;
             deleteKeyVec.emplace_back(dcChunkPos);
         }
+
+        ++iter;
     }
 
     for (auto key : deleteKeyVec) {
         auto iter = dataRCacheMap_.find(key);
-        std::list<DataCachePtr>::iterator dcpIter = iter->second;
+        std::list<DataCachePtr>::iterator dcpIter = iter->second.first;
         s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter);
         dataRCacheMap_.erase(iter);
     }
 
-    std::list<DataCachePtr>::iterator newIter =
-        s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache);
-    dataRCacheMap_.emplace(chunkPos, newIter);
-
-    return;
+    dataRCacheMap_.emplace(
+        chunkPos, s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache));
 }
 
 void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
@@ -1154,7 +1200,7 @@ void ChunkCacheManager::ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor) {
     WriteLockGuard writeLockGuard(rwLockRead_);
     auto iter = dataRCacheMap_.begin();
     for (; iter != dataRCacheMap_.end(); iter++) {
-        s3ClientAdaptor->GetFsCacheManager()->Delete(iter->second);
+        s3ClientAdaptor->GetFsCacheManager()->Delete(iter->second.first);
     }
     dataRCacheMap_.clear();
 }
@@ -1422,7 +1468,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             }
             if (ret < 0) {
                 LOG(ERROR) << "write object fail. object: " << objectName;
-                delete data;
+                delete[] data;
                 dirty_.store(true, std::memory_order_release);
                 return CURVEFS_ERROR::INTERNAL;
             }
@@ -1448,7 +1494,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             cond.Wait();
         }
 
-        delete data;
+        delete[] data;
         VLOG(9) << "update inode start, chunkId:" << chunkId
                 << ",offset:" << offset << ",len:" << writeOffset
                 << ",inodeId:" << inodeId << ",chunkIndex:" << chunkIndex;
