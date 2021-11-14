@@ -283,7 +283,7 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         };
 
     Aws::S3::PutObjectResponseReceivedHandler handler =
-        [&](const Aws::S3::S3Client* client,
+        [](const Aws::S3::S3Client* client,
             const Aws::S3::Model::PutObjectRequest& request,
             const Aws::S3::Model::PutObjectOutcome& response,
             const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
@@ -297,7 +297,7 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
                 << "PutObjectAsync error: "
                 << response.GetError().GetExceptionName()
                 << "message: " << response.GetError().GetMessage()
-                << "resend: " << context->key;
+                << "resend: " << ctx->key;
 
             ctx->retCode = (response.IsSuccess() ? 0 : -1);
             ctx->cb(ctx);
