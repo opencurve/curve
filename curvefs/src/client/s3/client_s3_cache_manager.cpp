@@ -78,7 +78,8 @@ FsCacheManager::Set(DataCachePtr dataCache) {
     // expected to be very smaller than `readCacheMaxByte_`
     while (lruByte_ >= readCacheMaxByte_) {
         auto& trimDataCache = lruReadDataCacheList_.back();
-        VLOG(3) << "lru release data cache, size: " << trimDataCache->GetLen();
+        VLOG(3) << "lru release data cache, size: "
+        << trimDataCache->GetLen();
         lruByte_ -= trimDataCache->GetLen();
         trimDataCache->Release();
         lruReadDataCacheList_.pop_back();
@@ -92,8 +93,6 @@ FsCacheManager::Set(DataCachePtr dataCache) {
 
 void FsCacheManager::Get(std::list<DataCachePtr>::iterator iter) {
     WriteLockGuard writeLockGuard(rwLockLru_);
-
-    LOG(INFO) << (*iter)->GetLen();
 
     lruReadDataCacheList_.splice(lruReadDataCacheList_.begin(),
                                  lruReadDataCacheList_, iter);
@@ -683,18 +682,38 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
     VLOG(9) << "chunk size:" << s3ChunkInfoList.s3chunks_size();
     for (int i = 0; i < s3ChunkInfoList.s3chunks_size(); i++) {
         tmp = s3ChunkInfoList.s3chunks(i);
-        std::vector<S3ChunkInfo> addChunks;
+        std::vector<ObjectChunkInfo> addChunks;
         std::vector<int> waitingDel;
         for (uint32_t j = 0; j < chunks.size(); j++) {
             chunkTmp = chunks[j];
             // overlap, must cut old chunk
             if ((tmp.offset() < (chunkTmp.s3ChunkInfo.offset() +
-                chunkTmp.s3ChunkInfo.len())) &&
+                                 chunkTmp.s3ChunkInfo.len())) &&
                 (chunkTmp.s3ChunkInfo.offset() < (tmp.offset() + tmp.len()))) {
                 std::vector<S3ChunkInfo> tmpAddChunks =
                     CutOverLapChunks(tmp, chunkTmp.s3ChunkInfo);
-                addChunks.insert(addChunks.end(),
-                    tmpAddChunks.begin(), tmpAddChunks.end());
+                auto tmpAddChunksIter = tmpAddChunks.begin();
+                ObjectChunkInfo addChunk;
+                for (; tmpAddChunksIter != tmpAddChunks.end();
+                     tmpAddChunksIter++) {
+                    addChunk.s3ChunkInfo = *tmpAddChunksIter;
+
+                    if (tmpAddChunksIter->offset() / blockSize ==
+                        chunkTmp.s3ChunkInfo.offset() / blockSize) {
+                        addChunk.objectOffset = chunkTmp.objectOffset;
+                    } else {
+                        addChunk.objectOffset = 0;
+                    }
+                    VLOG(9)
+                        << "add chunk offset:" << addChunk.s3ChunkInfo.offset()
+                        << ",len:" << addChunk.s3ChunkInfo.len()
+                        << ",objectOffset:" << addChunk.objectOffset;
+                    VLOG(9)
+                        << "chunkTmp offset:" << chunkTmp.s3ChunkInfo.offset()
+                        << ", len:" << chunkTmp.s3ChunkInfo.len()
+                        << ", objectoffset:" << chunkTmp.objectOffset;
+                    addChunks.emplace_back(addChunk);
+                }
                 waitingDel.push_back(j);
             }
         }
@@ -703,23 +722,9 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
         for (; iter != waitingDel.end(); iter++) {
             chunks.erase(chunks.begin() + *iter);
         }
-        std::vector<S3ChunkInfo>::iterator chunkIter = addChunks.begin();
+        std::vector<ObjectChunkInfo>::iterator chunkIter = addChunks.begin();
         for (; chunkIter != addChunks.end(); chunkIter++) {
-            ObjectChunkInfo addChunk;
-            addChunk.s3ChunkInfo = *chunkIter;
-            VLOG(9) << "add chunk offset:" << addChunk.s3ChunkInfo.offset()
-                    << ",len:" << addChunk.s3ChunkInfo.len();
-            VLOG(9) << "chunkTmp offset:" << chunkTmp.s3ChunkInfo.offset()
-                    << ", len:" << chunkTmp.s3ChunkInfo.len()
-                    << ", objectoffset:" << chunkTmp.objectOffset;
-            if (addChunk.s3ChunkInfo.offset() / blockSize ==
-            chunkTmp.s3ChunkInfo.offset() / blockSize) {
-                addChunk.objectOffset =
-                    chunkTmp.objectOffset;
-            }  else {
-                addChunk.objectOffset = 0;
-            }
-            chunks.push_back(addChunk);
+            chunks.push_back(*chunkIter);
         }
         chunkTmp.s3ChunkInfo = tmp;
         chunkTmp.objectOffset = tmp.offset() % blockSize;
