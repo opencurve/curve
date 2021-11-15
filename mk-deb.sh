@@ -26,6 +26,7 @@ rm -rf curvesnapshot_python/tmplib/
 rm -rf *.deb
 rm -rf *.whl
 rm -rf build
+alias cp='cp -f'
 
 git submodule update --init
 if [ $? -ne 0 ]
@@ -86,6 +87,12 @@ function create_python_wheel() {
     cd ${curdir}
 }
 
+ADDR_SANITIZE_OPTION="--copt -fsanitize=address --linkopt -fsanitize=address"
+#THREAD_SANITIZE_OPTION="--copt -fsanitize=thread --linkopt -fsanitize=thread"
+LEAK_SANITIZE_OPTION="--copt -fsanitize=leak --linkopt -fsanitize=leak"
+
+SANITIZE_OPTION="${ADDR_SANITIZE_OPTION} ${THREAD_SANITIZE_OPTION} ${LEAK_SANITIZE_OPTION}"
+
 function build_curvefs_python() {
     for bin in "/usr/bin/python3" "/usr/bin/python2"; do
         if [ ! -f ${bin} ]; then
@@ -118,6 +125,7 @@ function build_curvefs_python() {
                 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
                 --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
                 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
+                ${SANITIZE_OPTION} \
                 ${bazelflags}
         fi
 
@@ -187,6 +195,7 @@ then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
+${SANITIZE_OPTION} \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
 then
@@ -201,8 +210,8 @@ then
 fi
 bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
---copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
+${SANITIZE_OPTION} \
+--copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
 -L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${curve_version} \
 --linkopt -L/usr/local/lib ${bazelflags}
 if [ $? -ne 0 ]
