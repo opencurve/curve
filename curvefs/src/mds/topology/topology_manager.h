@@ -135,6 +135,10 @@ class TopologyManager {
     virtual void GetCopysetsInfo(const GetCopysetsInfoRequest* request,
                                  GetCopysetsInfoResponse* response);
 
+    virtual void GetMetaServersSpace(
+        ::google::protobuf::RepeatedPtrField<curvefs::mds::MetadataUsage>*
+            spaces);
+
  private:
     TopoStatusCode CreateCopyset();
 

@@ -99,8 +99,10 @@ bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
                 if (i.statuscode() !=
                     curvefs::mds::topology::TopoStatusCode::TOPO_OK) {
                     // some error in copyset
-                    std::cout << "query copyset [ " << i.DebugString()
-                              << " ] from mds error." << std::endl;
+                    std::cout
+                        << "query copyset [ " << i.DebugString()
+                        << " ] from mds error, error code:" << i.statuscode()
+                        << std::endl;
                     continue;
                 }
                 avaliableCopysetId.insert(i.copysetinfo().copysetid());

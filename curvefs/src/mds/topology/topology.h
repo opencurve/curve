@@ -33,6 +33,7 @@
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/mds/topology/deal_peerid.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 #include "curvefs/src/mds/topology/topology_storge.h"
 #include "curvefs/src/mds/topology/topology_token_generator.h"
@@ -200,6 +201,10 @@ class Topology {
     virtual TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
                         MetaServerIdType *metaServerId) const = 0;
     virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
+
+    virtual void GetMetaServersSpace(
+        ::google::protobuf::RepeatedPtrField<curvefs::mds::MetadataUsage>*
+            spaces) = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -385,6 +390,9 @@ class TopologyImpl : public Topology {
                                            PoolIdType *poolIdOut);
 
     TopoStatusCode GetPoolIdByServerId(ServerIdType id, PoolIdType *poolIdOut);
+
+    void GetMetaServersSpace(::google::protobuf::RepeatedPtrField<
+                                 curvefs::mds::MetadataUsage>* spaces) override;
 
  private:
     TopoStatusCode LoadClusterInfo();

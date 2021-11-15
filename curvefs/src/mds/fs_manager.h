@@ -154,6 +154,10 @@ class FsManager {
         ::google::protobuf::RepeatedPtrField< ::curvefs::mds::FsInfo>*
             fsInfoVec);
 
+    void GetMetaServersSpace(
+        ::google::protobuf::RepeatedPtrField<curvefs::mds::MetadataUsage>*
+            spaces);
+
  private:
     // return 0: ExactlySame; 1: uncomplete, -1: neither
     int IsExactlySameOrCreateUnComplete(const std::string& fsName,

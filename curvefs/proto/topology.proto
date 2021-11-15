@@ -16,7 +16,6 @@
 
 syntax="proto2";
 import "curvefs/proto/common.proto";
-import "curvefs/proto/heartbeat.proto";
 package curvefs.mds.topology;
 option cc_generic_services = true;
 

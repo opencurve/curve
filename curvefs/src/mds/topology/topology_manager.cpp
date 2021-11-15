@@ -976,6 +976,11 @@ void TopologyManager::GetCopysetsInfo(const GetCopysetsInfoRequest* request,
     }
 }
 
+void TopologyManager::GetMetaServersSpace(
+    ::google::protobuf::RepeatedPtrField<curvefs::mds::MetadataUsage>* spaces) {
+    topology_->GetMetaServersSpace(spaces);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

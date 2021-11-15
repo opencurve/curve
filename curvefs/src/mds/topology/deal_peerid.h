@@ -75,6 +75,20 @@ inline bool SplitPeerId(const std::string& peerId, std::string* addr) {
     return false;
 }
 
+inline bool SplitAddr(const std::string& addr, std::string* ip,
+                      uint32_t* port) {
+    std::vector<std::string> items;
+    SplitString(addr, ":", &items);
+    if (2 == items.size()) {
+        *ip = items[0];
+        if (!StringToUl(items[1], port)) {
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

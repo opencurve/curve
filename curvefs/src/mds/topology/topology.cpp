@@ -57,7 +57,7 @@ std::string TopologyImpl::AllocateToken() {
     return tokenGenerator_->GenToken();
 }
 
-TopoStatusCode TopologyImpl::AddPool(const Pool &data) {
+TopoStatusCode TopologyImpl::AddPool(const Pool& data) {
     WriteLockGuard wlockPool(poolMutex_);
     if (poolMap_.find(data.GetId()) == poolMap_.end()) {
         if (!storage_->StoragePool(data)) {
@@ -1217,6 +1217,22 @@ uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
         }
     }
     return pNumber;
+}
+
+void TopologyImpl::GetMetaServersSpace(
+    ::google::protobuf::RepeatedPtrField<curvefs::mds::MetadataUsage>* spaces) {
+    ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+    for (auto const& i : metaServerMap_) {
+        ReadLockGuard rlockMetaServer(i.second.GetRWLockRef());
+        auto metaServerUsage = new curvefs::mds::MetadataUsage();
+        metaServerUsage->set_metaserveraddr(
+            i.second.GetInternalHostIp() + ":" +
+            std::to_string(i.second.GetInternalPort()));
+        auto const& space = i.second.GetMetaServerSpace();
+        metaServerUsage->set_total(space.GetDiskCapacity());
+        metaServerUsage->set_used(space.GetDiskUsed());
+        spaces->AddAllocated(metaServerUsage);
+    }
 }
 
 }  // namespace topology

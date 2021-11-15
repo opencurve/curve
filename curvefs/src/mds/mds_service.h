@@ -81,6 +81,12 @@ class MdsServiceImpl : public MdsService {
         ::curvefs::mds::ListClusterFsInfoResponse* response,
         ::google::protobuf::Closure* done);
 
+    void StatMetadataUsage(
+        ::google::protobuf::RpcController* controller,
+        const ::curvefs::mds::StatMetadataUsageRequest* request,
+        ::curvefs::mds::StatMetadataUsageResponse* response,
+        ::google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;

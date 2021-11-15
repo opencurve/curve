@@ -28,7 +28,6 @@ COPTS = [
     "-pthread",
     "-std=c++11",
     "-Wall",
-    "-Werror",
 ]
 
 config_setting(

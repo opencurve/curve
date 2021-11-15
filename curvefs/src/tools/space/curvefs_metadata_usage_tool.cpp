@@ -40,18 +40,28 @@ void MatedataUsageTool::AddUpdateFlags() {
 
 bool MatedataUsageTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
-    if (controller_->Failed() ||
-        response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
-        // connect error or mds internal error
+    if (controller_->Failed()) {
         std::cerr << "get metadata usage from mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
                   << ", error text: " << controller_->ErrorText() << std::endl;
         ret = false;
     } else {
-        std::cout << "total: " << ToReadableByte(response_->total())
-                  << std::endl
-                  << "used: " << ToReadableByte(response_->used()) << std::endl
-                  << "left: " << ToReadableByte(response_->left()) << std::endl;
+        uint64_t total = 0;
+        uint64_t used = 0;
+        for (auto const& i : response_->metadatausages()) {
+            auto totalTmp = i.total();
+            total += totalTmp;
+            auto usedTmp = i.used();
+            used += usedTmp;
+            std::cout << "metaserver[" << i.metaserveraddr()
+                      << "] usage: total:" << ToReadableByte(totalTmp)
+                      << " used:" << ToReadableByte(usedTmp)
+                      << " left:" << ToReadableByte(totalTmp - usedTmp)
+                      << std::endl;
+        }
+        std::cout << "total:" << ToReadableByte(total)
+                  << " used:" << ToReadableByte(used)
+                  << " left:" << ToReadableByte(total - used) << std::endl;
     }
 
     return ret;
@@ -71,6 +81,7 @@ int MatedataUsageTool::Init() {
     AddRequest(request);
     return 0;
 }
+
 }  // namespace space
 }  // namespace tools
 }  // namespace curvefs

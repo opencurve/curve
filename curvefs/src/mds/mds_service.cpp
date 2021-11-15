@@ -223,6 +223,7 @@ void MdsServiceImpl::AllocateS3Chunk(
     ::curvefs::mds::AllocateS3ChunkResponse* response,
     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
+    LOG(INFO) << "start to allocate chunkId";
 
     uint64_t chunkId = 0;
     int stat = chunkIdAllocator_->GenChunkId(&chunkId);
@@ -253,9 +254,22 @@ void MdsServiceImpl::ListClusterFsInfo(
     ::curvefs::mds::ListClusterFsInfoResponse* response,
     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
+    LOG(INFO) << "start to check cluster fs info.";
     fsManager_->GetAllFsInfo(response->mutable_fsinfo());
     LOG(INFO) << "ListClusterFsInfo success, response: "
               << response->ShortDebugString();
+    return;
+}
+
+void MdsServiceImpl::StatMetadataUsage(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::mds::StatMetadataUsageRequest* request,
+    ::curvefs::mds::StatMetadataUsageResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard guard(done);
+    LOG(INFO) << "start to state metadata usage.";
+    fsManager_->GetMetaServersSpace(response->mutable_metadatausages());
+    LOG(INFO) << "state metadata usage end.";
     return;
 }
 
