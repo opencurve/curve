@@ -61,10 +61,6 @@
 namespace curve {
 namespace common {
 
-extern std::once_flag S3INIT_FLAG;
-extern std::once_flag S3SHUTDOWN_FLAG;
-extern Aws::SDKOptions AWS_SDK_OPTIONS;
-
 struct GetObjectAsyncContext;
 struct PutObjectAsyncContext;
 class S3Adapter;
@@ -116,7 +112,7 @@ typedef std::function<void(const std::shared_ptr<PutObjectAsyncContext>&)>
 
 struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     std::string key;
-    void *buffer;
+    const char *buffer;
     size_t bufferSize;
     PutObjectAsyncCallBack cb;
     uint64_t startTime;
@@ -182,8 +178,8 @@ class S3Adapter {
      * @param 数据内容大小
      * @return:0 上传成功/ -1 上传失败
      */
-    virtual int PutObject(const Aws::String &key, const void *buffer,
-            const int bufferSize);
+    virtual int PutObject(const Aws::String &key, const char *buffer,
+            const size_t bufferSize);
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,
     //        const int bufferSize);
@@ -261,7 +257,7 @@ class S3Adapter {
      * @return: 分片任务管理对象
      */
     virtual Aws::S3::Model::CompletedPart UploadOnePart(const Aws::String &key,
-            const Aws::String uploadId,
+            const Aws::String &uploadId,
             int partNum,
             int partSize,
             const char* buf);

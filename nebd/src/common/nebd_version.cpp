@@ -30,9 +30,7 @@ namespace common {
 std::string NebdVersion() {
     static const std::string version =
 #ifdef CURVEVERSION
-#  define STR(val) #val
-#  define XSTR(val) STR(val)
-        std::string(XSTR(CURVEVERSION));
+        std::string(STRINGIFY(CURVEVERSION));
 #else
         std::string("unknown");
 #endif

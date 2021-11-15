@@ -52,5 +52,6 @@ cc_binary(
     ],
     deps = [
         "//nbd/src:curvenbd",
+        "//src/common:macros",
     ],
 )

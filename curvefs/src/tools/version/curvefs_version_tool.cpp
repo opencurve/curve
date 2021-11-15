@@ -22,6 +22,8 @@
 
 #include "curvefs/src/tools/version/curvefs_version_tool.h"
 
+#include "src/common/macros.h"
+
 namespace curvefs {
 namespace tools {
 namespace version {

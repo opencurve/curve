@@ -29,15 +29,13 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 #include "curvefs/test/utils/protobuf_message_utils.h"
+#include "src/common/macros.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
 using ::curvefs::test::GenerateAnDefaultInitializedMessage;
-
-#define STR(val) #val
-#define XSTR(val) STR(val)
 
 TEST(RaftLogCodecTest, EncodeTest_RequestSerializeFailed) {
     OperatorType type = OperatorType::GetDentry;
@@ -133,7 +131,7 @@ TEST(RaftLogCodecTest, DecodeSuccessTest) {
 #define ENCODE_DECODE_TEST(TYPE)                                             \
     do {                                                                     \
         auto request = GenerateAnDefaultInitializedMessage(                  \
-            "curvefs.metaserver." XSTR(TYPE##Request));                      \
+            "curvefs.metaserver." STRINGIFY(TYPE##Request));                 \
         EXPECT_NE(nullptr, request);                                         \
         EXPECT_TRUE(request->IsInitialized());                               \
         butil::IOBuf data;                                                   \

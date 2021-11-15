@@ -42,6 +42,7 @@ cc_library(
             "authenticator.*",
             "s3_adapter.*",
             "snapshotclone_define.*",
+            "macros.h",
         ],
     ),
     copts = CURVE_DEFAULT_COPTS,
@@ -51,6 +52,7 @@ cc_library(
         "//external:butil",
         "//external:glog",
         "//src/common/concurrent:curve_concurrent",
+        ":macros",
     ],
     linkopts = [
         "-luuid",
@@ -106,4 +108,12 @@ cc_library(
     deps = [
         "//external:json",
     ],
+)
+
+cc_library(
+    name = "macros",
+    hdrs = ["macros.h"],
+    srcs = [],
+    visibility = ["//visibility:public"],
+    copts = CURVE_DEFAULT_COPTS,
 )

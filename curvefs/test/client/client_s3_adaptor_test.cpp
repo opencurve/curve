@@ -1123,8 +1123,7 @@ TEST_F(ClientS3AdaptorTest, test_truncate_small3) {
                 S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf, reinterpret_cast<char *>(context->buffer),
-                        context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
             }));
@@ -1715,9 +1714,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read1) {
                    S3Data& tmp = gObjectDataMaps[context->key];
                    tmp.len = context->bufferSize;
                    tmp.buf = new char[context->bufferSize];
-                   strncpy(tmp.buf,
-                     reinterpret_cast<char*>(context->buffer),
-                     context->bufferSize);
+                   strncpy(tmp.buf, context->buffer, context->bufferSize);
                    context->retCode = 0;
                    context->cb(context);
     }));
@@ -1795,9 +1792,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read2) {
                    S3Data& tmp = gObjectDataMaps[context->key];
                    tmp.len = context->bufferSize;
                    tmp.buf = new char[context->bufferSize];
-                   strncpy(tmp.buf,
-                     reinterpret_cast<char*>(context->buffer),
-                     context->bufferSize);
+                   strncpy(tmp.buf, context->buffer, context->bufferSize);
                    context->retCode = 0;
                    context->cb(context);
     }));
@@ -1877,9 +1872,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read3) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -1979,9 +1972,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read4) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2063,9 +2054,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read5) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2155,9 +2144,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read6) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2248,9 +2235,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read7) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2349,9 +2334,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read8) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2448,9 +2431,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read9) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2555,9 +2536,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read10) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2679,9 +2658,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read11) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2768,9 +2745,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read12) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2856,9 +2831,7 @@ TEST_F(ClientS3AdaptorTest, test_fssync_success_and_fail) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));
@@ -2920,9 +2893,7 @@ TEST_F(ClientS3AdaptorTest, test_fssync_overlap_write) {
                 S3Data& tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
-                strncpy(tmp.buf,
-                  reinterpret_cast<char*>(context->buffer),
-                  context->bufferSize);
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
     }));

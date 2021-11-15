@@ -36,6 +36,7 @@
 #include "nbd/src/argparse.h"
 #include "nbd/src/define.h"
 #include "nbd/src/util.h"
+#include "src/common/macros.h"
 
 namespace curve {
 namespace nbd {
@@ -46,9 +47,7 @@ std::shared_ptr<NBDConfig> nbdConfig;
 static std::string Version() {
     static const std::string version =
 #ifdef CURVEVERSION
-#define STR(val) #val
-#define XSTR(val) STR(val)
-        std::string(XSTR(CURVEVERSION));
+        std::string(STRINGIFY(CURVEVERSION));
 #else
         std::string("unknown");
 #endif
