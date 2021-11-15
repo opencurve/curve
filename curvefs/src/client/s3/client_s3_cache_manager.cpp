@@ -711,7 +711,8 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
                     VLOG(9)
                         << "chunkTmp offset:" << chunkTmp.s3ChunkInfo.offset()
                         << ", len:" << chunkTmp.s3ChunkInfo.len()
-                        << ", objectoffset:" << chunkTmp.objectOffset;
+                        << ", objectoffset:" << chunkTmp.objectOffset
+                        << ",j:"  << j;
                     addChunks.emplace_back(addChunk);
                 }
                 waitingDel.push_back(j);
@@ -719,8 +720,10 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
         }
 
         std::vector<int>::iterator iter = waitingDel.begin();
+        int m = 0;
         for (; iter != waitingDel.end(); iter++) {
-            chunks.erase(chunks.begin() + *iter);
+            chunks.erase(chunks.begin() + (*iter - m));
+            m++;
         }
         std::vector<ObjectChunkInfo>::iterator chunkIter = addChunks.begin();
         for (; chunkIter != addChunks.end(); chunkIter++) {
@@ -729,6 +732,14 @@ std::vector<ObjectChunkInfo> FileCacheManager::GetReadChunks(
         chunkTmp.s3ChunkInfo = tmp;
         chunkTmp.objectOffset = tmp.offset() % blockSize;
         chunks.push_back(chunkTmp);
+        /*
+        auto iter1 = chunks.begin();
+        for (; iter1 != chunks.end(); iter1++) {
+        VLOG(9) << "GetReadChunks chunkid:" << iter1->s3ChunkInfo.chunkid()
+                << ",offset:" << iter1->s3ChunkInfo.offset()
+                << ",len:" << iter1->s3ChunkInfo.len()
+                << ",objectoffset:" << iter1->objectOffset;
+        }*/
     }
 
     return chunks;
@@ -998,7 +1009,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
     for (; iter != dataRCacheMap_.end();) {
         DataCachePtr dataCache = iter->second.second.lock();
         if (!dataCache) {
-            iter = dataRCacheMap_.erase(iter);
+            // iter = dataRCacheMap_.erase(iter);
             continue;
         }
 

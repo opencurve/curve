@@ -125,7 +125,7 @@ class ClientS3AdaptorTest : public testing::Test {
     MockS3Client mockS3Client_;
     MockInodeCacheManager mockInodeManager_;
     MockMdsClient mockMdsClient_;
-    std::string addr_ = "127.0.0.1:5628";
+    std::string addr_ = "127.0.0.1:5630";
     brpc::Server server_;
     Aws::SDKOptions awsOptions_;
 };
@@ -2259,6 +2259,139 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read9) {
     memset(readBuf + len, 0, 1);
     char* expectBuf = new char[len + 1];
     memset(expectBuf, 'b', len);
+    memset(expectBuf + len, 0, 1);
+
+    s3ClientAdaptor_->Read(&inode, offset, len, readBuf);
+    EXPECT_STREQ(expectBuf, readBuf);
+
+    // cleanup
+    delete buf;
+    delete readBuf;
+    delete expectBuf;
+    std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
+    for (; iter != gObjectDataMaps.end(); iter++) {
+        delete iter->second.buf;
+        iter->second.buf = NULL;
+    }
+    gObjectDataMaps.clear();
+}
+
+TEST_F(ClientS3AdaptorTest, test_flush_write_and_read10) {
+    curvefs::metaserver::Inode inode;
+
+    InitInode(&inode);
+    uint64_t offset = 8388608;
+    uint64_t len = 4194304;
+    char* buf = new char[len];
+    memset(buf, 'a', len);
+
+    uint64_t chunkId = 1;
+    uint64_t chunkId1 = 2;
+    uint64_t chunkId2 = 3;
+    uint64_t chunkId3 = 4;
+    uint64_t chunkId4 = 5;
+    uint64_t chunkId5 = 6;
+    uint64_t chunkId6 = 7;
+    inode.set_length(offset + len);
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId2), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId3), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId4), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId5), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkId6), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockS3Client_, Upload(_, _, _))
+        .WillRepeatedly(Invoke(S3Upload));
+    EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
+        .WillRepeatedly(Invoke(S3Download));
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+        .WillRepeatedly(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(mockS3Client_, UploadAsync(_))
+        .WillRepeatedly(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                S3Data& tmp = gObjectDataMaps[context->key];
+                tmp.len = context->bufferSize;
+                tmp.buf = new char[context->bufferSize];
+                strncpy(tmp.buf,
+                  reinterpret_cast<char*>(context->buffer),
+                  context->bufferSize);
+                context->retCode = 0;
+                context->cb(context);
+    }));
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+
+
+    std::shared_ptr<FsCacheManager> fsCacheManager =
+        s3ClientAdaptor_->GetFsCacheManager();
+    ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
+    inode = inodeWrapper->GetInodeUnlocked();
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(1, inode.s3chunkinfomap_size());
+
+    offset = 8818688;
+    len = 4096;
+    memset(buf, 'b', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+
+    fsCacheManager = s3ClientAdaptor_->GetFsCacheManager();
+    ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(1, inode.s3chunkinfomap_size());
+
+    offset = 9961472;
+    len = 1048576;
+    memset(buf, 'c', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+
+    offset = 8523776;
+    len = 4096;
+    memset(buf, 'd', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+
+    offset = 8732672;
+    len = 512;
+    memset(buf, 'e', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+
+    offset = 9184768;
+    len = 512;
+    memset(buf, 'f', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+
+    offset = 9437184;
+    len = 1048576;
+    memset(buf, 'g', len);
+    s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+    ret = s3ClientAdaptor_->Flush(inode.inodeid());
+
+
+
+    s3ClientAdaptor_->ReleaseCache(inode.inodeid());
+    inode = inodeWrapper->GetInodeUnlocked();
+/*
+    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+    auto s3chunkInfoListIter = s3ChunkInfoMap->find(22);
+    ASSERT_EQ(3, s3chunkInfoListIter->second.s3chunks_size());
+*/
+    offset = 9437184;
+    len = 131072;
+    char* readBuf = new char[len + 1];
+    memset(readBuf, 'h', len);
+    memset(readBuf + len, 0, 1);
+    char* expectBuf = new char[len + 1];
+    memset(expectBuf, 'g', len);
     memset(expectBuf + len, 0, 1);
 
     s3ClientAdaptor_->Read(&inode, offset, len, readBuf);
