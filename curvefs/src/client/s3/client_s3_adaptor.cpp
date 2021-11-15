@@ -135,7 +135,7 @@ int S3ClientAdaptorImpl::Read(Inode *inode, uint64_t offset, uint64_t length,
     assert(offset + length <= inode->length());
     VLOG(6) << "read start offset:" << offset << ", len:" << length
             << ",inode length:" << inode->length() << ", fsId:" << fsId
-            << ", inodeId" << inodeId;
+            << ", inodeId:" << inodeId;
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId, inodeId);
 
@@ -209,6 +209,7 @@ void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {
     if (!fileCacheManager) {
         return;
     }
+    VLOG(9) << "ReleaseCache inode:" << inodeId;
     fileCacheManager->ReleaseCache();
     fsCacheManager_->ReleaseFileCacheManager(inodeId);
     return;
