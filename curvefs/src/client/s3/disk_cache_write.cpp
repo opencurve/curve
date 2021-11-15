@@ -121,7 +121,7 @@ int DiskCacheWrite::UploadFile(const std::string name) {
     }
     VLOG(9) << "async upload start, file = " << name;
     PutObjectAsyncCallBack cb =
-        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+        [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
                 if (metric_.get() != nullptr) {
                     metric_->writeS3.bps.count << context->bufferSize;
@@ -132,6 +132,7 @@ int DiskCacheWrite::UploadFile(const std::string name) {
                 RemoveFile(context->key);
                 VLOG(9) << "PutObjectAsyncCallBack success, "
                         << "remove file: " << context->key;
+                posixWrapper_->free(buffer);
             }
         };
     auto context = std::make_shared<PutObjectAsyncContext>();
@@ -141,7 +142,6 @@ int DiskCacheWrite::UploadFile(const std::string name) {
     context->cb = cb;
     context->startTime = butil::cpuwide_time_us();
     client_->UploadAsync(context);
-    posixWrapper_->free(buffer);
     VLOG(9) << "async upload end, file = " << name;
     return 0;
 }
@@ -257,13 +257,14 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             continue;
         }
         PutObjectAsyncCallBack cb =
-        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+        [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (pendingReq.fetch_sub(1) == 1) {
                 VLOG(3) << "pendingReq is over";
                 cond.Signal();
             }
             VLOG(3) << "PutObjectAsyncCallBack success"
                     << ", file: " << context->key;
+            posixWrapper_->free(buffer);
         };
         auto context = std::make_shared<PutObjectAsyncContext>();
         context->key = *iter;
@@ -271,7 +272,6 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         context->bufferSize = fileSize;
         context->cb = cb;
         client_->UploadAsync(context);
-        posixWrapper_->free(buffer);
     }
     if (pendingReq.load(std::memory_order_seq_cst)) {
         VLOG(9) << "wait for pendingReq";

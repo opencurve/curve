@@ -19,8 +19,10 @@
 > Author:
 > Created Time: Wed Dec 19 15:19:40 2018
  ************************************************************************/
+
 #include "src/common/s3_adapter.h"
 
+#include <aws/core/utils/stream/PreallocatedStreamBuf.h>
 #include <glog/logging.h>
 
 #include <memory>
@@ -29,6 +31,9 @@
 #include <utility>
 
 #include "src/common/curve_define.h"
+#include "src/common/macros.h"
+
+#define AWS_ALLOCATE_TAG __FILE__ ":" STRINGIFY(__LINE__)
 
 namespace curve {
 namespace common {
@@ -36,6 +41,32 @@ namespace common {
 std::once_flag S3INIT_FLAG;
 std::once_flag S3SHUTDOWN_FLAG;
 Aws::SDKOptions AWS_SDK_OPTIONS;
+
+namespace {
+
+// https://github.com/aws/aws-sdk-cpp/issues/1430
+class PreallocatedIOStream : public Aws::IOStream {
+ public:
+    PreallocatedIOStream(char *buf, size_t size)
+        : Aws::IOStream(new Aws::Utils::Stream::PreallocatedStreamBuf(
+              reinterpret_cast<unsigned char *>(buf), size)) {}
+
+    PreallocatedIOStream(const char *buf, size_t size)
+        : PreallocatedIOStream(const_cast<char *>(buf), size) {}
+
+    ~PreallocatedIOStream() {
+        // corresponding new in constructor
+        delete rdbuf();
+    }
+};
+
+Aws::String GetObjectRequestRange(uint64_t offset, uint64_t len) {
+    auto range =
+        "bytes=" + std::to_string(offset) + "-" + std::to_string(offset + len);
+    return {range.data(), range.size()};
+}
+
+}  // namespace
 
 void InitS3AdaptorOption(Configuration *conf,
     S3AdapterOption *s3Opt) {
@@ -96,8 +127,7 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     s3Ak_ = option.ak.c_str();
     s3Sk_ = option.sk.c_str();
     bucketName_ = option.bucketName.c_str();
-    clientCfg_ = Aws::New<Aws::Client::ClientConfiguration>(
-        "S3Adapter.ClientConfiguration");
+    clientCfg_ = Aws::New<Aws::Client::ClientConfiguration>(AWS_ALLOCATE_TAG);
     clientCfg_->scheme = Aws::Http::Scheme(option.scheme);
     clientCfg_->verifySSL = option.verifySsl;
     //clientCfg_->userAgent = conf_.GetStringValue("s3.user_agent_conf").c_str();  //NOLINT
@@ -111,7 +141,7 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     clientCfg_->executor =
         Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
             "S3Adapter.S3Client", asyncThreadNum);
-    s3Client_ = Aws::New<Aws::S3::S3Client>("S3Adapter.S3Client",
+    s3Client_ = Aws::New<Aws::S3::S3Client>(AWS_ALLOCATE_TAG,
             Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
             *clientCfg_,
             Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
@@ -223,54 +253,32 @@ bool S3Adapter::BucketExist() {
     }
 }
 
-int S3Adapter::PutObject(const Aws::String &key,
-                  const void *buffer,
-                  const int bufferSize) {
+int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
+                         const size_t bufferSize) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
-    request.SetBody(Aws::MakeShared<Aws::StringStream>(
-        "stream", Aws::String(static_cast<const char*>(buffer), bufferSize)));
 
-    auto response = s3Client_->PutObject(request);
-    if (response.IsSuccess()) {
-            return 0;
-    } else {
-        LOG(ERROR) << "PutObject error:"
-            << bucketName_ << key
-            << response.GetError().GetExceptionName()
-            << response.GetError().GetMessage();
-        return -1;
-    }
-}
-
-int S3Adapter::PutObject(const Aws::String &key,
-                  const std::string &data) {
-    Aws::S3::Model::PutObjectRequest request;
-    request.SetBucket(bucketName_);
-    request.SetKey(key);
-    std::shared_ptr<Aws::IOStream> input_data =
-                Aws::MakeShared<Aws::StringStream>("stream");
-    *input_data << data;
-    request.SetBody(input_data);
+    request.SetBody(Aws::MakeShared<PreallocatedIOStream>(AWS_ALLOCATE_TAG,
+                                                          buffer, bufferSize));
 
     if (throttle_) {
-        throttle_->Add(false, data.size());
+        throttle_->Add(false, bufferSize);
     }
 
     auto response = s3Client_->PutObject(request);
     if (response.IsSuccess()) {
         return 0;
     } else {
-        LOG(ERROR) << "PutObject error:"
-                << bucketName_
-                << "--"
-                << key
-                << "--"
-                << response.GetError().GetExceptionName()
-                << response.GetError().GetMessage();
+        LOG(ERROR) << "PutObject error, bucket: " << bucketName_
+                   << ", key: " << key << response.GetError().GetExceptionName()
+                   << response.GetError().GetMessage();
         return -1;
     }
+}
+
+int S3Adapter::PutObject(const Aws::String &key, const std::string &data) {
+    return PutObject(key, data.data(), data.size());
 }
 /*
     int S3Adapter::GetObject(const Aws::String &key,
@@ -302,10 +310,10 @@ int S3Adapter::PutObject(const Aws::String &key,
 void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
-    request.SetKey(context->key.c_str());
-    request.SetBody(Aws::MakeShared<Aws::StringStream>(
-        "stream",
-        Aws::String(static_cast<char*>(context->buffer), context->bufferSize)));
+    request.SetKey(Aws::String{context->key.c_str(), context->key.size()});
+
+    request.SetBody(Aws::MakeShared<PreallocatedIOStream>(
+        AWS_ALLOCATE_TAG, context->buffer, context->bufferSize));
 
     auto originCallback = context->cb;
     auto wrapperCallback =
@@ -317,11 +325,12 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         };
 
     Aws::S3::PutObjectResponseReceivedHandler handler =
-        [](const Aws::S3::S3Client* client,
-            const Aws::S3::Model::PutObjectRequest& request,
-            const Aws::S3::Model::PutObjectOutcome& response,
-            const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
-                awsCtx) {
+        [context](
+            const Aws::S3::S3Client * /*client*/,
+            const Aws::S3::Model::PutObjectRequest & /*request*/,
+            const Aws::S3::Model::PutObjectOutcome &response,
+            const std::shared_ptr<const Aws::Client::AsyncCallerContext>
+                &awsCtx) {
             std::shared_ptr<PutObjectAsyncContext> ctx =
                 std::const_pointer_cast<PutObjectAsyncContext>(
                     std::dynamic_pointer_cast<const PutObjectAsyncContext>(
@@ -338,7 +347,7 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         };
 
     if (throttle_) {
-        throttle_->Add(true, context->bufferSize);
+        throttle_->Add(false, context->bufferSize);
     }
 
     inflightBytesThrottle_->OnStart(context->bufferSize);
@@ -374,14 +383,18 @@ int S3Adapter::GetObject(const std::string &key,
                          size_t len) {
     Aws::S3::Model::GetObjectRequest request;
     request.SetBucket(bucketName_);
-    request.SetKey(key.c_str());
-    request.SetRange(("bytes=" + std::to_string(offset) + "-" + std::to_string(offset+len)).c_str()); //NOLINT
+    request.SetKey(Aws::String{key.c_str(), key.size()});
+    request.SetRange(GetObjectRequestRange(offset, len));
+
+    request.SetResponseStreamFactory([buf, len]() {
+        return Aws::New<PreallocatedIOStream>(AWS_ALLOCATE_TAG, buf, len);
+    });
+
     if (throttle_) {
         throttle_->Add(true, len);
     }
     auto response = s3Client_->GetObject(request);
     if (response.IsSuccess()) {
-        response.GetResult().GetBody().rdbuf()->sgetn(buf, len);
         return 0;
     } else {
         LOG(ERROR) << "GetObject error: "
@@ -394,13 +407,18 @@ int S3Adapter::GetObject(const std::string &key,
 void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
     Aws::S3::Model::GetObjectRequest request;
     request.SetBucket(bucketName_);
-    request.SetKey(context->key.c_str());
-    request.SetRange(("bytes=" + std::to_string(context->offset) + "-" + std::to_string(context->offset + context->len)).c_str()); //NOLINT
+    request.SetKey(Aws::String{context->key.c_str(), context->key.size()});
+    request.SetRange(GetObjectRequestRange(context->offset, context->len));
+
+    request.SetResponseStreamFactory([context]() {
+        return Aws::New<PreallocatedIOStream>(AWS_ALLOCATE_TAG, context->buf,
+                                              context->len);
+    });
 
     auto originCallback = context->cb;
     auto wrapperCallback =
         [this, originCallback](
-            const S3Adapter* adapter,
+            const S3Adapter* /*adapter*/,
             const std::shared_ptr<GetObjectAsyncContext>& ctx) {
             inflightBytesThrottle_->OnComplete(ctx->len);
             ctx->cb = originCallback;
@@ -408,29 +426,22 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
         };
 
     Aws::S3::GetObjectResponseReceivedHandler handler =
-        [this](const Aws::S3::S3Client* client,
-               const Aws::S3::Model::GetObjectRequest& request,
-               const Aws::S3::Model::GetObjectOutcome& response,
-               const std::shared_ptr<const Aws::Client::AsyncCallerContext>&
-                   awsCtx) {
+        [this](const Aws::S3::S3Client * /*client*/,
+               const Aws::S3::Model::GetObjectRequest & /*request*/,
+               const Aws::S3::Model::GetObjectOutcome &response,
+               const std::shared_ptr<const Aws::Client::AsyncCallerContext>
+                   &awsCtx) {
             std::shared_ptr<GetObjectAsyncContext> ctx =
                 std::const_pointer_cast<GetObjectAsyncContext>(
                     std::dynamic_pointer_cast<const GetObjectAsyncContext>(
                         awsCtx));
 
-            if (response.IsSuccess()) {
-                const Aws::S3::Model::GetObjectResult& result =
-                    response.GetResult();
-                Aws::S3::Model::GetObjectResult& ret =
-                    const_cast<Aws::S3::Model::GetObjectResult&>(result);
-                ret.GetBody().rdbuf()->sgetn(ctx->buf, ctx->len);  // NOLINT
-                ctx->retCode = 0;
-            } else {
-                LOG(ERROR) << "GetObjectAsync error: "
-                           << response.GetError().GetExceptionName()
-                           << response.GetError().GetMessage();
-                ctx->retCode = -1;
-            }
+            LOG_IF(ERROR, !response.IsSuccess())
+                << "GetObjectAsync error: "
+                << response.GetError().GetExceptionName()
+                << response.GetError().GetMessage();
+
+            ctx->retCode = (response.IsSuccess() ? 0 : -1);
             ctx->cb(this, ctx);
         };
 
@@ -568,9 +579,9 @@ Aws::String S3Adapter::MultiUploadInit(const Aws::String &key) {
     }
 }
 
-Aws::S3::Model::CompletedPart S3Adapter:: UploadOnePart(
+Aws::S3::Model::CompletedPart S3Adapter::UploadOnePart(
     const Aws::String &key,
-    const Aws::String uploadId,
+    const Aws::String &uploadId,
     int partNum,
     int partSize,
     const char* buf) {
@@ -580,11 +591,10 @@ Aws::S3::Model::CompletedPart S3Adapter:: UploadOnePart(
     request.SetUploadId(uploadId);
     request.SetPartNumber(partNum);
     request.SetContentLength(partSize);
-    auto str = std::make_shared<std::string>(buf, partSize);
-    auto input_data =
-            Aws::MakeShared<Aws::StringStream>("UploadPartStream");
-    *input_data << *str;
-    request.SetBody(input_data);
+
+    request.SetBody(
+        Aws::MakeShared<PreallocatedIOStream>(AWS_ALLOCATE_TAG, buf, partSize));
+
     if (throttle_) {
         throttle_->Add(false, partSize);
     }
@@ -620,18 +630,18 @@ int S3Adapter::CompleteMultiUpload(const Aws::String &key,
 
 int S3Adapter::AbortMultiUpload(const Aws::String &key,
                                 const Aws::String &uploadId) {
-        Aws::S3::Model::AbortMultipartUploadRequest request;
-        request.WithBucket(bucketName_);
-        request.SetKey(key);
-        request.SetUploadId(uploadId);
-        auto response = s3Client_->AbortMultipartUpload(request);
-        if (response.IsSuccess()) {
-            return 0;
-        } else {
-            LOG(ERROR) << "AbortMultiUpload error: "
-                 << response.GetError().GetMessage();
-            return -1;
-        }
+    Aws::S3::Model::AbortMultipartUploadRequest request;
+    request.WithBucket(bucketName_);
+    request.SetKey(key);
+    request.SetUploadId(uploadId);
+    auto response = s3Client_->AbortMultipartUpload(request);
+    if (response.IsSuccess()) {
+        return 0;
+    } else {
+        LOG(ERROR) << "AbortMultiUpload error: "
+                   << response.GetError().GetMessage();
+        return -1;
+    }
 }
 
 void S3Adapter::AsyncRequestInflightBytesThrottle::OnStart(uint64_t len) {

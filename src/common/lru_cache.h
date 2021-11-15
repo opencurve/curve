@@ -74,7 +74,7 @@ class CacheMetrics {
 
 template<class T>
 struct CacheTraits {
-    static uint64_t CountBytes(const T &v) {
+    static uint64_t CountBytes(const T &) {
         return sizeof(T);
     }
 };

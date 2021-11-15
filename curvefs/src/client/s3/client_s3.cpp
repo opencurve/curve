@@ -38,7 +38,7 @@ int S3ClientImpl::Upload(const std::string &name, const char *buf,
     const Aws::String aws_key(name.c_str(), name.size());
 
     VLOG(9) << "upload start, aws_key:" << aws_key << ",length:" << length;
-    ret = s3Adapter_->PutObject(aws_key, (const void *)buf, length);
+    ret = s3Adapter_->PutObject(aws_key, buf, length);
     if (ret < 0) {
         LOG(WARNING) << "upload error:" << ret;
     }
