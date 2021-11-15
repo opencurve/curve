@@ -396,8 +396,12 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
-        VLOG(6) << "GetInode success, request: " << request.DebugString()
-                << "response: " << response.DebugString();
+        auto &s3chunkinfoMap = response.inode().s3chunkinfomap();
+        for (auto &item : s3chunkinfoMap) {
+            VLOG(9) << "inodeInfo, inodeId:" << inodeid
+                    << ",s3chunkinfo item key:" << item.first
+                    << ", value:" << item.second.DebugString();
+        }
         return ret;
     };
 

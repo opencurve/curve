@@ -95,7 +95,7 @@ class DataCache {
               uint64_t len, const char *data)
         : s3ClientAdaptor_(s3ClientAdaptor),
           chunkCacheManager_(chunkCacheManager), chunkPos_(chunkPos), len_(len),
-          dirty_(true) {
+          dirty_(true), delete_(false) {
         data_ = new char[len];
         memcpy(data_, data, len);
         createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
@@ -106,7 +106,7 @@ class DataCache {
               uint64_t len)
         : s3ClientAdaptor_(s3ClientAdaptor),
           chunkCacheManager_(chunkCacheManager), chunkPos_(chunkPos), len_(len),
-          dirty_(false) {
+          dirty_(false), delete_(false) {
         data_ = new char[len];
         createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
         //  dirty_.exchange(false, std::memory_order_acq_rel);
@@ -126,9 +126,10 @@ class DataCache {
     CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
     void Release();
     bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
+    void SetDelete() { return delete_.store(true, std::memory_order_release); }
 
  private:
-    void UpdateInodeChunkInfo(S3ChunkInfoList* s3ChunkInfoList,
+    void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
                               uint64_t chunkId, uint64_t offset, uint64_t len);
     void Swap(char *newData, uint64_t newLen) {
         delete[] data_;
@@ -145,6 +146,7 @@ class DataCache {
     curve::common::Mutex mtx_;
     uint64_t createTime_;
     std::atomic<bool> dirty_;
+    std::atomic<bool> delete_;
 };
 
 class S3ReadResponse {
@@ -173,13 +175,14 @@ class ChunkCacheManager {
         : index_(index), s3ClientAdaptor_(s3ClientAdaptor) {}
     virtual ~ChunkCacheManager() = default;
 
-    DataCachePtr CreateWriteDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
+    void WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                                       uint32_t chunkPos, uint32_t len,
                                       const char *data);
     void AddReadDataCache(DataCachePtr dataCache);
     DataCachePtr
     FindWriteableDataCache(uint64_t pos, uint64_t len,
-                           std::vector<DataCachePtr> *mergeDataCacheVer);
+                           std::vector<DataCachePtr> *mergeDataCacheVer,
+                           uint64_t inodeId);
     void ReadByWriteCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
                           uint64_t dataBufOffset,
                           std::vector<ReadRequest> *requests);
@@ -194,19 +197,23 @@ class ChunkCacheManager {
 
     virtual void ReleaseReadDataCache(uint64_t key);
     void ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor);
-    curve::common::Mutex mtx_;
+    void UpdateWrteCacheMap(uint64_t oldChunkPos);
+
+ public:
+    RWLock rwLockChunk_;  //  for read write chunk
+    RWLock rwLockWrite_;  //  for dataWCacheMap_
 
  private:
-    void ReleaseWriteDataCache(uint64_t key, uint64_t dataCacheLen);
+    void ReleaseWriteDataCache(const DataCachePtr &dataCache);
 
  private:
     uint64_t index_;
     std::map<uint64_t, DataCachePtr> dataWCacheMap_;  // first is pos in chunk
     std::map<uint64_t, std::pair<std::list<DataCachePtr>::iterator,
                                  WeakDataCachePtr>>
-        dataRCacheMap_;   // first is pos in chunk
-    RWLock rwLockWrite_;  //  for write cache
-    RWLock rwLockRead_;   //  for read cache
+        dataRCacheMap_;  // first is pos in chunk
+
+    RWLock rwLockRead_;  //  for read cache
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     curve::common::Mutex flushMtx_;
 };
@@ -217,7 +224,6 @@ class FileCacheManager {
                      S3ClientAdaptorImpl *s3ClientAdaptor)
         : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
     ChunkCacheManagerPtr FindChunkCacheManager(uint64_t index);
-    // ChunkCacheManagerPtr CreateChunkCacheManager(uint64_t index);
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
     void ReleaseChunkCacheManager(uint64_t index);
     void ReleaseCache();
@@ -226,9 +232,7 @@ class FileCacheManager {
     int Read(Inode *inode, uint64_t offset, uint64_t length, char *dataBuf);
     bool IsEmpty() { return chunkCacheMap_.empty(); }
 
-    uint64_t GetInodeId() const {
-        return inode_;
-    }
+    uint64_t GetInodeId() const { return inode_; }
 
  private:
     void WriteChunk(uint64_t index, uint64_t chunkPos, uint64_t writeLen,
@@ -240,16 +244,16 @@ class FileCacheManager {
                            const S3ChunkInfoList &s3ChunkInfoList,
                            char *dataBuf, std::vector<S3ReadRequest> *requests,
                            uint64_t fsId, uint64_t inodeId);
-    int HandleReadRequest(const std::vector<S3ReadRequest>& requests,
-                          std::vector<S3ReadResponse>* responses,
-                          uint64_t fileLen);
-    std::vector<ObjectChunkInfo> GetReadChunks(
-        const S3ChunkInfoList& s3ChunkInfoList, uint64_t blockSize);
-    std::vector<ObjectChunkInfo> SortByOffset(
-        std::vector<ObjectChunkInfo> chunks);
+    int ReadFromS3(const std::vector<S3ReadRequest> &requests,
+                            std::vector<S3ReadResponse> *responses,
+                            uint64_t fileLen);
     void PrefetchS3Objs(std::vector<std::string> prefetchObjs);
-    std::vector<S3ChunkInfo> CutOverLapChunks(const S3ChunkInfo& newChunk,
-                                              const S3ChunkInfo& oldChunk);
+    void HandleReadRequest(const ReadRequest &request,
+                           const S3ChunkInfo &s3ChunkInfo,
+                           std::vector<ReadRequest> *addReadRequests,
+                           std::vector<uint64_t> *deletingReq,
+                           std::vector<S3ReadRequest> *requests, char *dataBuf,
+                           uint64_t fsId, uint64_t inodeId);
 
  private:
     friend class AsyncPrefetchCallback;
@@ -278,8 +282,8 @@ class FsCacheManager {
                                                      uint64_t inodeId);
     void ReleaseFileCacheManager(uint64_t inodeId);
 
-    std::pair<std::list<DataCachePtr>::iterator, WeakDataCachePtr> Set(
-        DataCachePtr dataCache);
+    std::pair<std::list<DataCachePtr>::iterator, WeakDataCachePtr>
+    Set(DataCachePtr dataCache);
 
     void Delete(std::list<DataCachePtr>::iterator iter);
     void Get(std::list<DataCachePtr>::iterator iter);
