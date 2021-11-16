@@ -24,6 +24,7 @@
 #define CURVEFS_SRC_CLIENT_FUSE_CLIENT_H_
 
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <map>
 #include <memory>
@@ -202,15 +203,15 @@ class FuseClient {
     virtual void FlushAll();
 
  protected:
-    void GetDentryParamFromInode(const Inode& inode, fuse_entry_param* param);
-
-    void GetAttrFromInode(const Inode& inode, struct stat* attr);
-
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
                            mode_t mode, FsFileType type, fuse_entry_param* e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, bool idDir);
+
+    void GetDentryParamFromInode(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper_,
+        fuse_entry_param *param);
 
     int AddHostNameToMountPointStr(const std::string& mountPointStr,
                                    std::string* out) {
