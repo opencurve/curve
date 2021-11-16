@@ -33,6 +33,10 @@
 namespace curve {
 namespace common {
 
+std::once_flag S3INIT_FLAG;
+std::once_flag S3SHUTDOWN_FLAG;
+Aws::SDKOptions AWS_SDK_OPTIONS;
+
 void InitS3AdaptorOption(Configuration *conf,
     S3AdapterOption *s3Opt) {
     LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
@@ -82,11 +86,12 @@ void S3Adapter::Init(const std::string &path) {
 }
 
 void S3Adapter::Init(const S3AdapterOption &option) {
-    options_ = Aws::New<Aws::SDKOptions>("S3Adapter.SDKOptions");
-    options_->loggingOptions.logLevel =
-      Aws::Utils::Logging::LogLevel(option.loglevel);
-
-    Aws::InitAPI(*options_);
+    auto initSDK = [&]() {
+        AWS_SDK_OPTIONS.loggingOptions.logLevel =
+            Aws::Utils::Logging::LogLevel(option.loglevel);
+        Aws::InitAPI(AWS_SDK_OPTIONS);
+    };
+    std::call_once(S3INIT_FLAG, initSDK);
     s3Address_ = option.s3Address.c_str();
     s3Ak_ = option.ak.c_str();
     s3Sk_ = option.sk.c_str();
@@ -130,11 +135,19 @@ void S3Adapter::Init(const S3AdapterOption &option) {
 }
 
 void S3Adapter::Deinit() {
-    Aws::ShutdownAPI(*options_);
-    Aws::Delete<Aws::SDKOptions>(options_);
+    // delete s3client in s3adapter
     Aws::Delete<Aws::Client::ClientConfiguration>(clientCfg_);
     Aws::Delete<Aws::S3::S3Client>(s3Client_);
     delete throttle_;
+    inflightBytesThrottle_.release();
+}
+
+void S3Adapter::Shutdown() {
+    // one program should only call once
+    auto shutdownSDK = [&]() {
+        Aws::ShutdownAPI(AWS_SDK_OPTIONS);
+    };
+    std::call_once(S3SHUTDOWN_FLAG, shutdownSDK);
 }
 
 int S3Adapter::CreateBucket() {
