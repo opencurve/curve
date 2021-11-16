@@ -1544,8 +1544,8 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 return ret;
             }
             ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            Inode inode = inodeWrapper->GetInodeUnlocked();
-            auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
+            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
             auto s3chunkInfoListIter = s3ChunkInfoMap->find(chunkIndex);
             if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
                 S3ChunkInfoList s3ChunkInfoList;
@@ -1557,7 +1557,6 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
                                      writeOffset);
             }
-            inodeWrapper->SwapInode(&inode);
             s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
         }
 

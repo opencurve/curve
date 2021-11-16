@@ -229,34 +229,13 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     return;
 }
 
-std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
-    os << "{ st_ino = " << attr.st_ino << ", st_mode = " << attr.st_mode
-       << ", st_nlink = " << attr.st_nlink << ", st_uid = " << attr.st_uid
-       << ", st_gid = " << attr.st_gid << ", st_size = " << attr.st_size
-       << ", st_atime = " << attr.st_atime << ", st_mtime = " << attr.st_mtime
-       << ", st_ctime = " << attr.st_ctime << "}" << std::endl;
-    return os;
-}
-
-void FuseClient::GetAttrFromInode(const Inode &inode, struct stat *attr) {
-    attr->st_ino = inode.inodeid();
-    attr->st_mode = inode.mode();
-    attr->st_nlink = inode.nlink();
-    attr->st_uid = inode.uid();
-    attr->st_gid = inode.gid();
-    attr->st_size = inode.length();
-    attr->st_atime = inode.atime();
-    attr->st_mtime = inode.mtime();
-    attr->st_ctime = inode.ctime();
-    VLOG(6) << "GetAttrFromInode attr =  " << *attr;
-}
-
-void FuseClient::GetDentryParamFromInode(const Inode &inode,
-                                         fuse_entry_param *param) {
+void FuseClient::GetDentryParamFromInode(
+    const std::shared_ptr<InodeWrapper> &inodeWrapper_,
+    fuse_entry_param *param) {
     memset(param, 0, sizeof(fuse_entry_param));
-    param->ino = inode.inodeid();
+    param->ino = inodeWrapper_->GetInodeId();
     param->generation = 0;
-    GetAttrFromInode(inode, &param->attr);
+    inodeWrapper_->GetInodeAttrLocked(&param->attr);
     param->attr_timeout = option_.attrTimeOut;
     param->entry_timeout = option_.entryTimeOut;
 }
@@ -284,8 +263,7 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
                    << ", inodeid = " << ino;
         return ret;
     }
-    Inode inode = inodeWrapper->GetInodeLocked();
-    GetDentryParamFromInode(inode, e);
+    GetDentryParamFromInode(inodeWrapper, e);
     return ret;
 }
 
@@ -309,17 +287,16 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
-            Inode inode = inodeWrapper->GetInodeUnlocked();
-            CURVEFS_ERROR tRet = Truncate(&inode, 0);
+            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
+            CURVEFS_ERROR tRet = Truncate(inode, 0);
             if (tRet != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
-            inode.set_length(0);
-            inode.set_ctime(nowTime);
-            inode.set_mtime(nowTime);
-            inodeWrapper->SwapInode(&inode);
+            inode->set_length(0);
+            inode->set_ctime(nowTime);
+            inode->set_mtime(nowTime);
             ret = inodeWrapper->Sync();
             if (ret != CURVEFS_ERROR::OK) {
                 return ret;
@@ -389,8 +366,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode;
 
-    Inode inode = inodeWrapper->GetInodeLocked();
-    GetDentryParamFromInode(inode, e);
+    GetDentryParamFromInode(inodeWrapper, e);
     return ret;
 }
 
@@ -581,9 +557,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    memset(attr, 0, sizeof(*attr));
-    Inode inode = inodeWrapper->GetInodeLocked();
-    GetAttrFromInode(inode, attr);
+    inodeWrapper->GetInodeAttrLocked(attr);
     return ret;
 }
 
@@ -601,51 +575,49 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode inode = inodeWrapper->GetInodeUnlocked();
+    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
     uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     if (to_set & FUSE_SET_ATTR_MODE) {
-        inode.set_mode(attr->st_mode);
+        inode->set_mode(attr->st_mode);
     }
     if (to_set & FUSE_SET_ATTR_UID) {
-        inode.set_uid(attr->st_uid);
+        inode->set_uid(attr->st_uid);
     }
     if (to_set & FUSE_SET_ATTR_GID) {
-        inode.set_gid(attr->st_gid);
+        inode->set_gid(attr->st_gid);
+    }
+    if (to_set & FUSE_SET_ATTR_ATIME) {
+        inode->set_atime(attr->st_atime);
+    }
+    if (to_set & FUSE_SET_ATTR_MTIME) {
+        inode->set_mtime(attr->st_mtime);
+    }
+    if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
+        inode->set_atime(nowTime);
+    }
+    if (to_set & FUSE_SET_ATTR_MTIME_NOW) {
+        inode->set_mtime(nowTime);
+    }
+    if (to_set & FUSE_SET_ATTR_CTIME) {
+        inode->set_ctime(attr->st_ctime);
+    } else {
+        inode->set_ctime(nowTime);
     }
     if (to_set & FUSE_SET_ATTR_SIZE) {
-        CURVEFS_ERROR tRet = Truncate(&inode, attr->st_size);
+        CURVEFS_ERROR tRet = Truncate(inode, attr->st_size);
         if (tRet != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "truncate file fail, ret = " << ret
                        << ", inodeid = " << ino;
             return tRet;
         }
-        inode.set_length(attr->st_size);
+        inode->set_length(attr->st_size);
     }
-    if (to_set & FUSE_SET_ATTR_ATIME) {
-        inode.set_atime(attr->st_atime);
-    }
-    if (to_set & FUSE_SET_ATTR_MTIME) {
-        inode.set_mtime(attr->st_mtime);
-    }
-    if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
-        inode.set_atime(nowTime);
-    }
-    if (to_set & FUSE_SET_ATTR_MTIME_NOW) {
-        inode.set_mtime(nowTime);
-    }
-    if (to_set & FUSE_SET_ATTR_CTIME) {
-        inode.set_ctime(attr->st_ctime);
-    } else {
-        inode.set_ctime(nowTime);
-    }
-    inodeWrapper->UpdateInode(inode);
     ret = inodeWrapper->Sync();
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
-    memset(attrOut, 0, sizeof(*attrOut));
-    GetAttrFromInode(inode, attrOut);
+    inodeWrapper->GetInodeAttrUnLocked(attrOut);
     return ret;
 }
 
@@ -693,8 +665,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         return ret;
     }
 
-    Inode inode = inodeWrapper->GetInodeLocked();
-    GetDentryParamFromInode(inode, e);
+    GetDentryParamFromInode(inodeWrapper, e);
     return ret;
 }
 
@@ -736,8 +707,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    Inode inode = inodeWrapper->GetInodeLocked();
-    GetDentryParamFromInode(inode, e);
+    GetDentryParamFromInode(inodeWrapper, e);
     return ret;
 }
 
@@ -750,8 +720,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    Inode inode = inodeWrapper->GetInodeLocked();
-    *linkStr = inode.symlink();
+    *linkStr = inodeWrapper->GetSymlinkStr();
     return CURVEFS_ERROR::OK;
 }
 
