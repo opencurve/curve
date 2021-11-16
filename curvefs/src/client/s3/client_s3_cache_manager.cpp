@@ -67,43 +67,64 @@ void FsCacheManager::ReleaseFileCacheManager(uint64_t inodeId) {
     return;
 }
 
-std::pair<std::list<DataCachePtr>::iterator, WeakDataCachePtr>
-FsCacheManager::Set(DataCachePtr dataCache) {
-    WriteLockGuard writeLockGuard(rwLockLru_);
+std::list<DataCachePtr>::iterator FsCacheManager::Set(DataCachePtr dataCache) {
+    std::lock_guard<std::mutex> lk(lruMtx_);
 
     VLOG(3) << "lru current byte:" << lruByte_
             << ",lru max byte:" << readCacheMaxByte_;
 
     // trim cache without consider dataCache's size, because its size is
     // expected to be very smaller than `readCacheMaxByte_`
-    while (lruByte_ >= readCacheMaxByte_) {
-        auto &trimDataCache = lruReadDataCacheList_.back();
-        VLOG(3) << "lru release data cache, size: " << trimDataCache->GetLen();
-        lruByte_ -= trimDataCache->GetLen();
-        trimDataCache->Release();
-        lruReadDataCacheList_.pop_back();
-    }
-    lruByte_ += dataCache->GetLen();
+    if (lruByte_ >= readCacheMaxByte_) {
+        uint64_t retiredBytes = 0;
+        auto iter = lruReadDataCacheList_.end();
 
-    WeakDataCachePtr weak = dataCache;
+        while (lruByte_ >= readCacheMaxByte_) {
+            --iter;
+            auto& trim = *iter;
+            trim->SetReadCacheState(false);
+            lruByte_ -= trim->GetLen();
+            retiredBytes += trim->GetLen();
+        }
+
+        std::list<DataCachePtr> retired;
+        retired.splice(retired.end(), lruReadDataCacheList_, iter,
+                       lruReadDataCacheList_.end());
+
+        VLOG(3) << "lru release " << retiredBytes << " bytes, retired "
+                << retired.size() << " data cache";
+
+        releaseReadCache_.Release(&retired);
+    }
+
+    lruByte_ += dataCache->GetLen();
+    dataCache->SetReadCacheState(true);
     lruReadDataCacheList_.push_front(std::move(dataCache));
-    return {lruReadDataCacheList_.begin(), weak};
+
+    return lruReadDataCacheList_.begin();
 }
 
 void FsCacheManager::Get(std::list<DataCachePtr>::iterator iter) {
-    WriteLockGuard writeLockGuard(rwLockLru_);
+    std::lock_guard<std::mutex> lk(lruMtx_);
+
+    if (!(*iter)->InReadCache()) {
+        return;
+    }
 
     lruReadDataCacheList_.splice(lruReadDataCacheList_.begin(),
                                  lruReadDataCacheList_, iter);
-    return;
 }
 
 void FsCacheManager::Delete(std::list<DataCachePtr>::iterator iter) {
-    WriteLockGuard writeLockGuard(rwLockLru_);
+    std::lock_guard<std::mutex> lk(lruMtx_);
 
+    if (!(*iter)->InReadCache()) {
+        return;
+    }
+
+    (*iter)->SetReadCacheState(false);
     lruByte_ -= (*iter)->GetLen();
     lruReadDataCacheList_.erase(iter);
-    return;
 }
 
 CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
@@ -941,16 +962,11 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
         --iter;
     }
 
-    for (; iter != dataRCacheMap_.end();) {
-        DataCachePtr dataCache = iter->second.second.lock();
-        if (!dataCache) {
-            // iter = dataRCacheMap_.erase(iter);
-            continue;
-        }
-
+    for (; iter != dataRCacheMap_.end(); ++iter) {
+        auto dcIter = iter->second;
         ReadRequest request;
-        uint64_t dcChunkPos = dataCache->GetChunkPos();
-        uint64_t dcLen = dataCache->GetLen();
+        uint64_t dcChunkPos = (*dcIter)->GetChunkPos();
+        uint64_t dcLen = (*dcIter)->GetLen();
 
         VLOG(9) << "ReadByReadCache chunkPos:" << chunkPos
                 << ",readLen:" << readLen << ",dcChunkPos:" << dcChunkPos
@@ -959,9 +975,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             break;
         } else if ((chunkPos + readLen > dcChunkPos) &&
                    (chunkPos < dcChunkPos)) {
-            if (!dataCache.unique()) {
-                s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second.first);
-            }
+            s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second);
             request.len = dcChunkPos - chunkPos;
             request.chunkPos = chunkPos;
             request.index = index_;
@@ -969,7 +983,7 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             VLOG(9) << "request: index:" << index_ << ",chunkPos:" << chunkPos
                     << ",len:" << request.len << ",bufOffset:" << dataBufOffset;
             requests->emplace_back(request);
-            char *cacheData = dataCache->GetData();
+            char *cacheData = (*dcIter)->GetData();
             /*
                  -----               ReadData
                     ------           DataCache
@@ -991,11 +1005,8 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
             }
         } else if ((chunkPos >= dcChunkPos) &&
                    (chunkPos < dcChunkPos + dcLen)) {
-            char *cacheData = dataCache->GetData();
-
-            if (!dataCache.unique()) {
-                s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second.first);
-            }
+            char *cacheData = (*dcIter)->GetData();
+            s3ClientAdaptor_->GetFsCacheManager()->Get(iter->second);
             /*
                      ----              ReadData
                    ---------           DataCache
@@ -1018,8 +1029,6 @@ void ChunkCacheManager::ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                 chunkPos = dcChunkPos + dcLen;
             }
         }
-
-        ++iter;
     }
 
     if (readLen > 0) {
@@ -1111,38 +1120,31 @@ void ChunkCacheManager::WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
 }
 
 void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
-    return;
     uint64_t chunkPos = dataCache->GetChunkPos();
     uint64_t len = dataCache->GetLen();
     WriteLockGuard writeLockGuard(rwLockRead_);
     std::vector<uint64_t> deleteKeyVec;
+
     auto iter = dataRCacheMap_.begin();
-    for (; iter != dataRCacheMap_.end();) {
+    for (; iter != dataRCacheMap_.end(); iter++) {
         if (chunkPos + len <= iter->first) {
             break;
         }
 
-        auto dataCache = iter->second.second.lock();
-        if (!dataCache) {
-            iter = dataRCacheMap_.erase(iter);
-            continue;
-        }
-
-        uint64_t dcChunkPos = dataCache->GetChunkPos();
-        uint64_t dcLen = dataCache->GetLen();
+        std::list<DataCachePtr>::iterator dcpIter = iter->second;
+        uint64_t dcChunkPos = (*dcpIter)->GetChunkPos();
+        uint64_t dcLen = (*dcpIter)->GetLen();
         if ((chunkPos + len > dcChunkPos) && (chunkPos < dcChunkPos + dcLen)) {
             VLOG(9) << "read cache chunkPos:" << chunkPos << ",len:" << len
                     << "is overlap with datacache chunkPos:" << dcChunkPos
                     << ",len:" << dcLen;
             deleteKeyVec.emplace_back(dcChunkPos);
         }
-
-        ++iter;
     }
 
     for (auto key : deleteKeyVec) {
         auto iter = dataRCacheMap_.find(key);
-        std::list<DataCachePtr>::iterator dcpIter = iter->second.first;
+        std::list<DataCachePtr>::iterator dcpIter = iter->second;
         s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter);
         dataRCacheMap_.erase(iter);
     }
@@ -1152,7 +1154,7 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
 }
 
 void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
-    //  WriteLockGuard writeLockGuard(rwLockRead_);
+    WriteLockGuard writeLockGuard(rwLockRead_);
 
     auto iter = dataRCacheMap_.find(key);
     if (iter == dataRCacheMap_.end()) {
@@ -1178,7 +1180,7 @@ void ChunkCacheManager::ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor) {
     WriteLockGuard writeLockGuard(rwLockRead_);
     auto iter = dataRCacheMap_.begin();
     for (; iter != dataRCacheMap_.end(); iter++) {
-        s3ClientAdaptor->GetFsCacheManager()->Delete(iter->second.first);
+        s3ClientAdaptor->GetFsCacheManager()->Delete(iter->second);
     }
     dataRCacheMap_.clear();
 }
@@ -1211,7 +1213,6 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
         WriteLockGuard writeLockGuard(rwLockWrite_);
         tmp = dataWCacheMap_;
     }
-    auto size = tmp.size();
     auto iter = tmp.begin();
     for (; iter != tmp.end(); iter++) {
         VLOG(9) << "Flush datacache chunkPos:" << iter->second->GetChunkPos()
@@ -1392,8 +1393,6 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
 
 void DataCache::Release() {
     chunkCacheManager_->ReleaseReadDataCache(chunkPos_);
-
-    return;
 }
 
 CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
@@ -1575,6 +1574,55 @@ void DataCache::UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
             << ",offset:" << offset << ", len:" << len
             << ",s3chunks size:" << s3ChunkInfoList->s3chunks_size();
     return;
+}
+
+FsCacheManager::ReadCacheReleaseExecutor::ReadCacheReleaseExecutor()
+    : running_(true) {
+    t_ = std::thread{&FsCacheManager::ReadCacheReleaseExecutor::ReleaseCache,
+                     this};
+}
+
+void FsCacheManager::ReadCacheReleaseExecutor::ReleaseCache() {
+    while (running_) {
+        std::list<DataCachePtr> tmp;
+
+        {
+            std::unique_lock<std::mutex> lk(mtx_);
+            cond_.wait(lk, [&]() { return !retired_.empty() || !running_; });
+
+            if (!running_) {
+                return;
+            }
+
+            tmp.swap(retired_);
+        }
+
+        for (auto& c : tmp) {
+            c->Release();
+            c.reset();
+        }
+
+        VLOG(9) << "released " << tmp.size() << " data caches";
+    }
+}
+
+void FsCacheManager::ReadCacheReleaseExecutor::Stop() {
+    std::lock_guard<std::mutex> lk(mtx_);
+    running_ = false;
+    cond_.notify_one();
+}
+
+FsCacheManager::ReadCacheReleaseExecutor::~ReadCacheReleaseExecutor() {
+    Stop();
+    t_.join();
+    LOG(INFO) << "ReadCacheReleaseExecutor stopped";
+}
+
+void FsCacheManager::ReadCacheReleaseExecutor::Release(
+    std::list<DataCachePtr>* caches) {
+    std::lock_guard<std::mutex> lk(mtx_);
+    retired_.splice(retired_.end(), *caches);
+    cond_.notify_one();
 }
 
 }  // namespace client
