@@ -103,18 +103,17 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode inode = inodeWrapper->GetInodeUnlocked();
+    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
     *wSize = wRet;
     // update file len
-    if (inode.length() < off + *wSize) {
-        inode.set_length(off + *wSize);
+    if (inode->length() < off + *wSize) {
+        inode->set_length(off + *wSize);
     }
     uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    inode.set_mtime(nowTime);
-    inode.set_ctime(nowTime);
+    inode->set_mtime(nowTime);
+    inode->set_ctime(nowTime);
 
-    inodeWrapper->SwapInode(&inode);
     inodeManager_->ShipToFlush(inodeWrapper);
 
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
@@ -166,13 +165,12 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode newInode = inodeWrapper->GetInodeUnlocked();
+    Inode *newInode = inodeWrapper->GetMutableInodeUnlocked();
 
     uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    newInode.set_ctime(nowTime);
-    newInode.set_atime(nowTime);
+    newInode->set_ctime(nowTime);
+    newInode->set_atime(nowTime);
 
-    inodeWrapper->SwapInode(&newInode);
     inodeManager_->ShipToFlush(inodeWrapper);
 
     VLOG(6) << "read end, read size = " << *rSize;

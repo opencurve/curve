@@ -24,8 +24,11 @@
 #ifndef CURVEFS_SRC_CLIENT_INODE_WRAPPER_H_
 #define CURVEFS_SRC_CLIENT_INODE_WRAPPER_H_
 
+#include <sys/stat.h>
+
 #include <utility>
 #include <memory>
+#include <string>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
@@ -41,6 +44,8 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+
+std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 
 class InodeWrapper {
  public:
@@ -66,6 +71,11 @@ class InodeWrapper {
 
     uint32_t GetFsId() const {
         return inode_.fsid();
+    }
+
+    std::string GetSymlinkStr() const {
+        curve::common::UniqueLock lg(mtx_);
+        return inode_.symlink();
     }
 
     bool Dirty() const {
@@ -114,6 +124,33 @@ class InodeWrapper {
     Inode GetInodeLocked() const {
         curve::common::UniqueLock lg(mtx_);
         return inode_;
+    }
+
+    Inode* GetMutableInodeUnlocked() {
+        dirty_ = true;
+        return &inode_;
+    }
+
+    void GetInodeAttrLocked(struct stat *attr) {
+        curve::common::UniqueLock lg(mtx_);
+        GetInodeAttrUnLocked(attr);
+        return;
+    }
+
+    void GetInodeAttrUnLocked(struct stat *attr) {
+        memset(attr, 0, sizeof(*attr));
+        attr->st_ino = inode_.inodeid();
+        attr->st_mode = inode_.mode();
+        attr->st_nlink = inode_.nlink();
+        attr->st_uid = inode_.uid();
+        attr->st_gid = inode_.gid();
+        attr->st_size = inode_.length();
+        attr->st_atime = inode_.atime();
+        attr->st_mtime = inode_.mtime();
+        attr->st_ctime = inode_.ctime();
+        VLOG(6) << "GetInodeAttr attr =  " << *attr
+                << ", inodeid = " << inode_.inodeid();
+        return;
     }
 
     void UpdateInode(const Inode &inode) {
