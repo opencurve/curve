@@ -24,11 +24,13 @@
 
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/test/client/mock_chunk_cache_manager.h"
+#include "src/common/concurrent/count_down_event.h"
 
 namespace curvefs {
 namespace client {
 
 using ::testing::_;
+using ::testing::Invoke;
 
 TEST(FsCacheManagerTest, test_read_lru_cache_size) {
     uint64_t smallDataCacheByte = 128ull * 1024;      // 128KiB
@@ -37,30 +39,43 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
     uint64_t maxWriteCacheByte = maxReadCacheByte;
 
     FsCacheManager manager(nullptr, maxReadCacheByte, maxWriteCacheByte);
-    MockChunkCacheManager mockCacheMgr;
+    auto mockCacheMgr = std::make_shared<MockChunkCacheManager>();
 
     {
-        EXPECT_CALL(mockCacheMgr, ReleaseReadDataCache(_))
+        EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_))
             .Times(0);
 
         for (size_t i = 0; i < maxReadCacheByte / smallDataCacheByte; ++i) {
-            manager.Set(std::make_shared<DataCache>(nullptr, &mockCacheMgr, 0,
-                                                    smallDataCacheByte));
+            manager.Set(std::make_shared<DataCache>(nullptr, mockCacheMgr.get(),
+                                                    0, smallDataCacheByte));
         }
     }
 
     {
-        EXPECT_CALL(mockCacheMgr, ReleaseReadDataCache(_))
-            .Times(1);
-        manager.Set(std::make_shared<DataCache>(nullptr, &mockCacheMgr, 0,
+        const uint32_t expectCallTimes = 1;
+        curve::common::CountDownEvent counter(expectCallTimes);
+
+        EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_))
+            .Times(expectCallTimes)
+            .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
+        manager.Set(std::make_shared<DataCache>(nullptr, mockCacheMgr.get(), 0,
                                                 dataCacheByte));
+
+        counter.Wait();
     }
 
     {
-        EXPECT_CALL(mockCacheMgr, ReleaseReadDataCache(_))
-            .Times(32);
-        manager.Set(std::make_shared<DataCache>(nullptr, &mockCacheMgr, 0,
+        const uint32_t expectCallTimes = 32;
+        curve::common::CountDownEvent counter(expectCallTimes);
+
+        EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_))
+            .Times(expectCallTimes)
+            .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
+
+        manager.Set(std::make_shared<DataCache>(nullptr, mockCacheMgr.get(), 0,
                                                 dataCacheByte));
+
+        counter.Wait();
     }
 }
 
