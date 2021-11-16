@@ -57,6 +57,10 @@
 namespace curve {
 namespace common {
 
+extern std::once_flag S3INIT_FLAG;
+extern std::once_flag S3SHUTDOWN_FLAG;
+extern Aws::SDKOptions AWS_SDK_OPTIONS;
+
 struct GetObjectAsyncContext;
 struct PutObjectAsyncContext;
 class S3Adapter;
@@ -130,6 +134,10 @@ class S3Adapter {
      * 释放S3Adapter资源
      */
     virtual void Deinit();
+    /**
+     *  call aws sdk shutdown api
+     */
+    virtual void Shutdown();
     /**
      * 创建存储快照数据的桶（桶名称由配置文件指定，需要全局唯一）
      * @return: 0 创建成功/ -1 创建失败
@@ -287,7 +295,6 @@ class S3Adapter {
     // 对象的桶名，根据配置文件指定
     Aws::String bucketName_;
     // aws sdk的配置，同样由配置文件指定
-    Aws::SDKOptions *options_;
     Aws::Client::ClientConfiguration *clientCfg_;
     Aws::S3::S3Client *s3Client_;
     Configuration conf_;
