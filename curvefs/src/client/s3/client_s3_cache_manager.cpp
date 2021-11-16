@@ -1162,6 +1162,8 @@ ChunkCacheManager::CreateWriteDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
 }
 
 void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
+    return;
+
     uint64_t chunkPos = dataCache->GetChunkPos();
     uint64_t len = dataCache->GetLen();
     WriteLockGuard writeLockGuard(rwLockRead_);
