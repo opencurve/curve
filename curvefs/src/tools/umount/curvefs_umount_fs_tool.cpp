@@ -19,7 +19,7 @@
  * Created Date: 2021-09-14
  * Author: chengyi01
  */
-#include "curvefs/src/tools/umountfs/curvefs_umountfs_tool.h"
+#include "curvefs/src/tools/umount/curvefs_umount_fs_tool.h"
 
 DECLARE_string(fsname);
 DECLARE_string(mountpoint);
@@ -28,9 +28,9 @@ DECLARE_string(mdsAddr);
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace umount {
 
-void UmountfsTool::PrintHelp() {
+void UmountFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsname=" << FLAGS_fsname
               << " -mountpoint=" << FLAGS_mountpoint
@@ -38,7 +38,7 @@ void UmountfsTool::PrintHelp() {
     std::cout << std::endl;
 }
 
-int UmountfsTool::RunCommand() {
+int UmountFsTool::RunCommand() {
     // call system umount
     std::ostringstream cmd;
     std::string::size_type pos = FLAGS_mountpoint.find(':');
@@ -66,7 +66,7 @@ int UmountfsTool::RunCommand() {
     return ret;
 }
 
-int UmountfsTool::Init() {
+int UmountFsTool::Init() {
     int ret = CurvefsToolRpc::Init();
 
     // adjust the unique element of the queue
@@ -82,30 +82,31 @@ int UmountfsTool::Init() {
     return ret;
 }
 
-void UmountfsTool::InitHostsAddr() {
+void UmountFsTool::InitHostsAddr() {
     curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
 }
 
-void UmountfsTool::AddUpdateFlags() {
+void UmountFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
 }
 
-bool UmountfsTool::AfterSendRequestToHost(const std::string& host) {
+bool UmountFsTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = false;
     if (controller_->Failed()) {
-        std::cerr << "umountfs " << FLAGS_mountpoint << " from mds: " << host
+        std::cerr << "send umount fs request " << FLAGS_mountpoint
+                  << " to mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+                  << ", error text " << controller_->ErrorText() << std::endl;
     } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
         std::cerr << "umount fs from mds: " << host << " fail, error code is "
-                  << response_->statuscode() << "\n";
+                  << response_->statuscode() << std::endl;
     } else {
-        std::cout << "umount fs from cluster success.\n";
+        std::cout << "umount fs from cluster success." << std::endl;
         ret = true;
     }
     return ret;
 }
 
-}  // namespace umountfs
+}  // namespace umount
 }  // namespace tools
 }  // namespace curvefs

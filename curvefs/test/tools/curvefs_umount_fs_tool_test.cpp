@@ -20,7 +20,7 @@
  * @Author: chengyi01
  */
 
-#include "curvefs/src/tools/umountfs/curvefs_umountfs_tool.h"
+#include "curvefs/src/tools/umount/curvefs_umount_fs_tool.h"
 
 #include <brpc/controller.h>
 #include <brpc/server.h>
@@ -39,7 +39,7 @@ DECLARE_string(mountpoint);
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace umount {
 
 using ::testing::_;
 using ::testing::DoAll;
@@ -64,7 +64,7 @@ class UmountfsToolTest : public testing::Test {
     std::string addr_ = "127.0.0.1:6701";
     brpc::Server server_;
     MockMdsService mockMdsService_;
-    UmountfsTool ut_;
+    UmountFsTool ut_;
 };
 
 void UF(::google::protobuf::RpcController* controller,
@@ -151,7 +151,7 @@ TEST_F(UmountfsToolTest, test_umount_tool_init) {
     ASSERT_EQ(ret, 0);
 }
 
-}  // namespace umountfs
+}  // namespace umount
 }  // namespace tools
 }  // namespace curvefs
 

@@ -52,7 +52,7 @@ cc_library(
     srcs = glob([
         "curvefs_tool.cpp",
         "curvefs_tool_factory.cpp",
-        "umountfs/curvefs_umountfs_tool.cpp",
+        "umount/curvefs_umount_fs_tool.cpp",
         "curvefs_tool_define.cpp",
         "curvefs_tool_metric.cpp",
         "build/curvefs_build_topology_tool.cpp",
@@ -68,7 +68,7 @@ cc_library(
         "list/curvefs_fsinfo_list.cpp",
         "status/curvefs_metaserver_status.cpp",
         "list/curvefs_copysetid_list.cpp",
-
+        "delete/curvefs_delete_fs_tool.cpp",
     ]),
     hdrs = glob([
         "curvefs_tool.h",
@@ -77,7 +77,7 @@ cc_library(
         "curvefs_tool_metric.h",
         "version/curvefs_version_tool.h",
         "curvefs_tool_abstract_creator.h",
-        "umountfs/curvefs_umountfs_tool.h",
+        "umount/curvefs_umount_fs_tool.h",
         "build/curvefs_build_topology_tool.h",
         "space/curvefs_metadata_usage_tool.h",
         "space/curvefs_space_base_tool.h",
@@ -89,6 +89,7 @@ cc_library(
         "status/curvefs_metaserver_status.h",
         "status/curvefs_etcd_status.h",
         "list/curvefs_copysetid_list.h",
+        "delete/curvefs_delete_fs_tool.h",
     ]),
     copts = COPTS,
     linkopts = [

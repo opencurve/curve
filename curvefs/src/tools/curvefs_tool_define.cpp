@@ -36,6 +36,7 @@ DEFINE_uint32(rpcTimeoutMs, 5000u, "rpc time out");
 DEFINE_string(copysetsId, "1,2,3", "copysets id");
 DEFINE_string(poolsId, "1,2,3", "pools id");
 DEFINE_bool(detail, false, "show more infomation");
+DEFINE_bool(confirm, false, "confirm execution");
 
 // topology
 DEFINE_string(mds_addr, "127.0.0.1:6700",

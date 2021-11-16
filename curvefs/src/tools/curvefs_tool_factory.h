@@ -31,13 +31,14 @@
 #include "curvefs/src/tools/build/curvefs_build_topology_tool.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/delete/curvefs_delete_fs_tool.h"
 #include "curvefs/src/tools/list/curvefs_fsinfo_list.h"
 #include "curvefs/src/tools/query/curvefs_copyset_query.h"
 #include "curvefs/src/tools/space/curvefs_metadata_usage_tool.h"
 #include "curvefs/src/tools/status/curvefs_etcd_status.h"
 #include "curvefs/src/tools/status/curvefs_mds_status.h"
 #include "curvefs/src/tools/status/curvefs_metaserver_status.h"
-#include "curvefs/src/tools/umountfs/curvefs_umountfs_tool.h"
+#include "curvefs/src/tools/umount/curvefs_umount_fs_tool.h"
 #include "curvefs/src/tools/version/curvefs_version_tool.h"
 
 namespace curvefs {

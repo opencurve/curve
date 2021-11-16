@@ -19,8 +19,8 @@
  * Created Date: 2021-09-27
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_UMOUNT_CURVEFS_UMOUNT_FS_TOOL_H_
+#define CURVEFS_SRC_TOOLS_UMOUNT_CURVEFS_UMOUNT_FS_TOOL_H_
 
 #include <brpc/channel.h>
 #include <brpc/server.h>
@@ -43,13 +43,13 @@
 
 namespace curvefs {
 namespace tools {
-namespace umountfs {
+namespace umount {
 
-class UmountfsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
+class UmountFsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
                                            curvefs::mds::UmountFsResponse,
                                            curvefs::mds::MdsService_Stub> {
  public:
-    explicit UmountfsTool(const std::string& cmd = kUmountCmd)
+    explicit UmountFsTool(const std::string& cmd = kUmountFsCmd)
         : CurvefsToolRpc(cmd) {}
     void PrintHelp() override;
 
@@ -63,8 +63,8 @@ class UmountfsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
     bool AfterSendRequestToHost(const std::string& host) override;
 };
 
-}  // namespace umountfs
+}  // namespace umount
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNTFS_CURVEFS_UMOUNTFS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_UMOUNT_CURVEFS_UMOUNT_FS_TOOL_H_

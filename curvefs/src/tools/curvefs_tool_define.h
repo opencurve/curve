@@ -45,7 +45,9 @@ const char kVersionCmd[] = "version";
 // build-topology
 const char kBuildTopologyCmd[] = "build-topology";
 // umount
-const char kUmountCmd[] = "umount-fs";
+const char kUmountFsCmd[] = "umount-fs";
+// delete
+const char kDeleteFsCmd[] = "delete-fs";
 // metadata-usage
 const char kMetedataUsageCmd[] = "usage-metadata";
 // mds-status

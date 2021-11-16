@@ -31,8 +31,8 @@ CurvefsToolFactory::CurvefsToolFactory() {
                         CurvefsToolCreator<version::VersionTool>::Create);
 
     // umount-fs
-    RegisterCurvefsTool(std::string(kUmountCmd),
-                        CurvefsToolCreator<umountfs::UmountfsTool>::Create);
+    RegisterCurvefsTool(std::string(kUmountFsCmd),
+                        CurvefsToolCreator<umount::UmountFsTool>::Create);
 
     // build-topology
     RegisterCurvefsTool(
@@ -62,6 +62,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // query-copyset
     RegisterCurvefsTool(std::string(kCopysetQueryCmd),
                         CurvefsToolCreator<query::CopysetQueryTool>::Create);
+
+    // delete-fs
+    RegisterCurvefsTool(std::string(kDeleteFsCmd),
+                        CurvefsToolCreator<delete_::DeleteFsTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(
