@@ -92,6 +92,11 @@ fs_mds = ["10.182.2.34","10.182.2.35","10.182.2.36"]
 fs_metaserver = ["10.182.2.34","10.182.2.35","10.182.2.36"]
 fs_etcd = ["10.182.2.34","10.182.2.35","10.182.2.36"]
 md5_check = []
+fs_mdtest_thread = ""
+fs_mount_thread = ""
+thrash_fs_mount = True
+thrash_fs_mdtest = True
+thrash_mount_host = "pubbeta2-nova48-3"
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
 cs_1 = curve_workspace + "1"

@@ -10,7 +10,7 @@ import time
 import threading
 import time
 import mythread
-import test_curve_stability_nbd
+#import test_curve_stability_nbd
 import re
 import string
 import types
