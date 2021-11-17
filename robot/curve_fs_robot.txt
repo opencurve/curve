@@ -4,6 +4,7 @@ Library			  Collections
 Library           Process
 #Library           SSHLibrary
 Library           Resources/keywords/fs_fault_inject.py
+Library           Resources/keywords/fault_inject.py
 Library           Resources/keywords/deploy.py
 
 Suite Setup       init failover cluster
@@ -17,7 +18,7 @@ ${chunk_num}   0
 
 *** Test Cases ***
 inject kill one mds
-    [Tags]    P1    base    first release   failover
+    [Tags]    P0    base    first release   failover
     ${num}   evaluate  int(1)
     test kill process   mds   ${num}
     check fuse iops
@@ -27,6 +28,120 @@ inject kill one mds
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  mds
+
+inject kill one metaserver
+    [Tags]    P0    base    first release   failover
+    ${num}   evaluate  int(1)
+    test kill process   metaserver   ${num}
+    check fuse iops
+    sleep  3
+    test start process  metaserver
+    check fuse mount success
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  metaserver
+
+inject kill one etcd
+    [Tags]    P0    base    first release   failover
+    ${num}   evaluate  int(1)
+    test kill process   etcd   ${num}
+    check fuse iops
+    sleep  3
+    test start process  etcd
+    check fuse mount success
+    check fuse iops
+    check fs cluster ok
+    [Teardown]    test start process  etcd
+
+test fs mds loss package 5%
+    [Tags]    P1    base    first release   failover  
+    ${percent}  evaluate  int(5)
+    test fs process loss package   mds   ${percent}
+    check fuse mount success
+    check fuse iops
+    [Teardown]	check fs cluster ok 
+
+test fs metaserver loss package 5%
+    [Tags]    P1    base    first release   failover
+    ${percent}  evaluate  int(5)
+    test fs process loss package  metaserver  ${percent}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+test fs client loss package 5%
+    [Tags]    P1    base    first release   failover
+    ${percent}  evaluate  int(5)
+    test fs process loss package  fuseclient  ${percent}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+test fs etcd loss package 5%
+    [Tags]    P1    base    first release   failover
+    ${percent}  evaluate  int(5)
+    test fs process loss package  etcd   ${percent}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+test fs mds delay package 100ms
+    [Tags]    P1    base    first release   failover
+    ${ms}  evaluate  int(100)
+    test fs process delay package  mds  ${ms}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+test fs metaserver delay package 100ms
+    [Tags]    P1    base    first release   failover
+    ${ms}  evaluate  int(100)
+    test fs process delay package  metaserver  ${ms}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+test fs etcd delay package 100ms
+    [Tags]    P1    base    first release   failover
+    ${ms}  evaluate  int(100)
+    test fs process delay package  etcd  ${ms}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+test fs client delay package 100ms
+    [Tags]    P1    base    first release   failover
+    ${ms}  evaluate  int(100)
+    test fs process delay package  fuseclient  ${ms}
+    check fuse mount success
+    check fuse iops
+    [Teardown]  check fs cluster ok
+
+inject fuse client cpu stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test fuse client cpu stress   ${cpu_stress}
+    sleep  5
+    del cpu stress   ${ssh}
+    check fuse mount success
+    check fuse iops
+    [Teardown]     del cpu stress    ${ssh}
+
+inject fuse client mem stress 90%
+    [Tags]    P1    base    first release   failover
+    ${mem_stress}   evaluate  int(90)
+    ${ssh}   test fuse client mem stress   ${mem_stress}
+    sleep  5
+    del mem stress   ${ssh}
+    check fuse mount success
+    check fuse iops
+    [Teardown]     del mem stress    ${ssh}
+
+test loop mount umount
+    [Tags]    P0    base    first release   failover
+    sleep   30
+    stop loop mount
+    check fuse mount success
 
 inject kill two mds
     [Tags]    P1    base    first release   failover
@@ -52,18 +167,6 @@ inject kill all mds
     check fs cluster ok
     [Teardown]    test start process  mds
 
-inject kill one metaserver
-    [Tags]    P1    base    first release   failover
-    ${num}   evaluate  int(1)
-    test kill process   metaserver   ${num}
-    check fuse iops
-    sleep  3
-    test start process  metaserver
-    check fuse mount success
-    check fuse iops
-    check fs cluster ok
-    [Teardown]    test start process  metaserver
-
 inject kill two metaserver
     [Tags]    P1    base    first release   failover
     ${num}   evaluate  int(2)
@@ -87,18 +190,6 @@ inject kill all metaserver
     check fuse iops
     check fs cluster ok
     [Teardown]    test start process  metaserver
-
-inject kill one etcd
-    [Tags]    P1    base    first release   failover
-    ${num}   evaluate  int(1)
-    test kill process   etcd   ${num}
-    check fuse iops
-    sleep  3
-    test start process  etcd
-    check fuse mount success
-    check fuse iops
-    check fs cluster ok
-    [Teardown]    test start process  etcd
 
 inject kill two etcd
     [Tags]    P1    base    first release   failover
@@ -125,13 +216,13 @@ inject kill all etcd
     [Teardown]    test start process  etcd
 
 check cp/mv data consistency
-    [Tags]    P1    base    first release   failover
+    [Tags]    P0    base    first release   failover
     checksum data
     check fuse mount success
+    wait op finish
 
 check umount date consistency
     [Tags]    P1    base    first release   failover
-    wait op finish
     sleep  60
     get test dir file md5
 #    umount test dir
@@ -139,15 +230,6 @@ check umount date consistency
 #    mount test dir
 #    check test dir file md5
 #    [Teardown]   mount test dir
-
-test_multi_mdtest
-    [Tags]    P1    base    first release   failover
-    ${numjobs}   evaluate  int(16)
-    ${filenum}   evaluate  int(1000)
-    ${filesize}   evaluate  int(1024)
-    multi_mdtest_exec   ${numjobs}   ${filenum}   ${filesize}
-    check fuse mount success
-    check fs cluster ok
 
 *** Keywords ***
 
@@ -159,7 +241,7 @@ init failover cluster
      deploy all servers
      check fs cluster ok
      mount test dir
-     sleep  5
+     sleep  10
      check fuse mount success
      write check data
      cp check data
@@ -172,6 +254,7 @@ clean log
 start fs op test
      start fs vdbench
      start fs fio
+     loop mount umount
      sleep  60
 
 clean failover env
