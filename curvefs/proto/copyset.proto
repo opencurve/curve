@@ -53,7 +53,7 @@ message CreateCopysetResponse {
 message CopysetStatusRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
-    required common.Peer peer = 3;
+    optional common.Peer peer = 3;
     optional bool queryHash = 4;
 };
 
@@ -90,6 +90,7 @@ message CopysetsStatusResponse {
 
 service CopysetService {
     rpc CreateCopysetNode(CreateCopysetRequest) returns (CreateCopysetResponse);
+    // TODO(chengyi): rm GetCopysetStatus
     rpc GetCopysetStatus(CopysetStatusRequest) returns (CopysetStatusResponse);
     rpc GetCopysetsStatus(CopysetsStatusRequest) returns (CopysetsStatusResponse);
 }

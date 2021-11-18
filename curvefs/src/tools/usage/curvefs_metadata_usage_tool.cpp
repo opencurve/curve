@@ -20,13 +20,13 @@
  * Author: chengyi01
  */
 
-#include "curvefs/src/tools/space/curvefs_metadata_usage_tool.h"
+#include "curvefs/src/tools/usage/curvefs_metadata_usage_tool.h"
 
 DECLARE_string(mdsAddr);
 
 namespace curvefs {
 namespace tools {
-namespace space {
+namespace usage {
 
 void MatedataUsageTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
@@ -40,18 +40,28 @@ void MatedataUsageTool::AddUpdateFlags() {
 
 bool MatedataUsageTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
-    if (controller_->Failed() ||
-        response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
-        // connect error or mds internal error
+    if (controller_->Failed()) {
         std::cerr << "get metadata usage from mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
                   << ", error text: " << controller_->ErrorText() << std::endl;
         ret = false;
     } else {
-        std::cout << "total: " << ToReadableByte(response_->total())
-                  << std::endl
-                  << "used: " << ToReadableByte(response_->used()) << std::endl
-                  << "left: " << ToReadableByte(response_->left()) << std::endl;
+        uint64_t total = 0;
+        uint64_t used = 0;
+        for (auto const& i : response_->metadatausages()) {
+            auto totalTmp = i.total();
+            total += totalTmp;
+            auto usedTmp = i.used();
+            used += usedTmp;
+            std::cout << "metaserver[" << i.metaserveraddr()
+                      << "] usage: total: " << ToReadableByte(totalTmp)
+                      << " used: " << ToReadableByte(usedTmp)
+                      << " left: " << ToReadableByte(totalTmp - usedTmp)
+                      << std::endl;
+        }
+        std::cout << "all cluster usage: total: " << ToReadableByte(total)
+                  << " used: " << ToReadableByte(used)
+                  << " left: " << ToReadableByte(total - used) << std::endl;
     }
 
     return ret;
@@ -62,15 +72,16 @@ int MatedataUsageTool::Init() {
         return -1;
     }
     curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
-    service_stub_func_ =
-        std::bind(&curvefs::mds::MdsService_Stub::StatMetadataUsage,
-                  service_stub_.get(), std::placeholders::_1,
-                  std::placeholders::_2, std::placeholders::_3, nullptr);
+    service_stub_func_ = std::bind(
+        &curvefs::mds::topology::TopologyService_Stub::StatMetadataUsage,
+        service_stub_.get(), std::placeholders::_1, std::placeholders::_2,
+        std::placeholders::_3, nullptr);
 
-    curvefs::mds::StatMetadataUsageRequest request;
+    curvefs::mds::topology::StatMetadataUsageRequest request;
     AddRequest(request);
     return 0;
 }
-}  // namespace space
+
+}  // namespace usage
 }  // namespace tools
 }  // namespace curvefs

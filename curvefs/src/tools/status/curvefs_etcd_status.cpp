@@ -63,22 +63,22 @@ void EtcdStatusTool::AfterGetMetric(const std::string hostAddr,
                                                     &keyValue)) {
                 if (keyValue == kEtcdFollowerValue) {
                     // standby host
-                    standbyHost_.push_back(hostAddr);
+                    standbyHost_.insert(hostAddr);
                 } else if (keyValue == kEtcdLeaderValue) {
                     // leader host
-                    leaderHosts_.push_back(hostAddr);
+                    leaderHosts_.insert(hostAddr);
                 } else {
                     // state is unkown
                     std::cerr << "etcd' state in" << hostAddr
                               << "/v2/stats/self is unkown." << std::endl;
-                    standbyHost_.push_back(hostAddr);
+                    standbyHost_.insert(hostAddr);
                 }
             } else {
                 // etcd version is not compatible uri:/v2/stats/self
                 std::cerr << "etcd in" << hostAddr
                           << " is not compatible with /v2/stats/self."
                           << std::endl;
-                offlineHosts_.push_back(hostAddr);
+                offlineHosts_.insert(hostAddr);
             }
         } else if (subUri == kEtcdVersionUri) {
             std::string keyValue;
@@ -90,7 +90,7 @@ void EtcdStatusTool::AfterGetMetric(const std::string hostAddr,
         }
     } else {
         // offline host
-        offlineHosts_.push_back(hostAddr);
+        offlineHosts_.insert(hostAddr);
     }
 }
 

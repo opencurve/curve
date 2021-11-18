@@ -16,28 +16,21 @@
 
 /*
  * Project: curve
- * Created Date: 2021-10-30
+ * Created Date: 2021-10-19
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
-#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
+#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_METASERVER_QUERY_H_
+#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_METASERVER_QUERY_H_
 
 #include <brpc/channel.h>
 #include <gflags/gflags.h>
 
-#include <algorithm>
-#include <map>
-#include <queue>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "curvefs/proto/copyset.pb.h"
-#include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
-#include "curvefs/src/tools/check/curvefs_copyset_check.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
@@ -46,39 +39,26 @@ namespace curvefs {
 namespace tools {
 namespace query {
 
-using InfoType = curvefs::mds::topology::CopysetValue;
-using StatusType = curvefs::metaserver::copyset::CopysetStatusResponse;
-using StatusRequestType = curvefs::metaserver::copyset::CopysetsStatusRequest;
-
-class CopysetQueryTool
-    : public CurvefsToolRpc<curvefs::mds::topology::GetCopysetsInfoRequest,
-                            curvefs::mds::topology::GetCopysetsInfoResponse,
+class MetaserverQueryTool
+    : public CurvefsToolRpc<curvefs::mds::topology::GetMetaServerInfoRequest,
+                            curvefs::mds::topology::GetMetaServerInfoResponse,
                             curvefs::mds::topology::TopologyService_Stub> {
  public:
-    explicit CopysetQueryTool(const std::string& cmd = kCopysetQueryCmd,
-                              bool show = true)
+    explicit MetaserverQueryTool(const std::string& cmd = kMetaserverQueryCmd,
+                                 bool show = true)
         : CurvefsToolRpc(cmd) {
         show_ = show;
     }
+
     void PrintHelp() override;
     int Init() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
-    bool GetCopysetStatus();
-
- protected:
-    // key = (poolId << 32) | copysetId
-    std::map<uint64_t, std::vector<InfoType>> key2Infos_;
-    std::map<std::string, std::queue<StatusRequestType>>
-        addr2Request_;                                        // detail
-    std::map<uint64_t, std::vector<StatusType>> key2Status_;  // detail
-    std::vector<uint64_t> copysetKeys_;
 };
-
 }  // namespace query
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_COPYSET_QUERY_H_
+#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_METASERVER_QUERY_H_

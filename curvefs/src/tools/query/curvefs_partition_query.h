@@ -16,53 +16,50 @@
 
 /*
  * Project: curve
- * Created Date: 2021-10-22
+ * Created Date: 2021-11-19
  * Author: chengyi01
  */
+#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_PARTITION_QUERY_H_
+#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_PARTITION_QUERY_H_
 
-#ifndef CURVEFS_SRC_TOOLS_SPACE_CURVEFS_METADATA_USAGE_TOOL_H_
-#define CURVEFS_SRC_TOOLS_SPACE_CURVEFS_METADATA_USAGE_TOOL_H_
+#include <brpc/channel.h>
+#include <gflags/gflags.h>
 
-#include <functional>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "curvefs/proto/mds.pb.h"
-#include "curvefs/proto/space.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "curvefs/src/tools/space/curvefs_space_base_tool.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace space {
+namespace query {
 
-/**
- * @brief  this class is used to query the metadata usage of cluster
- *
- * @details
- */
-class MatedataUsageTool
-    : public CurvefsToolRpc<curvefs::mds::StatMetadataUsageRequest,
-                            curvefs::mds::StatMetadataUsageResponse,
-                            curvefs::mds::MdsService_Stub> {
+class PartitionQueryTool
+    : public CurvefsToolRpc<
+          curvefs::mds::topology::GetCopysetOfPartitionRequest,
+          curvefs::mds::topology::GetCopysetOfPartitionResponse,
+          curvefs::mds::topology::TopologyService_Stub> {
  public:
-    explicit MatedataUsageTool(const std::string& cmd = kMetedataUsageCmd)
-        : CurvefsToolRpc(cmd) {}
+    explicit PartitionQueryTool(const std::string& cmd = kCopysetQueryCmd,
+                                bool show = true)
+        : CurvefsToolRpc(cmd) {
+        show_ = show;
+    }
+
     void PrintHelp() override;
+    int Init() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
-
- private:
-    int Init() override;
 };
 
-}  // namespace space
+}  // namespace query
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_SPACE_CURVEFS_METADATA_USAGE_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_PARTITION_QUERY_H_

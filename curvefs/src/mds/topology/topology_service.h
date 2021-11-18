@@ -150,15 +150,21 @@ class TopologyServiceImpl : public TopologyService {
             GetCopysetOfPartitionResponse* response,
             ::google::protobuf::Closure* done);
 
-    virtual void GetCopysetInfo(::google::protobuf::RpcController* cntl_base,
-                                const GetCopysetInfoRequest* request,
-                                GetCopysetInfoResponse* response,
-                                ::google::protobuf::Closure* done);
-
     virtual void GetCopysetsInfo(::google::protobuf::RpcController* cntl_base,
                                  const GetCopysetsInfoRequest* request,
                                  GetCopysetsInfoResponse* response,
                                  ::google::protobuf::Closure* done);
+
+    virtual void ListCopysetInfo(::google::protobuf::RpcController* cntl_base,
+                                 const ListCopysetInfoRequest* request,
+                                 ListCopysetInfoResponse* response,
+                                 ::google::protobuf::Closure* done);
+
+    virtual void StatMetadataUsage(
+        ::google::protobuf::RpcController* controller,
+        const ::curvefs::mds::topology::StatMetadataUsageRequest* request,
+        ::curvefs::mds::topology::StatMetadataUsageResponse* response,
+        ::google::protobuf::Closure* done);
 
  private:
     std::shared_ptr<TopologyManager> topologyManager_;

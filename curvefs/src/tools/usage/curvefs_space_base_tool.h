@@ -20,20 +20,20 @@
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
-#define CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_USAGE_CURVEFS_SPACE_BASE_TOOL_H_
+#define CURVEFS_SRC_TOOLS_USAGE_CURVEFS_SPACE_BASE_TOOL_H_
 
 #include <sstream>
 #include <string>
 
 namespace curvefs {
 namespace tools {
-namespace space {
+namespace usage {
 
 std::string ToReadableByte(uint64_t byte);
 
-}  // namespace space
+}  // namespace usage
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_SPACE_CURVEFS_SPACE_BASE_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_USAGE_CURVEFS_SPACE_BASE_TOOL_H_

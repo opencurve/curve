@@ -20,8 +20,8 @@
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_BUILD_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
-#define CURVEFS_SRC_TOOLS_BUILD_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_BUILDTOPO_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
+#define CURVEFS_SRC_TOOLS_BUILDTOPO_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
 
 #include <brpc/channel.h>
 #include <brpc/server.h>
@@ -160,4 +160,4 @@ class CurvefsBuildTopologyTool : public curvefs::tools::CurvefsTool {
 }  // namespace mds
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_BUILD_CURVEFS_BUILD_TOPOLOGY_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_BUILDTOPO_CURVEFS_BUILD_TOPOLOGY_TOOL_H_

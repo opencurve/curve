@@ -22,8 +22,9 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_DEAL_PEERID_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_DEAL_PEERID_H_
 
-#include <vector>
 #include <string>
+#include <vector>
+
 #include "src/common/string_util.h"
 
 namespace curvefs {
@@ -36,18 +37,18 @@ using curve::common::StringToUl;
 /**
  * @brief the peerid format is ip:port:index, and be used in braft.
  */
-inline std::string BuildPeerIdWithIpPort(const std::string &ip, uint32_t port,
+inline std::string BuildPeerIdWithIpPort(const std::string& ip, uint32_t port,
                                          uint32_t idx = 0) {
     return ip + ":" + std::to_string(port) + ":" + std::to_string(idx);
 }
 
-inline std::string BuildPeerIdWithAddr(const std::string &addr,
+inline std::string BuildPeerIdWithAddr(const std::string& addr,
                                        uint32_t idx = 0) {
     return addr + ":" + std::to_string(idx);
 }
 
-inline bool SplitPeerId(const std::string &peerId, std::string *ip,
-                        uint32_t *port, uint32_t *idx = nullptr) {
+inline bool SplitPeerId(const std::string& peerId, std::string* ip,
+                        uint32_t* port, uint32_t* idx = nullptr) {
     std::vector<std::string> items;
     SplitString(peerId, ":", &items);
     if (3 == items.size()) {
@@ -70,6 +71,17 @@ inline bool SplitPeerId(const std::string& peerId, std::string* addr) {
     curve::common::SplitString(peerId, ":", &items);
     if (3 == items.size()) {
         *addr = items[0] + ":" + items[1];
+        return true;
+    }
+    return false;
+}
+
+inline bool SplitAddrToIpPort(const std::string& addr, std::string* ipstr,
+                              uint32_t* port) {
+    std::vector<std::string> items;
+    curve::common::SplitString(addr, ":", &items);
+    if (2 == items.size() && curve::common::StringToUl(items[1], port)) {
+        *ipstr = items[0];
         return true;
     }
     return false;

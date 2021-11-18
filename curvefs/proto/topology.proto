@@ -393,26 +393,49 @@ message ListPartitionsResponse {
     map<uint32, PartitionInfoList> fsId2partitionList = 2;
 }
 
-message GetCopysetInfoRequest {
+message CopysetKey {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
 }
 
-message GetCopysetInfoResponse {
-    required TopoStatusCode statusCode = 1;
-    optional Copyset copysetInfo = 2;
+message GetCopysetsInfoRequest {
+    repeated CopysetKey copysetKeys = 1;
 }
 
-message GetCopysetsInfoRequest {
-    repeated GetCopysetInfoRequest copysets= 1;
+message CopysetValue {
+    required TopoStatusCode statusCode = 1;
+    optional curvefs.mds.heartbeat.CopySetInfo copysetInfo = 2;
 }
 
 message GetCopysetsInfoResponse {
-    repeated GetCopysetInfoResponse copysetsInfo = 1;
+    repeated CopysetValue copysetValues = 1;
 }
+
+message ListCopysetInfoRequest {
+}
+
+message ListCopysetInfoResponse {
+    repeated CopysetValue copysetValues = 1;
+}
+
+message StatMetadataUsageRequest{
+}
+
+message MetadataUsage{
+    // KB
+    required string metaserverAddr = 1;
+    required uint64 total = 2;
+    required uint64 used = 3;
+}
+
+message StatMetadataUsageResponse{
+    repeated MetadataUsage metadataUsages = 1;
+}
+
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
+    // TODO(chengyi): mv to GetMateservers
     rpc GetMetaServer(GetMetaServerInfoRequest)         returns (GetMetaServerInfoResponse);
     rpc DeleteMetaServer(DeleteMetaServerRequest)       returns (DeleteMetaServerResponse);
 
@@ -437,8 +460,8 @@ service TopologyService {
     rpc ListPartition(ListPartitionRequest) returns (ListPartitionResponse);
     rpc GetCopysetOfPartition(GetCopysetOfPartitionRequest) returns (GetCopysetOfPartitionResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
-    // TODO(chengyi01): rm GetCopysetInfo, only keep GetCopysetsInfo
-    rpc GetCopysetInfo (GetCopysetInfoRequest) returns (GetCopysetInfoResponse);
     rpc GetCopysetsInfo (GetCopysetsInfoRequest) returns (GetCopysetsInfoResponse);
     rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
+    rpc ListCopysetInfo(ListCopysetInfoRequest) returns (ListCopysetInfoResponse);
+    rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
 }

@@ -16,42 +16,45 @@
 
 /*
  * Project: curve
- * Created Date: 2021-11-23
+ * Created Date: 2021-11-04
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
-#define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
+#ifndef CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETINFO_LIST_H_
+#define CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETINFO_LIST_H_
 
-#include <map>
-#include <memory>
+#include <brpc/channel.h>
+
 #include <string>
-#include <vector>
 
-#include "curvefs/src/tools/copyset/curvefs_copyset_base_tool.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "curvefs/src/tools/list/curvefs_copysetinfo_list.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace status {
+namespace list {
 
-class CopysetStatusTool : public CurvefsTool {
+class CopysetInfoListTool
+    : public CurvefsToolRpc<curvefs::mds::topology::ListCopysetInfoRequest,
+                            curvefs::mds::topology::ListCopysetInfoResponse,
+                            curvefs::mds::topology::TopologyService_Stub> {
  public:
-    explicit CopysetStatusTool(const std::string& command = kCopysetStatusCmd,
-                               bool show = true)
-        : CurvefsTool(command) {
+    explicit CopysetInfoListTool(const std::string& cmd = kCopysetInfoListCmd,
+                                 bool show = true)
+        : CurvefsToolRpc(cmd) {
         show_ = show;
     }
     void PrintHelp() override;
-
-    int RunCommand() override;
     int Init() override;
 
  protected:
-    std::shared_ptr<list::CopysetInfoListTool> copyInfoListTool_;
+    void AddUpdateFlags() override;
+    bool AfterSendRequestToHost(const std::string& host) override;
 };
-}  // namespace status
+
+}  // namespace list
 }  // namespace tools
 }  // namespace curvefs
-#endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
+
+#endif  // CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETINFO_LIST_H_

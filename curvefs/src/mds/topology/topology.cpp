@@ -57,7 +57,7 @@ std::string TopologyImpl::AllocateToken() {
     return tokenGenerator_->GenToken();
 }
 
-TopoStatusCode TopologyImpl::AddPool(const Pool &data) {
+TopoStatusCode TopologyImpl::AddPool(const Pool& data) {
     WriteLockGuard wlockPool(poolMutex_);
     if (poolMap_.find(data.GetId()) == poolMap_.end()) {
         if (!storage_->StoragePool(data)) {
@@ -521,6 +521,7 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
                 }
                 partitionMap_[id] = data;
                 it->second.AddPartitionNum();
+                it->second.AddPartitionId(id);
                 it->second.SetDirtyFlag(true);
                 return TopoStatusCode::TOPO_OK;
             } else {
@@ -1217,6 +1218,30 @@ uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
         }
     }
     return pNumber;
+}
+std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
+    std::vector<CopySetInfo> ret;
+    for (auto const& i : copySetMap_) {
+        ret.emplace_back(i.second);
+    }
+    return ret;
+}
+
+void TopologyImpl::GetMetaServersSpace(
+    ::google::protobuf::RepeatedPtrField<curvefs::mds::topology::MetadataUsage>*
+        spaces) {
+    ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+    for (auto const& i : metaServerMap_) {
+        ReadLockGuard rlockMetaServer(i.second.GetRWLockRef());
+        auto metaServerUsage = new curvefs::mds::topology::MetadataUsage();
+        metaServerUsage->set_metaserveraddr(
+            i.second.GetInternalHostIp() + ":" +
+            std::to_string(i.second.GetInternalPort()));
+        auto const& space = i.second.GetMetaServerSpace();
+        metaServerUsage->set_total(space.GetDiskCapacity());
+        metaServerUsage->set_used(space.GetDiskUsed());
+        spaces->AddAllocated(metaServerUsage);
+    }
 }
 
 }  // namespace topology
