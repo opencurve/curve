@@ -482,13 +482,24 @@ class CopySetInfo {
 
     bool ParseFromString(const std::string &value);
 
+    void AddPartitionId(const PartitionIdType& id) {
+        partitionIds_.insert(id);
+    }
+
+    const std::set<PartitionIdType>& GetPartitionIds() {
+        return partitionIds_;
+    }
+
  private:
     PoolIdType poolId_;
     CopySetIdType copySetId_;
     MetaServerIdType leader_;
     EpochType epoch_;
     std::set<MetaServerIdType> peers_;
+    // TODO(chengyi01): replace it whith partitionIds.size()
     uint64_t partitionNum_;
+    std::set<PartitionIdType> partitionIds_;
+
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly
      */

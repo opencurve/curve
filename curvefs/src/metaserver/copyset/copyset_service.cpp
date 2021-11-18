@@ -133,17 +133,6 @@ void CopysetServiceImpl::GetOneCopysetStatus(
         return;
     }
 
-    bool match = (request.peer().address() == node->GetPeerId().to_string());
-    if (!match) {
-        LOG(WARNING) << "GetCopysetStatus failed, request peer "
-                     << request.peer().ShortDebugString()
-                     << " is not identical to current node's peer id "
-                     << node->GetPeerId();
-        response->set_status(
-            COPYSET_OP_STATUS::COPYSET_OP_STATUS_PEER_MISMATCH);
-        return;
-    }
-
     braft::NodeStatus status;
     node->GetStatus(&status);
 

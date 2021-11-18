@@ -521,6 +521,7 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
                 }
                 partitionMap_[id] = data;
                 it->second.AddPartitionNum();
+                it->second.AddPartitionId(id);
                 it->second.SetDirtyFlag(true);
                 return TopoStatusCode::TOPO_OK;
             } else {
