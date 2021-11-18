@@ -145,18 +145,6 @@ message AllocateS3ChunkResponse {
    required uint64 chunkId = 2;
 }
 
-
-message StatMetadataUsageRequest{
-}
-
-message StatMetadataUsageResponse{
-    required FSStatusCode statusCode = 1;
-     // KB
-    required uint64 total = 2;
-    required uint64 used = 3;
-    required uint64 left = 4;
-}
-
 message ListClusterFsInfoRequest {
 }
 
@@ -169,10 +157,10 @@ service MdsService {
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
     rpc MountFs(MountFsRequest) returns (MountFsResponse);
     rpc UmountFs(UmountFsRequest) returns (UmountFsResponse);
+    // TODO(chengyi01): move to GetFssInfo 
     rpc GetFsInfo(GetFsInfoRequest) returns (GetFsInfoResponse);
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
-    rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
     rpc ListClusterFsInfo (ListClusterFsInfoRequest) returns (ListClusterFsInfoResponse);
 }

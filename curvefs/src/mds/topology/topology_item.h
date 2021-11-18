@@ -482,13 +482,24 @@ class CopySetInfo {
 
     bool ParseFromString(const std::string &value);
 
+    void AddPartitionId(const PartitionIdType& id) {
+        partitionIds_.insert(id);
+    }
+
+    const std::set<PartitionIdType>& GetPartitionIds() const {
+        return partitionIds_;
+    }
+
  private:
     PoolIdType poolId_;
     CopySetIdType copySetId_;
     MetaServerIdType leader_;
     EpochType epoch_;
     std::set<MetaServerIdType> peers_;
+    // TODO(chengyi01): replace it whith partitionIds.size()
     uint64_t partitionNum_;
+    std::set<PartitionIdType> partitionIds_;
+
     /**
      * @brief to mark whether data is dirty, for writing to storage regularly
      */
@@ -582,7 +593,23 @@ class Partition {
         dentryNum_ = v.has_dentrynum() ? v.dentrynum() : UNINTIALIZE_COUNT;
     }
 
-    FsIdType GetFsId() const { return fsId_; }
+    explicit operator common::PartitionInfo() const {
+        common::PartitionInfo partition;
+        partition.set_fsid(fsId_);
+        partition.set_poolid(poolId_);
+        partition.set_copysetid(copySetId_);
+        partition.set_start(idStart_);
+        partition.set_end(idEnd_);
+        partition.set_txid(txId_);
+        partition.set_status(status_);
+        partition.set_inodenum(inodeNum_);
+        partition.set_dentrynum(dentryNum_);
+        return partition;
+    }
+
+    FsIdType GetFsId() const {
+        return fsId_;
+    }
 
     void SetFsId(FsIdType fsId) { fsId_ = fsId; }
 

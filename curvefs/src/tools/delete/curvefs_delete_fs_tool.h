@@ -16,43 +16,50 @@
 
 /*
  * Project: curve
- * Created Date: 2021-10-29
+ * Created Date: 2021-10-16
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_METASERVER_STATUS_H_
-#define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_METASERVER_STATUS_H_
+#ifndef CURVEFS_SRC_TOOLS_DELETE_CURVEFS_DELETE_FS_TOOL_H_
+#define CURVEFS_SRC_TOOLS_DELETE_CURVEFS_DELETE_FS_TOOL_H_
+
+#include <brpc/channel.h>
+#include <brpc/server.h>
+#include <gflags/gflags.h>
 
 #include <string>
-#include <vector>
+#include <iostream>
 
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "curvefs/src/tools/status/curvefs_status_base_tool.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace status {
+namespace delete_ {
 
-class MetaserverStatusTool : public StatusBaseTool {
+class DeleteFsTool : public CurvefsToolRpc<curvefs::mds::DeleteFsRequest,
+                                           curvefs::mds::DeleteFsResponse,
+                                           curvefs::mds::MdsService_Stub> {
  public:
-    explicit MetaserverStatusTool(
-        const std::string& cmd = kMetaserverStatusCmd,
-        const std::string& hostType = kHostTypeMetaserver)
-        : StatusBaseTool(cmd, hostType) {}
+    explicit DeleteFsTool(const std::string& cmd = kDeleteFsCmd)
+        : CurvefsToolRpc(cmd) {}
+
     void PrintHelp() override;
-    void InitHostsAddr() override;
     int Init() override;
+    void InitHostsAddr() override;
+    int RunCommand() override;
 
  protected:
     void AddUpdateFlags() override;
-    int ProcessMetrics() override;
-    void AfterGetMetric(const std::string hostAddr, const std::string& subUri,
-                        const std::string& value,
-                        const MetricStatusCode& statusCode) override;
+    bool AfterSendRequestToHost(const std::string& host) override;
+
+ protected:
+    uint32_t checkTimes_ = 3;
 };
 
-}  // namespace status
+}  // namespace delete_
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_METASERVER_STATUS_H_
+#endif  // CURVEFS_SRC_TOOLS_DELETE_CURVEFS_DELETE_FS_TOOL_H_

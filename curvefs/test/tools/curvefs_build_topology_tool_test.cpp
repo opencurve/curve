@@ -20,7 +20,7 @@
  * @Author: chengyi01
  */
 
-#include "curvefs/src/tools/build/curvefs_build_topology_tool.h"
+#include "curvefs/src/tools/buildtopo/curvefs_build_topology_tool.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

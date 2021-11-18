@@ -16,45 +16,46 @@
 
 /*
  * Project: curve
- * Created Date: 2021-11-04
+ * Created Date: 2021-11-18
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETID_LIST_H_
-#define CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETID_LIST_H_
+#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_FS_QUERY_H_
+#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_FS_QUERY_H_
 
 #include <brpc/channel.h>
+#include <gflags/gflags.h>
 
 #include <string>
+#include <vector>
 
-#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
-#include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace list {
+namespace query {
 
-class FsCopysetIdListTool
-    : public CurvefsToolRpc<curvefs::metaserver::GetAllCopysetsIdRequest,
-                            curvefs::metaserver::GetAllCopysetsIdResponse,
-                            curvefs::metaserver::MetaServerService_Stub> {
+class FsQueryTool : public CurvefsToolRpc<curvefs::mds::GetFsInfoRequest,
+                                          curvefs::mds::GetFsInfoResponse,
+                                          curvefs::mds::MdsService_Stub> {
  public:
-    explicit FsCopysetIdListTool(const std::string& cmd = kFsCopysetIdListCmd,
-                                 bool show = true)
+    explicit FsQueryTool(const std::string& cmd = kFsQueryCmd, bool show = true)
         : CurvefsToolRpc(cmd) {
         show_ = show;
     }
+
     void PrintHelp() override;
     int Init() override;
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+    std::vector<std::string> requestValueVec_;
 };
 
-}  // namespace list
+}  // namespace query
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETID_LIST_H_
+#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_FS_QUERY_H_

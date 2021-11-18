@@ -61,11 +61,6 @@ int CurvefsToolMetric::RunCommand() {
         std::string value;
         MetricStatusCode statusCode =
             metricClient_->GetMetric(i.first, i.second, &value);
-        if (statusCode != MetricStatusCode::kOK) {
-            std::cerr << "get metricName \"" << i.second << "\" from "
-                      << i.first << " fail!" << std::endl;
-            ret = -1;
-        }
         AfterGetMetric(i.first, i.second, value, statusCode);
     }
 

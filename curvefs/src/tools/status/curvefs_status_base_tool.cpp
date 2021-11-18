@@ -32,14 +32,16 @@ int StatusBaseTool::Init() {
     }
 
     // get version from one host
-    if (!hostsAddr_.empty()) {
+    if (!hostsAddr_.empty() && versionSubUri_ != "") {
         // get version from 1 host, just ok
         AddAddr2Suburi({hostsAddr_[0], versionSubUri_});
     }
 
     //  get status(leader or not) from all host
-    for (auto const& i : hostsAddr_) {
-        AddAddr2Suburi({i, StatusSubUri_});
+    if (StatusSubUri_ != "") {
+        for (auto const& i : hostsAddr_) {
+            AddAddr2Suburi({i, StatusSubUri_});
+        }
     }
 
     return 0;
@@ -50,33 +52,36 @@ void StatusBaseTool::AfterGetMetric(const std::string hostAddr,
                                     const std::string& value,
                                     const MetricStatusCode& statusCode) {
     if (statusCode == MetricStatusCode::kOK) {
-        onlineHosts_.push_back(hostAddr);
+        onlineHosts_.insert(hostAddr);
         if (subUri == StatusSubUri_) {
             std::string keyValue;
             if (!metricClient_->GetKeyValueFromString(value, statusKey_,
                                                       &keyValue)) {
                 if (keyValue == hostStandbyValue_) {
                     // standby host
-                    standbyHost_.push_back(hostAddr);
+                    standbyHost_.insert(hostAddr);
                 } else if (keyValue == hostLeaderValue_) {
                     // leader host
-                    leaderHosts_.push_back(hostAddr);
+                    leaderHosts_.insert(hostAddr);
                 } else {
                     // error host
-                    errorHosts_.push_back(hostAddr);
+                    errorHosts_.insert(hostAddr);
                 }
             } else {
                 std::cerr << "parse " << statusKey_ << " form " << hostAddr
                           << subUri << " error." << std::endl;
-                errorHosts_.push_back(hostAddr);
+                errorHosts_.insert(hostAddr);
             }
         } else if (subUri == versionSubUri_) {
             version_ = value;
         }
 
+    } else if (statusCode == MetricStatusCode::kNotFound) {
+        // standby host main port
+        standbyHost_.insert(hostAddr);
     } else {
         // offline host
-        offlineHosts_.push_back(hostAddr);
+        offlineHosts_.insert(hostAddr);
     }
 }
 
@@ -104,7 +109,7 @@ int StatusBaseTool::ProcessMetrics() {
             std::cerr << "]." << std::endl;
         }
     } else if (show_) {
-        std::cout << "leader " << hostType_ << ": " << leaderHosts_[0]
+        std::cout << "leader " << hostType_ << ": " << *leaderHosts_.begin()
                   << std::endl;
     }
 

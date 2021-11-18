@@ -79,6 +79,31 @@ int MetaserverStatusTool::ProcessMetrics() {
     return ret;
 }
 
+int MetaserverStatusTool::Init() {
+    versionSubUri_ = kVersionUri;
+    StatusSubUri_ = kMetaserverStatusUri;
+    return StatusBaseTool::Init();
+}
+
+void MetaserverStatusTool::AfterGetMetric(const std::string hostAddr,
+                                          const std::string& subUri,
+                                          const std::string& value,
+                                          const MetricStatusCode& statusCode) {
+    if (statusCode == MetricStatusCode::kOK) {
+        onlineHosts_.insert(hostAddr);
+        if (subUri == StatusSubUri_) {
+            // get response is ok
+            onlineHosts_.insert(hostAddr);
+        } else if (subUri == versionSubUri_) {
+            version_ = value;
+        }
+
+    } else {
+        // offline host
+        offlineHosts_.insert(hostAddr);
+    }
+}
+
 }  // namespace status
 }  // namespace tools
 }  // namespace curvefs

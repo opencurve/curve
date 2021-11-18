@@ -20,7 +20,7 @@
  * Author: wanghai01
  */
 
-#include "curvefs/src/tools/build/curvefs_build_topology_tool.h"
+#include "curvefs/src/tools/buildtopo/curvefs_build_topology_tool.h"
 
 DECLARE_string(mds_addr);
 DECLARE_string(cluster_map);
@@ -243,10 +243,10 @@ int CurvefsBuildTopologyTool::InitServerZoneData() {
         serverDatas.emplace_back(serverData);
 
         if (std::find_if(zoneDatas.begin(), zoneDatas.end(),
-            [serverData](Zone& data) {
-            return (data.poolName == serverData.poolName) &&
-                   (data.name == serverData.zoneName);
-            }) == zoneDatas.end()) {
+                         [serverData](Zone& data) {
+                             return (data.poolName == serverData.poolName) &&
+                                    (data.name == serverData.zoneName);
+                         }) == zoneDatas.end()) {
             zoneDatas.emplace_back(zoneData);
         }
     }
