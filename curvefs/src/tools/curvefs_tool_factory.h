@@ -29,11 +29,14 @@
 #include <unordered_map>
 
 #include "curvefs/src/tools/build/curvefs_build_topology_tool.h"
+#include "curvefs/src/tools/check/curvefs_copyset_check.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/list/curvefs_copysetinfo_list.h"
 #include "curvefs/src/tools/list/curvefs_fsinfo_list.h"
 #include "curvefs/src/tools/query/curvefs_copyset_query.h"
 #include "curvefs/src/tools/space/curvefs_metadata_usage_tool.h"
+#include "curvefs/src/tools/status/curvefs_copyset_status.h"
 #include "curvefs/src/tools/status/curvefs_etcd_status.h"
 #include "curvefs/src/tools/status/curvefs_mds_status.h"
 #include "curvefs/src/tools/status/curvefs_metaserver_status.h"

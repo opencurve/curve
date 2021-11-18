@@ -98,7 +98,9 @@ bool UmountfsTool::AfterSendRequestToHost(const std::string& host) {
                   << ", error text " << controller_->ErrorText() << "\n";
     } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
         std::cerr << "umount fs from mds: " << host << " fail, error code is "
-                  << response_->statuscode() << "\n";
+                  << response_->statuscode() << " code name is :"
+                  << curvefs::mds::FSStatusCode_Name(response_->statuscode())
+                  << "\n";
     } else {
         std::cout << "umount fs from cluster success.\n";
         ret = true;

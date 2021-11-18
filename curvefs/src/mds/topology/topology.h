@@ -200,6 +200,8 @@ class Topology {
     virtual TopoStatusCode ChooseSingleMetaServerInZone(ZoneIdType zoneId,
                         MetaServerIdType *metaServerId) const = 0;
     virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
+
+    virtual std::vector<CopySetInfo> ListCopysetInfo() const = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -385,6 +387,8 @@ class TopologyImpl : public Topology {
                                            PoolIdType *poolIdOut);
 
     TopoStatusCode GetPoolIdByServerId(ServerIdType id, PoolIdType *poolIdOut);
+
+    std::vector<CopySetInfo> ListCopysetInfo() const override;
 
  private:
     TopoStatusCode LoadClusterInfo();

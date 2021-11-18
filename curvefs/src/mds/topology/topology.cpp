@@ -521,6 +521,7 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
                 }
                 partitionMap_[id] = data;
                 it->second.AddPartitionNum();
+                it->second.AddPartitionId(id);
                 it->second.SetDirtyFlag(true);
                 return TopoStatusCode::TOPO_OK;
             } else {
@@ -1217,6 +1218,13 @@ uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
         }
     }
     return pNumber;
+}
+std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
+    std::vector<CopySetInfo> ret;
+    for (auto const& i : copySetMap_) {
+        ret.push_back(i.second);
+    }
+    return ret;
 }
 
 }  // namespace topology

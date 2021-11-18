@@ -19,14 +19,14 @@
  * Created Date: 2021-11-04
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETID_LIST_H_
-#define CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETID_LIST_H_
+#ifndef CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETINFO_LIST_H_
+#define CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETINFO_LIST_H_
 
 #include <brpc/channel.h>
 
 #include <string>
 
-#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
@@ -35,12 +35,12 @@ namespace curvefs {
 namespace tools {
 namespace list {
 
-class FsCopysetIdListTool
-    : public CurvefsToolRpc<curvefs::metaserver::GetAllCopysetsIdRequest,
-                            curvefs::metaserver::GetAllCopysetsIdResponse,
-                            curvefs::metaserver::MetaServerService_Stub> {
+class CopysetInfoListTool
+    : public CurvefsToolRpc<curvefs::mds::topology::ListCopysetInfoRequest,
+                            curvefs::mds::topology::GetCopysetsInfoResponse,
+                            curvefs::mds::topology::TopologyService_Stub> {
  public:
-    explicit FsCopysetIdListTool(const std::string& cmd = kFsCopysetIdListCmd,
+    explicit CopysetInfoListTool(const std::string& cmd = kCopysetInfoListCmd,
                                  bool show = true)
         : CurvefsToolRpc(cmd) {
         show_ = show;
@@ -57,4 +57,4 @@ class FsCopysetIdListTool
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETID_LIST_H_
+#endif  // CURVEFS_SRC_TOOLS_LIST_CURVEFS_COPYSETINFO_LIST_H_

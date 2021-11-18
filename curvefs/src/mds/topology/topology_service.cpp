@@ -686,28 +686,6 @@ void TopologyServiceImpl::GetCopysetOfPartition(
     }
 }
 
-void TopologyServiceImpl::GetCopysetInfo(
-    ::google::protobuf::RpcController* cntl_base,
-    const GetCopysetInfoRequest* request, GetCopysetInfoResponse* response,
-    ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard done_guard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
-              << cntl->remote_side() << " to " << cntl->local_side()
-              << ". [GetCopysetInfoRequest] " << request->DebugString();
-
-    topologyManager_->GetCopysetInfo(request, response);
-    if (TopoStatusCode::TOPO_OK != response->statuscode()) {
-        LOG(WARNING) << "Send response[log_id=" << cntl->log_id() << "] from "
-                     << cntl->local_side() << " to " << cntl->remote_side()
-                     << ". [GetCopysetInfoRequest] " << response->DebugString();
-    } else {
-        LOG(WARNING) << "Send response[log_id=" << cntl->log_id() << "] from "
-                     << cntl->local_side() << " to " << cntl->remote_side()
-                     << ". [GetCopysetInfoRequest] " << response->DebugString();
-    }
-}
-
 void TopologyServiceImpl::GetCopysetsInfo(
     ::google::protobuf::RpcController* cntl_base,
     const GetCopysetsInfoRequest* request, GetCopysetsInfoResponse* response,
@@ -719,6 +697,27 @@ void TopologyServiceImpl::GetCopysetsInfo(
               << ". [GetCopysetsInfoRequest] " << request->DebugString();
 
     topologyManager_->GetCopysetsInfo(request, response);
+
+    LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+              << cntl->local_side() << " to " << cntl->remote_side()
+              << ". [GetCopysetsInfoResponse] " << response->DebugString();
+}
+
+void TopologyServiceImpl::ListCopysetInfo(
+    ::google::protobuf::RpcController* cntl_base,
+    const ListCopysetInfoRequest* request, GetCopysetsInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListCopysetInfoRequest] " << request->DebugString();
+
+    topologyManager_->ListCopysetsInfo(response);
+
+    LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+              << cntl->local_side() << " to " << cntl->remote_side()
+              << ". [ListCopysetInfoRequest] " << response->DebugString();
 }
 
 }  // namespace topology
