@@ -22,8 +22,8 @@
 
 #include "curvefs/src/tools/query/curvefs_copyset_query.h"
 
-DECLARE_string(copysetsId);
-DECLARE_string(poolsId);
+DECLARE_string(copysetId);
+DECLARE_string(poolId);
 DECLARE_string(mdsAddr);
 DECLARE_bool(detail);
 
@@ -36,8 +36,8 @@ namespace query {
 
 void CopysetQueryTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -copysetsId=" << FLAGS_copysetsId
-              << " -poolsId=" << FLAGS_poolsId << " [-mdsAddr=" << FLAGS_mdsAddr
+    std::cout << " -copysetsId=" << FLAGS_copysetId
+              << " -poolsId=" << FLAGS_poolId << " [-mdsAddr=" << FLAGS_mdsAddr
               << "]"
               << " [-detail=" << FLAGS_detail << "]";
     std::cout << std::endl;
@@ -54,9 +54,9 @@ int CopysetQueryTool::Init() {
 
     curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
     std::vector<std::string> copysetsId;
-    curve::common::SplitString(FLAGS_copysetsId, ",", &copysetsId);
+    curve::common::SplitString(FLAGS_copysetId, ",", &copysetsId);
     std::vector<std::string> poolsId;
-    curve::common::SplitString(FLAGS_poolsId, ",", &poolsId);
+    curve::common::SplitString(FLAGS_poolId, ",", &poolsId);
     if (copysetsId.size() != poolsId.size() || poolsId.empty()) {
         std::cerr << "copysets not match pools." << std::endl;
         return -1;
@@ -80,7 +80,7 @@ int CopysetQueryTool::Init() {
 bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
     if (controller_->Failed()) {
-        std::cerr << "query copysets [ " << FLAGS_copysetsId
+        std::cerr << "query copysets [ " << FLAGS_copysetId
                   << " ] from mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
                   << ", error text " << controller_->ErrorText() << "\n";

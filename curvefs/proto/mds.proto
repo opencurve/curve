@@ -169,6 +169,7 @@ service MdsService {
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
     rpc MountFs(MountFsRequest) returns (MountFsResponse);
     rpc UmountFs(UmountFsRequest) returns (UmountFsResponse);
+    // TODO(chengyi01): move to GetFssInfo 
     rpc GetFsInfo(GetFsInfoRequest) returns (GetFsInfoResponse);
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);

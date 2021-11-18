@@ -62,6 +62,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // query-copyset
     RegisterCurvefsTool(std::string(kCopysetQueryCmd),
                         CurvefsToolCreator<query::CopysetQueryTool>::Create);
+
+    // query-fs
+    RegisterCurvefsTool(std::string(kFsQueryCmd),
+                        CurvefsToolCreator<query::FsQueryTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(

@@ -59,6 +59,8 @@ const char kEtcdStatusCmd[] = "status-etcd";
 const char kCopysetsStatusCmd[] = "status-copysets";
 // copyset-query
 const char kCopysetQueryCmd[] = "query-copyset";
+// fs-query
+const char kFsQueryCmd[] = "query-fs";
 // list-fs-partition
 const char kFsPartitionListCmd[] = "list-fs-partition";
 // fsinfo-list
@@ -96,6 +98,7 @@ const char kHostTypeEtcd[] = "etcd";
 const char kVersionUri[] = "/version";
 const char kStatusUri[] = "/vars/status";
 const char kMdsStatusUri[] = "/vars/curvefs_mds_status";
+const char kMetaserverStatusUri[] = "/vars/pid";
 const char kEtcdVersionUri[] = "/version";
 const char kEtcdStatusUri[] = "/v2/stats/self";
 const char kEtcdClusterVersionKey[] = "etcdcluster";
@@ -157,6 +160,10 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetEtcdAddr;
+
+/* checkout th flag is default */
+extern std::function<bool(google::CommandLineFlagInfo*)> CheckFsNameDefault;
+extern std::function<bool(google::CommandLineFlagInfo*)> CheckFsIdDefault;
 
 /* translate to string */
 std::string StrVec2Str(const std::vector<std::string>&);

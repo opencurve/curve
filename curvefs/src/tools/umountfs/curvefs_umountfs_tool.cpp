@@ -21,7 +21,7 @@
  */
 #include "curvefs/src/tools/umountfs/curvefs_umountfs_tool.h"
 
-DECLARE_string(fsname);
+DECLARE_string(fsName);
 DECLARE_string(mountpoint);
 DECLARE_string(confPath);
 DECLARE_string(mdsAddr);
@@ -32,7 +32,7 @@ namespace umountfs {
 
 void UmountfsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -fsname=" << FLAGS_fsname
+    std::cout << " -fsname=" << FLAGS_fsName
               << " -mountpoint=" << FLAGS_mountpoint
               << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
     std::cout << std::endl;
@@ -71,7 +71,7 @@ int UmountfsTool::Init() {
 
     // adjust the unique element of the queue
     curvefs::mds::UmountFsRequest request;
-    request.set_fsname(FLAGS_fsname);
+    request.set_fsname(FLAGS_fsName);
     request.set_mountpoint(FLAGS_mountpoint);
     AddRequest(request);
 
@@ -98,7 +98,9 @@ bool UmountfsTool::AfterSendRequestToHost(const std::string& host) {
                   << ", error text " << controller_->ErrorText() << "\n";
     } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
         std::cerr << "umount fs from mds: " << host << " fail, error code is "
-                  << response_->statuscode() << "\n";
+                  << response_->statuscode() << " code name is :"
+                  << curvefs::mds::FSStatusCode_Name(response_->statuscode())
+                  << "\n";
     } else {
         std::cout << "umount fs from cluster success.\n";
         ret = true;
