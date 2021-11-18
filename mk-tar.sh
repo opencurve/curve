@@ -350,6 +350,7 @@ mkdir -p build/nbd-package/etc
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
 cp nbd/nbd-package/usr/bin/map_curve_disk.sh build/nbd-package/bin
 cp nbd/nbd-package/etc/curve/curvetab build/nbd-package/etc
+cp nbd/nbd-package/etc/systemd/system/map_curve_disk.service build/nbd-package/etc
 
 #step4 获取git提交版本信息
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
