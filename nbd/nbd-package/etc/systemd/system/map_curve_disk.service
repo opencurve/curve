@@ -1,0 +1,22 @@
+[Unit]
+Description=curve-nbd auto map service
+Before=kubelet.service
+After=remote-fs.target
+After=network-online.target
+After=nebd-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=forking
+Restart=no
+TimeoutSec=5min
+IgnoreSIGPIPE=no
+KillMode=process
+GuessMainPID=no
+RemainAfterExit=yes
+SuccessExitStatus=5 6
+ExecStart=/usr/bin/map_curve_disk.sh start
+ExecStop=/usr/bin/map_curve_disk.sh stop
+
+[Install]
+WantedBy=multi-user.target
