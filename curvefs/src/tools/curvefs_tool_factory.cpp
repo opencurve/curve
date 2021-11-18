@@ -46,6 +46,7 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // status-mds
     RegisterCurvefsTool(std::string(kMdsStatusCmd),
                         CurvefsToolCreator<status::MdsStatusTool>::Create);
+
     // status-metaserver
     RegisterCurvefsTool(
         std::string(kMetaserverStatusCmd),

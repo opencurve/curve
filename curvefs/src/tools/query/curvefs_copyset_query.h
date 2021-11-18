@@ -26,9 +26,8 @@
 #include <brpc/channel.h>
 #include <gflags/gflags.h>
 
+#include <algorithm>
 #include <map>
-#include <queue>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -45,6 +44,7 @@ namespace curvefs {
 namespace tools {
 namespace query {
 
+using InfoType = curvefs::mds::topology::CopysetValue;
 using StatusType = curvefs::metaserver::copyset::CopysetStatusResponse;
 
 class CopysetQueryTool
@@ -59,13 +59,13 @@ class CopysetQueryTool
     }
     void PrintHelp() override;
     int Init() override;
-    std::map<uint32_t, std::vector<StatusType>> GetId2Status();
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
-    std::map<uint32_t, std::vector<StatusType>> id2Status_;
-    std::set<uint32_t> avaliableCopysetId;  // save  no error copysetId
+    std::map<uint64_t, std::vector<InfoType>> key2Infos_;
+    std::map<uint64_t, std::vector<StatusType>> key2Status_;
+    std::vector<uint64_t> copysetKeys_;  // key = (poolId << 32) | copysetId
 };
 
 }  // namespace query

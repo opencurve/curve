@@ -63,10 +63,17 @@ int CopysetQueryTool::Init() {
     }
     curvefs::mds::topology::GetCopysetsInfoRequest request;
     for (unsigned i = 0; i < poolsId.size(); ++i) {
-        curvefs::mds::topology::GetCopysetInfoRequest copyset;
-        copyset.set_poolid(std::stoul(poolsId[i]));
-        copyset.set_copysetid(std::stoul(copysetsId[i]));
-        *request.add_copysets() = copyset;
+        auto copysetKey = request.add_copysetkeys();
+        uint64_t poolId = std::stoul(poolsId[i]);
+        uint64_t copysetId = std::stoul(copysetsId[i]);
+        uint64_t key = (poolId << 32) | copysetId;
+        if (std::find(copysetKeys_.begin(), copysetKeys_.end(), key) !=
+            copysetKeys_.end()) {  // repeat key. ignore it
+            continue;
+        }
+        copysetKeys_.push_back(key);
+        copysetKey->set_poolid(poolId);
+        copysetKey->set_copysetid(copysetId);
     }
     AddRequest(request);
 
@@ -78,90 +85,34 @@ int CopysetQueryTool::Init() {
 }
 
 bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
-    bool ret = true;
     if (controller_->Failed()) {
-        std::cerr << "query copysets [ " << FLAGS_copysetsId
-                  << " ] from mds: " << host
+        std::cerr << "send query copysets [ " << FLAGS_copysetsId
+                  << " ] request to mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
                   << ", error text " << controller_->ErrorText() << "\n";
-        ret = false;
+        return false;
     } else {
-        // copysetId and copysetstatus get from metaserver
-        if (FLAGS_detail) {
-            using StatusRequestType =
-                curvefs::metaserver::copyset::CopysetsStatusRequest;
-            // metaserver ip and send to metaserver request
-            std::map<std::string, std::queue<StatusRequestType>> ip2requests;
-            for (auto const& i : response_->copysetsinfo()) {
-                using tmpType =
-                    curvefs::metaserver::copyset::CopysetStatusRequest;
+        auto copysetsValue = response_->copysetvalues();
+        if (static_cast<size_t>(copysetsValue.size()) != copysetKeys_.size()) {
+            std::cerr << "wrong number of coysetsinfo. number of key is "
+                      << copysetKeys_.size() << " ,number of copysets is "
+                      << copysetsValue.size() << std::endl;
+            return false;
+        }
 
-                if (i.statuscode() !=
-                    curvefs::mds::topology::TopoStatusCode::TOPO_OK) {
-                    // some error in copyset
-                    std::cout << "query copyset [ " << i.DebugString()
-                              << " ] from mds error." << std::endl;
-                    continue;
-                }
-                avaliableCopysetId.insert(i.copysetinfo().copysetid());
+        for (size_t i = 0; i < copysetKeys_.size(); i++) {
+            key2Infos_[copysetKeys_[i]].push_back(copysetsValue[i]);
+        }
 
-                tmpType tmp;
-                tmp.set_copysetid(i.copysetinfo().copysetid());
-                tmp.set_poolid(i.copysetinfo().poolid());
-                for (auto const& j : i.copysetinfo().peers()) {
-                    tmp.set_allocated_peer(new curvefs::common::Peer(j));
-                    std::string addr;
-                    if (!curvefs::mds::topology::SplitPeerId(j.address(),
-                                                             &addr)) {
-                        std::cerr << "copyset[" << tmp.copysetid()
-                                  << "] has error peerid: " << j.address()
-                                  << std::endl;
-                        break;
-                    }
-                    auto& queueRequest = ip2requests[addr];
-                    if (queueRequest.empty()) {
-                        queueRequest.push(curvefs::metaserver::copyset::
-                                              CopysetsStatusRequest());
-                    }
-                    *queueRequest.front().add_copysets() = tmp;
-                }
-            }
-            for (auto const& i : ip2requests) {
-                // set host
-                FLAGS_metaserverAddr = i.first;
-                status::CopysetStatusTool copysetStatustool("", false);
-                copysetStatustool.Init();
-                auto copysets = i.second.front().copysets();
-                copysetStatustool.SetRequestQueue(i.second);
-                ret = copysetStatustool.RunCommand();
-                auto copysetsStatus = copysetStatustool.GetResponse()->status();
-                for (int m = 0, n = 0;
-                     m < copysets.size() && n < copysetsStatus.size();
-                     ++m, ++n) {
-                    id2Status_[copysets[m].copysetid()].push_back(
-                        copysetsStatus[n]);
-                }
-            }
-            if (show_) {
-                for (auto const& i : avaliableCopysetId) {
-                    std::cout << "copyset: " << i << " status:[ ";
-                    for (auto const& j : id2Status_[i]) {
-                        std::cout << j.DebugString() << " ";
-                    }
-                    std::cout << "]." << std::endl;
-                }
-            }
-        } else if (show_) {
-            for (auto const& i : response_->copysetsinfo()) {
-                std::cout << i.DebugString() << std::endl;
+        if (show_) {
+            for (auto const& i : copysetsValue) {
+                std::cout << "copyset: " << i.DebugString() << std::endl;
             }
         }
-    }
-    return ret;
-}
 
-std::map<uint32_t, std::vector<StatusType>> CopysetQueryTool::GetId2Status() {
-    return id2Status_;
+        // TODO(chengyi01): detail
+    }
+    return true;
 }
 
 }  // namespace query

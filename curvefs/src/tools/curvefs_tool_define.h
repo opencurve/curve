@@ -96,6 +96,7 @@ const char kHostTypeEtcd[] = "etcd";
 const char kVersionUri[] = "/version";
 const char kStatusUri[] = "/vars/status";
 const char kMdsStatusUri[] = "/vars/curvefs_mds_status";
+const char kMetaserverStatusUri[] = "/vars/pid";
 const char kEtcdVersionUri[] = "/version";
 const char kEtcdStatusUri[] = "/v2/stats/self";
 const char kEtcdClusterVersionKey[] = "etcdcluster";

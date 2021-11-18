@@ -41,10 +41,14 @@ class MetaserverStatusTool : public StatusBaseTool {
         : StatusBaseTool(cmd, hostType) {}
     void PrintHelp() override;
     void InitHostsAddr() override;
+    int Init() override;
 
  protected:
     void AddUpdateFlags() override;
     int ProcessMetrics() override;
+    void AfterGetMetric(const std::string hostAddr, const std::string& subUri,
+                        const std::string& value,
+                        const MetricStatusCode& statusCode) override;
 };
 
 }  // namespace status

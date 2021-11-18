@@ -22,6 +22,7 @@
 #ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_BASE_TOOL_H_
 #define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_BASE_TOOL_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -60,15 +61,15 @@ class StatusBaseTool : public CurvefsToolMetric {
 
  protected:
     std::vector<std::string> hostsAddr_;
-    std::vector<std::string> standbyHost_;
-    std::vector<std::string> errorHosts_;  // not leader,not standby
-    std::vector<std::string> offlineHosts_;
-    std::vector<std::string> leaderHosts_;
-    std::vector<std::string> onlineHosts_;
+    std::set<std::string> standbyHost_;
+    std::set<std::string> errorHosts_;  // not leader, not standby
+    std::set<std::string> offlineHosts_;
+    std::set<std::string> leaderHosts_;
+    std::set<std::string> onlineHosts_;
     std::string version_;
     std::string hostType_;
-    std::string versionSubUri_;
-    std::string StatusSubUri_;
+    std::string versionSubUri_ = "";
+    std::string StatusSubUri_ = "";
     std::string versionKey_;
     std::string statusKey_;
     std::string hostLeaderValue_;
