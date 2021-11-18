@@ -465,6 +465,7 @@ mkdir -p build/nbd-package/etc
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
 cp nbd/nbd-package/usr/bin/map_curve_disk.sh build/nbd-package/bin
 cp nbd/nbd-package/etc/curve/curvetab build/nbd-package/etc
+cp nbd/nbd-package/etc/systemd/system/map_curve_disk.service build/nbd-package/etc
 
 #step5 打包tar包
 echo "start make tarball"
