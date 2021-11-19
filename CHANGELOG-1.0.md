@@ -34,3 +34,12 @@ See [code changes](https://github.com/opencurve/curve/compare/v0.1.4...release1.
 ## New Feature
 
 - [support nbd auto map at boot](https://github.com/opencurve/curve/pull/347)
+
+
+<hr/>
+
+# CHANGELOG of v1.0.5
+
+## Optimization
+
+- [Change auto map service to systemd standard](https://github.com/opencurve/curve/pull/695)
