@@ -180,6 +180,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     S3Client *client_;
     uint64_t blockSize_;
     uint64_t chunkSize_;
+    uint32_t fuseMaxSize_;
     uint32_t prefetchBlocks_;
     uint32_t prefetchExecQueueNum_;
     std::string allocateServerEps_;
@@ -189,12 +190,14 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     Thread bgFlushThread_;
     std::atomic<bool> toStop_;
     std::mutex mtx_;
+    std::mutex ioMtx_;
     std::condition_variable cond_;
     curve::common::WaitInterval waitIntervalSec_;
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
     DiskCacheType diskCacheType_;
+    std::atomic<uint64_t> pendingReq_;
     std::shared_ptr<MdsClient> mdsClient_;
     uint32_t fsId_;
     std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>

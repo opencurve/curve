@@ -88,6 +88,7 @@ struct DiskCacheOption {
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
+    uint32_t fuseMaxSize;
     uint32_t prefetchBlocks;
     uint32_t prefetchExecQueueNum;
     uint32_t intervalSec;
