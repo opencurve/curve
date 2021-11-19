@@ -16,49 +16,39 @@
 
 /*
  * Project: curve
- * Created Date: 2021-10-31
+ * Created Date: 2021-11-23
  * Author: chengyi01
  */
-
 #ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
 #define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_
 
-#include <brpc/channel.h>
-
+#include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
-#include "curvefs/proto/copyset.pb.h"
+#include "curvefs/src/tools/copyset/curvefs_copyset_base_tool.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "src/common/string_util.h"
+#include "curvefs/src/tools/list/curvefs_copysetinfo_list.h"
 
 namespace curvefs {
 namespace tools {
 namespace status {
 
-class CopysetStatusTool
-    : public CurvefsToolRpc<
-          curvefs::metaserver::copyset::CopysetsStatusRequest,
-          curvefs::metaserver::copyset::CopysetsStatusResponse,
-          curvefs::metaserver::copyset::CopysetService_Stub> {
+class CopysetStatusTool : public CurvefsTool {
  public:
-    explicit CopysetStatusTool(const std::string& cmd = kNoInvokeCmd,
-                               bool show = false)
-        : CurvefsToolRpc(cmd) {
-        show_ = show;
-    }
+    explicit CopysetStatusTool(const std::string& command = kCopysetStatusCmd)
+        : CurvefsTool(command) {}
+    void PrintHelp() override;
 
-    int RunCommand();
+    int RunCommand() override;
     int Init() override;
 
  protected:
-    void AddUpdateFlags() override;
-    bool AfterSendRequestToHost(const std::string& host) override;
+    std::shared_ptr<list::CopysetInfoListTool> copyInfoListTool_;
 };
-
 }  // namespace status
 }  // namespace tools
 }  // namespace curvefs
-
 #endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_COPYSET_STATUS_H_

@@ -411,6 +411,9 @@ message GetCopysetsInfoResponse {
     repeated CopysetValue copysetValues = 1;
 }
 
+message ListCopysetInfoRequest {
+}
+
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
@@ -440,4 +443,5 @@ service TopologyService {
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
     rpc GetCopysetsInfo (GetCopysetsInfoRequest) returns (GetCopysetsInfoResponse);
     rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
+    rpc ListCopysetInfo(ListCopysetInfoRequest) returns (GetCopysetsInfoResponse);
 }

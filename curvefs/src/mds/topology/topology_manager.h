@@ -136,6 +136,8 @@ class TopologyManager {
     virtual void GetCopysetsInfo(const GetCopysetsInfoRequest* request,
                                  GetCopysetsInfoResponse* response);
 
+    virtual void ListCopysetsInfo(GetCopysetsInfoResponse* response);
+
  private:
     TopoStatusCode CreateCopyset();
 

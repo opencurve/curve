@@ -703,6 +703,23 @@ void TopologyServiceImpl::GetCopysetsInfo(
               << ". [GetCopysetsInfoResponse] " << response->DebugString();
 }
 
+void TopologyServiceImpl::ListCopysetInfo(
+    ::google::protobuf::RpcController* cntl_base,
+    const ListCopysetInfoRequest* request, GetCopysetsInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListCopysetInfoRequest] " << request->DebugString();
+
+    topologyManager_->ListCopysetsInfo(response);
+
+    LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+              << cntl->local_side() << " to " << cntl->remote_side()
+              << ". [ListCopysetInfoRequest] " << response->DebugString();
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

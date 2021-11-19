@@ -21,7 +21,6 @@ COPTS = [
     "-DHAVE_SSE42",
     "-DNDEBUG",
     "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
     "-msse4.2",
     "-pthread",
     "-Wsign-compare",
@@ -67,8 +66,9 @@ cc_library(
         "status/curvefs_metaserver_status.cpp",
         "query/curvefs_copyset_query.cpp",
         "list/curvefs_fsinfo_list.cpp",
-        "list/curvefs_copysetid_list.cpp",
-
+        "list/curvefs_copysetinfo_list.cpp",
+        "check/curvefs_copyset_check.cpp",
+        "copyset/curvefs_copyset_base_tool.cpp",
     ]),
     hdrs = glob([
         "curvefs_tool.h",
@@ -88,7 +88,9 @@ cc_library(
         "status/curvefs_etcd_status.h",
         "query/curvefs_copyset_query.h",
         "list/curvefs_fsinfo_list.h",
-        "list/curvefs_copysetid_list.h",
+        "list/curvefs_copysetinfo_list.h",
+        "check/curvefs_copyset_check.h",
+        "copyset/curvefs_copyset_base_tool.h",
     ]),
     copts = COPTS,
     linkopts = [

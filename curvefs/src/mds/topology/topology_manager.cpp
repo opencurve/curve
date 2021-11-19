@@ -938,6 +938,8 @@ TopoStatusCode TopologyManager::GetCopysetMembers(
 void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
                                      const uint32_t& copysetId,
                                      CopysetValue* copysetValue) {
+    // default is ok, when find error set to error code
+    copysetValue->set_statuscode(TopoStatusCode::TOPO_OK);
     CopySetKey key(poolId, copysetId);
     CopySetInfo info;
     if (topology_->GetCopySet(key, &info)) {
@@ -945,7 +947,7 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
         valueCopysetInfo->set_poolid(info.GetPoolId());
         valueCopysetInfo->set_copysetid(info.GetId());
         // set peers
-        for (auto msId : info.GetCopySetMembers()) {
+        for (auto const& msId : info.GetCopySetMembers()) {
             MetaServer ms;
             if (topology_->GetMetaServer(msId, &ms)) {
                 common::Peer* peer = valueCopysetInfo->add_peers();
@@ -1016,6 +1018,79 @@ void TopologyManager::GetCopysetsInfo(const GetCopysetsInfoRequest* request,
     for (auto const& i : request->copysetkeys()) {
         GetCopysetInfo(i.poolid(), i.copysetid(),
                        response->add_copysetvalues());
+    }
+}
+
+void TopologyManager::ListCopysetsInfo(GetCopysetsInfoResponse* response) {
+    auto cpysetInfoVec = topology_->ListCopysetInfo();
+    for (auto const& i : cpysetInfoVec) {
+        auto copysetValue = response->add_copysetvalues();
+        // default is ok, when find error set to error code
+        copysetValue->set_statuscode(TopoStatusCode::TOPO_OK);
+        auto valueCopysetInfo = new curvefs::mds::heartbeat::CopySetInfo();
+        valueCopysetInfo->set_poolid(i.GetPoolId());
+        valueCopysetInfo->set_copysetid(i.GetId());
+        // set peers
+        LOG(INFO) << 1;
+        for (auto const& msId : i.GetCopySetMembers()) {
+            LOG(INFO) << 2;
+            MetaServer ms;
+            if (topology_->GetMetaServer(msId, &ms)) {
+                common::Peer* peer = valueCopysetInfo->add_peers();
+                peer->set_id(ms.GetId());
+                peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+                                                        ms.GetInternalPort()));
+            } else {
+                LOG(ERROR) << "perrs: poolId=" << i.GetPoolId()
+                           << " copysetid=" << i.GetId()
+                           << " has metaServer error, metaserverId = " << msId;
+                copysetValue->set_statuscode(
+                    TopoStatusCode::TOPO_METASERVER_NOT_FOUND);
+            }
+        }
+        valueCopysetInfo->set_epoch(i.GetEpoch());
+
+        // set leader peer
+        auto msId = i.GetLeader();
+        MetaServer ms;
+        auto peer = new common::Peer();
+        if (topology_->GetMetaServer(msId, &ms)) {
+            peer->set_id(ms.GetId());
+            peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+                                                    ms.GetInternalPort()));
+        } else {
+            LOG(WARNING) << "leaderpeer: poolId=" << i.GetPoolId()
+                         << " copysetid=" << i.GetId()
+                         << " has metaServer error, metaserverId = " << msId;
+            copysetValue->set_statuscode(
+                TopoStatusCode::TOPO_METASERVER_NOT_FOUND);
+        }
+        valueCopysetInfo->set_allocated_leaderpeer(peer);
+
+        // set partitioninfolist
+        for (auto const& j : i.GetPartitionIds()) {
+            Partition tmp;
+            if (!topology_->GetPartition(j, &tmp)) {
+                LOG(WARNING)
+                    << "poolId=" << i.GetPoolId() << " copysetid=" << i.GetId()
+                    << " has pattition error, partitionId=" << j;
+                copysetValue->set_statuscode(
+                    TopoStatusCode::TOPO_PARTITION_NOT_FOUND);
+            } else {
+                auto partition = valueCopysetInfo->add_partitioninfolist();
+                partition->set_fsid(tmp.GetFsId());
+                partition->set_poolid(tmp.GetPoolId());
+                partition->set_copysetid(tmp.GetCopySetId());
+                partition->set_start(tmp.GetIdStart());
+                partition->set_end(tmp.GetIdEnd());
+                partition->set_txid(tmp.GetTxId());
+                partition->set_status(tmp.GetStatus());
+                partition->set_inodenum(tmp.GetInodeNum());
+                partition->set_dentrynum(tmp.GetDentryNum());
+            }
+        }
+
+        copysetValue->set_allocated_copysetinfo(valueCopysetInfo);
     }
 }
 

@@ -1219,6 +1219,13 @@ uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
     }
     return pNumber;
 }
+std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
+    std::vector<CopySetInfo> ret;
+    for (auto const& i : copySetMap_) {
+        ret.push_back(i.second);
+    }
+    return ret;
+}
 
 }  // namespace topology
 }  // namespace mds

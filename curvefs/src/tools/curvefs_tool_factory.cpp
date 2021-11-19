@@ -56,13 +56,24 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(std::string(kEtcdStatusCmd),
                         CurvefsToolCreator<status::EtcdStatusTool>::Create);
 
+    // status-copyset
+    RegisterCurvefsTool(std::string(kCopysetStatusCmd),
+                        CurvefsToolCreator<status::CopysetStatusTool>::Create);
+
     // list-fs
     RegisterCurvefsTool(std::string(kFsInfoListCmd),
                         CurvefsToolCreator<list::FsInfoListTool>::Create);
+    // list-copysetInfo
+    RegisterCurvefsTool(std::string(kCopysetInfoListCmd),
+                        CurvefsToolCreator<list::CopysetInfoListTool>::Create);
 
     // query-copyset
     RegisterCurvefsTool(std::string(kCopysetQueryCmd),
                         CurvefsToolCreator<query::CopysetQueryTool>::Create);
+
+    // check-copyset
+    RegisterCurvefsTool(std::string(kCopysetCheckCmd),
+                        CurvefsToolCreator<check::CopysetCheckTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(

@@ -54,17 +54,17 @@ const char kMdsStatusCmd[] = "status-mds";
 const char kMetaserverStatusCmd[] = "status-metaserver";
 // etcd-status
 const char kEtcdStatusCmd[] = "status-etcd";
+// copyset-status
+const char kCopysetStatusCmd[] = "status-copyset";
 // copysets-status
-// check the cluster of copysets status
-const char kCopysetsStatusCmd[] = "status-copysets";
+// check the cluster of copyset status
+const char kCopysetCheckCmd[] = "check-copyset";
 // copyset-query
 const char kCopysetQueryCmd[] = "query-copyset";
-// list-fs-partition
-const char kFsPartitionListCmd[] = "list-fs-partition";
 // fsinfo-list
 const char kFsInfoListCmd[] = "list-fs";
 // list-fs-copysetid
-const char kFsCopysetIdListCmd[] = "list-fs-copysetid";
+const char kCopysetInfoListCmd[] = "list-copysetInfo";
 // no-invoke Used for commands that are not directly invoked
 const char kNoInvokeCmd[] = "no-invoke";
 
@@ -81,9 +81,11 @@ const char kHelpStr[] =
     "status-mds: show the status of mds\n"
     "status-metaserver: show the status of metaserver\n"
     "status-etcd: show the status of etcd\n"
+    "status-copyset: show the status of copyset\n"
     "query-copyset: query copyset by copysetId\n"
-    "list-fs-partition: list partition in fs \n"
+    "check-copyset: checkout copyset status\n"
     "list-fs: list all fs in cluster\n"
+    "list-copysetInfo: list all copysetInfo in cluster\n"
     "You can specify the config path by -confPath to avoid typing too many "
     "options\n";  // NOLINT
 
@@ -167,9 +169,6 @@ std::string HeartbeatCopysetInfo2Str(const mds::heartbeat::CopySetInfo&);
 std::string CommomPeer2Str(const common::Peer&);
 
 std::string CommomPartitionInfo2Str(const common::PartitionInfo&);
-
-std::string MetadataserverCopysetCopysetStatusResponse2Str(
-    const metaserver::copyset::CopysetStatusResponse&);
 
 std::string CopysetOpStatus2Str(const metaserver::copyset::COPYSET_OP_STATUS&);
 

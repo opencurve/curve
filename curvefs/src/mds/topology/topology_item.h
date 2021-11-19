@@ -486,7 +486,7 @@ class CopySetInfo {
         partitionIds_.insert(id);
     }
 
-    const std::set<PartitionIdType>& GetPartitionIds() {
+    const std::set<PartitionIdType>& GetPartitionIds() const {
         return partitionIds_;
     }
 
