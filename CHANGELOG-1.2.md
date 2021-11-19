@@ -87,3 +87,12 @@ Performance test is based on curve-nbd, the size of each block device is 200GB, 
 - [tools: remove copyset data after remove peer](https://github.com/opencurve/curve/pull/458)
 - [mds: modify stale heartbeat update error with warning](https://github.com/opencurve/curve/pull/480)
 - [chunkserver: fix config change epoch update error](https://github.com/opencurve/curve/pull/487)
+
+
+<hr/>
+
+# CHANGELOG of v1.2.2
+
+## Optimization
+
+- [Change auto map service to systemd standard](https://github.com/opencurve/curve/pull/699)
