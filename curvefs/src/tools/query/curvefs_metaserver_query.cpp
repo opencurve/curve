@@ -62,7 +62,7 @@ int MetaserverQueryTool::Init() {
             curvefs::mds::topology::GetMetaServerInfoRequest request;
             request.set_hostip(ip);
             request.set_port(port);
-            requestQueue_.push(request);
+            AddRequest(request);
         } else {
             std::cerr << "metaserverAddr:" << i
                       << " is invalid, please check it." << std::endl;
@@ -72,7 +72,7 @@ int MetaserverQueryTool::Init() {
     for (auto const& i : metaserverIdVec) {
         curvefs::mds::topology::GetMetaServerInfoRequest request;
         request.set_metaserverid(std::stoul(i));
-        requestQueue_.push(request);
+        AddRequest(request);
     }
 
     service_stub_func_ =
