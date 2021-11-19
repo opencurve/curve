@@ -88,9 +88,9 @@ def cp_check_data():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     test_dir = config.fs_mount_path
-    operator = ["cp","mv"]
+    operator = "cp"
     for name in config.fs_mount_dir:
-        ori_cmd = random.choice(operator) + ' ' + test_dir + name + ".0.0" + ' ' + test_dir + name
+        ori_cmd = operator + ' ' + test_dir + name + ".0.0" + ' ' + test_dir + name
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"cp fail"
     ssh.close()
@@ -107,6 +107,30 @@ def checksum_data():
         check_list.append(md5)
     logger.info("check file md5 is %s"%check_list)
     assert check_list == config.md5_check,"md5 check fail,begin is %s,end is %s"%(config.md5_check,check_list)
+
+def mv_data():
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    operator = "mv"
+    for name in config.fs_mount_dir:
+        test_dir = os.path.join(config.fs_mount_path,name)
+        ori_cmd = operator + ' ' + test_dir + '/' + name + ".0.0" + ' ' + test_dir + '/' + name + ".0.0.bak"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv fail"
+    ssh.close()
+
+def checksum_mv_data():
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    check_list = []
+    for name in config.fs_mount_dir:
+        test_dir = os.path.join(config.fs_mount_path,name)
+        ori_cmd = "md5sum " + test_dir + '/' + name + ".0.0.bak"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        md5 = "".join(rs[1]).split(" ")[0]
+        check_list.append(md5)
+    logger.info("check mv file md5 is %s"%check_list)
+    assert check_list == config.md5_check,"mv data md5 check fail,begin is %s,end is %s"%(config.md5_check,check_list)
 
 def start_fs_fio():
     test_client = config.fs_test_client[0]
@@ -216,7 +240,7 @@ def wait_op_finish():
 def check_fs_io_error():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    ori_cmd = "sudo grep \'error\' /var/log/kern.log -R"
+    ori_cmd = "sudo grep \'error\' /var/log/kern.log -R | grep -v libpthread"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if rs[1] != []:
         ori_cmd = "sudo logrotate -vf /etc/logrotate.d/rsyslog"

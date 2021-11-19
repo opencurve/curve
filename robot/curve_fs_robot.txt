@@ -218,6 +218,8 @@ inject kill all etcd
 check cp/mv data consistency
     [Tags]    P0    base    first release   failover
     checksum data
+    mv data
+    checksum mv data
     check fuse mount success
     wait op finish
 
