@@ -59,8 +59,8 @@ const char kEtcdStatusCmd[] = "status-etcd";
 const char kCopysetsStatusCmd[] = "status-copysets";
 // copyset-query
 const char kCopysetQueryCmd[] = "query-copyset";
-// list-fs-partition
-const char kFsPartitionListCmd[] = "list-fs-partition";
+// partition-query
+const char kPartitionQueryCmd[] = "query-partition";
 // fsinfo-list
 const char kFsInfoListCmd[] = "list-fs";
 // list-fs-copysetid
@@ -82,7 +82,7 @@ const char kHelpStr[] =
     "status-metaserver: show the status of metaserver\n"
     "status-etcd: show the status of etcd\n"
     "query-copyset: query copyset by copysetId\n"
-    "list-fs-partition: list partition in fs \n"
+    "query-partition: query copyset in partition\n"
     "list-fs: list all fs in cluster\n"
     "You can specify the config path by -confPath to avoid typing too many "
     "options\n";  // NOLINT

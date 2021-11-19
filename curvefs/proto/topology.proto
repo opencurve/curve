@@ -413,6 +413,7 @@ message GetCopysetsInfoResponse {
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
+    // TODO(chengyi): mv to GetMateservers
     rpc GetMetaServer(GetMetaServerInfoRequest)         returns (GetMetaServerInfoResponse);
     rpc DeleteMetaServer(DeleteMetaServerRequest)       returns (DeleteMetaServerResponse);
 

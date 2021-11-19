@@ -33,6 +33,7 @@
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "curvefs/src/tools/list/curvefs_fsinfo_list.h"
 #include "curvefs/src/tools/query/curvefs_copyset_query.h"
+#include "curvefs/src/tools/query/curvefs_partition_query.h"
 #include "curvefs/src/tools/space/curvefs_metadata_usage_tool.h"
 #include "curvefs/src/tools/status/curvefs_etcd_status.h"
 #include "curvefs/src/tools/status/curvefs_mds_status.h"
