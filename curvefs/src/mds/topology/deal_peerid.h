@@ -75,6 +75,18 @@ inline bool SplitPeerId(const std::string& peerId, std::string* addr) {
     return false;
 }
 
+inline bool SplitAddrToIpPort(const std::string& addr, std::string* ipstr,
+                              uint32_t* port) {
+    std::string::size_type splitpos = addr.find(":");
+    if (splitpos == std::string::npos) {
+        return false;
+    }
+
+    *ipstr = addr.substr(0, splitpos);
+    *port = std::stoul(addr.substr(splitpos + 1, addr.npos));
+    return true;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

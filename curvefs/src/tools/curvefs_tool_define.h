@@ -59,6 +59,8 @@ const char kEtcdStatusCmd[] = "status-etcd";
 const char kCopysetsStatusCmd[] = "status-copysets";
 // copyset-query
 const char kCopysetQueryCmd[] = "query-copyset";
+// metaserver-query
+const char kMetaserverQueryCmd[] = "query-metaserver";
 // list-fs-partition
 const char kFsPartitionListCmd[] = "list-fs-partition";
 // fsinfo-list
@@ -82,6 +84,8 @@ const char kHelpStr[] =
     "status-metaserver: show the status of metaserver\n"
     "status-etcd: show the status of etcd\n"
     "query-copyset: query copyset by copysetId\n"
+    "query-fs: query fs by fsId or fsName\n"
+    "query-metaserver: query metaserver by metaserverId or metaserverName\n"
     "list-fs-partition: list partition in fs \n"
     "list-fs: list all fs in cluster\n"
     "You can specify the config path by -confPath to avoid typing too many "
@@ -157,6 +161,12 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetEtcdAddr;
+
+/* checkout the flag is default */
+extern std::function<bool(google::CommandLineFlagInfo*)>
+    CheckMetaserverIdDefault;
+extern std::function<bool(google::CommandLineFlagInfo*)>
+    CheckMetaserverAddrDefault;
 
 /* translate to string */
 std::string StrVec2Str(const std::vector<std::string>&);
