@@ -122,6 +122,8 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.blockSize);
     conf->GetValueFatalIfFail("s3.chunksize",
                               &s3Opt->s3ClientAdaptorOpt.chunkSize);
+    conf->GetValueFatalIfFail("s3.fuseMaxSize",
+                              &s3Opt->s3ClientAdaptorOpt.fuseMaxSize);
     conf->GetValueFatalIfFail("s3.prefetchBlocks",
                               &s3Opt->s3ClientAdaptorOpt.prefetchBlocks);
     conf->GetValueFatalIfFail("s3.prefetchExecQueueNum",
