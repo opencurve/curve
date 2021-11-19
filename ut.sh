@@ -5,10 +5,10 @@ set -e
 ulimit -a
 ulimit -c unlimited
 ulimit -a
-ps -ef | grep chunkserver | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
-ps -ef | grep mds | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
-ps -ef | grep etcd | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
-ps -ef | grep test | grep -v grep | awk '{print $2}' | sudo xargs kill -9 || true
+ps -ef | grep chunkserver | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true
+ps -ef | grep mds | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true
+ps -ef | grep etcd | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true
+ps -ef | grep test | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true
 
 if [ -f /home/nbs/etcdclient/libetcdclient.h ] && [ -f /home/nbs/etcdclient/libetcdclient.so ]
 then
