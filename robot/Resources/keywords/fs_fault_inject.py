@@ -226,7 +226,7 @@ def wait_op_finish():
     ori_cmd1 = "ps -ef|grep -v grep | grep fio"
     ori_cmd2 = "ps -ef|grep -v grep | grep vdbench"
     starttime = time.time()
-    while time.time() - starttime < 2400:
+    while time.time() - starttime < 7200:
         rs1 = shell_operator.ssh_exec(ssh, ori_cmd1)
         rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
         if rs1[1] == [] and rs2[1] == []:
