@@ -161,7 +161,7 @@ extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetEtcdAddr;
 
-/* checkout th flag is default */
+/* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)> CheckFsNameDefault;
 extern std::function<bool(google::CommandLineFlagInfo*)> CheckFsIdDefault;
 
