@@ -312,6 +312,14 @@ class FsCacheManager {
         return wDataCacheNum_.load(std::memory_order_relaxed);
     }
 
+    uint64_t GetDataCacheSize() {
+        return wDataCacheByte_.load(std::memory_order_relaxed);
+    }
+
+    uint64_t GetDataCacheMaxSize() {
+        return writeCacheMaxByte_;
+    }
+
     void DataCacheNumInc() {
         VLOG(9) << "DataCacheNumInc() v: 1,wDataCacheNum:"
                 << wDataCacheNum_.load(std::memory_order_relaxed);

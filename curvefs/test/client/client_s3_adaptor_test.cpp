@@ -31,6 +31,7 @@
 #include "curvefs/test/client/mock_mds_client.h"
 #include "curvefs/test/client/mock_metaserver_service.h"
 #include "curvefs/test/client/mock_spacealloc_service.h"
+#include "src/common/curve_define.h"
 
 namespace curvefs {
 namespace client {
@@ -41,6 +42,7 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::WithArg;
+using ::curve::common::kMB;
 
 using rpcclient::MockMdsClient;
 
@@ -101,7 +103,7 @@ class ClientS3AdaptorTest : public testing::Test {
         option.intervalSec = 5000;
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
-        option.writeCacheMaxByte = 104857600;
+        option.writeCacheMaxByte = 10485760000;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         // auto metaClient = std::make_shared<MetaServerClientImpl>();
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
@@ -176,7 +178,7 @@ TEST_F(ClientS3AdaptorTest, test_first_write_2) {
     S3ClientAdaptorImpl* s3ClientAdaptor2;
     S3ClientAdaptorOption option2;
     option2.nearfullRatio = 100;
-    option2.writeCacheMaxByte = 104857600;
+    option2.writeCacheMaxByte = 8000*kMB;
     option2.blockSize = 1 * 1024 * 1024;
     option2.chunkSize = 4 * 1024 * 1024;
     s3ClientAdaptor2 = new S3ClientAdaptorImpl();
