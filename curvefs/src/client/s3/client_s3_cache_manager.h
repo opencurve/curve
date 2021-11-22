@@ -88,18 +88,14 @@ struct ObjectChunkInfo {
     uint64_t objectOffset;  // s3 object's begin in the block
 };
 
-class DataCache {
+class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
               ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
               uint64_t len, const char *data)
         : s3ClientAdaptor_(s3ClientAdaptor),
-          chunkCacheManager_(chunkCacheManager),
-          chunkPos_(chunkPos),
-          len_(len),
-          dirty_(true),
-          delete_(false),
-          inReadCache_(false) {
+          chunkCacheManager_(chunkCacheManager), chunkPos_(chunkPos), len_(len),
+          dirty_(true), delete_(false), inReadCache_(false) {
         data_ = new char[len];
         memcpy(data_, data, len);
         createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
@@ -222,7 +218,7 @@ class ChunkCacheManager {
 
     virtual void ReleaseReadDataCache(uint64_t key);
     void ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor);
-    void UpdateWrteCacheMap(uint64_t oldChunkPos);
+    void UpdateWrteCacheMap(uint64_t oldChunkPos, DataCache *dataCache);
 
  public:
     RWLock rwLockChunk_;  //  for read write chunk
