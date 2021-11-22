@@ -94,14 +94,17 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
         uint64_t chunkid;
         uint64_t compaction;
         uint64_t chunkoff;
+        uint64_t chunklen;
         bool zero;
         Node(uint64_t begin, uint64_t end, uint64_t chunkid,
-             uint64_t compaction, uint64_t chunkoff, bool zero)
+             uint64_t compaction, uint64_t chunkoff, uint64_t chunklen,
+             bool zero)
             : begin(begin),
               end(end),
               chunkid(chunkid),
               compaction(compaction),
               chunkoff(chunkoff),
+              chunklen(chunklen),
               zero(zero) {}
     };
     // closure for updating inode, simply wait
@@ -132,16 +135,16 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     std::list<struct Node> BuildValidList(
         const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen);
     int ReadFullChunk(const std::list<struct Node>& validList, uint64_t fsId,
-                      uint64_t inodeId, uint64_t blockSize,
+                      uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
                       std::string* fullChunk, uint64_t* newChunkId,
                       uint64_t* newCompaction, S3Adapter* s3adapter);
     virtual MetaStatusCode UpdateInode(CopysetNode* copysetNode,
                                        const PartitionInfo& pinfo,
                                        const Inode& inode);
     int WriteFullChunk(const std::string& fullChunk, uint64_t fsId,
-                       uint64_t inodeId, uint64_t blockSize,
+                       uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
                        uint64_t newChunkid, uint64_t newCompaction,
-                       std::vector<std::string>* objsAdded,
+                       uint64_t newOff, std::vector<std::string>* objsAdded,
                        S3Adapter* s3adapter);
     // func bind with task
     void CompactChunks(std::shared_ptr<InodeStorage> inodeStorage,

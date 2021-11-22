@@ -198,7 +198,7 @@ void S3CompactManager::Enqueue() {
             pinfo.poolid(), pinfo.copysetid());
         // traverse inode container
         auto inodeStorage = s3compact->GetMutableInodeStorage();
-        InodeStorage::ContainerType inodes(*(inodeStorage->GetContainer()));
+        InodeStorage::ContainerType inodes(inodeStorage->GetContainerData());
         if (inodes.empty()) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             continue;
@@ -207,7 +207,7 @@ void S3CompactManager::Enqueue() {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             s3compactworkqueueImpl_->Enqueue(inodeStorage,
                                              InodeKey(item.second),
-                                             std::move(pinfo), copysetNode);
+                                             pinfo, copysetNode);
         }
     }
 }

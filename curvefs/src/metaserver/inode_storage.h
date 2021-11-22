@@ -68,6 +68,7 @@ class InodeStorage {
     virtual MetaStatusCode Update(const Inode &inode) = 0;
     virtual int Count() = 0;
     virtual ContainerType* GetContainer() = 0;
+    virtual ContainerType GetContainerData() = 0;
     virtual ~InodeStorage() = default;
 };
 
@@ -118,6 +119,8 @@ class MemoryInodeStorage : public InodeStorage {
      * @return Inode container, here returns inodeMap_ pointer
      */
     ContainerType* GetContainer() override;
+    ContainerType GetContainerData() override;
+
 
  private:
     RWLock rwLock_;

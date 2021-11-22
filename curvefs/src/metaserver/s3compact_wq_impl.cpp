@@ -77,7 +77,6 @@ std::function<void()> S3CompactWorkQueueImpl::Dequeue() {
     if (!queue_.empty()) {
         task = std::move(queue_.front());
         queue_.pop_front();
-        compactingInodes_.pop_front();
         notFull_.notify_one();
     }
 
@@ -98,6 +97,7 @@ std::vector<uint64_t> S3CompactWorkQueueImpl::GetNeedCompact(
     std::vector<uint64_t> needCompact;
     for (const auto& item : s3chunkinfoMap) {
         if (needCompact.size() >= opts_.maxChunksPerCompact) {
+            VLOG(9) << "s3compact: reach max chunks to compact per time";
             break;
         }
         if (item.second.s3chunks_size() > opts_.fragmentThreshold) {
@@ -111,7 +111,11 @@ void S3CompactWorkQueueImpl::DeleteObjs(const std::vector<std::string>& objs,
                                         S3Adapter* s3adapter) {
     for (const auto& obj : objs) {
         const Aws::String aws_key(obj.c_str(), obj.size());
-        s3adapter->DeleteObject(aws_key);  // don't care success or not
+        int ret =
+            s3adapter->DeleteObject(aws_key);  // don't care success or not
+        if (ret != 0) {
+            VLOG(9) << "s3compact: delete " << obj << " failed";
+        }
     }
 }
 
@@ -119,91 +123,96 @@ std::list<struct S3CompactWorkQueueImpl::Node>
 S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
                                        uint64_t inodeLen) {
     std::list<struct S3CompactWorkQueueImpl::Node> validList;
-    std::function<void(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
-                       uint64_t)>
-        addToValidList;
+    std::function<void(struct Node)> addToValidList;
     // always add newer s3chunkinfo to list
-    addToValidList = [&](uint64_t begin, uint64_t end, uint64_t chunkid,
-                         uint64_t compaction, uint64_t chunkoff,
-                         uint64_t zero) {
+    // [begin, end]
+    addToValidList = [&](struct Node newNode) {
         // maybe truncated smaller
-        if (end > inodeLen) end = inodeLen;
+        if (newNode.end >= inodeLen) newNode.end = inodeLen - 1;
         for (auto it = validList.begin(); it != validList.end();) {
             // merge from list head to tail
             // try merge B to existing A
             // data from B is newer than A
             uint64_t nodeBegin = it->begin;
             uint64_t nodeEnd = it->end;
-            uint64_t nodeChunkid = it->chunkid;
-            uint64_t nodeCompaction = it->compaction;
-            uint64_t nodeChunkoff = it->chunkoff;
             bool nodeZero = it->zero;
-            if (end <= nodeBegin) {
-                // A,B no overlap, B is left A, just put add to list
-                validList.emplace(it, begin, end, chunkid, compaction, chunkoff,
-                                  zero);
+            if (newNode.end < nodeBegin) {
+                // A,B no overlap, B is left A, just add to list
+                validList.emplace(it, newNode);
                 return;
-            } else if (begin >= nodeEnd) {
+            } else if (newNode.begin > nodeEnd) {
                 // A,B no overlap, B is right of A
                 // skip current node to next node
                 ++it;
-            } else if (begin <= nodeBegin && end >= nodeEnd) {
+            } else if (newNode.begin <= nodeBegin && newNode.end >= nodeEnd) {
                 // B contains A, 1 part or split to 2 part
-                it->begin = begin;
-                it->chunkid = chunkid;
-                it->compaction = compaction;
-                it->chunkoff = chunkoff;
-                it->zero = zero;
-                if (end > nodeEnd) {
-                    addToValidList(nodeEnd, end, chunkid, compaction, chunkoff,
-                                   zero);
+                *it = newNode;
+                it->end = nodeEnd;
+                if (newNode.end > nodeEnd) {
+                    auto n = newNode;
+                    n.begin = nodeEnd + 1;
+                    addToValidList(std::move(n));
                 }
                 return;
-            } else if (begin >= nodeBegin && end <= nodeEnd) {
-                // A contains B, 1 part or split to 2 part
-                it->begin = end;
-                auto front = validList.emplace(it, begin, end, chunkid,
-                                               compaction, chunkoff, zero);
-                if (nodeBegin < begin) {
-                    validList.emplace(front, nodeBegin, begin, nodeChunkid,
-                                      nodeCompaction, nodeChunkoff, nodeZero);
+            } else if (newNode.begin >= nodeBegin && newNode.end <= nodeEnd) {
+                // A contains B, 1 part or split to 2or3 part
+                // begin == nodeBegin && end == nodeEnd has already
+                // processed in previous elseif
+                auto n = *it;
+                if (newNode.end < nodeEnd) {
+                    it->begin = newNode.end + 1;
+                    auto front = validList.emplace(it, newNode);
+                    if (nodeBegin < newNode.begin) {
+                        n.end = newNode.begin - 1;
+                        validList.emplace(front, n);
+                    }
+                } else {
+                    *it = newNode;
+                    it->end = nodeEnd;
+                    if (nodeBegin < newNode.begin) {
+                        n.end = newNode.begin - 1;
+                        validList.emplace(it, n);
+                    }
                 }
                 return;
-            } else if (end > nodeEnd && begin > nodeBegin && begin < nodeEnd) {
+            } else if (newNode.end > nodeEnd && newNode.begin > nodeBegin &&
+                       newNode.begin <= nodeEnd) {
                 // A,B overlap, B right A split to 3 part
-                it->begin = begin;
-                it->chunkid = chunkid;
-                it->compaction = compaction;
-                it->chunkoff = chunkoff;
-                it->zero = zero;
-                validList.emplace(it, nodeBegin, begin, nodeChunkid,
-                                  nodeCompaction, nodeChunkoff, nodeZero);
-                addToValidList(nodeEnd, end, chunkid, compaction, chunkoff,
-                               zero);
+                auto n1 = *it;
+                *it = newNode;
+                it->end = nodeEnd;
+                n1.end = newNode.begin - 1;
+                validList.emplace(it, n1);
+                auto n2 = newNode;
+                n2.begin = nodeEnd + 1;
+                addToValidList(std::move(n2));
                 return;
-            } else if (begin < nodeBegin && end < nodeEnd && end > nodeBegin) {
+            } else if (newNode.begin < nodeBegin && newNode.end < nodeEnd &&
+                       newNode.end >= nodeBegin) {
                 // A,B overlap, B left A, split to 2 part
-                it->begin = end;
-                validList.emplace(it, begin, end, chunkid, compaction, chunkoff,
-                                  zero);
+                it->begin = newNode.end + 1;
+                validList.emplace(it, newNode);
                 return;
             }
         }
-        validList.emplace_back(begin, end, chunkid, compaction, chunkoff, zero);
+        validList.emplace_back(newNode);
     };
 
     for (auto i = 0; i < s3chunkinfolist.s3chunks_size(); i++) {
         auto chunkinfo = s3chunkinfolist.s3chunks(i);
-        addToValidList(chunkinfo.offset(), chunkinfo.offset() + chunkinfo.len(),
-                       chunkinfo.chunkid(), chunkinfo.compaction(),
-                       chunkinfo.offset(), chunkinfo.zero());
+        struct Node n {
+            chunkinfo.offset(), chunkinfo.offset() + chunkinfo.len() - 1,
+                chunkinfo.chunkid(), chunkinfo.compaction(), chunkinfo.offset(),
+                chunkinfo.len(), chunkinfo.zero()
+        };
+        addToValidList(std::move(n));
     }
 
     // merge same chunkid continuous nodes
     for (auto curr = validList.begin();;) {
         auto next = std::next(curr);
         if (next == validList.end()) break;
-        if (curr->end == next->begin) {
+        if (curr->end == next->begin - 1) {
             if (curr->chunkid == next->chunkid) {
                 next->begin = curr->begin;
                 validList.erase(curr);
@@ -216,21 +225,27 @@ S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
 
 int S3CompactWorkQueueImpl::ReadFullChunk(
     const std::list<struct S3CompactWorkQueueImpl::Node>& validList,
-    uint64_t fsId, uint64_t inodeId, uint64_t blockSize, std::string* fullChunk,
-    uint64_t* newChunkid, uint64_t* newCompaction, S3Adapter* s3adapter) {
+    uint64_t fsId, uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
+    std::string* fullChunk, uint64_t* newChunkid, uint64_t* newCompaction,
+    S3Adapter* s3adapter) {
     for (auto curr = validList.begin(); curr != validList.end();) {
         auto next = std::next(curr);
         if (curr->zero) {
-            fullChunk->append(curr->end - curr->begin, '\0');
+            fullChunk->append(curr->end - curr->begin + 1, '\0');
             curr = next;
             continue;
         }
-        // block index is relatively in a s3chunkinfo
-        for (uint64_t index = (curr->begin - curr->chunkoff) / blockSize;
-             index * blockSize + curr->chunkoff < curr->end; index++) {
+
+        VLOG(9) << "s3compact: read [" << curr->begin << "-" << curr->end
+                << "]";
+        uint64_t beginRoundDown = curr->begin / chunkSize * chunkSize;
+        uint64_t startIndex = (curr->begin - beginRoundDown) / blockSize;
+        for (uint64_t index = startIndex;
+             beginRoundDown + index * blockSize <= curr->end; index++) {
             // read the block obj
             std::string objName = curvefs::common::s3util::GenObjName(
                 curr->chunkid, index, curr->compaction, fsId, inodeId);
+            VLOG(9) << "s3compact: get " << objName;
             std::string buf;
             const Aws::String aws_key(objName.c_str(), objName.size());
             int ret = s3adapter->GetObject(aws_key, &buf);
@@ -238,23 +253,30 @@ int S3CompactWorkQueueImpl::ReadFullChunk(
                 LOG(WARNING) << "Get S3 obj " << objName << " failed.";
                 return ret;
             } else {
-                uint64_t blockBegin = index * blockSize + curr->chunkoff;
-                uint64_t blockEnd = (index + 1) * blockSize + curr->chunkoff;
-                if (curr->begin >= blockBegin && curr->end <= blockEnd) {
+                uint64_t s3objBegin = std::max(
+                    curr->chunkoff, beginRoundDown + index * blockSize);
+                uint64_t s3objEnd =
+                    std::min(curr->chunkoff + curr->chunklen - 1,
+                             beginRoundDown + (index + 1) * blockSize - 1);
+                VLOG(9) << "s3compact: get success " << s3objBegin << "-"
+                        << s3objEnd;
+                if (curr->begin >= s3objBegin && curr->end <= s3objEnd) {
                     // all what we need is only part of block
-                    (*fullChunk) += buf.substr(curr->begin - blockBegin,
-                                               curr->end - curr->begin);
-                } else if (curr->begin >= blockBegin && curr->end > blockEnd) {
+                    (*fullChunk) += buf.substr(curr->begin - s3objBegin,
+                                               curr->end - curr->begin + 1);
+                } else if (curr->begin >= s3objBegin && curr->end > s3objEnd) {
                     // not last block, what we need is part of block
-                    (*fullChunk) += buf.substr(curr->begin - blockBegin,
-                                               blockEnd - curr->begin);
-                } else if (curr->begin < blockBegin && curr->end > blockEnd) {
+                    (*fullChunk) += buf.substr(curr->begin - s3objBegin,
+                                               s3objEnd - curr->begin + 1);
+                } else if (curr->begin < s3objBegin && curr->end > s3objEnd) {
                     // what we need is full block
                     (*fullChunk) += buf.substr(0, blockSize);
-                } else if (curr->begin < blockBegin && curr->end <= blockEnd) {
+                } else if (curr->begin < s3objBegin && curr->end <= s3objEnd) {
                     // last block, what we need is part of block
-                    (*fullChunk) += buf.substr(0, curr->end - blockBegin);
+                    (*fullChunk) += buf.substr(0, curr->end - s3objBegin + 1);
+                    break;
                 }
+                VLOG(9) << "s3compact: append to output success " << objName;
             }
         }
 
@@ -262,9 +284,9 @@ int S3CompactWorkQueueImpl::ReadFullChunk(
             (*newChunkid) = curr->chunkid;
             (*newCompaction) = curr->compaction;
         }
-        if (next != validList.end() && curr->end < next->begin) {
+        if (next != validList.end() && curr->end + 1 < next->begin) {
             // hole, append 0
-            fullChunk->append(next->begin - curr->end, '\0');
+            fullChunk->append(next->begin - curr->end - 1, '\0');
         }
         curr = next;
     }
@@ -295,23 +317,27 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(CopysetNode* copysetNode,
 
 int S3CompactWorkQueueImpl::WriteFullChunk(
     const std::string& fullChunk, uint64_t fsId, uint64_t inodeId,
-    uint64_t blockSize, uint64_t newChunkid, uint64_t newCompaction,
+    uint64_t blockSize, uint64_t chunkSize, uint64_t newChunkid,
+    uint64_t newCompaction, uint64_t newOff,
     std::vector<std::string>* objsAdded, S3Adapter* s3adapter) {
     uint64_t chunkLen = fullChunk.length();
-    for (uint64_t index = 0; index * blockSize < chunkLen; index += 1) {
+    uint64_t offRoundDown = newOff / chunkSize * chunkSize;
+    uint64_t startIndex = (newOff - newOff / chunkSize * chunkSize) / blockSize;
+    for (uint64_t index = startIndex;
+         index * blockSize + offRoundDown < newOff + chunkLen; index += 1) {
         std::string objName = curvefs::common::s3util::GenObjName(
             newChunkid, index, newCompaction, fsId, inodeId);
+        VLOG(9) << "s3compact: put " << objName;
         const Aws::String aws_key(objName.c_str(), objName.size());
         int ret;
-        if (chunkLen > (index + 1) * blockSize) {
-            ret = s3adapter->PutObject(
-                aws_key, fullChunk.substr(index * blockSize, blockSize));
-        } else {
-            // last block
-            ret = s3adapter->PutObject(
-                aws_key, fullChunk.substr(index * blockSize,
-                                          chunkLen - index * blockSize));
-        }
+        uint64_t s3objBegin =
+            std::max(newOff, offRoundDown + index * blockSize);
+        uint64_t s3objEnd = std::min(
+            newOff + chunkLen - 1, offRoundDown + (index + 1) * blockSize - 1);
+        VLOG(9) << "s3compact: [" << s3objBegin << "-" << s3objEnd << "]";
+        ret = s3adapter->PutObject(
+            aws_key,
+            fullChunk.substr(s3objBegin - newOff, s3objEnd - s3objBegin + 1));
         if (ret != 0) {
             LOG(WARNING) << "Put S3 object " << objName << " failed";
             return ret;
@@ -327,8 +353,21 @@ void S3CompactWorkQueueImpl::CompactChunks(
     PartitionInfo pinfo, std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper,
     std::shared_ptr<S3AdapterManager> s3adapterManager,
     std::shared_ptr<S3InfoCache> s3infoCache) {
+    auto cleanup = absl::MakeCleanup([this, inodeKey]() {
+        std::lock_guard<std::mutex> guard(mutex_);
+        auto it = std::find(compactingInodes_.begin(), compactingInodes_.end(),
+                            inodeKey);
+        if (it != compactingInodes_.end()) {
+            compactingInodes_.erase(it);
+        }
+    });
+
+    VLOG(6) << "s3compact: try to compact";
     // am i copysetnode leader?
-    if (!copysetNodeWrapper->IsLeaderTerm()) return;
+    if (!copysetNodeWrapper->IsLeaderTerm()) {
+        VLOG(6) << "s3compact: i am not the leader, finish";
+        return;
+    }
 
     // inode exist?
     Inode inode;
@@ -342,11 +381,13 @@ void S3CompactWorkQueueImpl::CompactChunks(
 
     // deleted?
     if (inode.nlink() == 0) {
+        VLOG(6) << "s3compact: inode already deleted";
         return;
     }
 
     // s3chunkinfomap size 0?
     if (inode.s3chunkinfomap().size() == 0) {
+        VLOG(6) << "s3compact: empty s3chunkinfomap";
         return;
     }
     uint64_t fsId = inode.fsid();
@@ -357,18 +398,19 @@ void S3CompactWorkQueueImpl::CompactChunks(
     const auto origMap(inode.s3chunkinfomap());
     std::vector<uint64_t> needCompact(GetNeedCompact(origMap));
     if (needCompact.empty()) {
+        VLOG(6) << "s3compact: no need to compact " << inode.inodeid();
         return;
     }
 
     // let's compact
     // 0. get s3adapter&s3info, set s3adapter
-    // include ak, sk, addr, bucket, blocksize
-    uint64_t blockSize;
+    // include ak, sk, addr, bucket, blocksize, chunksize
+    uint64_t blockSize, chunkSize;
     auto pairResult = s3adapterManager->GetS3Adapter();
     uint64_t s3adapterIndex = pairResult.first;
     S3Adapter* s3adapter = pairResult.second;
     if (s3adapter == nullptr) {
-        VLOG(6) << "s3compact: fail to get s3adapter";
+        VLOG(3) << "s3compact: fail to get s3adapter";
         return;
     }
 
@@ -376,6 +418,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
     int status = s3infoCache->GetS3Info(fsId, &s3info);
     if (status == 0) {
         blockSize = s3info.blocksize();
+        chunkSize = s3info.chunksize();
         if (s3adapter->GetS3Ak() != s3info.ak() ||
             s3adapter->GetS3Sk() != s3info.sk() ||
             s3adapter->GetS3Endpoint() != s3info.endpoint()) {
@@ -395,10 +438,13 @@ void S3CompactWorkQueueImpl::CompactChunks(
         VLOG(6) << "s3compact: fail to get s3info " << fsId;
         return;
     }
+    VLOG(6) << "s3compact: set s3adapter " << s3info.ak() << ", " << s3info.sk()
+            << ", " << s3info.endpoint() << ", " << s3info.bucketname();
     // 1. write new objs, each chunk one by one
     std::vector<std::string> objsAdded;
     std::vector<uint64_t> indexToDelete;
     for (const auto& index : needCompact) {
+        VLOG(6) << "s3compact: currindex " << index;
         // 1.1 build valid list
         auto s3chunkVec =
             inode.mutable_s3chunkinfomap()->at(index).mutable_s3chunks();
@@ -412,12 +458,14 @@ void S3CompactWorkQueueImpl::CompactChunks(
 
         std::list<struct S3CompactWorkQueueImpl::Node> validList(
             BuildValidList(s3chunkinfolist, inodeLen));
+        VLOG(6) << "s3compact: finish build valid list";
         // 1.2 gen obj names and read s3
         std::string fullChunk;
         uint64_t newChunkid = 0;
         uint64_t newCompaction = 0;
-        int ret = ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                                &newChunkid, &newCompaction, s3adapter);
+        int ret =
+            ReadFullChunk(validList, fsId, inodeId, blockSize, chunkSize,
+                          &fullChunk, &newChunkid, &newCompaction, s3adapter);
         if (ret != 0) {
             LOG(WARNING) << "S3Compact ReadFullChunk failed, index " << index;
             s3infoCache_->InvalidateS3Info(fsId);
@@ -425,9 +473,13 @@ void S3CompactWorkQueueImpl::CompactChunks(
             s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
             return;
         }
+        VLOG(6) << "s3compact: finish read full chunk, size: "
+                << fullChunk.size();
         // 1.3 then write objs with newChunkid and newCompaction
-        ret = WriteFullChunk(fullChunk, fsId, inodeId, blockSize, newChunkid,
-                             newCompaction, &objsAdded, s3adapter);
+        uint64_t newOff = validList.front().chunkoff;
+        ret = WriteFullChunk(fullChunk, fsId, inodeId, blockSize, chunkSize,
+                             newChunkid, newCompaction, newOff, &objsAdded,
+                             s3adapter);
         if (ret != 0) {
             LOG(WARNING) << "S3Compact WriteFullChunk failed, index " << index;
             s3infoCache_->InvalidateS3Info(fsId);
@@ -435,6 +487,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
             s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
             return;
         }
+        VLOG(6) << "s3compact: finish write full chunk";
         // 1.4 update inode locally
         // record delete
         indexToDelete.emplace_back(index);
@@ -452,6 +505,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
     }
 
     // 2. update inode
+    VLOG(6) << "s3compact: start update inode";
     if (!copysetNodeWrapper->IsValid()) return;
     ret = UpdateInode(copysetNodeWrapper->Get(), pinfo, inode);
     if (ret != MetaStatusCode::OK) {
@@ -462,25 +516,35 @@ void S3CompactWorkQueueImpl::CompactChunks(
         s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
         return;
     }
+    VLOG(6) << "s3compact: finish update inode";
 
     // 3. delete old objs
+    VLOG(6) << "s3compact: start delete old objs";
     for (const auto& index : indexToDelete) {
         const auto& s3chunkinfolist = origMap.at(index);
         for (auto i = 0; i < s3chunkinfolist.s3chunks_size(); i++) {
             const auto& chunkinfo = s3chunkinfolist.s3chunks(i);
             uint64_t off = chunkinfo.offset();
             uint64_t len = chunkinfo.len();
-            while (off < len) {
+            uint64_t offRoundDown = off / chunkSize * chunkSize;
+            uint64_t startIndex = (off - offRoundDown) / blockSize;
+            for (uint64_t index = startIndex;
+                 offRoundDown + index * blockSize < off + len; index++) {
                 std::string objName = curvefs::common::s3util::GenObjName(
-                    chunkinfo.chunkid(), (off - chunkinfo.offset()) / blockSize,
-                    chunkinfo.compaction(), fsId, inodeId);
+                    chunkinfo.chunkid(), index, chunkinfo.compaction(), fsId,
+                    inodeId);
+                VLOG(6) << "s3compact: delete " << objName;
                 const Aws::String aws_key(objName.c_str(), objName.size());
-                s3adapter->DeleteObject(aws_key);  // don't care success or not
-                off += blockSize;
+                int r = s3adapter->DeleteObject(
+                    aws_key);  // don't care success or not
+                if (r != 0)
+                    VLOG(6) << "s3compact: delete obj " << objName << "failed.";
             }
         }
     }
+    VLOG(6) << "s3compact: finish delete objs";
     s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
+    VLOG(6) << "s3compact: compact successfully";
 }
 
 }  // namespace metaserver
