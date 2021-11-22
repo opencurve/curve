@@ -32,6 +32,7 @@
 
 #include "curvefs/src/metaserver/s3infocache.h"
 
+using ::testing::Invoke;
 using ::testing::Return;
 
 namespace curvefs {
@@ -43,6 +44,9 @@ class MockS3InfoCache : public S3InfoCache {
                     butil::EndPoint metaserverAddr)
         : S3InfoCache(capacity, mdsAddrs, metaserverAddr) {}
     ~MockS3InfoCache() {}
+    MOCK_METHOD2(RequestS3Info,
+                 S3InfoCache::S3InfoCache::RequestStatusCode(uint64_t,
+                                                             S3Info*));
     MOCK_METHOD2(GetS3Info, int(uint64_t, S3Info*));
     MOCK_METHOD1(InvalidateS3Info, void(uint64_t));
 };

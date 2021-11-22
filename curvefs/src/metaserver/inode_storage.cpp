@@ -85,6 +85,11 @@ InodeStorage::ContainerType* MemoryInodeStorage::GetContainer() {
     return &inodeMap_;
 }
 
+InodeStorage::ContainerType MemoryInodeStorage::GetContainerData() {
+    ReadLockGuard readLockGuard(rwLock_);
+    return inodeMap_;
+}
+
 void MemoryInodeStorage::MergeTwoS3ChunkInfoMap(
     const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& mapA,
     const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& mapB,

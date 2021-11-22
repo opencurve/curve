@@ -124,10 +124,12 @@ int S3InfoCache::GetS3Info(uint64_t fsid, S3Info* s3info) {
 
 void S3InfoCache::InvalidateS3Info(uint64_t fsid) {
     std::lock_guard<std::mutex> lock(mtx_);
-    auto iter = pos_[fsid];
-    recent_.erase(iter);
-    pos_.erase(fsid);
-    cache_.erase(fsid);
+    if (pos_.find(fsid) != pos_.end()) {
+        auto iter = pos_[fsid];
+        recent_.erase(iter);
+        pos_.erase(fsid);
+        cache_.erase(fsid);
+    }
 }
 
 }  // namespace metaserver

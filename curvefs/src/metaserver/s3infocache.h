@@ -43,7 +43,6 @@ using curvefs::common::S3Info;
 
 class S3InfoCache {
  private:
-    enum class RequestStatusCode { SUCCESS, NOS3INFO, RPCFAILURE };
     std::mutex mtx_;
     uint64_t capacity_;
     std::vector<std::string> mdsAddrs_;
@@ -57,9 +56,9 @@ class S3InfoCache {
     void UpdateRecent(uint64_t fsid);
     S3Info Get(uint64_t fsid);
     void Put(uint64_t fsid, const S3Info& s3info);
-    RequestStatusCode RequestS3Info(uint64_t fsid, S3Info* s3info);
 
  public:
+    enum class RequestStatusCode { SUCCESS, NOS3INFO, RPCFAILURE };
     explicit S3InfoCache(uint64_t capacity,
                          const std::vector<std::string>& mdsAddrs,
                          butil::EndPoint metaserverAddr)
@@ -68,6 +67,7 @@ class S3InfoCache {
           mdsIndex_(0),
           metaserverAddr_(metaserverAddr) {}
     virtual ~S3InfoCache() {}
+    virtual RequestStatusCode RequestS3Info(uint64_t fsid, S3Info* s3info);
     virtual int GetS3Info(uint64_t fsid, S3Info* s3info);
     virtual void InvalidateS3Info(uint64_t fsid);
 };

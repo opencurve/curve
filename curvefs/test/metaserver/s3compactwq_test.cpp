@@ -54,7 +54,7 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         s3adapterManager_ =
             std::make_shared<MockS3AdapterManager>(s3adapterSize, opts);
         s3adapter_ = std::make_shared<MockS3Adapter>();
-        uint64_t cacheCapacity = 10;
+        uint64_t cacheCapacity = 1;
         std::vector<std::string> mdsAddrs{"10.0.0.2:1000", "10.0.0.3:10001"};
         butil::EndPoint metaserverAddr;
         s3infoCache_ = std::make_shared<MockS3InfoCache>(
@@ -73,6 +73,7 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
 
  protected:
     S3CompactWorkQueueOption opts_;
+    std::shared_ptr<S3AdapterManager> testS3adapterManager_;
     std::shared_ptr<MockS3AdapterManager> s3adapterManager_;
     std::shared_ptr<MockS3Adapter> s3adapter_;
     std::shared_ptr<MockS3InfoCache> s3infoCache_;
@@ -81,6 +82,89 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
     std::shared_ptr<MockS3CompactWorkQueueImpl> mockImpl_;
     std::shared_ptr<MockCopysetNodeWrapper> mockCopysetNodeWrapper_;
 };
+
+TEST_F(S3CompactWorkQueueImplTest, test_CopysetNodeWrapper) {
+    braft::Configuration c;
+    CopysetNode n(0, 0, c, nullptr);
+    CopysetNodeWrapper cw1(&n);
+    ASSERT_EQ(cw1.IsLeaderTerm(), false);
+    ASSERT_EQ(cw1.IsValid(), true);
+    CopysetNodeWrapper cw2(nullptr);
+    ASSERT_EQ(cw2.IsLeaderTerm(), false);
+    ASSERT_EQ(cw2.IsValid(), false);
+}
+
+TEST_F(S3CompactWorkQueueImplTest, test_S3InfoCache) {
+    auto mock_requests3info = [](uint64_t fsid, S3Info* info) {
+        if (fsid == 0) return S3InfoCache::RequestStatusCode::NOS3INFO;
+        if (fsid == 1) return S3InfoCache::RequestStatusCode::RPCFAILURE;
+        return S3InfoCache::RequestStatusCode::SUCCESS;
+    };
+    EXPECT_CALL(*s3infoCache_, GetS3Info(_, _))
+        .WillRepeatedly(testing::Invoke([&](uint64_t fsid, S3Info* info) {
+            return s3infoCache_->S3InfoCache::GetS3Info(fsid, info);
+        }));
+    EXPECT_CALL(*s3infoCache_, InvalidateS3Info(_))
+        .WillRepeatedly(testing::Invoke([&](uint64_t fsid) {
+            return s3infoCache_->S3InfoCache::InvalidateS3Info(fsid);
+        }));
+    EXPECT_CALL(*s3infoCache_, RequestS3Info(_, _))
+        .WillRepeatedly(testing::Invoke(mock_requests3info));
+    S3Info info;
+    auto ret = s3infoCache_->GetS3Info(0, &info);
+    // ASSERT_EQ(ret, -1);
+    ret = s3infoCache_->GetS3Info(1, &info);
+    ASSERT_EQ(ret, -1);
+    ret = s3infoCache_->GetS3Info(2, &info);
+    ASSERT_EQ(ret, 0);
+    // cached
+    ret = s3infoCache_->GetS3Info(2, &info);
+    ASSERT_EQ(ret, 0);
+    // over capacity
+    ret = s3infoCache_->GetS3Info(3, &info);
+    ASSERT_EQ(ret, 0);
+    s3infoCache_->InvalidateS3Info(0);
+    s3infoCache_->InvalidateS3Info(3);
+}
+
+TEST_F(S3CompactWorkQueueImplTest, test_S3AdapterManager) {
+    S3AdapterOption opt;
+    opt.loglevel = 0;
+    opt.s3Address = "";
+    opt.ak = "";
+    opt.sk = "";
+    opt.bucketName = "";
+    opt.scheme = 0;
+    opt.verifySsl = false;
+    opt.maxConnections = 32;
+    opt.connectTimeout = 60000;
+    opt.requestTimeout = 10000;
+    opt.asyncThreadNum = 1;
+    opt.iopsTotalLimit = 0;
+    opt.iopsReadLimit = 0;
+    opt.iopsWriteLimit = 0;
+    opt.bpsTotalMB = 0;
+    opt.bpsReadMB = 0;
+    opt.bpsWriteMB = 0;
+    testS3adapterManager_ = std::make_shared<S3AdapterManager>(1, opt);
+
+    // init/deinit and multi times
+    testS3adapterManager_->Init();
+    testS3adapterManager_->Init();
+    testS3adapterManager_->Deinit();
+    testS3adapterManager_->Deinit();
+
+    // test get&release
+    testS3adapterManager_->Init();
+    std::pair<uint64_t, S3Adapter*> p = testS3adapterManager_->GetS3Adapter();
+    ASSERT_EQ(p.first, 0);
+    ASSERT_NE(p.second, nullptr);
+    p = testS3adapterManager_->GetS3Adapter();
+    ASSERT_EQ(p.first, 1);
+    ASSERT_EQ(p.second, nullptr);
+    testS3adapterManager_->ReleaseS3Adapter(0);
+    testS3adapterManager_->Deinit();
+}
 
 TEST_F(S3CompactWorkQueueImplTest, test_GetNeedCWrapperompact) {
     // no need compact
@@ -133,30 +217,32 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     S3ChunkInfoList l;
 
     // empty add one
+    std::cerr << "empty add one" << std::endl;
     auto c1(tmpl);
     c1.set_chunkid(0);
     c1.set_offset(0);
     c1.set_len(1);
     *l.add_s3chunks() = c1;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 1);
     auto first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 1);
+    ASSERT_EQ(first->end, 0);
     l.Clear();
     c1.set_chunkid(0);
     c1.set_offset(0);
     c1.set_len(200);  // bigger than inodeLen
     *l.add_s3chunks() = c1;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 1);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 100);
+    ASSERT_EQ(first->end, 99);
 
     // B contains A
+    std::cerr << "B conatins A" << std::endl;
     l.Clear();
     auto c2(tmpl);
     c2.set_chunkid(0);
@@ -168,14 +254,31 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c3.set_offset(0);
     c3.set_len(2);
     *l.add_s3chunks() = c3;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 1);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 2);
+    ASSERT_EQ(first->end, 1);
+
+    l.Clear();
+    c2.set_chunkid(0);
+    c2.set_offset(1);
+    c2.set_len(1);
+    *l.add_s3chunks() = c2;
+    c3.set_chunkid(1);
+    c3.set_offset(0);
+    c3.set_len(2);
+    *l.add_s3chunks() = c3;
+    validList = impl_->BuildValidList(l, inodeLen);
+    ASSERT_EQ(validList.size(), 1);
+    first = validList.begin();
+    ASSERT_EQ(first->chunkid, 1);
+    ASSERT_EQ(first->begin, 0);
+    ASSERT_EQ(first->end, 1);
 
     // A contains B
+    std::cerr << "A conatins B" << std::endl;
     l.Clear();
     auto c4(tmpl);
     c4.set_chunkid(0);
@@ -187,22 +290,23 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c5.set_offset(1);
     c5.set_len(1);
     *l.add_s3chunks() = c5;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 3);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 1);
+    ASSERT_EQ(first->end, 0);
     auto next = std::next(first);
     ASSERT_EQ(next->chunkid, 1);
     ASSERT_EQ(next->begin, 1);
-    ASSERT_EQ(next->end, 2);
+    ASSERT_EQ(next->end, 1);
     next = std::next(next);
     ASSERT_EQ(next->chunkid, 0);
     ASSERT_EQ(next->begin, 2);
-    ASSERT_EQ(next->end, 3);
+    ASSERT_EQ(next->end, 2);
 
     // no overlap, B behind A
+    std::cerr << "B behind A" << std::endl;
     l.Clear();
     auto c6(tmpl);
     c6.set_chunkid(0);
@@ -214,18 +318,19 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c7.set_offset(1);
     c7.set_len(1);
     *l.add_s3chunks() = c7;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 1);
+    ASSERT_EQ(first->end, 0);
     next = std::next(first);
     ASSERT_EQ(next->chunkid, 1);
     ASSERT_EQ(next->begin, 1);
-    ASSERT_EQ(next->end, 2);
+    ASSERT_EQ(next->end, 1);
 
     // no overlap, B front A
+    std::cerr << "B front A" << std::endl;
     l.Clear();
     auto c8(tmpl);
     c8.set_chunkid(0);
@@ -237,18 +342,19 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c9.set_offset(0);
     c9.set_len(1);
     *l.add_s3chunks() = c9;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 1);
+    ASSERT_EQ(first->end, 0);
     next = std::next(first);
     ASSERT_EQ(next->chunkid, 0);
     ASSERT_EQ(next->begin, 1);
-    ASSERT_EQ(next->end, 2);
+    ASSERT_EQ(next->end, 1);
 
     // overlap A, B
+    std::cerr << "overlap AB" << std::endl;
     l.Clear();
     auto c10(tmpl);
     c10.set_chunkid(0);
@@ -260,18 +366,19 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c11.set_offset(1);
     c11.set_len(2);
     *l.add_s3chunks() = c11;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 1);
+    ASSERT_EQ(first->end, 0);
     next = std::next(first);
     ASSERT_EQ(next->chunkid, 1);
     ASSERT_EQ(next->begin, 1);
-    ASSERT_EQ(next->end, 3);
+    ASSERT_EQ(next->end, 2);
 
     // overlap B, A
+    std::cerr << "overlap BA" << std::endl;
     l.Clear();
     auto c12(tmpl);
     c12.set_chunkid(0);
@@ -283,16 +390,16 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c13.set_offset(0);
     c13.set_len(2);
     *l.add_s3chunks() = c13;
-    validList = std::move(impl_->BuildValidList(l, inodeLen));
+    validList = impl_->BuildValidList(l, inodeLen);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
     ASSERT_EQ(first->begin, 0);
-    ASSERT_EQ(first->end, 2);
+    ASSERT_EQ(first->end, 1);
     next = std::next(first);
     ASSERT_EQ(next->chunkid, 0);
     ASSERT_EQ(next->begin, 2);
-    ASSERT_EQ(next->end, 3);
+    ASSERT_EQ(next->end, 2);
 }
 
 TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
@@ -301,6 +408,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     uint64_t fsId = 1;
     uint64_t inodeId = 1;
     uint64_t blockSize = 4;
+    uint64_t chunkSize = 64;
     std::string fullChunk;
     uint64_t newChunkid = 0;
     uint64_t newCompaction = 0;
@@ -321,19 +429,21 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
     EXPECT_CALL(*s3adapter_, GetObject(_, _))
         .WillRepeatedly(testing::Invoke(mock_getobj));
 
-    validList.emplace_back(0, 1, 0, 0, 0, true);
-    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                               &newChunkid, &newCompaction, s3adapter_.get());
+    validList.emplace_back(0, 1, 0, 0, 0, 0, true);
+    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, chunkSize,
+                               &fullChunk, &newChunkid, &newCompaction,
+                               s3adapter_.get());
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(newChunkid, 0);
     ASSERT_EQ(newCompaction, 1);
 
     reset();
-    validList.emplace_back(0, 1, 1, 1, 0, false);
-    validList.emplace_back(1, 11, 0, 0, 0, false);
-    validList.emplace_back(13, 14, 2, 0, 0, false);
-    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                               &newChunkid, &newCompaction, s3adapter_.get());
+    validList.emplace_back(0, 0, 1, 1, 0, 1, false);
+    validList.emplace_back(1, 10, 0, 0, 1, 11, false);
+    validList.emplace_back(13, 13, 2, 0, 13, 14, false);
+    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, chunkSize,
+                               &fullChunk, &newChunkid, &newCompaction,
+                               s3adapter_.get());
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(newChunkid, 2);
     ASSERT_EQ(newCompaction, 1);
@@ -341,9 +451,10 @@ TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
 
     reset();
     EXPECT_CALL(*s3adapter_, GetObject(_, _)).WillRepeatedly(Return(-1));
-    validList.emplace_back(0, 1, 1, 1, 0, false);
-    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, &fullChunk,
-                               &newChunkid, &newCompaction, s3adapter_.get());
+    validList.emplace_back(0, 1, 1, 1, 0, 0, false);
+    ret = impl_->ReadFullChunk(validList, fsId, inodeId, blockSize, chunkSize,
+                               &fullChunk, &newChunkid, &newCompaction,
+                               s3adapter_.get());
     ASSERT_EQ(ret, -1);
 }
 
@@ -351,21 +462,22 @@ TEST_F(S3CompactWorkQueueImplTest, test_WriteFullChunk) {
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(0));
     std::string fullChunk(10, '0');
     std::vector<std::string> objsAdded;
-    int ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded,
-                                    s3adapter_.get());
+    int ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 16, 2, 3, 0,
+                                    &objsAdded, s3adapter_.get());
     ASSERT_EQ(ret, 0);
     ASSERT_EQ(objsAdded[0], "1_100_2_0_3");
     ASSERT_EQ(objsAdded[1], "1_100_2_1_3");
     ASSERT_EQ(objsAdded[2], "1_100_2_2_3");
 
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(-1));
-    ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 2, 3, &objsAdded,
+    ret = impl_->WriteFullChunk(fullChunk, 1, 100, 4, 16, 2, 3, 0, &objsAdded,
                                 s3adapter_.get());
     ASSERT_EQ(ret, -1);
 }
 
-TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
+TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     uint64_t blockSize = 4;
+    uint64_t chunkSize = 64;
     Inode tmp;
     auto mock_updateinode = [&](CopysetNode* copysetNode,
                                 const PartitionInfo& pinfo,
@@ -404,6 +516,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
         s3info->set_endpoint("3");
         s3info->set_bucketname("4");
         s3info->set_blocksize(blockSize);
+        s3info->set_chunksize(chunkSize);
         return 0;
     };
 
@@ -424,6 +537,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
                              mockCopysetNodeWrapper_, s3adapterManager_,
                              s3infoCache_);
     // s3chunkinfomap size 0
+    std::cerr << "s3chunkinfomap size 0" << std::endl;
     Inode inode1;
     inode1.set_fsid(1);
     inode1.set_inodeid(1);
@@ -436,6 +550,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_compactChunks) {
                              mockCopysetNodeWrapper_, s3adapterManager_,
                              s3infoCache_);
     // normal
+    std::cerr << "normal" << std::endl;
     S3ChunkInfoList l0;
     S3ChunkInfoList l1;
     for (int i = 0; i < 16; i++) {

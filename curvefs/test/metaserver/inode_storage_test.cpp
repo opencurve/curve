@@ -99,9 +99,14 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_TRUE(CompareInode(newInode, inode2));
 
     // GetInodeContainer
-    auto map = storage.GetContainer();
-    ASSERT_TRUE(CompareInode((*map)[InodeKey(inode2)], inode2));
-    ASSERT_TRUE(CompareInode((*map)[InodeKey(inode3)], inode3));
+    auto mapPtr = storage.GetContainer();
+    ASSERT_TRUE(CompareInode((*mapPtr)[InodeKey(inode2)], inode2));
+    ASSERT_TRUE(CompareInode((*mapPtr)[InodeKey(inode3)], inode3));
+
+    // GetInodeContainerData
+    auto mapData = storage.GetContainerData();
+    ASSERT_TRUE(CompareInode(mapData[InodeKey(inode2)], inode2));
+    ASSERT_TRUE(CompareInode(mapData[InodeKey(inode3)], inode3));
 }
 }  // namespace metaserver
 }  // namespace curvefs
