@@ -142,6 +142,14 @@ class DataCache {
         inReadCache_.store(inCache, std::memory_order_release);
     }
 
+    void Lock() {
+        mtx_.lock();
+    }
+
+    void UnLock() {
+        mtx_.unlock();
+    }
+
  private:
     void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
                               uint64_t chunkId, uint64_t offset, uint64_t len);
