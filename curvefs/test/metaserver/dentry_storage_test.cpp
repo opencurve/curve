@@ -93,7 +93,7 @@ TEST_F(DentryStorageTest, Insert) {
 
     // CASE 3: insert dentry failed with higher txid
     dentry.set_txid(1);
-    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::IDEMPOTENCE_OK);
     ASSERT_EQ(storage.Size(), 1);
 
     // CASE 4: direct insert success by handle tx
@@ -102,7 +102,7 @@ TEST_F(DentryStorageTest, Insert) {
     ASSERT_EQ(storage.Size(), 2);
 
     // CASE 5: insert idempotence
-    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(dentry), MetaStatusCode::IDEMPOTENCE_OK);
     ASSERT_EQ(storage.Size(), 1);
 }
 

@@ -590,13 +590,17 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     out.set_fsid(fsid);
     out.set_length(10);
     out.set_ctime(1623835517);
+    out.set_ctime_ns(0);
     out.set_mtime(1623835517);
+    out.set_mtime_ns(0);
     out.set_atime(1623835517);
+    out.set_atime_ns(0);
     out.set_uid(1);
     out.set_gid(1);
     out.set_mode(1);
     out.set_nlink(1);
     out.set_type(curvefs::metaserver::FsFileType::TYPE_FILE);
+    out.set_rdev(0);
     out.set_symlink("test9");
 
     curvefs::metaserver::GetInodeResponse response;
@@ -668,13 +672,17 @@ TEST_F(MetaServerClientImplTest, test_UpdateInode) {
     inode.set_fsid(2);
     inode.set_length(10);
     inode.set_ctime(1623835517);
+    inode.set_ctime_ns(0);
     inode.set_mtime(1623835517);
+    inode.set_mtime_ns(0);
     inode.set_atime(1623835517);
+    inode.set_atime_ns(0);
     inode.set_uid(1);
     inode.set_gid(1);
     inode.set_mode(1);
     inode.set_nlink(1);
     inode.set_type(curvefs::metaserver::FsFileType::TYPE_FILE);
+    inode.set_rdev(0);
     inode.set_symlink("test9");
 
     // out
@@ -750,6 +758,7 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     inode.gid = 1;
     inode.mode = 1;
     inode.type = curvefs::metaserver::FsFileType::TYPE_FILE;
+    inode.rdev = 0;
     inode.symlink = "test9";
 
     // out
@@ -765,13 +774,17 @@ TEST_F(MetaServerClientImplTest, test_CreateInode) {
     out.set_fsid(inode.fsId);
     out.set_length(inode.length);
     out.set_ctime(1623835517);
+    out.set_ctime_ns(0);
     out.set_mtime(1623835517);
+    out.set_mtime_ns(0);
     out.set_atime(1623835517);
+    out.set_atime_ns(0);
     out.set_uid(inode.uid);
     out.set_gid(inode.gid);
     out.set_mode(inode.mode);
     out.set_nlink(1);
     out.set_type(inode.type);
+    out.set_rdev(0);
     out.set_symlink(inode.symlink);
 
     curvefs::metaserver::CreateInodeResponse response;

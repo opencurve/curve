@@ -102,8 +102,11 @@ class StorageTest : public ::testing::Test {
         inode.set_inodeid(100);
         inode.set_length(4096);
         inode.set_ctime(0);
+        inode.set_ctime_ns(0);
         inode.set_mtime(0);
+        inode.set_mtime_ns(0);
         inode.set_atime(0);
+        inode.set_atime_ns(0);
         inode.set_uid(0);
         inode.set_gid(0);
         inode.set_mode(0);

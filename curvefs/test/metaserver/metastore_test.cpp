@@ -44,16 +44,27 @@ class MetastoreTest : public ::testing::Test {
     void TearDown() override {}
 
     bool CompareInode(const Inode &first, const Inode &second) {
+        uint64_t firstMtime = first.mtime() * 1000000000u
+            + first.mtime_ns();
+        uint64_t secondMtime = second.mtime() * 1000000000u
+            + second.mtime_ns();
+
+        uint64_t firstCtime = first.ctime() * 1000000000u
+            + first.ctime_ns();
+        uint64_t secondCtime = second.ctime() * 1000000000u
+            + second.ctime_ns();
+
         return first.fsid() == second.fsid() &&
                first.atime() == second.atime() &&
+               first.atime_ns() == second.atime_ns() &&
                first.inodeid() == second.inodeid() &&
                first.length() == second.length() &&
                first.uid() == second.uid() && first.gid() == second.gid() &&
                first.mode() == second.mode() && first.type() == second.type() &&
-               first.mtime() == second.mtime() &&
-               first.ctime() == second.ctime() &&
+               firstMtime >= secondMtime &&
+               firstCtime >= secondCtime &&
                first.symlink() == second.symlink() &&
-               first.nlink() == second.nlink();
+               first.nlink() >= second.nlink();
     }
 
     void PrintDentry(const Dentry &dentry) {
@@ -474,16 +485,40 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(ret, MetaStatusCode::OK);
     ASSERT_EQ(createPartitionResponse.statuscode(), ret);
 
-    // test CreateDentry
-    CreateDentryRequest createRequest;
-    CreateDentryResponse createResponse;
+    // create parent inode
+    CreateInodeRequest createInodeRequest;
+    CreateInodeResponse createInodeResponse;
 
     uint32_t poolId = 2;
     uint32_t copysetId = 3;
     uint32_t partitionId = 1;
     uint32_t fsId = 1;
-    uint64_t inodeId = 2;
-    uint64_t parentId = 100;
+    uint64_t length = 2;
+    uint32_t uid = 100;
+    uint32_t gid = 200;
+    uint32_t mode = 777;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+
+    createInodeRequest.set_poolid(poolId);
+    createInodeRequest.set_copysetid(copysetId);
+    createInodeRequest.set_partitionid(partitionId);
+    createInodeRequest.set_fsid(fsId);
+    createInodeRequest.set_length(length);
+    createInodeRequest.set_uid(uid);
+    createInodeRequest.set_gid(gid);
+    createInodeRequest.set_mode(mode);
+    createInodeRequest.set_type(type);
+
+    ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse);
+    ASSERT_EQ(createInodeResponse.statuscode(), ret);
+    ASSERT_EQ(createInodeResponse.statuscode(), MetaStatusCode::OK);
+
+    // test CreateDentry
+    CreateDentryRequest createRequest;
+    CreateDentryResponse createResponse;
+
+    uint64_t inodeId = 200;
+    uint64_t parentId = createInodeResponse.inode().inodeid();
 
     std::string name = "dentry1";
 
@@ -747,6 +782,12 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_EQ(createDentryResponse2.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(createDentryResponse2.statuscode(), ret);
 
+    Inode tempInode;
+    metastore.GetPartition(partitionId)
+        ->GetInode(fsId, createInodeResponse1.inode().inodeid(), &tempInode);
+    LOG(INFO) << "tempInode = " << tempInode.DebugString();
+    ASSERT_EQ(tempInode.nlink(), createInodeResponse1.inode().nlink() + 2);
+
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
@@ -770,10 +811,10 @@ TEST_F(MetastoreTest, persist_success) {
         metastoreNew.GetPartition(partitionId2)->GetPartitionInfo(),
         metastore.GetPartition(partitionId2)->GetPartitionInfo()));
 
-    Inode tempInode;
     metastoreNew.GetPartition(partitionId)
         ->GetInode(fsId, createInodeResponse1.inode().inodeid(), &tempInode);
     ASSERT_TRUE(CompareInode(tempInode, createInodeResponse1.inode()));
+    ASSERT_EQ(tempInode.nlink(), createInodeResponse1.inode().nlink() + 2);
 
     // clear meta
     LOG(INFO) << "MetastoreTest test Clear";
@@ -825,14 +866,42 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     ASSERT_EQ(ret, MetaStatusCode::OK);
     ASSERT_EQ(createPartitionResponse.statuscode(), ret);
 
+    // create parent inode
+    CreateInodeRequest createInodeRequest;
+    CreateInodeResponse createInodeResponse;
+
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t fsId = 1;
+    uint64_t length = 2;
+    uint32_t uid = 100;
+    uint32_t gid = 200;
+    uint32_t mode = 777;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+
+    createInodeRequest.set_poolid(poolId);
+    createInodeRequest.set_copysetid(copysetId);
+    createInodeRequest.set_partitionid(partitionId);
+    createInodeRequest.set_fsid(fsId);
+    createInodeRequest.set_length(length);
+    createInodeRequest.set_uid(uid);
+    createInodeRequest.set_gid(gid);
+    createInodeRequest.set_mode(mode);
+    createInodeRequest.set_type(type);
+
+    ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse);
+    ASSERT_EQ(createInodeResponse.statuscode(), ret);
+    ASSERT_EQ(createInodeResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t parentId = createInodeResponse.inode().inodeid();
+
     // add dentry to partiton1
     CreateDentryRequest createDentryRequest;
     CreateDentryResponse createDentryResponse1;
     CreateDentryResponse createDentryResponse2;
     Dentry dentry1;
-    dentry1.set_fsid(1);
+    dentry1.set_fsid(fsId);
     dentry1.set_inodeid(2000);
-    dentry1.set_parentinodeid(100);
+    dentry1.set_parentinodeid(parentId);
     dentry1.set_name("dentry1");
 
     createDentryRequest.set_poolid(2);

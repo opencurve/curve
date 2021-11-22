@@ -205,9 +205,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         inode.set_length(off + *wSize);
     }
 
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    inode.set_ctime(nowTime);
-    inode.set_atime(nowTime);
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode.set_mtime(now.tv_sec);
+    inode.set_mtime_ns(now.tv_nsec);
+    inode.set_ctime(now.tv_sec);
+    inode.set_ctime_ns(now.tv_nsec);
 
     inodeWrapper->SwapInode(&inode);
     inodeManager_->ShipToFlush(inodeWrapper);
@@ -270,9 +273,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
     *rSize = len;
 
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    inode.set_ctime(nowTime);
-    inode.set_atime(nowTime);
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode.set_ctime(now.tv_sec);
+    inode.set_ctime_ns(now.tv_nsec);
+    inode.set_atime(now.tv_sec);
+    inode.set_atime_ns(now.tv_nsec);
 
     inodeWrapper->SwapInode(&inode);
     inodeManager_->ShipToFlush(inodeWrapper);
@@ -286,7 +292,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
                                              struct fuse_file_info *fi,
                                              fuse_entry_param *e) {
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -296,7 +302,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                             const char *name, mode_t mode,
                                             dev_t rdev, fuse_entry_param *e) {
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, e);
+    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,

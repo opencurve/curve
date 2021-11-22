@@ -42,6 +42,9 @@ using ::curvefs::metaserver::S3ChunkInfoList;
 namespace curvefs {
 namespace client {
 
+// TODO(xuchaojie) : get from conf maybe?
+const uint32_t kOptimalIOBlockSize = 0x10000u;
+
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 
@@ -84,21 +87,6 @@ class InodeWrapper {
 
     void SetLength(uint64_t len) {
         inode_.set_length(len);
-        dirty_ = true;
-    }
-
-    void SetCTime(uint32_t ctime) {
-        inode_.set_ctime(ctime);
-        dirty_ = true;
-    }
-
-    void SetMTime(uint32_t mtime) {
-        inode_.set_mtime(mtime);
-        dirty_ = true;
-    }
-
-    void SetATime(uint32_t atime) {
-        inode_.set_atime(atime);
         dirty_ = true;
     }
 
@@ -145,9 +133,15 @@ class InodeWrapper {
         attr->st_uid = inode_.uid();
         attr->st_gid = inode_.gid();
         attr->st_size = inode_.length();
-        attr->st_atime = inode_.atime();
-        attr->st_mtime = inode_.mtime();
-        attr->st_ctime = inode_.ctime();
+        attr->st_blocks = (inode_.length() + 511) / 512;
+        attr->st_rdev = inode_.rdev();
+        attr->st_atim.tv_sec = inode_.atime();
+        attr->st_atim.tv_nsec = inode_.atime_ns();
+        attr->st_mtim.tv_sec = inode_.mtime();
+        attr->st_mtim.tv_nsec = inode_.mtime_ns();
+        attr->st_ctim.tv_sec = inode_.ctime();
+        attr->st_ctim.tv_nsec = inode_.ctime_ns();
+        attr->st_blksize = kOptimalIOBlockSize;
         VLOG(6) << "GetInodeAttr attr =  " << *attr
                 << ", inodeid = " << inode_.inodeid();
         return;

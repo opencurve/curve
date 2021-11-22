@@ -114,12 +114,14 @@ struct InodeParam {
     uint32_t gid;
     uint32_t mode;
     FsFileType type;
+    uint64_t rdev;
     std::string symlink;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
     os << "fsid: " << p.fsId << ", length: " << p.length << ", uid: " << p.uid
        << ", gid: " << p.gid << ", mode: " << p.mode << ", type: " << p.type
+       << ", rdev: " << p.rdev
        << ", symlink: " << p.symlink;
 
     return os;

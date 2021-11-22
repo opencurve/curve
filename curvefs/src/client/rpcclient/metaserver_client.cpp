@@ -492,6 +492,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         request.set_gid(param.gid);
         request.set_mode(param.mode);
         request.set_type(param.type);
+        request.set_rdev(param.rdev);
         request.set_symlink(param.symlink);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateInode(cntl, &request, &response, nullptr);
