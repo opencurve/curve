@@ -29,4 +29,4 @@ do
     tmpl $dsv "conf/$file" "$prefix/conf/$file"
 done
 
-sudo docker build -t "$1" "$(pwd)/docker"
+docker build -t "$1" "$(pwd)/docker"
