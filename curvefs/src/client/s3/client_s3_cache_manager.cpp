@@ -1229,6 +1229,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
                          << ",data chunkpos:" << iter->second->GetChunkPos();
             return ret;
         }
+
         if (ret == CURVEFS_ERROR::OK) {
             iter->second->Lock();
             if (!iter->second->IsDirty()) {
@@ -1256,11 +1257,16 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
     return CURVEFS_ERROR::OK;
 }
 
-void ChunkCacheManager::UpdateWrteCacheMap(uint64_t oldChunkPos) {
+void ChunkCacheManager::UpdateWrteCacheMap(uint64_t oldChunkPos,
+                                           DataCache *pDataCache) {
     auto iter = dataWCacheMap_.find(oldChunkPos);
-    assert(iter != dataWCacheMap_.end());
-    DataCachePtr datacache = iter->second;
-    dataWCacheMap_.erase(iter);
+    DataCachePtr datacache;
+    if (iter != dataWCacheMap_.end()) {
+        datacache = iter->second;
+        dataWCacheMap_.erase(iter);
+    } else {
+        datacache = pDataCache->shared_from_this();
+    }
     auto ret = dataWCacheMap_.emplace(datacache->GetChunkPos(), datacache);
     assert(ret.second);
     (void)ret;
@@ -1297,7 +1303,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             chunkCacheManager_->rwLockWrite_.WRLock();
             Swap(newDatabuf, totalSize);
             chunkPos_ = chunkPos;
-            chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos);
+            chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos, this);
             chunkCacheManager_->rwLockWrite_.Unlock();
             return;
         } else {
@@ -1324,7 +1330,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                     chunkCacheManager_->rwLockWrite_.WRLock();
                     Swap(newDatabuf, totalSize);
                     chunkPos_ = chunkPos;
-                    chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos);
+                    chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos, this);
                     chunkCacheManager_->rwLockWrite_.Unlock();
                     return;
                 }
@@ -1341,7 +1347,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             chunkCacheManager_->rwLockWrite_.WRLock();
             Swap(newDatabuf, totalSize);
             chunkPos_ = chunkPos;
-            chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos);
+            chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos, this);
             chunkCacheManager_->rwLockWrite_.Unlock();
             return;
         }
@@ -1352,6 +1358,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
         */
         if (chunkPos + len <= chunkPos_ + len_) {
             memcpy(data_ + chunkPos - chunkPos_, data, len);
+            chunkCacheManager_->UpdateWrteCacheMap(chunkPos_, this);
             return;
         } else {
             std::vector<DataCachePtr>::const_iterator iter =
@@ -1377,6 +1384,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                            (*iter)->GetChunkPos() + (*iter)->GetLen() -
                                chunkPos - len);
                     Swap(newDatabuf, totalSize);
+                    chunkCacheManager_->UpdateWrteCacheMap(chunkPos_, this);
                     return;
                 }
             }
@@ -1391,6 +1399,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             memcpy(newDatabuf, data_, chunkPos - chunkPos_);
             memcpy(newDatabuf + chunkPos - chunkPos_, data, len);
             Swap(newDatabuf, totalSize);
+            chunkCacheManager_->UpdateWrteCacheMap(chunkPos_, this);
             return;
         }
     }
@@ -1440,6 +1449,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
         VLOG(9) << "datacache is deleted chunkPos:" << chunkPos_
                 << ", len:" << len_ << ", inodeId:" << inodeId
                 << ",chunkIndex:" << chunkIndex;
+        mtx_.unlock();
         return CURVEFS_ERROR::NOFLUSH;
     }
 
