@@ -26,6 +26,7 @@
 #include "src/common/timeutility.h"
 
 using ::curve::common::TimeUtility;
+using ::curve::common::NameLockGuard;
 
 namespace curvefs {
 namespace metaserver {
@@ -34,17 +35,19 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t inodeId,
                                          uint32_t gid, uint32_t mode,
                                          FsFileType type,
                                          const std::string &symlink,
+                                         uint64_t rdev,
                                          Inode *newInode) {
     VLOG(1) << "CreateInode, fsId = " << fsId << ", length = " << length
             << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
-            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink;
+            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
+            << ", rdev = " << rdev;
     if (type == FsFileType::TYPE_SYM_LINK && symlink.empty()) {
         return MetaStatusCode::SYM_LINK_EMPTY;
     }
 
     // 1. generate inode
     Inode inode;
-    GenerateInodeInternal(inodeId, fsId, length, uid, gid, mode, type,
+    GenerateInodeInternal(inodeId, fsId, length, uid, gid, mode, type, rdev,
                           &inode);
     if (type == FsFileType::TYPE_SYM_LINK) {
         inode.set_symlink(symlink);
@@ -66,6 +69,7 @@ MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t inodeId,
     VLOG(1) << "CreateInode success, fsId = " << fsId << ", length = " << length
             << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
             << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
+            << ", rdev = " << rdev
             << " ," << inode.ShortDebugString();
 
     return MetaStatusCode::OK;
@@ -80,7 +84,7 @@ MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
     Inode inode;
     uint64_t length = 0;
     GenerateInodeInternal(ROOTINODEID, fsId, length, uid, gid, mode,
-                          FsFileType::TYPE_DIRECTORY, &inode);
+                          FsFileType::TYPE_DIRECTORY, 0, &inode);
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
@@ -98,7 +102,8 @@ MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
 void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
                                          uint64_t length, uint32_t uid,
                                          uint32_t gid, uint32_t mode,
-                                         FsFileType type, Inode *inode) {
+                                         FsFileType type, uint64_t rdev,
+                                         Inode *inode) {
     inode->set_inodeid(inodeId);
     inode->set_fsid(fsId);
     inode->set_length(length);
@@ -106,10 +111,17 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_gid(gid);
     inode->set_mode(mode);
     inode->set_type(type);
-    uint64_t time = curve::common::TimeUtility::GetTimeofDaySec();
-    inode->set_mtime(time);
-    inode->set_atime(time);
-    inode->set_ctime(time);
+    inode->set_rdev(rdev);
+
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode->set_mtime(now.tv_sec);
+    inode->set_mtime_ns(now.tv_nsec);
+    inode->set_atime(now.tv_sec);
+    inode->set_atime_ns(now.tv_nsec);
+    inode->set_ctime(now.tv_sec);
+    inode->set_ctime_ns(now.tv_nsec);
+
     inode->set_openflag(false);
     if (FsFileType::TYPE_DIRECTORY == type) {
         inode->set_nlink(2);
@@ -122,6 +134,7 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
 MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
                                       Inode *inode) {
     VLOG(1) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     MetaStatusCode ret = inodeStorage_->Get(InodeKey(fsId, inodeId), inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "GetInode fail, fsId = " << fsId
@@ -138,6 +151,7 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
 
 MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     VLOG(1) << "DeleteInode, fsId = " << fsId << ", inodeId = " << inodeId;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     MetaStatusCode ret = inodeStorage_->Delete(InodeKey(fsId, inodeId));
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "DeleteInode fail, fsId = " << fsId
@@ -153,6 +167,8 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
 
 MetaStatusCode InodeManager::UpdateInode(const Inode &inode) {
     VLOG(1) << "UpdateInode, " << inode.ShortDebugString();
+    NameLockGuard lg(inodeLock_, GetInodeLockName(
+            inode.fsid(), inode.inodeid()));
 
     Inode old;
     MetaStatusCode ret = inodeStorage_->Get(
@@ -180,6 +196,51 @@ MetaStatusCode InodeManager::UpdateInode(const Inode &inode) {
     }
 
     VLOG(1) << "UpdateInode success, " << inode.ShortDebugString();
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
+    uint32_t fsId, uint64_t inodeId, bool isCreate) {
+    VLOG(1) << "UpdateInodeWhenCreateOrRemoveSubNode, fsId = " << fsId
+            << ", inodeId = " << inodeId
+            << ", isCreate = " << isCreate;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
+
+    Inode inode;
+    MetaStatusCode ret = inodeStorage_->Get(
+        InodeKey(fsId, inodeId), &inode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetInode fail, " << inode.ShortDebugString()
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+    uint32_t oldNlink = inode.nlink();
+    if (oldNlink == 0) {
+        // already be deleted
+        return MetaStatusCode::OK;
+    }
+    if (isCreate) {
+        inode.set_nlink(++oldNlink);
+    } else {
+        inode.set_nlink(--oldNlink);
+    }
+
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode.set_ctime(now.tv_sec);
+    inode.set_ctime_ns(now.tv_nsec);
+    inode.set_mtime(now.tv_sec);
+    inode.set_mtime_ns(now.tv_nsec);
+
+    ret = inodeStorage_->Update(inode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "UpdateInode fail, " << inode.ShortDebugString()
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    VLOG(1) << "UpdateInodeWhenCreateOrRemoveSubNode success, "
+            << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 

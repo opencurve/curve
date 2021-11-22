@@ -41,6 +41,7 @@ enum MetaStatusCode {
     SAVE_META_FAIL = 18;
     S3_DELETE_ERR = 19;
     PARTITION_ID_MISSMATCH = 20;
+    IDEMPOTENCE_OK = 21;
 }
 
 // dentry interface
@@ -173,24 +174,27 @@ message S3ChunkInfoList {
     repeated S3ChunkInfo s3Chunks = 1;
 };
 
-// Todo: time unit of atime/ctime/mtime need fix
 message Inode {
     required uint64 inodeId = 1;
     required uint32 fsId = 2;
     required uint64 length = 3;
-    required uint32 ctime = 4;
-    required uint32 mtime = 5;
-    required uint32 atime = 6;
-    required uint32 uid = 7;
-    required uint32 gid = 8;
-    required uint32 mode = 9;
-    required uint32 nlink = 10;
-    required FsFileType type = 11;
-    optional string symlink = 12;   // TYPE_SYM_LINK only
-    optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 14; // TYPE_S3 only, first is chunk index
-    optional uint32 dtime = 15;
-    optional bool openflag = 16;
+    required uint64 ctime = 4;
+    required uint32 ctime_ns = 5;
+    required uint64 mtime = 6;
+    required uint32 mtime_ns = 7;
+    required uint64 atime = 8;
+    required uint32 atime_ns = 9;
+    required uint32 uid = 10;
+    required uint32 gid = 11;
+    required uint32 mode = 12;
+    required uint32 nlink = 13;
+    required FsFileType type = 14;
+    optional string symlink = 15;   // TYPE_SYM_LINK only
+    optional uint64 rdev = 16;
+    optional VolumeExtentList volumeExtentList = 17;  // TYPE_FILE only
+    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
+    optional uint32 dtime = 19;
+    optional bool openflag = 20;
 }
 
 message GetInodeResponse {
@@ -209,7 +213,8 @@ message CreateInodeRequest {
     required uint32 gid = 7;
     required uint32 mode = 8;
     required FsFileType type = 9;
-    optional string symlink = 10;   // TYPE_SYM_LINK only
+    optional uint64 rdev = 10;
+    optional string symlink = 11;   // TYPE_SYM_LINK only
 }
 
 message CreateInodeResponse {

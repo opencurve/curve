@@ -95,7 +95,7 @@ MetaStatusCode MemoryDentryStorage::Insert(const Dentry& dentry) {
     if (iter != dentryTree_.end()) {
         // Idempotence
         if (IsSameDentry(*iter, dentry)) {
-            return MetaStatusCode::OK;
+            return MetaStatusCode::IDEMPOTENCE_OK;
         }
         return MetaStatusCode::DENTRY_EXIST;
     }

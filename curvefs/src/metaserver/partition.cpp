@@ -53,18 +53,36 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
 }
 
 // dentry
-MetaStatusCode Partition::CreateDentry(const Dentry& dentry) {
+MetaStatusCode Partition::CreateDentry(const Dentry& dentry, bool isLoadding) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
-    return dentryManager_->CreateDentry(dentry);
+    MetaStatusCode ret = dentryManager_->CreateDentry(dentry);
+    if (MetaStatusCode::OK == ret) {
+        if (!isLoadding) {
+            return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+                dentry.fsid(), dentry.parentinodeid(), true);
+        } else {
+            return MetaStatusCode::OK;
+        }
+    } else if (MetaStatusCode::IDEMPOTENCE_OK == ret) {
+        return MetaStatusCode::OK;
+    } else {
+        return ret;
+    }
 }
 
 MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
-    return dentryManager_->DeleteDentry(dentry);
+    MetaStatusCode ret = dentryManager_->DeleteDentry(dentry);
+    if (MetaStatusCode::OK == ret) {
+        return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+            dentry.fsid(), dentry.parentinodeid(), false);
+    } else {
+        return ret;
+    }
 }
 
 MetaStatusCode Partition::GetDentry(Dentry* dentry) {
@@ -125,6 +143,7 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
                                       uint32_t uid, uint32_t gid, uint32_t mode,
                                       FsFileType type,
                                       const std::string& symlink,
+                                      uint64_t rdev,
                                       Inode* inode) {
     if (partitionInfo_.status() == PartitionStatus::READONLY) {
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
@@ -140,7 +159,7 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
     }
 
     return inodeManager_->CreateInode(fsId, inodeId, length, uid, gid, mode,
-                                      type, symlink, inode);
+                                      type, symlink, rdev, inode);
 }
 
 MetaStatusCode Partition::CreateRootInode(uint32_t fsId, uint32_t uid,

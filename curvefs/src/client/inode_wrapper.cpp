@@ -36,8 +36,13 @@ std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     os << "{ st_ino = " << attr.st_ino << ", st_mode = " << attr.st_mode
        << ", st_nlink = " << attr.st_nlink << ", st_uid = " << attr.st_uid
        << ", st_gid = " << attr.st_gid << ", st_size = " << attr.st_size
-       << ", st_atime = " << attr.st_atime << ", st_mtime = " << attr.st_mtime
-       << ", st_ctime = " << attr.st_ctime << "}" << std::endl;
+       << ", st_atim.tv_sec = " << attr.st_atim.tv_sec
+       << ", st_atim.tv_nsec = " << attr.st_atim.tv_nsec
+       << ", st_mtim.tv_sec = " << attr.st_mtim.tv_sec
+       << ", st_mtim.tv_nsec = " << attr.st_mtim.tv_nsec
+       << ", st_ctim.tv_sec = " << attr.st_ctim.tv_sec
+       << ", st_ctim.tv_nsec = " << attr.st_ctim.tv_nsec
+       << "}" << std::endl;
     return os;
 }
 

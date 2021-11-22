@@ -47,7 +47,7 @@ class Partition {
     explicit Partition(const PartitionInfo& paritionInfo);
 
     // dentry
-    MetaStatusCode CreateDentry(const Dentry& dentry);
+    MetaStatusCode CreateDentry(const Dentry& dentry, bool isLoadding = false);
 
     MetaStatusCode DeleteDentry(const Dentry& dentry);
 
@@ -66,7 +66,8 @@ class Partition {
     // inode
     MetaStatusCode CreateInode(uint32_t fsId, uint64_t length, uint32_t uid,
                                uint32_t gid, uint32_t mode, FsFileType type,
-                               const std::string& symlink, Inode* inode);
+                               const std::string& symlink, uint64_t rdev,
+                               Inode* inode);
     MetaStatusCode CreateRootInode(uint32_t fsId, uint32_t uid, uint32_t gid,
                                    uint32_t mode);
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode* inode);

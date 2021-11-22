@@ -204,7 +204,8 @@ class FuseClient {
 
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
-                           mode_t mode, FsFileType type, fuse_entry_param* e);
+                           mode_t mode, FsFileType type, dev_t rdev,
+                           fuse_entry_param* e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, bool idDir);
