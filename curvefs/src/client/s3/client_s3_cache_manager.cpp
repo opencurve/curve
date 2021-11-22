@@ -1228,14 +1228,18 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
             return ret;
         }
         if (ret == CURVEFS_ERROR::OK) {
+            iter->second->Lock();
             if (!iter->second->IsDirty()) {
                 VLOG(9) << "ReleaseWriteDataCache chunkPos:"
                         << iter->second->GetChunkPos()
                         << ",len:" << iter->second->GetLen()
                         << ",inodeId:" << inodeId << ",chunkIndex:" << index_;
-                AddReadDataCache(iter->second);
+
                 ReleaseWriteDataCache(iter->second);
+                iter->second->UnLock();
+                AddReadDataCache(iter->second);
             } else {
+                iter->second->UnLock();
                 VLOG(6) << "data cache is dirty.";
             }
         } else if (ret == CURVEFS_ERROR::NOTEXIST) {
