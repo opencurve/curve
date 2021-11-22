@@ -8,7 +8,7 @@
 g_dsv=$1
 g_src=$2
 g_dst=$3
-g_regex="^([^$g_dsv]+$g_dsv[[:space:]]*)(.+)__ANSIBLE_TEMPLATE__[[:space:]]+(.+)[[:space:]]+__ANSIBLE_TEMPLATE__$"
+g_regex="^([^$g_dsv]+$g_dsv[[:space:]]*)(.+)__ANSIBLE_TEMPLATE__[[:space:]]+(.+)[[:space:]]+__ANSIBLE_TEMPLATE__(.*)$"
 while IFS= read -r line; do
     if [[ ! $line =~ $g_regex ]]; then
         echo $line
