@@ -153,7 +153,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
 
     // Read do not change inode. so we do not get lock here.
-    int rRet = s3Adaptor_->Read(&inode, off, len, buffer);
+    int rRet = s3Adaptor_->Read(ino, off, len, buffer);
     if (rRet < 0) {
         LOG(ERROR) << "s3Adaptor_ read failed, ret = " << rRet;
         return CURVEFS_ERROR::INTERNAL;
