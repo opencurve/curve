@@ -218,7 +218,7 @@ class ChunkCacheManager {
 
     virtual void ReleaseReadDataCache(uint64_t key);
     void ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor);
-    void UpdateWrteCacheMap(uint64_t oldChunkPos, DataCache *dataCache);
+    void UpdateWriteCacheMap(uint64_t oldChunkPos, DataCache *dataCache);
 
  public:
     RWLock rwLockChunk_;  //  for read write chunk
@@ -249,7 +249,7 @@ class FileCacheManager {
     void ReleaseCache();
     CURVEFS_ERROR Flush(bool force);
     int Write(uint64_t offset, uint64_t length, const char *dataBuf);
-    int Read(Inode *inode, uint64_t offset, uint64_t length, char *dataBuf);
+    int Read(uint64_t inodeId, uint64_t offset, uint64_t length, char *dataBuf);
     bool IsEmpty() { return chunkCacheMap_.empty(); }
 
     uint64_t GetInodeId() const { return inode_; }
