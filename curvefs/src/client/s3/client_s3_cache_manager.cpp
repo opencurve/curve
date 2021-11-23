@@ -230,7 +230,7 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
     return chunkCacheManager;
 }
 
-int FileCacheManager::Read(Inode *inode, uint64_t offset, uint64_t length,
+int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                            char *dataBuf) {
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t index = offset / chunkSize;
@@ -263,24 +263,35 @@ int FileCacheManager::Read(Inode *inode, uint64_t offset, uint64_t length,
 
     std::vector<S3ReadRequest> totalS3Requests;
     auto iter = totalRequests.begin();
-
-    for (; iter != totalRequests.end(); iter++) {
-        VLOG(6) << "ReadRequest index:" << iter->index
-                << ",chunkPos:" << iter->chunkPos << ",len:" << iter->len
-                << ",bufOffset:" << iter->bufOffset;
-        auto s3InfoListIter = inode->s3chunkinfomap().find(iter->index);
-        if (s3InfoListIter == inode->s3chunkinfomap().end()) {
-            VLOG(6) << "s3infolist is not found.index:" << iter->index;
-            memset(dataBuf + iter->bufOffset, 0, iter->len);
-            continue;
+    uint64_t fileLen;
+    {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        CURVEFS_ERROR ret = s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
+            inodeId, inodeWrapper);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(WARNING) << "get inode fail, ret:" << ret;
+            return -1;
         }
-        std::vector<S3ReadRequest> s3Requests;
-        GenerateS3Request(*iter, s3InfoListIter->second, dataBuf, &s3Requests,
-                          inode->fsid(), inode->inodeid());
-        totalS3Requests.insert(totalS3Requests.end(), s3Requests.begin(),
-                               s3Requests.end());
+        ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+        Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
+        fileLen = inode->length();
+        for (; iter != totalRequests.end(); iter++) {
+            VLOG(6) << "ReadRequest index:" << iter->index
+                    << ",chunkPos:" << iter->chunkPos << ",len:" << iter->len
+                    << ",bufOffset:" << iter->bufOffset;
+            auto s3InfoListIter = inode->s3chunkinfomap().find(iter->index);
+            if (s3InfoListIter == inode->s3chunkinfomap().end()) {
+                VLOG(6) << "s3infolist is not found.index:" << iter->index;
+                memset(dataBuf + iter->bufOffset, 0, iter->len);
+                continue;
+            }
+            std::vector<S3ReadRequest> s3Requests;
+            GenerateS3Request(*iter, s3InfoListIter->second, dataBuf,
+                              &s3Requests, inode->fsid(), inode->inodeid());
+            totalS3Requests.insert(totalS3Requests.end(), s3Requests.begin(),
+                                   s3Requests.end());
+        }
     }
-
     if (totalS3Requests.empty()) {
         VLOG(6) << "s3 has not data to read.";
         return readOffset;
@@ -299,7 +310,7 @@ int FileCacheManager::Read(Inode *inode, uint64_t offset, uint64_t length,
 
     std::vector<S3ReadResponse> responses;
 
-    ret = ReadFromS3(totalS3Requests, &responses, inode->length());
+    ret = ReadFromS3(totalS3Requests, &responses, fileLen);
     if (ret < 0) {
         LOG(ERROR) << "handle read request fail:" << ret;
         return ret;
@@ -1237,7 +1248,6 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
                         << iter->second->GetChunkPos()
                         << ",len:" << iter->second->GetLen()
                         << ",inodeId:" << inodeId << ",chunkIndex:" << index_;
-
                 ReleaseWriteDataCache(iter->second);
                 iter->second->UnLock();
                 AddReadDataCache(iter->second);
@@ -1257,7 +1267,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
     return CURVEFS_ERROR::OK;
 }
 
-void ChunkCacheManager::UpdateWrteCacheMap(uint64_t oldChunkPos,
+void ChunkCacheManager::UpdateWriteCacheMap(uint64_t oldChunkPos,
                                            DataCache *pDataCache) {
     auto iter = dataWCacheMap_.find(oldChunkPos);
     DataCachePtr datacache;
@@ -1303,7 +1313,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             chunkCacheManager_->rwLockWrite_.WRLock();
             Swap(newDatabuf, totalSize);
             chunkPos_ = chunkPos;
-            chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos, this);
+            chunkCacheManager_->UpdateWriteCacheMap(oldChunkPos, this);
             chunkCacheManager_->rwLockWrite_.Unlock();
             return;
         } else {
@@ -1330,7 +1340,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                     chunkCacheManager_->rwLockWrite_.WRLock();
                     Swap(newDatabuf, totalSize);
                     chunkPos_ = chunkPos;
-                    chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos, this);
+                    chunkCacheManager_->UpdateWriteCacheMap(oldChunkPos, this);
                     chunkCacheManager_->rwLockWrite_.Unlock();
                     return;
                 }
@@ -1347,7 +1357,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             chunkCacheManager_->rwLockWrite_.WRLock();
             Swap(newDatabuf, totalSize);
             chunkPos_ = chunkPos;
-            chunkCacheManager_->UpdateWrteCacheMap(oldChunkPos, this);
+            chunkCacheManager_->UpdateWriteCacheMap(oldChunkPos, this);
             chunkCacheManager_->rwLockWrite_.Unlock();
             return;
         }
@@ -1358,7 +1368,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
         */
         if (chunkPos + len <= chunkPos_ + len_) {
             memcpy(data_ + chunkPos - chunkPos_, data, len);
-            chunkCacheManager_->UpdateWrteCacheMap(chunkPos_, this);
+            chunkCacheManager_->UpdateWriteCacheMap(chunkPos_, this);
             return;
         } else {
             std::vector<DataCachePtr>::const_iterator iter =
@@ -1384,7 +1394,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                            (*iter)->GetChunkPos() + (*iter)->GetLen() -
                                chunkPos - len);
                     Swap(newDatabuf, totalSize);
-                    chunkCacheManager_->UpdateWrteCacheMap(chunkPos_, this);
+                    chunkCacheManager_->UpdateWriteCacheMap(chunkPos_, this);
                     return;
                 }
             }
@@ -1399,7 +1409,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             memcpy(newDatabuf, data_, chunkPos - chunkPos_);
             memcpy(newDatabuf + chunkPos - chunkPos_, data, len);
             Swap(newDatabuf, totalSize);
-            chunkCacheManager_->UpdateWrteCacheMap(chunkPos_, this);
+            chunkCacheManager_->UpdateWriteCacheMap(chunkPos_, this);
             return;
         }
     }
