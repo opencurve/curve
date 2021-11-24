@@ -189,7 +189,7 @@ void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
             << ", chunkPos: " << chunkPos;
     ChunkCacheManagerPtr chunkCacheManager =
         FindOrCreateChunkCacheManager(index);
-    WriteLockGuard readLockGuard(chunkCacheManager->rwLockChunk_);  // todo
+    WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);  // todo
     std::vector<DataCachePtr> mergeDataCacheVer;
     DataCachePtr dataCache = chunkCacheManager->FindWriteableDataCache(
         chunkPos, writeLen, &mergeDataCacheVer, inode_);
@@ -339,8 +339,8 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
     std::atomic<uint64_t> pendingReq(0);
     curve::common::CountDownEvent cond(1);
     bool async = false;
-    std::vector<std::pair<ChunkCacheManagerPtr, DataCachePtr>> DataCacheVec;
-
+    // first is chunkIndex
+    std::map<uint64_t, std::vector<DataCachePtr>> dataCacheMap;
     GetObjectAsyncCallBack cb =
         [&](const S3Adapter *adapter,
             const std::shared_ptr<GetObjectAsyncContext> &context) {
@@ -369,7 +369,8 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
 
         DataCachePtr dataCache = std::make_shared<DataCache>(
             s3ClientAdaptor_, chunkCacheManager.get(), chunkPos, len);
-        DataCacheVec.push_back(std::make_pair(chunkCacheManager, dataCache));
+        std::vector<DataCachePtr> &DataCacheVec = dataCacheMap[chunkIndex];
+        DataCacheVec.push_back(dataCache);
         S3ReadResponse response(dataCache);
         VLOG(6) << "ReadFromS3 blockPos:" << blockPos << ",len:" << len
                 << ",blockIndex:" << blockIndex
@@ -459,8 +460,14 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
         cond.Wait();
     }
 
-    for (auto &dataCache : DataCacheVec) {
-        dataCache.first->AddReadDataCache(dataCache.second);
+    for (auto &dataCacheMapIter : dataCacheMap) {
+        ChunkCacheManagerPtr chunkCacheManager =
+            FindOrCreateChunkCacheManager(dataCacheMapIter.first);
+        std::vector<DataCachePtr> &DataCacheVec = dataCacheMapIter.second;
+        WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
+        for (auto &dataCache : DataCacheVec) {
+            chunkCacheManager->AddReadDataCache(dataCache);
+        }
     }
 
     return 0;
@@ -1241,19 +1248,16 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
                          << ",data chunkpos:" << iter->second->GetChunkPos();
             return ret;
         }
-
+        WriteLockGuard lockGuard(rwLockChunk_);
         if (ret == CURVEFS_ERROR::OK) {
-            iter->second->Lock();
             if (!iter->second->IsDirty()) {
                 VLOG(9) << "ReleaseWriteDataCache chunkPos:"
                         << iter->second->GetChunkPos()
                         << ",len:" << iter->second->GetLen()
                         << ",inodeId:" << inodeId << ",chunkIndex:" << index_;
-                ReleaseWriteDataCache(iter->second);
-                iter->second->UnLock();
                 AddReadDataCache(iter->second);
+                ReleaseWriteDataCache(iter->second);
             } else {
-                iter->second->UnLock();
                 VLOG(6) << "data cache is dirty.";
             }
         } else if (ret == CURVEFS_ERROR::NOTEXIST) {
