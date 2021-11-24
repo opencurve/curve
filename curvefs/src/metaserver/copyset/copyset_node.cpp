@@ -35,6 +35,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/utility/utility.h"
+#include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/meta_operator_closure.h"
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_log_codec.h"
@@ -58,12 +59,14 @@ const char* kConfEpochFilename = "conf.epoch";
 const char* kMetaDataFilename = "metadata";
 
 CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
-                         const braft::Configuration& conf)
+                         const braft::Configuration& conf,
+                         CopysetNodeManager* nodeManager)
     : poolId_(poolId),
       copysetId_(copysetId),
       groupId_(ToGroupId(poolId_, copysetId_)),
       name_(ToGroupIdString(poolId_, copysetId_)),
       conf_(conf),
+      nodeManager_(nodeManager),
       epoch_(0),
       options_(),
       leaderTerm_(-1),
@@ -75,6 +78,8 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       epochFile_(),
       applyQueue_(nullptr),
       latestLoadSnapshotIndex_(0),
+      confChangeMtx_(),
+      ongoingConfChange_(),
       metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)) {}
 
 CopysetNode::~CopysetNode() { Stop(); }
@@ -393,16 +398,18 @@ void CopysetNode::on_leader_stop(const butil::Status& status) {
 
 void CopysetNode::on_error(const braft::Error& e) {
     LOG(FATAL) << "Copyset: " << name_ << ", peer id: " << peerId_.to_string()
-               << " meet error: " << e.status().error_str();
+               << " meet error: " << e;
 }
 
 void CopysetNode::on_configuration_committed(const braft::Configuration& conf,
                                              int64_t index) {
     braft::Configuration oldconf;
 
-    {
+    // load snapshot also call this function, but it shouldn't increase epoch
+    if (index != latestLoadSnapshotIndex_) {
         std::lock_guard<Mutex> lk(confMtx_);
         oldconf = absl::exchange(conf_, conf);
+        epoch_.fetch_add(1, std::memory_order_acq_rel);
     }
 
     LOG(INFO) << "Copyset: " << name_
@@ -444,7 +451,8 @@ bool CopysetNode::FetchLeaderStatus(const braft::PeerId& leaderId,
     cntl.set_timeout_ms(1000);
     brpc::Channel channel;
 
-    if (channel.Init(leaderId.addr, nullptr) != 0) {
+    int rc = channel.Init(leaderId.addr, nullptr);
+    if (rc != 0) {
         LOG(WARNING) << "Init channel to leader failed, leader address: "
                      << leaderId.addr << ", copyset: " << name_;
         return false;
@@ -519,6 +527,256 @@ void CopysetNode::ListPeers(std::vector<Peer>* peers) const {
 
 std::list<PartitionInfo> CopysetNode::GetPartitionInfoList() {
     return metaStore_->GetPartitionInfoList();
+}
+
+void CopysetNode::OnConfChangeComplete() {
+    std::lock_guard<Mutex> lk(confChangeMtx_);
+    ongoingConfChange_.Reset();
+}
+
+butil::Status CopysetNode::TransferLeader(const Peer& peer) {
+    if (!nodeManager_->IsLoadFinished()) {
+        auto st = butil::Status(EBUSY,
+                                "Reject transfer leader because all copysets "
+                                "are still loading, copyset: %s",
+                                name_.c_str());
+        LOG(WARNING) << st.error_str();
+        return st;
+    }
+
+    braft::PeerId target;
+    int rc = target.parse(peer.address());
+    if (rc != 0) {
+        auto st = butil::Status(EINVAL, "Peer %s is not valid, copyset: %s",
+                                peer.address().c_str(), name_.c_str());
+        LOG(WARNING) << st.error_str();
+        return st;
+    }
+
+    if (raftNode_->leader_id() == target) {
+        LOG(WARNING) << "Skipped transferring leader to itself, copyset: "
+                     << name_ << ", target: " << target;
+        return butil::Status::OK();
+    }
+
+    std::lock_guard<Mutex> lk(confChangeMtx_);
+    auto status = ReadyDoConfChange();
+    if (!status.ok()) {
+        LOG(WARNING) << status.error_str();
+        return status;
+    }
+
+    ongoingConfChange_ =
+        OngoingConfChange(ConfigChangeType::TRANSFER_LEADER, peer);
+
+    LOG(INFO) << "Transferring leader to peer: " << target
+              << ", copyset: " << name_;
+
+    rc = raftNode_->transfer_leadership_to(target);
+    if (rc != 0) {
+        auto status = butil::Status(
+            rc, "Falied to transfer leader of copyset %s to peer %s, error: %s",
+            name_.c_str(), peerId_.to_string().c_str(), berror(rc));
+        LOG(ERROR) << status.error_str();
+        return status;
+    }
+
+    return butil::Status::OK();
+}
+
+void CopysetNode::DoAddOrRemovePeer(ConfigChangeType type, const Peer& peer,
+                                    braft::Closure* done) {
+    CHECK(type == ConfigChangeType::ADD_PEER ||
+          type == ConfigChangeType::REMOVE_PEER);
+
+    butil::Status status;
+    auto doneGuard = absl::MakeCleanup([&status, &done]() {
+        if (done) {
+            done->status() = status;
+            done->Run();
+        }
+    });
+
+    braft::PeerId target;
+    int rc = target.parse(peer.address());
+    if (rc != 0) {
+        status = butil::Status(EINVAL, "Peer %s is not valid, copyset: %s",
+                               peer.address().c_str(), name_.c_str());
+        LOG(WARNING) << status.error_str();
+        return;
+    }
+
+    std::vector<braft::PeerId> currentPeers;
+    {
+        std::lock_guard<Mutex> lk(confMtx_);
+        conf_.list_peers(&currentPeers);
+    }
+
+    bool hasTargetPeer = false;
+    for (auto& peer : currentPeers) {
+        if (peer == target) {
+            hasTargetPeer = true;
+            break;
+        }
+    }
+
+    if (type == ConfigChangeType::ADD_PEER && hasTargetPeer) {
+        status.set_error(EEXIST,
+                         "Peer %s is already a member of current copyset: %s",
+                         target.to_string().c_str(), name_.c_str());
+        LOG(WARNING) << status.error_str();
+        return;
+    } else if (type == ConfigChangeType::REMOVE_PEER && !hasTargetPeer) {
+        status.set_error(ENOENT,
+                         "Peer %s is not a member of current copyset: %s",
+                         target.to_string().c_str(), name_.c_str());
+        LOG(WARNING) << status.error_str();
+        return;
+    }
+
+    confChangeMtx_.lock();
+    status = ReadyDoConfChange();
+    if (!status.ok()) {
+        confChangeMtx_.unlock();
+        LOG(WARNING) << status.error_str();
+        return;
+    }
+
+    std::move(doneGuard).Cancel();
+    ongoingConfChange_ = OngoingConfChange(type, peer);
+    OnConfChangeDone* confChangeDone =
+        new OnConfChangeDone(this, done, ongoingConfChange_);
+    confChangeMtx_.unlock();
+
+    return type == ConfigChangeType::ADD_PEER
+               ? raftNode_->add_peer(target, confChangeDone)
+               : raftNode_->remove_peer(target, confChangeDone);
+}
+
+void CopysetNode::AddPeer(const Peer& peer, braft::Closure* done) {
+    return DoAddOrRemovePeer(ConfigChangeType::ADD_PEER, peer, done);
+}
+
+void CopysetNode::RemovePeer(const Peer& peer, braft::Closure* done) {
+    return DoAddOrRemovePeer(ConfigChangeType::REMOVE_PEER, peer, done);
+}
+
+void CopysetNode::ChangePeers(const std::vector<Peer>& newPeers,
+                              braft::Closure* done) {
+    butil::Status status;
+    auto doneGuard = absl::MakeCleanup([&status, &done]() {
+        if (done) {
+            done->status() = status;
+            done->Run();
+        }
+    });
+
+    std::vector<braft::PeerId> newPeerIds;
+    for (auto& peer : newPeers) {
+        newPeerIds.emplace_back(peer.address());
+    }
+
+    Configuration newConf(newPeerIds);
+    Configuration adding;
+    Configuration removing;
+
+    {
+        std::lock_guard<Mutex> lk(confMtx_);
+        newConf.diffs(conf_, &adding, &removing);
+    }
+
+    if (adding.size() != 1 || removing.size() != 1) {
+        status = butil::Status(EPERM,
+                               "Only support change one peer at a "
+                               "time is supported, copyset: %s",
+                               name_.c_str());
+        LOG(WARNING) << "Only change one peer at a time is supported, adding: "
+                     << adding << ", removing: " << removing;
+        return;
+    }
+
+    confChangeMtx_.lock();
+    status = ReadyDoConfChange();
+    if (!status.ok()) {
+        confChangeMtx_.unlock();
+        LOG(WARNING) << status.error_str();
+        return;
+    }
+
+    std::move(doneGuard).Cancel();
+    Peer alterPeer;
+    alterPeer.set_address(adding.begin()->to_string());
+    ongoingConfChange_ =
+        OngoingConfChange(ConfigChangeType::CHANGE_PEER, std::move(alterPeer));
+    OnConfChangeDone* confChangeDone =
+        new OnConfChangeDone(this, done, ongoingConfChange_);
+    confChangeMtx_.unlock();
+
+    return raftNode_->change_peers(newConf, confChangeDone);
+}
+
+void CopysetNode::GetConfChange(ConfigChangeType* type, Peer* alterPeer) {
+    std::lock_guard<Mutex> lk(confChangeMtx_);
+
+    if (ongoingConfChange_.type == ConfigChangeType::TRANSFER_LEADER) {
+        // raft transfer leader doesn't have a callback, so get the latest
+        // transferring status from raft node
+        braft::NodeStatus status;
+        raftNode_->get_status(&status);
+        if (status.state == braft::State::STATE_TRANSFERRING) {
+            *type = ConfigChangeType::TRANSFER_LEADER;
+            *alterPeer = ongoingConfChange_.alterPeer;
+        } else {
+            *type = ConfigChangeType::NONE;
+            ongoingConfChange_.Reset();
+        }
+        return;
+    } else if (ongoingConfChange_.type == ConfigChangeType::NONE ||
+               !IsLeaderTerm()) {
+        *type = ConfigChangeType::NONE;
+        return;
+    }
+
+    *type = ongoingConfChange_.type;
+    *alterPeer = ongoingConfChange_.alterPeer;
+    return;
+}
+
+bool CopysetNode::HasOngoingConfChange() {
+    switch (ongoingConfChange_.type) {
+        case ConfigChangeType::NONE:
+            return false;
+        case ConfigChangeType::TRANSFER_LEADER:
+            break;
+        case ConfigChangeType::ADD_PEER:
+        case ConfigChangeType::REMOVE_PEER:
+        case ConfigChangeType::CHANGE_PEER:
+        default:
+            return true;
+    }
+
+    // raft transfer leader doesn't have a callback, so get the latest
+    // transferring status from raft node
+    braft::NodeStatus status;
+    raftNode_->get_status(&status);
+    if (status.state == braft::State::STATE_TRANSFERRING) {
+        return true;
+    } else {
+        ongoingConfChange_.Reset();
+        return false;
+    }
+}
+
+butil::Status CopysetNode::ReadyDoConfChange() {
+    if (!IsLeaderTerm()) {
+        return butil::Status(EPERM, "Not a leader, copyset: %s", name_.c_str());
+    } else if (HasOngoingConfChange()) {
+        return butil::Status(EBUSY,
+                             "Doing another configurations change, copyset: %s",
+                             name_.c_str());
+    }
+
+    return butil::Status::OK();
 }
 
 }  // namespace copyset

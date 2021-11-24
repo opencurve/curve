@@ -34,6 +34,7 @@
 #include "curvefs/src/metaserver/copyset/apply_queue.h"
 #include "curvefs/src/metaserver/copyset/conf_epoch_file.h"
 #include "curvefs/src/metaserver/copyset/config.h"
+#include "curvefs/src/metaserver/copyset/copyset_conf_change.h"
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_node.h"
 #include "curvefs/src/metaserver/metastore.h"
@@ -42,15 +43,20 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
+using ::braft::Configuration;
+using ::braft::PeerId;
 using ::curvefs::common::Peer;
-using PeerId = braft::PeerId;
 using ::curvefs::metaserver::MetaStore;
+using ::curve::mds::heartbeat::ConfigChangeType;
+
+class CopysetNodeManager;
 
 // Implement our own business raft state machine
 class CopysetNode : public braft::StateMachine {
  public:
     CopysetNode(PoolId poolId, CopysetId copysetId,
-                const braft::Configuration& conf);
+                const braft::Configuration& conf,
+                CopysetNodeManager* nodeManager);
 
     ~CopysetNode();
 
@@ -82,7 +88,7 @@ class CopysetNode : public braft::StateMachine {
 
     MetaStore* GetMetaStore() const;
 
-    uint64_t GetConfEpoch() const;
+    virtual uint64_t GetConfEpoch() const;
 
     std::string GetCopysetDataDir() const;
 
@@ -101,7 +107,7 @@ class CopysetNode : public braft::StateMachine {
      */
     void GetStatus(braft::NodeStatus* status);
 
-    void ListPeers(std::vector<Peer>* peers) const;
+    virtual void ListPeers(std::vector<Peer>* peers) const;
 
     ApplyQueue* GetApplyQueue() const;
 
@@ -122,6 +128,26 @@ class CopysetNode : public braft::StateMachine {
 
     void SetRaftNode(RaftNode* raftNode) { raftNode_.reset(raftNode); }
 #endif  // UNIT_TEST
+
+ public:
+    /** configuration change interfaces **/
+
+    virtual butil::Status TransferLeader(const Peer& target);
+    virtual void AddPeer(const Peer& peer, braft::Closure* done = nullptr);
+    virtual void RemovePeer(const Peer& peer, braft::Closure* done = nullptr);
+    virtual void ChangePeers(const std::vector<Peer>& newPeers,
+                             braft::Closure* done = nullptr);
+    void GetConfChange(ConfigChangeType* type, Peer* alterPeer);
+    void OnConfChangeComplete();
+
+ private:
+    // Whether current copyset is ready do configuration change
+    // return butil::Status::OK() if ready
+    butil::Status ReadyDoConfChange();
+    bool HasOngoingConfChange();
+
+    void DoAddOrRemovePeer(ConfigChangeType type, const Peer& peer,
+                           braft::Closure* done);
 
  public:
     /*** implement interfaces from braft::StateMacine ***/
@@ -169,6 +195,8 @@ class CopysetNode : public braft::StateMachine {
     // configuration of current copyset
     braft::Configuration conf_;
 
+    CopysetNodeManager* nodeManager_;
+
     // configuration version of current copyset
     std::atomic<uint64_t> epoch_;
 
@@ -195,6 +223,10 @@ class CopysetNode : public braft::StateMachine {
     mutable Mutex confMtx_;
 
     int64_t latestLoadSnapshotIndex_;
+
+    mutable Mutex confChangeMtx_;
+
+    OngoingConfChange ongoingConfChange_;
 
     std::unique_ptr<OperatorApplyMetric> metric_;
 };

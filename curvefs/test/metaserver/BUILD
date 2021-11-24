@@ -42,6 +42,7 @@ cc_test(
             "@com_google_googletest//:gtest",
             "//external:brpc",
             "//curvefs/proto:curvefs_topology_cc_proto",
+            "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
     ],
 )
 

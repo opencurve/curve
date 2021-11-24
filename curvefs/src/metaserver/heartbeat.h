@@ -46,6 +46,7 @@ namespace metaserver {
 
 using HeartbeatRequest = curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using HeartbeatResponse = curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
+using ::curvefs::mds::heartbeat::CopySetConf;
 using TaskStatus = butil::Status;
 using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 using curvefs::metaserver::copyset::CopysetNodeManager;
@@ -67,6 +68,8 @@ struct HeartbeatOptions {
     CopysetNodeManager* copysetNodeManager;
     std::shared_ptr<LocalFileSystem> fs;
 };
+
+class HeartbeatTaskExecutor;
 
 /**
  * heartbeat subsystem
@@ -154,6 +157,31 @@ class Heartbeat {
 
     // heartbeat subsystem init time, use unix time
     uint64_t startUpTime_;
+
+    std::unique_ptr<HeartbeatTaskExecutor> taskExecutor_;
+};
+
+// execute tasks from heartbeat response
+class HeartbeatTaskExecutor {
+ public:
+    HeartbeatTaskExecutor(CopysetNodeManager* mgr, const butil::EndPoint& ep);
+
+    void ExecTasks(const HeartbeatResponse& response);
+
+ private:
+    void ExecOneTask(const CopySetConf& conf);
+
+    void DoTransferLeader(CopysetNode* node, const CopySetConf& conf);
+    void DoAddPeer(CopysetNode* node, const CopySetConf& conf);
+    void DoRemovePeer(CopysetNode* node, const CopySetConf& conf);
+    void DoChangePeer(CopysetNode* node, const CopySetConf& conf);
+    void DoPurgeCopyset(PoolId poolid, CopysetId copysetid);
+
+    bool NeedPurge(const CopySetConf& conf);
+
+ private:
+    CopysetNodeManager* copysetMgr_;
+    butil::EndPoint ep_;
 };
 
 }  // namespace metaserver

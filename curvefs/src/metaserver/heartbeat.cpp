@@ -32,6 +32,7 @@
 #include <list>
 #include <memory>
 #include <vector>
+#include <utility>
 
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "src/common/timeutility.h"
@@ -39,6 +40,44 @@
 
 namespace curvefs {
 namespace metaserver {
+
+using ::braft::Configuration;
+using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curvefs::mds::heartbeat::ConfigChangeInfo;
+using ::curvefs::metaserver::copyset::CopysetService_Stub;
+using ::curvefs::metaserver::copyset::ToGroupIdString;
+
+namespace {
+
+int GatherCopysetConfChange(CopysetNode* node, ConfigChangeInfo* info) {
+    ConfigChangeType type;
+    Peer peer;
+
+    node->GetConfChange(&type, &peer);
+
+    if (type == ConfigChangeType::NONE) {
+        return 1;
+    }
+
+    *info->mutable_peer() = std::move(peer);
+    info->set_type(type);
+    info->set_finished(false);
+    return 0;
+}
+
+std::string CopysetName(const CopySetConf& conf) {
+    return ToGroupIdString(conf.poolid(), conf.copysetid());
+}
+
+Peer EndPointToPeer(const butil::EndPoint& ep) {
+    Peer peer;
+    peer.set_address(butil::endpoint2str(ep).c_str() + std::string(":0"));
+
+    return peer;
+}
+
+}  // namespace
+
 int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
@@ -89,6 +128,9 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     waitInterval_.Init(options_.intervalSec * 1000);
 
     startUpTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
+
+    taskExecutor_.reset(new HeartbeatTaskExecutor(copysetMan_, msEp_));
+
     return 0;
 }
 
@@ -110,6 +152,8 @@ int Heartbeat::Stop() {
 
 int Heartbeat::Fini() {
     Stop();
+
+    taskExecutor_.reset();
 
     LOG(INFO) << "Heartbeat manager cleaned up.";
     return 0;
@@ -138,12 +182,15 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
     info->set_allocated_leaderpeer(replica);
 
     // add partition info
-    for (auto it : copyset->GetPartitionInfoList()) {
+    for (auto& it : copyset->GetPartitionInfoList()) {
         info->add_partitioninfolist()->CopyFrom(it);
     }
 
-    // TODO(cw123) : when add schedule, add copyset config change infos
-    return;
+    ConfigChangeInfo confChangeInfo;
+    ret = GatherCopysetConfChange(copyset, &confChangeInfo);
+    if (ret == 0) {
+        *info->mutable_configchangeinfo() = std::move(confChangeInfo);
+    }
 }
 
 int Heartbeat::GetFileSystemSpaces(uint64_t* capacityKB, uint64_t* availKB) {
@@ -163,8 +210,7 @@ int Heartbeat::GetFileSystemSpaces(uint64_t* capacityKB, uint64_t* availKB) {
 }
 
 bool Heartbeat::GetProcMemory(uint64_t* vmRSS) {
-    pid_t pid = getpid();
-    std::string fileName = "/proc/" + std::to_string(pid) + "/status";
+    std::string fileName = "/proc/self/status";
     std::ifstream file(fileName);
     if (!file.is_open()) {
         LOG(ERROR) << "Open file " << fileName << " failed";
@@ -173,7 +219,7 @@ bool Heartbeat::GetProcMemory(uint64_t* vmRSS) {
 
     std::string line;
     while (getline(file, line)) {
-        int position = line.find("VmRSS:");
+        auto position = line.find("VmRSS:");
         if (position == line.npos) {
             continue;
         }
@@ -342,12 +388,145 @@ void Heartbeat::HeartbeatWorker() {
             continue;
         }
 
-        // TODO(cw123): add schedule and execute heartbeat info
-
+        taskExecutor_->ExecTasks(resp);
         waitInterval_.WaitForNextExcution();
     }
 
     LOG(INFO) << "Heartbeat worker thread stopped.";
+}
+
+HeartbeatTaskExecutor::HeartbeatTaskExecutor(CopysetNodeManager* mgr,
+                                             const butil::EndPoint& endpoint)
+    : copysetMgr_(mgr), ep_(endpoint) {}
+
+void HeartbeatTaskExecutor::ExecTasks(const HeartbeatResponse& response) {
+    for (auto& conf : response.needupdatecopysets()) {
+        ExecOneTask(conf);
+    }
+}
+
+void HeartbeatTaskExecutor::ExecOneTask(const CopySetConf& conf) {
+    auto copyset = copysetMgr_->GetCopysetNode(conf.poolid(), conf.copysetid());
+    if (!copyset) {
+        LOG(WARNING) << "Failed to find copyset: " << CopysetName(conf);
+        return;
+    }
+
+    if (NeedPurge(conf)) {
+        DoPurgeCopyset(conf.poolid(), conf.copysetid());
+        return;
+    }
+
+    const auto epochInCopyset = copyset->GetConfEpoch();
+    if (conf.epoch() != epochInCopyset) {
+        LOG(WARNING) << "Config change epoch: " << conf.epoch()
+                     << " isn't same as current: " << epochInCopyset
+                     << ", copyset: " << copyset->Name()
+                     << ", refuse config change";
+        return;
+    }
+
+    if (!conf.has_type()) {
+        return;
+    }
+
+    switch (conf.type()) {
+        case ConfigChangeType::TRANSFER_LEADER:
+            DoTransferLeader(copyset, conf);
+            break;
+        case ConfigChangeType::ADD_PEER:
+            DoAddPeer(copyset, conf);
+            break;
+        case ConfigChangeType::REMOVE_PEER:
+            DoRemovePeer(copyset, conf);
+            break;
+        case ConfigChangeType::CHANGE_PEER:
+            DoChangePeer(copyset, conf);
+            break;
+        default:
+            LOG(ERROR) << "unexpected, type: " << conf.type();
+            break;
+    }
+}
+
+void HeartbeatTaskExecutor::DoTransferLeader(CopysetNode* node,
+                                             const CopySetConf& conf) {
+    LOG(INFO) << "Transferring leader to " << conf.configchangeitem().address()
+              << " of copyset: " << node->Name();
+
+    auto st = node->TransferLeader(conf.configchangeitem());
+    if (!st.ok()) {
+        LOG(WARNING) << "Transfer leader to "
+                     << conf.configchangeitem().address()
+                     << " of copyset: " << node->Name()
+                     << " failed, error: " << st.error_str();
+    }
+}
+
+void HeartbeatTaskExecutor::DoAddPeer(CopysetNode* node,
+                                      const CopySetConf& conf) {
+    LOG(INFO) << "Adding peer " << conf.configchangeitem().address()
+              << " to copyset: " << node->Name();
+    node->AddPeer(conf.configchangeitem());
+}
+
+void HeartbeatTaskExecutor::DoRemovePeer(CopysetNode* node,
+                                         const CopySetConf& conf) {
+    LOG(INFO) << "Removing peer " << conf.configchangeitem().address()
+              << " from copyset: " << node->Name();
+    node->RemovePeer(conf.configchangeitem());
+}
+
+void HeartbeatTaskExecutor::DoChangePeer(CopysetNode* node,
+                                         const CopySetConf& conf) {
+    LOG(INFO) << "Change peer of copyset: " << node->Name()
+              << ", adding: " << conf.configchangeitem().address()
+              << ", removing: " << conf.oldpeer().address();
+
+    std::vector<Peer> newpeers;
+    for (auto& p : conf.peers()) {
+        if (p.address() != conf.oldpeer().address()) {
+            newpeers.emplace_back(p);
+        }
+    }
+
+    newpeers.emplace_back(conf.configchangeitem());
+    node->ChangePeers(newpeers);
+}
+
+void HeartbeatTaskExecutor::DoPurgeCopyset(PoolId poolid, CopysetId copysetid) {
+    bool rc = copysetMgr_->PurgeCopysetNode(poolid, copysetid);
+    if (rc) {
+        LOG(INFO) << "Purge copyset: " << ToGroupIdString(poolid, copysetid)
+                  << " success";
+    } else {
+        LOG(WARNING) << "Purge copyset: " << ToGroupIdString(poolid, copysetid)
+                     << " failure";
+    }
+}
+
+bool HeartbeatTaskExecutor::NeedPurge(const CopySetConf& conf) {
+    Peer peer = EndPointToPeer(ep_);
+
+    if (conf.epoch() == 0 && conf.peers().empty()) {
+        LOG(INFO) << "Clean " << peer.address()
+                  << " from copyset: " << CopysetName(conf)
+                  << ", because it doesn't exist in mds record";
+        return true;
+    }
+
+    auto iter = std::find_if(
+        conf.peers().begin(), conf.peers().end(),
+        [&peer](const Peer& p) { return peer.address() == p.address(); });
+
+    if (iter == conf.peers().end()) {
+        LOG(INFO) << "Clean " << peer.address()
+                  << " from copyset: " << CopysetName(conf)
+                  << ", because it doesn't exist in mds record";
+        return true;
+    }
+
+    return false;
 }
 
 }  // namespace metaserver

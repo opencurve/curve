@@ -180,7 +180,7 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
         return false;
     }
 
-    copysetNode = absl::make_unique<CopysetNode>(poolId, copysetId, conf);
+    copysetNode = absl::make_unique<CopysetNode>(poolId, copysetId, conf, this);
     if (!copysetNode->Init(options_)) {
         LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
                    << "init failed";
@@ -216,7 +216,7 @@ void CopysetNodeManager::AddService(brpc::Server* server,
     // remote braft CliService and add our implemented cli service
     auto* service = server->FindServiceByName("CliService");
     LOG_IF(FATAL, 0 != server->RemoveService(service));
-    LOG_IF(FATAL, 0 != server->AddService(new RaftCliService2(),
+    LOG_IF(FATAL, 0 != server->AddService(new RaftCliService2(this),
                                           brpc::SERVER_OWNS_SERVICE));
 }
 
