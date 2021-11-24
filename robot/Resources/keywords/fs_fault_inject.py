@@ -162,6 +162,19 @@ def check_fuse_iops(limit=1):
         if write_bps.isdigit():
             assert int(write_bps) > limit,"get port %s user_write_bps %s is lower than %d"%(port,write_bps,limit)
 
+def check_vdbench_consistency():
+    try:
+        ssh = shell_operator.create_ssh_connect(config.fs_test_client[0], 1046, config.abnormal_user)
+        ori_cmd = "sed -i 's#format=.*#format=no#g' /home/nbs/tools/vdbench/profile"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        t = time.time()
+        ori_cmd = "cd /home/nbs/tools/vdbench && sudo ./vdbench -jr -f profile -o /home/nbs/vdbench-output/umount-output-%d"%int(t)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"inconsistent after umount vdbench,output is in /home/nbs/vdbench-output/umount-output-%d"%int(t)
+    except Exception as e:
+        raise
+    ssh.close()
+
 def check_vdbench_output():
     try:
         ssh = shell_operator.create_ssh_connect(config.fs_test_client[0], 1046, config.abnormal_user)
@@ -171,6 +184,13 @@ def check_vdbench_output():
             t = time.time()
             ori_cmd = "mv /home/nbs/tools/vdbench/output /home/nbs/vdbench-output/output-%d"%int(t)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            ori_cmd = "cat /home/nbs/tools/vdbench/output/errorlog.html | grep 'Corrupted data block'"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            if rs[1] != []:
+                error_mes = rs[1][0].strip()
+                error_file = re.search(r'(?<=file=).*(?=;)',error_mes).group()
+                ori_cmd = "sudo stat %s > /home/nbs/vdbench-output/output-%d/inode"%(error_file,int(t))
+                rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert False,"vdbench test error,save log to test client /home/nbs/vdbench-output/output-%d"%int(t)
     except Exception as e:
         ssh.close()
@@ -266,16 +286,16 @@ def check_corefile():
 def get_test_dir_file_md5():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[0])
-    ori_cmd ="cd " + test_dir +  " && find ./ ! -name 'md5*' -type f -print0 | xargs -0 md5sum  > md5_1"
+    test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
+    ori_cmd ="cd " + test_dir +  " && find vdb.1_1.dir/  -name 'vdb_*' -type f -print0 | xargs -0 md5sum  > md5_1"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"get file md5_1 error, output %s"%rs[1]
     
 def check_test_dir_file_md5():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[0])
-    ori_cmd ="cd " + test_dir +  " && find ./ ! -name 'md5*' -type f -print0 | xargs -0 md5sum  > md5_2"
+    test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
+    ori_cmd ="cd " + test_dir +  " && find vdb.1_1.dir/  -name 'vdb_*' -type f -print0 | xargs -0 md5sum  > md5_2"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"get file md5_2 error, output %s"%rs[1]
     ori_cmd = "cd " + test_dir + " && diff md5_1 md5_2"
@@ -360,12 +380,12 @@ def wait_fuse_exit(fusename=""):
     else:
         ori_cmd = "ps -ef|grep %s | grep -v grep"%fusename
     i = 0
-    while i < 300:
+    while i < 600:
        rs = shell_operator.ssh_exec(ssh, ori_cmd)
        if rs[1] == []:
            break
        i = i + 5
-       time.sleep(10)
+       time.sleep(30)
     assert rs[1] == [],"fuse client not exit in 300s,process is %s"%rs[1]
 
 def multi_mdtest_exec(ssh,test_dir):
