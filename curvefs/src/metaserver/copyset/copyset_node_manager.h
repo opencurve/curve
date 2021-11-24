@@ -55,7 +55,7 @@ class CopysetNodeManager {
 
     bool Stop();
 
-    CopysetNode* GetCopysetNode(PoolId poolId, CopysetId copysetId);
+    virtual CopysetNode* GetCopysetNode(PoolId poolId, CopysetId copysetId);
 
     bool IsCopysetNodeExist(PoolId poolId, CopysetId copysetId);
 
@@ -65,11 +65,11 @@ class CopysetNodeManager {
 
     bool DeleteCopysetNode(PoolId poolId, CopysetId copysetId);
 
-    bool PurgeCopysetNode(PoolId poolId, CopysetId copysetId);
+    virtual bool PurgeCopysetNode(PoolId poolId, CopysetId copysetId);
 
     void GetAllCopysets(std::vector<CopysetNode*>* nodes) const;
 
-    bool IsLoadFinished() const;
+    virtual bool IsLoadFinished() const;
 
  public:
     CopysetNodeManager();

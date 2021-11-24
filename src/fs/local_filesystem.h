@@ -207,9 +207,9 @@ class LocalFileSystem {
     virtual int Fsync(int fd) = 0;
 
  private:
-    virtual int DoRename(const string& oldPath,
-                         const string& newPath,
-                         unsigned int flags) { return -1; }
+    virtual int DoRename(const string& /* oldPath */,
+                         const string& /* newPath */,
+                         unsigned int /* flags */) { return -1; }
 };
 
 

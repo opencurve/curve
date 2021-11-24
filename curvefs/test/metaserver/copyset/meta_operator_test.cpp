@@ -30,6 +30,7 @@
 #include <regex>
 
 #include "absl/memory/memory.h"
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node_manager.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_raft_node.h"
 #include "curvefs/test/metaserver/mock/mock_metastore.h"
 #include "curvefs/test/utils/protobuf_message_utils.h"
@@ -113,6 +114,9 @@ class MetaOperatorTest : public testing::Test {
 
         return std::stoull(match[2].str()) == expectValue;
     }
+
+ protected:
+    MockCopysetNodeManager mockNodeManager_;
 };
 
 TEST_F(MetaOperatorTest, OperatorTypeTest) {
@@ -145,7 +149,7 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     CopysetId copysetId = 100;
     braft::Configuration conf;
 
-    CopysetNode node(poolId, copysetId, conf);
+    CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
     mock::MockMetaStore* mockMetaStore = new mock::MockMetaStore();
     node.SetMetaStore(mockMetaStore);
 
@@ -247,7 +251,7 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     CopysetId copysetId = 100;
     braft::Configuration conf;
 
-    CopysetNode node(poolId, copysetId, conf);
+    CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
     mock::MockMetaStore* mockMetaStore = new mock::MockMetaStore();
     node.SetMetaStore(mockMetaStore);
 
@@ -344,7 +348,7 @@ TEST_F(MetaOperatorTest, PropostTest_IsNotLeader) {
 
     butil::Status status;
     status.set_error(EINVAL, "invalid");
-    CopysetNode node(poolId, copysetId, conf);
+    CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
     node.on_leader_stop(status);
 
     CreateInodeRequest request;
@@ -361,7 +365,7 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     CopysetId copysetId = 100;
     braft::Configuration conf;
 
-    CopysetNode node(poolId, copysetId, conf);
+    CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///mnt/data";
 
@@ -404,7 +408,7 @@ TEST_F(MetaOperatorTest, PropostTest_PropostTaskFailed) {
     CopysetId copysetId = 100;
     braft::Configuration conf;
 
-    CopysetNode node(poolId, copysetId, conf);
+    CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
 
     node.on_leader_start(1);
     node.UpdateAppliedIndex(101);

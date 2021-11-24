@@ -30,6 +30,51 @@ message GetLeaderResponse2 {
     required common.Peer leader = 1;
 }
 
+message AddPeerRequest2 {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required common.Peer addPeer = 3;
+}
+
+message AddPeerResponse2 {
+    repeated common.Peer oldPeers = 1;
+    repeated common.Peer newPeers = 2;
+}
+
+message RemovePeerRequest2 {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required common.Peer removePeer = 3;
+}
+
+message RemovePeerResponse2 {
+    repeated common.Peer oldPeers = 1;
+    repeated common.Peer newPeers = 2;
+}
+
+message ChangePeersRequest2 {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    repeated common.Peer newPeers = 3;
+}
+
+message ChangePeersResponse2 {
+    repeated common.Peer oldPeers = 1;
+    repeated common.Peer newPeers = 2;
+}
+
+message TransferLeaderRequest2 {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required common.Peer transferee = 3;
+}
+
+message TransferLeaderResponse2 {}
+
 service CliService2 {
     rpc GetLeader(GetLeaderRequest2) returns (GetLeaderResponse2);
+    rpc AddPeer(AddPeerRequest2) returns (AddPeerResponse2);
+    rpc RemovePeer(RemovePeerRequest2) returns (RemovePeerResponse2);
+    rpc ChangePeers(ChangePeersRequest2) returns (ChangePeersResponse2);
+    rpc TransferLeader(TransferLeaderRequest2) returns (TransferLeaderResponse2);
 };

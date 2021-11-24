@@ -128,9 +128,9 @@ void CopysetReloader::LoadCopyset(PoolId poolId, CopysetId copysetId) {
 
     bool success =
         nodeManager_->CreateCopysetNode(poolId, copysetId, conf, false);
-    if (success) {
-        LOG(INFO) << "Failed to create copyset "
-                  << ToGroupIdString(poolId, copysetId);
+    if (!success) {
+        LOG(WARNING) << "Failed to create copyset "
+                     << ToGroupIdString(poolId, copysetId);
         return;
     }
 

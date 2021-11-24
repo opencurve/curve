@@ -30,6 +30,7 @@
 #include <chrono>
 #include <thread>
 
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node_manager.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_service.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_raft_node.h"
 #include "test/fs/mock_local_filesystem.h"
@@ -84,6 +85,7 @@ class CopysetNodeTest : public testing::Test {
     CopysetId copysetId_;
     braft::Configuration conf_;
     CopysetNodeOptions options_;
+    MockCopysetNodeManager mockNodeManager_;
 
     std::unique_ptr<brpc::Server> server_;
     std::unique_ptr<MockCopysetService> mockCopysetService_;
@@ -92,7 +94,7 @@ class CopysetNodeTest : public testing::Test {
 TEST_F(CopysetNodeTest, TestInit) {
     // parse data uri protocol failed
     {
-        CopysetNode node(poolId_, copysetId_, conf_);
+        CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
         CopysetNodeOptions options;
 
         EXPECT_EQ(false, node.Init(options));
@@ -105,13 +107,13 @@ TEST_F(CopysetNodeTest, TestInit) {
         options.applyQueueOption.workerCount = 0;
         options.dataUri = "local:///mnt/data";
 
-        CopysetNode node(poolId_, copysetId_, conf_);
+        CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
         EXPECT_EQ(false, node.Init(options));
     }
 }
 
 TEST_F(CopysetNodeTest, TestLeaderTerm) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
@@ -136,7 +138,7 @@ TEST_F(CopysetNodeTest, TestLeaderTerm) {
 }
 
 TEST_F(CopysetNodeTest, OnErrorTest) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     braft::Error e;
 
     ASSERT_DEATH(node.on_error(e), "");
@@ -145,7 +147,7 @@ TEST_F(CopysetNodeTest, OnErrorTest) {
 TEST_F(CopysetNodeTest, LoadConEpochFailed_EpochLoadFailed) {
     poolId_ = 1;
     copysetId_ = 1;
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///mnt/data";
 
@@ -163,7 +165,7 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_EpochLoadFailed) {
 TEST_F(CopysetNodeTest, LoadConEpochFailed_PoolIdIsNotIdentical) {
     poolId_ = 1;
     copysetId_ = 1;
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///mnt/data";
 
@@ -189,7 +191,7 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_PoolIdIsNotIdentical) {
 TEST_F(CopysetNodeTest, LoadConEpochFailed_CopysetIdIsNotIdentical) {
     poolId_ = 1;
     copysetId_ = 1;
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///mnt/data";
 
@@ -216,7 +218,7 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_CopysetIdIsNotIdentical) {
 TEST_F(CopysetNodeTest, LoadConEpoch_Success) {
     poolId_ = 1;
     copysetId_ = 1;
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///mnt/data";
 
@@ -242,7 +244,7 @@ TEST_F(CopysetNodeTest, LoadConEpoch_Success) {
 }
 
 TEST_F(CopysetNodeTest, UpdateAppliedIndexTest) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
@@ -287,7 +289,7 @@ TEST_F(CopysetNodeTest, UpdateAppliedIndexTest) {
 }
 
 TEST_F(CopysetNodeTest, ListPeersTest) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
@@ -303,7 +305,7 @@ TEST_F(CopysetNodeTest, ListPeersTest) {
 }
 
 TEST_F(CopysetNodeTest, FetchLeaderStatusTest_LeaderIdIsEmpty) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
@@ -327,7 +329,7 @@ TEST_F(CopysetNodeTest, FetchLeaderStatusTest_LeaderIdIsEmpty) {
 }
 
 TEST_F(CopysetNodeTest, FetchLeaderStatusTest_CurrentNodeIsLeader) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
@@ -356,7 +358,7 @@ TEST_F(CopysetNodeTest, FetchLeaderStatusTest_CurrentNodeIsLeader) {
 
 TEST_F(CopysetNodeTest,
        FetchLeaderStatusTest_CurrentNodeIsNotLeader_InitChannelToLeaderFailed) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_TRUE(node.Init(options_));
     auto* mockRaftNode = new MockRaftNode();
@@ -378,7 +380,7 @@ TEST_F(CopysetNodeTest,
 
 TEST_F(CopysetNodeTest,
        FetchLeaderStatusTest_CurrentNodeIsNotLeader_RpcToLeaderFailed) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_TRUE(node.Init(options_));
     auto* mockRaftNode = new MockRaftNode();
@@ -400,7 +402,7 @@ TEST_F(CopysetNodeTest,
 
 TEST_F(CopysetNodeTest,
        FetchLeaderStatusTest_CurrentNodeIsNotLeader_RpcResponseToLeaderFailed) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_TRUE(node.Init(options_));
     auto* mockRaftNode = new MockRaftNode();
@@ -436,7 +438,7 @@ TEST_F(CopysetNodeTest,
 TEST_F(
     CopysetNodeTest,
     FetchLeaderStatusTest_CurrentNodeIsNotLeader_RpcResponseHasNoCopystatus) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_TRUE(node.Init(options_));
     auto* mockRaftNode = new MockRaftNode();
@@ -471,7 +473,7 @@ TEST_F(
 
 TEST_F(CopysetNodeTest,
        FetchLeaderStatusTest_CurrentNodeIsNotLeader_RpcResponseSuccess) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_TRUE(node.Init(options_));
     auto* mockRaftNode = new MockRaftNode();
@@ -535,7 +537,7 @@ TEST_F(CopysetNodeTest,
 }
 
 TEST_F(CopysetNodeTest, StartWithoutInitReturnFailed) {
-    CopysetNode node(poolId_, copysetId_, conf_);
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_FALSE(node.Start());
 }

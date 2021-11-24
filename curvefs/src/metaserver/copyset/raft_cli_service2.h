@@ -31,6 +31,7 @@
 
 #include "curvefs/proto/cli2.pb.h"
 #include "curvefs/src/metaserver/common/types.h"
+#include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -38,15 +39,38 @@ namespace copyset {
 
 class RaftCliService2 : public CliService2 {
  public:
-    void GetLeader(
-        ::google::protobuf::RpcController* controller,
-        const ::curvefs::metaserver::copyset::GetLeaderRequest2* request,
-        ::curvefs::metaserver::copyset::GetLeaderResponse2* response,
-        ::google::protobuf::Closure* done);
+    explicit RaftCliService2(CopysetNodeManager* manager);
+
+    void GetLeader(google::protobuf::RpcController* controller,
+                   const GetLeaderRequest2* request,
+                   GetLeaderResponse2* response,
+                   google::protobuf::Closure* done) override;
+
+    void AddPeer(google::protobuf::RpcController* controller,
+                 const AddPeerRequest2* request, AddPeerResponse2* response,
+                 google::protobuf::Closure* done) override;
+
+    void RemovePeer(google::protobuf::RpcController* controller,
+                    const RemovePeerRequest2* request,
+                    RemovePeerResponse2* response,
+                    google::protobuf::Closure* done) override;
+
+    void ChangePeers(google::protobuf::RpcController* controller,
+                     const ChangePeersRequest2* request,
+                     ChangePeersResponse2* response,
+                     google::protobuf::Closure* done) override;
+
+    void TransferLeader(google::protobuf::RpcController* controller,
+                        const TransferLeaderRequest2* request,
+                        TransferLeaderResponse2* response,
+                        google::protobuf::Closure* done) override;
 
  private:
     butil::Status GetNode(scoped_refptr<braft::NodeImpl>* node, PoolId poolId,
                           CopysetId copysetId, const std::string& peerId);
+
+ private:
+    CopysetNodeManager* nodeManager_;
 };
 
 }  // namespace copyset
