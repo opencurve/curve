@@ -94,7 +94,10 @@ FSStatusCode MdsClientImpl::CreateFsS3(const std::string &fsName,
 
         return ret;
     };
-    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+
+    // manually set to a large timeout, because create fs may very slow
+    const uint32_t createFsTimeoutMs = 10000;
+    return ReturnError(rpcexcutor_.DoRPCTask(task, createFsTimeoutMs));
 }
 
 FSStatusCode MdsClientImpl::DeleteFs(const std::string &fsName) {
