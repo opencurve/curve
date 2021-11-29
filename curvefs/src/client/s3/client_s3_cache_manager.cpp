@@ -1373,7 +1373,6 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
         */
         if (chunkPos + len <= chunkPos_ + len_) {
             memcpy(data_ + chunkPos - chunkPos_, data, len);
-            chunkCacheManager_->UpdateWriteCacheMap(chunkPos_, this);
             return;
         } else {
             std::vector<DataCachePtr>::const_iterator iter =
@@ -1399,7 +1398,6 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                            (*iter)->GetChunkPos() + (*iter)->GetLen() -
                                chunkPos - len);
                     Swap(newDatabuf, totalSize);
-                    chunkCacheManager_->UpdateWriteCacheMap(chunkPos_, this);
                     return;
                 }
             }
@@ -1414,7 +1412,6 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             memcpy(newDatabuf, data_, chunkPos - chunkPos_);
             memcpy(newDatabuf + chunkPos - chunkPos_, data, len);
             Swap(newDatabuf, totalSize);
-            chunkCacheManager_->UpdateWriteCacheMap(chunkPos_, this);
             return;
         }
     }
