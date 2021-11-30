@@ -30,34 +30,6 @@ namespace curvefs {
 namespace mds {
 namespace schedule {
 OperatorFactory operatorFactory;
-
-Operator OperatorFactory::CreateTransferLeaderOperator(
-    const CopySetInfo &info, MetaServerIdType newLeader, OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<TransferLeader>(info.leader, newLeader));
-}
-Operator OperatorFactory::CreateRemovePeerOperator(const CopySetInfo &info,
-                                                   MetaServerIdType peer,
-                                                   OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<RemovePeer>(peer));
-}
-
-Operator OperatorFactory::CreateAddPeerOperator(const CopySetInfo &info,
-                                                MetaServerIdType addPeer,
-                                                OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<AddPeer>(addPeer));
-}
-
-Operator OperatorFactory::CreateChangePeerOperator(const CopySetInfo &info,
-                                                   MetaServerIdType rmPeer,
-                                                   MetaServerIdType addPeer,
-                                                   OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<ChangePeer>(rmPeer, addPeer));
-}
-
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

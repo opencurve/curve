@@ -143,7 +143,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(
             copysetConf->set_allocated_configchangeitem(replica);
         }
 
-        for (auto peer : recordCopySetInfo.GetCopySetMembers()) {
+        for (auto& peer : recordCopySetInfo.GetCopySetMembers()) {
             std::string addPeer = BuildPeerByMetaserverId(peer);
             if (addPeer.empty()) {
                 return false;

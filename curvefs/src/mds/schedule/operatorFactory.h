@@ -20,43 +20,18 @@
  * @Author: chenwei
  */
 
-#include <cstdint>
-#include <vector>
-#include "curvefs/src/mds/schedule/operator.h"
-#include "curvefs/src/mds/schedule/operatorStep.h"
 #include "curvefs/src/mds/schedule/topoAdapter.h"
+#include "src/mds/schedule/operatorFactoryTemplate.h"
 
 #ifndef CURVEFS_SRC_MDS_SCHEDULE_OPERATORFACTORY_H_
 #define CURVEFS_SRC_MDS_SCHEDULE_OPERATORFACTORY_H_
 namespace curvefs {
 namespace mds {
 namespace schedule {
-
-class OperatorFactory {
- public:
-    /**
-     * @brief Create_xxxx_Operator: Create operator for xxxx
-     */
-    Operator CreateTransferLeaderOperator(const CopySetInfo &info,
-                                          MetaServerIdType newLeader,
-                                          OperatorPriority pri);
-
-    Operator CreateRemovePeerOperator(const CopySetInfo &info,
-                                      MetaServerIdType rmPeer,
-                                      OperatorPriority pri);
-
-    Operator CreateAddPeerOperator(const CopySetInfo &info,
-                                   MetaServerIdType addPeer,
-                                   OperatorPriority pri);
-
-    Operator CreateChangePeerOperator(const CopySetInfo &info,
-                                      MetaServerIdType rmPeer,
-                                      MetaServerIdType addPeer,
-                                      OperatorPriority pri);
-};
-
+using OperatorFactory =
+    curve::mds::schedule::OperatorFactoryT<MetaServerIdType, CopySetInfo,
+                                              CopySetConf>;
 extern OperatorFactory operatorFactory;
-
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

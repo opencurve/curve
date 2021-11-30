@@ -16,6 +16,7 @@
 
 syntax = "proto2";
 import "curvefs/proto/common.proto";
+import "proto/heartbeat.proto";
 package curvefs.mds.heartbeat;
 option cc_generic_services = true;
 
@@ -33,7 +34,7 @@ message CopySetInfo {
 
 message ConfigChangeInfo {
     required common.Peer peer = 1;
-    required ConfigChangeType type = 2;
+    required curve.mds.heartbeat.ConfigChangeType type = 2;
     required bool finished = 3;
     optional CandidateError err = 4;
 };
@@ -57,20 +58,12 @@ message MetaServerHeartbeatRequest {
     required uint64 memoryUsed = 11;  // KB
 };
 
-enum ConfigChangeType {
-    TRANSFER_LEADER = 1;
-    ADD_PEER = 2;
-    REMOVE_PEER = 3;
-    NONE = 4;
-    CHANGE_PEER = 5;
-};
-
 message CopySetConf {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
     repeated common.Peer peers = 3;
     required uint64 epoch = 4;
-    optional ConfigChangeType type = 5;
+    optional curve.mds.heartbeat.ConfigChangeType type = 5;
     // configchangeItem is the target node
     // for TRANSFER_LEADER: the target peer;
     // for ADD_PEER: the peer to add;

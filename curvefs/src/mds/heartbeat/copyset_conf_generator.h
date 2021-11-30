@@ -35,11 +35,12 @@ using ::curvefs::mds::topology::MetaServer;
 using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::schedule::Coordinator;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
+using ::curvefs::mds::topology::MetaServerIdType;
+using ::std::chrono::steady_clock;
 
 namespace curvefs {
 namespace mds {
 namespace heartbeat {
-// TODO(chenwei) : reuse curvebs code
 class CopysetConfGenerator {
  public:
     CopysetConfGenerator(

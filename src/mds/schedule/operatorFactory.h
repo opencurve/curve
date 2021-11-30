@@ -20,45 +20,17 @@
  * Author: lixiaocui
  */
 
-#include <cstdint>
-#include <vector>
-#include "src/mds/schedule/operator.h"
+#include "src/mds/schedule/operatorFactoryTemplate.h"
 #include "src/mds/schedule/topoAdapter.h"
-#include "src/mds/schedule/operatorStep.h"
 
 #ifndef SRC_MDS_SCHEDULE_OPERATORFACTORY_H_
 #define SRC_MDS_SCHEDULE_OPERATORFACTORY_H_
 namespace curve {
 namespace mds {
 namespace schedule {
-
-class OperatorFactory {
- public:
-    /**
-     * @brief Create_xxxx_Operator: Create operator for xxxx
-     */
-    Operator CreateTransferLeaderOperator(const CopySetInfo &info,
-        ChunkServerIdType newLeader, OperatorPriority pri);
-
-    Operator CreateRemovePeerOperator(const CopySetInfo &info,
-        ChunkServerIdType rmPeer, OperatorPriority pri);
-
-    Operator CreateAddPeerOperator(const CopySetInfo &info,
-        ChunkServerIdType addPeer, OperatorPriority pri);
-
-    Operator CreateChangePeerOperator(const CopySetInfo &info,
-        ChunkServerIdType rmPeer, ChunkServerIdType addPeer,
-        OperatorPriority pri);
-
-    Operator CreateStartScanPeerOperator(const CopySetInfo &info,
-        ChunkServerIdType startScanPeer, OperatorPriority pri);
-
-    Operator CreateCancelScanPeerOperator(const CopySetInfo &info,
-        ChunkServerIdType cancelScanPeer, OperatorPriority pri);
-};
-
+using OperatorFactory =
+    OperatorFactoryT<ChunkServerIdType, CopySetInfo, CopySetConf>;
 extern OperatorFactory operatorFactory;
-
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

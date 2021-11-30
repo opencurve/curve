@@ -31,6 +31,7 @@
 namespace curve {
 namespace mds {
 namespace schedule {
+// for test use, need a default implementation
 int Scheduler::Schedule() {
     return 0;
 }
@@ -140,7 +141,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         }
 
         // exclude the chunkserver exceeding the concurrent limit
-        if (opController_->ChunkServerExceed(cs.info.id)) {
+        if (opController_->Exceed(cs.info.id)) {
             continue;
         }
 

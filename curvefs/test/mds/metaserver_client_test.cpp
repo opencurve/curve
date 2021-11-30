@@ -106,6 +106,7 @@ void RpcService(google::protobuf::RpcController *cntl_base,
 
 TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -138,6 +139,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
 
 TEST_F(MetaserverClientTest, CreateRootInodeExist) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -195,6 +197,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeGetLeaderFail) {
 
 TEST_F(MetaserverClientTest, CreateRootInodeRpcFail) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.rpcRetryTimes = 2;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -223,6 +226,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeRpcFail) {
 
 TEST_F(MetaserverClientTest, CreateRootInodeFail) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -255,6 +259,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeFail) {
 
 TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -293,6 +298,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
 
 TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -331,6 +337,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
 
 TEST_F(MetaserverClientTest, DeleteInodeSuccess) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -347,6 +354,7 @@ TEST_F(MetaserverClientTest, DeleteInodeSuccess) {
 
 TEST_F(MetaserverClientTest, DeleteInodeFail) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
     uint32_t fsId = 0;
@@ -364,6 +372,7 @@ TEST_F(MetaserverClientTest, DeleteInodeFail) {
 
 TEST_F(MetaserverClientTest, GetLeaderSuccess) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
 
@@ -391,6 +400,7 @@ TEST_F(MetaserverClientTest, GetLeaderSuccess) {
 
 TEST_F(MetaserverClientTest, GetLeaderRetrySuccess) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     options.rpcRetryTimes = 1;
     MetaserverClient client(options);
@@ -419,6 +429,7 @@ TEST_F(MetaserverClientTest, GetLeaderRetrySuccess) {
 
 TEST_F(MetaserverClientTest, GetLeaderNoResponseFail) {
     MetaserverOptions options;
+    options.rpcTimeoutMs = 500;
     options.metaserverAddr = addr_;
     MetaserverClient client(options);
 

@@ -30,5 +30,6 @@ cc_library(
         "//curvefs/src/mds/topology:curvefs_topology",
         "//curvefs/src/mds/common:fs_mds_common",
         "//curvefs/proto:curvefs_schedule_cc_proto",
+        "//src/mds/schedule:schedule_template",
     ],
 )

@@ -30,6 +30,9 @@
 
 namespace curvefs {
 namespace mds {
+using ::curvefs::mds::topology::MetaServerIdType;
+using ::curvefs::mds::topology::PoolIdType;
+using ::curvefs::mds::topology::CopySetKey;
 class MockCoordinator : public ::curvefs::mds::schedule::Coordinator {
  public:
     MockCoordinator() {}

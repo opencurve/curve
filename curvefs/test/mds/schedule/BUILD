@@ -21,7 +21,11 @@ cc_test(
     srcs = glob([
         "*.cpp",
         "*.h",
-    ]),
+    ],  exclude = ["operatorFactory_test.cpp",
+                   "operatorStep_test.cpp",
+                   "operatorController_test.cpp",
+                   "scheduleMetrics_test.cpp",
+                   "operator_test.cpp"]),
     copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",

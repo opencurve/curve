@@ -170,6 +170,9 @@ TEST_F(ScheduleMetricsTest, test_add_rm_rmOp) {
         // 1. 增加high级别/remove类型的operator
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 2}, _))
             .WillOnce(DoAll(SetArgPointee<1>(rmCsInfo), Return(true)));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(_))
+            .WillOnce(Return("haha"));
+
         EXPECT_CALL(*topo, GetMetaServer(1, _))
             .WillOnce(DoAll(SetArgPointee<1>(GetMetaServer(1)), Return(true)));
         EXPECT_CALL(*topo, GetMetaServer(2, _))

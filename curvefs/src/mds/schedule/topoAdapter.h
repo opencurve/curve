@@ -34,6 +34,9 @@
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
 
+namespace curvefs {
+namespace mds {
+namespace schedule {
 using ::curvefs::mds::topology::MetaServerIdType;
 using ::curvefs::mds::topology::PoolIdType;
 using ::curvefs::mds::topology::ServerIdType;
@@ -49,11 +52,7 @@ using ::curvefs::mds::topology::Server;
 using ::curvefs::mds::topology::Pool;
 using ::curvefs::mds::topology::UNINITIALIZE_ID;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
-using ::curvefs::mds::heartbeat::ConfigChangeType;
-
-namespace curvefs {
-namespace mds {
-namespace schedule {
+using ::curve::mds::heartbeat::ConfigChangeType;
 
 struct PeerInfo {
  public:
@@ -138,6 +137,7 @@ struct MetaServerInfo {
  */
 class TopoAdapter {
  public:
+    virtual ~TopoAdapter() {}
     /**
      * @brief get logical pools
      *

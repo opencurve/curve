@@ -118,7 +118,7 @@ TopoStatusCode TopologyImpl::AddMetaServer(const MetaServer &data) {
         return ret;
     }
 
-    // fetch lock on pool, server and chunkserver
+    // fetch lock on pool, server and metaserver
     WriteLockGuard wlockPool(poolMutex_);
     uint64_t metaserverCapacity = 0;
     {
@@ -330,14 +330,14 @@ TopoStatusCode TopologyImpl::UpdateMetaServerSpace(const MetaServerSpace &space,
         return ret;
     }
 
-    // fetch write lock of the pool and read lock of chunkserver map
+    // fetch write lock of the pool and read lock of metaserver map
     WriteLockGuard wlocklPool(poolMutex_);
     int64_t diffCapacity = 0;
     {
         ReadLockGuard rlockMetaServerMap(metaServerMutex_);
         auto it = metaServerMap_.find(id);
         if (it != metaServerMap_.end()) {
-            WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+            WriteLockGuard wlockMetaServer(it->second.GetRWLockRef());
             diffCapacity = space.GetDiskCapacity() -
                            it->second.GetMetaServerSpace().GetDiskCapacity();
             int64_t diffUsed = space.GetDiskUsed() -
@@ -1292,6 +1292,24 @@ void TopologyImpl::GetMetaServersSpace(
     }
 }
 
+std::string TopologyImpl::GetHostNameAndPortById(MetaServerIdType msId) {
+    // get target metaserver
+    MetaServer ms;
+    if (!GetMetaServer(msId, &ms)) {
+        LOG(INFO) << "get metaserver " << msId << " err";
+        return "";
+    }
+
+    // get the server of the target metaserver
+    Server server;
+    if (!GetServer(ms.GetServerId(), &server)) {
+        LOG(INFO) << "get server " << ms.GetServerId() << " err";
+        return "";
+    }
+
+    // get hostName of the metaserver
+    return server.GetHostName() + ":" + std::to_string(ms.GetInternalPort());
+}
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

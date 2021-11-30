@@ -323,6 +323,8 @@ class Topology {
         GetCopySetsInChunkServer(ChunkServerIdType id,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
+
+    virtual std::string GetHostNameAndPortById(ChunkServerIdType csId) = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -559,6 +561,8 @@ class TopologyImpl : public Topology {
      */
     int GetBelongPhysicalPoolIdByServerId(ServerIdType serverId,
         PoolIdType *physicalPoolIdOut);
+
+    std::string GetHostNameAndPortById(ChunkServerIdType csId) override;
 
  private:
     int LoadClusterInfo();
