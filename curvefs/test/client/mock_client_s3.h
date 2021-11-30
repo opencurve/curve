@@ -41,6 +41,7 @@ class MockS3Client : public S3Client {
     ~MockS3Client() {}
 
     MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption& options));
+    MOCK_METHOD0(Deinit, void());
     MOCK_METHOD3(Upload, int(const std::string& name,
                              const char* buf, uint64_t length));
     MOCK_METHOD1(UploadAsync, void(
