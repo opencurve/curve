@@ -224,7 +224,7 @@ TEST_F(TestDiskCacheManagerImpl, UmountDiskCache) {
     EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
           .WillOnce(Return(-1));
     int ret = diskCacheManagerImpl_->UmountDiskCache();
-    ASSERT_EQ(-1, ret);
+    ASSERT_EQ(0, ret);
 
     EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
           .WillOnce(Return(0));
