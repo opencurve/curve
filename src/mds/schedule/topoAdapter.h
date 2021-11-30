@@ -34,6 +34,9 @@
 #include "proto/topology.pb.h"
 #include "proto/heartbeat.pb.h"
 
+namespace curve {
+namespace mds {
+namespace schedule {
 using ::curve::mds::topology::ChunkServerIdType;
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::ServerIdType;
@@ -56,10 +59,6 @@ using ::curve::mds::heartbeat::ConfigChangeInfo;
 using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curve::mds::heartbeat::CopysetStatistics;
 using ::curve::mds::heartbeat::ChunkServerStatisticInfo;
-
-namespace curve {
-namespace mds {
-namespace schedule {
 
 struct PeerInfo {
  public:

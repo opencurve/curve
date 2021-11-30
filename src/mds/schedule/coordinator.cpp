@@ -28,6 +28,7 @@
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/schedule/operatorFactory.h"
+#include "src/mds/schedule/operatorStep.h"
 
 namespace curve {
 namespace mds {

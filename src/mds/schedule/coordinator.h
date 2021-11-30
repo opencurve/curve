@@ -37,18 +37,17 @@
 #include "src/mds/schedule/scheduleMetrics.h"
 #include "src/common/interruptible_sleeper.h"
 
-using ::curve::mds::heartbeat::ConfigChangeType;
-using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
 namespace schedule {
-
+using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curve::common::InterruptibleSleeper;
 class Coordinator {
  public:
     Coordinator() = default;
     explicit Coordinator(const std::shared_ptr<TopoAdapter> &topo);
-    ~Coordinator();
+    virtual ~Coordinator();
     /**
      * @brief deal with copyset info reported by the chunkserver
      *
@@ -75,7 +74,7 @@ class Coordinator {
     /**
      * @brief cancel scan request
      *
-     * @param[in] lpid The logical pool that require cancel scan 
+     * @param[in] lpid The logical pool that require cancel scan
      *
      * @return kScheduleErrCodeSuccess If cancelscan operator generated successfully //NOLINT
      *         kScheduleErrCodeInvalidLogicalPool If logical pool not exist

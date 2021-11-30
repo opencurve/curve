@@ -18,8 +18,26 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "schedule",
-    srcs = glob(["*.cpp"]),
+    srcs = glob(["*.cpp"],
+            exclude = []),
     hdrs = glob(["*.h"]),
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//proto:topology_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/topology",
+    ],
+)
+
+cc_library(
+    name = "schedule_template",
+    srcs = glob(["*Template.cpp", ],
+            exclude = []),
+    hdrs = glob(["*Template.h"]),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [

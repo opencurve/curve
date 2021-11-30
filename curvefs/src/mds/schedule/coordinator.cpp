@@ -174,7 +174,7 @@ ScheduleStatusCode Coordinator::QueryMetaServerRecoverStatus(
                 LOG(ERROR) << "invalid metaserver id: " << id;
                 return ScheduleStatusCode::InvalidQueryMetaserverID;
             }
-            infos.emplace_back(info);
+            infos.emplace_back(std::move(info));
         }
     }
 
@@ -235,7 +235,7 @@ bool Coordinator::BuildCopySetConf(
     }
 
     // set peers
-    for (auto peer : res.peers) {
+    for (auto &peer : res.peers) {
         auto replica = out->add_peers();
         replica->set_id(peer.id);
         replica->set_address(::curvefs::mds::topology::BuildPeerIdWithIpPort(

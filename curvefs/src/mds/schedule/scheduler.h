@@ -29,21 +29,21 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "curvefs/src/mds/schedule/operator.h"
 #include "curvefs/src/mds/schedule/operatorController.h"
 #include "curvefs/src/mds/schedule/schedule_define.h"
 #include "curvefs/src/mds/schedule/topoAdapter.h"
 #include "curvefs/src/mds/topology/topology.h"
 
+namespace curvefs {
+namespace mds {
+namespace schedule {
 using ::curvefs::mds::topology::UNINITIALIZE_ID;
 using ::curvefs::mds::topology::PoolIdType;
 using ::curvefs::mds::topology::ZoneIdType;
 using ::curvefs::mds::topology::ServerIdType;
 using ::curvefs::mds::topology::MetaServerIdType;
 using ::curvefs::mds::topology::CopySetIdType;
-
-namespace curvefs {
-namespace mds {
-namespace schedule {
 
 class Scheduler {
  public:
@@ -63,6 +63,8 @@ class Scheduler {
         changeTimeSec_ = opt.changePeerTimeLimitSec;
         addTimeSec_ = opt.addPeerTimeLimitSec;
     }
+
+    virtual ~Scheduler() {}
 
     /**
      * @brief producing operator according to cluster status

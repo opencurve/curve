@@ -38,18 +38,16 @@
 #include "curvefs/src/mds/topology/topology_item.h"
 #include "src/common/interruptible_sleeper.h"
 
-using ::curvefs::mds::heartbeat::ConfigChangeType;
-using ::curve::common::InterruptibleSleeper;
-
 namespace curvefs {
 namespace mds {
 namespace schedule {
-// TODO(chenwei) : reuse curvebs code
+using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curve::common::InterruptibleSleeper;
 class Coordinator {
  public:
     Coordinator() = default;
     explicit Coordinator(const std::shared_ptr<TopoAdapter> &topo);
-    ~Coordinator();
+    virtual ~Coordinator();
     /**
      * @brief deal with copyset info reported by the metaserver
      *

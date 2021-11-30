@@ -41,6 +41,7 @@ using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::topology::MockIdGenerator;
 using ::curvefs::mds::topology::MockTokenGenerator;
 using ::curvefs::mds::topology::MockStorage;
+using ::std::chrono::steady_clock;
 namespace curvefs {
 namespace mds {
 namespace schedule {
@@ -248,7 +249,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, ChooseZoneInPool(_, _, _))
             .WillOnce(Return(true));
         EXPECT_CALL(*topoAdapter_, ChooseSingleMetaServerInZone(_, _, _))
-            .WillOnce(Return(true));
+            .WillOnce(DoAll(SetArgPointee<1>(4), Return(true)));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtMetaServer(_, _))
             .WillOnce(Return(true));
         recoverScheduler_->Schedule();
@@ -280,7 +281,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, ChooseZoneInPool(_, _, _))
             .WillOnce(Return(true));
         EXPECT_CALL(*topoAdapter_, ChooseSingleMetaServerInZone(_, _, _))
-            .WillOnce(Return(true));
+            .WillOnce(DoAll(SetArgPointee<1>(4), Return(true)));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtMetaServer(_, _))
             .WillOnce(Return(false));
         recoverScheduler_->Schedule();

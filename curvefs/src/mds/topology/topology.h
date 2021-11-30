@@ -224,6 +224,8 @@ class Topology {
     virtual void GetMetaServersSpace(
         ::google::protobuf::RepeatedPtrField<
             curvefs::mds::topology::MetadataUsage>* spaces) = 0;
+
+    virtual std::string GetHostNameAndPortById(MetaServerIdType msId) = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -435,6 +437,8 @@ class TopologyImpl : public Topology {
     void GetMetaServersSpace(
         ::google::protobuf::RepeatedPtrField<
             curvefs::mds::topology::MetadataUsage>* spaces) override;
+
+    std::string GetHostNameAndPortById(MetaServerIdType msId) override;
 
  private:
     TopoStatusCode LoadClusterInfo();

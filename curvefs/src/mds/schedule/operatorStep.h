@@ -26,140 +26,31 @@
 #include <cstdint>
 #include <string>
 #include "curvefs/src/mds/schedule/topoAdapter.h"
+#include "src/mds/schedule/operatorStepTemplate.h"
 
 namespace curvefs {
 namespace mds {
 namespace schedule {
-enum ApplyStatus {
-    Finished,
-    Failed,
-    Ordered,
-    OnGoing
-};
-
-// TODO(chenwei) : reuse curvebs code
-/**
- * @brief OperatorStep is used to abstract different operator step.
- * An Operator is composed of several OperatorStep.
- */
-class OperatorStep {
- public:
-    /**
-     * @brief execute OperatorStep
-     */
-    virtual ApplyStatus Apply(const CopySetInfo &originInfo,
-                                CopySetConf *newConf) = 0;
-    virtual std::string OperatorStepToString() = 0;
-
-    virtual MetaServerIdType GetTargetPeer() const = 0;
-};
-
-class TransferLeader : public OperatorStep {
- public:
-    TransferLeader(MetaServerIdType from, MetaServerIdType to);
-
-    /**
-     * @brief possible scenario and reaction:
-     * 1. to_ is already the leader, the operation succeeded
-     * 2. the info reported has no configchangeItem, dispatch change command
-     * 3. the info reported has configchangeItem but doesn't match the target
-     *    leader. this means there's operator under execution lost due to the
-     *    MDS restart, the new operator should suspend and remove in this case.
-     * 4. configuration change fail reported, transferleader
-     *    failed and should be removed
-     * 5. configuration change undergoing, do nothing
-     */
-    ApplyStatus Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) override;
-
-    std::string OperatorStepToString() override;
-
-    MetaServerIdType GetTargetPeer() const override;
-
- private:
-    MetaServerIdType from_;
-    MetaServerIdType to_;
-};
-
-class AddPeer : public OperatorStep {
- public:
-    explicit AddPeer(MetaServerIdType peerID);
-    /**
-     * @brief possible scenario and reaction:
-     * 1. add_ is already one of the replica, changed successfully
-     * 2. the info reported has no configchangeItem, dispatch change command
-     * 3. the info reported has configchangeItem but doesn't match add_.
-     *    this means there's operator under execution lost due to the
-     *    MDS restart, the new operator should suspend and remove in this case.
-     * 4. configuration change fail reported, AddPeer
-     *    failed and should be removed
-     * 5. configuration change undergoing, do nothing
-     */
-    ApplyStatus Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) override;
-
-    MetaServerIdType GetTargetPeer() const override;
-
-    std::string OperatorStepToString() override;
-
- private:
-    MetaServerIdType add_;
-};
-
-class RemovePeer : public OperatorStep {
- public:
-    explicit RemovePeer(MetaServerIdType peerID);
-    /**
-     * @brief possible scenario and reaction:
-     * 1. remove_ is not one of the replica, changed successfully
-     * 2. the info reported has no configchangeItem, dispatch change command
-     * 3. the info reported has candidate but doesn't match remove_.
-     *    this means there's operator under execution lost due to the
-     *    MDS restart, the new operator should suspend and remove in this case.
-     * 4. configuration change fail reported, RemovePeer
-     *    failed and should be removed
-     * 5. configuration change undergoing, do nothing
-     */
-    ApplyStatus Apply(const CopySetInfo &originInfo,
-                        CopySetConf *newConf) override;
-
-    std::string OperatorStepToString() override;
-
-    MetaServerIdType GetTargetPeer() const override;
-
- private:
-    MetaServerIdType remove_;
-};
-
-class ChangePeer : public OperatorStep {
- public:
-    ChangePeer(MetaServerIdType oldOne, MetaServerIdType newOne);
-
-    /**
-     * @brief possible scenario and reaction:
-     * 1. new_ is one of the replica, and old_ is not, changed successfully
-     * 2. the info reported has no configchangeItem, dispatch change command
-     * 3. the info reported has candidate but doesn't match new_.
-     *    this means there's operator under execution lost due to the
-     *    MDS restart, the new operator should suspend and remove in this case.
-     * 4. configuration change fail reported, ChangePeer
-     *    failed and should be removed
-     * 5. configuration change undergoing, do nothing
-     */
-    ApplyStatus Apply(
-        const CopySetInfo &originInfo, CopySetConf *newConf) override;
-
-    std::string OperatorStepToString() override;
-
-    MetaServerIdType GetTargetPeer() const override;
-
-    MetaServerIdType GetOldPeer() const;
-
- private:
-    MetaServerIdType old_;
-    MetaServerIdType new_;
-};
-
+using OperatorStep =
+    curve::mds::schedule::OperatorStepT<MetaServerIdType, CopySetInfo,
+                                           CopySetConf>;
+using RemovePeer =
+    curve::mds::schedule::RemovePeerT<MetaServerIdType, CopySetInfo,
+                                         CopySetConf>;
+using AddPeer = curve::mds::schedule::AddPeerT<MetaServerIdType, CopySetInfo,
+                                                  CopySetConf>;
+using TransferLeader =
+    curve::mds::schedule::TransferLeaderT<MetaServerIdType, CopySetInfo,
+                                             CopySetConf>;
+using ChangePeer =
+    curve::mds::schedule::ChangePeerT<MetaServerIdType, CopySetInfo,
+                                         CopySetConf>;
+using CancelScanPeer =
+    curve::mds::schedule::CancelScanPeerT<MetaServerIdType, CopySetInfo,
+                                             CopySetConf>;
+using StartScanPeer =
+    curve::mds::schedule::StartScanPeerT<MetaServerIdType, CopySetInfo,
+                                            CopySetConf>;
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

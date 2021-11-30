@@ -22,5 +22,9 @@
 
 #ifndef CURVEFS_SRC_COMMON_DEFINE_H_
 #define CURVEFS_SRC_COMMON_DEFINE_H_
-#define ROOTINODEID 1
+#include <cstdint>
+
+namespace curvefs {
+const uint64_t ROOTINODEID = 1;
+}
 #endif  // CURVEFS_SRC_COMMON_DEFINE_H_

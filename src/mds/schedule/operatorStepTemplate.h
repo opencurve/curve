@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2020 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,26 +15,201 @@
  */
 
 /*
- * @Project: curve
- * @Date: 2021-11-8 11:01:48
- * @Author: chenwei
+ * Project: curve
+ * Created Date: Thu Nov 15 2018
+ * Author: lixiaocui
  */
+#ifndef SRC_MDS_SCHEDULE_OPERATORSTEPTEMPLATE_H_
+#define SRC_MDS_SCHEDULE_OPERATORSTEPTEMPLATE_H_
 
-#include "curvefs/src/mds/schedule/operatorStep.h"
-#include <glog/logging.h>
+#include <cstdint>
+#include <string>
+#include "glog/logging.h"
+#include "proto/heartbeat.pb.h"
 
-using curvefs::mds::heartbeat::ConfigChangeType;
-
-namespace curvefs {
+namespace curve {
 namespace mds {
 namespace schedule {
-TransferLeader::TransferLeader(MetaServerIdType from, MetaServerIdType to) {
+using ::curve::mds::heartbeat::ConfigChangeType;
+
+enum ApplyStatus { Finished, Failed, Ordered, OnGoing };
+
+/**
+ * @brief OperatorStepT is used to abstract different operator step.
+ * An Operator is composed of several OperatorStepT.
+ */
+/**
+ * IdType: MetaserverIdTpye or IdType
+ */
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class OperatorStepT {
+ public:
+    virtual ~OperatorStepT() {}
+    /**
+     * @brief execute OperatorStepT
+     */
+    virtual ApplyStatus Apply(const CopySetInfoT &originInfo,
+                              CopySetConfT *newConf) = 0;
+    virtual std::string OperatorStepToString() = 0;
+
+    virtual IdType GetTargetPeer() const = 0;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class TransferLeaderT
+    : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
+ public:
+    TransferLeaderT(IdType from, IdType to);
+
+    /**
+     * @brief possible scenario and reaction:
+     * 1. to_ is already the leader, the operation succeeded
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has configchangeItem but doesn't match the target
+     *    leader. this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, transferleader
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
+     */
+    ApplyStatus Apply(const CopySetInfoT &originInfo,
+                      CopySetConfT *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    IdType GetTargetPeer() const override;
+
+ private:
+    IdType from_;
+    IdType to_;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class AddPeerT : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
+ public:
+    explicit AddPeerT(IdType peerID);
+    /**
+     * @brief possible scenario and reaction:
+     * 1. add_ is already one of the replica, changed successfully
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has configchangeItem but doesn't match add_.
+     *    this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, AddPeerT
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
+     */
+    ApplyStatus Apply(const CopySetInfoT &originInfo,
+                      CopySetConfT *newConf) override;
+
+    IdType GetTargetPeer() const override;
+
+    std::string OperatorStepToString() override;
+
+ private:
+    IdType add_;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class RemovePeerT : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
+ public:
+    explicit RemovePeerT(IdType peerID);
+    /**
+     * @brief possible scenario and reaction:
+     * 1. remove_ is not one of the replica, changed successfully
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has candidate but doesn't match remove_.
+     *    this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, RemovePeerT
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
+     */
+    ApplyStatus Apply(const CopySetInfoT &originInfo,
+                      CopySetConfT *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    IdType GetTargetPeer() const override;
+
+ private:
+    IdType remove_;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class ChangePeerT : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
+ public:
+    ChangePeerT(IdType oldOne, IdType newOne);
+
+    /**
+     * @brief possible scenario and reaction:
+     * 1. new_ is one of the replica, and old_ is not, changed successfully
+     * 2. the info reported has no configchangeItem, dispatch change command
+     * 3. the info reported has candidate but doesn't match new_.
+     *    this means there's operator under execution lost due to the
+     *    MDS restart, the new operator should suspend and remove in this case.
+     * 4. configuration change fail reported, ChangePeerT
+     *    failed and should be removed
+     * 5. configuration change undergoing, do nothing
+     */
+    ApplyStatus Apply(const CopySetInfoT &originInfo,
+                      CopySetConfT *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    IdType GetTargetPeer() const override;
+
+    IdType GetOldPeer() const;
+
+ private:
+    IdType old_;
+    IdType new_;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class StartScanPeerT
+    : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
+ public:
+    explicit StartScanPeerT(IdType peerID) : scan_(peerID) {}
+
+    ApplyStatus Apply(const CopySetInfoT &originInfo,
+                      CopySetConfT *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    IdType GetTargetPeer() const override;
+
+ private:
+    IdType scan_;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+class CancelScanPeerT
+    : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
+ public:
+    explicit CancelScanPeerT(IdType peerID) : scan_(peerID) {}
+
+    ApplyStatus Apply(const CopySetInfoT &originInfo,
+                      CopySetConfT *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    IdType GetTargetPeer() const override;
+
+ private:
+    IdType scan_;
+};
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+TransferLeaderT<IdType, CopySetInfoT, CopySetConfT>::TransferLeaderT(
+    IdType from, IdType to) {
     this->from_ = from;
     this->to_ = to;
 }
 
-ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
-                                  CopySetConf *newConf) {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ApplyStatus TransferLeaderT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
     assert(newConf != nullptr);
 
     // success transfer, no instruction to copyset
@@ -103,19 +278,32 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
     return ApplyStatus::OnGoing;
 }
 
-std::string TransferLeader::OperatorStepToString() {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+std::string
+TransferLeaderT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
     return "transfer leader from " + std::to_string(from_) + " to " +
            std::to_string(to_);
 }
 
-MetaServerIdType TransferLeader::GetTargetPeer() const { return to_; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType TransferLeaderT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer()
+    const {
+    return to_;
+}
 
-AddPeer::AddPeer(MetaServerIdType peerID) { this->add_ = peerID; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+AddPeerT<IdType, CopySetInfoT, CopySetConfT>::AddPeerT(IdType peerID) {
+    this->add_ = peerID;
+}
 
-MetaServerIdType AddPeer::GetTargetPeer() const { return add_; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType AddPeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer() const {
+    return add_;
+}
 
-ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
-                           CopySetConf *newConf) {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ApplyStatus AddPeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
     assert(newConf != nullptr);
 
     // success add peer, no instruction to copyset
@@ -169,14 +357,20 @@ ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
     return ApplyStatus::OnGoing;
 }
 
-std::string AddPeer::OperatorStepToString() {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+std::string
+AddPeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
     return "add peer " + std::to_string(add_);
 }
 
-RemovePeer::RemovePeer(MetaServerIdType peerID) { this->remove_ = peerID; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+RemovePeerT<IdType, CopySetInfoT, CopySetConfT>::RemovePeerT(IdType peerID) {
+    this->remove_ = peerID;
+}
 
-ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
-                              CopySetConf *newConf) {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ApplyStatus RemovePeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
     assert(newConf != nullptr);
 
     // success remove peer, no instruction to copyset
@@ -230,28 +424,44 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
     return ApplyStatus::OnGoing;
 }
 
-std::string RemovePeer::OperatorStepToString() {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+std::string
+RemovePeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
     return "remove peer " + std::to_string(remove_);
 }
 
-MetaServerIdType RemovePeer::GetTargetPeer() const { return remove_; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType RemovePeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer() const {
+    return remove_;
+}
 
-ChangePeer::ChangePeer(MetaServerIdType oldOne, MetaServerIdType newOne) {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ChangePeerT<IdType, CopySetInfoT, CopySetConfT>::ChangePeerT(IdType oldOne,
+                                                             IdType newOne) {
     old_ = oldOne;
     new_ = newOne;
 }
 
-std::string ChangePeer::OperatorStepToString() {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+std::string
+ChangePeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
     return "change peer from " + std::to_string(old_) + " to " +
            std::to_string(new_);
 }
 
-MetaServerIdType ChangePeer::GetTargetPeer() const { return new_; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType ChangePeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer() const {
+    return new_;
+}
 
-MetaServerIdType ChangePeer::GetOldPeer() const { return old_; }
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType ChangePeerT<IdType, CopySetInfoT, CopySetConfT>::GetOldPeer() const {
+    return old_;
+}
 
-ApplyStatus ChangePeer::Apply(const CopySetInfo &originInfo,
-                              CopySetConf *newConf) {
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ApplyStatus ChangePeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
     assert(newConf != nullptr);
 
     // if new_ is contained in origin info, the configuration change succeeded
@@ -294,7 +504,7 @@ ApplyStatus ChangePeer::Apply(const CopySetInfo &originInfo,
         return ApplyStatus::Failed;
     }
 
-    // configuration change fail reported, ChangePeer failed and should be
+    // configuration change fail reported, ChangePeerT failed and should be
     // removed //NOLINT
     if (!originInfo.configChangeInfo.finished() &&
         originInfo.configChangeInfo.has_err()) {
@@ -308,6 +518,43 @@ ApplyStatus ChangePeer::Apply(const CopySetInfo &originInfo,
     return ApplyStatus::OnGoing;
 }
 
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ApplyStatus StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
+    return ApplyStatus::OnGoing;
+}
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+std::string
+StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
+    return "";
+}
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer()
+    const {
+    return scan_;
+}
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+ApplyStatus CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
+    return ApplyStatus::OnGoing;
+}
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+std::string
+CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
+    return "";
+}
+
+template <class IdType, class CopySetInfoT, class CopySetConfT>
+IdType CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer()
+    const {
+    return scan_;
+}
 }  // namespace schedule
 }  // namespace mds
-}  // namespace curvefs
+}  // namespace curve
+
+#endif  // SRC_MDS_SCHEDULE_OPERATORSTEPTEMPLATE_H_

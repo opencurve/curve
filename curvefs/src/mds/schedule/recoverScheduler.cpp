@@ -81,25 +81,24 @@ int RecoverScheduler::Schedule() {
 
         // recover one of the offline replica
         MetaServerIdType target;
-        // Operator newOp;
 
-        if (!FixOfflinePeer(copysetInfo, *offlinelists.begin(), &op,
-                                                                    &target)) {
+        if (!FixOfflinePeer(copysetInfo, *offlinelists.begin(), &op, &target)) {
             // failed to recover the replica
+            LOG(INFO) << "recoverSchdeuler Fix OfflinePeer fail, copyset: "
+                      << copysetInfo.CopySetInfoStr()
+                      << ", offlinePeer = " << *offlinelists.begin();
             continue;
         }
 
         if (!opController_->AddOperator(op)) {
             // succeeded but failed to add the operator to the controller
-            LOG(WARNING) << "recover scheduler add operator "
-                         << op.OpToString() << " on "
-                         << copysetInfo.CopySetInfoStr() << " fail";
+            LOG(WARNING) << "recover scheduler add operator " << op.OpToString()
+                         << " on " << copysetInfo.CopySetInfoStr() << " fail";
             continue;
         }
 
-        LOG(INFO) << "recoverScheduler generate operator:"
-                  << op.OpToString() << " for "
-                  << copysetInfo.CopySetInfoStr()
+        LOG(INFO) << "recoverScheduler generate operator:" << op.OpToString()
+                  << " for " << copysetInfo.CopySetInfoStr()
                   << ", remove offlinePeer: " << *offlinelists.begin();
         // if the target returned has the initial value, that means offline
         // replicas are removed directly.

@@ -30,6 +30,7 @@
 namespace curvefs {
 namespace mds {
 namespace schedule {
+// for test use, need a default implementation
 int Scheduler::Schedule() { return 0; }
 
 int64_t Scheduler::GetRunningInterval() { return 0; }
@@ -101,7 +102,7 @@ MetaServerIdType Scheduler::SelectBestPlacementMetaServer(
             continue;
         }
 
-        if (opController_->MetaServerExceed(metaServerId)) {
+        if (opController_->Exceed(metaServerId)) {
             excludeMetaservers.emplace(metaServerId);
             continue;
         }

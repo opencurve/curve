@@ -20,9 +20,9 @@
  * Author: lixiaocui
  */
 
+#include "src/mds/schedule/operatorFactory.h"
 #include <cstdint>
 #include <memory>
-#include "src/mds/schedule/operatorFactory.h"
 
 using ::std::chrono::steady_clock;
 
@@ -31,65 +31,6 @@ namespace mds {
 namespace schedule {
 OperatorFactory operatorFactory;
 
-Operator OperatorFactory::CreateTransferLeaderOperator(
-    const CopySetInfo &info,
-    ChunkServerIdType newLeader,
-    OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<TransferLeader>(info.leader, newLeader));
-}
-Operator OperatorFactory::CreateRemovePeerOperator(
-    const CopySetInfo &info, ChunkServerIdType peer, OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<RemovePeer>(peer));
-}
-
-Operator OperatorFactory::CreateAddPeerOperator(
-    const CopySetInfo &info, ChunkServerIdType addPeer, OperatorPriority pri) {
-    return Operator(info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<AddPeer>(addPeer));
-}
-
-Operator OperatorFactory::CreateChangePeerOperator(const CopySetInfo &info,
-    ChunkServerIdType rmPeer, ChunkServerIdType addPeer,
-    OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<ChangePeer>(rmPeer, addPeer));
-}
-
-Operator OperatorFactory::CreateStartScanPeerOperator(const CopySetInfo &info,
-    ChunkServerIdType startScanPeer, OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<StartScanPeer>(startScanPeer));
-}
-Operator OperatorFactory::CreateCancelScanPeerOperator(const CopySetInfo &info,
-    ChunkServerIdType cancelScanPeer, OperatorPriority pri) {
-    return Operator(
-        info.epoch,
-        info.id,
-        pri,
-        steady_clock::now(),
-        std::make_shared<CancelScanPeer>(cancelScanPeer));
-}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

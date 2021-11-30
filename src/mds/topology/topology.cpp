@@ -1265,6 +1265,24 @@ bool TopologyImpl::GetClusterInfo(ClusterInformation *info) {
     return true;
 }
 
+std::string TopologyImpl::GetHostNameAndPortById(ChunkServerIdType csId) {
+    // get target chunkserver
+    ChunkServer cs;
+    if (!GetChunkServer(csId, &cs)) {
+        LOG(INFO) << "get chunkserver " << csId << " err";
+        return "";
+    }
+
+    // get the server of the target chunkserver
+    Server server;
+    if (!GetServer(cs.GetServerId(), &server)) {
+        LOG(INFO) << "get server " << cs.GetServerId() << " err";
+        return "";
+    }
+
+    // get hostName of the chunkserver
+    return server.GetHostName() + ":" + std::to_string(cs.GetPort());
+}
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

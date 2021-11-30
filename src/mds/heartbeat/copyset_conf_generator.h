@@ -35,6 +35,8 @@ using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::Topology;
 using ::curve::mds::schedule::Coordinator;
 using ::curve::mds::heartbeat::ConfigChangeInfo;
+using ::curve::mds::topology::ChunkServerIdType;
+using ::std::chrono::steady_clock;
 
 namespace curve {
 namespace mds {

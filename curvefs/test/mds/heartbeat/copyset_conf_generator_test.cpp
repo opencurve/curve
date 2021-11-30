@@ -26,10 +26,8 @@
 #include <gtest/gtest.h>
 #include <sys/time.h>
 
-// #include "curvefs/src/mds/heartbeat/metaserver_healthy_checker.h"
 #include "curvefs/test/mds/mock/mock_coordinator.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
-// #include "src/common/timeutility.h"
 
 using ::curvefs::mds::topology::MockIdGenerator;
 using ::curvefs::mds::topology::MockStorage;
@@ -37,6 +35,8 @@ using ::curvefs::mds::topology::MockTokenGenerator;
 using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::MockCoordinator;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::mds::topology::CopySetIdType;
+using ::curvefs::mds::topology::UNINITIALIZE_ID;
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
