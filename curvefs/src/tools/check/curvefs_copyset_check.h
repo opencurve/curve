@@ -48,7 +48,7 @@ class CopysetCheckTool
           curvefs::metaserver::copyset::CopysetService_Stub> {
  public:
     explicit CopysetCheckTool(const std::string& cmd = kCopysetCheckCmd,
-                              bool show = false)
+                              bool show = true)
         : CurvefsToolRpc(cmd) {
         show_ = show;
     }

@@ -27,6 +27,7 @@
 #include <string>
 
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/tools/copyset/curvefs_copyset_base_tool.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"

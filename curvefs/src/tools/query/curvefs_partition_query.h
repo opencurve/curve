@@ -44,7 +44,7 @@ class PartitionQueryTool
           curvefs::mds::topology::GetCopysetOfPartitionResponse,
           curvefs::mds::topology::TopologyService_Stub> {
  public:
-    explicit PartitionQueryTool(const std::string& cmd = kCopysetQueryCmd,
+    explicit PartitionQueryTool(const std::string& cmd = kPartitionQueryCmd,
                                 bool show = true)
         : CurvefsToolRpc(cmd) {
         show_ = show;

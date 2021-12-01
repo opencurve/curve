@@ -32,8 +32,8 @@ namespace check {
 
 void CopysetCheckTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -copysetsId=" << FLAGS_copysetId
-              << " -poolsId=" << FLAGS_poolId
+    std::cout << " -copysetId=" << FLAGS_copysetId
+              << " -poolId=" << FLAGS_poolId
               << " [-metaserverAddr=" << FLAGS_metaserverAddr << "]";
     std::cout << std::endl;
 }
