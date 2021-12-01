@@ -36,15 +36,7 @@ void VersionTool::PrintHelp() {
 }
 
 int VersionTool::RunCommand() {
-    std::cout <<
-#ifdef CURVEVERSION
-#define STR(val) #val
-#define XSTR(val) STR(val)
-        std::string(XSTR(CURVEVERSION));
-#else
-        std::string("unknown");
-#endif
-    std::cout << std::endl;
+    std::cout << curve::common::CurveVersion() << std::endl;
     return 0;
 }
 

@@ -16,50 +16,48 @@
 
 /*
  * Project: curve
- * Created Date: 2021-11-19
+ * Created Date: 2021-12-15
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_QUERY_CURVEFS_PARTITION_QUERY_H_
-#define CURVEFS_SRC_TOOLS_QUERY_CURVEFS_PARTITION_QUERY_H_
 
-#include <brpc/channel.h>
+#ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_H_
+#define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_H_
+
 #include <gflags/gflags.h>
 
 #include <iostream>
+#include <memory>
 #include <string>
-#include <vector>
 
-#include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "src/common/string_util.h"
+#include "curvefs/src/tools/status/curvefs_copyset_status.h"
+#include "curvefs/src/tools/status/curvefs_etcd_status.h"
+#include "curvefs/src/tools/status/curvefs_mds_status.h"
+#include "curvefs/src/tools/status/curvefs_metaserver_status.h"
 
 namespace curvefs {
 namespace tools {
-namespace query {
+namespace status {
 
-class PartitionQueryTool
-    : public CurvefsToolRpc<
-          curvefs::mds::topology::GetCopysetOfPartitionRequest,
-          curvefs::mds::topology::GetCopysetOfPartitionResponse,
-          curvefs::mds::topology::TopologyService_Stub> {
+class StatusTool : public CurvefsTool {
  public:
-    explicit PartitionQueryTool(const std::string& cmd = kPartitionQueryCmd,
-                                bool show = true)
-        : CurvefsToolRpc(cmd) {
-        show_ = show;
-    }
-
+    explicit StatusTool(const std::string& command = kStatusCmd)
+        : CurvefsTool(command) {}
     void PrintHelp() override;
+
+    int RunCommand() override;
     int Init() override;
 
  protected:
-    void AddUpdateFlags() override;
-    bool AfterSendRequestToHost(const std::string& host) override;
+    std::shared_ptr<MdsStatusTool> mdsStatusTool_;
+    std::shared_ptr<MetaserverStatusTool> metaserverStatusTool_;
+    std::shared_ptr<EtcdStatusTool> etcdStatusTool_;
+    std::shared_ptr<CopysetStatusTool> copysetStatutsTool_;
 };
 
-}  // namespace query
+}  // namespace status
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_QUERY_CURVEFS_PARTITION_QUERY_H_
+#endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_H_

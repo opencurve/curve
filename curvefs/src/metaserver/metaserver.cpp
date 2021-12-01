@@ -148,6 +148,9 @@ void Metaserver::Run() {
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
 
+    // set metaserver version in metric
+    curve::common::ExposeCurvefsVersion();
+
     brpc::Server server;
     butil::ip_t ip;
     LOG_IF(FATAL, 0 != butil::str2ip(options_.ip.c_str(), &ip))

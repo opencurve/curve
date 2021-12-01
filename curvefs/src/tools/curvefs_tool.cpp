@@ -35,7 +35,14 @@ int CurvefsTool::Run() {
         return -1;
     }
     int ret = RunCommand();
+    if (ret != 0) {
+        PrintError();
+    }
     return ret;
+}
+
+void CurvefsTool::PrintError() {
+    std::cerr << errorOutput_.str();
 }
 
 int CurvefsToolMetric::Init(const std::shared_ptr<MetricClient>& metricClient) {

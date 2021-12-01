@@ -3,6 +3,25 @@
 # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
 ############################  GLOBAL VARIABLES
+#get tag version
+tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
+if [ -z ${tag_version} ]
+then
+    echo "not found version info, set version to 9.9.9"
+    tag_version=9.9.9
+fi
+
+# get git commit version
+commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
+if [ "$1" = "debug" ]
+then
+    debug="+debug"
+else
+    debug=""
+fi
+
+curvefs_version=${tag_version}+${commit_id}${debug}
+
 g_list=0
 g_target=""
 g_release=0
@@ -14,6 +33,7 @@ g_build_opts=(
     "--copt -DHAVE_ZLIB=1"
     "--copt -DGFLAGS_NS=google"
     "--copt -DUSE_BTHREAD_MUTEX"
+    "--copt -DCURVEFSVERSION=${curvefs_version}"
 )
 
 ############################  BASIC FUNCTIONS

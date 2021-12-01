@@ -73,7 +73,15 @@ void StatusBaseTool::AfterGetMetric(const std::string hostAddr,
                 errorHosts_.insert(hostAddr);
             }
         } else if (subUri == versionSubUri_) {
-            version_ = value;
+            std::string keyValue;
+            if (!metricClient_->GetKeyValueFromString(value, versionKey_,
+                                                      &keyValue)) {
+                version_ = keyValue;
+            } else {
+                std::cerr << "parse " << versionKey_ << " form " << hostAddr
+                          << subUri << " error." << std::endl;
+                version_ = "unknown";
+            }
         }
 
     } else if (statusCode == MetricStatusCode::kNotFound) {
@@ -115,7 +123,7 @@ int StatusBaseTool::ProcessMetrics() {
 
     // standby host
     if (show_) {
-        std::cout << "standy " << hostType_ << ": [ ";
+        std::cout << "standby " << hostType_ << ": [ ";
         for (auto const& i : standbyHost_) {
             std::cerr << i << " ";
         }

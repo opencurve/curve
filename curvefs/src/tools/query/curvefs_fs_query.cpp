@@ -85,13 +85,13 @@ void FsQueryTool::AddUpdateFlags() {
 
 bool FsQueryTool::AfterSendRequestToHost(const std::string& host) {
     if (controller_->Failed()) {
-        std::cerr << "send query fs [ ";
+        errorOutput_ << "send query fs [ ";
         for (auto const& i : requestValueVec_) {
-            std::cerr << i << " ";
+            errorOutput_ << i << " ";
         }
-        std::cerr << "] to mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "] to mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
         return false;
     } else if (show_) {
         std::cout << response_->DebugString() << std::endl;

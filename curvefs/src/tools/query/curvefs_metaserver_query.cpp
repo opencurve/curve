@@ -88,10 +88,11 @@ void MetaserverQueryTool::AddUpdateFlags() {
 
 bool MetaserverQueryTool::AfterSendRequestToHost(const std::string& host) {
     if (controller_->Failed()) {
-        std::cerr << "send query metaserver \n"
-                  << requestQueue_.front().DebugString() << "\nto mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "send query metaserver \n"
+                     << requestQueue_.front().DebugString()
+                     << "\nto mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
         return false;
     } else if (show_) {
         std::cout << response_->DebugString() << std::endl;

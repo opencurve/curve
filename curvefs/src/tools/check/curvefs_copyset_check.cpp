@@ -32,8 +32,8 @@ namespace check {
 
 void CopysetCheckTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -copysetsId=" << FLAGS_copysetId
-              << " -poolsId=" << FLAGS_poolId
+    std::cout << " -copysetId=" << FLAGS_copysetId
+              << " -poolId=" << FLAGS_poolId
               << " [-metaserverAddr=" << FLAGS_metaserverAddr << "]";
     std::cout << std::endl;
 }
@@ -78,9 +78,9 @@ int CopysetCheckTool::RunCommand() {
 bool CopysetCheckTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
     if (controller_->Failed()) {
-        std::cerr << "get copyset status from metaserver: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "get copyset status from metaserver: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
         ret = false;
     } else {
         auto copysetsStatus = response_->status();
