@@ -105,7 +105,6 @@ int DiskCacheManager::UmountDiskCache() {
     if (ret < 0) {
         LOG(ERROR) << "umount disk cache error.";
     }
-    cacheWrite_->AsyncUploadStop();
     TrimStop();
     cacheWrite_->AsyncUploadStop();
     LOG(INFO) << "umount disk cache end.";
