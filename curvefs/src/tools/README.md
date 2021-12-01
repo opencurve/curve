@@ -8,7 +8,7 @@ Usage:
 curvefs_tool [Command] [OPTIONS...]
 ```
 
-When you are not sure how to use a command, --exapmle can give you an example of use:
+When you are not sure how to use a command, --example can give you an example of usage:
 
 ```shell
 curvefs_tool [Command] --example
@@ -248,6 +248,8 @@ curvefs_tool build-topology
 ```
 
 Output:
+
+**if success, there is no output.**  
 
 ```shell
 

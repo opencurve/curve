@@ -26,12 +26,14 @@
 #include <brpc/server.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
 #include "absl/memory/memory.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
 #include "src/common/string_util.h"
 
@@ -149,7 +151,7 @@ void Metaserver::Run() {
         << "Failed to start heartbeat manager.";
 
     // set metaserver version in metric
-    curve::common::ExposeCurvefsVersion();
+    curve::common::ExposeCurveVersion();
 
     brpc::Server server;
     butil::ip_t ip;
