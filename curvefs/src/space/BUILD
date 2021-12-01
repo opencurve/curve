@@ -73,10 +73,8 @@ cc_library(
 )
 
 cc_binary(
-    name = "curve_fs_space_main",
-    srcs = [
-        "main.cpp",
-    ],
+    name = "curvefs-space",
+    srcs = ["main.cpp"],
     copts = CURVE_DEFAULT_COPTS + ABSL_COPTS,
     deps = [
         ":curve_fs_space",

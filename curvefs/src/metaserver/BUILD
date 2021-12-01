@@ -67,7 +67,7 @@ cc_library(
 )
 
 cc_binary(
-    name = "curvefs_metaserver_main",
+    name = "curvefs-metaserver",
     srcs = ["main.cpp"],
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
