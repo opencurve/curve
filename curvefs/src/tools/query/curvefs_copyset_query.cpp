@@ -109,12 +109,12 @@ bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
 
         if (show_) {
             for (auto const& i : copysetKeys_) {
-                std::cout << "copyset[" << i << "]:\n info:\n";
+                std::cout << "copyset[" << i << "]:\n-info:" << std::endl;
                 for (auto const& j : key2Infos_[i]) {
                     std::cout << j.ShortDebugString() << std::endl;
                 }
                 if (FLAGS_detail) {
-                    std::cout << "\nstatus:" << std::endl;
+                    std::cout << "-status:" << std::endl;
                     for (auto const& j : key2Status_[i]) {
                         std::cout << j.ShortDebugString() << std::endl;
                     }

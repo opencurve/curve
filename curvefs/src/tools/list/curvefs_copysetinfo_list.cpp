@@ -62,7 +62,10 @@ bool CopysetInfoListTool::AfterSendRequestToHost(const std::string& host) {
         ret = false;
     } else if (show_) {
         for (auto const& i : response_->copysetvalues()) {
-            std::cout << i.DebugString() << " ";
+            std::cout << "copyset["
+                      << copyset::GetCopysetKey(i.copysetinfo().poolid(),
+                                                i.copysetinfo().copysetid())
+                      << "]:" << std::endl << i.DebugString() << std::endl;
         }
         std::cout << std::endl;
     }
