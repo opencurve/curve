@@ -68,6 +68,7 @@ class CurvefsTool {
      * @details
      */
     virtual int Init() = 0;
+
     /**
      * @brief return the result of executing the command
      *

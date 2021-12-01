@@ -111,7 +111,7 @@ const char kHostTypeMetaserver[] = "metaserver";
 const char kHostTypeEtcd[] = "etcd";
 
 /* Metric */
-const char kVersionUri[] = "/vars/curvefs_version";
+const char kVersionUri[] = "/vars/curve_version";
 const char kStatusUri[] = "/vars/status";
 const char kMdsStatusUri[] = "/vars/curvefs_mds_status";
 const char kMetaserverStatusUri[] = "/vars/pid";

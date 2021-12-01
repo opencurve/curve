@@ -94,9 +94,10 @@ bool UmountFsTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = false;
     if (controller_->Failed()) {
         errorOutput_ << "send umount fs request " << FLAGS_mountpoint
-                  << " to mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << std::endl;
+                     << " to mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText()
+                     << std::endl;
     } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
         std::cerr << "umount fs from mds: " << host << " fail, error code is "
                   << response_->statuscode() << " code name is :"
