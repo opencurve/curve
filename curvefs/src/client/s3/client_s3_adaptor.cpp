@@ -277,7 +277,6 @@ int S3ClientAdaptorImpl::Stop() {
     toStop_.store(true, std::memory_order_release);
     FsSyncSignal();
     bgFlushThread_.join();
-
     if (HasDiskCache()) {
         for (auto& q : downloadTaskQueues_) {
             bthread::execution_queue_stop(q);
@@ -285,6 +284,7 @@ int S3ClientAdaptorImpl::Stop() {
         }
         diskCacheManagerImpl_->UmountDiskCache();
     }
+    client_->Deinit();
     LOG(INFO) << "Stopping S3ClientAdaptor success";
     return 0;
 }

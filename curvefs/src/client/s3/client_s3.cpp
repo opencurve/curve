@@ -28,6 +28,10 @@ void S3ClientImpl::Init(const curve::common::S3AdapterOption &option) {
     s3Adapter_->Init(option);
 }
 
+void S3ClientImpl::Deinit() {
+    s3Adapter_->Deinit();
+}
+
 int S3ClientImpl::Upload(const std::string &name, const char *buf,
                          uint64_t length) {
     int ret = 0;
