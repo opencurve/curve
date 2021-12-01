@@ -16,12 +16,12 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-14
+ * Created Date: 2021-12-15
  * Author: chengyi01
  */
 
-#ifndef CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
-#define CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_H_
+#define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_H_
 
 #include <gflags/gflags.h>
 
@@ -31,24 +31,33 @@
 
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "src/common/curve_version.h"
+#include "curvefs/src/tools/status/curvefs_copyset_status.h"
+#include "curvefs/src/tools/status/curvefs_etcd_status.h"
+#include "curvefs/src/tools/status/curvefs_mds_status.h"
+#include "curvefs/src/tools/status/curvefs_metaserver_status.h"
 
 namespace curvefs {
 namespace tools {
-namespace version {
+namespace status {
 
-class VersionTool : public CurvefsTool {
+class StatusTool : public CurvefsTool {
  public:
-    explicit VersionTool(const std::string& command = kVersionCmd)
+    explicit StatusTool(const std::string& command = kStatusCmd)
         : CurvefsTool(command) {}
     void PrintHelp() override;
 
     int RunCommand() override;
     int Init() override;
+
+ protected:
+    std::shared_ptr<MdsStatusTool> mdsStatusTool_;
+    std::shared_ptr<MetaserverStatusTool> metaserverStatusTool_;
+    std::shared_ptr<EtcdStatusTool> etcdStatusTool_;
+    std::shared_ptr<CopysetStatusTool> copysetStatutsTool_;
 };
 
-}  // namespace version
+}  // namespace status
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_VERSION_CURVEFS_VERSION_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_STATUS_CURVEFS_STATUS_H_

@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "curvefs/src/mds/mds_service.h"
+#include "src/common/curve_version.h"
 
 namespace brpc {
 DECLARE_bool(graceful_quit_on_sigterm);
@@ -195,6 +196,9 @@ void MDS::Run() {
         LOG(ERROR) << "MDS not inited yet!";
         return;
     }
+
+    // set mds version in metric
+    curve::common::ExposeCurveVersion();
 
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
     topologyMetricService_->Run();

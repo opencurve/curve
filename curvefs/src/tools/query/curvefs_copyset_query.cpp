@@ -86,10 +86,11 @@ int CopysetQueryTool::Init() {
 
 bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
     if (controller_->Failed()) {
-        std::cerr << "send request\n"
-                  << requestQueue_.front().DebugString() << "to mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "send request\n"
+                     << requestQueue_.front().DebugString()
+                     << "to mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
         return false;
     } else {
         auto copysetsValue = response_->copysetvalues();

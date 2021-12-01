@@ -50,6 +50,8 @@ const char kUmountFsCmd[] = "umount-fs";
 const char kDeleteFsCmd[] = "delete-fs";
 // metadata-usage
 const char kMetedataUsageCmd[] = "usage-metadata";
+// status
+const char kStatusCmd[] = "status";
 // mds-status
 const char kMdsStatusCmd[] = "status-mds";
 // metaserver-status
@@ -83,6 +85,8 @@ const char kHelpStr[] =
     "Usage: curvefs_tool [Command] [OPTIONS...]\n"
     "COMMANDS:\n"  // NOLINT
     "version:           show the version of curvefs_tool\n"
+    "status:            show the status of cluster(include mds, metaserver, "
+    "etcd and copyset)\n"
     "status-mds:        show the status of mds\n"
     "status-metaserver: show the status of metaserver\n"
     "status-etcd:       show the status of etcd\n"
@@ -107,13 +111,14 @@ const char kHostTypeMetaserver[] = "metaserver";
 const char kHostTypeEtcd[] = "etcd";
 
 /* Metric */
-const char kVersionUri[] = "/version";
+const char kVersionUri[] = "/vars/curve_version";
 const char kStatusUri[] = "/vars/status";
 const char kMdsStatusUri[] = "/vars/curvefs_mds_status";
 const char kMetaserverStatusUri[] = "/vars/pid";
 const char kEtcdVersionUri[] = "/version";
 const char kEtcdStatusUri[] = "/v2/stats/self";
 const char kEtcdClusterVersionKey[] = "etcdcluster";
+const char kVersionKey[] = "curvefs_version";
 const char kMdsStatusKey[] = "curvefs_mds_status";
 const char kEtcdStateKey[] = "state";
 const char kHostLeaderValue[] = "leader";
@@ -172,6 +177,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetEtcdAddr;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetMdsDummyAddr;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>

@@ -64,9 +64,9 @@ int FsInfoListTool::Init() {
 bool FsInfoListTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = false;
     if (controller_->Failed()) {
-        std::cerr << "get fsinfo from mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "get fsinfo from mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
     } else if (show_) {
         for (auto const& i : response_->fsinfo()) {
             std::cout << i.DebugString() << std::endl;
