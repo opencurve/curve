@@ -61,11 +61,6 @@ int DiskCacheManagerImpl::Write(const std::string name, const char *buf,
             LOG(ERROR) << "upload object fail. object: " << name;
             return -1;
         }
-        ret = WriteReadDirect(name, buf, length);
-        if (ret < 0) {
-            LOG(ERROR) << "write object fail. object: " << name;
-            return -1;
-        }
     }
     VLOG(9) << "write success, write name = " << name;
     return 0;

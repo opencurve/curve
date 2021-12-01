@@ -1843,7 +1843,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             writeOffset += n;
             blockPos = (blockPos + n) % blockSize;
         }
-        if (!s3ClientAdaptor_->IsReadWriteCache()) {
+        if (!useDiskCache) {
             pendingReq.fetch_add(uploadTasks.size(), std::memory_order_seq_cst);
             VLOG(9) << "pendingReq init: " << pendingReq;
             for (auto iter = uploadTasks.begin(); iter != uploadTasks.end();

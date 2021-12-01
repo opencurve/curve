@@ -154,24 +154,8 @@ TEST_F(TestDiskCacheManagerImpl, Write) {
     ASSERT_EQ(0, ret);
 
     EXPECT_CALL(*diskCacheManager_, IsDiskCacheFull())
-        .Times(2)
-        .WillOnce(Return(true))
-        .WillOnce(Return(false));
+        .WillOnce(Return(true));
     EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheManager_, WriteReadDirect(_, _, _))
-        .WillOnce(Return(-1));
-    ret = diskCacheManagerImpl_->Write(fileName,
-            const_cast<char*>(buf.c_str()), 10);
-    ASSERT_EQ(-1, ret);
-
-    EXPECT_CALL(*diskCacheManager_, IsDiskCacheFull())
-        .Times(2)
-        .WillOnce(Return(true))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*client_, Upload(_, _, _))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheManager_, WriteReadDirect(_, _, _))
         .WillOnce(Return(0));
     ret = diskCacheManagerImpl_->Write(fileName,
             const_cast<char*>(buf.c_str()), 10);
