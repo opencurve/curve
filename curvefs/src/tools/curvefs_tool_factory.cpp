@@ -42,7 +42,9 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // usage-metadata
     RegisterCurvefsTool(std::string(kMetedataUsageCmd),
                         CurvefsToolCreator<usage::MatedataUsageTool>::Create);
-
+    // status
+    RegisterCurvefsTool(std::string(kStatusCmd),
+                        CurvefsToolCreator<status::StatusTool>::Create);
     // status-mds
     RegisterCurvefsTool(std::string(kMdsStatusCmd),
                         CurvefsToolCreator<status::MdsStatusTool>::Create);

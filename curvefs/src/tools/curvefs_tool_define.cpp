@@ -22,6 +22,8 @@
 #include "curvefs/src/tools/curvefs_tool_define.h"
 
 DEFINE_string(mdsAddr, "127.0.0.1:16700,127.0.0.1:26700", "mds addr");
+DEFINE_string(mdsDummyAddr, "127.0.0.1:17700,127.0.0.1:27700",
+              "mds dummy addr");
 DEFINE_string(metaserverAddr, "127.0.0.1:16701,127.0.0.1:26701",
               "metaserver addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
@@ -95,6 +97,11 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetEtcdAddr = std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
                             std::placeholders::_2, "etcdAddr", &FLAGS_etcdAddr);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetMdsDummyAddr =
+        std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
+                  std::placeholders::_2, "mdsDummyAddr", &FLAGS_mdsDummyAddr);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =

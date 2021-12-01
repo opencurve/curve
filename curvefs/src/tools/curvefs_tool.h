@@ -68,11 +68,28 @@ class CurvefsTool {
      * @details
      */
     virtual int Init() = 0;
+
+    /**
+     * @brief return the result of executing the command
+     *
+     * @return int
+     * 0: success
+     * !0: fail
+     * @details
+     */
     virtual int RunCommand() = 0;
+
+    /**
+     * @brief print the non-essential error that occurred during execution
+     *
+     * @details
+     */
+    virtual void PrintError();
 
  protected:
     std::string command_;
     std::string programe_;
+    std::stringstream errorOutput_;
     bool show_;  // Control whether the command line is output
 };
 
@@ -142,7 +159,7 @@ class CurvefsToolRpc : public CurvefsTool {
         int ret = 0;
         while (!requestQueue_.empty()) {
             if (!SendRequestToServices()) {
-                std::cerr << "send request to host: [ ";
+                std::cerr << "send request to hosts: [ ";
                 for (const auto& i : hostsAddr_) {
                     std::cerr << i << " ";
                 }

@@ -41,9 +41,10 @@ void MatedataUsageTool::AddUpdateFlags() {
 bool MatedataUsageTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
     if (controller_->Failed()) {
-        std::cerr << "get metadata usage from mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text: " << controller_->ErrorText() << std::endl;
+        errorOutput_ << "get metadata usage from mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text: " << controller_->ErrorText()
+                     << std::endl;
         ret = false;
     } else {
         uint64_t total = 0;

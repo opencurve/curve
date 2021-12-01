@@ -22,7 +22,9 @@
 #ifndef CURVEFS_SRC_TOOLS_STATUS_CURVEFS_MDS_STATUS_H_
 #define CURVEFS_SRC_TOOLS_STATUS_CURVEFS_MDS_STATUS_H_
 
+#include <map>
 #include <string>
+#include <vector>
 
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "curvefs/src/tools/status/curvefs_status_base_tool.h"
@@ -41,6 +43,19 @@ class MdsStatusTool : public StatusBaseTool {
     int Init() override;
 
  protected:
+    /**
+     * @brief
+     *
+     * @details
+     * Since the main port of non-main mds does not work,
+     * all dummy ports of mds provide services
+     * so use dummy port when querying mds status
+     */
+    std::map<std::string, std::string> dummy2MainAddr_;
+
+    void AfterGetMetric(const std::string hostAddr, const std::string& subUri,
+                        const std::string& value,
+                        const MetricStatusCode& statusCode) override;
     void InitHostsAddr() override;
     void AddUpdateFlags() override;
 };

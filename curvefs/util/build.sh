@@ -3,6 +3,7 @@
 # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
 ############################  GLOBAL VARIABLES
+
 g_list=0
 g_target=""
 g_release=0
@@ -17,6 +18,28 @@ g_build_opts=(
 )
 
 ############################  BASIC FUNCTIONS
+get_version() {
+    #get tag version
+    tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
+
+    # get git commit version
+    commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
+    if [ $g_release -eq 1 ]
+    then
+        debug="+release"
+    else
+        debug="+debug"
+    fi
+    if [ -z ${tag_version} ]
+    then
+        echo "not found version info"
+        curve_version=${commit_id}${debug}
+    else
+        curve_version=${tag_version}+${commit_id}${debug}
+    fi
+    echo "version: ${curve_version}"
+}
+
 msg() {
     printf '%b' "$1" >&2
 }
@@ -111,6 +134,8 @@ build_target() {
         g_build_opts+=("--compilation_mode=dbg")
         echo "debug" > BUILD_MODE
     fi
+    # set version
+    g_build_opts+=("--copt -DCURVEVERSION=${curve_version}")
 
     for target in `get_target`
     do
@@ -137,6 +162,7 @@ build_target() {
 
 main() {
     get_options "$@"
+    get_version
 
     if [ "$g_list" -eq 1 ]; then
         list_target

@@ -20,6 +20,8 @@
  * Author: wanghai01
  */
 
+// TODO(chengyi): add out put when build sucess
+
 #include "curvefs/src/tools/buildtopo/curvefs_build_topology_tool.h"
 
 DECLARE_string(mds_addr);
