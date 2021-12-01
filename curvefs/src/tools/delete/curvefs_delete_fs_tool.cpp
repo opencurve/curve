@@ -86,9 +86,9 @@ int DeleteFsTool::RunCommand() {
 bool DeleteFsTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = false;
     if (controller_->Failed()) {
-        std::cerr << "send delete fs request to mds: " << host
-                  << " failed. errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "send delete fs request to mds: " << host
+                     << " failed. errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
     } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
         std::cerr << "delete fs from mds: " << host
                   << " failed. errorcode= " << response_->statuscode()

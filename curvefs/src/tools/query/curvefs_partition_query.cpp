@@ -65,10 +65,11 @@ void PartitionQueryTool::AddUpdateFlags() {
 
 bool PartitionQueryTool::AfterSendRequestToHost(const std::string& host) {
     if (controller_->Failed()) {
-        std::cerr << "send query partition request\n"
-                  << requestQueue_.front().DebugString() << "\nto mds: " << host
-                  << " failed, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << "\n";
+        errorOutput_ << "send query partition request\n"
+                     << requestQueue_.front().DebugString()
+                     << "\nto mds: " << host
+                     << " failed, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText() << "\n";
         return false;
     } else if (response_->statuscode() != curvefs::mds::topology::TOPO_OK) {
         std::cerr << "query partition [" << FLAGS_partitionId

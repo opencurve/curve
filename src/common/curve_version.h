@@ -31,6 +31,9 @@ namespace common {
 std::string CurveVersion();
 void ExposeCurveVersion();
 
+std::string CurvefsVersion();
+void ExposeCurvefsVersion();
+
 }  // namespace common
 }  // namespace curve
 

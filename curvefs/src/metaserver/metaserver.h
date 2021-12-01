@@ -38,6 +38,7 @@
 #include "curvefs/src/metaserver/inflight_throttle.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "src/common/configuration.h"
+#include "src/common/curve_version.h"
 #include "src/fs/local_filesystem.h"
 
 namespace curvefs {

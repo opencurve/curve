@@ -77,7 +77,6 @@ int CopysetStatusTool::RunCommand() {
                 for (auto const& j : key2Status[i.first]) {
                     std::cout << j.ShortDebugString() << std::endl;
                 }
-                std::cout << std::endl;
             }
         }
     }

@@ -40,10 +40,28 @@ std::string CurveVersion() {
     return version;
 }
 
+std::string CurvefsVersion() {
+    static const std::string version =
+#ifdef CURVEFSVERSION
+#define STR(val) #val
+#define XSTR(val) STR(val)
+        std::string(XSTR(CURVEFSVERSION));
+#else
+        std::string("unknown");
+#endif
+    return version;
+}
+
 void ExposeCurveVersion() {
     static bvar::Status<std::string> version;
     version.expose_as("curve", "version");
     version.set_value(CurveVersion());
+}
+
+void ExposeCurvefsVersion() {
+    static bvar::Status<std::string> version;
+    version.expose_as("curvefs", "version");
+    version.set_value(CurvefsVersion());
 }
 
 }  // namespace common

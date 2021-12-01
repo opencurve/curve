@@ -31,6 +31,7 @@
 #include "curvefs/src/mds/chunkid_allocator.h"
 #include "curvefs/src/mds/fs_manager.h"
 #include "src/common/configuration.h"
+#include "src/common/curve_version.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/leader_election/leader_election.h"
 #include "curvefs/src/mds/topology/topology_config.h"

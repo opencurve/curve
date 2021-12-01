@@ -82,6 +82,8 @@ int MetaserverStatusTool::ProcessMetrics() {
 int MetaserverStatusTool::Init() {
     versionSubUri_ = kVersionUri;
     StatusSubUri_ = kMetaserverStatusUri;
+    versionKey_ = kVersionKey;
+
     return StatusBaseTool::Init();
 }
 
@@ -95,7 +97,15 @@ void MetaserverStatusTool::AfterGetMetric(const std::string hostAddr,
             // get response is ok
             onlineHosts_.insert(hostAddr);
         } else if (subUri == versionSubUri_) {
-            version_ = value;
+            std::string keyValue;
+            if (!metricClient_->GetKeyValueFromString(value, versionKey_,
+                                                      &keyValue)) {
+                version_ = keyValue;
+            } else {
+                std::cerr << "parse " << versionKey_ << " form " << hostAddr
+                          << subUri << " error." << std::endl;
+                version_ = "unknown";
+            }
         }
 
     } else {

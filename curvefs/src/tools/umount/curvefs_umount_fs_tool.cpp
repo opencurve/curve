@@ -93,7 +93,7 @@ void UmountFsTool::AddUpdateFlags() {
 bool UmountFsTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = false;
     if (controller_->Failed()) {
-        std::cerr << "send umount fs request " << FLAGS_mountpoint
+        errorOutput_ << "send umount fs request " << FLAGS_mountpoint
                   << " to mds: " << host
                   << " failed, errorcode= " << controller_->ErrorCode()
                   << ", error text " << controller_->ErrorText() << std::endl;

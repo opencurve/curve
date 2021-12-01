@@ -165,6 +165,9 @@ void MDS::Run() {
         return;
     }
 
+    // set mds version in metric
+    curve::common::ExposeCurvefsVersion();
+
     LOG_IF(FATAL, topology_->Run()) << "run topology module fail";
     topologyMetricService_->Run();
     heartbeatManager_->Run();

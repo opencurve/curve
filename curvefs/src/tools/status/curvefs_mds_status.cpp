@@ -22,6 +22,7 @@
 #include "curvefs/src/tools/status/curvefs_mds_status.h"
 
 DECLARE_string(mdsAddr);
+DECLARE_string(mdsDummyAddr);
 
 namespace curvefs {
 namespace tools {
@@ -29,7 +30,8 @@ namespace status {
 
 void MdsStatusTool::PrintHelp() {
     StatusBaseTool::PrintHelp();
-    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
+    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr << "]"
+              << "[-mdsDummyAddr=" << FLAGS_mdsDummyAddr << "]";
     std::cout << std::endl;
 }
 
@@ -37,16 +39,83 @@ int MdsStatusTool::Init() {
     versionSubUri_ = kVersionUri;
     StatusSubUri_ = kMdsStatusUri;
     statusKey_ = kMdsStatusKey;
-    return StatusBaseTool::Init();
+    versionKey_ = kVersionKey;
+
+    int ret = StatusBaseTool::Init();
+    if (ret != 0) {
+        return ret;
+    }
+
+    std::vector<std::string> hostsMainAddr;
+    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsMainAddr);
+    if (hostsMainAddr.size() != hostsAddr_.size()) {
+        std::cerr << "mdsDummyAddr and mdsAddr do not match, please check."
+                  << std::endl;
+        ret = -1;
+    } else {
+        for (size_t i = 0; i < hostsAddr_.size(); i++) {
+            dummy2MainAddr_[hostsAddr_[i]] = hostsMainAddr[i];
+        }
+    }
+
+    return ret;
 }
 
 void MdsStatusTool::InitHostsAddr() {
-    curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
+    // use dummy addr
+    curve::common::SplitString(FLAGS_mdsDummyAddr, ",", &hostsAddr_);
 }
 
 void MdsStatusTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
+    AddUpdateFlagsFunc(curvefs::tools::SetMdsDummyAddr);
     StatusBaseTool::AddUpdateFlags();
+}
+
+void MdsStatusTool::AfterGetMetric(const std::string hostAddr,
+                                   const std::string& subUri,
+                                   const std::string& value,
+                                   const MetricStatusCode& statusCode) {
+    auto mainAddr = dummy2MainAddr_[hostAddr];
+    if (statusCode == MetricStatusCode::kOK) {
+        onlineHosts_.insert(mainAddr);
+        if (subUri == StatusSubUri_) {
+            std::string keyValue;
+            if (!metricClient_->GetKeyValueFromString(value, statusKey_,
+                                                      &keyValue)) {
+                if (keyValue == hostStandbyValue_) {
+                    // standby host
+                    standbyHost_.insert(mainAddr);
+                } else if (keyValue == hostLeaderValue_) {
+                    // leader host
+                    leaderHosts_.insert(mainAddr);
+                } else {
+                    // error host
+                    errorHosts_.insert(mainAddr);
+                }
+            } else {
+                std::cerr << "parse " << statusKey_ << " form " << mainAddr
+                          << subUri << " error." << std::endl;
+                errorHosts_.insert(mainAddr);
+            }
+        } else if (subUri == versionSubUri_) {
+            std::string keyValue;
+            if (!metricClient_->GetKeyValueFromString(value, versionKey_,
+                                                      &keyValue)) {
+                version_ = keyValue;
+            } else {
+                std::cerr << "parse " << versionKey_ << " form " << hostAddr
+                          << subUri << " error." << std::endl;
+                version_ = "unknown";
+            }
+        }
+    } else if (statusCode == MetricStatusCode::kNotFound) {
+        // standby host main port
+        standbyHost_.insert(mainAddr);
+    } else {
+        // offline host
+        offlineHosts_.insert(mainAddr);
+    }
 }
 
 }  // namespace status

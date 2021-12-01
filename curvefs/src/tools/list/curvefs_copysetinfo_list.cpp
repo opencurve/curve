@@ -56,13 +56,17 @@ void CopysetInfoListTool::AddUpdateFlags() {
 bool CopysetInfoListTool::AfterSendRequestToHost(const std::string& host) {
     bool ret = true;
     if (controller_->Failed()) {
-        std::cerr << "get all copysetInfo from [ " << FLAGS_mdsAddr
-                  << "] fail, errorcode= " << controller_->ErrorCode()
-                  << ", error text " << controller_->ErrorText() << std::endl;
+        errorOutput_ << "get all copysetInfo from [ " << FLAGS_mdsAddr
+                     << "] fail, errorcode= " << controller_->ErrorCode()
+                     << ", error text " << controller_->ErrorText()
+                     << std::endl;
         ret = false;
     } else if (show_) {
         for (auto const& i : response_->copysetvalues()) {
-            std::cout << i.DebugString() << " ";
+            std::cout << "copyset["
+                      << copyset::GetCopysetKey(i.copysetinfo().poolid(),
+                                                i.copysetinfo().copysetid())
+                      << "]:" << std::endl << i.DebugString() << std::endl;
         }
         std::cout << std::endl;
     }

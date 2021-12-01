@@ -43,6 +43,7 @@
 #include "curvefs/src/tools/status/curvefs_etcd_status.h"
 #include "curvefs/src/tools/status/curvefs_mds_status.h"
 #include "curvefs/src/tools/status/curvefs_metaserver_status.h"
+#include "curvefs/src/tools/status/curvefs_status.h"
 #include "curvefs/src/tools/umount/curvefs_umount_fs_tool.h"
 #include "curvefs/src/tools/usage/curvefs_metadata_usage_tool.h"
 #include "curvefs/src/tools/version/curvefs_version_tool.h"
