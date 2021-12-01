@@ -47,8 +47,8 @@ cc_library(
 )
 
 cc_binary(
-    name = "curvefs_mds",
-    srcs = glob(["main.cpp"]),
+    name = "curvefs-mds",
+    srcs = ["main.cpp"],
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
