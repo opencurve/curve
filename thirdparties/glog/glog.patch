@@ -97,7 +97,7 @@ index 9968b96..f491f9b 100644
  #undef MUST_UNDEF_GFLAGS_DECLARE_MACROS
  #undef DECLARE_VARIABLE
 diff --git a/src/logging.cc b/src/logging.cc
-index 0c86cf6..b77a4d8 100644
+index 0c86cf6..601bdda 100644
 --- a/src/logging.cc
 +++ b/src/logging.cc
 @@ -27,6 +27,39 @@
@@ -371,6 +371,15 @@ index 0c86cf6..b77a4d8 100644
    delete sinks_;
    sinks_ = NULL;
  }
+@@ -906,7 +984,7 @@ bool LogFileObject::CreateLogfile(const string& time_pid_string) {
+   string string_filename = base_filename_+filename_extension_+
+                            time_pid_string;
+   const char* filename = string_filename.c_str();
+-  int fd = open(filename, O_WRONLY | O_CREAT | O_EXCL, FLAGS_logfile_mode);
++  int fd = open(filename, O_WRONLY | O_CREAT | O_APPEND | O_EXCL, FLAGS_logfile_mode);
+   if (fd == -1) return false;
+ #ifdef HAVE_FCNTL
+   // Mark the file close-on-exec. We don't really care if this fails
 @@ -1015,9 +1093,9 @@ void LogFileObject::Write(bool force_flush,
      } else {
        // If no base filename for logs of this severity has been set, use a
@@ -678,10 +687,10 @@ index 0c86cf6..b77a4d8 100644
  _END_GOOGLE_NAMESPACE_
 diff --git a/src/logging_async.cc b/src/logging_async.cc
 new file mode 100644
-index 0000000..1f3c8c1
+index 0000000..8d68ebe
 --- /dev/null
 +++ b/src/logging_async.cc
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,206 @@
 +/*
 + *  Copyright (c) 2020 NetEase Inc.
 + *
@@ -716,6 +725,7 @@ index 0000000..1f3c8c1
 +// under the License.
 +
 +#include "logging_async.h"  // NOLINT
++#include "utilities.h"
 +
 +#include <iostream>
 +
@@ -723,17 +733,16 @@ index 0000000..1f3c8c1
 +
 +AsyncLogger::AsyncLogger(google::base::Logger* logger, uint32_t maxBufferSize)
 +    : logger_(logger),
-+      logger_thread_(),
 +      maxBufferSize_(maxBufferSize),
 +      appThreadsBlockedCount_(0),
 +      flushCount_(0),
-+      mutex_(),
 +      wakeFluchCV_(),
 +      freeBufferCV_(),
 +      flushCompleteCV_(),
 +      activeBuffer_(new Buffer()),
 +      flushBuffer_(new Buffer()),
-+      running_(false) {}
++      running_(false),
++      current_(0) {}
 +
 +AsyncLogger::~AsyncLogger() {
 +    if (running_) {
@@ -741,29 +750,58 @@ index 0000000..1f3c8c1
 +    }
 +}
 +
++// NOTE: this function only run once in child process
++void AsyncLogger::Switch2Child(bool start) {
++    // We change pid before write message to file,
++    // and the logger will never create a new file when pid changed,
++    // so we can write parent and child log messages to one file with O_APPEND flag.
++    // see LogFileObject::Write()
++    if (!PidHasChanged() || current_ == 1) {
++        return;
++    }
++
++    // After fork(2) and in the child process we should:
++    //   (1) reset all status for AyncLogger
++    //   (2) restart AyncLogger if necessary
++    std::call_once(switched_, [this, start]{
++        appThreadsBlockedCount_ = 0;
++        flushCount_ = 0;
++        activeBuffer_.reset(new Buffer());
++        flushBuffer_.reset(new Buffer());
++        running_ = false;
++        current_ = 1;
++
++        if (start) {
++            Start();
++        }
++    });
++}
++
 +void AsyncLogger::Start() {
++    Switch2Child(false);
 +    if (running_) {
 +        return;
 +    }
 +
 +    running_ = true;
-+    logger_thread_ = std::thread(&AsyncLogger::RunThread, this);
++    loggerThreads_[current_] = std::thread(&AsyncLogger::RunThread, this);
 +}
 +
 +void AsyncLogger::Stop() {
++    Switch2Child(false);
 +    if (running_) {
 +        {
 +            // 获取锁，等待Write或Flush结束
 +            // 1. 避免写入过程中Stop
 +            // 2. 避免flush过程中Stop
-+            std::lock_guard<std::mutex> lk(mutex_);
++            std::lock_guard<std::mutex> lk(mutexs_[current_]);
 +
 +            // 设置为false
 +            running_ = false;
 +
 +            wakeFluchCV_.notify_one();
 +        }
-+        logger_thread_.join();
++        loggerThreads_[current_].join();
 +    }
 +}
 +
@@ -771,8 +809,9 @@ index 0000000..1f3c8c1
 +                        time_t timestamp,
 +                        const char* message,
 +                        int len) {
++    Switch2Child(true);
 +    {
-+        std::unique_lock<std::mutex> ulk(mutex_);
++        std::unique_lock<std::mutex> ulk(mutexs_[current_]);
 +
 +        if (running_ == false) {
 +            return;
@@ -805,7 +844,7 @@ index 0000000..1f3c8c1
 +void AsyncLogger::RunThread() {
 +    while (running_ || activeBuffer_->NeedsWriteOrFlush()) {
 +        {
-+            std::unique_lock<std::mutex> ulk(mutex_);
++            std::unique_lock<std::mutex> ulk(mutexs_[current_]);
 +
 +            // running_ == true
 +            //    如果activeBuffer为空, 则会等待一段时间，避免无效的swap
@@ -846,7 +885,7 @@ index 0000000..1f3c8c1
 +}
 +
 +void AsyncLogger::Flush() {
-+    std::unique_lock<std::mutex> ulk(mutex_);
++    std::unique_lock<std::mutex> ulk(mutexs_[current_]);
 +    uint64_t expectFlushCount = flushCount_ + 2;
 +
 +    // flush 两次, 确保两个buffer都进行了flush
@@ -860,10 +899,10 @@ index 0000000..1f3c8c1
 +}   // namespace google
 diff --git a/src/logging_async.h b/src/logging_async.h
 new file mode 100644
-index 0000000..955ed0c
+index 0000000..8021c83
 --- /dev/null
 +++ b/src/logging_async.h
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,155 @@
 +/*
 + *  Copyright (c) 2020 NetEase Inc.
 + *
@@ -975,11 +1014,13 @@ index 0000000..955ed0c
 +
 +    void RunThread();
 +
++    void Switch2Child(bool start);
++
 +    // 后台线程写日志文件的logger
 +    std::unique_ptr<google::base::Logger> logger_;
 +
 +    // 后台写日志线程
-+    std::thread logger_thread_;
++    std::thread loggerThreads_[2];
 +
 +    // buffer中日志的最大字节数
 +    const uint32_t maxBufferSize_;
@@ -990,7 +1031,7 @@ index 0000000..955ed0c
 +    // flush的次数
 +    std::atomic<uint64_t> flushCount_;
 +
-+    mutable std::mutex mutex_;
++    mutable std::mutex mutexs_[2];
 +
 +    // 用于唤醒后台写日志线程
 +    std::condition_variable wakeFluchCV_;
@@ -1008,6 +1049,10 @@ index 0000000..955ed0c
 +    std::unique_ptr<Buffer> flushBuffer_;
 +
 +    std::atomic<bool> running_;
++
++    int current_;
++
++    std::once_flag switched_;
 +};
 +
 +}  // namespace google
