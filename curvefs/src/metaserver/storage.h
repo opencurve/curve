@@ -267,7 +267,7 @@ inline bool SaveToFile(const std::string& pathname,
 
     auto defer = absl::MakeCleanup([&dumpfile]() { dumpfile.Close(); });
     auto retCode = dumpfile.SaveBackground(iterator);
-    LOG(ERROR) << "retcode = " << retCode;
+    LOG(INFO) << "retcode = " << retCode;
     return (retCode == DUMPFILE_ERROR::OK) && (iterator->Status() == 0);
 }
 
