@@ -388,6 +388,11 @@ DUMPFILE_ERROR DumpFile::CloseSockets() {
 }
 
 void DumpFile::SaveWorker(std::shared_ptr<Iterator> iter) {
+    // If we use multi-raft, there maybe multi process to do save
+    // at the same time, so we should to distinguish them
+    auto title = "curvefs: save process [filepath: " + pathname_ + "]";
+    ::curvefs::common::Process::SetProcTitle(title);
+
     auto retCode = InitSignals();
     if (retCode != DUMPFILE_ERROR::OK) {
         _exit(1);
@@ -405,16 +410,11 @@ void DumpFile::SaveWorker(std::shared_ptr<Iterator> iter) {
     // We should ensure the child process exit when the parent exit
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
-    // If we use multi-raft, there maybe multi process to do save
-    // at the same time, so we should to distinguish them
-    auto title = "curvefs: save process [filepath: " + pathname_ + "]";
-    ::curvefs::common::Process::SetProcTitle(title);
-
     retCode = Save(iter);
-
     auto succ = (retCode == DUMPFILE_ERROR::OK);
     LOG(INFO) << "[child] Save " << (succ ? "success" : "fail")
               << ", retCode = " << retCode;
+    google::ShutdownGoogleLogging();  // Flush message to file
     _exit(succ ? 0 : 1);
 }
 
