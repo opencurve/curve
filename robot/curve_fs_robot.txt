@@ -227,9 +227,9 @@ check umount date consistency
     [Tags]    P1    base    first release   failover
     sleep  60
     get test dir file md5
-    umount test dir
-    wait fuse exit
-    mount test dir
+    umount test dir   pubbeta2-nova48-2
+    wait fuse exit   test2
+    mount test dir   pubbeta2-nova48-2
     check test dir file md5
 #    [Teardown]   mount test dir
 
