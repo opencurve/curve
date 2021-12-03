@@ -52,6 +52,8 @@ struct DiskCacheOption {
     uint64_t safeRatio;
     std::string cacheDir;
     bool forceFlush;
+    uint64_t maxUsableSpaceBytes;
+    uint32_t cmdTimeoutSec;
 };
 
 class DiskCacheManagerImpl {

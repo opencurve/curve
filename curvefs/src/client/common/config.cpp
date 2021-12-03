@@ -115,6 +115,10 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->fullRatio);
     conf->GetValueFatalIfFail("diskCache.safeRatio",
                               &diskCacheOption->safeRatio);
+    conf->GetValueFatalIfFail("diskCache.maxUsableSpaceBytes",
+                              &diskCacheOption->maxUsableSpaceBytes);
+    conf->GetValueFatalIfFail("diskCache.cmdTimeoutSec",
+                              &diskCacheOption->cmdTimeoutSec);
 }
 
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {

@@ -31,6 +31,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/common/wrap_posix.h"
+#include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
 #include "curvefs/src/client/s3/disk_cache_write.h"
 #include "curvefs/src/client/s3/disk_cache_read.h"
@@ -39,6 +40,7 @@ namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
+using curvefs::common::SysUtils;
 using curvefs::client::common::S3ClientAdaptorOption;
 
 class DiskCacheManager {
@@ -79,7 +81,7 @@ class DiskCacheManager {
      * @brief get use ratio of cache disk
      * @return the use ratio
      */
-    int64_t CacheDiskUsedRatio();
+    int64_t SetDiskFsUsedRatio();
     virtual bool IsDiskCacheFull();
     bool IsDiskCacheSafe();
     /**
@@ -93,6 +95,32 @@ class DiskCacheManager {
 
  private:
     /**
+     * @brief add the used bytes of disk cache.
+    */
+    void AddDiskUsedBytes(uint64_t length) {
+        usedBytes_.fetch_add(length, std::memory_order_seq_cst);
+        VLOG(9) << "add disk used size is: "
+          << usedBytes_.load(std::memory_order_seq_cst);
+        return;
+    }
+    /**
+     * @brief dec the used bytes of disk cache.
+     * can not dec disk used bytes after file have been loaded,
+     * because there are link in read cache
+    */
+    void DecDiskUsedBytes(uint64_t length) {
+         int64_t usedBytes;
+         usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
+         assert(usedBytes >= 0);
+         VLOG(9) << "dec disk used size is: "
+            << usedBytes_.load(std::memory_order_seq_cst);
+         return;
+    }
+    void SetDiskInitUsedBytes();
+    uint64_t GetDiskUsedbytes() {
+        return usedBytes_.load(std::memory_order_seq_cst);
+    }
+    /**
      * @brief trim cache func.
     */
     void TrimCache();
@@ -103,6 +131,12 @@ class DiskCacheManager {
     uint32_t trimCheckIntervalSec_;
     uint32_t fullRatio_;
     uint32_t safeRatio_;
+    uint64_t maxUsableSpaceBytes_;
+    // used bytes of disk cache
+    std::atomic<int64_t> usedBytes_;
+    // used ratio of the file system in disk cache
+    std::atomic<int32_t> diskFsUsedRatio_;
+    uint32_t cmdTimeoutSec_;
     std::string cacheDir_;
     std::shared_ptr<DiskCacheWrite> cacheWrite_;
     std::shared_ptr<DiskCacheRead> cacheRead_;

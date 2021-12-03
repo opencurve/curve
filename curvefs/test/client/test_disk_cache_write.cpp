@@ -60,6 +60,13 @@ class TestDiskCacheWrite : public ::testing::Test {
         diskCacheWrite_ = std::make_shared<DiskCacheWrite>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
 
+        std::shared_ptr<PosixWrapper> wrapper =
+            std::make_shared<PosixWrapper>();
+        std::shared_ptr<DiskCacheRead> diskCacheRead =
+            std::make_shared<DiskCacheRead>();
+        std::shared_ptr<DiskCacheManager> diskCacheManager =
+            std::make_shared<DiskCacheManager>(wrapper, diskCacheWrite_,
+                                               diskCacheRead);
         diskCacheWrite_->Init(client_, wrapper_, "test", 1);
     }
 

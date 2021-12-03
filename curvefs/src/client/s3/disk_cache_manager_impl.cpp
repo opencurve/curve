@@ -98,6 +98,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
     diskCacheManager_->AsyncUploadEnqueue(name);
     return writeRet;
 }
+
 int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
                     const char* buf, uint64_t length) {
     if (diskCacheManager_->IsDiskCacheFull()) {

@@ -261,10 +261,10 @@ TEST_F(TestDiskCacheManager, WriteDiskFile) {
     ASSERT_EQ(0, ret);
 }
 
-TEST_F(TestDiskCacheManager, CacheDiskUsedRatio) {
+TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
         .WillOnce(Return(-1));
-    int ret = diskCacheManager_->CacheDiskUsedRatio();
+    int ret = diskCacheManager_->SetDiskFsUsedRatio();
     ASSERT_EQ(-1, ret);
 
     struct statfs stat;
@@ -274,22 +274,26 @@ TEST_F(TestDiskCacheManager, CacheDiskUsedRatio) {
     stat.f_bavail = 0;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
        .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
-    ret = diskCacheManager_->CacheDiskUsedRatio();
+    ret = diskCacheManager_->SetDiskFsUsedRatio();
     ASSERT_EQ(101, ret);
 }
 
 TEST_F(TestDiskCacheManager, IsDiskCacheFull) {
-    EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
     int ret = diskCacheManager_->IsDiskCacheFull();
-    ASSERT_EQ(false, ret);
+    ASSERT_EQ(true, ret);
+
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    ret = diskCacheManager_->IsDiskCacheFull();
+    ASSERT_EQ(true, ret);
 }
 
 TEST_F(TestDiskCacheManager, IsDiskCacheSafe) {
-    EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
     int ret = diskCacheManager_->IsDiskCacheSafe();
-    ASSERT_EQ(false, ret);
+    ASSERT_EQ(true, ret);
 }
 
 TEST_F(TestDiskCacheManager, TrimStop) {
