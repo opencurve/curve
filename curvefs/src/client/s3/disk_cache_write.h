@@ -43,6 +43,7 @@ using curvefs::common::PosixWrapper;
 using curve::common::InterruptibleSleeper;
 using curve::common::PutObjectAsyncCallBack;
 
+
 class DiskCacheWrite : public DiskCacheBase {
  public:
     // init isRunning_ should here，
@@ -104,7 +105,6 @@ class DiskCacheWrite : public DiskCacheBase {
     InterruptibleSleeper sleeper_;
     uint64_t asyncLoadPeriodMs_;
     S3Client *client_;
-
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
 };

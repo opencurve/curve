@@ -83,6 +83,10 @@ struct DiskCacheOption {
     uint64_t fullRatio;
     // trim finish until disk usage below safeRatio
     uint64_t safeRatio;
+    // the max size disk cache can use
+    uint64_t maxUsableSpaceBytes;
+    // the max time system command can run
+    uint32_t cmdTimeoutSec;
 };
 
 struct S3ClientAdaptorOption {
