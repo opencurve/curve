@@ -27,7 +27,7 @@ project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
 #     And both of them don't include a symbolic link like `libjemalloc.so` that points to the real shared library
 #     The same thing happened in CentOS 7 and CentOS 8
 project_mount_command: >
-  LD_PRELOAD=`find /usr/ -name "libjemalloc.so*" -print -quit 2>/dev/null`
+  MALLOC_CONF="prof:true,lg_prof_interval:26,lg_prof_sample:10" LD_PRELOAD=/usr/local/lib/libjemalloc.so.2 
   {{ project_root_dest }}/sbin/curve-fuse
   {{ curvefs_client_mount_args | trim }}
   -o conf={{ project_root_dest }}/conf/client.conf
