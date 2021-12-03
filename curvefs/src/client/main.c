@@ -101,19 +101,19 @@ int main(int argc, char *argv[]) {
     ret = InitFuseClient(mOpts.conf, mOpts.fsType);
     if (ret < 0) {
         printf("init fuse client fail, conf =%s\n", mOpts.conf);
-        goto err_out1;
+        goto err_out2;
     }
 
     se = fuse_session_new(&args, &curve_ll_oper,
                   sizeof(curve_ll_oper), &mOpts);
     if (se == NULL)
-        goto err_out1;
-
-    if (fuse_set_signal_handlers(se) != 0)
         goto err_out2;
 
-    if (fuse_session_mount(se, opts.mountpoint) != 0)
+    if (fuse_set_signal_handlers(se) != 0)
         goto err_out3;
+
+    if (fuse_session_mount(se, opts.mountpoint) != 0)
+        goto err_out4;
 
     fuse_daemonize(opts.foreground);
 
@@ -130,14 +130,15 @@ int main(int argc, char *argv[]) {
     }
 
     fuse_session_unmount(se);
-err_out3:
+err_out4:
     fuse_remove_signal_handlers(se);
-err_out2:
+err_out3:
     fuse_session_destroy(se);
+err_out2:
+    UnInitFuseClient();
 err_out1:
     free(opts.mountpoint);
     fuse_opt_free_args(&args);
-    UnInitFuseClient();
 
     return ret ? 1 : 0;
 }
