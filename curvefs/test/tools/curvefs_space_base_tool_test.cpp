@@ -20,14 +20,14 @@
  * @Author: chengyi01
  */
 
-#include "curvefs/src/tools/space/curvefs_space_base_tool.h"
+#include "curvefs/src/tools/usage/curvefs_space_base_tool.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 namespace curvefs {
 namespace tools {
-namespace space {
+namespace usage {
 
 class BaseToolTest : public testing::Test {};
 
@@ -48,6 +48,6 @@ TEST(BaseToolTest, TB_test) {
     ASSERT_EQ(ToReadableByte(byte), "100.00 TB");
 }
 
-}  // namespace space
+}  // namespace usage
 }  // namespace tools
 }  // namespace curvefs

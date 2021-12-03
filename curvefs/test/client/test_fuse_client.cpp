@@ -668,6 +668,8 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
+    EXPECT_CALL(*inodeManager_, ClearInodeCache(parent));
+
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
@@ -754,6 +756,8 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
     EXPECT_CALL(*dentryManager_, DeleteDentry(parent, name))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
+    EXPECT_CALL(*inodeManager_, ClearInodeCache(parent));
+
     Inode inode;
     inode.set_fsid(fsId);
     inode.set_inodeid(inodeid);
@@ -767,6 +771,9 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
 
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
+
+    EXPECT_CALL(*inodeManager_, ClearInodeCache(inodeid))
+        .Times(1);
 
     CURVEFS_ERROR ret = client_->FuseOpUnlink(req, parent, name.c_str());
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
@@ -798,6 +805,12 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
         .WillOnce(Return(CURVEFS_ERROR::OK))
         .WillOnce(Return(CURVEFS_ERROR::OK));
+
+    EXPECT_CALL(*inodeManager_, ClearInodeCache(parent))
+        .Times(2);
+
+    EXPECT_CALL(*inodeManager_, ClearInodeCache(inodeid))
+        .Times(1);
 
     Inode inode;
     inode.set_fsid(fsId);
@@ -1335,6 +1348,8 @@ TEST_F(TestFuseVolumeClient, FuseOpSymlink) {
 
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
+
+    EXPECT_CALL(*inodeManager_, ClearInodeCache(parent));
 
     fuse_entry_param e;
     CURVEFS_ERROR ret = client_->FuseOpSymlink(req, link, parent, name, &e);

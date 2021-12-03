@@ -27,15 +27,18 @@ DEFINE_string(metaserverAddr, "127.0.0.1:16701,127.0.0.1:26701",
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
 DEFINE_bool(example, false, "print the example of usage");
 DEFINE_string(confPath, "/etc/curvefs/tools.conf", "config file path of tools");
-DEFINE_string(fsname, "curvefs", "fs name");
+DEFINE_string(fsName, "curvefs", "fs name");
 DEFINE_string(fsId, "1,2,3", "fs id");
 DEFINE_string(mountpoint, "127.0.0.1:/mnt/curvefs-umount-test",
               "curvefs mount in local path");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 DEFINE_uint32(rpcTimeoutMs, 5000u, "rpc time out");
-DEFINE_string(copysetsId, "1,2,3", "copysets id");
-DEFINE_string(poolsId, "1,2,3", "pools id");
+DEFINE_string(copysetId, "1,2,3", "copysets id");
+DEFINE_string(poolId, "1,2,3", "pools id");
 DEFINE_bool(detail, false, "show more infomation");
+DEFINE_string(partitionId, "1,2,3", "partition id");
+DEFINE_string(metaserverId, "1,2,3", "metaserver id");
+DEFINE_bool(confirm, false, "confirm execution");
 
 // topology
 DEFINE_string(mds_addr, "127.0.0.1:6700",
@@ -55,9 +58,24 @@ void SetFlagInfo(curve::common::Configuration* conf,
     }
 }
 
+template <class FlagInfoT>
+bool CheckFlagInfoDefault(google::CommandLineFlagInfo* info,
+                          const std::string& key, FlagInfoT* flag) {
+    return (GetCommandLineFlagInfo(key.c_str(), info) && info->is_default);
+}
+
+/* set flag */
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetMdsAddr = std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
                            std::placeholders::_2, "mdsAddr", &FLAGS_mdsAddr);
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckFsNameDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "fsName", &FLAGS_fsName);
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckFsIdDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "fsId", &FLAGS_fsId);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetRpcTimeoutMs =
@@ -77,6 +95,17 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetEtcdAddr = std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
                             std::placeholders::_2, "etcdAddr", &FLAGS_etcdAddr);
+
+/* check flag */
+std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "metaserverId", &FLAGS_metaserverId);
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverAddrDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "metaserverAddr", &FLAGS_metaserverAddr);
+
+/* translate to string */
 
 auto StrVec2Str(const std::vector<std::string>& strVec) -> std::string {
     std::stringstream ret;
@@ -127,16 +156,6 @@ std::string CommomPartitionInfo2Str(const common::PartitionInfo& partition) {
     }
     ret << "inodeNum: " << partition.inodenum()
         << " dentryNum: " << partition.status();
-    return ret.str();
-}
-
-std::string MetadataserverCopysetCopysetStatusResponse2Str(
-    const metaserver::copyset::CopysetStatusResponse& response) {
-    std::stringstream ret;
-    ret << "op_status: " << CopysetOpStatus2Str(response.status());
-    if (response.has_copysetstatus()) {
-        ret << response.copysetstatus().DebugString();
-    }
     return ret.str();
 }
 

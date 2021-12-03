@@ -29,6 +29,9 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/trash.h"
+#include "src/common/concurrent/name_lock.h"
+
+using ::curve::common::NameLock;
 
 namespace curvefs {
 namespace metaserver {
@@ -42,7 +45,7 @@ class InodeManager {
     MetaStatusCode CreateInode(uint32_t fsId, uint64_t inodeId, uint64_t length,
                                uint32_t uid, uint32_t gid, uint32_t mode,
                                FsFileType type, const std::string &symlink,
-                               Inode *inode);
+                               uint64_t rdev, Inode *inode);
     MetaStatusCode CreateRootInode(uint32_t fsId, uint32_t uid, uint32_t gid,
                                    uint32_t mode);
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode *inode);
@@ -51,16 +54,25 @@ class InodeManager {
 
     MetaStatusCode UpdateInode(const Inode &inode);
 
+    MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
+        uint64_t inodeId, bool isCreate);
+
     MetaStatusCode InsertInode(const Inode &inode);
 
  private:
     void GenerateInodeInternal(uint64_t inodeId, uint32_t fsId, uint64_t length,
                                uint32_t uid, uint32_t gid, uint32_t mode,
-                               FsFileType type, Inode *inode);
+                               FsFileType type, uint64_t rdev, Inode *inode);
+
+    std::string GetInodeLockName(uint32_t fsId, uint64_t inodeId) {
+        return std::to_string(fsId) + "_" + std::to_string(inodeId);
+    }
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<Trash> trash_;
+
+    NameLock inodeLock_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

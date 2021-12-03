@@ -62,12 +62,9 @@ int DiskCacheManager::Init(S3Client *client,
     }
     // start aync upload thread
     cacheWrite_->AsyncUploadRun();
-    // upload all file in write cache to S3
-    ret = cacheWrite_->UploadAllCacheWriteFile();
-    if (ret < 0) {
-        LOG(ERROR) << "upload cache write file error. ret = " << ret;
-        return ret;
-    }
+    std::thread uploadThread =
+        std::thread(&DiskCacheManager::UploadAllCacheWriteFile, this);
+    uploadThread.detach();
     // load all cache read file
     ret = cacheRead_->LoadAllCacheReadFile(&cachedObjName_);
     if (ret < 0) {
@@ -78,6 +75,10 @@ int DiskCacheManager::Init(S3Client *client,
     TrimRun();
     LOG(INFO) << "DiskCacheManager init success.";
     return 0;
+}
+
+int DiskCacheManager::UploadAllCacheWriteFile() {
+    return cacheWrite_->UploadAllCacheWriteFile();
 }
 
 void DiskCacheManager::AddCache(const std::string name) {
@@ -103,9 +104,9 @@ int DiskCacheManager::UmountDiskCache() {
     ret = cacheWrite_->UploadAllCacheWriteFile();
     if (ret < 0) {
         LOG(ERROR) << "umount disk cache error.";
-        return -1;
     }
     TrimStop();
+    cacheWrite_->AsyncUploadStop();
     LOG(INFO) << "umount disk cache end.";
     return 0;
 }

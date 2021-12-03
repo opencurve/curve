@@ -20,7 +20,7 @@ load("//:copts.bzl", "CURVE_TEST_COPTS")
 cc_test(
     name = "curvefs_umount_tool_test",
     srcs = glob([
-        "curvefs_umountfs_tool_test.cpp",
+        "curvefs_umount_fs_tool_test.cpp",
         "mock_mds_service.h",
     ]),
     copts = CURVE_TEST_COPTS,

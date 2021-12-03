@@ -175,7 +175,7 @@ TEST_F(PartitionTest, inodenum) {
     ASSERT_EQ(partition1.GetInodeNum(), 0);
     Inode inode;
     ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
-                                     &inode),
+                                     0, &inode),
               MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetInodeNum(), 1);
 
@@ -193,8 +193,16 @@ TEST_F(PartitionTest, dentrynum) {
     partitionInfo1.set_end(199);
 
     Partition partition1(partitionInfo1);
-
     ASSERT_EQ(partition1.GetDentryNum(), 0);
+
+
+    // create parent inode
+    Inode inode;
+    inode.set_inodeid(100);
+    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
+                                     0, &inode),
+        MetaStatusCode::OK);
+
     Dentry dentry;
     dentry.set_fsid(1);
     dentry.set_inodeid(101);
@@ -276,7 +284,7 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     std::string symlink;
     Inode inode1;
     ASSERT_EQ(partition1.CreateInode(fsId + 1, length, uid, gid, mode, type,
-                                     symlink, &inode1),
+                                     symlink, 0, &inode1),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test CreateRootInode

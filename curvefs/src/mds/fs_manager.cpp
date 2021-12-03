@@ -450,7 +450,7 @@ FSStatusCode FsManager::CleanFsInodeAndDentry(uint32_t fsId) {
 }
 
 void FsManager::GetAllFsInfo(
-    ::google::protobuf::RepeatedPtrField< ::curvefs::mds::FsInfo>* fsInfoVec) {
+    ::google::protobuf::RepeatedPtrField<::curvefs::mds::FsInfo>* fsInfoVec) {
     std::vector<FsInfoWrapper> wrapperVec;
     fsStorage_->GetAll(&wrapperVec);
     for (auto const& i : wrapperVec) {

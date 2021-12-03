@@ -110,9 +110,12 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     if (inode->length() < off + *wSize) {
         inode->set_length(off + *wSize);
     }
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    inode->set_mtime(nowTime);
-    inode->set_ctime(nowTime);
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode->set_mtime(now.tv_sec);
+    inode->set_mtime_ns(now.tv_nsec);
+    inode->set_ctime(now.tv_sec);
+    inode->set_ctime_ns(now.tv_nsec);
 
     inodeManager_->ShipToFlush(inodeWrapper);
 
@@ -153,7 +156,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
 
     // Read do not change inode. so we do not get lock here.
-    int rRet = s3Adaptor_->Read(&inode, off, len, buffer);
+    int rRet = s3Adaptor_->Read(ino, off, len, buffer);
     if (rRet < 0) {
         LOG(ERROR) << "s3Adaptor_ read failed, ret = " << rRet;
         return CURVEFS_ERROR::INTERNAL;
@@ -167,9 +170,12 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     Inode *newInode = inodeWrapper->GetMutableInodeUnlocked();
 
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-    newInode->set_ctime(nowTime);
-    newInode->set_atime(nowTime);
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    newInode->set_ctime(now.tv_sec);
+    newInode->set_ctime_ns(now.tv_nsec);
+    newInode->set_atime(now.tv_sec);
+    newInode->set_atime_ns(now.tv_nsec);
 
     inodeManager_->ShipToFlush(inodeWrapper);
 
@@ -182,7 +188,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
                                          struct fuse_file_info *fi,
                                          fuse_entry_param *e) {
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -192,7 +198,11 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                         const char *name, mode_t mode,
                                         dev_t rdev, fuse_entry_param *e) {
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, e);
+    VLOG(3) << "FuseOpMkNod, parent = " << parent
+            << ", name = " << name
+            << ", mode = " << mode
+            << ", rdev = " << rdev;
+    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,

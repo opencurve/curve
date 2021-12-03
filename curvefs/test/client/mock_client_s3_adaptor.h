@@ -44,7 +44,7 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     MOCK_METHOD4(Write, int(uint64_t inodeId, uint64_t offset, uint64_t length,
                             const char* buf));
 
-    MOCK_METHOD4(Read, int(Inode* inode, uint64_t offset, uint64_t length,
+    MOCK_METHOD4(Read, int(uint64_t inodeId, uint64_t offset, uint64_t length,
                            char* buf));
     MOCK_METHOD1(ReleaseCache, void(uint64_t inodeId));
     MOCK_METHOD1(Flush, CURVEFS_ERROR(uint64_t inodeId));

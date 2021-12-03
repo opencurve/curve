@@ -70,31 +70,31 @@ TEST_F(InodeManagerTest, test1) {
     std::string symlink = "";
     Inode inode1;
     ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
-                                  symlink, &inode1),
-              MetaStatusCode::OK);
+        symlink, 0, &inode1),
+        MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
     Inode inode2;
     ASSERT_EQ(manager.CreateInode(fsId, 3, length, uid, gid, mode, type,
-                                  symlink, &inode2),
-              MetaStatusCode::OK);
+        symlink, 0, &inode2),
+        MetaStatusCode::OK);
     ASSERT_EQ(inode2.inodeid(), 3);
 
     Inode inode3;
     ASSERT_EQ(manager.CreateInode(fsId, 4, length, uid, gid, mode,
-                                  FsFileType::TYPE_SYM_LINK, symlink, &inode3),
-              MetaStatusCode::SYM_LINK_EMPTY);
+        FsFileType::TYPE_SYM_LINK, symlink, 0, &inode3),
+        MetaStatusCode::SYM_LINK_EMPTY);
 
     ASSERT_EQ(
         manager.CreateInode(fsId, 4, length, uid, gid, mode,
-                            FsFileType::TYPE_SYM_LINK, "SYMLINK", &inode3),
+        FsFileType::TYPE_SYM_LINK, "SYMLINK", 0, &inode3),
         MetaStatusCode::OK);
     ASSERT_EQ(inode3.inodeid(), 4);
 
     Inode inode4;
     ASSERT_EQ(manager.CreateInode(fsId, 5, length, uid, gid, mode,
-                                  FsFileType::TYPE_S3, symlink, &inode4),
-              MetaStatusCode::OK);
+        FsFileType::TYPE_S3, symlink, 0, &inode4),
+        MetaStatusCode::OK);
     ASSERT_EQ(inode4.inodeid(), 5);
     ASSERT_EQ(inode4.type(), FsFileType::TYPE_S3);
 

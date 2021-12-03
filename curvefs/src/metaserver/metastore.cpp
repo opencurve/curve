@@ -74,7 +74,7 @@ bool MetaStoreImpl::LoadDentry(uint32_t partitionId, void* entry) {
     }
 
     auto dentry = reinterpret_cast<Dentry*>(entry);
-    auto rc = partition->CreateDentry(*dentry);
+    auto rc = partition->CreateDentry(*dentry, true);
     if (rc != MetaStatusCode::OK) {
         LOG(ERROR) << "CreateDentry failed, retCode = " << rc;
         return false;
@@ -290,7 +290,7 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->CreateDentry(request->dentry());
+    MetaStatusCode status = partition->CreateDentry(request->dentry(), false);
     response->set_statuscode(status);
     return status;
 }
@@ -409,6 +409,7 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
     uint32_t mode = request->mode();
     FsFileType type = request->type();
     std::string symlink;
+    uint32_t rdev = request->rdev();
     if (type == FsFileType::TYPE_SYM_LINK) {
         if (!request->has_symlink()) {
             response->set_statuscode(MetaStatusCode::SYM_LINK_EMPTY);
@@ -430,7 +431,8 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
         return status;
     }
     MetaStatusCode status = partition->CreateInode(
-        fsId, length, uid, gid, mode, type, symlink, response->mutable_inode());
+        fsId, length, uid, gid, mode, type, symlink, rdev,
+        response->mutable_inode());
     response->set_statuscode(status);
     if (status != MetaStatusCode::OK) {
         response->clear_inode();

@@ -20,11 +20,11 @@
  * Author: chengyi01
  */
 
-#include "curvefs/src/tools/space/curvefs_space_base_tool.h"
+#include "curvefs/src/tools/usage/curvefs_space_base_tool.h"
 
 namespace curvefs {
 namespace tools {
-namespace space {
+namespace usage {
 
 const uint64_t TB = 1024 * 1024 * 1024;
 const uint64_t GB = 1024 * 1024;
@@ -51,6 +51,6 @@ std::string ToReadableByte(uint64_t byte) {
     }
     return ss.str();
 }
-}  // namespace space
+}  // namespace usage
 }  // namespace tools
 }  // namespace curvefs

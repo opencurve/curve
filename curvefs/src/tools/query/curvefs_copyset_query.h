@@ -26,26 +26,29 @@
 #include <brpc/channel.h>
 #include <gflags/gflags.h>
 
+#include <algorithm>
 #include <map>
 #include <queue>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
+#include "curvefs/src/tools/check/curvefs_copyset_check.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
-#include "curvefs/src/tools/status/curvefs_copyset_status.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
 namespace query {
 
+using InfoType = curvefs::mds::topology::CopysetValue;
 using StatusType = curvefs::metaserver::copyset::CopysetStatusResponse;
+using StatusRequestType = curvefs::metaserver::copyset::CopysetsStatusRequest;
 
 class CopysetQueryTool
     : public CurvefsToolRpc<curvefs::mds::topology::GetCopysetsInfoRequest,
@@ -59,13 +62,19 @@ class CopysetQueryTool
     }
     void PrintHelp() override;
     int Init() override;
-    std::map<uint32_t, std::vector<StatusType>> GetId2Status();
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
-    std::map<uint32_t, std::vector<StatusType>> id2Status_;
-    std::set<uint32_t> avaliableCopysetId;  // save  no error copysetId
+    bool GetCopysetStatus();
+
+ protected:
+    // key = (poolId << 32) | copysetId
+    std::map<uint64_t, std::vector<InfoType>> key2Infos_;
+    std::map<std::string, std::queue<StatusRequestType>>
+        addr2Request_;                                        // detail
+    std::map<uint64_t, std::vector<StatusType>> key2Status_;  // detail
+    std::vector<uint64_t> copysetKeys_;
 };
 
 }  // namespace query

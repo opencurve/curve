@@ -129,14 +129,21 @@ class TopologyManager {
                            const CopySetIdType copysetId,
                            std::set<std::string> *addrs);
 
-    virtual void GetCopysetInfo(const GetCopysetInfoRequest* request,
-                                GetCopysetInfoResponse* response);
-
     virtual void GetCopysetsInfo(const GetCopysetsInfoRequest* request,
                                  GetCopysetsInfoResponse* response);
 
+    virtual void ListCopysetsInfo(ListCopysetInfoResponse* response);
+
+    virtual void GetMetaServersSpace(
+        ::google::protobuf::RepeatedPtrField<
+            curvefs::mds::topology::MetadataUsage>* spaces);
+
  private:
     TopoStatusCode CreateCopyset();
+
+    virtual void GetCopysetInfo(const uint32_t& poolId,
+                                const uint32_t& copysetId,
+                                CopysetValue* copysetValue);
 
  private:
     std::shared_ptr<Topology> topology_;
