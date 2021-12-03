@@ -102,6 +102,7 @@ def del_rate_limit(dev):
 def inject_cpu_stress(ssh,stress=50):
     cmd = "sudo nohup python cpu_stress.py %d &"%stress
     shell_operator.ssh_background_exec2(ssh,cmd)
+    time.sleep(5)
     cmd = "ps -ef|grep -v grep | grep cpu_stress.py | awk '{print $2}'"
     rs = shell_operator.ssh_exec(ssh,cmd)
     assert rs[1] != [],"up cpu stress fail"
@@ -119,6 +120,7 @@ def del_cpu_stress(ssh):
 def inject_mem_stress(ssh,stress):
     cmd = "sudo nohup /usr/local/stress/memtester/bin/memtester %dG > memtest.log  &"%stress
     shell_operator.ssh_background_exec2(ssh,cmd)
+    time.sleep(5)
     cmd = "ps -ef|grep -v grep | grep memtester | awk '{print $2}'"
     rs = shell_operator.ssh_exec(ssh,cmd)
     assert rs[1] != [],"up memster stress fail"

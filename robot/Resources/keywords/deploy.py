@@ -363,18 +363,24 @@ def remk_test_dir():
         logger.error(" remk test dir fail.")
         raise
 
-def mount_test_dir(): 
+def mount_test_dir(hosts=""): 
     try:
-        cmd = "cd curvefs && make mount"
+        if hosts == "":
+            cmd = "cd curvefs && make mount"
+        else:
+            cmd = "cd curvefs && make mount only=client hosts=%s"%hosts
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"mount dir fail"
     except Exception:
         logger.error("mount dir fail.")
         raise
 
-def umount_test_dir():
+def umount_test_dir(hosts=""):
     try:
-        cmd = "cd curvefs && make umount"
+        if hosts == "":
+            cmd = "cd curvefs && make umount"
+        else:
+            cmd = "cd curvefs && make umount only=client hosts=%s"%hosts
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"umount dir fail"
     except Exception:
