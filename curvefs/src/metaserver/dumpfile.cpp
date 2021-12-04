@@ -65,7 +65,7 @@ using ::curve::common::CRC32;
 
 const std::string DumpFile::kCurvefs_ = "CURVEFS";  // NOLINT
 const uint8_t DumpFile::kVersion_ = 1;
-const uint32_t DumpFile::kMaxStringLength_ = 1024 * 1024;  // 1MB
+const uint32_t DumpFile::kMaxStringLength_ = 1024 * 1024 * 1024;  // 1GB
 
 std::ostream& operator<<(std::ostream& os, DUMPFILE_ERROR code) {
     static auto code2str = std::map<DUMPFILE_ERROR, std::string> {
@@ -203,10 +203,6 @@ DUMPFILE_ERROR DumpFile::SaveString(const std::string& str,
                                     off_t* offset,
                                     uint32_t* checkSum) {
     size_t length = str.size();
-    if (length > kMaxStringLength_) {
-        return DUMPFILE_ERROR::EXCEED_MAX_STRING_LENGTH;
-    }
-
     auto retCode = Write(str.c_str(), *offset, length);
     if (retCode == DUMPFILE_ERROR::OK) {
         *offset = (*offset) + length;
@@ -247,6 +243,8 @@ DUMPFILE_ERROR DumpFile::LoadString(std::string* str,
                                     size_t length,
                                     uint32_t* checkSum) {
     if (length > kMaxStringLength_) {
+        LOG(ERROR) << "The loaded string is too large, size("
+                   << length << ") > limit(" << kMaxStringLength_ << ")";
         return DUMPFILE_ERROR::EXCEED_MAX_STRING_LENGTH;
     }
 
