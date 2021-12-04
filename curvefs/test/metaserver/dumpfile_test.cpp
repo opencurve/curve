@@ -223,6 +223,35 @@ TEST_F(DumpFileTest, TestSaveBigData) {
     ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
 }
 
+TEST_F(DumpFileTest, TestLoadLargeValue) {
+    Hash hash;
+    const int maxValueLength = 1024 * 1024 * 1024;
+    auto hashIterator = std::make_shared<HashIterator>(&hash);
+    auto checkLoading = [](std::shared_ptr<Iterator> iter,
+                           const int length,
+                           const int npairs) {
+        int count = 0;
+        for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+            count++;
+            ASSERT_EQ(iter->Key(), "key");
+            ASSERT_EQ(iter->Value().size(), length);
+        }
+        ASSERT_EQ(count, npairs);
+    };
+
+    // CASE 1: load success
+    hash["key"] = std::string(maxValueLength, '.');
+    ASSERT_EQ(dumpfile_->SaveBackground(hashIterator), DUMPFILE_ERROR::OK);
+    checkLoading(dumpfile_->Load(), maxValueLength, 1);
+    ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
+
+    // CASE 2: load failed
+    hash["key"] = std::string(maxValueLength + 1, '.');
+    ASSERT_EQ(dumpfile_->SaveBackground(hashIterator), DUMPFILE_ERROR::OK);
+    checkLoading(dumpfile_->Load(), maxValueLength + 1, 0);
+    ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::INVALID_PAIRS);
+}
+
 TEST_F(DumpFileTest, TestFileNotOpen) {
     Hash hash;
     auto hashIterator = std::make_shared<HashIterator>(&hash);
