@@ -57,7 +57,14 @@ void DentryManager::Log4Code(const std::string& request, MetaStatusCode rc) {
 
 MetaStatusCode DentryManager::CreateDentry(const Dentry& dentry) {
     Log4Dentry("CreateDentry", dentry);
-    auto rc = dentryStorage_->Insert(dentry);
+    MetaStatusCode rc;
+    // invoke only from snapshot loading
+    if (dentry.flag() & DentryFlag::TRANSACTION_PREPARE_FLAG) {
+        rc = dentryStorage_->HandleTx(DentryStorage::TX_OP_TYPE::PREPARE,
+                                      dentry);
+    } else {
+        rc = dentryStorage_->Insert(dentry);
+    }
     Log4Code("CreateDentry", rc);
     return rc;
 }

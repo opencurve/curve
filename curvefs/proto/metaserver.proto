@@ -58,6 +58,7 @@ message GetDentryRequest {
 enum DentryFlag {
     TYPE_FILE_FLAG = 1;
     DELETE_MARK_FLAG = 2;
+    TRANSACTION_PREPARE_FLAG = 4;
 }
 
 message Dentry {
