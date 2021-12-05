@@ -157,12 +157,16 @@ CURVEFS_ERROR RenameOperator::PrepareRenameTx(
 CURVEFS_ERROR RenameOperator::PrepareTx() {
     dentry_ = Dentry(srcDentry_);
     dentry_.set_txid(srcTxId_ + 1);
-    dentry_.set_flag(DentryFlag::DELETE_MARK_FLAG);
+    dentry_.set_flag(dentry_.flag() |
+                     DentryFlag::DELETE_MARK_FLAG |
+                     DentryFlag::TRANSACTION_PREPARE_FLAG);
 
     newDentry_ = Dentry(srcDentry_);
     newDentry_.set_parentinodeid(newParentId_);
     newDentry_.set_name(newname_);
     newDentry_.set_txid(dstTxId_ + 1);
+    newDentry_.set_flag(newDentry_.flag() |
+                        DentryFlag::TRANSACTION_PREPARE_FLAG);
 
     CURVEFS_ERROR rc;
     std::vector<Dentry> dentrys{ dentry_ };

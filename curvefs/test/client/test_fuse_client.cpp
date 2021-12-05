@@ -134,6 +134,7 @@ class TestFuseVolumeClient : public ::testing::Test {
 
     static const uint32_t DELETE = DentryFlag::DELETE_MARK_FLAG;
     static const uint32_t FILE = DentryFlag::TYPE_FILE_FLAG;
+    static const uint32_t TX_PREPARE = DentryFlag::TRANSACTION_PREPARE_FLAG;
 };
 
 TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
@@ -1004,16 +1005,17 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     // step3: prepare tx
     EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
-            auto srcDentry =
-                GenDentry(fsId, parent, name, srcTxId + 1, inodeId, DELETE);
+            auto srcDentry = GenDentry(fsId, parent, name,
+                                       srcTxId + 1, inodeId,
+                                       DELETE | TX_PREPARE);
             if (dentrys.size() == 1 && dentrys[0] == srcDentry) {
                 return MetaStatusCode::OK;
             }
             return MetaStatusCode::UNKNOWN_ERROR;
         }))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
-            auto dstDentry =
-                GenDentry(fsId, newparent, newname, dstTxId + 1, inodeId, 0);
+            auto dstDentry = GenDentry(fsId, newparent, newname,
+                                       dstTxId + 1, inodeId, TX_PREPARE);
             if (dentrys.size() == 1 && dentrys[0] == dstDentry) {
                 return MetaStatusCode::OK;
             }
@@ -1037,7 +1039,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry& dentry) {
             auto dstDentry =
-                GenDentry(fsId, newparent, newname, dstTxId + 1, inodeId, 0);
+                GenDentry(fsId, newparent, newname,
+                          dstTxId + 1, inodeId, TX_PREPARE);
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
@@ -1072,8 +1075,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     // step2: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
     auto srcDentry = GenDentry(fsId, parent, name, txId, inodeId, FILE);
-    auto dstDentry =
-        GenDentry(fsId, newparent, newname, txId, oldInodeId, FILE);
+    auto dstDentry = GenDentry(fsId, newparent, newname,
+                               txId, oldInodeId, FILE);
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(srcDentry), Return(CURVEFS_ERROR::OK)));
@@ -1084,10 +1087,10 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     // step3: prepare tx
     EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
-            auto srcDentry =
-                GenDentry(fsId, parent, name, txId + 1, inodeId, DELETE);
-            auto dstDentry =
-                GenDentry(fsId, newparent, newname, txId + 1, inodeId, FILE);
+            auto srcDentry = GenDentry(fsId, parent, name, txId + 1,
+                                       inodeId, FILE | DELETE | TX_PREPARE);
+            auto dstDentry = GenDentry(fsId, newparent, newname,
+                                       txId + 1, inodeId, FILE | TX_PREPARE);
             if (dentrys.size() == 2 && dentrys[0] == srcDentry &&
                 dentrys[1] == dstDentry) {
                 return MetaStatusCode::OK;
@@ -1120,8 +1123,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry& dentry) {
-            auto dstDentry =
-                GenDentry(fsId, newparent, newname, txId + 1, inodeId, FILE);
+            auto dstDentry = GenDentry(fsId, newparent, newname,
+                                       txId + 1, inodeId, FILE | TX_PREPARE);
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
@@ -1155,7 +1158,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
     // step2: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
     auto srcDentry = GenDentry(fsId, parent, name, txId, inodeId, FILE);
-    auto dstDentry = GenDentry(fsId, newparent, newname, txId, oldInodeId, 0);
+    auto dstDentry = GenDentry(fsId, newparent, newname,
+                               txId, oldInodeId, 0);
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(srcDentry), Return(CURVEFS_ERROR::OK)));
