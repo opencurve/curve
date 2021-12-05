@@ -74,6 +74,14 @@ TEST_F(DentryManagerTest, CreateDentry) {
     ASSERT_EQ(dentryManager_->CreateDentry(dentry2),
               MetaStatusCode::DENTRY_EXIST);
     ASSERT_EQ(dentryStorage_->Size(), 1);
+
+    // CASE 3: CreateDentry: success
+    //   1) invoke from snapshot loading
+    //   2) dentry has TRANSACTION_PREPARE_FLAG flag
+    dentry2.set_txid(1);
+    dentry2.set_flag(DentryFlag::TRANSACTION_PREPARE_FLAG);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry2), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 2);
 }
 
 TEST_F(DentryManagerTest, DeleteDentry) {
