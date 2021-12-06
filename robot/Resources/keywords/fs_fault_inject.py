@@ -226,7 +226,7 @@ def test_kill_process(process_name,num=1):
 
 def test_start_process(process_name):
     try:
-        cmd = "cd curvefs && make start only=%s"%process_name
+        cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"start %s fail"%process_name
     except Exception as e:
@@ -407,17 +407,15 @@ def mount_umount_test():
     test_dir = ["test3"]
     t = 0
     while config.thrash_fs_mount:
+        deploy.mount_test_dir(test_dir[0])
+        time.sleep(30)
+        check_fuse_mount_success(test_dir)
         multi_mdtest_exec(ssh,test_dir[0])
         ori_cmd = "sudo umount " + config.fs_mount_path + test_dir[0]
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"umount %s fail,error is %s"%(test_dir,rs[1])
         wait_fuse_exit(test_dir[0])
-        time.sleep(5)
-        cmd = "cd curvefs && make mount only=client hosts=%s"%config.thrash_mount_host
-        ret = shell_operator.run_exec(cmd)
         time.sleep(10)
-        check_fuse_mount_success(test_dir)
-        time.sleep(2)
         t += 1
     return t
 
