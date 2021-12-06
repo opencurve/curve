@@ -215,13 +215,17 @@ inject kill all etcd
     check fs cluster ok
     [Teardown]    test start process  etcd
 
-check cp/mv data consistency
+check cp data consistency
     [Tags]    P0    base    first release   failover
     checksum data
+    check fuse mount success
+    wait op finish
+
+check mv data consistency
+    [Tags]    P1    base    first release   failover
     mv data
     checksum mv data
     check fuse mount success
-    wait op finish
 
 check umount date consistency
     [Tags]    P1    base    first release   failover
