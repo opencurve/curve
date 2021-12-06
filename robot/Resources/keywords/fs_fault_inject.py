@@ -24,7 +24,9 @@ def check_fuse_mount_success(fs_mount_dir=config.fs_mount_dir):
     for mount_dir in fs_mount_dir:
         grep_cmd = "ps -ef | grep curve-fuse | grep %s | grep -v grep | awk '{print $2}'  " % mount_dir
         rs = shell_operator.ssh_exec(ssh,grep_cmd)
-        pid = "".join(rs[1]).strip()
+        pid = ""
+        if rs[1] != []:
+            pid = rs[1][0].strip()
         logger.info("pid=%s" %pid)
         if pid:
             logger.debug("process is: %s" % pid)
@@ -72,8 +74,8 @@ def write_check_data():
                                       -direct=1 -group_reporting=1 \
                                       -fallocate=none -time_based=1  \
                                       -name=%s -numjobs=1  \
-                                      -iodepth=128 -nrfiles=1  \
-                                      -size=%s -runtime=60"%(test_dir,name,size)
+                                      -iodepth=1 -nrfiles=1  \
+                                      -size=%s -runtime=30"%(test_dir,name,size)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"write check data fail,error is %s"%rs[1]
         time.sleep(5)
