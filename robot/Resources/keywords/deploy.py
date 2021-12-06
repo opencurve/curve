@@ -307,17 +307,15 @@ def change_cfg():
 
 def destroy_curvefs():
     try:
-        cmd = "cd curvefs && make umount"
-        ret = shell_operator.run_exec(cmd)
         test_client = config.fs_test_client[0]
         ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-        ori_cmd = "ps -ef|grep fuse |grep -v grep | awk '{print $2}' |sudo xargs kill -9"
-        shell_operator.ssh_exec(ssh, ori_cmd)
-        cmd = "cd curvefs && make stop"
+        for mountpoint in config.fs_mount_dir:
+            cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+            shell_operator.ssh_exec(ssh, cmd)
+        cmd = "/home/nbs/.curveadm/bin/curveadm stop"
         ret = shell_operator.run_exec(cmd)
-        cmd = "cd curvefs && make clean"
+        cmd = "echo 'y' | /home/nbs/.curveadm/bin/curveadm clean"
         ret = shell_operator.run_exec(cmd)
-        assert ret == 0 ,"destroy curvefs fail"
     except Exception:
         logger.error("destroy curvefs fail.")
         raise
@@ -338,14 +336,14 @@ def use_ansible_deploy():
 
 def deploy_all_servers():
     try:
-        cmd = "cd curvefs && make install && make install only=etcd"
+        cmd = "/home/nbs/.curveadm/bin/curveadm cluster checkout citest"
         ret = shell_operator.run_exec(cmd)
-        assert ret == 0 ,"install  mds\etcd\metaserver fail"
-        cmd = "cd curvefs && make deploy"
+        assert ret == 0 ,"checkout fail"
+        cmd = "/home/nbs/.curveadm/bin/curveadm deploy"
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"deploy  mds\etcd\metaserver fail" 
     except Exception:
-        logger.error("destroy curvefs fail.")
+        logger.error("deploy curvefs fail.")
         raise
 
 def remk_test_dir(): 
@@ -363,28 +361,38 @@ def remk_test_dir():
         logger.error(" remk test dir fail.")
         raise
 
-def mount_test_dir(hosts=""): 
+def mount_test_dir(mountpoint=""): 
     try:
-        if hosts == "":
-            cmd = "cd curvefs && make mount"
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        if mountpoint == "":
+            for mountpoint in config.fs_mount_dir:
+                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
+                rs = shell_operator.ssh_exec(ssh, cmd)
+                assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
         else:
-            cmd = "cd curvefs && make mount only=client hosts=%s"%hosts
-        ret = shell_operator.run_exec(cmd)
-        assert ret == 0 ,"mount dir fail"
+            cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
+            rs = shell_operator.ssh_exec(ssh, cmd)
+            assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
     except Exception:
         logger.error("mount dir fail.")
         raise
 
-def umount_test_dir(hosts=""):
+def umount_test_dir(mountpoint=""):
     try:
-        if hosts == "":
-            cmd = "cd curvefs && make umount"
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        if mountpoint == "":
+            for mountpoint in config.fs_mount_dir:
+                cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+                rs = shell_operator.ssh_exec(ssh, cmd)
+                assert rs[3] == 0,"umount %s dir fail,error is %s"%(mountpoint,rs[2])
         else:
-            cmd = "cd curvefs && make umount only=client hosts=%s"%hosts
-        ret = shell_operator.run_exec(cmd)
-        assert ret == 0 ,"umount dir fail"
+            cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+            rs = shell_operator.ssh_exec(ssh, cmd)
+            assert rs[3] == 0,"umount %s dir fail,error is %s"%(mountpoint,rs[2])
     except Exception:
-        logger.error("mount dir fail.")
+        logger.error("umount dir fail.")
         raise
 
 def install_deb():
