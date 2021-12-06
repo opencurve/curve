@@ -76,11 +76,11 @@ function prepare() {
             g_start_args="--config-file $conf_path"
             ;;
         mds)
-            g_binary="$g_prefix/sbin/curvefs_mds"
+            g_binary="$g_prefix/sbin/curvefs-mds"
             g_start_args="--confPath $conf_path"
             ;;
         metaserver)
-            g_binary="$g_prefix/sbin/curvefs_metaserver_main"
+            g_binary="$g_prefix/sbin/curvefs-metaserver"
             g_start_args="--confPath $conf_path"
             ;;
         client)
@@ -112,6 +112,7 @@ function main() {
 
     prepare
     create_directory
+    [[ $(command -v crontab) ]] && cron
     exec $g_binary $g_start_args
 }
 
