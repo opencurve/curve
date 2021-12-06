@@ -866,7 +866,7 @@ int CopysetCheckCore::CheckCopysetsOnOfflineChunkServer() {
         return -1;
     }
     for (const auto& cs : chunkservers) {
-        std::string csAddr = cs.hostip() + std::to_string(cs.port());
+        std::string csAddr = cs.hostip() + ":" + std::to_string(cs.port());
         if (!CheckChunkServerOnline(csAddr)) {
             UpdatePeerNotOnlineCopysets(csAddr);
         }
