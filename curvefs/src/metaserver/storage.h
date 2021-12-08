@@ -164,14 +164,15 @@ class MergeIterator : public Iterator {
  public:
     explicit MergeIterator(
         const std::vector<std::shared_ptr<Iterator>>& children)
-        : size_(0), current_(nullptr), children_(children) {
-        for (const auto& child : children) {
-            size_ += child->Size();
-        }
+        : current_(nullptr), children_(children) {
     }
 
     uint64_t Size() override {
-        return size_;
+        uint64_t size = 0;
+        for (const auto& child : children_) {
+            size += child->Size();
+        }
+        return size;
     }
 
     bool Valid() override {
@@ -219,7 +220,6 @@ class MergeIterator : public Iterator {
     }
 
  private:
-    uint64_t size_;
     std::shared_ptr<Iterator> current_;
     std::vector<std::shared_ptr<Iterator>> children_;
 };
