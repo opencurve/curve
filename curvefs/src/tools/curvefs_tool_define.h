@@ -39,7 +39,7 @@ namespace tools {
 
 /* command */
 // programe name
-const char kProgrameName[] = "curvefs-tool";
+const char kProgrameName[] = "curvefs_tool";
 // version
 const char kVersionCmd[] = "version";
 // build-topology
