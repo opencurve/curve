@@ -437,12 +437,13 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                     ret = s3ClientAdaptor_->GetS3Client()->Download(
                         name, response.GetDataBuf() + readOffset,
                         blockPos - objectOffset, n);
-                    if (ret < 0) {
-                        LOG(ERROR) << "download name:" << name
-                                   << " offset:" << blockPos << " len:" << n
-                                   << "fail:" << ret;
-                        return ret;
-                    }
+                }
+                if (ret < 0) {
+                    LOG(ERROR) << "get obj failed, name is: " << name
+                               << ", offset is: " << blockPos
+                               << ", objoffset is: " << objectOffset
+                               << ", len: " << n << ", ret is: " << ret;
+                    return ret;
                 }
             }
             len -= n;
