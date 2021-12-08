@@ -285,12 +285,14 @@ DUMPFILE_ERROR DumpFile::Save(std::shared_ptr<Iterator> iter) {
     RETURN_IF_UNSUCCESS(SaveInt<uint64_t>(iter->Size(), &offset, &checkSum));
 
     // Step2: save key-value pairs
+    uint64_t nPairs = 0;
     for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
         auto key = iter->Key();
         auto value = iter->Value();
 
         RETURN_IF_UNSUCCESS(SaveEntry(key, &offset, &checkSum));
         RETURN_IF_UNSUCCESS(SaveEntry(value, &offset, &checkSum));
+        nPairs++;
     }
 
     // Step3: save checksum
@@ -303,7 +305,9 @@ DUMPFILE_ERROR DumpFile::Save(std::shared_ptr<Iterator> iter) {
         return  DUMPFILE_ERROR::SYNC_FAILED;
     }
 
-    LOG(INFO) << "Save success";
+    LOG(INFO) << "Save success, iterator size = " << iter->Size()
+              << ", number of saved entrys = " << nPairs
+              << ", checksum = " << checkSum;
     return DUMPFILE_ERROR::OK;
 }
 
@@ -515,7 +519,11 @@ void DumpFileIterator::End() {
     double elapsed = (endTime - startTime_) * 1.0 / 1000;
     LOG(INFO) << "Load " << (succ ? "success" : "fail")
               << ", loadStatus = " << status
-              << ", cost " << elapsed << " seconds";
+              << ", cost " << elapsed << " seconds"
+              << ", loaded size = " << size_
+              << ", number of loaded entrys = " << nPairs_
+              << ", loaded checksum = " << crc4load
+              << ", calculate checksum = " << crc4calc;
 
     EXIT_LOAD_IF_UNEXPECT(true, status);
 }
