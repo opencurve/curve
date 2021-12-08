@@ -124,7 +124,7 @@ int DiskCacheManagerImpl::Read(const std::string name, char *buf,
     }
     // read disk file maybe fail because of disk file has been removed.
     int ret = diskCacheManager_->ReadDiskFile(name, buf, offset, length);
-    if (ret < length) {
+    if (ret < 0 || ret < length) {
         LOG(ERROR) << "read disk file error. readRet = " << ret;
         ret = client_->Download(name, buf, offset, length);
         if (ret < 0) {
