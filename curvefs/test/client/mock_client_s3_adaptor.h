@@ -24,6 +24,7 @@
 #define CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
 
 #include <memory>
+#include <string>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 
@@ -54,6 +55,9 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     MOCK_METHOD2(AllocS3ChunkId,
                  FSStatusCode(uint32_t fsId, uint64_t* chunkId));
     MOCK_METHOD1(SetFsId, void(uint32_t fsId));
+    MOCK_METHOD1(InitMetrics, void(const std::string &fsName));
+    MOCK_METHOD3(CollectMetrics,
+                 void(InterfaceMetric *interface, int count, uint64_t start));
 };
 
 }  // namespace client

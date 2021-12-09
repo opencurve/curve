@@ -50,6 +50,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpInit(void *userdata,
     CURVEFS_ERROR ret = FuseClient::FuseOpInit(userdata, conn);
     if (init_) {
         s3Adaptor_->SetFsId(fsInfo_->fsid());
+        s3Adaptor_->InitMetrics(fsInfo_->fsname());
     }
     return ret;
 }
@@ -83,7 +84,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
               is_aligned(size, DirectIOAlignemnt)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
-
+    uint64_t start = butil::cpuwide_time_us();
     int wRet = s3Adaptor_->Write(ino, off, size, buf);
     if (wRet < 0) {
         LOG(ERROR) << "s3Adaptor_ write failed, ret = " << wRet;
@@ -92,6 +93,9 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 
     if (fsMetric_.get() != nullptr) {
         fsMetric_->userWrite.bps.count << wRet;
+        fsMetric_->userWrite.qps.count << 1;
+        uint64_t duration = butil::cpuwide_time_us() - start;
+        fsMetric_->userWrite.latency << duration;
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -198,10 +202,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                         const char *name, mode_t mode,
                                         dev_t rdev, fuse_entry_param *e) {
-    VLOG(3) << "FuseOpMkNod, parent = " << parent
-            << ", name = " << name
-            << ", mode = " << mode
-            << ", rdev = " << rdev;
+    VLOG(3) << "FuseOpMkNod, parent = " << parent << ", name = " << name
+            << ", mode = " << mode << ", rdev = " << rdev;
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
 }
 

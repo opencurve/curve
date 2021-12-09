@@ -54,10 +54,14 @@ class DiskCacheRead : public DiskCacheBase {
     * @brief after reboot，load all files that store in read cache.
     */
     virtual int LoadAllCacheReadFile(std::set<std::string>* cachedObj);
+    virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
+        metric_ = metric;
+    }
 
  private:
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
+    std::shared_ptr<DiskCacheMetric> metric_;
 };
 
 }  // namespace client

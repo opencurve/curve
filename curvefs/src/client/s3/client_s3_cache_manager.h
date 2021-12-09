@@ -39,6 +39,7 @@
 #include "curvefs/src/client/common/common.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
+#include "curvefs/src/client/metric/client_metric.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::RWLock;

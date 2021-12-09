@@ -53,6 +53,7 @@ using curvefs::metaserver::S3ChunkInfoList;
 using curvefs::space::AllocateS3ChunkRequest;
 using curvefs::space::AllocateS3ChunkResponse;
 using rpcclient::MdsClient;
+using curvefs::client::metric::S3Metric;
 
 class DiskCacheManagerImpl;
 
@@ -83,6 +84,9 @@ class S3ClientAdaptor {
     virtual int Stop() = 0;
     virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) = 0;
     virtual void SetFsId(uint32_t fsId) = 0;
+    virtual void InitMetrics(const std::string &fsName) = 0;
+    virtual void CollectMetrics(InterfaceMetric *interface, int count,
+                                uint64_t start) = 0;
 };
 
 // client use s3 internal interface
@@ -165,7 +169,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t GetPageSize() {
         return pageSize_;
     }
-
+    void InitMetrics(const std::string &fsName);
+    void CollectMetrics(InterfaceMetric *interface, int count, uint64_t start);
 
  private:
     void BackGroundFlush();
@@ -186,6 +191,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
             task();
         }
     }
+    std::shared_ptr<S3Metric> s3Metric_;
 
  private:
     S3Client* client_;
@@ -211,6 +217,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::atomic<uint64_t> pendingReq_;
     std::shared_ptr<MdsClient> mdsClient_;
     uint32_t fsId_;
+    std::string fsName_;
     std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>
       downloadTaskQueues_;
     uint32_t pageSize_;

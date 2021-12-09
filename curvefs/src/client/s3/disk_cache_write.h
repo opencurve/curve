@@ -94,6 +94,10 @@ class DiskCacheWrite : public DiskCacheBase {
      */
     virtual int AsyncUploadStop();
 
+    virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
+        metric_ = metric;
+    }
+
  private:
     virtual int AsyncUploadFunc();
 
@@ -107,6 +111,7 @@ class DiskCacheWrite : public DiskCacheBase {
     S3Client *client_;
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
+    std::shared_ptr<DiskCacheMetric> metric_;
 };
 
 }  // namespace client

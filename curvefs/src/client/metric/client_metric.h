@@ -104,11 +104,44 @@ struct FSMetric {
     InterfaceMetric userRead;
 
     explicit FSMetric(const std::string &name = "")
-        : fsName(!name.empty() ? name : curve::common::ToHexString(this)),
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
           userWrite(prefix, fsName + "_userWrite"),
           userRead(prefix, fsName + "_userRead") {}
 };
 
+struct S3Metric {
+    const std::string prefix = "curvefs_s3";
+
+    std::string fsName;
+    InterfaceMetric adaptorWrite;
+    InterfaceMetric adaptorRead;
+    InterfaceMetric adaptorWriteS3;
+    InterfaceMetric adaptorWriteDiskCache;
+    InterfaceMetric adaptorReadS3;
+    InterfaceMetric adaptorReadDiskCache;
+
+    explicit S3Metric(const std::string &name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          adaptorWrite(prefix, fsName + "_adaptor_write"),
+          adaptorRead(prefix, fsName + "_adaptor_read"),
+          adaptorWriteS3(prefix, fsName + "_adaptor_write_s3"),
+          adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
+          adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
+          adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache") {}
+};
+
+struct DiskCacheMetric {
+    const std::string prefix = "curvefs_disk_cache";
+
+    std::string fsName;
+    InterfaceMetric writeS3;
+    explicit DiskCacheMetric(const std::string &name = "")
+        : fsName(!name.empty() ? name
+                               : prefix + curve::common::ToHexString(this)),
+          writeS3(prefix, fsName + "_write_s3") {}
+};
 
 }  // namespace metric
 }  // namespace client
