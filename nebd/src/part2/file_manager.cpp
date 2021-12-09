@@ -20,11 +20,14 @@
  * Author: yangyaokai
  */
 
-#include <vector>
-#include <chrono>  // NOLINT
-#include <algorithm>
-
 #include "nebd/src/part2/file_manager.h"
+
+#include <google/protobuf/util/message_differencer.h>
+
+#include <algorithm>
+#include <chrono>  // NOLINT
+#include <vector>
+
 #include "nebd/src/part2/util.h"
 
 namespace nebd {
@@ -85,13 +88,13 @@ int NebdFileManager::Load() {
     return 0;
 }
 
-int NebdFileManager::Open(const std::string& filename) {
+int NebdFileManager::Open(const std::string& filename, const OpenFlags* flags) {
     NebdFileEntityPtr entity = GetOrCreateFileEntity(filename);
     if (entity == nullptr) {
         LOG(ERROR) << "Open file failed. filename: " << filename;
         return -1;
     }
-    return entity->Open();
+    return entity->Open(flags);
 }
 
 int NebdFileManager::Close(int fd, bool removeRecord) {
@@ -192,8 +195,8 @@ int NebdFileManager::GenerateValidFd() {
     return fd;
 }
 
-NebdFileEntityPtr
-NebdFileManager::GetOrCreateFileEntity(const std::string& fileName) {
+NebdFileEntityPtr NebdFileManager::GetOrCreateFileEntity(
+    const std::string& fileName) {
     {
         ReadLockGuard readLock(rwLock_);
         for (const auto& pair : fileMap_) {
@@ -203,12 +206,13 @@ NebdFileManager::GetOrCreateFileEntity(const std::string& fileName) {
             }
         }
     }
+
     int fd = GenerateValidFd();
     return GenerateFileEntity(fd, fileName);
 }
 
-NebdFileEntityPtr
-NebdFileManager::GenerateFileEntity(int fd, const std::string& fileName) {
+NebdFileEntityPtr NebdFileManager::GenerateFileEntity(
+    int fd, const std::string& fileName) {
     WriteLockGuard writeLock(rwLock_);
     for (const auto& pair : fileMap_) {
         std::string curFile = pair.second->GetFileName();

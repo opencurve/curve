@@ -20,15 +20,39 @@
  * Author: yangyaokai
  */
 
-#include <vector>
-#include <chrono>  // NOLINT
-#include <algorithm>
-
 #include "nebd/src/part2/file_entity.h"
+
+#include <google/protobuf/util/message_differencer.h>
+
+#include <algorithm>
+#include <chrono>  // NOLINT
+#include <vector>
+
 #include "nebd/src/part2/util.h"
 
 namespace nebd {
 namespace server {
+
+bool IsOpenFlagsExactlySame(const OpenFlags* lhs, const OpenFlags* rhs) {
+    if (lhs == nullptr && rhs == nullptr) {
+        return true;
+    } else if ((lhs != nullptr && rhs == nullptr) ||
+               (lhs == nullptr && rhs != nullptr)) {
+        return false;
+    }
+
+    return google::protobuf::util::MessageDifferencer::Equals(*lhs, *rhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const OpenFlags* flags) {
+    if (!flags) {
+        os << "[empty]";
+    } else {
+        os << "[exclusive: " << flags->exclusive() << "]";
+    }
+
+    return os;
+}
 
 NebdFileEntity::NebdFileEntity()
     : fd_(0)
@@ -57,18 +81,26 @@ int NebdFileEntity::Init(const NebdFileEntityOption& option) {
     return 0;
 }
 
-int NebdFileEntity::Open() {
+int NebdFileEntity::Open(const OpenFlags* openflags) {
     CHECK(executor_ != nullptr) << "file entity is not inited. "
                                 << "filename: " << fileName_;
     std::unique_lock<bthread::Mutex> lock(fileStatusMtx_);
     if (status_ == NebdFileStatus::OPENED) {
-        LOG(WARNING) << "File is already opened. "
-                     << "filename: " << fileName_
-                     << "fd: " << fd_;
-        return fd_;
+        if (IsOpenFlagsExactlySame(openFlags_.get(), openflags)) {
+            LOG(WARNING) << "File is already opened. "
+                         << "filename: " << fileName_ << "fd: " << fd_;
+            return fd_;
+        } else {
+            LOG(ERROR) << "File " << fileName_
+                       << " is already opened, but open flags is not same, "
+                          "previous open flags: "
+                       << openFlags_.get()
+                       << ", current open flags: " << openflags;
+            return -1;
+        }
     }
 
-    NebdFileInstancePtr fileInstance = executor_->Open(fileName_);
+    NebdFileInstancePtr fileInstance = executor_->Open(fileName_, openflags);
     if (fileInstance == nullptr) {
         LOG(ERROR) << "open file failed. "
                    << "filename: " << fileName_;
@@ -85,6 +117,13 @@ int NebdFileEntity::Open() {
     LOG(INFO) << "Open file success. "
               << "fd: " << fd_
               << ", filename: " << fileName_;
+
+    if (openflags) {
+        openFlags_.reset(new OpenFlags{*openflags});
+    } else {
+        openFlags_.reset();
+    }
+
     return fd_;
 }
 
@@ -335,7 +374,7 @@ bool NebdFileEntity::GuaranteeFileOpened() {
     }
 
     if (status_ == NebdFileStatus::CLOSED) {
-        int ret = Open();
+        int ret = Open(openFlags_.get());
         if (ret != fd_) {
             LOG(ERROR) << "Get opened file failed. "
                        << "filename: " << fileName_

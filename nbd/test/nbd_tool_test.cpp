@@ -77,6 +77,8 @@ class NBDToolTest : public ::testing::Test {
         NebdClientAioContext aioCtx;
         EXPECT_CALL(*image_, AioRead(_))
             .WillRepeatedly(Invoke([](NebdClientAioContext* context){
+                memset(context->buf, 0, context->length);
+                context->ret = 0;
                 context->cb(context);
             }));
         nbdThread_ = std::thread(task, config, &isRunning_, &tool_);
@@ -91,10 +93,13 @@ class NBDToolTest : public ::testing::Test {
         EXPECT_CALL(*image_, AioWrite(_))
             .WillOnce(Invoke([&](NebdClientAioContext* context){
                 tempContext = *context;
+                memset(context->buf, 0, context->length);
+                context->ret = 0;
                 context->cb(context);
             }));
         EXPECT_CALL(*image_, Flush(_))
             .WillOnce(Invoke([](NebdClientAioContext* context){
+                context->ret = 0;
                 context->cb(context);
             }));
 
@@ -143,6 +148,7 @@ class NBDToolTest : public ::testing::Test {
 
 TEST_F(NBDToolTest, ioctl_connect_test) {
     NBDConfig config;
+    config.devpath = "/dev/nbd10";
     config.imgname = kTestImage;
     StartInAnotherThread(&config);
     ASSERT_TRUE(isRunning_);
@@ -154,6 +160,7 @@ TEST_F(NBDToolTest, ioctl_connect_test) {
 
 TEST_F(NBDToolTest, netlink_connect_test) {
     NBDConfig config;
+    config.devpath = "/dev/nbd10";
     config.imgname = kTestImage;
     config.try_netlink = true;
     StartInAnotherThread(&config);
@@ -165,6 +172,7 @@ TEST_F(NBDToolTest, netlink_connect_test) {
 
 TEST_F(NBDToolTest, readonly_test) {
     NBDConfig config;
+    config.devpath = "/dev/nbd10";
     config.imgname = kTestImage;
     config.readonly = true;
     StartInAnotherThread(&config);
@@ -177,6 +185,7 @@ TEST_F(NBDToolTest, readonly_test) {
 
 TEST_F(NBDToolTest, timeout_test) {
     NBDConfig config;
+    config.devpath = "/dev/nbd10";
     config.imgname = kTestImage;
     config.timeout = 3;
     StartInAnotherThread(&config);

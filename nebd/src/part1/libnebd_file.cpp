@@ -35,8 +35,8 @@ void Uninit4Nebd() {
     return;
 }
 
-int Open4Nebd(const char* filename) {
-    return nebd::client::nebdClient.Open(filename);
+int Open4Nebd(const char* filename, const NebdOpenFlags* openflags) {
+    return nebd::client::nebdClient.Open(filename, openflags);
 }
 
 int Close4Nebd(int fd) {

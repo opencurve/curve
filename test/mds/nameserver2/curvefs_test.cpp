@@ -913,9 +913,11 @@ TEST_F(CurveFSTest, testDeleteFile) {
             .Times(1)
             .WillOnce(Return(1ul));
 
-        ClientIpPortType mountPoint("127.0.0.1", 12345);
+        // ClientIpPortType mountPoint("127.0.0.1", 12345);
+        std::vector<butil::EndPoint> mps;
+        mps.emplace_back(butil::EndPoint{});
         EXPECT_CALL(*fileRecordManager_, FindFileMountPoint(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(mountPoint), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<1>(mps), Return(true)));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
                   StatusCode::kFileOccupied);
@@ -1546,11 +1548,13 @@ TEST_F(CurveFSTest, testRenameFile) {
             .Times(2)
             .WillRepeatedly(Return(1ul));
 
-        ClientIpPortType mountPoint("127.0.0.1", 12345);
+        // ClientIpPortType mountPoint("127.0.0.1", 12345);
+        std::vector<butil::EndPoint> mps;
+        mps.emplace_back(butil::EndPoint{});
         EXPECT_CALL(*fileRecordManager_, FindFileMountPoint(_, _))
             .Times(2)
             .WillOnce(Return(false))
-            .WillOnce(DoAll(SetArgPointee<1>(mountPoint), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<1>(mps), Return(true)));
 
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
             .Times(2)
@@ -1864,9 +1868,11 @@ TEST_F(CurveFSTest, testChangeOwner) {
             .Times(1)
             .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ClientIpPortType mountPoint("127.0.0.1", 12345);
+        // ClientIpPortType mountPoint("127.0.0.1", 12345);
+        std::vector<butil::EndPoint> mps;
+        mps.emplace_back(butil::EndPoint{});
         EXPECT_CALL(*fileRecordManager_, FindFileMountPoint(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(mountPoint), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<1>(mps), Return(true)));
 
         ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
                   StatusCode::kFileOccupied);
@@ -2116,8 +2122,8 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
 
         FileInfo info;
         ASSERT_EQ(StatusCode::kOK,
-            curvefs_->RefreshSession(
-                fileName, "", 0 , "", "",  1234, "0.0.5", &info));
+                  curvefs_->RefreshSession(fileName, "", 0, "", "127.0.0.1",
+                                           1234, "0.0.5", &info));
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile(
@@ -2144,7 +2150,7 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         FileInfo info;
         ASSERT_EQ(StatusCode::kOK,
             curvefs_->RefreshSession(
-                fileName, "", 0 , "", "",  1234, "", &info));
+                fileName, "", 0 , "", "127.0.0.1",  1234, "", &info));
 
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile(
@@ -3224,7 +3230,8 @@ TEST_F(CurveFSTest, testCloseFile) {
             .Times(1)
             .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->CloseFile("/file1", protoSession.sessionid()),
+        ASSERT_EQ(curvefs_->CloseFile("/file1", protoSession.sessionid(), "",
+                                      kInvalidPort),
                   StatusCode::kOK);
     }
 }

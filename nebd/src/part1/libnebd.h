@@ -47,6 +47,12 @@ typedef enum LIBAIO_OP {
     LIBAIO_OP_FLUSH,
 } LIBAIO_OP;
 
+typedef struct NebdOpenFlags {
+    int exclusive;
+} NebdOpenFlags;
+
+void nebd_lib_init_open_flags(NebdOpenFlags* flags);
+
 struct NebdClientAioContext;
 
 // nebd回调函数的类型
@@ -85,6 +91,8 @@ int nebd_lib_uninit(void);
  *  @return 成功返回文件fd，失败返回错误码
  */
 int nebd_lib_open(const char* filename);
+int nebd_lib_open_with_flags(const char* filename,
+                             const NebdOpenFlags* openflags);
 
 /**
  *  @brief close文件

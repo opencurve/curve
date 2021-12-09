@@ -35,9 +35,10 @@ class MockCurveClient : public ::curve::client::CurveClient {
     ~MockCurveClient() {}
     MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD0(UnInit, void());
-    MOCK_METHOD2(Open, int(const std::string&, std::string*));
-    MOCK_METHOD3(ReOpen, int(
-        const std::string&, const std::string&, std::string*));
+    MOCK_METHOD2(Open,
+                 int(const std::string&, const ::curve::client::OpenFlags&));
+    MOCK_METHOD2(ReOpen,
+                 int(const std::string&, const ::curve::client::OpenFlags&));
     MOCK_METHOD1(Close, int(int));
     MOCK_METHOD2(Extend, int(const std::string&, int64_t));
     MOCK_METHOD1(StatFile, int64_t(const std::string&));

@@ -68,7 +68,11 @@ int nebd_lib_uninit() {
 }
 
 int nebd_lib_open(const char* filename) {
-    return Open4Nebd(filename);
+    return Open4Nebd(filename, nullptr);
+}
+
+int nebd_lib_open_with_flags(const char* filename, const NebdOpenFlags* flags) {
+    return Open4Nebd(filename, flags);
 }
 
 int nebd_lib_close(int fd) {
@@ -119,6 +123,10 @@ int64_t nebd_lib_getinfo(int fd) {
 
 int nebd_lib_invalidcache(int fd) {
     return InvalidCache4Nebd(fd);
+}
+
+void nebd_lib_init_open_flags(NebdOpenFlags* flags) {
+    flags->exclusive = 1;
 }
 
 }  // extern "C"

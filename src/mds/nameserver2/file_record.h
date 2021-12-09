@@ -23,22 +23,25 @@
 #ifndef SRC_MDS_NAMESERVER2_FILE_RECORD_H_
 #define SRC_MDS_NAMESERVER2_FILE_RECORD_H_
 
+#include <butil/endpoint.h>
+
+#include <map>
+#include <set>
+#include <string>
 #include <unordered_map>
 #include <utility>
-#include <string>
-#include <set>
+#include <vector>
 
+#include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/timeutility.h"
-#include "proto/nameserver2.pb.h"
 
 namespace curve {
 namespace mds {
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
-using ClientIpPortType = std::pair<std::string, uint32_t>;
 
 struct FileRecordOptions {
     // file record expire time (in μs)
@@ -50,26 +53,23 @@ struct FileRecordOptions {
 class FileRecord {
  public:
     FileRecord(uint64_t timeoutUs, const std::string& clientVersion,
-               const std::string& clientIP, uint32_t clientPort)
+               const butil::EndPoint& ep)
         : updateTimeUs_(curve::common::TimeUtility::GetTimeofDayUs()),
           timeoutUs_(timeoutUs),
           clientVersion_(clientVersion),
-          clientIP_(clientIP),
-          clientPort_(clientPort) {}
+          endPoint_(ep) {}
 
     FileRecord(const FileRecord& fileRecord)
         : updateTimeUs_(fileRecord.updateTimeUs_),
           timeoutUs_(fileRecord.timeoutUs_),
           clientVersion_(fileRecord.clientVersion_),
-          clientIP_(fileRecord.clientIP_),
-          clientPort_(fileRecord.clientPort_) {}
+          endPoint_(fileRecord.endPoint_) {}
 
     FileRecord& operator=(const FileRecord& fileRecord) {
         updateTimeUs_ = fileRecord.updateTimeUs_;
         timeoutUs_ = fileRecord.timeoutUs_;
         clientVersion_ = fileRecord.clientVersion_;
-        clientIP_ = fileRecord.clientIP_;
-        clientPort_ = fileRecord.clientPort_;
+        endPoint_ = fileRecord.endPoint_;
         return *this;
     }
 
@@ -86,13 +86,11 @@ class FileRecord {
     /**
      * @brief Update time
      */
-    void Update(const std::string& clientVersion, const std::string& clientIP,
-                uint32_t clientPort) {
+    void Update(const std::string& clientVersion, const butil::EndPoint& ep) {
         curve::common::LockGuard lk(mtx_);
         updateTimeUs_ = curve::common::TimeUtility::GetTimeofDayUs();
         clientVersion_ = clientVersion;
-        clientIP_ = clientIP;
-        clientPort_ = clientPort_;
+        endPoint_ = ep;
     }
 
     /**
@@ -120,8 +118,8 @@ class FileRecord {
         return clientVersion_;
     }
 
-    ClientIpPortType GetClientIpPort() const {
-        return {clientIP_, clientPort_};
+    butil::EndPoint GetClientEndPoint() const {
+        return endPoint_;
     }
 
  private:
@@ -131,10 +129,8 @@ class FileRecord {
     uint64_t timeoutUs_;
     // client version
     std::string clientVersion_;
-    // client IP address
-    std::string clientIP_;
-    // client port
-    uint32_t clientPort_;
+    // client endpoint
+    butil::EndPoint endPoint_;
     // mutex for updating the time
     mutable curve::common::Mutex mtx_;
 };
@@ -176,16 +172,17 @@ class FileRecordManager {
                           uint32_t clientPort);
 
     /**
-     * @brief remove file record corresponding to filename
+     * @brief remove file record corresponding to filename and endpoint
      * @param filename file record that to be deleted
      */
-    void RemoveFileRecord(const std::string& filename);
+    void RemoveFileRecord(const std::string& filename,
+                          const std::string& clientIP, uint32_t clientPort);
 
     /**
-     * @brief Get the client version corresponding to the input file
+     * @brief Get the mininum client version corresponding to the input file
      * @param[in] filename
      */
-    bool GetFileClientVersion(
+    bool GetMinimumFileClientVersion(
         const std::string& fileName, std::string *clientVersion) const;
 
     /**
@@ -204,10 +201,10 @@ class FileRecordManager {
      */
     void GetRecordParam(ProtoSession* protoSession) const;
 
-    std::set<ClientIpPortType> ListAllClient() const;
+    std::set<butil::EndPoint> ListAllClient() const;
 
     virtual bool FindFileMountPoint(const std::string& fileName,
-                                    ClientIpPortType* ipPort) const;
+                                    std::vector<butil::EndPoint>* eps) const;
 
  private:
     /**
@@ -215,8 +212,13 @@ class FileRecordManager {
      */
     void Scan();
 
-    // file recoreds
-    std::unordered_map<std::string, FileRecord> fileRecords_;
+    // file records
+    // There are two scenarios for endpoints of map's key
+    // 1. if client enables register to mds, endpoint is corresponding to client
+    //    host ip and dummy server port
+    // 2. otherwise, ip is equal to rpc's remote_side and port is `kInvalidPort'
+    std::unordered_map<std::string, std::map<butil::EndPoint, FileRecord>>
+        fileRecords_;
     // rwlock for fileRecords_
     mutable curve::common::RWLock rwlock_;
     // the thread for scanning in backend

@@ -387,6 +387,9 @@ message CloseFileRequest {
     required string     owner = 3;
     optional string     signature = 4;
     required uint64     date = 5;
+
+    optional string     clientIP = 6;
+    optional uint32     clientPort = 7;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -499,7 +502,7 @@ message FindFileMountPointRequest {
 
 message FindFileMountPointResponse {
     required StatusCode statusCode = 1;
-    optional ClientInfo clientInfo = 2;
+    repeated ClientInfo clientInfo = 2;
 }
 
 message ListVolumesOnCopysetsRequest {

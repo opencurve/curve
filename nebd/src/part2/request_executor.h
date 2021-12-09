@@ -29,9 +29,17 @@
 #include "nebd/src/part2/define.h"
 
 namespace nebd {
+namespace client {
+class ProtoOpenFlags;
+}  // namespace client
+}  // namespace nebd
+
+namespace nebd {
 namespace server {
 
 class CurveRequestExecutor;
+
+using OpenFlags = nebd::client::ProtoOpenFlags;
 
 // 具体RequestExecutor中会用到的文件实例上下文信息
 // RequestExecutor需要用到的文件上下文信息都记录到FileInstance内
@@ -48,7 +56,8 @@ class NebdRequestExecutor {
  public:
     NebdRequestExecutor() {}
     virtual ~NebdRequestExecutor() {}
-    virtual std::shared_ptr<NebdFileInstance> Open(const std::string& filename) = 0;  // NOLINT
+    virtual std::shared_ptr<NebdFileInstance> Open(
+        const std::string& filename, const OpenFlags* openflags) = 0;
     virtual std::shared_ptr<NebdFileInstance> Reopen(
         const std::string& filename, const ExtendAttribute& xattr) = 0;
     virtual int Close(NebdFileInstance* fd) = 0;

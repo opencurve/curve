@@ -75,20 +75,7 @@ class FileClient {
      */
     virtual int Open(const std::string& filename,
                      const UserInfo_t& userinfo,
-                     std::string* sessionId = nullptr);
-
-    /**
-     * 重新打开文件
-     * @param: filename文件名
-     * @param: sessionId是上次打开该文件时返回的sessionId
-     * @param: userInfo是操作文件的用户信息
-     * @return: 返回文件fd
-     */
-
-    virtual int ReOpen(const std::string& filename,
-                       const std::string& sessionId,
-                       const UserInfo& userInfo,
-                       std::string* newSessionId);
+                     const OpenFlags& openflags = {});
 
     /**
      * 打开文件，这个打开只是创建了一个fd，并不与mds交互，没有session续约

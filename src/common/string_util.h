@@ -40,7 +40,7 @@
 namespace curve {
 namespace common {
 
-static void SplitString(const std::string& full,
+inline void SplitString(const std::string& full,
                                const std::string& delim,
                                std::vector<std::string>* result) {
     result->clear();
@@ -69,7 +69,7 @@ static void SplitString(const std::string& full,
     }
 }
 
-static bool StringToUll(const std::string &value, uint64_t *out) {
+inline bool StringToUll(const std::string &value, uint64_t *out) {
     try {
         *out = std::stoull(value);
         return true;
@@ -84,7 +84,7 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
     }
 }
 
-static bool StringToInt(const std::string &value, int32_t *out) {
+inline bool StringToInt(const std::string &value, int32_t *out) {
     try {
         *out = std::stoi(value);
         return true;
