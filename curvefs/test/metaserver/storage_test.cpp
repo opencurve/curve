@@ -217,6 +217,25 @@ TEST_F(StorageTest, MergeIterator) {
     });
 }
 
+TEST_F(StorageTest, MergeIteratorSize) {
+    auto hash1 = Hash{ { "A0", "A0" } };
+    auto hash2 = Hash{ { "B0", "B0" } };
+    std::vector<std::shared_ptr<Iterator>> children;
+    children.push_back(std::make_shared<HashIterator>(&hash1));
+    children.push_back(std::make_shared<HashIterator>(&hash2));
+    auto iter = MergeIterator(children);
+    ASSERT_EQ(iter.Size(), 2);
+
+    hash1.emplace(std::make_pair("A1", "A1"));
+    ASSERT_EQ(iter.Size(), 3);
+
+    uint64_t size = 0;
+    for (iter.SeekToFirst(); iter.Valid(); iter.Next()) {
+        size++;
+    }
+    ASSERT_EQ(size, 3);
+}
+
 TEST_F(StorageTest, Storage) {
     // step1: generate merge iterator
     auto dentry = GenDentry();
