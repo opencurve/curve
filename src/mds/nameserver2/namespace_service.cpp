@@ -24,6 +24,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <utility>
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/file_lock.h"
 #include "src/common/string_util.h"
@@ -1287,7 +1288,10 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    retCode = kCurveFS.CloseFile(request->filename(), request->sessionid());
+    retCode = kCurveFS.CloseFile(
+        request->filename(), request->sessionid(),
+        request->has_clientip() ? request->clientip() : clientIP,
+        request->has_clientport() ? request->clientport() : kInvalidPort);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1766,9 +1770,9 @@ void NameSpaceService::FindFileMountPoint(
               << request->filename();
 
     StatusCode retCode;
-    std::unique_ptr<ClientInfo> clientInfo(new ClientInfo());
+    std::vector<ClientInfo> infos;
     retCode =
-        kCurveFS.FindFileMountPoint(request->filename(), clientInfo.get());
+        kCurveFS.FindFileMountPoint(request->filename(), &infos);
 
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
@@ -1779,13 +1783,14 @@ void NameSpaceService::FindFileMountPoint(
                    << ", cost " << expiredTime.ExpiredMs() << " ms";
         return;
     } else {
+        response->set_statuscode(StatusCode::kOK);
+        for (auto& info : infos) {
+            *response->add_clientinfo() = std::move(info);
+        }
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", FindFileMountPoint ok, fileName = "
-                  << request->filename() << ", client info = "
-                  << response->clientinfo().ShortDebugString()
-                  << ", cost " << expiredTime.ExpiredMs() << " ms";
-        response->set_statuscode(StatusCode::kOK);
-        response->set_allocated_clientinfo(clientInfo.release());
+                  << request->filename() << ", cost " << expiredTime.ExpiredMs()
+                  << " ms";
     }
     return;
 }

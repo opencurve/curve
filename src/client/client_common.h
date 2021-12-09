@@ -84,9 +84,6 @@ typedef struct ChunkIDInfo {
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid)
         : cid_(cid), cpid_(cpid), lpid_(lpid) {}
 
-    ChunkIDInfo(const ChunkIDInfo& chunkinfo) = default;
-    ChunkIDInfo& operator=(const ChunkIDInfo& chunkinfo) = default;
-
     bool Valid() const {
         return lpid_ > 0 && cpid_ > 0;
     }
@@ -131,12 +128,6 @@ struct CloneSourceInfo {
 
     CloneSourceInfo() = default;
 
-    CloneSourceInfo(const CloneSourceInfo& other)
-        : name(other.name),
-          length(other.length),
-          segmentSize(other.segmentSize),
-          allocatedSegmentOffsets(other.allocatedSegmentOffsets) {}
-
     bool IsSegmentAllocated(uint64_t offset) const;
 };
 
@@ -162,6 +153,8 @@ typedef struct FInfo {
     uint64_t        cloneLength{0};
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
+
+    OpenFlags       openflags;
 
     FInfo() {
         id = 0;
@@ -274,7 +267,7 @@ class ClientDummyServerInfo {
         localIP_ = ip;
     }
 
-    const std::string& GetIP() const {
+    std::string GetIP() const {
         return localIP_;
     }
 
@@ -303,7 +296,7 @@ class ClientDummyServerInfo {
     bool register_ = false;
 };
 
-inline void TrivialDeleter(void* ptr) {}
+inline void TrivialDeleter(void*) {}
 
 inline const char* FileStatusToName(FileStatus status) {
     switch (status) {
@@ -332,6 +325,15 @@ inline bool CloneSourceInfo::IsSegmentAllocated(uint64_t offset) const {
     uint64_t segmentOffset = offset / segmentSize * segmentSize;
     return allocatedSegmentOffsets.count(segmentOffset) != 0;
 }
+
+inline std::ostream& operator<<(std::ostream& os, const OpenFlags& flags) {
+    os << "[exclusive: " << std::boolalpha << flags.exclusive << "]";
+
+    return os;
+}
+
+// default flags for readonly open
+OpenFlags DefaultReadonlyOpenFlags();
 
 }   // namespace client
 }   // namespace curve

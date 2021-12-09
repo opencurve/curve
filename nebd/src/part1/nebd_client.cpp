@@ -57,6 +57,13 @@ NebdClient &nebdClient = NebdClient::GetInstance();
 
 constexpr int32_t kBufSize = 128;
 
+ProtoOpenFlags ConverToProtoOpenFlags(const NebdOpenFlags* flags) {
+    ProtoOpenFlags protoFlags;
+    protoFlags.set_exclusive(flags->exclusive);
+
+    return protoFlags;
+}
+
 int NebdClient::Init(const char* confpath) {
     nebd::common::Configuration conf;
     conf.SetConfigPath(confpath);
@@ -131,7 +138,7 @@ void NebdClient::Uninit() {
     google::ShutdownGoogleLogging();
 }
 
-int NebdClient::Open(const char* filename) {
+int NebdClient::Open(const char* filename, const NebdOpenFlags* flags) {
     // 加文件锁
     std::string fileLockName =
         option_.fileLockPath + "/" + ReplaceSlash(filename);
@@ -151,6 +158,12 @@ int NebdClient::Open(const char* filename) {
         OpenFileResponse response;
 
         request.set_filename(filename);
+
+        if (flags != nullptr) {
+            auto* p = request.mutable_flags();
+            *p = ConverToProtoOpenFlags(flags);
+        }
+
         stub.OpenFile(cntl, &request, &response, nullptr);
 
         *rpcFailed = cntl->Failed();

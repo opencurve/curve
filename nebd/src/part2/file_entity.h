@@ -38,6 +38,7 @@
 #include "nebd/src/part2/util.h"
 #include "nebd/src/part2/request_executor.h"
 #include "nebd/src/part2/metafile_manager.h"
+#include "nebd/proto/client.pb.h"
 
 namespace nebd {
 namespace server {
@@ -46,6 +47,7 @@ using nebd::common::BthreadRWLock;
 using nebd::common::WriteLockGuard;
 using nebd::common::ReadLockGuard;
 using nebd::common::TimeUtility;
+using OpenFlags = nebd::client::ProtoOpenFlags;
 
 class NebdFileInstance;
 class NebdRequestExecutor;
@@ -103,7 +105,7 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
      * 打开文件
      * @return 成功返回fd，失败返回-1
      */
-    virtual int Open();
+    virtual int Open(const OpenFlags* openflags);
     /**
      * 重新open文件，如果之前的后端存储的连接还存在则复用之前的连接
      * 否则与后端存储建立新的连接
@@ -212,6 +214,7 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
     int fd_;
     // 文件名称
     std::string fileName_;
+    std::unique_ptr<OpenFlags> openFlags_;
     // 文件当前状态，opened表示文件已打开，closed表示文件已关闭
     std::atomic<NebdFileStatus> status_;
     // 该文件上一次收到心跳时的时间戳

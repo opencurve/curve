@@ -31,6 +31,7 @@ namespace nebd {
 namespace server {
 
 using nebd::client::RetCode;
+using OpenFlags = nebd::client::ProtoOpenFlags;
 
 /**
  * use curl -L clientIp:nebd-serverPort/flags/dropRpc?setvalue=true
@@ -120,7 +121,10 @@ void NebdFileServiceImpl::OpenFile(
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
-    int fd = fileManager_->Open(request->filename());
+    int fd =
+        fileManager_->Open(request->filename(),
+                           request->has_flags() ? &request->flags() : nullptr);
+
     if (fd > 0) {
         response->set_retcode(RetCode::kOK);
         response->set_fd(fd);

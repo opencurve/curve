@@ -41,6 +41,15 @@ using curve::mds::topology::CopySetIdType;
 
 namespace curve {
 namespace mds {
+
+ClientInfo EndPointToClientInfo(const butil::EndPoint& ep) {
+    ClientInfo info;
+    info.set_ip(butil::ip2str(ep.ip).c_str());
+    info.set_port(ep.port);
+
+    return info;
+}
+
 bool CurveFS::InitRecycleBinDir() {
     FileInfo recyclebinFileInfo;
 
@@ -502,7 +511,7 @@ StatusCode CurveFS::IsSnapshotAllowed(const std::string &fileName) {
 
     // the client version satisfies the conditions
     std::string clientVersion;
-    bool exist = fileRecordManager_->GetFileClientVersion(
+    bool exist = fileRecordManager_->GetMinimumFileClientVersion(
         fileName, &clientVersion);
     if (!exist) {
         return StatusCode::kOK;
@@ -736,10 +745,11 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
         return StatusCode::kNotSupported;
     }
 
-    ClientIpPortType mountPoint;
-    if (fileRecordManager_->FindFileMountPoint(fileName, &mountPoint)) {
-        LOG(WARNING) << fileName << " is mounting on " << mountPoint.first
-                     << ":" << mountPoint.second;
+    std::vector<butil::EndPoint> endPoints;
+    if (fileRecordManager_->FindFileMountPoint(fileName, &endPoints) &&
+        !endPoints.empty()) {
+        LOG(WARNING) << fileName << " has " << endPoints.size()
+                     << " mount points";
         return StatusCode::kFileOccupied;
     }
 
@@ -1406,7 +1416,9 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
 }
 
 StatusCode CurveFS::CloseFile(const std::string &fileName,
-                              const std::string &sessionID) {
+                              const std::string &sessionID,
+                              const std::string &clientIP,
+                              uint32_t clientPort) {
     // check the existence of the file
     FileInfo  fileInfo;
     StatusCode ret;
@@ -1426,7 +1438,7 @@ StatusCode CurveFS::CloseFile(const std::string &fileName,
     }
 
     // remove file record
-    fileRecordManager_->RemoveFileRecord(fileName);
+    fileRecordManager_->RemoveFileRecord(fileName, clientIP, clientPort);
 
     return StatusCode::kOK;
 }
@@ -1875,14 +1887,10 @@ bool CurveFS::CheckSignature(const std::string& owner,
 
 StatusCode CurveFS::ListClient(bool listAllClient,
                                std::vector<ClientInfo>* clientInfos) {
-    std::set<ClientIpPortType> allClients = fileRecordManager_->ListAllClient();
+    std::set<butil::EndPoint> allClients = fileRecordManager_->ListAllClient();
 
-    for (const auto& c : allClients) {
-        ClientInfo info;
-        info.set_ip(c.first);
-        info.set_port(c.second);
-
-        clientInfos->emplace_back(std::move(info));
+    for (const auto &c : allClients) {
+        clientInfos->emplace_back(EndPointToClientInfo(c));
     }
 
     return StatusCode::kOK;
@@ -1988,15 +1996,16 @@ StatusCode CurveFS::ListCloneSourceFileSegments(
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::FindFileMountPoint(
-    const std::string& fileName,
-    ClientInfo* clientInfo) {
-    ClientIpPortType clientIpPort;
-    auto res = fileRecordManager_->FindFileMountPoint(fileName, &clientIpPort);
+StatusCode CurveFS::FindFileMountPoint(const std::string& fileName,
+                                       std::vector<ClientInfo>* clientInfos) {
+    std::vector<butil::EndPoint> mps;
+    auto res = fileRecordManager_->FindFileMountPoint(fileName, &mps);
 
     if (res) {
-        clientInfo->set_ip(clientIpPort.first);
-        clientInfo->set_port(clientIpPort.second);
+        clientInfos->reserve(mps.size());
+        for (auto& mp : mps) {
+            clientInfos->emplace_back(EndPointToClientInfo(mp));
+        }
         return StatusCode::kOK;
     }
 

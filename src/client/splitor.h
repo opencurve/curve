@@ -29,12 +29,12 @@
 
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
+#include "src/client/metacache.h"
 #include "src/client/request_context.h"
 
 namespace curve {
 namespace client {
 
-class MetaCache;
 class MDSClient;
 class IOTracker;
 class FileSegment;
@@ -93,6 +93,11 @@ class Splitor {
     static RequestSourceInfo CalcRequestSourceInfo(IOTracker* ioTracker,
                                                    MetaCache* metaCache,
                                                    ChunkIndex chunkIdx);
+
+    static bool NeedGetOrAllocateSegment(MetaCacheErrorType error,
+                                         OpType opType,
+                                         const ChunkIDInfo& chunkInfo,
+                                         const MetaCache* metaCache);
 
  private:
     /**

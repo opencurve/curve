@@ -233,7 +233,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
     auto res = etcdClient_->Init(etcdConf, etcdTimeout, retryTimes);
     LOG_IF(FATAL, res != EtcdErrCode::EtcdOK)
         << "init etcd client err! "
-        << "etcdaddr: " << etcdConf.Endpoints
+        << "etcdaddr: " << std::string{etcdConf.Endpoints, etcdConf.len}
         << ", etcdaddr len: " << etcdConf.len
         << ", etcdtimeout: " << etcdConf.DialTimeout
         << ", operation timeout: " << etcdTimeout
@@ -247,7 +247,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
-            << "etcdaddr: " << etcdConf.Endpoints
+            << "etcdaddr: " << std::string{etcdConf.Endpoints, etcdConf.len}
             << ", etcdaddr len: " << etcdConf.len
             << ", etcdtimeout: " << etcdConf.DialTimeout
             << ", operation timeout: " << etcdTimeout

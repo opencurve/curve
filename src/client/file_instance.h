@@ -54,6 +54,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     bool Initialize(const std::string& filename,
                     std::shared_ptr<MDSClient> mdsclient,
                     const UserInfo_t& userinfo,
+                    const OpenFlags& openflags,
                     const FileServiceOption& fileservicopt,
                     bool readonly = false);
     /**
@@ -140,12 +141,13 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
         std::shared_ptr<MDSClient> mdsClient,
         const std::string& filename,
         const UserInfo& userInfo,
+        const OpenFlags& openflags,
         bool readonly);
 
-    static FileInstance* Open4Readonly(const FileServiceOption& opt,
-                                       std::shared_ptr<MDSClient> mdsclient,
-                                       const std::string& filename,
-                                       const UserInfo& userInfo);
+    static FileInstance* Open4Readonly(
+        const FileServiceOption& opt, std::shared_ptr<MDSClient> mdsclient,
+        const std::string& filename, const UserInfo& userInfo,
+        const OpenFlags& openflags = DefaultReadonlyOpenFlags());
 
  private:
     void StopLease();

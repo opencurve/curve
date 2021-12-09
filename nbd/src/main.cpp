@@ -89,6 +89,8 @@ static void Usage() {
         << "  --try-netlink           Use the nbd netlink interface\n"
         << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
         << "  --nebd-conf             LibNebd config file\n"
+        << "  --no-exclusive          Map image non exclusive\n"
+        << "\n"
         << "Unmap options:\n"
         << "  -f, --force                 Force unmap even if the device is mounted\n"              // NOLINT
         << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
@@ -103,7 +105,8 @@ static int AddRecord(int flag) {
     std::string record;
     int fd = open(CURVETAB_PATH, O_WRONLY | O_APPEND);
     if (fd < 0) {
-        std::cerr << "curve-nbd: open curvetab file failed.";
+        std::cerr << "curve-nbd: open curvetab file failed, error: "
+                  << strerror(errno);
         return -EINVAL;
     }
     if (1 == flag) {

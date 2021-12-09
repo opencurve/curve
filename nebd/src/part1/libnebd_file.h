@@ -42,7 +42,7 @@ void Uninit4Nebd();
  *  @param filename：文件名
  *  @return 成功返回文件fd，失败返回错误码
  */
-int Open4Nebd(const char* filename);
+int Open4Nebd(const char* filename, const NebdOpenFlags* flags);
 /**
  *  @brief close文件
  *  @param fd：文件的fd

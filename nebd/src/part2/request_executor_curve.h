@@ -71,7 +71,8 @@ class CurveRequestExecutor : public NebdRequestExecutor {
     }
     ~CurveRequestExecutor() {}
     void Init(const std::shared_ptr<CurveClient> &client);
-    std::shared_ptr<NebdFileInstance> Open(const std::string& filename) override;  // NOLINT
+    std::shared_ptr<NebdFileInstance> Open(const std::string& filename,
+                                           const OpenFlags* openflags) override;
     std::shared_ptr<NebdFileInstance> Reopen(
         const std::string& filename, const ExtendAttribute& xattr) override;
     int Close(NebdFileInstance* fd) override;
