@@ -50,6 +50,8 @@
 namespace curve {
 namespace nbd {
 
+constexpr uint32_t kSectorSize = 512;
+
 std::string cpp_strerror(int err) {
     char buf[128];
     if (err < 0)
@@ -107,6 +109,8 @@ static int parse_imgpath(const std::string &imgpath, NBDConfig *cfg,
     return 0;
 }
 
+// TODO(all): replace this function with gflags
+//            but, currently, gflags `--help` command is messy
 int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLINT
                Command *command, NBDConfig *cfg) {
     std::vector<const char*>::iterator i;
@@ -153,9 +157,11 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
             }
         } else if (argparse_flag(args, i, "--try-netlink", (char *)NULL)) { // NOLINT
             cfg->try_netlink = true;
-        }  else if (argparse_flag(args, i, "-f", "--force", (char *)NULL)) {  // NOLINT
+        } else if (argparse_flag(args, i, "-f", "--force", (char *)NULL)) {  // NOLINT
             cfg->force_unmap = true;
-        } else if (argparse_witharg(args, i, &cfg->retry_times, err, "--retry_times", (char*)(NULL))) {  // NOLINT
+        } else if (argparse_flag(args, i, "--no-exclusive", (char*)NULL)) {   // NOLINT
+            cfg->exclusive = false;
+        }else if (argparse_witharg(args, i, &cfg->retry_times, err, "--retry_times", (char*)(NULL))) {  // NOLINT
             if (!err.str().empty()) {
                 *err_msg << "curve-nbd: " << err.str();
                 return -EINVAL;
@@ -328,7 +334,8 @@ int check_dev_can_unmap(const NBDConfig *cfg) {
     return -EINVAL;
 }
 
-int check_size_from_file(const std::string& path, uint64_t expected_size) {
+int check_size_from_file(const std::string &path, uint64_t expected_size,
+                         bool sizeInSector = false) {
     std::ifstream ifs;
     ifs.open(path.c_str(), std::ifstream::in);
     if (!ifs.is_open()) {
@@ -343,6 +350,10 @@ int check_size_from_file(const std::string& path, uint64_t expected_size) {
         // Newer kernel versions will report real size only after nbd
         // connect. Assume this is the case and return success.
         return 0;
+    }
+
+    if (sizeInSector) {
+        size *= kSectorSize;
     }
 
     if (size != expected_size) {
@@ -376,7 +387,7 @@ int check_device_size(int nbd_index, uint64_t expected_size) {
     // not affected.
 
     std::string path = "/sys/block/nbd" + std::to_string(nbd_index) + "/size";
-    return check_size_from_file(path, expected_size);
+    return check_size_from_file(path, expected_size, true);
 }
 
 static int run_command(const char *command) {
@@ -494,7 +505,7 @@ ssize_t safe_read_exact(int fd, void* buf, size_t count) {
     if (ret < 0) {
         return ret;
     }
-    if ((size_t)ret != count) {
+    if (static_cast<size_t>(ret) != count) {
         return -EDOM;
     }
     return 0;

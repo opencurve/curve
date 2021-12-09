@@ -96,8 +96,8 @@ TEST(ClientSession, LeaseTaskTest) {
 
     std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
     mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt);
-    ASSERT_TRUE(fileinstance.Initialize(filename, mdsclient, userinfo,
-                                        cc.GetFileServiceOption()));
+    ASSERT_TRUE(fileinstance.Initialize(
+        filename, mdsclient, userinfo, OpenFlags{}, cc.GetFileServiceOption()));
 
     brpc::Server server;
     FakeMDSCurveFSService* curvefsservice = mds.GetMDSService();

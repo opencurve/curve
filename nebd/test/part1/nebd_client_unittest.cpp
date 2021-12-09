@@ -259,7 +259,7 @@ TEST_F(NebdFileClientTest, NoNebdServerTest) {
 
     {
         auto start = std::chrono::system_clock::now();
-        ASSERT_EQ(-1, Open4Nebd(kFileName));
+        ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             end - start).count();
@@ -282,10 +282,10 @@ TEST_F(NebdFileClientTest, CommonTest) {
 
     ASSERT_EQ(0, Init4Nebd(kNebdClientConf));
 
-    int fd = Open4Nebd(kFileName);
+    int fd = Open4Nebd(kFileName, nullptr);
     ASSERT_GE(fd, 0);
 
-    int fd2 = Open4Nebd(kFileNameWithSlash);
+    int fd2 = Open4Nebd(kFileNameWithSlash, nullptr);
     ASSERT_GE(fd2, 0);
     ASSERT_EQ(0, Close4Nebd(fd2));
 
@@ -375,16 +375,16 @@ TEST_F(NebdFileClientTest, ReOpenTest) {
 
     ASSERT_EQ(0, Init4Nebd(kNebdClientConf));
 
-    int fd = Open4Nebd(kFileName);
+    int fd = Open4Nebd(kFileName, nullptr);
     ASSERT_GT(fd, 0);
 
     // 文件已经被打开，并占用文件锁
     // 再次打开时，获取文件锁失败，直接返回
-    ASSERT_EQ(-1, Open4Nebd(kFileName));
+    ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
 
     ASSERT_EQ(0, Close4Nebd(fd));
 
-    fd = Open4Nebd(kFileName);
+    fd = Open4Nebd(kFileName, nullptr);
     ASSERT_GT(fd, 0);
     ASSERT_EQ(0, Close4Nebd(fd));
 
@@ -407,7 +407,7 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
             .WillOnce(DoAll(
                 SetArgPointee<2>(response),
                 Invoke(MockClientFunc<OpenFileRequest, OpenFileResponse>)));  // NOLINT
-        ASSERT_EQ(-1, Open4Nebd(kFileName));
+        ASSERT_EQ(-1, Open4Nebd(kFileName, nullptr));
     }
 
     {

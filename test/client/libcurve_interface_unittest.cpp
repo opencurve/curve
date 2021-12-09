@@ -684,7 +684,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
 
     mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
-        "/UnstableChunkserverTest", mdsclient_, userinfo, fopt);
+        "/UnstableChunkserverTest", mdsclient_, userinfo, OpenFlags{}, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -867,8 +867,8 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.metaCacheOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     mdsclient_->Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize(
-        "/ResumeTimeoutBackoff", mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize("/ResumeTimeoutBackoff", mdsclient_, userinfo,
+                             OpenFlags{}, fopt);
 
     // 设置leaderid
     EndPoint ep;

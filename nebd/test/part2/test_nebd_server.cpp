@@ -44,6 +44,7 @@ TEST(TestNebdServer, test_Init_Run_Fini) {
     // 2. 配置文件存在, 监听端口未设置
     confPath = "./nebd/test/part2/nebd-server-err.conf";
     Configuration conf;
+    conf.SetBoolValue("response.returnRpcWhenIoError", false);
     conf.SetConfigPath(confPath);
     conf.SaveConfig();
     ASSERT_EQ(-1, server.Init(confPath));
@@ -106,6 +107,5 @@ TEST(TestNebdServer, test_Init_Run_Fini) {
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    RUN_ALL_TESTS();
-    return 0;
+    return RUN_ALL_TESTS();
 }

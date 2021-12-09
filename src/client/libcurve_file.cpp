@@ -54,7 +54,7 @@ curve::client::FileClient* globalclient = nullptr;
 using curve::client::UserInfo;
 
 namespace brpc {
-    DECLARE_int32(health_check_interval);
+DECLARE_int32(health_check_interval);
 }  // namespace brpc
 
 namespace curve {
@@ -174,16 +174,17 @@ void FileClient::UnInit() {
 
 int FileClient::Open(const std::string& filename,
                      const UserInfo_t& userinfo,
-                     std::string* sessionId) {
+                     const OpenFlags& openflags) {
+    LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
     FileInstance* fileserv = FileInstance::NewInitedFileInstance(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
-        false);
+        openflags, false);
     if (fileserv == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance fail";
         return -1;
     }
 
-    int ret = fileserv->Open(filename, userinfo, sessionId);
+    int ret = fileserv->Open(filename, userinfo);
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Open file failed, filename: " << filename
                    << ", retCode: " << ret;
@@ -200,38 +201,6 @@ int FileClient::Open(const std::string& filename,
     }
 
     LOG(INFO) << "Open success, filname = " << filename << ", fd = " << fd;
-    openedFileNum_ << 1;
-
-    return fd;
-}
-
-int FileClient::ReOpen(const std::string& filename,
-                       const std::string& sessionId,
-                       const UserInfo& userInfo,
-                       std::string* newSessionId) {
-    FileInstance* fileInstance = FileInstance::NewInitedFileInstance(
-        clientconfig_.GetFileServiceOption(), mdsClient_, filename, userInfo,
-        false);
-    if (nullptr == fileInstance) {
-        LOG(ERROR) << "NewInitedFileInstance fail";
-        return -1;
-    }
-
-    int ret = fileInstance->ReOpen(filename, sessionId, userInfo, newSessionId);
-    if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "ReOpen file fail, retCode = " << ret;
-        fileInstance->UnInitialize();
-        delete fileInstance;
-        return ret;
-    }
-
-    int fd = fdcount_.fetch_add(1, std::memory_order_relaxed);
-
-    {
-        WriteLockGuard wlk(rwlock_);
-        fileserviceMap_[fd] = fileInstance;
-    }
-
     openedFileNum_ << 1;
 
     return fd;

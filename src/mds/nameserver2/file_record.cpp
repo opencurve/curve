@@ -21,8 +21,13 @@
  */
 
 #include "src/mds/nameserver2/file_record.h"
-#include "src/mds/common/mds_define.h"
+
+#include <algorithm>
+#include <map>
+#include <vector>
+
 #include "src/common/timeutility.h"
+#include "src/mds/common/mds_define.h"
 
 namespace curve {
 namespace mds {
@@ -46,7 +51,7 @@ void FileRecordManager::Stop() {
     }
 }
 
-bool FileRecordManager::GetFileClientVersion(
+bool FileRecordManager::GetMinimumFileClientVersion(
     const std::string& fileName, std::string *clientVersion) const {
     ReadLockGuard lk(rwlock_);
 
@@ -55,7 +60,17 @@ bool FileRecordManager::GetFileClientVersion(
         return false;
     }
 
-    *clientVersion = it->second.GetClientVersion();
+    auto& files = it->second;
+    if (files.empty()) {
+        return false;
+    }
+
+    std::string mini = files.begin()->second.GetClientVersion();
+    for (auto& r : files) {
+        mini = std::min(mini, r.second.GetClientVersion());
+    }
+
+    *clientVersion = std::move(mini);
     return true;
 }
 
@@ -63,6 +78,15 @@ void FileRecordManager::UpdateFileRecord(const std::string& fileName,
                                          const std::string& clientVersion,
                                          const std::string& clientIP,
                                          uint32_t clientPort) {
+    butil::EndPoint clientEp;
+    int rc = butil::str2endpoint(clientIP.c_str(), clientPort, &clientEp);
+    if (rc != 0) {
+        LOG(ERROR) << "Failed to UpdateFileRecord, invalid ip:port, filename: "
+                   << fileName << ", ip: " << clientIP
+                   << ", port: " << clientPort;
+        return;
+    }
+
     do {
         ReadLockGuard lk(rwlock_);
 
@@ -71,41 +95,77 @@ void FileRecordManager::UpdateFileRecord(const std::string& fileName,
             break;
         }
 
+        auto recordIter = it->second.find(clientEp);
+        if (recordIter == it->second.end()) {
+            break;
+        }
+
         // update record
-        it->second.Update(clientVersion, clientIP, clientPort);
+        recordIter->second.Update(clientVersion, clientEp);
         return;
     } while (0);
 
-    FileRecord record(fileRecordOptions_.fileRecordExpiredTimeUs,
-                      clientVersion,
-                      clientIP,
-                      clientPort);
+    FileRecord record(fileRecordOptions_.fileRecordExpiredTimeUs, clientVersion,
+                      clientEp);
     LOG(INFO) << "Add new file record, filename = " << fileName
-              << ", clientVersion = " << clientVersion
-              << ", clientIP = " << clientIP
-              << ", clientPort = " << clientPort;
+              << ", clientVersion = " << clientVersion << ", client endpoint = "
+              << butil::endpoint2str(clientEp).c_str();
+
     WriteLockGuard lk(rwlock_);
-    fileRecords_.emplace(fileName, record);
+    if (fileRecords_.count(fileName) == 0) {
+        fileRecords_.emplace(fileName, std::map<butil::EndPoint, FileRecord>{});
+    }
+
+    fileRecords_[fileName].emplace(clientEp, record);
 }
 
-void FileRecordManager::RemoveFileRecord(const std::string& filename) {
+void FileRecordManager::RemoveFileRecord(const std::string& filename,
+                                         const std::string& clientIp,
+                                         uint32_t clientPort) {
+    butil::EndPoint ep;
+    int rc = butil::str2endpoint(clientIp.c_str(), clientPort, &ep);
+    if (rc != 0) {
+        LOG(ERROR) << "Failed to RemoveFileRecord, invalid ip:port, filename: "
+                   << filename << ", ip: " << clientIp
+                   << ", port: " << clientPort;
+        return;
+    }
+
     WriteLockGuard lk(rwlock_);
-    fileRecords_.erase(filename);
+    auto it = fileRecords_.find(filename);
+    if (it == fileRecords_.end()) {
+        return;
+    }
+
+    it->second.erase(ep);
 }
 
 void FileRecordManager::Scan() {
     while (sleeper_.wait_for(
-            std::chrono::microseconds(fileRecordOptions_.scanIntervalTimeUs))) {
+        std::chrono::microseconds(fileRecordOptions_.scanIntervalTimeUs))) {
         WriteLockGuard lk(rwlock_);
 
         auto iter = fileRecords_.begin();
         while (iter != fileRecords_.end()) {
-            if (iter->second.IsTimeout()) {
-                LOG(INFO) << "Remove timeout file record, filename = "
-                          << iter->first
-                          << ", last update time = "
-                          << curve::common::TimeUtility::TimeStampToStandard(
-                                 iter->second.GetUpdateTime() / 1000000);
+            auto recordIter = iter->second.begin();
+            while (recordIter != iter->second.end()) {
+                if (recordIter->second.IsTimeout()) {
+                    LOG(INFO)
+                        << "Remove timeout file record, filename = "
+                        << iter->first << ", last update time = "
+                        << curve::common::TimeUtility::TimeStampToStandard(
+                               recordIter->second.GetUpdateTime() / 1000000)
+                        << ", endpoint = "
+                        << butil::endpoint2str(
+                               recordIter->second.GetClientEndPoint())
+                               .c_str();
+                    recordIter = iter->second.erase(recordIter);
+                } else {
+                    ++recordIter;
+                }
+            }
+
+            if (iter->second.empty()) {
                 iter = fileRecords_.erase(iter);
             } else {
                 ++iter;
@@ -122,15 +182,17 @@ void FileRecordManager::GetRecordParam(ProtoSession* protoSession) const {
     protoSession->set_sessionstatus(SessionStatus::kSessionOK);
 }
 
-std::set<ClientIpPortType> FileRecordManager::ListAllClient() const {
-    std::set<ClientIpPortType> res;
+std::set<butil::EndPoint> FileRecordManager::ListAllClient() const {
+    std::set<butil::EndPoint> res;
 
     {
         ReadLockGuard lk(rwlock_);
-        for (const auto& r : fileRecords_) {
-            const auto& ipPort = r.second.GetClientIpPort();
-            if (ipPort.second != kInvalidPort) {
-                res.emplace(ipPort);
+        for (const auto& files : fileRecords_) {
+            for (const auto& r : files.second) {
+                const auto& ep = r.second.GetClientEndPoint();
+                if (ep.port != kInvalidPort) {
+                    res.emplace(ep);
+                }
             }
         }
     }
@@ -138,15 +200,18 @@ std::set<ClientIpPortType> FileRecordManager::ListAllClient() const {
     return res;
 }
 
-bool FileRecordManager::FindFileMountPoint(const std::string& fileName,
-                                           ClientIpPortType* ipPort) const {
+bool FileRecordManager::FindFileMountPoint(
+    const std::string& fileName, std::vector<butil::EndPoint>* eps) const {
     ReadLockGuard lk(rwlock_);
     auto iter = fileRecords_.find(fileName);
     if (iter == fileRecords_.end()) {
         return false;
     }
 
-    *ipPort = iter->second.GetClientIpPort();
+    for (auto& f : iter->second) {
+        eps->emplace_back(f.second.GetClientEndPoint());
+    }
+
     return true;
 }
 

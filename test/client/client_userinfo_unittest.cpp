@@ -99,9 +99,10 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
 
     FileInstance fileinstance;
     ASSERT_FALSE(fileinstance.Initialize(filename, mdsclient, emptyuserinfo,
+                                         OpenFlags{},
                                          cc.GetFileServiceOption()));
-    ASSERT_TRUE(fileinstance.Initialize(filename, mdsclient, userinfo,
-                                        cc.GetFileServiceOption()));
+    ASSERT_TRUE(fileinstance.Initialize(
+        filename, mdsclient, userinfo, OpenFlags{}, cc.GetFileServiceOption()));
 
     // set openfile response
     ::curve::mds::OpenFileResponse openresponse;
