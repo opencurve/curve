@@ -22,6 +22,8 @@ Requirement
 Quick Start
 ===
 
+NOTE: If you are using CentOS-8, you can refer to this issue to compile CurveFS: https://github.com/opencurve/curve/issues/807
+
 step 1: clone repository, run build and install:
 
 ```
