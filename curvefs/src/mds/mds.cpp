@@ -30,6 +30,10 @@
 
 #include "curvefs/src/mds/mds_service.h"
 
+namespace brpc {
+DECLARE_bool(graceful_quit_on_sigterm);
+}  // namespace brpc
+
 namespace curvefs {
 namespace mds {
 
@@ -190,8 +194,7 @@ void MDS::Run() {
         << "start brpc server error";
     running_ = true;
 
-    // To achieve the graceful exit of SIGTERM, you need to specify parameters
-    // when starting the process: --graceful_quit_on_sigterm
+    brpc::FLAGS_graceful_quit_on_sigterm = true;
     server.RunUntilAskedToQuit();
 }
 
