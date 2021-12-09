@@ -45,6 +45,10 @@ DECLARE_int32(raft_max_install_snapshot_tasks_num);
 
 }  // namespace braft
 
+namespace brpc {
+DECLARE_bool(graceful_quit_on_sigterm);
+}  // namespace brpc
+
 namespace curvefs {
 namespace metaserver {
 
@@ -184,8 +188,7 @@ void Metaserver::Run() {
     LOG_IF(FATAL, !copysetNodeManager_->Start())
         << "Failed to start copyset node manager";
 
-    // To achieve the graceful exit of SIGTERM, you need to specify parameters
-    // when starting the process: --graceful_quit_on_sigterm
+    brpc::FLAGS_graceful_quit_on_sigterm = true;
     server_->RunUntilAskedToQuit();
 }
 
