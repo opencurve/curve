@@ -92,6 +92,7 @@ class DiskCacheManager {
      * @brief: stop trim thread.
      */
     int TrimStop();
+    void InitMetrics(const std::string &fsName);
 
  private:
     /**
@@ -146,6 +147,7 @@ class DiskCacheManager {
 
     S3Client *client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
+    std::shared_ptr<DiskCacheMetric> metric_;
 };
 
 

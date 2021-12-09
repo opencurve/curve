@@ -31,12 +31,13 @@
 #include <memory>
 
 #include "curvefs/src/common/wrap_posix.h"
+#include "curvefs/src/client/metric/client_metric.h"
 
 namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
-
+using curvefs::client::metric::DiskCacheMetric;
 #define MODE 0644
 class DiskCacheBase {
  public:

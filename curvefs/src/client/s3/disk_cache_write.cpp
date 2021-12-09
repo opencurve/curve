@@ -122,15 +122,24 @@ int DiskCacheWrite::UploadFile(const std::string name) {
     VLOG(9) << "async upload start, file = " << name;
     PutObjectAsyncCallBack cb =
         [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
-            RemoveFile(context->key);
-             VLOG(9) << "PutObjectAsyncCallBack success, "
-                    << "remove file: " << context->key;
-    };
+            if (context->retCode == 0) {
+                if (metric_.get() != nullptr) {
+                    metric_->writeS3.bps.count << context->bufferSize;
+                    metric_->writeS3.qps.count << 1;
+                    metric_->writeS3.latency
+                        << (butil::cpuwide_time_us() - context->startTime);
+                }
+                RemoveFile(context->key);
+                VLOG(9) << "PutObjectAsyncCallBack success, "
+                        << "remove file: " << context->key;
+            }
+        };
     auto context = std::make_shared<PutObjectAsyncContext>();
     context->key = name;
     context->buffer = buffer;
     context->bufferSize = fileSize;
     context->cb = cb;
+    context->startTime = butil::cpuwide_time_us();
     client_->UploadAsync(context);
     posixWrapper_->free(buffer);
     VLOG(9) << "async upload end, file = " << name;

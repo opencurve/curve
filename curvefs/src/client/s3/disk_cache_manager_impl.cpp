@@ -155,5 +155,9 @@ int DiskCacheManagerImpl::UmountDiskCache() {
     return 0;
 }
 
+void DiskCacheManagerImpl::InitMetrics(std::string fsName) {
+    diskCacheManager_->InitMetrics(fsName);
+}
+
 }  // namespace client
 }  // namespace curvefs

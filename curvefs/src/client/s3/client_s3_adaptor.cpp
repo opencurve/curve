@@ -105,7 +105,7 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
                                uint64_t length, const char* buf) {
     VLOG(6) << "write start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
-
+    uint64_t start = butil::cpuwide_time_us();
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
     {
@@ -136,6 +136,9 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     int ret = fileCacheManager->Write(offset, length, buf);
     pendingReq_.fetch_sub(1, std::memory_order_seq_cst);
     fsCacheManager_->DataCacheByteDec(length);
+    if (s3Metric_.get() != nullptr) {
+        CollectMetrics(&s3Metric_->adaptorWrite, ret, start);
+    }
     VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret
             << ", pendingReq_ is: " << pendingReq_;
     return ret;
@@ -144,13 +147,20 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
 int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
                               uint64_t length, char *buf) {
     VLOG(6) << "read start offset:" << offset << ", len:" << length
-            << ", fsId:" << fsId_
-            << ", inodeId:" << inodeId;
+            << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
+    uint64_t start = butil::cpuwide_time_us();
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
 
     int ret = fileCacheManager->Read(inodeId, offset, length, buf);
     VLOG(6) << "read end inodeId:" << inodeId << ",ret:" << ret;
+    if (ret < 0) {
+        return ret;
+    }
+    if (s3Metric_.get() != nullptr) {
+        CollectMetrics(&s3Metric_->adaptorRead, ret, start);
+    }
+
     return ret;
 }
 
@@ -306,6 +316,19 @@ int S3ClientAdaptorImpl::ExecAsyncDownloadTask(void* meta,
     }
 
     return 0;
+}
+
+void S3ClientAdaptorImpl::InitMetrics(const std::string &fsName) {
+    fsName_ = fsName;
+    s3Metric_ = std::make_shared<S3Metric>(fsName);
+    diskCacheManagerImpl_->InitMetrics(fsName);
+}
+
+void S3ClientAdaptorImpl::CollectMetrics(InterfaceMetric *interface, int count,
+                                         uint64_t start) {
+    interface->bps.count << count;
+    interface->qps.count << 1;
+    interface->latency << (butil::cpuwide_time_us() - start);
 }
 
 }  // namespace client

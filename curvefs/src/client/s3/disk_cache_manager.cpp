@@ -374,5 +374,11 @@ int DiskCacheManager::TrimStop() {
     return 0;
 }
 
+void DiskCacheManager::InitMetrics(const std::string &fsName) {
+    metric_ = std::make_shared<DiskCacheMetric>(fsName);
+    cacheWrite_->InitMetrics(metric_);
+    cacheRead_->InitMetrics(metric_);
+}
+
 }  // namespace client
 }  // namespace curvefs

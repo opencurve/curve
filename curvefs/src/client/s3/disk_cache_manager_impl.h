@@ -101,6 +101,7 @@ class DiskCacheManagerImpl {
     bool IsDiskCacheFull();
     int WriteReadDirect(const std::string fileName,
                         const char* buf, uint64_t length);
+    void InitMetrics(std::string fsName);
 
  private:
     int WriteDiskFile(const std::string name, const char* buf, uint64_t length);

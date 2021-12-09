@@ -115,6 +115,7 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     void *buffer;
     size_t bufferSize;
     PutObjectAsyncCallBack cb;
+    uint64_t startTime;
     int retCode;
 };
 
