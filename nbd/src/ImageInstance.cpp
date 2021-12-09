@@ -23,6 +23,7 @@
  */
 
 #include "nbd/src/ImageInstance.h"
+
 #include <glog/logging.h>
 
 namespace curve {
@@ -42,7 +43,10 @@ bool ImageInstance::Open() {
         return false;
     }
 
-    ret = nebd_lib_open(imageName_.c_str());
+    NebdOpenFlags flags;
+    nebd_lib_init_open_flags(&flags);
+    flags.exclusive = config_->exclusive ? 1 : 0;
+    ret = nebd_lib_open_with_flags(imageName_.c_str(), &flags);
     if (ret < 0) {
         LOG(ERROR) << "open image failed, ret = " << ret;
         return false;

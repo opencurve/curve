@@ -87,7 +87,7 @@ TEST_F(CurveClientTest, TestOpen) {
             .Times(0);
 
         ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-                  client_.Open(kWrongFileName, nullptr));
+                  client_.Open(kWrongFileName, {}));
     }
 
     // open success
@@ -95,26 +95,7 @@ TEST_F(CurveClientTest, TestOpen) {
         EXPECT_CALL(*mockFileClient_, Open(_, _, _))
             .WillOnce(Return(1));
 
-        ASSERT_EQ(1, client_.Open(kValidFileName, nullptr));
-    }
-}
-
-TEST_F(CurveClientTest, TestReOpen) {
-    // parse filename and user info failed
-    {
-        EXPECT_CALL(*mockFileClient_, ReOpen(_, _, _, _))
-            .Times(0);
-
-        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-                  client_.ReOpen(kWrongFileName, "xxxx", nullptr));
-    }
-
-    // reopen success
-    {
-        EXPECT_CALL(*mockFileClient_, ReOpen(_, _, _, _))
-            .WillOnce(Return(1));
-
-        ASSERT_EQ(1, client_.ReOpen(kValidFileName, "xxxx", nullptr));
+        ASSERT_EQ(1, client_.Open(kValidFileName, {}));
     }
 }
 

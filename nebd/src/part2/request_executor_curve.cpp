@@ -24,10 +24,29 @@
 
 #include <glog/logging.h>
 
+#include "nebd/proto/client.pb.h"
+
 namespace nebd {
 namespace server {
 
 using ::curve::client::UserInfo_t;
+
+const char* kSessionAttrKey = "session";
+const char* kOpenFlagsAttrKey = "openflags";
+
+curve::client::OpenFlags ConverToCurveOpenFlags(const OpenFlags* flags) {
+    curve::client::OpenFlags curveflags;
+
+    if (!flags) {
+        return curveflags;
+    } else {
+        if (flags->has_exclusive()) {
+            curveflags.exclusive = flags->exclusive();
+        }
+
+        return curveflags;
+    }
+}
 
 std::string FileNameParser::Parse(const std::string& fileName) {
     auto beginPos = fileName.find_first_of("/");
@@ -65,21 +84,26 @@ void CurveRequestExecutor::Init(const std::shared_ptr<CurveClient> &client) {
     client_ = client;
 }
 
-std::shared_ptr<NebdFileInstance>
-CurveRequestExecutor::Open(const std::string& filename) {
+std::shared_ptr<NebdFileInstance> CurveRequestExecutor::Open(
+    const std::string& filename, const OpenFlags* openFlags) {
     std::string curveFileName = FileNameParser::Parse(filename);
     if (curveFileName.empty()) {
         return nullptr;
     }
 
-    std::string sessionId;
-    int fd = client_->Open(curveFileName, &sessionId);
+    int fd = client_->Open(curveFileName, ConverToCurveOpenFlags(openFlags));
 
     if (fd >= 0) {
         auto curveFileInstance = std::make_shared<CurveFileInstance>();
         curveFileInstance->fd = fd;
         curveFileInstance->fileName = curveFileName;
-        curveFileInstance->xattr["session"] = sessionId;
+        curveFileInstance->xattr[kSessionAttrKey] = "";
+
+        if (openFlags) {
+            curveFileInstance->xattr[kOpenFlagsAttrKey] =
+                openFlags->SerializeAsString();
+        }
+
         return curveFileInstance;
     }
 
@@ -95,13 +119,26 @@ CurveRequestExecutor::Reopen(const std::string& filename,
     }
 
     std::string newSessionId;
-    std::string oldSessionId = xattr.at("session");
-    int fd = client_->ReOpen(curveFileName, oldSessionId, &newSessionId);
+    std::string oldSessionId = xattr.at(kSessionAttrKey);
+
+    OpenFlags flags;
+    if (xattr.count(kOpenFlagsAttrKey)) {
+        if (!flags.ParseFromString(xattr.at(kOpenFlagsAttrKey))) {
+            LOG(ERROR) << "Parse openflags failed";
+            return nullptr;
+        }
+    }
+
+    int fd = client_->ReOpen(curveFileName, ConverToCurveOpenFlags(&flags));
     if (fd >= 0) {
         auto curveFileInstance = std::make_shared<CurveFileInstance>();
         curveFileInstance->fd = fd;
         curveFileInstance->fileName = curveFileName;
-        curveFileInstance->xattr["session"] = newSessionId;
+        curveFileInstance->xattr[kSessionAttrKey] = newSessionId;
+        if (xattr.count(kOpenFlagsAttrKey)) {
+            curveFileInstance->xattr[kOpenFlagsAttrKey] =
+                xattr.at(kOpenFlagsAttrKey);
+        }
         return curveFileInstance;
     }
 

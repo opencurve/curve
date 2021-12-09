@@ -378,7 +378,8 @@ class CurveFS {
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode CloseFile(const std::string &fileName,
-                         const std::string &sessionID);
+                         const std::string &sessionID,
+                         const std::string &clientIP, uint32_t clientPort);
 
     /**
      *  @brief update the valid period of the session
@@ -526,7 +527,7 @@ class CurveFS {
      * @return StatusCode::kOK if succeeded, StatusCode::kFileNotExists if failed //NOLINT
      */
     StatusCode FindFileMountPoint(const std::string& fileName,
-                                  ClientInfo* clientInfo);
+                                  std::vector<ClientInfo>* clientInfos);
 
     /**
      * @brief List volumes on copysets

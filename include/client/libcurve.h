@@ -450,6 +450,12 @@ typedef struct UserInfo {
     }
 } UserInfo_t;
 
+struct OpenFlags {
+    bool exclusive;
+
+    OpenFlags() : exclusive(true) {}
+};
+
 class CurveClient {
  public:
     CurveClient();
@@ -474,7 +480,7 @@ class CurveClient {
      * @return 成功返回fd，失败返回-1
      */
     virtual int Open(const std::string& filename,
-                     std::string* sessionId);
+                     const OpenFlags& openflags);
 
     /**
      * 重新打开文件
@@ -484,8 +490,7 @@ class CurveClient {
      * @return 成功返回fd，失败返回-1
      */
     virtual int ReOpen(const std::string& filename,
-                       const std::string& sessionId,
-                       std::string* newSessionId);
+                       const OpenFlags& openflags);
 
     /**
      * 关闭文件

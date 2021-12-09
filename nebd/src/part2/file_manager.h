@@ -46,6 +46,7 @@ using nebd::common::NameLock;
 using nebd::common::NameLockGuard;
 using nebd::common::WriteLockGuard;
 using nebd::common::ReadLockGuard;
+using OpenFlags = nebd::client::ProtoOpenFlags;
 
 using FileEntityMap = std::unordered_map<int, NebdFileEntityPtr>;
 class NebdFileManager {
@@ -67,7 +68,7 @@ class NebdFileManager {
      * @param filename: 文件的filename
      * @return 成功返回fd，失败返回-1
      */
-    virtual int Open(const std::string& filename);
+    virtual int Open(const std::string& filename, const OpenFlags* flags);
     /**
      * 关闭文件
      * @param fd: 文件的fd

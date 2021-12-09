@@ -49,6 +49,7 @@ FileInstance::FileInstance()
 bool FileInstance::Initialize(const std::string& filename,
                               std::shared_ptr<MDSClient> mdsclient,
                               const UserInfo_t& userinfo,
+                              const OpenFlags& openflags,
                               const FileServiceOption& fileservicopt,
                               bool readonly) {
     readonly_ = readonly;
@@ -65,6 +66,7 @@ bool FileInstance::Initialize(const std::string& filename,
             break;
         }
 
+        finfo_.openflags = openflags;
         finfo_.userinfo = userinfo;
         mdsclient_ = std::move(mdsclient);
 
@@ -213,6 +215,7 @@ FileInstance* FileInstance::NewInitedFileInstance(
     std::shared_ptr<MDSClient> mdsClient,
     const std::string& filename,
     const UserInfo& userInfo,
+    const OpenFlags& openflags,  // TODO(all): maybe we can put userinfo and readonly into openflags  // NOLINT
     bool readonly) {
     FileInstance* instance = new (std::nothrow) FileInstance();
     if (instance == nullptr) {
@@ -221,11 +224,11 @@ FileInstance* FileInstance::NewInitedFileInstance(
     }
 
     bool ret = instance->Initialize(filename, std::move(mdsClient), userInfo,
-                                    fileServiceOption, readonly);
+                                    openflags, fileServiceOption, readonly);
     if (!ret) {
         LOG(ERROR) << "FileInstance initialize failed"
                    << ", filename = " << filename
-                   << ", ower = " << userInfo.owner
+                   << ", owner = " << userInfo.owner
                    << ", readonly = " << readonly;
         delete instance;
         return nullptr;
@@ -237,9 +240,10 @@ FileInstance* FileInstance::NewInitedFileInstance(
 FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
                                           std::shared_ptr<MDSClient> mdsclient,
                                           const std::string& filename,
-                                          const UserInfo& userInfo) {
+                                          const UserInfo& userInfo,
+                                          const OpenFlags& openflags) {
     FileInstance* instance = FileInstance::NewInitedFileInstance(
-        opt, std::move(mdsclient), filename, userInfo, true);
+        opt, std::move(mdsclient), filename, userInfo, openflags, true);
     if (instance == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance failed, filename = " << filename;
         return nullptr;
@@ -254,6 +258,7 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
         return nullptr;
     }
 
+    fileInfo.openflags = openflags;
     fileInfo.userinfo = userInfo;
     fileInfo.fullPathName = filename;
     instance->GetIOManager4File()->UpdateFileInfo(fileInfo);

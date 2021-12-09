@@ -28,6 +28,7 @@
 
 #include "nebd/src/part2/file_service.h"
 #include "nebd/test/part2/mock_file_manager.h"
+#include "nebd/test/part2/mock_request_executor.h"
 
 namespace nebd {
 namespace server {
@@ -74,8 +75,11 @@ class FileServiceTest : public ::testing::Test {
         fileManager_ = std::make_shared<MockFileManager>();
         fileService_ = std::make_shared<NebdFileServiceImpl>(fileManager_,
                                                              false);
+        g_test_executor = new MockRequestExecutor();
     }
-    void TearDown() {}
+    void TearDown() {
+        delete g_test_executor;
+    }
  protected:
     std::shared_ptr<MockFileManager> fileManager_;
     std::shared_ptr<NebdFileServiceImpl> fileService_;
@@ -89,7 +93,7 @@ TEST_F(FileServiceTest, OpenTest) {
     FileServiceTestClosure done;
 
     // open success
-    EXPECT_CALL(*fileManager_, Open(testFile1))
+    EXPECT_CALL(*fileManager_, Open(testFile1, _))
     .WillOnce(Return(1));
     fileService_->OpenFile(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kOK);
@@ -98,7 +102,7 @@ TEST_F(FileServiceTest, OpenTest) {
 
     // open failed
     done.Reset();
-    EXPECT_CALL(*fileManager_, Open(testFile1))
+    EXPECT_CALL(*fileManager_, Open(testFile1, _))
     .WillOnce(Return(-1));
     fileService_->OpenFile(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kNoOK);

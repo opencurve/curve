@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <vector>
 
 #include "src/mds/nameserver2/file_record.h"
 
@@ -39,7 +40,7 @@ class MockFileRecordManager : public FileRecordManager {
 
     MOCK_CONST_METHOD0(GetFileRecordExpiredTimeUs, uint32_t());
     MOCK_CONST_METHOD2(FindFileMountPoint,
-                       bool(const std::string&, ClientIpPortType*));
+                       bool(const std::string&, std::vector<butil::EndPoint>*));
 };
 
 }  // namespace mds
