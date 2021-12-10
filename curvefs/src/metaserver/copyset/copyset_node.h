@@ -109,7 +109,7 @@ class CopysetNode : public braft::StateMachine {
 
     const std::string& Name() const;
 
-    uint64_t LastSnapshotIndex() const;
+    int64_t LatestLoadSnapshotIndex() const;
 
     int LoadConfEpoch(const std::string& file);
 
@@ -194,7 +194,7 @@ class CopysetNode : public braft::StateMachine {
 
     mutable Mutex confMtx_;
 
-    uint64_t lastSnapshotIndex_;
+    int64_t latestLoadSnapshotIndex_;
 
     std::unique_ptr<OperatorApplyMetric> metric_;
 };
@@ -248,8 +248,8 @@ inline OperatorApplyMetric* CopysetNode::GetMetric() const {
 
 inline const std::string& CopysetNode::Name() const { return name_; }
 
-inline uint64_t CopysetNode::LastSnapshotIndex() const {
-    return lastSnapshotIndex_;
+inline int64_t CopysetNode::LatestLoadSnapshotIndex() const {
+    return latestLoadSnapshotIndex_;
 }
 
 inline const braft::PeerId& CopysetNode::GetPeerId() const { return peerId_; }
