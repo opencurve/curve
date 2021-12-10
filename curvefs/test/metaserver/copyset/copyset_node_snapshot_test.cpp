@@ -317,13 +317,28 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     braft::SnapshotMeta meta;
     meta.set_last_included_index(100);
     meta.set_last_included_term(100);
-    meta.add_old_peers("127.0.0.1:123:0");
+    meta.add_peers("127.0.0.1:123:0");
 
     EXPECT_CALL(reader, load_meta(_))
         .WillOnce(DoAll(SetArgPointee<0>(meta), Return(0)));
 
     EXPECT_EQ(0, node->on_snapshot_load(&reader));
-    EXPECT_EQ(100, node->LastSnapshotIndex());
+    EXPECT_EQ(100, node->LatestLoadSnapshotIndex());
+
+    // load snapshot doesn't change configuration
+    std::vector<Peer> peers;
+    node->ListPeers(&peers);
+    EXPECT_EQ(3, peers.size());
+
+    braft::Configuration conf;
+    for (int i = 0; i < meta.peers_size(); ++i) {
+        conf.add_peer(meta.peers(i));
+    }
+
+    node->on_configuration_committed(conf, meta.last_included_index());
+    peers.clear();
+    node->ListPeers(&peers);
+    EXPECT_EQ(1, peers.size());
 }
 
 TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {

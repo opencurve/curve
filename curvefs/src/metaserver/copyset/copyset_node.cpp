@@ -34,6 +34,7 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
+#include "absl/utility/utility.h"
 #include "curvefs/src/metaserver/copyset/meta_operator_closure.h"
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_log_codec.h"
@@ -73,7 +74,7 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       appliedIndex_(0),
       epochFile_(),
       applyQueue_(nullptr),
-      lastSnapshotIndex_(0),
+      latestLoadSnapshotIndex_(0),
       metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)) {}
 
 CopysetNode::~CopysetNode() { Stop(); }
@@ -364,20 +365,13 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
 
     braft::SnapshotMeta meta;
     reader->load_meta(&meta);
-    if (0 != meta.old_peers_size()) {
-        conf_.reset();
-        for (int i = 0; i < meta.peers_size(); ++i) {
-            conf_.add_peer(meta.peers(i));
-        }
-    }
-
-    auto prevLastSnapshotIndex = lastSnapshotIndex_;
-    lastSnapshotIndex_ = meta.last_included_index();
+    auto prevIndex =
+        absl::exchange(latestLoadSnapshotIndex_, meta.last_included_index());
 
     LOG(INFO) << "Copyset " << name_ << " load snapshot from '"
               << reader->get_path()
-              << "' success, update last snapshot index from "
-              << prevLastSnapshotIndex << " to " << lastSnapshotIndex_;
+              << "' success, update load snapshot index from " << prevIndex
+              << " to " << latestLoadSnapshotIndex_;
 
     return 0;
 }
@@ -399,12 +393,23 @@ void CopysetNode::on_leader_stop(const butil::Status& status) {
 
 void CopysetNode::on_error(const braft::Error& e) {
     LOG(FATAL) << "Copyset: " << name_ << ", peer id: " << peerId_.to_string()
-               << " meet error";
+               << " meet error: " << e.status().error_str();
 }
 
 void CopysetNode::on_configuration_committed(const braft::Configuration& conf,
                                              int64_t index) {
-    // TODO(wuhanqing): implement with heartbeat
+    braft::Configuration oldconf;
+
+    {
+        std::lock_guard<Mutex> lk(confMtx_);
+        oldconf = absl::exchange(conf_, conf);
+    }
+
+    LOG(INFO) << "Copyset: " << name_
+              << " committed new configuration, peer id: "
+              << peerId_.to_string() << ", new conf: " << conf
+              << ", old conf: " << oldconf << ", index: " << index
+              << ", epoch: " << epoch_.load(std::memory_order_relaxed);
 }
 
 void CopysetNode::on_stop_following(const braft::LeaderChangeContext& ctx) {
