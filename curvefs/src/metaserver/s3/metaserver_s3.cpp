@@ -37,17 +37,15 @@ void S3ClientImpl::Init(const curve::common::S3AdapterOption& option) {
 int S3ClientImpl::Delete(const std::string& name) {
     int ret = 0;
     const Aws::String aws_key(name.c_str(), name.length());
-    LOG(INFO) << "delete start, aws_key: " << aws_key;
-    if (!s3Adapter_->ObjectExist(aws_key)) {
-        // the aws_key is not exist
-        LOG(INFO) << "delete object error, aws_key: " << aws_key
-                  << " is not exist";
-        return 1;
-    }
     ret = s3Adapter_->DeleteObject(aws_key);
     if (ret < 0) {
         // -1
         LOG(ERROR) << "delete object: " << aws_key << " get error:" << ret;
+        if (!s3Adapter_->ObjectExist(aws_key)) {
+            // the aws_key is not exist
+            // may delete by others
+            ret = 0;
+        }
     } else {
         // 0
         LOG(INFO) << "delete object: " << aws_key << " end, ret:" << ret;
