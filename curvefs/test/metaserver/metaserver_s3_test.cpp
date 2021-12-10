@@ -61,7 +61,7 @@ class ClientS3Test : public testing::Test {
 TEST_F(ClientS3Test, delete_object_not_exist) {
     EXPECT_CALL(*s3Adapter_, ObjectExist(_)).WillRepeatedly(Return(false));
     int ret = s3Client_->Delete("123");
-    ASSERT_EQ(ret, 1);
+    ASSERT_EQ(ret, 0);
 }
 
 TEST_F(ClientS3Test, delete_error) {

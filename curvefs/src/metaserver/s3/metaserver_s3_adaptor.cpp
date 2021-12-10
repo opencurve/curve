@@ -71,9 +71,6 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t fsId, uint64_t inodeId,
                                      uint64_t chunkPos, uint64_t length) {
     uint64_t blockIndex = chunkPos / blockSize_;
     uint64_t blockPos = chunkPos % blockSize_;
-    VLOG(3) << "delete Chunk start, chunk id: " << chunkId
-            << ", compaction:" << compaction << ", chunkPos: " << chunkPos
-            << ", length: " << length;
     int count = 0;  // blocks' number
     int ret = 0;
     while (length > blockSize_ * count - blockPos || count == 0) {
@@ -90,7 +87,6 @@ int S3ClientAdaptorImpl::DeleteChunk(uint64_t fsId, uint64_t inodeId,
             // 1. overwrite，the object is delete by others
             // 2. last delete failed
             // 3. others
-            VLOG(3) << "object: " << objectName << ", has been deleted.";
             ret = 1;
         }
 
