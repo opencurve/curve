@@ -48,6 +48,7 @@ cc_library(
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/utility",
     ],
 )
 
@@ -59,10 +60,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/src/common:curvefs_common",
         "//external:gflags",
         "//external:glog",
         "//src/common:curve_s3_adapter",
-        "//curvefs/src/common:curvefs_common",
     ],
 )
 
