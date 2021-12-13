@@ -27,6 +27,9 @@ DECLARE_uint64(rpcRetryTimes);
 namespace curve {
 namespace tool {
 
+std::string rootUserName;      // NOLINT
+std::string rootUserPassword;  // NOLINT
+
 int MDSClient::Init(const std::string& mdsAddr) {
     return Init(mdsAddr, std::to_string(kDefaultMdsDummyPort));
 }
@@ -978,12 +981,11 @@ void MDSClient::FillUserInfo(T* request) {
     request->set_owner(userName_);
     request->set_date(date);
 
-    if (!userName_.compare("root") &&
-        password_.compare("")) {
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                                 userName_);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                              password_);
+    if (userName_ == rootUserName && !password_.empty()) {
+        std::string str2sig =
+            Authenticator::GetString2Signature(date, userName_);
+        std::string sig =
+            Authenticator::CalcString2Signature(str2sig, password_);
         request->set_signature(sig);
     }
 }

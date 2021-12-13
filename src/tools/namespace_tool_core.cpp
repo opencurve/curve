@@ -21,8 +21,8 @@
  */
 #include "src/tools/namespace_tool_core.h"
 
-DEFINE_string(userName, "root", "owner of the file");
-DEFINE_string(password, "root_password", "password of administrator");
+DEFINE_string(userName, "", "owner of the file");
+DEFINE_string(password, "", "password of administrator");
 
 namespace curve {
 namespace tool {
