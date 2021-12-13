@@ -143,14 +143,14 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    Inode inode = inodeWrapper->GetInodeLocked();
+    uint64_t fileSize = inodeWrapper->GetLength();
 
     size_t len = 0;
-    if (inode.length() <= off) {
+    if (fileSize <= off) {
         *rSize = 0;
         return CURVEFS_ERROR::OK;
-    } else if (inode.length() < off + size) {
-        len = inode.length() - off;
+    } else if (fileSize < off + size) {
+        len = fileSize - off;
     } else {
         len = size;
     }
