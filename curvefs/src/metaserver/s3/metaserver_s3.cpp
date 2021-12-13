@@ -53,5 +53,21 @@ int S3ClientImpl::Delete(const std::string& name) {
 
     return ret;
 }
+
+int S3ClientImpl::DeleteBatch(const std::list<std::string>& nameList) {
+    std::list<Aws::String> keyList;
+    for (const std::string& name : nameList) {
+        keyList.emplace_back(name.c_str(), name.length());
+    }
+    int ret = s3Adapter_->DeleteObjects(keyList);
+    if (ret != 0) {
+        LOG(ERROR) << "delete object fail";
+    } else {
+        LOG(INFO) << "delete object success";
+    }
+
+    return ret;
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

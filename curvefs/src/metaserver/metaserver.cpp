@@ -106,6 +106,18 @@ void InitS3Option(const std::shared_ptr<Configuration>& conf,
                   S3ClientAdaptorOption* s3Opt) {
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.blocksize", &s3Opt->blockSize));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.chunksize", &s3Opt->chunkSize));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.batchsize", &s3Opt->batchSize));
+    LOG_IF(FATAL, !conf->GetBoolValue("s3.enableDeleteObjects",
+                                      &s3Opt->enableDeleteObjects));
+}
+
+void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
+                         PartitionCleanOption* partitionCleanOption) {
+    LOG_IF(FATAL, !conf_->GetUInt32Value("partition.clean.scanPeriodSec",
+                                        &partitionCleanOption->scanPeriodSec));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("partition.clean.inodeDeletePeriodMs",
+                                &partitionCleanOption->inodeDeletePeriodMs));
+    partitionCleanOption->s3Adaptor = s3Adaptor;
 }
 
 void Metaserver::Init() {
@@ -135,6 +147,11 @@ void Metaserver::Init() {
     InitInflightThrottle();
 
     S3CompactManager::GetInstance().Init(conf_);
+
+    PartitionCleanOption partitionCleanOption;
+    InitPartitionOption(s3Adaptor_, &partitionCleanOption);
+    PartitionCleanManager::GetInstance().Init(partitionCleanOption);
+
     inited_ = true;
 }
 
@@ -152,6 +169,8 @@ void Metaserver::Run() {
 
     // set metaserver version in metric
     curve::common::ExposeCurveVersion();
+
+    PartitionCleanManager::GetInstance().Run();
 
     brpc::Server server;
     butil::ip_t ip;
@@ -207,6 +226,8 @@ void Metaserver::Stop() {
 
     server_->Stop(0);
     server_->Join();
+
+    PartitionCleanManager::GetInstance().Fini();
 
     LOG_IF(ERROR, heartbeat_.Fini() != 0);
 

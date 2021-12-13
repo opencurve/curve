@@ -35,8 +35,12 @@ namespace metaserver {
 
 class TrashManager {
  public:
-    TrashManager() : isStop_(true) {}
-    ~TrashManager() {}
+    TrashManager() : isStop_(true) {
+        LOG(INFO) << "TrashManager";
+    }
+    ~TrashManager() {
+        LOG(INFO) << "~TrashManager";
+    }
 
     static TrashManager& GetInstance() {
         static TrashManager instance_;
@@ -47,7 +51,11 @@ class TrashManager {
         curve::common::WriteLockGuard lg(rwLock_);
         trash->Init(options_);
         trashs_.emplace(partitionId, trash);
+        LOG(INFO) << "add partition to trash manager, partitionId = "
+                  << partitionId;
     }
+
+    void Remove(uint32_t partitionId);
 
     void Init(const TrashOption &options) {
         options_ = options;

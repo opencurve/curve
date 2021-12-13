@@ -163,5 +163,12 @@ void MemoryInodeStorage::MergeTwoS3ChunkInfoMap(
     }
 }
 
+void MemoryInodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
+    ReadLockGuard readLockGuard(rwLock_);
+    for (auto it = inodeMap_.begin(); it != inodeMap_.end(); ++it) {
+        inodeIdList->push_back(it->second.inodeid());
+    }
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

@@ -274,6 +274,26 @@ bool Partition::ParseFromString(const std::string &value) {
     return ret;
 }
 
+common::PartitionInfo Partition::ToPartitionInfo() {
+    common::PartitionInfo info;
+    info.set_fsid(fsId_);
+    info.set_poolid(poolId_);
+    info.set_copysetid(copySetId_);
+    info.set_partitionid(partitionId_);
+    info.set_start(idStart_);
+    info.set_end(idEnd_);
+    info.set_txid(txId_);
+    info.set_status(status_);
+    if (inodeNum_ != UNINITIALIZE_COUNT) {
+        info.set_inodenum(inodeNum_);
+    }
+
+    if (dentryNum_ != UNINITIALIZE_COUNT) {
+        info.set_dentrynum(dentryNum_);
+    }
+    return info;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

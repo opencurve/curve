@@ -27,9 +27,17 @@
 namespace curvefs {
 namespace mds {
 namespace heartbeat {
+using curvefs::mds::topology::TopoStatusCode;
+
 void TopoUpdater::UpdateTopo(
     const ::curvefs::mds::topology::CopySetInfo& reportCopySetInfo,
-    const std::list<::curvefs::mds::topology::Partition>& topoPartitionList) {
+    const std::list<::curvefs::mds::topology::Partition>& partitionList) {
+    UpdateCopysetTopo(reportCopySetInfo);
+    UpdatePartitionTopo(reportCopySetInfo.GetId(), partitionList);
+}
+
+void TopoUpdater::UpdateCopysetTopo(
+    const ::curvefs::mds::topology::CopySetInfo& reportCopySetInfo) {
     curvefs::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(reportCopySetInfo.GetCopySetKey(),
                            &recordCopySetInfo)) {
@@ -116,19 +124,93 @@ void TopoUpdater::UpdateTopo(
             return;
         }
     }
+}
 
-    // update partitionInfo to topo
-    for (const auto& it : topoPartitionList) {
+bool TopoUpdater::CanPartitionStatusChange(PartitionStatus statusInTopo,
+                                           PartitionStatus statusInHeartbeat) {
+    bool statusCanChange = true;
+    switch (statusInHeartbeat) {
+        case PartitionStatus::READWRITE:
+            if (statusInTopo != PartitionStatus::READWRITE) {
+                LOG(WARNING) << "partition cann't changes from other "
+                                "status to READWRITE.";
+                statusCanChange = false;
+            }
+            break;
+        case PartitionStatus::READONLY:
+            if (statusInTopo == PartitionStatus::DELETING) {
+                LOG(WARNING) << "partition cann't changes from DELETING "
+                                "status to READONLY.";
+                statusCanChange = false;
+            }
+            break;
+        case PartitionStatus::DELETING:
+        default:
+            break;
+    }
+    return statusCanChange;
+}
+
+void TopoUpdater::UpdatePartitionTopo(
+    CopySetIdType copySetId,
+    const std::list<::curvefs::mds::topology::Partition>& partitionList) {
+    std::list<::curvefs::mds::topology::Partition> topoPartitionList =
+        topo_->GetPartitionInfosInCopyset(copySetId);
+    // partition in topology, not in heartbeat
+    for (auto itTopo = topoPartitionList.begin();
+         itTopo != topoPartitionList.end();) {
+        bool isFound = false;
+        for (const auto& itHeartbeat : partitionList) {
+            if (itTopo->GetPartitionId() == itHeartbeat.GetPartitionId()) {
+                isFound = true;
+                break;
+            }
+        }
+        // if partition in topology and not in heartbeat,
+        // and partition is deleting status,
+        // delete this partition in topo
+        if (!isFound && itTopo->GetStatus() == PartitionStatus::DELETING) {
+            LOG(INFO) << "partition in topology and not in heartbeat, and"
+                      << " partition status is DELETING, delete this partiton "
+                      << "in topology, copysetId = " << copySetId
+                      << ", partitionId = " << itTopo->GetPartitionId();
+            TopoStatusCode ret =
+                topo_->RemovePartition(itTopo->GetPartitionId());
+            if (ret == TopoStatusCode::TOPO_OK ||
+                ret == TopoStatusCode::TOPO_PARTITION_NOT_FOUND) {
+                itTopo = topoPartitionList.erase(itTopo);
+                continue;
+            } else {
+                LOG(WARNING)
+                    << "removePartition fail, copysetId = " << copySetId
+                    << ", partitionId = " << itTopo->GetPartitionId()
+                    << ", status = " << TopoStatusCode_Name(ret);
+            }
+        }
+        itTopo++;
+    }
+
+    for (const auto& it : partitionList) {
+        // partition in heartbeat, not in topology, abnormal
         ::curvefs::mds::topology::Partition partitionInTopo;
-        bool ret = topo_->GetPartition(it.GetPartitionId(), &partitionInTopo);
-        if (partitionInTopo.GetStatus() && !it.GetStatus()) {
-            LOG(WARNING) << "partition only changes from not full to full";
+        bool isFound =
+            topo_->GetPartition(it.GetPartitionId(), &partitionInTopo);
+        if (!isFound) {
+            LOG(WARNING) << "hearbeat report partition which is not in topo"
+                         << ", copysetId = " << copySetId
+                         << ", partitionId = " << it.GetPartitionId();
             continue;
         }
 
-        if (partitionInTopo.GetStatus() != it.GetStatus() ||
+        // partition both in heartbeat and in topology
+        bool statusCanChange = CanPartitionStatusChange(
+            partitionInTopo.GetStatus(), it.GetStatus());
+
+        bool statisticChange =
+            partitionInTopo.GetStatus() != it.GetStatus() ||
             partitionInTopo.GetInodeNum() != it.GetInodeNum() ||
-            partitionInTopo.GetDentryNum() != it.GetDentryNum()) {
+            partitionInTopo.GetDentryNum() != it.GetDentryNum();
+        if (statusCanChange && statisticChange) {
             ::curvefs::mds::topology::PartitionStatistic statistic;
             statistic.status = it.GetStatus();
             statistic.inodeNum = it.GetInodeNum();

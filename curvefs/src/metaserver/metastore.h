@@ -192,6 +192,7 @@ class MetaStoreImpl : public MetaStore {
  private:
     RWLock rwLock_;  // protect partitionMap_
     std::map<uint32_t, std::shared_ptr<Partition>> partitionMap_;
+    std::list<uint32_t> partitionIds_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

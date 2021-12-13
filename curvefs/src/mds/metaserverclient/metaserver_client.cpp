@@ -38,11 +38,10 @@ using curvefs::mds::topology::SplitPeerId;
 using curvefs::mds::topology::BuildPeerIdWithAddr;
 
 template <typename T, typename Request, typename Response>
-FSStatusCode MetaserverClient::SendRpc2MetaServer(Request* request,
-    Response* response, const LeaderCtx &ctx,
-    void (T::*func)(google::protobuf::RpcController*,
-                    const Request*, Response*,
-                    google::protobuf::Closure*)) {
+FSStatusCode MetaserverClient::SendRpc2MetaServer(
+    Request *request, Response *response, const LeaderCtx &ctx,
+    void (T::*func)(google::protobuf::RpcController *, const Request *,
+                    Response *, google::protobuf::Closure *)) {
     bool refreshLeader = true;
     uint32_t maxRetry = options_.rpcRetryTimes;
 
@@ -275,6 +274,48 @@ FSStatusCode MetaserverClient::CreatePartition(
                            << ", response statuscode = "
                            << response.statuscode();
                 return FSStatusCode::CREATE_PARTITION_ERROR;
+        }
+    }
+}
+
+FSStatusCode MetaserverClient::DeletePartition(
+    uint32_t poolId, uint32_t copysetId, uint32_t partitionId,
+    const std::set<std::string> &addrs) {
+    curvefs::metaserver::DeletePartitionRequest request;
+    curvefs::metaserver::DeletePartitionResponse response;
+    request.set_poolid(poolId);
+    request.set_copysetid(copysetId);
+    request.set_partitionid(partitionId);
+
+    auto fp = &MetaServerService_Stub::DeletePartition;
+    LeaderCtx ctx;
+    ctx.addrs = addrs;
+    ctx.poolId = poolId;
+    ctx.copysetId = copysetId;
+    auto ret = SendRpc2MetaServer(&request, &response, ctx, fp);
+
+    if (FSStatusCode::RPC_ERROR == ret) {
+        LOG(ERROR) << "DeletePartition failed, rpc error. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else if (FSStatusCode::NOT_FOUND == ret) {
+        LOG(ERROR) << "DeletePartition failed, get leader failed. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else {
+        switch (response.statuscode()) {
+            case MetaStatusCode::OK:
+            case MetaStatusCode::PARTITION_NOT_FOUND:
+                return FSStatusCode::OK;
+            case MetaStatusCode::PARTITION_DELETING:
+                LOG(INFO) << "DeletePartition partition deleting.";
+                return FSStatusCode::UNDER_DELETING;
+            default:
+                LOG(ERROR) << "DeletePartition failed, request = "
+                           << request.ShortDebugString()
+                           << ", response statuscode = "
+                           << response.statuscode();
+                return FSStatusCode::DELETE_PARTITION_ERROR;
         }
     }
 }

@@ -26,6 +26,7 @@
 #include <functional>
 #include <unordered_map>
 #include <utility>
+#include <list>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "src/common/concurrent/rw_lock.h"
@@ -69,6 +70,7 @@ class InodeStorage {
     virtual int Count() = 0;
     virtual ContainerType* GetContainer() = 0;
     virtual ContainerType GetContainerData() = 0;
+    virtual void GetInodeIdList(std::list<uint64_t>* InodeIdList) = 0;
     virtual ~InodeStorage() = default;
 };
 
@@ -121,6 +123,8 @@ class MemoryInodeStorage : public InodeStorage {
     ContainerType* GetContainer() override;
     ContainerType GetContainerData() override;
 
+
+    void GetInodeIdList(std::list<uint64_t>* inodeIdList) override;
 
  private:
     RWLock rwLock_;

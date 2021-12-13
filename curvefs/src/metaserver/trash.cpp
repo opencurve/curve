@@ -36,6 +36,7 @@ void TrashOption::InitTrashOptionFromConf(std::shared_ptr<Configuration> conf) {
 void TrashImpl::Init(const TrashOption &option) {
     options_ = option;
     s3Adaptor_ = option.s3Adaptor;
+    isStop_ = false;
 }
 
 void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) {
@@ -45,6 +46,9 @@ void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) {
     item.dtime = dtime;
 
     LockGuard lg(itemsMutex_);
+    if (isStop_) {
+        return;
+    }
     trashItems_.push_back(item);
     VLOG(6) << "Add Trash Item success, item.fsId = " << item.fsId
             << ", item.inodeId = " << item.inodeId
@@ -60,6 +64,9 @@ void TrashImpl::ScanTrash() {
     }
 
     for (auto it = temp.begin(); it != temp.end();) {
+        if (isStop_) {
+            return;
+        }
         if (NeedDelete(*it)) {
             MetaStatusCode ret = DeleteInodeAndData(*it);
             if (MetaStatusCode::NOT_FOUND == ret) {
@@ -85,6 +92,14 @@ void TrashImpl::ScanTrash() {
         LockGuard lgItems(itemsMutex_);
         trashItems_.splice(trashItems_.end(), temp);
     }
+}
+
+void TrashImpl::StopScan() {
+    isStop_ = true;
+}
+
+bool TrashImpl::IsStop() {
+    return isStop_;
 }
 
 bool TrashImpl::NeedDelete(const TrashItem &item) {

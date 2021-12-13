@@ -36,7 +36,7 @@ enum MetaStatusCode {
     HANDLE_TX_FAILED = 13;
     PARTITION_NOT_FOUND = 14;
     PARTITION_EXIST = 15;
-    PARTITION_BUSY = 16;
+    PARTITION_DELETING = 16;
     PARTITION_ALLOC_ID_FAIL = 17;
     SAVE_META_FAIL = 18;
     S3_DELETE_ERR = 19;
@@ -285,7 +285,9 @@ message CreatePartitionResponse {
 }
 
 message DeletePartitionRequest {
-    required common.PartitionInfo partition = 1;
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
 }
 
 message DeletePartitionResponse {

@@ -43,6 +43,7 @@ message S3Info {
 enum PartitionStatus {
     READWRITE = 1;
     READONLY = 2;
+    DELETING = 3;
 }
 
 message PartitionInfo {
@@ -55,7 +56,10 @@ message PartitionInfo {
     required uint64 end = 6;
     required uint64 txId = 7;
     optional uint64 nextId = 8;
-    required PartitionStatus status = 9;  // this only changes from READWRITE to READONLY, topo/metaserver should persist this value
+    // status can change from READWRITE to READONLY, but can not chanage from READONLY to READWRITE
+    // READWRITE/READONLY can change to DELETING, but DELETING can not change to READWRITE/READONLY
+    // topo/metaserver should persist this value
+    required PartitionStatus status = 9;
     optional uint64 inodeNum = 10;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
     optional uint64 dentryNum = 11;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
 }

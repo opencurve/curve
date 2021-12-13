@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <string>
+#include <list>
 
 #include "curvefs/src/metaserver/s3/metaserver_s3.h"
 
@@ -41,6 +42,7 @@ class MockS3Client : public S3Client {
 
     MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption &options));
     MOCK_METHOD1(Delete, int(const std::string &name));
+    MOCK_METHOD1(DeleteBatch, int(const std::list<std::string>& nameList));
 };
 }  // namespace metaserver
 }  // namespace curvefs

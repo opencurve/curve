@@ -26,6 +26,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <list>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/trash.h"
@@ -58,6 +59,8 @@ class InodeManager {
         uint64_t inodeId, bool isCreate);
 
     MetaStatusCode InsertInode(const Inode &inode);
+
+    void GetInodeIdList(std::list<uint64_t>* inodeIdList);
 
  private:
     void GenerateInodeInternal(uint64_t inodeId, uint32_t fsId, uint64_t length,

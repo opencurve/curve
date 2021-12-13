@@ -95,9 +95,20 @@ TEST_F(FSStorageTest, test1) {
                                               rootInodeId, detail);
     ASSERT_EQ(FSStatusCode::FS_ID_MISMATCH, storage.Update(fs4));
 
+    // test rename
+    FsInfoWrapper fs5 = fs1;
+    fs5.SetFsName("name5");
+    fs5.SetStatus(FsStatus::DELETING);
+    ASSERT_EQ(FSStatusCode::OK, storage.Rename(fs1, fs5));
+    FsInfoWrapper fs6;
+    ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1.GetFsId(), &fs6));
+    ASSERT_EQ(fs6.GetStatus(), FsStatus::DELETING);
+    ASSERT_EQ(fs6.GetFsName(), "name5");
+
     // test delete
-    ASSERT_EQ(FSStatusCode::OK, storage.Delete(fs1.GetFsName()));
     ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Delete(fs1.GetFsName()));
+    ASSERT_EQ(FSStatusCode::OK, storage.Delete(fs5.GetFsName()));
+    ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Delete(fs5.GetFsName()));
 }
 }  // namespace mds
 }  // namespace curvefs

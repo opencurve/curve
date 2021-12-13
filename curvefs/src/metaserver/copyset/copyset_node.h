@@ -72,11 +72,11 @@ class CopysetNode : public braft::StateMachine {
     /**
      * @brief Propose an op request to copyset node
      */
-    void Propose(const braft::Task& task);
+    virtual void Propose(const braft::Task& task);
 
     int64_t LeaderTerm() const;
 
-    bool IsLeaderTerm() const;
+    virtual bool IsLeaderTerm() const;
 
     PoolId GetPoolId() const;
 

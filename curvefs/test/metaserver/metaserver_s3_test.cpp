@@ -79,5 +79,16 @@ TEST_F(ClientS3Test, delete_sucess) {
     ASSERT_EQ(ret, 0);
 }
 
+TEST_F(ClientS3Test, delete_batch_fail) {
+    EXPECT_CALL(*s3Adapter_, DeleteObjects(_)).WillOnce(Return(-1));
+    int ret = s3Client_->DeleteBatch({"123", "456"});
+    ASSERT_EQ(ret, -1);
+}
+
+TEST_F(ClientS3Test, delete_batch_sucess) {
+    EXPECT_CALL(*s3Adapter_, DeleteObjects(_)).WillOnce(Return(0));
+    int ret = s3Client_->DeleteBatch({"123", "456"});
+    ASSERT_EQ(ret, 0);
+}
 }  // namespace metaserver
 }  // namespace curvefs

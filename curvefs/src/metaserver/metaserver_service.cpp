@@ -208,8 +208,8 @@ void MetaServerServiceImpl::DeletePartition(
     google::protobuf::Closure* done) {
     OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
     helper.operator()<DeletePartitionOperator>(
-        controller, request, response, done, request->partition().poolid(),
-        request->partition().copysetid());
+        controller, request, response, done, request->poolid(),
+        request->copysetid());
 }
 
 void MetaServerServiceImpl::PrepareRenameTx(

@@ -651,6 +651,16 @@ TEST_F(TestHeartbeatManager, test_update_partition) {
     EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
         .WillOnce(Return(TopoStatusCode::TOPO_OK));
 
+    std::list<::curvefs::mds::topology::Partition> topoPartitionList;
+    ::curvefs::mds::topology::Partition tempPartition;
+    tempPartition.SetPartitionId(1);
+    topoPartitionList.push_back(tempPartition);
+    EXPECT_CALL(*topology_, GetPartitionInfosInCopyset(_))
+        .WillOnce(Return(topoPartitionList));
+
+    ::curvefs::mds::topology::Partition partitionInTopo;
+    EXPECT_CALL(*topology_, GetPartition(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(partitionInTopo), Return(true)));
     EXPECT_CALL(*topology_, UpdatePartitionStatistic(_, _))
         .WillOnce(Return(TopoStatusCode::TOPO_OK));
     heartbeatManager_->MetaServerHeartbeat(request, &response);

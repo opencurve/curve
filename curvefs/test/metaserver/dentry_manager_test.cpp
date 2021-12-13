@@ -96,6 +96,14 @@ TEST_F(DentryManagerTest, DeleteDentry) {
     ASSERT_EQ(dentryStorage_->Size(), 0);
 }
 
+TEST_F(DentryManagerTest, ClearDentry) {
+    auto dentry = GenDentry(1, 0, "A", 0, 1, false);
+    ASSERT_EQ(dentryManager_->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(dentryStorage_->Size(), 1);
+    dentryManager_->ClearDentry();
+    ASSERT_EQ(dentryStorage_->Size(), 0);
+}
+
 TEST_F(DentryManagerTest, GetDentry) {
     // CASE 1: GetDentry: not found
     auto dentry = GenDentry(1, 0, "A", 0, 1, false);

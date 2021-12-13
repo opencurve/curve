@@ -25,43 +25,59 @@
 
 #include <atomic>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/src/mds/common/types.h"
+#include "curvefs/src/mds/fs_info_wrapper.h"
 #include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/metaserverclient/metaserver_client.h"
 #include "curvefs/src/mds/spaceclient/space_client.h"
-#include "curvefs/src/mds/fs_info_wrapper.h"
-#include "curvefs/src/mds/common/types.h"
-#include "src/common/concurrent/name_lock.h"
+#include "curvefs/src/mds/topology/topology.h"
 #include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
-#include "curvefs/src/mds/topology/topology.h"
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/name_lock.h"
+#include "src/common/interruptible_sleeper.h"
 
 namespace curvefs {
 namespace mds {
 
 using ::curvefs::mds::topology::TopologyManager;
+using ::curvefs::mds::topology::Topology;
+using ::curve::common::Thread;
+using ::curve::common::InterruptibleSleeper;
+using ::curve::common::Atomic;
+
+struct FsManagerOption {
+    uint32_t backEndThreadRunInterSec;
+};
 
 class FsManager {
  public:
     FsManager(std::shared_ptr<FsStorage> fsStorage,
               std::shared_ptr<SpaceClient> spaceClient,
               std::shared_ptr<MetaserverClient> metaserverClient,
-              std::shared_ptr<TopologyManager> topoManager)
+              std::shared_ptr<TopologyManager> topoManager,
+              const FsManagerOption& option)
         : fsStorage_(fsStorage),
           spaceClient_(spaceClient),
           metaserverClient_(metaserverClient),
           topoManager_(topoManager),
-          nameLock_() {}
+          nameLock_() {
+        isStop_ = true;
+        backEndThreadRunInterSec_ = option.backEndThreadRunInterSec;
+    }
 
     bool Init();
-
+    void Run();
     void Uninit();
+    void BackEndFunc();
+    void ScanFs(const FsInfoWrapper& wrapper);
 
     /**
      * @brief create fs, the fs name can not repeat
@@ -71,7 +87,8 @@ class FsManager {
      * @param blockSize space alloc must align this blockSize
      * @param detail more detailed info about s3 or volume
      * @param fsInfo the fs created
-     * @return FSStatusCode If success return OK; if fsName exist, return FS_EXIST;
+     * @return FSStatusCode If success return OK; if fsName exist, return
+     * FS_EXIST;
      *         else return error code
      */
     FSStatusCode CreateFs(const std::string& fsName, FSType fsType,
@@ -150,14 +167,14 @@ class FsManager {
     FSStatusCode GetFsInfo(const std::string& fsName, uint32_t fsId,
                            FsInfo* fsInfo);
 
-    void GetAllFsInfo(
-        ::google::protobuf::RepeatedPtrField< ::curvefs::mds::FsInfo>*
-            fsInfoVec);
+    void GetAllFsInfo(::google::protobuf::RepeatedPtrField<
+                      ::curvefs::mds::FsInfo>* fsInfoVec);
 
  private:
     // return 0: ExactlySame; 1: uncomplete, -1: neither
     int IsExactlySameOrCreateUnComplete(const std::string& fsName,
-         FSType fsType, uint64_t blocksize, const FsDetail& detail);
+                                        FSType fsType, uint64_t blocksize,
+                                        const FsDetail& detail);
 
  private:
     uint64_t GetRootId();
@@ -169,6 +186,12 @@ class FsManager {
     std::shared_ptr<MetaserverClient> metaserverClient_;
     curve::common::GenericNameLock<Mutex> nameLock_;
     std::shared_ptr<TopologyManager> topoManager_;
+
+    // Manage fs backgroud delete threads
+    Thread backEndThread_;
+    Atomic<bool> isStop_;
+    InterruptibleSleeper sleeper_;
+    int backEndThreadRunInterSec_;
 };
 }  // namespace mds
 }  // namespace curvefs

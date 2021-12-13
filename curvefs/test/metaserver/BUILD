@@ -32,7 +32,8 @@ cc_test(
             "metaserver_s3_test.cpp",
             "mock_s3compactwq_impl.h",
             "s3compactwq_test.cpp",
-            "mock_s3_adapter.h"
+            "mock_s3_adapter.h",
+            "partition_clean_test.cpp",
         ],
     ),
     copts = CURVE_TEST_COPTS,
@@ -43,6 +44,25 @@ cc_test(
             "//external:brpc",
             "//curvefs/proto:curvefs_topology_cc_proto",
             "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
+            "//curvefs/src/metaserver:metaserver_s3_lib",
+    ],
+)
+
+cc_test(
+    name = "curvefs_partition_clean_test",
+    srcs = glob(
+        ["partition_clean_test.cpp", "mock_metaserver_s3_adaptor.h"],
+        exclude = [],
+    ),
+    copts = CURVE_TEST_COPTS,
+    deps = [
+            "//curvefs/src/metaserver:curvefs_metaserver",
+            "@com_google_googletest//:gtest_main",
+            "@com_google_googletest//:gtest",
+            # "//external:brpc",
+            "//curvefs/proto:curvefs_topology_cc_proto",
+            "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
+            "//curvefs/src/metaserver:metaserver_s3_lib",
     ],
 )
 

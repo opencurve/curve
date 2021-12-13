@@ -80,6 +80,10 @@ class MetaserverClient {
                                          uint64_t idEnd,
                                          const std::set<std::string> &addrs);
 
+    virtual FSStatusCode DeletePartition(uint32_t poolId, uint32_t copysetId,
+                                         uint32_t partitionId,
+                                         const std::set<std::string> &addrs);
+
     virtual FSStatusCode CreateCopySet(uint32_t poolId,
                                        std::set<uint32_t> copysetIds,
                                        const std::set<std::string> &addrs);

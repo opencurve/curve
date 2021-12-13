@@ -27,6 +27,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -120,6 +121,9 @@ class TopologyManager {
 
     virtual void ListPartition(const ListPartitionRequest *request,
                                ListPartitionResponse *response);
+
+    virtual void ListPartitionOfFs(FsIdType fsId,
+                                   std::list<PartitionInfo>* list);
 
     virtual void GetCopysetOfPartition(
         const GetCopysetOfPartitionRequest *request,

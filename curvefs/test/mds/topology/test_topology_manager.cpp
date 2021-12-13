@@ -2310,6 +2310,52 @@ TEST_F(TestTopologyManager, test_ListPartition_Success) {
     ASSERT_EQ(2, response.partitioninfolist().size());
 }
 
+TEST_F(TestTopologyManager, test_ListPartitionOfFs_Success) {
+    FsIdType fsId = 0x01;
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType pId1 = 0x61;
+    PartitionIdType pId2 = 0x62;
+    PartitionIdType pId3 = 0x63;
+
+    Pool::RedundanceAndPlaceMentPolicy policy;
+    policy.replicaNum = 3;
+    policy.copysetNum = 0;
+    policy.zoneNum = 3;
+    PrepareAddPool(poolId, "pool1", policy);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
+                         8888);
+
+    std::set<MetaServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, poolId, replicas);
+    PrepareAddPartition(fsId, poolId, copysetId, pId1, 1, 100);
+    PrepareAddPartition(fsId, poolId, copysetId, pId2, 1, 100);
+    PrepareAddPartition(fsId + 1, poolId, copysetId, pId3, 1, 100);
+
+    std::list<PartitionInfo> list;
+    serviceManager_->ListPartitionOfFs(fsId, &list);
+    ASSERT_EQ(2, list.size());
+    for (auto item : list) {
+        ASSERT_THAT(item.partitionid(), AnyOf(pId1, pId2));
+    }
+}
+
 TEST_F(TestTopologyManager, test_ListPartitionEmpty_Success) {
     FsIdType fsId = 0x01;
     PoolIdType poolId = 0x11;
