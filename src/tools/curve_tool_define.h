@@ -34,6 +34,8 @@ DECLARE_uint64(rpcRetryTimes);
 DECLARE_string(snapshotCloneAddr);
 DECLARE_string(snapshotCloneDummyPort);
 DECLARE_uint64(chunkSize);
+DECLARE_string(userName);
+DECLARE_string(password);
 
 namespace curve {
 namespace tool {
