@@ -90,6 +90,11 @@ class InodeWrapper {
         dirty_ = true;
     }
 
+    uint64_t GetLength() const {
+        curve::common::UniqueLock lg(mtx_);
+        return inode_.length();
+    }
+
     void SetUid(uint32_t uid) {
         inode_.set_uid(uid);
         dirty_ = true;
