@@ -71,42 +71,73 @@ namespace brpc {
 DECLARE_int32(health_check_interval);
 }
 
+namespace curve {
+namespace tool {
+extern std::string rootUserName;
+extern std::string rootUserPassword;
+}  // namespace tool
+}  // namespace curve
+
 void UpdateFlagsFromConf(curve::common::Configuration* conf) {
     // 如果配置文件不存在的话不报错，以命令行为准,这是为了不强依赖配置
     // 如果配置文件存在并且没有指定命令行的话，就以配置文件为准
-    if (conf->LoadConfig()) {
-        google::CommandLineFlagInfo info;
-        if (GetCommandLineFlagInfo("mdsAddr", &info) && info.is_default) {
-            conf->GetStringValue("mdsAddr", &FLAGS_mdsAddr);
-        }
-        if (GetCommandLineFlagInfo("etcdAddr", &info) && info.is_default) {
-            conf->GetStringValue("etcdAddr", &FLAGS_etcdAddr);
-        }
-        if (GetCommandLineFlagInfo("rpcTimeout", &info) && info.is_default) {
-            conf->GetUInt64Value("rpcTimeout", &FLAGS_rpcTimeout);
-        }
-        if (GetCommandLineFlagInfo("rpcRetryTimes", &info) && info.is_default) {
-            conf->GetUInt64Value("rpcRetryTimes", &FLAGS_rpcRetryTimes);
-        }
-        if (GetCommandLineFlagInfo("rpcConcurrentNum", &info) &&
-                                                       info.is_default) {
-            conf->GetUInt64Value("rpcConcurrentNum", &FLAGS_rpcConcurrentNum);
-        }
-        if (GetCommandLineFlagInfo("snapshotCloneAddr", &info) &&
-                                                            info.is_default) {
-            conf->GetStringValue("snapshotCloneAddr", &FLAGS_snapshotCloneAddr);
-        }
-        if (GetCommandLineFlagInfo("snapshotCloneDummyPort", &info) &&
-                                                            info.is_default) {
-            conf->GetStringValue("snapshotCloneDummyPort",
-                                            &FLAGS_snapshotCloneDummyPort);
-        }
+    google::CommandLineFlagInfo info;
+    if (GetCommandLineFlagInfo("mdsAddr", &info) && info.is_default) {
+        conf->GetStringValue("mdsAddr", &FLAGS_mdsAddr);
+    }
+    if (GetCommandLineFlagInfo("etcdAddr", &info) && info.is_default) {
+        conf->GetStringValue("etcdAddr", &FLAGS_etcdAddr);
+    }
+    if (GetCommandLineFlagInfo("rpcTimeout", &info) && info.is_default) {
+        conf->GetUInt64Value("rpcTimeout", &FLAGS_rpcTimeout);
+    }
+    if (GetCommandLineFlagInfo("rpcRetryTimes", &info) && info.is_default) {
+        conf->GetUInt64Value("rpcRetryTimes", &FLAGS_rpcRetryTimes);
+    }
+    if (GetCommandLineFlagInfo("rpcConcurrentNum", &info) &&
+                                                    info.is_default) {
+        conf->GetUInt64Value("rpcConcurrentNum", &FLAGS_rpcConcurrentNum);
+    }
+    if (GetCommandLineFlagInfo("snapshotCloneAddr", &info) &&
+                                                        info.is_default) {
+        conf->GetStringValue("snapshotCloneAddr", &FLAGS_snapshotCloneAddr);
+    }
+    if (GetCommandLineFlagInfo("snapshotCloneDummyPort", &info) &&
+                                                        info.is_default) {
+        conf->GetStringValue("snapshotCloneDummyPort",
+                                        &FLAGS_snapshotCloneDummyPort);
+    }
+
+    if (GetCommandLineFlagInfo("userName", &info) &&
+        info.is_default) {
+        conf->GetStringValue("rootUserName", &FLAGS_userName);
+    }
+
+    if (GetCommandLineFlagInfo("password", &info) &&
+        info.is_default) {
+        conf->GetStringValue("rootUserPassword", &FLAGS_password);
     }
 }
 
+bool LoadRootUserNameAndPassword(curve::common::Configuration* conf) {
+    bool rc = conf->GetStringValue("rootUserName", &curve::tool::rootUserName);
+    if (!rc) {
+        std::cerr << "Missing rootUserName in '" << FLAGS_confPath << "'\n";
+        return false;
+    }
+
+    rc = conf->GetStringValue("rootUserPassword",
+                              &curve::tool::rootUserPassword);
+    if (!rc) {
+        std::cerr << "Mising rootUserPassword in '" << FLAGS_confPath << "'\n";
+        return false;
+    }
+
+    return true;
+}
 
 int main(int argc, char** argv) {
-    gflags::SetUsageMessage(kHelpStr);
+    google::SetUsageMessage(kHelpStr);
     google::ParseCommandLineFlags(&argc, &argv, true);
     google::InitGoogleLogging(argv[0]);
 
@@ -123,7 +154,16 @@ int main(int argc, char** argv) {
     std::string confPath = FLAGS_confPath.c_str();
     curve::common::Configuration conf;
     conf.SetConfigPath(confPath);
+    if (!conf.LoadConfig()) {
+        return -1;
+    }
+
+    if (!LoadRootUserNameAndPassword(&conf)) {
+        return -1;
+    }
+
     UpdateFlagsFromConf(&conf);
+
     // 关掉健康检查，否则Not Connect to的时候重试没有意义
     brpc::FLAGS_health_check_interval = -1;
     auto curveTool = curve::tool::CurveToolFactory::GenerateCurveTool(command);

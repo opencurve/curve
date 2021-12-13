@@ -33,4 +33,6 @@ etcdAddr={{ etcd_address | join(',') }}
 snapshotCloneAddr={{ snap_address | join(',') }}
 # snapshot clone server dummy port
 snapshotCloneDummyPort={{ hostvars[groups.snapshotclone[0]].snapshot_dummy_port }}
+rootUserName={{ curve_root_username }}
+rootUserPassword={{ curve_root_password }}
 {% endif -%}
