@@ -1608,7 +1608,14 @@ TEST_F(TestTopology, GetPartitionOfFs_success) {
         topology_->GetPartitionOfFs(0x01);
     ASSERT_EQ(2, partitionList.size());
     for (auto item : partitionList) {
-        ASSERT_THAT(item.GetPartitionId(), AnyOf(pId, pId+1));
+        ASSERT_THAT(item.GetPartitionId(), AnyOf(pId, pId + 1));
+    }
+
+    std::list<Partition> partitionList1 =
+        topology_->GetPartitionInfosInCopyset(csId);
+    ASSERT_EQ(3, partitionList1.size());
+    for (auto item : partitionList1) {
+        ASSERT_THAT(item.GetPartitionId(), AnyOf(pId, pId + 1, pId + 2));
     }
 }
 

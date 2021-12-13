@@ -22,6 +22,7 @@
 
 #include "curvefs/src/metaserver/inode_manager.h"
 #include <glog/logging.h>
+#include <list>
 #include "curvefs/src/common/define.h"
 #include "src/common/timeutility.h"
 
@@ -260,6 +261,10 @@ MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
     }
 
     return MetaStatusCode::OK;
+}
+
+void InodeManager::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
+    inodeStorage_->GetInodeIdList(inodeIdList);
 }
 }  // namespace metaserver
 }  // namespace curvefs

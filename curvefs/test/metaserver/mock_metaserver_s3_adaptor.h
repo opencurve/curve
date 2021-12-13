@@ -19,10 +19,11 @@
  * Created Date: 2021-8-16
  * Author: chengyi
  */
-#ifndef CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
-#define CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
+#ifndef CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_
+#define CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_
 
-#include "curvefs/src/metaserver/s3/client_s3_adaptor.h"
+#include <gmock/gmock.h>
+#include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -33,11 +34,12 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     ~MockS3ClientAdaptor() {}
 
     MOCK_METHOD2(Init,
-                 void(const S3ClientAdaptorOption option, S3Client *client));
-    MOCK_METHOD1(Delete, int(Inode *inode));
+                 void(const S3ClientAdaptorOption& option, S3Client* client));
+    MOCK_METHOD1(Delete, int(const Inode& inode));
+    MOCK_METHOD1(DeleteBatch, int(const Inode& inode));
 };
 
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
+#endif  // CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_

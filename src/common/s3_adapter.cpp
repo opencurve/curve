@@ -480,6 +480,40 @@ int S3Adapter::DeleteObject(const Aws::String &key) {
         return -1;
     }
 }
+
+int S3Adapter::DeleteObjects(const std::list<Aws::String>& keyList) {
+    Aws::S3::Model::DeleteObjectsRequest deleteObjectsRequest;
+    Aws::S3::Model::Delete deleteObjects;
+    for (const auto& key : keyList) {
+        Aws::S3::Model::ObjectIdentifier ObjIdent;
+        ObjIdent.SetKey(key);
+        deleteObjects.AddObjects(ObjIdent);
+    }
+
+    deleteObjects.SetQuiet(false);
+    deleteObjectsRequest.WithBucket(bucketName_).WithDelete(deleteObjects);
+    auto response = s3Client_->DeleteObjects(deleteObjectsRequest);
+    if (response.IsSuccess()) {
+        for (auto del : response.GetResult().GetDeleted()) {
+            LOG(INFO) << "delete ok : " << del.GetKey();
+        }
+
+        for (auto err : response.GetResult().GetErrors()) {
+            LOG(WARNING) << "delete err : " << err.GetKey() << " --> "
+                         << err.GetMessage();
+        }
+
+        if (response.GetResult().GetErrors().size() != 0) {
+            return -1;
+        }
+
+        return 0;
+    } else {
+        LOG(ERROR) << response.GetError().GetMessage() << "failed";
+        return -1;
+    }
+    return 0;
+}
 /*
     // object元数据单独更新还有问题，需要单独的s3接口来支持
 int S3Adapter::UpdateObjectMeta(const Aws::String &key,

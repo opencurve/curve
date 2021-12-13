@@ -68,6 +68,10 @@ class FsInfoWrapper {
         fsInfo_.set_status(status);
     }
 
+    void SetFsName(const std::string& name) {
+        fsInfo_.set_fsname(name);
+    }
+
     FSType GetFsType() const {
         return fsInfo_.fstype();
     }

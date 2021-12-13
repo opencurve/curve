@@ -77,6 +77,10 @@ class Trash {
     virtual void ListItems(std::list<TrashItem> *items) = 0;
 
     virtual void ScanTrash() = 0;
+
+    virtual void StopScan() = 0;
+
+    virtual bool IsStop() = 0;
 };
 
 class TrashImpl : public Trash {
@@ -94,6 +98,10 @@ class TrashImpl : public Trash {
 
     void ScanTrash() override;
 
+    void StopScan() override;
+
+    bool IsStop() override;
+
  private:
     bool NeedDelete(const TrashItem &item);
 
@@ -110,6 +118,8 @@ class TrashImpl : public Trash {
     TrashOption options_;
 
     mutable Mutex scanMutex_;
+
+    bool isStop_;
 };
 
 }  // namespace metaserver

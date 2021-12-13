@@ -126,6 +126,11 @@ void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
                                &scheduleOption->metaserverCoolingTimeSec);
 }
 
+void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
+    conf_->GetValueFatalIfFail("mds.fsmanager.backEndThreadRunInterSec",
+                               &fsManagerOption->backEndThreadRunInterSec);
+}
+
 void MDS::Init() {
     LOG(INFO) << "Init MDS start";
 
@@ -142,9 +147,12 @@ void MDS::Init() {
     InitTopologyManager(options_.topologyOptions);
     InitCoordinator();
     InitHeartbeatManager();
+    FsManagerOption fsManagerOption;
+    InitFsManagerOptions(&fsManagerOption);
 
-    fsManager_ = std::make_shared<FsManager>(
-        fsStorage_, spaceClient_, metaserverClient_, topologyManager_);
+    fsManager_ =
+        std::make_shared<FsManager>(fsStorage_, spaceClient_, metaserverClient_,
+                                    topologyManager_, fsManagerOption);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
@@ -204,6 +212,7 @@ void MDS::Run() {
     topologyMetricService_->Run();
     coordinator_->Run();
     heartbeatManager_->Run();
+    fsManager_->Run();
 
     brpc::Server server;
     // add heartbeat service
@@ -244,8 +253,8 @@ void MDS::Stop() {
     heartbeatManager_->Stop();
     coordinator_->Stop();
     topologyMetricService_->Stop();
-    topology_->Stop();
     fsManager_->Uninit();
+    topology_->Stop();
 }
 
 void MDS::StartDummyServer() {

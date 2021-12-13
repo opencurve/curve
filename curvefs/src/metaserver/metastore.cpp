@@ -26,7 +26,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/metaserver/storage.h"
+
 namespace curvefs {
 namespace metaserver {
 MetaStoreImpl::MetaStoreImpl() {}
@@ -47,6 +49,15 @@ bool MetaStoreImpl::LoadPartition(uint32_t partitionId, void* entry) {
     partitionId = partitionInfo->partitionid();
     auto partition = std::make_shared<Partition>(*partitionInfo);
     partitionMap_.emplace(partitionId, partition);
+    if (partitionInfo->status() == PartitionStatus::DELETING) {
+        std::shared_ptr<PartitionCleaner> partitionCleaner =
+            std::make_shared<PartitionCleaner>(GetPartition(partitionId));
+        copyset::CopysetNode *copysetNode =
+            copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
+                partition->GetPoolId(), partition->GetCopySetId());
+        PartitionCleanManager::GetInstance().Add(partitionId, partitionCleaner,
+                                                 copysetNode);
+    }
     return true;
 }
 
@@ -222,6 +233,11 @@ bool MetaStoreImpl::Save(const std::string& path,
 
 bool MetaStoreImpl::Clear() {
     WriteLockGuard writeLockGuard(rwLock_);
+    for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
+        TrashManager::GetInstance().Remove(it->first);
+        it->second->ClearS3Compact();
+        PartitionCleanManager::GetInstance().Remove(it->first);
+    }
     partitionMap_.clear();
     return true;
 }
@@ -248,24 +264,46 @@ MetaStatusCode MetaStoreImpl::CreatePartition(
 MetaStatusCode MetaStoreImpl::DeletePartition(
     const DeletePartitionRequest* request, DeletePartitionResponse* response) {
     WriteLockGuard writeLockGuard(rwLock_);
-    MetaStatusCode status;
-    uint32_t partitionId = request->partition().partitionid();
+    uint32_t partitionId = request->partitionid();
     auto it = partitionMap_.find(partitionId);
     if (it == partitionMap_.end()) {
-        status = MetaStatusCode::PARTITION_NOT_FOUND;
-        response->set_statuscode(status);
-        return status;
+        LOG(WARNING) << "DeletePartition, partition is not found"
+                     << ", partitionId = " <<  partitionId;
+        response->set_statuscode(MetaStatusCode::PARTITION_NOT_FOUND);
+        return MetaStatusCode::PARTITION_NOT_FOUND;
     }
 
     if (it->second->IsDeletable()) {
+        LOG(INFO) << "DeletePartition, partition is deletable, delete it"
+                  << ", partitionId = " <<  partitionId;
+        TrashManager::GetInstance().Remove(partitionId);
+        it->second->ClearS3Compact();
         partitionMap_.erase(it);
-        status = MetaStatusCode::OK;
-    } else {
-        status = MetaStatusCode::PARTITION_BUSY;
+        response->set_statuscode(MetaStatusCode::OK);
+        return MetaStatusCode::OK;
     }
 
-    response->set_statuscode(status);
-    return status;
+    if (it->second->GetStatus() != PartitionStatus::DELETING) {
+        LOG(INFO) << "DeletePartition, set partition to deleting"
+                  << ", partitionId = " <<  partitionId;
+        it->second->ClearDentry();
+        std::shared_ptr<PartitionCleaner> partitionCleaner =
+            std::make_shared<PartitionCleaner>(GetPartition(partitionId));
+        copyset::CopysetNode *copysetNode =
+            copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
+                it->second->GetPoolId(), it->second->GetCopySetId());
+        PartitionCleanManager::GetInstance().Add(partitionId, partitionCleaner,
+                                                 copysetNode);
+        it->second->SetStatus(PartitionStatus::DELETING);
+        TrashManager::GetInstance().Remove(partitionId);
+        it->second->ClearS3Compact();
+    } else {
+        LOG(INFO) << "DeletePartition, partition is already deleting"
+                  << ", partitionId = " <<  partitionId;
+    }
+
+    response->set_statuscode(MetaStatusCode::PARTITION_DELETING);
+    return MetaStatusCode::PARTITION_DELETING;
 }
 
 std::list<PartitionInfo> MetaStoreImpl::GetPartitionInfoList() {
@@ -430,9 +468,9 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->CreateInode(
-        fsId, length, uid, gid, mode, type, symlink, rdev,
-        response->mutable_inode());
+    MetaStatusCode status =
+        partition->CreateInode(fsId, length, uid, gid, mode, type, symlink,
+                               rdev, response->mutable_inode());
     response->set_statuscode(status);
     if (status != MetaStatusCode::OK) {
         response->clear_inode();

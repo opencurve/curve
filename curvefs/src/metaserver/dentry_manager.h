@@ -50,6 +50,8 @@ class DentryManager {
                               std::vector<Dentry>* dentrys,
                               uint32_t limit);
 
+    void ClearDentry();
+
     MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);
 
  private:

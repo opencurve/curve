@@ -112,8 +112,11 @@ class FsManagerTest2 : public testing::Test {
                             std::make_shared<TopologyImpl>(idGenerator_,
                             tokenGenerator_, topoStorage_), metaServerClient_);
         // init fsmanager
+        FsManagerOption fsManagerOption;
+        fsManagerOption.backEndThreadRunInterSec = 1;
         fsManager_ = std::make_shared<FsManager>(storage_, spaceClient_,
-                                            metaServerClient_, topoManager_);
+                                            metaServerClient_, topoManager_,
+                                            fsManagerOption);
 
         spaceService_ = std::make_shared<MockSpaceService>();
         metaserverService_ = std::make_shared<MockMetaserverService>();

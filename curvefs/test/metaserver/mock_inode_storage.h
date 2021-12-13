@@ -24,7 +24,7 @@
 #define CURVEFS_TEST_METASERVER_MOCK_INODE_STORAGE_H_
 
 #include <gmock/gmock.h>
-
+#include <list>
 #include "curvefs/src/metaserver/inode_storage.h"
 
 namespace curvefs {
@@ -42,11 +42,10 @@ class MockInodeStorage : public InodeStorage {
     MOCK_METHOD0(Count, int());
     MOCK_METHOD0(GetContainer, InodeStorage::ContainerType*());
     MOCK_METHOD0(GetContainerData, InodeStorage::ContainerType());
+    MOCK_METHOD1(GetInodeIdList, void(std::list<uint64_t> *InodeIdList));
 };
-
 
 }  // namespace metaserver
 }  // namespace curvefs
-
 
 #endif  // CURVEFS_TEST_METASERVER_MOCK_INODE_STORAGE_H_

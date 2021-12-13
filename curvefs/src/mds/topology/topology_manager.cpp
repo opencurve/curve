@@ -847,6 +847,15 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
     }
 }
 
+void TopologyManager::ListPartitionOfFs(FsIdType fsId,
+                                        std::list<PartitionInfo>* list) {
+    for (auto &partition : topology_->GetPartitionOfFs(fsId)) {
+        list->emplace_back(partition.ToPartitionInfo());
+    }
+
+    return;
+}
+
 void TopologyManager::GetCopysetOfPartition(
     const GetCopysetOfPartitionRequest *request,
     GetCopysetOfPartitionResponse *response) {

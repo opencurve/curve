@@ -197,14 +197,13 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
     std::string fsName = request->fsname();
     LOG(INFO) << "DeleteFs request, fsName = " << fsName;
     FSStatusCode status = fsManager_->DeleteFs(fsName);
-    if (status != FSStatusCode::OK) {
-        response->set_statuscode(status);
+    response->set_statuscode(status);
+    if (status != FSStatusCode::OK && status != FSStatusCode::UNDER_DELETING) {
         LOG(ERROR) << "DeleteFs fail, fsName = " << fsName
                    << ", errCode = " << FSStatusCode_Name(status);
         return;
     }
 
-    response->set_statuscode(FSStatusCode::OK);
     LOG(INFO) << "DeleteFs success, fsName = " << fsName;
     return;
 }

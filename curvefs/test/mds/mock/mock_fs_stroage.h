@@ -46,6 +46,8 @@ class MockFsStorage : public FsStorage {
     MOCK_METHOD1(Insert, FSStatusCode(const FsInfoWrapper&));
     MOCK_METHOD1(Update, FSStatusCode(const FsInfoWrapper&));
     MOCK_METHOD1(Delete, FSStatusCode(const std::string&));
+    MOCK_METHOD2(Rename, FSStatusCode(const FsInfoWrapper&,
+                                      const FsInfoWrapper&));
     MOCK_METHOD1(Exist, bool(uint64_t));
     MOCK_METHOD1(Exist, bool(const std::string&));
     MOCK_METHOD0(NextFsId, uint64_t());

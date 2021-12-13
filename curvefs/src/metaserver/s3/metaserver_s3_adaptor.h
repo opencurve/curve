@@ -1,6 +1,3 @@
-#ifndef CURVEFS_SRC_METASERVER_S3_METASERVER_S3_ADAPTOR_H_
-#define CURVEFS_SRC_METASERVER_S3_METASERVER_S3_ADAPTOR_H_
-
 /*
  *  Copyright (c) 2020 NetEase Inc.
  *
@@ -22,8 +19,12 @@
  * Created Date: 2021-8-13
  * Author: chengyi
  */
-#include <string>
 
+#ifndef CURVEFS_SRC_METASERVER_S3_METASERVER_S3_ADAPTOR_H_
+#define CURVEFS_SRC_METASERVER_S3_METASERVER_S3_ADAPTOR_H_
+
+#include <string>
+#include <list>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/s3/metaserver_s3.h"
 
@@ -33,6 +34,8 @@ namespace metaserver {
 struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
+    uint64_t batchSize;
+    bool enableDeleteObjects;
 };
 
 class S3ClientAdaptor {
@@ -97,9 +100,26 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     int DeleteChunk(uint64_t fsId, uint64_t inodeId, uint64_t chunkId,
                     uint64_t compaction, uint64_t chunkPos, uint64_t length);
 
+    int DeleteInodeByDeleteSingleChunk(const Inode& inode);
+
+    int DeleteInodeByDeleteBatchChunk(const Inode& inode);
+
+    int DeleteS3ChunkInfoList(uint32_t fsId, uint64_t inodeId,
+                              const S3ChunkInfoList& s3ChunkInfolist);
+
+    void GenObjNameListForChunkInfoList(uint32_t fsId, uint64_t inodeId,
+                                        const S3ChunkInfoList& s3ChunkInfolist,
+                                        std::list<std::string>* objList);
+
+    void GenObjNameListForChunkInfo(uint32_t fsId, uint64_t inodeId,
+                                    const S3ChunkInfo& chunkInfo,
+                                    std::list<std::string>* objList);
+
     S3Client* client_;
     uint64_t blockSize_;
     uint64_t chunkSize_;
+    uint64_t batchSize_;
+    bool enableDeleteObjects_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

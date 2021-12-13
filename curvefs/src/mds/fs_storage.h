@@ -62,6 +62,9 @@ class FsStorage {
     virtual FSStatusCode Update(const FsInfoWrapper& fs) = 0;
     virtual FSStatusCode Delete(const std::string& fsName) = 0;
 
+    virtual FSStatusCode Rename(const FsInfoWrapper& oldFs,
+                                const FsInfoWrapper& newFs) = 0;
+
     virtual bool Exist(uint64_t fsId) = 0;
     virtual bool Exist(const std::string& fsName) = 0;
 
@@ -127,6 +130,18 @@ class MemoryFsStorage : public FsStorage {
     FSStatusCode Update(const FsInfoWrapper& fs) override;
 
     /**
+     * @brief rename fs from storage
+     *
+     * @param[in] oldFs: the old fs
+     *  @param[in] newFs: the new fs with new name
+     *
+     * @return If sucess, return OK;
+     *         If old fs not exist, return NOT_FOUND;
+     */
+    FSStatusCode Rename(const FsInfoWrapper& oldFs,
+                        const FsInfoWrapper& newFs) override;
+
+    /**
      * @brief check if fs is exist
      *
      * @param[in] fsId: the fsId of fs which need to check
@@ -179,6 +194,9 @@ class PersisKVStorage : public FsStorage {
     FSStatusCode Update(const FsInfoWrapper& fs) override;
     FSStatusCode Delete(const std::string& fsName) override;
 
+    FSStatusCode Rename(const FsInfoWrapper& oldFs,
+                        const FsInfoWrapper& newFs) override;
+
     bool Exist(uint64_t fsId) override;
     bool Exist(const std::string& fsName) override;
 
@@ -194,6 +212,9 @@ class PersisKVStorage : public FsStorage {
     bool PersitToStorage(const FsInfoWrapper& fs);
 
     bool RemoveFromStorage(const FsInfoWrapper& fs);
+
+    bool RenameFromStorage(const FsInfoWrapper& oldFs,
+                           const FsInfoWrapper& newFs);
 
  private:
     // for persist data

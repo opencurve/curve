@@ -43,6 +43,8 @@ using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
+using curvefs::metaserver::DeletePartitionRequest;
+using curvefs::metaserver::DeletePartitionResponse;
 using curvefs::metaserver::MetaStatusCode;
 using curvefs::metaserver::copyset::MockCliService2;
 using curvefs::metaserver::copyset::GetLeaderRequest2;
@@ -582,6 +584,171 @@ TEST_F(MetaserverClientTest, CreatePartitionRefreshLeaderSuccess) {
             Invoke(RpcService<curvefs::metaserver::CreatePartitionRequest,
                               curvefs::metaserver::CreatePartitionResponse>)));
     ASSERT_EQ(client.CreatePartition(0, 1, 2, 3, 1, 100, addrs),
+              FSStatusCode::OK);
+}
+
+TEST_F(MetaserverClientTest, DeletePartitionSuccess) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    MetaserverClient client(options);
+    std::set<std::string> addrs;
+    addrs.emplace(addr_);
+
+    curvefs::metaserver::DeletePartitionResponse response;
+    GetLeaderResponse2 GetLeaderResponse;
+
+    // metaserver return MetaStatusCode::OK
+    response.set_statuscode(MetaStatusCode::OK);
+    GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, DeletePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
+              FSStatusCode::OK);
+
+    // metaserver return MetaStatusCode::PARTITION_NOT_FOUND
+    response.set_statuscode(MetaStatusCode::PARTITION_NOT_FOUND);
+    GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, DeletePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
+              FSStatusCode::OK);
+
+    // metaserver return MetaStatusCode::PARTITION_DELETING
+    response.set_statuscode(MetaStatusCode::PARTITION_DELETING);
+    GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, DeletePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
+              FSStatusCode::UNDER_DELETING);
+}
+
+TEST_F(MetaserverClientTest, DeletePartitionGetLeaderFailed) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    MetaserverClient client(options);
+    std::set<std::string> addrs;
+    addrs.emplace(addr_);
+
+    curvefs::metaserver::DeletePartitionResponse response;
+    response.set_statuscode(MetaStatusCode::PARTITION_EXIST);
+    GetLeaderResponse2 GetLeaderResponse;
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
+              FSStatusCode::NOT_FOUND);
+}
+
+TEST_F(MetaserverClientTest, DeletePartitionFailed) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    MetaserverClient client(options);
+    std::set<std::string> addrs;
+    addrs.emplace(addr_);
+
+    curvefs::metaserver::DeletePartitionResponse response;
+    response.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
+    GetLeaderResponse2 GetLeaderResponse;
+    GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, DeletePartition(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
+              FSStatusCode::DELETE_PARTITION_ERROR);
+}
+
+TEST_F(MetaserverClientTest, DeletePartitionRetrySuccess) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    options.rpcRetryTimes = 3;
+    MetaserverClient client(options);
+    std::set<std::string> addrs;
+    addrs.emplace(addr_);
+
+    curvefs::metaserver::DeletePartitionResponse response, response1;
+    response.set_statuscode(MetaStatusCode::OVERLOAD);
+    response1.set_statuscode(MetaStatusCode::OK);
+    GetLeaderResponse2 GetLeaderResponse;
+    GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, DeletePartition(_, _, _, _))
+        .Times(2)
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response1),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
+              FSStatusCode::OK);
+}
+
+TEST_F(MetaserverClientTest, DeletePartitionRefreshLeaderSuccess) {
+    MetaserverOptions options;
+    options.metaserverAddr = addr_;
+    options.rpcTimeoutMs = 500;
+    options.rpcRetryTimes = 3;
+    MetaserverClient client(options);
+    std::set<std::string> addrs;
+    addrs.emplace(addr_);
+
+    curvefs::metaserver::DeletePartitionResponse response, response1;
+    response.set_statuscode(MetaStatusCode::REDIRECTED);
+    response1.set_statuscode(MetaStatusCode::OK);
+    GetLeaderResponse2 GetLeaderResponse;
+    GetLeaderResponse.mutable_leader()->set_address(addr_ + ":0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(GetLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, DeletePartition(_, _, _, _))
+        .Times(2)
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response1),
+            Invoke(RpcService<curvefs::metaserver::DeletePartitionRequest,
+                              curvefs::metaserver::DeletePartitionResponse>)));
+    ASSERT_EQ(client.DeletePartition(0, 1, 2, addrs),
               FSStatusCode::OK);
 }
 

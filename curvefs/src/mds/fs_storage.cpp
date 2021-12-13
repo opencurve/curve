@@ -102,6 +102,32 @@ FSStatusCode MemoryFsStorage::Update(const FsInfoWrapper& fs) {
     return FSStatusCode::OK;
 }
 
+FSStatusCode MemoryFsStorage::Rename(const FsInfoWrapper& oldFs,
+                                     const FsInfoWrapper& newFs) {
+    WriteLockGuard writeLockGuard(rwLock_);
+    auto it = fsInfoMap_.find(oldFs.GetFsName());
+    if (it == fsInfoMap_.end()) {
+        return FSStatusCode::NOT_FOUND;
+    }
+
+    auto it1 = fsInfoMap_.find(newFs.GetFsName());
+    if (it1 != fsInfoMap_.end()) {
+        return FSStatusCode::FS_EXIST;
+    }
+
+    if (it->second.GetFsId() != oldFs.GetFsId()) {
+        return FSStatusCode::FS_ID_MISMATCH;
+    }
+
+    if (oldFs.GetFsId() != newFs.GetFsId()) {
+        return FSStatusCode::FS_ID_MISMATCH;
+    }
+
+    fsInfoMap_.erase(oldFs.GetFsName());
+    fsInfoMap_.emplace(newFs.GetFsName(), newFs);
+    return FSStatusCode::OK;
+}
+
 bool MemoryFsStorage::Exist(uint64_t fsId) {
     ReadLockGuard readLockGuard(rwLock_);
     for (const auto& it : fsInfoMap_) {
@@ -127,6 +153,7 @@ uint64_t MemoryFsStorage::NextFsId() {
 }
 
 void MemoryFsStorage::GetAll(std::vector<FsInfoWrapper>* fsInfoVec) {
+    ReadLockGuard readLockGuard(rwLock_);
     for (const auto& it : fsInfoMap_) {
         fsInfoVec->push_back(it.second);
     }
@@ -239,6 +266,53 @@ FSStatusCode PersisKVStorage::Delete(const std::string& fsName) {
     return FSStatusCode::OK;
 }
 
+FSStatusCode PersisKVStorage::Rename(const FsInfoWrapper& oldFs,
+                                     const FsInfoWrapper& newFs) {
+    WriteLockGuard idLock(idToNameLock_);
+    WriteLockGuard fsLock(fsLock_);
+    auto iter = fs_.find(oldFs.GetFsName());
+    if (iter == fs_.end()) {
+        LOG(ERROR) << "old fsname not found, fsName: " << oldFs.GetFsName();
+        return FSStatusCode::NOT_FOUND;
+    }
+
+    if (iter->second.GetFsId() != oldFs.GetFsId()) {
+        LOG(ERROR) << "fs id not match, fs id in cache: "
+                   << iter->second.GetFsId()
+                   << ", old fs id : " << oldFs.GetFsId()
+                   << ", old fsName: " << oldFs.GetFsName();
+        return FSStatusCode::FS_ID_MISMATCH;
+    }
+
+    auto iter1 = fs_.find(newFs.GetFsName());
+    if (iter1 != fs_.end()) {
+        LOG(ERROR) << "new fsname exist, fsName: " << newFs.GetFsName();
+        return FSStatusCode::FS_EXIST;
+    }
+
+    if (oldFs.GetFsId() != newFs.GetFsId()) {
+        LOG(ERROR) << "fs id not match, fs id in oldfs: "
+                   << oldFs.GetFsId()
+                   << ", fs id in newfs: " << oldFs.GetFsId()
+                   << ", old fsName: " << oldFs.GetFsName()
+                   << ", new fsName: " << newFs.GetFsName();
+        return FSStatusCode::FS_ID_MISMATCH;
+    }
+
+
+    if (!RenameFromStorage(oldFs, newFs)) {
+        LOG(ERROR) << "Rename fs from storage failed, old fsName: "
+                   << oldFs.GetFsName() << ", new fsName = "
+                   << newFs.GetFsName();
+        return FSStatusCode::STORAGE_ERROR;
+    }
+
+    fs_.erase(iter);
+    fs_.emplace(newFs.GetFsName(), newFs);
+    idToName_[newFs.GetFsId()] = newFs.GetFsName();
+    return FSStatusCode::OK;
+}
+
 bool PersisKVStorage::Exist(uint64_t fsId) {
     std::string name;
     if (!FsIDToName(fsId, &name)) {
@@ -328,6 +402,42 @@ bool PersisKVStorage::RemoveFromStorage(const FsInfoWrapper& fs) {
     if (ret != EtcdErrCode::EtcdOK) {
         LOG(ERROR) << "Remove fs from storage failed, fsName: "
                    << fs.GetFsName();
+        return false;
+    }
+
+    return true;
+}
+
+bool PersisKVStorage::RenameFromStorage(const FsInfoWrapper& oldFs,
+                                        const FsInfoWrapper& newFs) {
+    std::string oldKey = codec::EncodeFsName(oldFs.GetFsName());
+    std::string newKey = codec::EncodeFsName(newFs.GetFsName());
+
+    std::string newValue;
+    if (!codec::EncodeProtobufMessage(newFs.fsInfo_, &newValue)) {
+        LOG(ERROR) << "Encode fs info failed, fsName: " << newFs.GetFsName();
+        return false;
+    }
+
+    Operation op1{
+        OpType::OpDelete,
+        const_cast<char*>(oldKey.c_str()),
+        const_cast<char*>(""),
+        oldKey.size(),
+        0};
+    Operation op2{
+        OpType::OpPut,
+        const_cast<char*>(newKey.c_str()),
+        const_cast<char*>(newValue.c_str()),
+        newKey.size(),
+        newValue.size()};
+    std::vector<Operation> ops{op1, op2};
+    int ret = storage_->TxnN(ops);
+    if (ret != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "rename fs from storage failed, old fsName: "
+                   << oldFs.GetFsName() << ", new fsName:"
+                   << newFs.GetFsName() << ", fsId = "
+                   << oldFs.GetFsId();
         return false;
     }
 

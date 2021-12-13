@@ -25,16 +25,16 @@
 #include <list>
 #include <memory>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/src/common/define.h"
 #include "curvefs/src/metaserver/dentry_manager.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3compact.h"
-#include "curvefs/src/common/define.h"
-
+#include "curvefs/src/metaserver/trash_manager.h"
 namespace curvefs {
 namespace metaserver {
 using curvefs::common::PartitionInfo;
@@ -46,6 +46,8 @@ class Partition {
  public:
     explicit Partition(const PartitionInfo& paritionInfo);
 
+    ~Partition() {}
+
     // dentry
     MetaStatusCode CreateDentry(const Dentry& dentry, bool isLoadding = false);
 
@@ -54,8 +56,9 @@ class Partition {
     MetaStatusCode GetDentry(Dentry* dentry);
 
     MetaStatusCode ListDentry(const Dentry& dentry,
-                              std::vector<Dentry>* dentrys,
-                              uint32_t limit);
+                              std::vector<Dentry>* dentrys, uint32_t limit);
+
+    void ClearDentry();
 
     MetaStatusCode HandleRenameTx(const std::vector<Dentry>& dentrys);
 
@@ -78,6 +81,8 @@ class Partition {
 
     MetaStatusCode InsertInode(const Inode& inode);
 
+    void GetInodeIdList(std::list<uint64_t>* InodeIdList);
+
     // if patition has no inode or no dentry, it is deletable
     bool IsDeletable();
 
@@ -88,6 +93,12 @@ class Partition {
     bool IsInodeBelongs(uint32_t fsId);
 
     uint32_t GetPartitionId();
+
+    uint32_t GetPoolId() { return partitionInfo_.poolid(); }
+
+    uint32_t GetCopySetId() { return partitionInfo_.copysetid(); }
+
+    uint32_t GetFsId() { return partitionInfo_.fsid(); }
 
     PartitionInfo GetPartitionInfo();
 
@@ -102,6 +113,14 @@ class Partition {
     uint32_t GetInodeNum();
 
     uint32_t GetDentryNum();
+
+    void SetStatus(PartitionStatus status) {
+        partitionInfo_.set_status(status);
+    }
+
+    PartitionStatus GetStatus() { return partitionInfo_.status(); }
+
+    void ClearS3Compact() { s3compact_ = nullptr; }
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;

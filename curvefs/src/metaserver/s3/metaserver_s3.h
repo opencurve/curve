@@ -24,7 +24,7 @@
 
 #include <memory>
 #include <string>
-
+#include <list>
 #include "src/common/s3_adapter.h"
 
 namespace curvefs {
@@ -35,6 +35,7 @@ class S3Client {
     virtual ~S3Client() {}
     virtual void Init(const curve::common::S3AdapterOption& option) = 0;
     virtual int Delete(const std::string& name) = 0;
+    virtual int DeleteBatch(const std::list<std::string>& nameList) = 0;
 };
 
 class S3ClientImpl : public S3Client {
@@ -55,6 +56,8 @@ class S3ClientImpl : public S3Client {
      * @details
      */
     int Delete(const std::string& name) override;
+
+    int DeleteBatch(const std::list<std::string>& nameList) override;
 
  private:
     std::shared_ptr<curve::common::S3Adapter> s3Adapter_;

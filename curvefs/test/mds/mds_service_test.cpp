@@ -101,9 +101,12 @@ class MdsServiceTest : public ::testing::Test {
         topoManager_ = std::make_shared<MockTopologyManager>(
                             std::make_shared<TopologyImpl>(idGenerator_,
                             tokenGenerator_, topoStorage_), metaserverClient_);
-        // init famanager
+        // init fsmanager
+        FsManagerOption fsManagerOption;
+        fsManagerOption.backEndThreadRunInterSec = 1;
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
-                                            metaserverClient_, topoManager_);
+                                            metaserverClient_, topoManager_,
+                                            fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
         return;
     }

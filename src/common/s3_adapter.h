@@ -23,6 +23,7 @@
 #ifndef SRC_COMMON_S3_ADAPTER_H_
 #define SRC_COMMON_S3_ADAPTER_H_
 #include <map>
+#include <list>
 #include <string>
 #include <memory>
 #include <mutex>
@@ -43,6 +44,9 @@
 #include <aws/s3/model/UploadPartRequest.h>  //NOLINT
 #include <aws/s3/model/CompleteMultipartUploadRequest.h>  //NOLINT
 #include <aws/s3/model/AbortMultipartUploadRequest.h>   //NOLINT
+#include <aws/s3/model/ObjectIdentifier.h>   //NOLINT
+#include <aws/s3/model/Delete.h>   //NOLINT
+#include <aws/s3/model/DeleteObjectsRequest.h>  //NOLINT
 #include <aws/core/http/HttpRequest.h>  //NOLINT
 #include <aws/s3/model/CompletedPart.h>  //NOLINT
 #include <aws/core/http/Scheme.h>  //NOLINT
@@ -224,6 +228,8 @@ class S3Adapter {
      * @return: 0 删除成功/ -
      */
     virtual int DeleteObject(const Aws::String &key);
+
+    virtual int DeleteObjects(const std::list<Aws::String>& keyList);
     /**
      * 判断对象是否存在
      * @param 对象名

@@ -92,6 +92,12 @@ MetaStatusCode DentryManager::ListDentry(const Dentry& dentry,
     return rc;
 }
 
+void DentryManager::ClearDentry() {
+    dentryStorage_->Clear();
+    LOG(INFO) << "ClearDentry ok";
+    return;
+}
+
 MetaStatusCode DentryManager::HandleRenameTx(
     const std::vector<Dentry>& dentrys) {
     for (const auto& dentry : dentrys) {
