@@ -318,19 +318,16 @@ class MockTopology : public TopologyImpl {
     MOCK_CONST_METHOD2(GetCopySetInfosInPool,
                        std::vector<CopySetInfo>(PoolIdType poolId,
                                                 CopySetFilter filter));
-
-    // choose randomly
-    MOCK_CONST_METHOD2(
-        ChooseSinglePoolRandom,
-        TopoStatusCode(PoolIdType *data,
-                       const std::set<PoolIdType> &unavailablePools));
     MOCK_CONST_METHOD4(
-        ChooseZonesInPool,
-        TopoStatusCode(PoolIdType poolId, std::set<ZoneIdType> *zones,
-                       const std::set<ZoneIdType> unavailableZones, int count));
-    MOCK_CONST_METHOD2(ChooseSingleMetaServerInZone,
-                       TopoStatusCode(ZoneIdType zoneId,
-                                      MetaServerIdType *msId));
+        ChooseRecoveredMetaServer,
+        TopoStatusCode(PoolIdType poolId,
+        const std::set<ZoneIdType> &unavailableZones,
+        const std::set<MetaServerIdType> &unavailableMs,
+        MetaServerIdType *target));
+
+    MOCK_METHOD2(ChooseAvailableMetaServers,
+                TopoStatusCode(std::set<MetaServerIdType> *metaServers,
+                PoolIdType *poolId));
 };
 
 class MockTopologyManager : public TopologyManager {

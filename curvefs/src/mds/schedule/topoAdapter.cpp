@@ -298,34 +298,16 @@ bool TopoAdapterImpl::CreateCopySetAtMetaServer(CopySetKey id,
                                                        msId);
 }
 
-bool TopoAdapterImpl::ChooseZoneInPool(
-    PoolIdType poolId, ZoneIdType *zoneId,
-    const std::set<ZoneIdType> &excludeZones) {
-    std::set<ZoneIdType> zones;
-    int needZoneNum = 1;
-    TopoStatusCode ret =
-        topo_->ChooseZonesInPool(poolId, &zones, excludeZones, needZoneNum);
-    if (ret != TopoStatusCode::TOPO_OK || zones.size() <= 0) {
-        return false;
-    }
-
-    *zoneId = *zones.begin();
-    return true;
+bool TopoAdapterImpl::ChooseRecoveredMetaServer(
+    PoolIdType poolId,
+    const std::set<ZoneIdType> &excludeZones,
+    const std::set<MetaServerIdType> &excludeMetaservers,
+    MetaServerIdType *target) {
+    TopoStatusCode ret = topo_->ChooseRecoveredMetaServer(poolId, excludeZones,
+        excludeMetaservers, target);
+    return ret == TopoStatusCode::TOPO_OK;
 }
 
-bool TopoAdapterImpl::ChooseSingleMetaServerInZone(
-    ZoneIdType zoneId, MetaServerIdType *metaServerId,
-    const std::set<MetaServerIdType> &excludeMetaservers) {
-    MetaServerIdType tmpMetaserverId;
-    TopoStatusCode ret = topo_->ChooseSingleMetaServerInZone(
-        zoneId, &tmpMetaserverId, excludeMetaservers);
-    if (ret != TopoStatusCode::TOPO_OK) {
-        return false;
-    }
-
-    *metaServerId = tmpMetaserverId;
-    return true;
-}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

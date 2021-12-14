@@ -74,12 +74,11 @@ class MockTopoAdapter : public TopoAdapter {
 
     MOCK_METHOD1(GetMetaServersInPool, std::vector<MetaServerInfo>(PoolIdType));
 
-    MOCK_METHOD3(ChooseZoneInPool,
-                 bool(PoolIdType poolId, ZoneIdType *zoneId,
-                      const std::set<ZoneIdType> &excludeZones));
-    MOCK_METHOD3(ChooseSingleMetaServerInZone,
-                 bool(ZoneIdType zoneId, MetaServerIdType *metaServerId,
-                      const std::set<MetaServerIdType> &excludeMetaservers));
+    MOCK_METHOD4(ChooseRecoveredMetaServer,
+               bool(PoolIdType poolId,
+               const std::set<ZoneIdType> &excludeZones,
+               const std::set<MetaServerIdType> &excludeMetaservers,
+               MetaServerIdType *target));
 };
 }  // namespace schedule
 }  // namespace mds

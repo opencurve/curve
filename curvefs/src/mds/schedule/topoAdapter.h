@@ -260,12 +260,10 @@ class TopoAdapter {
         const ::curvefs::mds::topology::MetaServer &origin,
         ::curvefs::mds::schedule::MetaServerInfo *out) = 0;
 
-    virtual bool ChooseZoneInPool(PoolIdType poolId, ZoneIdType *zoneId,
-                                  const std::set<ZoneIdType> &excludeZones) = 0;
-
-    virtual bool ChooseSingleMetaServerInZone(
-        ZoneIdType zoneId, MetaServerIdType *metaServerId,
-        const std::set<MetaServerIdType> &excludeMetaservers) = 0;
+    virtual bool ChooseRecoveredMetaServer(PoolIdType poolId,
+        const std::set<ZoneIdType> &excludeZones,
+        const std::set<MetaServerIdType> &excludeMetaservers,
+        MetaServerIdType *target) = 0;
 };
 
 // implementation of virtual class TopoAdapter
@@ -305,12 +303,10 @@ class TopoAdapterImpl : public TopoAdapter {
         const ::curvefs::mds::topology::MetaServer &origin,
         ::curvefs::mds::schedule::MetaServerInfo *out) override;
 
-    bool ChooseZoneInPool(PoolIdType poolId, ZoneIdType *zoneId,
-                          const std::set<ZoneIdType> &excludeZones) override;
-
-    bool ChooseSingleMetaServerInZone(
-        ZoneIdType zoneId, MetaServerIdType *metaServerId,
-        const std::set<MetaServerIdType> &excludeMetaservers) override;
+    bool ChooseRecoveredMetaServer(PoolIdType poolId,
+        const std::set<ZoneIdType> &excludeZones,
+        const std::set<MetaServerIdType> &excludeMetaservers,
+        MetaServerIdType *target) override;
 
  private:
     bool GetPeerInfo(MetaServerIdType id, PeerInfo *peerInfo);
