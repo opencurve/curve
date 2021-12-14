@@ -30,6 +30,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
@@ -200,23 +201,22 @@ class Topology {
                                                       [](const Partition &) {
                                                           return true;
                                                       }) const = 0;
+
     virtual std::list<Partition> GetPartitionInfosInPool(
         PoolIdType poolId, PartitionFilter filter = [](const Partition &) {
             return true;
         }) const = 0;
 
-    // choose randomly
-    virtual TopoStatusCode ChooseSinglePoolRandom(
-        PoolIdType *out,
-        const std::set<PoolIdType> &unavailablePools) const = 0;
+    virtual TopoStatusCode ChooseRecoveredMetaServer(
+        PoolIdType poolId,
+        const std::set<ZoneIdType> &unavailableZones,
+        const std::set<MetaServerIdType> &unavailableMs,
+        MetaServerIdType *target) = 0;
 
-    virtual TopoStatusCode ChooseZonesInPool(
-        PoolIdType poolId, std::set<ZoneIdType> *zones,
-        const std::set<ZoneIdType> &unavailableZones, int count) const = 0;
+    virtual TopoStatusCode ChooseAvailableMetaServers(
+        std::set<MetaServerIdType> *metaServers,
+        PoolIdType *poolId) = 0;
 
-    virtual TopoStatusCode ChooseSingleMetaServerInZone(
-        ZoneIdType zoneId, MetaServerIdType *metaServerId,
-        const std::set<MetaServerIdType> &excludeMetaservers = {}) const = 0;
     virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
 
     virtual std::vector<CopySetInfo> ListCopysetInfo() const = 0;
@@ -411,19 +411,15 @@ class TopologyImpl : public Topology {
                                                          return true;
                                                      }) const override;
 
-    // choose random
-    TopoStatusCode ChooseSinglePoolRandom(
-        PoolIdType *out,
-        const std::set<PoolIdType> &unavailablePools) const override;
+    TopoStatusCode ChooseRecoveredMetaServer(
+        PoolIdType poolId,
+        const std::set<ZoneIdType> &unavailableZones,
+        const std::set<MetaServerIdType> &unavailableMs,
+        MetaServerIdType *target) override;
 
-    TopoStatusCode ChooseZonesInPool(
-        PoolIdType poolId, std::set<ZoneIdType> *zones,
-        const std::set<ZoneIdType> &unavailableZones, int count) const override;
-
-    TopoStatusCode ChooseSingleMetaServerInZone(
-        ZoneIdType zoneId, MetaServerIdType *metaServerId,
-        const std::set<MetaServerIdType> &excludeMetaservers = {})
-        const override;
+    TopoStatusCode ChooseAvailableMetaServers(
+        std::set<MetaServerIdType> *metaServers,
+        PoolIdType *poolId) override;
 
     uint32_t GetPartitionNumberOfFs(FsIdType fsId);
 
@@ -448,8 +444,6 @@ class TopologyImpl : public Topology {
     void FlushCopySetToStorage();
 
     void FlushMetaServerToStorage();
-
-    int GetOneRandomNumber(int start, int end) const;
 
  private:
     std::unordered_map<PoolIdType, Pool> poolMap_;

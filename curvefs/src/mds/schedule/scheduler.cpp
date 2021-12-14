@@ -85,28 +85,11 @@ MetaServerIdType Scheduler::SelectBestPlacementMetaServer(
         return UNINITIALIZE_ID;
     }
 
-    while (true) {
-        ZoneIdType zoneId;
-        bool ret = topo_->ChooseZoneInPool(poolId, &zoneId, excludeZones);
-        if (!ret) {
-            LOG(WARNING) << "Select Zone failed, poolId = " << poolId;
-            return UNINITIALIZE_ID;
-        }
-
-        MetaServerIdType metaServerId;
-        ret = topo_->ChooseSingleMetaServerInZone(zoneId, &metaServerId,
-                                                  excludeMetaservers);
-        if (!ret) {
-            LOG(WARNING) << "Select metaServer failed, zoneId = " << zoneId;
-            excludeZones.emplace(zoneId);
-            continue;
-        }
-
-        if (opController_->Exceed(metaServerId)) {
-            excludeMetaservers.emplace(metaServerId);
-            continue;
-        }
-        return metaServerId;
+    MetaServerIdType target;
+    bool ret = topo_->ChooseRecoveredMetaServer(poolId, excludeZones,
+        excludeMetaservers, &target);
+    if (ret) {
+        return target;
     }
 
     return UNINITIALIZE_ID;

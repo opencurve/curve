@@ -717,77 +717,27 @@ bool TopologyManager::CreateCopysetNodeOnMetaServer(
 
 TopoStatusCode TopologyManager::CreateCopyset() {
     PoolIdType poolId;
-    std::set<PoolIdType> unavailablePools;
-
     std::set<MetaServerIdType> metaServerIds;
     std::set<std::string> metaServerAddrs;
-    uint16_t replicaNum;
-    do {
-        metaServerIds.clear();
-        metaServerAddrs.clear();
-        TopoStatusCode ret =
-            topology_->ChooseSinglePoolRandom(&poolId, unavailablePools);
-        if (TopoStatusCode::TOPO_OK != ret) {
-            LOG(ERROR) << "Select Pool failed when create partition"
-                       << ", error msg = " << TopoStatusCode_Name(ret);
-            return ret;
+    TopoStatusCode ret = topology_->ChooseAvailableMetaServers(&metaServerIds,
+        &poolId);
+    if (TopoStatusCode::TOPO_OK != ret) {
+        LOG(ERROR) << "choose metaserver failed when create copyset"
+                    << ", error msg = " << TopoStatusCode_Name(ret);
+        return ret;
+    }
+
+    for (const auto &it : metaServerIds) {
+        MetaServer metaServer;
+        if (topology_->GetMetaServer(it, &metaServer)) {
+            metaServerAddrs.emplace(
+                metaServer.GetInternalHostIp() + ":" +
+                std::to_string(metaServer.GetInternalPort()));
+        } else {
+            LOG(ERROR) << "get metaserver failed, metaserverId = " << it;
+            return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
         }
-
-        Pool pool;
-        if (!topology_->GetPool(poolId, &pool)) {
-            LOG(ERROR) << "Get pool failed.";
-            return TopoStatusCode::TOPO_POOL_NOT_FOUND;
-        }
-
-        replicaNum = pool.GetReplicaNum();
-        int needZoneNum = replicaNum;
-        std::set<ZoneIdType> zones;
-        std::set<ZoneIdType> unavailableZones;
-        do {
-            ret = topology_->ChooseZonesInPool(poolId, &zones, unavailableZones,
-                                               needZoneNum);
-            if (TopoStatusCode::TOPO_OK != ret) {
-                LOG(WARNING) << "Select Zone failed when create partition"
-                             << "poolId = " << poolId
-                             << ", erro msg = " << TopoStatusCode_Name(ret);
-                unavailablePools.emplace(poolId);
-                break;
-            }
-
-            for (auto zoneId : zones) {
-                MetaServerIdType metaServerId;
-                ret = topology_->ChooseSingleMetaServerInZone(zoneId,
-                                                              &metaServerId);
-                if (TopoStatusCode::TOPO_OK != ret) {
-                    LOG(WARNING) << "Select metaServer failed when create"
-                                 << " partition zoneId = " << zoneId
-                                 << ", erro msg = " << TopoStatusCode_Name(ret);
-                    unavailableZones.emplace(zoneId);
-
-                    continue;
-                }
-
-                MetaServer metaServer;
-                if (topology_->GetMetaServer(metaServerId, &metaServer)) {
-                    metaServerAddrs.emplace(
-                        metaServer.GetInternalHostIp() + ":" +
-                        std::to_string(metaServer.GetInternalPort()));
-                } else {
-                    LOG(ERROR) << "Get metaserver failed.";
-                    return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
-                }
-                metaServerIds.emplace(metaServerId);
-            }
-            needZoneNum = replicaNum - metaServerAddrs.size();
-
-            if (metaServerAddrs.size() != replicaNum) {
-                LOG(WARNING) << "Have invalid metaserver number when create"
-                             << " copyset. metaserver number = "
-                             << metaServerAddrs.size()
-                             << ", replicanum = " << replicaNum;
-            }
-        } while (metaServerAddrs.size() < replicaNum);
-    } while (metaServerAddrs.size() < replicaNum);
+    }
 
     // send create copyset request
     std::set<CopySetIdType> copysetIds;

@@ -246,10 +246,8 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInPool(_))
             .WillOnce(Return(3));
         std::map<MetaServerIdType, int> map1{{3, 1}};
-        EXPECT_CALL(*topoAdapter_, ChooseZoneInPool(_, _, _))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*topoAdapter_, ChooseSingleMetaServerInZone(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<1>(4), Return(true)));
+        EXPECT_CALL(*topoAdapter_, ChooseRecoveredMetaServer(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<3>(4), Return(true)));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtMetaServer(_, _))
             .WillOnce(Return(true));
         recoverScheduler_->Schedule();
@@ -278,10 +276,8 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInPool(_))
             .WillOnce(Return(3));
         std::map<MetaServerIdType, int> map1{{3, 1}};
-        EXPECT_CALL(*topoAdapter_, ChooseZoneInPool(_, _, _))
-            .WillOnce(Return(true));
-        EXPECT_CALL(*topoAdapter_, ChooseSingleMetaServerInZone(_, _, _))
-            .WillOnce(DoAll(SetArgPointee<1>(4), Return(true)));
+        EXPECT_CALL(*topoAdapter_, ChooseRecoveredMetaServer(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<3>(4), Return(true)));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtMetaServer(_, _))
             .WillOnce(Return(false));
         recoverScheduler_->Schedule();
