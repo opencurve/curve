@@ -157,60 +157,65 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
 CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
     uint64_t fileSize = inode->length();
 
-    if (size <= fileSize) {
-        VLOG(6) << "Truncate size:" << size << " less or equal fileSize"
+    if (size < fileSize) {
+        VLOG(6) << "Truncate size:" << size << " less than fileSize:"
                 << fileSize;
+        FileCacheManagerPtr fileCacheManager =
+        fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inode->inodeid());
+        fileCacheManager->TruncateCache(size, fileSize);
+        return CURVEFS_ERROR::OK;
+    } else if (size == fileSize) {
+        return CURVEFS_ERROR::OK;
+    } else {
+        VLOG(6) << "Truncate size:" << size << " more than fileSize"
+                << fileSize;
+        uint64_t offset = fileSize;
+        uint64_t len = size - fileSize;
+        uint64_t index = offset / chunkSize_;
+        uint64_t chunkPos = offset % chunkSize_;
+        uint64_t n = 0;
+        uint64_t chunkId;
+        FSStatusCode ret;
+        uint64_t fsId = inode->fsid();
+        while (len > 0) {
+            if (chunkPos + len > chunkSize_) {
+                n = chunkSize_ - chunkPos;
+            } else {
+                n = len;
+            }
+            ret = AllocS3ChunkId(fsId, &chunkId);
+            if (ret != FSStatusCode::OK) {
+                LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
+                return CURVEFS_ERROR::INTERNAL;
+            }
+            S3ChunkInfo *tmp;
+            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
+            auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
+            if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
+                S3ChunkInfoList s3chunkInfoList;
+                tmp = s3chunkInfoList.add_s3chunks();
+                tmp->set_chunkid(chunkId);
+                tmp->set_offset(offset);
+                tmp->set_len(n);
+                tmp->set_size(n);
+                tmp->set_zero(true);
+                s3ChunkInfoMap->insert({index, s3chunkInfoList});
+            } else {
+                S3ChunkInfoList &s3chunkInfoList = s3chunkInfoListIter->second;
+                tmp = s3chunkInfoList.add_s3chunks();
+                tmp->set_chunkid(chunkId);
+                tmp->set_offset(offset);
+                tmp->set_len(n);
+                tmp->set_size(n);
+                tmp->set_zero(true);
+            }
+            len -= n;
+            index++;
+            chunkPos = (chunkPos + n) % chunkSize_;
+            offset += n;
+        }
         return CURVEFS_ERROR::OK;
     }
-
-    VLOG(6) << "Truncate size:" << size << " more than fileSize" << fileSize;
-
-    uint64_t offset = fileSize;
-    uint64_t len = size - fileSize;
-    uint64_t index = offset / chunkSize_;
-    uint64_t chunkPos = offset % chunkSize_;
-    uint64_t n = 0;
-    uint64_t chunkId;
-    FSStatusCode ret;
-    uint64_t fsId = inode->fsid();
-    while (len > 0) {
-        if (chunkPos + len > chunkSize_) {
-            n = chunkSize_ - chunkPos;
-        } else {
-            n = len;
-        }
-        ret = AllocS3ChunkId(fsId, &chunkId);
-        if (ret != FSStatusCode::OK) {
-            LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
-            return CURVEFS_ERROR::INTERNAL;
-        }
-        S3ChunkInfo* tmp;
-        auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
-        auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
-        if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
-            S3ChunkInfoList s3chunkInfoList;
-            tmp = s3chunkInfoList.add_s3chunks();
-            tmp->set_chunkid(chunkId);
-            tmp->set_offset(offset);
-            tmp->set_len(n);
-            tmp->set_size(n);
-            tmp->set_zero(true);
-            s3ChunkInfoMap->insert({index, s3chunkInfoList});
-        } else {
-            S3ChunkInfoList& s3chunkInfoList = s3chunkInfoListIter->second;
-            tmp = s3chunkInfoList.add_s3chunks();
-            tmp->set_chunkid(chunkId);
-            tmp->set_offset(offset);
-            tmp->set_len(n);
-            tmp->set_size(n);
-            tmp->set_zero(true);
-        }
-        len -= n;
-        index++;
-        chunkPos = (chunkPos + n) % chunkSize_;
-        offset += n;
-    }
-    return CURVEFS_ERROR::OK;
 }
 
 void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {

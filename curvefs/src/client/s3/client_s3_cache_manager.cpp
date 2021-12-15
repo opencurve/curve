@@ -140,11 +140,22 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
         tmp = fileCacheManagerMap_;
     }
     auto iter = tmp.begin();
-    VLOG(3) << "FsSync force:" << force;
+    VLOG(3) << "FsSync force: " << force;
     for (; iter != tmp.end(); iter++) {
         ret = iter->second->Flush(force);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "fs fssync error, ret:" << ret;
+        if (ret == CURVEFS_ERROR::OK) {
+            continue;
+        } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+            iter->second->ReleaseCache();
+            WriteLockGuard writeLockGuard(rwLock_);
+            auto iter1 = fileCacheManagerMap_.find(iter->first);
+            if (iter1 != fileCacheManagerMap_.end()) {
+                VLOG(9) << "Release FileCacheManager, inode id: "
+                        << iter1->second->GetInodeId();
+                fileCacheManagerMap_.erase(iter1);
+            }
+        } else {
+            LOG(ERROR) << "fs fssync error, ret: " << ret;
             return ret;
         }
 
@@ -820,13 +831,36 @@ void FileCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
 
 void FileCacheManager::ReleaseCache() {
     WriteLockGuard writeLockGuard(rwLock_);
-    auto iter = chunkCacheMap_.begin();
 
-    for (; iter != chunkCacheMap_.end(); iter++) {
-        iter->second->ReleaseCache(s3ClientAdaptor_);
+    for (auto& chunk : chunkCacheMap_) {
+        chunk.second->ReleaseCache();
     }
 
     chunkCacheMap_.clear();
+    return;
+}
+
+void FileCacheManager::TruncateCache(uint64_t offset, uint64_t fileSize) {
+    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+    uint64_t chunkIndex = offset / chunkSize;
+    uint64_t chunkPos = offset % chunkSize;
+    int chunkLen = 0;
+    uint64_t truncateLen = fileSize - offset;
+    //  Truncate processing according to chunk polling
+    while (truncateLen > 0) {
+        if (chunkPos + truncateLen > chunkSize) {
+            chunkLen = chunkSize - chunkPos;
+        } else {
+            chunkLen = truncateLen;
+        }
+        ChunkCacheManagerPtr chunkCacheManager =
+            FindOrCreateChunkCacheManager(chunkIndex);
+        chunkCacheManager->TruncateCache(chunkPos);
+        truncateLen -= chunkLen;
+        chunkIndex++;
+        chunkPos = (chunkPos + chunkLen) % chunkSize;
+    }
+
     return;
 }
 
@@ -1197,7 +1231,7 @@ void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
     return;
 }
 
-void ChunkCacheManager::ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor) {
+void ChunkCacheManager::ReleaseCache() {
     {
         WriteLockGuard writeLockGuard(rwLockWrite_);
 
@@ -1212,9 +1246,56 @@ void ChunkCacheManager::ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor) {
     WriteLockGuard writeLockGuard(rwLockRead_);
     auto iter = dataRCacheMap_.begin();
     for (; iter != dataRCacheMap_.end(); iter++) {
-        s3ClientAdaptor->GetFsCacheManager()->Delete(iter->second);
+        s3ClientAdaptor_->GetFsCacheManager()->Delete(iter->second);
     }
     dataRCacheMap_.clear();
+}
+
+void ChunkCacheManager::TruncateCache(uint64_t chunkPos) {
+    WriteLockGuard writeLockGuard(rwLockChunk_);
+
+    TruncateWriteCache(chunkPos);
+    TruncateReadCache(chunkPos);
+}
+
+void ChunkCacheManager::TruncateWriteCache(uint64_t chunkPos) {
+    WriteLockGuard writeLockGuard(rwLockWrite_);
+    auto rIter = dataWCacheMap_.rbegin();
+    for (; rIter != dataWCacheMap_.rend();) {
+        uint64_t dcChunkPos = rIter->second->GetChunkPos();
+        uint64_t dcLen = rIter->second->GetLen();
+        uint64_t dcActualLen = rIter->second->GetActualLen();
+        if (dcChunkPos >= chunkPos) {
+            s3ClientAdaptor_->GetFsCacheManager()->DataCacheNumFetchSub(1);
+            s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteDec(
+                dcActualLen);
+            dataWCacheMap_.erase(next(rIter).base());
+        } else if ((dcChunkPos < chunkPos) &&
+                   ((dcChunkPos + dcLen) > chunkPos)) {
+            rIter->second->Truncate(chunkPos - dcChunkPos);
+            s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteDec(
+                dcActualLen - rIter->second->GetActualLen());
+            break;
+        } else {
+            break;
+        }
+    }
+}
+
+void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
+    WriteLockGuard writeLockGuard(rwLockRead_);
+    auto rIter = dataRCacheMap_.rbegin();
+    for (; rIter != dataRCacheMap_.rend();) {
+        uint64_t dcChunkPos = (*rIter->second)->GetChunkPos();
+        uint64_t dcLen = (*rIter->second)->GetLen();
+        uint64_t dcActualLen = (*rIter->second)->GetActualLen();
+        if ((dcChunkPos + dcLen) > chunkPos) {
+            s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second);
+            dataRCacheMap_.erase(next(rIter).base());
+        } else {
+            break;
+        }
+    }
 }
 
 void ChunkCacheManager::ReleaseWriteDataCache(const DataCachePtr &dataCache) {
@@ -1243,7 +1324,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
     curve::common::LockGuard lg(flushMtx_);
     CURVEFS_ERROR ret;
     {
-        WriteLockGuard writeLockGuard(rwLockWrite_);
+        WriteLockGuard writeLockGuard(rwLockChunk_);
         tmp = dataWCacheMap_;
     }
     auto iter = tmp.begin();
@@ -1253,8 +1334,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
                 << ",chunkIndex:" << index_;
         assert(iter->second->IsDirty());
         ret = iter->second->Flush(inodeId, force);
-        if ((ret != CURVEFS_ERROR::OK) && (ret != CURVEFS_ERROR::NOFLUSH) &&
-            ret != CURVEFS_ERROR::NOTEXIST) {
+        if ((ret != CURVEFS_ERROR::OK) && (ret != CURVEFS_ERROR::NOFLUSH)) {
             LOG(WARNING) << "dataCache flush failed. ret:" << ret
                          << ",index:" << index_
                          << ",data chunkpos:" << iter->second->GetChunkPos();
@@ -1272,12 +1352,6 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
             } else {
                 VLOG(6) << "data cache is dirty.";
             }
-        } else if (ret == CURVEFS_ERROR::NOTEXIST) {
-            VLOG(9) << "ReleaseWriteDataCache chunkPos:"
-                    << iter->second->GetChunkPos()
-                    << ",len:" << iter->second->GetLen()
-                    << ",inodeId:" << inodeId << ",chunkIndex:" << index_;
-            ReleaseWriteDataCache(iter->second);
         }
     }
 
@@ -1611,7 +1685,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                     s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(
                         addByte);
                     chunkCacheManager_->UpdateWriteCacheMap(oldChunkPos, this);
-                    chunkCacheManager_->rwLockWrite_.Unlock();
+                     chunkCacheManager_->rwLockWrite_.Unlock();
                     return;
                 }
             }
@@ -1620,7 +1694,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
                   ---------------------       WriteData
             */
             chunkCacheManager_->rwLockWrite_.WRLock();
-                        oldSize = actualLen_;
+            oldSize = actualLen_;
             CopyBufToDataCache(0, chunkPos + len - chunkPos_,
                                 data + chunkPos_ - chunkPos);
             AddDataBefore(chunkPos_ - chunkPos, data);
@@ -1674,6 +1748,72 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
             return;
         }
     }
+    return;
+}
+
+void DataCache::Truncate(uint64_t size) {
+    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    uint32_t pageSize = s3ClientAdaptor_->GetPageSize();
+
+    curve::common::LockGuard lg(mtx_);
+    uint64_t truncatePos = chunkPos_ + size;
+    uint64_t truncateLen = len_ - size;
+    uint64_t blockIndex = truncatePos / blockSize;
+    uint64_t pageIndex = truncatePos % blockSize / pageSize;
+    uint64_t blockPos = truncatePos % blockSize;
+    int n, m, blockLen;
+    while (truncateLen > 0) {
+        if (blockPos + truncateLen > blockSize) {
+            n = blockSize - blockPos;
+        } else {
+            n = truncateLen;
+        }
+        PageDataMap &pdMap = dataMap_[blockIndex];
+        blockLen = n;
+        pageIndex = blockPos / pageSize;
+        uint64_t pagePos = blockPos % pageSize;
+        PageData *pageData = nullptr;
+        while (blockLen > 0) {
+            if (pagePos + blockLen > pageSize) {
+                m = pageSize - pagePos;
+            } else {
+                m = blockLen;
+            }
+
+            if (pagePos == 0) {
+                if (pdMap.count(pageIndex)) {
+                    pageData = pdMap[pageIndex];
+                    delete pageData->data;
+                    pdMap.erase(pageIndex);
+                    actualLen_ -= pageSize;
+                }
+            } else {
+                if (pdMap.count(pageIndex)) {
+                    pageData = pdMap[pageIndex];
+                    memset(pageData->data + pagePos, 0, m);
+                }
+            }
+            pageIndex++;
+            blockLen -= m;
+            pagePos = (pagePos + m) % pageSize;
+        }
+        if (pdMap.empty()) {
+            dataMap_.erase(blockIndex);
+        }
+        blockIndex++;
+        truncateLen -= n;
+        blockPos = (blockPos + n) % blockSize;
+    }
+
+    len_ = size;
+    uint64_t tmpActualLen;
+    if ((chunkPos_ + len_ - actualChunkPos_) % pageSize == 0) {
+        tmpActualLen = chunkPos_ + len_ - actualChunkPos_;
+    } else {
+        tmpActualLen =
+            ((chunkPos_ + len_ - actualChunkPos_) / pageSize + 1) * pageSize;
+    }
+    assert(tmpActualLen == actualLen_);
     return;
 }
 

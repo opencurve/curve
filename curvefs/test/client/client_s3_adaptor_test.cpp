@@ -399,7 +399,6 @@ TEST_F(ClientS3AdaptorTest, test_read_one_chunk) {
     char *buf = new char[len];
     char *tmpbuf = new char[len];
     memset(tmpbuf, 'a', len);
-    curve::common::S3Adapter *s3Adapter = new curve::common::S3Adapter();
 
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(*tmpbuf), Return(1 * 1024 * 1024)))
@@ -1029,20 +1028,132 @@ TEST_F(ClientS3AdaptorTest, test_read_more_chunks) {
     gObjectDataMaps.clear();
 }
 
-TEST_F(ClientS3AdaptorTest, test_truncate_small) {
+TEST_F(ClientS3AdaptorTest, test_truncate_small1) {
     curvefs::metaserver::Inode inode;
 
     InitInode(&inode);
     uint64_t offset = 0;
-    uint64_t len = 2 * 1024 * 1024;
+    uint64_t len = 5 * 1024 * 1024;
     char *buf = new char[len];
     memset(buf, 'a', len);
 
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
+    ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
     len = 1 * 1024 * 1024;
     CURVEFS_ERROR ret = s3ClientAdaptor_->Truncate(&inode, len);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
+
+    // cleanup
+    delete buf;
+    std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
+    for (; iter != gObjectDataMaps.end(); iter++) {
+        delete iter->second.buf;
+        iter->second.buf = NULL;
+    }
+    gObjectDataMaps.clear();
+}
+
+TEST_F(ClientS3AdaptorTest, test_truncate_small2) {
+    curvefs::metaserver::Inode inode;
+
+    InitInode(&inode);
+    uint64_t offset = 0;
+    uint64_t len = 512 * 1024;
+    char *buf = new char[len];
+    memset(buf, 'a', len);
+    inode.set_length(8 * 1024 * 1024);
+    std::shared_ptr<FsCacheManager> fsCacheManager =
+        s3ClientAdaptor_->GetFsCacheManager();
+    for (int i = 0; i < 6; i++) {
+        s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+        offset = offset + len * 2;
+    }
+    ASSERT_EQ(6, fsCacheManager->GetDataCacheNum());
+
+    uint64_t truncateLen = 3 * 1024 * 1024;
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Truncate(&inode, truncateLen);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(3 * len,
+              s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
+
+    truncateLen = 1200 * 1024;
+    ret = s3ClientAdaptor_->Truncate(&inode, truncateLen);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(704 * 1024,
+              s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
+
+    // cleanup
+    delete buf;
+    std::map<std::string, S3Data>::iterator iter = gObjectDataMaps.begin();
+    for (; iter != gObjectDataMaps.end(); iter++) {
+        delete iter->second.buf;
+        iter->second.buf = NULL;
+    }
+    gObjectDataMaps.clear();
+}
+
+TEST_F(ClientS3AdaptorTest, test_truncate_small3) {
+    curvefs::metaserver::Inode inode;
+
+    InitInode(&inode);
+    uint64_t offset = 0;
+    uint64_t len = 512 * 1024;
+    char *buf = new char[len];
+    memset(buf, 'a', len);
+    inode.set_length(8 * 1024 * 1024);
+    std::shared_ptr<FsCacheManager> fsCacheManager =
+        s3ClientAdaptor_->GetFsCacheManager();
+    uint64_t chunkId = 25;
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+        .WillRepeatedly(
+            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockS3Client_, Upload(_, _, _))
+        .WillRepeatedly(Invoke(S3Upload));
+    EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
+        .WillRepeatedly(Invoke(S3Download));
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+        .WillRepeatedly(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(mockS3Client_, UploadAsync(_))
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
+                tmp.len = context->bufferSize;
+                tmp.buf = new char[context->bufferSize];
+                strncpy(tmp.buf, reinterpret_cast<char *>(context->buffer),
+                        context->bufferSize);
+                context->retCode = 0;
+                context->cb(context);
+            }));
+
+
+    for (int i = 0; i < 6; i++) {
+        s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
+        offset = offset + len * 2;
+    }
+    ASSERT_EQ(6, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(6 * len, fsCacheManager->GetDataCacheSize());
+    ASSERT_EQ(0, fsCacheManager->GetLruByte());
+
+    CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode.inodeid());
+    inode = inodeWrapper->GetInodeUnlocked();
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
+    ASSERT_EQ(0, fsCacheManager->GetDataCacheSize());
+    ASSERT_EQ(6 * len, fsCacheManager->GetLruByte());
+
+    uint64_t truncateLen = 3 * 1024 * 1024;
+    ret = s3ClientAdaptor_->Truncate(&inode, truncateLen);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(3 * len, s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
+
+    truncateLen = 1200 * 1024;
+    ret = s3ClientAdaptor_->Truncate(&inode, truncateLen);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
 
     // cleanup
     delete buf;
@@ -1521,7 +1632,6 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_more_chunk) {
     uint64_t len = 5 * 1024 * 1024;
     char *buf = new char[len];
     memset(buf, 'a', len);
-    uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
     uint64_t chunkId = 25;
 
@@ -1585,7 +1695,6 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read1) {
     uint64_t len = 2 * 1024 * 1024;
     char *buf = new char[len];
     memset(buf, 'a', len);
-    uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
     uint64_t chunkId = 25;
 
@@ -1666,7 +1775,6 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read2) {
     uint64_t len = 2 * 1024 * 1024;
     char *buf = new char[len];
     memset(buf, 'a', len);
-    uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
     uint64_t chunkId = 25;
 
@@ -2727,7 +2835,6 @@ TEST_F(ClientS3AdaptorTest, test_fssync_success_and_fail) {
     uint64_t len = 1 * 1024 * 1024;
     char *buf = new char[len];
     memset(buf, 'a', len);
-    uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
     uint64_t chunkId = 25;
 
@@ -2796,7 +2903,6 @@ TEST_F(ClientS3AdaptorTest, test_fssync_overlap_write) {
     uint64_t len = 2 * 1024 * 1024;
     char *buf = new char[len];
     memset(buf, 'a', len);
-    uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
     uint64_t chunkId = 25;
 

@@ -112,6 +112,7 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
 
     void Write(uint64_t chunkPos, uint64_t len, const char *data,
                const std::vector<DataCachePtr> &mergeDataCacheVer);
+    void Truncate(uint64_t size);
     uint64_t GetChunkPos() { return chunkPos_; }
     uint64_t GetLen() { return len_; }
     PageData *GetPageData(uint64_t blockIndex, uint64_t pageIndex) {
@@ -128,6 +129,9 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
         auto iter = pdMap.find(pageIndex);
         if (iter != pdMap.end()) {
             pdMap.erase(iter);
+        }
+        if (pdMap.empty()) {
+            dataMap_.erase(blockIndex);
         }
     }
 
@@ -226,7 +230,8 @@ class ChunkCacheManager {
     }
 
     virtual void ReleaseReadDataCache(uint64_t key);
-    void ReleaseCache(S3ClientAdaptorImpl *s3ClientAdaptor);
+    void ReleaseCache();
+    void TruncateCache(uint64_t chunkPos);
     void UpdateWriteCacheMap(uint64_t oldChunkPos, DataCache *dataCache);
 
  public:
@@ -235,6 +240,8 @@ class ChunkCacheManager {
 
  private:
     void ReleaseWriteDataCache(const DataCachePtr &dataCache);
+    void TruncateWriteCache(uint64_t chunkPos);
+    void TruncateReadCache(uint64_t chunkPos);
 
  private:
     uint64_t index_;
@@ -255,6 +262,7 @@ class FileCacheManager {
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
     void ReleaseChunkCacheManager(uint64_t index);
     void ReleaseCache();
+    void TruncateCache(uint64_t offset, uint64_t fileSize);
     CURVEFS_ERROR Flush(bool force);
     int Write(uint64_t offset, uint64_t length, const char *dataBuf);
     int Read(uint64_t inodeId, uint64_t offset, uint64_t length, char *dataBuf);
@@ -381,6 +389,11 @@ class FsCacheManager {
     uint64_t MemCacheRatio() {
         return 100 * wDataCacheByte_.load(std::memory_order_relaxed) /
                writeCacheMaxByte_;
+    }
+
+    uint64_t GetLruByte() {
+        std::lock_guard<std::mutex> lk(lruMtx_);
+        return lruByte_;
     }
 
  private:
