@@ -14,24 +14,59 @@
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 
 
-CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存储系统，具有非常良好的扩展性。基于该存储底座可以打造适用于不同应用场景的存储系统，如块存储、对象存储、云原生数据库等。当前我们基于CURVE已经实现了高性能块存储系统，支持快照克隆和恢复 ,支持QEMU虚拟机和物理机NBD设备两种挂载方式, 在网易内部作为高性能云盘使用。
+Curve是网易自主设计研发的高性能、易运维、云原生的分布式存储系统，目前提供块(CurveBS)和文件(CurveFS)两种存储方式。CurveBS支持快照克隆和恢复,支持QEMU虚拟机和物理机NBD设备两种挂载方式。CurveFS基于Fuse支持POSIX文件系统接口。
+
+## Curve Block Service vs Ceph Block Device
+
+Curve: v1.2.0
+
+Ceph: L/N
+### 性能
+块存储场景下，Curve随机读写性能远优于Ceph。
+测试环境：6台服务器*20块SATA SSD，E5-2660 v4，256G，3副本，使用nbd场景。
+
+单卷场景：
+<image src="docs/images/1-nbd.jpg">
+
+多卷场景：
+<image src="docs/images/10-nbd.jpg">
+
+### 稳定性
+块存储场景下，常见异常Curve的稳定性优于Ceph。
+| 异常场景 | 单盘故障 | 慢盘 | 机器宕机 | 机器卡住 |
+| :----: | :----: | :----: | :----: | :----: |
+| Ceph | 抖动7s | 持续io抖动 | 抖动7s | 不可恢复 |
+| Curve | 抖动4s | 无影响 | 抖动4s | 抖动4s |
+### 运维
+块存储场景下，Curve常见运维更友好。
+| 运维场景 | 客户端升级 | 均衡 |
+| :----: | :----: | :----: |
+| Ceph | 不支持热升级 | 外部插件调整，影响业务IO |
+| Curve | 支持热升级，秒级抖动 | 自动均衡，对业务IO无影响 |
 
 ## 设计文档
 
-- 通过 [CURVE概述](https://opencurve.github.io/) 可以了解 CURVE 架构
-- CURVE相关文档
+- 通过 [Curve概述](https://opencurve.github.io/) 可以了解 Curve 架构
+- CurveBS相关文档
   - [NEBD](docs/cn/nebd.md)
   - [MDS](docs/cn/mds.md)
   - [Chunkserver](docs/cn/chunkserver_design.md)
   - [Snapshotcloneserver](docs/cn/snapshotcloneserver.md)
-  - [CURVE质量体系介绍](docs/cn/quality.md)
-  - [CURVE监控体系介绍](docs/cn/monitor.md)
+  - [Curve质量体系介绍](docs/cn/quality.md)
+  - [Curve监控体系介绍](docs/cn/monitor.md)
   - [Client](docs/cn/curve-client.md)
   - [Client Python API](docs/cn/curve-client-python-api.md)
-- CURVE上层应用
+- CurveBS上层应用
   - [对接k8s文档](docs/cn/k8s_csi_interface.md)
+- CurveFS相关文档
+  - [架构设计](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%E6%96%B9%E6%A1%88%E8%AE%BE%E8%AE%A1%EF%BC%88%E6%80%BB%E4%BD%93%E8%AE%BE%E8%AE%A1%EF%BC%8C%E5%8F%AA%E5%AE%9E%E7%8E%B0%E4%BA%86%E9%83%A8%E5%88%86%EF%BC%89.pdf)
+  - [Client概要设计](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%20Client%20%E6%A6%82%E8%A6%81%E8%AE%BE%E8%AE%A1.pdf)
+  - [元数据管理](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%85%83%E6%95%B0%E6%8D%AE%E7%AE%A1%E7%90%86.pdf)
+  - [数据缓存方案](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%94%AF%E6%8C%81S3%20%E6%95%B0%E6%8D%AE%E7%BC%93%E5%AD%98%E6%96%B9%E6%A1%88.pdf)
+  - [空间分配方案](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88.pdf)
+  - [更多](https://github.com/opencurve/curve-meetup-slides/tree/main/CurveFS)
 
-## 快速开始
+## CurveBS快速开始
 
 在您开始动手部署前请先仔细阅读特别说明部分：[特别说明](docs/cn/deploy.md#%E7%89%B9%E5%88%AB%E8%AF%B4%E6%98%8E)
 
@@ -47,8 +82,12 @@ CURVE是网易自主设计研发的高性能、高可用、高可靠分布式存
 
 [查询工具说明](docs/cn/curve_ops_tool.md)
 
-## 参与开发
+## CurveFS快速开始
+为了提升 Curve 的运维便利性，我们设计开发了 [CurveAdm](https://github.com/opencurve/curveadm) 项目，其主要用于部署和管理 Curve 集群，目前已支持部署 CurveFS（CurveBS 的支持正在开发中）。
 
+具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm#deploy-cluster)
+
+## 参与开发
 
 ### 部署编译开发环境
 
