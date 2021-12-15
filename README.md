@@ -16,7 +16,7 @@
 
 Curve is a distributed storage system designed and developed by NetEase, featured with high performance, easy operation and cloud native. Curve is compose of CurveBS(Curve Block Storage) and CurveFS(Curve FileSystem). CurveBS supports snapshot, clone, and recover, also supports virtual machines with qemu and physical machine with nbd. CurveFS supports POSIX based on Fuse.
 
-## Curve vs Ceph
+## Curve Block Service vs Ceph Block Device
 
 Curve: v1.2.0
 
@@ -47,8 +47,8 @@ Curve ops is more friendly than Curve in the block storage scenario.
 
 ## Design Documentation
 
-- Wanna have a glance at CURVE? Click here for [Intro to CURVE](https://www.opencurve.io/)!
-- Want more details? Our documentation for every component:
+- Wanna have a glance at Curve? Click here for [Intro to Curve](https://www.opencurve.io/)!
+- Want more details about CurveBS? Our documentation for every component:
   - [NEBD](docs/en/nebd_en.md)
   - [MDS](docs/en/mds_en.md)
   - [Chunkserver](docs/en/chunkserver_design_en.md)
@@ -57,10 +57,17 @@ Curve ops is more friendly than Curve in the block storage scenario.
   - [CURVE monitoring](docs/en/monitor_en.md)
   - [Client](docs/en/client_en.md)
   - [Client Python API](docs/en/curve-client-python-api_en.md)
-- Application based on CURVE
+- Application based on CurveBS
   - [Work with k8s](docs/en/k8s_csi_interface_en.md)
+- Want more details about CurveFS? Our documentation for every component:
+  - [Architecture design](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%E6%96%B9%E6%A1%88%E8%AE%BE%E8%AE%A1%EF%BC%88%E6%80%BB%E4%BD%93%E8%AE%BE%E8%AE%A1%EF%BC%8C%E5%8F%AA%E5%AE%9E%E7%8E%B0%E4%BA%86%E9%83%A8%E5%88%86%EF%BC%89.pdf)
+  - [Client design](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%20Client%20%E6%A6%82%E8%A6%81%E8%AE%BE%E8%AE%A1.pdf)
+  - [Metadata management](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%85%83%E6%95%B0%E6%8D%AE%E7%AE%A1%E7%90%86.pdf)
+  - [Data caching](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%94%AF%E6%8C%81S3%20%E6%95%B0%E6%8D%AE%E7%BC%93%E5%AD%98%E6%96%B9%E6%A1%88.pdf)
+  - [Space allocation](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88.pdf)
+  - [more details](https://github.com/opencurve/curve-meetup-slides/tree/main/CurveFS)
 
-## Quick Start
+## Quick Start of CurveBS
 
 Want to try on it? Take it easy! We'll help you step by step, but make sure you've read this [Tips](docs/en/deploy_en.md#Tips) before you start.
 
@@ -75,6 +82,11 @@ Want to try on it? Take it easy! We'll help you step by step, but make sure you'
 ### curve_ops_tool introduction
 
 [curve_ops_tool introduction](docs/en/curve_ops_tool_en.md)
+
+## Quick Start of CurveFS
+In order to improve the convenience of Curve operation and maintenance, we have designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used to deploy and manage Curve clusters. Currently, it supports the deployment of CurveFS ​​(CurveBS support is under development).
+
+Detail for CurveFS deploy: [CurveFS ​​deployment](https://github.com/opencurve/curveadm#deploy-cluster)
 
 ## For Developers
 
