@@ -44,7 +44,7 @@ int S3ClientImpl::Delete(const std::string& name) {
         if (!s3Adapter_->ObjectExist(aws_key)) {
             // the aws_key is not exist
             // may delete by others
-            ret = 0;
+            ret = 1;
         }
     } else {
         // 0
