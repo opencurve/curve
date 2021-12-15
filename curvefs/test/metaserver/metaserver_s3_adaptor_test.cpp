@@ -204,6 +204,77 @@ TEST_F(MetaserverS3AdaptorTest, test_delete_idempotence) {
     ASSERT_EQ(ret, 0);
 }
 
+TEST_F(MetaserverS3AdaptorTest, test_delete_deleted) {
+    // Init
+    curvefs::metaserver::Inode inode;
+    InitInode(&inode);
+    /*
+    1. write 3MB+1 from 0; (write)
+    2. write 2MB+1 from 2MB+2; (overwrite）
+    3. write 1MB+1 from 4MB+3; (append)
+    */
+    const uint64_t FileLen = 5 * 1024 * 1024 + 4;
+    inode.set_length(FileLen);
+    S3ChunkInfoList* s3ChunkInfoList = new S3ChunkInfoList();
+    // 1. 1_0_0 1_1_0 1_2_0 1_3_0
+    S3ChunkInfo* s3ChunkInfo1 = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo1->set_chunkid(1);
+    s3ChunkInfo1->set_compaction(0);
+    s3ChunkInfo1->set_offset(0);
+    const uint64_t first_len = 3 * 1024 * 1024 + 1;
+    s3ChunkInfo1->set_len(first_len);
+    s3ChunkInfo1->set_size(first_len);
+    // 2. 1_2_1 1_3_1  2_0_1
+    S3ChunkInfo* s3ChunkInfo2 = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo2->set_chunkid(1);
+    s3ChunkInfo2->set_compaction(1);
+    s3ChunkInfo2->set_offset(2 * 1024 * 1024 + 2);
+    s3ChunkInfo2->set_len(4 * 1024 * 1024 - 2 * 1024 * 1024 - 2);
+    s3ChunkInfo2->set_size(4 * 1024 * 1024 - 2 * 1024 * 1024 - 2);
+    S3ChunkInfo* s3ChunkInfo3 = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo3->set_chunkid(2);
+    s3ChunkInfo3->set_compaction(1);
+    s3ChunkInfo3->set_offset(4 * 1024 * 1024);
+    s3ChunkInfo3->set_len(3);
+    s3ChunkInfo3->set_size(3);
+    // 3. 2_0_1 2_1_1
+    S3ChunkInfo* s3ChunkInfo4 = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo4->set_chunkid(2);
+    s3ChunkInfo4->set_compaction(1);
+    s3ChunkInfo4->set_offset(4 * 1024 * 1024 + 3);
+    s3ChunkInfo4->set_len(1 * 1024 * 1024 + 1);
+    s3ChunkInfo4->set_size(1 * 1024 * 1024 + 1);
+
+    inode.mutable_s3chunkinfomap()->insert({0, *s3ChunkInfoList});
+    // replace s3 delete
+    // when name == fail_del_name, should be deleted or not
+    const std::string fail_del_name = "2_1_2_0_1";
+    bool deleted = true;
+    std::set<std::string> deleteObject;
+    std::function<int(std::string)> delete_object =
+        [&deleteObject, fail_del_name, &deleted](std::string name) {
+            int ret = 0;
+            if (deleted && fail_del_name == name) {
+                LOG(INFO) << "delete object fail, name: " << name;
+                deleted = false;
+                ret = 1;
+            } else {
+                LOG(INFO) << "delete object sucess, name: " << name;
+                deleteObject.insert(name);
+            }
+            return ret;
+        };
+    EXPECT_CALL(*mockMetaserverS3Client_, Delete(_))
+        .WillRepeatedly(Invoke(delete_object));
+
+    int ret = 0;
+    do {
+        ret = metaserverS3ClientAdaptor_->Delete(inode);
+    } while (ret < 0);
+
+    ASSERT_EQ(ret, 0);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs
 

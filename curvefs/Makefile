@@ -43,8 +43,8 @@ deploy:
 	$(call deploy_begin)
 	@bash util/deploy.sh --hosts="etcd" --only="etcd" --tags="core,config,start"
 	@bash util/deploy.sh --hosts="mds" --only="mds" --tags="core,config,start"
-	@bash util/deploy.sh --hosts="tools" --only="tools" --tags="core,config,topo"
 	@bash util/deploy.sh --hosts="metaserver" --only="metaserver" --tags="core,config,start"
+	@bash util/deploy.sh --hosts="tools" --only="tools" --tags="core,config,topo"
 	@bash util/deploy.sh --hosts="client" --only="client" --tags="core,config"
 	$(call deploy_end)
 
