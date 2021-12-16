@@ -143,16 +143,22 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
             LOG(ERROR) << "fs fssync error, ret:" << ret;
             return ret;
         }
-        /* TODO(huyao): need delete source, now it has race condition
-        if (iter->second->IsEmpty()) {
+
+        {
             WriteLockGuard writeLockGuard(rwLock_);
             auto iter1 = fileCacheManagerMap_.find(iter->first);
-            if (iter1 != fileCacheManagerMap_.end()) {
+            VLOG(9) << "FileCacheManagerPtr count:"
+                    << iter1->second.use_count();
+            // tmp and fileCacheManagerMap_ has this FileCacheManagerPtr, so
+            // count is 2 if count more than 2, this mean someone thread has
+            // this FileCacheManagerPtr
+            if ((iter1->second->IsEmpty()) &&
+                (2 == iter1->second.use_count())) {
                 VLOG(9) << "Release FileCacheManager, inode id: "
                         << iter1->second->GetInodeId();
                 fileCacheManagerMap_.erase(iter1);
             }
-        }*/
+        }
     }
 
     return CURVEFS_ERROR::OK;
@@ -202,17 +208,6 @@ void FileCacheManager::WriteChunk(uint64_t index, uint64_t chunkPos,
     VLOG(9) << "WriteChunk end, index: " << index
             << ", chunkPos: " << chunkPos;
     return;
-}
-
-ChunkCacheManagerPtr FileCacheManager::FindChunkCacheManager(uint64_t index) {
-    ReadLockGuard readLockGuard(rwLock_);
-
-    auto it = chunkCacheMap_.find(index);
-    if (it != chunkCacheMap_.end()) {
-        return it->second;
-    }
-
-    return nullptr;
 }
 
 ChunkCacheManagerPtr
@@ -365,8 +360,6 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
         uint64_t n = 0;
         uint64_t readOffset = 0;
         uint64_t objectOffset = iter->objectOffset;
-        ChunkCacheManagerPtr chunkCacheManager =
-            FindOrCreateChunkCacheManager(chunkIndex);
 
         std::vector<uint64_t> &dataCacheVec = dataCacheMap[chunkIndex];
         dataCacheVec.push_back(chunkPos);
@@ -818,7 +811,6 @@ void FileCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
         requests->insert(requests->end(), tmpRequests.begin(),
                          tmpRequests.end());
     }
-
     return;
 }
 
@@ -850,15 +842,20 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force) {
                        << ",chunkIndex:" << iter->second->GetIndex();
             return ret;
         }
-        /* TODO(huyao): need delete source, now it has race condition
+
         {
             WriteLockGuard writeLockGuard(rwLock_);
             auto iter1 = chunkCacheMap_.find(iter->first);
-            if (iter1->second->IsEmpty()) {
+            VLOG(9) << "ChunkCacheManagerPtr count:"
+                    << iter1->second.use_count();
+            // tmp and chunkCacheMap_ has this ChunkCacheManagerPtr, so count is
+            // 2 if count more than 2, this mean someone thread has this
+            // ChunkCacheManagerPtr
+            if (iter1->second->IsEmpty() && (2 == iter1->second.use_count())) {
+                VLOG(9) << "chunkCacheMap_ erase.";
                 chunkCacheMap_.erase(iter1);
             }
         }
-        */
     }
     return CURVEFS_ERROR::OK;
 }
