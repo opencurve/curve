@@ -42,7 +42,7 @@ void TrashImpl::Add(uint32_t fsId, uint64_t inodeId, uint32_t dtime) {
     TrashItem item;
     item.fsId = fsId;
     item.inodeId = inodeId;
-    item.dtime = TimeUtility::GetTimeofDayMs();
+    item.dtime = dtime;
 
     LockGuard lg(itemsMutex_);
     trashItems_.push_back(item);

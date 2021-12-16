@@ -138,7 +138,6 @@ class InodeWrapper {
         attr->st_uid = inode_.uid();
         attr->st_gid = inode_.gid();
         attr->st_size = inode_.length();
-        attr->st_blocks = (inode_.length() + 511) / 512;
         attr->st_rdev = inode_.rdev();
         attr->st_atim.tv_sec = inode_.atime();
         attr->st_atim.tv_nsec = inode_.atime_ns();
@@ -147,6 +146,16 @@ class InodeWrapper {
         attr->st_ctim.tv_sec = inode_.ctime();
         attr->st_ctim.tv_nsec = inode_.ctime_ns();
         attr->st_blksize = kOptimalIOBlockSize;
+
+        switch (inode_.type()) {
+            case metaserver::TYPE_S3:
+                attr->st_blocks = (inode_.length() + 511) / 512;
+                break;
+            default:
+                attr->st_blocks = 0;
+                break;
+        }
+
         VLOG(6) << "GetInodeAttr attr =  " << *attr
                 << ", inodeid = " << inode_.inodeid();
         return;
