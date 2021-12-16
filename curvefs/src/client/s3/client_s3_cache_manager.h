@@ -221,8 +221,7 @@ class ChunkCacheManager {
     CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
     uint64_t GetIndex() { return index_; }
     bool IsEmpty() {
-        ReadLockGuard writeCacheLock(rwLockWrite_);
-        ReadLockGuard readCacheLock(rwLockRead_);
+        ReadLockGuard writeCacheLock(rwLockChunk_);
         return (dataWCacheMap_.empty() && dataRCacheMap_.empty());
     }
 
@@ -253,7 +252,6 @@ class FileCacheManager {
     FileCacheManager(uint32_t fsid, uint64_t inode,
                      S3ClientAdaptorImpl *s3ClientAdaptor)
         : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
-    ChunkCacheManagerPtr FindChunkCacheManager(uint64_t index);
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
     void ReleaseChunkCacheManager(uint64_t index);
     void ReleaseCache();
