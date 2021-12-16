@@ -322,7 +322,11 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
     InodeParam param;
     param.fsId = fsInfo_->fsid();
-    param.length = 0;
+    if (FsFileType::TYPE_DIRECTORY == type) {
+        param.length = 4096;
+    } else {
+        param.length = 0;
+    }
     param.uid = ctx->uid;
     param.gid = ctx->gid;
     param.mode = mode;
