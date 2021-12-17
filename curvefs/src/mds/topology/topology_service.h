@@ -166,6 +166,11 @@ class TopologyServiceImpl : public TopologyService {
         ::curvefs::mds::topology::StatMetadataUsageResponse* response,
         ::google::protobuf::Closure* done);
 
+    virtual void ListTopology(::google::protobuf::RpcController* controller,
+                              const ListTopologyRequest* request,
+                              ListTopologyResponse* response,
+                              ::google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<TopologyManager> topologyManager_;
 };

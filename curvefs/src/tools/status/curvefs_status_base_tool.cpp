@@ -38,9 +38,9 @@ int StatusBaseTool::Init() {
     }
 
     //  get status(leader or not) from all host
-    if (StatusSubUri_ != "") {
+    if (statusSubUri_ != "") {
         for (auto const& i : hostsAddr_) {
-            AddAddr2Suburi({i, StatusSubUri_});
+            AddAddr2Suburi({i, statusSubUri_});
         }
     }
 
@@ -53,7 +53,7 @@ void StatusBaseTool::AfterGetMetric(const std::string hostAddr,
                                     const MetricStatusCode& statusCode) {
     if (statusCode == MetricStatusCode::kOK) {
         onlineHosts_.insert(hostAddr);
-        if (subUri == StatusSubUri_) {
+        if (subUri == statusSubUri_) {
             std::string keyValue;
             if (!metricClient_->GetKeyValueFromString(value, statusKey_,
                                                       &keyValue)) {

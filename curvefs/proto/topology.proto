@@ -120,6 +120,7 @@ message MetaServerInfo {
     required string externalIp = 5;
     required uint32 externalPort = 6;
     required OnlineState onlineState = 7;
+    optional uint32 serverId = 8;
 }
 
 // MetaServer message
@@ -175,9 +176,9 @@ message ServerInfo {
     required string externalIp = 5;
     required uint32 externalPort = 6;
     required uint32 zoneID = 7;
-    required string zoneName = 8;
+    optional string zoneName = 8;
     required uint32 PoolID = 9;
-    required string PoolName = 10;
+    optional string PoolName = 10;
 }
 
 message ServerRegistRequest {
@@ -234,7 +235,7 @@ message ZoneInfo {
     required uint32 zoneID  = 1;
     required string zoneName = 2;
     required uint32 PoolID = 3;
-    required string PoolName = 4;
+    optional string PoolName = 4;
 }
 
 message CreateZoneRequest {
@@ -432,6 +433,29 @@ message StatMetadataUsageResponse{
     repeated MetadataUsage metadataUsages = 1;
 }
 
+message ListTopologyRequest {
+}
+
+message ListZoneResponse {
+    // use for ListTopologyResponse
+    required TopoStatusCode statusCode = 1;
+    repeated ZoneInfo zoneInfos = 2;
+}
+
+message ListServerResponse {
+    // use for ListTopologyResponse
+    required TopoStatusCode statusCode = 1;
+    repeated ServerInfo serverInfos = 2;
+}
+
+message ListTopologyResponse {
+    required string clusterId = 1;
+    required ListPoolResponse pools = 2;
+    required ListZoneResponse zones = 3;
+    required ListServerResponse servers = 4;
+    required ListMetaServerResponse metaservers = 5;
+}
+
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
@@ -464,4 +488,6 @@ service TopologyService {
     rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
     rpc ListCopysetInfo(ListCopysetInfoRequest) returns (ListCopysetInfoResponse);
     rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
+
+    rpc ListTopology(ListTopologyRequest) returns (ListTopologyResponse); 
 }

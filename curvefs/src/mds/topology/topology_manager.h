@@ -142,6 +142,14 @@ class TopologyManager {
         ::google::protobuf::RepeatedPtrField<
             curvefs::mds::topology::MetadataUsage>* spaces);
 
+    virtual void GetTopology(ListTopologyResponse* response);
+
+    virtual void ListZone(ListZoneResponse* response);
+
+    virtual void ListServer(ListServerResponse* response);
+
+    virtual void ListMetaserverOfCluster(ListMetaServerResponse* response);
+
  private:
     TopoStatusCode CreateCopyset();
 

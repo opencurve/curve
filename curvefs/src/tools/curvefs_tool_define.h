@@ -32,6 +32,7 @@
 
 #include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/heartbeat.pb.h"
+#include "curvefs/proto/topology.pb.h"
 #include "src/common/configuration.h"
 
 namespace curvefs {
@@ -75,6 +76,8 @@ const char kFsQueryCmd[] = "query-fs";
 const char kFsInfoListCmd[] = "list-fs";
 // list-fs-copysetid
 const char kCopysetInfoListCmd[] = "list-copysetInfo";
+// list-topology
+const char kTopologyListCmd[] = "list-topology";
 // no-invoke Used for commands that are not directly invoked
 const char kNoInvokeCmd[] = "no-invoke";
 
@@ -93,6 +96,7 @@ const char kHelpStr[] =
     "status-copyset:    show the status of copyset\n"
     "list-fs:           list all fs in cluster\n"
     "list-copysetInfo:  list all copysetInfo in cluster\n"
+    "list-topology:     list cluster's topology\n"
     "build-topology:    build cluster topology based on topo.json\n"
     "umount-fs:         umount curvefs from local and cluster\n"
     "usage-metadata:    show the metadata usage of cluster\n"
@@ -202,6 +206,14 @@ std::string CommomPeer2Str(const common::Peer&);
 std::string CommomPartitionInfo2Str(const common::PartitionInfo&);
 
 std::string CopysetOpStatus2Str(const metaserver::copyset::COPYSET_OP_STATUS&);
+
+std::string PoolInfo2Str(const mds::topology::PoolInfo&);
+
+std::string ZoneInfo2Str(const mds::topology::ZoneInfo&);
+
+std::string ServerInfo2Str(const mds::topology::ServerInfo&);
+
+std::string MetaserverInfo2Str(const mds::topology::MetaServerInfo&);
 
 }  // namespace tools
 }  // namespace curvefs
