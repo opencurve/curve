@@ -30,6 +30,7 @@
 
 #include "curvefs/src/tools/curvefs_tool_abstract_creator.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/version/curvefs_version_tool.h"
 
 namespace curvefs {
 namespace tools {

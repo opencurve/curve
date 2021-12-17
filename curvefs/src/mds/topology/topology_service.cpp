@@ -732,6 +732,24 @@ void TopologyServiceImpl::StatMetadataUsage(
     return;
 }
 
+void TopologyServiceImpl::ListTopology(
+    ::google::protobuf::RpcController* controller,
+    const ListTopologyRequest* request, ListTopologyResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListTopologyRequest] " << request->DebugString();
+
+    topologyManager_->GetTopology(response);
+
+    LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+              << cntl->local_side() << " to " << cntl->remote_side()
+              << ". [ListTopologyRequest] " << response->DebugString();
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

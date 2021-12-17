@@ -65,6 +65,38 @@ Output:
 
 ## status
 
+### **status**
+
+show the status of cluster, include mds, metaserver and copyset.
+
+Usage:
+
+```Shell
+curvefs_tool status
+```
+
+Output:
+```shell
+mds version: 1.0.0
+leader mds: 192.168.1.1:36700
+standby mds: [ 192.168.1.1:16700 192.168.1.1:26700 ].
+
+[metaserver]
+metaserver version: 1.0.0
+online metaserver: [ 192.168.1.1:16701 192.168.1.1:26701 192.168.1.1:36701 ].
+
+[etcd]
+etcd version: 3.4.0
+leader etcd: 192.168.1.1:32379
+standby etcd: [ 192.168.1.1:12379 192.168.1.1:22379 ].
+
+[copyset]
+all copyset is health.
+
+[cluster]
+cluster is healthy!
+```
+
 ### **status-mds**
 
 show the status of mds who are specified by mdsAddr in the configuration file
@@ -79,9 +111,9 @@ Output:
 
 ```shell
 mds version: 1.0.0
-leader mds: 10.182.2.45:16700
+leader mds: 192.168.1.1:16700
 standy mds: [ ].
-offline mds: [ 10.182.2.45:27700 10.182.2.45:36700 ].
+offline mds: [ 192.168.1.1:27700 192.168.1.1:36700 ].
 ```
 
 ### **status-metaserver**
@@ -98,8 +130,8 @@ Output:
 
 ```shell
 metaserver version: 1.0.0
-online metaserver: [ 10.182.2.45:16701 10.182.2.45:36701 ].
-offline metaserver: [ 10.182.2.45:26701 ].
+online metaserver: [ 192.168.1.1:16701 192.168.1.1:36701 ].
+offline metaserver: [ 192.168.1.1:26701 ].
 ```
 
 ### **status-etcd**
@@ -116,9 +148,9 @@ Output:
 
 ```shell
 etcd version: 3.4.0
-leader etcd: 10.182.2.45:12379
-standy etcd: [ 10.182.2.45:22379 ].
-offline etcd: [ 10.182.2.45:32379 ].
+leader etcd: 192.168.1.1:12379
+standy etcd: [ 192.168.1.1:22379 ].
+offline etcd: [ 192.168.1.1:32379 ].
 ```
 
 ### **status-copyset**
@@ -137,11 +169,11 @@ Output:
 all copyset is health.
 copyset[4294967297]:
 -info:
-statusCode: TOPO_OK copysetInfo { poolId: 1 copysetId: 1 peers { id: 1 address: "10.182.2.45:36701:0" } peers { id: 2 address: "10.182.2.45:26701:0" } peers { id: 3 address: "10.182.2.45:16701:0" } epoch: 0 leaderPeer { id: 3 address: "10.182.2.45:16701:0" } }
+statusCode: TOPO_OK copysetInfo { poolId: 1 copysetId: 1 peers { id: 1 address: "192.168.1.1:36701:0" } peers { id: 2 address: "192.168.1.1:26701:0" } peers { id: 3 address: "192.168.1.1:16701:0" } epoch: 0 leaderPeer { id: 3 address: "192.168.1.1:16701:0" } }
 -status:
-status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 1 peer { address: "10.182.2.45:16701:0" } leader { address: "10.182.2.45:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 1 lastIndex: 1 diskIndex: 1 epoch: 0 }
-status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "10.182.2.45:26701:0" } leader { address: "10.182.2.45:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 1 lastIndex: 1 diskIndex: 1 epoch: 0 }
-status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "10.182.2.45:36701:0" } leader { address: "10.182.2.45:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 1 lastIndex: 1 diskIndex: 1 epoch: 0 }
+status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 1 peer { address: "192.168.1.1:16701:0" } leader { address: "192.168.1.1:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 1 lastIndex: 1 diskIndex: 1 epoch: 0 }
+status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "192.168.1.1:26701:0" } leader { address: "192.168.1.1:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 1 lastIndex: 1 diskIndex: 1 epoch: 0 }
+status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "192.168.1.1:36701:0" } leader { address: "192.168.1.1:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 1 lastIndex: 1 diskIndex: 1 epoch: 0 }
 
 ...
 
@@ -210,25 +242,56 @@ copysetInfo {
   copysetId: 1
   peers {
     id: 1
-    address: "10.182.2.45:36701:0"
+    address: "192.168.1.1:36701:0"
   }
   peers {
     id: 2
-    address: "10.182.2.45:26701:0"
+    address: "192.168.1.1:26701*:0"
   }
   peers {
     id: 3
-    address: "10.182.2.45:16701:0"
+    address: "192.168.1.1:16701:0"
   }
   epoch: 0
   leaderPeer {
     id: 3
-    address: "10.182.2.45:16701:0"
+    address: "192.168.1.1:16701:0"
   }
 }
 
 ...
 
+```
+
+### **list-topology**
+
+list cluster's topology
+
+Usage:
+
+```shell
+curvefs_tool list-topology
+```
+
+Output:
+
+```shell
+[cluster]
+clusterId: 0900e83d-eb1f-45d0-9e42-ba89e3776fa7
+[pool]
+poolId:1, poolName:pool1, createTime:1640187638, policy:{ copysetNum:100 replicaNum:3 zoneNum:3 }, zoneList:{ 3 2 1 }
+[zone]
+zoneId:1, zoneName:zone1, poolId:1 serverList:{ 1 }
+zoneId:2, zoneName:zone2, poolId:1 serverList:{ 2 }
+zoneId:3, zoneName:zone3, poolId:1 serverList:{ 3 }
+[server]
+serverId:1, hostname:metaserver_192.168.1.1_1, internalIp:192.168.1.1, internalPort:16701, externalIp:192.168.1.1, externalPort:16701, zoneId:1, poolId:1 metaserverList:{ 1 }
+serverId:2, hostname:metaserver_192.168.1.1_2, internalIp:192.168.1.1, internalPort:26701, externalIp:192.168.1.1, externalPort:26701, zoneId:2, poolId:1 metaserverList:{ 3 }
+serverId:3, hostname:metaserver_192.168.1.1_3, internalIp:192.168.1.1, internalPort:36701, externalIp:192.168.1.1, externalPort:36701, zoneId:3, poolId:1 metaserverList:{ 2 }
+[metaserver]
+metaserverId:1, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:16701, externalIp:192.168.1.1, externalPort:16701, onlineState:ONLINE, serverId:1
+metaserverId:2, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:36701, externalIp:192.168.1.1, externalPort:36701, onlineState:ONLINE, serverId:3
+metaserverId:3, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:26701, externalIp:192.168.1.1, externalPort:26701, onlineState:ONLINE, serverId:2
 ```
 
 [TOC](#table-of-contents)
@@ -296,9 +359,9 @@ curvefs_tool usage-metadata
 Output:
 
 ```shell
-metaserver[10.182.2.45:26701] usage: total: 1.06 TB used: 755.74 GB left: 327.23 GB
-metaserver[10.182.2.45:16701] usage: total: 1.06 TB used: 755.74 GB left: 327.23 GB
-metaserver[10.182.2.45:36701] usage: total: 1.06 TB used: 755.74 GB left: 327.23 GB
+metaserver[192.168.1.1:26701 usage: total: 1.06 TB used: 755.74 GB left: 327.23 GB
+metaserver[192.168.1.1:16701 usage: total: 1.06 TB used: 755.74 GB left: 327.23 GB
+metaserver[192.168.1.1:36701 usage: total: 1.06 TB used: 755.74 GB left: 327.23 GB
 all cluster usage: total: 3.17 TB used: 2.21 TB left: 981.68 GB
 ```
 
@@ -349,10 +412,10 @@ Output:
 copyset[4294967306]:
 state: 1
 peer {
-  address: "10.182.2.45:16701:0"
+  address: "192.168.1.1:16701:0"
 }
 leader {
-  address: "10.182.2.45:16701:0"
+  address: "192.168.1.1:16701:0"
 }
 readonly: false
 term: 2
@@ -388,7 +451,7 @@ Output:
 ```shell
 copyset[4294967306]:
 -info:
-statusCode: TOPO_OK copysetInfo { poolId: 1 copysetId: 10 peers { id: 1 address: "10.182.2.45:36701:0" } peers { id: 2 address: "10.182.2.45:26701:0" } peers { id: 3 address: "10.182.2.45:16701:0" } epoch: 0 leaderPeer { id: 3 address: "10.182.2.45:16701:0" } }
+statusCode: TOPO_OK copysetInfo { poolId: 1 copysetId: 10 peers { id: 1 address: "192.168.1.1:36701:0" } peers { id: 2 address: "192.168.1.1:26701:0" } peers { id: 3 address: "192.168.1.1:16701:0" } epoch: 0 leaderPeer { id: 3 address: "192.168.1.1:16701:0" } }
 ```
 
 When using the -detail parameter, you can get information about copyset status.
@@ -396,11 +459,11 @@ When using the -detail parameter, you can get information about copyset status.
 ```shell
 copyset[4294967306]:
 -info:
-statusCode: TOPO_OK copysetInfo { poolId: 1 copysetId: 10 peers { id: 1 address: "10.182.2.45:36701:0" } peers { id: 2 address: "10.182.2.45:26701:0" } peers { id: 3 address: "10.182.2.45:16701:0" } epoch: 0 leaderPeer { id: 3 address: "10.182.2.45:16701:0" } }
+statusCode: TOPO_OK copysetInfo { poolId: 1 copysetId: 10 peers { id: 1 address: "192.168.1.1:36701:0" } peers { id: 2 address: "192.168.1.1:26701:0" } peers { id: 3 address: "192.168.1.1:16701:0" } epoch: 0 leaderPeer { id: 3 address: "192.168.1.1:16701:0" } }
 -status:
-status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 1 peer { address: "10.182.2.45:16701:0" } leader { address: "10.182.2.45:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 2 lastIndex: 1 diskIndex: 1 epoch: 0 }
-status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "10.182.2.45:26701:0" } leader { address: "10.182.2.45:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 2 lastIndex: 1 diskIndex: 1 epoch: 0 }
-status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "10.182.2.45:36701:0" } leader { address: "10.182.2.45:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 2 lastIndex: 1 diskIndex: 1 epoch: 0 }
+status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 1 peer { address: "192.168.1.1:16701:0" } leader { address: "192.168.1.1:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 2 lastIndex: 1 diskIndex: 1 epoch: 0 }
+status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "192.168.1.1:26701:0" } leader { address: "192.168.1.1:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 2 lastIndex: 1 diskIndex: 1 epoch: 0 }
+status: COPYSET_OP_STATUS_SUCCESS copysetStatus { state: 4 peer { address: "192.168.1.1:36701:0" } leader { address: "192.168.1.1:16701:0" } readonly: false term: 2 committedIndex: 1 knownAppliedIndex: 1 pendingIndex: 0 pendingQueueSize: 0 applyingIndex: 0 firstIndex: 2 lastIndex: 1 diskIndex: 1 epoch: 0 }
 ```
 
 ### **query-partition**
@@ -424,15 +487,15 @@ copysetMap {
     copysetId: 8
     peers {
       id: 1
-      address: "10.182.2.45:36701:0"
+      address: "192.168.1.1:36701:0"
     }
     peers {
       id: 2
-      address: "10.182.2.45:26701:0"
+      address: "192.168.1.1:26701:0"
     }
     peers {
       id: 3
-      address: "10.182.2.45:16701:0"
+      address: "192.168.1.1:16701:0"
     }
   }
 }
@@ -455,9 +518,9 @@ statusCode: TOPO_OK
 MetaServerInfo {
   metaServerID: 1
   hostname: "******************"
-  hostIp: "10.182.2.45"
+  hostIp: "192.168.1.1"
   port: 36701
-  externalIp: "10.182.2.45"
+  externalIp: "192.168.1.1"
   externalPort: 36701
   onlineState: ONLINE
 }

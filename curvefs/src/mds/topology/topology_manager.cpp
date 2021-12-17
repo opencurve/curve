@@ -1064,6 +1064,90 @@ void TopologyManager::GetMetaServersSpace(
     topology_->GetMetaServersSpace(spaces);
 }
 
+void TopologyManager::GetTopology(ListTopologyResponse* response) {
+    // cluster info
+    ClusterInformation info;
+    if (topology_->GetClusterInfo(&info)) {
+        response->set_clusterid(info.clusterId);
+    } else {
+        response->set_clusterid("unknown");
+    }
+
+    ListPool(nullptr, response->mutable_pools());
+    ListZone(response->mutable_zones());
+    ListServer(response->mutable_servers());
+    ListMetaserverOfCluster(response->mutable_metaservers());
+}
+
+void TopologyManager::ListZone(ListZoneResponse* response) {
+    response->set_statuscode(TopoStatusCode::TOPO_OK);
+    auto zoneIdVec = topology_->GetZoneInCluster();
+    for (auto const& zoneId : zoneIdVec) {
+        Zone zone;
+        if (topology_->GetZone(zoneId, &zone)) {
+            auto zoneInfo = response->add_zoneinfos();
+            zoneInfo->set_zoneid(zone.GetId());
+            zoneInfo->set_zonename(zone.GetName());
+            zoneInfo->set_poolid(zone.GetPoolId());
+        } else {
+            LOG(ERROR) << "Topology has counter an internal error: "
+                       << "[func:] ListZone, "
+                       << "[msg:] Zone not found, id = " << zoneId;
+            response->set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
+        }
+    }
+}
+
+void TopologyManager::ListServer(ListServerResponse* response) {
+    response->set_statuscode(TopoStatusCode::TOPO_OK);
+    auto serverIdVec = topology_->GetServerInCluster();
+    for (auto const& serverId : serverIdVec) {
+        Server server;
+        if (topology_->GetServer(serverId, &server)) {
+            auto serverInfo = response->add_serverinfos();
+            serverInfo->set_serverid(server.GetId());
+            serverInfo->set_hostname(server.GetHostName());
+            serverInfo->set_internalip(server.GetInternalHostIp());
+            serverInfo->set_internalport(server.GetInternalPort());
+            serverInfo->set_externalip(server.GetExternalHostIp());
+            serverInfo->set_externalport(server.GetExternalPort());
+            serverInfo->set_zoneid(server.GetZoneId());
+            serverInfo->set_poolid(server.GetPoolId());
+        } else {
+            LOG(ERROR) << "Topology has counter an internal error: "
+                       << "[func:] ListServer, "
+                       << "[msg:] Server not found, id = " << serverId;
+            response->set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
+        }
+    }
+}
+
+void TopologyManager::ListMetaserverOfCluster(
+    ListMetaServerResponse* response) {
+    response->set_statuscode(TopoStatusCode::TOPO_OK);
+    auto metaserverIdList = topology_->GetMetaServerInCluster();
+    for (auto const& id : metaserverIdList) {
+        MetaServer ms;
+        if (topology_->GetMetaServer(id, &ms)) {
+            MetaServerInfo* msInfo = response->add_metaserverinfos();
+            msInfo->set_metaserverid(ms.GetId());
+            msInfo->set_hostname(ms.GetHostName());
+            msInfo->set_hostip(ms.GetInternalHostIp());
+            msInfo->set_port(ms.GetInternalPort());
+            msInfo->set_externalip(ms.GetExternalHostIp());
+            msInfo->set_externalport(ms.GetExternalPort());
+            msInfo->set_onlinestate(ms.GetOnlineState());
+            msInfo->set_serverid(ms.GetServerId());
+        } else {
+            LOG(ERROR) << "Topology has counter an internal error: "
+                       << "[func:] ListMetaServerOfCluster, "
+                       << "[msg:] metaserver not found, id = " << id;
+            response->set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
+            return;
+        }
+    }
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

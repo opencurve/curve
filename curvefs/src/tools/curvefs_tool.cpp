@@ -42,6 +42,7 @@ int CurvefsTool::Run() {
 }
 
 void CurvefsTool::PrintError() {
+    std::cerr << "[error]" << std::endl;
     std::cerr << errorOutput_.str();
 }
 

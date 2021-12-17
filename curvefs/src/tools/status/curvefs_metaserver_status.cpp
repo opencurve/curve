@@ -81,7 +81,7 @@ int MetaserverStatusTool::ProcessMetrics() {
 
 int MetaserverStatusTool::Init() {
     versionSubUri_ = kVersionUri;
-    StatusSubUri_ = kMetaserverStatusUri;
+    statusSubUri_ = kMetaserverStatusUri;
     versionKey_ = kVersionKey;
 
     return StatusBaseTool::Init();
@@ -93,7 +93,7 @@ void MetaserverStatusTool::AfterGetMetric(const std::string hostAddr,
                                           const MetricStatusCode& statusCode) {
     if (statusCode == MetricStatusCode::kOK) {
         onlineHosts_.insert(hostAddr);
-        if (subUri == StatusSubUri_) {
+        if (subUri == statusSubUri_) {
             // get response is ok
             onlineHosts_.insert(hostAddr);
         } else if (subUri == versionSubUri_) {
@@ -108,7 +108,7 @@ void MetaserverStatusTool::AfterGetMetric(const std::string hostAddr,
             }
         }
 
-    } else {
+    } else if (subUri == statusSubUri_) {
         // offline host
         offlineHosts_.insert(hostAddr);
     }

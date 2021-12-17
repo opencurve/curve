@@ -21,6 +21,8 @@
  */
 #include "curvefs/src/tools/curvefs_tool_define.h"
 
+#include "curvefs/src/tools/list/curvefs_topology_list.h"
+
 DEFINE_string(mdsAddr, "127.0.0.1:16700,127.0.0.1:26700", "mds addr");
 DEFINE_string(mdsDummyAddr, "127.0.0.1:17700,127.0.0.1:27700",
               "mds dummy addr");
@@ -198,6 +200,49 @@ std::string CopysetOpStatus2Str(
             ret << "failure unknown ";
             break;
     }
+    return ret.str();
+}
+
+std::string PoolInfo2Str(const mds::topology::PoolInfo& poolInfo) {
+    std::stringstream ret;
+    ret << "poolId:" << poolInfo.poolid()
+        << ", poolName:" << poolInfo.poolname()
+        << ", createTime:" << poolInfo.createtime() << ", policy:{ "
+        << list::PoolPolicy(poolInfo.redundanceandplacementpolicy()) << " }";
+    return ret.str();
+}
+
+std::string ZoneInfo2Str(const mds::topology::ZoneInfo& zoneInfo) {
+    std::stringstream ret;
+    ret << "zoneId:" << zoneInfo.zoneid()
+        << ", zoneName:" << zoneInfo.zonename()
+        << ", poolId:" << zoneInfo.poolid() << " ";
+    return ret.str();
+}
+
+std::string ServerInfo2Str(const mds::topology::ServerInfo& serverInfo) {
+    std::stringstream ret;
+    ret << "serverId:" << serverInfo.serverid()
+        << ", hostname:" << serverInfo.hostname()
+        << ", internalIp:" << serverInfo.internalip()
+        << ", internalPort:" << serverInfo.internalport()
+        << ", externalIp:" << serverInfo.externalip()
+        << ", externalPort:" << serverInfo.externalport()
+        << ", zoneId:" << serverInfo.zoneid()
+        << ", poolId:" << serverInfo.poolid() << " ";
+    return ret.str();
+}
+
+std::string MetaserverInfo2Str(
+    const mds::topology::MetaServerInfo& metaserver) {
+    std::stringstream ret;
+    ret << "metaserverId:" << metaserver.metaserverid()
+        << ", hostname:" << metaserver.hostname()
+        << ", hostIp:" << metaserver.hostip() << ", port:" << metaserver.port()
+        << ", externalIp:" << metaserver.externalip()
+        << ", externalPort:" << metaserver.externalport() << ", onlineState:"
+        << mds::topology::OnlineState_Name(metaserver.onlinestate())
+        << ", serverId:" << metaserver.serverid();
     return ret.str();
 }
 

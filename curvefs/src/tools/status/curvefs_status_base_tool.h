@@ -69,7 +69,7 @@ class StatusBaseTool : public CurvefsToolMetric {
     std::string version_;
     std::string hostType_;
     std::string versionSubUri_ = "";
-    std::string StatusSubUri_ = "";
+    std::string statusSubUri_ = "";
     std::string versionKey_;
     std::string statusKey_;
     std::string hostLeaderValue_;

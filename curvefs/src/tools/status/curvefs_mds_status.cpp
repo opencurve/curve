@@ -37,7 +37,7 @@ void MdsStatusTool::PrintHelp() {
 
 int MdsStatusTool::Init() {
     versionSubUri_ = kVersionUri;
-    StatusSubUri_ = kMdsStatusUri;
+    statusSubUri_ = kMdsStatusUri;
     statusKey_ = kMdsStatusKey;
     versionKey_ = kVersionKey;
 
@@ -79,7 +79,7 @@ void MdsStatusTool::AfterGetMetric(const std::string hostAddr,
     auto mainAddr = dummy2MainAddr_[hostAddr];
     if (statusCode == MetricStatusCode::kOK) {
         onlineHosts_.insert(mainAddr);
-        if (subUri == StatusSubUri_) {
+        if (subUri == statusSubUri_) {
             std::string keyValue;
             if (!metricClient_->GetKeyValueFromString(value, statusKey_,
                                                       &keyValue)) {
