@@ -89,4 +89,7 @@ curvefs/devops/inventory
 *retry
 
 curvefs/docker/curvefs
+curvefs/docker/base/*
+!curvefs/docker/base/Dockerfile
+!curvefs/docker/base/Makefile
 curvefs/BUILD_MODE
