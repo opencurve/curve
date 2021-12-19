@@ -1,6 +1,6 @@
 FROM opencurvedocker/curve-base:debian9
 ENV TZ=Asia/Shanghai
-RUN mkdir -p /usr/local/curvefs /etc/curvefs
+RUN mkdir -p /usr/local/curvefs /etc/curvefs /core
 COPY curvefs /usr/local/curvefs
 COPY entrypoint.sh /
 COPY curvefs/tools/sbin/curvefs_tool /usr/bin
