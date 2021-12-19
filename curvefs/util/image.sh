@@ -29,4 +29,5 @@ do
     tmpl $dsv "conf/$file" "$prefix/conf/$file"
 done
 
+docker pull opencurvedocker/curve-base:debian9
 docker build -t "$1" "$(pwd)/docker"
