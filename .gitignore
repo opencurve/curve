@@ -83,6 +83,12 @@ runlog/
 test/client/configs/*
 !test/client/configs/.gitkeep
 
+projects/*
+docker/curvebs
+docker/base/*
+!docker/base/Dockerfile
+!docker/base/Makefile
+
 # curvefs
 curvefs/devops/projects/
 curvefs/devops/ssh/
