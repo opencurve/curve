@@ -549,6 +549,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
         RenameOperator(fsInfo_->fsid(), parent, name, newparent, newname,
                        dentryManager_, inodeManager_, metaClient_, mdsClient_);
 
+    curve::common::LockGuard lg(renameMutex_);
     CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
     RETURN_IF_UNSUCCESS(GetTxId);
     RETURN_IF_UNSUCCESS(Precheck);
