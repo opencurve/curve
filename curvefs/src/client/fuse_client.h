@@ -269,6 +269,8 @@ class FuseClient {
     InterruptibleSleeper sleeper_;
 
     Thread flushThread_;
+
+    curve::common::Mutex renameMutex_;
 };
 
 }  // namespace client
