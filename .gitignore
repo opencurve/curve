@@ -78,3 +78,29 @@ bazel-testlogs
 
 # mac
 .DS_Store
+
+test/client/configs/*
+!test/client/configs/.gitkeep
+
+projects/*
+docker/curvebs
+docker/base/*
+!docker/base/Dockerfile
+!docker/base/Makefile
+
+# curvefs
+curvefs/devops/projects/
+curvefs/devops/ssh/
+curvefs/devops/inventory
+curvefs/BUILD_MODE
+*.pyc
+.facts/
+*retry
+
+curvefs/docker/curvefs
+curvefs/docker/base/*
+!curvefs/docker/base/Dockerfile
+!curvefs/docker/base/Makefile
+curvefs/BUILD_MODE
+
+.BUILD_MODE

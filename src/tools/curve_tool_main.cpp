@@ -81,6 +81,9 @@ void UpdateFlagsFromConf(curve::common::Configuration* conf) {
     if (GetCommandLineFlagInfo("mdsAddr", &info) && info.is_default) {
         conf->GetStringValue("mdsAddr", &FLAGS_mdsAddr);
     }
+    if (GetCommandLineFlagInfo("mdsDummyPort", &info) && info.is_default) {
+        conf->GetStringValue("mdsDummyPort", &FLAGS_mdsDummyPort);
+    }
     if (GetCommandLineFlagInfo("etcdAddr", &info) && info.is_default) {
         conf->GetStringValue("etcdAddr", &FLAGS_etcdAddr);
     }
