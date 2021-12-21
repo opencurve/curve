@@ -1200,6 +1200,58 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
     ASSERT_EQ(CURVEFS_ERROR::NAMETOOLONG, ret);
 }
 
+TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
+    fuse_req_t req;
+    uint64_t txId = 0;
+    auto dentry = GenDentry(0, 0, "A", 0, 0, FILE);
+    int nThread = 3;
+    int timesPerThread = 10000;
+    int times = nThread * timesPerThread;
+    volatile bool start = false;
+    bool success = true;
+
+    EXPECT_CALL(*metaClient_, GetTxId(_, _, _, _)).Times(2 * times)
+        .WillRepeatedly(DoAll(SetArgPointee<3>(txId),
+                              Return(MetaStatusCode::OK)));
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _)).Times(2 * times)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(dentry),
+                              Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, PrepareRenameTx(_)).Times(times)
+        .WillRepeatedly(Return(MetaStatusCode::OK));
+    EXPECT_CALL(*mdsClient_, CommitTx(_)).Times(times)
+        .WillRepeatedly(Return(TopoStatusCode::TOPO_OK));
+    EXPECT_CALL(*dentryManager_, DeleteCache(_, _)).Times(times);
+    EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_)).Times(times);
+    EXPECT_CALL(*metaClient_, SetTxId(_, _)).Times(2 *times)
+        .WillRepeatedly(Invoke([&](uint32_t partitionId, uint64_t _){
+            txId = txId + 1;
+        }));
+
+    auto worker = [&](int count){
+        while (!start) { continue; }
+        for (auto i = 0; i < count; i++) {
+            auto rc = client_->FuseOpRename(req, 1, "A", 1, "B");
+            if (rc != CURVEFS_ERROR::OK) {
+                success = false;
+                break;
+            }
+        }
+    };
+
+    std::vector<std::thread> threads;
+    for (auto i = 0; i < nThread; i++) {
+        threads.emplace_back(std::thread(worker, timesPerThread));
+    }
+    start = true;
+    for (auto i = 0; i < nThread; i++) {
+        threads[i].join();
+    }
+
+    ASSERT_TRUE(success);
+    // in our caes, for each renema, we plus txid twice
+    ASSERT_EQ(2 * times, txId);
+}
+
 TEST_F(TestFuseVolumeClient, FuseOpGetAttr) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
