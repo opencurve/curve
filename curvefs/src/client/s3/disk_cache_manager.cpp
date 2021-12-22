@@ -41,6 +41,9 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     isRunning_ = false;
     usedBytes_ = 0;
     diskFsUsedRatio_ = 0;
+    fullRatio_ = 0;
+    safeRatio_ = 0;
+    maxUsableSpaceBytes_ = 0;
 }
 
 int DiskCacheManager::Init(S3Client *client,
