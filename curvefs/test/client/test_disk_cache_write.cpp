@@ -343,7 +343,7 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile) {
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(0));
     ret = diskCacheWrite_->UploadAllCacheWriteFile();
-    ASSERT_EQ(-1, ret);
+    ASSERT_EQ(0, ret);
 }
 
 TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {

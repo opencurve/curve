@@ -243,8 +243,9 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         if (doRet < 0 || buffer == nullptr) {
             if (buffer != nullptr)
                 posixWrapper_->free(buffer);
-            LOG(ERROR) << "read file is failed";
-            return -1;
+            LOG(WARNING) << "read failed, file name is: " << *iter;
+            pendingReq.fetch_sub(1, std::memory_order_seq_cst);
+            continue;
         }
         PutObjectAsyncCallBack cb =
         [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
