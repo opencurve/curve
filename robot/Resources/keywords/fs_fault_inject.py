@@ -14,6 +14,7 @@ import string
 import types
 import fault_inject
 import mythread
+import deploy
 
 def check_fs_cluster_ok():
     return 1
