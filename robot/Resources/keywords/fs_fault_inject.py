@@ -412,7 +412,7 @@ def mount_umount_test():
         time.sleep(30)
         check_fuse_mount_success(test_dir)
         multi_mdtest_exec(ssh,test_dir[0])
-        ori_cmd = "sudo umount " + config.fs_mount_path + test_dir[0]
+        ori_cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount " + config.fs_mount_path + test_dir[0]
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"umount %s fail,error is %s"%(test_dir,rs[1])
         wait_fuse_exit(test_dir[0])
