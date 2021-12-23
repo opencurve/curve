@@ -22,7 +22,7 @@
 
 // TODO(chengyi): add out put when build sucess
 
-#include "curvefs/src/tools/buildtopo/curvefs_build_topology_tool.h"
+#include "curvefs/src/tools/create/curvefs_create_topology_tool.h"
 
 DECLARE_string(mds_addr);
 DECLARE_string(cluster_map);

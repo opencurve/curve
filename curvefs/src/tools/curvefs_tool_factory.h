@@ -29,7 +29,6 @@
 #include <unordered_map>
 
 #include "curvefs/src/tools/curvefs_tool.h"
-#include "curvefs/src/tools/curvefs_tool_define.h"
 
 namespace curvefs {
 namespace tools {

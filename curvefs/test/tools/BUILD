@@ -70,11 +70,11 @@ cc_test(
     ],
 )
 
-# build-topology
+# create-topology
 cc_test(
-    name = "curvefs_build_topology_tool_test",
+    name = "curvefs_create_topology_tool_test",
     srcs = glob([
-        "curvefs_build_topology_tool_test.cpp",
+        "curvefs_create_topology_tool_test.cpp",
         "mock_topology_service.h",
     ]),
     copts = CURVE_TEST_COPTS,

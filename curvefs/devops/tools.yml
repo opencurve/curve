@@ -10,6 +10,6 @@
     - name: create topology
       shell: >
         {{ project_root_dest }}/sbin/curvefs_tool
-        build-topology
+        create-topology
         -confPath={{ project_root_dest }}/conf/tools.conf
       tags: [topo]

@@ -22,8 +22,10 @@
 
 #include "curvefs/src/tools/curvefs_tool_factory.h"
 
-#include "curvefs/src/tools/buildtopo/curvefs_build_topology_tool.h"
 #include "curvefs/src/tools/check/curvefs_copyset_check.h"
+#include "curvefs/src/tools/create/curvefs_create_fs.h"
+#include "curvefs/src/tools/create/curvefs_create_topology_tool.h"
+#include "curvefs/src/tools/curvefs_tool_define.h"
 #include "curvefs/src/tools/delete/curvefs_delete_fs_tool.h"
 #include "curvefs/src/tools/list/curvefs_copysetinfo_list.h"
 #include "curvefs/src/tools/list/curvefs_fsinfo_list.h"
@@ -53,10 +55,14 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(std::string(kUmountFsCmd),
                         CurvefsToolCreator<umount::UmountFsTool>::Create);
 
-    // build-topology
+    // create-topology
     RegisterCurvefsTool(
-        std::string(kBuildTopologyCmd),
+        std::string(kCreateTopologyCmd),
         CurvefsToolCreator<mds::topology::CurvefsBuildTopologyTool>::Create);
+
+    // create-fs
+    RegisterCurvefsTool(std::string(kCreateFsCmd),
+                        CurvefsToolCreator<create::CreateFsTool>::Create);
 
     // usage-metadata
     RegisterCurvefsTool(std::string(kMetedataUsageCmd),
