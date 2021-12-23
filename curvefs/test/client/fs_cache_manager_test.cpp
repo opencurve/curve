@@ -53,14 +53,15 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
     FsCacheManager manager(s3ClientAdaptor_, maxReadCacheByte,
                            maxWriteCacheByte);
     auto mockCacheMgr = std::make_shared<MockChunkCacheManager>();
-
+    std::list<DataCachePtr>::iterator outIter;
     {
         EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_)).Times(0);
 
         for (size_t i = 0; i < maxReadCacheByte / smallDataCacheByte; ++i) {
             manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
                                                     mockCacheMgr.get(), 0,
-                                                    smallDataCacheByte, buf));
+                                                    smallDataCacheByte, buf),
+                        &outIter);
         }
     }
 
@@ -71,8 +72,10 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
         EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_))
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
-        manager.Set(std::make_shared<DataCache>(
-            s3ClientAdaptor_, mockCacheMgr.get(), 0, dataCacheByte, buf));
+        manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
+                                                mockCacheMgr.get(), 0,
+                                                dataCacheByte, buf),
+                    &outIter);
 
         counter.Wait();
     }
@@ -85,8 +88,10 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
 
-        manager.Set(std::make_shared<DataCache>(
-            s3ClientAdaptor_, mockCacheMgr.get(), 0, dataCacheByte, buf));
+        manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
+                                                mockCacheMgr.get(), 0,
+                                                dataCacheByte, buf),
+                    &outIter);
         counter.Wait();
     }
 }
