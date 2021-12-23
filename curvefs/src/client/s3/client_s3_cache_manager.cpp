@@ -68,12 +68,16 @@ void FsCacheManager::ReleaseFileCacheManager(uint64_t inodeId) {
     return;
 }
 
-std::list<DataCachePtr>::iterator FsCacheManager::Set(DataCachePtr dataCache) {
+bool FsCacheManager::Set(DataCachePtr dataCache,
+                         std::list<DataCachePtr>::iterator *outIter) {
     std::lock_guard<std::mutex> lk(lruMtx_);
 
     VLOG(3) << "lru current byte:" << lruByte_
             << ",lru max byte:" << readCacheMaxByte_
             << ", dataCache len:" << dataCache->GetLen();
+    if (readCacheMaxByte_ == 0) {
+        return false;
+    }
     // trim cache without consider dataCache's size, because its size is
     // expected to be very smaller than `readCacheMaxByte_`
     if (lruByte_ >= readCacheMaxByte_) {
@@ -101,8 +105,8 @@ std::list<DataCachePtr>::iterator FsCacheManager::Set(DataCachePtr dataCache) {
     lruByte_ += dataCache->GetActualLen();
     dataCache->SetReadCacheState(true);
     lruReadDataCacheList_.push_front(std::move(dataCache));
-
-    return lruReadDataCacheList_.begin();
+    *outIter = lruReadDataCacheList_.begin();
+    return true;
 }
 
 void FsCacheManager::Get(std::list<DataCachePtr>::iterator iter) {
@@ -1173,9 +1177,12 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
         s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter);
         dataRCacheMap_.erase(iter);
     }
-
-    dataRCacheMap_.emplace(
-        chunkPos, s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache));
+    std::list<DataCachePtr>::iterator outIter;
+    bool ret =
+        s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache, &outIter);
+    if (ret) {
+        dataRCacheMap_.emplace(chunkPos, outIter);
+    }
 }
 
 void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
