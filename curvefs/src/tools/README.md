@@ -32,7 +32,7 @@ and can be specified by "-confPath=".
 * [version](#version)
 * [status](#status)
 * [list](#list)
-* [build](#build)
+* [create](#create)
 * [umount](#umount)
 * [usage](#usage)
 * [delete](#delete)
@@ -298,25 +298,47 @@ metaserverId:3, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:2
 
 ---
 
-## build
+## create
 
-### **build-topology**
+### **create-topology**
 
 build cluster topology
 
 Usage:
 
 ```shell
-curvefs_tool build-topology
+curvefs_tool create-topology
 ```
 
 Output:
 
-**if success, there is no output.**  
-
 ```shell
 
 ```
+
+***if success, there is no output.**  
+
+### **create-fs**
+
+Usage:
+
+```shell
+curvefs_tool create-fs
+```
+
+Output:
+
+```shell
+create fs success.
+the create fs info is:
+fsId: 3 fsName: "/test" status: INITED rootInodeId: 1 capacity: 18446744073709551615 blockSize: 1048576 mountNum: 0 fsType: TYPE_S3 detail { s3Info { ak: "ak" sk: "sk" endpoint: "endpoint" bucketname: "bucket" blockSize: 1048576 chunkSize: 4194304 } }
+```
+
+***If all the parameters of fs are the same as the existing ones, success will still be returned.**
+
+***Some parameters of create-fs such as s3_sk, s3_ak are named s3.sk, sk.ak in the configuration file (tool.conf).**
+
+***Please pay attention.**
 
 [TOC](#table-of-contents)
 

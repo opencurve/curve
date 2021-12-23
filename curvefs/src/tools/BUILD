@@ -32,7 +32,7 @@ cc_library(
     name = "curvefs_tools_lib",
     srcs = glob([
         "*.cpp",
-        "buildtopo/*.cpp",
+        "create/*.cpp",
         "version/*.cpp",
         "usage/*.cpp",
         "status/*.cpp",
@@ -45,7 +45,7 @@ cc_library(
     ]),
     hdrs = glob([
         "*.h",
-        "buildtopo/*.h",
+        "create/*.h",
         "version/*.h",
         "usage/*.h",
         "status/*.h",

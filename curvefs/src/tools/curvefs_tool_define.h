@@ -43,8 +43,10 @@ namespace tools {
 const char kProgrameName[] = "curvefs_tool";
 // version
 const char kVersionCmd[] = "version";
-// build-topology
-const char kBuildTopologyCmd[] = "build-topology";
+// create-topology
+const char kCreateTopologyCmd[] = "create-topology";
+// create-fs
+const char kCreateFsCmd[] = "create-fs";
 // umount
 const char kUmountFsCmd[] = "umount-fs";
 // delete
@@ -97,7 +99,8 @@ const char kHelpStr[] =
     "list-fs:           list all fs in cluster\n"
     "list-copysetInfo:  list all copysetInfo in cluster\n"
     "list-topology:     list cluster's topology\n"
-    "build-topology:    build cluster topology based on topo.json\n"
+    "create-topology:   create cluster topology based on topo.json\n"
+    "create-fs:         create fs\n"
     "umount-fs:         umount curvefs from local and cluster\n"
     "usage-metadata:    show the metadata usage of cluster\n"
     "delete-fs:         delete fs by fsName\n"
@@ -184,6 +187,45 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetMdsDummyAddr;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetBlockSize;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetFsType;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeSize;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeBlockSize;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeName;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeUser;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumePassword;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetS3_ak;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetS3_sk;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetS3_endpoint;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetS3_bucket_name;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetS3_blocksize;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetS3_chunksize;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>
