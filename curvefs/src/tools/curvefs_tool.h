@@ -211,6 +211,7 @@ class CurvefsToolRpc : public CurvefsTool {
                 return true;
             }
             controller_->Reset();
+            SetController();
         }
         // send request to all host failed
         return false;
