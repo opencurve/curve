@@ -151,15 +151,8 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     FSStatusCode ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
     if (ret != FSStatusCode::OK) {
         if (FSStatusCode::NOT_FOUND == ret) {
-            LOG(INFO) << "The fsName not exist, try to CreateFs"
-                      << ", fsName = " << fsName;
-
-            CURVEFS_ERROR ret2 = CreateFs(userdata, &fsInfo);
-            if (ret2 != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "CreateFs failed, ret = " << ret2
-                           << ", fsName = " << fsName;
-                return ret2;
-            }
+            LOG(ERROR) << "The fsName not exist, fsName = " << fsName;
+            return CURVEFS_ERROR::NOTEXIST;
         } else {
             LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
                        << ", FSStatusCode_Name = "
