@@ -67,7 +67,7 @@ function get_options() {
 }
 
 function prepare() {
-    g_prefix="/usr/local/curvefs/$g_role"
+    g_prefix="/curvefs/$g_role"
     conf_path="$g_prefix/conf/$g_role.conf"
 
     case $g_role in
