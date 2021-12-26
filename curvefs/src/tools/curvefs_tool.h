@@ -44,7 +44,7 @@
 
 DECLARE_string(confPath);
 DECLARE_uint32(rpcTimeoutMs);
-DECLARE_uint64(rpcRetryTimes);
+DECLARE_uint32(rpcRetryTimes);
 
 namespace curvefs {
 namespace tools {
@@ -186,6 +186,7 @@ class CurvefsToolRpc : public CurvefsTool {
      */
     virtual bool SendRequestToServices() {
         for (const std::string& host : hostsAddr_) {
+            SetController();
             if (channel_->Init(host.c_str(), nullptr) != 0) {
                 std::cerr << "fail init channel to host: " << host << std::endl;
                 continue;
@@ -201,6 +202,11 @@ class CurvefsToolRpc : public CurvefsTool {
         }
         // send request to all host failed
         return false;
+    }
+
+    virtual void SetController() {
+        controller_->set_timeout_ms(FLAGS_rpcTimeoutMs);
+        controller_->set_max_retry(FLAGS_rpcRetryTimes);
     }
 
     void AddUpdateFlagsFunc(

@@ -69,14 +69,16 @@ bool PartitionQueryTool::AfterSendRequestToHost(const std::string& host) {
                      << requestQueue_.front().DebugString()
                      << "\nto mds: " << host
                      << " failed, errorcode= " << controller_->ErrorCode()
-                     << ", error text " << controller_->ErrorText() << "\n";
+                     << ", error text " << controller_->ErrorText()
+                     << std::endl;
         return false;
     } else if (response_->statuscode() != curvefs::mds::topology::TOPO_OK) {
         std::cerr << "query partition [" << FLAGS_partitionId
                   << "], error code=" << response_->statuscode()
                   << " error name is "
                   << curvefs::mds::topology::TopoStatusCode_Name(
-                         response_->statuscode());
+                         response_->statuscode())
+                  << std::endl;
     } else if (show_) {
         std::cout << response_->DebugString() << std::endl;
     }

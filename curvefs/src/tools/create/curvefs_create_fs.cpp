@@ -41,6 +41,8 @@ DECLARE_string(s3_endpoint);
 DECLARE_string(s3_bucket_name);
 DECLARE_uint64(s3_blocksize);
 DECLARE_uint64(s3_chunksize);
+DECLARE_uint32(rpcTimeoutMs);
+DECLARE_uint32(rpcRetryTimes);
 
 namespace curvefs {
 namespace tools {
@@ -61,7 +63,9 @@ void CreateFsTool::PrintHelp() {
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
               << " -s3_chunkSize=" << FLAGS_s3_chunksize
-              << "] [-mdsAddr=" << FLAGS_mdsAddr << "]" << std::endl;
+              << "] [-mdsAddr=" << FLAGS_mdsAddr
+              << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
+              << "-rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]" << std::endl;
 }
 
 void CreateFsTool::AddUpdateFlags() {
@@ -73,21 +77,24 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeName);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeUser);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumePassword);
-    AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
+    AddUpdateFlagsFunc(curvefs::tools::SetS3_ak);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_endpoint);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_bucket_name);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_blocksize);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_chunksize);
+    AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
+    AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
 }
 
 int CreateFsTool::Init() {
+    int ret = CurvefsToolRpc::Init();
+
     google::CommandLineFlagInfo info;
     if (CheckFsNameDefault(&info)) {
         std::cerr << "no -fsName=***, please check it!" << std::endl;
         return -1;
     }
-    int ret = CurvefsToolRpc::Init();
 
     curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
     service_stub_func_ =
@@ -136,8 +143,9 @@ bool CreateFsTool::AfterSendRequestToHost(const std::string& host) {
                      << ", error text: " << controller_->ErrorText()
                      << std::endl;
         ret = false;
-    } else if (response_->statuscode() == mds::FSStatusCode::OK) {
-        // create success
+    } else if (response_->statuscode() == mds::FSStatusCode::OK ||
+               response_->statuscode() == mds::FSStatusCode::FS_EXIST) {
+        // create success or fs exist
         std::cout << "create fs success." << std::endl;
         if (response_->has_fsinfo()) {
             auto const& fsInfo = response_->fsinfo();
