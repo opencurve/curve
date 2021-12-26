@@ -41,6 +41,7 @@ DECLARE_string(s3_endpoint);
 DECLARE_string(s3_bucket_name);
 DECLARE_uint64(s3_blocksize);
 DECLARE_uint64(s3_chunksize);
+DECLARE_uint32(rpcTimeoutMs);
 
 namespace curvefs {
 namespace tools {
@@ -61,7 +62,8 @@ void CreateFsTool::PrintHelp() {
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
               << " -s3_chunkSize=" << FLAGS_s3_chunksize
-              << "] [-mdsAddr=" << FLAGS_mdsAddr << "]" << std::endl;
+              << "] [-mdsAddr=" << FLAGS_mdsAddr << "]"
+              << "[-rpcTimeoutMs= " << FLAGS_rpcTimeoutMs << "]" << std::endl;
 }
 
 void CreateFsTool::AddUpdateFlags() {
@@ -79,6 +81,7 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetS3_bucket_name);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_blocksize);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_chunksize);
+    AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
 }
 
 int CreateFsTool::Init() {
@@ -125,6 +128,7 @@ int CreateFsTool::Init() {
     }
 
     AddRequest(request);
+    controller_->set_timeout_ms(FLAGS_rpcTimeoutMs);
     return ret;
 }
 
@@ -136,8 +140,9 @@ bool CreateFsTool::AfterSendRequestToHost(const std::string& host) {
                      << ", error text: " << controller_->ErrorText()
                      << std::endl;
         ret = false;
-    } else if (response_->statuscode() == mds::FSStatusCode::OK) {
-        // create success
+    } else if (response_->statuscode() == mds::FSStatusCode::OK ||
+               response_->statuscode() == mds::FSStatusCode::FS_EXIST) {
+        // create success or fs exist
         std::cout << "create fs success." << std::endl;
         if (response_->has_fsinfo()) {
             auto const& fsInfo = response_->fsinfo();

@@ -107,7 +107,8 @@ int MetricClient::GetKeyValueFromString(const std::string& str,
                                         std::string* value) {
     auto pos = str.find(":");
     if (pos == std::string::npos) {
-        std::cout << "parse response attachment fail!" << std::endl;
+        std::cerr << "parse " << key << " fail! it should be like: *:*." A / 1
+                  << std::endl;
         return -1;
     }
     *value = str.substr(pos + 1);
