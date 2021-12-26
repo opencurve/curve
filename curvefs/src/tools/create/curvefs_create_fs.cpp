@@ -127,7 +127,14 @@ int CreateFsTool::Init() {
     }
 
     AddRequest(request);
+
+    SetController();
+
     return ret;
+}
+
+void CreateFsTool::SetController() {
+    controller_->set_timeout_ms(FLAGS_rpcTimeoutMs);
 }
 
 bool CreateFsTool::AfterSendRequestToHost(const std::string& host) {
