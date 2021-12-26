@@ -50,6 +50,7 @@ class CreateFsTool : public CurvefsToolRpc<curvefs::mds::CreateFsRequest,
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+    void SetController() override;
 };
 
 }  // namespace create
