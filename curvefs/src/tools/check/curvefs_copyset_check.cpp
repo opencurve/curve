@@ -22,86 +22,47 @@
 
 #include "curvefs/src/tools/check/curvefs_copyset_check.h"
 
-DECLARE_string(metaserverAddr);
+#include "curvefs/src/tools/copyset/curvefs_copyset_base_tool.h"
+
+DECLARE_string(mdsAddr);
 DECLARE_string(poolId);
 DECLARE_string(copysetId);
+DECLARE_bool(detail);
 
 namespace curvefs {
 namespace tools {
 namespace check {
 
 void CopysetCheckTool::PrintHelp() {
-    CurvefsToolRpc::PrintHelp();
+    CurvefsTool::PrintHelp();
     std::cout << " -copysetId=" << FLAGS_copysetId
-              << " -poolId=" << FLAGS_poolId
-              << " [-metaserverAddr=" << FLAGS_metaserverAddr << "]";
+              << " -poolId=" << FLAGS_poolId << " [-mdsAddr=" << FLAGS_mdsAddr
+              << "]";
     std::cout << std::endl;
 }
 
 int CopysetCheckTool::Init() {
-    if (CurvefsToolRpc::Init() != 0) {
-        return -1;
-    }
-
-    curve::common::SplitString(FLAGS_metaserverAddr, ",", &hostsAddr_);
-
-    std::vector<std::string> copysetsId;
-    curve::common::SplitString(FLAGS_copysetId, ",", &copysetsId);
-    std::vector<std::string> poolsId;
-    curve::common::SplitString(FLAGS_poolId, ",", &poolsId);
-    if (copysetsId.size() != poolsId.size()) {
-        std::cerr << "copysets not match pools." << std::endl;
-        return -1;
-    }
-    curvefs::metaserver::copyset::CopysetsStatusRequest request;
-    for (size_t i = 0; i < poolsId.size(); ++i) {
-        auto copysetKey = request.add_copysets();
-        auto poolId = std::stoul(poolsId[i]);
-        auto copysetId = std::stoul(copysetsId[i]);
-        copysetKey->set_poolid(poolId);
-        copysetKey->set_copysetid(copysetId);
-        key_.push_back((poolId << 32) | copysetId);
-    }
-    AddRequest(request);
-
-    service_stub_func_ = std::bind(
-        &curvefs::metaserver::copyset::CopysetService_Stub::GetCopysetsStatus,
-        service_stub_.get(), std::placeholders::_1, std::placeholders::_2,
-        std::placeholders::_3, nullptr);
+    FLAGS_detail = true;  // try to get copyset status
+    queryCopysetTool_ = std::make_shared<query::CopysetQueryTool>("", false);
     return 0;
 }
 
 int CopysetCheckTool::RunCommand() {
-    return CurvefsToolRpc::RunCommand();
-}
-
-bool CopysetCheckTool::AfterSendRequestToHost(const std::string& host) {
-    bool ret = true;
-    if (controller_->Failed()) {
-        errorOutput_ << "get copyset status from metaserver: " << host
-                     << " failed, errorcode= " << controller_->ErrorCode()
-                     << ", error text " << controller_->ErrorText() << "\n";
-        ret = false;
-    } else {
-        auto copysetsStatus = response_->status();
-        for (size_t i = 0; i < key_.size(); i++) {
-            key2CopysetStatus_[key_[i]].push_back(
-                copysetsStatus[i].copysetstatus());
+    queryCopysetTool_->Run();
+    auto key2Info = queryCopysetTool_->GetKey2Info();
+    auto key2Status = queryCopysetTool_->GetKey2Status();
+    auto copysetKey = queryCopysetTool_->GetKey_();
+    for (auto const& key : copysetKey) {
+        std::cout << "copyset[" << key << "]: is ";
+        auto result =
+            copyset::checkCopysetHelthy(key2Info[key], key2Status[key]);
+        if (result != copyset::CheckResult::kHealthy) {
+            std::cerr << "unhealthy or not exist!" << std::endl;
+        } else {
+            std::cout << "healthy." << std::endl;
         }
     }
-    if (show_) {
-        for (auto const& i : key2CopysetStatus_) {
-            std::cout << "copyset[" << i.first << "]:" << std::endl;
-            for (auto const& j : i.second) {
-                std::cout << j.DebugString() << std::endl;
-            }
-        }
-    }
-    return ret;
-}
-
-void CopysetCheckTool::AddUpdateFlags() {
-    AddUpdateFlagsFunc(curvefs::tools::SetMetaserverAddr);
+    return 0;
 }
 
 }  // namespace check

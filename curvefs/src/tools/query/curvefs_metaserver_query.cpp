@@ -101,6 +101,17 @@ bool MetaserverQueryTool::AfterSendRequestToHost(const std::string& host) {
     return true;
 }
 
+bool MetaserverQueryTool::CheckRequiredFlagDefault() {
+    google::CommandLineFlagInfo info;
+    if (CheckMetaserverIdDefault(&info) && CheckMetaserverAddrDefault(&info)) {
+        std::cerr << "no -metaserverId=*,*|-metaserverAddr=*:*,*:*, please use "
+                     "-example!"
+                  << std::endl;
+        return true;
+    }
+    return false;
+}
+
 }  // namespace query
 }  // namespace tools
 }  // namespace curvefs

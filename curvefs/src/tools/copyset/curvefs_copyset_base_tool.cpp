@@ -72,15 +72,16 @@ bool CopysetInfo2CopysetStatus(
     for (auto const& i : addr2Request) {
         // set host
         FLAGS_metaserverAddr = i.first;
-        check::CopysetCheckTool copysetCheckTool("", false);
-        copysetCheckTool.Init();
-        copysetCheckTool.SetRequestQueue(i.second);
-        auto checkRet = copysetCheckTool.RunCommand();
+        copyset::GetCopysetStatusTool getCopysetStatusTool("", false);
+        getCopysetStatusTool.Init();
+        getCopysetStatusTool.SetRequestQueue(i.second);
+        auto checkRet = getCopysetStatusTool.RunCommand();
         if (checkRet < 0) {
             std::cerr << "send request to mds get error." << std::endl;
             ret = false;
         }
-        const auto& copysetsStatus = copysetCheckTool.GetResponse()->status();
+        const auto& copysetsStatus =
+            getCopysetStatusTool.GetResponse()->status();
         auto copysets = i.second.front().copysets();
         for (int m = 0, n = 0; m < copysets.size() && n < copysetsStatus.size();
              ++m, ++n) {
@@ -129,15 +130,16 @@ bool CopysetInfo2CopysetStatus(
     for (auto const& i : addr2Request) {
         // set host
         FLAGS_metaserverAddr = i.first;
-        check::CopysetCheckTool copysetCheckTool("", false);
-        copysetCheckTool.Init();
-        copysetCheckTool.SetRequestQueue(i.second);
-        auto checkRet = copysetCheckTool.RunCommand();
+        copyset::GetCopysetStatusTool getCopysetStatusTool("", false);
+        getCopysetStatusTool.Init();
+        getCopysetStatusTool.SetRequestQueue(i.second);
+        auto checkRet = getCopysetStatusTool.RunCommand();
         if (checkRet < 0) {
             std::cerr << "send request to mds get error." << std::endl;
             ret = false;
         }
-        const auto& copysetsStatus = copysetCheckTool.GetResponse()->status();
+        const auto& copysetsStatus =
+            getCopysetStatusTool.GetResponse()->status();
         auto copysets = i.second.front().copysets();
         for (int m = 0, n = 0; m < copysets.size() && n < copysetsStatus.size();
              ++m, ++n) {

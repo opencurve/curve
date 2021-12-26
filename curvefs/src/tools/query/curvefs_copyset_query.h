@@ -37,7 +37,7 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
-#include "curvefs/src/tools/check/curvefs_copyset_check.h"
+#include "curvefs/src/tools/copyset/curvefs_copyset_status.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
@@ -63,14 +63,25 @@ class CopysetQueryTool
     void PrintHelp() override;
     int Init() override;
 
+    std::map<uint64_t, std::vector<InfoType>> GetKey2Info() {
+        return key2Info_;
+    }
+    std::map<uint64_t, std::vector<StatusType>> GetKey2Status() {
+        return key2Status_;
+    }
+    std::vector<uint64_t> GetKey_() {
+        return copysetKeys_;
+    }
+
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
     bool GetCopysetStatus();
+    bool CheckRequiredFlagDefault() override;
 
  protected:
     // key = (poolId << 32) | copysetId
-    std::map<uint64_t, std::vector<InfoType>> key2Infos_;
+    std::map<uint64_t, std::vector<InfoType>> key2Info_;
     std::map<std::string, std::queue<StatusRequestType>>
         addr2Request_;                                        // detail
     std::map<uint64_t, std::vector<StatusType>> key2Status_;  // detail

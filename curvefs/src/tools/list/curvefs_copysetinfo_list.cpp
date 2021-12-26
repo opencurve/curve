@@ -30,7 +30,7 @@ namespace list {
 
 void CopysetInfoListTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " [-mds=" << FLAGS_mdsAddr;
+    std::cout << " [-mds=" << FLAGS_mdsAddr << "]";
     std::cout << std::endl;
 }
 

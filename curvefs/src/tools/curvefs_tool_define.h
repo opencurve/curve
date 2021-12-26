@@ -125,7 +125,7 @@ const char kMetaserverStatusUri[] = "/vars/pid";
 const char kEtcdVersionUri[] = "/version";
 const char kEtcdStatusUri[] = "/v2/stats/self";
 const char kEtcdClusterVersionKey[] = "etcdcluster";
-const char kVersionKey[] = "curvefs_version";
+const char kVersionKey[] = "curve_version";
 const char kMdsStatusKey[] = "curvefs_mds_status";
 const char kEtcdStateKey[] = "state";
 const char kHostLeaderValue[] = "leader";
@@ -237,6 +237,13 @@ extern std::function<bool(google::CommandLineFlagInfo*)>
 extern std::function<bool(google::CommandLineFlagInfo*)> CheckFsNameDefault;
 
 extern std::function<bool(google::CommandLineFlagInfo*)> CheckFsIdDefault;
+
+extern std::function<bool(google::CommandLineFlagInfo*)> CheckPoolIdDefault;
+
+extern std::function<bool(google::CommandLineFlagInfo*)> CheckCopysetIdDefault;
+
+extern std::function<bool(google::CommandLineFlagInfo*)>
+    CheckPartitionIdDefault;
 
 /* translate to string */
 std::string StrVec2Str(const std::vector<std::string>&);

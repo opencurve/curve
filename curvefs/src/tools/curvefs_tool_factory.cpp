@@ -23,6 +23,7 @@
 #include "curvefs/src/tools/curvefs_tool_factory.h"
 
 #include "curvefs/src/tools/check/curvefs_copyset_check.h"
+#include "curvefs/src/tools/copyset/curvefs_copyset_status.h"
 #include "curvefs/src/tools/create/curvefs_create_fs.h"
 #include "curvefs/src/tools/create/curvefs_create_topology_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"

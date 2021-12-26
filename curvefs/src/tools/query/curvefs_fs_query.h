@@ -51,6 +51,9 @@ class FsQueryTool : public CurvefsToolRpc<curvefs::mds::GetFsInfoRequest,
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+    bool CheckRequiredFlagDefault() override;
+
+ protected:
     std::vector<std::string> requestValueVec_;
 };
 

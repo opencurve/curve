@@ -35,8 +35,8 @@ DEFINE_string(fsName, "curvefs", "fs name");
 DEFINE_string(fsId, "1,2,3", "fs id");
 DEFINE_string(mountpoint, "127.0.0.1:/mnt/curvefs-umount-test",
               "curvefs mount in local path");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
-DEFINE_uint32(rpcTimeoutMs, 5000u, "rpc time out");
+DEFINE_uint32(rpcRetryTimes, 0, "rpc retry times");
+DEFINE_uint32(rpcTimeoutMs, 10000u, "rpc time out");
 DEFINE_string(copysetId, "1,2,3", "copysets id");
 DEFINE_string(poolId, "1,2,3", "pools id");
 DEFINE_bool(detail, false, "show more infomation");
@@ -75,9 +75,20 @@ void SetFlagInfo(curve::common::Configuration* conf,
     }
 }
 
+// Used for flagname and the name in the configuration file is inconsistent
+template <class FlagInfoT>
+void SetDiffFlagInfo(curve::common::Configuration* conf,
+                     google::CommandLineFlagInfo* info,
+                     const std::string& flagName, const std::string& key,
+                     FlagInfoT* flag) {
+    if (GetCommandLineFlagInfo(flagName.c_str(), info) && info->is_default) {
+        conf->GetValueFatalIfFail(key, flag);
+    }
+}
+
 template <class FlagInfoT>
 bool CheckFlagInfoDefault(google::CommandLineFlagInfo* info,
-                          const std::string& key, FlagInfoT* flag) {
+                          const std::string& key) {
     return (GetCommandLineFlagInfo(key.c_str(), info) && info->is_default);
 }
 
@@ -93,7 +104,7 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetRpcRetryTimes =
-        std::bind(&SetFlagInfo<uint64_t>, std::placeholders::_1,
+        std::bind(&SetFlagInfo<uint32_t>, std::placeholders::_1,
                   std::placeholders::_2, "rpcRetryTimes", &FLAGS_rpcRetryTimes);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
@@ -145,49 +156,64 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
                                   "volumePassword", &FLAGS_volumePassword);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
-    SetS3_ak = std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
-                         std::placeholders::_2, "s3.ak", &FLAGS_s3_ak);
+    SetS3_ak = std::bind(&SetDiffFlagInfo<fLS::clstring>, std::placeholders::_1,
+                         std::placeholders::_2, "s3_ak", "s3.ak", &FLAGS_s3_ak);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
-    SetS3_sk = std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
-                         std::placeholders::_2, "s3.sk", &FLAGS_s3_sk);
+    SetS3_sk = std::bind(&SetDiffFlagInfo<fLS::clstring>, std::placeholders::_1,
+                         std::placeholders::_2, "s3_sk", "s3.sk", &FLAGS_s3_sk);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetS3_endpoint =
-        std::bind(&SetFlagInfo<fLS::clstring>, std::placeholders::_1,
-                  std::placeholders::_2, "s3.endpoint", &FLAGS_s3_endpoint);
+        std::bind(&SetDiffFlagInfo<fLS::clstring>, std::placeholders::_1,
+                  std::placeholders::_2, "s3_endpoint", "s3.endpoint",
+                  &FLAGS_s3_endpoint);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
-    SetS3_bucket_name = std::bind(&SetFlagInfo<fLS::clstring>,
-                                  std::placeholders::_1, std::placeholders::_2,
-                                  "s3.bucket_name", &FLAGS_s3_bucket_name);
+    SetS3_bucket_name =
+        std::bind(&SetDiffFlagInfo<fLS::clstring>, std::placeholders::_1,
+                  std::placeholders::_2, "s3_bucket_name", "s3.bucket_name",
+                  &FLAGS_s3_bucket_name);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetS3_blocksize =
-        std::bind(&SetFlagInfo<uint64_t>, std::placeholders::_1,
-                  std::placeholders::_2, "s3.blocksize", &FLAGS_s3_blocksize);
+        std::bind(&SetDiffFlagInfo<uint64_t>, std::placeholders::_1,
+                  std::placeholders::_2, "s3_blocksize", "s3.blocksize",
+                  &FLAGS_s3_blocksize);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetS3_chunksize =
-        std::bind(&SetFlagInfo<uint64_t>, std::placeholders::_1,
-                  std::placeholders::_2, "s3.chunksize", &FLAGS_s3_chunksize);
+        std::bind(&SetDiffFlagInfo<uint64_t>, std::placeholders::_1,
+                  std::placeholders::_2, "s3_chunksize", "s3.chunksize",
+                  &FLAGS_s3_chunksize);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =
     std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
-              "metaserverId", &FLAGS_metaserverId);
+              "metaserverId");
 
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverAddrDefault =
     std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
-              "metaserverAddr", &FLAGS_metaserverAddr);
+              "metaserverAddr");
 
 std::function<bool(google::CommandLineFlagInfo*)> CheckFsNameDefault =
     std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
-              "fsName", &FLAGS_fsName);
+              "fsName");
 
-std::function<bool(google::CommandLineFlagInfo*)> CheckFsIdDefault =
+std::function<bool(google::CommandLineFlagInfo*)> CheckFsIdDefault = std::bind(
+    &CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1, "fsId");
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckPoolIdDefault =
     std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
-              "fsId", &FLAGS_fsId);
+              "poolId");
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckCopysetIdDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "copysetId");
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckPartitionIdDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "partitionId");
 
 /* translate to string */
 
