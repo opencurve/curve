@@ -31,7 +31,7 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
-#include "curvefs/src/tools/check/curvefs_copyset_check.h"
+#include "curvefs/src/tools/copyset/curvefs_copyset_status.h"
 
 namespace curvefs {
 namespace tools {

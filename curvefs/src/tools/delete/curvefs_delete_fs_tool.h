@@ -53,6 +53,7 @@ class DeleteFsTool : public CurvefsToolRpc<curvefs::mds::DeleteFsRequest,
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+    bool CheckRequiredFlagDefault() override;
 
  protected:
     uint32_t checkTimes_ = 3;

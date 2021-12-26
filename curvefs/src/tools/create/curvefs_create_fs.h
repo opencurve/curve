@@ -45,6 +45,8 @@ class CreateFsTool : public CurvefsToolRpc<curvefs::mds::CreateFsRequest,
 
     int Init() override;
 
+    bool CheckRequiredFlagDefault() override;
+
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;

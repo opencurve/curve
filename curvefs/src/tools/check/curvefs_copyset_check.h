@@ -25,47 +25,32 @@
 
 #include <brpc/channel.h>
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "curvefs/proto/copyset.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/query/curvefs_copyset_query.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
 namespace check {
 
-using CopysetStatusType = curvefs::metaserver::copyset::CopysetStatus;
-
-class CopysetCheckTool
-    : public CurvefsToolRpc<
-          curvefs::metaserver::copyset::CopysetsStatusRequest,
-          curvefs::metaserver::copyset::CopysetsStatusResponse,
-          curvefs::metaserver::copyset::CopysetService_Stub> {
+class CopysetCheckTool : public CurvefsTool {
  public:
     explicit CopysetCheckTool(const std::string& cmd = kCopysetCheckCmd,
                               bool show = true)
-        : CurvefsToolRpc(cmd) {
+        : CurvefsTool(cmd) {
         show_ = show;
     }
     void PrintHelp() override;
-    int RunCommand();
+    int RunCommand() override;
     int Init() override;
-    std::map<uint64_t, std::vector<CopysetStatusType>> GetKey2CopysetStatus() {
-        return key2CopysetStatus_;
-    }
 
  protected:
-    void AddUpdateFlags() override;
-    bool AfterSendRequestToHost(const std::string& host) override;
-
- protected:
-    std::vector<uint64_t> key_;
-    std::map<uint64_t, std::vector<CopysetStatusType>> key2CopysetStatus_;
+    std::shared_ptr<query::CopysetQueryTool> queryCopysetTool_;
 };
 
 }  // namespace check

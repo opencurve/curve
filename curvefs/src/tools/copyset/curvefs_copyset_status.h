@@ -16,56 +16,61 @@
 
 /*
  * Project: curve
- * Created Date: 2021-09-27
+ * Created Date: 2021-10-31
  * Author: chengyi01
  */
-#ifndef CURVEFS_SRC_TOOLS_UMOUNT_CURVEFS_UMOUNT_FS_TOOL_H_
-#define CURVEFS_SRC_TOOLS_UMOUNT_CURVEFS_UMOUNT_FS_TOOL_H_
+
+#ifndef CURVEFS_SRC_TOOLS_COPYSET_CURVEFS_COPYSET_STATUS_H_
+#define CURVEFS_SRC_TOOLS_COPYSET_CURVEFS_COPYSET_STATUS_H_
 
 #include <brpc/channel.h>
-#include <brpc/server.h>
-#include <gflags/gflags.h>
 
-#include <cstdlib>  // std::system
-#include <functional>
-#include <iostream>
+#include <map>
 #include <memory>
-#include <sstream>
 #include <string>
-#include <thread>  //NOLINT
-#include <utility>
 #include <vector>
 
-#include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/copyset.pb.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
 
 namespace curvefs {
 namespace tools {
-namespace umount {
+namespace copyset {
 
-class UmountFsTool : public CurvefsToolRpc<curvefs::mds::UmountFsRequest,
-                                           curvefs::mds::UmountFsResponse,
-                                           curvefs::mds::MdsService_Stub> {
+using CopysetStatusType = curvefs::metaserver::copyset::CopysetStatus;
+
+class GetCopysetStatusTool
+    : public CurvefsToolRpc<
+          curvefs::metaserver::copyset::CopysetsStatusRequest,
+          curvefs::metaserver::copyset::CopysetsStatusResponse,
+          curvefs::metaserver::copyset::CopysetService_Stub> {
  public:
-    explicit UmountFsTool(const std::string& cmd = kUmountFsCmd)
-        : CurvefsToolRpc(cmd) {}
+    explicit GetCopysetStatusTool(const std::string& cmd = kNoInvokeCmd,
+                                  bool show = true)
+        : CurvefsToolRpc(cmd) {
+        show_ = show;
+    }
     void PrintHelp() override;
-
     int RunCommand() override;
     int Init() override;
-
-    void InitHostsAddr() override;
+    std::map<uint64_t, std::vector<CopysetStatusType>> GetKey2CopysetStatus() {
+        return key2CopysetStatus_;
+    }
 
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
     bool CheckRequiredFlagDefault() override;
+
+ protected:
+    std::vector<uint64_t> key_;
+    std::map<uint64_t, std::vector<CopysetStatusType>> key2CopysetStatus_;
 };
 
-}  // namespace umount
+}  // namespace copyset
 }  // namespace tools
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_TOOLS_UMOUNT_CURVEFS_UMOUNT_FS_TOOL_H_
+#endif  // CURVEFS_SRC_TOOLS_COPYSET_CURVEFS_COPYSET_STATUS_H_

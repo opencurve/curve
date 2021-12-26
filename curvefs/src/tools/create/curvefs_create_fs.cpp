@@ -41,6 +41,8 @@ DECLARE_string(s3_endpoint);
 DECLARE_string(s3_bucket_name);
 DECLARE_uint64(s3_blocksize);
 DECLARE_uint64(s3_chunksize);
+DECLARE_uint32(rpcTimeoutMs);
+DECLARE_uint32(rpcRetryTimes);
 
 namespace curvefs {
 namespace tools {
@@ -49,7 +51,7 @@ namespace create {
 void CreateFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsName=" << FLAGS_fsName
-              << "[-blockSize=" << FLAGS_blockSize
+              << " [-blockSize=" << FLAGS_blockSize
               << "] [-fsType=volume -volumeSize=" << FLAGS_volumeSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
               << " -volumeName=" << FLAGS_volumeName
@@ -61,7 +63,9 @@ void CreateFsTool::PrintHelp() {
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
               << " -s3_chunkSize=" << FLAGS_s3_chunksize
-              << "] [-mdsAddr=" << FLAGS_mdsAddr << "]" << std::endl;
+              << "] [-mdsAddr=" << FLAGS_mdsAddr
+              << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
+              << "-rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]" << std::endl;
 }
 
 void CreateFsTool::AddUpdateFlags() {
@@ -73,20 +77,17 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeName);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeUser);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumePassword);
-    AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
+    AddUpdateFlagsFunc(curvefs::tools::SetS3_ak);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_endpoint);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_bucket_name);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_blocksize);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_chunksize);
+    AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
+    AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
 }
 
 int CreateFsTool::Init() {
-    google::CommandLineFlagInfo info;
-    if (CheckFsNameDefault(&info)) {
-        std::cerr << "no -fsName=***, please check it!" << std::endl;
-        return -1;
-    }
     int ret = CurvefsToolRpc::Init();
 
     curve::common::SplitString(FLAGS_mdsAddr, ",", &hostsAddr_);
@@ -111,7 +112,7 @@ int CreateFsTool::Init() {
         request.mutable_fsdetail()->set_allocated_s3info(s3);
     } else if (FLAGS_fsType == "volume") {
         // volume
-        request.set_fstype(common::FSType::TYPE_S3);
+        request.set_fstype(common::FSType::TYPE_VOLUME);
         auto volume = new common::Volume();
         volume->set_volumesize(FLAGS_volumeSize);
         volume->set_blocksize(FLAGS_volumeBlockSize);
@@ -139,11 +140,10 @@ bool CreateFsTool::AfterSendRequestToHost(const std::string& host) {
     } else if (response_->statuscode() == mds::FSStatusCode::OK) {
         // create success
         std::cout << "create fs success." << std::endl;
-        if (response_->has_fsinfo()) {
-            auto const& fsInfo = response_->fsinfo();
-            std::cout << "the create fs info is:\n"
-                      << fsInfo.ShortDebugString() << std::endl;
-        }
+    } else if (response_->statuscode() == mds::FSStatusCode::FS_EXIST) {
+        // fs exist
+        std::cerr << "create fs error, fs [" << FLAGS_fsName
+                  << "] exist. please check the parameters!" << std::endl;
     } else {
         // create fail
         std::cerr << "create fs failed, errorcode= " << response_->statuscode()
@@ -153,6 +153,15 @@ bool CreateFsTool::AfterSendRequestToHost(const std::string& host) {
         ret = false;
     }
     return ret;
+}
+
+bool CreateFsTool::CheckRequiredFlagDefault() {
+    google::CommandLineFlagInfo info;
+    if (CheckFsNameDefault(&info)) {
+        std::cerr << "no -fsName=***, please use -example!" << std::endl;
+        return true;
+    }
+    return false;
 }
 
 }  // namespace create

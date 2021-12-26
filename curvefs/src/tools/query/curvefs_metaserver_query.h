@@ -56,6 +56,7 @@ class MetaserverQueryTool
  protected:
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
+    bool CheckRequiredFlagDefault() override;
 };
 }  // namespace query
 }  // namespace tools

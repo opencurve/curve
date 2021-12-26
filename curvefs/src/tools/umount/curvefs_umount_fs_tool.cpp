@@ -98,16 +98,45 @@ bool UmountFsTool::AfterSendRequestToHost(const std::string& host) {
                      << " failed, errorcode= " << controller_->ErrorCode()
                      << ", error text " << controller_->ErrorText()
                      << std::endl;
-    } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
-        std::cerr << "umount fs from mds: " << host << " fail, error code is "
-                  << response_->statuscode() << " code name is :"
-                  << curvefs::mds::FSStatusCode_Name(response_->statuscode())
-                  << "\n";
     } else {
-        std::cout << "umount fs from cluster success." << std::endl;
-        ret = true;
+        switch (response_->statuscode()) {
+            case curvefs::mds::FSStatusCode::OK:
+                std::cout << "umount fs from cluster success." << std::endl;
+                ret = true;
+                break;
+            case curvefs::mds::FSStatusCode::MOUNT_POINT_NOT_EXIST:
+                std::cerr << "there is no mountpoint [" << FLAGS_mountpoint
+                          << "] in cluster." << std::endl;
+                break;
+            case curvefs::mds::FSStatusCode::NOT_FOUND:
+                std::cerr << "there is no fsName [" << FLAGS_fsName
+                          << "] in cluster." << std::endl;
+                break;
+            case curvefs::mds::FSStatusCode::FS_BUSY:
+                std::cerr << "the fs [" << FLAGS_fsName
+                          << "] is in use, please check or try again."
+                          << std::endl;
+                break;
+            default:
+                std::cerr << "umount fs from mds: " << host
+                          << " fail, error code is " << response_->statuscode()
+                          << " code name is :"
+                          << curvefs::mds::FSStatusCode_Name(
+                                 response_->statuscode())
+                          << std::endl;
+                break;
+        }
     }
     return ret;
+}
+
+bool UmountFsTool::CheckRequiredFlagDefault() {
+    google::CommandLineFlagInfo info;
+    if (CheckFsNameDefault(&info)) {
+        std::cerr << "no -fsName=***, please use -example!" << std::endl;
+        return true;
+    }
+    return false;
 }
 
 }  // namespace umount

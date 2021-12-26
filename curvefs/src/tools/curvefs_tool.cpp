@@ -42,8 +42,11 @@ int CurvefsTool::Run() {
 }
 
 void CurvefsTool::PrintError() {
-    std::cerr << "[error]" << std::endl;
-    std::cerr << errorOutput_.str();
+    if (errorOutput_.tellg() > 0) {
+        // only show if errorOutput is not empty
+        std::cerr << "[error]" << std::endl;
+        std::cerr << errorOutput_.str();
+    }
 }
 
 int CurvefsToolMetric::Init(const std::shared_ptr<MetricClient>& metricClient) {

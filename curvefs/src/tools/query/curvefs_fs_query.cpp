@@ -32,7 +32,7 @@ namespace query {
 
 void FsQueryTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -fsName=" << FLAGS_fsName << "|-fsId(matter)=" << FLAGS_fsId
+    std::cout << " -fsName=" << FLAGS_fsName << "|-fsId=" << FLAGS_fsId
               << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
     std::cout << std::endl;
 }
@@ -94,10 +94,32 @@ bool FsQueryTool::AfterSendRequestToHost(const std::string& host) {
                      << ", error text " << controller_->ErrorText() << "\n";
         return false;
     } else if (show_) {
-        std::cout << response_->DebugString() << std::endl;
+        if (response_->statuscode() == mds::FSStatusCode::OK) {
+            std::cout << response_->DebugString() << std::endl;
+        } else if (response_->statuscode() == mds::FSStatusCode::NOT_FOUND) {
+            std::cerr << "fs not found!" << std::endl;
+            return false;
+        } else {
+            std::cerr << response_->DebugString() << std::endl;
+            return false;
+        }
     }
     return true;
 }
+
+bool FsQueryTool::CheckRequiredFlagDefault() {
+    google::CommandLineFlagInfo info;
+    if (CheckFsNameDefault(&info) && CheckFsIdDefault(&info)) {
+        std::cerr << "no -fsName=***|-fsId=***, please use --example check!"
+                  << std::endl;
+        return true;
+    } else if (!CheckFsNameDefault(&info) && !CheckFsIdDefault(&info)) {
+        std::cerr << "please use one of -fsName=***|-fsId=*** !" << std::endl;
+        return true;
+    }
+    return false;
+}
+
 }  // namespace query
 }  // namespace tools
 }  // namespace curvefs

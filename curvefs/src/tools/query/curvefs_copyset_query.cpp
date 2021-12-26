@@ -22,12 +22,14 @@
 
 #include "curvefs/src/tools/query/curvefs_copyset_query.h"
 
+#include "curvefs/src/tools/copyset/curvefs_copyset_base_tool.h"
+
 DECLARE_string(copysetId);
 DECLARE_string(poolId);
 DECLARE_string(mdsAddr);
 DECLARE_bool(detail);
 
-// used for CopysetStatusTool
+// used for getCopysetStatusTool
 DECLARE_string(metaserverAddr);
 
 namespace curvefs {
@@ -36,8 +38,8 @@ namespace query {
 
 void CopysetQueryTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -copysetsId=" << FLAGS_copysetId
-              << " -poolsId=" << FLAGS_poolId << " [-mdsAddr=" << FLAGS_mdsAddr
+    std::cout << " -copysetId=" << FLAGS_copysetId
+              << " -poolId=" << FLAGS_poolId << " [-mdsAddr=" << FLAGS_mdsAddr
               << "]"
               << " [-detail=" << FLAGS_detail << "]";
     std::cout << std::endl;
@@ -63,15 +65,15 @@ int CopysetQueryTool::Init() {
     }
     curvefs::mds::topology::GetCopysetsInfoRequest request;
     for (unsigned i = 0; i < poolsId.size(); ++i) {
-        auto copysetKey = request.add_copysetkeys();
         uint64_t poolId = std::stoul(poolsId[i]);
         uint64_t copysetId = std::stoul(copysetsId[i]);
-        uint64_t key = (poolId << 32) | copysetId;
+        uint64_t key = copyset::GetCopysetKey(copysetId, poolId);
         if (std::find(copysetKeys_.begin(), copysetKeys_.end(), key) !=
             copysetKeys_.end()) {  // repeat key. ignore it
             continue;
         }
         copysetKeys_.push_back(key);
+        auto copysetKey = request.add_copysetkeys();
         copysetKey->set_poolid(poolId);
         copysetKey->set_copysetid(copysetId);
     }
@@ -102,7 +104,7 @@ bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
         }
 
         for (size_t i = 0; i < copysetKeys_.size(); i++) {
-            key2Infos_[copysetKeys_[i]].push_back(copysetsValue[i]);
+            key2Info_[copysetKeys_[i]].push_back(copysetsValue[i]);
         }
         if (FLAGS_detail) {
             GetCopysetStatus();
@@ -110,14 +112,25 @@ bool CopysetQueryTool::AfterSendRequestToHost(const std::string& host) {
 
         if (show_) {
             for (auto const& i : copysetKeys_) {
-                std::cout << "copyset[" << i << "]:\n-info:" << std::endl;
-                for (auto const& j : key2Infos_[i]) {
+                std::cout << "copyset[" << i << "]:\n[info]" << std::endl;
+                if (key2Info_[i].size() != 1) {
+                    std::cerr << "find more or less 1 copysetInfo."
+                              << std::endl;
+                }
+
+                for (auto const& j : key2Info_[i]) {
                     std::cout << j.ShortDebugString() << std::endl;
                 }
                 if (FLAGS_detail) {
-                    std::cout << "-status:" << std::endl;
+                    std::cout << "[status]" << std::endl;
                     for (auto const& j : key2Status_[i]) {
                         std::cout << j.ShortDebugString() << std::endl;
+                    }
+                    if (key2Status_[i].size() !=
+                        key2Info_[i][0].copysetinfo().peers().size()) {
+                        std::cerr << "copysetStatus not match the number of "
+                                     "copysetInfo's peers!"
+                                  << std::endl;
                     }
                 }
             }
@@ -154,15 +167,16 @@ bool CopysetQueryTool::GetCopysetStatus() {
     for (auto const& i : addr2Request_) {
         // set host
         FLAGS_metaserverAddr = i.first;
-        check::CopysetCheckTool copysetCheckTool("", false);
-        copysetCheckTool.Init();
-        copysetCheckTool.SetRequestQueue(i.second);
-        auto checkRet = copysetCheckTool.RunCommand();
+        copyset::GetCopysetStatusTool getCopysetStatusTool("", false);
+        getCopysetStatusTool.Init();
+        getCopysetStatusTool.SetRequestQueue(i.second);
+        auto checkRet = getCopysetStatusTool.RunCommand();
         if (checkRet < 0) {
-            std::cerr << "send request to mds get error." << std::endl;
+            std::cerr << "send request to metaserver get error." << std::endl;
             ret = false;
         }
-        const auto& copysetsStatus = copysetCheckTool.GetResponse()->status();
+        const auto& copysetsStatus =
+            getCopysetStatusTool.GetResponse()->status();
         auto copysets = i.second.front().copysets();
         for (int m = 0, n = 0; m < copysets.size() && n < copysetsStatus.size();
              ++m, ++n) {
@@ -173,6 +187,16 @@ bool CopysetQueryTool::GetCopysetStatus() {
         }
     }
     return ret;
+}
+
+bool CopysetQueryTool::CheckRequiredFlagDefault() {
+    google::CommandLineFlagInfo info;
+    if (CheckPoolIdDefault(&info) && CheckCopysetIdDefault(&info)) {
+        std::cerr << "no -poolId=*,* -copysetId=*,* , please use -example!"
+                  << std::endl;
+        return true;
+    }
+    return false;
 }
 
 }  // namespace query

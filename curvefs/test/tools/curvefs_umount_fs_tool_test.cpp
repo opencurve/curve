@@ -36,6 +36,7 @@
 
 DECLARE_string(mdsAddr);
 DECLARE_string(mountpoint);
+DECLARE_string(fsName);
 
 namespace curvefs {
 namespace tools {
@@ -76,6 +77,7 @@ void UF(::google::protobuf::RpcController* controller,
 
 TEST_F(UmountfsToolTest, test_umount_success) {
     FLAGS_mdsAddr = addr_;
+    FLAGS_fsName = "test";
     ::curvefs::mds::UmountFsResponse response;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     EXPECT_CALL(mockMdsService_, UmountFs(_, _, _, _))
@@ -87,6 +89,7 @@ TEST_F(UmountfsToolTest, test_umount_success) {
 // mountpoint not exist
 TEST_F(UmountfsToolTest, test_umount_failed) {
     FLAGS_mdsAddr = addr_;
+    FLAGS_fsName = "test";
     ::curvefs::mds::UmountFsResponse response;
     response.set_statuscode(curvefs::mds::FSStatusCode::MOUNT_POINT_NOT_EXIST);
     EXPECT_CALL(mockMdsService_, UmountFs(_, _, _, _))
@@ -98,6 +101,7 @@ TEST_F(UmountfsToolTest, test_umount_failed) {
 // connect to mds failed
 TEST_F(UmountfsToolTest, test_umount_connect_failed) {
     FLAGS_mdsAddr = "127.0.0.1:6700";
+    FLAGS_fsName = "test";
     int ret = ut_.Run();
     ASSERT_EQ(ret, -1);
 }
@@ -105,6 +109,7 @@ TEST_F(UmountfsToolTest, test_umount_connect_failed) {
 // init failed
 TEST_F(UmountfsToolTest, test_umount_init_name) {
     FLAGS_mdsAddr = "abcd";
+    FLAGS_fsName = "test";
     int ret = ut_.Run();
     ASSERT_EQ(ret, -1);
 }
@@ -113,6 +118,7 @@ TEST_F(UmountfsToolTest, test_umount_init_name) {
 TEST_F(UmountfsToolTest, test_umount_invalid_mountpoint) {
     FLAGS_mdsAddr = addr_;
     FLAGS_mountpoint = "/1234/";
+    FLAGS_fsName = "test";
     int ret = ut_.Run();
     ASSERT_EQ(ret, -1);
     FLAGS_mountpoint = "127.0.0.1:/mnt/curvefs-umount-test";
@@ -121,6 +127,7 @@ TEST_F(UmountfsToolTest, test_umount_invalid_mountpoint) {
 // init
 TEST_F(UmountfsToolTest, test_umount_tool_init) {
     FLAGS_mdsAddr = addr_;
+    FLAGS_fsName = "test";
 
     std::shared_ptr<brpc::Channel> channel = std::make_shared<brpc::Channel>();
     std::shared_ptr<brpc::Controller> controller =

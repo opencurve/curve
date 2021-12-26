@@ -44,7 +44,7 @@
 
 DECLARE_string(confPath);
 DECLARE_uint32(rpcTimeoutMs);
-DECLARE_uint64(rpcRetryTimes);
+DECLARE_uint32(rpcRetryTimes);
 
 namespace curvefs {
 namespace tools {
@@ -141,6 +141,9 @@ class CurvefsToolRpc : public CurvefsTool {
         AddUpdateFlags();
         UpdateFlags();
         InitHostsAddr();
+        if (CheckRequiredFlagDefault()) {
+            return -1;
+        }
         return 0;
     }
 
@@ -159,11 +162,6 @@ class CurvefsToolRpc : public CurvefsTool {
         int ret = 0;
         while (!requestQueue_.empty()) {
             if (!SendRequestToServices()) {
-                std::cerr << "send request to hosts: [ ";
-                for (const auto& i : hostsAddr_) {
-                    std::cerr << i << " ";
-                }
-                std::cerr << "] failed." << std::endl;
                 ret = -1;
             }
 
@@ -174,6 +172,19 @@ class CurvefsToolRpc : public CurvefsTool {
     }
 
     virtual void InitHostsAddr() {}
+
+    /**
+     * @brief Check if required flag is default or not
+     *
+     * @return true: flag is default
+     * @return false: flag is not default
+     * @details
+     * Check whether the required flag is the default
+     * such as the parameters of some query commands
+     */
+    virtual bool CheckRequiredFlagDefault() {
+        return false;
+    }
 
  protected:
     /**
@@ -186,6 +197,7 @@ class CurvefsToolRpc : public CurvefsTool {
      */
     virtual bool SendRequestToServices() {
         for (const std::string& host : hostsAddr_) {
+            SetController();
             if (channel_->Init(host.c_str(), nullptr) != 0) {
                 std::cerr << "fail init channel to host: " << host << std::endl;
                 continue;
@@ -195,12 +207,18 @@ class CurvefsToolRpc : public CurvefsTool {
             service_stub_func_(controller_.get(), &requestQueue_.front(),
                                response_.get());
             if (AfterSendRequestToHost(host) == true) {
+                controller_->Reset();
                 return true;
             }
             controller_->Reset();
         }
         // send request to all host failed
         return false;
+    }
+
+    virtual void SetController() {
+        controller_->set_timeout_ms(FLAGS_rpcTimeoutMs);
+        controller_->set_max_retry(FLAGS_rpcRetryTimes);
     }
 
     void AddUpdateFlagsFunc(
