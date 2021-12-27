@@ -46,18 +46,44 @@ std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     return os;
 }
 
+void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap) {
+    auto it = s3ChunkInfoMap->find(chunkIndex);
+    if (it == s3ChunkInfoMap->end()) {
+        S3ChunkInfoList s3ChunkInfoList;
+        S3ChunkInfo *tmp = s3ChunkInfoList.add_s3chunks();
+        tmp->CopyFrom(info);
+        s3ChunkInfoMap->insert({chunkIndex, s3ChunkInfoList});
+    } else {
+        S3ChunkInfo *tmp = it->second.add_s3chunks();
+        tmp->CopyFrom(info);
+    }
+}
+
 CURVEFS_ERROR InodeWrapper::Sync() {
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
 
         if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = "
-                       << ret
-                       << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
-                       << ", inodeid = " << inode_.inodeid();
+            LOG(ERROR) << "metaClient_ UpdateInode failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                       << ", inodeid: " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
         dirty_ = false;
+    }
+    if (!s3ChunkInfoAdd_.empty()) {
+        MetaStatusCode ret = metaClient_->AppendS3ChunkInfo(
+            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_);
+        if (ret != MetaStatusCode::OK) {
+            LOG(ERROR) << "metaClient_ AppendS3ChunkInfo failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                       << ", inodeid: " << inode_.inodeid();
+            return MetaStatusCodeToCurvefsErrCode(ret);
+        }
+        s3ChunkInfoAdd_.clear();
     }
     return CURVEFS_ERROR::OK;
 }

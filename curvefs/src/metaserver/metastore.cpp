@@ -562,52 +562,26 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
         return status;
     }
 
-    Inode inode;
-    MetaStatusCode status = partition->GetInode(fsId, inodeId, &inode);
-    if (status != MetaStatusCode::OK) {
+    MetaStatusCode status = partition->UpdateInode(*request);
+    response->set_statuscode(status);
+    return status;
+}
+
+MetaStatusCode MetaStoreImpl::AppendS3ChunkInfo(
+    const AppendS3ChunkInfoRequest* request,
+    AppendS3ChunkInfoResponse* response) {
+    uint32_t fsId = request->fsid();
+    uint64_t inodeId = request->inodeid();
+    ReadLockGuard readLockGuard(rwLock_);
+    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
+    if (partition == nullptr) {
+        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
         response->set_statuscode(status);
         return status;
     }
-
-    bool needUpdate = false;
-
-#define UPDATE_INODE(param)                  \
-    if (request->has_##param()) {            \
-        inode.set_##param(request->param()); \
-        needUpdate = true;                   \
-    }
-
-    UPDATE_INODE(length)
-    UPDATE_INODE(ctime)
-    UPDATE_INODE(mtime)
-    UPDATE_INODE(atime)
-    UPDATE_INODE(uid)
-    UPDATE_INODE(gid)
-    UPDATE_INODE(mode)
-    UPDATE_INODE(nlink)
-
-    if (request->has_volumeextentlist()) {
-        VLOG(1) << "update inode has extent";
-        inode.mutable_volumeextentlist()->CopyFrom(request->volumeextentlist());
-        needUpdate = true;
-    }
-
-    if (!request->s3chunkinfomap().empty()) {
-        VLOG(1) << "update inode has s3chunkInfoMap";
-        inode.mutable_s3chunkinfomap()->clear();
-        *(inode.mutable_s3chunkinfomap()) = request->s3chunkinfomap();
-        needUpdate = true;
-    }
-
-    if (needUpdate) {
-        // TODO(cw123) : Update each field individually
-        status = partition->UpdateInode(inode);
-        response->set_statuscode(status);
-    } else {
-        LOG(WARNING) << "inode has no param to update";
-        response->set_statuscode(MetaStatusCode::OK);
-    }
-
+    MetaStatusCode status = partition->AppendS3ChunkInfo(fsId, inodeId,
+        request->s3chunkinfoadd(), request->s3chunkinforemove());
+    response->set_statuscode(status);
     return status;
 }
 

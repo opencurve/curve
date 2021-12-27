@@ -19,9 +19,13 @@
  * @Date: 2021-06-10 10:04:57
  * @Author: chenwei
  */
-#include "curvefs/src/metaserver/inode_manager.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <google/protobuf/util/message_differencer.h>
+
+#include "curvefs/test/metaserver/test_helper.h"
+#include "curvefs/src/metaserver/inode_manager.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -31,6 +35,7 @@ using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace metaserver {
@@ -127,14 +132,86 @@ TEST_F(InodeManagerTest, test1) {
               MetaStatusCode::NOT_FOUND);
 
     // UPDATE
-    ASSERT_EQ(manager.UpdateInode(inode1), MetaStatusCode::NOT_FOUND);
+    UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode1);
+    ASSERT_EQ(manager.UpdateInode(request), MetaStatusCode::NOT_FOUND);
     temp2.set_atime(100);
-    ASSERT_EQ(manager.UpdateInode(temp2), MetaStatusCode::OK);
+    UpdateInodeRequest request2 = MakeUpdateInodeRequestFromInode(temp2);
+    ASSERT_EQ(manager.UpdateInode(request2), MetaStatusCode::OK);
     Inode temp5;
     ASSERT_EQ(manager.GetInode(fsId, inode2.inodeid(), &temp5),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(temp5, temp2));
     ASSERT_FALSE(CompareInode(inode2, temp2));
+
+    // AppendS3ChunkInfo
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd;
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoRemove;
+
+    S3ChunkInfo info[100];
+    for (int i = 0; i < 100; i++) {
+        info[i].set_chunkid(i);
+        info[i].set_compaction(i);
+        info[i].set_offset(i);
+        info[i].set_len(i);
+        info[i].set_size(i);
+        info[i].set_size(true);
+    }
+
+    S3ChunkInfoList list[10];
+    for (int j = 0; j < 10; j++) {
+        for (int k = 0; k < 10; k++) {
+            S3ChunkInfo *tmp = list[j].add_s3chunks();
+            tmp->CopyFrom(info[10 * j + k]);
+        }
+    }
+
+    for (int j = 0; j < 10; j++) {
+        s3ChunkInfoAdd[j] = list[j];
+    }
+
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.AppendS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove));
+
+    Inode inode3Out;
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.GetInode(fsId, inode3.inodeid(), &inode3Out));
+    ASSERT_EQ(10, inode3Out.s3chunkinfomap_size());
+    for (int j = 0; j < 10; j++) {
+        ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
+                inode3Out.s3chunkinfomap().at(j)));
+    }
+
+    // Idempotent test
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.AppendS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove));
+
+    Inode inode4Out;
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.GetInode(fsId, inode3.inodeid(), &inode4Out));
+    ASSERT_EQ(10, inode4Out.s3chunkinfomap_size());
+    for (int j = 0; j < 10; j++) {
+        ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
+                inode4Out.s3chunkinfomap().at(j)));
+    }
+
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.AppendS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd));
+    Inode inode5Out;
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.GetInode(fsId, inode3.inodeid(), &inode5Out));
+    ASSERT_EQ(0, inode5Out.s3chunkinfomap_size());
+
+    // Idempotent test
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.AppendS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd));
+    Inode inode6Out;
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager.GetInode(fsId, inode3.inodeid(), &inode6Out));
+    ASSERT_EQ(0, inode6Out.s3chunkinfomap_size());
 }
 }  // namespace metaserver
 }  // namespace curvefs

@@ -21,13 +21,17 @@
  */
 
 #include "curvefs/src/metaserver/inode_manager.h"
+
 #include <glog/logging.h>
+#include <google/protobuf/util/message_differencer.h>
 #include <list>
+
 #include "curvefs/src/common/define.h"
 #include "src/common/timeutility.h"
 
 using ::curve::common::TimeUtility;
 using ::curve::common::NameLockGuard;
+using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace metaserver {
@@ -166,37 +170,172 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeManager::UpdateInode(const Inode &inode) {
-    VLOG(1) << "UpdateInode, " << inode.ShortDebugString();
+MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
+    VLOG(1) << "UpdateInode, " << request.ShortDebugString();
     NameLockGuard lg(inodeLock_, GetInodeLockName(
-            inode.fsid(), inode.inodeid()));
+            request.fsid(), request.inodeid()));
 
     Inode old;
     MetaStatusCode ret = inodeStorage_->Get(
-        InodeKey(inode.fsid(), inode.inodeid()), &old);
+        InodeKey(request.fsid(), request.inodeid()), &old);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "GetInode fail, " << inode.ShortDebugString()
+        LOG(ERROR) << "GetInode fail, " << request.ShortDebugString()
+                   << ", ret: " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    bool needUpdate = false;
+    bool needAddTrash = false;
+
+#define UPDATE_INODE(param)                  \
+    if (request.has_##param()) {            \
+        old.set_##param(request.param()); \
+        needUpdate = true;                   \
+    }
+
+    UPDATE_INODE(length)
+    UPDATE_INODE(ctime)
+    UPDATE_INODE(ctime_ns)
+    UPDATE_INODE(mtime)
+    UPDATE_INODE(mtime_ns)
+    UPDATE_INODE(atime)
+    UPDATE_INODE(atime_ns)
+    UPDATE_INODE(uid)
+    UPDATE_INODE(gid)
+    UPDATE_INODE(mode)
+
+    if (request.has_nlink()) {
+        if (old.nlink() != 0 && request.nlink() == 0) {
+            uint32_t now = TimeUtility::GetTimeofDaySec();
+            old.set_dtime(now);
+            needAddTrash = true;
+        }
+        old.set_nlink(request.nlink());
+        needUpdate = true;
+    }
+
+    if (request.has_volumeextentlist()) {
+        VLOG(1) << "update inode has extent";
+        old.mutable_volumeextentlist()->CopyFrom(request.volumeextentlist());
+        needUpdate = true;
+    }
+
+    if (!request.s3chunkinfomap().empty()) {
+        VLOG(1) << "update inode has s3chunkInfoMap";
+        old.mutable_s3chunkinfomap()->clear();
+        *(old.mutable_s3chunkinfomap()) = request.s3chunkinfomap();
+        needUpdate = true;
+    }
+
+    if (needUpdate) {
+        ret = inodeStorage_->Update(old);
+        if (ret != MetaStatusCode::OK) {
+            LOG(ERROR) << "UpdateInode fail, " << request.ShortDebugString()
+                       << ", ret: " << MetaStatusCode_Name(ret);
+            return ret;
+        }
+    }
+
+    if (needAddTrash) {
+        trash_->Add(old.fsid(), old.inodeid(), old.dtime());
+    }
+
+    VLOG(1) << "UpdateInode success, " << request.ShortDebugString();
+    return MetaStatusCode::OK;
+}
+
+void MergeToS3ChunkInfoList(const S3ChunkInfoList &listToAdd,
+    S3ChunkInfoList *listToMerge) {
+    if (0 == listToAdd.s3chunks_size()) {
+        return;
+    }
+    auto &s3chunkInfo = listToAdd.s3chunks(0);
+    auto s3Chunks = listToMerge->mutable_s3chunks();
+    auto s3chunkIt =
+        std::find_if(s3Chunks->begin(), s3Chunks->end(),
+                     [&](const S3ChunkInfo& c) {
+                         return MessageDifferencer::Equals(c, s3chunkInfo);
+                     });
+    if (s3chunkIt != s3Chunks->end()) {
+        // duplicated
+        return;
+    }
+
+    for (int i = 0; i < listToAdd.s3chunks_size(); i++) {
+        auto &s3chunkInfo = listToAdd.s3chunks(i);
+        auto info = listToMerge->add_s3chunks();
+        info->CopyFrom(s3chunkInfo);
+    }
+}
+
+void RemoveFromS3ChunkInfoList(const S3ChunkInfoList &listToRemove,
+    S3ChunkInfoList *listToMerge) {
+    S3ChunkInfoList newList;
+    for (int i = 0; i < listToMerge->s3chunks_size(); i++) {
+        auto &s3chunkInfo = listToMerge->s3chunks(i);
+
+        auto s3Chunks = listToRemove.s3chunks();
+        auto s3chunkIt =
+            std::find_if(s3Chunks.begin(), s3Chunks.end(),
+                         [&](const S3ChunkInfo& c) {
+                             return MessageDifferencer::Equals(c, s3chunkInfo);
+                         });
+        if (s3chunkIt == s3Chunks.end()) {
+            auto info = newList.add_s3chunks();
+            info->CopyFrom(s3chunkInfo);
+        }
+    }
+    listToMerge->Swap(&newList);
+}
+
+MetaStatusCode InodeManager::AppendS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
+const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
+const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+    &s3ChunkInfoRemove) {
+    VLOG(1) << "AppendS3ChunkInfo, fsId: " << fsId
+            << ", inodeId: " << inodeId;
+
+    NameLockGuard lg(inodeLock_, GetInodeLockName(
+            fsId, inodeId));
+    Inode old;
+    MetaStatusCode ret = inodeStorage_->Get(
+        InodeKey(fsId, inodeId), &old);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetInode fail, fsId: " << fsId
+                   << ", inodeId: " << inodeId
+                   << ", ret: " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    for (auto &item : s3ChunkInfoAdd) {
+        auto it = old.mutable_s3chunkinfomap()->find(item.first);
+        if (it != old.mutable_s3chunkinfomap()->end()) {
+            MergeToS3ChunkInfoList(item.second, &(it->second));
+        } else {
+            old.mutable_s3chunkinfomap()->insert({item.first, item.second});
+        }
+    }
+
+    for (auto &item : s3ChunkInfoRemove) {
+        auto it = old.mutable_s3chunkinfomap()->find(item.first);
+        if (it != old.mutable_s3chunkinfomap()->end()) {
+            RemoveFromS3ChunkInfoList(item.second, &(it->second));
+            if (0 == it->second.s3chunks_size()) {
+                old.mutable_s3chunkinfomap()->erase(it);
+            }
+        }
+    }
+
+    ret = inodeStorage_->Update(old);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "UpdateInode fail, " << old.ShortDebugString()
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
     }
 
-    if (old.nlink() != 0 && inode.nlink() == 0) {
-        uint32_t now = TimeUtility::GetTimeofDaySec();
-        const_cast<Inode&>(inode).set_dtime(now);
-    }
-
-    ret = inodeStorage_->Update(inode);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInode fail, " << inode.ShortDebugString()
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
-
-    if (old.nlink() != 0 && inode.nlink() == 0) {
-        trash_->Add(inode.fsid(), inode.inodeid(), inode.dtime());
-    }
-
-    VLOG(1) << "UpdateInode success, " << inode.ShortDebugString();
+    VLOG(1) << "AppendS3ChunkInfo success, fsId: " << fsId
+            << ", inodeId: " << inodeId
+            << ", inodesize: " << old.ByteSizeLong();
     return MetaStatusCode::OK;
 }
 

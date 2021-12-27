@@ -38,6 +38,7 @@
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::VolumeExtentList;
 using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::metaserver::S3ChunkInfo;
 
 namespace curvefs {
 namespace client {
@@ -49,6 +50,9 @@ using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
+void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap);
+
 
 class InodeWrapper {
  public:
@@ -203,12 +207,21 @@ class InodeWrapper {
         return dirty_;
     }
 
+    void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
+        curve::common::UniqueLock lg(mtx_);
+        AppendS3ChunkInfoToMap(chunkIndex, info, &s3ChunkInfoAdd_);
+        AppendS3ChunkInfoToMap(chunkIndex, info,
+            inode_.mutable_s3chunkinfomap());
+    }
+
  private:
     CURVEFS_ERROR SetOpenFlag(bool flag);
 
  private:
      Inode inode_;
      uint32_t openCount_;
+
+     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
 
      std::shared_ptr<MetaServerClient> metaClient_;
      bool dirty_;

@@ -291,6 +291,9 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
                                              const char *name, mode_t mode,
                                              struct fuse_file_info *fi,
                                              fuse_entry_param *e) {
+    LOG(INFO) << "FuseOpCreate, parent: " << parent
+              << ", name: " << name
+              << ", mode: " << mode;
     CURVEFS_ERROR ret =
         MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, e);
     if (ret != CURVEFS_ERROR::OK) {
@@ -302,12 +305,17 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                             const char *name, mode_t mode,
                                             dev_t rdev, fuse_entry_param *e) {
+    LOG(INFO) << "FuseOpMkNod, parent: " << parent
+              << ", name: " << name
+              << ", mode: " << mode
+              << ", rdev: " << rdev;
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                             int datasync,
                                             struct fuse_file_info *fi) {
+    LOG(INFO) << "FuseOpFsync, ino: " << ino << ", datasync: " << datasync;
     return CURVEFS_ERROR::NOTSUPPORT;
 }
 

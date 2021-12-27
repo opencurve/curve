@@ -114,55 +114,64 @@ class MetaStore {
 
     virtual MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                        UpdateInodeResponse* response) = 0;
+
+    virtual MetaStatusCode AppendS3ChunkInfo(
+        const AppendS3ChunkInfoRequest* request,
+        AppendS3ChunkInfoResponse* response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
  public:
     MetaStoreImpl();
 
-    bool Load(const std::string& pathname);
-    bool Save(const std::string& path, OnSnapshotSaveDoneClosure* done);
-    bool Clear();
+    bool Load(const std::string& pathname) override;
+    bool Save(const std::string& path,
+        OnSnapshotSaveDoneClosure* done) override;
+    bool Clear() override;
 
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
-                                   CreatePartitionResponse* response);
+                                   CreatePartitionResponse* response) override;
 
     MetaStatusCode DeletePartition(const DeletePartitionRequest* request,
-                                   DeletePartitionResponse* response);
+                                   DeletePartitionResponse* response) override;
 
-    std::list<PartitionInfo> GetPartitionInfoList();
+    std::list<PartitionInfo> GetPartitionInfoList() override;
 
     // dentry
     MetaStatusCode CreateDentry(const CreateDentryRequest* request,
-                                CreateDentryResponse* response);
+                                CreateDentryResponse* response) override;
 
     MetaStatusCode GetDentry(const GetDentryRequest* request,
-                             GetDentryResponse* response);
+                             GetDentryResponse* response) override;
 
     MetaStatusCode DeleteDentry(const DeleteDentryRequest* request,
-                                DeleteDentryResponse* response);
+                                DeleteDentryResponse* response) override;
 
     MetaStatusCode ListDentry(const ListDentryRequest* request,
-                              ListDentryResponse* response);
+                              ListDentryResponse* response) override;
 
     MetaStatusCode PrepareRenameTx(const PrepareRenameTxRequest* request,
-                                   PrepareRenameTxResponse* response);
+                                   PrepareRenameTxResponse* response) override;
 
     // inode
     MetaStatusCode CreateInode(const CreateInodeRequest* request,
-                               CreateInodeResponse* response);
+                               CreateInodeResponse* response) override;
 
     MetaStatusCode CreateRootInode(const CreateRootInodeRequest* request,
-                                   CreateRootInodeResponse* response);
+                                   CreateRootInodeResponse* response) override;
 
     MetaStatusCode GetInode(const GetInodeRequest* request,
-                            GetInodeResponse* response);
+                            GetInodeResponse* response) override;
 
     MetaStatusCode DeleteInode(const DeleteInodeRequest* request,
-                               DeleteInodeResponse* response);
+                               DeleteInodeResponse* response) override;
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
-                               UpdateInodeResponse* response);
+                               UpdateInodeResponse* response) override;
+
+    MetaStatusCode AppendS3ChunkInfo(
+        const AppendS3ChunkInfoRequest* request,
+        AppendS3ChunkInfoResponse* response) override;
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 

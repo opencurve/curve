@@ -246,16 +246,19 @@ message UpdateInodeRequest {
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
     optional uint64 length = 6;
-    optional uint32 ctime = 7;
-    optional uint32 mtime = 8;
-    optional uint32 atime = 9;
-    optional uint32 uid = 10;
-    optional uint32 gid = 11;
-    optional uint32 mode = 12;
-    optional VolumeExtentList volumeExtentList = 13;  // TYPE_FILE only
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 14; // TYPE_S3 only
-    optional uint32 nlink = 15;
-    optional bool openflag = 16;
+    optional uint64 ctime = 7;
+    optional uint32 ctime_ns = 8;
+    optional uint64 mtime = 9;
+    optional uint32 mtime_ns = 10;
+    optional uint64 atime = 11;
+    optional uint32 atime_ns = 12;
+    optional uint32 uid = 13;
+    optional uint32 gid = 14;
+    optional uint32 mode = 15;
+    optional VolumeExtentList volumeExtentList = 16;
+    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
+    optional uint32 nlink = 18;
+    optional bool openflag = 19;
 }
 
 message UpdateInodeResponse {
@@ -302,6 +305,21 @@ message MetaServerMetadata {
     // required uint32 checksum = 4;
 }
 
+message AppendS3ChunkInfoRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
+    map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
+    map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
+}
+
+message AppendS3ChunkInfoResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
 service MetaServerService {
     // dentry interface
     rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
@@ -317,6 +335,7 @@ service MetaServerService {
     rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
+    rpc AppendS3ChunkInfo(AppendS3ChunkInfoRequest) returns (AppendS3ChunkInfoResponse);
 
     // partition interface
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
