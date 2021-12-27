@@ -43,23 +43,22 @@ class NBDListIterator {
 };
 
 // 根据errno打印错误信息，err值无论正负都能处理
-extern std::string cpp_strerror(int err);
+std::string cpp_strerror(int err);
 // 从nbd设备名中解析出nbd的index
-extern int parse_nbd_index(const std::string& devpath);
+int parse_nbd_index(const std::string& devpath);
 // 获取当前系统能够支持的最大nbd设备数量
-extern int get_nbd_max_count();
+int get_nbd_max_count();
 // 解析用户输入的命令参数
-extern int parse_args(std::vector<const char*>& args,   // NOLINT
-                      std::ostream *err_msg,
-                      Command *command, NBDConfig *cfg);
+int parse_args(std::vector<const char *> &args,  // NOLINT
+               std::ostream *err_msg, Command *command, NBDConfig *cfg);
 // 获取指定nbd进程对应设备的挂载信息
-extern int get_mapped_info(int pid, NBDConfig *cfg);
+int get_mapped_info(int pid, NBDConfig *cfg);
 // 检查指定nbd设备的block size是否符合预期
-extern int check_block_size(int nbd_index, uint64_t expected_size);
+int check_block_size(int nbd_index, uint64_t expected_size);
 // 检查指定nbd设备的大小是否符合预期
-extern int check_device_size(int nbd_index, uint64_t expected_size);
+int check_device_size(int nbd_index, uint64_t expected_size);
 // 如果当前系统还未加载nbd模块，则进行加载；如果已经加载，则不作任何操作
-extern int load_module(NBDConfig *cfg);
+int load_module(NBDConfig *cfg);
 // Check whether the device can be unmap
 int check_dev_can_unmap(const NBDConfig *cfg);
 

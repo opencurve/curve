@@ -49,6 +49,7 @@ using ::testing::SetArrayArgument;
 
 const std::string kTestImage = "test:/test";  // NOLINT
 const int64_t kGB = 1024 * 1024 * 1024;
+const char* kNBDDevPath = "/dev/nbd1";
 
 class NBDToolTest : public ::testing::Test {
  public:
@@ -148,7 +149,7 @@ class NBDToolTest : public ::testing::Test {
 
 TEST_F(NBDToolTest, ioctl_connect_test) {
     NBDConfig config;
-    config.devpath = "/dev/nbd10";
+    config.devpath = kNBDDevPath;
     config.imgname = kTestImage;
     StartInAnotherThread(&config);
     ASSERT_TRUE(isRunning_);
@@ -160,7 +161,7 @@ TEST_F(NBDToolTest, ioctl_connect_test) {
 
 TEST_F(NBDToolTest, netlink_connect_test) {
     NBDConfig config;
-    config.devpath = "/dev/nbd10";
+    config.devpath = kNBDDevPath;
     config.imgname = kTestImage;
     config.try_netlink = true;
     StartInAnotherThread(&config);
@@ -172,7 +173,7 @@ TEST_F(NBDToolTest, netlink_connect_test) {
 
 TEST_F(NBDToolTest, readonly_test) {
     NBDConfig config;
-    config.devpath = "/dev/nbd10";
+    config.devpath = kNBDDevPath;
     config.imgname = kTestImage;
     config.readonly = true;
     StartInAnotherThread(&config);
@@ -185,7 +186,7 @@ TEST_F(NBDToolTest, readonly_test) {
 
 TEST_F(NBDToolTest, timeout_test) {
     NBDConfig config;
-    config.devpath = "/dev/nbd10";
+    config.devpath = kNBDDevPath;
     config.imgname = kTestImage;
     config.timeout = 3;
     StartInAnotherThread(&config);
