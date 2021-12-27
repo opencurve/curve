@@ -25,6 +25,9 @@
 #include <algorithm>
 #include <vector>
 
+using curvefs::metaserver::AppendS3ChunkInfoRequest;
+using curvefs::metaserver::AppendS3ChunkInfoResponse;
+
 namespace curvefs {
 namespace client {
 namespace rpcclient {
@@ -36,6 +39,7 @@ using PrepareRenameTxExcutor = TaskExecutor;
 using DeleteInodeExcutor = TaskExecutor;
 using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
+using AppendS3ChunkInfoExcutor = TaskExecutor;
 
 MetaStatusCode MetaServerClientImpl::Init(
     const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
@@ -436,9 +440,6 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
             vlist->CopyFrom(inode.volumeextentlist());
             request.set_allocated_volumeextentlist(vlist);
         }
-        if (inode.s3chunkinfomap_size() != 0) {
-            *(request.mutable_s3chunkinfomap()) = inode.s3chunkinfomap();
-        }
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.UpdateInode(cntl, &request, &response, nullptr);
 
@@ -474,6 +475,62 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
     UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_);
+    return ReturnError(excutor.DoRPCTask(taskCtx));
+}
+
+MetaStatusCode MetaServerClientImpl::AppendS3ChunkInfo(
+    uint32_t fsId, uint64_t inodeId,
+    const google::protobuf::Map<
+        uint64_t, S3ChunkInfoList> &s3ChunkInfos) {
+    auto task = RPCTask {
+        metaserverClientMetric_.appendS3ChunkInfo.qps.count << 1;
+
+        AppendS3ChunkInfoRequest request;
+        AppendS3ChunkInfoResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.AppendS3ChunkInfo(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metaserverClientMetric_.appendS3ChunkInfo.eps.count << 1;
+            LOG(WARNING) << "AppendS3ChunkInfo Failed, errorcode: "
+                         << cntl->ErrorCode()
+                         << ", error content: " << cntl->ErrorText()
+                         << ", log id: " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        MetaStatusCode ret = response.statuscode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "AppendS3ChunkInfo, inodeId: " << inodeId
+                         << ", fsId: " << fsId
+                         << ", errorcode: " << ret
+                         << ", errmsg: " << MetaStatusCode_Name(ret);
+        } else if (response.has_appliedindex()) {
+            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
+                                         response.appliedindex());
+        } else {
+            LOG(WARNING) << "AppendS3ChunkInfo,  inodeId: " << inodeId
+                         << ", fsId: " << fsId
+                         << "ok, but applyIndex not set in response: "
+                         << response.DebugString();
+            return -1;
+        }
+        VLOG(6) << "AppendS3ChunkInfo success, request: "
+                << request.DebugString()
+                << "response: " << response.DebugString();
+        return ret;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::AppendS3ChunkInfo, task, fsId, inodeId);
+    AppendS3ChunkInfoExcutor excutor(opt_, metaCache_, channelManager_);
     return ReturnError(excutor.DoRPCTask(taskCtx));
 }
 

@@ -16,39 +16,23 @@
 
 /*
  * Project: curve
- * Date: Fri Sep  3 17:30:00 CST 2021
- * Author: wuhanqing
+ * Date: 2021-12-28
+ * Author: xuchaojie
  */
 
-#ifndef CURVEFS_SRC_METASERVER_COMMON_OPERATOR_TYPE_H_
-#define CURVEFS_SRC_METASERVER_COMMON_OPERATOR_TYPE_H_
+#ifndef CURVEFS_TEST_METASERVER_TEST_HELPER_H_
+#define CURVEFS_TEST_METASERVER_TEST_HELPER_H_
 
-#include <cstdint>
+#include "curvefs/proto/metaserver.pb.h"
 
 namespace curvefs {
 namespace metaserver {
 
-enum class OperatorType : uint32_t {
-    GetDentry,
-    ListDentry,
-    CreateDentry,
-    DeleteDentry,
-    GetInode,
-    CreateInode,
-    UpdateInode,
-    DeleteInode,
-    CreateRootInode,
-    CreatePartition,
-    DeletePartition,
-    PrepareRenameTx,
-    AppendS3ChunkInfo,
-    /** Add new operator before `OperatorTypeMax` **/
-    OperatorTypeMax,
-};
-
-const char* OperatorTypeName(OperatorType type);
+UpdateInodeRequest MakeUpdateInodeRequestFromInode(const Inode &inode,
+    uint32_t poolId = 0, uint32_t copysetId = 0, uint32_t partitionId = 0);
 
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_COMMON_OPERATOR_TYPE_H_
+
+#endif  // CURVEFS_TEST_METASERVER_TEST_HELPER_H_

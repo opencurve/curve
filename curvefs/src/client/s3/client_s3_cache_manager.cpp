@@ -2072,20 +2072,10 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 dirty_.store(true, std::memory_order_release);
                 return ret;
             }
-            ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
-            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
-            auto s3chunkInfoListIter = s3ChunkInfoMap->find(chunkIndex);
-            if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
-                S3ChunkInfoList s3ChunkInfoList;
-                UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
-                                     writeOffset);
-                s3ChunkInfoMap->insert({chunkIndex, s3ChunkInfoList});
-            } else {
-                S3ChunkInfoList &s3ChunkInfoList = s3chunkInfoListIter->second;
-                UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
-                                     writeOffset);
-            }
+
+            S3ChunkInfo info;
+            PrepareS3ChunkInfo(chunkId, offset, writeOffset, &info);
+            inodeWrapper->AppendS3ChunkInfo(chunkIndex, info);
             s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
         }
 
@@ -2096,20 +2086,16 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
     return CURVEFS_ERROR::NOFLUSH;
 }
 
-void DataCache::UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
-                                     uint64_t chunkId, uint64_t offset,
-                                     uint64_t len) {
-    S3ChunkInfo *tmp = s3ChunkInfoList->add_s3chunks();
-
-    tmp->set_chunkid(chunkId);
-    tmp->set_compaction(0);
-    tmp->set_offset(offset);
-    tmp->set_len(len);
-    tmp->set_size(len);
-    tmp->set_zero(false);
+void DataCache::PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,
+    uint64_t len, S3ChunkInfo *info) {
+    info->set_chunkid(chunkId);
+    info->set_compaction(0);
+    info->set_offset(offset);
+    info->set_len(len);
+    info->set_size(len);
+    info->set_zero(false);
     VLOG(6) << "UpdateInodeChunkInfo chunkId:" << chunkId
-            << ",offset:" << offset << ", len:" << len
-            << ",s3chunks size:" << s3ChunkInfoList->s3chunks_size();
+            << ",offset:" << offset << ", len:" << len;
     return;
 }
 

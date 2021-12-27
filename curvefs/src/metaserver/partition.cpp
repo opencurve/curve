@@ -236,8 +236,8 @@ MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     return inodeManager_->DeleteInode(fsId, inodeId);
 }
 
-MetaStatusCode Partition::UpdateInode(const Inode& inode) {
-    if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
+MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
+    if (!IsInodeBelongs(request.fsid(), request.inodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
@@ -245,7 +245,23 @@ MetaStatusCode Partition::UpdateInode(const Inode& inode) {
         return MetaStatusCode::PARTITION_DELETING;
     }
 
-    return inodeManager_->UpdateInode(inode);
+    return inodeManager_->UpdateInode(request);
+}
+
+MetaStatusCode Partition::AppendS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+        &s3ChunkInfoRemove) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    return inodeManager_->AppendS3ChunkInfo(
+        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {

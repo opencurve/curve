@@ -242,6 +242,8 @@ void FuseClient::GetDentryParamFromInode(
 
 CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
                                        const char *name, fuse_entry_param *e) {
+    VLOG(1) << "FuseOpLookup parent: " << parent
+              << ", name: " << name;
     if (strlen(name) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -269,6 +271,7 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
 
 CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                                      struct fuse_file_info *fi) {
+    LOG(INFO) << "FuseOpOpen, ino: " << ino;
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
@@ -384,17 +387,24 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseClient::FuseOpMkDir(fuse_req_t req, fuse_ino_t parent,
                                       const char *name, mode_t mode,
                                       fuse_entry_param *e) {
+    LOG(INFO) << "FuseOpMkDir, parent: " << parent
+              << ", name: " << name
+              << ", mode: " << mode;
     return MakeNode(req, parent, name, S_IFDIR | mode,
                     FsFileType::TYPE_DIRECTORY, 0, e);
 }
 
 CURVEFS_ERROR FuseClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
                                        const char *name) {
+    LOG(INFO) << "FuseOpUnlink, parent: " << parent
+              << ", name: " << name;
     return RemoveNode(req, parent, name, false);
 }
 
 CURVEFS_ERROR FuseClient::FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
                                       const char *name) {
+    LOG(INFO) << "FuseOpRmDir, parent: " << parent
+              << ", name: " << name;
     return RemoveNode(req, parent, name, true);
 }
 
@@ -469,16 +479,16 @@ CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
 
     uint64_t dindex = dirBuf_->DirBufferNew();
     fi->fh = dindex;
+    VLOG(1) << "FuseOpOpenDir, ino: " << ino << ", dindex: " << dindex;
 
-    VLOG(6) << "FuseOpOpenDir, ino = " << ino << ", dindex = " << dindex;
     return ret;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
                                            struct fuse_file_info *fi) {
     uint64_t dindex = fi->fh;
+    VLOG(1) << "FuseOpReleaseDir, ino: " << ino << ", dindex: " << dindex;
     dirBuf_->DirBufferRelease(dindex);
-    VLOG(6) << "FuseOpReleaseDir, ino = " << ino << ", dindex = " << dindex;
     return CURVEFS_ERROR::OK;
 }
 
@@ -498,7 +508,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(fuse_req_t req, fuse_ino_t ino,
                                         size_t size, off_t off,
                                         struct fuse_file_info *fi,
                                         char **buffer, size_t *rSize) {
-    VLOG(6) << "FuseOpReadDir ino = " << ino << ", size = " << size
+    VLOG(6) << "FuseOpReadDir ino: " << ino << ", size: " << size
             << ", off = " << off;
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -539,8 +549,8 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
                                        const char *name, fuse_ino_t newparent,
                                        const char *newname) {
-    VLOG(3) << "FuseOpRename from (" << parent << ", " << name << ") to ("
-            << newparent << ", " << newname << ")";
+    LOG(INFO) << "FuseOpRename from (" << parent << ", " << name << ") to ("
+              << newparent << ", " << newname << ")";
     if (strlen(name) > option_.maxNameLength ||
         strlen(newname) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
@@ -578,9 +588,9 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct stat *attr, int to_set,
                                         struct fuse_file_info *fi,
                                         struct stat *attrOut) {
-    VLOG(3) << "FuseOpSetAttr to_set = " << to_set
-            << ", ino = " << ino
-            << ", attr = " << *attr;
+    LOG(INFO) << "FuseOpSetAttr to_set: " << to_set
+              << ", ino: " << ino
+              << ", attr: " << *attr;
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
@@ -647,6 +657,9 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
                                         fuse_ino_t parent, const char *name,
                                         fuse_entry_param *e) {
+    LOG(INFO) << "FuseOpSymlink, link: " << link
+              << ", parent: " << parent
+              << ", name: " << name;
     if (strlen(name) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -697,6 +710,9 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
 CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                                      fuse_ino_t newparent, const char *newname,
                                      fuse_entry_param *e) {
+    LOG(INFO) << "FuseOpLink, ino: " << ino
+              << ", newparent: " << newparent
+              << ", newname: " << newname;
     if (strlen(newname) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -740,6 +756,8 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
 
 CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string *linkStr) {
+    LOG(INFO) << "FuseOpReadLink, ino: " << ino
+              << ", linkStr: " << linkStr;
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
@@ -753,6 +771,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
 
 CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
+    LOG(INFO) << "FuseOpRelease, ino: " << ino;
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {

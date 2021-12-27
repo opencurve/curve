@@ -53,7 +53,12 @@ class InodeManager {
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode UpdateInode(const Inode &inode);
+    MetaStatusCode UpdateInode(const UpdateInodeRequest &request);
+
+    MetaStatusCode AppendS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+        &s3ChunkInfoRemove);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
         uint64_t inodeId, bool isCreate);
