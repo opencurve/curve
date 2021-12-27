@@ -89,7 +89,7 @@ class S3CompactManager {
     std::shared_ptr<S3InfoCache> s3infoCache_;
     std::shared_ptr<S3AdapterManager> s3adapterManager_;
     std::shared_ptr<S3CompactWorkQueueImpl> s3compactworkqueueImpl_;
-    std::vector<std::shared_ptr<S3Compact>> s3compacts_;
+    std::vector<std::weak_ptr<S3Compact>> s3compacts_;
     curve::common::RWLock rwLock_;
     InterruptibleSleeper sleeper_;
     void Enqueue();
@@ -106,7 +106,7 @@ class S3CompactManager {
     }
 
     void Init(std::shared_ptr<Configuration> conf);
-    void RegisterS3Compact(std::shared_ptr<S3Compact>);
+    void RegisterS3Compact(std::weak_ptr<S3Compact>);
     int Run();
     void Stop();
 };

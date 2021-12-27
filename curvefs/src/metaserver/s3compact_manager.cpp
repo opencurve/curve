@@ -153,7 +153,7 @@ void S3CompactManager::Init(std::shared_ptr<Configuration> conf) {
     }
 }
 
-void S3CompactManager::RegisterS3Compact(std::shared_ptr<S3Compact> s3compact) {
+void S3CompactManager::RegisterS3Compact(std::weak_ptr<S3Compact> s3compact) {
     WriteLockGuard l(rwLock_);
     s3compacts_.emplace_back(s3compact);
 }
@@ -183,16 +183,26 @@ void S3CompactManager::Stop() {
 }
 
 void S3CompactManager::Enqueue() {
-    std::vector<std::shared_ptr<S3Compact>> s3compacts;
+    std::vector<std::weak_ptr<S3Compact>> s3compacts;
     {
         // make a snapshot
         ReadLockGuard l(rwLock_);
         s3compacts = s3compacts_;
     }
     if (s3compacts.empty()) {
+        // fastpath
         sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
+        return;
     }
-    for (const auto& s3compact : s3compacts) {
+    std::vector<int> toErase;
+    for (int i = 0; i < s3compacts.size(); i++) {
+        auto s3compact(s3compacts[i].lock());
+        if (!s3compact) {
+            // partition is deleted, record erase
+            toErase.push_back(i);
+            continue;
+        }
+
         auto pinfo = s3compact->GetPartition();
         auto copysetNode = CopysetNodeManager::GetInstance().GetCopysetNode(
             pinfo.poolid(), pinfo.copysetid());
@@ -205,9 +215,16 @@ void S3CompactManager::Enqueue() {
         }
         for (const auto& item : inodes) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
-            s3compactworkqueueImpl_->Enqueue(inodeStorage,
-                                             InodeKey(item.second),
-                                             pinfo, copysetNode);
+            s3compactworkqueueImpl_->Enqueue(
+                inodeStorage, InodeKey(item.second), pinfo, copysetNode);
+        }
+    }
+    {
+        WriteLockGuard l(rwLock_);
+        auto it = toErase.rbegin();
+        while (it != toErase.rend()) {
+            s3compacts_.erase(s3compacts_.begin() + *it);
+            it++;
         }
     }
 }
