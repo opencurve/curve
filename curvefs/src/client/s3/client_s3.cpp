@@ -63,6 +63,11 @@ int S3ClientImpl::Download(const std::string &name, char *buf, uint64_t offset,
             << ",length:" << length;
     ret = s3Adapter_->GetObject(name, buf, offset, length);
     if (ret < 0) {
+        const Aws::String aws_key(name.c_str(), name.size());
+        if (!s3Adapter_->ObjectExist(aws_key)) {
+            LOG(INFO) << "obj " << name << " seems not exist";
+            ret = -2;
+        }
         LOG(ERROR) << "download error:" << ret;
     }
 
