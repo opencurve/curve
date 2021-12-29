@@ -79,11 +79,17 @@ TEST_F(ClientS3Test, download) {
     char* buf = new char[len];
 
     EXPECT_CALL(*s3Client_, GetObject(_, _, _, _))
-        .Times(2)
+        .Times(3)
         .WillOnce(Return(0))
+        .WillOnce(Return(-1))
         .WillOnce(Return(-1));
+    EXPECT_CALL(*s3Client_, ObjectExist(_))
+        .Times(2)
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
     ASSERT_EQ(0, client_->Download(obj, buf, offset, len));
     ASSERT_EQ(-1, client_->Download(obj, buf, offset, len));
+    ASSERT_EQ(-2, client_->Download(obj, buf, offset, len));
     delete buf;
 }
 
