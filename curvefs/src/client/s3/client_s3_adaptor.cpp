@@ -321,7 +321,9 @@ int S3ClientAdaptorImpl::ExecAsyncDownloadTask(void* meta,
 void S3ClientAdaptorImpl::InitMetrics(const std::string &fsName) {
     fsName_ = fsName;
     s3Metric_ = std::make_shared<S3Metric>(fsName);
-    diskCacheManagerImpl_->InitMetrics(fsName);
+    if (HasDiskCache()) {
+        diskCacheManagerImpl_->InitMetrics(fsName);
+    }
 }
 
 void S3ClientAdaptorImpl::CollectMetrics(InterfaceMetric *interface, int count,
