@@ -172,9 +172,13 @@ class HeartbeatTaskExecutor {
     void ExecOneTask(const CopySetConf& conf);
 
     void DoTransferLeader(CopysetNode* node, const CopySetConf& conf);
+
     void DoAddPeer(CopysetNode* node, const CopySetConf& conf);
+
     void DoRemovePeer(CopysetNode* node, const CopySetConf& conf);
+
     void DoChangePeer(CopysetNode* node, const CopySetConf& conf);
+
     void DoPurgeCopyset(PoolId poolid, CopysetId copysetid);
 
     bool NeedPurge(const CopySetConf& conf);
