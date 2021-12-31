@@ -35,6 +35,7 @@ namespace metaserver {
 namespace copyset {
 
 const char* kCopysetDataUri = "local://./runlog/copyset_reloader_test";
+const char* kTrashDataUri = "local://./runlog/copyset_reloader_test_trash";
 
 using ::curve::fs::Ext4FileSystemImpl;
 using ::curve::fs::FileSystemType;
@@ -65,6 +66,8 @@ class CopysetReloaderTest : public testing::Test {
         copysetNodeOptions_.checkRetryTimes = 3;
         copysetNodeOptions_.finishLoadMargin = 1000;
         copysetNodeOptions_.localFileSystem = fs_.get();
+
+        copysetNodeOptions_.trashOptions.trashUri = kCopysetDataUri;
 
         // disable raft snapshot
         copysetNodeOptions_.raftNodeOptions.snapshot_interval_s = -1;

@@ -48,9 +48,8 @@ class TrashTest : public testing::Test {
         options.trashUri = "local://./runlog/curvefs/trash_test0/trash";
         options.expiredAfterSec = 1;
         options.scanPeriodSec = 1;
-        options.localFileSystem = mocklfs_.get();
 
-        ASSERT_TRUE(trash_->Init(options));
+        ASSERT_TRUE(trash_->Init(options, mocklfs_.get()));
     }
 
     void TearDown() override {}

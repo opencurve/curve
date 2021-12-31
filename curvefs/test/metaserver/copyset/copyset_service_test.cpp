@@ -40,6 +40,8 @@ using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFsFactory;
 
 const std::string kTestDataPath = "./runlog/" + UUIDGenerator{}.GenerateUUID();  // NOLINT
+const std::string kTestTrashPath = kTestDataPath + "_trash";  // NOLINT
+
 const char* kTestIp = "127.0.0.1";
 const int kTestPort = 29960;
 
@@ -60,6 +62,8 @@ class CopysetServiceTest : public testing::Test {
         options_.port = kTestPort;
 
         options_.localFileSystem = fs_.get();
+
+        options_.trashOptions.trashUri = "local://" + kTestTrashPath;
 
         butil::EndPoint listenAddr(butil::IP_ANY, kTestPort);
 

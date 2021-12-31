@@ -33,7 +33,7 @@ namespace metaserver {
 namespace copyset {
 
 void CopysetServiceImpl::CreateCopysetNode(
-    google::protobuf::RpcController* controller,
+    google::protobuf::RpcController* /*controller*/,
     const CreateCopysetRequest* request, CreateCopysetResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
@@ -59,7 +59,7 @@ void CopysetServiceImpl::CreateCopysetNode(
 }
 
 void CopysetServiceImpl::GetCopysetStatus(
-    google::protobuf::RpcController* controller,
+    google::protobuf::RpcController* /*controller*/,
     const CopysetStatusRequest* request, CopysetStatusResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
@@ -67,7 +67,7 @@ void CopysetServiceImpl::GetCopysetStatus(
 }
 
 void CopysetServiceImpl::GetCopysetsStatus(
-    google::protobuf::RpcController* controller,
+    google::protobuf::RpcController* /*controller*/,
     const CopysetsStatusRequest* request, CopysetsStatusResponse* response,
     google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);

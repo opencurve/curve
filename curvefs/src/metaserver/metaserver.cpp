@@ -59,7 +59,6 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::LocalFileSystemOption;
 
 using ::curvefs::metaserver::copyset::ApplyQueueOption;
-using ::curvefs::metaserver::copyset::CopysetTrashOptions;
 
 void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
@@ -80,7 +79,7 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     InitBRaftFlags(conf);
 }
 
-void Metaserver::InitResgiterOptions() {
+void Metaserver::InitRegisterOptions() {
     conf_->GetValueFatalIfFail("mds.listen.addr",
                                &registerOptions_.mdsListenAddr);
     conf_->GetValueFatalIfFail("global.ip",
@@ -121,7 +120,7 @@ void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
 }
 
 void Metaserver::Init() {
-    InitResgiterOptions();
+    InitRegisterOptions();
     TrashOption trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
     s3Adaptor_ = std::make_shared<S3ClientAdaptorImpl>();
@@ -141,7 +140,6 @@ void Metaserver::Init() {
     // NOTE: Do not arbitrarily adjust the order, there are dependencies
     //       between different modules
     InitLocalFileSystem();
-    InitCopysetTrash();
     InitCopysetNodeManager();
     InitHeartbeat();
     InitInflightThrottle();
@@ -232,7 +230,6 @@ void Metaserver::Stop() {
     LOG_IF(ERROR, heartbeat_.Fini() != 0);
 
     TrashManager::GetInstance().Fini();
-    LOG_IF(ERROR, !copysetTrash_->Stop()) << "Failed to stop copyset trash";
     LOG_IF(ERROR, !copysetNodeManager_->Stop())
         << "Failed to stop copyset node manager";
 
@@ -328,23 +325,18 @@ void Metaserver::InitCopysetNodeOptions() {
                       "applyqueue.queue_depth",
                       &copysetNodeOptions_.applyQueueOption.queueDepth));
 
-    copysetNodeOptions_.localFileSystem = localFileSystem_.get();
-    CHECK(copysetNodeOptions_.localFileSystem != nullptr);
-}
-
-void Metaserver::InitCopysetTrash() {
-    CopysetTrashOptions options;
     LOG_IF(FATAL,
-           !conf_->GetStringValue("copyset.trash.uri", &options.trashUri));
-    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.trash.expired_aftersec",
-                                         &options.expiredAfterSec));
-    LOG_IF(FATAL, !conf_->GetUInt32Value("copyset.trash.scan_periodsec",
-                                         &options.scanPeriodSec));
-    options.localFileSystem = localFileSystem_.get();
-    CHECK(options.localFileSystem != nullptr);
+           !conf_->GetStringValue("copyset.trash.uri",
+                                  &copysetNodeOptions_.trashOptions.trashUri));
+    LOG_IF(FATAL, !conf_->GetUInt32Value(
+                      "copyset.trash.expired_aftersec",
+                      &copysetNodeOptions_.trashOptions.expiredAfterSec));
+    LOG_IF(FATAL, !conf_->GetUInt32Value(
+                      "copyset.trash.scan_periodsec",
+                      &copysetNodeOptions_.trashOptions.scanPeriodSec));
 
-    copysetTrash_ = absl::make_unique<CopysetTrash>();
-    LOG_IF(FATAL, !copysetTrash_->Init(options)) << "Failed to init trash";
+    CHECK(localFileSystem_);
+    copysetNodeOptions_.localFileSystem = localFileSystem_.get();
 }
 
 void Metaserver::InitInflightThrottle() {

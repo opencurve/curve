@@ -78,11 +78,7 @@ struct CopysetNodeOptions {
     // filesystem adaptor
     curve::fs::LocalFileSystem* localFileSystem;
 
-    // when heartbeat judges that current server is not int the coyset
-    // configuration group, it notifies copyset node manager to move the copyset
-    // data directory to the recycle bin directory, and reclaim the physical
-    // space after a period time
-    CopysetTrash* trash;
+    CopysetTrashOptions trashOptions;
 
     braft::NodeOptions raftNodeOptions;
 
@@ -99,7 +95,7 @@ inline CopysetNodeOptions::CopysetNodeOptions()
       checkLoadMarginIntervalMs(1000),
       applyQueueOption(),
       localFileSystem(nullptr),
-      trash(nullptr),
+      trashOptions(),
       raftNodeOptions() {}
 
 }  // namespace copyset

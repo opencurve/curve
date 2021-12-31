@@ -42,6 +42,7 @@ using ::testing::_;
 using ::testing::Return;
 
 const char* kCopysetUri = "local://./runlog/fs/copyset_node_manager";
+const char* kTrashUri = "local://./runlog/fs/copyset_node_manager_trash";
 const int kPort = 29920;
 const char* kInitConf = "127.0.0.1:29920:0,127.0.0.1:29921:0,127.0.0.1:29922:0";
 const PoolId kPoolId = 12345;
@@ -62,6 +63,7 @@ class CopysetNodeManagerTest : public testing::Test {
         options_.raftNodeOptions.raft_meta_uri = kCopysetUri;
         options_.raftNodeOptions.snapshot_uri = kCopysetUri;
         options_.loadConcurrency = 5;
+        options_.trashOptions.trashUri = kTrashUri;
 
         options_.localFileSystem = fs_.get();
     }
@@ -197,14 +199,11 @@ TEST_F(CopysetNodeManagerTest, DeleteCopysetNodeTest_Success) {
 TEST_F(CopysetNodeManagerTest,
        PurgeCopysetNodeTest_SuccessButRemoveDataFailed) {
     MockLocalFileSystem mockfs;
+
     CopysetTrashOptions trashoptions;
-    trashoptions.localFileSystem = &mockfs;
     trashoptions.trashUri = "local:///mnt/data";
-    CopysetTrash trash;
-
-    EXPECT_TRUE(trash.Init(trashoptions));
-
-    options_.trash = &trash;
+    options_.trashOptions = trashoptions;
+    options_.localFileSystem = &mockfs;
 
     EXPECT_TRUE(nodeManager_->Init(options_));
     EXPECT_TRUE(nodeManager_->Start());
