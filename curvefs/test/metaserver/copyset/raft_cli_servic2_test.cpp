@@ -147,6 +147,7 @@ class RaftCliService2Test : public testing::Test {
         options.raftNodeOptions.log_uri = copysetDir;
         options.raftNodeOptions.snapshot_uri = copysetDir;
         options.raftNodeOptions.raft_meta_uri = copysetDir;
+        options.trashOptions.trashUri = copysetDir + "_trash";
         options.localFileSystem = fs.get();
 
         braft::Configuration conf;

@@ -96,6 +96,7 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
  protected:
     void SetUp() override {
         dataPath_ = "./runlog/" + UUIDGenerator{}.GenerateUUID();
+        trashPath_ = dataPath_ + "_trash";
         mockfs_ = absl::make_unique<MockLocalFileSystem>();
         nodeManager_ = &CopysetNodeManager::GetInstance();
         mockMetaStore_ = absl::make_unique<mock::MockMetaStore>();
@@ -115,6 +116,8 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
         options_.raftNodeOptions.snapshot_interval_s = -1;
 
         options_.localFileSystem = mockfs_.get();
+
+        options_.trashOptions.trashUri = "local://" + trashPath_;
 
         butil::ip_t ip;
         ASSERT_EQ(0, butil::str2ip(options_.ip.c_str(), &ip));
@@ -158,6 +161,7 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
     PoolId poolId_;
     CopysetId copysetId_;
     std::string dataPath_;
+    std::string trashPath_;
 
     CopysetNodeOptions options_;
     CopysetNodeManager* nodeManager_;

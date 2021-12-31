@@ -76,7 +76,7 @@ bool CopysetNodeManager::DeleteCopysetNodeInternal(PoolId poolId,
             bool ret = true;
             if (removeData) {
                 std::string copysetDataDir = it->second->GetCopysetDataDir();
-                if (!options_.trash->RecycleCopyset(copysetDataDir)) {
+                if (!trash_.RecycleCopyset(copysetDataDir)) {
                     LOG(WARNING) << "Recycle copyset remote data failed, "
                                     "copyset data path: '"
                                  << copysetDataDir << "'";
@@ -96,13 +96,17 @@ bool CopysetNodeManager::DeleteCopysetNodeInternal(PoolId poolId,
 
 bool CopysetNodeManager::Init(const CopysetNodeOptions& options) {
     options_ = options;
-
-    return true;
+    return trash_.Init(options_.trashOptions, options_.localFileSystem);
 }
 
 bool CopysetNodeManager::Start() {
     if (running_.exchange(true)) {
         return true;
+    }
+
+    if (!trash_.Start()) {
+        LOG(ERROR) << "Start trash failed";
+        return false;
     }
 
     CopysetReloader reloader(this);
@@ -136,6 +140,11 @@ bool CopysetNodeManager::Stop() {
     {
         WriteLockGuard lock(lock_);
         copysets_.clear();
+    }
+
+    if (!trash_.Stop()) {
+        LOG(ERROR) << "Stop trash failed";
+        return false;
     }
 
     LOG(INFO) << "CopysetNodeManager stopped";
@@ -213,7 +222,7 @@ void CopysetNodeManager::AddService(brpc::Server* server,
                                     const butil::EndPoint& listenAddr) {
     braft::add_service(server, listenAddr);
 
-    // remote braft CliService and add our implemented cli service
+    // remove braft CliService and add our implemented cli service
     auto* service = server->FindServiceByName("CliService");
     LOG_IF(FATAL, 0 != server->RemoveService(service));
     LOG_IF(FATAL, 0 != server->AddService(new RaftCliService2(this),

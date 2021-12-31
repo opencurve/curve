@@ -47,7 +47,7 @@ class CopysetNodeManager {
     }
 
  public:
-    ~CopysetNodeManager() = default;
+    virtual ~CopysetNodeManager() = default;
 
     bool Init(const CopysetNodeOptions& options);
 
@@ -99,6 +99,8 @@ class CopysetNodeManager {
     mutable RWLock lock_;
 
     CopysetNodeMap copysets_;
+
+    CopysetTrash trash_;
 };
 
 }  // namespace copyset

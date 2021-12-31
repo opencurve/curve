@@ -43,18 +43,27 @@ struct CopysetTrashOptions {
 
     // after a copyset has been moved to trashUri for |expiredAfterSec| seconds
     // its data can be deleted
+    // Default: 1 hour
     uint32_t expiredAfterSec;
 
     // backend thread scan interval in seconds
+    // Default: 5 minnute
     uint32_t scanPeriodSec;
 
-    // local filesystem adapter
-    curve::fs::LocalFileSystem* localFileSystem;
+    CopysetTrashOptions()
+        : trashUri(), expiredAfterSec(60 * 60), scanPeriodSec(5 * 60) {}
 };
 
+// when heartbeat judges that current server is not int the coyset
+// configuration group, it notifies copyset node manager to move the copyset
+// data directory to the recycle bin directory, and reclaim the physical
+// space after a period time
 class CopysetTrash {
  public:
-    bool Init(const CopysetTrashOptions& options);
+    CopysetTrash();
+
+    bool Init(const CopysetTrashOptions& options,
+              curve::fs::LocalFileSystem* fs);
 
     bool Start();
 
@@ -70,10 +79,13 @@ class CopysetTrash {
     std::string GenerateCopysetRecyclePath(
         const std::string& copysetAbsolutePath);
 
-    bool IsCopysetDirAndExpired(const std::string& dir);
+    bool IsCopysetDirExpired(const std::string& dir);
+
+    bool IsCopysetDirNameValid(const std::string& dir) const;
 
  private:
     CopysetTrashOptions options_;
+    curve::fs::LocalFileSystem* lfs_;
     std::string trashDir_;
     std::atomic<bool> running_;
     std::thread recycleThread_;

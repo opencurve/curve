@@ -32,7 +32,6 @@
 #include "curvefs/src/metaserver/copyset/config.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
-#include "curvefs/src/metaserver/copyset/trash.h"
 #include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/heartbeat.h"
 #include "curvefs/src/metaserver/inflight_throttle.h"
@@ -48,7 +47,6 @@ using ::curvefs::metaserver::copyset::ApplyQueue;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
 using ::curvefs::metaserver::copyset::CopysetNodeOptions;
 using ::curvefs::metaserver::copyset::CopysetServiceImpl;
-using ::curvefs::metaserver::copyset::CopysetTrash;
 
 struct MetaserverOptions {
     std::string ip;
@@ -66,12 +64,11 @@ class Metaserver {
  private:
     void InitCopysetNodeOptions();
     void InitCopysetNodeManager();
-    void InitCopysetTrash();
     void InitLocalFileSystem();
     void InitInflightThrottle();
     void InitHeartbeatOptions();
     void InitHeartbeat();
-    void InitResgiterOptions();
+    void InitRegisterOptions();
     void InitBRaftFlags(const std::shared_ptr<Configuration>& conf);
 
  private:
@@ -100,7 +97,6 @@ class Metaserver {
     RegisterOptions registerOptions_;
 
     std::unique_ptr<InflightThrottle> inflightThrottle_;
-    std::unique_ptr<CopysetTrash> copysetTrash_;
     std::shared_ptr<curve::fs::LocalFileSystem> localFileSystem_;
 };
 }  // namespace metaserver
