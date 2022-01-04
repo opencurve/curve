@@ -155,7 +155,9 @@ TEST_F(MetastoreTest, partition) {
 
     DeletePartitionRequest deletePartitionRequest;
     DeletePartitionResponse deletePartitionResponse;
-    deletePartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
+    deletePartitionRequest.set_poolid(partitionInfo.poolid());
+    deletePartitionRequest.set_copysetid(partitionInfo.copysetid());
+    deletePartitionRequest.set_partitionid(partitionInfo.partitionid());
     ret = metastore.DeletePartition(&deletePartitionRequest,
                                     &deletePartitionResponse);
     ASSERT_EQ(ret, MetaStatusCode::OK);
@@ -217,7 +219,7 @@ TEST_F(MetastoreTest, partition) {
     // partition has mata, delete fail
     ret = metastore.DeletePartition(&deletePartitionRequest,
                                     &deletePartitionResponse);
-    ASSERT_EQ(ret, MetaStatusCode::PARTITION_BUSY);
+    ASSERT_EQ(ret, MetaStatusCode::PARTITION_DELETING);
     ASSERT_EQ(deletePartitionResponse.statuscode(), ret);
 
     std::list<PartitionInfo> partitionList = metastore.GetPartitionInfoList();

@@ -34,6 +34,7 @@ using ::curvefs::mds::topology::Topology;
 namespace curvefs {
 namespace mds {
 namespace heartbeat {
+using curvefs::mds::topology::CopySetIdType;
 class TopoUpdater {
  public:
     explicit TopoUpdater(const std::shared_ptr<Topology> &topo) : topo_(topo) {}
@@ -45,12 +46,21 @@ class TopoUpdater {
      *                   statistical data according to reportCopySetInfo and
      *                   partition info
      * @param[in] reportCopySetInfo copyset info reported by metaserver
-     * @param[in] topoPartitionList partition info list reported by metaserver
+     * @param[in] partitionList partition info list reported by metaserver
      */
     void UpdateTopo(
         const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo,
-        const std::list<::curvefs::mds::topology::Partition>
-            &topoPartitionList);
+        const std::list<::curvefs::mds::topology::Partition> &partitionList);
+
+ public:
+    // public for test
+    void UpdateCopysetTopo(
+        const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo);
+    void UpdatePartitionTopo(
+        CopySetIdType copySetId,
+        const std::list<::curvefs::mds::topology::Partition> &partitionList);
+    bool CanPartitionStatusChange(PartitionStatus statusInTopo,
+                                  PartitionStatus statusInHeartbeat);
 
  private:
     std::shared_ptr<Topology> topo_;

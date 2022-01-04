@@ -163,8 +163,8 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
                                    uint64_t dataOffset, uint64_t len);
 
  private:
-    void UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
-                              uint64_t chunkId, uint64_t offset, uint64_t len);
+    void PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,
+        uint64_t len, S3ChunkInfo *info);
     void CopyBufToDataCache(uint64_t dataCachePos, uint64_t len,
                              const char *data);
     void AddDataBefore(uint64_t len, const char *data);

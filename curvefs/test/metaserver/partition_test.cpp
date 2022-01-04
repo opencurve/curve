@@ -24,6 +24,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "curvefs/test/metaserver/test_helper.h"
+
 using ::testing::AtLeast;
 using ::testing::StrEq;
 using ::testing::_;
@@ -314,9 +316,11 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     inode3.set_inodeid(wrongInodeId);
 
     // test UpdateInode
-    ASSERT_EQ(partition1.UpdateInode(inode2),
+    UpdateInodeRequest inode2Request = MakeUpdateInodeRequestFromInode(inode2);
+    ASSERT_EQ(partition1.UpdateInode(inode2Request),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.UpdateInode(inode3),
+    UpdateInodeRequest inode3Request = MakeUpdateInodeRequestFromInode(inode3);
+    ASSERT_EQ(partition1.UpdateInode(inode3Request),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test InsertInode

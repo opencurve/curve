@@ -41,6 +41,7 @@ using ::curvefs::metaserver::copyset::GetInodeOperator;
 using ::curvefs::metaserver::copyset::CreateInodeOperator;
 using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
 using ::curvefs::metaserver::copyset::UpdateInodeOperator;
+using ::curvefs::metaserver::copyset::AppendS3ChunkInfoOperator;
 using ::curvefs::metaserver::copyset::DeleteInodeOperator;
 using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
 using ::curvefs::metaserver::copyset::CreatePartitionOperator;
@@ -181,6 +182,17 @@ void MetaServerServiceImpl::UpdateInode(
                                            request->copysetid());
 }
 
+void MetaServerServiceImpl::AppendS3ChunkInfo(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::metaserver::AppendS3ChunkInfoRequest* request,
+    ::curvefs::metaserver::AppendS3ChunkInfoResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<AppendS3ChunkInfoOperator>(controller, request, response,
+                                                 done, request->poolid(),
+                                                 request->copysetid());
+}
+
 void MetaServerServiceImpl::DeleteInode(
     ::google::protobuf::RpcController* controller,
     const ::curvefs::metaserver::DeleteInodeRequest* request,
@@ -208,8 +220,8 @@ void MetaServerServiceImpl::DeletePartition(
     google::protobuf::Closure* done) {
     OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
     helper.operator()<DeletePartitionOperator>(
-        controller, request, response, done, request->partition().poolid(),
-        request->partition().copysetid());
+        controller, request, response, done, request->poolid(),
+        request->copysetid());
 }
 
 void MetaServerServiceImpl::PrepareRenameTx(

@@ -41,6 +41,7 @@ using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::space::AllocateType;
+using ::curvefs::metaserver::S3ChunkInfoList;
 
 namespace curvefs {
 namespace client {
@@ -81,6 +82,11 @@ class MetaServerClient {
 
     virtual MetaStatusCode UpdateInode(const Inode &inode) = 0;
 
+    virtual MetaStatusCode AppendS3ChunkInfo(
+        uint32_t fsId, uint64_t inodeId,
+        const google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> &s3ChunkInfos) = 0;
+
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
 
     virtual MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) = 0;
@@ -93,7 +99,7 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode
     Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
-         std::shared_ptr<ChannelManager<MetaserverID>> channelManager);
+         std::shared_ptr<ChannelManager<MetaserverID>> channelManager) override;
 
     MetaStatusCode GetTxId(uint32_t fsId, uint64_t inodeId,
                            uint32_t *partitionId, uint64_t *txId) override;
@@ -118,6 +124,11 @@ class MetaServerClientImpl : public MetaServerClient {
                             Inode *out) override;
 
     MetaStatusCode UpdateInode(const Inode &inode) override;
+
+    MetaStatusCode AppendS3ChunkInfo(
+        uint32_t fsId, uint64_t inodeId,
+        const google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> &s3ChunkInfos) override;
 
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
 

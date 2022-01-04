@@ -47,15 +47,23 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
         partitionInfo_.set_nextid(
             std::max(kMinPartitionStartId, partitionInfo_.start()));
     }
-    TrashManager::GetInstance().Add(paritionInfo.partitionid(), trash_);
-    s3compact_ = std::make_shared<S3Compact>(inodeStorage_, &partitionInfo_);
-    S3CompactManager::GetInstance().RegisterS3Compact(s3compact_);
+
+    if (paritionInfo.status() != PartitionStatus::DELETING) {
+        TrashManager::GetInstance().Add(paritionInfo.partitionid(), trash_);
+        s3compact_ = std::make_shared<S3Compact>(inodeStorage_,
+                                                 &partitionInfo_);
+        S3CompactManager::GetInstance().RegisterS3Compact(s3compact_);
+    }
 }
 
 // dentry
 MetaStatusCode Partition::CreateDentry(const Dentry& dentry, bool isLoadding) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
     }
     MetaStatusCode ret = dentryManager_->CreateDentry(dentry);
     if (MetaStatusCode::OK == ret) {
@@ -76,6 +84,7 @@ MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
     MetaStatusCode ret = dentryManager_->DeleteDentry(dentry);
     if (MetaStatusCode::OK == ret) {
         return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
@@ -89,6 +98,11 @@ MetaStatusCode Partition::GetDentry(Dentry* dentry) {
     if (!IsInodeBelongs(dentry->fsid(), dentry->parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
     return dentryManager_->GetDentry(dentry);
 }
 
@@ -98,7 +112,16 @@ MetaStatusCode Partition::ListDentry(const Dentry& dentry,
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
     return dentryManager_->ListDentry(dentry, dentrys, limit);
+}
+
+void Partition::ClearDentry() {
+    dentryManager_->ClearDentry();
 }
 
 MetaStatusCode Partition::HandleRenameTx(const std::vector<Dentry>& dentrys) {
@@ -107,6 +130,11 @@ MetaStatusCode Partition::HandleRenameTx(const std::vector<Dentry>& dentrys) {
             return MetaStatusCode::PARTITION_ID_MISSMATCH;
         }
     }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
     return dentryManager_->HandleRenameTx(dentrys);
 }
 
@@ -119,11 +147,19 @@ bool Partition::InsertPendingTx(const PrepareRenameTxRequest& pendingTx) {
         }
     }
 
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return false;
+    }
+
     auto renameTx = RenameTx(dentrys, dentryStorage_);
     return txManager_->InsertPendingTx(renameTx);
 }
 
 bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return false;
+    }
+
     RenameTx renameTx;
     auto succ = txManager_->FindPendingTx(&renameTx);
     if (!succ) {
@@ -145,8 +181,12 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
                                       const std::string& symlink,
                                       uint64_t rdev,
                                       Inode* inode) {
-    if (partitionInfo_.status() == PartitionStatus::READONLY) {
+    if (GetStatus() == PartitionStatus::READONLY) {
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
     }
 
     uint64_t inodeId = GetNewInodeId();
@@ -167,6 +207,11 @@ MetaStatusCode Partition::CreateRootInode(uint32_t fsId, uint32_t uid,
     if (!IsInodeBelongs(fsId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
     return inodeManager_->CreateRootInode(fsId, uid, gid, mode);
 }
 
@@ -175,6 +220,11 @@ MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
     return inodeManager_->GetInode(fsId, inodeId, inode);
 }
 
@@ -182,21 +232,52 @@ MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
     return inodeManager_->DeleteInode(fsId, inodeId);
 }
 
-MetaStatusCode Partition::UpdateInode(const Inode& inode) {
-    if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
+MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
+    if (!IsInodeBelongs(request.fsid(), request.inodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
-    return inodeManager_->UpdateInode(inode);
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    return inodeManager_->UpdateInode(request);
+}
+
+MetaStatusCode Partition::AppendS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+        &s3ChunkInfoRemove) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    return inodeManager_->AppendS3ChunkInfo(
+        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {
     if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
     return inodeManager_->InsertInode(inode);
+}
+
+void Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
+    inodeManager_->GetInodeIdList(InodeIdList);
 }
 
 bool Partition::IsDeletable() {
@@ -263,6 +344,5 @@ uint32_t Partition::GetInodeNum() {
 uint32_t Partition::GetDentryNum() {
     return dentryStorage_->Size();
 }
-
 }  // namespace metaserver
 }  // namespace curvefs

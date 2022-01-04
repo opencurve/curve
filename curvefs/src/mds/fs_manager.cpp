@@ -25,8 +25,9 @@
 #include <google/protobuf/util/message_differencer.h>
 #include <sys/stat.h>  // for S_IFDIR
 #include <limits>
-#include "curvefs/src/mds/metric/fs_metric.h"
+#include <list>
 #include "curvefs/src/mds/common/types.h"
+#include "curvefs/src/mds/metric/fs_metric.h"
 
 namespace curvefs {
 namespace mds {
@@ -42,14 +43,93 @@ bool FsManager::Init() {
     return true;
 }
 
-void FsManager::Uninit() {
-    fsStorage_->Uninit();
-    spaceClient_->Uninit();
+void FsManager::Run() {
+    if (isStop_.exchange(false)) {
+        backEndThread_ = Thread(&FsManager::BackEndFunc, this);
+        LOG(INFO) << "FsManager start running";
+    } else {
+        LOG(INFO) << "FsManager already is running";
+    }
 }
 
-FSStatusCode FsManager::CreateFs(const std::string& fsName,
-                                 FSType fsType, uint64_t blockSize,
-                                 const FsDetail& detail, FsInfo* fsInfo) {
+void FsManager::Uninit() {
+    if (!isStop_.exchange(true)) {
+        LOG(INFO) << "stop FsManager...";
+        sleeper_.interrupt();
+        backEndThread_.join();
+        LOG(INFO) << "stop FsManager ok.";
+    } else {
+        LOG(INFO) << "FsManager not running.";
+    }
+
+    fsStorage_->Uninit();
+    spaceClient_->Uninit();
+    LOG(INFO) << "FsManager Uninit ok.";
+}
+
+void FsManager::ScanFs(const FsInfoWrapper& wrapper) {
+    if (wrapper.GetStatus() != FsStatus::DELETING) {
+        return;
+    }
+
+    std::list<PartitionInfo> partitionList;
+    topoManager_->ListPartitionOfFs(wrapper.GetFsId(), &partitionList);
+    if (partitionList.empty()) {
+        LOG(INFO) << "fs has no partition, delete fs record, fsName = "
+                  << wrapper.GetFsName() << ", fsId = " << wrapper.GetFsId();
+        FSStatusCode ret = fsStorage_->Delete(wrapper.GetFsName());
+        if (ret != FSStatusCode::OK) {
+            LOG(ERROR) << "delete fs record fail, fsName = "
+                       << wrapper.GetFsName()
+                       << ", errCode = " << FSStatusCode_Name(ret);
+        }
+        return;
+    }
+
+    for (const PartitionInfo& partition : partitionList) {
+        if (partition.status() != PartitionStatus::DELETING) {
+            LOG(INFO) << "delete fs partition, fsName = " << wrapper.GetFsName()
+                      << ", partitionId = " << partition.partitionid();
+            // send rpc to metaserver, get copyset members
+            std::set<std::string> addrs;
+            if (TopoStatusCode::TOPO_OK !=
+                topoManager_->GetCopysetMembers(
+                    partition.poolid(), partition.copysetid(), &addrs)) {
+                LOG(ERROR) << "delete partition fail, get copyset "
+                              "members fail"
+                           << ", poolId = " << partition.poolid()
+                           << ", copysetId = " << partition.copysetid();
+                continue;
+            }
+
+            FSStatusCode ret = metaserverClient_->DeletePartition(
+                partition.poolid(), partition.copysetid(),
+                partition.partitionid(), addrs);
+            if (ret != FSStatusCode::OK &&
+                ret != FSStatusCode::UNDER_DELETING) {
+                LOG(ERROR) << "delete partition fail, fsName = "
+                           << wrapper.GetFsName()
+                           << ", partitionId = " << partition.partitionid()
+                           << ", errCode = " << FSStatusCode_Name(ret);
+            }
+        }
+    }
+}
+
+void FsManager::BackEndFunc() {
+    while (sleeper_.wait_for(
+        std::chrono::seconds(backEndThreadRunInterSec_))) {
+        std::vector<FsInfoWrapper> wrapperVec;
+        fsStorage_->GetAll(&wrapperVec);
+        for (const FsInfoWrapper& wrapper : wrapperVec) {
+            ScanFs(wrapper);
+        }
+    }
+}
+
+FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
+                                 uint64_t blockSize, const FsDetail& detail,
+                                 FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);
     FsInfoWrapper wrapper;
     bool skipCreateNewFs = false;
@@ -57,13 +137,13 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     // 1. query fs
     // TODO(cw123): if fs status is FsStatus::New, here need more consideration
     if (fsStorage_->Exist(fsName)) {
-        int existRet = IsExactlySameOrCreateUnComplete(fsName, fsType,
-                                                       blockSize, detail);
+        int existRet =
+            IsExactlySameOrCreateUnComplete(fsName, fsType, blockSize, detail);
         if (existRet == 0) {
             LOG(INFO) << "CreateFs success, fs exist, fsName = " << fsName
-                         << ", fstype = " << FSType_Name(fsType)
-                         << ", blocksize = " << blockSize
-                         << ", detail = " << detail.ShortDebugString();
+                      << ", fstype = " << FSType_Name(fsType)
+                      << ", blocksize = " << blockSize
+                      << ", detail = " << detail.ShortDebugString();
             fsStorage_->Get(fsName, &wrapper);
             *fsInfo = wrapper.ProtoFsInfo();
             return FSStatusCode::OK;
@@ -71,10 +151,10 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
 
         if (existRet == 1) {
             LOG(INFO) << "CreateFs found previous create operation uncompleted"
-                  << ", fsName = " << fsName
-                  << ", fstype = " << FSType_Name(fsType)
-                  << ", blocksize = " << blockSize
-                  << ", detail = " << detail.ShortDebugString();
+                      << ", fsName = " << fsName
+                      << ", fstype = " << FSType_Name(fsType)
+                      << ", blocksize = " << blockSize
+                      << ", detail = " << detail.ShortDebugString();
             skipCreateNewFs = true;
         } else {
             return FSStatusCode::FS_EXIST;
@@ -106,7 +186,7 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     uint32_t mode = S_IFDIR | 01777;  // TODO(cw123)
 
     // create partition
-    auto ret = FSStatusCode::OK;
+    FSStatusCode ret = FSStatusCode::OK;
     PartitionInfo partition;
     TopoStatusCode topoRet = topoManager_->CreatePartitionsAndGetMinPartition(
         wrapper.GetFsId(), &partition);
@@ -117,16 +197,17 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName,
     } else {
         // get copyset members
         std::set<std::string> addrs;
-        if (TopoStatusCode::TOPO_OK != topoManager_->GetCopysetMembers(
-                partition.poolid(), partition.copysetid(), &addrs)) {
+        if (TopoStatusCode::TOPO_OK !=
+            topoManager_->GetCopysetMembers(partition.poolid(),
+                                            partition.copysetid(), &addrs)) {
             LOG(ERROR) << "CreateFs fail, get copyset members fail,"
                        << " poolId = " << partition.poolid()
                        << ", copysetId = " << partition.copysetid();
             ret = FSStatusCode::UNKNOWN_ERROR;
         } else {
-            ret = metaserverClient_->CreateRootInode(wrapper.GetFsId(),
-                    partition.poolid(), partition.copysetid(),
-                    partition.partitionid(), uid, gid, mode, addrs);
+            ret = metaserverClient_->CreateRootInode(
+                wrapper.GetFsId(), partition.poolid(), partition.copysetid(),
+                partition.partitionid(), uid, gid, mode, addrs);
         }
     }
     if (ret != FSStatusCode::OK && ret != FSStatusCode::INODE_EXIST) {
@@ -198,46 +279,31 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
 
     // 3. check fs status
     FsStatus status = wrapper.GetStatus();
-    switch (status) {
-        case FsStatus::NEW:
-        case FsStatus::INITED:
-            // update fs status to deleting
-            wrapper.SetStatus(FsStatus::DELETING);
-            // for persistence consider
-            ret = fsStorage_->Update(wrapper);
-            if (ret != FSStatusCode::OK) {
-                LOG(ERROR) << "DeleteFs fail, update fs to deleting fail"
-                           << ", fsName = " << fsName
-                           << ", ret = " << FSStatusCode_Name(ret);
-                return ret;
-            }
-            break;
-        case FsStatus::DELETING:
-            LOG(WARNING) << "DeleteFs already in deleting, fsName = " << fsName;
-            break;
-        default:
-            LOG(ERROR) << "DeleteFs fs in wrong status, fsName = " << fsName
+    if (status == FsStatus::NEW || status == FsStatus::INITED) {
+        FsInfoWrapper newWrapper = wrapper;
+        // update fs status to deleting
+        newWrapper.SetStatus(FsStatus::DELETING);
+        // change fs name to oldname+"_deleting_"+fsid+deletetime
+        uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
+        newWrapper.SetFsName(fsName + "_deleting_"
+                             + std::to_string(wrapper.GetFsId()) + "_"
+                             + std::to_string(now));
+        // for persistence consider
+        ret = fsStorage_->Rename(wrapper, newWrapper);
+        if (ret != FSStatusCode::OK) {
+            LOG(ERROR) << "DeleteFs fail, update fs to deleting and rename fail"
+                        << ", fsName = " << fsName
+                        << ", ret = " << FSStatusCode_Name(ret);
+            return ret;
+        }
+        return FSStatusCode::OK;
+    } else if (status == FsStatus::DELETING) {
+        LOG(WARNING) << "DeleteFs already in deleting, fsName = " << fsName;
+        return FSStatusCode::UNDER_DELETING;
+    } else {
+        LOG(ERROR) << "DeleteFs fs in wrong status, fsName = " << fsName
                        << ", fs status = " << FsStatus_Name(status);
-            return FSStatusCode::UNKNOWN_ERROR;
-    }
-
-    // 4. use metaserver interface, delete inode and dentry, todo
-    ret = CleanFsInodeAndDentry(wrapper.GetFsId());
-    if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "DeleteFs fail, clean inode and dentry fail"
-                   << ", fsName = " << fsName
-                   << ", ret = " << FSStatusCode_Name(ret);
-        return ret;
-    }
-
-    // 5. use space interface, destory space, todo
-
-    // 6. delete fs
-    ret = fsStorage_->Delete(fsName);
-    if (ret != FSStatusCode::OK) {
-        LOG(WARNING) << "DeleteFs fail, delete fs fail, fsName = " << fsName
-                     << ", errCode = " << ret;
-        return ret;
+        return FSStatusCode::UNKNOWN_ERROR;
     }
 
     return FSStatusCode::OK;
@@ -267,7 +333,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
             break;
         case FsStatus::DELETING:
             LOG(WARNING) << "MountFs fs is in deleting, fsName = " << fsName;
-            return FSStatusCode::UNDER_DELETRING;
+            return FSStatusCode::UNDER_DELETING;
         default:
             LOG(ERROR) << "MountFs fs in wrong status, fsName = " << fsName
                        << ", fs status = " << FsStatus_Name(status);
@@ -422,16 +488,17 @@ FSStatusCode FsManager::GetFsInfo(const std::string& fsName, uint32_t fsId,
 }
 
 int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
-                                           FSType fsType, uint64_t blocksize,
-                                           const FsDetail& detail) {
+                                               FSType fsType,
+                                               uint64_t blocksize,
+                                               const FsDetail& detail) {
     FsInfoWrapper existFs;
 
     // assume fsname exists
     fsStorage_->Get(fsName, &existFs);
     if (fsName == existFs.GetFsName() && fsType == existFs.GetFsType() &&
         blocksize == existFs.GetBlockSize() &&
-        google::protobuf::util::MessageDifferencer::Equals(detail,
-        existFs.GetFsDetail())) {
+        google::protobuf::util::MessageDifferencer::Equals(
+            detail, existFs.GetFsDetail())) {
         if (FsStatus::NEW == existFs.GetStatus()) {
             return 1;
         } else if (FsStatus::INITED == existFs.GetStatus()) {

@@ -691,6 +691,8 @@ class Partition {
 
     bool ParseFromString(const std::string &value);
 
+    common::PartitionInfo ToPartitionInfo();
+
  private:
     FsIdType fsId_;
     PoolIdType poolId_;

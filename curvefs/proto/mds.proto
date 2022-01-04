@@ -32,7 +32,7 @@ enum FSStatusCode {
     UNINIT_SPACE_ERROR = 9;
     FS_BUSY = 10;
     INSERT_ROOT_INODE_ERROR = 11;
-    UNDER_DELETRING = 12;
+    UNDER_DELETING = 12;
     NOT_INITED = 13;
     DELETE_INODE_ERROR = 14;
     METASERVER_CLIENT_NOT_INITED = 15;
@@ -46,6 +46,7 @@ enum FSStatusCode {
     CREATE_COPYSET_ERROR = 23;
     GET_PARTITIONINFOOFFS_ERROR = 24;
     PARTITION_EXIST = 25;
+    DELETE_PARTITION_ERROR = 26;
 }
 
 // fs interface
@@ -157,7 +158,7 @@ service MdsService {
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
     rpc MountFs(MountFsRequest) returns (MountFsResponse);
     rpc UmountFs(UmountFsRequest) returns (UmountFsResponse);
-    // TODO(chengyi01): move to GetFssInfo 
+    // TODO(chengyi01): move to GetFssInfo
     rpc GetFsInfo(GetFsInfoRequest) returns (GetFsInfoResponse);
     // rpc UpdateFsInfo(UpdateFsInfoRequest) returns (UpdateFsInfoResponse);
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);

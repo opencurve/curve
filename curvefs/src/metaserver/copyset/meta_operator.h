@@ -297,6 +297,25 @@ class UpdateInodeOperator : public MetaOperator {
     OperatorType GetOperatorType() const override;
 };
 
+class AppendS3ChunkInfoOperator : public MetaOperator {
+ public:
+     using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+
+    OperatorType GetOperatorType() const override;
+};
+
 class DeleteInodeOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;

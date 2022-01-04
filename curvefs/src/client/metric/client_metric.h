@@ -73,6 +73,7 @@ struct MetaServerClientMetric {
     InterfaceMetric updateInode;
     InterfaceMetric deleteInode;
     InterfaceMetric createRootInode;
+    InterfaceMetric appendS3ChunkInfo;
 
     // tnx
     InterfaceMetric prepareRenameTx;
@@ -91,6 +92,7 @@ struct MetaServerClientMetric {
           updateInode(prefix, "updateInode"),
           deleteInode(prefix, "deleteInode"),
           createRootInode(prefix, "createRootInode"),
+          appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
           createPartition(prefix, "createPartition") {}
 };

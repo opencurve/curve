@@ -37,6 +37,7 @@
 #include "curvefs/src/metaserver/heartbeat.h"
 #include "curvefs/src/metaserver/inflight_throttle.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
+#include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "src/common/configuration.h"
 #include "src/fs/local_filesystem.h"
 
@@ -73,6 +74,8 @@ class Metaserver {
     void InitHeartbeat();
     void InitResgiterOptions();
     void InitBRaftFlags(const std::shared_ptr<Configuration>& conf);
+    void InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
+                             PartitionCleanOption* partitionCleanOption);
 
  private:
     // metaserver configuration items
@@ -83,7 +86,6 @@ class Metaserver {
     bool running_ = false;
 
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
-    std::shared_ptr<Trash> trash_;
     MetaserverOptions options_;
     MetaServerMetadata metadate_;
 

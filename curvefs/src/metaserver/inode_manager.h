@@ -26,6 +26,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <list>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/trash.h"
@@ -52,12 +53,19 @@ class InodeManager {
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode UpdateInode(const Inode &inode);
+    MetaStatusCode UpdateInode(const UpdateInodeRequest &request);
+
+    MetaStatusCode AppendS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+        &s3ChunkInfoRemove);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
         uint64_t inodeId, bool isCreate);
 
     MetaStatusCode InsertInode(const Inode &inode);
+
+    void GetInodeIdList(std::list<uint64_t>* inodeIdList);
 
  private:
     void GenerateInodeInternal(uint64_t inodeId, uint32_t fsId, uint64_t length,

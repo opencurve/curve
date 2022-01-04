@@ -45,40 +45,45 @@ class MetaServerServiceImpl : public MetaServerService {
     void GetDentry(::google::protobuf::RpcController* controller,
                    const ::curvefs::metaserver::GetDentryRequest* request,
                    ::curvefs::metaserver::GetDentryResponse* response,
-                   ::google::protobuf::Closure* done);
+                   ::google::protobuf::Closure* done) override;
     void ListDentry(::google::protobuf::RpcController* controller,
                     const ::curvefs::metaserver::ListDentryRequest* request,
                     ::curvefs::metaserver::ListDentryResponse* response,
-                    ::google::protobuf::Closure* done);
+                    ::google::protobuf::Closure* done) override;
     void CreateDentry(::google::protobuf::RpcController* controller,
                       const ::curvefs::metaserver::CreateDentryRequest* request,
                       ::curvefs::metaserver::CreateDentryResponse* response,
-                      ::google::protobuf::Closure* done);
+                      ::google::protobuf::Closure* done) override;
     void DeleteDentry(::google::protobuf::RpcController* controller,
                       const ::curvefs::metaserver::DeleteDentryRequest* request,
                       ::curvefs::metaserver::DeleteDentryResponse* response,
-                      ::google::protobuf::Closure* done);
+                      ::google::protobuf::Closure* done) override;
     void GetInode(::google::protobuf::RpcController* controller,
                   const ::curvefs::metaserver::GetInodeRequest* request,
                   ::curvefs::metaserver::GetInodeResponse* response,
-                  ::google::protobuf::Closure* done);
+                  ::google::protobuf::Closure* done) override;
     void CreateInode(::google::protobuf::RpcController* controller,
                      const ::curvefs::metaserver::CreateInodeRequest* request,
                      ::curvefs::metaserver::CreateInodeResponse* response,
-                     ::google::protobuf::Closure* done);
+                     ::google::protobuf::Closure* done) override;
     void CreateRootInode(
         ::google::protobuf::RpcController* controller,
         const ::curvefs::metaserver::CreateRootInodeRequest* request,
         ::curvefs::metaserver::CreateRootInodeResponse* response,
-        ::google::protobuf::Closure* done);
+        ::google::protobuf::Closure* done) override;
     void UpdateInode(::google::protobuf::RpcController* controller,
                      const ::curvefs::metaserver::UpdateInodeRequest* request,
                      ::curvefs::metaserver::UpdateInodeResponse* response,
-                     ::google::protobuf::Closure* done);
+                     ::google::protobuf::Closure* done) override;
+    void AppendS3ChunkInfo(
+        ::google::protobuf::RpcController* controller,
+        const ::curvefs::metaserver::AppendS3ChunkInfoRequest* request,
+        ::curvefs::metaserver::AppendS3ChunkInfoResponse* response,
+        ::google::protobuf::Closure* done) override;
     void DeleteInode(::google::protobuf::RpcController* controller,
                      const ::curvefs::metaserver::DeleteInodeRequest* request,
                      ::curvefs::metaserver::DeleteInodeResponse* response,
-                     ::google::protobuf::Closure* done);
+                     ::google::protobuf::Closure* done) override;
 
     void CreatePartition(google::protobuf::RpcController* controller,
                          const CreatePartitionRequest* request,
@@ -93,7 +98,7 @@ class MetaServerServiceImpl : public MetaServerService {
     void PrepareRenameTx(google::protobuf::RpcController* controller,
                          const PrepareRenameTxRequest* request,
                          PrepareRenameTxResponse* response,
-                         google::protobuf::Closure* done);
+                         google::protobuf::Closure* done) override;
 
  private:
     CopysetNodeManager* copysetNodeManager_;

@@ -275,67 +275,95 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
         return readOffset;
     }
 
-    std::vector<S3ReadRequest> totalS3Requests;
-    auto iter = totalRequests.begin();
-    uint64_t fileLen;
     {
+        unsigned int maxRetry = 3;  // hardcode, fixme
+        unsigned int retry = 0;
         std::shared_ptr<InodeWrapper> inodeWrapper;
-        CURVEFS_ERROR ret = s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
-            inodeId, inodeWrapper);
-        if (ret != CURVEFS_ERROR::OK) {
+        auto inodeManager = s3ClientAdaptor_->GetInodeCacheManager();
+        CURVEFS_ERROR r = inodeManager->GetInode(inodeId, inodeWrapper);
+        if (r != CURVEFS_ERROR::OK) {
             LOG(WARNING) << "get inode fail, ret:" << ret;
             return -1;
         }
-        ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-        Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
-        fileLen = inode->length();
-        for (; iter != totalRequests.end(); iter++) {
-            VLOG(6) << "ReadRequest index:" << iter->index
-                    << ",chunkPos:" << iter->chunkPos << ",len:" << iter->len
-                    << ",bufOffset:" << iter->bufOffset;
-            auto s3InfoListIter = inode->s3chunkinfomap().find(iter->index);
-            if (s3InfoListIter == inode->s3chunkinfomap().end()) {
-                VLOG(6) << "s3infolist is not found.index:" << iter->index;
-                memset(dataBuf + iter->bufOffset, 0, iter->len);
-                continue;
+        std::vector<S3ReadResponse> responses;
+        while (retry < maxRetry) {
+            std::vector<S3ReadRequest> totalS3Requests;
+            auto iter = totalRequests.begin();
+            uint64_t fileLen;
+            {
+                ::curve::common::UniqueLock lgGuard =
+                    inodeWrapper->GetUniqueLock();
+                Inode* inode = inodeWrapper->GetMutableInodeUnlocked();
+                fileLen = inode->length();
+                for (; iter != totalRequests.end(); iter++) {
+                    VLOG(6) << "ReadRequest index:" << iter->index
+                            << ",chunkPos:" << iter->chunkPos
+                            << ",len:" << iter->len
+                            << ",bufOffset:" << iter->bufOffset;
+                    auto s3InfoListIter =
+                        inode->s3chunkinfomap().find(iter->index);
+                    if (s3InfoListIter == inode->s3chunkinfomap().end()) {
+                        VLOG(6)
+                            << "s3infolist is not found.index:" << iter->index;
+                        memset(dataBuf + iter->bufOffset, 0, iter->len);
+                        continue;
+                    }
+                    std::vector<S3ReadRequest> s3Requests;
+                    GenerateS3Request(*iter, s3InfoListIter->second, dataBuf,
+                                      &s3Requests, inode->fsid(),
+                                      inode->inodeid());
+                    totalS3Requests.insert(totalS3Requests.end(),
+                                           s3Requests.begin(),
+                                           s3Requests.end());
+                }
             }
-            std::vector<S3ReadRequest> s3Requests;
-            GenerateS3Request(*iter, s3InfoListIter->second, dataBuf,
-                              &s3Requests, inode->fsid(), inode->inodeid());
-            totalS3Requests.insert(totalS3Requests.end(), s3Requests.begin(),
-                                   s3Requests.end());
+            if (totalS3Requests.empty()) {
+                VLOG(6) << "s3 has not data to read.";
+                return readOffset;
+            }
+
+            uint32_t i;
+            for (i = 0; i < totalS3Requests.size(); i++) {
+                S3ReadRequest& tmp_req = totalS3Requests[i];
+                VLOG(9) << "S3ReadRequest chunkid:" << tmp_req.chunkId
+                        << ",offset:" << tmp_req.offset
+                        << ",len:" << tmp_req.len
+                        << ",objectOffset:" << tmp_req.objectOffset
+                        << ",readOffset:" << tmp_req.readOffset
+                        << ",compaction:" << tmp_req.compaction
+                        << ",fsid:" << tmp_req.fsId
+                        << ",inodeId:" << tmp_req.inodeId;
+            }
+
+            ret = ReadFromS3(totalS3Requests, &responses, fileLen);
+            if (ret < 0) {
+                retry++;
+                responses.clear();
+                if (ret != -2 || retry == maxRetry) {
+                    LOG(ERROR) << "read from s3 failed. ret:" << ret;
+                    return ret;
+                } else {
+                    // ret -2 refs s3obj not exist
+                    // clear inodecache && get again
+                    LOG(INFO) << "inode cache maybe steal, try to get latest";
+                    inodeManager->ClearInodeCache(inodeId);
+                    auto r = inodeManager->GetInode(inodeId, inodeWrapper);
+                    if (r != CURVEFS_ERROR::OK) {
+                        LOG(WARNING) << "get inode fail, ret:" << ret;
+                        return -1;
+                    }
+                }
+            } else {
+                break;
+            }
         }
-    }
-    if (totalS3Requests.empty()) {
-        VLOG(6) << "s3 has not data to read.";
-        return readOffset;
-    }
-
-    uint32_t i;
-    for (i = 0; i < totalS3Requests.size(); i++) {
-        S3ReadRequest &tmp_req = totalS3Requests[i];
-        VLOG(9) << "S3ReadRequest chunkid:" << tmp_req.chunkId
-                << ",offset:" << tmp_req.offset << ",len:" << tmp_req.len
-                << ",objectOffset:" << tmp_req.objectOffset
-                << ",readOffset:" << tmp_req.readOffset
-                << ",compaction:" << tmp_req.compaction
-                << ",fsid:" << tmp_req.fsId << ",inodeId:" << tmp_req.inodeId;
-    }
-
-    std::vector<S3ReadResponse> responses;
-
-    ret = ReadFromS3(totalS3Requests, &responses, fileLen);
-    if (ret < 0) {
-        LOG(ERROR) << "read from s3 failed. ret:" << ret;
-        return ret;
-    }
-
-    auto repIter = responses.begin();
-    for (; repIter != responses.end(); repIter++) {
-        VLOG(6) << "readOffset:" << repIter->GetReadOffset()
-                << ",bufLen:" << repIter->GetBufLen();
-        memcpy(dataBuf + repIter->GetReadOffset(), repIter->GetDataBuf(),
-               repIter->GetBufLen());
+        auto repIter = responses.begin();
+        for (; repIter != responses.end(); repIter++) {
+            VLOG(6) << "readOffset:" << repIter->GetReadOffset()
+                    << ",bufLen:" << repIter->GetBufLen();
+            memcpy(dataBuf + repIter->GetReadOffset(),
+                repIter->GetDataBuf(), repIter->GetBufLen());
+        }
     }
 
     return readOffset;
@@ -2044,20 +2072,10 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
                 dirty_.store(true, std::memory_order_release);
                 return ret;
             }
-            ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
-            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
-            auto s3chunkInfoListIter = s3ChunkInfoMap->find(chunkIndex);
-            if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
-                S3ChunkInfoList s3ChunkInfoList;
-                UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
-                                     writeOffset);
-                s3ChunkInfoMap->insert({chunkIndex, s3ChunkInfoList});
-            } else {
-                S3ChunkInfoList &s3ChunkInfoList = s3chunkInfoListIter->second;
-                UpdateInodeChunkInfo(&s3ChunkInfoList, chunkId, offset,
-                                     writeOffset);
-            }
+
+            S3ChunkInfo info;
+            PrepareS3ChunkInfo(chunkId, offset, writeOffset, &info);
+            inodeWrapper->AppendS3ChunkInfo(chunkIndex, info);
             s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
         }
 
@@ -2068,20 +2086,16 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
     return CURVEFS_ERROR::NOFLUSH;
 }
 
-void DataCache::UpdateInodeChunkInfo(S3ChunkInfoList *s3ChunkInfoList,
-                                     uint64_t chunkId, uint64_t offset,
-                                     uint64_t len) {
-    S3ChunkInfo *tmp = s3ChunkInfoList->add_s3chunks();
-
-    tmp->set_chunkid(chunkId);
-    tmp->set_compaction(0);
-    tmp->set_offset(offset);
-    tmp->set_len(len);
-    tmp->set_size(len);
-    tmp->set_zero(false);
+void DataCache::PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,
+    uint64_t len, S3ChunkInfo *info) {
+    info->set_chunkid(chunkId);
+    info->set_compaction(0);
+    info->set_offset(offset);
+    info->set_len(len);
+    info->set_size(len);
+    info->set_zero(false);
     VLOG(6) << "UpdateInodeChunkInfo chunkId:" << chunkId
-            << ",offset:" << offset << ", len:" << len
-            << ",s3chunks size:" << s3ChunkInfoList->s3chunks_size();
+            << ",offset:" << offset << ", len:" << len;
     return;
 }
 

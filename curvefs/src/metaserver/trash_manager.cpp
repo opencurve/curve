@@ -59,7 +59,23 @@ void TrashManager::ScanEveryTrash() {
         temp = trashs_;
     }
     for (auto &pair : temp) {
-        pair.second->ScanTrash();
+        if (!pair.second->IsStop()) {
+            pair.second->ScanTrash();
+        }
+    }
+}
+
+void TrashManager::Remove(uint32_t partitionId) {
+    curve::common::WriteLockGuard lg(rwLock_);
+    auto it = trashs_.find(partitionId);
+    if (it != trashs_.end()) {
+        LOG(INFO) << "Remove partition from trash manager, partitionId = "
+                  << partitionId;
+        it->second->StopScan();
+        trashs_.erase(it);
+    } else {
+        LOG(INFO) << "Remove partition from trash manager, "
+                  << "partiton not in trash, partitionId = " << partitionId;
     }
 }
 

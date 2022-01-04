@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2021 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,28 +16,23 @@
 
 /*
  * Project: curve
- * Created Date: 2021-8-16
- * Author: chengyi
+ * Date: 2021-12-28
+ * Author: xuchaojie
  */
-#ifndef CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
-#define CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
 
-#include "curvefs/src/metaserver/s3/client_s3_adaptor.h"
+#ifndef CURVEFS_TEST_METASERVER_TEST_HELPER_H_
+#define CURVEFS_TEST_METASERVER_TEST_HELPER_H_
+
+#include "curvefs/proto/metaserver.pb.h"
 
 namespace curvefs {
 namespace metaserver {
 
-class MockS3ClientAdaptor : public S3ClientAdaptor {
- public:
-    MockS3ClientAdaptor() {}
-    ~MockS3ClientAdaptor() {}
-
-    MOCK_METHOD2(Init,
-                 void(const S3ClientAdaptorOption option, S3Client *client));
-    MOCK_METHOD1(Delete, int(Inode *inode));
-};
+UpdateInodeRequest MakeUpdateInodeRequestFromInode(const Inode &inode,
+    uint32_t poolId = 0, uint32_t copysetId = 0, uint32_t partitionId = 0);
 
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_METASERVER_MOC_METASERVER_S3_ADAPTOR_H_
+
+#endif  // CURVEFS_TEST_METASERVER_TEST_HELPER_H_

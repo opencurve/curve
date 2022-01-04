@@ -43,6 +43,8 @@ class MockCopysetNode : public CopysetNode {
     MOCK_METHOD2(RemovePeer, void(const Peer&, braft::Closure*));
     MOCK_METHOD2(ChangePeers, void(const std::vector<Peer>&, braft::Closure*));
     MOCK_CONST_METHOD1(ListPeers, void(std::vector<Peer>*));
+    MOCK_CONST_METHOD0(IsLeaderTerm, bool());
+    MOCK_METHOD1(Propose, void(const braft::Task& task));
 };
 
 }  // namespace copyset

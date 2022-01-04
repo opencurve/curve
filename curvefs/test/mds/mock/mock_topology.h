@@ -270,8 +270,8 @@ class MockTopology : public TopologyImpl {
     MOCK_CONST_METHOD2(GetCopysetOfPartition,
                        bool(PartitionIdType id, CopySetInfo *out));
     MOCK_CONST_METHOD1(GetAvailableCopyset, bool(CopySetInfo *out));
-    MOCK_CONST_METHOD2(GetPartition,
-                       bool(PartitionIdType partitionId, Partition *out));
+    MOCK_METHOD2(GetPartition,
+                 bool(PartitionIdType partitionId, Partition *out));
 
     MOCK_CONST_METHOD2(GetPool, bool(const std::string &poolName, Pool *out));
     MOCK_CONST_METHOD3(GetZone, bool(const std::string &zoneName,
@@ -328,6 +328,9 @@ class MockTopology : public TopologyImpl {
     MOCK_METHOD2(ChooseAvailableMetaServers,
                 TopoStatusCode(std::set<MetaServerIdType> *metaServers,
                 PoolIdType *poolId));
+
+    MOCK_CONST_METHOD1(GetPartitionInfosInCopyset, std::list<Partition>(
+                       CopySetIdType copysetId));
 };
 
 class MockTopologyManager : public TopologyManager {
@@ -401,6 +404,9 @@ class MockTopologyManager : public TopologyManager {
 
     MOCK_METHOD2(ListPartition, void(const ListPartitionRequest *request,
                                      ListPartitionResponse *response));
+
+    MOCK_METHOD2(ListPartitionOfFs, void(FsIdType fsId,
+                                         std::list<PartitionInfo>* list));
 
     MOCK_METHOD2(GetCopysetOfPartition,
                  void(const GetCopysetOfPartitionRequest *request,

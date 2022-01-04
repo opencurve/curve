@@ -16,35 +16,30 @@
 
 /*
  * Project: curve
- * Created Date: 2021-8-13
+ * Created Date: 2021-8-16
  * Author: chengyi
  */
-
-#ifndef CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
-#define CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
+#ifndef CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_
+#define CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_
 
 #include <gmock/gmock.h>
-#include <gtest/gtest.h>
-#include <string>
-#include <list>
-
-#include "curvefs/src/metaserver/s3/metaserver_s3.h"
-
-using ::testing::_;
-using ::testing::Return;
+#include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 
 namespace curvefs {
 namespace metaserver {
-class MockS3Client : public S3Client {
- public:
-    MockS3Client() {}
-    ~MockS3Client() {}
 
-    MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption &options));
-    MOCK_METHOD1(Delete, int(const std::string &name));
-    MOCK_METHOD1(DeleteBatch, int(const std::list<std::string>& nameList));
+class MockS3ClientAdaptor : public S3ClientAdaptor {
+ public:
+    MockS3ClientAdaptor() {}
+    ~MockS3ClientAdaptor() {}
+
+    MOCK_METHOD2(Init,
+                 void(const S3ClientAdaptorOption& option, S3Client* client));
+    MOCK_METHOD1(Delete, int(const Inode& inode));
+    MOCK_METHOD1(DeleteBatch, int(const Inode& inode));
 };
+
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
+#endif  // CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_

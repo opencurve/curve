@@ -52,7 +52,8 @@ enum class MetaServerOpType {
     GetInode,
     UpdateInode,
     CreateInode,
-    DeleteInode
+    DeleteInode,
+    AppendS3ChunkInfo,
 };
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);

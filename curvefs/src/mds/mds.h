@@ -127,6 +127,8 @@ class MDS {
 
     void InitCoordinator();
 
+    void InitFsManagerOptions(FsManagerOption* fsManagerOption);
+
  private:
     // mds configuration items
     std::shared_ptr<Configuration> conf_;

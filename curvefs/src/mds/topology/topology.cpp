@@ -668,6 +668,18 @@ std::list<Partition> TopologyImpl::GetPartitionInfosInPool(
     return ret;
 }
 
+std::list<Partition> TopologyImpl::GetPartitionInfosInCopyset(
+    CopySetIdType copysetId) const {
+    std::list<Partition> ret;
+    ReadLockGuard rlockPartitionMap(partitionMutex_);
+    for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
+        if (it->second.GetCopySetId() == copysetId) {
+            ret.push_back(it->second);
+        }
+    }
+    return ret;
+}
+
 // getList
 std::vector<MetaServerIdType> TopologyImpl::GetMetaServerInCluster(
     MetaServerFilter filter) const {

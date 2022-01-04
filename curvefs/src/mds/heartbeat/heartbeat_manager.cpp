@@ -154,15 +154,15 @@ void HeartbeatManager::MetaServerHeartbeat(
         }
 
         // convert partitionInfo from heartbeat format to topology format
-        std::list<::curvefs::mds::topology::Partition> topoPartitionList;
+        std::list<::curvefs::mds::topology::Partition> partitionList;
         for (int32_t i = 0; i < value.partitioninfolist_size(); i++) {
-            topoPartitionList.emplace_back(value.partitioninfolist(i));
+            partitionList.emplace_back(value.partitioninfolist(i));
         }
 
         // if a copyset is the leader, update (e.g. epoch) topology according
         // to its info
         if (request.metaserverid() == reportCopySetInfo.GetLeader()) {
-            topoUpdater_->UpdateTopo(reportCopySetInfo, topoPartitionList);
+            topoUpdater_->UpdateTopo(reportCopySetInfo, partitionList);
         }
     }
 }
