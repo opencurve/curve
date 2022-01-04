@@ -70,6 +70,7 @@ FSStatusCode MetaserverClient::SendRpc2MetaServer(
         MetaServerService_Stub stub(&channel_);
         (stub.*func)(&cntl, request, response, nullptr);
         if (cntl.Failed()) {
+            LOG(WARNING) << "rpc error: " << cntl.ErrorText();
             if (cntl.ErrorCode() == EHOSTDOWN ||
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                 refreshLeader = true;
@@ -92,6 +93,7 @@ FSStatusCode MetaserverClient::SendRpc2MetaServer(
     } while (maxRetry > 0);
 
     if (cntl.Failed()) {
+        LOG(ERROR) << "rpc error: " << cntl.ErrorText();
         return FSStatusCode::RPC_ERROR;
     } else {
         return FSStatusCode::UNKNOWN_ERROR;
