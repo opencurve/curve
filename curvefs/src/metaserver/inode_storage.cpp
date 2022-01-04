@@ -62,17 +62,7 @@ MetaStatusCode MemoryInodeStorage::Update(const Inode &inode) {
     if (it == inodeMap_.end()) {
         return MetaStatusCode::NOT_FOUND;
     }
-    if (inode.s3chunkinfomap().empty() || it->second.s3chunkinfomap().empty()) {
-        inodeMap_[InodeKey(inode)] = inode;
-    } else {
-        ::google::protobuf::Map<uint64_t, S3ChunkInfoList> result;
-        const auto& mapA = inode.s3chunkinfomap();
-        const auto& mapB = it->second.s3chunkinfomap();
-        MergeTwoS3ChunkInfoMap(mapA, mapB, &result);
-        Inode newInode(inode);
-        *newInode.mutable_s3chunkinfomap() = std::move(result);
-        inodeMap_[InodeKey(inode)] = newInode;
-    }
+    it->second = inode;
     return MetaStatusCode::OK;
 }
 
