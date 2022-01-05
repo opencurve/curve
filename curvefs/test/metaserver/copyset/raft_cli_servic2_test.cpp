@@ -51,9 +51,21 @@ const int kElectionTimeoutMs = 3000;
 const PoolId kPoolId = 1234;
 const CopysetId kCopysetId = 1234;
 
+const brpc::ChannelOptions kDefaultChannelOptions = []() {
+    brpc::ChannelOptions opts;
+    opts.timeout_ms = 10 * 1000;
+    opts.max_retry = 0;
+
+    return opts;
+}();
+
 class RaftCliService2Test : public testing::Test {
  protected:
-    void SetUp() override {}
+    void SetUp() override {
+        ASSERT_TRUE(WaitLeader(10, &leaderId_));
+        ASSERT_FALSE(leaderId_.is_empty());
+        ASSERT_EQ(0, channel_.Init(leaderId_.addr, &kDefaultChannelOptions));
+    }
 
     void TearDown() override {}
 
@@ -243,6 +255,9 @@ class RaftCliService2Test : public testing::Test {
     static std::vector<std::pair<pid_t, std::string>> servers_;
     static UUIDGenerator uuid_;
     static braft::Configuration conf_;
+
+    brpc::Channel channel_;
+    braft::PeerId leaderId_;
 };
 
 std::vector<std::pair<pid_t, std::string>> RaftCliService2Test::servers_;
@@ -250,21 +265,14 @@ UUIDGenerator RaftCliService2Test::uuid_;
 braft::Configuration RaftCliService2Test::conf_;
 
 TEST_F(RaftCliService2Test, GetLeaderTest) {
-    braft::PeerId leaderId;
-    ASSERT_TRUE(WaitLeader(10, &leaderId));
-    ASSERT_FALSE(leaderId.is_empty());
-
     // copyset not exist
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         GetLeaderRequest2 request;
         GetLeaderResponse2 response;
         SetRequestPoolAndCopysetId(&request, true);
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.GetLeader(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -272,39 +280,29 @@ TEST_F(RaftCliService2Test, GetLeaderTest) {
 
     // succeeded
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         GetLeaderRequest2 request;
         GetLeaderResponse2 response;
         SetRequestPoolAndCopysetId(&request, false);
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.GetLeader(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(leaderId.to_string(), response.leader().address());
+        ASSERT_EQ(leaderId_.to_string(), response.leader().address());
     }
 }
 
 TEST_F(RaftCliService2Test, TransferLeaderTest) {
-    braft::PeerId leaderId;
-    ASSERT_TRUE(WaitLeader(10, &leaderId));
-    ASSERT_FALSE(leaderId.is_empty());
-
     // pool or copyset is not exists
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         TransferLeaderRequest2 request;
         TransferLeaderResponse2 response;
         SetRequestPoolAndCopysetId(&request, true);
         auto* peer = request.mutable_transferee();
-        *peer = RandomSelectOneFollower(leaderId);
+        *peer = RandomSelectOneFollower(leaderId_);
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.TransferLeader(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -316,12 +314,12 @@ TEST_F(RaftCliService2Test, TransferLeaderTest) {
         TransferLeaderResponse2 response;
         SetRequestPoolAndCopysetId(&request);
         auto* peer = request.mutable_transferee();
-        *peer = RandomSelectOneFollower(leaderId);
+        *peer = RandomSelectOneFollower(leaderId_);
 
         braft::PeerId follower(peer->address());
 
         brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(follower.addr, nullptr));
+        ASSERT_EQ(0, channel.Init(follower.addr, &kDefaultChannelOptions));
 
         brpc::Controller cntl;
         CliService2_Stub stub(&channel);
@@ -332,17 +330,14 @@ TEST_F(RaftCliService2Test, TransferLeaderTest) {
 
     // getleader after transfer succeeded
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         TransferLeaderRequest2 request;
         TransferLeaderResponse2 response;
         SetRequestPoolAndCopysetId(&request);
         auto* peer = request.mutable_transferee();
-        *peer = RandomSelectOneFollower(leaderId);
+        *peer = RandomSelectOneFollower(leaderId_);
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.TransferLeader(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
 
@@ -353,7 +348,7 @@ TEST_F(RaftCliService2Test, TransferLeaderTest) {
             bool rc = GetCurrentLeader(&current);
             if (!rc) {
                 continue;
-            } else if (current == leaderId) {
+            } else if (current == leaderId_) {
                 continue;
             } else {
                 break;
@@ -365,15 +360,8 @@ TEST_F(RaftCliService2Test, TransferLeaderTest) {
 }
 
 TEST_F(RaftCliService2Test, AddPeerTest) {
-    braft::PeerId leaderId;
-    ASSERT_TRUE(WaitLeader(10, &leaderId));
-    ASSERT_FALSE(leaderId.is_empty());
-
     // pool or copyset not exists
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         AddPeerRequest2 request;
         AddPeerResponse2 response;
         SetRequestPoolAndCopysetId(&request, true);
@@ -381,7 +369,7 @@ TEST_F(RaftCliService2Test, AddPeerTest) {
         peer->set_address("127.0.0.1:29913:0");
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.AddPeer(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -389,9 +377,6 @@ TEST_F(RaftCliService2Test, AddPeerTest) {
 
     // add peer succeeded
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         AddPeerRequest2 request;
         AddPeerResponse2 response;
         SetRequestPoolAndCopysetId(&request);
@@ -399,8 +384,7 @@ TEST_F(RaftCliService2Test, AddPeerTest) {
         peerToAdd->set_address("127.0.0.1:29913:0");
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(5 * 1000);
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.AddPeer(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
 
@@ -420,15 +404,8 @@ TEST_F(RaftCliService2Test, AddPeerTest) {
 }
 
 TEST_F(RaftCliService2Test, RemovePeerTest) {
-    braft::PeerId leaderId;
-    ASSERT_TRUE(WaitLeader(10, &leaderId));
-    ASSERT_FALSE(leaderId.is_empty());
-
     // pool or copyset not exists
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         RemovePeerRequest2 request;
         RemovePeerResponse2 response;
         SetRequestPoolAndCopysetId(&request, true);
@@ -436,7 +413,7 @@ TEST_F(RaftCliService2Test, RemovePeerTest) {
         peer->set_address("127.0.0.1:29912:0");
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.RemovePeer(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed()) << cntl.ErrorText();
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -444,9 +421,6 @@ TEST_F(RaftCliService2Test, RemovePeerTest) {
 
     // remove peer succeeded
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         RemovePeerRequest2 request;
         RemovePeerResponse2 response;
         SetRequestPoolAndCopysetId(&request);
@@ -457,7 +431,7 @@ TEST_F(RaftCliService2Test, RemovePeerTest) {
         LOG(INFO) << "Remove peer: " << peerToRemove->address();
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.RemovePeer(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
 
@@ -473,15 +447,8 @@ TEST_F(RaftCliService2Test, RemovePeerTest) {
 }
 
 TEST_F(RaftCliService2Test, ChangePeerTest) {
-    braft::PeerId leaderId;
-    ASSERT_TRUE(WaitLeader(10, &leaderId));
-    ASSERT_FALSE(leaderId.is_empty());
-
     // pool or copyset is not exists
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         ChangePeersRequest2 request;
         ChangePeersResponse2 response;
         SetRequestPoolAndCopysetId(&request, true);
@@ -494,7 +461,7 @@ TEST_F(RaftCliService2Test, ChangePeerTest) {
         peer->set_address("127.0.0.1:29913:0");
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.ChangePeers(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -502,9 +469,6 @@ TEST_F(RaftCliService2Test, ChangePeerTest) {
 
     // change peer succeed
     {
-        brpc::Channel channel;
-        ASSERT_EQ(0, channel.Init(leaderId.addr, nullptr));
-
         ChangePeersRequest2 request;
         ChangePeersResponse2 response;
         SetRequestPoolAndCopysetId(&request);
@@ -525,7 +489,7 @@ TEST_F(RaftCliService2Test, ChangePeerTest) {
         *request.add_newpeers() = peerToAdd;
 
         brpc::Controller cntl;
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.ChangePeers(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
 

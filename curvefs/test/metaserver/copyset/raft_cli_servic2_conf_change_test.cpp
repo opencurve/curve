@@ -55,6 +55,11 @@ class RaftCliService2ConfChangeTest : public testing::Test {
         ASSERT_EQ(0, server_->AddService(service_.get(),
                                          brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_->Start(kServerAddress, nullptr));
+
+        brpc::ChannelOptions opts;
+        opts.timeout_ms = 10 * 1000;
+        opts.max_retry = 0;
+        ASSERT_EQ(0, channel_.Init(kServerAddress, &opts));
     }
 
     void TearDown() override {
@@ -68,13 +73,11 @@ class RaftCliService2ConfChangeTest : public testing::Test {
     std::unique_ptr<MockCopysetNodeManager> mockNodeManager_;
     std::unique_ptr<RaftCliService2> service_;
     std::unique_ptr<brpc::Server> server_;
+    brpc::Channel channel_;
 };
 
 TEST_F(RaftCliService2ConfChangeTest, TransferLeaderTest) {
     std::string targetPeer = kServerAddress + std::string(":0");
-
-    brpc::Channel channel;
-    ASSERT_EQ(0, channel.Init(kServerAddress, nullptr));
 
     TransferLeaderRequest2 request;
     TransferLeaderResponse2 response;
@@ -89,8 +92,8 @@ TEST_F(RaftCliService2ConfChangeTest, TransferLeaderTest) {
             .WillOnce(Return(nullptr));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
-        CliService2_Stub stub(&channel);
+
+        CliService2_Stub stub(&channel_);
         stub.TransferLeader(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -105,8 +108,8 @@ TEST_F(RaftCliService2ConfChangeTest, TransferLeaderTest) {
             .WillOnce(Return(butil::Status(EPERM, "%s", "dummy")));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
-        CliService2_Stub stub(&channel);
+
+        CliService2_Stub stub(&channel_);
         stub.TransferLeader(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
@@ -125,9 +128,6 @@ TEST_F(RaftCliService2ConfChangeTest, AddPeerTest) {
     peer.set_address("127.0.0.1:29912:0");
     peers.push_back(peer);
 
-    brpc::Channel channel;
-    ASSERT_EQ(0, channel.Init(kServerAddress, nullptr));
-
     AddPeerRequest2 request;
     AddPeerResponse2 response;
     request.set_poolid(1);
@@ -141,9 +141,8 @@ TEST_F(RaftCliService2ConfChangeTest, AddPeerTest) {
             .WillOnce(Return(nullptr));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.AddPeer(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -165,9 +164,8 @@ TEST_F(RaftCliService2ConfChangeTest, AddPeerTest) {
             }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.AddPeer(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
@@ -189,9 +187,8 @@ TEST_F(RaftCliService2ConfChangeTest, AddPeerTest) {
             }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.AddPeer(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(3, response.oldpeers_size());
@@ -221,9 +218,8 @@ TEST_F(RaftCliService2ConfChangeTest, AddPeerTest) {
             }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.AddPeer(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(3, response.oldpeers_size());
@@ -243,9 +239,6 @@ TEST_F(RaftCliService2ConfChangeTest, RemovePeerTest) {
 
     std::string targetPeer{peers[0].address()};
 
-    brpc::Channel channel;
-    ASSERT_EQ(0, channel.Init(kServerAddress, nullptr));
-
     RemovePeerRequest2 request;
     RemovePeerResponse2 response;
     request.set_poolid(1);
@@ -259,9 +252,8 @@ TEST_F(RaftCliService2ConfChangeTest, RemovePeerTest) {
             .WillOnce(Return(nullptr));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.RemovePeer(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -283,9 +275,8 @@ TEST_F(RaftCliService2ConfChangeTest, RemovePeerTest) {
             }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.RemovePeer(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
@@ -307,9 +298,8 @@ TEST_F(RaftCliService2ConfChangeTest, RemovePeerTest) {
             }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.RemovePeer(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(3, response.oldpeers_size());
@@ -339,9 +329,8 @@ TEST_F(RaftCliService2ConfChangeTest, RemovePeerTest) {
             }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.RemovePeer(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(3, response.oldpeers_size());
@@ -367,9 +356,6 @@ TEST_F(RaftCliService2ConfChangeTest, ChangePeersTest) {
     peer.set_address("127.0.0.1:29913:0");
     newPeers.push_back(peer);
 
-    brpc::Channel channel;
-    ASSERT_EQ(0, channel.Init(kServerAddress, nullptr));
-
     ChangePeersRequest2 request;
     ChangePeersResponse2 response;
     request.set_poolid(1);
@@ -385,9 +371,8 @@ TEST_F(RaftCliService2ConfChangeTest, ChangePeersTest) {
             .WillOnce(Return(nullptr));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.ChangePeers(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
@@ -410,9 +395,8 @@ TEST_F(RaftCliService2ConfChangeTest, ChangePeersTest) {
                 }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.ChangePeers(&cntl, &request, &response, nullptr);
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
@@ -435,9 +419,8 @@ TEST_F(RaftCliService2ConfChangeTest, ChangePeersTest) {
                 }));
 
         brpc::Controller cntl;
-        cntl.set_max_retry(0);
 
-        CliService2_Stub stub(&channel);
+        CliService2_Stub stub(&channel_);
         stub.ChangePeers(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(3, response.oldpeers_size());
