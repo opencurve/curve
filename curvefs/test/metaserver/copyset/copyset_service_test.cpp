@@ -76,7 +76,10 @@ class CopysetServiceTest : public testing::Test {
                                         brpc::SERVER_OWNS_SERVICE));
         ASSERT_EQ(0, server_.Start(listenAddr, nullptr));
 
-        ASSERT_EQ(0, channel_.Init(listenAddr, nullptr));
+        brpc::ChannelOptions opts;
+        opts.timeout_ms = 10 * 1000;
+        opts.max_retry = 0;
+        ASSERT_EQ(0, channel_.Init(listenAddr, &opts));
     }
 
     void TearDown() override {
