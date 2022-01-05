@@ -479,13 +479,16 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     uint64_t blockSize = 4;
     uint64_t chunkSize = 64;
     Inode tmp;
-    auto mock_updateinode = [&](CopysetNode* copysetNode,
-                                const PartitionInfo& pinfo,
-                                const Inode& inode) {
-        tmp = inode;
-        return MetaStatusCode::OK;
-    };
-    EXPECT_CALL(*mockImpl_, UpdateInode(_, _, _))
+    auto mock_updateinode =
+        [&](CopysetNode* copysetNode, const PartitionInfo& pinfo,
+            uint64_t inode,
+            ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd,
+            ::google::protobuf::Map<uint64_t, S3ChunkInfoList>
+                s3ChunkInfoRemove) {
+            *tmp.mutable_s3chunkinfomap() = s3ChunkInfoAdd;
+            return MetaStatusCode::OK;
+        };
+    EXPECT_CALL(*mockImpl_, UpdateInode_rvr(_, _, _, _, _))
         .WillRepeatedly(testing::Invoke(mock_updateinode));
     EXPECT_CALL(*s3adapter_, PutObject(_, _)).WillRepeatedly(Return(0));
     EXPECT_CALL(*s3adapter_, DeleteObject(_)).WillRepeatedly(Return(0));
@@ -592,7 +595,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
                              mockCopysetNodeWrapper_, s3adapterManager_,
                              s3infoCache_);
-    EXPECT_CALL(*mockImpl_, UpdateInode(_, _, _))
+    EXPECT_CALL(*mockImpl_, UpdateInode_rvr(_, _, _, _, _))
         .WillRepeatedly(Return(MetaStatusCode::UNKNOWN_ERROR));
     mockImpl_->CompactChunks(inodeStorage_, InodeKey(1, 1), partitioninfo_,
                              mockCopysetNodeWrapper_, s3adapterManager_,
