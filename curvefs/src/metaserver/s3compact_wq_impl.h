@@ -108,7 +108,7 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
               zero(zero) {}
     };
     // closure for updating inode, simply wait
-    class UpdateInodeClosure : public google::protobuf::Closure {
+    class AppendS3ChunkInfoClosure : public google::protobuf::Closure {
      private:
         std::mutex mutex_;
         std::condition_variable cond_;
@@ -138,9 +138,10 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
                       uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
                       std::string* fullChunk, uint64_t* newChunkId,
                       uint64_t* newCompaction, S3Adapter* s3adapter);
-    virtual MetaStatusCode UpdateInode(CopysetNode* copysetNode,
-                                       const PartitionInfo& pinfo,
-                                       const Inode& inode);
+    virtual MetaStatusCode UpdateInode(
+        CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoRemove);
     int WriteFullChunk(const std::string& fullChunk, uint64_t fsId,
                        uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
                        uint64_t newChunkid, uint64_t newCompaction,

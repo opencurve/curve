@@ -39,7 +39,7 @@ using curve::common::InitS3AdaptorOption;
 using curve::common::S3Adapter;
 using curve::common::S3AdapterOption;
 using curve::common::TaskThreadPool;
-using curvefs::metaserver::copyset::UpdateInodeOperator;
+using curvefs::metaserver::copyset::AppendS3ChunkInfoOperator;
 
 namespace curvefs {
 namespace metaserver {
@@ -295,22 +295,24 @@ int S3CompactWorkQueueImpl::ReadFullChunk(
     return 0;
 }
 
-MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(CopysetNode* copysetNode,
-                                                   const PartitionInfo& pinfo,
-                                                   const Inode& inode) {
-    UpdateInodeRequest request;
+MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(
+    CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
+    ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
+    ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoRemove) {
+    AppendS3ChunkInfoRequest request;
     request.set_poolid(pinfo.poolid());
     request.set_copysetid(pinfo.copysetid());
     request.set_partitionid(pinfo.partitionid());
     request.set_fsid(pinfo.fsid());
-    request.set_inodeid(inode.inodeid());
-    *request.mutable_s3chunkinfomap() = inode.s3chunkinfomap();
-    UpdateInodeResponse response;
-    S3CompactWorkQueueImpl::UpdateInodeClosure done;
+    request.set_inodeid(inodeId);
+    *request.mutable_s3chunkinfoadd() = std::move(s3ChunkInfoAdd);
+    *request.mutable_s3chunkinforemove() = std::move(s3ChunkInfoRemove);
+    AppendS3ChunkInfoResponse response;
+    S3CompactWorkQueueImpl::AppendS3ChunkInfoClosure done;
     // if copysetnode change to nullptr, maybe crash
-    auto UpdateInodeOp = new UpdateInodeOperator(copysetNode, nullptr, &request,
-                                                 &response, &done);
-    UpdateInodeOp->Propose();
+    auto AppendS3ChunkInfoOp = new AppendS3ChunkInfoOperator(
+        copysetNode, nullptr, &request, &response, &done);
+    AppendS3ChunkInfoOp->Propose();
     done.WaitRunned();
     return response.statuscode();
 }
@@ -362,7 +364,8 @@ void S3CompactWorkQueueImpl::CompactChunks(
         }
     });
 
-    VLOG(6) << "s3compact: try to compact";
+    VLOG(6) << "s3compact: try to compact, fsId: " << inodeKey.fsId
+            << " , inodeId: " << inodeKey.inodeId;
     // am i copysetnode leader?
     if (!copysetNodeWrapper->IsLeaderTerm()) {
         VLOG(6) << "s3compact: i am not the leader, finish";
@@ -395,7 +398,7 @@ void S3CompactWorkQueueImpl::CompactChunks(
     uint64_t inodeLen = inode.length();
 
     // need compact?
-    const auto origMap(inode.s3chunkinfomap());
+    const auto& origMap = inode.s3chunkinfomap();
     std::vector<uint64_t> needCompact(GetNeedCompact(origMap));
     if (needCompact.empty()) {
         VLOG(6) << "s3compact: no need to compact " << inode.inodeid();
@@ -442,6 +445,8 @@ void S3CompactWorkQueueImpl::CompactChunks(
             << ", " << s3info.endpoint() << ", " << s3info.bucketname();
     // 1. write new objs, each chunk one by one
     std::vector<std::string> objsAdded;
+    ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd;
+    ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoRemove;
     std::vector<uint64_t> indexToDelete;
     for (const auto& index : needCompact) {
         VLOG(6) << "s3compact: currindex " << index;
@@ -488,12 +493,9 @@ void S3CompactWorkQueueImpl::CompactChunks(
             return;
         }
         VLOG(6) << "s3compact: finish write full chunk";
-        // 1.4 update inode locally
-        // record delete
-        indexToDelete.emplace_back(index);
-        // rm all
-        s3chunkVec->Clear();
-        // add new
+        // 1.4 record add/delete
+        // to add
+        S3ChunkInfoList toAddList;
         S3ChunkInfo toAdd;
         toAdd.set_chunkid(newChunkid);
         toAdd.set_compaction(newCompaction);
@@ -501,13 +503,18 @@ void S3CompactWorkQueueImpl::CompactChunks(
         toAdd.set_len(fullChunk.length());
         toAdd.set_size(fullChunk.length());
         toAdd.set_zero(false);
-        *s3chunkVec->Add() = std::move(toAdd);
+        *toAddList.add_s3chunks() = std::move(toAdd);
+        s3ChunkInfoAdd.insert({index, std::move(toAddList)});
+        // to remove
+        indexToDelete.emplace_back(index);
+        s3ChunkInfoRemove.insert({index, origMap.at(index)});
     }
 
     // 2. update inode
     VLOG(6) << "s3compact: start update inode";
     if (!copysetNodeWrapper->IsValid()) return;
-    ret = UpdateInode(copysetNodeWrapper->Get(), pinfo, inode);
+    ret = UpdateInode(copysetNodeWrapper->Get(), pinfo, inodeId,
+                      std::move(s3ChunkInfoAdd), std::move(s3ChunkInfoRemove));
     if (ret != MetaStatusCode::OK) {
         LOG(WARNING) << "S3Compact UpdateInode failed, inodeKey = "
                      << inodeKey.fsId << "," << inodeKey.inodeId

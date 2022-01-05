@@ -46,8 +46,19 @@ class MockS3CompactWorkQueueImpl : public S3CompactWorkQueueImpl {
         std::shared_ptr<S3InfoCache> s3infoCache,
         const S3CompactWorkQueueOption& opts)
         : S3CompactWorkQueueImpl(s3AdapterManager, s3infoCache, opts) {}
-    MOCK_METHOD3(UpdateInode, MetaStatusCode(CopysetNode*, const PartitionInfo&,
-                                             const Inode&));
+    MetaStatusCode UpdateInode(
+        CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&&
+            s3ChunkInfoRemove) {
+        return UpdateInode_rvr(copysetNode, pinfo, inodeId, s3ChunkInfoAdd,
+                               s3ChunkInfoRemove);
+    }
+    MOCK_METHOD5(
+        UpdateInode_rvr,
+        MetaStatusCode(CopysetNode*, const PartitionInfo&, uint64_t,
+                       ::google::protobuf::Map<uint64_t, S3ChunkInfoList>,
+                       ::google::protobuf::Map<uint64_t, S3ChunkInfoList>));
 };
 
 class MockCopysetNodeWrapper : public CopysetNodeWrapper {
