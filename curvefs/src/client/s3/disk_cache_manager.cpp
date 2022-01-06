@@ -82,6 +82,15 @@ int DiskCacheManager::Init(S3Client *client,
     TrimRun();
     SetDiskInitUsedBytes();
     SetDiskFsUsedRatio();
+
+    ReadWriteThrottleParams params;
+    params.iopsWrite = ThrottleParams(option.diskCacheOpt.maxFlushIops, 0, 0);
+    params.bpsWrite = ThrottleParams(option.diskCacheOpt.maxFlushBytes, 0, 0);
+    params.iopsRead = ThrottleParams(option.diskCacheOpt.maxReadFileIops, 0, 0);
+    params.bpsRead = ThrottleParams(option.diskCacheOpt.maxReadFileBytes, 0, 0);
+
+    diskCacheThrottle_.UpdateThrottleParams(params);
+
     LOG(INFO) << "DiskCacheManager init success. "
               << ", cache dir is: " << cacheDir_
               << ", maxUsableSpaceBytes is: " << maxUsableSpaceBytes_
@@ -166,6 +175,8 @@ std::string DiskCacheManager::GetCacheWriteFullDir() {
 
 int DiskCacheManager::WriteDiskFile(const std::string fileName, const char *buf,
                                     uint64_t length, bool force) {
+    // write throttle
+    diskCacheThrottle_.Add(false, length);
     int ret = cacheWrite_->WriteDiskFile(fileName, buf, length, force);
     if (ret > 0)
         AddDiskUsedBytes(ret);
@@ -178,11 +189,15 @@ void DiskCacheManager::AsyncUploadEnqueue(const std::string objName) {
 
 int DiskCacheManager::ReadDiskFile(const std::string name, char *buf,
                                    uint64_t offset, uint64_t length) {
+    // read throttle
+    diskCacheThrottle_.Add(true, length);
     return cacheRead_->ReadDiskFile(name, buf, offset, length);
 }
 
 int DiskCacheManager::WriteReadDirect(const std::string fileName,
                  const char* buf, uint64_t length) {
+    // write hrottle
+    diskCacheThrottle_.Add(false, length);
     int ret = cacheRead_->WriteDiskFile(fileName, buf, length);;
     if (ret > 0)
         AddDiskUsedBytes(ret);

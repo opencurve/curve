@@ -119,6 +119,14 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->maxUsableSpaceBytes);
     conf->GetValueFatalIfFail("diskCache.cmdTimeoutSec",
                               &diskCacheOption->cmdTimeoutSec);
+    conf->GetValueFatalIfFail("diskCache.maxFlushBytes",
+                              &diskCacheOption->maxFlushBytes);
+    conf->GetValueFatalIfFail("diskCache.maxFlushIops",
+                              &diskCacheOption->maxFlushIops);
+    conf->GetValueFatalIfFail("diskCache.maxReadFileBytes",
+                              &diskCacheOption->maxReadFileBytes);
+    conf->GetValueFatalIfFail("diskCache.maxReadFileIops",
+                              &diskCacheOption->maxReadFileIops);
 }
 
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
