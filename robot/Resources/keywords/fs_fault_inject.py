@@ -17,7 +17,44 @@ import mythread
 import deploy
 
 def check_fs_cluster_ok():
-    return 1
+    mds = config.fs_mds[0]
+    ssh = shell_operator.create_ssh_connect(mds, 1046, config.abnormal_user)
+    ori_cmd = "sudo docker ps |grep curvefs | awk '{print $1}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    docker_id = rs[1][0].strip()
+    logger.info("docker is %s"%rs[1])
+    ori_cmd = "sudo docker exec -i %s curvefs_tool status |grep unhealthy"%docker_id
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    logger.info("status is %s"%rs[1])
+    if rs[0] != 0 and rs[1] == []:
+        logger.info("cluster is healthy")
+        return True
+    else:
+        logger.info("cluster is unhealthy")
+        ori_cmd = "sudo docker exec -i %s curvefs_tool status"%docker_id
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.debug("cluster is %s"%rs[1])
+        return False
+
+def check_fs_copyset_status():
+    mds = config.fs_mds[0]
+    ssh = shell_operator.create_ssh_connect(mds, 1046, config.abnormal_user)
+    ori_cmd = "sudo docker ps |grep curvefs | awk '{print $1}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    docker_id = rs[1][0].strip()
+    logger.info("docker is %s"%rs[1])
+    ori_cmd = "sudo docker exec -i %s curvefs_tool status-copyset |grep unhealth"%docker_id
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    logger.info("status is %s"%rs[1])
+    if rs[0] != 0 and rs[1] == []:
+        logger.info("copyset is healthy")
+        return True
+    else:
+        logger.info("copyset is unhealthy")
+        ori_cmd = "sudo docker exec -i %s curvefs_tool status-copyset"%docker_id
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.debug("copyset status is %s"%rs[1])
+        return False
 
 def check_fuse_mount_success(fs_mount_dir=config.fs_mount_dir):
     test_client = config.fs_test_client[0]
@@ -374,6 +411,54 @@ def test_fs_process_loss_package(process_name,percent):
     finally:
         time.sleep(60)
         fault_inject.cancel_tc_inject(ssh,dev)
+
+def test_out_metaserver_copyset():
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    ori_cmd = "/home/nbs/.curveadm/bin/curveadm status --role=metaserver |grep metaserver| awk '{print $1}'"
+    rs = shell_operator.run_exec2(ori_cmd)
+    logger.info("rs is %s"%rs)
+    rs = rs.split('\n')
+    meta_docker = random.choice(rs)
+    ori_cmd = "/home/nbs/.curveadm/bin/curveadm stop --id=%s"%meta_docker
+    logger.info("|------begin test out one metaserver,docker %s------|"%(meta_docker))
+    try:
+        rs = shell_operator.run_exec(ori_cmd)
+        assert rs == 0,"stop metaserver fail"
+        time.sleep(120)
+#        begin_num = get_metaserver_copyset_num(chunkserver_host,cs_list[0])
+        starttime = time.time()
+        while time.time() - starttime < 1200:
+            status = check_fs_copyset_status()
+            if status == True:
+                break
+            time.sleep(60)
+            logger.info("copyset is unhealthy")
+        assert status == True,"cluster metaserver %s not recover finish in %d"%(meta_docker,120)
+    except Exception as e:
+#        raise AssertionError()
+        logger.error("error is %s"%e)
+        test_start_process("metaserver")
+        raise
+
+def test_in_metaserver_copyset():
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    logger.info("|------begin test in metaserver------|")
+    try:
+        test_start_process("metaserver")
+        time.sleep(120)
+        starttime = time.time()
+        while time.time() - starttime < 1200:
+            status = check_fs_cluster_ok()
+            if status == True:
+                break
+            time.sleep(60)
+            logger.info("cluster is unhealthy")
+        assert status == True,"cluster metaserver not recover finish in %d"%(120)
+    except Exception as e:
+        logger.error("error is %s"%e)
+        raise
 
 def wait_fuse_exit(fusename=""):
     test_client = config.fs_test_client[0]

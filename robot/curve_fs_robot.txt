@@ -129,13 +129,19 @@ inject fuse client cpu stress 95%
 
 inject fuse client mem stress 90%
     [Tags]    P1    base    first release   failover
-    ${mem_stress}   evaluate  int(90)
+    ${mem_stress}   evaluate  int(75)
     ${ssh}   test fuse client mem stress   ${mem_stress}
     sleep  5
     del mem stress   ${ssh}
     check fuse mount success
     check fuse iops
     [Teardown]     del mem stress    ${ssh}
+
+test metaserver copyset migrates out in
+    [Tags]    P1    base    first release   failover
+    test out metaserver copyset
+    test in metaserver copyset
+    check fuse mount success
 
 test loop mount umount
     [Tags]    P0    base    first release   failover
