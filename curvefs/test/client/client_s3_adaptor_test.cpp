@@ -105,6 +105,7 @@ class ClientS3AdaptorTest : public testing::Test {
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
+        // option.fuseMaxSize = 131072;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
 
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
@@ -161,41 +162,6 @@ TEST_F(ClientS3AdaptorTest, test_first_write) {
 
     std::shared_ptr<FsCacheManager> fsCacheManager =
         s3ClientAdaptor_->GetFsCacheManager();
-    ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
-    ASSERT_EQ(len, ret);
-
-    delete buf;
-    buf = NULL;
-}
-
-TEST_F(ClientS3AdaptorTest, test_first_write_2) {
-    curvefs::metaserver::Inode inode;
-
-    InitInode(&inode);
-    uint64_t offset = 0;
-    uint64_t len = 2;
-    char *buf = new char[len];
-    memset(buf, 'a', len);
-    S3ClientAdaptorImpl *s3ClientAdaptor2;
-    S3ClientAdaptorOption option2;
-    option2.nearfullRatio = 100;
-    option2.writeCacheMaxByte = 8000*kMB;
-    option2.blockSize = 1 * 1024 * 1024;
-    option2.chunkSize = 4 * 1024 * 1024;
-    s3ClientAdaptor2 = new S3ClientAdaptorImpl();
-    MockMetaServerService mockMetaServerService;
-    MockS3Client mockS3Client;
-    MockInodeCacheManager mockInodeManager1;
-    MockMdsClient mockMdsClient1;
-    std::shared_ptr<MockInodeCacheManager> mockInodeManager(&mockInodeManager1);
-    std::shared_ptr<MockMdsClient> mockMdsClient(&mockMdsClient1);
-    s3ClientAdaptor2->Init(option2, &mockS3Client, mockInodeManager,
-                           mockMdsClient);
-
-    int ret = s3ClientAdaptor2->Write(inode.inodeid(), offset, len, buf);
-
-    std::shared_ptr<FsCacheManager> fsCacheManager =
-        s3ClientAdaptor2->GetFsCacheManager();
     ASSERT_EQ(1, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(len, ret);
 

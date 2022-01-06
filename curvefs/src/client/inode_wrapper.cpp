@@ -48,6 +48,11 @@ std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
 
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
     google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap) {
+    VLOG(9) << "AppendS3ChunkInfoToMap chunkIndex: " << chunkIndex
+            << "s3chunkInfo { chunkId: " << info.chunkid()
+            << ", compaction: " << info.compaction()
+            << ", offset: " << info.offset() << ", len: " << info.len()
+            << ", zero: " << info.zero();
     auto it = s3ChunkInfoMap->find(chunkIndex);
     if (it == s3ChunkInfoMap->end()) {
         S3ChunkInfoList s3ChunkInfoList;
