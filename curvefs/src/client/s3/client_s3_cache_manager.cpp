@@ -1854,6 +1854,7 @@ void DataCache::Truncate(uint64_t size) {
             ((chunkPos_ + len_ - actualChunkPos_) / pageSize + 1) * pageSize;
     }
     assert(tmpActualLen == actualLen_);
+    (void) tmpActualLen;
     return;
 }
 
