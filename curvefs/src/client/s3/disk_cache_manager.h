@@ -30,6 +30,7 @@
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
+#include "src/common/throttle.h"
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
@@ -40,7 +41,10 @@ namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
+using curve::common::ReadWriteThrottleParams;
 using curvefs::common::SysUtils;
+using curve::common::ThrottleParams;
+using curve::common::Throttle;
 using curvefs::client::common::S3ClientAdaptorOption;
 
 class DiskCacheManager {
@@ -149,6 +153,8 @@ class DiskCacheManager {
     S3Client *client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
+
+    Throttle diskCacheThrottle_;
 };
 
 
