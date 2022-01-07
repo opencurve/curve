@@ -238,7 +238,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
 }
 
 CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
-    return s3Adaptor_->Truncate(inode, 0);
+    return s3Adaptor_->Truncate(inode, length);
 }
 
 void FuseS3Client::FlushData() {
