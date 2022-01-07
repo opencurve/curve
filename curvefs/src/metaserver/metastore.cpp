@@ -567,9 +567,9 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
     return status;
 }
 
-MetaStatusCode MetaStoreImpl::AppendS3ChunkInfo(
-    const AppendS3ChunkInfoRequest* request,
-    AppendS3ChunkInfoResponse* response) {
+MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
+    const GetOrModifyS3ChunkInfoRequest* request,
+    GetOrModifyS3ChunkInfoResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
     ReadLockGuard readLockGuard(rwLock_);
@@ -579,9 +579,14 @@ MetaStatusCode MetaStoreImpl::AppendS3ChunkInfo(
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->AppendS3ChunkInfo(fsId, inodeId,
-        request->s3chunkinfoadd(), request->s3chunkinforemove());
+    Inode out;
+    MetaStatusCode status = partition->GetOrModifyS3ChunkInfo(fsId, inodeId,
+        request->s3chunkinfoadd(), request->s3chunkinforemove(),
+        request->returninode(), &out);
     response->set_statuscode(status);
+    if (request->returninode()) {
+        response->mutable_inode()->Swap(&out);
+    }
     return status;
 }
 

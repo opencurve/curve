@@ -115,9 +115,9 @@ class MetaStore {
     virtual MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                        UpdateInodeResponse* response) = 0;
 
-    virtual MetaStatusCode AppendS3ChunkInfo(
-        const AppendS3ChunkInfoRequest* request,
-        AppendS3ChunkInfoResponse* response) = 0;
+    virtual MetaStatusCode GetOrModifyS3ChunkInfo(
+        const GetOrModifyS3ChunkInfoRequest* request,
+        GetOrModifyS3ChunkInfoResponse* response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -169,9 +169,9 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode UpdateInode(const UpdateInodeRequest* request,
                                UpdateInodeResponse* response) override;
 
-    MetaStatusCode AppendS3ChunkInfo(
-        const AppendS3ChunkInfoRequest* request,
-        AppendS3ChunkInfoResponse* response) override;
+    MetaStatusCode GetOrModifyS3ChunkInfo(
+        const GetOrModifyS3ChunkInfoRequest* request,
+        GetOrModifyS3ChunkInfoResponse* response) override;
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 

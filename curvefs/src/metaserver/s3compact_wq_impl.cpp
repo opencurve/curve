@@ -39,7 +39,7 @@ using curve::common::InitS3AdaptorOption;
 using curve::common::S3Adapter;
 using curve::common::S3AdapterOption;
 using curve::common::TaskThreadPool;
-using curvefs::metaserver::copyset::AppendS3ChunkInfoOperator;
+using curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
 
 namespace curvefs {
 namespace metaserver {
@@ -299,7 +299,7 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(
     CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoRemove) {
-    AppendS3ChunkInfoRequest request;
+    GetOrModifyS3ChunkInfoRequest request;
     request.set_poolid(pinfo.poolid());
     request.set_copysetid(pinfo.copysetid());
     request.set_partitionid(pinfo.partitionid());
@@ -307,12 +307,13 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(
     request.set_inodeid(inodeId);
     *request.mutable_s3chunkinfoadd() = std::move(s3ChunkInfoAdd);
     *request.mutable_s3chunkinforemove() = std::move(s3ChunkInfoRemove);
-    AppendS3ChunkInfoResponse response;
-    S3CompactWorkQueueImpl::AppendS3ChunkInfoClosure done;
+    request.set_returninode(false);
+    GetOrModifyS3ChunkInfoResponse response;
+    S3CompactWorkQueueImpl::GetOrModifyS3ChunkInfoClosure done;
     // if copysetnode change to nullptr, maybe crash
-    auto AppendS3ChunkInfoOp = new AppendS3ChunkInfoOperator(
+    auto GetOrModifyS3ChunkInfoOp = new GetOrModifyS3ChunkInfoOperator(
         copysetNode, nullptr, &request, &response, &done);
-    AppendS3ChunkInfoOp->Propose();
+    GetOrModifyS3ChunkInfoOp->Propose();
     done.WaitRunned();
     return response.statuscode();
 }

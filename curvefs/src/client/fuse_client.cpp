@@ -373,8 +373,20 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         }
         return ret;
     }
-    // clear parent inode cache to refresh inode info
-    inodeManager_->ClearInodeCache(parent);
+
+    std::shared_ptr<InodeWrapper> parentInodeWrapper;
+    ret = inodeManager_->GetInode(parent, parentInodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
+    ret = parentInodeWrapper->IncreaseNLink();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager IncreaseNLink fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
 
     VLOG(6) << "dentryManager_ CreateDentry success"
             << ", parent = " << parent << ", name = " << name
@@ -444,8 +456,20 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
                    << ", parent = " << parent << ", name = " << name;
         return ret;
     }
-    // clear parent inode cache to refresh inode info
-    inodeManager_->ClearInodeCache(parent);
+
+    std::shared_ptr<InodeWrapper> parentInodeWrapper;
+    ret = inodeManager_->GetInode(parent, parentInodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
+    ret = parentInodeWrapper->DecreaseNLink();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager DecreaseNLink fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
     ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -700,8 +724,20 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         }
         return ret;
     }
-    // clear parent inode cache to refresh inode info
-    inodeManager_->ClearInodeCache(parent);
+
+    std::shared_ptr<InodeWrapper> parentInodeWrapper;
+    ret = inodeManager_->GetInode(parent, parentInodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
+    ret = parentInodeWrapper->IncreaseNLink();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager IncreaseNLink fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
 
     GetDentryParamFromInode(inodeWrapper, e);
     return ret;
@@ -747,8 +783,20 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         }
         return ret;
     }
-    // clear parent inode cache to refresh inode info
-    inodeManager_->ClearInodeCache(newparent);
+
+    std::shared_ptr<InodeWrapper> parentInodeWrapper;
+    ret = inodeManager_->GetInode(newparent, parentInodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << newparent;
+        return ret;
+    }
+    ret = parentInodeWrapper->IncreaseNLink();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager IncreaseNLink fail, ret = " << ret
+                   << ", inodeid = " << newparent;
+        return ret;
+    }
 
     GetDentryParamFromInode(inodeWrapper, e);
     return ret;

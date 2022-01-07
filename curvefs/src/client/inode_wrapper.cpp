@@ -79,10 +79,10 @@ CURVEFS_ERROR InodeWrapper::Sync() {
         dirty_ = false;
     }
     if (!s3ChunkInfoAdd_.empty()) {
-        MetaStatusCode ret = metaClient_->AppendS3ChunkInfo(
+        MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
             inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_);
         if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ AppendS3ChunkInfo failed, "
+            LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
@@ -93,17 +93,49 @@ CURVEFS_ERROR InodeWrapper::Sync() {
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR InodeWrapper::Refresh() {
+    if (dirty_) {
+        MetaStatusCode ret = metaClient_->UpdateInode(inode_);
+
+        if (ret != MetaStatusCode::OK) {
+            LOG(ERROR) << "metaClient_ UpdateInode failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                       << ", inodeid: " << inode_.inodeid();
+            return MetaStatusCodeToCurvefsErrCode(ret);
+        }
+        dirty_ = false;
+    }
+    Inode newInode;
+    MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
+        inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_, true, &newInode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
+                   << "MetaStatusCode: " << ret
+                   << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                   << ", inodeid: " << inode_.inodeid();
+        return MetaStatusCodeToCurvefsErrCode(ret);
+    }
+    inode_.Swap(&newInode);
+    s3ChunkInfoAdd_.clear();
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR InodeWrapper::LinkLocked() {
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
     uint64_t oldCTime = inode_.ctime();
     inode_.set_nlink(old + 1);
-    inode_.set_ctime(nowTime);
+
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode_.set_ctime(now.tv_sec);
+    inode_.set_ctime_ns(now.tv_nsec);
+    inode_.set_mtime(now.tv_sec);
+    inode_.set_mtime_ns(now.tv_nsec);
     MetaStatusCode ret = metaClient_->UpdateInode(inode_);
     if (ret != MetaStatusCode::OK) {
         inode_.set_nlink(old);
-        inode_.set_ctime(oldCTime);
         LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();
@@ -113,8 +145,23 @@ CURVEFS_ERROR InodeWrapper::LinkLocked() {
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR InodeWrapper::IncreaseNLink() {
+    curve::common::UniqueLock lg(mtx_);
+    uint32_t old = inode_.nlink();
+    inode_.set_nlink(old + 1);
+
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inode_.set_ctime(now.tv_sec);
+    inode_.set_ctime_ns(now.tv_nsec);
+    inode_.set_mtime(now.tv_sec);
+    inode_.set_mtime_ns(now.tv_nsec);
+
+    dirty_ = true;
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
-    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
     curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
     if (old > 0) {
@@ -123,7 +170,12 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
             newnlink--;
         }
         inode_.set_nlink(newnlink);
-        inode_.set_ctime(nowTime);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        inode_.set_ctime(now.tv_sec);
+        inode_.set_ctime_ns(now.tv_nsec);
+        inode_.set_mtime(now.tv_sec);
+        inode_.set_mtime_ns(now.tv_nsec);
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
         VLOG(6) << "UnLinkInode, inodeid = " << inode_.inodeid()
                 << ", nlink = " << inode_.nlink();
@@ -138,6 +190,28 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
         return CURVEFS_ERROR::OK;
     }
     LOG(ERROR) << "Unlink find nlink <= 0, nlink = " << old;
+    return CURVEFS_ERROR::INTERNAL;
+}
+
+CURVEFS_ERROR InodeWrapper::DecreaseNLink() {
+    curve::common::UniqueLock lg(mtx_);
+    uint32_t old = inode_.nlink();
+    if (old > 0) {
+        uint32_t newnlink = old - 1;
+        if (newnlink == 1 && inode_.type() == FsFileType::TYPE_DIRECTORY) {
+            newnlink--;
+        }
+        inode_.set_nlink(newnlink);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        inode_.set_ctime(now.tv_sec);
+        inode_.set_ctime_ns(now.tv_nsec);
+        inode_.set_mtime(now.tv_sec);
+        inode_.set_mtime_ns(now.tv_nsec);
+        dirty_ = true;
+        return CURVEFS_ERROR::OK;
+    }
+    LOG(ERROR) << "DecreaseNLink find nlink <= 0, nlink = " << old;
     return CURVEFS_ERROR::INTERNAL;
 }
 

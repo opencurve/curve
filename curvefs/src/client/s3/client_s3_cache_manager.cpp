@@ -346,10 +346,11 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                     // ret -2 refs s3obj not exist
                     // clear inodecache && get again
                     LOG(INFO) << "inode cache maybe steal, try to get latest";
-                    inodeManager->ClearInodeCache(inodeId);
-                    auto r = inodeManager->GetInode(inodeId, inodeWrapper);
+                    ::curve::common::UniqueLock lgGuard =
+                        inodeWrapper->GetUniqueLock();
+                    auto r = inodeWrapper->Refresh();
                     if (r != CURVEFS_ERROR::OK) {
-                        LOG(WARNING) << "get inode fail, ret:" << ret;
+                        LOG(WARNING) << "refresh inode fail, ret:" << ret;
                         return -1;
                     }
                 }

@@ -305,7 +305,7 @@ message MetaServerMetadata {
     // required uint32 checksum = 4;
 }
 
-message AppendS3ChunkInfoRequest {
+message GetOrModifyS3ChunkInfoRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
     required uint32 partitionId = 3;
@@ -313,11 +313,13 @@ message AppendS3ChunkInfoRequest {
     required uint64 inodeId = 5;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
     map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
+    required bool returnInode = 8;
 }
 
-message AppendS3ChunkInfoResponse {
+message GetOrModifyS3ChunkInfoResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
+    optional Inode inode = 3;
 }
 
 service MetaServerService {
@@ -335,7 +337,7 @@ service MetaServerService {
     rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
-    rpc AppendS3ChunkInfo(AppendS3ChunkInfoRequest) returns (AppendS3ChunkInfoResponse);
+    rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
 
     // partition interface
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);

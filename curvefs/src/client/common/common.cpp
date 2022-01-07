@@ -52,8 +52,8 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
     case MetaServerOpType::DeleteInode:
         os << "DeleteInode";
         break;
-    case MetaServerOpType::AppendS3ChunkInfo:
-        os << "AppendS3ChunkInfo";
+    case MetaServerOpType::GetOrModifyS3ChunkInfo:
+        os << "GetOrModifyS3ChunkInfo";
         break;
     default:
         os << "Unknow opType";
