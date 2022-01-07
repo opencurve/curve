@@ -143,7 +143,7 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_TRUE(CompareInode(temp5, temp2));
     ASSERT_FALSE(CompareInode(inode2, temp2));
 
-    // AppendS3ChunkInfo
+    // GetOrModifyS3ChunkInfo
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd;
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoRemove;
 
@@ -169,13 +169,12 @@ TEST_F(InodeManagerTest, test1) {
         s3ChunkInfoAdd[j] = list[j];
     }
 
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.AppendS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove));
-
     Inode inode3Out;
     ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetInode(fsId, inode3.inodeid(), &inode3Out));
+        manager.GetOrModifyS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
+            true, &inode3Out));
+
     ASSERT_EQ(10, inode3Out.s3chunkinfomap_size());
     for (int j = 0; j < 10; j++) {
         ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
@@ -183,34 +182,31 @@ TEST_F(InodeManagerTest, test1) {
     }
 
     // Idempotent test
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.AppendS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove));
-
     Inode inode4Out;
     ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetInode(fsId, inode3.inodeid(), &inode4Out));
+        manager.GetOrModifyS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
+            true, &inode4Out));
+
     ASSERT_EQ(10, inode4Out.s3chunkinfomap_size());
     for (int j = 0; j < 10; j++) {
         ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
                 inode4Out.s3chunkinfomap().at(j)));
     }
 
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.AppendS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd));
     Inode inode5Out;
     ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetInode(fsId, inode3.inodeid(), &inode5Out));
+        manager.GetOrModifyS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
+        true, &inode5Out));
     ASSERT_EQ(0, inode5Out.s3chunkinfomap_size());
 
     // Idempotent test
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.AppendS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd));
     Inode inode6Out;
     ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetInode(fsId, inode3.inodeid(), &inode6Out));
+        manager.GetOrModifyS3ChunkInfo(
+            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
+            true, &inode6Out));
     ASSERT_EQ(0, inode6Out.s3chunkinfomap_size());
 }
 }  // namespace metaserver

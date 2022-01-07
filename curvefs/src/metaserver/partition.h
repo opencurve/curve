@@ -79,10 +79,12 @@ class Partition {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest& request);
 
-    MetaStatusCode AppendS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
+    MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
         const google::protobuf::Map<uint64_t, S3ChunkInfoList>
-            &s3ChunkInfoRemove);
+            &s3ChunkInfoRemove,
+        bool returnInode,
+        Inode *out);
 
     MetaStatusCode InsertInode(const Inode& inode);
 

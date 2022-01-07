@@ -108,7 +108,7 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
               zero(zero) {}
     };
     // closure for updating inode, simply wait
-    class AppendS3ChunkInfoClosure : public google::protobuf::Closure {
+    class GetOrModifyS3ChunkInfoClosure : public google::protobuf::Closure {
      private:
         std::mutex mutex_;
         std::condition_variable cond_;

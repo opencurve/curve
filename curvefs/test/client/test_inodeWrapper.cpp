@@ -135,7 +135,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     EXPECT_CALL(*metaClient_, UpdateInode(_))
         .WillOnce(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*metaClient_, AppendS3ChunkInfo(_, _, _))
+    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -160,7 +160,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*metaClient_, AppendS3ChunkInfo(_, _, _))
+    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();

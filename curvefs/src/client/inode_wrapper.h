@@ -181,9 +181,15 @@ class InodeWrapper {
 
     CURVEFS_ERROR LinkLocked();
 
+    CURVEFS_ERROR IncreaseNLink();
+
     CURVEFS_ERROR UnLinkLocked();
 
+    CURVEFS_ERROR DecreaseNLink();
+
     CURVEFS_ERROR Sync();
+
+    CURVEFS_ERROR Refresh();
 
     CURVEFS_ERROR Open();
 

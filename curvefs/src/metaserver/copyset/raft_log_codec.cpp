@@ -145,9 +145,10 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
         case OperatorType::PrepareRenameTx:
             return ParseFromRaftLog<PrepareRenameTxOperator,
                                     PrepareRenameTxRequest>(node, type, meta);
-        case OperatorType::AppendS3ChunkInfo:
-            return ParseFromRaftLog<AppendS3ChunkInfoOperator,
-                                    AppendS3ChunkInfoRequest>(node, type, meta);
+        case OperatorType::GetOrModifyS3ChunkInfo:
+            return ParseFromRaftLog<GetOrModifyS3ChunkInfoOperator,
+                                    GetOrModifyS3ChunkInfoRequest>(
+                                        node, type, meta);
         default:
             LOG(ERROR) << "unexpected type: " << static_cast<uint32_t>(type);
             return nullptr;

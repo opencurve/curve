@@ -297,7 +297,7 @@ class UpdateInodeOperator : public MetaOperator {
     OperatorType GetOperatorType() const override;
 };
 
-class AppendS3ChunkInfoOperator : public MetaOperator {
+class GetOrModifyS3ChunkInfoOperator : public MetaOperator {
  public:
      using MetaOperator::MetaOperator;
 
