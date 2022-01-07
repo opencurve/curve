@@ -103,6 +103,8 @@ class Topology {
         uint32_t partitionId, PartitionStatistic statistic) = 0;
     virtual TopoStatusCode UpdatePartitionTxIds(
         std::vector<PartitionTxId> txIds) = 0;
+    virtual TopoStatusCode UpdatePartitionStatus(PartitionIdType partitionId,
+                                                 PartitionStatus status) = 0;
 
     virtual TopoStatusCode SetCopySetAvalFlag(const CopySetKey &key,
                                               bool aval) = 0;
@@ -290,6 +292,8 @@ class TopologyImpl : public Topology {
         uint32_t partitionId, PartitionStatistic statistic) override;
     TopoStatusCode UpdatePartitionTxIds(
         std::vector<PartitionTxId> txIds) override;
+    TopoStatusCode UpdatePartitionStatus(PartitionIdType partitionId,
+        PartitionStatus status) override;
 
     PoolIdType FindPool(const std::string &poolName) const override;
     ZoneIdType FindZone(const std::string &zoneName,

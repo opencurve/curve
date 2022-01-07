@@ -278,6 +278,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
                   << ", partitionId = " <<  partitionId;
         TrashManager::GetInstance().Remove(partitionId);
         it->second->ClearS3Compact();
+        PartitionCleanManager::GetInstance().Remove(partitionId);
         partitionMap_.erase(it);
         response->set_statuscode(MetaStatusCode::OK);
         return MetaStatusCode::OK;

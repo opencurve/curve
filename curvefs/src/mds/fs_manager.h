@@ -176,9 +176,16 @@ class FsManager {
                                         FSType fsType, uint64_t blocksize,
                                         const FsDetail& detail);
 
+    // send request to metaserver to DeletePartition, if response returns
+    // FSStatusCode::OK or FSStatusCode::UNDER_DELETING, returns true;
+    // else returns false
+    bool DeletePartiton(std::string fsName, const PartitionInfo& partition);
+
+    // set partition status to DELETING in topology
+    bool SetPartitionToDeleting(const PartitionInfo& partition);
+
  private:
     uint64_t GetRootId();
-    FSStatusCode CleanFsInodeAndDentry(uint32_t fsId);
 
  private:
     std::shared_ptr<FsStorage> fsStorage_;

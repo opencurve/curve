@@ -220,10 +220,6 @@ MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    if (GetStatus() == PartitionStatus::DELETING) {
-        return MetaStatusCode::PARTITION_DELETING;
-    }
-
     return inodeManager_->GetInode(fsId, inodeId, inode);
 }
 
@@ -296,10 +292,18 @@ bool Partition::IsDeletable() {
 
 bool Partition::IsInodeBelongs(uint32_t fsId, uint64_t inodeId) {
     if (fsId != partitionInfo_.fsid()) {
+        LOG(WARNING) << "partition fsid mismatch, fsId = " << fsId
+                     << ", inodeId = " << inodeId
+                     << ", partition fsId = " << partitionInfo_.fsid();
         return false;
     }
 
     if (inodeId < partitionInfo_.start() || inodeId > partitionInfo_.end()) {
+        LOG(WARNING) << "partition inode mismatch, fsId = " << fsId
+                     << ", inodeId = " << inodeId
+                     << ", partition fsId = " << partitionInfo_.fsid()
+                     << ", partition starst = " << partitionInfo_.start()
+                     << ", partition end = " << partitionInfo_.end();
         return false;
     }
 
