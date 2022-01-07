@@ -133,6 +133,9 @@ class CurvefsBuildTopologyTool : public curvefs::tools::CurvefsTool {
     int InitPoolData();
     int ScanCluster();
     int ScanPool();
+    int RemovePoolsNotInNewTopo();
+    int RemoveZonesNotInNewTopo();
+    int RemoveServersNotInNewTopo();
     int CreatePool();
     int CreateZone();
     int CreateServer();
@@ -149,6 +152,10 @@ class CurvefsBuildTopologyTool : public curvefs::tools::CurvefsTool {
     std::list<Server> serverDatas;
     std::list<Zone> zoneDatas;
     std::list<Pool> poolDatas;
+
+    std::list<ServerIdType> serverToDel;
+    std::list<ZoneIdType> zoneToDel;
+    std::list<PoolIdType> poolToDel;
 
     std::vector<std::string> mdsAddressStr_;
     int mdsAddressIndex_;
