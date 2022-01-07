@@ -67,6 +67,48 @@ void FsManager::Uninit() {
     LOG(INFO) << "FsManager Uninit ok.";
 }
 
+bool FsManager::DeletePartiton(std::string fsName,
+                               const PartitionInfo& partition) {
+    LOG(INFO) << "delete fs partition, fsName = " << fsName
+              << ", partitionId = " << partition.partitionid();
+    // send rpc to metaserver, get copyset members
+    std::set<std::string> addrs;
+    if (TopoStatusCode::TOPO_OK !=
+        topoManager_->GetCopysetMembers(partition.poolid(),
+                                        partition.copysetid(), &addrs)) {
+        LOG(ERROR) << "delete partition fail, get copyset "
+                      "members fail"
+                   << ", poolId = " << partition.poolid()
+                   << ", copysetId = " << partition.copysetid();
+        return false;
+    }
+
+    FSStatusCode ret = metaserverClient_->DeletePartition(
+        partition.poolid(), partition.copysetid(), partition.partitionid(),
+        addrs);
+    if (ret != FSStatusCode::OK && ret != FSStatusCode::UNDER_DELETING) {
+        LOG(ERROR) << "delete partition fail, fsName = " << fsName
+                   << ", partitionId = " << partition.partitionid()
+                   << ", errCode = " << FSStatusCode_Name(ret);
+        return false;
+    }
+
+    return true;
+}
+
+bool FsManager::SetPartitionToDeleting(const PartitionInfo& partition) {
+    LOG(INFO) << "set partition status to deleting, partitionId = "
+              << partition.partitionid();
+    TopoStatusCode ret = topoManager_->UpdatePartitionStatus(
+        partition.partitionid(), PartitionStatus::DELETING);
+    if (ret != TopoStatusCode::TOPO_OK) {
+        LOG(ERROR) << "set partition to deleting fail, partitionId = "
+                   << partition.partitionid();
+        return false;
+    }
+    return true;
+}
+
 void FsManager::ScanFs(const FsInfoWrapper& wrapper) {
     if (wrapper.GetStatus() != FsStatus::DELETING) {
         return;
@@ -88,37 +130,16 @@ void FsManager::ScanFs(const FsInfoWrapper& wrapper) {
 
     for (const PartitionInfo& partition : partitionList) {
         if (partition.status() != PartitionStatus::DELETING) {
-            LOG(INFO) << "delete fs partition, fsName = " << wrapper.GetFsName()
-                      << ", partitionId = " << partition.partitionid();
-            // send rpc to metaserver, get copyset members
-            std::set<std::string> addrs;
-            if (TopoStatusCode::TOPO_OK !=
-                topoManager_->GetCopysetMembers(
-                    partition.poolid(), partition.copysetid(), &addrs)) {
-                LOG(ERROR) << "delete partition fail, get copyset "
-                              "members fail"
-                           << ", poolId = " << partition.poolid()
-                           << ", copysetId = " << partition.copysetid();
+            if (!DeletePartiton(wrapper.GetFsName(), partition)) {
                 continue;
             }
-
-            FSStatusCode ret = metaserverClient_->DeletePartition(
-                partition.poolid(), partition.copysetid(),
-                partition.partitionid(), addrs);
-            if (ret != FSStatusCode::OK &&
-                ret != FSStatusCode::UNDER_DELETING) {
-                LOG(ERROR) << "delete partition fail, fsName = "
-                           << wrapper.GetFsName()
-                           << ", partitionId = " << partition.partitionid()
-                           << ", errCode = " << FSStatusCode_Name(ret);
-            }
+            SetPartitionToDeleting(partition);
         }
     }
 }
 
 void FsManager::BackEndFunc() {
-    while (sleeper_.wait_for(
-        std::chrono::seconds(backEndThreadRunInterSec_))) {
+    while (sleeper_.wait_for(std::chrono::seconds(backEndThreadRunInterSec_))) {
         std::vector<FsInfoWrapper> wrapperVec;
         fsStorage_->GetAll(&wrapperVec);
         for (const FsInfoWrapper& wrapper : wrapperVec) {
@@ -285,15 +306,15 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
         newWrapper.SetStatus(FsStatus::DELETING);
         // change fs name to oldname+"_deleting_"+fsid+deletetime
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
-        newWrapper.SetFsName(fsName + "_deleting_"
-                             + std::to_string(wrapper.GetFsId()) + "_"
-                             + std::to_string(now));
+        newWrapper.SetFsName(fsName + "_deleting_" +
+                             std::to_string(wrapper.GetFsId()) + "_" +
+                             std::to_string(now));
         // for persistence consider
         ret = fsStorage_->Rename(wrapper, newWrapper);
         if (ret != FSStatusCode::OK) {
             LOG(ERROR) << "DeleteFs fail, update fs to deleting and rename fail"
-                        << ", fsName = " << fsName
-                        << ", ret = " << FSStatusCode_Name(ret);
+                       << ", fsName = " << fsName
+                       << ", ret = " << FSStatusCode_Name(ret);
             return ret;
         }
         return FSStatusCode::OK;
@@ -302,7 +323,7 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
         return FSStatusCode::UNDER_DELETING;
     } else {
         LOG(ERROR) << "DeleteFs fs in wrong status, fsName = " << fsName
-                       << ", fs status = " << FsStatus_Name(status);
+                   << ", fs status = " << FsStatus_Name(status);
         return FSStatusCode::UNKNOWN_ERROR;
     }
 
@@ -509,12 +530,6 @@ int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
 }
 
 uint64_t FsManager::GetRootId() { return ROOTINODEID; }
-
-FSStatusCode FsManager::CleanFsInodeAndDentry(uint32_t fsId) {
-    // TODO(cw123) : to be implemented
-    LOG(WARNING) << "CleanFsInodeAndDentry not implemented, return OK!";
-    return FSStatusCode::OK;
-}
 
 void FsManager::GetAllFsInfo(
     ::google::protobuf::RepeatedPtrField<::curvefs::mds::FsInfo>* fsInfoVec) {

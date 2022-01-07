@@ -576,6 +576,7 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
     // TEST DeleteFs, delete fs1
     std::list<PartitionInfo> list;
     std::list<PartitionInfo> list2;
+    std::list<PartitionInfo> list3;
 
     PartitionInfo partition;
     uint32_t poolId1 = 1;
@@ -587,8 +588,13 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
     partition.set_partitionid(partitionId1);
     list2.push_back(partition);
 
+    PartitionInfo partition2 = partition;
+    partition2.set_status(PartitionStatus::DELETING);
+    list3.push_back(partition2);
+
     EXPECT_CALL(*topoManager_, ListPartitionOfFs(fsInfo1.fsid(), _))
         .WillOnce(SetArgPointee<1>(list2))
+        .WillOnce(SetArgPointee<1>(list3))
         .WillOnce(SetArgPointee<1>(list));
 
     EXPECT_CALL(*topoManager_, GetCopysetMembers(poolId1, copysetId1, _))
@@ -608,13 +614,16 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
             Invoke(
                 RpcService<DeletePartitionRequest, DeletePartitionResponse>)));
 
+    EXPECT_CALL(*topoManager_, UpdatePartitionStatus(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
 
     ret = fsManager_->DeleteFs(fsName1);
     ASSERT_EQ(ret, FSStatusCode::OK);
 
-    sleep(3);
+    sleep(4);
     // query fs deleted
-    ret = fsManager_->GetFsInfo(fsName1, &fsInfo1);
+    FsInfo fsInfo3;
+    ret = fsManager_->GetFsInfo(fsInfo1.fsid(), &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::NOT_FOUND);
 
     // TEST DeleteFs, delete fs2
@@ -625,11 +634,11 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
     partition.set_copysetid(copysetId2);
     partition.set_partitionid(partitionId2);
     partition.set_status(PartitionStatus::DELETING);
-    std::list<PartitionInfo> list3;
-    list3.push_back(partition);
+    std::list<PartitionInfo> list4;
+    list4.push_back(partition);
 
     EXPECT_CALL(*topoManager_, ListPartitionOfFs(fsInfo2.fsid(), _))
-        .WillOnce(SetArgPointee<1>(list3))
+        .WillOnce(SetArgPointee<1>(list4))
         .WillOnce(SetArgPointee<1>(list));
 
     ret = fsManager_->DeleteFs(fsName2);
@@ -637,7 +646,7 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
 
     sleep(3);
 
-    ret = fsManager_->GetFsInfo(fsName2, &fsInfo2);
+    ret = fsManager_->GetFsInfo(fsInfo2.fsid(), &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::NOT_FOUND);
 }
 

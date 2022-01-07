@@ -588,6 +588,24 @@ TopoStatusCode TopologyImpl::UpdatePartitionStatistic(
     }
 }
 
+
+TopoStatusCode TopologyImpl::UpdatePartitionStatus(PartitionIdType partitionId,
+                                                   PartitionStatus status) {
+    WriteLockGuard wlockPartition(partitionMutex_);
+    auto it = partitionMap_.find(partitionId);
+    if (it != partitionMap_.end()) {
+        Partition temp = it->second;
+        temp.SetStatus(status);
+        if (!storage_->UpdatePartition(temp)) {
+            return TopoStatusCode::TOPO_STORGE_FAIL;
+        }
+        it->second = std::move(temp);
+        return TopoStatusCode::TOPO_OK;
+    } else {
+        return TopoStatusCode::TOPO_PARTITION_NOT_FOUND;
+    }
+}
+
 bool TopologyImpl::GetPartition(PartitionIdType partitionId, Partition *out) {
     ReadLockGuard rlockPartition(partitionMutex_);
     auto it = partitionMap_.find(partitionId);

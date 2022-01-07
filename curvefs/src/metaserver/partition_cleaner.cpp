@@ -28,18 +28,6 @@ namespace curvefs {
 namespace metaserver {
 
 bool PartitionCleaner::ScanPartition() {
-    if (partition_->GetInodeNum() == 0) {
-        LOG(INFO) << "Inode num is 0, delete partition from metastore";
-        MetaStatusCode ret = DeletePartition();
-        if (ret == MetaStatusCode::OK) {
-            return true;
-        } else {
-            LOG(WARNING) << "delete partition from copyset fail, ret = "
-                         << MetaStatusCode_Name(ret);
-            return false;
-        }
-    }
-
     if (!copysetNode_->IsLeaderTerm()) {
         return false;
     }
@@ -47,12 +35,20 @@ bool PartitionCleaner::ScanPartition() {
     std::list<uint64_t> InodeIdList;
     partition_->GetInodeIdList(&InodeIdList);
     for (auto inodeId : InodeIdList) {
-        if (isStop_) {
+        if (isStop_ || !copysetNode_->IsLeaderTerm()) {
             return false;
         }
         Inode inode;
-        partition_->GetInode(partition_->GetFsId(), inodeId, &inode);
-        MetaStatusCode ret = CleanDataAndDeleteInode(inode);
+        MetaStatusCode ret =
+            partition_->GetInode(partition_->GetFsId(), inodeId, &inode);
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "ScanPartition get inode fail, fsId = "
+                         << partition_->GetFsId()
+                         << ", inodeId = " << inodeId;
+            continue;
+        }
+
+        ret = CleanDataAndDeleteInode(inode);
         if (ret != MetaStatusCode::OK) {
             LOG(WARNING) << "ScanPartition clean inode fail, inode = "
                          << inode.ShortDebugString();
@@ -61,13 +57,17 @@ bool PartitionCleaner::ScanPartition() {
         usleep(inodeDeletePeriodMs_);
     }
 
+    uint32_t partitionId = partition_->GetPartitionId();
     if (partition_->GetInodeNum() == 0) {
-        LOG(INFO) << "Inode num is 0, delete partition from metastore";
+        LOG(INFO) << "Inode num is 0, delete partition from metastore"
+                  << ", partitonId = " << partitionId;
         MetaStatusCode ret = DeletePartition();
         if (ret == MetaStatusCode::OK) {
+            VLOG(3) << "DeletePartition success, partitionId = " << partitionId;
             return true;
         } else {
-            LOG(WARNING) << "delete partition from copyset fail, ret = "
+            LOG(WARNING) << "delete partition from copyset fail, partitionId = "
+                         << partitionId << ", ret = "
                          << MetaStatusCode_Name(ret);
             return false;
         }

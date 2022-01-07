@@ -81,17 +81,17 @@ TEST_F(PartitionCleanManagerTest, test1) {
 
     EXPECT_CALL(copysetNode, Propose(_))
         .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID),
-                      MetaStatusCode::OK);
-            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
-                      << ", inodeId = " << ROOTINODEID;
-            task.done->Run();
-        }))
-        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
             ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
                       MetaStatusCode::OK);
             LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
                       << ", inodeId = " << ROOTINODEID + 1;
+            task.done->Run();
+        }))
+        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
+            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID),
+                      MetaStatusCode::OK);
+            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
+                      << ", inodeId = " << ROOTINODEID;
             task.done->Run();
         }))
         .WillOnce(Invoke([partition](const braft::Task& task) {

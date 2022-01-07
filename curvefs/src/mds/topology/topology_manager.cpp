@@ -1157,6 +1157,11 @@ void TopologyManager::ListMetaserverOfCluster(
     }
 }
 
+TopoStatusCode TopologyManager::UpdatePartitionStatus(
+    PartitionIdType partitionId, PartitionStatus status) {
+    return topology_->UpdatePartitionStatus(partitionId, status);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

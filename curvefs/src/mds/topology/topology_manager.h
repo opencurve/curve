@@ -125,6 +125,9 @@ class TopologyManager {
     virtual void ListPartitionOfFs(FsIdType fsId,
                                    std::list<PartitionInfo>* list);
 
+    virtual TopoStatusCode UpdatePartitionStatus(PartitionIdType partitionId,
+                                                 PartitionStatus status);
+
     virtual void GetCopysetOfPartition(
         const GetCopysetOfPartitionRequest *request,
         GetCopysetOfPartitionResponse *response);
