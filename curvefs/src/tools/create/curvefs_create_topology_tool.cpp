@@ -124,6 +124,21 @@ int CurvefsBuildTopologyTool::HandleBuildCluster() {
         return DealFailedRet(ret, "scan cluster");
     }
 
+    ret = RemoveServersNotInNewTopo();
+    if (ret != 0) {
+        return DealFailedRet(ret, "remove server");
+    }
+
+    ret = RemoveZonesNotInNewTopo();
+    if (ret != 0) {
+        return DealFailedRet(ret, "remove zone");
+    }
+
+    ret = RemovePoolsNotInNewTopo();
+    if (ret != 0) {
+        return DealFailedRet(ret, "remove pool");
+    }
+
     ret = CreatePool();
     if (ret != 0) {
         return DealFailedRet(ret, "create pool");
@@ -270,6 +285,8 @@ int CurvefsBuildTopologyTool::ScanCluster() {
             [it](Pool& data) { return data.name == it->poolname(); });
         if (ix != poolDatas.end()) {
             poolDatas.erase(ix);
+        } else {
+            poolToDel.emplace_back(it->poolid());
         }
     }
 
@@ -291,6 +308,8 @@ int CurvefsBuildTopologyTool::ScanCluster() {
             });
         if (ix != zoneDatas.end()) {
             zoneDatas.erase(ix);
+        } else {
+            zoneToDel.emplace_back(it->zoneid());
         }
     }
 
@@ -313,6 +332,8 @@ int CurvefsBuildTopologyTool::ScanCluster() {
                                });
         if (ix != serverDatas.end()) {
             serverDatas.erase(ix);
+        } else {
+            serverToDel.emplace_back(it->serverid());
         }
     }
 
@@ -325,7 +346,6 @@ int CurvefsBuildTopologyTool::ListPool(std::list<PoolInfo>* poolInfos) {
     ListPoolResponse response;
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
-    cntl.set_log_id(1);
 
     LOG(INFO) << "ListPool send request: " << request.DebugString();
     stub.ListPool(&cntl, &request, &response, nullptr);
@@ -357,7 +377,6 @@ int CurvefsBuildTopologyTool::GetZonesInPool(PoolIdType poolid,
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
-    cntl.set_log_id(1);
 
     LOG(INFO) << "ListZoneInPool, send request: " << request.DebugString();
 
@@ -390,7 +409,6 @@ int CurvefsBuildTopologyTool::GetServersInZone(
     request.set_zoneid(zoneid);
     brpc::Controller cntl;
     cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
-    cntl.set_log_id(1);
 
     LOG(INFO) << "ListZoneServer, send request: " << request.DebugString();
 
@@ -415,6 +433,115 @@ int CurvefsBuildTopologyTool::GetServersInZone(
     return 0;
 }
 
+int CurvefsBuildTopologyTool::RemovePoolsNotInNewTopo() {
+    TopologyService_Stub stub(&channel_);
+    for (auto it : poolToDel) {
+        DeletePoolRequest request;
+        DeletePoolResponse response;
+        request.set_poolid(it);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
+
+        LOG(INFO) << "ClearPool, send request: " << request.DebugString();
+
+        stub.DeletePool(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
+            LOG(ERROR) << "ClearPool errcorde = " << response.statuscode()
+                       << ", error content:" << cntl.ErrorText()
+                       << " , poolId = " << it;
+            return kRetCodeCommonErr;
+        }
+
+        if (response.statuscode() != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "ClearPool rpc response fail. "
+                       << "Message is :" << response.DebugString()
+                       << " , poolId =" << it;
+            return response.statuscode();
+        } else {
+            LOG(INFO) << "Received ClearPool response success, "
+                      << response.DebugString();
+        }
+    }
+    return 0;
+}
+
+int CurvefsBuildTopologyTool::RemoveZonesNotInNewTopo() {
+    TopologyService_Stub stub(&channel_);
+    for (auto it : zoneToDel) {
+        DeleteZoneRequest request;
+        DeleteZoneResponse response;
+        request.set_zoneid(it);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
+
+        LOG(INFO) << "ClearZone, send request: " << request.DebugString();
+
+        stub.DeleteZone(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
+            LOG(ERROR) << "ClearZone, errcorde = " << response.statuscode()
+                       << ", error content:" << cntl.ErrorText()
+                       << " , zoneId = " << it;
+            return kRetCodeCommonErr;
+        }
+        if (response.statuscode() != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "ClearZone Rpc response fail. "
+                       << "Message is :" << response.DebugString()
+                       << " , zoneId = " << it;
+            return response.statuscode();
+        } else {
+            LOG(INFO) << "Received ClearZone Rpc success, "
+                      << response.DebugString();
+        }
+    }
+    return 0;
+}
+
+int CurvefsBuildTopologyTool::RemoveServersNotInNewTopo() {
+    TopologyService_Stub stub(&channel_);
+    for (auto it : serverToDel) {
+        DeleteServerRequest request;
+        DeleteServerResponse response;
+        request.set_serverid(it);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
+
+        LOG(INFO) << "ClearServer, send request: " << request.DebugString();
+
+        stub.DeleteServer(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
+            LOG(ERROR) << "ClearServer, errcorde = " << response.statuscode()
+                       << ", error content : " << cntl.ErrorText()
+                       << " , serverId = " << it;
+            return kRetCodeCommonErr;
+        }
+        if (response.statuscode() != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "ClearServer Rpc response fail. "
+                       << "Message is :" << response.DebugString()
+                       << " , serverId = " << it;
+            return response.statuscode();
+        } else {
+            LOG(INFO) << "Received ClearServer Rpc success, "
+                      << response.DebugString();
+        }
+    }
+    return 0;
+}
+
 int CurvefsBuildTopologyTool::CreatePool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : poolDatas) {
@@ -431,7 +558,6 @@ int CurvefsBuildTopologyTool::CreatePool() {
 
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
-        cntl.set_log_id(1);
 
         LOG(INFO) << "CreatePool, send request: " << request.DebugString();
 
@@ -470,7 +596,6 @@ int CurvefsBuildTopologyTool::CreateZone() {
 
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
-        cntl.set_log_id(1);
 
         LOG(INFO) << "CreateZone, send request: " << request.DebugString();
 
@@ -485,7 +610,7 @@ int CurvefsBuildTopologyTool::CreateZone() {
                        << " , zoneName = " << it.name;
             return kRetCodeCommonErr;
         }
-        if (response.statuscode() != 0) {
+        if (response.statuscode() != TopoStatusCode::TOPO_OK) {
             LOG(ERROR) << "CreateZone Rpc response fail. "
                        << "Message is :" << response.DebugString()
                        << " , zoneName = " << it.name;
@@ -513,7 +638,6 @@ int CurvefsBuildTopologyTool::CreateServer() {
 
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_rpcTimeoutMs);
-        cntl.set_log_id(1);
 
         LOG(INFO) << "CreateServer, send request: " << request.DebugString();
 

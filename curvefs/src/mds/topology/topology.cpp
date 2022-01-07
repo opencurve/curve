@@ -222,6 +222,8 @@ TopoStatusCode TopologyImpl::RemoveMetaServer(MetaServerIdType id) {
     WriteLockGuard wlockMetaServer(metaServerMutex_);
     auto it = metaServerMap_.find(id);
     if (it != metaServerMap_.end()) {
+        uint64_t metaserverCapacity =
+            it->second.GetMetaServerSpace().GetDiskCapacity();
         if (!storage_->DeleteMetaServer(id)) {
             return TopoStatusCode::TOPO_STORGE_FAIL;
         }
@@ -230,6 +232,17 @@ TopoStatusCode TopologyImpl::RemoveMetaServer(MetaServerIdType id) {
             ix->second.RemoveMetaServer(id);
         }
         metaServerMap_.erase(it);
+
+        // update pool
+        WriteLockGuard wlockPool(poolMutex_);
+        PoolIdType poolId = ix->second.GetPoolId();
+        auto it = poolMap_.find(poolId);
+        if (it != poolMap_.end()) {
+            it->second.SetDiskCapacity(it->second.GetDiskCapacity() -
+                metaserverCapacity);
+        } else {
+            return TopoStatusCode::TOPO_POOL_NOT_FOUND;
+        }
         return TopoStatusCode::TOPO_OK;
     } else {
         return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
