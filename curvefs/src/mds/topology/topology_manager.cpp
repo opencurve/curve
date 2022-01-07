@@ -317,6 +317,12 @@ void TopologyManager::DeleteServer(const DeleteServerRequest *request,
                        << ", serverId = " << request->serverid();
             response->set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
             return;
+        } else if (OnlineState::OFFLINE != ms.GetOnlineState()) {
+            LOG(ERROR) << "Can not delete server which have "
+                       << "metaserver not offline.";
+            response->set_statuscode(
+                TopoStatusCode::TOPO_CANNOT_REMOVE_NOT_OFFLINE);
+            return;
         } else {
             errcode = topology_->RemoveMetaServer(msId);
             if (errcode != TopoStatusCode::TOPO_OK) {
