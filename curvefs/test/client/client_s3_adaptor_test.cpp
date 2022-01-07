@@ -1631,6 +1631,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_more_chunk) {
     S3ChunkInfo tmp;
     S3ChunkInfoList tmpList;
     ASSERT_NE(s3InfoListIter, inode.s3chunkinfomap().end());
+    VLOG(9) << "index: " << s3InfoListIter->first;
     tmpList = s3InfoListIter->second;
     ASSERT_EQ(1, tmpList.s3chunks_size());
     tmp = tmpList.s3chunks(0);

@@ -187,16 +187,16 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
         uint64_t chunkId;
         FSStatusCode ret;
         uint64_t fsId = inode->fsid();
+        ret = AllocS3ChunkId(fsId, &chunkId);
+        if (ret != FSStatusCode::OK) {
+            LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
+            return CURVEFS_ERROR::INTERNAL;
+        }
         while (len > 0) {
             if (chunkPos + len > chunkSize_) {
                 n = chunkSize_ - chunkPos;
             } else {
                 n = len;
-            }
-            ret = AllocS3ChunkId(fsId, &chunkId);
-            if (ret != FSStatusCode::OK) {
-                LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
-                return CURVEFS_ERROR::INTERNAL;
             }
             S3ChunkInfo *tmp;
             auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
