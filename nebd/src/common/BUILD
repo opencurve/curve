@@ -31,5 +31,6 @@ cc_library(
         "//external:butil",
         "//external:bvar",
         "//external:glog",
+        "//src/common:macros",
     ],
 )

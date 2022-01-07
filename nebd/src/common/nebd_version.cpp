@@ -21,12 +21,13 @@
  */
 
 #include "nebd/src/common/nebd_version.h"
+
 #include "nebd/src/common/stringstatus.h"
+#include "src/common/macros.h"
 
 namespace nebd {
 namespace common {
 
-// https://gcc.gnu.org/onlinedocs/gcc-4.8.5/cpp/Stringification.html
 std::string NebdVersion() {
     static const std::string version =
 #ifdef CURVEVERSION
