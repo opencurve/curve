@@ -777,6 +777,48 @@ TEST_F(TestTopologyManager, test_DeleteServer_success) {
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
 }
 
+TEST_F(TestTopologyManager, test_DeleteServerHaveMetaserver_success) {
+    PoolIdType poolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    PrepareAddPool(poolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "ip1", 0, "ip2", 8888,
+        OnlineState::OFFLINE);
+
+    DeleteServerRequest request;
+    request.set_serverid(serverId);
+
+    DeleteServerResponse response;
+
+    EXPECT_CALL(*storage_, DeleteMetaServer(_)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteServer(_)).WillOnce(Return(true));
+
+    serviceManager_->DeleteServer(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_DeleteServerHaveMetaserver_fail) {
+    PoolIdType poolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    PrepareAddPool(poolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "ip1", 0, "ip2", 8888);
+    DeleteServerRequest request;
+    request.set_serverid(serverId);
+
+    DeleteServerResponse response;
+
+    serviceManager_->DeleteServer(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_CANNOT_REMOVE_NOT_OFFLINE,
+        response.statuscode());
+}
+
 TEST_F(TestTopologyManager, test_ListZoneServer_ByIdSuccess) {
     PoolIdType poolId = 0x11;
     ZoneIdType zoneId = 0x21;
