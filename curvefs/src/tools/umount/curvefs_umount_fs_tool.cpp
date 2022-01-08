@@ -98,14 +98,26 @@ bool UmountFsTool::AfterSendRequestToHost(const std::string& host) {
                      << " failed, errorcode= " << controller_->ErrorCode()
                      << ", error text " << controller_->ErrorText()
                      << std::endl;
-    } else if (response_->statuscode() != curvefs::mds::FSStatusCode::OK) {
+    } else if (response_->statuscode() == curvefs::mds::FSStatusCode::OK) {
+        // success
+        std::cout << "umount fs from cluster success." << std::endl;
+        ret = true;
+    } else if (response_->statuscode() ==
+               curvefs::mds::FSStatusCode::MOUNT_POINT_NOT_EXIST) {
+        std::cout << "there is no mountpoint [" << FLAGS_mountpoint
+                  << "] in cluster." << std::endl;
+    } else if (response_->statuscode() ==
+               curvefs::mds::FSStatusCode::NOT_FOUND) {
+        std::cout << "there is no fsName [" << FLAGS_fsName << "] in cluster."
+                  << std::endl;
+    } else if (response_->statuscode() == curvefs::mds::FSStatusCode::FS_BUSY) {
+        std::cout << "the fs [" << FLAGS_fsName
+                  << "] is in use, please check or try again." << std::endl;
+    } else {
         std::cerr << "umount fs from mds: " << host << " fail, error code is "
                   << response_->statuscode() << " code name is :"
                   << curvefs::mds::FSStatusCode_Name(response_->statuscode())
                   << "\n";
-    } else {
-        std::cout << "umount fs from cluster success." << std::endl;
-        ret = true;
     }
     return ret;
 }

@@ -262,6 +262,9 @@ void MDS::StartDummyServer() {
     status_.expose("curvefs_mds_status");
     status_.set_value("follower");
 
+    // set mds version in metric
+    curve::common::ExposeCurveVersion();
+
     LOG_IF(FATAL, 0 != brpc::StartDummyServerAt(options_.dummyPort))
         << "Start dummy server failed";
 }

@@ -68,6 +68,10 @@ bool FsInfoListTool::AfterSendRequestToHost(const std::string& host) {
                      << " failed, errorcode= " << controller_->ErrorCode()
                      << ", error text " << controller_->ErrorText() << "\n";
     } else if (show_) {
+        if (response_->fsinfo().empty()) {
+            std::cout << "no fs in cluster." << std::endl;
+        }
+
         for (auto const& i : response_->fsinfo()) {
             std::cout << i.DebugString() << std::endl;
         }

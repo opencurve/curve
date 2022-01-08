@@ -23,7 +23,7 @@
 #include "curvefs/src/tools/curvefs_tool_metric.h"
 
 DECLARE_uint32(rpcTimeoutMs);
-DECLARE_uint64(rpcRetryTimes);
+DECLARE_uint32(rpcRetryTimes);
 
 namespace curvefs {
 namespace tools {
@@ -107,7 +107,8 @@ int MetricClient::GetKeyValueFromString(const std::string& str,
                                         std::string* value) {
     auto pos = str.find(":");
     if (pos == std::string::npos) {
-        std::cout << "parse response attachment fail!" << std::endl;
+        std::cerr << "parse " << key << " fail! it should be like: ***:***."
+                  << std::endl;
         return -1;
     }
     *value = str.substr(pos + 1);
