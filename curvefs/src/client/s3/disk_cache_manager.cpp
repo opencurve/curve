@@ -239,7 +239,7 @@ bool DiskCacheManager::IsDiskCacheFull() {
     uint64_t usedBytes = GetDiskUsedbytes();
     if (ratio >= fullRatio_ ||
       usedBytes >= maxUsableSpaceBytes_) {
-        LOG(WARNING) << "disk cache is full"
+        VLOG(3) << "disk cache is full"
                      << ", ratio is: " << ratio << ", fullRatio is: "
                      << fullRatio_ << ", used bytes is: " << usedBytes;
         return true;
@@ -271,7 +271,7 @@ void DiskCacheManager::TrimCache() {
         VLOG(9) << "trim thread wake up.";
         SetDiskFsUsedRatio();
         if (IsDiskCacheFull()) {
-            LOG(INFO) << "disk cache full, begin trim.";
+            VLOG(3) << "disk cache full, begin trim.";
             std::string cacheReadFullDir;
             std::string cacheWriteFullDir;
             cacheReadFullDir = GetCacheReadFullDir();
@@ -344,7 +344,7 @@ void DiskCacheManager::TrimCache() {
                         << *cacheKeyIter;
                 cachedObjNameTmp.erase(cacheKeyIter);
             }
-            LOG(INFO) << "trim over.";
+            VLOG(3) << "trim over.";
         }
     }
     LOG(INFO) << "trim function end.";

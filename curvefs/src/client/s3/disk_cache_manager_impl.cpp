@@ -71,7 +71,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
     VLOG(9) << "write name = " << name << ", length = " << length;
     // if cache disk is full
     if (diskCacheManager_->IsDiskCacheFull()) {
-        LOG(ERROR) << "write disk file fail, disk full.";
+        VLOG(3) << "write disk file fail, disk full.";
         return -1;
     }
     // write to cache disk
