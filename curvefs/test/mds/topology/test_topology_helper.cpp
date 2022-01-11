@@ -44,9 +44,9 @@ bool CompareZone(const Zone &lh, const Zone &rh) {
 bool CompareServer(const Server &lh, const Server &rh) {
     return lh.GetId() == rh.GetId() &&
            lh.GetHostName() == rh.GetHostName() &&
-           lh.GetInternalHostIp() == rh.GetInternalHostIp() &&
+           lh.GetInternalIp() == rh.GetInternalIp() &&
            lh.GetInternalPort() == rh.GetInternalPort() &&
-           lh.GetExternalHostIp() == rh.GetExternalHostIp() &&
+           lh.GetExternalIp() == rh.GetExternalIp() &&
            lh.GetExternalPort() == rh.GetExternalPort() &&
            lh.GetZoneId() == rh.GetZoneId() &&
            lh.GetPoolId() == rh.GetPoolId();
@@ -57,9 +57,9 @@ bool CompareMetaServer(const MetaServer &lh, const MetaServer &rh) {
            lh.GetHostName() == rh.GetHostName() &&
            lh.GetToken() == rh.GetToken() &&
            lh.GetServerId() == rh.GetServerId() &&
-           lh.GetInternalHostIp() == rh.GetInternalHostIp() &&
+           lh.GetInternalIp() == rh.GetInternalIp() &&
            lh.GetInternalPort() == rh.GetInternalPort() &&
-           lh.GetExternalHostIp() == rh.GetExternalHostIp() &&
+           lh.GetExternalIp() == rh.GetExternalIp() &&
            lh.GetExternalPort() == rh.GetExternalPort() &&
            lh.GetStartUpTime() == rh.GetStartUpTime() &&
            lh.GetMetaServerSpace().GetDiskCapacity() ==

@@ -171,21 +171,21 @@ class Server {
     Server()
         : id_(UNINITIALIZE_ID),
           hostName_(""),
-          internalHostIp_(""),
+          internalIp_(""),
           internalPort_(0),
-          externalHostIp_(""),
+          externalIp_(""),
           externalPort_(0),
           zoneId_(UNINITIALIZE_ID),
           poolId_(UNINITIALIZE_ID) {}
     Server(ServerIdType id, const std::string &hostName,
-           const std::string &internalHostIp, uint32_t internalPort,
-           const std::string &externalHostIp, uint32_t externalPort,
+           const std::string &internalIp, uint32_t internalPort,
+           const std::string &externalIp, uint32_t externalPort,
            ZoneIdType zoneId, PoolIdType poolId)
         : id_(id),
           hostName_(hostName),
-          internalHostIp_(internalHostIp),
+          internalIp_(internalIp),
           internalPort_(internalPort),
-          externalHostIp_(externalHostIp),
+          externalIp_(externalIp),
           externalPort_(externalPort),
           zoneId_(zoneId),
           poolId_(poolId) {}
@@ -194,11 +194,11 @@ class Server {
 
     std::string GetHostName() const { return hostName_; }
 
-    std::string GetInternalHostIp() const { return internalHostIp_; }
+    std::string GetInternalIp() const { return internalIp_; }
 
     uint32_t GetInternalPort() const { return internalPort_; }
 
-    std::string GetExternalHostIp() const { return externalHostIp_; }
+    std::string GetExternalIp() const { return externalIp_; }
 
     uint32_t GetExternalPort() const { return externalPort_; }
 
@@ -221,9 +221,9 @@ class Server {
  private:
     ServerIdType id_;
     std::string hostName_;
-    std::string internalHostIp_;
+    std::string internalIp_;
     uint32_t internalPort_;
-    std::string externalHostIp_;
+    std::string externalIp_;
     uint32_t externalPort_;
     ZoneIdType zoneId_;
     PoolIdType poolId_;
@@ -259,9 +259,9 @@ class MetaServer {
           hostName_(""),
           token_(""),
           serverId_(UNINITIALIZE_ID),
-          internalHostIp_(""),
+          internalIp_(""),
           internalPort_(0),
-          externalHostIp_(""),
+          externalIp_(""),
           externalPort_(0),
           startUpTime_(0),
           onlineState_(OFFLINE),
@@ -269,16 +269,16 @@ class MetaServer {
 
     MetaServer(MetaServerIdType id, const std::string &hostName,
                const std::string &token, ServerIdType serverId,
-               const std::string &hostIp, uint32_t port,
-               const std::string &externalHostIp, uint32_t externalPort,
+               const std::string &internalIp, uint32_t internalPort,
+               const std::string &externalIp, uint32_t externalPort,
                OnlineState onlineState = OnlineState::OFFLINE)
         : id_(id),
           hostName_(hostName),
           token_(token),
           serverId_(serverId),
-          internalHostIp_(hostIp),
-          internalPort_(port),
-          externalHostIp_(externalHostIp),
+          internalIp_(internalIp),
+          internalPort_(internalPort),
+          externalIp_(externalIp),
           externalPort_(externalPort),
           startUpTime_(0),
           onlineState_(onlineState),
@@ -289,9 +289,9 @@ class MetaServer {
           hostName_(v.hostName_),
           token_(v.token_),
           serverId_(v.serverId_),
-          internalHostIp_(v.internalHostIp_),
+          internalIp_(v.internalIp_),
           internalPort_(v.internalPort_),
-          externalHostIp_(v.externalHostIp_),
+          externalIp_(v.externalIp_),
           externalPort_(v.externalPort_),
           startUpTime_(v.startUpTime_),
           onlineState_(v.onlineState_),
@@ -306,9 +306,9 @@ class MetaServer {
         hostName_ = v.hostName_;
         token_ = v.token_;
         serverId_ = v.serverId_;
-        internalHostIp_ = v.internalHostIp_;
+        internalIp_ = v.internalIp_;
         internalPort_ = v.internalPort_;
-        externalHostIp_ = v.externalHostIp_;
+        externalIp_ = v.externalIp_;
         externalPort_ = v.externalPort_;
         startUpTime_ = v.startUpTime_;
         onlineState_ = v.onlineState_;
@@ -329,19 +329,19 @@ class MetaServer {
 
     ServerIdType GetServerId() const { return serverId_; }
 
-    std::string GetInternalHostIp() const { return internalHostIp_; }
+    std::string GetInternalIp() const { return internalIp_; }
 
     uint32_t GetInternalPort() const { return internalPort_; }
 
-    void SetInternalHostIp(std::string internalHostIp) {
-        internalHostIp_ = internalHostIp;
+    void SetInternalIp(std::string internalIp) {
+        internalIp_ = internalIp;
     }
 
     void SetInternalPort(uint32_t internalPort) {
         internalPort_ = internalPort;
     }
 
-    std::string GetExternalHostIp() const { return externalHostIp_; }
+    std::string GetExternalIp() const { return externalIp_; }
 
     uint32_t GetExternalPort() const { return externalPort_; }
 
@@ -372,9 +372,9 @@ class MetaServer {
     std::string hostName_;
     std::string token_;
     ServerIdType serverId_;
-    std::string internalHostIp_;
+    std::string internalIp_;
     uint32_t internalPort_;
-    std::string externalHostIp_;
+    std::string externalIp_;
     uint32_t externalPort_;
     uint64_t startUpTime_;
     OnlineState onlineState_;  // 0:online、1: offline

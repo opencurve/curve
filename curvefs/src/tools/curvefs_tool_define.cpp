@@ -339,7 +339,8 @@ std::string MetaserverInfo2Str(
     std::stringstream ret;
     ret << "metaserverId:" << metaserver.metaserverid()
         << ", hostname:" << metaserver.hostname()
-        << ", hostIp:" << metaserver.hostip() << ", port:" << metaserver.port()
+        << ", InternalIp:" << metaserver.internalip()
+        << ", internalPort:" << metaserver.internalport()
         << ", externalIp:" << metaserver.externalip()
         << ", externalPort:" << metaserver.externalport() << ", onlineState:"
         << mds::topology::OnlineState_Name(metaserver.onlinestate())
