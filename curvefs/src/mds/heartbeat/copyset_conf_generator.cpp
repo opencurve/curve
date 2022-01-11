@@ -165,7 +165,7 @@ std::string CopysetConfGenerator::BuildPeerByMetaserverId(
     }
 
     return ::curvefs::mds::topology::BuildPeerIdWithIpPort(
-        metaServer.GetInternalHostIp(), metaServer.GetInternalPort(), 0);
+        metaServer.GetInternalIp(), metaServer.GetInternalPort(), 0);
 }
 }  // namespace heartbeat
 }  // namespace mds

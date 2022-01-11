@@ -107,8 +107,8 @@ TEST_F(TestTopologyService, test_RegistMetaServer_success) {
     brpc::Controller cntl;
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("127.0.0.1");
-    request.set_port(8888);
+    request.set_internalip("127.0.0.1");
+    request.set_internalport(8888);
     request.set_externalip("127.0.0.1");
     request.set_externalport(9999);
 
@@ -134,8 +134,8 @@ TEST_F(TestTopologyService, test_RegistMetaServer_fail) {
     brpc::Controller cntl;
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("127.0.0.1");
-    request.set_port(8888);
+    request.set_internalip("127.0.0.1");
+    request.set_internalport(8888);
     request.set_externalip("127.0.0.1");
     request.set_externalport(9999);
 

@@ -181,14 +181,14 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
     }
 
     // mismatch ip address reported by metaserver and mds record
-    if (request.ip() != metaServer.GetInternalHostIp() ||
+    if (request.ip() != metaServer.GetInternalIp() ||
         request.port() != metaServer.GetInternalPort()) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from metaServer: "
                    << request.metaserverid()
                    << ", but find report ip:" << request.ip()
                    << ", report port:" << request.port()
                    << " do not consistent with topo record ip:"
-                   << metaServer.GetInternalHostIp()
+                   << metaServer.GetInternalIp()
                    << ", record port:" << metaServer.GetInternalPort();
         return HeartbeatStatusCode::hbMetaServerIpPortNotMatch;
     }
