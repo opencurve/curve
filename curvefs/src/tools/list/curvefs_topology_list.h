@@ -23,6 +23,7 @@
 
 #include <brpc/channel.h>
 #include <gflags/gflags.h>
+#include <json/json.h>
 
 #include <map>
 #include <string>
@@ -33,11 +34,19 @@
 #include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/tools/curvefs_tool.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
+#include "curvefs/src/tools/list/curvefs_topology_tree_json.h"
 
 namespace curvefs {
 namespace tools {
+
+namespace topology {
+class TopologyTreeJson;
+}
+
 namespace list {
 
+using ClusterInfo =
+    std::pair<std::string, std::vector<mds::topology::PoolIdType>>;
 using PoolInfoType =
     std::pair<mds::topology::PoolInfo, std::vector<mds::topology::ZoneIdType>>;
 using ZoneInfoType = std::pair<mds::topology::ZoneInfo,
@@ -63,7 +72,6 @@ struct PoolPolicy {
     friend std::ostream& operator<<(std::ostream& os, const PoolPolicy& policy);
 };
 
-// TODO(chengyi01): output a json file which can be used to build topology
 class TopologyListTool
     : public CurvefsToolRpc<curvefs::mds::topology::ListTopologyRequest,
                             curvefs::mds::topology::ListTopologyResponse,
@@ -77,13 +85,17 @@ class TopologyListTool
     void PrintHelp() override;
     int Init() override;
 
+    friend class topology::TopologyTreeJson;
+
  protected:
+    bool OutputFile();
     void AddUpdateFlags() override;
     bool AfterSendRequestToHost(const std::string& host) override;
 
     /**
      * @brief Get the PoolInfo From Response, fill into poolId2PoolInfo
      * not include zoneId list (will be filled in GetZoneInfoFromResponse)
+     * will fill clusterId2CLusterInfo's poolId list
      *
      * @return true
      * @return false
@@ -136,25 +148,30 @@ class TopologyListTool
  protected:
     std::string clusterId_;
     /**
+     * poolId to clusterInfo and poolIds which belongs to pool
+     */
+    std::map<std::string, ClusterInfo> clusterId2CLusterInfo_;
+
+    /**
      * @brief poolId to poolInfo and zoneIds which belongs to pool
      *
      * @details
      */
-    std::map<mds::topology::PoolIdType, PoolInfoType> poolId2PoolInfo;
+    std::map<mds::topology::PoolIdType, PoolInfoType> poolId2PoolInfo_;
 
     /**
      * @brief zoneId to zoneInfo and serverIds which belongs to zone
      *
      * @details
      */
-    std::map<mds::topology::ZoneIdType, ZoneInfoType> zoneId2ZoneInfo;
+    std::map<mds::topology::ZoneIdType, ZoneInfoType> zoneId2ZoneInfo_;
 
     /**
      * @brief serverId to serverInfo and metaserverIds which belongs to server
      *
      * @details
      */
-    std::map<mds::topology::ServerIdType, ServerInfoType> serverId2ServerInfo;
+    std::map<mds::topology::ServerIdType, ServerInfoType> serverId2ServerInfo_;
 
     /**
      * @brief metaserverId to metaserverInfo
@@ -162,7 +179,7 @@ class TopologyListTool
      * @details
      */
     std::map<mds::topology::MetaServerIdType, MetaserverInfoType>
-        metaserverId2MetaserverInfo;
+        metaserverId2MetaserverInfo_;
 };
 
 }  // namespace list

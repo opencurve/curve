@@ -99,7 +99,7 @@ int CreateFsTool::Init() {
     mds::CreateFsRequest request;
     request.set_fsname(FLAGS_fsName);
     request.set_blocksize(FLAGS_blockSize);
-    if (FLAGS_fsType == "s3") {
+    if (FLAGS_fsType == kFsTypeS3) {
         // s3
         request.set_fstype(common::FSType::TYPE_S3);
         auto s3 = new common::S3Info();
@@ -110,7 +110,7 @@ int CreateFsTool::Init() {
         s3->set_blocksize(FLAGS_s3_blocksize);
         s3->set_chunksize(FLAGS_s3_chunksize);
         request.mutable_fsdetail()->set_allocated_s3info(s3);
-    } else if (FLAGS_fsType == "volume") {
+    } else if (FLAGS_fsType == kFsTypeVolume) {
         // volume
         request.set_fstype(common::FSType::TYPE_VOLUME);
         auto volume = new common::Volume();
@@ -121,7 +121,8 @@ int CreateFsTool::Init() {
         volume->set_password(FLAGS_volumePassword);
         request.mutable_fsdetail()->set_allocated_volume(volume);
     } else {
-        std::cerr << "-fsType should be s3 or volume." << std::endl;
+        std::cerr << "-fsType should be " << kFsTypeS3 << " or "
+                  << kFsTypeVolume << "." << std::endl;
         ret = -1;
     }
 
