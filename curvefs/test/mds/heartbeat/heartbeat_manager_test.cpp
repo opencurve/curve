@@ -150,7 +150,7 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
               response.statuscode());
 
     // 4. port not same
-    metaServer.SetInternalHostIp("192.168.10.1");
+    metaServer.SetInternalIp("192.168.10.1");
     metaServer.SetInternalPort(11000);
     EXPECT_CALL(*topology_, GetMetaServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(metaServer), Return(true)));

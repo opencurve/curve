@@ -36,7 +36,8 @@ struct RegisterOptions {
     std::string mdsListenAddr;
     std::string metaserverInternalIp;
     std::string metaserverExternalIp;
-    int metaserverPort;
+    uint32_t metaserverInternalPort;
+    uint32_t metaserverExternalPort;
     int registerRetries;
     int registerTimeout;
 };

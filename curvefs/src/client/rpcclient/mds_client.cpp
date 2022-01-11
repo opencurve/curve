@@ -256,6 +256,31 @@ MdsClientImpl::CommitTx(const std::vector<PartitionTxId> &txIds) {
     return static_cast<TopoStatusCode>(rc);
 }
 
+template<typename T>
+void GetEndPoint(const T &info, butil::EndPoint *internal,
+    butil::EndPoint *external) {
+    const std::string &internalIp = info.internalip();
+    const std::string &externalIp = [&info]() {
+        if (info.has_externalip()) {
+            return info.externalip();
+        } else {
+            return info.internalip();
+        }
+    }();
+
+    const uint32_t internalPort = info.internalport();
+    const uint32_t externalPort = [&info]() {
+        if (info.has_externalport()) {
+            return info.externalport();
+        } else {
+            return info.internalport();
+        }
+    }();
+
+    butil::str2endpoint(internalIp.c_str(), internalPort, internal);
+    butil::str2endpoint(externalIp.c_str(), externalPort, external);
+}
+
 bool MdsClientImpl::GetMetaServerInfo(
     const PeerAddr &addr, CopysetPeerInfo<MetaserverID> *metaserverInfo) {
     std::vector<std::string> strs;
@@ -283,16 +308,9 @@ bool MdsClientImpl::GetMetaServerInfo(
         } else {
             const auto &info = response.metaserverinfo();
             MetaserverID metaserverID = info.metaserverid();
-            std::string internalIp = info.hostip();
-            std::string externalIp = internalIp;
-            if (info.has_externalip()) {
-                externalIp = info.externalip();
-            }
-            uint32_t port = info.port();
             butil::EndPoint internal;
-            butil::str2endpoint(internalIp.c_str(), port, &internal);
             butil::EndPoint external;
-            butil::str2endpoint(externalIp.c_str(), port, &external);
+            GetEndPoint(info, &internal, &external);
             *metaserverInfo = CopysetPeerInfo<MetaserverID>(
                 metaserverID, PeerAddr(internal), PeerAddr(external));
         }
@@ -329,18 +347,10 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
                 CopysetPeerInfo<MetaserverID> csinfo;
                 ::curvefs::mds::topology::MetaServerLocation csl =
                     info.cslocs(j);
-                uint16_t port = csl.port();
-                std::string internalIp = csl.hostip();
                 csinfo.peerID = csl.metaserverid();
-                std::string externalIp = internalIp;
-                if (csl.has_externalip()) {
-                    externalIp = csl.externalip();
-                }
-
                 butil::EndPoint internal;
-                butil::str2endpoint(internalIp.c_str(), port, &internal);
                 butil::EndPoint external;
-                butil::str2endpoint(externalIp.c_str(), port, &external);
+                GetEndPoint(csl, &internal, &external);
                 csinfo.internalAddr = PeerAddr(internal);
                 csinfo.externalAddr = PeerAddr(external);
                 copysetseverl.AddCopysetPeerInfo(csinfo);
