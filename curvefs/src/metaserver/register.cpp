@@ -67,16 +67,17 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
     }
 
     req.set_hostname(hostname);
-    req.set_hostip(ops_.metaserverInternalIp);
-    req.set_port(ops_.metaserverPort);
+    req.set_internalip(ops_.metaserverInternalIp);
+    req.set_internalport(ops_.metaserverInternalPort);
     req.set_externalip(ops_.metaserverExternalIp);
-    req.set_externalport(ops_.metaserverPort);
+    req.set_externalport(ops_.metaserverExternalPort);
 
     LOG(INFO) << " Registering to MDS " << mdsEps_[inServiceIndex_]
               << ". hostname: " << hostname
               << ", internal ip: " << ops_.metaserverInternalIp
-              << ", port: " << ops_.metaserverPort
-              << ", external ip: " << ops_.metaserverExternalIp;
+              << ", internal port: " << ops_.metaserverInternalPort
+              << ", external ip: " << ops_.metaserverExternalIp
+              << ", external port: " << ops_.metaserverExternalPort;
 
     int retries = ops_.registerRetries;
     while (retries >= 0) {
@@ -87,7 +88,7 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
 
         if (channel.Init(mdsEps_[inServiceIndex_].c_str(), NULL) != 0) {
             LOG(ERROR) << ops_.metaserverInternalIp << ":"
-                       << ops_.metaserverPort
+                       << ops_.metaserverInternalPort
                        << " Fail to init channel to MDS "
                        << mdsEps_[inServiceIndex_];
             return -1;
@@ -99,12 +100,13 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
             break;
         } else {
             LOG(INFO) << ops_.metaserverInternalIp << ":"
-                       << ops_.metaserverPort << " Fail to register to MDS "
-                       << mdsEps_[inServiceIndex_]
-                       << ", cntl errorCode: " << cntl.ErrorCode() << ","
-                       << " cntl error: " << cntl.ErrorText() << ","
-                       << " statusCode: " << resp.statuscode() << ","
-                       << " going to sleep and try again.";
+                      << ops_.metaserverInternalPort
+                      << " Fail to register to MDS "
+                      << mdsEps_[inServiceIndex_]
+                      << ", cntl errorCode: " << cntl.ErrorCode() << ","
+                      << " cntl error: " << cntl.ErrorText() << ","
+                      << " statusCode: " << resp.statuscode() << ","
+                      << " going to sleep and try again.";
             if (cntl.ErrorCode() == EHOSTDOWN ||
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                 inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
@@ -115,7 +117,8 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
     }
 
     if (retries <= 0) {
-        LOG(ERROR) << ops_.metaserverInternalIp << ":" << ops_.metaserverPort
+        LOG(ERROR) << ops_.metaserverInternalIp << ":"
+                   << ops_.metaserverInternalPort
                    << " Fail to register to MDS for " << ops_.registerRetries
                    << " times.";
         return -1;
@@ -125,7 +128,7 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
     metadata->set_id(resp.metaserverid());
     metadata->set_token(resp.token());
 
-    LOG(INFO) << ops_.metaserverInternalIp << ":" << ops_.metaserverPort
+    LOG(INFO) << ops_.metaserverInternalIp << ":" << ops_.metaserverInternalPort
               << " Successfully registered to MDS: " << mdsEps_[inServiceIndex_]
               << ", metaserver id: " << metadata->id() << ","
               << " token: " << metadata->token();

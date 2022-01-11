@@ -73,9 +73,9 @@ message ZoneData {
 message ServerData {
     required uint32 serverId = 1;
     required string hostName = 2;
-    required string internalHostIP = 3;
+    required string internalIP = 3;
     required uint32 internalPort = 4;
-    required string externalHostIP = 5;
+    required string externalIP = 5;
     required uint32 externalPort = 6;
     required uint32 zoneId = 7;
     required uint32 PoolId = 8;
@@ -85,9 +85,9 @@ message MetaServerData {
     required uint32 MetaServerId = 1;
     required string hostName = 2;
     required string token = 3;
-    required string internalHostIP = 4;
+    required string internalIP = 4;
     required uint32 internalPort = 5;
-    required string externalHostIP = 6;
+    required string externalIP = 6;
     required uint32 externalPort = 7;
     required uint32 serverId = 8;
     required uint64 diskCapacity = 9;
@@ -115,8 +115,8 @@ message Copyset {
 message MetaServerInfo {
     required uint32 metaServerID = 1;
     required string hostname = 2;
-    required string hostIp = 3;
-    required uint32 port = 4;
+    required string internalIp = 3;
+    required uint32 internalPort = 4;
     required string externalIp = 5;
     required uint32 externalPort = 6;
     required OnlineState onlineState = 7;
@@ -126,8 +126,8 @@ message MetaServerInfo {
 // MetaServer message
 message MetaServerRegistRequest {
     required string hostName = 1;
-    required string hostIp = 2;
-    required uint32 port = 3;
+    required string internalIp = 2;
+    required uint32 internalPort = 3;
     required string externalIp = 4;
     required uint32 externalPort = 5;
 };
@@ -325,9 +325,10 @@ message GetMetaServerListInCopySetsRequest {
 
 message MetaServerLocation {
     required uint32 metaServerID = 1;
-    required string hostIp = 2;
-    required uint32 port = 3;
+    required string internalIp = 2;
+    required uint32 internalport = 3;
     optional string externalIp = 4;
+    optional uint32 externalPort = 5;
 }
 
 message CopySetServerInfo {

@@ -199,8 +199,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("testInternalIp");
-    request.set_port(0);
+    request.set_internalip("testInternalIp");
+    request.set_internalport(0);
     request.set_externalip("externalIp1");
     request.set_externalport(0);
 
@@ -219,7 +219,7 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
     ASSERT_EQ(token, response.token());
     MetaServer metaserver;
     ASSERT_TRUE(topology_->GetMetaServer(csId, &metaserver));
-    ASSERT_EQ("externalIp1", metaserver.GetExternalHostIp());
+    ASSERT_EQ("externalIp1", metaserver.GetExternalIp());
 }
 
 TEST_F(TestTopologyManager, test_RegistMetaServer_ExIpNotMatch) {
@@ -234,8 +234,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_ExIpNotMatch) {
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("testInternalIp");
-    request.set_port(0);
+    request.set_internalip("testInternalIp");
+    request.set_internalport(0);
     request.set_externalip("externalIp2");
     request.set_externalport(0);
 
@@ -260,8 +260,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_ServerNotFound) {
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("unExistIp");
-    request.set_port(100);
+    request.set_internalip("unExistIp");
+    request.set_internalport(100);
     request.set_externalip("externalIp1");
     request.set_externalport(0);
 
@@ -283,8 +283,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_AllocateIdFail) {
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("testInternalIp");
-    request.set_port(100);
+    request.set_internalip("testInternalIp");
+    request.set_internalport(100);
     request.set_externalip("externalIp1");
     request.set_externalport(0);
 
@@ -310,8 +310,8 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_AddMetaServerFail) {
 
     MetaServerRegistRequest request;
     request.set_hostname("metaserver");
-    request.set_hostip("testInternalIp");
-    request.set_port(100);
+    request.set_internalip("testInternalIp");
+    request.set_internalport(100);
     request.set_externalip("externalIp1");
     request.set_externalport(0);
 
@@ -354,15 +354,15 @@ TEST_F(TestTopologyManager, test_ListMetaServer_ByIdSuccess) {
 
     ASSERT_THAT(response.metaserverinfos(0).metaserverid(),
                 AnyOf(csId1, csId2));
-    ASSERT_EQ("ip1", response.metaserverinfos(0).hostip());
+    ASSERT_EQ("ip1", response.metaserverinfos(0).internalip());
     ASSERT_EQ("ip2", response.metaserverinfos(0).externalip());
-    ASSERT_THAT(response.metaserverinfos(0).port(), AnyOf(100, 200));
+    ASSERT_THAT(response.metaserverinfos(0).internalport(), AnyOf(100, 200));
 
     ASSERT_THAT(response.metaserverinfos(1).metaserverid(),
                 AnyOf(csId1, csId2));
-    ASSERT_EQ("ip1", response.metaserverinfos(1).hostip());
+    ASSERT_EQ("ip1", response.metaserverinfos(1).internalip());
     ASSERT_EQ("ip2", response.metaserverinfos(1).externalip());
-    ASSERT_THAT(response.metaserverinfos(1).port(), AnyOf(100, 200));
+    ASSERT_THAT(response.metaserverinfos(1).internalport(), AnyOf(100, 200));
 }
 
 TEST_F(TestTopologyManager, test_ListMetaServer_ServerNotFound) {
@@ -410,8 +410,8 @@ TEST_F(TestTopologyManager, test_GetMetaServer_ByIdSuccess) {
     ASSERT_TRUE(response.has_metaserverinfo());
 
     ASSERT_EQ(csId1, response.metaserverinfo().metaserverid());
-    ASSERT_EQ("ip1", response.metaserverinfo().hostip());
-    ASSERT_EQ(100, response.metaserverinfo().port());
+    ASSERT_EQ("ip1", response.metaserverinfo().internalip());
+    ASSERT_EQ(100, response.metaserverinfo().internalport());
     ASSERT_EQ("ip2", response.metaserverinfo().externalip());
     ASSERT_EQ(100, response.metaserverinfo().externalport());
 }
@@ -1324,9 +1324,9 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopySets_success) {
 
     ASSERT_THAT(response.csinfo(0).cslocs(0).metaserverid(),
                 AnyOf(0x41, 0x42, 0x43));
-    ASSERT_EQ("ip1", response.csinfo(0).cslocs(0).hostip());
+    ASSERT_EQ("ip1", response.csinfo(0).cslocs(0).internalip());
     ASSERT_EQ("ip2", response.csinfo(0).cslocs(0).externalip());
-    ASSERT_EQ(0, response.csinfo(0).cslocs(0).port());
+    ASSERT_EQ(0, response.csinfo(0).cslocs(0).internalport());
 }
 
 TEST_F(TestTopologyManager, test_GetMetaServerListInCopySets_CopysetNotFound) {
@@ -2261,8 +2261,9 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Success) {
 
     ASSERT_THAT(response.csinfo(0).cslocs(0).metaserverid(),
                 AnyOf(0x41, 0x42, 0x43));
-    ASSERT_EQ(response.csinfo(0).cslocs(0).hostip(), "127.0.0.1");
-    ASSERT_THAT(response.csinfo(0).cslocs(0).port(), AnyOf(7777, 7778, 7779));
+    ASSERT_EQ(response.csinfo(0).cslocs(0).internalip(), "127.0.0.1");
+    ASSERT_THAT(response.csinfo(0).cslocs(0).internalport(),
+        AnyOf(7777, 7778, 7779));
 }
 
 TEST_F(TestTopologyManager, test_GetMetaServerListInCopysets_Fail) {

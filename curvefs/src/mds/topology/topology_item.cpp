@@ -130,9 +130,9 @@ bool Server::SerializeToString(std::string *value) const {
     ServerData data;
     data.set_serverid(id_);
     data.set_hostname(hostName_);
-    data.set_internalhostip(internalHostIp_);
+    data.set_internalip(internalIp_);
     data.set_internalport(internalPort_);
-    data.set_externalhostip(externalHostIp_);
+    data.set_externalip(externalIp_);
     data.set_externalport(externalPort_);
     data.set_zoneid(zoneId_);
     data.set_poolid(poolId_);
@@ -144,9 +144,9 @@ bool Server::ParseFromString(const std::string &value) {
     bool ret = data.ParseFromString(value);
     id_ = data.serverid();
     hostName_ = data.hostname();
-    internalHostIp_ = data.internalhostip();
+    internalIp_ = data.internalip();
     internalPort_ = data.internalport();
-    externalHostIp_ = data.externalhostip();
+    externalIp_ = data.externalip();
     externalPort_ = data.externalport();
     zoneId_ = data.zoneid();
     poolId_ = data.poolid();
@@ -158,9 +158,9 @@ bool MetaServer::SerializeToString(std::string *value) const {
     data.set_metaserverid(id_);
     data.set_hostname(hostName_);
     data.set_token(token_);
-    data.set_internalhostip(internalHostIp_);
+    data.set_internalip(internalIp_);
     data.set_internalport(internalPort_);
-    data.set_externalhostip(externalHostIp_);
+    data.set_externalip(externalIp_);
     data.set_externalport(externalPort_);
     data.set_serverid(serverId_);
     data.set_diskcapacity(space_.GetDiskCapacity());
@@ -176,9 +176,9 @@ bool MetaServer::ParseFromString(const std::string &value) {
     hostName_ = data.hostname();
     token_ = data.token();
     serverId_ = data.serverid();
-    internalHostIp_ = data.internalhostip();
+    internalIp_ = data.internalip();
     internalPort_ = data.internalport();
-    externalHostIp_ = data.externalhostip();
+    externalIp_ = data.externalip();
     externalPort_ = data.externalport();
     onlineState_ = OnlineState::UNSTABLE;
     space_.SetDiskCapacity(data.diskcapacity());

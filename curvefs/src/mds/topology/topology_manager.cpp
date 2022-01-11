@@ -47,8 +47,8 @@ void TopologyManager::Init(const TopologyOption &option) { option_ = option; }
 
 void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
                                        MetaServerRegistResponse *response) {
-    std::string hostIp = request->hostip();
-    uint32_t port = request->port();
+    std::string hostIp = request->internalip();
+    uint32_t port = request->internalport();
     NameLockGuard lock(registMsMutex, hostIp + ":" + std::to_string(port));
 
     // here we get metaserver already registered in the cluster that have
@@ -56,7 +56,7 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
     // normally
     std::vector<MetaServerIdType> list = topology_->GetMetaServerInCluster(
         [&hostIp, &port](const MetaServer &ms) {
-            return (ms.GetInternalHostIp() == hostIp) &&
+            return (ms.GetInternalIp() == hostIp) &&
                    (ms.GetInternalPort() == port);
         });
     if (1 == list.size()) {
@@ -79,7 +79,8 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
     }
 
     ServerIdType serverId =
-        topology_->FindServerByHostIpPort(request->hostip(), request->port());
+        topology_->FindServerByHostIpPort(request->internalip(),
+            request->internalport());
     if (serverId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_SERVER_NOT_FOUND);
         return;
@@ -100,9 +101,9 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
         return;
     }
     if (request->has_externalip()) {
-        if (request->externalip() != server.GetExternalHostIp()) {
+        if (request->externalip() != server.GetExternalIp()) {
             LOG(ERROR) << "External ip of metaserver not match server's"
-                       << ", server external ip: " << server.GetExternalHostIp()
+                       << ", server external ip: " << server.GetExternalIp()
                        << ", request external ip: " << request->externalip();
             response->set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
             return;
@@ -110,7 +111,7 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
     }
 
     MetaServer metaserver(metaServerId, request->hostname(), token, serverId,
-                          request->hostip(), request->port(),
+                          request->internalip(), request->internalport(),
                           request->externalip(), request->externalport(),
                           ONLINE);
 
@@ -141,9 +142,9 @@ void TopologyManager::ListMetaServer(const ListMetaServerRequest *request,
             MetaServerInfo *msInfo = response->add_metaserverinfos();
             msInfo->set_metaserverid(ms.GetId());
             msInfo->set_hostname(ms.GetHostName());
-            msInfo->set_hostip(ms.GetInternalHostIp());
-            msInfo->set_port(ms.GetInternalPort());
-            msInfo->set_externalip(ms.GetExternalHostIp());
+            msInfo->set_internalip(ms.GetInternalIp());
+            msInfo->set_internalport(ms.GetInternalPort());
+            msInfo->set_externalip(ms.GetExternalIp());
             msInfo->set_externalport(ms.GetExternalPort());
             msInfo->set_onlinestate(ms.GetOnlineState());
         } else {
@@ -178,9 +179,9 @@ void TopologyManager::GetMetaServer(const GetMetaServerInfoRequest *request,
     MetaServerInfo *msInfo = response->mutable_metaserverinfo();
     msInfo->set_metaserverid(ms.GetId());
     msInfo->set_hostname(ms.GetHostName());
-    msInfo->set_hostip(ms.GetInternalHostIp());
-    msInfo->set_port(ms.GetInternalPort());
-    msInfo->set_externalip(ms.GetExternalHostIp());
+    msInfo->set_internalip(ms.GetInternalIp());
+    msInfo->set_internalport(ms.GetInternalPort());
+    msInfo->set_externalip(ms.GetExternalIp());
     msInfo->set_externalport(ms.GetExternalPort());
     msInfo->set_onlinestate(ms.GetOnlineState());
 }
@@ -289,9 +290,9 @@ void TopologyManager::GetServer(const GetServerRequest *request,
     ServerInfo *info = new ServerInfo();
     info->set_serverid(sv.GetId());
     info->set_hostname(sv.GetHostName());
-    info->set_internalip(sv.GetInternalHostIp());
+    info->set_internalip(sv.GetInternalIp());
     info->set_internalport(sv.GetInternalPort());
-    info->set_externalip(sv.GetExternalHostIp());
+    info->set_externalip(sv.GetExternalIp());
     info->set_externalport(sv.GetExternalPort());
     info->set_zoneid(sv.GetZoneId());
     info->set_zonename(zone.GetName());
@@ -377,9 +378,9 @@ void TopologyManager::ListZoneServer(const ListZoneServerRequest *request,
             ServerInfo *info = response->add_serverinfo();
             info->set_serverid(sv.GetId());
             info->set_hostname(sv.GetHostName());
-            info->set_internalip(sv.GetInternalHostIp());
+            info->set_internalip(sv.GetInternalIp());
             info->set_internalport(sv.GetInternalPort());
-            info->set_externalip(sv.GetExternalHostIp());
+            info->set_externalip(sv.GetExternalIp());
             info->set_externalport(sv.GetExternalPort());
             info->set_zoneid(sv.GetZoneId());
             info->set_zonename(zone.GetName());
@@ -641,7 +642,7 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
         for (auto item : copysetMembers) {
             MetaServer metaserver;
             if (topology_->GetMetaServer(item, &metaserver)) {
-                std::string addr = metaserver.GetInternalHostIp() + ":" +
+                std::string addr = metaserver.GetInternalIp() + ":" +
                                    std::to_string(metaserver.GetInternalPort());
                 copysetMemberAddr.emplace(addr);
             } else {
@@ -702,7 +703,7 @@ bool TopologyManager::CreateCopysetNodeOnMetaServer(
     MetaServer metaserver;
     std::string addr;
     if (topology_->GetMetaServer(metaServerId, &metaserver)) {
-        addr = metaserver.GetInternalHostIp() + ":" +
+        addr = metaserver.GetInternalIp() + ":" +
                std::to_string(metaserver.GetInternalPort());
     } else {
         LOG(ERROR) << "Get metaserver info failed.";
@@ -744,7 +745,7 @@ TopoStatusCode TopologyManager::CreateCopyset() {
         MetaServer metaServer;
         if (topology_->GetMetaServer(it, &metaServer)) {
             metaServerAddrs.emplace(
-                metaServer.GetInternalHostIp() + ":" +
+                metaServer.GetInternalIp() + ":" +
                 std::to_string(metaServer.GetInternalPort()));
         } else {
             LOG(ERROR) << "get metaserver failed, metaserverId = " << it;
@@ -822,9 +823,10 @@ void TopologyManager::GetMetaServerListInCopysets(
                 if (topology_->GetMetaServer(metaserverId, &metaserver)) {
                     MetaServerLocation *location = serverInfo->add_cslocs();
                     location->set_metaserverid(metaserver.GetId());
-                    location->set_hostip(metaserver.GetInternalHostIp());
-                    location->set_port(metaserver.GetInternalPort());
-                    location->set_externalip(metaserver.GetExternalHostIp());
+                    location->set_internalip(metaserver.GetInternalIp());
+                    location->set_internalport(metaserver.GetInternalPort());
+                    location->set_externalip(metaserver.GetExternalIp());
+                    location->set_externalport(metaserver.GetExternalPort());
                 } else {
                     LOG(INFO) << "GetMetaserver failed"
                               << " when GetMetaServerListInCopysets.";
@@ -894,7 +896,7 @@ void TopologyManager::GetCopysetOfPartition(
                     common::Peer *peer = cs.add_peers();
                     peer->set_id(ms.GetId());
                     peer->set_address(BuildPeerIdWithIpPort(
-                        ms.GetInternalHostIp(), ms.GetInternalPort()));
+                        ms.GetInternalIp(), ms.GetInternalPort()));
                 } else {
                     LOG(ERROR) << "GetMetaServer failed, id = " << msId;
                     response->set_statuscode(
@@ -923,7 +925,7 @@ TopoStatusCode TopologyManager::GetCopysetMembers(
         for (auto metaserverId : info.GetCopySetMembers()) {
             MetaServer server;
             if (topology_->GetMetaServer(metaserverId, &server)) {
-                std::string addr = server.GetExternalHostIp() + ":" +
+                std::string addr = server.GetExternalIp() + ":" +
                                    std::to_string(server.GetExternalPort());
                 addrs->emplace(addr);
             } else {
@@ -957,7 +959,7 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
             if (topology_->GetMetaServer(msId, &ms)) {
                 common::Peer* peer = valueCopysetInfo->add_peers();
                 peer->set_id(ms.GetId());
-                peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+                peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalIp(),
                                                         ms.GetInternalPort()));
             } else {
                 LOG(ERROR) << "perrs: poolId=" << poolId
@@ -975,7 +977,7 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
         auto peer = new common::Peer();
         if (topology_->GetMetaServer(msId, &ms)) {
             peer->set_id(ms.GetId());
-            peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+            peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalIp(),
                                                     ms.GetInternalPort()));
         } else {
             LOG(WARNING) << "leaderpeer: poolId=" << poolId
@@ -1040,7 +1042,7 @@ void TopologyManager::ListCopysetsInfo(ListCopysetInfoResponse* response) {
             if (topology_->GetMetaServer(msId, &ms)) {
                 common::Peer* peer = valueCopysetInfo->add_peers();
                 peer->set_id(ms.GetId());
-                peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+                peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalIp(),
                                                         ms.GetInternalPort()));
             } else {
                 LOG(ERROR) << "perrs: poolId=" << i.GetPoolId()
@@ -1058,7 +1060,7 @@ void TopologyManager::ListCopysetsInfo(ListCopysetInfoResponse* response) {
         auto peer = new common::Peer();
         if (topology_->GetMetaServer(msId, &ms)) {
             peer->set_id(ms.GetId());
-            peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalHostIp(),
+            peer->set_address(BuildPeerIdWithIpPort(ms.GetInternalIp(),
                                                     ms.GetInternalPort()));
         } else {
             LOG(WARNING) << "leaderpeer: poolId=" << i.GetPoolId()
@@ -1137,9 +1139,9 @@ void TopologyManager::ListServer(ListServerResponse* response) {
             auto serverInfo = response->add_serverinfos();
             serverInfo->set_serverid(server.GetId());
             serverInfo->set_hostname(server.GetHostName());
-            serverInfo->set_internalip(server.GetInternalHostIp());
+            serverInfo->set_internalip(server.GetInternalIp());
             serverInfo->set_internalport(server.GetInternalPort());
-            serverInfo->set_externalip(server.GetExternalHostIp());
+            serverInfo->set_externalip(server.GetExternalIp());
             serverInfo->set_externalport(server.GetExternalPort());
             serverInfo->set_zoneid(server.GetZoneId());
             serverInfo->set_poolid(server.GetPoolId());
@@ -1162,9 +1164,9 @@ void TopologyManager::ListMetaserverOfCluster(
             MetaServerInfo* msInfo = response->add_metaserverinfos();
             msInfo->set_metaserverid(ms.GetId());
             msInfo->set_hostname(ms.GetHostName());
-            msInfo->set_hostip(ms.GetInternalHostIp());
-            msInfo->set_port(ms.GetInternalPort());
-            msInfo->set_externalip(ms.GetExternalHostIp());
+            msInfo->set_internalip(ms.GetInternalIp());
+            msInfo->set_internalport(ms.GetInternalPort());
+            msInfo->set_externalip(ms.GetExternalIp());
             msInfo->set_externalport(ms.GetExternalPort());
             msInfo->set_onlinestate(ms.GetOnlineState());
             msInfo->set_serverid(ms.GetServerId());
