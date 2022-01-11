@@ -227,7 +227,7 @@ bool TopoAdapterImpl::GetPeerInfo(MetaServerIdType id, PeerInfo *peerInfo) {
     if ((canGetMetaServer = topo_->GetMetaServer(id, &ms)) &&
         (canGetServer = topo_->GetServer(ms.GetServerId(), &server))) {
         *peerInfo = PeerInfo(ms.GetId(), server.GetZoneId(), server.GetId(),
-                             ms.GetInternalHostIp(), ms.GetInternalPort());
+                             ms.GetInternalIp(), ms.GetInternalPort());
     } else {
         LOG(ERROR) << "topoAdapter can not find metaServer(" << id
                    << ", res:" << canGetMetaServer
@@ -276,10 +276,10 @@ bool TopoAdapterImpl::MetaServerFromTopoToSchedule(
     if (topo_->GetServer(origin.GetServerId(), &server)) {
         out->info =
             PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
-                     origin.GetInternalHostIp(), origin.GetInternalPort()};
+                     origin.GetInternalIp(), origin.GetInternalPort()};
     } else {
         LOG(ERROR) << "can not get server:" << origin.GetId()
-                   << ", ip:" << origin.GetInternalHostIp()
+                   << ", ip:" << origin.GetInternalIp()
                    << ", port:" << origin.GetInternalPort() << " from topology";
 
         return false;
