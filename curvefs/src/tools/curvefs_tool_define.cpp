@@ -57,6 +57,10 @@ DEFINE_string(s3_bucket_name, "bucketname", "s3 bucket name");
 DEFINE_uint64(s3_blocksize, 1048576, "s3 block size");
 DEFINE_uint64(s3_chunksize, 4194304, "s3 chunk size");
 
+// list-topology
+DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");
+DEFINE_string(jsonType, "build", "output json type(build or tree)");
+
 // topology
 DEFINE_string(mds_addr, "127.0.0.1:6700",
               "mds ip and port, separated by \",\"");  // NOLINT
@@ -214,6 +218,10 @@ std::function<bool(google::CommandLineFlagInfo*)> CheckCopysetIdDefault =
 std::function<bool(google::CommandLineFlagInfo*)> CheckPartitionIdDefault =
     std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
               "partitionId");
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckJsonPathDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "jsonPath");
 
 /* translate to string */
 

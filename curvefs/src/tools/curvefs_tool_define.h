@@ -133,6 +133,14 @@ const char kHostFollowerValue[] = "follower";
 const char kEtcdLeaderValue[] = "StateLeader";
 const char kEtcdFollowerValue[] = "StateFollower";
 
+/* fs type */
+const char kFsTypeS3[] = "s3";
+const char kFsTypeVolume[] = "volume";
+
+/* json type */
+const char kJsonTypeBuild[] = "build";
+const char kJsonTypeTree[] = "tree";
+
 }  // namespace tools
 }  // namespace curvefs
 
@@ -155,6 +163,23 @@ const char kZone[] = "zone";
 const char kReplicasNum[] = "replicasnum";
 const char kCopysetNum[] = "copysetnum";
 const char kZoneNum[] = "zonenum";
+const char kClusterId[] = "clusterid";
+const char kPoolId[] = "poolid";
+const char kPoolName[] = "poolname";
+const char kCreateTime[] = "createtime";
+const char kPolicy[] = "policy";
+const char kPoollist[] = "poollist";
+const char kZonelist[] = "zonelist";
+const char kZoneId[] = "zoneid";
+const char kZoneName[] = "zonename";
+const char kServerlist[] = "serverlist";
+const char kServerId[] = "serverid";
+const char kHostName[] = "hostname";
+const char kMetaserverList[] = "metaserverlist";
+const char kMetaserverId[] = "metaserverid";
+const char kHostIp[] = "hostip";
+const char kPort[] = "port";
+const char kOnlineState[] = "state";
 
 }  // namespace topology
 }  // namespace mds
@@ -244,6 +269,8 @@ extern std::function<bool(google::CommandLineFlagInfo*)> CheckCopysetIdDefault;
 
 extern std::function<bool(google::CommandLineFlagInfo*)>
     CheckPartitionIdDefault;
+
+extern std::function<bool(google::CommandLineFlagInfo*)> CheckJsonPathDefault;
 
 /* translate to string */
 std::string StrVec2Str(const std::vector<std::string>&);

@@ -23,9 +23,14 @@
 
 #include <json/json.h>
 
+#include <fstream>
+#include <memory>
+
 #include "src/common/string_util.h"
 
 DECLARE_string(mdsAddr);
+DECLARE_string(jsonPath);
+DECLARE_string(jsonType);
 
 namespace curvefs {
 namespace tools {
@@ -33,8 +38,9 @@ namespace list {
 
 void TopologyListTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
-    std::cout << std::endl;
+    std::cout << " [-mdsAddr=" << FLAGS_mdsAddr
+              << "] [-jsonType=" << FLAGS_jsonType
+              << " -jsonPath=" << FLAGS_jsonPath << "]" << std::endl;
 }
 
 void TopologyListTool::AddUpdateFlags() {
@@ -69,6 +75,9 @@ bool TopologyListTool::AfterSendRequestToHost(const std::string& host) {
         ret = true;
         // clusterId
         clusterId_ = response_->clusterid();
+        clusterId2CLusterInfo_.insert(std::pair<std::string, ClusterInfo>(
+            clusterId_,
+            ClusterInfo(clusterId_, std::vector<mds::topology::PoolIdType>())));
         // pool
         if (!GetPoolInfoFromResponse()) {
             ret = false;
@@ -89,28 +98,35 @@ bool TopologyListTool::AfterSendRequestToHost(const std::string& host) {
         // show
         if (show_) {
             // cluster
-            std::cout << "[cluster]\nclusterId: " << clusterId_ << std::endl;
+            std::cout << "[cluster]\n"
+                      << mds::topology::kClusterId << ": " << clusterId_
+                      << std::endl;
 
             // pool
             std::cout << "[pool]" << std::endl;
-            for (auto const& i : poolId2PoolInfo) {
+            for (auto const& i : poolId2PoolInfo_) {
                 ShowPoolInfo(i.second);
             }
             // zone
             std::cout << "[zone]" << std::endl;
-            for (auto const& i : zoneId2ZoneInfo) {
+            for (auto const& i : zoneId2ZoneInfo_) {
                 ShowZoneInfo(i.second);
             }
             // server
             std::cout << "[server]" << std::endl;
-            for (auto const& i : serverId2ServerInfo) {
+            for (auto const& i : serverId2ServerInfo_) {
                 ShowServerInfo(i.second);
             }
             // metaserver
             std::cout << "[metaserver]" << std::endl;
-            for (auto const& i : metaserverId2MetaserverInfo) {
+            for (auto const& i : metaserverId2MetaserverInfo_) {
                 ShowMetaserverInfo(i.second);
             }
+        }
+
+        google::CommandLineFlagInfo info;
+        if (!CheckJsonPathDefault(&info) && ret) {
+            OutputFile();
         }
     }
     return ret;
@@ -119,9 +135,8 @@ bool TopologyListTool::AfterSendRequestToHost(const std::string& host) {
 PoolPolicy::PoolPolicy(const std::string& jsonStr) {
     Json::CharReaderBuilder reader;
     std::stringstream ss(jsonStr);
-    std::string err;
     Json::Value json;
-    bool parseCode = Json::parseFromStream(reader, ss, &json, &err);
+    bool parseCode = Json::parseFromStream(reader, ss, &json, nullptr);
     if (parseCode && !json["replicaNum"].isNull() &&
         !json["copysetNum"].isNull() && !json["zoneNum"].isNull()) {
         replicaNum = json["replicaNum"].asUInt();
@@ -136,9 +151,9 @@ std::ostream& operator<<(std::ostream& os, const PoolPolicy& policy) {
     if (policy.error) {
         os << "policy has error!";
     } else {
-        os << "copysetNum:" << policy.copysetNum
-           << " replicaNum:" << policy.replicaNum
-           << " zoneNum:" << policy.zoneNum;
+        os << mds::topology::kCopysetNum << ":" << policy.copysetNum << " "
+           << mds::topology::kReplicasNum << ":" << policy.replicaNum << " "
+           << mds::topology::kZoneNum << ":" << policy.zoneNum;
     }
     return os;
 }
@@ -155,10 +170,11 @@ bool TopologyListTool::GetPoolInfoFromResponse() {
         ret = false;
     } else {
         for (auto const& i : pools.poolinfos()) {
-            poolId2PoolInfo.insert(
+            poolId2PoolInfo_.insert(
                 std::pair<mds::topology::PoolIdType, PoolInfoType>(
                     i.poolid(),
                     PoolInfoType(i, std::vector<mds::topology::ZoneIdType>())));
+            clusterId2CLusterInfo_[clusterId_].second.emplace_back(i.poolid());
         }
     }
     return ret;
@@ -176,13 +192,13 @@ bool TopologyListTool::GetZoneInfoFromResponse() {
         ret = false;
     } else {
         for (auto const& i : zones.zoneinfos()) {
-            zoneId2ZoneInfo.insert(
+            zoneId2ZoneInfo_.insert(
                 std::pair<mds::topology::ZoneIdType, ZoneInfoType>(
                     i.zoneid(),
                     ZoneInfoType(i,
                                  std::vector<mds::topology::ServerIdType>())));
-            if (poolId2PoolInfo.find(i.poolid()) != poolId2PoolInfo.end()) {
-                poolId2PoolInfo[i.poolid()].second.emplace_back(i.zoneid());
+            if (poolId2PoolInfo_.find(i.poolid()) != poolId2PoolInfo_.end()) {
+                poolId2PoolInfo_[i.poolid()].second.emplace_back(i.zoneid());
             } else {
                 errorOutput_ << "zone:" << i.zoneid()
                              << " has error: poolId:" << i.poolid()
@@ -206,14 +222,14 @@ bool TopologyListTool::GetServerInfoFromResponse() {
         ret = false;
     } else {
         for (auto const& i : servers.serverinfos()) {
-            serverId2ServerInfo.insert(
+            serverId2ServerInfo_.insert(
                 std::pair<mds::topology::ServerIdType, ServerInfoType>(
                     i.serverid(),
                     ServerInfoType(
                         i, std::vector<mds::topology::MetaServerIdType>())));
 
-            if (zoneId2ZoneInfo.find(i.zoneid()) != zoneId2ZoneInfo.end()) {
-                zoneId2ZoneInfo[i.zoneid()].second.emplace_back(i.serverid());
+            if (zoneId2ZoneInfo_.find(i.zoneid()) != zoneId2ZoneInfo_.end()) {
+                zoneId2ZoneInfo_[i.zoneid()].second.emplace_back(i.serverid());
             } else {
                 errorOutput_ << "server:" << i.serverid()
                              << " has error: zoneId:" << i.zoneid()
@@ -237,12 +253,12 @@ bool TopologyListTool::GetMetaserverInfoFromResponse() {
         ret = false;
     } else {
         for (auto const& i : metaservers.metaserverinfos()) {
-            metaserverId2MetaserverInfo.insert(
+            metaserverId2MetaserverInfo_.insert(
                 std::pair<mds::topology::MetaServerIdType, MetaserverInfoType>(
                     i.metaserverid(), MetaserverInfoType(i)));
-            if (serverId2ServerInfo.find(i.serverid()) !=
-                serverId2ServerInfo.end()) {
-                serverId2ServerInfo[i.serverid()].second.emplace_back(
+            if (serverId2ServerInfo_.find(i.serverid()) !=
+                serverId2ServerInfo_.end()) {
+                serverId2ServerInfo_[i.serverid()].second.emplace_back(
                     i.metaserverid());
             } else {
                 errorOutput_ << "metaserver:" << i.metaserverid()
@@ -288,6 +304,27 @@ void TopologyListTool::ShowServerInfo(const ServerInfoType& server) const {
 void TopologyListTool::ShowMetaserverInfo(
     const MetaserverInfoType& metaserver) const {
     std::cout << MetaserverInfo2Str(metaserver) << std::endl;
+}
+
+bool TopologyListTool::OutputFile() {
+    Json::Value value;
+    topology::TopologyTreeJson treeJson(*this);
+    if (!treeJson.BuildJsonValue(&value, FLAGS_jsonType)) {
+        std::cerr << "build json file failed!" << std::endl;
+        return false;
+    }
+
+    std::ofstream jsonFile;
+    jsonFile.open(FLAGS_jsonPath.c_str(), std::ios::out);
+    if (!jsonFile) {
+        std::cerr << "open json file failed!" << std::endl;
+        return false;
+    }
+    Json::StreamWriterBuilder clusterMap;
+    std::unique_ptr<Json::StreamWriter> writer(clusterMap.newStreamWriter());
+    writer->write(value, &jsonFile);
+    jsonFile.close();
+    return true;
 }
 
 }  // namespace list
