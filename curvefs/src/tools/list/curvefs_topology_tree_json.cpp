@@ -193,8 +193,8 @@ bool TopologyTreeJson::GetMetaserverTree(Json::Value* metaserver,
     auto metaserverinfo = metaserverId2MetaserverInfo_[metaserverId];
     (*metaserver)[mds::topology::kMetaserverId] = metaserverinfo.metaserverid();
     (*metaserver)[mds::topology::kHostName] = metaserverinfo.hostname();
-    (*metaserver)[mds::topology::kHostIp] = metaserverinfo.hostip();
-    (*metaserver)[mds::topology::kPort] = metaserverinfo.port();
+    (*metaserver)[mds::topology::kHostIp] = metaserverinfo.internalip();
+    (*metaserver)[mds::topology::kPort] = metaserverinfo.internalport();
     (*metaserver)[mds::topology::kExternalIp] = metaserverinfo.externalip();
     (*metaserver)[mds::topology::kExternalPort] = metaserverinfo.externalport();
     (*metaserver)[mds::topology::kOnlineState] = metaserverinfo.onlinestate();
