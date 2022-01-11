@@ -445,13 +445,13 @@ ServerIdType TopologyImpl::FindServerByHostIpPort(const std::string &hostIp,
                                                   uint32_t port) const {
     ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
-        if (it->second.GetInternalHostIp() == hostIp) {
+        if (it->second.GetInternalIp() == hostIp) {
             if (0 == it->second.GetInternalPort()) {
                 return it->first;
             } else if (port == it->second.GetInternalPort()) {
                 return it->first;
             }
-        } else if (it->second.GetExternalHostIp() == hostIp) {
+        } else if (it->second.GetExternalIp() == hostIp) {
             if (0 == it->second.GetExternalPort()) {
                 return it->first;
             } else if (port == it->second.GetExternalPort()) {
@@ -509,7 +509,7 @@ bool TopologyImpl::GetMetaServer(const std::string &hostIp, uint32_t port,
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
     for (auto it = metaServerMap_.begin(); it != metaServerMap_.end(); it++) {
         ReadLockGuard rlockMetaServer(it->second.GetRWLockRef());
-        if (it->second.GetInternalHostIp() == hostIp &&
+        if (it->second.GetInternalIp() == hostIp &&
             it->second.GetInternalPort() == port) {
             *out = it->second;
             return true;
@@ -1343,7 +1343,7 @@ void TopologyImpl::GetMetaServersSpace(
         ReadLockGuard rlockMetaServer(i.second.GetRWLockRef());
         auto metaServerUsage = new curvefs::mds::topology::MetadataUsage();
         metaServerUsage->set_metaserveraddr(
-            i.second.GetInternalHostIp() + ":" +
+            i.second.GetInternalIp() + ":" +
             std::to_string(i.second.GetInternalPort()));
         auto const& space = i.second.GetMetaServerSpace();
         metaServerUsage->set_total(space.GetDiskCapacity());

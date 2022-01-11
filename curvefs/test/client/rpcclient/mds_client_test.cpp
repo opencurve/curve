@@ -515,8 +515,8 @@ TEST_F(MdsClientImplTest, test_GetMetaServerInfo) {
     auto metaserverInfo = new curvefs::mds::topology::MetaServerInfo();
     metaserverInfo->set_metaserverid(1);
     metaserverInfo->set_hostname("hangzhou");
-    metaserverInfo->set_hostip("127.0.0.1");
-    metaserverInfo->set_port(5000);
+    metaserverInfo->set_internalip("127.0.0.1");
+    metaserverInfo->set_internalport(5000);
     metaserverInfo->set_externalip("127.0.0.1");
     metaserverInfo->set_externalport(5000);
     metaserverInfo->set_onlinestate(::curvefs::mds::topology::ONLINE);
@@ -559,8 +559,8 @@ TEST_F(MdsClientImplTest, GetMetaServerListInCopysets) {
     auto l2 = copysetInfo->add_cslocs();
     auto l3 = copysetInfo->add_cslocs();
     l1->set_metaserverid(1);
-    l1->set_hostip("127.0.0.1");
-    l1->set_port(9000);
+    l1->set_internalip("127.0.0.1");
+    l1->set_internalport(9000);
     l1->set_externalip("127.0.0.1");
     l2->CopyFrom(*l1);
     l2->set_metaserverid(2);

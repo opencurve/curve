@@ -26,6 +26,7 @@
 #include <brpc/server.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <braft/builtin_service_impl.h>
 
 #include "absl/memory/memory.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
@@ -64,6 +65,8 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
     conf_->GetValueFatalIfFail("global.ip", &options_.ip);
     conf_->GetValueFatalIfFail("global.port", &options_.port);
+    conf_->GetBoolValue("global.enable_external_server",
+        &options_.enableExternalServer);
 
     std::string value;
     conf_->GetValueFatalIfFail("bthread.worker_count", &value);
@@ -86,7 +89,10 @@ void Metaserver::InitRegisterOptions() {
                                &registerOptions_.metaserverInternalIp);
     conf_->GetValueFatalIfFail("global.external_ip",
                                &registerOptions_.metaserverExternalIp);
-    conf_->GetValueFatalIfFail("global.port", &registerOptions_.metaserverPort);
+    conf_->GetValueFatalIfFail("global.port",
+                               &registerOptions_.metaserverInternalPort);
+    conf_->GetValueFatalIfFail("global.external_port",
+                               &registerOptions_.metaserverExternalPort);
     conf_->GetValueFatalIfFail("mds.register_retries",
                                &registerOptions_.registerRetries);
     conf_->GetValueFatalIfFail("mds.register_timeoutMs",
@@ -170,37 +176,64 @@ void Metaserver::Run() {
 
     PartitionCleanManager::GetInstance().Run();
 
-    brpc::Server server;
-    butil::ip_t ip;
-    LOG_IF(FATAL, 0 != butil::str2ip(options_.ip.c_str(), &ip))
-        << "convert " << options_.ip << " to ip failed";
-    butil::EndPoint listenAddr(ip, options_.port);
-
+    // add internal server
     server_ = absl::make_unique<brpc::Server>();
     metaService_ = absl::make_unique<MetaServerServiceImpl>(
         copysetNodeManager_, inflightThrottle_.get());
     copysetService_ =
         absl::make_unique<CopysetServiceImpl>(copysetNodeManager_);
+    raftCliService2_ = absl::make_unique<RaftCliService2>(copysetNodeManager_);
 
     // add metaserver service
     LOG_IF(FATAL, server_->AddService(metaService_.get(),
                                       brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add metaserverService error";
-
     LOG_IF(FATAL, server_->AddService(copysetService_.get(),
                                       brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add copysetservice error";
 
+    butil::ip_t ip;
+    LOG_IF(FATAL, 0 != butil::str2ip(options_.ip.c_str(), &ip))
+        << "convert " << options_.ip << " to ip failed";
+    butil::EndPoint listenAddr(ip, options_.port);
+
     // add raft-related service
     copysetNodeManager_->AddService(server_.get(), listenAddr);
 
-    // start rpc server
+    // start internal rpc server
     brpc::ServerOptions option;
     if (options_.bthreadWorkerCount != -1) {
         option.num_threads = options_.bthreadWorkerCount;
     }
     LOG_IF(FATAL, server_->Start(listenAddr, &option) != 0)
-        << "start brpc server error";
+        << "start internal brpc server error";
+
+    // add external server
+    if (options_.enableExternalServer) {
+        externalServer_ = absl::make_unique<brpc::Server>();
+        LOG_IF(FATAL, externalServer_->AddService(metaService_.get(),
+            brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+            << "add metaserverService error";
+        LOG_IF(FATAL, externalServer_->AddService(copysetService_.get(),
+            brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+            << "add copysetService error";
+        LOG_IF(FATAL, externalServer_->AddService(raftCliService2_.get(),
+            brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+            << "add raftCliService2 error";
+        LOG_IF(FATAL, externalServer_->AddService(new braft::RaftStatImpl{},
+            brpc::SERVER_OWNS_SERVICE) != 0)
+            << "add raftStatService error";
+
+        butil::ip_t ip;
+        LOG_IF(FATAL, 0 != butil::str2ip(
+            registerOptions_.metaserverExternalIp.c_str(), &ip))
+            << "convert " << registerOptions_.metaserverExternalIp
+            << " to ip failed";
+        butil::EndPoint listenAddr(ip, registerOptions_.metaserverExternalPort);
+        // start external rpc server
+        LOG_IF(FATAL, externalServer_->Start(listenAddr, &option) != 0)
+            << "start external brpc server error";
+    }
 
     // try start s3compact wq
     LOG_IF(FATAL, S3CompactManager::GetInstance().Run() != 0);
@@ -221,7 +254,10 @@ void Metaserver::Stop() {
     }
 
     LOG(INFO) << "MetaServer is going to quit";
-
+    if (options_.enableExternalServer) {
+        externalServer_->Stop(0);
+        externalServer_->Join();
+    }
     server_->Stop(0);
     server_->Join();
 

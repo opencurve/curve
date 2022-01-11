@@ -31,6 +31,7 @@
 #include "curvefs/src/metaserver/copyset/apply_queue.h"
 #include "curvefs/src/metaserver/copyset/config.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
+#include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/heartbeat.h"
@@ -48,11 +49,13 @@ using ::curvefs::metaserver::copyset::ApplyQueue;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
 using ::curvefs::metaserver::copyset::CopysetNodeOptions;
 using ::curvefs::metaserver::copyset::CopysetServiceImpl;
+using ::curvefs::metaserver::copyset::RaftCliService2;
 
 struct MetaserverOptions {
     std::string ip;
     int port;
     int bthreadWorkerCount = -1;
+    bool enableExternalServer;
 };
 
 class Metaserver {
@@ -87,8 +90,11 @@ class Metaserver {
     MetaServerMetadata metadate_;
 
     std::unique_ptr<brpc::Server> server_;
+    std::unique_ptr<brpc::Server> externalServer_;
+
     std::unique_ptr<MetaServerServiceImpl> metaService_;
     std::unique_ptr<CopysetServiceImpl> copysetService_;
+    std::unique_ptr<RaftCliService2> raftCliService2_;
 
     HeartbeatOptions heartbeatOptions_;
     Heartbeat heartbeat_;
