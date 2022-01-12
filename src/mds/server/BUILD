@@ -14,30 +14,25 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS")
 
 cc_library(
     name = "mds",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
-    linkopts = ["-luuid"],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:brpc",
         "//src/common:curve_common",
+        "//src/leader_election",
         "//src/mds/heartbeat",
         "//src/mds/nameserver2",
-        "//src/mds/nameserver2/helper:helper",
-        "//src/leader_election",
+        "//src/mds/nameserver2/allocstatistic:alloc_statistic",
+        "//src/mds/nameserver2/helper",
         "//src/mds/schedule",
         "//src/mds/schedule/scheduleService:scheduleservice",
         "//src/mds/topology",
-        "//src/mds/nameserver2/allocstatistic:alloc_statistic",
     ],
 )
 
@@ -45,19 +40,18 @@ cc_library(
     name = "mds_for_test",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = GCC_FLAGS,
-    linkopts = ["-luuid"],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:brpc",
         "//src/common:curve_common",
+        "//src/leader_election:leader_election_for_test",
         "//src/mds/heartbeat",
         "//src/mds/nameserver2",
-        "//src/mds/nameserver2/helper:helper",
-        "//src/leader_election:leader_election_for_test",
+        "//src/mds/nameserver2/allocstatistic:alloc_statistic",
+        "//src/mds/nameserver2/helper",
         "//src/mds/schedule",
         "//src/mds/schedule/scheduleService:scheduleservice",
         "//src/mds/topology",
-        "//src/mds/nameserver2/allocstatistic:alloc_statistic",
     ],
 )

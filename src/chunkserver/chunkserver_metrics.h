@@ -242,28 +242,28 @@ class CSCopysetMetric {
         return ioMetrics_.GetIOMetric(type);
     }
 
-    const uint32_t GetChunkCount() const {
+    uint32_t GetChunkCount() const {
         if (chunkCount_ == nullptr) {
             return 0;
         }
         return chunkCount_->get_value();
     }
 
-    const uint32_t GetWalSegmentCount() const {
+    uint32_t GetWalSegmentCount() const {
         if (nullptr == walSegmentCount_) {
             return 0;
         }
         return walSegmentCount_->get_value();
     }
 
-    const uint32_t GetSnapshotCount() const {
+    uint32_t GetSnapshotCount() const {
         if (snapshotCount_ == nullptr) {
             return 0;
         }
         return snapshotCount_->get_value();
     }
 
-    const uint32_t GetCloneChunkCount() const {
+    uint32_t GetCloneChunkCount() const {
         if (cloneChunkCount_ == nullptr) {
             return 0;
         }
@@ -485,53 +485,53 @@ class ChunkServerMetric : public Uncopyable {
         return &copysetMetricMap_;
     }
 
-    const uint32_t GetCopysetCount() {
+    uint32_t GetCopysetCount() {
         return copysetMetricMap_.Size();
     }
 
-    const uint32_t GetLeaderCount() const {
+    uint32_t GetLeaderCount() const {
         if (leaderCount_ == nullptr)
             return 0;
         return leaderCount_->get_value();
     }
 
-    const uint32_t GetTotalChunkCount() {
+    uint32_t GetTotalChunkCount() {
         if (chunkCount_ == nullptr)
             return 0;
         return chunkCount_->get_value();
     }
 
-    const uint32_t GetTotalSnapshotCount() {
+    uint32_t GetTotalSnapshotCount() {
         if (snapshotCount_ == nullptr)
             return 0;
         return snapshotCount_->get_value();
     }
 
-    const uint32_t GetTotalCloneChunkCount() {
+    uint32_t GetTotalCloneChunkCount() {
         if (cloneChunkCount_ == nullptr)
             return 0;
         return cloneChunkCount_->get_value();
     }
 
-    const uint32_t GetTotalWalSegmentCount() {
+    uint32_t GetTotalWalSegmentCount() {
         if (nullptr == walSegmentCount_)
             return 0;
         return walSegmentCount_->get_value();
     }
 
-    const uint32_t GetChunkLeftCount() const {
+    uint32_t GetChunkLeftCount() const {
         if (chunkLeft_ == nullptr)
             return 0;
         return chunkLeft_->get_value();
     }
 
-    const uint32_t GetWalSegmentLeftCount() const {
+    uint32_t GetWalSegmentLeftCount() const {
         if (nullptr == walSegmentLeft_)
             return 0;
         return walSegmentLeft_->get_value();
     }
 
-    const uint32_t GetChunkTrashedCount() const {
+    uint32_t GetChunkTrashedCount() const {
         if (chunkTrashed_ == nullptr)
             return 0;
         return chunkTrashed_->get_value();

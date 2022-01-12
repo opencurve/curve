@@ -52,9 +52,11 @@ namespace nbd {
 #define REQUEST_TYPE_MASK 0x0000ffff
 
 static std::ostream& operator<<(std::ostream& os, const IOContext& ctx) {
-    os << "[" << std::hex
-       << ntohll(*reinterpret_cast<uint64_t*>(
-              const_cast<char*>(ctx.request.handle)));
+    auto convert = [](const char* handle) {
+        return *reinterpret_cast<const uint64_t*>(handle);
+    };
+
+    os << "[" << std::hex << ntohll(convert(ctx.request.handle));
 
     switch (ctx.command) {
         case NBD_CMD_WRITE:

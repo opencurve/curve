@@ -1,0 +1,36 @@
+---
+- include: check.yml
+  tags:
+    - check
+
+- include: core.yml
+  tags:
+    - core
+
+- include: config.yml
+  tags:
+    - config
+
+- include: start.yml
+  tags:
+    - start
+
+- include: restart.yml
+  tags:
+    - restart
+
+- include: stop.yml
+  tags:
+    - stop
+
+- include: status.yml
+  tags:
+    - status
+
+- include: clean.yml
+  tags:
+    - clean
+
+- include: debug.yml
+  tags:
+    - debug

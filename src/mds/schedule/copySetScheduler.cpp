@@ -290,7 +290,7 @@ bool CopySetScheduler::CopySetMigration(
         << ",minCsId:" << desc[desc.size() - 1].first << ")";
     *target = desc[desc.size() - 1].first;
     int copysetNumInTarget = desc[desc.size() - 1].second.size();
-    if (opController_->ChunkServerExceed(*target)) {
+    if (opController_->Exceed(*target)) {
         LOG(INFO) << "copysetScheduler found target:"
                   << *target << " operator exceed";
         return false;

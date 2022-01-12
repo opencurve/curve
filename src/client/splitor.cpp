@@ -251,7 +251,7 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
         ++count;
     }
 
-    std::vector<CopysetInfo> copysetInfos;
+    std::vector<CopysetInfo<ChunkServerID>> copysetInfos;
     errCode = mdsClient->GetServerList(segmentInfo.lpcpIDInfo.lpid,
                                        segmentInfo.lpcpIDInfo.cpidVec,
                                        &copysetInfos);
@@ -272,7 +272,7 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
     for (const auto& copysetInfo : copysetInfos) {
         for (const auto& peerInfo : copysetInfo.csinfos_) {
             metaCache->AddCopysetIDInfo(
-                peerInfo.chunkserverID,
+                peerInfo.peerID,
                 CopysetIDInfo(segmentInfo.lpcpIDInfo.lpid, copysetInfo.cpid_));
         }
     }

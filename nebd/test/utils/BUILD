@@ -14,15 +14,18 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_library(
     name = "test_utils_lib",
     srcs = glob([
         "*.h",
-        "*.cpp"
+        "*.cpp",
     ]),
     hdrs = glob(["*.h"]),
+    copts = CURVE_TEST_COPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//nebd/src/common:nebd_common",
     ],
-    visibility = ["//visibility:public"],
 )

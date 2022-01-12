@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+EXAMPLES = '''
+- download file
+  smart_download: url=url dest=/ secret=abc
+
+- name: download file with check
+  smart_download: url=url dest=/ secret=abc checksum=sha256:x
+  smart_download: url=url dest=/ secret=abc checksum=md5:x
+'''
+
+import os
+import re
+import time
+import shutil
+import hashlib
+
+from ansible.module_utils.basic import *
+from ansible.module_utils.urls import *
+
+
+def url_get(module, url, dest, use_proxy, timeout, headers):
+
+    rsp, info = fetch_url(module, url, use_proxy=use_proxy,
+                          timeout=timeout, headers=headers)
+
+    if info['status'] == 304:
+        module.exit_json(url=url, dest=dest, changed=False,
+                         msg=info.get('msg', ''))
+    elif info['status'] != 200:
+        module.fail_json(url=url, dest=dest, changed=False,
+                         msg='request failed',
+                         status_code=info['status'],
+                         response=info['msg'])
+
+    try:
+        with open(dest, 'wb') as fd:
+            shutil.copyfileobj(rsp, fd)
+    except Exception as err:
+        module.fail_json(
+            msg='failed to download: {}'.format(str(err))
+        )
+    return info
+
+
+def parse_url(url):
+    m = re.match(r'^(https?)://([^/]+)(/.*)$', url)
+    return (m.group(1), m.group(2), m.group(3))
+
+
+def url_add_token(url, secret):
+    expire = str(int(time.time()) + 7 * 24 * 3600)
+    scheme, host, uri = parse_url(url)
+    key = '{}&{}&{}'.format(expire, secret, uri)
+    token = hashlib.md5(key).hexdigest()[12:20] + expire
+
+    return '{}://{}{}?_t={}'.format(scheme, host, uri, token)
+
+
+def main():
+    argument_spec = dict(
+        url=dict(required=True),
+        secret=dict(required=True),
+        dest=dict(required=True),
+        checksum=dict(default=''),
+        timeout=dict(required=False, type='int', default=10),
+        headers=dict(required=False, type='dict', default=None),
+        use_proxy=dict(required=False, type='bool', default=True),
+    )
+
+    module = AnsibleModule(
+        argument_spec=argument_spec,
+        add_file_common_args=True
+    )
+
+    url = url_add_token(module.params['url'], module.params['secret'])
+    dest = os.path.expanduser(module.params['dest'])
+    checksum = module.params['checksum']
+    use_proxy = module.params['use_proxy']
+    timeout = module.params['timeout']
+
+    headers = module.params['headers'] or {}
+    if headers.get('Host') is None:
+        headers['Host'] = parse_url(url)[1]
+
+    try:
+        algorithm, checksum = checksum.split(':', 1)
+    except:
+        module.fail_json(msg='the checksum parameter has to be in format '
+                             '<algorithm>:<checksum>')
+
+    if os.path.isfile(dest):
+        if checksum != '':
+            dest_checksum = module.digest_from_file(
+                dest, getattr(hashlib, algorithm)())
+            if dest_checksum == checksum:
+                module.exit_json(url=url, dest=dest, changed=False,
+                                 msg='file already exists',)
+            else:
+                os.remove(dest)
+
+    info = url_get(module, url, dest, use_proxy, timeout, headers)
+
+    if checksum != '':
+        dest_checksum = module.digest_from_file(
+            dest, getattr(hashlib, algorithm)())
+        if dest_checksum != checksum:
+            os.remove(dest)
+            module.fail_json(
+                url=url, dest=dest, changed=True,
+                msg='checksum mismatch, {} expected but got {}'.format(
+                    checksum, dest_checksum))
+
+    # Allow file attribute changes
+    module.params['path'] = dest
+    file_args = module.load_file_common_arguments(module.params)
+    file_args['path'] = dest
+
+    # Mission complete
+    module.exit_json(url=url, dest=dest, changed=True,
+                     checksum=checksum, msg=info.get('msg', 'ok'))
+
+
+if __name__ == '__main__':
+    main()

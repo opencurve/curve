@@ -14,10 +14,12 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "curvefs_test",
     srcs = glob(["*.cpp", "*.h"]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//src/mds/nameserver2:nameserver2",
             "//src/leader_election:leader_election",
@@ -42,4 +44,5 @@ cc_library(
         "//src/mds/nameserver2:nameserver2",
     ],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )

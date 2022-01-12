@@ -331,6 +331,13 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
         }
         peers.emplace(res);
     }
+
+    if (leader == UNINTIALIZE_ID) {
+        LOG(ERROR) << "leader not found, logicalpoolid: "
+                   << info.logicalpoolid()
+                   << ", copysetid: " << info.copysetid();
+    }
+
     topoCopysetInfo.SetCopySetMembers(peers);
 
     // set leader
@@ -388,7 +395,3 @@ ChunkServerIdType HeartbeatManager::GetChunkserverIdByPeerStr(
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-
-
-
-

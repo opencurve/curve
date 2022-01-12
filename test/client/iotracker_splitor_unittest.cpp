@@ -83,9 +83,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fiu_init(0);
-        fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
-        fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
-        fopt.metaServerOpt.mdsRPCRetryIntervalUS = 50000;
+        fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+        fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
+        fopt.metaServerOpt.rpcRetryOpt.rpcRetryIntervalUS = 50000;
         fopt.loginfo.logLevel = 0;
         fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
         fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
@@ -305,7 +305,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
             ++count;
         }
 
-        std::vector<CopysetInfo> cpinfoVec;
+        std::vector<CopysetInfo<ChunkServerID>> cpinfoVec;
         mdsclient_->GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec,
                                   &cpinfoVec);
 

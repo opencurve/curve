@@ -157,7 +157,7 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
      * @param[out] leaderAddr leader的ip地址
      * @return 0 成功 / -1 失败
      */
-    int Wait(ChunkServerID* leaderId, ChunkServerAddr* leaderAddr) {
+    int Wait(ChunkServerID* leaderId, PeerAddr* leaderAddr) {
         {
             std::unique_lock<bthread::Mutex> ulk(finishMtx_);
             while (!finish_) {
@@ -357,7 +357,7 @@ void GetLeaderClosure::Run() {
 }
 
 int ServiceHelper::GetLeader(const GetLeaderInfo& getLeaderInfo,
-                             ChunkServerAddr* leaderAddr,
+                             PeerAddr* leaderAddr,
                              ChunkServerID* leaderId,
                              FileMetric* fileMetric) {
     const auto& peerInfo = getLeaderInfo.copysetPeerInfo;

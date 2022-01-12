@@ -14,45 +14,24 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_ZLIB",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-std=c++11",
-    "-pipe",
-    "-W",
-    "-Wall",
-    "-Wno-unused-parameter",
-    "-fPIC",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-variable",
-    "-Wno-missing-field-initializers",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "nebdclient",
-    srcs = glob([
-        "*.h",
-        "*.cpp",
-        ]
+    srcs = glob(
+        [
+            "*.h",
+            "*.cpp",
+        ],
     ),
+    copts = CURVE_DEFAULT_COPTS,
+    linkopts = ["-Wl,-rpath=/usr/lib/nebd"],
     visibility = ["//visibility:public"],
     deps = [
-        "//external:glog",
         "//external:brpc",
-        "//nebd/src/common:nebd_common",
+        "//external:glog",
+        "//include:include-common",
         "//nebd/proto:client_cc_proto",
-        "//include:include-common"
+        "//nebd/src/common:nebd_common",
     ],
-    copts = COPTS,
-    linkopts = ["-Wl,-rpath=/usr/lib/nebd"],
 )

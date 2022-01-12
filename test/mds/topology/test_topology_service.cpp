@@ -1774,5 +1774,3 @@ TEST_F(TestTopologyService, test_ListUnAvailCopySets_fail) {
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-
-

@@ -34,7 +34,11 @@
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/topology/topology.h"
+#include "src/mds/schedule/operator.h"
 
+namespace curve {
+namespace mds {
+namespace schedule {
 using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::topology::LogicalPoolIdType;
 using ::curve::mds::topology::PhysicalPoolIdType;
@@ -42,11 +46,6 @@ using ::curve::mds::topology::ZoneIdType;
 using ::curve::mds::topology::ServerIdType;
 using ::curve::mds::topology::ChunkServerIdType;
 using ::curve::mds::topology::CopySetIdType;
-
-
-namespace curve {
-namespace mds {
-namespace schedule {
 
 struct LeaderStatInLogicalPool {
     // id of current leader

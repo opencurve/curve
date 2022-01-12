@@ -24,13 +24,14 @@
 #define SRC_FS_WRAP_POSIX_H_
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/vfs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#include <dirent.h>
 #include <linux/fs.h>
+#include <dirent.h>
 #include <string>
 
 namespace curve {

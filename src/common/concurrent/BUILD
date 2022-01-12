@@ -14,45 +14,47 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curve_concurrent",
-    srcs = glob([
-        "*.h",
-        "*.cpp",
-    ],exclude = ["dlock.*"]),
-    copts = COPTS,
+    srcs = glob(
+        [
+            "*.h",
+            "*.cpp",
+        ],
+        exclude = ["dlock.*"],
+    ),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
+        "//external:bthread",
         "//external:glog",
-        "//src/common:curve_uncopy",
         "//include:include-common",
-        "//external:bthread"
+        "//src/common:curve_uncopy",
+    ],
+)
+
+cc_library(
+    name = "rw_lock",
+    hdrs = [
+        "rw_lock.h",
+    ],
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:bthread",
+        "//src/common:curve_uncopy",
     ],
 )
 
 cc_library(
     name = "curve_dlock",
-    srcs = glob(["dlock.h",
-                 "dlock.cpp"]),
+    srcs = glob([
+        "dlock.h",
+        "dlock.cpp",
+    ]),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",

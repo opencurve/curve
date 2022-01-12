@@ -1,0 +1,15 @@
+---
+  - name: generate template
+    shell: >
+      bash {{ playbook_dir }}/util/tmpl.sh
+      {{ project_config_dsv }}
+      {{ project_config_src }}/{{ item }}
+      {{ project_root_src }}/conf/{{ item }}
+    delegate_to: localhost
+    with_items: "{{ project_templates }}"
+
+  - name: sync template
+    template: >
+      src={{ project_root_src }}/conf/{{ item }}
+      dest={{ project_root_dest }}/conf/{{ item }}
+    with_items: "{{ project_templates }}"

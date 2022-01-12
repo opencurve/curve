@@ -23,8 +23,11 @@
 #ifndef SRC_COMMON_S3_ADAPTER_H_
 #define SRC_COMMON_S3_ADAPTER_H_
 #include <map>
+#include <list>
 #include <string>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
 #include <aws/core/utils/memory/AWSMemory.h>  //NOLINT
 #include <aws/core/Aws.h>   //NOLINT
 #include <aws/s3/S3Client.h>  //NOLINT
@@ -41,6 +44,9 @@
 #include <aws/s3/model/UploadPartRequest.h>  //NOLINT
 #include <aws/s3/model/CompleteMultipartUploadRequest.h>  //NOLINT
 #include <aws/s3/model/AbortMultipartUploadRequest.h>   //NOLINT
+#include <aws/s3/model/ObjectIdentifier.h>   //NOLINT
+#include <aws/s3/model/Delete.h>   //NOLINT
+#include <aws/s3/model/DeleteObjectsRequest.h>  //NOLINT
 #include <aws/core/http/HttpRequest.h>  //NOLINT
 #include <aws/s3/model/CompletedPart.h>  //NOLINT
 #include <aws/core/http/Scheme.h>  //NOLINT
@@ -56,7 +62,32 @@ namespace curve {
 namespace common {
 
 struct GetObjectAsyncContext;
+struct PutObjectAsyncContext;
 class S3Adapter;
+
+struct S3AdapterOption {
+    std::string ak;
+    std::string sk;
+    std::string s3Address;
+    std::string bucketName;
+    int loglevel;
+    int scheme;
+    bool verifySsl;
+    int maxConnections;
+    int connectTimeout;
+    int requestTimeout;
+    int asyncThreadNum;
+    uint64_t maxAsyncRequestInflightBytes;
+    uint64_t iopsTotalLimit;
+    uint64_t iopsReadLimit;
+    uint64_t iopsWriteLimit;
+    uint64_t bpsTotalMB;
+    uint64_t bpsReadMB;
+    uint64_t bpsWriteMB;
+};
+
+void InitS3AdaptorOption(Configuration *conf,
+    S3AdapterOption *s3Opt);
 
 typedef std::function<void(const S3Adapter*,
     const std::shared_ptr<GetObjectAsyncContext>&)>
@@ -71,6 +102,23 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     int retCode;
 };
 
+/*
+typedef std::function<void(const S3Adapter*,
+    const std::shared_ptr<PutObjectAsyncContext>&)>
+        PutObjectAsyncCallBack;
+*/
+typedef std::function<void(const std::shared_ptr<PutObjectAsyncContext>&)>
+        PutObjectAsyncCallBack;
+
+struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
+    std::string key;
+    const char *buffer;
+    size_t bufferSize;
+    PutObjectAsyncCallBack cb;
+    uint64_t startTime;
+    int retCode;
+};
+
 class S3Adapter {
  public:
     S3Adapter() {}
@@ -80,9 +128,34 @@ class S3Adapter {
      */
     virtual void Init(const std::string &path);
     /**
+     * 初始化S3Adapter
+     */
+    virtual void Init(const S3AdapterOption &option);
+    /**
      * 释放S3Adapter资源
      */
     virtual void Deinit();
+    /**
+     *  call aws sdk shutdown api
+     */
+    virtual void Shutdown();
+    /**
+     * reinit s3client with new AWSCredentials
+     */
+    virtual void Reinit(const std::string& ak, const std::string& sk,
+                        const std::string& endpoint, S3AdapterOption option);
+    /**
+     * get s3 ak
+     */
+    virtual std::string GetS3Ak();
+    /**
+     * get s3 sk
+     */
+    virtual std::string GetS3Sk();
+    /**
+     * get s3 endpoint
+     */
+    virtual std::string GetS3Endpoint();
     /**
      * 创建存储快照数据的桶（桶名称由配置文件指定，需要全局唯一）
      * @return: 0 创建成功/ -1 创建失败
@@ -98,9 +171,15 @@ class S3Adapter {
      * @return true 桶存在/ false 桶不存在
      */
     virtual bool BucketExist();
-    // Put object from buffer[bufferSize]
-    // int PutObject(const Aws::String &key, const void *buffer,
-    //        const int bufferSize);
+    /**
+     * 上传数据到对象存储
+     * @param 对象名
+     * @param 数据内容
+     * @param 数据内容大小
+     * @return:0 上传成功/ -1 上传失败
+     */
+    virtual int PutObject(const Aws::String &key, const char *buffer,
+            const size_t bufferSize);
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,
     //        const int bufferSize);
@@ -111,6 +190,7 @@ class S3Adapter {
      * @return:0 上传成功/ -1 上传失败
      */
     virtual int PutObject(const Aws::String &key, const std::string &data);
+    virtual void PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context);
     /**
      * Get object from s3,
      * note：this function is only used for control plane to get small data,
@@ -144,6 +224,8 @@ class S3Adapter {
      * @return: 0 删除成功/ -
      */
     virtual int DeleteObject(const Aws::String &key);
+
+    virtual int DeleteObjects(const std::list<Aws::String>& keyList);
     /**
      * 判断对象是否存在
      * @param 对象名
@@ -175,7 +257,7 @@ class S3Adapter {
      * @return: 分片任务管理对象
      */
     virtual Aws::S3::Model::CompletedPart UploadOnePart(const Aws::String &key,
-            const Aws::String uploadId,
+            const Aws::String &uploadId,
             int partNum,
             int partSize,
             const char* buf);
@@ -205,6 +287,26 @@ class S3Adapter {
     }
 
  private:
+    class AsyncRequestInflightBytesThrottle {
+     public:
+        explicit AsyncRequestInflightBytesThrottle(uint64_t maxInflightBytes)
+            : maxInflightBytes_(maxInflightBytes),
+              inflightBytes_(0),
+              mtx_(),
+              cond_() {}
+
+        void OnStart(uint64_t len);
+        void OnComplete(uint64_t len);
+
+     private:
+        const uint64_t maxInflightBytes_;
+        uint64_t inflightBytes_;
+
+        std::mutex mtx_;
+        std::condition_variable cond_;
+    };
+
+ private:
     // S3服务器地址，由配置文件指定
     Aws::String s3Address_;
     // 用于用户认证的AK/SK，需要从对象存储的用户管理中申请，并在配置文件中指定
@@ -213,12 +315,13 @@ class S3Adapter {
     // 对象的桶名，根据配置文件指定
     Aws::String bucketName_;
     // aws sdk的配置，同样由配置文件指定
-    Aws::SDKOptions *options_;
     Aws::Client::ClientConfiguration *clientCfg_;
     Aws::S3::S3Client *s3Client_;
     Configuration conf_;
 
     Throttle *throttle_;
+
+    std::unique_ptr<AsyncRequestInflightBytesThrottle> inflightBytesThrottle_;
 };
 }  // namespace common
 }  // namespace curve

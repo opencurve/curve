@@ -14,16 +14,19 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
-    name="helper",
-    hdrs=glob(["*.h"]),
-    srcs=glob(["*.cpp"]),
+    name = "helper",
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-            "//external:glog",
-            "//external:gflags",
-            "//src/common:curve_common",
-            "//src/mds/common:mds_common",
-            "//proto:nameserver2_cc_proto",
+        "//external:gflags",
+        "//external:glog",
+        "//proto:nameserver2_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/common:mds_common",
     ],
 )

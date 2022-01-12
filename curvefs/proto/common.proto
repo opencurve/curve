@@ -1,0 +1,75 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax="proto2";
+package curvefs.common;
+option cc_generic_services = true;
+
+enum FSType {
+    TYPE_VOLUME = 1;
+    TYPE_S3 = 2;
+}
+
+message Volume {
+    required uint64 volumeSize = 1;
+    required uint64 blockSize = 2;
+    required string volumeName = 3;
+    required string user = 4;
+    optional string password = 5;
+}
+
+message S3Info {
+    required string ak = 1;
+    required string sk = 2;
+    required string endpoint = 3;
+    required string bucketname = 4;
+    required uint64 blockSize = 5;
+    required uint64 chunkSize = 6;
+}
+
+enum PartitionStatus {
+    READWRITE = 1;
+    READONLY = 2;
+    DELETING = 3;
+}
+
+message PartitionInfo {
+    required uint32 fsId = 1;
+    required uint32 poolId = 2;
+    required uint32 copysetId = 3;
+    required uint32 partitionId = 4;
+    // partition manage inodeid range [start, end]
+    required uint64 start = 5;
+    required uint64 end = 6;
+    required uint64 txId = 7;
+    optional uint64 nextId = 8;
+    // status can change from READWRITE to READONLY, but can not chanage from READONLY to READWRITE
+    // READWRITE/READONLY can change to DELETING, but DELETING can not change to READWRITE/READONLY
+    // topo/metaserver should persist this value
+    required PartitionStatus status = 9;
+    optional uint64 inodeNum = 10;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
+    optional uint64 dentryNum = 11;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
+}
+
+message Peer {
+    optional uint64 id          = 1;
+    optional string address     = 2;
+}
+
+message CopysetInfo {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+}

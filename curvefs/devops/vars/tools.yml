@@ -1,0 +1,28 @@
+# tools
+# ├── conf
+# │   └── tools.conf
+# ├── logs
+# │   └── tools.pid
+# ├── sbin
+# │   ├── servicectl
+# │   └── curvefs-tools
+# └── lib
+#     └── tools_lib.so
+
+project_name: "tools"
+project_home: "{{ curvefs_project_home }}"
+project_root_src: "{{ playbook_dir }}/projects/tools"
+project_root_dest: "{{ project_home }}/tools"
+project_log_root: "{{ curvefs_project_log_home }}/tools"
+project_config_src: "{{ playbook_dir | dirname }}/conf"
+project_config_dsv: "="
+project_core_method: "{{ curvefs_core_method }}"
+project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
+
+project_templates:
+  - tools.conf
+  - topology.json
+
+project_directorys:
+  - "{{ project_root_dest }}"
+  - "{{ project_log_root }}"

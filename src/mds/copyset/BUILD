@@ -14,16 +14,18 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS"
-    )
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
-        name = "copyset",
-        srcs = glob(["*.cpp", "*.h"]),
-        deps = ["//external:glog", "//src/mds/common:mds_common"],
-        copts = GCC_FLAGS,
-        visibility = ["//visibility:public"],
-        )
+    name = "copyset",
+    srcs = glob([
+        "*.cpp",
+        "*.h",
+    ]),
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+        "//src/mds/common:mds_common",
+    ],
+)

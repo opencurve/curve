@@ -14,55 +14,14 @@
 #  limitations under the License.
 #
 
-# tools
-
-# https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-]
-
-cc_test(
-    name = "createFile",
-    srcs = ["createtool.cpp"],
-    copts = COPTS,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_binary(
     name = "curve_format",
     srcs = [
         "curve_format_main.cpp",
     ],
+    copts = CURVE_DEFAULT_COPTS,
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -71,22 +30,19 @@ cc_binary(
         "//external:bvar",
         "//external:gflags",
         "//external:glog",
+        "//external:json",
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
         "//src/common:curve_common",
         "//src/fs:lfs",
-        "//external:json"
     ],
 )
 
 cc_binary(
     name = "curve_tool",
     srcs = ["curve_tool_main.cpp"],
-
-    copts = COPTS,
-    linkopts = [
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:gflags",
@@ -97,14 +53,11 @@ cc_binary(
 cc_binary(
     name = "curve_chunkserver_tool",
     srcs = ["chunkserver_tool_main.cpp"],
-
-    copts = COPTS,
-    linkopts = [
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:gflags",
         "//external:braft",
+        "//external:gflags",
         "//src/tools:curve_tool_lib",
     ],
 )
@@ -123,28 +76,28 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:gflags",
-        "//external:protobuf",
-        "//external:brpc",
         "//external:braft",
+        "//external:brpc",
         "//external:bthread",
         "//external:butil",
         "//external:bvar",
+        "//external:gflags",
         "//external:glog",
         "//external:leveldb",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
-        "//proto:schedule_cc_proto",
+        "//external:protobuf",
+        "//include/chunkserver:include-chunkserver",
+        "//include/client:include_client",
         "//proto:chunkserver-cc-protos",
-        "//src/common:curve_common",
-        "//src/mds/common:mds_common",
-        "//src/mds/nameserver2:nameserver2",
+        "//proto:nameserver2_cc_proto",
+        "//proto:schedule_cc_proto",
+        "//proto:topology_cc_proto",
         "//src/chunkserver:chunkserver-lib",
         "//src/client:curve_client",
-        "//include/client:include_client",
-        "//include/chunkserver:include-chunkserver",
+        "//src/common:curve_common",
+        "//src/mds/common:mds_common",
+        "//src/mds/nameserver2",
     ],
 )

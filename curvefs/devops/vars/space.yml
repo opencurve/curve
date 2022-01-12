@@ -1,0 +1,31 @@
+# space
+# ├── conf
+# │   └── space.conf
+# ├── logs
+# │   └── space.pid
+# ├── sbin
+# │   ├── servicectl
+# │   └── curvefs-space
+# └── lib
+#     └── space_lib.so
+
+project_name: "space"
+project_home: "{{ curvefs_project_home }}"
+project_root_src: "{{ playbook_dir }}/projects/space"
+project_root_dest: "{{ project_home }}/space"
+project_log_root: "{{ curvefs_project_log_home }}/space"
+project_config_src: "{{ playbook_dir | dirname }}/conf"
+project_config_dsv: "="
+project_core_method: "{{ curvefs_core_method }}"
+project_start_with_deamon: True
+project_daemon: "{{ project_start_with_deamon | ternary('--daemon', '') }}"
+project_listen_port: "{{ curvefs_space_listen_port }}"
+project_wait_service_timeout: "{{ curvefs_wait_service_timeout }}"
+project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
+
+project_templates:
+  - space.conf
+
+project_directorys:
+  - "{{ project_root_dest }}"
+  - "{{ project_log_root }}"

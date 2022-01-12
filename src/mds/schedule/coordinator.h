@@ -37,18 +37,17 @@
 #include "src/mds/schedule/scheduleMetrics.h"
 #include "src/common/interruptible_sleeper.h"
 
-using ::curve::mds::heartbeat::ConfigChangeType;
-using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
 namespace schedule {
-
+using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curve::common::InterruptibleSleeper;
 class Coordinator {
  public:
     Coordinator() = default;
     explicit Coordinator(const std::shared_ptr<TopoAdapter> &topo);
-    ~Coordinator();
+    virtual ~Coordinator();
     /**
      * @brief deal with copyset info reported by the chunkserver
      *
