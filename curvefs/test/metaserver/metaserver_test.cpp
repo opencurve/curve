@@ -54,8 +54,8 @@ namespace metaserver {
 class MetaserverTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        metaserverListenAddr_ = "127.0.0.1:16702";
-        topologyServiceAddr_ = "127.0.0.1:16700";
+        metaserverListenAddr_ = "127.0.0.1:6772";
+        topologyServiceAddr_ = "127.0.0.1:6770";
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockHeartbeatService_,

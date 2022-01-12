@@ -309,7 +309,7 @@ def destroy_curvefs():
     try:
         test_client = config.fs_test_client[0]
         ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-        md = "/home/nbs/.curveadm/bin/curveadm cluster checkout citest"
+        cmd = "/home/nbs/.curveadm/bin/curveadm cluster checkout citest"
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"checkout fail"
         for mountpoint in config.fs_mount_dir:
