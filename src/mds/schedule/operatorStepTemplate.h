@@ -22,9 +22,11 @@
 #ifndef SRC_MDS_SCHEDULE_OPERATORSTEPTEMPLATE_H_
 #define SRC_MDS_SCHEDULE_OPERATORSTEPTEMPLATE_H_
 
+#include <glog/logging.h>
+
 #include <cstdint>
 #include <string>
-#include "glog/logging.h"
+
 #include "proto/heartbeat.pb.h"
 
 namespace curve {
@@ -167,10 +169,11 @@ class ChangePeerT : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
 };
 
 template <class IdType, class CopySetInfoT, class CopySetConfT>
-class StartScanPeerT
+class ScanPeerT
     : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
  public:
-    explicit StartScanPeerT(IdType peerID) : scan_(peerID) {}
+    ScanPeerT(IdType peerID, ConfigChangeType opType)
+        : scan_(peerID), opType_(opType) {}
 
     ApplyStatus Apply(const CopySetInfoT &originInfo,
                       CopySetConfT *newConf) override;
@@ -179,25 +182,17 @@ class StartScanPeerT
 
     IdType GetTargetPeer() const override;
 
- private:
-    IdType scan_;
-};
+    bool IsStartScanOp() const {
+        return opType_ == ConfigChangeType::START_SCAN_PEER;
+    }
 
-template <class IdType, class CopySetInfoT, class CopySetConfT>
-class CancelScanPeerT
-    : public OperatorStepT<IdType, CopySetInfoT, CopySetConfT> {
- public:
-    explicit CancelScanPeerT(IdType peerID) : scan_(peerID) {}
-
-    ApplyStatus Apply(const CopySetInfoT &originInfo,
-                      CopySetConfT *newConf) override;
-
-    std::string OperatorStepToString() override;
-
-    IdType GetTargetPeer() const override;
+    bool IsCancelScanOp() const {
+        return opType_ == ConfigChangeType::CANCEL_SCAN_PEER;
+    }
 
  private:
     IdType scan_;
+    ConfigChangeType opType_;
 };
 
 template <class IdType, class CopySetInfoT, class CopySetConfT>
@@ -519,40 +514,71 @@ ApplyStatus ChangePeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
 }
 
 template <class IdType, class CopySetInfoT, class CopySetConfT>
-ApplyStatus StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
+ApplyStatus ScanPeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
     const CopySetInfoT &originInfo, CopySetConfT *newConf) {
+    // (1) copyset success on start/cancel scan
+    if ((IsStartScanOp() && originInfo.scaning) ||
+        (IsCancelScanOp() && !originInfo.scaning)) {
+        return ApplyStatus::Finished;
+    }
+
+    // (2) copyset has no config change, instruct it to start/cancel scan
+    if (!originInfo.configChangeInfo.IsInitialized()) {
+        newConf->id.first = originInfo.id.first;
+        newConf->id.second = originInfo.id.second;
+        newConf->epoch = originInfo.epoch;
+        newConf->peers = originInfo.peers;
+        newConf->type = opType_;
+        newConf->configChangeItem = scan_;
+        return ApplyStatus::Ordered;
+    }
+
+    // (3) copyset current config change doesn't match the new config change,
+    //     drop the new config change
+    auto configChangeCsId = originInfo.candidatePeerInfo.id;
+    auto configChangeType = originInfo.configChangeInfo.type();
+    if (configChangeCsId != scan_ || configChangeType != opType_) {
+        LOG(WARNING)
+            << originInfo.CopySetInfoStr() << " " << OperatorStepToString()
+            << " failed, report config change does't match the new one: "
+            << "report candidate id is " << configChangeCsId
+            << ", the new is " << scan_
+            << "; report change type is " << configChangeType
+            << ", the new is " << opType_;
+        return ApplyStatus::Failed;
+    }
+
+    // (4) there is an error on starting/canceling scan, drop the config change
+    if (!originInfo.configChangeInfo.finished() &&
+        originInfo.configChangeInfo.has_err()) {
+        LOG(ERROR) << originInfo.CopySetInfoStr() << " "
+                   << OperatorStepToString() << " failed, report err: "
+                   << originInfo.configChangeInfo.err().errmsg();
+        return ApplyStatus::Failed;
+    }
+
+    // (5) copyset is on starting/canceling scan
     return ApplyStatus::OnGoing;
 }
 
 template <class IdType, class CopySetInfoT, class CopySetConfT>
 std::string
-StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
-    return "";
+ScanPeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
+    std::string opstr = "unknown operator";
+    if (IsStartScanOp()) {
+        opstr = "start scan";
+    } else if (IsCancelScanOp()) {
+        opstr = "cancel scan";
+    }
+
+    return opstr + " on " + std::to_string(scan_);
 }
 
 template <class IdType, class CopySetInfoT, class CopySetConfT>
-IdType StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer()
-    const {
+IdType ScanPeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer() const {
     return scan_;
 }
 
-template <class IdType, class CopySetInfoT, class CopySetConfT>
-ApplyStatus CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>::Apply(
-    const CopySetInfoT &originInfo, CopySetConfT *newConf) {
-    return ApplyStatus::OnGoing;
-}
-
-template <class IdType, class CopySetInfoT, class CopySetConfT>
-std::string
-CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>::OperatorStepToString() {
-    return "";
-}
-
-template <class IdType, class CopySetInfoT, class CopySetConfT>
-IdType CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>::GetTargetPeer()
-    const {
-    return scan_;
-}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

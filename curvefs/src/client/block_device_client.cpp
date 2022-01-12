@@ -58,7 +58,8 @@ void BlockDeviceClientImpl::UnInit() {
 CURVEFS_ERROR BlockDeviceClientImpl::Open(const std::string& filename,
                                           const std::string& owner) {
     UserInfo userInfo(owner);
-    auto retCode = fileClient_->Open(filename, userInfo, nullptr);
+    curve::client::OpenFlags flags;
+    auto retCode = fileClient_->Open(filename, userInfo, flags);
     if (retCode < 0) {
         LOG(ERROR) << "Open file failed, filename = " << filename
                    << ", retCode = " << retCode;

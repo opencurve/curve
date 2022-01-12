@@ -59,7 +59,7 @@ class MockS3Adapter : public S3Adapter {
     MOCK_METHOD1(MultiUploadInit, Aws::String(const Aws::String &));
     MOCK_METHOD5(UploadOnePart,
             Aws::S3::Model::CompletedPart(const Aws::String &,
-            const Aws::String,
+            const Aws::String&,
             int,
             int,
             const char*));

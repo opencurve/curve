@@ -21,7 +21,9 @@
  */
 
 #include "nebd/src/common/nebd_version.h"
+
 #include "nebd/src/common/stringstatus.h"
+#include "src/common/macros.h"
 
 namespace nebd {
 namespace common {

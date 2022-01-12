@@ -40,8 +40,7 @@ class OperatorFactoryT {
     using ChangePeer = ChangePeerT<IdType, CopySetInfoT, CopySetConfT>;
     using TransferLeader = TransferLeaderT<IdType, CopySetInfoT, CopySetConfT>;
     using RemovePeer = RemovePeerT<IdType, CopySetInfoT, CopySetConfT>;
-    using StartScanPeer = StartScanPeerT<IdType, CopySetInfoT, CopySetConfT>;
-    using CancelScanPeer = CancelScanPeerT<IdType, CopySetInfoT, CopySetConfT>;
+    using ScanPeer = ScanPeerT<IdType, CopySetInfoT, CopySetConfT>;
 
  public:
     /**
@@ -60,13 +59,9 @@ class OperatorFactoryT {
     Operator CreateChangePeerOperator(const CopySetInfoT &info, IdType rmPeer,
                                       IdType addPeer, OperatorPriority pri);
 
-    Operator CreateStartScanPeerOperator(const CopySetInfoT &info,
-                                         IdType startScanPeer,
-                                         OperatorPriority pri);
-
-    Operator CreateCancelScanPeerOperator(const CopySetInfoT &info,
-                                          IdType cancelScanPeer,
-                                          OperatorPriority pri);
+    Operator CreateScanPeerOperator(const CopySetInfoT &info,
+                                    IdType startScanPeer, OperatorPriority pri,
+                                    ConfigChangeType opType);
 };
 
 // extern OperatorFactoryT<ChunkServerIdType, CopySetInfo, CopySetConf>
@@ -108,24 +103,14 @@ OperatorFactoryT<IdType, CopySetInfoT, CopySetConfT>::CreateChangePeerOperator(
 }
 
 template <class IdType, class CopySetInfoT, class CopySetConfT>
-OperatorT<IdType, CopySetInfoT, CopySetConfT> OperatorFactoryT<
-    IdType, CopySetInfoT,
-    CopySetConfT>::CreateStartScanPeerOperator(const CopySetInfoT &info,
-                                               IdType startScanPeer,
-                                               OperatorPriority pri) {
+OperatorT<IdType, CopySetInfoT, CopySetConfT>
+OperatorFactoryT<IdType, CopySetInfoT, CopySetConfT>::CreateScanPeerOperator(
+    const CopySetInfoT &info, IdType scanPeer, OperatorPriority pri,
+    ConfigChangeType opType) {
     return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<StartScanPeer>(startScanPeer));
+                    std::make_shared<ScanPeer>(scanPeer, opType));
 }
 
-template <class IdType, class CopySetInfoT, class CopySetConfT>
-OperatorT<IdType, CopySetInfoT, CopySetConfT> OperatorFactoryT<
-    IdType, CopySetInfoT,
-    CopySetConfT>::CreateCancelScanPeerOperator(const CopySetInfoT &info,
-                                                IdType cancelScanPeer,
-                                                OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<CancelScanPeer>(cancelScanPeer));
-}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

@@ -54,7 +54,7 @@ class BuildTopologyToolTest : public ::testing::Test {
     CurvefsBuildTopologyTool tool_;
 
     MockTopologyService mockTopologyService_;
-    std::string addr_ = "127.0.0.1:6700";
+    std::string addr_ = "127.0.0.1:16800";
     brpc::Server server_;
 };
 
