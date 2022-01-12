@@ -831,7 +831,7 @@ class CopySetInfo {
         return lastScanSec_;
     }
 
-    bool SetLastScanConsistent(bool lastScanConsistent) {
+    void SetLastScanConsistent(bool lastScanConsistent) {
         lastScanConsistent_ = lastScanConsistent;
     }
 

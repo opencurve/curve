@@ -36,10 +36,7 @@ using AddPeer = AddPeerT<ChunkServerIdType, CopySetInfo, CopySetConf>;
 using TransferLeader =
     TransferLeaderT<ChunkServerIdType, CopySetInfo, CopySetConf>;
 using ChangePeer = ChangePeerT<ChunkServerIdType, CopySetInfo, CopySetConf>;
-using CancelScanPeer =
-    CancelScanPeerT<ChunkServerIdType, CopySetInfo, CopySetConf>;
-using StartScanPeer =
-    StartScanPeerT<ChunkServerIdType, CopySetInfo, CopySetConf>;
+using ScanPeer = ScanPeerT<ChunkServerIdType, CopySetInfo, CopySetConf>;
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

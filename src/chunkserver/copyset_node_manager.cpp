@@ -497,7 +497,8 @@ bool CopysetNodeManager::DeleteBrokenCopyset(const LogicPoolID& poolId,
     std::string copysetsDir;
     auto trash = copysetNodeOptions_.trash;
     auto chunkDataUri = copysetNodeOptions_.chunkDataUri;
-    auto protocol = UriParser::ParseUri(chunkDataUri, &copysetsDir);
+    auto protocol =
+        curve::common::UriParser::ParseUri(chunkDataUri, &copysetsDir);
     if (protocol.empty()) {
         LOG(ERROR) << "Not support chunk data uri's protocol: " << chunkDataUri;
         return false;

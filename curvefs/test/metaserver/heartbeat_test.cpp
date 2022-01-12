@@ -92,7 +92,7 @@ TEST_F(HeartbeatTest, test1) {
     options.timeout = 1000;
     options.ip = "127.0.0.1";
     options.port = 6000;
-    options.mdsListenAddr = "127.0.0.1:6700";
+    options.mdsListenAddr = "127.0.0.1:6710";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
     options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
@@ -114,7 +114,7 @@ TEST_F(HeartbeatTest, test_ok) {
     options.timeout = 1000;
     options.ip = "127.0.0.1";
     options.port = 6000;
-    options.mdsListenAddr = "127.0.0.1:6700";
+    options.mdsListenAddr = "127.0.0.1:6710";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
     options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
@@ -122,7 +122,7 @@ TEST_F(HeartbeatTest, test_ok) {
     // send heartbeat ok
     brpc::Server server;
     MockHeartbeatService mockHeartbeatService;
-    std::string mdsServiceAddr = "127.0.0.1:6700";
+    std::string mdsServiceAddr = "127.0.0.1:6710";
     ASSERT_EQ(0, server.AddService(&mockHeartbeatService,
                                     brpc::SERVER_DOESNT_OWN_SERVICE));
     ASSERT_EQ(0, server.Start(mdsServiceAddr.c_str(), nullptr));
@@ -153,7 +153,7 @@ TEST_F(HeartbeatTest, test_fail) {
     options.timeout = 1000;
     options.ip = "127.0.0.1";
     options.port = 6000;
-    options.mdsListenAddr = "127.0.0.1:6700";
+    options.mdsListenAddr = "127.0.0.1:6710";
     options.copysetNodeManager = &CopysetNodeManager::GetInstance();
     options.storeUri = "local://./metaserver_data/copysets";
     options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
@@ -161,7 +161,7 @@ TEST_F(HeartbeatTest, test_fail) {
     // send heartbeat ok
     brpc::Server server;
     MockHeartbeatService mockHeartbeatService;
-    std::string mdsServiceAddr = "127.0.0.1:6700";
+    std::string mdsServiceAddr = "127.0.0.1:6710";
     ASSERT_EQ(0, server.AddService(&mockHeartbeatService,
                                     brpc::SERVER_DOESNT_OWN_SERVICE));
     ASSERT_EQ(0, server.Start(mdsServiceAddr.c_str(), nullptr));

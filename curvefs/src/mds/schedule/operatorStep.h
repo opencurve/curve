@@ -45,12 +45,6 @@ using TransferLeader =
 using ChangePeer =
     curve::mds::schedule::ChangePeerT<MetaServerIdType, CopySetInfo,
                                          CopySetConf>;
-using CancelScanPeer =
-    curve::mds::schedule::CancelScanPeerT<MetaServerIdType, CopySetInfo,
-                                             CopySetConf>;
-using StartScanPeer =
-    curve::mds::schedule::StartScanPeerT<MetaServerIdType, CopySetInfo,
-                                            CopySetConf>;
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

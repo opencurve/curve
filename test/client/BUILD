@@ -334,7 +334,7 @@ cc_test(
     srcs = [
         "client_mdsclient_metacache_unittest.cpp"
     ],
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     deps = [
@@ -352,7 +352,7 @@ cc_test(
     srcs = [
         "splitor_test.cpp"
     ],
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST", "FIU_ENABLE"],
     linkopts = ["-lfiu"],
     deps = [

@@ -56,7 +56,7 @@ class LeaseExecutorTest : public ::testing::Test {
  protected:
     void SetUp() override {
         MetaServerOption mdsOpt;
-        mdsOpt.mdsAddrs.push_back(kSvrAddr);
+        mdsOpt.rpcRetryOpt.addrs.push_back(kSvrAddr);
 
         userInfo_.owner = "test";
 
