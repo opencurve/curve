@@ -1627,7 +1627,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_more_chunk) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, fsCacheManager->GetDataCacheNum());
     ASSERT_EQ(2, inode.s3chunkinfomap_size());
-    auto s3InfoListIter = inode.s3chunkinfomap().begin();
+    auto s3InfoListIter = inode.s3chunkinfomap().find(0);
     S3ChunkInfo tmp;
     S3ChunkInfoList tmpList;
     ASSERT_NE(s3InfoListIter, inode.s3chunkinfomap().end());
@@ -1637,7 +1637,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_more_chunk) {
     tmp = tmpList.s3chunks(0);
     ASSERT_EQ(4 * 1024 * 1024, tmp.len());
     ASSERT_EQ(0, tmp.offset());
-    s3InfoListIter++;
+    s3InfoListIter = inode.s3chunkinfomap().find(1);
     tmpList = s3InfoListIter->second;
     tmp = tmpList.s3chunks(0);
     ASSERT_EQ(1 * 1024 * 1024, tmp.len());
