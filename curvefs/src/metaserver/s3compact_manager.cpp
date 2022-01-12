@@ -102,6 +102,7 @@ void S3CompactWorkQueueOption::Init(std::shared_ptr<Configuration> conf) {
     s3opts.s3Address = "";
     s3opts.bucketName = "";
     conf->GetValueFatalIfFail("s3.loglevel", &s3opts.loglevel);
+    conf->GetStringValue("s3.logPrefix", &s3opts.logPrefix);
     conf->GetValueFatalIfFail("s3.http_scheme", &s3opts.scheme);
     conf->GetValueFatalIfFail("s3.verify_SSL", &s3opts.verifySsl);
     conf->GetValueFatalIfFail("s3.max_connections", &s3opts.maxConnections);

@@ -86,8 +86,9 @@ class MetaServerClient {
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        bool returnInode = false,
-        Inode *out = nullptr) = 0;
+        bool returnS3ChunkInfoMap = false,
+        google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out = nullptr) = 0;
 
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
 
@@ -131,8 +132,9 @@ class MetaServerClientImpl : public MetaServerClient {
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        bool returnInode = false,
-        Inode *out = nullptr) override;
+        bool returnS3ChunkInfoMap = false,
+        google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out = nullptr) override;
 
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
 

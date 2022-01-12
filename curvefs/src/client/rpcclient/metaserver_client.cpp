@@ -482,8 +482,9 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
     const google::protobuf::Map<
         uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-    bool returnInode,
-    Inode *out) {
+    bool returnS3ChunkInfoMap,
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out) {
     auto task = RPCTask {
         metaserverClientMetric_.appendS3ChunkInfo.qps.count << 1;
 
@@ -494,7 +495,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeId);
-        request.set_returninode(returnInode);
+        request.set_returns3chunkinfomap(returnS3ChunkInfoMap);
         *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -516,12 +517,12 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
                          << ", errorcode: " << ret
                          << ", errmsg: " << MetaStatusCode_Name(ret);
             return ret;
-        } else if (response.has_appliedindex() &&
-            (!returnInode || response.has_inode())) {
+        } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
-            if (returnInode) {
-                out->CopyFrom(response.inode());
+            if (returnS3ChunkInfoMap) {
+                CHECK(out != nullptr) << "out ptr should be set.";
+                out->swap(*response.mutable_s3chunkinfomap());
             }
         } else {
             LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: " << inodeId

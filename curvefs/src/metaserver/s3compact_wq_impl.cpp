@@ -307,7 +307,7 @@ MetaStatusCode S3CompactWorkQueueImpl::UpdateInode(
     request.set_inodeid(inodeId);
     *request.mutable_s3chunkinfoadd() = std::move(s3ChunkInfoAdd);
     *request.mutable_s3chunkinforemove() = std::move(s3ChunkInfoRemove);
-    request.set_returninode(false);
+    request.set_returns3chunkinfomap(false);
     GetOrModifyS3ChunkInfoResponse response;
     S3CompactWorkQueueImpl::GetOrModifyS3ChunkInfoClosure done;
     // if copysetnode change to nullptr, maybe crash

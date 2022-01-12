@@ -83,8 +83,9 @@ class Partition {
         const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
         const google::protobuf::Map<uint64_t, S3ChunkInfoList>
             &s3ChunkInfoRemove,
-        bool returnInode,
-        Inode *out);
+        bool returnS3ChunkInfoMap,
+        google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out);
 
     MetaStatusCode InsertInode(const Inode& inode);
 

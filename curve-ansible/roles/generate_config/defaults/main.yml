@@ -250,6 +250,7 @@ s3_max_connections: 32
 s3_connect_timeout: 60000
 s3_request_timeout: 10000
 s3_loglevel: 4
+s3_logPrefix: /data/log/curve/aws_
 s3_async_thread_num: 64
 s3_throttle_iopsTotalLimit: 5000
 s3_throttle_iopsReadLimit: 5000
