@@ -71,6 +71,7 @@ Aws::String GetObjectRequestRange(uint64_t offset, uint64_t len) {
 void InitS3AdaptorOption(Configuration *conf,
     S3AdapterOption *s3Opt) {
     LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
     LOG_IF(FATAL, !conf->GetStringValue("s3.endpoint", &s3Opt->s3Address));
     LOG_IF(FATAL, !conf->GetStringValue("s3.ak", &s3Opt->ak));
     LOG_IF(FATAL, !conf->GetStringValue("s3.sk", &s3Opt->sk));
@@ -120,6 +121,8 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     auto initSDK = [&]() {
         AWS_SDK_OPTIONS.loggingOptions.logLevel =
             Aws::Utils::Logging::LogLevel(option.loglevel);
+        AWS_SDK_OPTIONS.loggingOptions.defaultLogPrefix =
+            option.logPrefix.c_str();
         Aws::InitAPI(AWS_SDK_OPTIONS);
     };
     std::call_once(S3INIT_FLAG, initSDK);

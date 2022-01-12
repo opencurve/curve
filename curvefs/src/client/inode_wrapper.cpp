@@ -94,21 +94,11 @@ CURVEFS_ERROR InodeWrapper::Sync() {
 }
 
 CURVEFS_ERROR InodeWrapper::Refresh() {
-    if (dirty_) {
-        MetaStatusCode ret = metaClient_->UpdateInode(inode_);
-
-        if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, "
-                       << "MetaStatusCode: " << ret
-                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
-                       << ", inodeid: " << inode_.inodeid();
-            return MetaStatusCodeToCurvefsErrCode(ret);
-        }
-        dirty_ = false;
-    }
-    Inode newInode;
+    google::protobuf::Map<
+                uint64_t, S3ChunkInfoList> s3ChunkInfoMap;
     MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
-        inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_, true, &newInode);
+        inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_,
+        true, &s3ChunkInfoMap);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
                    << "MetaStatusCode: " << ret
@@ -116,7 +106,7 @@ CURVEFS_ERROR InodeWrapper::Refresh() {
                    << ", inodeid: " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    inode_.Swap(&newInode);
+    inode_.mutable_s3chunkinfomap()->swap(s3ChunkInfoMap);
     s3ChunkInfoAdd_.clear();
     return CURVEFS_ERROR::OK;
 }

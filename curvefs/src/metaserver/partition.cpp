@@ -248,8 +248,9 @@ MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
     const google::protobuf::Map<uint64_t, S3ChunkInfoList>
         &s3ChunkInfoRemove,
-    bool returnInode,
-    Inode *out) {
+    bool returnS3ChunkInfoMap,
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out) {
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -259,7 +260,8 @@ MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     }
 
     return inodeManager_->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove, returnInode, out);
+        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove,
+        returnS3ChunkInfoMap, out);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {

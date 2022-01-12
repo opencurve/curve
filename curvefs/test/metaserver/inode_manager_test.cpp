@@ -169,45 +169,49 @@ TEST_F(InodeManagerTest, test1) {
         s3ChunkInfoAdd[j] = list[j];
     }
 
-    Inode inode3Out;
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> s3Out1;
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
-            true, &inode3Out));
+            true, &s3Out1));
 
-    ASSERT_EQ(10, inode3Out.s3chunkinfomap_size());
+    ASSERT_EQ(10, s3Out1.size());
     for (int j = 0; j < 10; j++) {
         ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
-                inode3Out.s3chunkinfomap().at(j)));
+                s3Out1.at(j)));
     }
 
     // Idempotent test
-    Inode inode4Out;
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> s3Out2;
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
-            true, &inode4Out));
+            true, &s3Out2));
 
-    ASSERT_EQ(10, inode4Out.s3chunkinfomap_size());
+    ASSERT_EQ(10, s3Out2.size());
     for (int j = 0; j < 10; j++) {
         ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
-                inode4Out.s3chunkinfomap().at(j)));
+                s3Out2.at(j)));
     }
 
-    Inode inode5Out;
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> s3Out3;
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
-        true, &inode5Out));
-    ASSERT_EQ(0, inode5Out.s3chunkinfomap_size());
+        true, &s3Out3));
+    ASSERT_EQ(0, s3Out3.size());
 
     // Idempotent test
-    Inode inode6Out;
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> s3Out4;
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
-            true, &inode6Out));
-    ASSERT_EQ(0, inode6Out.s3chunkinfomap_size());
+            true, &s3Out4));
+    ASSERT_EQ(0, s3Out4.size());
 }
 }  // namespace metaserver
 }  // namespace curvefs

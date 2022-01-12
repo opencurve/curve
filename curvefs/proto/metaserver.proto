@@ -313,13 +313,13 @@ message GetOrModifyS3ChunkInfoRequest {
     required uint64 inodeId = 5;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
     map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
-    required bool returnInode = 8;
+    required bool returnS3ChunkInfoMap = 8;
 }
 
 message GetOrModifyS3ChunkInfoResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
-    optional Inode inode = 3;
+    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 3;
 }
 
 service MetaServerService {

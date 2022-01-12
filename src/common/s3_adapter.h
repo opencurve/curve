@@ -71,6 +71,7 @@ struct S3AdapterOption {
     std::string s3Address;
     std::string bucketName;
     int loglevel;
+    std::string logPrefix;
     int scheme;
     bool verifySsl;
     int maxConnections;

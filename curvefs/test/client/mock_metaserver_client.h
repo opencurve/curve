@@ -80,8 +80,9 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        bool returnInode,
-        Inode *out));
+        bool returnS3ChunkInfoMap,
+        google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out));
 
     MOCK_METHOD2(CreateInode, MetaStatusCode(
             const InodeParam &param, Inode *out));

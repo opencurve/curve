@@ -277,8 +277,9 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
     const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
     const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoRemove,
-    bool returnInode,
-    Inode *out) {
+    bool returnS3ChunkInfoMap,
+    google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> *out) {
     VLOG(1) << "GetOrModifyS3ChunkInfo, fsId: " << fsId
             << ", inodeId: " << inodeId;
 
@@ -343,14 +344,13 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
             }
         }
     }
-
-    if (returnInode) {
-        out->Swap(&old);
+    if (returnS3ChunkInfoMap) {
+        out->swap(*(old.mutable_s3chunkinfomap()));
     }
 
     VLOG(1) << "GetOrModifyS3ChunkInfo success, fsId: " << fsId
-            << ", inodeId: " << inodeId
-            << ", inodesize: " << old.ByteSizeLong();
+            << ", inodeId: " << inodeId;
+
     return MetaStatusCode::OK;
 }
 
