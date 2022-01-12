@@ -3055,16 +3055,3 @@ TEST_F(TestTopologyServiceManager, test_ListUnAvailCopySets) {
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-
-
-
-
-
-
-
-
-
-
-
-
-

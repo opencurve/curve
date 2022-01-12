@@ -117,9 +117,9 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
     }
 
     // 读取chunk头部
-    char buf[FLAGS_pageSize];
-    memset(buf, 0, sizeof(buf));
-    int rc = localFS_->Read(fd, buf, 0, FLAGS_pageSize);
+    std::unique_ptr<char[]> buf(new char[FLAGS_pageSize]);
+    memset(buf.get(), 0, FLAGS_pageSize);
+    int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
     localFS_->Close(fd);
     if (rc != FLAGS_pageSize) {
         if (rc < 0) {
@@ -132,7 +132,7 @@ int CurveMetaTool::PrintChunkMeta(const std::string& chunkFileName) {
         return -1;
     }
     ChunkFileMetaPage metaPage;
-    CSErrorCode ret = metaPage.decode(buf);
+    CSErrorCode ret = metaPage.decode(buf.get());
     if (ret != CSErrorCode::Success) {
         std::cout << "Failed to decode meta page" << std::endl;
         return -1;
@@ -153,9 +153,9 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
     }
 
     // 读取快照文件头部
-    char buf[FLAGS_pageSize];
-    memset(buf, 0, sizeof(buf));
-    int rc = localFS_->Read(fd, buf, 0, FLAGS_pageSize);
+    std::unique_ptr<char[]> buf(new char[FLAGS_pageSize]);
+    memset(buf.get(), 0, FLAGS_pageSize);
+    int rc = localFS_->Read(fd, buf.get(), 0, FLAGS_pageSize);
     localFS_->Close(fd);
     if (rc != FLAGS_pageSize) {
         if (rc < 0) {
@@ -168,7 +168,7 @@ int CurveMetaTool::PrintSnapshotMeta(const std::string& snapFileName) {
         return -1;
     }
     SnapshotMetaPage metaPage;
-    CSErrorCode ret = metaPage.decode(buf);
+    CSErrorCode ret = metaPage.decode(buf.get());
     if (ret != CSErrorCode::Success) {
         std::cout << "Failed to decode meta page" << std::endl;
         return -1;

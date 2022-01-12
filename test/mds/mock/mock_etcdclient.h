@@ -29,12 +29,14 @@
 #include <string>
 #include <utility>
 #include "src/kvstorageclient/etcd_client.h"
-#include "src/mds/nameserver2/namespace_storage_cache.h"
+#include "src/common/lru_cache.h"
 
 namespace curve {
 namespace mds {
 
 using ::curve::kvstorage::EtcdClientImp;
+using Cache =
+    ::curve::common::LRUCacheInterface<std::string, std::string>;
 
 class MockEtcdClient : public EtcdClientImp {
  public:
@@ -63,10 +65,13 @@ class MockEtcdClient : public EtcdClientImp {
     MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
 };
 
-class MockLRUCache : public LRUCache {
+class MockLRUCache : public Cache {
  public:
     virtual ~MockLRUCache() {}
-    MOCK_METHOD2(Put, void(const std::string&, const std::string&));
+    MOCK_METHOD2(Put, void(
+        const std::string&, const std::string&));
+    MOCK_METHOD3(Put, bool(
+        const std::string&, const std::string&, std::string*));
     MOCK_METHOD2(Get, bool(const std::string&, std::string*));
     MOCK_METHOD1(Remove, void(const std::string&));
 };

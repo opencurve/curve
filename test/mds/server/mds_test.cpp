@@ -180,8 +180,8 @@ TEST_F(MDSTest, common) {
     diskState->set_errtype(0);
     diskState->set_errmsg("");
     request1.set_allocated_diskstate(diskState);
-    request1.set_diskcapacity(2 * 1024 * 1024 * 1024);
-    request1.set_diskused(1 * 1024 * 1024 * 1024);
+    request1.set_diskcapacity(2ull * 1024 * 1024 * 1024);
+    request1.set_diskused(1ull * 1024 * 1024 * 1024);
     request1.set_leadercount(10);
     request1.set_copysetcount(10);
 

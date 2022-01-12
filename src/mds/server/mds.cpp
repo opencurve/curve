@@ -24,12 +24,17 @@
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
+#include "src/common/lru_cache.h"
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
 
 namespace curve {
 namespace mds {
+
+using LRUCache = ::curve::common::LRUCache<std::string, std::string>;
+using CacheMetrics = ::curve::common::CacheMetrics;
+
 MDS::~MDS() {
     if (etcdEndpoints_) {
         delete etcdEndpoints_;
@@ -388,7 +393,9 @@ void MDS::InitTopologyChunkAllocator(const TopologyOption& option) {
 
 void MDS::InitNameServerStorage(int mdsCacheCount) {
     // init LRUCache
-    auto cache = std::make_shared<LRUCache>(mdsCacheCount);
+
+    auto cache = std::make_shared<LRUCache>(mdsCacheCount,
+        std::make_shared<CacheMetrics>("mds_nameserver_cache_metric"));
     LOG(INFO) << "init LRUCache success.";
 
     // init NameServerStorage

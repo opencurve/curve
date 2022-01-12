@@ -27,6 +27,7 @@
 #include <gmock/gmock.h>
 #include <string>
 #include <memory>
+#include <list>
 #include "src/common/s3_adapter.h"
 
 using ::testing::Return;
@@ -54,6 +55,7 @@ class MockS3Adapter : public S3Adapter {
                                 size_t));
     MOCK_METHOD1(GetObjectAsync, void(std::shared_ptr<GetObjectAsyncContext>));
     MOCK_METHOD1(DeleteObject, int(const Aws::String &));
+    MOCK_METHOD1(DeleteObjects, int(const std::list<Aws::String>& keyList));
     MOCK_METHOD1(ObjectExist, bool(const Aws::String &));
 /*
     MOCK_METHOD2(UpdateObjectMeta, int(const Aws::String &,

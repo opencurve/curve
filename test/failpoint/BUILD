@@ -14,10 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "failpoint_test",
     srcs = glob(["*.cpp", "*.h"]),
-    copts = ["-g","-DHAVE_ZLIB=1", "-DFIU_ENABLE=1", "-DFIU_TRACE=1"],
+    copts = CURVE_TEST_COPTS + [
+        "-DFIU_ENABLE",
+    ],
     deps = [
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",

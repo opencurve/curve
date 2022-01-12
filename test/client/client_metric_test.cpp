@@ -64,9 +64,9 @@ const std::vector<std::string> clientConf {
 
 TEST(MetricTest, ChunkServer_MetricTest) {
     MetaServerOption  metaopt;
-    metaopt.mdsAddrs.push_back(mdsMetaServerAddr);
-    metaopt.mdsRPCTimeoutMs = 500;
-    metaopt.mdsRPCRetryIntervalUS = 200;
+    metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
+    metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
+    metaopt.rpcRetryOpt.rpcRetryIntervalUS = 200;
 
     std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
     ASSERT_EQ(0, mdsclient->Initialize(metaopt));
@@ -181,9 +181,9 @@ void cb(CurveAioContext* ctx) {
 
 TEST(MetricTest, SuspendRPC_MetricTest) {
     MetaServerOption  metaopt;
-    metaopt.mdsAddrs.push_back(mdsMetaServerAddr);
-    metaopt.mdsRPCTimeoutMs = 500;
-    metaopt.mdsRPCRetryIntervalUS = 200;
+    metaopt.rpcRetryOpt.addrs.push_back(mdsMetaServerAddr);
+    metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
+    metaopt.rpcRetryOpt.rpcRetryIntervalUS = 200;
 
     std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
     ASSERT_EQ(0, mdsclient->Initialize(metaopt));

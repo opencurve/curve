@@ -55,11 +55,6 @@ using CandidateError    = curve::mds::heartbeat::CandidateError;
 using TaskStatus        = butil::Status;
 using CopysetNodePtr    = std::shared_ptr<CopysetNode>;
 
-static uint64_t GetAtomicUint64(void* arg) {
-    std::atomic<uint64_t>* v = (std::atomic<uint64_t> *)arg;
-    return v->load(std::memory_order_acquire);
-}
-
 /**
  * 心跳子系统选项
  */

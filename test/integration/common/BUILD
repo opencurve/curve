@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_library(
     name = "integration-test-common",
     srcs = glob([
@@ -23,7 +25,7 @@ cc_library(
         "chunkservice_op.h",
         "chunkservice_op.cpp",
     ]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",

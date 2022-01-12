@@ -14,14 +14,13 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "common-test",
     srcs = glob([
         "*.cpp",
     ]),
-    linkopts = [
-        "-luuid"
-    ],
     deps = [
         "//src/common:curve_common",
         "//src/common:curve_auth",
@@ -31,6 +30,7 @@ cc_test(
         "//src/common/concurrent:curve_dlock",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = CURVE_TEST_COPTS,
 )
 
 cc_library(
@@ -38,12 +38,10 @@ cc_library(
     srcs = [
             "mock_s3_adapter.h",
             ],
-    linkopts = [
-        "-luuid"
-    ],
     deps = [
             "//src/common:curve_common",
             "//src/common:curve_s3_adapter",
             ],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )

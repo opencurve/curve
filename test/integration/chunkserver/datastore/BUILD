@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 DEPS = [
     "@com_google_googletest//:gtest",
     "//external:braft",
@@ -33,7 +35,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )
 
@@ -45,7 +47,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )
 
@@ -57,7 +59,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )
 
@@ -69,7 +71,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )
 
@@ -81,7 +83,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )
 
@@ -93,7 +95,7 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )
 
@@ -105,6 +107,6 @@ cc_test(
         "datastore_integration_main.cpp",
     ]),
     includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = DEPS,
 )

@@ -24,21 +24,6 @@
 
 namespace curve {
 namespace mds {
-void NameserverCacheMetrics::UpdateAddToCacheCount() {
-    cacheCount << 1;
-}
-
-void NameserverCacheMetrics::UpdateRemoveFromCacheCount() {
-    cacheCount << -1;
-}
-
-void NameserverCacheMetrics::UpdateAddToCacheBytes(uint64_t size) {
-    cacheBytes << size;
-}
-
-void NameserverCacheMetrics::UpdateRemoveFromCacheBytes(uint64_t size) {
-    cacheBytes << (0 - size);
-}
 
 void SegmentDiscardMetric::OnReceiveDiscardRequest(int64_t size) {
     pendingSegments_ << 1;

@@ -1,0 +1,43 @@
+# client
+# ├── conf
+# │   └── client.conf
+# ├── logs
+# │   └── client.pid
+# ├── sbin
+# │   ├── servicectl
+# │   └── curvefs-client
+# └── lib
+#     └── client_lib.so
+
+project_name: "client"
+project_home: "{{ curvefs_project_home }}"
+project_root_src: "{{ playbook_dir }}/projects/client"
+project_root_dest: "{{ project_home }}/client"
+project_log_root: "{{ curvefs_project_log_home }}/client"
+project_config_src: "{{ playbook_dir | dirname }}/conf"
+project_config_dsv: "="
+project_core_method: "{{ curvefs_core_method }}"
+project_binary_debug_symbol_suffix: "{{ curvefs_debug_symbol_file_suffix }}"
+
+# FIXME: static link jemalloc or use a better way to preload it
+#   uses find to find libjemalloc.so, because different distributions have different libraries
+#   e.g.:
+#     Debian 9 only has libjemalloc1 which includes `/usr/lib/x86_64-linux-gnu/libjemalloc.so.1`
+#     Debian 10 only has libjemalloc2 which includes `/usr/lib/x86_64-linux-gnu/libjemalloc.so.2`
+#     And both of them don't include a symbolic link like `libjemalloc.so` that points to the real shared library
+#     The same thing happened in CentOS 7 and CentOS 8
+project_mount_command: >
+  LD_PRELOAD=`find /usr/ -name "libjemalloc.so*" -print -quit 2>/dev/null`
+  {{ project_root_dest }}/sbin/curve-fuse
+  {{ curvefs_client_mount_args | trim }}
+  -o conf={{ project_root_dest }}/conf/client.conf
+  {{ curvefs_client_mount_path }}
+  &
+
+project_templates:
+  - client.conf
+
+project_directorys:
+  - "{{ project_root_dest }}"
+  - "{{ project_log_root }}"
+  - "{{ curvefs_client_mount_path }}"

@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "kvstorage_client_test",
     srcs = glob(["*.cpp"]),
@@ -25,4 +27,5 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],
+    copts = CURVE_TEST_COPTS,
 )

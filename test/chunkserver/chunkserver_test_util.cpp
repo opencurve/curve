@@ -40,10 +40,11 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "test/chunkserver/fake_datastore.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 
 using ::curve::chunkserver::concurrent::ConcurrentApplyOption;
+using ::curve::common::UriParser;
 
 namespace curve {
 namespace chunkserver {
@@ -203,6 +204,8 @@ int StartChunkserver(const char *ip,
 
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
     copysetNodeOptions.concurrentapply->Stop();
+
+    return 0;
 }
 
 butil::Status WaitLeader(const LogicPoolID &logicPoolId,

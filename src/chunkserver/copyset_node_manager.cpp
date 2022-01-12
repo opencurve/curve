@@ -37,7 +37,7 @@
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_file_service.h"
 
 
@@ -109,8 +109,8 @@ int CopysetNodeManager::Fini() {
 }
 
 int CopysetNodeManager::ReloadCopysets() {
-    std::string datadir =
-        UriParser::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
+    std::string datadir = curve::common::UriParser::GetPathFromUri(
+        copysetNodeOptions_.chunkDataUri);
     if (!copysetNodeOptions_.localFileSystem->DirExists(datadir)) {
         LOG(INFO) << datadir << " not exist. copysets was never created";
         return 0;
@@ -374,6 +374,7 @@ int CopysetNodeManager::AddService(brpc::Server *server,
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = copysetNodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
+    chunkServiceOptions.cloneManager = nullptr;
 
     do {
         if (nullptr == server) {

@@ -1,0 +1,15 @@
+---
+- hosts: "{{ hosts }}"
+  roles:
+    - { role: common }
+  vars_files:
+    - vars/main.yml
+    - vars/tools.yml
+
+  tasks:
+    - name: create topology
+      shell: >
+        {{ project_root_dest }}/sbin/curvefs_tool
+        create-topology
+        -confPath={{ project_root_dest }}/conf/tools.conf
+      tags: [topo]

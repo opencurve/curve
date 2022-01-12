@@ -97,6 +97,7 @@ class CountDownEvent {
             if (leftMs > 0) {
                 auto ret = cond_.wait_for(guard,
                                           std::chrono::milliseconds(leftMs));
+                (void)ret;
             } else {
                 break;
             }

@@ -30,12 +30,12 @@
 #include "src/mds/common/mds_define.h"
 #include "src/mds/schedule/topoAdapter.h"
 
-using ::curve::mds::topology::ChunkServerIdType;
-using ::curve::mds::topology::UNINTIALIZE_ID;
-
 namespace curve {
 namespace mds {
 namespace schedule {
+using ::curve::mds::topology::ChunkServerIdType;
+using ::curve::mds::topology::UNINTIALIZE_ID;
+
 class SchedulerHelper {
  public:
     /**

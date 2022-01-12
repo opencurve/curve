@@ -403,7 +403,6 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
     ASSERT_EQ(1, gLogicalPoolMetrics.size());
 }
 
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
