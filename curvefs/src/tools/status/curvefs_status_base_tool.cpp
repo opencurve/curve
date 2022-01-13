@@ -125,7 +125,7 @@ int StatusBaseTool::ProcessMetrics() {
     if (show_) {
         std::cout << "standby " << hostType_ << ": [ ";
         for (auto const& i : standbyHost_) {
-            std::cerr << i << " ";
+            std::cout << i << " ";
         }
         std::cout << "]." << std::endl;
     }
