@@ -137,7 +137,7 @@ The smallest CURVE cluster topology:
 4. If you need to use the snapshot clone features, you need a s3 acount, or use [netease objetct storage](https://www.163yun.com/product/nos)
 
    ```
-   1. In server.ini，fill in the s3_nos_address，s3_snapshot_bucket_name，s3_ak and s3_sk。
+   1. In server.ini，fill in the s3_endpoint，s3_bucket_name，s3_ak and s3_sk。
    2. Install the snapshotclone service 
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone
       ansible-playbook -i server.ini deploy_curve.yml --tags snapshotclone_nginx
@@ -444,8 +444,8 @@ The following steps only need to be executed on the central control machine：
    deploy_dir="${HOME}"
    s3_ak=""                                            // If you need a snapshot clone service, modify it to the value corresponding to your s3 account
    s3_sk=""                                            // If you need a snapshot clone service, modify it to the value corresponding to your s3 account
-   s3_nos_address=""                                   // If you need a snapshot clone service，modify it to the address of the s3 service
-   s3_snapshot_bucket_name=""                          // If you need a snapshot clone service, modify it to your own bucket name on s3
+   s3_endpoint=""                                   // If you need a snapshot clone service，modify it to the address of the s3 service
+   s3_bucket_name=""                          // If you need a snapshot clone service, modify it to your own bucket name on s3
    ansible_ssh_port=22
    curve_root_username=root
    curve_root_password=root_password                  // need change
@@ -578,7 +578,7 @@ The following steps only need to be executed on the central control machine：
 
 5. If you need to use the snapshot clone features, you need a s3 acount, or use [netease objetct storage](https://www.163yun.com/product/nos)
 
-   1. In server.ini，fill in the s3_nos_address，s3_snapshot_bucket_name，s3_ak and s3_sk,
+   1. In server.ini，fill in the s3_endpoint，s3_bucket_name，s3_ak and s3_sk,
  disable_snapshot_clone=False
    2. Install the snapshotclone service
    ```

@@ -185,8 +185,8 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_GT(pid, 0);
     // 初始化mdsclient
     curve::client::MetaServerOption op;
-    op.mdsRPCTimeoutMs = 4000;
-    op.mdsAddrs = std::vector<std::string>{ "127.0.0.1:3333" };
+    op.rpcRetryOpt.rpcTimeoutMs = 4000;
+    op.rpcRetryOpt.addrs = std::vector<std::string>{ "127.0.0.1:3333" };
     ASSERT_EQ(0, curveCluster_->InitMdsClient(op));
 
     // 创建物理池

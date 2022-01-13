@@ -8,7 +8,6 @@ from lib import shell_operator
 import threading
 import random
 import time
-import mythread
 
 def add_config():
     etcd = []
@@ -297,6 +296,33 @@ def destroy_test_env():
         logger.error("init env fail.")
         raise
 
+def change_cfg():
+    try:
+        cmd = "bash %s/change_cfg.sh"%config.fs_cfg_path
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"change fs cfg fail"
+    except Exception:
+        logger.error("change fs cfg fail.")
+        raise
+
+def destroy_curvefs():
+    try:
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        cmd = "/home/nbs/.curveadm/bin/curveadm cluster checkout citest"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"checkout fail"
+        for mountpoint in config.fs_mount_dir:
+            cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+            shell_operator.ssh_exec(ssh, cmd)
+        cmd = "/home/nbs/.curveadm/bin/curveadm stop"
+        ret = shell_operator.run_exec(cmd)
+        cmd = "echo 'y' | /home/nbs/.curveadm/bin/curveadm clean"
+        ret = shell_operator.run_exec(cmd)
+    except Exception:
+        logger.error("destroy curvefs fail.")
+        raise
+
 def use_ansible_deploy():
     try:
         cmd = "cp robot/ansible_deploy.sh . && bash ansible_deploy.sh"
@@ -309,6 +335,67 @@ def use_ansible_deploy():
         assert ret == 0 ,"cp client.conf fail"
     except Exception:
         logger.error("deploy curve fail.")
+        raise
+
+def deploy_all_servers():
+    try:
+        cmd = "/home/nbs/.curveadm/bin/curveadm cluster checkout citest"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"checkout fail"
+        cmd = "/home/nbs/.curveadm/bin/curveadm deploy"
+        ret = shell_operator.run_exec(cmd)
+        assert ret == 0 ,"deploy  mds\etcd\metaserver fail" 
+    except Exception:
+        logger.error("deploy curvefs fail.")
+        raise
+
+def remk_test_dir(): 
+    try:
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        for test_dir in config.fs_mount_dir:
+            ori_cmd = "rm -rf %s/%s"%(config.fs_mount_path,test_dir)
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0,"rm test dir %s fail,error is %s"%(test_dir,rs[1])
+            ori_cmd = "mkdir %s/%s"%(config.fs_mount_path,test_dir)
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            assert rs[3] == 0,"mkdir  %s fail,error is %s"%(test_dir,rs[1])
+    except Exception:
+        logger.error(" remk test dir fail.")
+        raise
+
+def mount_test_dir(mountpoint=""): 
+    try:
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        if mountpoint == "":
+            for mountpoint in config.fs_mount_dir:
+                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
+                rs = shell_operator.ssh_exec(ssh, cmd)
+                assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
+        else:
+            cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
+            rs = shell_operator.ssh_exec(ssh, cmd)
+            assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
+    except Exception:
+        logger.error("mount dir fail.")
+        raise
+
+def umount_test_dir(mountpoint=""):
+    try:
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        if mountpoint == "":
+            for mountpoint in config.fs_mount_dir:
+                cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+                rs = shell_operator.ssh_exec(ssh, cmd)
+                assert rs[3] == 0,"umount %s dir fail,error is %s"%(mountpoint,rs[2])
+        else:
+            cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+            rs = shell_operator.ssh_exec(ssh, cmd)
+            assert rs[3] == 0,"umount %s dir fail,error is %s"%(mountpoint,rs[2])
+    except Exception:
+        logger.error("umount dir fail.")
         raise
 
 def install_deb():

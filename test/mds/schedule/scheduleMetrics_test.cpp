@@ -25,6 +25,7 @@
 #include <json2pb/json_to_pb.h>
 #include "src/mds/schedule/scheduleMetrics.h"
 #include "src/mds/schedule/operatorController.h"
+#include "src/mds/schedule/operator.h"
 #include "test/mds/mock/mock_topology.h"
 
 using ::curve::mds::topology::MockTopology;
@@ -82,18 +83,15 @@ TEST_F(ScheduleMetricsTest, test_add_rm_addOp) {
         // 1. 增加normal级别/add类型的operator
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 1}, _))
             .WillOnce(DoAll(SetArgPointee<1>(addCsInfo), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(3, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(3)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(3, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(3)), Return(true)));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(1))
+            .WillOnce(Return(GetServer(1).GetHostName() + ":" +
+               std::to_string(GetChunkServer(1).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(2))
+            .WillOnce(Return(GetServer(2).GetHostName() + ":" +
+               std::to_string(GetChunkServer(2).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(3))
+            .WillOnce(Return(GetServer(3).GetHostName() + ":" +
+               std::to_string(GetChunkServer(3).GetPort())));
 
         scheduleMetrics->UpdateAddMetric(addOp);
         ASSERT_EQ(1, scheduleMetrics->operatorNum.get_value());
@@ -165,22 +163,16 @@ TEST_F(ScheduleMetricsTest, test_add_rm_rmOp) {
         // 1. 增加high级别/remove类型的operator
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 2}, _))
             .WillOnce(DoAll(SetArgPointee<1>(rmCsInfo), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(3, _))
+        EXPECT_CALL(*topo, GetHostNameAndPortById(1))
+            .WillOnce(Return(GetServer(1).GetHostName() + ":" +
+               std::to_string(GetChunkServer(1).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(2))
+            .WillOnce(Return(GetServer(2).GetHostName() + ":" +
+               std::to_string(GetChunkServer(2).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(3))
             .Times(2)
-            .WillRepeatedly(DoAll(SetArgPointee<1>(GetChunkServer(3)),
-                            Return(true)));
-        EXPECT_CALL(*topo, GetServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(3, _))
-            .Times(2)
-            .WillRepeatedly(DoAll(SetArgPointee<1>(GetServer(3)),
-                                  Return(true)));
+            .WillRepeatedly(Return(GetServer(3).GetHostName() + ":" +
+               std::to_string(GetChunkServer(3).GetPort())));
 
         scheduleMetrics->UpdateAddMetric(rmOp);
         ASSERT_EQ(1, scheduleMetrics->operatorNum.get_value());
@@ -254,22 +246,16 @@ TEST_F(ScheduleMetricsTest, test_add_rm_transferOp) {
         // 1. 增加normal级别/transferleader类型的operator
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 3}, _))
             .WillOnce(DoAll(SetArgPointee<1>(transCsInfo), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(3, _))
+        EXPECT_CALL(*topo, GetHostNameAndPortById(1))
+            .WillOnce(Return(GetServer(1).GetHostName() + ":" +
+               std::to_string(GetChunkServer(1).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(2))
+            .WillOnce(Return(GetServer(2).GetHostName() + ":" +
+               std::to_string(GetChunkServer(2).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(3))
             .Times(2)
-            .WillRepeatedly(DoAll(SetArgPointee<1>(GetChunkServer(3)),
-                            Return(true)));
-        EXPECT_CALL(*topo, GetServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(3, _))
-            .Times(2)
-            .WillRepeatedly(DoAll(SetArgPointee<1>(GetServer(3)),
-                                  Return(true)));
+            .WillRepeatedly(Return(GetServer(3).GetHostName() + ":" +
+               std::to_string(GetChunkServer(3).GetPort())));
 
         scheduleMetrics->UpdateAddMetric(transferOp);
         ASSERT_EQ(1, scheduleMetrics->operatorNum.get_value());
@@ -344,22 +330,18 @@ TEST_F(ScheduleMetricsTest, test_add_rm_changeOp) {
         // 1. 增加normal级别/changePeer类型的operator
         EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 4}, _))
             .WillOnce(DoAll(SetArgPointee<1>(changeCsInfo), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(3, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(3)), Return(true)));
-        EXPECT_CALL(*topo, GetChunkServer(4, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(4)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(1)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(2)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(3, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(3)), Return(true)));
-        EXPECT_CALL(*topo, GetServer(4, _))
-            .WillOnce(DoAll(SetArgPointee<1>(GetServer(4)), Return(true)));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(1))
+            .WillOnce(Return(GetServer(1).GetHostName() + ":" +
+               std::to_string(GetChunkServer(1).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(2))
+            .WillOnce(Return(GetServer(2).GetHostName() + ":" +
+               std::to_string(GetChunkServer(2).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(3))
+            .WillOnce(Return(GetServer(3).GetHostName() + ":" +
+               std::to_string(GetChunkServer(3).GetPort())));
+        EXPECT_CALL(*topo, GetHostNameAndPortById(4))
+            .WillOnce(Return(GetServer(4).GetHostName() + ":" +
+               std::to_string(GetChunkServer(4).GetPort())));
 
         scheduleMetrics->UpdateAddMetric(changeOp);
         ASSERT_EQ(1, scheduleMetrics->operatorNum.get_value());
@@ -447,19 +429,15 @@ TEST_F(ScheduleMetricsTest, test_abnormal) {
     // 获取chunkserver 或者 server失败
     EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 3}, _))
             .WillOnce(DoAll(SetArgPointee<1>(transCsInfo), Return(true)));
-    EXPECT_CALL(*topo, GetChunkServer(1, _)).WillOnce(Return(false));
-    EXPECT_CALL(*topo, GetChunkServer(2, _))
-        .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(2)), Return(true)));
-    EXPECT_CALL(*topo, GetChunkServer(3, _))
+    EXPECT_CALL(*topo, GetHostNameAndPortById(1))
+        .WillOnce(Return(""));
+    EXPECT_CALL(*topo, GetHostNameAndPortById(2))
+        .WillOnce(Return(""));
+    EXPECT_CALL(*topo, GetHostNameAndPortById(3))
         .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(GetChunkServer(3)),
-                        Return(true)));
-    EXPECT_CALL(*topo, GetServer(2, _))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*topo, GetServer(3, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(GetServer(3)),
-                              Return(true)));
+        .WillRepeatedly(Return(GetServer(3).GetHostName() + ":" +
+            std::to_string(GetChunkServer(3).GetPort())));
+
     scheduleMetrics->UpdateAddMetric(transferOp);
     std::string res =
             std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"3\",") +

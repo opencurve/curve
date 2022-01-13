@@ -1,0 +1,11 @@
+---
+  - name: stop {{ project_name }} service
+    shell: "{{ project_root_dest }}/sbin/servicectl stop"
+
+  - name: wait until {{ project_name }} service is down
+    wait_for:
+      host: "{{ ansible_ssh_host }}"
+      port: "{{ project_listen_port }}"
+      state: stopped
+      timeout: "{{ project_wait_service_timeout }}"
+    when: project_listen_port is defined

@@ -37,11 +37,14 @@
 #include "src/common/configuration.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/cli.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "test/client/fake/fakeMDS.h"
 
 namespace curve {
 namespace chunkserver {
+
+using ::curve::common::UriParser;
+
 class HeartbeatTestCommon {
  public:
     explicit HeartbeatTestCommon(const std::string &filename) {

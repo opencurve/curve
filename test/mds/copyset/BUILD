@@ -14,16 +14,11 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS"
-    )
-
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
         name = "copyset_utest",
         srcs = glob(["*.cpp", "*.h"]),
         deps = ["//external:gtest", "//src/mds/copyset:copyset"],
-        copts = GCC_TEST_FLAGS
+        copts = CURVE_TEST_COPTS,
         )

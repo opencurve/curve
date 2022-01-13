@@ -14,10 +14,12 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "helper_test",
     srcs = glob(["*.cpp", "*.h"]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//src/mds/nameserver2:nameserver2",
             "@com_google_googletest//:gtest_main",

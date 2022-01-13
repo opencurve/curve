@@ -1,0 +1,96 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax="proto2";
+import "curvefs/proto/common.proto";
+package curvefs.metaserver.copyset;
+option cc_generic_services = true;
+
+message ConfEpoch {
+    required uint32 poolId      = 1;
+    required uint32 copysetId   = 2;
+    required uint64 epoch       = 3;
+    required uint32 checksum    = 4;
+}
+
+enum COPYSET_OP_STATUS {
+    COPYSET_OP_STATUS_SUCCESS            = 0;
+    COPYSET_OP_STATUS_EXIST              = 1;
+    COPYSET_OP_STATUS_COPYSET_NOTEXIST   = 2;
+    COPYSET_OP_STATUS_FAILURE_UNKNOWN    = 3;
+    COPYSET_OP_STATUS_COPYSET_IS_HEALTHY = 4;
+    COPYSET_OP_STATUS_PARSE_PEER_ERROR   = 5;
+    COPYSET_OP_STATUS_PEER_MISMATCH      = 6;
+};
+
+message CreateCopysetRequest {
+    message Copyset {
+        required uint32 poolId = 1;
+        required uint32 copysetId = 2;
+        repeated common.Peer peers = 3;
+    }
+
+    repeated Copyset copysets = 1;
+}
+
+message CreateCopysetResponse {
+    required COPYSET_OP_STATUS status = 1;
+}
+
+message CopysetStatusRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    optional common.Peer peer = 3;
+    optional bool queryHash = 4;
+};
+
+message CopysetStatus {
+    required uint32 state = 1;
+    required common.Peer peer = 2;
+    required common.Peer leader = 3;
+    required bool readonly = 4;
+    required int64 term = 5;
+    required int64 committedIndex = 6;
+    required int64 knownAppliedIndex = 7;
+    required int64 pendingIndex = 8;
+    required int64 pendingQueueSize = 9;
+    required int64 applyingIndex = 10;
+    required int64 firstIndex = 11;
+    required int64 lastIndex = 12;
+    required int64 diskIndex = 13;
+    required uint64 epoch = 14;
+    optional string hash = 15;
+}
+
+message CopysetStatusResponse {
+    required COPYSET_OP_STATUS status = 1;
+    optional CopysetStatus copysetStatus = 2;
+};
+
+message CopysetsStatusRequest {
+    repeated CopysetStatusRequest copysets = 1;
+}
+
+message CopysetsStatusResponse {
+    repeated CopysetStatusResponse status = 1;
+}
+
+service CopysetService {
+    rpc CreateCopysetNode(CreateCopysetRequest) returns (CreateCopysetResponse);
+    // TODO(chengyi): rm GetCopysetStatus
+    rpc GetCopysetStatus(CopysetStatusRequest) returns (CopysetStatusResponse);
+    rpc GetCopysetsStatus(CopysetsStatusRequest) returns (CopysetsStatusResponse);
+}

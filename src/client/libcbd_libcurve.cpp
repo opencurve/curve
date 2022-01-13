@@ -27,7 +27,7 @@
 
 extern "C" {
 
-CurveOptions g_cbd_libcurve_options = {0};
+CurveOptions g_cbd_libcurve_options = {false, 0};
 
 int cbd_libcurve_init(const CurveOptions* options) {
     int ret;

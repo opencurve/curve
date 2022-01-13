@@ -21,7 +21,9 @@
  */
 
 #include "nebd/src/common/nebd_version.h"
+
 #include "nebd/src/common/stringstatus.h"
+#include "src/common/macros.h"
 
 namespace nebd {
 namespace common {
@@ -30,9 +32,7 @@ namespace common {
 std::string NebdVersion() {
     static const std::string version =
 #ifdef CURVEVERSION
-#  define STR(val) #val
-#  define XSTR(val) STR(val)
-        std::string(XSTR(CURVEVERSION));
+        std::string(STRINGIFY(CURVEVERSION));
 #else
         std::string("unknown");
 #endif

@@ -242,6 +242,8 @@ int RequestSender::CreateCloneChunk(const ChunkIDInfo& idinfo,
 
     ChunkService_Stub stub(&channel_);
     stub.CreateCloneChunk(cntl, &request, response, doneGuard.release());
+
+    return 0;
 }
 
 int RequestSender::RecoverChunk(const ChunkIDInfo& idinfo,
@@ -265,6 +267,8 @@ int RequestSender::RecoverChunk(const ChunkIDInfo& idinfo,
 
     ChunkService_Stub stub(&channel_);
     stub.RecoverChunk(cntl, &request, response, doneGuard.release());
+
+    return 0;
 }
 
 int RequestSender::ResetSender(ChunkServerID chunkServerId,

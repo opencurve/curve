@@ -14,24 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_library(
     name="client_mock_lib",
@@ -41,6 +24,6 @@ cc_library(
     deps=[
         "//src/client:curve_client",
     ],
-    copts=COPTS,
+    copts=CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
 )

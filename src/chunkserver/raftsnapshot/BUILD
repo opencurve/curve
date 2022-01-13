@@ -14,23 +14,7 @@
 #  limitations under the License.
 #
 
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers",
-    "-std=c++11",
-]
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "chunkserver-raft-snapshot",
@@ -40,7 +24,9 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = COPTS,
+    copts = CURVE_DEFAULT_COPTS + [
+        "-Wno-format-security",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",

@@ -14,24 +14,7 @@
 #  limitations under the License.
 #
 
-# https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
-COPTS = [
-    "-DGFLAGS=gflags",
-    "-DOS_LINUX",
-    "-DSNAPPY",
-    "-DHAVE_SSE42",
-    "-DNDEBUG",
-    "-fno-omit-frame-pointer",
-    "-momit-leaf-frame-pointer",
-    "-msse4.2",
-    "-pthread",
-    "-Wsign-compare",
-    "-Wno-unused-parameter",
-    "-Wno-unused-variable",
-    "-Woverloaded-virtual",
-    "-Wnon-virtual-dtor",
-    "-Wno-missing-field-initializers"
-]
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "client_integration_test_mds",
@@ -39,7 +22,7 @@ cc_test(
         "*.h",
         "mds_exception_test.cpp"],
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
     ],
@@ -70,7 +53,7 @@ cc_test(
         "chunkserver_exception_test.cpp"
         ],
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
     ],
@@ -100,7 +83,7 @@ cc_test(
         "unstable_chunkserver_exception_test.cpp"
         ],
     ),
-    copts = COPTS,
+    copts = CURVE_TEST_COPTS,
     defines = ["FIU_ENABLE"],
     linkopts = ["-lfiu",
     ],

@@ -1,0 +1,73 @@
+# Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
+
+###################### TOC #######################
+# * _GLOBAL_
+# * CONFIG
+#   * _CONFIG_CLIENT_
+#   * _CONFIG_ETCD_
+#   * _CONFIG_MDS_
+#   * _CONFIG_METASERVER_
+#   * _CONFIG_SPACE_
+#   * _CONFIG_TOOLS_
+##################################################
+
+################################################## _GLOBAL_
+curvefs_project_home: "/home/nbs/machine/{{ inventory_hostname }}/curvefs"
+curvefs_project_log_home: "/tmp/{{ inventory_hostname }}/curvefs"
+curvefs_wait_service_timeout: 20
+curvefs_debug_symbol_file_suffix: ".dbg-sym"
+curvefs_core_method: "sync_direct"  # (sync_direct|sync_tarball|download_sync|deb|rpm)
+curvefs_client_mount_path: "{{ client_mount_path }}"
+curvefs_client_mount_args: >
+  -o default_permissions
+  -o allow_other
+  -o fsname={{ client_mount_fsname }}
+  -o fstype=s3
+  -o user=test
+  -f
+
+################################################## _CONFIG_CLIENT_
+
+################################################## _CONFIG_ETCD_
+curvefs_etcd_listen_peer_host: "{{ ansible_ssh_host }}"
+curvefs_etcd_listen_peer_port: "{{ etcd_listen_peer_port }}"
+curvefs_etcd_listen_client_port: "{{ etcd_listen_client_port }}"
+curvefs_etcd_data_dir: /tmp/{{ inventory_hostname }}/etcd_data
+curvefs_etcd_wal_dir: /tmp/{{ inventory_hostname }}/etcd_wal
+
+################################################## _CONFIG_MDS_
+curvefs_mds_listen_host: "{{ ansible_ssh_host }}"
+curvefs_mds_listen_port: "{{ mds_listen_port }}"
+curvefs_mds_listen_dummy_port: "{{ mds_listen_dummy_port }}"
+
+################################################## _CONFIG_METASERVER_
+curvefs_metaserver_listen_host: "{{ ansible_ssh_host }}"
+curvefs_metaserver_listen_port: "{{ metaserver_listen_port }}"
+curvefs_metaserver_data_root: /tmp/{{ inventory_hostname }}/metaserver_data
+
+################################################## _CONFIG_SPACE_
+curvefs_space_listen_host: "{{ ansible_ssh_host }}"
+curvefs_space_listen_port: "{{ space_listen_port }}"
+
+################################################## _CONFIG_TOOLS_
+curvefs_topology: "{{ groups.metaserver | smart_topology(hostvars, 3, 100) }}"
+
+# NOTE: The topology are generated automatically according to the effective strategy,
+# if you want to generate topology by yourself,
+# you can set the below curvefs_topology variable by manually, e.g:
+#
+#curvefs_topology:
+#  servers:
+#    - name: server1
+#      internalip: 127.0.0.1
+#      internalport: 16701
+#      externalip: 127.0.0.1
+#      externalport: 16701
+#      zone: zone1
+#      pool: pool1
+#    ...
+#  pools:
+#    - name: pool1
+#      replicasnum: 3
+#      copysetnum: 100
+#      zonenum: 3

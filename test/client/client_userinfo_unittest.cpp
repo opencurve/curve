@@ -47,11 +47,11 @@ namespace client {
 class CurveClientUserAuthFail : public ::testing::Test {
  public:
     void SetUp() {
-        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
+        metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
 
-        metaopt.mdsAddrs.push_back("127.0.0.1:9104");
-        metaopt.mdsRPCTimeoutMs = 500;
-        metaopt.mdsRPCRetryIntervalUS = 200;
+        metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+        metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
+        metaopt.rpcRetryOpt.rpcRetryIntervalUS = 200;
 
         if (server.AddService(&curvefsservice,
                             brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
@@ -215,8 +215,8 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
 
 TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     ClientConfigOption opt;
-    opt.metaServerOpt.mdsRPCTimeoutMs = 500;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
+    opt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -286,7 +286,7 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
                         new curve::mds::GetOrAllocateSegmentResponse();
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
     pfs->set_logicalpoolid(0);
-    pfs->set_segmentsize(16*1024*1024*1024);
+    pfs->set_segmentsize(1ull*1024*1024*1024);
     pfs->set_chunksize(16*1024*1024);
     pfs->set_startoffset(0);
     getresponse->set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -349,8 +349,8 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 // root user测试
 TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ClientConfigOption opt;
-    opt.metaServerOpt.mdsRPCTimeoutMs = 500;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
+    opt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -422,8 +422,8 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
                         new curve::mds::GetOrAllocateSegmentResponse();
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
     pfs->set_logicalpoolid(0);
-    pfs->set_segmentsize(16*1024*1024*1024);
-    pfs->set_chunksize(16*1024*1024);
+    pfs->set_segmentsize(1ull*1024*1024*1024);
+    pfs->set_chunksize(16ull*1024*1024);
     pfs->set_startoffset(0);
     getresponse->set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
     getresponse->set_allocated_pagefilesegment(pfs);

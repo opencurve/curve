@@ -32,7 +32,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/file_pool.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 
 using curve::chunkserver::CopysetNodeOptions;
@@ -43,7 +43,7 @@ using curve::chunkserver::concurrent::ConcurrentApplyOption;
 using curve::chunkserver::FilePool;
 using curve::chunkserver::FilePoolOptions;
 using curve::chunkserver::ConcurrentApplyModule;
-using curve::chunkserver::UriParser;
+using curve::common::UriParser;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::CopysetID;
 using curve::common::Peer;

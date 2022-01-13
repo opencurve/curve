@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
 cc_library(
     name = "fs_mock",
@@ -25,6 +27,7 @@ cc_library(
             "//src/fs:lfs",
             ],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )
 
 cc_test(
@@ -32,9 +35,7 @@ cc_test(
     srcs = glob([
             "*.cpp",
         ]),
-    copts = ([
-        "-std=c++11",
-    ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
             "//src/fs:lfs",
             "//test/fs:fs_mock",

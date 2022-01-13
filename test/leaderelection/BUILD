@@ -14,10 +14,12 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "leader_election_test",
     srcs = glob(["*.cpp", "*.h"]),
-    copts = ["-g","-DHAVE_ZLIB=1"],
+    copts = CURVE_TEST_COPTS,
     defines = ["FIU_ENABLE"],
     deps = [
             "//src/leader_election:leader_election_for_test",

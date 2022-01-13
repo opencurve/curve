@@ -104,11 +104,6 @@ static bool find_mapped_dev_by_spec(NBDConfig *cfg) {
     return false;
 }
 
-static int parse_imgpath(const std::string &imgpath, NBDConfig *cfg,
-                         std::ostream *err_msg) {
-    return 0;
-}
-
 // TODO(all): replace this function with gflags
 //            but, currently, gflags `--help` command is messy
 int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLINT
@@ -399,7 +394,8 @@ static int run_command(const char *command) {
 
     if (status < 0) {
         char error_buf[80];
-        strerror_r(errno, error_buf, sizeof(error_buf));
+        auto* buf = strerror_r(errno, error_buf, sizeof(error_buf));
+        (void)buf;
         fprintf(stderr, "couldn't run '%s': %s\n", command,
             error_buf);
     } else if (WIFSIGNALED(status)) {

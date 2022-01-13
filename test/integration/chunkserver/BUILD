@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "chunkserver-concurrent-test",
     srcs = glob([
@@ -21,7 +23,7 @@ cc_test(
         "peer_cluster.cpp",
         "chunkserver_concurrent_test.cpp",
     ]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -46,7 +48,7 @@ cc_test(
         "peer_cluster.cpp",
         "chunkserver_basic_test.cpp",
     ]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -71,7 +73,7 @@ cc_test(
         "peer_cluster.cpp",
         "chunkserver_clone_recover.cpp",
     ]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:braft",
         "//external:brpc",

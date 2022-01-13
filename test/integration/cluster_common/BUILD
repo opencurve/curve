@@ -14,13 +14,15 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_library(
     name = "integration_cluster_common",
     srcs = glob([
         "cluster.h",
         "cluster.cpp",
     ]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//src/common:curve_common",
@@ -38,7 +40,7 @@ cc_library(
 cc_test(
   name = "cluster_basic_test",
   srcs = glob(["cluster_basic_test.cpp"]),
-  copts = ["-std=c++11"],
+  copts = CURVE_TEST_COPTS,
   deps = [
       "@com_google_googletest//:gtest_main",
       "@com_google_googletest//:gtest",

@@ -148,7 +148,7 @@ struct S3ConfigGenerator : public ConfigGenerator {
     explicit S3ConfigGenerator(const std::string &configPath) {
         LoadTemplete(DEFAULT_S3_CONF);
         SetConfigPath(configPath);
-        SetKV("s3.nos_address", "127.0.0.1:9999");
+        SetKV("s3.endpoint", "127.0.0.1:9999");
     }
 };
 

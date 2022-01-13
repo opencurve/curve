@@ -40,7 +40,7 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/datastore/datastore_file_helper.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/common/crc32.h"
 #include "src/common/fs_util.h"
 
@@ -88,8 +88,8 @@ CopysetNode::~CopysetNode() {
 int CopysetNode::Init(const CopysetNodeOptions &options) {
     std::string groupId = GroupId();
 
-    std::string protocol = UriParser::ParseUri(options.chunkDataUri,
-                                                &copysetDirPath_);
+    std::string protocol = curve::common::UriParser::ParseUri(
+        options.chunkDataUri, &copysetDirPath_);
     if (protocol.empty()) {
         // TODO(wudemiao): 增加必要的错误码并返回
         LOG(ERROR) << "not support chunk data uri's protocol"

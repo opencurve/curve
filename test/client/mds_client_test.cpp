@@ -66,12 +66,12 @@ class MDSClientTest : public testing::Test {
         // only start mds on mdsAddr1
         ASSERT_EQ(0, server_.Start(mdsAddr1.c_str(), nullptr));
 
-        option_.mdsAddrs = {mdsAddr2, mdsAddr1};
-        option_.mdsRPCTimeoutMs = 500;            // 500ms
-        option_.mdsMaxRPCTimeoutMS = 2000;        // 2s
-        option_.mdsRPCRetryIntervalUS = 1000000;  // 100ms
+        option_.rpcRetryOpt.addrs = {mdsAddr2, mdsAddr1};
+        option_.rpcRetryOpt.rpcTimeoutMs = 500;            // 500ms
+        option_.rpcRetryOpt.maxRPCTimeoutMS = 2000;        // 2s
+        option_.rpcRetryOpt.rpcRetryIntervalUS = 1000000;  // 100ms
         option_.mdsMaxRetryMS = 8000;             // 8s
-        option_.mdsMaxFailedTimesBeforeChangeMDS = 2;
+        option_.rpcRetryOpt.maxFailedTimesBeforeChangeAddr = 2;
 
         ASSERT_EQ(LIBCURVE_ERROR::OK, mdsClient_.Initialize(option_));
     }

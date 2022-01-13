@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS"
-)
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
     name = "scheduler_poc",
@@ -31,5 +27,6 @@ cc_test(
             "//src/mds/schedule:schedule",
             "//test/mds/mock:common_mock",
             "@com_google_googletest//:gtest",
-            "@com_google_googletest//:gtest_main"]
+            "@com_google_googletest//:gtest_main"],
+    copts = CURVE_TEST_COPTS,
 )

@@ -163,11 +163,11 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
      */
     virtual int InvalidCache();
 
-    virtual const std::string GetFileName() const {
+    virtual std::string GetFileName() const {
         return fileName_;
     }
 
-    virtual const int GetFd() const {
+    virtual int GetFd() const {
         return fd_;
     }
 
@@ -175,11 +175,11 @@ class NebdFileEntity : public std::enable_shared_from_this<NebdFileEntity> {
         timeStamp_.store(timestamp);
     }
 
-    virtual const uint64_t GetFileTimeStamp() const {
+    virtual uint64_t GetFileTimeStamp() const {
         return timeStamp_.load();
     }
 
-    virtual const NebdFileStatus GetFileStatus() const {
+    virtual NebdFileStatus GetFileStatus() const {
         return status_.load();
     }
 
