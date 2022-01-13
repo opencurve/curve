@@ -278,7 +278,25 @@ TEST_F(TestDiskCacheManager, IsDiskCacheFull) {
 }
 
 TEST_F(TestDiskCacheManager, IsDiskCacheSafe) {
-    int ret = diskCacheManager_->IsDiskCacheSafe();
+    S3ClientAdaptorOption option;
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
+    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    option.diskCacheOpt.fullRatio = 0;
+    option.diskCacheOpt.safeRatio = 0;
+    option.diskCacheOpt.maxUsableSpaceBytes = 0;
+    option.diskCacheOpt.cmdTimeoutSec = 5;
+    option.diskCacheOpt.asyncLoadPeriodMs = 10;
+    S3Client *client = nullptr;
+    diskCacheManager_->Init(client, option);
+    bool ret = diskCacheManager_->IsDiskCacheSafe();
+    ASSERT_EQ(false, ret);
+
+    option.diskCacheOpt.fullRatio = 100;
+    option.diskCacheOpt.safeRatio = 99;
+    option.diskCacheOpt.maxUsableSpaceBytes = 100000000;
+    diskCacheManager_->Init(client, option);
+    ret = diskCacheManager_->IsDiskCacheSafe();
     ASSERT_EQ(true, ret);
 }
 
