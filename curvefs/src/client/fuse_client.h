@@ -202,7 +202,24 @@ class FuseClient {
         return CURVEFS_ERROR::OK;
     }
 
-    void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
+    virtual CURVEFS_ERROR FuseOpStatFs(fuse_req_t req, fuse_ino_t ino,
+                                       struct statvfs* stbuf) {
+        // TODO(chengyi01,wuhanqing): implement in s3 and volume client
+        stbuf->f_frsize = stbuf->f_bsize = fsInfo_->blocksize();
+        stbuf->f_blocks = 10UL << 30;
+        stbuf->f_bavail = stbuf->f_bfree = stbuf->f_blocks - 1;
+
+        stbuf->f_files = 1UL << 30;
+        stbuf->f_ffree = stbuf->f_favail = stbuf->f_files - 1;
+
+        stbuf->f_fsid = fsInfo_->fsid();
+
+        stbuf->f_flag = 0;
+        stbuf->f_namemax = option_.maxNameLength;
+        return CURVEFS_ERROR::OK;
+    }
+
+    void SetFsInfo(const std::shared_ptr<FsInfo>& fsInfo) {
         fsInfo_ = fsInfo;
         init_ = true;
     }
@@ -234,7 +251,7 @@ class FuseClient {
         const std::shared_ptr<InodeWrapper> &inodeWrapper_,
         fuse_entry_param *param);
 
-    int AddHostNameToMountPointStr(const std::string& mountPointStr,
+    int AddHostPortToMountPointStr(const std::string& mountPointStr,
                                    std::string* out) {
         char hostname[kMaxHostNameLength];
         int ret = gethostname(hostname, kMaxHostNameLength);
@@ -242,7 +259,11 @@ class FuseClient {
             LOG(ERROR) << "GetHostName failed, ret = " << ret;
             return ret;
         }
-        *out = std::string(hostname) + ":" + mountPointStr;
+        *out =
+            std::string(hostname) + ":" +
+            std::to_string(
+                curve::client::ClientDummyServerInfo::GetInstance().GetPort()) +
+            ":" + mountPointStr;
         return 0;
     }
 
