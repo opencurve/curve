@@ -478,3 +478,13 @@ void FuseOpBmap(fuse_req_t req,
     // TODO(wuhanqing): implement for volume storage
     FuseReplyErrByErrCode(req, CURVEFS_ERROR::NOTSUPPORT);
 }
+
+void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino) {
+    struct statvfs stbuf;
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpStatFs(req, ino, &stbuf);
+    if (ret != CURVEFS_ERROR::OK) {
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+    fuse_reply_statfs(req, &stbuf);
+}
