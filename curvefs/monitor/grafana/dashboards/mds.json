@@ -1,0 +1,443 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Curvefs mds server",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 7,
+  "iteration": 1649851028366,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 6,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 2
+          },
+          "hiddenSeries": false,
+          "id": 4,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": false,
+            "max": true,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.4.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "tJLDJxsnz"
+              },
+              "exemplar": true,
+              "expr": "process_memory_resident{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "process_memory_resident {{instance}}",
+              "refId": "process_memory_resident"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "tJLDJxsnz"
+              },
+              "exemplar": true,
+              "expr": "process_memory_virtual{instance=~\"$instance\"}",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "process_memory_virtual {{instance}}",
+              "refId": "process_memory_virtual"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "tJLDJxsnz"
+              },
+              "exemplar": true,
+              "expr": "process_memory_shared{instance=~\"$instance\"}",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "process_memory_shared {{instance}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "process memory usage",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:63",
+              "format": "decbytes",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:64",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 2
+          },
+          "hiddenSeries": false,
+          "id": 2,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": false,
+            "max": true,
+            "min": false,
+            "rightSide": false,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "8.4.4",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "tJLDJxsnz"
+              },
+              "exemplar": true,
+              "expr": "process_cpu_usage{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "process_cpu_usage {{instance}}",
+              "refId": "process_cpu_usage"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "tJLDJxsnz"
+              },
+              "exemplar": true,
+              "expr": "process_cpu_usage_system{instance=~\"$instance\"}",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "process_cpu_usage_system {{instance}}",
+              "refId": "process_cpu_usage_system"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "tJLDJxsnz"
+              },
+              "exemplar": true,
+              "expr": "process_cpu_usage_user{instance=~\"$instance\"}",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "process_cpu_usage_user {{instance}}",
+              "refId": "process_cpu_usage_user"
+            }
+          ],
+          "thresholds": [],
+          "timeRegions": [],
+          "title": "process cpu usage",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "mode": "time",
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:495",
+              "format": "percentunit",
+              "logBase": 1,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:496",
+              "format": "short",
+              "logBase": 1,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false
+          }
+        }
+      ],
+      "title": "process usage",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 8,
+      "panels": [],
+      "title": "metaserver",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 10,
+        "x": 0,
+        "y": 2
+      },
+      "id": 10,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "8.4.4",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tJLDJxsnz"
+          },
+          "exemplar": true,
+          "expr": "{__name__=~\"topology_metric_metaserver_id_[[metaserver:regex]].*\",job=\"mds\"}",
+          "format": "table",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "topology",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "instance": false,
+              "job": true
+            },
+            "indexByName": {
+              "Time": 1,
+              "Value": 4,
+              "__name__": 0,
+              "instance": 2,
+              "job": 3
+            },
+            "renameByName": {
+              "__name__": "name"
+            }
+          }
+        },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "Value": {
+                "aggregations": [
+                  "last"
+                ],
+                "operation": "aggregate"
+              },
+              "name": {
+                "aggregations": [],
+                "operation": "groupby"
+              }
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 35,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "definition": "{__name__=~\"bthread_count\", job=\"mds\"}",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Addr",
+        "multi": false,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "{__name__=~\"bthread_count\", job=\"mds\"}",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "/.*instance=\"([^\"]*).*/",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "definition": "{__name__=~\"topology_metric_metaserver_id_.*_copyset_num\",job=\"mds\"}",
+        "hide": 0,
+        "includeAll": true,
+        "label": "metaserverId",
+        "multi": false,
+        "name": "metaserver",
+        "options": [],
+        "query": {
+          "query": "{__name__=~\"topology_metric_metaserver_id_.*_copyset_num\",job=\"mds\"}",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/topology_metric_metaserver_id_(.*)_copyset_num.*/",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "mds",
+  "uid": "dsgsdfg",
+  "version": 16,
+  "weekStart": ""
+}
