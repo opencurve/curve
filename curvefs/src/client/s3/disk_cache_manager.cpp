@@ -263,12 +263,18 @@ bool DiskCacheManager::IsDiskCacheFull() {
 }
 
 bool DiskCacheManager::IsDiskCacheSafe() {
+    int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
     uint64_t usedBytes = GetDiskUsedbytes();
-    if (usedBytes <= (safeRatio_ * maxUsableSpaceBytes_ / 100)) {
+    if ((usedBytes < (safeRatio_ * maxUsableSpaceBytes_ / 100))
+      && (ratio < safeRatio_)) {
         VLOG(3) << "disk cache is safe"
-                << ", usedBytes is: " << usedBytes;
+                << ", usedBytes is: " << usedBytes
+                << ", use ratio is: " << ratio;
         return true;
     }
+    VLOG(3) << "disk cache is not safe"
+                << ", usedBytes is: " << usedBytes
+                << ", use ratio is: " << ratio;
     return false;
 }
 
