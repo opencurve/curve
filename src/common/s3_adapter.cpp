@@ -523,7 +523,8 @@ int S3Adapter::DeleteObjects(const std::list<Aws::String>& keyList) {
 
         return 0;
     } else {
-        LOG(ERROR) << response.GetError().GetMessage() << "failed";
+        LOG(ERROR) << response.GetError().GetMessage() << " failed, "
+                   << deleteObjectsRequest.SerializePayload();
         return -1;
     }
     return 0;
