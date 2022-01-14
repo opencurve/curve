@@ -49,15 +49,6 @@ bool MetaStoreImpl::LoadPartition(uint32_t partitionId, void* entry) {
     partitionId = partitionInfo->partitionid();
     auto partition = std::make_shared<Partition>(*partitionInfo);
     partitionMap_.emplace(partitionId, partition);
-    if (partitionInfo->status() == PartitionStatus::DELETING) {
-        std::shared_ptr<PartitionCleaner> partitionCleaner =
-            std::make_shared<PartitionCleaner>(GetPartition(partitionId));
-        copyset::CopysetNode *copysetNode =
-            copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
-                partition->GetPoolId(), partition->GetCopySetId());
-        PartitionCleanManager::GetInstance().Add(partitionId, partitionCleaner,
-                                                 copysetNode);
-    }
     return true;
 }
 
@@ -69,9 +60,10 @@ bool MetaStoreImpl::LoadInode(uint32_t partitionId, void* entry) {
     }
 
     auto inode = reinterpret_cast<Inode*>(entry);
-    auto rc = partition->InsertInode(*inode);
+    MetaStatusCode rc = partition->InsertInode(*inode);
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "InsertInode failed, retCode = " << rc;
+        LOG(ERROR) << "InsertInode failed, retCode = "
+                   << MetaStatusCode_Name(rc);
         return false;
     }
     return true;
@@ -85,9 +77,10 @@ bool MetaStoreImpl::LoadDentry(uint32_t partitionId, void* entry) {
     }
 
     auto dentry = reinterpret_cast<Dentry*>(entry);
-    auto rc = partition->CreateDentry(*dentry, true);
+    MetaStatusCode rc = partition->CreateDentry(*dentry, true);
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateDentry failed, retCode = " << rc;
+        LOG(ERROR) << "CreateDentry failed, retCode = "
+                   << MetaStatusCode_Name(rc);
         return false;
     }
     return true;
@@ -137,6 +130,20 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
         partitionMap_.clear();
         LOG(ERROR) << "Load metadata failed.";
     }
+
+    for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
+        if (it->second->GetStatus() == PartitionStatus::DELETING) {
+            uint32_t partitionId = it->second->GetPartitionId();
+            std::shared_ptr<PartitionCleaner> partitionCleaner =
+                std::make_shared<PartitionCleaner>(GetPartition(partitionId));
+            copyset::CopysetNode* copysetNode =
+                copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
+                    it->second->GetPoolId(), it->second->GetCopySetId());
+            PartitionCleanManager::GetInstance().Add(
+                partitionId, partitionCleaner, copysetNode);
+        }
+    }
+
     return succ;
 }
 
@@ -268,14 +275,14 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
     auto it = partitionMap_.find(partitionId);
     if (it == partitionMap_.end()) {
         LOG(WARNING) << "DeletePartition, partition is not found"
-                     << ", partitionId = " <<  partitionId;
+                     << ", partitionId = " << partitionId;
         response->set_statuscode(MetaStatusCode::PARTITION_NOT_FOUND);
         return MetaStatusCode::PARTITION_NOT_FOUND;
     }
 
     if (it->second->IsDeletable()) {
         LOG(INFO) << "DeletePartition, partition is deletable, delete it"
-                  << ", partitionId = " <<  partitionId;
+                  << ", partitionId = " << partitionId;
         TrashManager::GetInstance().Remove(partitionId);
         it->second->ClearS3Compact();
         PartitionCleanManager::GetInstance().Remove(partitionId);
@@ -286,11 +293,11 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
 
     if (it->second->GetStatus() != PartitionStatus::DELETING) {
         LOG(INFO) << "DeletePartition, set partition to deleting"
-                  << ", partitionId = " <<  partitionId;
+                  << ", partitionId = " << partitionId;
         it->second->ClearDentry();
         std::shared_ptr<PartitionCleaner> partitionCleaner =
             std::make_shared<PartitionCleaner>(GetPartition(partitionId));
-        copyset::CopysetNode *copysetNode =
+        copyset::CopysetNode* copysetNode =
             copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
                 it->second->GetPoolId(), it->second->GetCopySetId());
         PartitionCleanManager::GetInstance().Add(partitionId, partitionCleaner,
@@ -300,7 +307,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
         it->second->ClearS3Compact();
     } else {
         LOG(INFO) << "DeletePartition, partition is already deleting"
-                  << ", partitionId = " <<  partitionId;
+                  << ", partitionId = " << partitionId;
     }
 
     response->set_statuscode(MetaStatusCode::PARTITION_DELETING);
@@ -580,8 +587,8 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->GetOrModifyS3ChunkInfo(fsId, inodeId,
-        request->s3chunkinfoadd(), request->s3chunkinforemove(),
+    MetaStatusCode status = partition->GetOrModifyS3ChunkInfo(
+        fsId, inodeId, request->s3chunkinfoadd(), request->s3chunkinforemove(),
         request->returns3chunkinfomap(), response->mutable_s3chunkinfomap());
     response->set_statuscode(status);
     return status;

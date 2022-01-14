@@ -269,10 +269,6 @@ MetaStatusCode Partition::InsertInode(const Inode& inode) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    if (GetStatus() == PartitionStatus::DELETING) {
-        return MetaStatusCode::PARTITION_DELETING;
-    }
-
     return inodeManager_->InsertInode(inode);
 }
 
