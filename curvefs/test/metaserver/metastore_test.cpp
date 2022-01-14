@@ -94,7 +94,10 @@ class MetastoreTest : public ::testing::Test {
                    first.partitionid() == second.partitionid() &&
                    first.start() == second.start() &&
                    first.end() == second.end() &&
-                   first.nextid() == second.nextid();
+                   first.nextid() == second.nextid() &&
+                   first.status() == second.status() &&
+                   first.inodenum() == second.inodenum() &&
+                   first.dentrynum() == second.dentrynum();
         if (!ret) {
             LOG(INFO) << "first partition :" << first.ShortDebugString()
                       << ", second partiton : " << second.ShortDebugString();
@@ -789,6 +792,158 @@ TEST_F(MetastoreTest, persist_success) {
         ->GetInode(fsId, createInodeResponse1.inode().inodeid(), &tempInode);
     LOG(INFO) << "tempInode = " << tempInode.DebugString();
     ASSERT_EQ(tempInode.nlink(), createInodeResponse1.inode().nlink() + 2);
+
+    // dump MetaStoreImpl to file
+    OnSnapshotSaveDoneImpl done;
+    LOG(INFO) << "MetastoreTest test Save";
+    ASSERT_TRUE(metastore.Save("./metastore_test", &done));
+
+    // wait meta save to file
+    done.Wait();
+    ASSERT_TRUE(done.IsSuccess());
+
+    // load MetaStoreImpl to new meta
+    MetaStoreImpl metastoreNew;
+    LOG(INFO) << "MetastoreTest test Load";
+    ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
+
+    // compare two meta
+    ASSERT_TRUE(ComparePartition(
+        metastoreNew.GetPartition(partitionId)->GetPartitionInfo(),
+        metastore.GetPartition(partitionId)->GetPartitionInfo()));
+
+    ASSERT_TRUE(ComparePartition(
+        metastoreNew.GetPartition(partitionId2)->GetPartitionInfo(),
+        metastore.GetPartition(partitionId2)->GetPartitionInfo()));
+
+    metastoreNew.GetPartition(partitionId)
+        ->GetInode(fsId, createInodeResponse1.inode().inodeid(), &tempInode);
+    ASSERT_TRUE(CompareInode(tempInode, createInodeResponse1.inode()));
+    ASSERT_EQ(tempInode.nlink(), createInodeResponse1.inode().nlink() + 2);
+
+    // clear meta
+    LOG(INFO) << "MetastoreTest test Clear";
+    ASSERT_TRUE(metastore.Clear());
+}
+
+TEST_F(MetastoreTest, persist_deleting_partition_success) {
+    MetaStoreImpl metastore;
+    uint32_t partitionId = 4;
+    uint32_t partitionId2 = 2;
+    // create partition1
+    CreatePartitionRequest createPartitionRequest;
+    CreatePartitionResponse createPartitionResponse;
+    PartitionInfo partitionInfo;
+    partitionInfo.set_fsid(1);
+    partitionInfo.set_poolid(2);
+    partitionInfo.set_copysetid(3);
+    partitionInfo.set_partitionid(partitionId);
+    partitionInfo.set_start(100);
+    partitionInfo.set_end(1000);
+    partitionInfo.set_txid(100);
+    partitionInfo.set_status(PartitionStatus::READWRITE);
+    createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
+    MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
+                                                   &createPartitionResponse);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
+    ASSERT_EQ(createPartitionResponse.statuscode(), ret);
+
+    ret = metastore.CreatePartition(&createPartitionRequest,
+                                    &createPartitionResponse);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
+    ASSERT_EQ(createPartitionResponse.statuscode(), ret);
+
+    // create partition2
+    PartitionInfo partitionInfo2 = partitionInfo;
+    partitionInfo2.set_partitionid(partitionId2);
+    createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo2);
+    ret = metastore.CreatePartition(&createPartitionRequest,
+                                    &createPartitionResponse);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
+    ASSERT_EQ(createPartitionResponse.statuscode(), ret);
+
+    // add 2 inode to partion1
+    CreateInodeRequest createInodeRequest;
+    CreateInodeResponse createInodeResponse1;
+    CreateInodeResponse createInodeResponse2;
+
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t fsId = 1;
+    uint64_t length = 2;
+    uint32_t uid = 100;
+    uint32_t gid = 200;
+    uint32_t mode = 777;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+
+    createInodeRequest.set_poolid(poolId);
+    createInodeRequest.set_copysetid(copysetId);
+    createInodeRequest.set_partitionid(partitionId);
+    createInodeRequest.set_fsid(fsId);
+    createInodeRequest.set_length(length);
+    createInodeRequest.set_uid(uid);
+    createInodeRequest.set_gid(gid);
+    createInodeRequest.set_mode(mode);
+    createInodeRequest.set_type(type);
+
+    ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse1);
+    ASSERT_EQ(createInodeResponse1.statuscode(), ret);
+    ASSERT_EQ(createInodeResponse1.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(createInodeResponse1.inode().inodeid(), 100);
+
+    createInodeRequest.set_partitionid(partitionId);
+    ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse2);
+    ASSERT_EQ(createInodeResponse2.statuscode(), ret);
+    ASSERT_EQ(createInodeResponse2.statuscode(), MetaStatusCode::OK);
+
+    // add 2 dentry to partiton1
+    CreateDentryRequest createDentryRequest;
+    CreateDentryResponse createDentryResponse1;
+    CreateDentryResponse createDentryResponse2;
+    Dentry dentry1;
+    dentry1.set_fsid(fsId);
+    dentry1.set_inodeid(2000);
+    dentry1.set_parentinodeid(100);
+    dentry1.set_name("dentry1");
+    dentry1.set_txid(1);
+
+
+    createDentryRequest.set_poolid(poolId);
+    createDentryRequest.set_copysetid(copysetId);
+    createDentryRequest.set_partitionid(partitionId);
+    createDentryRequest.mutable_dentry()->CopyFrom(dentry1);
+
+    ret = metastore.CreateDentry(&createDentryRequest, &createDentryResponse1);
+    ASSERT_EQ(createDentryResponse1.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(createDentryResponse1.statuscode(), ret);
+
+    Dentry dentry2 = dentry1;
+    dentry2.set_inodeid(2);
+    dentry2.set_name("dentry2");
+    createDentryRequest.mutable_dentry()->CopyFrom(dentry2);
+    ret = metastore.CreateDentry(&createDentryRequest, &createDentryResponse2);
+    ASSERT_EQ(createDentryResponse2.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(createDentryResponse2.statuscode(), ret);
+
+    Inode tempInode;
+    metastore.GetPartition(partitionId)
+        ->GetInode(fsId, createInodeResponse1.inode().inodeid(), &tempInode);
+    LOG(INFO) << "tempInode = " << tempInode.DebugString();
+    ASSERT_EQ(tempInode.nlink(), createInodeResponse1.inode().nlink() + 2);
+
+    DeletePartitionRequest deletePartitionRequest;
+    DeletePartitionResponse deletePartitionResponse;
+    deletePartitionRequest.set_poolid(poolId);
+    deletePartitionRequest.set_copysetid(copysetId);
+    deletePartitionRequest.set_partitionid(partitionId);
+
+    ret = metastore.DeletePartition(&deletePartitionRequest,
+                                    &deletePartitionResponse);
+    ASSERT_EQ(deletePartitionResponse.statuscode(),
+              MetaStatusCode::PARTITION_DELETING);
+    ASSERT_EQ(deletePartitionResponse.statuscode(), ret);
+    ASSERT_EQ(metastore.GetPartition(partitionId)->GetPartitionInfo().status(),
+              PartitionStatus::DELETING);
 
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
