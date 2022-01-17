@@ -142,6 +142,28 @@ TEST_F(CopysetServiceTest, CreateCopysetTest) {
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
 
         ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+        ASSERT_EQ(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS,
+                  response.status());
+    }
+
+    // create copyset exist
+    {
+        CopysetService_Stub stub(&channel_);
+        brpc::Controller cntl;
+
+        CreateCopysetRequest request;
+        CreateCopysetResponse response;
+
+        auto* copyset = request.add_copysets();
+        copyset->set_poolid(poolId_);
+        copyset->set_copysetid(copysetId_);
+        copyset->add_peers()->set_address("127.0.0.1:29960:0");
+        copyset->add_peers()->set_address("127.0.0.1:29961:0");
+        copyset->add_peers()->set_address("127.0.0.1:29963:0");
+
+        stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
+
+        ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
         ASSERT_EQ(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST,
                   response.status());
     }
