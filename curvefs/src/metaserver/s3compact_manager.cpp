@@ -22,6 +22,7 @@
 
 #include "curvefs/src/metaserver/s3compact_manager.h"
 
+#include <list>
 #include <thread>
 
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
@@ -127,12 +128,15 @@ void S3CompactWorkQueueOption::Init(std::shared_ptr<Configuration> conf) {
                               &maxChunksPerCompact);
     conf->GetValueFatalIfFail("s3compactwq.enqueue_sleep_ms", &enqueueSleepMS);
     conf->GetValueFatalIfFail("s3compactwq.s3infocache_size", &s3infocacheSize);
+    conf->GetValueFatalIfFail("s3compactwq.s3_read_max_retry", &s3ReadMaxRetry);
+    conf->GetValueFatalIfFail("s3compactwq.s3_read_retry_interval",
+                              &s3ReadRetryInterval);
 }
 
 void S3CompactManager::Init(std::shared_ptr<Configuration> conf) {
     opts_.Init(conf);
     if (opts_.enable) {
-        LOG(INFO) << "S3Compact is enabled.";
+        LOG(INFO) << "s3compact: enabled.";
         butil::ip_t metaserverIp;
         if (butil::str2ip(opts_.metaserverIpStr.c_str(), &metaserverIp) < 0) {
             LOG(FATAL) << "Invalid Metaserver IP provided: "
@@ -150,7 +154,7 @@ void S3CompactManager::Init(std::shared_ptr<Configuration> conf) {
             s3adapterManager_, s3infoCache_, opts_);
         inited_ = true;
     } else {
-        LOG(INFO) << "S3Compact is not enabled.";
+        LOG(INFO) << "s3compact: not enabled";
     }
 }
 
@@ -161,7 +165,7 @@ void S3CompactManager::RegisterS3Compact(std::weak_ptr<S3Compact> s3compact) {
 
 int S3CompactManager::Run() {
     if (!inited_) {
-        LOG(WARNING) << "S3Compact is not inited";
+        LOG(WARNING) << "s3compact: not inited, wont't run";
         return 0;
     }
     int ret = s3compactworkqueueImpl_->Start(opts_.threadNum, opts_.queueSize);
@@ -208,16 +212,20 @@ void S3CompactManager::Enqueue() {
         auto copysetNode = CopysetNodeManager::GetInstance().GetCopysetNode(
             pinfo.poolid(), pinfo.copysetid());
         // traverse inode container
-        auto inodeStorage = s3compact->GetMutableInodeStorage();
-        InodeStorage::ContainerType inodes(inodeStorage->GetContainerData());
+        auto inodeManager = s3compact->GetInodeManager();
+
+        std::list<uint64_t> inodes;
+        inodeManager->GetInodeIdList(&inodes);
+        uint64_t fsid = pinfo.fsid();
+
         if (inodes.empty()) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             continue;
         }
-        for (const auto& item : inodes) {
+        for (const auto& inodeid : inodes) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             s3compactworkqueueImpl_->Enqueue(
-                inodeStorage, InodeKey(item.second), pinfo, copysetNode);
+                inodeManager, InodeKey(fsid, inodeid), pinfo, copysetNode);
         }
     }
     {

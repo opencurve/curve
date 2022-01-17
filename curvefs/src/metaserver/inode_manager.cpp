@@ -220,13 +220,6 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
         needUpdate = true;
     }
 
-    if (!request.s3chunkinfomap().empty()) {
-        VLOG(1) << "update inode has s3chunkInfoMap";
-        old.mutable_s3chunkinfomap()->clear();
-        *(old.mutable_s3chunkinfomap()) = request.s3chunkinfomap();
-        needUpdate = true;
-    }
-
     if (needUpdate) {
         ret = inodeStorage_->Update(old);
         if (ret != MetaStatusCode::OK) {
@@ -273,13 +266,76 @@ void RemoveFromS3ChunkInfoList(const S3ChunkInfoList &listToRemove,
     listToMerge->Swap(&newList);
 }
 
+int ProcessRequestFromS3Compact(
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoRemove,
+    Inode* inode) {
+    VLOG(9) << "s3compact: request from s3compaction, inodeId:"
+            << inode->inodeid();
+    auto checkWithLog = [](bool cond) {
+        if (!cond)
+            LOG(WARNING) << "s3compact: bad GetOrModifyS3ChunkInfo request";
+        return cond;
+    };
+    if (!checkWithLog(s3ChunkInfoAdd.size() == s3ChunkInfoRemove.size()))
+        return -1;
+    for (const auto& item : s3ChunkInfoAdd) {
+        const auto& chunkIndex = item.first;
+        const auto& toAddList = item.second;
+        if (!checkWithLog(toAddList.s3chunks_size() == 1)) return -1;
+        if (!checkWithLog(s3ChunkInfoRemove.find(chunkIndex) !=
+                          s3ChunkInfoRemove.end()))
+            return -1;
+        const auto& toRemoveList = s3ChunkInfoRemove.at(chunkIndex);
+        const auto& origItem = inode->s3chunkinfomap().find(chunkIndex);
+        if (!checkWithLog(origItem != inode->s3chunkinfomap().end())) return -1;
+        // delete and insert
+        const auto& compactChunkId = toAddList.s3chunks(0).chunkid();
+        S3ChunkInfoList newList;
+        const auto& origList = origItem->second;
+        bool inserted = false;
+        const auto& toRemoveS3chunks = toRemoveList.s3chunks();
+        for (int i = 0; i < origList.s3chunks_size(); i++) {
+            const auto& origS3chunk = origList.s3chunks(i);
+            if (inserted) {
+                // fastpath, all left s3chunks are needed
+                *newList.add_s3chunks() = origS3chunk;
+                continue;
+            }
+            auto s3chunkIt =
+                std::find_if(toRemoveS3chunks.begin(), toRemoveS3chunks.end(),
+                             [origS3chunk](const S3ChunkInfo& toRemoveS3chunk) {
+                                 return MessageDifferencer::Equals(
+                                     toRemoveS3chunk, origS3chunk);
+                             });
+            if (s3chunkIt == toRemoveS3chunks.end()) {
+                if (origS3chunk.chunkid() > compactChunkId) {
+                    *newList.add_s3chunks() = toAddList.s3chunks(0);
+                    VLOG(9) << "s3compact: add chunkid "
+                            << toAddList.s3chunks(0).chunkid();
+                    inserted = true;
+                }
+                *newList.add_s3chunks() = origS3chunk;
+                VLOG(9) << "s3compact: add chunkid " << origS3chunk.chunkid();
+            }
+        }
+        if (!inserted) {
+            *newList.add_s3chunks() = toAddList.s3chunks(0);
+            VLOG(9) << "s3compact: add chunkid "
+                    << toAddList.s3chunks(0).chunkid();
+        }
+        inode->mutable_s3chunkinfomap()->at(chunkIndex).Swap(&newList);
+    }
+    return 0;
+}
+
 MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoRemove,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoRemove,
     bool returnS3ChunkInfoMap,
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out) {
+    google::protobuf::Map<uint64_t, S3ChunkInfoList>* out,
+    bool fromS3Compaction) {
     VLOG(1) << "GetOrModifyS3ChunkInfo, fsId: " << fsId
             << ", inodeId: " << inodeId;
 
@@ -316,22 +372,30 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
             }
         }
         if (!duplicated) {
-            for (auto &item : s3ChunkInfoAdd) {
-                auto it = old.mutable_s3chunkinfomap()->find(item.first);
-                if (it != old.mutable_s3chunkinfomap()->end()) {
-                    MergeToS3ChunkInfoList(item.second, &(it->second));
-                } else {
-                    old.mutable_s3chunkinfomap()->insert(
-                        {item.first, item.second});
+            if (fromS3Compaction) {
+                int r = ProcessRequestFromS3Compact(s3ChunkInfoAdd,
+                                                      s3ChunkInfoRemove, &old);
+                if (r == -1) {
+                    return MetaStatusCode::PARAM_ERROR;
                 }
-            }
+            } else {
+                for (auto &item : s3ChunkInfoAdd) {
+                    auto it = old.mutable_s3chunkinfomap()->find(item.first);
+                    if (it != old.mutable_s3chunkinfomap()->end()) {
+                        MergeToS3ChunkInfoList(item.second, &(it->second));
+                    } else {
+                        old.mutable_s3chunkinfomap()->insert(
+                            {item.first, item.second});
+                    }
+                }
 
-            for (auto &item : s3ChunkInfoRemove) {
-                auto it = old.mutable_s3chunkinfomap()->find(item.first);
-                if (it != old.mutable_s3chunkinfomap()->end()) {
-                    RemoveFromS3ChunkInfoList(item.second, &(it->second));
-                    if (0 == it->second.s3chunks_size()) {
-                        old.mutable_s3chunkinfomap()->erase(it);
+                for (auto &item : s3ChunkInfoRemove) {
+                    auto it = old.mutable_s3chunkinfomap()->find(item.first);
+                    if (it != old.mutable_s3chunkinfomap()->end()) {
+                        RemoveFromS3ChunkInfoList(item.second, &(it->second));
+                        if (0 == it->second.s3chunks_size()) {
+                            old.mutable_s3chunkinfomap()->erase(it);
+                        }
                     }
                 }
             }
@@ -420,5 +484,6 @@ MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
 void InodeManager::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
     inodeStorage_->GetInodeIdList(inodeIdList);
 }
+
 }  // namespace metaserver
 }  // namespace curvefs

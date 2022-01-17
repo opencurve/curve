@@ -314,6 +314,8 @@ message GetOrModifyS3ChunkInfoRequest {
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
     map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
     required bool returnS3ChunkInfoMap = 8;
+    optional bool fromS3Compaction = 9;
+    // todo: we only need a bit flag to indicate a lot of bool
 }
 
 message GetOrModifyS3ChunkInfoResponse {

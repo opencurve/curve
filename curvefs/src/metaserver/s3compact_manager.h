@@ -78,6 +78,8 @@ struct S3CompactWorkQueueOption {
     std::string metaserverIpStr;
     uint64_t metaserverPort;
     uint64_t s3infocacheSize;
+    uint64_t s3ReadMaxRetry;
+    uint64_t s3ReadRetryInterval;
 
     void Init(std::shared_ptr<Configuration> conf);
 };

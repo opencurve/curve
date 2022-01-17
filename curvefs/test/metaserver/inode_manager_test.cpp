@@ -154,7 +154,7 @@ TEST_F(InodeManagerTest, test1) {
         info[i].set_offset(i);
         info[i].set_len(i);
         info[i].set_size(i);
-        info[i].set_size(true);
+        info[i].set_zero(true);
     }
 
     S3ChunkInfoList list[10];
@@ -174,7 +174,7 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
-            true, &s3Out1));
+            true, &s3Out1, false));
 
     ASSERT_EQ(10, s3Out1.size());
     for (int j = 0; j < 10; j++) {
@@ -188,7 +188,7 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
-            true, &s3Out2));
+            true, &s3Out2, false));
 
     ASSERT_EQ(10, s3Out2.size());
     for (int j = 0; j < 10; j++) {
@@ -201,7 +201,7 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
-        true, &s3Out3));
+        true, &s3Out3, false));
     ASSERT_EQ(0, s3Out3.size());
 
     // Idempotent test
@@ -210,8 +210,63 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_EQ(MetaStatusCode::OK,
         manager.GetOrModifyS3ChunkInfo(
             fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
-            true, &s3Out4));
+            true, &s3Out4, false));
     ASSERT_EQ(0, s3Out4.size());
+
+    // s3compact
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> addMap;
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> deleteMap;
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3Out5;
+    S3ChunkInfoList add0;
+    for (int i = 0; i < 10; i++) {
+        S3ChunkInfo c;
+        c.set_chunkid(i);
+        c.set_compaction(0);
+        c.set_offset(i);
+        c.set_len(1);
+        c.set_size(1);
+        c.set_zero(true);
+        *add0.add_s3chunks() = c;
+    }
+    S3ChunkInfoList add1;
+    {
+        S3ChunkInfo c;
+        c.set_chunkid(7);
+        c.set_compaction(1);
+        c.set_offset(0);
+        c.set_len(8);
+        c.set_size(8);
+        c.set_zero(true);
+        *add1.add_s3chunks() = c;
+    }
+    S3ChunkInfoList delete1;
+    for (int i = 0; i < 8; i++) {
+        S3ChunkInfo c;
+        c.set_chunkid(i);
+        c.set_compaction(0);
+        c.set_offset(i);
+        c.set_len(1);
+        c.set_size(1);
+        c.set_zero(true);
+        *delete1.add_s3chunks() = c;
+    }
+    addMap.insert({0, add0});
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager.GetOrModifyS3ChunkInfo(fsId, inode3.inodeid(), addMap,
+                                             deleteMap, true, &s3Out5, false));
+    ASSERT_EQ(1, s3Out5.size());
+    ASSERT_EQ(10, s3Out5.at(0).s3chunks_size());
+    addMap.clear();
+    addMap.insert({0, add1});
+    deleteMap.insert({0, delete1});
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager.GetOrModifyS3ChunkInfo(fsId, inode3.inodeid(), addMap,
+                                             deleteMap, true, &s3Out5, true));
+    ASSERT_EQ(1, s3Out5.size());
+    ASSERT_EQ(3, s3Out5.at(0).s3chunks_size());
+    ASSERT_EQ(7, s3Out5.at(0).s3chunks(0).chunkid());
+    ASSERT_EQ(8, s3Out5.at(0).s3chunks(1).chunkid());
+    ASSERT_EQ(9, s3Out5.at(0).s3chunks(2).chunkid());
 }
 }  // namespace metaserver
 }  // namespace curvefs

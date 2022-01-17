@@ -82,10 +82,49 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     std::shared_ptr<S3InfoCache> s3infoCache_;
     S3CompactWorkQueueOption opts_;
     std::deque<InodeKey> compactingInodes_;
-    void Enqueue(std::shared_ptr<InodeStorage> inodeStorage, InodeKey inodeKey,
+    void Enqueue(std::shared_ptr<InodeManager> inodeManager, InodeKey inodeKey,
                  PartitionInfo pinfo, CopysetNode* copyset);
     std::function<void()> Dequeue();
     void ThreadFunc();
+
+    struct S3CompactTask {
+        std::shared_ptr<InodeManager> inodeManager;
+        InodeKey inodeKey;
+        PartitionInfo pinfo;
+        std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper;
+    };
+
+    struct S3CompactCtx {
+        uint64_t inodeId;
+        uint64_t fsId;
+        PartitionInfo pinfo;
+        uint64_t blockSize;
+        uint64_t chunkSize;
+        uint64_t s3adapterIndex;
+        S3Adapter* s3adapter;
+    };
+
+    struct S3NewChunkInfo {
+        uint64_t newChunkId;
+        uint64_t newOff;
+        uint64_t newCompaction;
+    };
+
+    struct S3Request {
+        uint64_t reqIndex;
+        bool zero;
+        std::string objName;
+        uint64_t off;
+        uint64_t len;
+
+        S3Request(uint64_t reqIndex, bool zero, std::string objName,
+                  uint64_t off, uint64_t len)
+            : reqIndex(reqIndex),
+              zero(zero),
+              objName(objName),
+              off(off),
+              len(len) {}
+    };
 
     // node for building valid list
     struct Node {
@@ -107,6 +146,7 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
               chunklen(chunklen),
               zero(zero) {}
     };
+
     // closure for updating inode, simply wait
     class GetOrModifyS3ChunkInfoClosure : public google::protobuf::Closure {
      private:
@@ -130,29 +170,41 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     std::vector<uint64_t> GetNeedCompact(
         const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&
             s3chunkinfoMap);
+    bool CompactPrecheck(const struct S3CompactTask& task, Inode* inode,
+                         std::vector<uint64_t>* needCompact);
+    S3Adapter* SetupS3Adapter(uint64_t fsid, uint64_t* s3adapterIndex,
+                              uint64_t* blockSize, uint64_t* chunkSize);
     void DeleteObjs(const std::vector<std::string>& objsAdded,
                     S3Adapter* s3adapter);
     std::list<struct Node> BuildValidList(
         const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen);
-    int ReadFullChunk(const std::list<struct Node>& validList, uint64_t fsId,
-                      uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
-                      std::string* fullChunk, uint64_t* newChunkId,
-                      uint64_t* newCompaction, S3Adapter* s3adapter);
+    void GenS3ReadRequests(const struct S3CompactCtx& ctx,
+                           const std::list<struct Node>& validList,
+                           std::vector<struct S3Request>* reqs,
+                           struct S3NewChunkInfo* newChunkInfo);
+    int ReadFullChunk(const struct S3CompactCtx& ctx,
+                      const std::list<struct Node>& validList,
+                      std::string* fullChunk,
+                      struct S3NewChunkInfo* newChunkInfo);
     virtual MetaStatusCode UpdateInode(
         CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
         ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
         ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoRemove);
-    int WriteFullChunk(const std::string& fullChunk, uint64_t fsId,
-                       uint64_t inodeId, uint64_t blockSize, uint64_t chunkSize,
-                       uint64_t newChunkid, uint64_t newCompaction,
-                       uint64_t newOff, std::vector<std::string>* objsAdded,
-                       S3Adapter* s3adapter);
+    int WriteFullChunk(const struct S3CompactCtx& ctx,
+                       const struct S3NewChunkInfo& newChunkInfo,
+                       const std::string& fullChunk,
+                       std::vector<std::string>* objsAdded);
+    void CompactChunk(
+        const struct S3CompactCtx& compactCtx, uint64_t index,
+        const Inode& inode,
+        std::unordered_map<uint64_t, std::vector<std::string>>* objsAddedMap,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>* s3ChunkInfoAdd,
+        ::google::protobuf::Map<uint64_t, S3ChunkInfoList>* s3ChunkInfoRemove);
+
+    void DeleteObjsOfS3ChunkInfoList(const struct S3CompactCtx& ctx,
+                                     const S3ChunkInfoList& s3chunkinfolist);
     // func bind with task
-    void CompactChunks(std::shared_ptr<InodeStorage> inodeStorage,
-                       InodeKey inodeKey, PartitionInfo pinfo,
-                       std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper,
-                       std::shared_ptr<S3AdapterManager> s3adapterManager,
-                       std::shared_ptr<S3InfoCache> s3infoCache);
+    void CompactChunks(const struct S3CompactTask& task);
 };
 
 }  // namespace metaserver
