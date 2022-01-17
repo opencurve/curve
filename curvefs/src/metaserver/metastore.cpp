@@ -589,7 +589,8 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
     }
     MetaStatusCode status = partition->GetOrModifyS3ChunkInfo(
         fsId, inodeId, request->s3chunkinfoadd(), request->s3chunkinforemove(),
-        request->returns3chunkinfomap(), response->mutable_s3chunkinfomap());
+        request->returns3chunkinfomap(), response->mutable_s3chunkinfomap(),
+        request->has_froms3compaction() && request->froms3compaction());
     response->set_statuscode(status);
     return status;
 }

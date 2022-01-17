@@ -50,7 +50,7 @@ Partition::Partition(const PartitionInfo& paritionInfo) {
 
     if (paritionInfo.status() != PartitionStatus::DELETING) {
         TrashManager::GetInstance().Add(paritionInfo.partitionid(), trash_);
-        s3compact_ = std::make_shared<S3Compact>(inodeStorage_, partitionInfo_);
+        s3compact_ = std::make_shared<S3Compact>(inodeManager_, partitionInfo_);
         S3CompactManager::GetInstance().RegisterS3Compact(s3compact_);
     }
 }
@@ -245,12 +245,11 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
 
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfoAdd,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList>
-        &s3ChunkInfoRemove,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoAdd,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoRemove,
     bool returnS3ChunkInfoMap,
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out) {
+    google::protobuf::Map<uint64_t, S3ChunkInfoList>* out,
+    bool fromS3Compaction) {
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -260,8 +259,8 @@ MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     }
 
     return inodeManager_->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove,
-        returnS3ChunkInfoMap, out);
+        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove, returnS3ChunkInfoMap,
+        out, fromS3Compaction);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {

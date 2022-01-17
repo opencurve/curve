@@ -75,11 +75,6 @@ InodeStorage::ContainerType* MemoryInodeStorage::GetContainer() {
     return &inodeMap_;
 }
 
-InodeStorage::ContainerType MemoryInodeStorage::GetContainerData() {
-    ReadLockGuard readLockGuard(rwLock_);
-    return inodeMap_;
-}
-
 void MemoryInodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
     ReadLockGuard readLockGuard(rwLock_);
     for (auto it = inodeMap_.begin(); it != inodeMap_.end(); ++it) {

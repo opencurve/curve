@@ -26,7 +26,7 @@
 #include <memory>
 
 #include "curvefs/proto/common.pb.h"
-#include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/inode_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -35,12 +35,12 @@ using curvefs::common::PartitionInfo;
 // one S3Compact per partition
 class S3Compact {
  public:
-    explicit S3Compact(std::shared_ptr<InodeStorage> inodeStorage,
-                       const PartitionInfo& partitionInfo)
-        : inodeStorage_(inodeStorage), partitionInfo_(partitionInfo) {}
+    S3Compact(const std::shared_ptr<InodeManager>& inodeManager,
+              const PartitionInfo& partitionInfo)
+        : inodeManager_(inodeManager), partitionInfo_(partitionInfo) {}
 
-    std::shared_ptr<InodeStorage> GetMutableInodeStorage() {
-        return inodeStorage_;
+    std::shared_ptr<InodeManager> GetInodeManager() {
+        return inodeManager_;
     }
 
     PartitionInfo GetPartition() const {
@@ -48,7 +48,7 @@ class S3Compact {
     }
 
  private:
-    std::shared_ptr<InodeStorage> inodeStorage_;
+    std::shared_ptr<InodeManager> inodeManager_;
     // we only need data that will not be changed after being created.
     const PartitionInfo partitionInfo_;
 };

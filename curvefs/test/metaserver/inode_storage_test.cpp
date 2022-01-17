@@ -103,11 +103,6 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_TRUE(CompareInode((*mapPtr)[InodeKey(inode2)], inode2));
     ASSERT_TRUE(CompareInode((*mapPtr)[InodeKey(inode3)], inode3));
 
-    // GetInodeContainerData
-    auto mapData = storage.GetContainerData();
-    ASSERT_TRUE(CompareInode(mapData[InodeKey(inode2)], inode2));
-    ASSERT_TRUE(CompareInode(mapData[InodeKey(inode3)], inode3));
-
     // GetInodeIdList
     std::list<uint64_t> inodeIdList;
     storage.GetInodeIdList(&inodeIdList);
