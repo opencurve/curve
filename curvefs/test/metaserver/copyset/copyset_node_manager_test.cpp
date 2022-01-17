@@ -149,7 +149,17 @@ TEST_F(CopysetNodeManagerTest, CreateCopysetTest_Common) {
         nodeManager_->AddService(&server, butil::EndPoint(ip, kPort)));
 
     EXPECT_TRUE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
-    EXPECT_TRUE(nodeManager_->IsCopysetNodeExist(kPoolId, kCopysetId));
+
+    CreateCopysetRequest::Copyset copyset;
+    copyset.set_poolid(kPoolId);
+    copyset.set_copysetid(kCopysetId);
+    copyset.add_peers()->set_address("127.0.0.1:29920:0");
+    copyset.add_peers()->set_address("127.0.0.1:29921:0");
+    copyset.add_peers()->set_address("127.0.0.1:29922:0");
+    EXPECT_EQ(1, nodeManager_->IsCopysetNodeExist(copyset));
+
+    copyset.mutable_peers(0)->set_address("127.0.0.1:29923:0");
+    EXPECT_EQ(-1, nodeManager_->IsCopysetNodeExist(copyset));
 
     // create same copyset will failed
     EXPECT_FALSE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
@@ -180,7 +190,6 @@ TEST_F(CopysetNodeManagerTest, DeleteCopysetNodeTest_Success) {
         nodeManager_->AddService(&server, butil::EndPoint(ip, kPort)));
 
     EXPECT_TRUE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
-    EXPECT_TRUE(nodeManager_->IsCopysetNodeExist(kPoolId, kCopysetId));
 
     // create same copyset will failed
     EXPECT_FALSE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
@@ -218,7 +227,6 @@ TEST_F(CopysetNodeManagerTest,
         nodeManager_->AddService(&server, butil::EndPoint(ip, kPort)));
 
     EXPECT_TRUE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
-    EXPECT_TRUE(nodeManager_->IsCopysetNodeExist(kPoolId, kCopysetId));
 
     // create same copyset will failed
     EXPECT_FALSE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));

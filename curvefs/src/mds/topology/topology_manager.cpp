@@ -762,7 +762,6 @@ TopoStatusCode TopologyManager::CreateCopyset() {
             CopySetInfo copyset(poolId, id);
             copyset.SetCopySetMembers(metaServerIds);
             TopoStatusCode ret = topology_->AddCopySet(copyset);
-            // TODO(wanghai): delete copyset on metaserver
             if (TopoStatusCode::TOPO_OK != ret) {
                 LOG(ERROR) << "Add copyset failed after create copyset."
                            << " poolId = " << poolId << ", copysetId = " << id
