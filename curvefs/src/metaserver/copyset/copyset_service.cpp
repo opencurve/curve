@@ -79,13 +79,17 @@ void CopysetServiceImpl::GetCopysetsStatus(
 
 COPYSET_OP_STATUS CopysetServiceImpl::CreateOneCopyset(
     const CreateCopysetRequest::Copyset& copyset) {
-    bool exists =
-        manager_->IsCopysetNodeExist(copyset.poolid(), copyset.copysetid());
-    if (exists) {
+    int exists = manager_->IsCopysetNodeExist(copyset);
+    if (-1 == exists) {
+        LOG(ERROR) << "Copyset "
+                   << ToGroupIdString(copyset.poolid(), copyset.copysetid())
+                   << " already exists, but peers not exactly the same.";
+        return COPYSET_OP_STATUS_EXIST;
+    } else if (1 == exists) {
         LOG(WARNING) << "Copyset "
                      << ToGroupIdString(copyset.poolid(), copyset.copysetid())
-                     << " already exists";
-        return COPYSET_OP_STATUS_EXIST;
+                     << " already exists.";
+        return COPYSET_OP_STATUS_SUCCESS;
     }
 
     braft::Configuration conf;

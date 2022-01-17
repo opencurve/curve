@@ -164,10 +164,33 @@ CopysetNode* CopysetNodeManager::GetCopysetNode(PoolId poolId,
     return nullptr;
 }
 
-bool CopysetNodeManager::IsCopysetNodeExist(PoolId poolId,
-                                            CopysetId copysetId) {
+int CopysetNodeManager::IsCopysetNodeExist(
+    const CreateCopysetRequest::Copyset& copyset) {
     ReadLockGuard lock(lock_);
-    return copysets_.count(ToGroupId(poolId, copysetId)) != 0;
+    auto iter = copysets_.find(ToGroupId(copyset.poolid(),
+                                         copyset.copysetid()));
+    if (iter == copysets_.end()) {
+        return 0;
+    } else {
+        auto copysetNode = iter->second.get();
+        std::vector<Peer> peers;
+        copysetNode->ListPeers(&peers);
+        if (peers.size() != copyset.peers_size()) {
+            return -1;
+        }
+
+        for (int i = 0; i < copyset.peers_size(); i++) {
+            auto cspeer = copyset.peers(i);
+            auto iter = std::find_if(
+            peers.begin(), peers.end(),
+            [&cspeer](const Peer& p) { return
+                cspeer.address() == p.address();});
+            if (iter == peers.end()) {
+                return -1;
+            }
+        }
+    }
+    return 1;
 }
 
 bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,

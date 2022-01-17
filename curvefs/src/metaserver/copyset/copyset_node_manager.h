@@ -57,7 +57,11 @@ class CopysetNodeManager {
 
     virtual CopysetNode* GetCopysetNode(PoolId poolId, CopysetId copysetId);
 
-    bool IsCopysetNodeExist(PoolId poolId, CopysetId copysetId);
+    /**
+     * @return 0: not exist; 1: key exist and peers are exactly same;
+     * -1: key exist but peers are not exactly same
+     */
+    int IsCopysetNodeExist(const CreateCopysetRequest::Copyset& copyset);
 
     bool CreateCopysetNode(PoolId poolId, CopysetId copysetId,
                            const braft::Configuration& conf,

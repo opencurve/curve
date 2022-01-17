@@ -349,6 +349,12 @@ FSStatusCode MetaserverClient::CreateCopySet(
 
         uint32_t maxRetry = options_.rpcRetryTimes;
         while (cntl.Failed() && maxRetry > 0) {
+            LOG(WARNING) << "Create copyset failed"
+                         << " from " << cntl.remote_side() << " to "
+                         << cntl.local_side()
+                         << " errCode = " << cntl.ErrorCode()
+                         << " errorText = " << cntl.ErrorText()
+                         << ", then will retry " << maxRetry << " times.";
             maxRetry--;
             bthread_usleep(options_.rpcRetryIntervalUs);
             cntl.Reset();
