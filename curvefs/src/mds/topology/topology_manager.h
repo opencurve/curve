@@ -164,6 +164,10 @@ class TopologyManager {
                                 const uint32_t& copysetId,
                                 CopysetValue* copysetValue);
 
+
+    virtual void ClearCopysetCreating(PoolIdType poolId,
+        const std::set<CopySetIdType> &copysets);
+
  private:
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<MetaserverClient> metaserverClient_;

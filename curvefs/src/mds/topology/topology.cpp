@@ -991,6 +991,13 @@ TopoStatusCode TopologyImpl::AddCopySet(const CopySetInfo &data) {
     }
 }
 
+TopoStatusCode TopologyImpl::AddCopySetCreating(const CopySetKey &key) {
+    WriteLockGuard wlockCopySetCreating(copySetCreatingMutex_);
+    auto iter = copySetCreating_.insert(key);
+    return iter.second ? TopoStatusCode::TOPO_OK :
+        TopoStatusCode::TOPO_ID_DUPLICATED;
+}
+
 TopoStatusCode TopologyImpl::RemoveCopySet(CopySetKey key) {
     WriteLockGuard wlockCopySetMap(copySetMutex_);
     auto it = copySetMap_.find(key);
@@ -1003,6 +1010,11 @@ TopoStatusCode TopologyImpl::RemoveCopySet(CopySetKey key) {
     } else {
         return TopoStatusCode::TOPO_COPYSET_NOT_FOUND;
     }
+}
+
+void TopologyImpl::RemoveCopySetCreating(CopySetKey key) {
+    WriteLockGuard wlockCopySetCreating(copySetCreatingMutex_);
+    copySetCreating_.erase(key);
 }
 
 TopoStatusCode TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
@@ -1358,6 +1370,13 @@ std::string TopologyImpl::GetHostNameAndPortById(MetaServerIdType msId) {
     // get hostName of the metaserver
     return server.GetHostName() + ":" + std::to_string(ms.GetInternalPort());
 }
+
+bool TopologyImpl::IsCopysetCreating(const CopySetKey &key) const {
+    ReadLockGuard rlockCopySetCreating(copySetCreatingMutex_);
+    return copySetCreating_.count(key) != 0;
+}
+
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
