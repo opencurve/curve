@@ -721,6 +721,13 @@ bool TopologyManager::CreateCopysetNodeOnMetaServer(
     return true;
 }
 
+void TopologyManager::ClearCopysetCreating(PoolIdType poolId,
+    const std::set<CopySetIdType> &copysets) {
+    for (const auto &id : copysets) {
+        topology_->RemoveCopySetCreating(CopySetKey(poolId, id));
+    }
+}
+
 TopoStatusCode TopologyManager::CreateCopyset() {
     PoolIdType poolId;
     std::set<MetaServerIdType> metaServerIds;
@@ -752,6 +759,12 @@ TopoStatusCode TopologyManager::CreateCopyset() {
         if (copysetId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
             return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
         }
+        if (TopoStatusCode::TOPO_OK !=
+            topology_->AddCopySetCreating(CopySetKey(poolId, copysetId))) {
+            LOG(WARNING) << "the copyset key = (" << poolId
+                         << ", " << copysetId << ") is already creating.";
+            continue;
+        }
         copysetIds.emplace(copysetId);
     }
 
@@ -761,17 +774,20 @@ TopoStatusCode TopologyManager::CreateCopyset() {
         for (auto id : copysetIds) {
             CopySetInfo copyset(poolId, id);
             copyset.SetCopySetMembers(metaServerIds);
-            TopoStatusCode ret = topology_->AddCopySet(copyset);
+            ret = topology_->AddCopySet(copyset);
             if (TopoStatusCode::TOPO_OK != ret) {
                 LOG(ERROR) << "Add copyset failed after create copyset."
                            << " poolId = " << poolId << ", copysetId = " << id
                            << ", error msg = " << TopoStatusCode_Name(ret);
+                ClearCopysetCreating(poolId, copysetIds);
                 return ret;
             }
         }
     } else {
+        ClearCopysetCreating(poolId, copysetIds);
         return TopoStatusCode::TOPO_CREATE_COPYSET_ON_METASERVER_FAIL;
     }
+    ClearCopysetCreating(poolId, copysetIds);
     return TopoStatusCode::TOPO_OK;
 }
 
