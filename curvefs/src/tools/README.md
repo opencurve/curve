@@ -285,14 +285,71 @@ zoneId:1, zoneName:zone1, poolId:1 serverList:{ 1 }
 zoneId:2, zoneName:zone2, poolId:1 serverList:{ 2 }
 zoneId:3, zoneName:zone3, poolId:1 serverList:{ 3 }
 [server]
-serverId:1, hostname:metaserver_192.168.1.1_1, internalIp:192.168.1.1, internalPort:16701, externalIp:192.168.1.1, externalPort:16701, zoneId:1, poolId:1 metaserverList:{ 1 }
-serverId:2, hostname:metaserver_192.168.1.1_2, internalIp:192.168.1.1, internalPort:26701, externalIp:192.168.1.1, externalPort:26701, zoneId:2, poolId:1 metaserverList:{ 3 }
-serverId:3, hostname:metaserver_192.168.1.1_3, internalIp:192.168.1.1, internalPort:36701, externalIp:192.168.1.1, externalPort:36701, zoneId:3, poolId:1 metaserverList:{ 2 }
+serverId:1, hostname:192.168.1.1_0_0, internalIp:192.168.1.1, internalPort:16701, externalIp:192.168.1.1, externalPort:16701, zoneId:1, poolId:1 metaserverList:{ 1 }
+serverId:2, hostname:192.168.1.1_1_0, internalIp:192.168.1.1, internalPort:26701, externalIp:192.168.1.1, externalPort:26701, zoneId:2, poolId:1 metaserverList:{ 3 }
+serverId:3, hostname:192.168.1.1_2_0, internalIp:192.168.1.1, internalPort:36701, externalIp:192.168.1.1, externalPort:36701, zoneId:3, poolId:1 metaserverList:{ 2 }
 [metaserver]
-metaserverId:1, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:16701, externalIp:192.168.1.1, externalPort:16701, onlineState:ONLINE, serverId:1
-metaserverId:2, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:36701, externalIp:192.168.1.1, externalPort:36701, onlineState:ONLINE, serverId:3
-metaserverId:3, hostname:pubbeta2-curve20.dg.163.org, hostIp:192.168.1.1, port:26701, externalIp:192.168.1.1, externalPort:26701, onlineState:ONLINE, serverId:2
+metaserverId:1, hostname:curvefs-metaserver, hostIp:192.168.1.1, port:16701, externalIp:192.168.1.1, externalPort:16701, onlineState:ONLINE, serverId:1
+metaserverId:2, hostname:curvefs-metaserver, hostIp:192.168.1.1, port:36701, externalIp:192.168.1.1, externalPort:36701, onlineState:ONLINE, serverId:3
+metaserverId:3, hostname:curvefs-metaserver, hostIp:192.168.1.1, port:26701, externalIp:192.168.1.1, externalPort:26701, onlineState:ONLINE, serverId:2
 ```
+
+> You can use -jsonType and -jsonPath to output the topology to a json file.
+>
+> The parameter -jsonType supports build and tree.
+>
+> build: can be used to create the same topology as the current one;
+>
+> tree: build a json tree of the current topology.
+>
+> Usage:
+>
+>```shell
+> curvefs_tool list-topology -jsonPath=/tmp/test.json -jsonType=build | cat /tmp/test.json | jq .
+>```
+> Output:
+>```
+>{
+>  "pools": [
+>    {
+>      "copysetnum": 100,
+>      "name": "defaultPool",
+>      "replicasnum": 3,
+>      "zonenum": 3
+>    }
+>  ],
+>  "servers": [
+>    {
+>      "externalip": "192.168.1.1",
+>      "externalport": 16701,
+>      "internalip": "192.168.1.1",
+>      "internalport": 16701,
+>      "name": "192.168.1.1_0_0",
+>      "pool": "defaultPool",
+>      "zone": "zone1"
+>    },
+>    {
+>      "externalip": "192.168.1.1",
+>      "externalport": 26701,
+>      "internalip": "192.168.1.1",
+>      "internalport": 26701,
+>      "name": "192.168.1.1_1_0",
+>      "pool": "defaultPool",
+>      "zone": "zone2"
+>    },
+>    {
+>      "externalip": "192.168.1.1",
+>      "externalport": 36701,
+>      "internalip": "192.168.1.1",
+>      "internalport": 36701,
+>      "name": "192.168.1.1_2_0",
+>      "pool": "defaultPool",
+>      "zone": "zone3"
+>    }
+>  ]
+>}
+>```
+>
 
 [TOC](#table-of-contents)
 
@@ -400,16 +457,29 @@ delete fs by fsName
 Usage：
 
 ```shell
-curvefs_tool delete-fs -fsName=/test -confirm
+curvefs_tool delete-fs -fsName=/test
 ```
 
 Output:
 
 ```shell
-1. do you really want to delete fs (/test) :[Ny]y
-2. do you really want to delete fs (/test) :[Ny]y
-3. do you really want to delete fs (/test) :[Ny]y
-delete fs /test success.
+This command will delete fs (test) and is not recoverable!!!
+Do you really want to delete this fs? [Yes, delete!]: Yes, delete!
+delete fs (test) success.
+```
+
+[**WARNING**] If you enter -noconfirm, fs will be deleted directly without checking, please use with caution!
+
+Usage：
+
+```shell
+curvefs_tool delete-fs -fsName=/test -noconfirm
+```
+
+Output:
+
+```shell
+delete fs (test) success.
 ```
 
 [TOC](#table-of-contents)

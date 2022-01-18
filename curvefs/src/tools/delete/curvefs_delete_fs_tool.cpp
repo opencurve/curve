@@ -24,7 +24,7 @@
 
 DECLARE_string(fsName);
 DECLARE_string(mdsAddr);
-DECLARE_bool(confirm);
+DECLARE_bool(noconfirm);
 
 namespace curvefs {
 namespace tools {
@@ -32,8 +32,9 @@ namespace delete_ {
 
 void DeleteFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
-    std::cout << " -fsName=" << FLAGS_fsName << " -confirm=" << FLAGS_confirm
-              << " [-mdsAddr=" << FLAGS_mdsAddr << "]";
+    std::cout << " -fsName=" << FLAGS_fsName
+              << " [-noconfirm=" << FLAGS_noconfirm
+              << "] [-mdsAddr=" << FLAGS_mdsAddr << "]";
     std::cout << std::endl;
 }
 
@@ -59,27 +60,19 @@ void DeleteFsTool::AddUpdateFlags() {
 }
 
 int DeleteFsTool::RunCommand() {
-    if (!FLAGS_confirm) {
-        std::cerr << "please input \"-confirm\" or \"-confirm=true\""
-                  << std::endl;
-        return -1;
-    }
-
-    // confirm input
-    for (size_t i = 0; i < checkTimes_; i++) {
-        std::cout << i + 1 << ". do you really want to delete fs ("
-                  << FLAGS_fsName << ") :[Ny]";
-        char confirm = 'N';
-        std::cin >> confirm;
-        // clean up redundant output
-        std::cin.clear();
-        std::cin.ignore(INT_MAX, '\n');
-        if (!(confirm == 'Y' || confirm == 'y')) {
+    if (!FLAGS_noconfirm) {
+        // confirm input
+        std::cout << "This command will delete fs (" << FLAGS_fsName
+                  << ") and is not recoverable!!!\n"
+                  << "Do you really want to delete this fs? [Yes, delete!]: ";
+        std::string confirm = "no";
+        std::getline(std::cin, confirm);
+        if (confirm != "Yes, delete!") {
             // input is not 'Y' or 'y'
+            std::cout << "delete canceled!" << std::endl;
             return -1;
         }
     }
-
     return CurvefsToolRpc::RunCommand();
 }
 
@@ -93,7 +86,7 @@ bool DeleteFsTool::AfterSendRequestToHost(const std::string& host) {
                curvefs::mds::FSStatusCode::NOT_FOUND) {
         std::cerr << "delete fs failed, fs not found!" << std::endl;
     } else if (response_->statuscode() == curvefs::mds::FSStatusCode::OK) {
-        std::cout << "delete fs " << FLAGS_fsName << " success." << std::endl;
+        std::cout << "delete fs (" << FLAGS_fsName << ") success." << std::endl;
         ret = true;
     } else {
         std::cerr << "delete fs from mds: " << host
