@@ -1782,6 +1782,21 @@ TEST_F(TestTopology, AddCopySet_StorageFail) {
     ASSERT_EQ(TopoStatusCode::TOPO_STORGE_FAIL, ret);
 }
 
+TEST_F(TestTopology, CopySetCreating) {
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK,
+        topology_->AddCopySetCreating(CopySetKey(poolId, copysetId)));
+    ASSERT_EQ(TopoStatusCode::TOPO_ID_DUPLICATED,
+        topology_->AddCopySetCreating(CopySetKey(poolId, copysetId)));
+
+    ASSERT_TRUE(topology_->IsCopysetCreating(CopySetKey(poolId, copysetId)));
+
+    topology_->RemoveCopySetCreating(CopySetKey(poolId, copysetId));
+    ASSERT_FALSE(topology_->IsCopysetCreating(CopySetKey(poolId, copysetId)));
+}
+
 TEST_F(TestTopology, RemoveCopySet_success) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;

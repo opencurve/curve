@@ -79,6 +79,7 @@ class Topology {
     virtual TopoStatusCode AddServer(const Server &data) = 0;
     virtual TopoStatusCode AddMetaServer(const MetaServer &data) = 0;
     virtual TopoStatusCode AddCopySet(const CopySetInfo &data) = 0;
+    virtual TopoStatusCode AddCopySetCreating(const CopySetKey &key) = 0;
     virtual TopoStatusCode AddPartition(const Partition &data) = 0;
 
     virtual TopoStatusCode RemovePool(PoolIdType id) = 0;
@@ -86,6 +87,7 @@ class Topology {
     virtual TopoStatusCode RemoveServer(ServerIdType id) = 0;
     virtual TopoStatusCode RemoveMetaServer(MetaServerIdType id) = 0;
     virtual TopoStatusCode RemoveCopySet(CopySetKey key) = 0;
+    virtual void RemoveCopySetCreating(CopySetKey key) = 0;
     virtual TopoStatusCode RemovePartition(PartitionIdType id) = 0;
 
     virtual TopoStatusCode UpdatePool(const Pool &data) = 0;
@@ -231,6 +233,8 @@ class Topology {
             curvefs::mds::topology::MetadataUsage>* spaces) = 0;
 
     virtual std::string GetHostNameAndPortById(MetaServerIdType msId) = 0;
+
+    virtual bool IsCopysetCreating(const CopySetKey &key) const = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -266,6 +270,7 @@ class TopologyImpl : public Topology {
     TopoStatusCode AddServer(const Server &data) override;
     TopoStatusCode AddMetaServer(const MetaServer &data) override;
     TopoStatusCode AddCopySet(const CopySetInfo &data) override;
+    TopoStatusCode AddCopySetCreating(const CopySetKey &key) override;
     TopoStatusCode AddPartition(const Partition &data) override;
 
     TopoStatusCode RemovePool(PoolIdType id) override;
@@ -273,6 +278,7 @@ class TopologyImpl : public Topology {
     TopoStatusCode RemoveServer(ServerIdType id) override;
     TopoStatusCode RemoveMetaServer(MetaServerIdType id) override;
     TopoStatusCode RemoveCopySet(CopySetKey key) override;
+    void RemoveCopySetCreating(CopySetKey key) override;
     TopoStatusCode RemovePartition(PartitionIdType id) override;
 
     TopoStatusCode UpdatePool(const Pool &data) override;
@@ -445,6 +451,8 @@ class TopologyImpl : public Topology {
 
     std::string GetHostNameAndPortById(MetaServerIdType msId) override;
 
+    bool IsCopysetCreating(const CopySetKey &key) const override;
+
  private:
     TopoStatusCode LoadClusterInfo();
 
@@ -461,6 +469,7 @@ class TopologyImpl : public Topology {
     std::unordered_map<MetaServerIdType, MetaServer> metaServerMap_;
     std::map<CopySetKey, CopySetInfo> copySetMap_;
     std::unordered_map<PartitionIdType, Partition> partitionMap_;
+    std::set<CopySetKey> copySetCreating_;
 
     // cluster info
     ClusterInformation clusterInfo_;
@@ -476,6 +485,7 @@ class TopologyImpl : public Topology {
     mutable RWLock metaServerMutex_;
     mutable RWLock copySetMutex_;
     mutable RWLock partitionMutex_;
+    mutable RWLock copySetCreatingMutex_;
 
     TopologyOption option_;
     curve::common::Thread backEndThread_;
