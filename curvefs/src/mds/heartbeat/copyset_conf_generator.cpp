@@ -37,6 +37,11 @@ bool CopysetConfGenerator::GenCopysetConf(
     const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo,
     const ::curvefs::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curvefs::mds::heartbeat::CopySetConf *copysetConf) {
+    // if copyset is creating return false directly
+    if (topo_->IsCopysetCreating(reportCopySetInfo.GetCopySetKey())) {
+        return false;
+    }
+
     // reported copyset not exist in topology
     // in this case an empty configuration will be sent to metaserver
     // to delete it
