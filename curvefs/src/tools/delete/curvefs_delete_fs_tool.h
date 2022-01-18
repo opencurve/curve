@@ -56,7 +56,6 @@ class DeleteFsTool : public CurvefsToolRpc<curvefs::mds::DeleteFsRequest,
     bool CheckRequiredFlagDefault() override;
 
  protected:
-    uint32_t checkTimes_ = 3;
 };
 
 }  // namespace delete_

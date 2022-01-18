@@ -42,7 +42,7 @@ DEFINE_string(poolId, "1,2,3", "pools id");
 DEFINE_bool(detail, false, "show more infomation");
 DEFINE_string(partitionId, "1,2,3", "partition id");
 DEFINE_string(metaserverId, "1,2,3", "metaserver id");
-DEFINE_bool(confirm, false, "confirm execution");
+DEFINE_bool(noconfirm, false, "execute command without confirmation");
 DEFINE_uint64(blockSize, 1048576, "block size");
 DEFINE_string(fsType, "s3", "fs type: s3 or volume");
 DEFINE_uint64(volumeSize, 1048576, "block size");
