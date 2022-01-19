@@ -31,8 +31,15 @@ using ::curvefs::metaserver::MetaStatusCode;
 namespace curvefs {
 namespace client {
 namespace rpcclient {
-int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
-    task_ = std::move(task);
+
+MetaStatusCode ConvertToMetaStatusCode(int retcode) {
+    if (retcode < 0) {
+        return MetaStatusCode::RPC_ERROR;
+    }
+    return static_cast<MetaStatusCode>(retcode);
+}
+
+int TaskExecutor::DoRPCTask() {
     task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
 
     int retCode = -1;
@@ -61,7 +68,7 @@ int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
             continue;
         }
 
-        retCode = ExcuteTask(channel.get());
+        retCode = ExcuteTask(channel.get(), nullptr);
         needRetry = OnReturn(retCode);
 
         if (needRetry) {
@@ -70,6 +77,39 @@ int TaskExecutor::DoRPCTask(std::shared_ptr<TaskContext> task) {
     } while (needRetry);
 
     return retCode;
+}
+
+void TaskExecutor::DoAsyncRPCTask(TaskExecutorDone *done) {
+    brpc::ClosureGuard done_guard(done);
+    task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
+    int retCode = -1;
+
+    if (task_->retryTimes++ > opt_.maxRetry) {
+        LOG(ERROR) << task_->TaskContextStr()
+                   << " retry times exceeds the limit";
+        done->SetRetCode(retCode);
+        return;
+    }
+
+    if (!HasValidTarget() && !GetTarget()) {
+        LOG(WARNING) << "get target fail for " << task_->TaskContextStr()
+                     << ", sleep and retry";
+        done->SetRetCode(retCode);
+        return;
+    }
+
+    auto channel = channelManager_->GetOrCreateChannel(
+        task_->target.metaServerID, task_->target.endPoint);
+    if (!channel) {
+        LOG(WARNING) << "GetOrCreateChannel fail for "
+                     << task_->TaskContextStr() << ", sleep and retry";
+        done->SetRetCode(retCode);
+        return;
+    }
+
+    ExcuteTask(channel.get(), done);
+    done_guard.release();
+    return;
 }
 
 bool TaskExecutor::OnReturn(int retCode) {
@@ -178,13 +218,14 @@ bool TaskExecutor::GetTarget() {
     return true;
 }
 
-int TaskExecutor::ExcuteTask(brpc::Channel *channel) {
-    brpc::Controller cntl;
-    cntl.set_timeout_ms(task_->rpcTimeoutMs);
+int TaskExecutor::ExcuteTask(brpc::Channel *channel,
+    TaskExecutorDone *done) {
+    task_->cntl_.Reset();
+    task_->cntl_.set_timeout_ms(opt_.rpcTimeoutMS);
     return task_->rpctask(task_->target.groupID.poolID,
                           task_->target.groupID.copysetID,
                           task_->target.partitionID, task_->target.txId,
-                          task_->applyIndex, channel, &cntl);
+                          task_->applyIndex, channel, &task_->cntl_, done);
 }
 
 void TaskExecutor::OnSuccess() {}
@@ -254,6 +295,21 @@ void TaskExecutor::SetRetryParam() {
     maxTimeoutPow_ = MaxPowerTimesLessEqualValue(timeoutTimes);
 }
 
+void TaskExecutorDone::Run() {
+    std::unique_ptr<TaskExecutorDone> self_guard(this);
+    brpc::ClosureGuard done_guard(done_);
+
+    bool needRetry = true;
+    needRetry = excutor_->OnReturn(code_);
+    if (needRetry) {
+        excutor_->PreProcessBeforeRetry(code_);
+        excutor_->DoAsyncRPCTask(this);
+        self_guard.release();
+        done_guard.release();
+    } else {
+        done_->SetMetaStatusCode(ConvertToMetaStatusCode(code_));
+    }
+}
 
 bool CreateInodeExcutor::GetTarget() {
     if (!metaCache_->SelectTarget(task_->fsID, &task_->target,
@@ -264,6 +320,7 @@ bool CreateInodeExcutor::GetTarget() {
     }
     return true;
 }
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

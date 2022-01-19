@@ -669,8 +669,14 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
             return tRet;
         }
         inode->set_length(attr->st_size);
+        ret = inodeWrapper->Sync();
+        if (ret != CURVEFS_ERROR::OK) {
+            return ret;
+        }
+        inodeWrapper->GetInodeAttrUnLocked(attrOut);
+        return ret;
     }
-    ret = inodeWrapper->Sync();
+    ret = inodeWrapper->SyncAttr();
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }

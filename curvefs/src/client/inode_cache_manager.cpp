@@ -66,11 +66,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     std::shared_ptr<InodeWrapper> eliminatedOne;
     bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
     if (eliminated) {
-        CURVEFS_ERROR ret = eliminatedOne->Sync();
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "sync inode failed, ret = " << ret;
-            return ret;
-        }
+        eliminatedOne->FlushAsync();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -93,11 +89,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     std::shared_ptr<InodeWrapper> eliminatedOne;
     bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
     if (eliminated) {
-        CURVEFS_ERROR ret = eliminatedOne->Sync();
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "sync inode failed, ret = " << ret;
-            return ret;
-        }
+        eliminatedOne->FlushAsync();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -136,31 +128,15 @@ void InodeCacheManagerImpl::FlushAll() {
     }
 }
 
-
 void InodeCacheManagerImpl::FlushInodeOnce() {
     std::map<uint64_t, std::shared_ptr<InodeWrapper>> temp_;
     {
         curve::common::LockGuard lg(dirtyMapMutex_);
         temp_.swap(dirtyMap_);
     }
-    for (auto it = temp_.begin(); it != temp_.end();) {
+    for (auto it = temp_.begin(); it != temp_.end(); it++) {
         curve::common::UniqueLock ulk = it->second->GetUniqueLock();
-        CURVEFS_ERROR ret = it->second->Sync();
-        if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
-            LOG(ERROR) << "Flush inode failed, inodeid = "
-                       << it->second->GetInodeId();
-            it++;
-            continue;
-        }
-        it = temp_.erase(it);
-    }
-    LOG_IF(WARNING, temp_.size() > 0) << "FlushInodeOnce, remain inode num = "
-        << temp_.size();
-    {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        for (const auto &v : temp_) {
-            dirtyMap_.emplace(v.first, v.second);
-        }
+        it->second->FlushAsync();
     }
 }
 

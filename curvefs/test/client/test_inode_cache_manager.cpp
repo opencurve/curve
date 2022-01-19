@@ -35,8 +35,10 @@ using ::testing::Contains;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::DoAll;
+using ::testing::Invoke;
 
 using rpcclient::MockMetaServerClient;
+using rpcclient::MetaServerClientDone;
 
 class TestInodeCacheManager : public ::testing::Test {
  protected:
@@ -161,12 +163,27 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
     std::shared_ptr<InodeWrapper> inodeWrapper = std::make_shared<InodeWrapper>(
             inode, metaClient_);
     inodeWrapper->MarkDirty();
+    S3ChunkInfo info;
+    inodeWrapper->AppendS3ChunkInfo(1, info);
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
-        .WillOnce(Return(MetaStatusCode::OK));
+    EXPECT_CALL(*metaClient_, UpdateInodeAsync(_, _))
+        .WillOnce(Invoke([](const Inode &inode,
+        MetaServerClientDone *done){
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }));
+
+    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))
+        .WillOnce(Invoke([](uint32_t fsId, uint64_t inodeId,
+        const google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+        MetaServerClientDone *done){
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }));
+
     iCacheManager_->FlushAll();
 }
 

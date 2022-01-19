@@ -43,6 +43,11 @@ using ::curvefs::metaserver::S3ChunkInfo;
 namespace curvefs {
 namespace client {
 
+enum InodeStatus {
+    Normal = 0,
+    Error = -1,
+};
+
 // TODO(xuchaojie) : get from conf maybe?
 const uint32_t kOptimalIOBlockSize = 0x10000u;
 
@@ -53,13 +58,13 @@ std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
     google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap);
 
-
-class InodeWrapper {
+class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
     InodeWrapper(const Inode &inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(inode),
         openCount_(0),
+        status_(InodeStatus::Normal),
         metaClient_(metaClient),
         dirty_(false) {}
 
@@ -67,6 +72,7 @@ class InodeWrapper {
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(std::move(inode)),
         openCount_(0),
+        status_(InodeStatus::Normal),
         metaClient_(metaClient),
         dirty_(false) {}
 
@@ -187,9 +193,28 @@ class InodeWrapper {
 
     CURVEFS_ERROR DecreaseNLink();
 
-    CURVEFS_ERROR Sync();
+    CURVEFS_ERROR Sync() {
+        CURVEFS_ERROR ret = SyncAttr();
+        if (ret != CURVEFS_ERROR::OK) {
+            return ret;
+        }
+        return SyncS3ChunkInfo();
+    }
 
-    CURVEFS_ERROR Refresh();
+    CURVEFS_ERROR SyncAttr();
+
+    CURVEFS_ERROR SyncS3ChunkInfo();
+
+    void FlushAsync() {
+        FlushAttrAsync();
+        FlushS3ChunkInfoAsync();
+    }
+
+    void FlushAttrAsync();
+
+    void FlushS3ChunkInfoAsync();
+
+    CURVEFS_ERROR RefreshS3ChunkInfo();
 
     CURVEFS_ERROR Open();
 
@@ -220,18 +245,51 @@ class InodeWrapper {
             inode_.mutable_s3chunkinfomap());
     }
 
+    void MarkInodeError() {
+        // TODO(xuchaojie) : when inode is marked error, prevent futher write.
+        status_ = InodeStatus::Error;
+    }
+
+    void LockSyncingInode() const {
+        syncingInodeMtx_.lock();
+    }
+
+    void ReleaseSyncingInode() const {
+        syncingInodeMtx_.unlock();
+    }
+
+    curve::common::UniqueLock GetSyncingInodeUniqueLock() {
+        return curve::common::UniqueLock(syncingInodeMtx_);
+    }
+
+    void LockSyncingS3ChunkInfo() const {
+        syncingS3ChunkInfoMtx_.lock();
+    }
+
+    void ReleaseSyncingS3ChunkInfo() const {
+        syncingS3ChunkInfoMtx_.unlock();
+    }
+
+    curve::common::UniqueLock GetSyncingS3ChunkInfoUniqueLock() {
+        return curve::common::UniqueLock(syncingS3ChunkInfoMtx_);
+    }
+
  private:
     CURVEFS_ERROR SetOpenFlag(bool flag);
 
  private:
      Inode inode_;
      uint32_t openCount_;
+     InodeStatus status_;
 
      google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
 
      std::shared_ptr<MetaServerClient> metaClient_;
      bool dirty_;
      mutable ::curve::common::Mutex mtx_;
+
+     mutable ::curve::common::Mutex syncingInodeMtx_;
+     mutable ::curve::common::Mutex syncingS3ChunkInfoMtx_;
 };
 
 }  // namespace client
