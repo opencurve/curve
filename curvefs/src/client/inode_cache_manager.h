@@ -34,6 +34,7 @@
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/inode_wrapper.h"
+#include "src/common/concurrent/name_lock.h"
 
 using ::curve::common::LRUCache;
 using ::curve::common::CacheMetrics;
@@ -121,13 +122,14 @@ class InodeCacheManagerImpl : public InodeCacheManager {
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>> iCache_;
-    curve::common::RWLock mtx_;
 
     // dirty map, key is inodeid
     std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
 
     // dirty map mutex
     curve::common::Mutex dirtyMapMutex_;
+
+    curve::common::GenericNameLock<Mutex> nameLock_;
 };
 
 

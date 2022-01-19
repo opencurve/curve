@@ -33,6 +33,7 @@
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/lru_cache.h"
+#include "src/common/concurrent/name_lock.h"
 
 using ::curvefs::metaserver::Dentry;
 using ::curve::common::LRUCache;
@@ -122,7 +123,7 @@ class DentryCacheManagerImpl : public DentryCacheManager {
     std::shared_ptr<MetaServerClient> metaClient_;
     // key is parentId + name
     std::shared_ptr<LRUCache<std::string, Dentry>> dCache_;
-    curve::common::RWLock mtx_;
+    curve::common::GenericNameLock<Mutex> nameLock_;
 };
 
 }  // namespace client

@@ -34,17 +34,11 @@ using ::curvefs::metaserver::MetaStatusCode_Name;
 namespace curvefs {
 namespace client {
 
+using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
+
 CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     std::shared_ptr<InodeWrapper> &out) {
-    {
-        curve::common::ReadLockGuard lg(mtx_);
-        bool ok = iCache_->Get(inodeid, &out);
-        if (ok) {
-            return CURVEFS_ERROR::OK;
-        }
-    }
-
-    curve::common::WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, std::to_string(inodeid));
     bool ok = iCache_->Get(inodeid, &out);
     if (ok) {
         return CURVEFS_ERROR::OK;
@@ -74,7 +68,6 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
 CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     const InodeParam &param,
     std::shared_ptr<InodeWrapper> &out) {
-    curve::common::WriteLockGuard lg(mtx_);
     Inode inode;
     MetaStatusCode ret = metaClient_->CreateInode(param, &inode);
     if (ret != MetaStatusCode::OK) {
@@ -87,7 +80,11 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
         std::move(inode), metaClient_);
 
     std::shared_ptr<InodeWrapper> eliminatedOne;
-    bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
+    bool eliminated = false;
+    {
+        NameLockGuard lock(nameLock_, std::to_string(inodeid));
+        eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
+    }
     if (eliminated) {
         eliminatedOne->FlushAsync();
     }
@@ -95,7 +92,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeid) {
-    curve::common::WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, std::to_string(inodeid));
     iCache_->Remove(inodeid);
     MetaStatusCode ret = metaClient_->DeleteInode(fsId_, inodeid);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
@@ -104,14 +101,17 @@ CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeid) {
                    << ", inodeid = " << inodeid;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
+
     curve::common::LockGuard lg2(dirtyMapMutex_);
     dirtyMap_.erase(inodeid);
     return CURVEFS_ERROR::OK;
 }
 
 void InodeCacheManagerImpl::ClearInodeCache(uint64_t inodeid) {
-    curve::common::WriteLockGuard lg(mtx_);
-    iCache_->Remove(inodeid);
+    {
+        NameLockGuard lock(nameLock_, std::to_string(inodeid));
+        iCache_->Remove(inodeid);
+    }
     curve::common::LockGuard lg2(dirtyMapMutex_);
     dirtyMap_.erase(inodeid);
 }
