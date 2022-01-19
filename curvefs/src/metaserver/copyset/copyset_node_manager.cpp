@@ -193,6 +193,12 @@ int CopysetNodeManager::IsCopysetNodeExist(
     return 1;
 }
 
+bool CopysetNodeManager::IsCopysetNodeExist(PoolId poolId,
+                                            CopysetId copysetId) const {
+    ReadLockGuard lock(lock_);
+    return copysets_.count(ToGroupId(poolId, copysetId)) != 0;
+}
+
 bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
                                            const braft::Configuration& conf,
                                            bool checkLoadFinish) {
@@ -202,30 +208,48 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
         return false;
     }
 
-    braft::GroupId groupId = ToGroupId(poolId, copysetId);
-    std::unique_ptr<CopysetNode> copysetNode;
-
-    WriteLockGuard lock(lock_);
-    if (copysets_.count(groupId) != 0) {
+    if (IsCopysetNodeExist(poolId, copysetId)) {
         LOG(WARNING) << "Copyset node already exists: "
                      << ToGroupIdString(poolId, copysetId);
         return false;
     }
 
-    copysetNode = absl::make_unique<CopysetNode>(poolId, copysetId, conf, this);
-    if (!copysetNode->Init(options_)) {
+    braft::GroupId groupId = ToGroupId(poolId, copysetId);
+    CopysetNode* node = nullptr;
+
+    {
+        WriteLockGuard lock(lock_);
+        if (copysets_.count(groupId) != 0) {
+            LOG(WARNING) << "Copyset node already exists: "
+                         << ToGroupNid(poolId, copysetId);
+            return false;
+        }
+
+        auto copysetNode =
+            absl::make_unique<CopysetNode>(poolId, copysetId, conf, this);
+        node = copysetNode.get();
+        copysets_.emplace(groupId, std::move(copysetNode));
+    }
+
+    auto removeNode = [&]() {
+        WriteLockGuard lock(lock_);
+        copysets_.erase(groupId);
+    };
+
+    if (!node->Init(options_)) {
+        removeNode();
         LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
                    << "init failed";
         return false;
     }
 
-    if (!copysetNode->Start()) {
+    if (!node->Start()) {
+        removeNode();
         LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
                    << " start failed";
         return false;
     }
 
-    copysets_.emplace(groupId, std::move(copysetNode));
     LOG(INFO) << "Create copyset success "
               << ToGroupIdString(poolId, copysetId);
     return true;

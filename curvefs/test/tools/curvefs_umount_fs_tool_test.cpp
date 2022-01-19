@@ -62,7 +62,7 @@ class UmountfsToolTest : public testing::Test {
     }
 
  protected:
-    std::string addr_ = "127.0.0.1:16701";
+    std::string addr_ = "127.0.0.1:6791";
     brpc::Server server_;
     MockMdsService mockMdsService_;
     UmountFsTool ut_;
