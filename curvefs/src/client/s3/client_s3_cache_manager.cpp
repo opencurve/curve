@@ -348,7 +348,7 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                     LOG(INFO) << "inode cache maybe steal, try to get latest";
                     ::curve::common::UniqueLock lgGuard =
                         inodeWrapper->GetUniqueLock();
-                    auto r = inodeWrapper->Refresh();
+                    auto r = inodeWrapper->RefreshS3ChunkInfo();
                     if (r != CURVEFS_ERROR::OK) {
                         LOG(WARNING) << "refresh inode fail, ret:" << ret;
                         return -1;

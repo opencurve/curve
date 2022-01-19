@@ -82,6 +82,9 @@ class MetaServerClient {
 
     virtual MetaStatusCode UpdateInode(const Inode &inode) = 0;
 
+    virtual void UpdateInodeAsync(const Inode &inode,
+        MetaServerClientDone *done) = 0;
+
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
@@ -89,6 +92,12 @@ class MetaServerClient {
         bool returnS3ChunkInfoMap = false,
         google::protobuf::Map<
             uint64_t, S3ChunkInfoList> *out = nullptr) = 0;
+
+    virtual void GetOrModifyS3ChunkInfoAsync(
+        uint32_t fsId, uint64_t inodeId,
+        const google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+        MetaServerClientDone *done) = 0;
 
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
 
@@ -98,7 +107,8 @@ class MetaServerClient {
 class MetaServerClientImpl : public MetaServerClient {
  public:
     explicit MetaServerClientImpl(const std::string &metricPrefix = "")
-        : metaserverClientMetric_(metricPrefix) {}
+        : metaserverClientMetric_(
+            std::make_shared<MetaServerClientMetric>(metricPrefix)) {}
 
     MetaStatusCode
     Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
@@ -128,6 +138,9 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode UpdateInode(const Inode &inode) override;
 
+    void UpdateInodeAsync(const Inode &inode,
+        MetaServerClientDone *done) override;
+
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
@@ -136,12 +149,15 @@ class MetaServerClientImpl : public MetaServerClient {
         google::protobuf::Map<
             uint64_t, S3ChunkInfoList> *out = nullptr) override;
 
+    void GetOrModifyS3ChunkInfoAsync(
+        uint32_t fsId, uint64_t inodeId,
+        const google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+        MetaServerClientDone *done) override;
+
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
-
- private:
-    MetaStatusCode ReturnError(int retcode);
 
  private:
     ExcutorOpt opt_;
@@ -149,7 +165,7 @@ class MetaServerClientImpl : public MetaServerClient {
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;
 
-    MetaServerClientMetric metaserverClientMetric_;
+    std::shared_ptr<MetaServerClientMetric> metaserverClientMetric_;
 };
 }  // namespace rpcclient
 }  // namespace client

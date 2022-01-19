@@ -31,6 +31,7 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using rpcclient::MetaServerClientDone;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     os << "{ st_ino = " << attr.st_ino << ", st_mode = " << attr.st_mode
@@ -65,7 +66,56 @@ void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
     }
 }
 
-CURVEFS_ERROR InodeWrapper::Sync() {
+class UpdateInodeAsyncDone : public MetaServerClientDone {
+ public:
+    UpdateInodeAsyncDone(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper):
+        inodeWrapper_(inodeWrapper) {}
+    ~UpdateInodeAsyncDone() {}
+
+    void Run() override {
+        std::unique_ptr<UpdateInodeAsyncDone> self_guard(this);
+        MetaStatusCode ret = GetStatusCode();
+        if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
+            LOG(ERROR) << "metaClient_ UpdateInode failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                       << ", inodeid: " << inodeWrapper_->GetInodeId();
+            inodeWrapper_->MarkInodeError();
+        }
+        inodeWrapper_->ReleaseSyncingInode();
+    };
+
+ private:
+    std::shared_ptr<InodeWrapper> inodeWrapper_;
+};
+
+class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
+ public:
+    GetOrModifyS3ChunkInfoAsyncDone(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper):
+        inodeWrapper_(inodeWrapper) {}
+    ~GetOrModifyS3ChunkInfoAsyncDone() {}
+
+    void Run() override {
+        std::unique_ptr<GetOrModifyS3ChunkInfoAsyncDone> self_guard(this);
+        MetaStatusCode ret = GetStatusCode();
+        if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
+            LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
+                << "MetaStatusCode: " << ret
+                << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                << ", inodeid: " << inodeWrapper_->GetInodeId();
+            inodeWrapper_->MarkInodeError();
+        }
+        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
+    };
+
+ private:
+    std::shared_ptr<InodeWrapper> inodeWrapper_;
+};
+
+CURVEFS_ERROR InodeWrapper::SyncAttr() {
+    curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
 
@@ -78,6 +128,11 @@ CURVEFS_ERROR InodeWrapper::Sync() {
         }
         dirty_ = false;
     }
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo() {
+    curve::common::UniqueLock lock = GetSyncingS3ChunkInfoUniqueLock();
     if (!s3ChunkInfoAdd_.empty()) {
         MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
             inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_);
@@ -93,7 +148,28 @@ CURVEFS_ERROR InodeWrapper::Sync() {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::Refresh() {
+void InodeWrapper::FlushAttrAsync() {
+    if (dirty_) {
+        LockSyncingInode();
+        auto *done = new UpdateInodeAsyncDone(shared_from_this());
+        metaClient_->UpdateInodeAsync(inode_, done);
+        dirty_ = false;
+    }
+}
+
+void InodeWrapper::FlushS3ChunkInfoAsync() {
+    if (!s3ChunkInfoAdd_.empty()) {
+        LockSyncingS3ChunkInfo();
+         auto *done = new GetOrModifyS3ChunkInfoAsyncDone(shared_from_this());
+        metaClient_->GetOrModifyS3ChunkInfoAsync(
+            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_,
+            done);
+        s3ChunkInfoAdd_.clear();
+    }
+}
+
+CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
+    curve::common::UniqueLock lock = GetSyncingS3ChunkInfoUniqueLock();
     google::protobuf::Map<
                 uint64_t, S3ChunkInfoList> s3ChunkInfoMap;
     MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(

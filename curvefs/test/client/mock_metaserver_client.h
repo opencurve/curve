@@ -76,6 +76,9 @@ class MockMetaServerClient : public MetaServerClient {
 
     MOCK_METHOD1(UpdateInode, MetaStatusCode(const Inode &inode));
 
+    MOCK_METHOD2(UpdateInodeAsync, void(const Inode &inode,
+        MetaServerClientDone *done));
+
     MOCK_METHOD5(GetOrModifyS3ChunkInfo, MetaStatusCode(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
@@ -83,6 +86,12 @@ class MockMetaServerClient : public MetaServerClient {
         bool returnS3ChunkInfoMap,
         google::protobuf::Map<
             uint64_t, S3ChunkInfoList> *out));
+
+    MOCK_METHOD4(GetOrModifyS3ChunkInfoAsync, void(
+        uint32_t fsId, uint64_t inodeId,
+        const google::protobuf::Map<
+            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+        MetaServerClientDone *done));
 
     MOCK_METHOD2(CreateInode, MetaStatusCode(
             const InodeParam &param, Inode *out));

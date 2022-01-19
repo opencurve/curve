@@ -53,7 +53,26 @@ MetaStatusCode MetaServerClientImpl::Init(
 #define RPCTask                                                                \
     [&](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,      \
         uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
-        brpc::Controller * cntl) -> int
+        brpc::Controller * cntl, TaskExecutorDone *taskExecutorDone) -> int
+
+#define AsyncRPCTask                                                           \
+    [=](LogicPoolID poolID, CopysetID copysetID, PartitionID partitionID,      \
+        uint64_t txId, uint64_t applyIndex, brpc::Channel * channel,           \
+        brpc::Controller * cntl, TaskExecutorDone *taskExecutorDone) -> int
+
+class MetaServerClientRpcDoneBase : public google::protobuf::Closure {
+ public:
+    MetaServerClientRpcDoneBase(TaskExecutorDone *done,
+        const std::shared_ptr<MetaServerClientMetric> &metaserverClientMetric):
+        done_(done),
+        metaserverClientMetric_(metaserverClientMetric) {}
+
+    virtual ~MetaServerClientRpcDoneBase() {}
+
+ protected:
+    TaskExecutorDone *done_;
+    std::shared_ptr<MetaServerClientMetric> metaserverClientMetric_;
+};
 
 MetaStatusCode MetaServerClientImpl::GetTxId(uint32_t fsId, uint64_t inodeId,
                                              uint32_t *partitionId,
@@ -72,7 +91,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                const std::string &name,
                                                Dentry *out) {
     auto task = RPCTask {
-        metaserverClientMetric_.getDentry.qps.count << 1;
+        metaserverClientMetric_->getDentry.qps.count << 1;
         GetDentryResponse response;
         GetDentryRequest request;
         request.set_poolid(poolID);
@@ -87,7 +106,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         stub.GetDentry(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.getDentry.eps.count << 1;
+            metaserverClientMetric_->getDentry.eps.count << 1;
             LOG(WARNING) << "GetDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -122,8 +141,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::GetDentry,
                                                  task, fsId, inodeid);
-    GetDentryExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    GetDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
@@ -131,7 +150,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                                 uint32_t count,
                                                 std::list<Dentry> *dentryList) {
     auto task = RPCTask {
-        metaserverClientMetric_.listDentry.qps.count << 1;
+        metaserverClientMetric_->listDentry.qps.count << 1;
 
         ListDentryRequest request;
         ListDentryResponse response;
@@ -148,7 +167,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         stub.ListDentry(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.listDentry.eps.count << 1;
+            metaserverClientMetric_->listDentry.eps.count << 1;
             LOG(WARNING) << "ListDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -186,13 +205,13 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::ListDentry,
                                                  task, fsId, inodeid);
-    ListDentryExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    ListDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTask {
-        metaserverClientMetric_.createDentry.qps.count << 1;
+        metaserverClientMetric_->createDentry.qps.count << 1;
         CreateDentryResponse response;
         CreateDentryRequest request;
         request.set_poolid(poolID);
@@ -215,7 +234,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
                 << oss.str();
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.createDentry.eps.count << 1;
+            metaserverClientMetric_->createDentry.eps.count << 1;
             LOG(WARNING) << "CreateDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -250,15 +269,15 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         // TODO(@lixiaocui): may be taskContext need diffrent according to
         // different operatrion
         dentry.parentinodeid());
-    CreateDentryExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    CreateDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   uint64_t inodeid,
                                                   const std::string &name) {
     auto task = RPCTask {
-        metaserverClientMetric_.deleteDentry.qps.count << 1;
+        metaserverClientMetric_->deleteDentry.qps.count << 1;
         DeleteDentryResponse response;
         DeleteDentryRequest request;
         request.set_poolid(poolID);
@@ -273,7 +292,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         stub.DeleteDentry(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.deleteDentry.eps.count << 1;
+            metaserverClientMetric_->deleteDentry.eps.count << 1;
             LOG(WARNING) << "DeleteDentry Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -305,14 +324,14 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::DeleteDentry,
                                                  task, fsId, inodeid);
-    DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode
 MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
-        metaserverClientMetric_.prepareRenameTx.qps.count << 1;
+        metaserverClientMetric_->prepareRenameTx.qps.count << 1;
 
         PrepareRenameTxRequest request;
         PrepareRenameTxResponse response;
@@ -325,7 +344,7 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
         stub.PrepareRenameTx(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.prepareRenameTx.eps.count << 1;
+            metaserverClientMetric_->prepareRenameTx.eps.count << 1;
             LOG(WARNING) << "PrepareRenameTx failed"
                          << ", errorCode = " << cntl->ErrorCode()
                          << ", errorText = " << cntl->ErrorText()
@@ -356,14 +375,14 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto inodeId = dentrys[0].parentinodeid();
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::PrepareRenameTx, task, fsId, inodeId);
-    PrepareRenameTxExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    PrepareRenameTxExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
                                               Inode *out) {
     auto task = RPCTask {
-        metaserverClientMetric_.getInode.qps.count << 1;
+        metaserverClientMetric_->getInode.qps.count << 1;
         GetInodeRequest request;
         GetInodeResponse response;
         request.set_poolid(poolID);
@@ -376,7 +395,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         stub.GetInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.getInode.eps.count << 1;
+            metaserverClientMetric_->getInode.eps.count << 1;
             LOG(WARNING) << "GetInode Failed, errorcode = " << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
@@ -411,13 +430,13 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::GetInode,
                                                  task, fsId, inodeid);
-    GetInodeExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    GetInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
     auto task = RPCTask {
-        metaserverClientMetric_.updateInode.qps.count << 1;
+        metaserverClientMetric_->updateInode.qps.count << 1;
         UpdateInodeResponse response;
         UpdateInodeRequest request;
         request.set_poolid(poolID);
@@ -444,7 +463,7 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
         stub.UpdateInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.updateInode.eps.count << 1;
+            metaserverClientMetric_->updateInode.eps.count << 1;
             LOG(WARNING) << "UpdateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -474,8 +493,101 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
 
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
-    UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+class UpdateInodeRpcDone : public MetaServerClientRpcDoneBase {
+ public:
+    UpdateInodeRpcDone(TaskExecutorDone *done,
+        const std::shared_ptr<MetaServerClientMetric> &metaserverClientMetric):
+        MetaServerClientRpcDoneBase(done, metaserverClientMetric) {}
+    virtual ~UpdateInodeRpcDone() {}
+    void Run() override;
+    UpdateInodeResponse response;
+};
+
+void UpdateInodeRpcDone::Run() {
+    std::unique_ptr<UpdateInodeRpcDone> self_guard(this);
+    brpc::ClosureGuard done_guard(done_);
+    auto taskCtx = done_->GetTaskExcutor()->GetTaskCxt();
+    auto& cntl = taskCtx->cntl_;
+    auto metaCache = done_->GetTaskExcutor()->GetMetaCache();
+    if (cntl.Failed()) {
+        metaserverClientMetric_->updateInode.eps.count << 1;
+        LOG(WARNING) << "UpdateInode Failed, errorcode = "
+                     << cntl.ErrorCode()
+                     << ", error content: " << cntl.ErrorText()
+                     << ", log id: " << cntl.log_id();
+         done_->SetRetCode(-cntl.ErrorCode());
+        return;
+    }
+
+    MetaStatusCode ret = response.statuscode();
+    if (ret != MetaStatusCode::OK) {
+        LOG(WARNING) << "UpdateInode:  inodeid = "
+                     << taskCtx->inodeID
+                     << ", errcode = " << ret
+                     << ", errmsg = " << MetaStatusCode_Name(ret);
+    } else if (response.has_appliedindex()) {
+        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
+                                     response.appliedindex());
+    } else {
+        LOG(WARNING) << "UpdateInode:  inodeid = "
+                     << taskCtx->inodeID
+                     << "ok, but applyIndex not set in response:"
+                     << response.DebugString();
+        done_->SetRetCode(-1);
+        return;
+    }
+
+    VLOG(6) << "UpdateInode success, "
+            << "response: " << response.DebugString();
+    done_->SetRetCode(ret);
+    return;
+}
+
+void MetaServerClientImpl::UpdateInodeAsync(const Inode &inode,
+    MetaServerClientDone *done) {
+    auto task = AsyncRPCTask {
+        metaserverClientMetric_->updateInode.qps.count << 1;
+
+        UpdateInodeRequest request;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_inodeid(inode.inodeid());
+        request.set_fsid(inode.fsid());
+        request.set_length(inode.length());
+        request.set_ctime(inode.ctime());
+        request.set_mtime(inode.mtime());
+        request.set_atime(inode.atime());
+        request.set_uid(inode.uid());
+        request.set_gid(inode.gid());
+        request.set_mode(inode.mode());
+        request.set_nlink(inode.nlink());
+        request.set_openflag(inode.openflag());
+        if (inode.has_volumeextentlist()) {
+            curvefs::metaserver::VolumeExtentList *vlist =
+                new curvefs::metaserver::VolumeExtentList;
+            vlist->CopyFrom(inode.volumeextentlist());
+            request.set_allocated_volumeextentlist(vlist);
+        }
+
+        auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone,
+            metaserverClientMetric_);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.UpdateInode(cntl, &request, &rpcDone->response, rpcDone);
+        return MetaStatusCode::OK;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
+    auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
+        metaCache_, channelManager_, taskCtx);
+    TaskExecutorDone *taskDone = new TaskExecutorDone(excutor, done);
+    excutor->DoAsyncRPCTask(taskDone);
 }
 
 MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
@@ -486,7 +598,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     google::protobuf::Map<
             uint64_t, S3ChunkInfoList> *out) {
     auto task = RPCTask {
-        metaserverClientMetric_.appendS3ChunkInfo.qps.count << 1;
+        metaserverClientMetric_->appendS3ChunkInfo.qps.count << 1;
 
         GetOrModifyS3ChunkInfoRequest request;
         GetOrModifyS3ChunkInfoResponse response;
@@ -502,7 +614,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         stub.GetOrModifyS3ChunkInfo(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.appendS3ChunkInfo.eps.count << 1;
+            metaserverClientMetric_->appendS3ChunkInfo.eps.count << 1;
             LOG(WARNING) << "GetOrModifyS3ChunkInfo Failed, errorcode: "
                          << cntl->ErrorCode()
                          << ", error content: " << cntl->ErrorText()
@@ -539,14 +651,104 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
 
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::GetOrModifyS3ChunkInfo, task, fsId, inodeId);
-    GetOrModifyS3ChunkInfoExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    GetOrModifyS3ChunkInfoExcutor excutor(
+        opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+class GetOrModifyS3ChunkInfoRpcDone : public MetaServerClientRpcDoneBase {
+ public:
+    GetOrModifyS3ChunkInfoRpcDone(TaskExecutorDone *done,
+        const std::shared_ptr<MetaServerClientMetric> &metaserverClientMetric):
+        MetaServerClientRpcDoneBase(done, metaserverClientMetric) {}
+
+    virtual ~GetOrModifyS3ChunkInfoRpcDone() {}
+    void Run() override;
+    GetOrModifyS3ChunkInfoResponse response;
+};
+
+void GetOrModifyS3ChunkInfoRpcDone::Run() {
+    std::unique_ptr<GetOrModifyS3ChunkInfoRpcDone> self_guard(this);
+    brpc::ClosureGuard done_guard(done_);
+    auto taskCtx = done_->GetTaskExcutor()->GetTaskCxt();
+    auto& cntl = taskCtx->cntl_;
+    auto metaCache = done_->GetTaskExcutor()->GetMetaCache();
+    if (cntl.Failed()) {
+        metaserverClientMetric_->appendS3ChunkInfo.eps.count << 1;
+        LOG(WARNING) << "GetOrModifyS3ChunkInfo Failed, errorcode: "
+                     << cntl.ErrorCode()
+                     << ", error content: " << cntl.ErrorText()
+                     << ", log id: " << cntl.log_id();
+        done_->SetRetCode(-cntl.ErrorCode());
+        return;
+    }
+
+    MetaStatusCode ret = response.statuscode();
+    if (ret != MetaStatusCode::OK) {
+        LOG(WARNING) << "GetOrModifyS3ChunkInfo, inodeId: "
+                     << taskCtx->inodeID
+                     << ", fsId: " << taskCtx->fsID
+                     << ", errorcode: " << ret
+                     << ", errmsg: " << MetaStatusCode_Name(ret);
+        done_->SetRetCode(ret);
+        return;
+    } else if (response.has_appliedindex()) {
+        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
+                                     response.appliedindex());
+    } else {
+        LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: "
+                     << taskCtx->inodeID
+                     << ", fsId: "
+                     << taskCtx->fsID
+                     << "ok, but applyIndex or inode not set in response: "
+                     << response.DebugString();
+        done_->SetRetCode(-1);
+        return;
+    }
+    VLOG(6) << "GetOrModifyS3ChunkInfo success, "
+            << "response: " << response.DebugString();
+    done_->SetRetCode(ret);
+    return;
+}
+
+void MetaServerClientImpl::GetOrModifyS3ChunkInfoAsync(
+    uint32_t fsId, uint64_t inodeId,
+    const google::protobuf::Map<
+        uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+    MetaServerClientDone *done) {
+    auto task = AsyncRPCTask {
+        metaserverClientMetric_->appendS3ChunkInfo.qps.count << 1;
+
+        GetOrModifyS3ChunkInfoRequest request;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_returns3chunkinfomap(false);
+        *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
+
+        auto *rpcDone = new GetOrModifyS3ChunkInfoRpcDone(taskExecutorDone,
+            metaserverClientMetric_);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.GetOrModifyS3ChunkInfo(
+            cntl, &request, &rpcDone->response, rpcDone);
+        return MetaStatusCode::OK;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::GetOrModifyS3ChunkInfo, task, fsId, inodeId);
+    auto excutor = std::make_shared<GetOrModifyS3ChunkInfoExcutor>(opt_,
+        metaCache_, channelManager_, taskCtx);
+    TaskExecutorDone *taskDone = new TaskExecutorDone(excutor, done);
+    excutor->DoAsyncRPCTask(taskDone);
 }
 
 MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                                                  Inode *out) {
     auto task = RPCTask {
-        metaserverClientMetric_.createInode.qps.count << 1;
+        metaserverClientMetric_->createInode.qps.count << 1;
         CreateInodeResponse response;
         CreateInodeRequest request;
         request.set_poolid(poolID);
@@ -564,7 +766,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         stub.CreateInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.createInode.eps.count << 1;
+            metaserverClientMetric_->createInode.eps.count << 1;
             LOG(WARNING) << "CreateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -601,14 +803,14 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::CreateInode,
                                                  task, param.fsId, 0);
-    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
+    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
                                                  uint64_t inodeid) {
     auto task = RPCTask {
-        metaserverClientMetric_.deleteInode.qps.count << 1;
+        metaserverClientMetric_->deleteInode.qps.count << 1;
         DeleteInodeResponse response;
         DeleteInodeRequest request;
         request.set_poolid(poolID);
@@ -620,7 +822,7 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
         stub.DeleteInode(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
-            metaserverClientMetric_.deleteInode.eps.count << 1;
+            metaserverClientMetric_->deleteInode.eps.count << 1;
             LOG(WARNING) << "DeleteInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -651,15 +853,8 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::DeleteInode,
                                                  task, fsId, inodeid);
-    DeleteInodeExcutor excutor(opt_, metaCache_, channelManager_);
-    return ReturnError(excutor.DoRPCTask(taskCtx));
-}
-
-MetaStatusCode MetaServerClientImpl::ReturnError(int retcode) {
-    if (retcode < 0) {
-        return MetaStatusCode::RPC_ERROR;
-    }
-    return static_cast<MetaStatusCode>(retcode);
+    DeleteInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
 }  // namespace rpcclient
