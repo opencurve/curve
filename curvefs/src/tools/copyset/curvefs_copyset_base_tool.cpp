@@ -88,7 +88,6 @@ bool CopysetInfo2CopysetStatus(
             uint64_t key = (static_cast<uint64_t>(copysets[m].poolid()) << 32) |
                            copysets[m].copysetid();
             (*key2Status)[key].push_back(copysetsStatus[n]);
-            // TODO(chengyi01): check copysetsStatus[n].status()
         }
     }
     return ret;
@@ -135,7 +134,8 @@ bool CopysetInfo2CopysetStatus(
         getCopysetStatusTool.SetRequestQueue(i.second);
         auto checkRet = getCopysetStatusTool.RunCommand();
         if (checkRet < 0) {
-            std::cerr << "send request to mds get error." << std::endl;
+            std::cerr << "send request to metaserver (" << FLAGS_metaserverAddr
+                      << ") get error." << std::endl;
             ret = false;
         }
         const auto& copysetsStatus =
@@ -146,7 +146,6 @@ bool CopysetInfo2CopysetStatus(
             uint64_t key = (static_cast<uint64_t>(copysets[m].poolid()) << 32) |
                            copysets[m].copysetid();
             (*key2Status)[key].push_back(copysetsStatus[n]);
-            // TODO(chengyi01): check copysetsStatus[n].status()
         }
     }
     return ret;

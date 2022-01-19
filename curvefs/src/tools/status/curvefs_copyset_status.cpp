@@ -41,46 +41,51 @@ void CopysetStatusTool::PrintHelp() {
 }
 
 int CopysetStatusTool::RunCommand() {
-    if (copyInfoListTool_->RunCommand() == 0) {
-        auto response = copyInfoListTool_->GetResponse();
-        std::map<
-            uint64_t,
-            std::vector<curvefs::metaserver::copyset::CopysetStatusResponse>>
-            key2Status;
-        copyset::CopysetInfo2CopysetStatus(*response.get(), &key2Status);
+    int ret = copyInfoListTool_->RunCommand();
+    auto response = copyInfoListTool_->GetResponse();
+    std::map<uint64_t,
+             std::vector<curvefs::metaserver::copyset::CopysetStatusResponse>>
+        key2Status;
+    if (!copyset::CopysetInfo2CopysetStatus(*response.get(), &key2Status)) {
+        ret = -1;
+    }
 
-        std::map<uint64_t, std::vector<curvefs::mds::topology::CopysetValue>>
-            key2Info;
+    std::map<uint64_t, std::vector<curvefs::mds::topology::CopysetValue>>
+        key2Info;
 
-        copyset::Response2CopysetInfo(*response.get(), &key2Info);
+    if (!copyset::Response2CopysetInfo(*response.get(), &key2Info)) {
+        ret = -1;
+    }
 
-        bool isHealth = true;
-        for (auto const& i : key2Info) {
-            if (copyset::checkCopysetHelthy(i.second, key2Status[i.first]) !=
-                copyset::CheckResult::kHealthy) {
-                isHealth = false;
-                break;
-            }
-        }
-        if (show_) {
-            if (isHealth) {
-                std::cout << "all copyset is health." << std::endl;
-            } else {
-                std::cout << "copysets is unhealth." << std::endl;
-            }
-            for (auto const& i : key2Info) {
-                std::cout << "copyset[" << i.first << "]:\n-info:\n";
-                for (auto const& j : i.second) {
-                    std::cout << j.ShortDebugString() << std::endl;
-                }
-                std::cout << "-status:\n";
-                for (auto const& j : key2Status[i.first]) {
-                    std::cout << j.ShortDebugString() << std::endl;
-                }
-            }
+    bool isHealth = true;
+    for (auto const& i : key2Info) {
+        if (copyset::checkCopysetHelthy(i.second, key2Status[i.first]) !=
+            copyset::CheckResult::kHealthy) {
+            isHealth = false;
+            ret = -1;
+            break;
         }
     }
-    return 0;
+    if (show_) {
+        if (isHealth && ret == 0) {
+            std::cout << "all copyset is healthy." << std::endl;
+        } else {
+            std::cout << "copysets is unhealthy." << std::endl;
+        }
+        for (auto const& i : key2Info) {
+            std::cout << "copyset[" << i.first << "]:\n-info:\n";
+            for (auto const& j : i.second) {
+                std::cout << j.ShortDebugString() << std::endl;
+            }
+            std::cout << "-status:\n";
+            for (auto const& j : key2Status[i.first]) {
+                std::cout << j.ShortDebugString() << std::endl;
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    return ret;
 }
 
 }  // namespace status
