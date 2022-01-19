@@ -63,6 +63,8 @@ class CopysetNodeManager {
      */
     int IsCopysetNodeExist(const CreateCopysetRequest::Copyset& copyset);
 
+    bool IsCopysetNodeExist(PoolId poolId, CopysetId copysetId) const;
+
     bool CreateCopysetNode(PoolId poolId, CopysetId copysetId,
                            const braft::Configuration& conf,
                            bool checkLoadFinish = true);
