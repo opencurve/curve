@@ -243,7 +243,7 @@ void FuseClient::GetDentryParamFromInode(
 CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
                                        const char *name, fuse_entry_param *e) {
     VLOG(1) << "FuseOpLookup parent: " << parent
-              << ", name: " << name;
+            << ", name: " << name;
     if (strlen(name) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }

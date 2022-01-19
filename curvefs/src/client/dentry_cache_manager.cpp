@@ -34,19 +34,18 @@ namespace curvefs {
 namespace client {
 
 using curve::common::WriteLockGuard;
+using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
 void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry &dentry) {
     std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
-
-    WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, key);
     dCache_->Put(key, dentry);
 }
 
 void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
                                          const std::string &name) {
     std::string key = GetDentryCacheKey(parentId, name);
-
-    WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, key);
     dCache_->Remove(key);
 }
 
@@ -54,14 +53,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
                                                 const std::string &name,
                                                 Dentry *out) {
     std::string key = GetDentryCacheKey(parent, name);
-    {
-        curve::common::ReadLockGuard lg(mtx_);
-        bool ok = dCache_->Get(key, out);
-        if (ok) {
-            return CURVEFS_ERROR::OK;
-        }
-    }
-    curve::common::WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, key);
     bool ok = dCache_->Get(key, out);
     if (ok) {
         return CURVEFS_ERROR::OK;
@@ -75,14 +67,14 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
             << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
+
     dCache_->Put(key, *out);
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
     std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
-
-    curve::common::WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, key);
     MetaStatusCode ret = metaClient_->CreateDentry(dentry);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ CreateDentry failed, MetaStatusCode = "
@@ -92,6 +84,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
                    << ", name = " << dentry.name();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
+
     dCache_->Put(key, dentry);
     return CURVEFS_ERROR::OK;
 }
@@ -99,9 +92,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
 CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
                                                    const std::string &name) {
     std::string key = GetDentryCacheKey(parent, name);
-
-    curve::common::WriteLockGuard lg(mtx_);
+    NameLockGuard lock(nameLock_, key);
     dCache_->Remove(key);
+
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, MetaStatusCode = " << ret
