@@ -128,5 +128,6 @@ All the developments will be done under master branch. If there's any new versio
 - [Github Issues](https://github.com/openCURVE/CURVE/issues)：You are sincerely welcomed to issue any bugs you came across or any suggestions through Github issues. If you have any question you can refer to our FAQ or join our user group for more details.
 - [FAQ](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ)：Frequently asked question in our user group, and we'll keep working on it.
 - User group：We use Wechat group currently.
+- [Double Week Meetings](https://github.com/opencurve/curve-meetup-slides/tree/main/2022): We have an online community meeting every two weeks which talk about what Curve is doing and planning to do. The time and links of the meeting are public in the user group and [Double Week Meetings](https://github.com/opencurve/curve-meetup-slides/tree/main/2022).
 
 <img src="docs/images/curve-wechat.jpeg" style="zoom: 75%;" />
