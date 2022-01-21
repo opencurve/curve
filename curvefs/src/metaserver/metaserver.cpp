@@ -24,10 +24,11 @@
 
 #include <brpc/channel.h>
 #include <brpc/server.h>
+#include <fcntl.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <braft/builtin_service_impl.h>
-
+#include <unistd.h>
 #include "absl/memory/memory.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
@@ -35,6 +36,7 @@
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "src/common/crc32.h"
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
 #include "src/common/string_util.h"
@@ -66,8 +68,17 @@ void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
     conf_->GetValueFatalIfFail("global.ip", &options_.ip);
     conf_->GetValueFatalIfFail("global.port", &options_.port);
+    conf_->GetValueFatalIfFail("global.external_ip", &options_.externalIp);
+    conf_->GetValueFatalIfFail("global.external_port", &options_.externalPort);
     conf_->GetBoolValue("global.enable_external_server",
         &options_.enableExternalServer);
+
+    LOG(INFO) << "Init metaserver option, options_.ip = " << options_.ip
+              << ", options_.port = " << options_.port
+              << ", options_.externalIp = " << options_.externalIp
+              << ", options_.externalPort = " << options_.externalPort
+              << ", options_.enableExternalServer = "
+              << options_.enableExternalServer;
 
     std::string value;
     conf_->GetValueFatalIfFail("bthread.worker_count", &value);
@@ -119,15 +130,15 @@ void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
                               std::shared_ptr<MdsClient> mdsClient,
                          PartitionCleanOption* partitionCleanOption) {
     LOG_IF(FATAL, !conf_->GetUInt32Value("partition.clean.scanPeriodSec",
-                                        &partitionCleanOption->scanPeriodSec));
-    LOG_IF(FATAL, !conf_->GetUInt32Value("partition.clean.inodeDeletePeriodMs",
-                                &partitionCleanOption->inodeDeletePeriodMs));
+                                         &partitionCleanOption->scanPeriodSec));
+    LOG_IF(FATAL,
+           !conf_->GetUInt32Value("partition.clean.inodeDeletePeriodMs",
+                                  &partitionCleanOption->inodeDeletePeriodMs));
     partitionCleanOption->s3Adaptor = s3Adaptor;
     partitionCleanOption->mdsClient = mdsClient;
 }
 
 void Metaserver::Init() {
-    InitRegisterOptions();
     TrashOption trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
 
@@ -158,6 +169,10 @@ void Metaserver::Init() {
     InitLocalFileSystem();
     InitStorage();
     InitCopysetNodeManager();
+
+    // get metaserver id and token before heartbeat
+    GetMetaserverDataByLoadOrRegister();
+
     InitHeartbeat();
     InitInflightThrottle();
 
@@ -168,6 +183,148 @@ void Metaserver::Init() {
     PartitionCleanManager::GetInstance().Init(partitionCleanOption);
 
     inited_ = true;
+}
+
+void Metaserver::GetMetaserverDataByLoadOrRegister() {
+    std::string metaFilePath;
+    conf_->GetValueFatalIfFail("metaserver.meta_file_path", &metaFilePath);
+    if (localFileSystem_->FileExists(metaFilePath)) {
+        // get metaserver from load
+        LOG_IF(FATAL, LoadMetaserverMeta(metaFilePath, &metadata_) != 0)
+            << "load metaserver meta fail, path = " << metaFilePath;
+    } else {
+        // register metaserver to mds
+        InitRegisterOptions();
+        Register registerMDS(registerOptions_);
+        LOG(INFO) << "register metaserver to mds";
+        LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadata_) != 0)
+            << "Failed to register metaserver to MDS.";
+
+        LOG_IF(FATAL, PersistMetaserverMeta(metaFilePath, &metadata_) != 0)
+            << "persist metadata meta to file fail, path = " << metaFilePath;
+        LOG(INFO) << "metaserver " << metadata_.ShortDebugString();
+    }
+}
+
+int Metaserver::PersistMetaserverMeta(std::string path,
+                                      MetaServerMetadata* metadata) {
+    std::string tempData;
+    metadata->set_checksum(0);
+    bool ret = metadata->SerializeToString(&tempData);
+    if (!ret) {
+        LOG(ERROR) << "convert MetaServerMetadata to string fail";
+        return -1;
+    }
+
+    uint32_t crc = curve::common::CRC32(0, tempData.c_str(), tempData.length());
+    metadata->set_checksum(crc);
+
+    std::string data;
+    ret = metadata->SerializeToString(&data);
+    if (!ret) {
+        LOG(ERROR) << "convert MetaServerMetadata to string fail";
+        return -1;
+    }
+
+    return PersistDataToLocalFile(localFileSystem_, path, data);
+}
+
+int Metaserver::LoadMetaserverMeta(const std::string& metaFilePath,
+                                   MetaServerMetadata* metadata) {
+    std::string data;
+    int ret = LoadDataFromLocalFile(localFileSystem_, metaFilePath, &data);
+    if (ret != 0) {
+        LOG(ERROR) << "load metaserver meta from file fail, path = "
+                   << metaFilePath;
+        return ret;
+    }
+
+    LOG(INFO) << "load data from file, path = " <<  metaFilePath
+              << ", len = " << data.length()
+              << ", data = " << data;
+
+    bool ret1 = metadata->ParseFromString(data);
+    if (!ret1) {
+        LOG(ERROR) << "parse metaserver meta from string fail, data = " << data;
+        return -1;
+    }
+
+    uint32_t crcFromFile = metadata->checksum();
+    std::string tempData;
+    metadata->set_checksum(0);
+    bool ret2 = metadata->SerializeToString(&tempData);
+    if (!ret2) {
+        LOG(ERROR) << "convert MetaServerMetadata to string fail";
+        return -1;
+    }
+
+    uint32_t crc = curve::common::CRC32(0, tempData.c_str(), tempData.length());
+    if (crc != crcFromFile) {
+        LOG(ERROR) << "crc is mismatch";
+        return -1;
+    }
+
+    return 0;
+}
+
+int Metaserver::LoadDataFromLocalFile(std::shared_ptr<LocalFileSystem> fs,
+                                      const std::string& localPath,
+                                      std::string* data) {
+    if (!fs->FileExists(localPath)) {
+        LOG(ERROR) << "get data from local file fail, path = " << localPath;
+        return -1;
+    }
+
+    int fd = fs->Open(localPath.c_str(), O_RDONLY);
+    if (fd < 0) {
+        LOG(ERROR) << "Fail to open local file for write, path = " << localPath;
+        return -1;
+    }
+
+#define METAFILE_MAX_SIZE 4096
+    char buf[METAFILE_MAX_SIZE];
+    int readCount = fs->Read(fd, buf, 0, METAFILE_MAX_SIZE);
+    if (readCount <= 0) {
+        LOG(ERROR) << "Failed to read data from file, path = " << localPath
+                   << ", readCount = " << readCount;
+        return -1;
+    }
+
+    if (fs->Close(fd)) {
+        LOG(ERROR) << "Failed to close file, path = " << localPath;
+        return -1;
+    }
+
+    *data = std::string(buf, readCount);
+    return 0;
+}
+
+int Metaserver::PersistDataToLocalFile(std::shared_ptr<LocalFileSystem> fs,
+                                       const std::string& localPath,
+                                       const std::string& data) {
+    LOG(INFO) << "persist data to file, path  = " << localPath
+              << ", data len = " << data.length()
+              << ", data = " << data;
+    int fd = fs->Open(localPath.c_str(), O_RDWR | O_CREAT);
+    if (fd < 0) {
+        LOG(ERROR) << "Fail to open local file for write, path = " << localPath;
+        return -1;
+    }
+
+    int writtenCount = fs->Write(fd, data.c_str(), 0, data.size());
+    if (writtenCount < data.size()) {
+        LOG(ERROR) << "Failed to write data to file, path = " << localPath
+                   << ", writtenCount = " << writtenCount
+                   << ", data size = " << data.size();
+        return -1;
+    }
+
+    if (fs->Close(fd)) {
+        LOG(ERROR) << "Failed to close file, path = " << localPath;
+        return -1;
+    }
+
+    return 0;
 }
 
 void Metaserver::Run() {
@@ -221,6 +378,9 @@ void Metaserver::Run() {
 
     // add external server
     if (options_.enableExternalServer) {
+        LOG(INFO) << "metaserver enable external server, options_.externalIp = "
+                  << options_.externalIp << ", options_.externalPort = "
+                  << options_.externalPort;
         externalServer_ = absl::make_unique<brpc::Server>();
         LOG_IF(FATAL, externalServer_->AddService(metaService_.get(),
             brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
@@ -236,11 +396,9 @@ void Metaserver::Run() {
             << "add raftStatService error";
 
         butil::ip_t ip;
-        LOG_IF(FATAL, 0 != butil::str2ip(
-            registerOptions_.metaserverExternalIp.c_str(), &ip))
-            << "convert " << registerOptions_.metaserverExternalIp
-            << " to ip failed";
-        butil::EndPoint listenAddr(ip, registerOptions_.metaserverExternalPort);
+        LOG_IF(FATAL, 0 != butil::str2ip(options_.externalIp.c_str(), &ip))
+            << "convert " << options_.externalIp << " to ip failed";
+        butil::EndPoint listenAddr(ip, options_.externalPort);
         // start external rpc server
         LOG_IF(FATAL, externalServer_->Start(listenAddr, &option) != 0)
             << "start external brpc server error";
@@ -300,16 +458,9 @@ void Metaserver::InitHeartbeatOptions() {
 
 void Metaserver::InitHeartbeat() {
     InitHeartbeatOptions();
-
-    // register metaserver to mds, get metaserver id and token
-    Register registerMDS(registerOptions_);
-    LOG(INFO) << "register metaserver to mds";
-    LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadate_) != 0)
-        << "Failed to register metaserver to MDS.";
-
     heartbeatOptions_.copysetNodeManager = copysetNodeManager_;
-    heartbeatOptions_.metaserverId = metadate_.id();
-    heartbeatOptions_.metaserverToken = metadate_.token();
+    heartbeatOptions_.metaserverId = metadata_.id();
+    heartbeatOptions_.metaserverToken = metadata_.token();
     heartbeatOptions_.fs = localFileSystem_;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
         << "Failed to init Heartbeat manager.";

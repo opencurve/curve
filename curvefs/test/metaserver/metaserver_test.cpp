@@ -22,7 +22,6 @@
 #include <butil/at_exit.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
 #include <thread>  // NOLINT
 
 #include "curvefs/src/metaserver/metaserver.h"
@@ -55,6 +54,7 @@ class MetaserverTest : public ::testing::Test {
  protected:
     void SetUp() override {
         // run mds server
+        metaPath_ = "./meta.dat";
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockHeartbeatService_,
@@ -75,6 +75,7 @@ class MetaserverTest : public ::testing::Test {
 
         metaserverIp_ = "127.0.0.1";
         metaserverPort_ = "56702";
+        metaserverExternalPort_ = "56703";
     }
 
     void TearDown() override {
@@ -85,7 +86,9 @@ class MetaserverTest : public ::testing::Test {
 
     std::string metaserverIp_;
     std::string metaserverPort_;
+    std::string metaserverExternalPort_;
     std::string topologyServiceAddr_;
+    std::string metaPath_;
     MockTopologyService mockTopologyService_;
     MockHeartbeatService mockHeartbeatService_;
 
@@ -112,6 +115,7 @@ TEST_F(MetaserverTest, register_to_mds_success) {
     conf->SetStringValue("mds.listen.addr", topologyServiceAddr_);
     conf->SetStringValue("global.ip", metaserverIp_);
     conf->SetStringValue("global.port", metaserverPort_);
+    conf->SetStringValue("metaserver.meta_file_path", metaPath_);
 
     // initialize MDS options
     metaserver.InitOptions(conf);
@@ -124,13 +128,67 @@ TEST_F(MetaserverTest, register_to_mds_success) {
                         Invoke(RpcService<MetaServerRegistRequest,
                                           MetaServerRegistResponse>)));
 
-    // mock RegistMetaServer
+    // mock MetaServerHeartbeat
     MetaServerHeartbeatResponse response1;
     response1.set_statuscode(HeartbeatStatusCode::hbOK);
     EXPECT_CALL(mockHeartbeatService_, MetaServerHeartbeat(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(response1),
                               Invoke(RpcService<MetaServerHeartbeatRequest,
                                                 MetaServerHeartbeatResponse>)));
+
+    std::string cmd = "rm -rf " +  metaPath_;
+    system(cmd.c_str());
+
+    // Initialize other modules after winning election
+    metaserver.Init();
+
+    // start metaserver server
+    std::thread metaserverThread(&Metaserver::Run, &metaserver);
+
+    // sleep 2s
+    sleep(2);
+
+    // stop server and background threads
+    metaserver.Stop();
+
+    brpc::AskToQuit();
+    metaserverThread.join();
+}
+
+TEST_F(MetaserverTest, register_to_mds_enable_external_success) {
+    curvefs::metaserver::Metaserver metaserver;
+    auto conf = std::make_shared<Configuration>();
+    conf->SetConfigPath("curvefs/conf/metaserver.conf");
+    ASSERT_TRUE(conf->LoadConfig());
+    conf->SetStringValue("mds.listen.addr", topologyServiceAddr_);
+    conf->SetStringValue("global.ip", metaserverIp_);
+    conf->SetStringValue("global.port", metaserverPort_);
+    conf->SetStringValue("metaserver.meta_file_path", metaPath_);
+    conf->SetStringValue("global.enable_external_server", "true");
+    conf->SetStringValue("global.external_port", metaserverExternalPort_);
+    conf->SetStringValue("global.external_ip", metaserverIp_);
+
+    // initialize MDS options
+    metaserver.InitOptions(conf);
+
+    // mock RegistMetaServer
+    MetaServerRegistResponse response;
+    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(mockTopologyService_, RegistMetaServer(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke(RpcService<MetaServerRegistRequest,
+                                          MetaServerRegistResponse>)));
+
+    // mock MetaServerHeartbeat
+    MetaServerHeartbeatResponse response1;
+    response1.set_statuscode(HeartbeatStatusCode::hbOK);
+    EXPECT_CALL(mockHeartbeatService_, MetaServerHeartbeat(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(response1),
+                              Invoke(RpcService<MetaServerHeartbeatRequest,
+                                                MetaServerHeartbeatResponse>)));
+
+    std::string cmd = "rm -rf " +  metaPath_;
+    system(cmd.c_str());
 
     // Initialize other modules after winning election
     metaserver.Init();
@@ -153,9 +211,11 @@ TEST_F(MetaserverTest, test2) {
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath("curvefs/conf/metaserver.conf");
     ASSERT_TRUE(conf->LoadConfig());
+
     conf->SetStringValue("mds.listen.addr", topologyServiceAddr_);
     conf->SetStringValue("global.ip", metaserverIp_);
     conf->SetStringValue("global.port", metaserverPort_);
+    conf->SetStringValue("metaserver.meta_file_path", metaPath_);
 
     // mock RegistMetaServer
     MetaServerRegistResponse response;
@@ -165,13 +225,16 @@ TEST_F(MetaserverTest, test2) {
                               Invoke(RpcService<MetaServerRegistRequest,
                                                 MetaServerRegistResponse>)));
 
-    // mock RegistMetaServer
+    // mock MetaServerHeartbeat
     MetaServerHeartbeatResponse response1;
     response1.set_statuscode(HeartbeatStatusCode::hbOK);
     EXPECT_CALL(mockHeartbeatService_, MetaServerHeartbeat(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(response1),
                               Invoke(RpcService<MetaServerHeartbeatRequest,
                                                 MetaServerHeartbeatResponse>)));
+
+    std::string cmd = "rm -rf " +  metaPath_;
+    system(cmd.c_str());
 
     // initialize Metaserver options
     metaserver.InitOptions(conf);
@@ -196,6 +259,46 @@ TEST_F(MetaserverTest, test2) {
 
     // stop server and background threads
     metaserver.Stop();
+    metaserverThread.join();
+}
+
+TEST_F(MetaserverTest, load_from_local) {
+    curvefs::metaserver::Metaserver metaserver;
+    auto conf = std::make_shared<Configuration>();
+    conf->SetConfigPath("curvefs/conf/metaserver.conf");
+    ASSERT_TRUE(conf->LoadConfig());
+    conf->SetStringValue("mds.listen.addr", topologyServiceAddr_);
+    conf->SetStringValue("global.ip", metaserverIp_);
+    conf->SetStringValue("global.port", metaserverPort_);
+    conf->SetStringValue("metaserver.meta_file_path", metaPath_);
+
+    // initialize MDS options
+    metaserver.InitOptions(conf);
+
+    // mock MetaServerHeartbeat
+    MetaServerHeartbeatResponse response1;
+    response1.set_statuscode(HeartbeatStatusCode::hbOK);
+    EXPECT_CALL(mockHeartbeatService_, MetaServerHeartbeat(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(response1),
+                        Invoke(RpcService<MetaServerHeartbeatRequest,
+                                          MetaServerHeartbeatResponse>)));
+
+    // Initialize other modules after winning election
+    metaserver.Init();
+
+    // start metaserver server
+    std::thread metaserverThread(&Metaserver::Run, &metaserver);
+
+    // sleep 2s
+    sleep(2);
+
+    // stop server and background threads
+    metaserver.Stop();
+
+    std::string cmd = "rm -rf " +  metaPath_;
+    system(cmd.c_str());
+
+    brpc::AskToQuit();
     metaserverThread.join();
 }
 }  // namespace metaserver
