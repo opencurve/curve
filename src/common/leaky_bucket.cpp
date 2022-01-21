@@ -25,7 +25,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
-#include <mutex>
+#include <mutex>  // NOLINT
 #include <utility>
 
 #include "src/common/timeutility.h"
@@ -35,6 +35,8 @@ namespace common {
 
 DEFINE_uint32(bucketLeakIntervalMs, 20,
               "leaky bucket leak interval in milliseconds");
+DEFINE_uint32(bucketEmptyTimes, 3,
+              "the continuous times that leaky bucket is empty");
 
 std::once_flag LeakyBucket::initTimerThreadOnce_;
 bthread::TimerThread LeakyBucket::timer_;
@@ -43,15 +45,20 @@ double LeakyBucket::Bucket::Add(double tokens) {
     if (avg == 0) {
         return 0;
     }
-
+    VLOG(9) << ": avg is: " << avg
+            << ", level is: " << level
+            << ", burst is: " << burst
+            << ", burstLevel is: " << burstLevel
+            << ", token is: " << tokens;
     double available = 0;
-
+    levelInitial = false;
+    burstLevelInitial = false;
     if (burst > 0) {
         // if burst is enabled, available tokens is limit by two conditions
-        // 1. bucket-level is limited by bucket capacity which is calculate by [burst * burstLength]  // NOLINT
+        // 1. bucket-level is limited by bucket capacity which is calculate by [burst * burstSeconds]  // NOLINT
         // 2. bucket-burst-level is limited by burst limit which is equal to [burst]  // NOLINT
         available = std::max(
-            std::min(burst * burstLength - level, burst - burstLevel), 0.0);
+            std::min(capacity - level, burst - burstLevel), 0.0);
 
         if (available >= tokens) {
             level += tokens;
@@ -68,7 +75,6 @@ double LeakyBucket::Bucket::Add(double tokens) {
         // if burst is not enable, available token is limit only by bucket
         // capacity which is equal to [avg]
         available = std::max(avg - level, 0.0);
-
         if (available >= tokens) {
             level += tokens;
             return 0;
@@ -79,32 +85,71 @@ double LeakyBucket::Bucket::Add(double tokens) {
     }
 }
 
-void LeakyBucket::Bucket::Leak(uint64_t intervalUs) {
+void LeakyBucket::Bucket::BucketInitial(bool burst) {
+    if (burst) {
+        if (std::fabs(burstLevel) < 0.1) {
+            burstBucketEmptyTimes++;
+            if (burstBucketEmptyTimes >= FLAGS_bucketEmptyTimes) {
+                burstLevelInitial = true;
+                burstLevel = burst - static_cast<double>(burst) *
+                  FLAGS_bucketLeakIntervalMs /
+                    TimeUtility::MilliSecondsPerSecond;
+                burstBucketEmptyTimes = 0;
+            }
+        }
+    } else {
+        if (std::fabs(level) < 0.1) {
+            avgBucketEmptyTimes++;
+            if (avgBucketEmptyTimes >= FLAGS_bucketEmptyTimes) {
+                    levelInitial = true;
+                    level = avg - static_cast<double>(avg) *
+                      FLAGS_bucketLeakIntervalMs
+                      / TimeUtility::MilliSecondsPerSecond;
+                    avgBucketEmptyTimes = 0;
+            }
+        }
+    }
+}
+
+void LeakyBucket::Bucket::Leak() {
     if (avg == 0) {
         level = 0;
         burstLevel = 0;
         return;
     }
 
-    double leak = static_cast<double>(avg) * intervalUs /
-                  TimeUtility::MicroSecondsPerSecond;
-    level = std::max(level - leak, 0.0);
+    BucketInitial();
+    if (levelInitial)
+        return;
 
+    double leak = static_cast<double>(avg) * FLAGS_bucketLeakIntervalMs /
+                  TimeUtility::MilliSecondsPerSecond;
+    level = std::max(level - leak, 0.0);
+    VLOG(9) << "leak is: " << leak
+            << ", level is: " << level;
     if (burst > 0) {
-        leak = static_cast<double>(burst) * intervalUs /
-               TimeUtility::MicroSecondsPerSecond;
+        BucketInitial(true);
+        if (burstLevelInitial)
+            return;
+
+        leak = static_cast<double>(burst) * FLAGS_bucketLeakIntervalMs /
+               TimeUtility::MilliSecondsPerSecond;
         burstLevel = std::max(burstLevel - leak, 0.0);
+        VLOG(9) << "leak is: " << leak
+                << ", burstLevel is: " << burstLevel;
     }
 }
 
 void LeakyBucket::Bucket::Reset(uint64_t avg, uint64_t burst,
-                                uint64_t burstLength) {
-    level = 0;
-    burstLevel = 0;
-
+                                uint64_t burstSeconds) {
+    level = avg - static_cast<double>(avg) * FLAGS_bucketLeakIntervalMs /
+            TimeUtility::MilliSecondsPerSecond;
+    burstLevel = burst - static_cast<double>(burst) * FLAGS_bucketLeakIntervalMs
+      / TimeUtility::MilliSecondsPerSecond;
     this->avg = avg;
     this->burst = burst;
-    this->burstLength = burstLength;
+    this->burstSeconds = burstSeconds;
+    this->capacity = burst + (burst - avg) * (burstSeconds- 1);
 }
 
 LeakyBucket::LeakyBucket(const std::string& name)
@@ -164,34 +209,34 @@ bool LeakyBucket::Add(uint64_t tokens, google::protobuf::Closure* done) {
 }
 
 bool LeakyBucket::SetLimit(uint64_t average, uint64_t burst,
-                           uint64_t burstLength) {
+                           uint64_t burstSeconds) {
     // check param valid
     if (burst > 0) {
         if (average >= burst) {
             LOG(WARNING) << "when burst is enabled, burst should greater than "
                             "average, average = "
                          << average << ", burst = " << burst
-                         << ", burst length = " << burstLength;
+                         << ", burst length = " << burstSeconds;
             return false;
         }
 
-        if (burstLength < 1) {
+        if (burstSeconds< 1) {
             LOG(WARNING) << "when burst is enabled, burst length should "
                             "greater than or equal to 1, average = "
                          << average << ", burst = " << burst
-                         << ", burst length = " << burstLength;
+                         << ", burst length = " << burstSeconds;
             return false;
         }
-    } else if (burstLength != 0) {
+    } else if (burstSeconds!= 0) {
         LOG(WARNING) << "when burst is disabled, burst length show equal "
                         "to 0, average = "
                      << average << ", burst = " << burst
-                     << ", burst length = " << burstLength;
+                     << ", burst length = " << burstSeconds;
         return false;
     }
 
     std::lock_guard<bthread::Mutex> lock(mtx_);
-    bucket_.Reset(average, burst, burstLength);
+    bucket_.Reset(average, burst, burstSeconds);
     lastLeakUs_ = TimeUtility::GetTimeofDayUs();
 
     return true;
@@ -219,11 +264,7 @@ void LeakyBucket::Leak() {
 
     {
         std::lock_guard<bthread::Mutex> lock(mtx_);
-        uint64_t now = TimeUtility::GetTimeofDayUs();
-        uint64_t intervalUs = now - lastLeakUs_;
-        lastLeakUs_ = now;
-
-        bucket_.Leak(intervalUs);
+        bucket_.Leak();
 
         while (!pendings_.empty()) {
             auto& request = pendings_.front();
