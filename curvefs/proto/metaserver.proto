@@ -312,7 +312,7 @@ message MetaServerMetadata {
     required uint32 version = 1;
     required uint32 id = 2;
     required string token = 3;
-    // required uint32 checksum = 4;
+    required uint32 checksum = 4;
 }
 
 message GetOrModifyS3ChunkInfoRequest {

@@ -43,6 +43,7 @@ enum TopoStatusCode {
     TOPO_LEADER_NOT_FOUND = 19;
     TOPO_PARTITION_NOT_FOUND = 20;
     TOPO_CREATE_PARTITION_FAIL = 21;
+    TOPO_METASERVER_EXIST = 22;
 }
 
 enum OnlineState {

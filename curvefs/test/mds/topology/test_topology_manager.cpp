@@ -188,7 +188,7 @@ class TestTopologyManager : public ::testing::Test {
 };
 
 TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
-    MetaServerIdType csId = 0x41;
+    MetaServerIdType msId = 0x41;
     ServerIdType serverId = 0x31;
     std::string token = "token";
 
@@ -207,19 +207,34 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
     MetaServerRegistResponse response;
 
     EXPECT_CALL(*tokenGenerator_, GenToken()).WillOnce(Return(token));
-    EXPECT_CALL(*idGenerator_, GenMetaServerId()).WillOnce(Return(csId));
+    EXPECT_CALL(*idGenerator_, GenMetaServerId()).WillOnce(Return(msId));
 
     EXPECT_CALL(*storage_, StorageMetaServer(_)).WillOnce(Return(true));
     serviceManager_->RegistMetaServer(&request, &response);
 
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_TRUE(response.has_metaserverid());
-    ASSERT_EQ(csId, response.metaserverid());
+    ASSERT_EQ(msId, response.metaserverid());
     ASSERT_TRUE(response.has_token());
     ASSERT_EQ(token, response.token());
     MetaServer metaserver;
-    ASSERT_TRUE(topology_->GetMetaServer(csId, &metaserver));
+    ASSERT_TRUE(topology_->GetMetaServer(msId, &metaserver));
     ASSERT_EQ("externalIp1", metaserver.GetExternalIp());
+
+
+    // test regist same metaserver
+    serviceManager_->RegistMetaServer(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+
+    // test regist same metaserver which already has copyset
+    std::set<MetaServerIdType> replicas;
+    replicas.insert(msId);
+    replicas.insert(msId + 1);
+    replicas.insert(msId + 2);
+    PrepareAddCopySet(1, 0x11, replicas);
+
+    serviceManager_->RegistMetaServer(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_METASERVER_EXIST, response.statuscode());
 }
 
 TEST_F(TestTopologyManager, test_RegistMetaServer_ExIpNotMatch) {
