@@ -54,10 +54,12 @@ struct DiskCacheOption {
     bool forceFlush;
     uint64_t maxUsableSpaceBytes;
     uint32_t cmdTimeoutSec;
-    uint64_t maxFlushBytes;
-    uint64_t maxReadFileBytes;
-    uint64_t maxFlushIops;
-    uint64_t maxReadFileIops;
+    uint64_t avgFlushBytes;
+    uint64_t burstFlushBytes;
+    uint64_t burstSecs;
+    uint64_t avgReadFileBytes;
+    uint64_t avgFlushIops;
+    uint64_t avgReadFileIops;
 };
 
 class DiskCacheManagerImpl {

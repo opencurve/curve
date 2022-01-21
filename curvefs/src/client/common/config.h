@@ -87,14 +87,18 @@ struct DiskCacheOption {
     uint64_t maxUsableSpaceBytes;
     // the max time system command can run
     uint32_t cmdTimeoutSec;
-    // the write bps of disk cache
-    uint64_t maxFlushBytes;
-    // the read bps of disk cache
-    uint64_t maxReadFileBytes;
-    // the write iops of disk cache
-    uint64_t maxFlushIops;
-    // the read iops of disk cache
-    uint64_t maxReadFileIops;
+    // the write throttle bps of disk cache
+    uint64_t avgFlushBytes;
+    // the write burst bps of disk cache
+    uint64_t burstFlushBytes;
+    // the times that write burst bps can continue
+    uint64_t burstSecs;
+    // the read throttle bps of disk cache
+    uint64_t avgReadFileBytes;
+    // the write throttle iops of disk cache
+    uint64_t avgFlushIops;
+    // the read throttle iops of disk cache
+    uint64_t avgReadFileIops;
 };
 
 struct S3ClientAdaptorOption {

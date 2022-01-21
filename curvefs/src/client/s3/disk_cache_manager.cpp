@@ -32,6 +32,26 @@ namespace curvefs {
 
 namespace client {
 
+/**
+ * use curl -L mdsIp:port/flags/avgFlushBytes?setvalue=true
+ * for dynamic parameter configuration
+ */
+static bool pass_uint64(const char*, uint64_t) { return true;}
+DEFINE_uint64(avgFlushBytes, 83886080, "the write throttle bps of disk cache");
+DEFINE_validator(avgFlushBytes, &pass_uint64);
+DEFINE_uint64(burstFlushBytes, 104857600, "the write burst bps of disk cache");
+DEFINE_validator(burstFlushBytes, &pass_uint64);
+DEFINE_uint64(burstSecs, 180, "the times that write burst bps can continue");
+DEFINE_validator(burstSecs, &pass_uint64);
+DEFINE_uint64(avgFlushIops, 0, "the write throttle iops of disk cache");
+DEFINE_validator(avgFlushIops, &pass_uint64);
+DEFINE_uint64(avgReadFileBytes, 83886080,
+  "the read throttle bps of disk cache");
+DEFINE_validator(avgReadFileBytes, &pass_uint64);
+DEFINE_uint64(avgReadFileIops, 0,
+  "the read throttle iops of disk cache");
+DEFINE_validator(avgReadFileIops, &pass_uint64);
+
 DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
                                    std::shared_ptr<DiskCacheWrite> cacheWrite,
                                    std::shared_ptr<DiskCacheRead> cacheRead) {
@@ -51,6 +71,7 @@ int DiskCacheManager::Init(S3Client *client,
     LOG(INFO) << "DiskCacheManager init start.";
     client_ = client;
 
+    option_ = option;
     trimCheckIntervalSec_ = option.diskCacheOpt.trimCheckIntervalSec;
     fullRatio_ = option.diskCacheOpt.fullRatio;
     safeRatio_ = option.diskCacheOpt.safeRatio;
@@ -80,16 +101,18 @@ int DiskCacheManager::Init(S3Client *client,
     }
     // start trim thread
     TrimRun();
+
     SetDiskInitUsedBytes();
     SetDiskFsUsedRatio();
 
-    ReadWriteThrottleParams params;
-    params.iopsWrite = ThrottleParams(option.diskCacheOpt.maxFlushIops, 0, 0);
-    params.bpsWrite = ThrottleParams(option.diskCacheOpt.maxFlushBytes, 0, 0);
-    params.iopsRead = ThrottleParams(option.diskCacheOpt.maxReadFileIops, 0, 0);
-    params.bpsRead = ThrottleParams(option.diskCacheOpt.maxReadFileBytes, 0, 0);
+    FLAGS_avgFlushIops = option_.diskCacheOpt.avgFlushIops;
+    FLAGS_avgFlushBytes = option_.diskCacheOpt.avgFlushBytes;
+    FLAGS_burstFlushBytes = option_.diskCacheOpt.burstFlushBytes;
+    FLAGS_burstSecs = option_.diskCacheOpt.burstSecs;
+    FLAGS_avgReadFileIops = option_.diskCacheOpt.avgReadFileIops;
+    FLAGS_avgReadFileBytes = option_.diskCacheOpt.avgReadFileBytes;
 
-    diskCacheThrottle_.UpdateThrottleParams(params);
+    InitQosParam();
 
     LOG(INFO) << "DiskCacheManager init success. "
               << ", cache dir is: " << cacheDir_
@@ -99,6 +122,22 @@ int DiskCacheManager::Init(S3Client *client,
               << ", fullRatio is: " << fullRatio_
               << ", disk used bytes: " << GetDiskUsedbytes();
     return 0;
+}
+
+void DiskCacheManager::InitQosParam() {
+    ReadWriteThrottleParams params;
+    params.iopsWrite = ThrottleParams(
+      FLAGS_avgFlushIops, 0, 0);
+    params.bpsWrite = ThrottleParams(
+      FLAGS_avgFlushBytes,
+      FLAGS_burstFlushBytes,
+      FLAGS_burstSecs);
+    params.iopsRead = ThrottleParams(
+      FLAGS_avgReadFileIops, 0, 0);
+    params.bpsRead = ThrottleParams(
+      FLAGS_avgReadFileBytes, 0, 0);
+
+    diskCacheThrottle_.UpdateThrottleParams(params);
 }
 
 int DiskCacheManager::UploadAllCacheWriteFile() {
@@ -284,6 +323,7 @@ void DiskCacheManager::TrimCache() {
             return;
         }
         VLOG(9) << "trim thread wake up.";
+        InitQosParam();
         SetDiskFsUsedRatio();
         if (IsDiskCacheFull()) {
             VLOG(3) << "disk cache full, begin trim.";

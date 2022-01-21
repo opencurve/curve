@@ -126,6 +126,8 @@ class DiskCacheManager {
     uint64_t GetDiskUsedbytes() {
         return usedBytes_.load(std::memory_order_seq_cst);
     }
+
+    void InitQosParam();
     /**
      * @brief trim cache func.
     */
@@ -155,6 +157,8 @@ class DiskCacheManager {
     std::shared_ptr<DiskCacheMetric> metric_;
 
     Throttle diskCacheThrottle_;
+
+    S3ClientAdaptorOption option_;
 };
 
 
