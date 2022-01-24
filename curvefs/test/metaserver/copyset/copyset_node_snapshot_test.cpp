@@ -345,6 +345,7 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     node->ListPeers(&peers);
     EXPECT_EQ(3, peers.size());
     EXPECT_EQ(epochBefore, node->GetConfEpoch());
+    node->SetMetaStore(nullptr);
 }
 
 TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
@@ -372,6 +373,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
         .Times(0);
 
     EXPECT_NE(0, node->on_snapshot_load(&reader));
+    node->SetMetaStore(nullptr);
 }
 
 }  // namespace copyset

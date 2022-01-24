@@ -33,6 +33,11 @@
 
 namespace curvefs {
 namespace metaserver {
+
+namespace copyset {
+class CopysetNode;
+}  // namespace copyset
+
 // dentry
 using curvefs::metaserver::GetDentryRequest;
 using curvefs::metaserver::GetDentryResponse;
@@ -122,7 +127,7 @@ class MetaStore {
 
 class MetaStoreImpl : public MetaStore {
  public:
-    MetaStoreImpl();
+    explicit MetaStoreImpl(copyset::CopysetNode* node);
 
     bool Load(const std::string& pathname) override;
     bool Save(const std::string& path,
@@ -202,6 +207,8 @@ class MetaStoreImpl : public MetaStore {
     RWLock rwLock_;  // protect partitionMap_
     std::map<uint32_t, std::shared_ptr<Partition>> partitionMap_;
     std::list<uint32_t> partitionIds_;
+
+    copyset::CopysetNode* copysetNode_;
 };
 }  // namespace metaserver
 }  // namespace curvefs
