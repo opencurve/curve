@@ -28,10 +28,10 @@
 #include <vector>
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/metaserver/storage.h"
+#include "curvefs/src/metaserver/copyset/copyset_node.h"
 
 namespace curvefs {
 namespace metaserver {
-MetaStoreImpl::MetaStoreImpl() {}
 
 // NOTE: if we use set we need define hash function, it's complicate
 using PartitionContainerType = std::unordered_map<uint32_t, PartitionInfo>;
@@ -43,6 +43,8 @@ using PartitionIteratorType = MapContainerIterator<PartitionContainerType>;
 using InodeIteratorType = MapContainerIterator<InodeContainerType>;
 using DentryIteratorType = SetContainerIterator<DentryContainerType>;
 using PendingTxIteratorType = MapContainerIterator<PendingTxContainerType>;
+
+MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode* node) : copysetNode_(node) {}
 
 bool MetaStoreImpl::LoadPartition(uint32_t partitionId, void* entry) {
     auto partitionInfo = reinterpret_cast<PartitionInfo*>(entry);
@@ -136,11 +138,8 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
             uint32_t partitionId = it->second->GetPartitionId();
             std::shared_ptr<PartitionCleaner> partitionCleaner =
                 std::make_shared<PartitionCleaner>(GetPartition(partitionId));
-            copyset::CopysetNode* copysetNode =
-                copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
-                    it->second->GetPoolId(), it->second->GetCopySetId());
             PartitionCleanManager::GetInstance().Add(
-                partitionId, partitionCleaner, copysetNode);
+                partitionId, partitionCleaner, copysetNode_);
         }
     }
 
@@ -297,11 +296,8 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
         it->second->ClearDentry();
         std::shared_ptr<PartitionCleaner> partitionCleaner =
             std::make_shared<PartitionCleaner>(GetPartition(partitionId));
-        copyset::CopysetNode* copysetNode =
-            copyset::CopysetNodeManager::GetInstance().GetCopysetNode(
-                it->second->GetPoolId(), it->second->GetCopySetId());
         PartitionCleanManager::GetInstance().Add(partitionId, partitionCleaner,
-                                                 copysetNode);
+                                                 copysetNode_);
         it->second->SetStatus(PartitionStatus::DELETING);
         TrashManager::GetInstance().Remove(partitionId);
         it->second->ClearS3Compact();

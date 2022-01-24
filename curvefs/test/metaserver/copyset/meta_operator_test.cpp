@@ -154,6 +154,9 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     mock::MockMetaStore* mockMetaStore = new mock::MockMetaStore();
     node.SetMetaStore(mockMetaStore);
 
+    ON_CALL(*mockMetaStore, Clear())
+        .WillByDefault(Return(true));
+
     brpc::Controller cntl;
 
 #define OPERATOR_ON_APPLY_TEST(TYPE)                                           \
@@ -256,6 +259,9 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
     mock::MockMetaStore* mockMetaStore = new mock::MockMetaStore();
     node.SetMetaStore(mockMetaStore);
+
+    ON_CALL(*mockMetaStore, Clear())
+        .WillByDefault(Return(true));
 
     brpc::Controller cntl;
 
@@ -378,6 +384,8 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     auto* mockRaftNode = new MockRaftNode();
     node.SetRaftNode(mockRaftNode);
 
+    ON_CALL(*mockMetaStore, Clear())
+        .WillByDefault(Return(true));
     EXPECT_CALL(*mockRaftNode, apply(_))
         .Times(0);
     EXPECT_CALL(*mockRaftNode, shutdown(_))
