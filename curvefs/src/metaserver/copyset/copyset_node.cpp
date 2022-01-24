@@ -108,7 +108,7 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
     }
 
     // create metastore
-    metaStore_ = absl::make_unique<MetaStoreImpl>();
+    metaStore_ = absl::make_unique<MetaStoreImpl>(this);
 
     InitRaftNodeOptions();
 
@@ -148,6 +148,11 @@ void CopysetNode::Stop() {
         applyQueue_->Flush();
         applyQueue_->Stop();
         applyQueue_.reset();
+    }
+
+    if (metaStore_) {
+        metaStore_->Clear();
+        metaStore_.reset();
     }
 }
 
