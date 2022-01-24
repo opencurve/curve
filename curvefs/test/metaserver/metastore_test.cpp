@@ -135,7 +135,7 @@ class MetastoreTest : public ::testing::Test {
 };
 
 TEST_F(MetastoreTest, partition) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
     PartitionInfo partitionInfo;
@@ -230,7 +230,7 @@ TEST_F(MetastoreTest, partition) {
 }
 
 TEST_F(MetastoreTest, test_inode) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -464,7 +464,7 @@ TEST_F(MetastoreTest, test_inode) {
 }
 
 TEST_F(MetastoreTest, test_dentry) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -689,7 +689,7 @@ TEST_F(MetastoreTest, test_dentry) {
 }
 
 TEST_F(MetastoreTest, persist_success) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -803,7 +803,7 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew;
+    MetaStoreImpl metastoreNew(nullptr);
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
 
@@ -827,7 +827,7 @@ TEST_F(MetastoreTest, persist_success) {
 }
 
 TEST_F(MetastoreTest, persist_deleting_partition_success) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -955,7 +955,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew;
+    MetaStoreImpl metastoreNew(nullptr);
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
 
@@ -979,7 +979,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
 }
 
 TEST_F(MetastoreTest, persist_partition_fail) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
     uint32_t partitionId = 4;
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1003,7 +1003,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 }
 
 TEST_F(MetastoreTest, persist_dentry_fail) {
-    MetaStoreImpl metastore;
+    MetaStoreImpl metastore(nullptr);
     uint32_t partitionId = 4;
 
     // create partition1
