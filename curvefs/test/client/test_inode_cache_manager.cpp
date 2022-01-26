@@ -25,6 +25,7 @@
 
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/common/define.h"
 
 namespace curvefs {
 namespace client {
@@ -36,6 +37,7 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
+using ::testing::AnyOf;
 
 using rpcclient::MetaServerClientDone;
 using rpcclient::MockMetaServerClient;
@@ -186,6 +188,121 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
     iCacheManager_->FlushAll();
 }
 
+TEST_F(TestInodeCacheManager, BatchGetInodeAttr) {
+    uint64_t inodeId1 = 100;
+    uint64_t inodeId2 = 200;
+    uint64_t fileLength = 100;
+
+    // in
+    std::set<uint64_t> inodeIds;
+    inodeIds.emplace(inodeId1);
+    inodeIds.emplace(inodeId2);
+
+    // out
+    std::list<InodeAttr> attrs;
+    InodeAttr attr;
+    attr.set_inodeid(inodeId1);
+    attr.set_fsid(fsId_);
+    attr.set_length(fileLength);
+    attrs.emplace_back(attr);
+    attr.set_inodeid(inodeId2);
+    attrs.emplace_back(attr);
+
+    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, inodeIds, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
+        .WillOnce(DoAll(SetArgPointee<2>(attrs),
+                Return(MetaStatusCode::OK)));
+
+    std::list<InodeAttr> getAttrs;
+    CURVEFS_ERROR ret = iCacheManager_->BatchGetInodeAttr(inodeIds, &getAttrs);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+
+    ret = iCacheManager_->BatchGetInodeAttr(inodeIds, &getAttrs);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(getAttrs.size(), 2);
+    ASSERT_THAT(getAttrs.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
+    ASSERT_EQ(getAttrs.begin()->fsid(), fsId_);
+    ASSERT_EQ(getAttrs.begin()->length(), fileLength);
+}
+
+TEST_F(TestInodeCacheManager, BatchGetXAttr) {
+    uint64_t inodeId1 = 100;
+    uint64_t inodeId2 = 200;
+
+    // in
+    std::set<uint64_t> inodeIds;
+    inodeIds.emplace(inodeId1);
+    inodeIds.emplace(inodeId2);
+
+    // out
+    std::list<XAttr> xattrs;
+    XAttr xattr;
+    xattr.set_fsid(fsId_);
+    xattr.set_inodeid(inodeId1);
+    xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+    xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+    xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "2"});
+    xattr.mutable_xattrinfos()->insert({XATTRFBYTES, "100"});
+    xattrs.emplace_back(xattr);
+    xattr.set_inodeid(inodeId2);
+    xattr.mutable_xattrinfos()->find(XATTRFBYTES)->second = "200";
+    xattrs.emplace_back(xattr);
+
+    EXPECT_CALL(*metaClient_, BatchGetXAttr(fsId_, inodeIds, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
+        .WillOnce(DoAll(SetArgPointee<2>(xattrs),
+                Return(MetaStatusCode::OK)));
+
+    std::list<XAttr> getXAttrs;
+    CURVEFS_ERROR ret = iCacheManager_->BatchGetXAttr(inodeIds, &getXAttrs);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+
+    ret = iCacheManager_->BatchGetXAttr(inodeIds, &getXAttrs);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(getXAttrs.size(), 2);
+    ASSERT_THAT(getXAttrs.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
+    ASSERT_EQ(getXAttrs.begin()->fsid(), fsId_);
+    ASSERT_THAT(getXAttrs.begin()->xattrinfos().find(XATTRFBYTES)->second,
+        AnyOf("100", "200"));
+}
+
+TEST_F(TestInodeCacheManager, ParentMap) {
+    uint64_t inodeId1 = 1;
+    uint64_t p1 = 100;
+    uint64_t p2 = 200;
+    uint64_t p3 = 300;
+
+    std::list<uint64_t> parents;
+    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parents));
+
+    iCacheManager_->AddParent(inodeId1, p1);
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
+    ASSERT_EQ(parents.size(), 1);
+    ASSERT_EQ(*(parents.begin()), p1);
+
+    parents.clear();
+    iCacheManager_->AddParent(inodeId1, p2);
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
+    ASSERT_EQ(parents.size(), 2);
+    ASSERT_EQ(*(parents.begin()), p1);
+    ASSERT_EQ(*(++parents.begin()), p2);
+
+    parents.clear();
+    ASSERT_TRUE(iCacheManager_->UpdateParent(inodeId1, p1, p3));
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
+    ASSERT_EQ(parents.size(), 2);
+    ASSERT_EQ(*(parents.begin()), p3);
+
+    parents.clear();
+    iCacheManager_->RemoveParent(inodeId1, p3);
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
+    ASSERT_EQ(parents.size(), 1);
+    ASSERT_EQ(*(parents.begin()), p2);
+
+    parents.clear();
+    iCacheManager_->ClearParent(inodeId1);
+    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parents));
+}
 
 }  // namespace client
 }  // namespace curvefs

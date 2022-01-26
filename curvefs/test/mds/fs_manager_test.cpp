@@ -194,6 +194,7 @@ TEST_F(FSManagerTest, test1) {
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
+    bool enableSumInDir = false;
     curvefs::common::Volume volume;
     uint64_t volumeSize = 4096 * 10000;
     volume.set_volumesize(volumeSize);
@@ -209,8 +210,8 @@ TEST_F(FSManagerTest, test1) {
     EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
         .WillOnce(Return(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL));
 
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
-                               &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
+                               enableSumInDir, detail, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::CREATE_PARTITION_ERROR);
 
     // create volume fs create root inode fail
@@ -235,8 +236,8 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
-                               &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
+                               enableSumInDir, detail, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create volume fs ok
@@ -257,8 +258,8 @@ TEST_F(FSManagerTest, test1) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
-                               &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
+                               enableSumInDir, detail, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(volumeFsInfo1.fsid(), 2);
     ASSERT_EQ(volumeFsInfo1.fsname(), fsName1);
@@ -271,8 +272,8 @@ TEST_F(FSManagerTest, test1) {
 
     // create volume fs exist
     FsInfo volumeFsInfo2;
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
-                               &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
+                               enableSumInDir, detail, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
 
     // create s3 test
@@ -307,8 +308,8 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize, detail2,
-                               &s3FsInfo);
+    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
+                               enableSumInDir, detail2, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create s3 fs ok
@@ -329,8 +330,8 @@ TEST_F(FSManagerTest, test1) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize, detail2,
-                               &s3FsInfo);
+    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
+                               enableSumInDir, detail2, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(s3FsInfo.fsid(), 4);
     ASSERT_EQ(s3FsInfo.fsname(), fsName2);
@@ -471,6 +472,7 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
+    bool enableSumInDir = false;
     curvefs::common::Volume volume;
     uint64_t volumeSize = 4096 * 10000;
     volume.set_volumesize(volumeSize);
@@ -505,8 +507,8 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize, detail,
-                               &volumeFsInfo1);
+    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
+                               enableSumInDir, detail, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(volumeFsInfo1.fsid(), 0);
     ASSERT_EQ(volumeFsInfo1.fsname(), fsName1);
@@ -550,8 +552,8 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize, detail2,
-                               &s3FsInfo);
+    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
+                               enableSumInDir, detail2, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(s3FsInfo.fsid(), 1);
     ASSERT_EQ(s3FsInfo.fsname(), fsName2);

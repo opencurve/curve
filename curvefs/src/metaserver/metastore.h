@@ -47,9 +47,14 @@ using curvefs::metaserver::CreateDentryRequest;
 using curvefs::metaserver::CreateDentryResponse;
 using curvefs::metaserver::DeleteDentryRequest;
 using curvefs::metaserver::DeleteDentryResponse;
+
 // inode
 using curvefs::metaserver::GetInodeRequest;
 using curvefs::metaserver::GetInodeResponse;
+using curvefs::metaserver::BatchGetInodeAttrRequest;
+using curvefs::metaserver::BatchGetInodeAttrResponse;
+using curvefs::metaserver::BatchGetXAttrRequest;
+using curvefs::metaserver::BatchGetXAttrResponse;
 using curvefs::metaserver::CreateInodeRequest;
 using curvefs::metaserver::CreateInodeResponse;
 using curvefs::metaserver::UpdateInodeRequest;
@@ -114,6 +119,13 @@ class MetaStore {
     virtual MetaStatusCode GetInode(const GetInodeRequest* request,
                                     GetInodeResponse* response) = 0;
 
+    virtual MetaStatusCode BatchGetInodeAttr(
+                                    const BatchGetInodeAttrRequest* request,
+                                    BatchGetInodeAttrResponse* response) = 0;
+
+    virtual MetaStatusCode BatchGetXAttr(const BatchGetXAttrRequest* request,
+                                    BatchGetXAttrResponse* response) = 0;
+
     virtual MetaStatusCode DeleteInode(const DeleteInodeRequest* request,
                                        DeleteInodeResponse* response) = 0;
 
@@ -167,6 +179,12 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode GetInode(const GetInodeRequest* request,
                             GetInodeResponse* response) override;
+
+    MetaStatusCode BatchGetInodeAttr(const BatchGetInodeAttrRequest* request,
+                                BatchGetInodeAttrResponse* response) override;
+
+    MetaStatusCode BatchGetXAttr(const BatchGetXAttrRequest* request,
+                                 BatchGetXAttrResponse* response) override;
 
     MetaStatusCode DeleteInode(const DeleteInodeRequest* request,
                                DeleteInodeResponse* response) override;

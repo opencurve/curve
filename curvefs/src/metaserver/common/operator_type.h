@@ -34,6 +34,8 @@ enum class OperatorType : uint32_t {
     CreateDentry,
     DeleteDentry,
     GetInode,
+    BatchGetInodeAttr,
+    BatchGetXAttr,
     CreateInode,
     UpdateInode,
     DeleteInode,

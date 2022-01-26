@@ -43,6 +43,7 @@ DECLARE_uint64(s3_blocksize);
 DECLARE_uint64(s3_chunksize);
 DECLARE_uint32(rpcTimeoutMs);
 DECLARE_uint32(rpcRetryTimes);
+DECLARE_bool(enableSumInDir);
 
 namespace curvefs {
 namespace tools {
@@ -52,6 +53,7 @@ void CreateFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsName=" << FLAGS_fsName
               << " [-blockSize=" << FLAGS_blockSize
+              << "] [-enableSumInDir=" << FLAGS_enableSumInDir
               << "] [-fsType=volume -volumeSize=" << FLAGS_volumeSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
               << " -volumeName=" << FLAGS_volumeName
@@ -85,6 +87,7 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetS3_chunksize);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
+    AddUpdateFlagsFunc(curvefs::tools::SetEnableSumInDir);
 }
 
 int CreateFsTool::Init() {
@@ -99,6 +102,7 @@ int CreateFsTool::Init() {
     mds::CreateFsRequest request;
     request.set_fsname(FLAGS_fsName);
     request.set_blocksize(FLAGS_blockSize);
+    request.set_enablesumindir(FLAGS_enableSumInDir);
     if (FLAGS_fsType == kFsTypeS3) {
         // s3
         request.set_fstype(common::FSType::TYPE_S3);

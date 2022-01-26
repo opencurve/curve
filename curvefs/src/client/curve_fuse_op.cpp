@@ -28,6 +28,7 @@
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/common/config.h"
+#include "curvefs/src/client/common/common.h"
 #include "src/common/configuration.h"
 #include "src/common/gflags_helper.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
@@ -40,6 +41,7 @@ using ::curvefs::client::FuseClient;
 using ::curvefs::client::FuseS3Client;
 using ::curvefs::client::FuseVolumeClient;
 using ::curvefs::client::common::FuseClientOption;
+using ::curvefs::client::common::MAXXATTRLENGTH;
 
 static FuseClient *g_ClientInstance = nullptr;
 static FuseClientOption *fuseClientOption = nullptr;
@@ -169,6 +171,9 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
     case CURVEFS_ERROR::NAMETOOLONG:
         fuse_reply_err(req, ENAMETOOLONG);
         break;
+    case CURVEFS_ERROR::OUT_OF_RANGE:
+        fuse_reply_err(req, ERANGE);
+        break;
     default:
         fuse_reply_err(req, EIO);
         break;
@@ -193,6 +198,24 @@ void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
         return;
     }
     fuse_reply_attr(req, &attr, fuseClientOption->attrTimeOut);
+}
+
+void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+    size_t size) {
+    std::unique_ptr<char[]> buf(new char[MAXXATTRLENGTH]);
+    std::memset(buf.get(), 0, MAXXATTRLENGTH);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
+                                                         buf.get(), size);
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NODATA) {
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+
+    if (size == 0) {
+        fuse_reply_xattr(req, strlen(buf.get()));
+    } else {
+        fuse_reply_buf(req, buf.get(), strlen(buf.get()));
+    }
 }
 
 void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,

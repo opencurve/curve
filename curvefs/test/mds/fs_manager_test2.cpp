@@ -161,6 +161,7 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticialToPreviousOne) {
     std::string fsname = "hello";
     FSType type = FSType::TYPE_S3;
     uint64_t blocksize = 4 * 1024;
+    bool enableSumInDir = false;
     FsDetail detail;
     auto* s3Info = detail.mutable_s3info();
     s3Info->set_ak("hello");
@@ -188,7 +189,8 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticialToPreviousOne) {
 
         EXPECT_EQ(
             FSStatusCode::FS_EXIST,
-            fsManager_->CreateFs(fsname, type, blocksize, detail, nullptr));
+            fsManager_->CreateFs(fsname, type, blocksize, enableSumInDir,
+            detail, nullptr));
     }
 
     // fstype is different
@@ -210,7 +212,8 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticialToPreviousOne) {
 
         EXPECT_EQ(
             FSStatusCode::FS_EXIST,
-            fsManager_->CreateFs(fsname, type, blocksize, detail, nullptr));
+            fsManager_->CreateFs(fsname, type, blocksize, enableSumInDir,
+            detail, nullptr));
     }
 
     // fsdetail is different
@@ -237,7 +240,8 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticialToPreviousOne) {
 
         EXPECT_EQ(
             FSStatusCode::FS_EXIST,
-            fsManager_->CreateFs(fsname, type, blocksize, detail, nullptr));
+            fsManager_->CreateFs(fsname, type, blocksize, enableSumInDir,
+            detail, nullptr));
     }
 }
 
@@ -245,6 +249,7 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
     std::string fsname = "hello";
     FSType type = FSType::TYPE_S3;
     uint64_t blocksize = 4 * 1024;
+    bool enableSumInDir = false;
     FsDetail detail;
     auto* s3Info = detail.mutable_s3info();
     s3Info->set_ak("hello");
@@ -310,7 +315,7 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
 
     FsInfo resultInfo;
     EXPECT_EQ(FSStatusCode::OK, fsManager_->CreateFs(fsname, type, blocksize,
-                                                     detail, &resultInfo));
+                                        enableSumInDir, detail, &resultInfo));
 
     EXPECT_EQ(FsStatus::INITED, resultInfo.status());
 }

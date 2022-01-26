@@ -31,6 +31,7 @@
 #include "src/client/mds_client.h"
 #include "curvefs/src/client/rpcclient/channel_manager.h"
 #include "curvefs/src/client/common/common.h"
+#include "curvefs/src/common/define.h"
 
 namespace curvefs {
 namespace client {
@@ -40,9 +41,15 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using ::testing::AnyOf;
 
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::MetaStatusCode;
+using ::curvefs::metaserver::BatchGetInodeAttrRequest;
+using ::curvefs::metaserver::BatchGetInodeAttrResponse;
+using ::curvefs::metaserver::BatchGetXAttrRequest;
+using ::curvefs::metaserver::BatchGetXAttrResponse;
+
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -210,6 +217,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
     uint32_t inodeID = 1;
     std::string last = "test1";
     uint32_t count = 10;
+    bool onlyDir = false;
     // out
     std::list<Dentry> out;
     uint64_t applyIndex = 10;
@@ -232,7 +240,7 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
                               SetArgPointee<3>(applyIndex), Return(true)));
 
     MetaStatusCode status =
-        metaserverCli_.ListDentry(fsID, inodeID, last, count, &out);
+        metaserverCli_.ListDentry(fsID, inodeID, last, count, onlyDir, &out);
 
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
@@ -248,7 +256,8 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
                         Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    status = metaserverCli_.ListDentry(fsID, inodeID, last, count, &out);
+    status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
     ASSERT_EQ(1, out.size());
     ASSERT_TRUE(
@@ -273,7 +282,8 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
             SetArgPointee<2>(response),
             Invoke(SetRpcService<ListDentryRequest, ListDentryResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
-    status = metaserverCli_.ListDentry(fsID, inodeID, last, count, &out);
+    status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test3: test response do not have applyindex
@@ -287,19 +297,22 @@ TEST_F(MetaServerClientImplTest, test_ListDentry) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
 
-    status = metaserverCli_.ListDentry(fsID, inodeID, last, count, &out);
+    status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test4: test response do not have dentrys
     response.set_appliedindex(100);
     response.clear_dentrys();
-    status = metaserverCli_.ListDentry(fsID, inodeID, last, count, &out);
+    status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test5: do not have both dentrys and appliedindex
     response.clear_dentrys();
     response.clear_appliedindex();
-    status = metaserverCli_.ListDentry(fsID, inodeID, last, count, &out);
+    status = metaserverCli_.ListDentry(
+        fsID, inodeID, last, count, onlyDir, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
@@ -989,6 +1002,220 @@ TEST_F(MetaServerClientImplTest, test_DeleteInode) {
             Invoke(SetRpcService<DeleteInodeRequest, DeleteInodeResponse>)));
 
     status = metaserverCli_.DeleteInode(fsId, inodeid);
+    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+}
+
+TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
+    // in
+    uint32_t fsid = 1;
+    uint64_t inodeId1 = 1;
+    uint64_t inodeId2 = 2;
+    std::set<uint64_t> inodeIds;
+    inodeIds.emplace(inodeId1);
+    inodeIds.emplace(inodeId2);
+
+    // out
+    std::list<InodeAttr> attr;
+
+    butil::EndPoint target;
+    butil::str2endpoint(addr_.c_str(), &target);
+    uint32_t partitionID = 200;
+    uint64_t applyIndex = 10;
+    curvefs::metaserver::InodeAttr out;
+    out.set_inodeid(inodeId1);
+    out.set_fsid(fsid);
+    out.set_length(10);
+    out.set_ctime(1623835517);
+    out.set_ctime_ns(0);
+    out.set_mtime(1623835517);
+    out.set_mtime_ns(0);
+    out.set_atime(1623835517);
+    out.set_atime_ns(0);
+    out.set_uid(1);
+    out.set_gid(1);
+    out.set_mode(1);
+    out.set_nlink(1);
+    out.set_type(curvefs::metaserver::FsFileType::TYPE_FILE);
+    out.set_rdev(0);
+    out.set_symlink("test9");
+    curvefs::metaserver::InodeAttr out1 = out;
+    out1.set_inodeid(inodeId2);
+    attr.emplace_back(out);
+    attr.emplace_back(out1);
+
+    curvefs::metaserver::BatchGetInodeAttrResponse response;
+
+    // test0: rpc error
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillRepeatedly(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
+        .WillRepeatedly(
+            Invoke(SetRpcService<BatchGetInodeAttrRequest,
+            BatchGetInodeAttrResponse, true>));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                              SetArgPointee<3>(applyIndex), Return(true)));
+
+    MetaStatusCode status = metaserverCli_.BatchGetInodeAttr(
+        fsid, inodeIds, &attr);
+    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+
+    // test1: batchGetInodeAttr ok
+    response.set_statuscode(MetaStatusCode::OK);
+    response.set_appliedindex(10);
+    auto attr1 = response.add_attr();
+    attr1->CopyFrom(out);
+    auto attr2 = response.add_attr();
+    attr2->CopyFrom(out1);
+
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillOnce(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<BatchGetInodeAttrRequest,
+                  BatchGetInodeAttrResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+
+    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
+    ASSERT_EQ(MetaStatusCode::OK, status);
+    ASSERT_EQ(attr.size(), 2);
+    ASSERT_THAT(attr.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
+
+    // test2: not found error
+    response.set_statuscode(MetaStatusCode::NOT_FOUND);
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillOnce(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<BatchGetInodeAttrRequest,
+                  BatchGetInodeAttrResponse>)));
+    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
+    ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
+
+    // test3: test response do not have applyindex
+    response.set_statuscode(MetaStatusCode::OK);
+    response.clear_appliedindex();
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillRepeatedly(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<BatchGetInodeAttrRequest,
+                  BatchGetInodeAttrResponse>)));
+
+    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
+    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+}
+
+TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
+    // in
+    uint32_t fsid = 1;
+    uint64_t inodeId1 = 1;
+    uint64_t inodeId2 = 2;
+    std::set<uint64_t> inodeIds;
+    inodeIds.emplace(inodeId1);
+    inodeIds.emplace(inodeId2);
+
+    // out
+    std::list<XAttr> xattr;
+
+    butil::EndPoint target;
+    butil::str2endpoint(addr_.c_str(), &target);
+    uint32_t partitionID = 200;
+    uint64_t applyIndex = 10;
+    curvefs::metaserver::XAttr out;
+    out.set_fsid(fsid);
+    out.set_inodeid(inodeId1);
+    out.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+    out.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+    out.mutable_xattrinfos()->insert({XATTRENTRIES, "2"});
+    out.mutable_xattrinfos()->insert({XATTRFBYTES, "100"});
+    curvefs::metaserver::XAttr out1 = out;
+    out1.set_inodeid(inodeId2);
+    xattr.emplace_back(out);
+    xattr.emplace_back(out1);
+
+    curvefs::metaserver::BatchGetXAttrResponse response;
+
+    // test0: rpc error
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillRepeatedly(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
+        .WillRepeatedly(
+            Invoke(SetRpcService<BatchGetXAttrRequest,
+            BatchGetXAttrResponse, true>));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                              SetArgPointee<3>(applyIndex), Return(true)));
+
+    MetaStatusCode status = metaserverCli_.BatchGetXAttr(
+        fsid, inodeIds, &xattr);
+    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+
+    // test1: batchGetXAttr ok
+    response.set_statuscode(MetaStatusCode::OK);
+    response.set_appliedindex(10);
+    auto attr1 = response.add_xattr();
+    attr1->CopyFrom(out);
+    auto attr2 = response.add_xattr();
+    attr2->CopyFrom(out1);
+
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillOnce(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<BatchGetXAttrRequest,
+                  BatchGetXAttrResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+
+    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
+    ASSERT_EQ(MetaStatusCode::OK, status);
+    ASSERT_EQ(xattr.size(), 2);
+    ASSERT_THAT(xattr.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
+
+    // test2: not found error
+    response.set_statuscode(MetaStatusCode::NOT_FOUND);
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillOnce(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<BatchGetXAttrRequest,
+                  BatchGetXAttrResponse>)));
+    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
+    ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
+
+    // test3: test response do not have applyindex
+    response.set_statuscode(MetaStatusCode::OK);
+    response.clear_appliedindex();
+    EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
+        .WillRepeatedly(Return(applyIndex));
+    EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(response),
+                  Invoke(SetRpcService<BatchGetXAttrRequest,
+                  BatchGetXAttrResponse>)));
+
+    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 

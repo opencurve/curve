@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <string>
+#include <list>
 
 namespace curvefs {
 namespace client {
@@ -114,6 +115,19 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
 
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
+    }
+
+    if (enableSumInDir_) {
+        XAttr xattr;
+        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+            std::to_string(*wSize)});
+        std::list<uint64_t> parentIds;
+        if (inodeManager_->GetParent(ino, &parentIds)) {
+            ret = UpdateParentInodeXattr(parentIds, xattr, true);
+        } else {
+            LOG(ERROR) << "inodeManager getParent failed, inodeId = " << ino;
+            return CURVEFS_ERROR::INTERNAL;
+        }
     }
     return ret;
 }

@@ -19,9 +19,11 @@
  * @Date: 2021-06-10 10:04:47
  * @Author: chenwei
  */
-#include "curvefs/src/metaserver/inode_storage.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/common/define.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -109,5 +111,89 @@ TEST_F(InodeStorageTest, test1) {
     storage.GetInodeIdList(&inodeIdList);
     ASSERT_EQ(inodeIdList.size(), 2);
 }
+
+TEST_F(InodeStorageTest, testGetAttrNotFound) {
+    MemoryInodeStorage storage;
+    Inode inode;
+    inode.set_fsid(1);
+    inode.set_inodeid(1);
+    inode.set_length(1);
+    inode.set_ctime(100);
+    inode.set_ctime_ns(100);
+    inode.set_mtime(100);
+    inode.set_mtime_ns(100);
+    inode.set_atime(100);
+    inode.set_atime_ns(100);
+    inode.set_uid(0);
+    inode.set_gid(0);
+    inode.set_mode(777);
+    inode.set_nlink(2);
+    inode.set_type(FsFileType::TYPE_DIRECTORY);
+
+    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    InodeAttr attr;
+    ASSERT_EQ(storage.GetAttr(InodeKey(1, 2), &attr),
+        MetaStatusCode::NOT_FOUND);
+}
+
+TEST_F(InodeStorageTest, testGetAttr) {
+    MemoryInodeStorage storage;
+    Inode inode;
+    inode.set_fsid(1);
+    inode.set_inodeid(1);
+    inode.set_length(1);
+    inode.set_ctime(100);
+    inode.set_ctime_ns(100);
+    inode.set_mtime(100);
+    inode.set_mtime_ns(100);
+    inode.set_atime(100);
+    inode.set_atime_ns(100);
+    inode.set_uid(0);
+    inode.set_gid(0);
+    inode.set_mode(777);
+    inode.set_nlink(2);
+    inode.set_type(FsFileType::TYPE_DIRECTORY);
+
+    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    InodeAttr attr;
+    ASSERT_EQ(storage.GetAttr(InodeKey(1, 1), &attr), MetaStatusCode::OK);
+    ASSERT_EQ(attr.inodeid(), 1);
+    ASSERT_EQ(attr.ctime(), 100);
+    ASSERT_EQ(attr.uid(), 0);
+    ASSERT_EQ(attr.mode(), 777);
+}
+
+TEST_F(InodeStorageTest, testGetXAttr) {
+    MemoryInodeStorage storage;
+    Inode inode;
+    inode.set_fsid(1);
+    inode.set_inodeid(1);
+    inode.set_type(FsFileType::TYPE_DIRECTORY);
+    inode.mutable_xattr()->insert({XATTRFILES, "1"});
+    inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
+    inode.mutable_xattr()->insert({XATTRENTRIES, "2"});
+    inode.mutable_xattr()->insert({XATTRFBYTES, "100"});
+
+    inode.mutable_xattr()->insert({XATTRRFILES, "100"});
+    inode.mutable_xattr()->insert({XATTRRSUBDIRS, "100"});
+    inode.mutable_xattr()->insert({XATTRRENTRIES, "200"});
+    inode.mutable_xattr()->insert({XATTRRFBYTES, "1000"});
+
+    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+    XAttr xattr;
+    ASSERT_EQ(storage.GetXAttr(InodeKey(1, 1), &xattr), MetaStatusCode::OK);
+    ASSERT_FALSE(xattr.xattrinfos().empty());
+
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "1");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "1");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRENTRIES)->second, "2");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRFBYTES)->second, "100");
+
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRRFILES)->second, "100");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRRSUBDIRS)->second, "100");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRRENTRIES)->second, "200");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRRFBYTES)->second, "1000");
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

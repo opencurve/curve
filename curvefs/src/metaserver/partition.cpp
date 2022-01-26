@@ -107,7 +107,8 @@ MetaStatusCode Partition::GetDentry(Dentry* dentry) {
 
 MetaStatusCode Partition::ListDentry(const Dentry& dentry,
                                      std::vector<Dentry>* dentrys,
-                                     uint32_t limit) {
+                                     uint32_t limit,
+                                     bool onlyDir) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -116,7 +117,7 @@ MetaStatusCode Partition::ListDentry(const Dentry& dentry,
         return MetaStatusCode::PARTITION_DELETING;
     }
 
-    return dentryManager_->ListDentry(dentry, dentrys, limit);
+    return dentryManager_->ListDentry(dentry, dentrys, limit, onlyDir);
 }
 
 void Partition::ClearDentry() {
@@ -221,6 +222,24 @@ MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
     }
 
     return inodeManager_->GetInode(fsId, inodeId, inode);
+}
+
+MetaStatusCode Partition::GetInodeAttr(uint32_t fsId, uint64_t inodeId,
+                                       InodeAttr* attr) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    return inodeManager_->GetInodeAttr(fsId, inodeId, attr);
+}
+
+MetaStatusCode Partition::GetXAttr(uint32_t fsId, uint64_t inodeId,
+                                   XAttr* xattr) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    return inodeManager_->GetXAttr(fsId, inodeId, xattr);
 }
 
 MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {

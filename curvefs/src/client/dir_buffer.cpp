@@ -66,10 +66,5 @@ void DirBuffer::DirBufferFreeAll() {
     index_ = 0;
 }
 
-
-
-
-
-
 }  // namespace client
 }  // namespace curvefs

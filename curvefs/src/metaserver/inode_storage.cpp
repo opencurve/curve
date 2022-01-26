@@ -58,6 +58,57 @@ MetaStatusCode MemoryInodeStorage::GetCopy(const InodeKey &key, Inode *inode) {
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode MemoryInodeStorage::GetAttr(const InodeKey &key,
+    InodeAttr *attr) {
+    ReadLockGuard readLockGuard(rwLock_);
+    auto it = inodeMap_.find(key);
+    if (it == inodeMap_.end()) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    // get attr from inode
+    attr->set_inodeid(it->second->inodeid());
+    attr->set_fsid(it->second->fsid());
+    attr->set_length(it->second->length());
+    attr->set_ctime(it->second->ctime());
+    attr->set_ctime_ns(it->second->ctime_ns());
+    attr->set_mtime(it->second->mtime());
+    attr->set_mtime_ns(it->second->mtime_ns());
+    attr->set_atime(it->second->atime());
+    attr->set_atime_ns(it->second->atime_ns());
+    attr->set_uid(it->second->uid());
+    attr->set_gid(it->second->gid());
+    attr->set_mode(it->second->mode());
+    attr->set_nlink(it->second->nlink());
+    attr->set_type(it->second->type());
+    if (it->second->has_symlink()) {
+        attr->set_symlink(it->second->symlink());
+    }
+    if (it->second->has_rdev()) {
+        attr->set_rdev(it->second->rdev());
+    }
+    if (it->second->has_dtime()) {
+        attr->set_dtime(it->second->dtime());
+    }
+    if (it->second->has_openmpcount()) {
+        attr->set_openmpcount(it->second->openmpcount());
+    }
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MemoryInodeStorage::GetXAttr(const InodeKey &key, XAttr *xattr) {
+    ReadLockGuard readLockGuard(rwLock_);
+    auto it = inodeMap_.find(key);
+    if (it == inodeMap_.end()) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    if (!it->second->xattr().empty()) {
+        *(xattr->mutable_xattrinfos()) = it->second->xattr();
+    }
+    return MetaStatusCode::OK;
+}
+
 MetaStatusCode MemoryInodeStorage::Delete(const InodeKey &key) {
     WriteLockGuard writeLockGuard(rwLock_);
     auto it = inodeMap_.find(key);

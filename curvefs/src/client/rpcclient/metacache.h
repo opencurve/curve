@@ -142,6 +142,9 @@ class MetaCache {
     virtual bool GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
                                  bool refresh = false);
 
+    virtual bool GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
+                                         PartitionID *pid);
+
  private:
     void GetTxId(uint32_t partitionId, uint64_t *txId);
 

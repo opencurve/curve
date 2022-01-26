@@ -51,6 +51,11 @@ class InodeManager {
                                    uint32_t mode);
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode *inode);
 
+    MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,
+                                InodeAttr *attr);
+
+    MetaStatusCode GetXAttr(uint32_t fsId, uint64_t inodeId, XAttr *xattr);
+
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest &request);

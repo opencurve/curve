@@ -50,6 +50,8 @@ enum class MetaServerOpType {
     DeleteDentry,
     PrepareRenameTx,
     GetInode,
+    BatchGetInodeAttr,
+    BatchGetXAttr,
     UpdateInode,
     CreateInode,
     DeleteInode,
@@ -58,6 +60,7 @@ enum class MetaServerOpType {
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
 
+const uint32_t MAXXATTRLENGTH = 256;
 
 }  // namespace common
 }  // namespace client

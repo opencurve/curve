@@ -89,7 +89,29 @@ class UpdateInodeAsyncDone : public MetaServerClientDone {
  private:
     std::shared_ptr<InodeWrapper> inodeWrapper_;
 };
+class UpdateXattrAsyncDone : public MetaServerClientDone {
+ public:
+    UpdateXattrAsyncDone(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper):
+        inodeWrapper_(inodeWrapper) {}
+    ~UpdateXattrAsyncDone() {}
 
+    void Run() override {
+        std::unique_ptr<UpdateXattrAsyncDone> self_guard(this);
+        MetaStatusCode ret = GetStatusCode();
+        if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
+            LOG(ERROR) << "metaClient_ UpdateXattr failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
+                       << ", inodeid: " << inodeWrapper_->GetInodeId();
+            inodeWrapper_->MarkInodeError();
+        }
+        inodeWrapper_->ReleaseSyncingXattr();
+    };
+
+ private:
+    std::shared_ptr<InodeWrapper> inodeWrapper_;
+};
 class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
  public:
     explicit GetOrModifyS3ChunkInfoAsyncDone(
@@ -153,6 +175,15 @@ void InodeWrapper::FlushAttrAsync() {
         LockSyncingInode();
         auto *done = new UpdateInodeAsyncDone(shared_from_this());
         metaClient_->UpdateInodeAsync(inode_, done);
+        dirty_ = false;
+    }
+}
+
+void InodeWrapper::FlushXattrAsync() {
+    if (dirty_) {
+        LockSyncingXattr();
+        auto *done = new UpdateXattrAsyncDone(shared_from_this());
+        metaClient_->UpdateXattrAsync(inode_, done);
         dirty_ = false;
     }
 }

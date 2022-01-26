@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 #include <condition_variable>  // NOLINT
 #include "curvefs/src/common/process.h"
+#include "curvefs/src/common/define.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -1084,6 +1085,194 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     ASSERT_TRUE(metastore.Clear());
 }
 
+TEST_F(MetastoreTest, testBatchGetInodeAttr) {
+    MetaStoreImpl metastore(nullptr);
+
+    // create partition1
+    CreatePartitionRequest createPartitionRequest;
+    CreatePartitionResponse createPartitionResponse;
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(1);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(1000);
+    createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
+    MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
+                                                   &createPartitionResponse);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
+    ASSERT_EQ(createPartitionResponse.statuscode(), ret);
+
+    // CreateInde
+    CreateInodeRequest createRequest;
+    CreateInodeResponse createResponse;
+
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t partitionId = 1;
+    uint32_t fsId = 1;
+    uint64_t length = 2;
+    uint32_t uid = 100;
+    uint32_t gid = 200;
+    uint32_t mode = 777;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+
+    createRequest.set_poolid(poolId);
+    createRequest.set_copysetid(copysetId);
+    createRequest.set_partitionid(partitionId);
+    createRequest.set_fsid(fsId);
+    createRequest.set_length(length);
+    createRequest.set_uid(uid);
+    createRequest.set_gid(gid);
+    createRequest.set_mode(mode);
+    createRequest.set_type(type);
+
+    ret = metastore.CreateInode(&createRequest, &createResponse);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t inodeId1 = createResponse.inode().inodeid();
+
+    createRequest.set_length(3);
+    ret = metastore.CreateInode(&createRequest, &createResponse);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t inodeId2 = createResponse.inode().inodeid();
+
+    BatchGetInodeAttrRequest batchRequest;
+    BatchGetInodeAttrResponse batchResponse;
+    batchRequest.set_poolid(poolId);
+    batchRequest.set_copysetid(copysetId);
+    batchRequest.set_partitionid(partitionId);
+    batchRequest.set_fsid(fsId);
+    batchRequest.add_inodeid(inodeId1);
+    batchRequest.add_inodeid(inodeId2);
+
+    ret = metastore.BatchGetInodeAttr(&batchRequest, &batchResponse);
+    ASSERT_EQ(batchResponse.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(batchResponse.attr_size(), 2);
+    if (batchResponse.attr(0).inodeid() == inodeId1) {
+        ASSERT_EQ(batchResponse.attr(0).length(), 2);
+        ASSERT_EQ(batchResponse.attr(1).length(), 3);
+    } else {
+        ASSERT_EQ(batchResponse.attr(0).length(), 3);
+        ASSERT_EQ(batchResponse.attr(1).length(), 2);
+    }
+}
+
+TEST_F(MetastoreTest, testBatchGetXAttr) {
+    MetaStoreImpl metastore(nullptr);
+
+    // create partition1
+    CreatePartitionRequest createPartitionRequest;
+    CreatePartitionResponse createPartitionResponse;
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(1);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(1000);
+    createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
+    MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
+                                                   &createPartitionResponse);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
+    ASSERT_EQ(createPartitionResponse.statuscode(), ret);
+
+    // CreateInde
+    CreateInodeRequest createRequest;
+    CreateInodeResponse createResponse;
+
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t partitionId = 1;
+    uint32_t fsId = 1;
+    uint64_t length = 2;
+    uint32_t uid = 100;
+    uint32_t gid = 200;
+    uint32_t mode = 777;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+
+    createRequest.set_poolid(poolId);
+    createRequest.set_copysetid(copysetId);
+    createRequest.set_partitionid(partitionId);
+    createRequest.set_fsid(fsId);
+    createRequest.set_length(length);
+    createRequest.set_uid(uid);
+    createRequest.set_gid(gid);
+    createRequest.set_mode(mode);
+    createRequest.set_type(type);
+
+    ret = metastore.CreateInode(&createRequest, &createResponse);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t inodeId1 = createResponse.inode().inodeid();
+
+    ret = metastore.CreateInode(&createRequest, &createResponse);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t inodeId2 = createResponse.inode().inodeid();
+
+    // UpdateInode Xattr
+    UpdateInodeRequest updateRequest;
+    UpdateInodeResponse updateResponse;
+    updateRequest.set_poolid(poolId);
+    updateRequest.set_copysetid(copysetId);
+    updateRequest.set_partitionid(partitionId);
+    updateRequest.set_fsid(fsId);
+    updateRequest.set_inodeid(inodeId1);
+    updateRequest.mutable_xattr()->insert({XATTRFILES, "1"});
+    updateRequest.mutable_xattr()->insert({XATTRSUBDIRS, "2"});
+    updateRequest.mutable_xattr()->insert({XATTRENTRIES, "3"});
+    updateRequest.mutable_xattr()->insert({XATTRFBYTES, "100"});
+    ret = metastore.UpdateInode(&updateRequest, &updateResponse);
+    ASSERT_EQ(updateResponse.statuscode(), MetaStatusCode::OK);
+
+    BatchGetXAttrRequest batchRequest;
+    BatchGetXAttrResponse batchResponse;
+    batchRequest.set_poolid(poolId);
+    batchRequest.set_copysetid(copysetId);
+    batchRequest.set_partitionid(partitionId);
+    batchRequest.set_fsid(fsId);
+    batchRequest.add_inodeid(inodeId1);
+    batchRequest.add_inodeid(inodeId2);
+
+    ret = metastore.BatchGetXAttr(&batchRequest, &batchResponse);
+    ASSERT_EQ(batchResponse.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(batchResponse.xattr_size(), 2);
+    if (batchResponse.xattr(0).inodeid() == inodeId1) {
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRFILES)->second, "1");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRSUBDIRS)->second, "2");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRENTRIES)->second, "3");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRFBYTES)->second, "100");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRFILES)->second, "0");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRSUBDIRS)->second, "0");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRENTRIES)->second, "0");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRFBYTES)->second, "0");
+
+    } else {
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRFILES)->second, "1");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRSUBDIRS)->second, "2");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRENTRIES)->second, "3");
+        ASSERT_EQ(batchResponse.xattr(1).xattrinfos()
+            .find(XATTRFBYTES)->second, "100");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRFILES)->second, "0");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRSUBDIRS)->second, "0");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRENTRIES)->second, "0");
+        ASSERT_EQ(batchResponse.xattr(0).xattrinfos()
+            .find(XATTRFBYTES)->second, "0");
+    }
+}
 }  // namespace metaserver
 }  // namespace curvefs
 

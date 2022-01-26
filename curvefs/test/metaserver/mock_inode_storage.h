@@ -25,6 +25,7 @@
 
 #include <gmock/gmock.h>
 #include <list>
+#include <memory>
 #include "curvefs/src/metaserver/inode_storage.h"
 
 namespace curvefs {
@@ -39,6 +40,8 @@ class MockInodeStorage : public InodeStorage {
     MOCK_METHOD2(Get, MetaStatusCode(const InodeKey &key,
         std::shared_ptr<Inode> *inode));
     MOCK_METHOD2(GetCopy, MetaStatusCode(const InodeKey &key, Inode *inode));
+    MOCK_METHOD2(GetAttr, MetaStatusCode(const InodeKey &key, InodeAttr *attr));
+    MOCK_METHOD2(GetXAttr, MetaStatusCode(const InodeKey &key, XAttr *xattr));
     MOCK_METHOD1(Delete, MetaStatusCode(const InodeKey &key));
     MOCK_METHOD1(Update, MetaStatusCode(const Inode &inode));
     MOCK_METHOD0(Count, int());

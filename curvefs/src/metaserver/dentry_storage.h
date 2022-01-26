@@ -70,7 +70,8 @@ class DentryStorage {
 
     virtual MetaStatusCode List(const Dentry& dentry,
                                 std::vector<Dentry>* dentrys,
-                                uint32_t limit) = 0;
+                                uint32_t limit,
+                                bool onlyDir = false) = 0;
 
     virtual MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentrys) = 0;
 
@@ -91,7 +92,8 @@ class MemoryDentryStorage : public DentryStorage {
 
     MetaStatusCode List(const Dentry& dentry,
                         std::vector<Dentry>* dentrys,
-                        uint32_t limit) override;
+                        uint32_t limit,
+                        bool onlyDir = false) override;
 
     MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry) override;
 

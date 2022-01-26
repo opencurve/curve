@@ -48,7 +48,8 @@ class DentryManager {
 
     MetaStatusCode ListDentry(const Dentry& dentry,
                               std::vector<Dentry>* dentrys,
-                              uint32_t limit);
+                              uint32_t limit,
+                              bool onlyDir = false);
 
     void ClearDentry();
 

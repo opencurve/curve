@@ -56,7 +56,9 @@ class Partition {
     MetaStatusCode GetDentry(Dentry* dentry);
 
     MetaStatusCode ListDentry(const Dentry& dentry,
-                              std::vector<Dentry>* dentrys, uint32_t limit);
+                              std::vector<Dentry>* dentrys,
+                              uint32_t limit,
+                              bool onlyDir = false);
 
     void ClearDentry();
 
@@ -74,6 +76,11 @@ class Partition {
     MetaStatusCode CreateRootInode(uint32_t fsId, uint32_t uid, uint32_t gid,
                                    uint32_t mode);
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode* inode);
+
+    MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,
+                                InodeAttr* attr);
+
+    MetaStatusCode GetXAttr(uint32_t fsId, uint64_t inodeId, XAttr* xattr);
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 

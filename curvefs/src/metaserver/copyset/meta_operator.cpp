@@ -108,6 +108,18 @@ bool GetInodeOperator::CanBypassPropose() const {
            node_->GetAppliedIndex() >= req->appliedindex();
 }
 
+bool BatchGetInodeAttrOperator::CanBypassPropose() const {
+    auto* req = static_cast<const BatchGetInodeAttrRequest*>(request_);
+    return req->has_appliedindex() &&
+           node_->GetAppliedIndex() >= req->appliedindex();
+}
+
+bool BatchGetXAttrOperator::CanBypassPropose() const {
+    auto* req = static_cast<const BatchGetXAttrRequest*>(request_);
+    return req->has_appliedindex() &&
+           node_->GetAppliedIndex() >= req->appliedindex();
+}
+
 bool GetDentryOperator::CanBypassPropose() const {
     auto* req = static_cast<const GetDentryRequest*>(request_);
     return req->has_appliedindex() &&
@@ -141,6 +153,8 @@ OPERATOR_ON_APPLY(ListDentry);
 OPERATOR_ON_APPLY(CreateDentry);
 OPERATOR_ON_APPLY(DeleteDentry);
 OPERATOR_ON_APPLY(GetInode);
+OPERATOR_ON_APPLY(BatchGetInodeAttr);
+OPERATOR_ON_APPLY(BatchGetXAttr);
 OPERATOR_ON_APPLY(CreateInode);
 OPERATOR_ON_APPLY(UpdateInode);
 OPERATOR_ON_APPLY(GetOrModifyS3ChunkInfo);
@@ -185,6 +199,8 @@ OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(GetDentry);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(ListDentry);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(GetInode);
+READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetInodeAttr);
+READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetXAttr);
 
 #undef READONLY_OPERATOR_ON_APPLY_FROM_LOG
 
@@ -199,6 +215,8 @@ OPERATOR_REDIRECT(ListDentry);
 OPERATOR_REDIRECT(CreateDentry);
 OPERATOR_REDIRECT(DeleteDentry);
 OPERATOR_REDIRECT(GetInode);
+OPERATOR_REDIRECT(BatchGetInodeAttr);
+OPERATOR_REDIRECT(BatchGetXAttr);
 OPERATOR_REDIRECT(CreateInode);
 OPERATOR_REDIRECT(UpdateInode);
 OPERATOR_REDIRECT(GetOrModifyS3ChunkInfo);
@@ -220,6 +238,8 @@ OPERATOR_ON_FAILED(ListDentry);
 OPERATOR_ON_FAILED(CreateDentry);
 OPERATOR_ON_FAILED(DeleteDentry);
 OPERATOR_ON_FAILED(GetInode);
+OPERATOR_ON_FAILED(BatchGetInodeAttr);
+OPERATOR_ON_FAILED(BatchGetXAttr);
 OPERATOR_ON_FAILED(CreateInode);
 OPERATOR_ON_FAILED(UpdateInode);
 OPERATOR_ON_FAILED(GetOrModifyS3ChunkInfo);
@@ -241,6 +261,8 @@ OPERATOR_HASH_CODE(ListDentry);
 OPERATOR_HASH_CODE(CreateDentry);
 OPERATOR_HASH_CODE(DeleteDentry);
 OPERATOR_HASH_CODE(GetInode);
+OPERATOR_HASH_CODE(BatchGetInodeAttr);
+OPERATOR_HASH_CODE(BatchGetXAttr);
 OPERATOR_HASH_CODE(CreateInode);
 OPERATOR_HASH_CODE(UpdateInode);
 OPERATOR_HASH_CODE(GetOrModifyS3ChunkInfo);
@@ -272,6 +294,8 @@ OPERATOR_TYPE(ListDentry);
 OPERATOR_TYPE(CreateDentry);
 OPERATOR_TYPE(DeleteDentry);
 OPERATOR_TYPE(GetInode);
+OPERATOR_TYPE(BatchGetInodeAttr);
+OPERATOR_TYPE(BatchGetXAttr);
 OPERATOR_TYPE(CreateInode);
 OPERATOR_TYPE(UpdateInode);
 OPERATOR_TYPE(GetOrModifyS3ChunkInfo);

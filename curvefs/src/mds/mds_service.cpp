@@ -35,6 +35,7 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     std::string fsName = request->fsname();
     uint64_t blockSize = request->blocksize();
     FSType type = request->fstype();
+    bool enableSumInDir = request->enablesumindir();
     if (type == ::curvefs::common::FSType::TYPE_VOLUME) {
         if (!request->fsdetail().has_volume()) {
             response->set_statuscode(FSStatusCode::PARAM_ERROR);
@@ -45,11 +46,12 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
         const auto& volume = request->fsdetail().volume();
         LOG(INFO) << "CreateFs request, fsName = " << fsName
                   << ", blockSize = " << blockSize
-                  << ", volume.volumeName = " << volume.volumename();
+                  << ", volume.volumeName = " << volume.volumename()
+                  << ", enableSumInDir = " << enableSumInDir;
 
         FSStatusCode status = fsManager_->CreateFs(
-            fsName, FSType::TYPE_VOLUME, blockSize, request->fsdetail(),
-            response->mutable_fsinfo());
+            fsName, FSType::TYPE_VOLUME, blockSize, enableSumInDir,
+            request->fsdetail(), response->mutable_fsinfo());
 
         if (status != FSStatusCode::OK) {
             response->clear_fsinfo();
@@ -57,6 +59,7 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
             LOG(ERROR) << "CreateFs fail, fsName = " << fsName
                        << ", blockSize = " << blockSize
                        << ", volume.volumeName = " << volume.volumename()
+                       << ", enableSumInDir = " << enableSumInDir
                        << ", errCode = " << FSStatusCode_Name(status);
             return;
         }
@@ -70,11 +73,12 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
         const auto& s3Info = request->fsdetail().s3info();
         LOG(INFO) << "CreateFs request, fsName = " << fsName
                   << ", blockSize = " << blockSize
-                  << ", s3Info.bucketname = " << s3Info.bucketname();
+                  << ", s3Info.bucketname = " << s3Info.bucketname()
+                  << ", enableSumInDir = " << enableSumInDir;
 
         FSStatusCode status = fsManager_->CreateFs(
-            fsName, FSType::TYPE_S3, blockSize, request->fsdetail(),
-            response->mutable_fsinfo());
+            fsName, FSType::TYPE_S3, blockSize, enableSumInDir,
+            request->fsdetail(), response->mutable_fsinfo());
 
         if (status != FSStatusCode::OK) {
             response->clear_fsinfo();
@@ -82,6 +86,7 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
             LOG(ERROR) << "CreateFs fail, fsName = " << fsName
                        << ", blockSize = " << blockSize
                        << ", s3Info.bucketname = " << s3Info.bucketname()
+                       << ", enableSumInDir = " << enableSumInDir
                        << ", errCode = " << FSStatusCode_Name(status);
             return;
         }

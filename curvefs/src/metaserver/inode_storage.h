@@ -27,6 +27,7 @@
 #include <unordered_map>
 #include <utility>
 #include <list>
+#include <memory>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "src/common/concurrent/rw_lock.h"
@@ -72,6 +73,8 @@ class InodeStorage {
         const InodeKey &key, std::shared_ptr<Inode> *inode) = 0;
     virtual MetaStatusCode GetCopy(
         const InodeKey &key, Inode *inode) = 0;
+    virtual MetaStatusCode GetAttr(const InodeKey &key, InodeAttr *attr) = 0;
+    virtual MetaStatusCode GetXAttr(const InodeKey &key, XAttr *xattr) = 0;
     virtual MetaStatusCode Delete(const InodeKey &key) = 0;
     virtual MetaStatusCode Update(const Inode &inode) = 0;
     virtual int Count() = 0;
@@ -113,6 +116,26 @@ class MemoryInodeStorage : public InodeStorage {
     MetaStatusCode GetCopy(const InodeKey &key, Inode *inode) override;
 
     /**
+     * @brief get inode attribute from storage
+     *
+     * @param[in] key: the key of inode want to get
+     * @param[out] attr: the inode attribute got
+     *
+     * @return If inode not exist, return NOT_FOUND; else return OK
+     */
+    MetaStatusCode GetAttr(const InodeKey &key, InodeAttr *attr) override;
+
+    /**
+     * @brief get inode extended attributes from storage
+     *
+     * @param[in] key: the key of inode want to get
+     * @param[out] attr: the inode extended attribute got
+     *
+     * @return If inode not exist, return NOT_FOUND; else return OK
+     */
+    MetaStatusCode GetXAttr(const InodeKey &key, XAttr *xattr) override;
+
+    /**
      * @brief delete inode from storage
      *
      * @param[in] key: the key of inode want to delete
@@ -126,7 +149,7 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @param[in] inode: the inode want to update
      *
-     * @return If inode not exist, return NOT_FOUND; else replace and  return OK
+     * @return If inode not exist, return NOT_FOUND; else replace and return OK
      */
     MetaStatusCode Update(const Inode &inode) override;
 

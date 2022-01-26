@@ -38,6 +38,8 @@ using ::curvefs::metaserver::copyset::ListDentryOperator;
 using ::curvefs::metaserver::copyset::CreateDentryOperator;
 using ::curvefs::metaserver::copyset::DeleteDentryOperator;
 using ::curvefs::metaserver::copyset::GetInodeOperator;
+using ::curvefs::metaserver::copyset::BatchGetInodeAttrOperator;
+using ::curvefs::metaserver::copyset::BatchGetXAttrOperator;
 using ::curvefs::metaserver::copyset::CreateInodeOperator;
 using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
 using ::curvefs::metaserver::copyset::UpdateInodeOperator;
@@ -147,6 +149,30 @@ void MetaServerServiceImpl::GetInode(
     helper.operator()<GetInodeOperator>(controller, request, response, done,
                                         request->poolid(),
                                         request->copysetid());
+}
+
+void MetaServerServiceImpl::BatchGetInodeAttr(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::metaserver::BatchGetInodeAttrRequest* request,
+    ::curvefs::metaserver::BatchGetInodeAttrResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<BatchGetInodeAttrOperator>(controller, request, response,
+                                                 done,
+                                                 request->poolid(),
+                                                 request->copysetid());
+}
+
+void MetaServerServiceImpl::BatchGetXAttr(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::metaserver::BatchGetXAttrRequest* request,
+    ::curvefs::metaserver::BatchGetXAttrResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<BatchGetXAttrOperator>(controller, request, response,
+                                             done,
+                                             request->poolid(),
+                                             request->copysetid());
 }
 
 void MetaServerServiceImpl::CreateInode(

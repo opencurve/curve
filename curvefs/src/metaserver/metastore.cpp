@@ -414,8 +414,14 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
         dentry.set_name(request->last());
     }
 
+    bool onlyDir = false;
+    if (request->has_onlydir()) {
+        onlyDir = request->onlydir();
+    }
+
     std::vector<Dentry> dentrys;
-    auto rc = partition->ListDentry(dentry, &dentrys, request->count());
+    auto rc = partition->ListDentry(dentry, &dentrys, request->count(),
+                                    onlyDir);
     response->set_statuscode(rc);
     if (rc == MetaStatusCode::OK && !dentrys.empty()) {
         *response->mutable_dentrys() = {dentrys.begin(), dentrys.end()};
@@ -525,6 +531,58 @@ MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
         partition->GetInode(fsId, inodeId, response->mutable_inode());
     if (status != MetaStatusCode::OK) {
         response->clear_inode();
+    }
+    response->set_statuscode(status);
+    return status;
+}
+
+MetaStatusCode MetaStoreImpl::BatchGetInodeAttr(
+    const BatchGetInodeAttrRequest* request,
+    BatchGetInodeAttrResponse* response) {
+    ReadLockGuard readLockGuard(rwLock_);
+    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
+    if (partition == nullptr) {
+        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
+        response->set_statuscode(status);
+        return status;
+    }
+
+    uint32_t fsId = request->fsid();
+    MetaStatusCode status = MetaStatusCode::OK;
+    for (int i = 0; i < request->inodeid_size(); i++) {
+        status = partition->GetInodeAttr(fsId, request->inodeid(i),
+                                         response->add_attr());
+        if (status != MetaStatusCode::OK) {
+            response->clear_attr();
+            response->set_statuscode(status);
+            return status;
+        }
+    }
+    response->set_statuscode(status);
+    return status;
+}
+
+MetaStatusCode MetaStoreImpl::BatchGetXAttr(
+    const BatchGetXAttrRequest* request,
+    BatchGetXAttrResponse* response) {
+    ReadLockGuard readLockGuard(rwLock_);
+    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
+    if (partition == nullptr) {
+        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
+        response->set_statuscode(status);
+        return status;
+    }
+
+    uint32_t fsId = request->fsid();
+    MetaStatusCode status = MetaStatusCode::OK;
+    for (int i = 0; i < request->inodeid_size(); i++) {
+        status = partition->GetXAttr(fsId, request->inodeid(i),
+                                     response->add_xattr());
+        if (status != MetaStatusCode::OK) {
+            response->clear_xattr();
+            response->set_statuscode(status);
+            return status;
+        }
     }
     response->set_statuscode(status);
     return status;

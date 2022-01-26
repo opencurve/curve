@@ -28,6 +28,7 @@ cc_test(
        "@com_google_googletest//:gtest_main",
        "//curvefs/src/client/rpcclient:rpcclient",
        "//curvefs/proto:curvefs_topology_cc_proto",
+       "//curvefs/src/common:curvefs_common",
    ],
    visibility = ["//visibility:public"],
 )

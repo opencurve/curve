@@ -27,6 +27,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
+#include <unordered_map>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
@@ -40,6 +42,8 @@ using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeOpenStatusChange;
+using ::curvefs::metaserver::InodeAttr;
+using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::space::AllocateType;
 using ::curvefs::metaserver::S3ChunkInfoList;
@@ -68,6 +72,7 @@ class MetaServerClient {
 
     virtual MetaStatusCode ListDentry(uint32_t fsId, uint64_t inodeid,
                                       const std::string &last, uint32_t count,
+                                      bool onlyDir,
                                       std::list<Dentry> *dentryList) = 0;
 
     virtual MetaStatusCode CreateDentry(const Dentry &dentry) = 0;
@@ -81,6 +86,14 @@ class MetaServerClient {
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                                     Inode *out) = 0;
 
+    virtual MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
+        const std::set<uint64_t> &inodeIds,
+        std::list<InodeAttr> *attr) = 0;
+
+    virtual MetaStatusCode BatchGetXAttr(uint32_t fsId,
+        const std::set<uint64_t> &inodeIds,
+        std::list<XAttr> *xattr) = 0;
+
     virtual MetaStatusCode UpdateInode(const Inode &inode,
                                        InodeOpenStatusChange statusChange =
                                            InodeOpenStatusChange::NOCHANGE) = 0;
@@ -89,6 +102,9 @@ class MetaServerClient {
                                   MetaServerClientDone *done,
                                   InodeOpenStatusChange statusChange =
                                       InodeOpenStatusChange::NOCHANGE) = 0;
+
+    virtual void UpdateXattrAsync(const Inode &inode,
+        MetaServerClientDone *done) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -129,6 +145,7 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode ListDentry(uint32_t fsId, uint64_t inodeid,
                               const std::string &last, uint32_t count,
+                              bool onlyDir,
                               std::list<Dentry> *dentryList) override;
 
     MetaStatusCode CreateDentry(const Dentry &dentry) override;
@@ -141,6 +158,14 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out) override;
 
+    MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
+        const std::set<uint64_t> &inodeIds,
+        std::list<InodeAttr> *attr) override;
+
+    MetaStatusCode BatchGetXAttr(uint32_t fsId,
+        const std::set<uint64_t> &inodeIds,
+        std::list<XAttr> *xattr) override;
+
     MetaStatusCode UpdateInode(const Inode &inode,
                                InodeOpenStatusChange statusChange =
                                    InodeOpenStatusChange::NOCHANGE) override;
@@ -148,6 +173,9 @@ class MetaServerClientImpl : public MetaServerClient {
     void UpdateInodeAsync(const Inode &inode, MetaServerClientDone *done,
                           InodeOpenStatusChange statusChange =
                               InodeOpenStatusChange::NOCHANGE) override;
+
+    void UpdateXattrAsync(const Inode &inode,
+        MetaServerClientDone *done) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,

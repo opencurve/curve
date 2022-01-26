@@ -116,13 +116,18 @@ class FsInfoWrapper {
         return fsInfo_.detail();
     }
 
+    bool GetEnableSumInDir() const {
+        return fsInfo_.enablesumindir();
+    }
+
  private:
     FsInfo fsInfo_;
 };
 
 FsInfoWrapper GenerateFsInfoWrapper(const std::string& fsName, uint64_t fsId,
                                     uint64_t blocksize, uint64_t rootinodeid,
-                                    const FsDetail& detail);
+                                    const FsDetail& detail,
+                                    bool enableSumInDir = false);
 
 }  // namespace mds
 }  // namespace curvefs

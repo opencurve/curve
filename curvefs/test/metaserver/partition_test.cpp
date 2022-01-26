@@ -330,5 +330,59 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 }
 
+TEST_F(PartitionTest, testGetInodeAttr) {
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(4);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(199);
+
+    Partition partition1(partitionInfo1);
+
+    // create parent inode
+    Inode inode;
+    inode.set_inodeid(100);
+    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
+                                     0, &inode), MetaStatusCode::OK);
+    InodeAttr attr;
+    ASSERT_EQ(partition1.GetInodeAttr(1, 100, &attr), MetaStatusCode::OK);
+    ASSERT_EQ(attr.inodeid(), 100);
+    ASSERT_EQ(attr.fsid(), 1);
+    ASSERT_EQ(attr.length(), 0);
+    ASSERT_EQ(attr.uid(), 0);
+    ASSERT_EQ(attr.gid(), 0);
+    ASSERT_EQ(attr.mode(), 0);
+    ASSERT_EQ(attr.type(), FsFileType::TYPE_FILE);
+}
+
+TEST_F(PartitionTest, testGetXAttr) {
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(4);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(199);
+
+    Partition partition1(partitionInfo1);
+
+    // create parent inode
+    Inode inode;
+    inode.set_inodeid(100);
+    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0,
+        FsFileType::TYPE_DIRECTORY, "",
+        0, &inode), MetaStatusCode::OK);
+    XAttr xattr;
+    ASSERT_EQ(partition1.GetXAttr(1, 100, &xattr), MetaStatusCode::OK);
+    ASSERT_EQ(xattr.inodeid(), 100);
+    ASSERT_EQ(xattr.fsid(), 1);
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRENTRIES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRFBYTES)->second, "0");
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

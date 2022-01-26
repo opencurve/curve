@@ -41,7 +41,8 @@ class DentryStorageTest : public ::testing::Test {
                      const std::string& name,
                      uint64_t txId,
                      uint64_t inodeId,
-                     bool deleteMarkFlag) {
+                     bool deleteMarkFlag,
+                     FsFileType type = FsFileType::TYPE_FILE) {
         Dentry dentry;
         dentry.set_fsid(fsId);
         dentry.set_parentinodeid(parentId);
@@ -49,6 +50,7 @@ class DentryStorageTest : public ::testing::Test {
         dentry.set_txid(txId);
         dentry.set_inodeid(inodeId);
         dentry.set_flag(deleteMarkFlag ? DentryFlag::DELETE_MARK_FLAG : 0);
+        dentry.set_type(type);
         return dentry;
     }
 
@@ -378,6 +380,21 @@ TEST_F(DentryStorageTest, List) {
     dentry = GenDentry(2, 0, "", 0, 0, false);
     ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
     ASSERT_EQ(dentrys.size(), 0);
+
+    // CASE 9: list directory only
+    storage.Clear();
+    InsertDentrys(&storage, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A", 0, 1, false, FsFileType::TYPE_DIRECTORY),
+        GenDentry(1, 0, "B", 0, 2, true, FsFileType::TYPE_DIRECTORY),
+        GenDentry(1, 0, "D", 0, 3, false),
+        GenDentry(1, 0, "E", 0, 4, false),
+    });
+
+    dentrys.clear();
+    dentry = GenDentry(1, 0, "", 0, 0, false);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0, true), MetaStatusCode::OK);
+    ASSERT_EQ(dentrys.size(), 1);
 }
 
 TEST_F(DentryStorageTest, HandleTx) {
