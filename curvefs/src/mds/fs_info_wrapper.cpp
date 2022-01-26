@@ -71,7 +71,8 @@ std::vector<std::string> FsInfoWrapper::MountPoints() const {
 
 FsInfoWrapper GenerateFsInfoWrapper(const std::string& fsName, uint64_t fsId,
                                     uint64_t blocksize, uint64_t rootinodeid,
-                                    const FsDetail& detail) {
+                                    const FsDetail& detail,
+                                    bool enableSumInDir) {
     FsInfo fsInfo;
     fsInfo.set_fsname(fsName);
     fsInfo.set_fsid(fsId);
@@ -79,6 +80,7 @@ FsInfoWrapper GenerateFsInfoWrapper(const std::string& fsName, uint64_t fsId,
     fsInfo.set_rootinodeid(rootinodeid);
     fsInfo.set_blocksize(blocksize);
     fsInfo.set_mountnum(0);
+    fsInfo.set_enablesumindir(enableSumInDir);
 
     if (detail.has_s3info()) {
         fsInfo.set_fstype(FSType::TYPE_S3);

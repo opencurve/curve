@@ -56,6 +56,7 @@ DEFINE_string(s3_endpoint, "endpoint", "s3 endpoint");
 DEFINE_string(s3_bucket_name, "bucketname", "s3 bucket name");
 DEFINE_uint64(s3_blocksize, 1048576, "s3 block size");
 DEFINE_uint64(s3_chunksize, 4194304, "s3 chunk size");
+DEFINE_bool(enableSumInDir, false, "statistic info in xattr");
 
 // list-topology
 DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");
@@ -190,6 +191,12 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
         std::bind(&SetDiffFlagInfo<uint64_t>, std::placeholders::_1,
                   std::placeholders::_2, "s3_chunksize", "s3.chunksize",
                   &FLAGS_s3_chunksize);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetEnableSumInDir =
+        std::bind(&SetFlagInfo<bool>, std::placeholders::_1,
+                  std::placeholders::_2, "enableSumInDir",
+                  &FLAGS_enableSumInDir);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =

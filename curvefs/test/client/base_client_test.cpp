@@ -107,6 +107,41 @@ TEST_F(BaseClientTest, test_AllocExtents) {
         << response.ShortDebugString();
 }
 
+TEST_F(BaseClientTest, test_AllocExtents1) {
+    uint32_t fsId = 1;
+    ExtentAllocInfo info;
+    info.lOffset = 0;
+    info.len = 1024;
+    info.leftHintAvailable = false;
+    info.pOffsetLeft = 0;
+    info.rightHintAvailable = false;
+    info.pOffsetRight = 0;
+    curvefs::space::AllocateSpaceResponse resp;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(1000);
+    brpc::Channel ch;
+    ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+
+    curvefs::space::AllocateSpaceResponse response;
+    auto extent = response.add_extents();
+    extent->set_offset(0);
+    extent->set_length(1024);
+    response.set_status(curvefs::space::SpaceStatusCode::SPACE_OK);
+    EXPECT_CALL(mockSpaceAllocService_, AllocateSpace(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<AllocateSpaceRequest, AllocateSpaceResponse>)));
+
+    spacebasecli_.AllocExtents(fsId, info, curvefs::space::AllocateType::NONE,
+                               &resp, &cntl, &ch);
+    ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(resp, response))
+        << "resp:\n"
+        << resp.ShortDebugString() << "response:\n"
+        << response.ShortDebugString();
+}
+
 TEST_F(BaseClientTest, test_DeAllocExtents) {
     uint32_t fsId = 1;
     Extent extent;

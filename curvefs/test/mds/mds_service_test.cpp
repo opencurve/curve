@@ -195,6 +195,7 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
+    createRequest.set_enablesumindir(false);
     createRequest.mutable_fsdetail();
 
     FsInfo fsinfo1;

@@ -65,6 +65,30 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
+    const std::set<uint64_t> &inodeIds,
+    std::list<InodeAttr> *attr) {
+    MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, inodeIds, attr);
+    if (MetaStatusCode::OK != ret) {
+        LOG(ERROR) << "metaClient BatchGetInodeAttr failed, MetaStatusCode = "
+                   << ret << ", MetaStatusCode_Name = "
+                   << MetaStatusCode_Name(ret);
+    }
+    return MetaStatusCodeToCurvefsErrCode(ret);
+}
+
+CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
+    const std::set<uint64_t> &inodeIds,
+    std::list<XAttr> *xattr) {
+    MetaStatusCode ret = metaClient_->BatchGetXAttr(fsId_, inodeIds, xattr);
+    if (MetaStatusCode::OK != ret) {
+        LOG(ERROR) << "metaClient BatchGetXAttr failed, MetaStatusCode = "
+                   << ret << ", MetaStatusCode_Name = "
+                   << MetaStatusCode_Name(ret);
+    }
+    return MetaStatusCodeToCurvefsErrCode(ret);
+}
+
 CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     const InodeParam &param,
     std::shared_ptr<InodeWrapper> &out) {
@@ -138,6 +162,55 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
         curve::common::UniqueLock ulk = it->second->GetUniqueLock();
         it->second->FlushAsync();
     }
+}
+
+void InodeCacheManagerImpl::AddParent(uint64_t inodeId, uint64_t parentId) {
+    curve::common::LockGuard lg2(parentIdMapMutex_);
+    if (parentIdMap_.count(inodeId)) {
+        parentIdMap_[inodeId].emplace_back(parentId);
+    } else {
+        parentIdMap_.emplace(inodeId, std::list<uint64_t>({parentId}));
+    }
+}
+
+void InodeCacheManagerImpl::RemoveParent(uint64_t inodeId, uint64_t parentId) {
+    curve::common::LockGuard lg2(parentIdMapMutex_);
+    if (parentIdMap_.count(inodeId)) {
+        auto iter = std::find(parentIdMap_[inodeId].begin(),
+            parentIdMap_[inodeId].end(), parentId);
+        if (iter != parentIdMap_[inodeId].end()) {
+            parentIdMap_[inodeId].erase(iter);
+        }
+    }
+}
+
+void InodeCacheManagerImpl::ClearParent(uint64_t inodeId) {
+    curve::common::LockGuard lg2(parentIdMapMutex_);
+    parentIdMap_.erase(inodeId);
+}
+
+bool InodeCacheManagerImpl::UpdateParent(uint64_t inodeId, uint64_t oldParentId,
+    uint64_t newParentId) {
+    curve::common::LockGuard lg2(parentIdMapMutex_);
+    if (parentIdMap_.count(inodeId)) {
+        auto iter = std::find(parentIdMap_[inodeId].begin(),
+            parentIdMap_[inodeId].end(), oldParentId);
+        if (iter != parentIdMap_[inodeId].end()) {
+            *iter = newParentId;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool InodeCacheManagerImpl::GetParent(uint64_t inodeId,
+    std::list<uint64_t> *parentIds) {
+    curve::common::LockGuard lg2(parentIdMapMutex_);
+    if (parentIdMap_.count(inodeId)) {
+        *parentIds = parentIdMap_[inodeId];
+        return true;
+    }
+    return false;
 }
 
 

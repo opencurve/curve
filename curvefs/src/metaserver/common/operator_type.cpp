@@ -37,6 +37,10 @@ const char* OperatorTypeName(OperatorType type) {
             return "DeleteDentry";
         case OperatorType::GetInode:
             return "GetInode";
+        case OperatorType::BatchGetInodeAttr:
+            return "BatchGetInodeAttr";
+        case OperatorType::BatchGetXAttr:
+            return "BatchGetXAttr";
         case OperatorType::CreateInode:
             return "CreateInode";
         case OperatorType::UpdateInode:

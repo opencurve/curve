@@ -27,10 +27,13 @@
 #include <memory>
 #include <unordered_map>
 #include <map>
+#include <set>
+#include <list>
 
 #include "src/common/lru_cache.h"
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/inode_wrapper.h"
@@ -38,6 +41,8 @@
 
 using ::curve::common::LRUCache;
 using ::curve::common::CacheMetrics;
+using ::curvefs::metaserver::InodeAttr;
+using ::curvefs::metaserver::XAttr;
 
 namespace curvefs {
 namespace client {
@@ -61,6 +66,13 @@ class InodeCacheManager {
     virtual CURVEFS_ERROR GetInode(uint64_t inodeid,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
+    virtual CURVEFS_ERROR BatchGetInodeAttr(
+        const std::set<uint64_t> &inodeIds,
+        std::list<InodeAttr> *attrs) = 0;
+
+    virtual CURVEFS_ERROR BatchGetXAttr(const std::set<uint64_t> &inodeIds,
+        std::list<XAttr> *xattrs) = 0;
+
     virtual CURVEFS_ERROR CreateInode(const InodeParam &param,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
@@ -74,6 +86,18 @@ class InodeCacheManager {
     virtual void FlushAll() = 0;
 
     virtual void FlushInodeOnce() = 0;
+
+    virtual void AddParent(uint64_t inodeId, uint64_t parentId) = 0;
+
+    virtual void RemoveParent(uint64_t inodeId, uint64_t parentId) = 0;
+
+    virtual void ClearParent(uint64_t inodeId) = 0;
+
+    virtual bool GetParent(uint64_t inodeId,
+        std::list<uint64_t> *parentIds) = 0;
+
+    virtual bool UpdateParent(uint64_t inodeId, uint64_t oldParentId,
+        uint64_t newParentId) = 0;
 
  protected:
     uint32_t fsId_;
@@ -105,6 +129,12 @@ class InodeCacheManagerImpl : public InodeCacheManager {
     CURVEFS_ERROR GetInode(uint64_t inodeid,
         std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
 
+    CURVEFS_ERROR BatchGetInodeAttr(const std::set<uint64_t> &inodeIds,
+        std::list<InodeAttr> *attrs) override;
+
+    CURVEFS_ERROR BatchGetXAttr(const std::set<uint64_t> &inodeIds,
+        std::list<XAttr> *xattrs) override;
+
     CURVEFS_ERROR CreateInode(const InodeParam &param,
         std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
 
@@ -119,15 +149,28 @@ class InodeCacheManagerImpl : public InodeCacheManager {
 
     void FlushInodeOnce() override;
 
+    void AddParent(uint64_t inodeId, uint64_t parentId) override;
+
+    void RemoveParent(uint64_t inodeId, uint64_t parentId) override;
+
+    void ClearParent(uint64_t inodeId) override;
+
+    bool GetParent(uint64_t inodeId, std::list<uint64_t> *parentIds) override;
+
+    bool UpdateParent(uint64_t inodeId, uint64_t oldParentId,
+        uint64_t newParentId) override;
+
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>> iCache_;
 
     // dirty map, key is inodeid
     std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
-
-    // dirty map mutex
     curve::common::Mutex dirtyMapMutex_;
+
+    // inodeid to parent inodeid, may have more parent at hard link
+    std::map<uint64_t, std::list<uint64_t>> parentIdMap_;
+    curve::common::Mutex parentIdMapMutex_;
 
     curve::common::GenericNameLock<Mutex> nameLock_;
 };

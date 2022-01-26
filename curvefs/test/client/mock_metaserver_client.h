@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <set>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
@@ -59,8 +60,8 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD4(GetDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
                   const std::string &name, Dentry *out));
 
-    MOCK_METHOD5(ListDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
-            const std::string &last, uint32_t count,
+    MOCK_METHOD6(ListDentry, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
+            const std::string &last, uint32_t count, bool onlyDir,
             std::list<Dentry> *dentryList));
 
     MOCK_METHOD1(CreateDentry, MetaStatusCode(const Dentry &dentry));
@@ -74,6 +75,14 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(GetInode, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, Inode *out));
 
+    MOCK_METHOD3(BatchGetInodeAttr, MetaStatusCode(
+        uint32_t fsId, const std::set<uint64_t> &inodeIds,
+        std::list<InodeAttr> *attr));
+
+    MOCK_METHOD3(BatchGetXAttr, MetaStatusCode(
+        uint32_t fsId, const std::set<uint64_t> &inodeIds,
+        std::list<XAttr> *xattr));
+
     MOCK_METHOD2(UpdateInode,
                  MetaStatusCode(const Inode &inode,
                                 InodeOpenStatusChange statusChange));
@@ -81,6 +90,9 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(UpdateInodeAsync,
                  void(const Inode &inode, MetaServerClientDone *done,
                       InodeOpenStatusChange statusChange));
+
+    MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
+        MetaServerClientDone *done));
 
     MOCK_METHOD5(GetOrModifyS3ChunkInfo, MetaStatusCode(
         uint32_t fsId, uint64_t inodeId,

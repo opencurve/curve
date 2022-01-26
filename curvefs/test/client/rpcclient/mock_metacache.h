@@ -55,6 +55,9 @@ class MockMetaCache : public MetaCache {
 
     MOCK_METHOD3(GetTargetLeader, bool(CopysetTarget *target,
                                        uint64_t *applyindex, bool refresh));
+
+    MOCK_METHOD3(GetPartitionIdByInodeId,
+                 bool(uint32_t fsID, uint64_t inodeID, PartitionID *pid));
 };
 
 }  // namespace rpcclient

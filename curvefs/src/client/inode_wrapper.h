@@ -85,6 +85,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return inode_.fsid();
     }
 
+    FsFileType GetType() const {
+        return inode_.type();
+    }
+
     std::string GetSymlinkStr() const {
         curve::common::UniqueLock lg(mtx_);
         return inode_.symlink();
@@ -170,6 +174,15 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return;
     }
 
+    bool GetXattrUnLocked(const char *name, std::string *value) {
+        auto it = inode_.xattr().find(name);
+        if (it != inode_.xattr().end()) {
+            *value = it->second;
+            return true;
+        }
+        return false;
+    }
+
     void UpdateInode(const Inode &inode) {
         inode_ = inode;
         dirty_ = true;
@@ -211,6 +224,8 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void FlushAttrAsync();
 
+    void FlushXattrAsync();
+
     void FlushS3ChunkInfoAsync();
 
     CURVEFS_ERROR RefreshS3ChunkInfo();
@@ -249,6 +264,14 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         syncingInodeMtx_.unlock();
     }
 
+    void LockSyncingXattr() const {
+        syncingXattrMtx_.lock();
+    }
+
+    void ReleaseSyncingXattr() const {
+        syncingXattrMtx_.unlock();
+    }
+
     curve::common::UniqueLock GetSyncingInodeUniqueLock() {
         return curve::common::UniqueLock(syncingInodeMtx_);
     }
@@ -280,6 +303,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
      mutable ::curve::common::Mutex mtx_;
 
      mutable ::curve::common::Mutex syncingInodeMtx_;
+     mutable ::curve::common::Mutex syncingXattrMtx_;
      mutable ::curve::common::Mutex syncingS3ChunkInfoMtx_;
 };
 

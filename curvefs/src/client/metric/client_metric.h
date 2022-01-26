@@ -69,6 +69,8 @@ struct MetaServerClientMetric {
 
     // inode
     InterfaceMetric getInode;
+    InterfaceMetric batchGetInodeAttr;
+    InterfaceMetric batchGetXattr;
     InterfaceMetric createInode;
     InterfaceMetric updateInode;
     InterfaceMetric deleteInode;
@@ -85,9 +87,13 @@ struct MetaServerClientMetric {
         : prefix(!prefix_.empty() ? prefix_
                                   : "curvefs_metaserver_client_" +
                                         curve::common::ToHexString(this)),
-          getDentry(prefix, "getDentry"), listDentry(prefix, "listDentry"),
+          getDentry(prefix, "getDentry"),
+          listDentry(prefix, "listDentry"),
           createDentry(prefix, "createDentry"),
-          deleteDentry(prefix, "deleteDentry"), getInode(prefix, "getInode"),
+          deleteDentry(prefix, "deleteDentry"),
+          getInode(prefix, "getInode"),
+          batchGetInodeAttr(prefix, "batchGetInodeAttr"),
+          batchGetXattr(prefix, "batchGetXattr"),
           createInode(prefix, "createInode"),
           updateInode(prefix, "updateInode"),
           deleteInode(prefix, "deleteInode"),

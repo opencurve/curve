@@ -149,7 +149,8 @@ void FsManager::BackEndFunc() {
 }
 
 FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
-                                 uint64_t blockSize, const FsDetail& detail,
+                                 uint64_t blockSize, bool enableSumInDir,
+                                 const FsDetail& detail,
                                  FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);
     FsInfoWrapper wrapper;
@@ -190,7 +191,8 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
         }
 
         wrapper =
-            GenerateFsInfoWrapper(fsName, fsId, blockSize, GetRootId(), detail);
+            GenerateFsInfoWrapper(fsName, fsId, blockSize, GetRootId(), detail,
+                                  enableSumInDir);
 
         FSStatusCode ret = fsStorage_->Insert(wrapper);
         if (ret != FSStatusCode::OK) {

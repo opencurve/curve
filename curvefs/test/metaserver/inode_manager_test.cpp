@@ -26,6 +26,7 @@
 
 #include "curvefs/test/metaserver/test_helper.h"
 #include "curvefs/src/metaserver/inode_manager.h"
+#include "curvefs/src/common/define.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 using ::testing::_;
@@ -306,6 +307,104 @@ TEST_F(InodeManagerTest, UpdateInode) {
     ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
     ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
     ASSERT_EQ(0, updateOne.openmpcount());
+}
+
+
+TEST_F(InodeManagerTest, testGetAttr) {
+    std::shared_ptr<InodeStorage> inodeStorage =
+        std::make_shared<MemoryInodeStorage>();
+    auto trash = std::make_shared<TrashImpl>(inodeStorage);
+    InodeManager manager(inodeStorage, trash);
+
+    // CREATE
+    uint32_t fsId = 1;
+    uint64_t length = 100;
+    uint32_t uid = 200;
+    uint32_t gid = 300;
+    uint32_t mode = 400;
+    FsFileType type = FsFileType::TYPE_FILE;
+    std::string symlink = "";
+    Inode inode1;
+    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
+        symlink, 0, &inode1),
+        MetaStatusCode::OK);
+    ASSERT_EQ(inode1.inodeid(), 2);
+
+    InodeAttr attr;
+    ASSERT_EQ(manager.GetInodeAttr(fsId, inode1.inodeid(), &attr),
+              MetaStatusCode::OK);
+    ASSERT_EQ(attr.fsid(), 1);
+    ASSERT_EQ(attr.inodeid(), 2);
+    ASSERT_EQ(attr.length(), 100);
+    ASSERT_EQ(attr.uid(), 200);
+    ASSERT_EQ(attr.gid(), 300);
+    ASSERT_EQ(attr.mode(), 400);
+    ASSERT_EQ(attr.type(), FsFileType::TYPE_FILE);
+    ASSERT_EQ(attr.symlink(), symlink);
+    ASSERT_EQ(attr.rdev(), 0);
+}
+
+TEST_F(InodeManagerTest, testGetXAttr) {
+    std::shared_ptr<InodeStorage> inodeStorage =
+        std::make_shared<MemoryInodeStorage>();
+    auto trash = std::make_shared<TrashImpl>(inodeStorage);
+    InodeManager manager(inodeStorage, trash);
+
+    // CREATE
+    uint32_t fsId = 1;
+    uint64_t length = 100;
+    uint32_t uid = 200;
+    uint32_t gid = 300;
+    uint32_t mode = 400;
+    FsFileType type = FsFileType::TYPE_FILE;
+    std::string symlink = "";
+    Inode inode1;
+    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
+        symlink, 0, &inode1),
+        MetaStatusCode::OK);
+    ASSERT_EQ(inode1.inodeid(), 2);
+    ASSERT_TRUE(inode1.xattr().empty());
+
+    Inode inode2;
+    ASSERT_EQ(
+        manager.CreateInode(fsId, 3, length, uid, gid, mode,
+        FsFileType::TYPE_DIRECTORY, symlink, 0, &inode2),
+        MetaStatusCode::OK);
+    ASSERT_FALSE(inode2.xattr().empty());
+    ASSERT_EQ(inode2.xattr().find(XATTRFILES)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTRSUBDIRS)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTRENTRIES)->second, "0");
+    ASSERT_EQ(inode2.xattr().find(XATTRFBYTES)->second, "0");
+
+    // GET
+    XAttr xattr;
+    ASSERT_EQ(manager.GetXAttr(fsId, inode2.inodeid(), &xattr),
+              MetaStatusCode::OK);
+    ASSERT_EQ(xattr.fsid(), fsId);
+    ASSERT_EQ(xattr.inodeid(), inode2.inodeid());
+    ASSERT_EQ(xattr.xattrinfos_size(), 4);
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRENTRIES)->second, "0");
+    ASSERT_EQ(xattr.xattrinfos().find(XATTRFBYTES)->second, "0");
+
+    // UPDATE
+    inode2.mutable_xattr()->find(XATTRFILES)->second = "1";
+    inode2.mutable_xattr()->find(XATTRSUBDIRS)->second = "1";
+    inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
+    inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
+    UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
+    ASSERT_EQ(manager.UpdateInode(request), MetaStatusCode::OK);
+
+    // GET
+    XAttr xattr1;
+    ASSERT_EQ(manager.GetXAttr(fsId, inode2.inodeid(), &xattr1),
+              MetaStatusCode::OK);
+    ASSERT_EQ(xattr1.xattrinfos_size(), 4);
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTRFILES)->second, "1");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTRSUBDIRS)->second, "1");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTRENTRIES)->second, "2");
+    ASSERT_EQ(xattr1.xattrinfos().find(XATTRFBYTES)->second, "100");
 }
 
 }  // namespace metaserver

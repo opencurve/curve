@@ -26,5 +26,15 @@
 
 namespace curvefs {
 const uint64_t ROOTINODEID = 1;
-}
+
+const char XATTRFILES[] = "curve.dir.files";
+const char XATTRSUBDIRS[] = "curve.dir.subdirs";
+const char XATTRENTRIES[] = "curve.dir.entries";
+const char XATTRFBYTES[] = "curve.dir.fbytes";
+const char XATTRRFILES[] = "curve.dir.rfiles";
+const char XATTRRSUBDIRS[] = "curve.dir.rsubdirs";
+const char XATTRRENTRIES[] = "curve.dir.rentries";
+const char XATTRRFBYTES[] = "curve.dir.rfbytes";
+const char SUMMARYPREFIX[] = "curve.dir";
+}  // namespace curvefs
 #endif  // CURVEFS_SRC_COMMON_DEFINE_H_

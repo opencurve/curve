@@ -81,6 +81,9 @@ TEST_F(MetaServerServiceTest2, ServiceOverload) {
     TEST_SERVICE_OVERLOAD(CreateDentry);
     TEST_SERVICE_OVERLOAD(DeleteDentry);
     TEST_SERVICE_OVERLOAD(GetInode);
+    TEST_SERVICE_OVERLOAD(BatchGetInodeAttr);
+    TEST_SERVICE_OVERLOAD(BatchGetXAttr);
+    TEST_SERVICE_OVERLOAD(GetInode);
     TEST_SERVICE_OVERLOAD(CreateInode);
     TEST_SERVICE_OVERLOAD(UpdateInode);
     TEST_SERVICE_OVERLOAD(DeleteInode);
@@ -112,6 +115,8 @@ TEST_F(MetaServerServiceTest2, CopysetNodeNotFound) {
     TEST_COPYSETNODE_NOTFOUND(CreateDentry);
     TEST_COPYSETNODE_NOTFOUND(DeleteDentry);
     TEST_COPYSETNODE_NOTFOUND(GetInode);
+    TEST_COPYSETNODE_NOTFOUND(BatchGetInodeAttr);
+    TEST_COPYSETNODE_NOTFOUND(BatchGetXAttr);
     TEST_COPYSETNODE_NOTFOUND(CreateInode);
     TEST_COPYSETNODE_NOTFOUND(UpdateInode);
     TEST_COPYSETNODE_NOTFOUND(DeleteInode);

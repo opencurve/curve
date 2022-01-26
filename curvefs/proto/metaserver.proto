@@ -69,6 +69,7 @@ message Dentry {
     required string name = 4;
     required uint64 txId = 5;
     optional uint32 flag = 6;
+    optional FsFileType type = 7;
 }
 
 message GetDentryResponse {
@@ -86,6 +87,7 @@ message ListDentryRequest {
     required uint64 txId = 6;
     optional string last = 7;     // the name of last entry
     optional uint32 count = 8;    // the number of entry required
+    optional bool onlyDir = 9;
 }
 
 message ListDentryResponse {
@@ -140,7 +142,7 @@ message GetInodeRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
-    optional uint64 appliedIndex = 7;
+    optional uint64 appliedIndex = 6;
 }
 
 enum FsFileType {
@@ -161,7 +163,6 @@ message VolumeExtentList {
     repeated VolumeExtent volumeExtents = 1;
 }
 
-
 message S3ChunkInfo {
     required uint64 chunkId = 1;
     required uint64 compaction = 2;
@@ -175,6 +176,7 @@ message S3ChunkInfoList {
     repeated S3ChunkInfo s3Chunks = 1;
 };
 
+// TODO(wanghai): improve inode message
 message Inode {
     required uint64 inodeId = 1;
     required uint32 fsId = 2;
@@ -196,6 +198,7 @@ message Inode {
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
+    map<string, string> xattr = 21;
 }
 
 message GetInodeResponse {
@@ -265,6 +268,7 @@ message UpdateInodeRequest {
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
     optional InodeOpenStatusChange inodeOpenstatusChange = 19;
+    map<string, string> xattr = 20;
 }
 
 message UpdateInodeResponse {
@@ -330,6 +334,63 @@ message GetOrModifyS3ChunkInfoResponse {
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 3;
 }
 
+message InodeAttr {
+    required uint64 inodeId = 1;
+    required uint32 fsId = 2;
+    required uint64 length = 3;
+    required uint64 ctime = 4;
+    required uint32 ctime_ns = 5;
+    required uint64 mtime = 6;
+    required uint32 mtime_ns = 7;
+    required uint64 atime = 8;
+    required uint32 atime_ns = 9;
+    required uint32 uid = 10;
+    required uint32 gid = 11;
+    required uint32 mode = 12;
+    required uint32 nlink = 13;
+    required FsFileType type = 14;
+    optional string symlink = 15;   // TYPE_SYM_LINK only
+    optional uint64 rdev = 16;
+    optional uint32 dtime = 17;
+    optional uint32 openmpcount = 18;
+}
+
+message BatchGetInodeAttrRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    repeated uint64 inodeId = 5;
+    optional uint64 appliedIndex = 6;
+}
+
+message BatchGetInodeAttrResponse {
+    required MetaStatusCode statusCode = 1;
+    repeated InodeAttr attr = 2;
+    optional uint64 appliedIndex = 3;
+}
+
+message BatchGetXAttrRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    repeated uint64 inodeId = 5;
+    optional uint64 appliedIndex = 6;
+}
+ 
+message XAttr {
+    required uint64 inodeId = 1;
+    required uint32 fsId = 2;
+    map<string, string> xAttrInfos = 3;
+}
+ 
+message BatchGetXAttrResponse {
+    required MetaStatusCode statusCode = 1;
+    repeated XAttr xattr = 2;
+    optional uint64 appliedIndex = 3;
+}
+
 service MetaServerService {
     // dentry interface
     rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
@@ -346,6 +407,8 @@ service MetaServerService {
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
     rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
+    rpc BatchGetInodeAttr(BatchGetInodeAttrRequest) returns (BatchGetInodeAttrResponse);
+    rpc BatchGetXAttr(BatchGetXAttrRequest) returns (BatchGetXAttrResponse);
 
     // partition interface
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);

@@ -86,6 +86,7 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
                               &opts->minRetryTimesForceTimeoutBackoff);
     conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
+    conf->GetValueFatalIfFail("excutorOpt.batchLimit", &opts->batchLimit);
 }
 
 void InitSpaceServerOption(Configuration *conf,

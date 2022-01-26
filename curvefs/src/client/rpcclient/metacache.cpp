@@ -522,6 +522,23 @@ bool MetaCache::GetCopysetInfowithCopySetID(
     return true;
 }
 
+bool MetaCache::GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
+    PartitionID *pid) {
+    if (!ListPartitions(fsID)) {
+        LOG(ERROR) << "ListPartitions for {fsid:" << fsID
+                   << "} fail, partition list not exist";
+        return false;
+    }
+    ReadLockGuard rl(rwlock4Partitions_);
+    for (const auto &it : partitionInfos_) {
+        if (it.start() <= inodeID && it.end() >= inodeID) {
+            *pid = it.partitionid();
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

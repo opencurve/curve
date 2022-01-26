@@ -302,6 +302,7 @@ TEST_F(MetaCacheTest, test_UpdateAndGetApplyIndex) {
     metaCache_.UpdateApplyIndex(groupID, applyIndex);
     ASSERT_EQ(100, metaCache_.GetApplyIndex(groupID));
 }
+
 TEST_F(MetaCacheTest, test_IsLeaderMayChange) {
     // in
     CopysetGroupID groupID(1, 1);
@@ -317,6 +318,23 @@ TEST_F(MetaCacheTest, test_IsLeaderMayChange) {
     metaServerList_.SetLeaderUnstableFlag();
     metaCache_.UpdateCopysetInfo(groupID, metaServerList_);
     ASSERT_TRUE(metaCache_.IsLeaderMayChange(groupID));
+}
+
+TEST_F(MetaCacheTest, test_GetPartitionIdByInodeId) {
+    std::vector<CopysetInfo<MetaserverID>> metaServerInfos;
+    metaServerList_.UpdateLeaderIndex(-1);
+    metaServerInfos.push_back(metaServerList_);
+
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
+
+    uint32_t pid = 0;
+    ASSERT_TRUE(metaCache_.GetPartitionIdByInodeId(1, 1, &pid));
+    ASSERT_EQ(pid, 1);
 }
 
 }  // namespace rpcclient

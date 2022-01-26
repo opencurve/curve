@@ -68,6 +68,19 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::GetInodeRequest *request,
                       ::curvefs::metaserver::GetInodeResponse *response,
                       ::google::protobuf::Closure *done));
+
+     MOCK_METHOD4(BatchGetInodeAttr,
+          void(::google::protobuf::RpcController *controller,
+               const ::curvefs::metaserver::BatchGetInodeAttrRequest *request,
+               ::curvefs::metaserver::BatchGetInodeAttrResponse *response,
+               ::google::protobuf::Closure *done));
+
+     MOCK_METHOD4(BatchGetXAttr,
+               void(::google::protobuf::RpcController *controller,
+                    const ::curvefs::metaserver::BatchGetXAttrRequest *request,
+                    ::curvefs::metaserver::BatchGetXAttrResponse *response,
+                    ::google::protobuf::Closure *done));
+
     MOCK_METHOD4(CreateInode,
                  void(::google::protobuf::RpcController *controller,
                       const ::curvefs::metaserver::CreateInodeRequest *request,

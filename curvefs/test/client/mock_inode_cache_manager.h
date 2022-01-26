@@ -25,6 +25,8 @@
 
 #include <gmock/gmock.h>
 #include <memory>
+#include <set>
+#include <list>
 
 #include "curvefs/src/client/inode_cache_manager.h"
 
@@ -42,6 +44,12 @@ class MockInodeCacheManager : public InodeCacheManager {
     MOCK_METHOD2(GetInode, CURVEFS_ERROR(
         uint64_t inodeid, std::shared_ptr<InodeWrapper> &out));     // NOLINT
 
+    MOCK_METHOD2(BatchGetInodeAttr, CURVEFS_ERROR(
+        const std::set<uint64_t> &inodeIds, std::list<InodeAttr> *attrs));
+
+    MOCK_METHOD2(BatchGetXAttr, CURVEFS_ERROR(
+        const std::set<uint64_t> &inodeIds, std::list<XAttr> *xattrs));
+
     MOCK_METHOD2(CreateInode, CURVEFS_ERROR(const InodeParam &param,
         std::shared_ptr<InodeWrapper> &out));     // NOLINT
 
@@ -55,6 +63,20 @@ class MockInodeCacheManager : public InodeCacheManager {
     MOCK_METHOD0(FlushAll, void());
 
     MOCK_METHOD0(FlushInodeOnce, void());
+
+    MOCK_METHOD2(AddParent, void(uint64_t inodeId,
+        uint64_t parentId));
+
+    MOCK_METHOD2(RemoveParent, void(uint64_t inodeId,
+        uint64_t parentId));
+
+    MOCK_METHOD1(ClearParent, void(uint64_t inodeId));
+
+    MOCK_METHOD2(GetParent, bool(uint64_t inodeId,
+        std::list<uint64_t> *parentId));
+
+    MOCK_METHOD3(UpdateParent, bool(uint64_t inodeId,
+        uint64_t oldParentId, uint64_t newParentId));
 };
 
 }  // namespace client

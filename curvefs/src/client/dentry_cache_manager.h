@@ -69,7 +69,8 @@ class DentryCacheManager {
         const std::string &name) = 0;
 
     virtual CURVEFS_ERROR ListDentry(uint64_t parent,
-        std::list<Dentry> *dentryList, uint32_t limit) = 0;
+        std::list<Dentry> *dentryList, uint32_t limit,
+        bool onlyDir = false) = 0;
 
  protected:
     uint32_t fsId_;
@@ -113,7 +114,8 @@ class DentryCacheManagerImpl : public DentryCacheManager {
         const std::string &name) override;
 
     CURVEFS_ERROR ListDentry(uint64_t parent,
-        std::list<Dentry> *dentryList, uint32_t limit) override;
+        std::list<Dentry> *dentryList, uint32_t limit,
+        bool dirOnly = false) override;
 
     std::string GetDentryCacheKey(uint64_t parent, const std::string &name) {
         return std::to_string(parent) + kDentryKeyDelimiter + name;

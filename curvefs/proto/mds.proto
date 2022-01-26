@@ -79,6 +79,7 @@ message FsInfo {
     repeated string mountpoints = 8;
     required common.FSType fsType = 9;
     required FsDetail detail = 10;
+    required bool enableSumInDir = 11;
 }
 
 message GetFsInfoResponse {
@@ -91,6 +92,7 @@ message CreateFsRequest {
     required uint64 blockSize = 2;
     required common.FSType fsType = 3;
     required FsDetail fsDetail = 4;
+    required bool enableSumInDir = 5;
 }
 
 message CreateFsResponse {

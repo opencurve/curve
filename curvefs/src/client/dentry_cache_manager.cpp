@@ -107,16 +107,19 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
 
 CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                                                  std::list<Dentry> *dentryList,
-                                                 uint32_t limit) {
+                                                 uint32_t limit,
+                                                 bool onlyDir) {
     bool perceed = true;
     MetaStatusCode ret = MetaStatusCode::OK;
     dentryList->clear();
     std::string last = "";
     do {
         std::list<Dentry> part;
-        ret = metaClient_->ListDentry(fsId_, parent, last, limit, &part);
+        ret = metaClient_->ListDentry(fsId_, parent, last, limit, onlyDir,
+                                      &part);
         VLOG(6) << "ListDentry fsId = " << fsId_ << ", parent = " << parent
                 << ", last = " << last << ", count = " << limit
+                << ", onlyDir = " << onlyDir
                 << ", ret = " << ret << ", part.size() = " << part.size();
         if (ret != MetaStatusCode::OK) {
             if (MetaStatusCode::NOT_FOUND == ret) {
@@ -126,7 +129,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                        << ret
                        << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", parent = " << parent << ", last = " << last
-                       << ", count = " << limit;
+                       << ", count = " << limit << ", onlyDir = " << onlyDir;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
         if (part.size() < limit) {

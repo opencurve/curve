@@ -148,6 +148,7 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsName) {
     fsinfo->set_capacity(10 * 1024 * 1024L);
     fsinfo->set_blocksize(4 * 1024);
     fsinfo->set_mountnum(1);
+    fsinfo->set_enablesumindir(false);
     fsinfo->set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     auto vresp = new curvefs::common::Volume();
     vresp->set_volumesize(10 * 1024 * 1024L);
@@ -193,6 +194,7 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
     fsinfo->set_capacity(10 * 1024 * 1024L);
     fsinfo->set_blocksize(4 * 1024);
     fsinfo->set_mountnum(1);
+    fsinfo->set_enablesumindir(false);
     fsinfo->set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     auto vresp = new curvefs::common::Volume();
     vresp->set_volumesize(10 * 1024 * 1024L);

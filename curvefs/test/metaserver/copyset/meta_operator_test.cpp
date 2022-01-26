@@ -133,6 +133,8 @@ TEST_F(MetaOperatorTest, OperatorTypeTest) {
     TEST_OPERATOR_TYPE(CreateDentry);
     TEST_OPERATOR_TYPE(DeleteDentry);
     TEST_OPERATOR_TYPE(GetInode);
+    TEST_OPERATOR_TYPE(BatchGetInodeAttr);
+    TEST_OPERATOR_TYPE(BatchGetXAttr);
     TEST_OPERATOR_TYPE(CreateInode);
     TEST_OPERATOR_TYPE(UpdateInode);
     TEST_OPERATOR_TYPE(GetOrModifyS3ChunkInfo);
@@ -178,6 +180,8 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     OPERATOR_ON_APPLY_TEST(CreateDentry);
     OPERATOR_ON_APPLY_TEST(DeleteDentry);
     OPERATOR_ON_APPLY_TEST(GetInode);
+    OPERATOR_ON_APPLY_TEST(BatchGetInodeAttr);
+    OPERATOR_ON_APPLY_TEST(BatchGetXAttr);
     OPERATOR_ON_APPLY_TEST(CreateInode);
     OPERATOR_ON_APPLY_TEST(UpdateInode);
     OPERATOR_ON_APPLY_TEST(GetOrModifyS3ChunkInfo);
@@ -300,6 +304,9 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST(GetDentry);
     OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST(ListDentry);
     OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST(GetInode);
+    OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST(BatchGetInodeAttr);
+    OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST(BatchGetXAttr);
+
 
 #undef OPERATOR_ON_APPLY_FROM_LOG_DO_NOTHING_TEST
 

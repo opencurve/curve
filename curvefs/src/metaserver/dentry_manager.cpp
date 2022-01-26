@@ -85,9 +85,10 @@ MetaStatusCode DentryManager::GetDentry(Dentry* dentry) {
 
 MetaStatusCode DentryManager::ListDentry(const Dentry& dentry,
                                          std::vector<Dentry>* dentrys,
-                                         uint32_t limit) {
+                                         uint32_t limit,
+                                         bool onlyDir) {
     Log4Dentry("ListDentry", dentry);
-    auto rc = dentryStorage_->List(dentry, dentrys, limit);
+    auto rc = dentryStorage_->List(dentry, dentrys, limit, onlyDir);
     Log4Code("ListDentry", rc);
     return rc;
 }

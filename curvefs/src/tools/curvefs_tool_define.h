@@ -251,6 +251,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetS3_chunksize;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetEnableSumInDir;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>

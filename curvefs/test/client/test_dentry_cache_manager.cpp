@@ -144,10 +144,10 @@ TEST_F(TestDentryCacheManager, ListDentryNomal) {
     part1.resize(limit);
     part2.resize(limit - 1);
 
-    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(part1),
+    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<5>(part1),
                 Return(MetaStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<4>(part2),
+        .WillOnce(DoAll(SetArgPointee<5>(part2),
                 Return(MetaStatusCode::OK)));
 
     std::list<Dentry> out;
@@ -159,7 +159,7 @@ TEST_F(TestDentryCacheManager, ListDentryNomal) {
 TEST_F(TestDentryCacheManager, ListDentryEmpty) {
     uint64_t parent = 99;
 
-    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
+    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     std::list<Dentry> out;
@@ -171,7 +171,7 @@ TEST_F(TestDentryCacheManager, ListDentryEmpty) {
 TEST_F(TestDentryCacheManager, ListDentryFailed) {
     uint64_t parent = 99;
 
-    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _))
+    EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     std::list<Dentry> out;

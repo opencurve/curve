@@ -90,6 +90,7 @@ MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
     uint64_t length = 0;
     GenerateInodeInternal(ROOTINODEID, fsId, length, uid, gid, mode,
                           FsFileType::TYPE_DIRECTORY, 0, &inode);
+
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
@@ -130,6 +131,11 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_openmpcount(0);
     if (FsFileType::TYPE_DIRECTORY == type) {
         inode->set_nlink(2);
+        // set summary xattr
+        inode->mutable_xattr()->insert({XATTRFILES, "0"});
+        inode->mutable_xattr()->insert({XATTRSUBDIRS, "0"});
+        inode->mutable_xattr()->insert({XATTRENTRIES, "0"});
+        inode->mutable_xattr()->insert({XATTRFBYTES, "0"});
     } else {
         inode->set_nlink(1);
     }
@@ -150,6 +156,46 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
 
     VLOG(1) << "GetInode success, fsId = " << fsId << ", inodeId = " << inodeId
             << ", " << inode->ShortDebugString();
+
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode InodeManager::GetInodeAttr(uint32_t fsId, uint64_t inodeId,
+                                          InodeAttr *attr) {
+    VLOG(1) << "GetInodeAttr, fsId = " << fsId << ", inodeId = " << inodeId;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
+    MetaStatusCode ret = inodeStorage_->GetAttr(InodeKey(fsId, inodeId), attr);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetInodeAttr fail, fsId = " << fsId
+                   << ", inodeId = " << inodeId
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    VLOG(1) << "GetInodeAttr success, fsId = " << fsId
+            << ", inodeId = " << inodeId
+            << ", " << attr->ShortDebugString();
+
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode InodeManager::GetXAttr(uint32_t fsId, uint64_t inodeId,
+                                      XAttr *xattr) {
+    VLOG(1) << "GetXAttr, fsId = " << fsId << ", inodeId = " << inodeId;
+    NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
+    xattr->set_inodeid(inodeId);
+    xattr->set_fsid(fsId);
+    MetaStatusCode ret =
+        inodeStorage_->GetXAttr(InodeKey(fsId, inodeId), xattr);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetXAttr fail, fsId = " << fsId
+                   << ", inodeId = " << inodeId
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    VLOG(1) << "GetXAttr success, fsId = " << fsId << ", inodeId = " << inodeId
+            << ", " << xattr->ShortDebugString();
 
     return MetaStatusCode::OK;
 }
@@ -214,6 +260,11 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     if (request.has_volumeextentlist()) {
         VLOG(1) << "update inode has extent";
         old->mutable_volumeextentlist()->CopyFrom(request.volumeextentlist());
+    }
+
+    if (!request.xattr().empty()) {
+        VLOG(1) << "update inode has xattr";
+        *(old->mutable_xattr()) = request.xattr();
     }
 
     // TODO(@one): openmpcount is incorrect in exceptional cases
@@ -479,6 +530,5 @@ MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
 void InodeManager::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
     inodeStorage_->GetInodeIdList(inodeIdList);
 }
-
 }  // namespace metaserver
 }  // namespace curvefs

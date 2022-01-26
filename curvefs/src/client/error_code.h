@@ -46,6 +46,8 @@ enum class CURVEFS_ERROR {
     NAMETOOLONG = -12,
     MOUNT_POINT_EXIST = -13,
     MOUNT_FAILED = -14,
+    OUT_OF_RANGE = -15,
+    NODATA = -16,
 };
 
 

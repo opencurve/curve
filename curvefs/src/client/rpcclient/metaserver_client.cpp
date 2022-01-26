@@ -27,6 +27,10 @@
 
 using curvefs::metaserver::GetOrModifyS3ChunkInfoRequest;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoResponse;
+using curvefs::metaserver::BatchGetInodeAttrRequest;
+using curvefs::metaserver::BatchGetInodeAttrResponse;
+using curvefs::metaserver::BatchGetXAttrRequest;
+using curvefs::metaserver::BatchGetXAttrResponse;
 
 namespace curvefs {
 namespace client {
@@ -39,6 +43,8 @@ using PrepareRenameTxExcutor = TaskExecutor;
 using DeleteInodeExcutor = TaskExecutor;
 using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
+using BatchGetInodeAttrExcutor = TaskExecutor;
+using BatchGetXAttrExcutor = TaskExecutor;
 using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
 
 MetaStatusCode MetaServerClientImpl::Init(
@@ -148,6 +154,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
 MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                                 const std::string &last,
                                                 uint32_t count,
+                                                bool onlyDir,
                                                 std::list<Dentry> *dentryList) {
     auto task = RPCTask {
         metaserverClientMetric_->listDentry.qps.count << 1;
@@ -162,6 +169,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         request.set_txid(txId);
         request.set_last(last);
         request.set_count(count);
+        request.set_onlydir(onlyDir);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.ListDentry(cntl, &request, &response, nullptr);
@@ -180,6 +188,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
             LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
                 << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
                 << ", last = " << last << ", count = " << count
+                << ", onlyDir = " << onlyDir
                 << ", errcode = " << ret
                 << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_appliedindex() && response.dentrys_size() > 0) {
@@ -193,6 +202,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
             LOG(WARNING)
                 << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
                 << ", last = " << last << ", count = " << count
+                << ", onlyDir = " << onlyDir
                 << " ok, but dentry and applyIndex not set in response:"
                 << response.DebugString();
             return -1;
@@ -223,6 +233,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         d->set_parentinodeid(dentry.parentinodeid());
         d->set_name(dentry.name());
         d->set_txid(txId);
+        d->set_type(dentry.type());
         request.set_allocated_dentry(d);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateDentry(cntl, &request, &response, nullptr);
@@ -434,6 +445,188 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
+bool GroupInodeIdByPartition(
+    uint32_t fsId,
+    std::shared_ptr<MetaCache> metaCache,
+    const std::set<uint64_t> &inodeIds,
+    std::unordered_map<uint32_t, std::list<uint64_t>> *inodeGroups) {
+    for (const auto &it : inodeIds) {
+        uint32_t pId = 0;
+        if (metaCache->GetPartitionIdByInodeId(fsId, it, &pId)) {
+            auto iter = inodeGroups->find(pId);
+            if (iter == inodeGroups->end()) {
+                inodeGroups->emplace(pId, std::list<uint64_t>({it}));
+            } else {
+                iter->second.push_back(it);
+            }
+        } else {
+            LOG(ERROR) << "Group inodeId fialed when get partitionId by"
+                       << "inodeId, fsId = " << fsId << ", inodeId = " << it;
+            return false;
+        }
+    }
+    return true;
+}
+
+MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
+    const std::set<uint64_t> &inodeIds,
+    std::list<InodeAttr> *attr) {
+    uint32_t limit = opt_.batchLimit;
+    // group inodeid by partition
+    std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
+    if (!GroupInodeIdByPartition(fsId, metaCache_, inodeIds, &inodeGroups)) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    // send rpc
+    for (const auto &it : inodeGroups) {
+        auto iter = it.second.begin();
+        while (iter != it.second.end()) {
+            uint64_t inodeId = *iter;
+            auto task = RPCTask {
+                metaserverClientMetric_->batchGetInodeAttr.qps.count << 1;
+                BatchGetInodeAttrRequest request;
+                BatchGetInodeAttrResponse response;
+                request.set_poolid(poolID);
+                request.set_copysetid(copysetID);
+                request.set_partitionid(partitionID);
+                request.set_fsid(fsId);
+                request.set_appliedindex(
+                    metaCache_->GetApplyIndex(CopysetGroupID(poolID,
+                                              copysetID)));
+                uint32_t batchLimit = limit;
+                while (iter != it.second.end() && batchLimit > 0) {
+                    request.add_inodeid(*iter);
+                    iter++;
+                    batchLimit--;
+                }
+                curvefs::metaserver::MetaServerService_Stub stub(channel);
+                stub.BatchGetInodeAttr(cntl, &request, &response, nullptr);
+
+                if (cntl->Failed()) {
+                    metaserverClientMetric_->batchGetInodeAttr.eps.count << 1;
+                    LOG(WARNING) << "BatchGetInodeAttr Failed, errorcode = "
+                                 << cntl->ErrorCode()
+                                 << ", error content:" << cntl->ErrorText()
+                                 << ", log id = " << cntl->log_id();
+                    return -cntl->ErrorCode();
+                }
+
+                MetaStatusCode ret = response.statuscode();
+                if (ret != MetaStatusCode::OK) {
+                    LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+                        << "BatchGetInodeAttr failed, errcode = " << ret
+                        << ", errmsg = " << MetaStatusCode_Name(ret);
+                } else if (response.attr_size() > 0 &&
+                           response.has_appliedindex()) {
+                    auto retAttr = response.attr();
+                    for_each(retAttr.begin(), retAttr.end(),
+                        [&](InodeAttr &a) { attr->push_back(a); });
+                    metaCache_->UpdateApplyIndex(
+                        CopysetGroupID(poolID, copysetID),
+                        response.appliedindex());
+                } else {
+                    LOG(WARNING) << "BatchGetInodeAttr ok, but"
+                                 << " applyIndex or attr not set in response: "
+                                 << response.DebugString();
+                    return -1;
+                }
+                return ret;
+            };
+            auto taskCtx = std::make_shared<TaskContext>(
+                MetaServerOpType::BatchGetInodeAttr, task, fsId, inodeId);
+            BatchGetInodeAttrExcutor excutor(
+                opt_, metaCache_, channelManager_, taskCtx);
+            auto ret = ConvertToMetaStatusCode(excutor.DoRPCTask());
+            if (ret != MetaStatusCode::OK) {
+                attr->clear();
+                return ret;
+            }
+        }
+    }
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
+    const std::set<uint64_t> &inodeIds,
+    std::list<XAttr> *xattr) {
+    uint32_t limit = opt_.batchLimit;
+    // group inodeid by partition
+    std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
+    if (!GroupInodeIdByPartition(fsId, metaCache_, inodeIds, &inodeGroups)) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    // send rpc
+    for (const auto &it : inodeGroups) {
+        auto iter = it.second.begin();
+        while (iter != it.second.end()) {
+            uint64_t inodeId = *iter;
+            auto task = RPCTask {
+                metaserverClientMetric_->batchGetXattr.qps.count << 1;
+                BatchGetXAttrRequest request;
+                BatchGetXAttrResponse response;
+                request.set_poolid(poolID);
+                request.set_copysetid(copysetID);
+                request.set_partitionid(partitionID);
+                request.set_fsid(fsId);
+                request.set_appliedindex(
+                    metaCache_->GetApplyIndex(
+                        CopysetGroupID(poolID, copysetID)));
+                uint32_t batchLimit = limit;
+                while (iter != it.second.end() && batchLimit > 0) {
+                    request.add_inodeid(*iter);
+                    iter++;
+                    batchLimit--;
+                }
+                curvefs::metaserver::MetaServerService_Stub stub(channel);
+                stub.BatchGetXAttr(cntl, &request, &response, nullptr);
+
+                if (cntl->Failed()) {
+                    metaserverClientMetric_->batchGetXattr.eps.count << 1;
+                    LOG(WARNING) << "BatchGetXAttr Failed, errorcode = "
+                                 << cntl->ErrorCode()
+                                 << ", error content:" << cntl->ErrorText()
+                                 << ", log id = " << cntl->log_id();
+                    return -cntl->ErrorCode();
+                }
+
+                MetaStatusCode ret = response.statuscode();
+                if (ret != MetaStatusCode::OK) {
+                    LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+                        << "BatchGetXAttr failed, errcode = " << ret
+                        << ", errmsg = " << MetaStatusCode_Name(ret);
+                } else if (response.xattr_size() > 0 &&
+                           response.has_appliedindex()) {
+                    auto retXattr = response.xattr();
+                    for_each(retXattr.begin(), retXattr.end(),
+                        [&](XAttr &a) { xattr->push_back(a); });
+                    metaCache_->UpdateApplyIndex(
+                        CopysetGroupID(poolID, copysetID),
+                            response.appliedindex());
+                } else {
+                    LOG(WARNING) << "BatchGetXAttr ok, but"
+                                 << " applyIndex or attr not set in response: "
+                                 << response.DebugString();
+                    return -1;
+                }
+                return ret;
+            };
+            auto taskCtx = std::make_shared<TaskContext>(
+                MetaServerOpType::BatchGetInodeAttr, task, fsId, inodeId);
+            BatchGetInodeAttrExcutor excutor(
+                opt_, metaCache_, channelManager_, taskCtx);
+            auto ret = ConvertToMetaStatusCode(excutor.DoRPCTask());
+            if (ret != MetaStatusCode::OK) {
+                xattr->clear();
+                return ret;
+            }
+        }
+    }
+    return MetaStatusCode::OK;
+}
+
+
 MetaStatusCode
 MetaServerClientImpl::UpdateInode(const Inode &inode,
                                   InodeOpenStatusChange statusChange) {
@@ -575,6 +768,44 @@ void MetaServerClientImpl::UpdateInodeAsync(
                 new curvefs::metaserver::VolumeExtentList;
             vlist->CopyFrom(inode.volumeextentlist());
             request.set_allocated_volumeextentlist(vlist);
+        }
+
+        auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone,
+            metaserverClientMetric_);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.UpdateInode(cntl, &request, &rpcDone->response, rpcDone);
+        return MetaStatusCode::OK;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
+    auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
+        metaCache_, channelManager_, taskCtx);
+    TaskExecutorDone *taskDone = new TaskExecutorDone(
+        excutor, done);
+    brpc::ClosureGuard taskDone_guard(taskDone);
+    int ret = excutor->DoAsyncRPCTask(taskDone);
+    if (ret < 0) {
+        taskDone->SetRetCode(ret);
+        return;
+    }
+    taskDone_guard.release();
+}
+
+void MetaServerClientImpl::UpdateXattrAsync(const Inode &inode,
+    MetaServerClientDone *done) {
+    auto task = AsyncRPCTask {
+        metaserverClientMetric_->updateInode.qps.count << 1;
+
+        UpdateInodeRequest request;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_inodeid(inode.inodeid());
+        request.set_fsid(inode.fsid());
+        if (inode.xattr_size() > 0) {
+            *(request.mutable_xattr()) = inode.xattr();
         }
 
         auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone,

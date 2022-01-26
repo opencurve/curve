@@ -124,6 +124,7 @@ TEST_F(SpaceClientTest, InitSpaceSuccess) {
     fsinfo.set_blocksize(0);
     fsinfo.set_mountnum(0);
     fsinfo.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
+    fsinfo.set_enablesumindir(false);
     fsinfo.mutable_detail();
 
     InitSpaceResponse response;
@@ -149,6 +150,7 @@ TEST_F(SpaceClientTest, InitSpaceFail) {
     fsinfo.set_blocksize(0);
     fsinfo.set_mountnum(0);
     fsinfo.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
+    fsinfo.set_enablesumindir(false);
     fsinfo.mutable_detail();
 
     InitSpaceResponse response;

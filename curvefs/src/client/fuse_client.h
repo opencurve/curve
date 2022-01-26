@@ -29,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <list>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -44,6 +45,8 @@
 #include "curvefs/src/common/fast_align.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
+#include "curvefs/src/common/define.h"
+#include "curvefs/src/client/common/common.h"
 
 #define DirectIOAlignemnt 512
 
@@ -79,7 +82,8 @@ class FuseClient {
         fsInfo_(nullptr),
         mdsBase_(nullptr),
         isStop_(true),
-        init_(false) {}
+        init_(false),
+        enableSumInDir_(false) {}
 
     virtual ~FuseClient() {}
 
@@ -95,7 +99,8 @@ class FuseClient {
             fsInfo_(nullptr),
             mdsBase_(nullptr),
             isStop_(true),
-            init_(false) {}
+            init_(false),
+            enableSumInDir_(false) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -169,6 +174,10 @@ class FuseClient {
                                         struct fuse_file_info* fi,
                                         struct stat* attrOut);
 
+    virtual CURVEFS_ERROR FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
+                                         const char* name, void* value,
+                                         size_t size);
+
     virtual CURVEFS_ERROR FuseOpSymlink(fuse_req_t req, const char* link,
                                         fuse_ino_t parent, const char* name,
                                         fuse_entry_param* e);
@@ -205,6 +214,11 @@ class FuseClient {
 
     virtual void FlushAll();
 
+    // for unit test
+    void SetEnableSumInDir(bool enable) {
+        enableSumInDir_ = enable;
+    }
+
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
                            mode_t mode, FsFileType type, dev_t rdev,
@@ -229,12 +243,21 @@ class FuseClient {
         return 0;
     }
 
+    CURVEFS_ERROR UpdateParentInodeXattr(const std::list<uint64_t> &parentIds,
+        const XAttr &xattr, bool direction);
+
  private:
     virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
 
     virtual void FlushInodeLoop();
 
     virtual void FlushData() = 0;
+
+    CURVEFS_ERROR CalOneLayerSumInfo(Inode *inode);
+
+    CURVEFS_ERROR CalAllLayerSumInfo(Inode *inode);
+
+    CURVEFS_ERROR FastCalAllLayerSumInfo(Inode *inode);
 
  protected:
     // mds client
@@ -259,6 +282,9 @@ class FuseClient {
 
     // init flags
     bool init_;
+
+    // enable record summary info in dir inode xattr
+    bool enableSumInDir_;
 
     std::shared_ptr<FSMetric> fsMetric_;
 

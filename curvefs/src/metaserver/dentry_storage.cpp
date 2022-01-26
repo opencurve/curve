@@ -130,7 +130,8 @@ MetaStatusCode MemoryDentryStorage::Get(Dentry* dentry) {
 
 MetaStatusCode MemoryDentryStorage::List(const Dentry& dentry,
                                          std::vector<Dentry>* dentrys,
-                                         uint32_t limit) {
+                                         uint32_t limit,
+                                         bool onlyDir) {
     auto parentId = dentry.parentinodeid();
     auto exclude = dentry.name();
     auto txId = dentry.txid();
@@ -160,6 +161,14 @@ MetaStatusCode MemoryDentryStorage::List(const Dentry& dentry,
 
         // dentry belong [first, second)
         if (exist) {
+            if (onlyDir) {
+                if (FsFileType::TYPE_DIRECTORY != iter->type()) {
+                    second--;
+                    first = second;
+                    continue;
+                }
+            }
+
             dentrys->push_back(*iter);
             VLOG(1) << "ListDentry, dentry = ("
                     << iter->ShortDebugString() << ")";
