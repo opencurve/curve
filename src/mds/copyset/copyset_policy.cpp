@@ -78,10 +78,10 @@ bool CopysetZoneShufflePolicy::GenCopyset(const ClusterInfo& cluster,
 
     std::vector<ChunkServerInfo> chunkServers = cluster.GetChunkServerInfo();
     uint32_t numReplicas = permutationPolicy_->GetReplicaNum();
-    int copyseyNum = numCopysets;
+    int copysetNum = numCopysets;
 
     std::vector<ChunkServerInfo> replicas(numReplicas);
-    int maxNum = GetMaxPermutationNum(copyseyNum,
+    int maxNum = GetMaxPermutationNum(copysetNum,
         chunkServers.size(),
         numReplicas);
 
@@ -103,7 +103,7 @@ bool CopysetZoneShufflePolicy::GenCopyset(const ClusterInfo& cluster,
                 copyset.replicas.insert(replica.id);
             }
             out->emplace_back(copyset);
-            if (--copyseyNum == 0) {
+            if (--copysetNum == 0) {
                 LOG(INFO) << "Generate copyset success"
                           << ", numCopysets = " << numCopysets;
                 return true;
