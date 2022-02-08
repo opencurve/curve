@@ -140,7 +140,7 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
                                       Inode *inode) {
     VLOG(1) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
-    MetaStatusCode ret = inodeStorage_->Get(InodeKey(fsId, inodeId), inode);
+    MetaStatusCode ret = inodeStorage_->GetCopy(InodeKey(fsId, inodeId), inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "GetInode fail, fsId = " << fsId
                    << ", inodeId = " << inodeId
@@ -175,7 +175,7 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     NameLockGuard lg(inodeLock_, GetInodeLockName(
             request.fsid(), request.inodeid()));
 
-    Inode old;
+    std::shared_ptr<Inode> old;
     MetaStatusCode ret = inodeStorage_->Get(
         InodeKey(request.fsid(), request.inodeid()), &old);
     if (ret != MetaStatusCode::OK) {
@@ -184,13 +184,11 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
         return ret;
     }
 
-    bool needUpdate = false;
     bool needAddTrash = false;
 
 #define UPDATE_INODE(param)                  \
     if (request.has_##param()) {            \
-        old.set_##param(request.param()); \
-        needUpdate = true;                   \
+        old->set_##param(request.param()); \
     }
 
     UPDATE_INODE(length)
@@ -205,32 +203,21 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     UPDATE_INODE(mode)
 
     if (request.has_nlink()) {
-        if (old.nlink() != 0 && request.nlink() == 0) {
+        if (old->nlink() != 0 && request.nlink() == 0) {
             uint32_t now = TimeUtility::GetTimeofDaySec();
-            old.set_dtime(now);
+            old->set_dtime(now);
             needAddTrash = true;
         }
-        old.set_nlink(request.nlink());
-        needUpdate = true;
+        old->set_nlink(request.nlink());
     }
 
     if (request.has_volumeextentlist()) {
         VLOG(1) << "update inode has extent";
-        old.mutable_volumeextentlist()->CopyFrom(request.volumeextentlist());
-        needUpdate = true;
-    }
-
-    if (needUpdate) {
-        ret = inodeStorage_->Update(old);
-        if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "UpdateInode fail, " << request.ShortDebugString()
-                       << ", ret: " << MetaStatusCode_Name(ret);
-            return ret;
-        }
+        old->mutable_volumeextentlist()->CopyFrom(request.volumeextentlist());
     }
 
     if (needAddTrash) {
-        trash_->Add(old.fsid(), old.inodeid(), old.dtime());
+        trash_->Add(old->fsid(), old->inodeid(), old->dtime());
     }
 
     VLOG(1) << "UpdateInode success, " << request.ShortDebugString();
@@ -341,7 +328,7 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
 
     NameLockGuard lg(inodeLock_, GetInodeLockName(
             fsId, inodeId));
-    Inode old;
+    std::shared_ptr<Inode> old;
     MetaStatusCode ret = inodeStorage_->Get(
         InodeKey(fsId, inodeId), &old);
     if (ret != MetaStatusCode::OK) {
@@ -355,9 +342,9 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
         // judge if duplicated add or not
         if (!s3ChunkInfoAdd.empty()) {
             auto ix = s3ChunkInfoAdd.begin();
-            auto it = old.mutable_s3chunkinfomap()->find(
+            auto it = old->mutable_s3chunkinfomap()->find(
                 ix->first);
-            if (it != old.mutable_s3chunkinfomap()->end()) {
+            if (it != old->mutable_s3chunkinfomap()->end()) {
                 auto &s3chunkInfo = ix->second.s3chunks(0);
                 auto s3Chunks = it->second.mutable_s3chunks();
                 auto s3chunkIt =
@@ -374,42 +361,35 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
         if (!duplicated) {
             if (fromS3Compaction) {
                 int r = ProcessRequestFromS3Compact(s3ChunkInfoAdd,
-                                                      s3ChunkInfoRemove, &old);
+                    s3ChunkInfoRemove, old.get());
                 if (r == -1) {
                     return MetaStatusCode::PARAM_ERROR;
                 }
             } else {
                 for (auto &item : s3ChunkInfoAdd) {
-                    auto it = old.mutable_s3chunkinfomap()->find(item.first);
-                    if (it != old.mutable_s3chunkinfomap()->end()) {
+                    auto it = old->mutable_s3chunkinfomap()->find(item.first);
+                    if (it != old->mutable_s3chunkinfomap()->end()) {
                         MergeToS3ChunkInfoList(item.second, &(it->second));
                     } else {
-                        old.mutable_s3chunkinfomap()->insert(
+                        old->mutable_s3chunkinfomap()->insert(
                             {item.first, item.second});
                     }
                 }
 
                 for (auto &item : s3ChunkInfoRemove) {
-                    auto it = old.mutable_s3chunkinfomap()->find(item.first);
-                    if (it != old.mutable_s3chunkinfomap()->end()) {
+                    auto it = old->mutable_s3chunkinfomap()->find(item.first);
+                    if (it != old->mutable_s3chunkinfomap()->end()) {
                         RemoveFromS3ChunkInfoList(item.second, &(it->second));
                         if (0 == it->second.s3chunks_size()) {
-                            old.mutable_s3chunkinfomap()->erase(it);
+                            old->mutable_s3chunkinfomap()->erase(it);
                         }
                     }
                 }
             }
-
-            ret = inodeStorage_->Update(old);
-            if (ret != MetaStatusCode::OK) {
-                LOG(ERROR) << "UpdateInode fail, " << old.ShortDebugString()
-                           << ", ret = " << MetaStatusCode_Name(ret);
-                return ret;
-            }
         }
     }
     if (returnS3ChunkInfoMap) {
-        out->swap(*(old.mutable_s3chunkinfomap()));
+        *out = old->s3chunkinfomap();
     }
 
     VLOG(1) << "GetOrModifyS3ChunkInfo success, fsId: " << fsId
@@ -425,41 +405,34 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
             << ", isCreate = " << isCreate;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
 
-    Inode inode;
+    std::shared_ptr<Inode> inode;
     MetaStatusCode ret = inodeStorage_->Get(
         InodeKey(fsId, inodeId), &inode);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "GetInode fail, " << inode.ShortDebugString()
+        LOG(ERROR) << "GetInode fail, " << inode->ShortDebugString()
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
     }
-    uint32_t oldNlink = inode.nlink();
+    uint32_t oldNlink = inode->nlink();
     if (oldNlink == 0) {
         // already be deleted
         return MetaStatusCode::OK;
     }
     if (isCreate) {
-        inode.set_nlink(++oldNlink);
+        inode->set_nlink(++oldNlink);
     } else {
-        inode.set_nlink(--oldNlink);
+        inode->set_nlink(--oldNlink);
     }
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
-    inode.set_ctime(now.tv_sec);
-    inode.set_ctime_ns(now.tv_nsec);
-    inode.set_mtime(now.tv_sec);
-    inode.set_mtime_ns(now.tv_nsec);
-
-    ret = inodeStorage_->Update(inode);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "UpdateInode fail, " << inode.ShortDebugString()
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
+    inode->set_ctime(now.tv_sec);
+    inode->set_ctime_ns(now.tv_nsec);
+    inode->set_mtime(now.tv_sec);
+    inode->set_mtime_ns(now.tv_nsec);
 
     VLOG(1) << "UpdateInodeWhenCreateOrRemoveSubNode success, "
-            << inode.ShortDebugString();
+            << inode->ShortDebugString();
     return MetaStatusCode::OK;
 }
 
