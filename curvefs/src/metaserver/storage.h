@@ -146,6 +146,21 @@ class MapContainerIterator : public ContainerIterator<ContainerType> {
     }
 };
 
+template<>
+class MapContainerIterator<InodeStorage::ContainerType>
+    : public ContainerIterator<InodeStorage::ContainerType> {
+ public:
+    using ContainerIterator<InodeStorage::ContainerType>::ContainerIterator;
+
+    std::string Value() override {
+        std::string value;
+        if (!this->iter_->second->SerializeToString(&value)) {
+            this->status_ = 1;
+        }
+        return value;
+    }
+};
+
 template<typename ContainerType>
 class SetContainerIterator : public ContainerIterator<ContainerType> {
  public:

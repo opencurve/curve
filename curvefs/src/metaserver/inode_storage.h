@@ -46,6 +46,9 @@ struct InodeKey {
     explicit InodeKey(const Inode &inode)
         : fsId(inode.fsid()), inodeId(inode.inodeid()) {}
 
+    explicit InodeKey(const std::shared_ptr<Inode> &inode)
+        : fsId(inode->fsid()), inodeId(inode->inodeid()) {}
+
     bool operator==(const InodeKey &k1) const {
         return k1.fsId == fsId && k1.inodeId == inodeId;
     }
@@ -60,11 +63,15 @@ struct hashInode {
 
 class InodeStorage {
  public:
-    using ContainerType = std::unordered_map<InodeKey, Inode, hashInode>;
+    using ContainerType = std::unordered_map<
+        InodeKey, std::shared_ptr<Inode>, hashInode>;
 
  public:
     virtual MetaStatusCode Insert(const Inode &inode) = 0;
-    virtual MetaStatusCode Get(const InodeKey &key, Inode *inode) = 0;
+    virtual MetaStatusCode Get(
+        const InodeKey &key, std::shared_ptr<Inode> *inode) = 0;
+    virtual MetaStatusCode GetCopy(
+        const InodeKey &key, Inode *inode) = 0;
     virtual MetaStatusCode Delete(const InodeKey &key) = 0;
     virtual MetaStatusCode Update(const Inode &inode) = 0;
     virtual int Count() = 0;
@@ -92,7 +99,18 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Get(const InodeKey &key, Inode *inode) override;
+    MetaStatusCode Get(
+        const InodeKey &key, std::shared_ptr<Inode> *inode) override;
+
+    /**
+     * @brief get inode from storage
+     *
+     * @param[in] key: the key of inode want to get
+     * @param[out] inode: the inode got
+     *
+     * @return If inode not exist, return NOT_FOUND; else return OK
+     */
+    MetaStatusCode GetCopy(const InodeKey &key, Inode *inode) override;
 
     /**
      * @brief delete inode from storage

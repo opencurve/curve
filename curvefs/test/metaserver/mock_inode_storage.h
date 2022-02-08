@@ -36,12 +36,13 @@ class MockInodeStorage : public InodeStorage {
     ~MockInodeStorage() {}
 
     MOCK_METHOD1(Insert, MetaStatusCode(const Inode &inode));
-    MOCK_METHOD2(Get, MetaStatusCode(const InodeKey &key, Inode *inode));
+    MOCK_METHOD2(Get, MetaStatusCode(const InodeKey &key,
+        std::shared_ptr<Inode> *inode));
+    MOCK_METHOD2(GetCopy, MetaStatusCode(const InodeKey &key, Inode *inode));
     MOCK_METHOD1(Delete, MetaStatusCode(const InodeKey &key));
     MOCK_METHOD1(Update, MetaStatusCode(const Inode &inode));
     MOCK_METHOD0(Count, int());
     MOCK_METHOD0(GetContainer, InodeStorage::ContainerType*());
-    MOCK_METHOD0(GetContainerData, InodeStorage::ContainerType());
     MOCK_METHOD1(GetInodeIdList, void(std::list<uint64_t> *InodeIdList));
 };
 

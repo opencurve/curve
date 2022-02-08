@@ -29,20 +29,32 @@ namespace curvefs {
 namespace metaserver {
 MetaStatusCode MemoryInodeStorage::Insert(const Inode &inode) {
     WriteLockGuard writeLockGuard(rwLock_);
-    auto it = inodeMap_.emplace(InodeKey(inode), inode);
+    std::shared_ptr<Inode> newInode = std::make_shared<Inode>(inode);
+    auto it = inodeMap_.emplace(InodeKey(inode), newInode);
     if (it.second == false) {
         return MetaStatusCode::INODE_EXIST;
     }
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode MemoryInodeStorage::Get(const InodeKey &key, Inode *inode) {
+MetaStatusCode MemoryInodeStorage::Get(
+    const InodeKey &key, std::shared_ptr<Inode> *inode) {
     ReadLockGuard readLockGuard(rwLock_);
     auto it = inodeMap_.find(key);
     if (it == inodeMap_.end()) {
         return MetaStatusCode::NOT_FOUND;
     }
     *inode = it->second;
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MemoryInodeStorage::GetCopy(const InodeKey &key, Inode *inode) {
+    ReadLockGuard readLockGuard(rwLock_);
+    auto it = inodeMap_.find(key);
+    if (it == inodeMap_.end()) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+    *inode = *(it->second);
     return MetaStatusCode::OK;
 }
 
@@ -62,7 +74,7 @@ MetaStatusCode MemoryInodeStorage::Update(const Inode &inode) {
     if (it == inodeMap_.end()) {
         return MetaStatusCode::NOT_FOUND;
     }
-    it->second = inode;
+    *(it->second) = inode;
     return MetaStatusCode::OK;
 }
 
@@ -78,7 +90,7 @@ InodeStorage::ContainerType* MemoryInodeStorage::GetContainer() {
 void MemoryInodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
     ReadLockGuard readLockGuard(rwLock_);
     for (auto it = inodeMap_.begin(); it != inodeMap_.end(); ++it) {
-        inodeIdList->push_back(it->second.inodeid());
+        inodeIdList->push_back(it->second->inodeid());
     }
 }
 

@@ -73,35 +73,36 @@ TEST_F(InodeStorageTest, test1) {
 
     // get
     Inode temp;
-    ASSERT_EQ(storage.Get(InodeKey(inode1), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetCopy(InodeKey(inode1), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode1, temp));
-    ASSERT_EQ(storage.Get(InodeKey(inode2), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetCopy(InodeKey(inode2), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode2, temp));
-    ASSERT_EQ(storage.Get(InodeKey(inode3), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetCopy(InodeKey(inode3), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode3, temp));
 
     // delete
     ASSERT_EQ(storage.Delete(InodeKey(inode1)), MetaStatusCode::OK);
     ASSERT_EQ(storage.Count(), 2);
-    ASSERT_EQ(storage.Get(InodeKey(inode1), &temp), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.GetCopy(InodeKey(inode1), &temp),
+        MetaStatusCode::NOT_FOUND);
     ASSERT_EQ(storage.Delete(InodeKey(inode1)), MetaStatusCode::NOT_FOUND);
 
     // update
     ASSERT_EQ(storage.Update(inode1), MetaStatusCode::NOT_FOUND);
     Inode oldInode;
-    ASSERT_EQ(storage.Get(InodeKey(inode2), &oldInode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetCopy(InodeKey(inode2), &oldInode), MetaStatusCode::OK);
     inode2.set_atime(400);
     ASSERT_EQ(storage.Update(inode2), MetaStatusCode::OK);
     Inode newInode;
-    ASSERT_EQ(storage.Get(InodeKey(inode2), &newInode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetCopy(InodeKey(inode2), &newInode), MetaStatusCode::OK);
     ASSERT_FALSE(CompareInode(oldInode, newInode));
     ASSERT_FALSE(CompareInode(oldInode, inode2));
     ASSERT_TRUE(CompareInode(newInode, inode2));
 
     // GetInodeContainer
     auto mapPtr = storage.GetContainer();
-    ASSERT_TRUE(CompareInode((*mapPtr)[InodeKey(inode2)], inode2));
-    ASSERT_TRUE(CompareInode((*mapPtr)[InodeKey(inode3)], inode3));
+    ASSERT_TRUE(CompareInode(*((*mapPtr)[InodeKey(inode2)]), inode2));
+    ASSERT_TRUE(CompareInode(*((*mapPtr)[InodeKey(inode3)]), inode3));
 
     // GetInodeIdList
     std::list<uint64_t> inodeIdList;
