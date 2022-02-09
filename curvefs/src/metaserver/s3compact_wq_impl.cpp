@@ -541,7 +541,6 @@ void S3CompactWorkQueueImpl::CompactChunk(
         LOG(WARNING) << "s3compact: ReadFullChunk failed, index " << index;
         s3infoCache_->InvalidateS3Info(
             compactCtx.fsId);  // maybe s3info changed?
-        s3adapterManager_->ReleaseS3Adapter(compactCtx.s3adapterIndex);
         return;
     }
     VLOG(6) << "s3compact: finish read full chunk, size: " << fullChunk.size();
@@ -556,7 +555,6 @@ void S3CompactWorkQueueImpl::CompactChunk(
         s3infoCache_->InvalidateS3Info(
             compactCtx.fsId);  // maybe s3info changed?
         DeleteObjs(objsAdded, compactCtx.s3adapter);
-        s3adapterManager_->ReleaseS3Adapter(compactCtx.s3adapterIndex);
         return;
     }
     VLOG(6) << "s3compact: finish write full chunk";
@@ -654,12 +652,17 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
     }
     if (s3ChunkInfoAdd.empty()) {
         VLOG(6) << "s3compact: do nothing to metadata";
+        s3adapterManager_->ReleaseS3Adapter(s3adapterIndex);
         return;
     }
 
     // 2. update inode
     VLOG(6) << "s3compact: start update inode";
-    if (!task.copysetNodeWrapper->IsValid()) return;
+    if (!task.copysetNodeWrapper->IsValid()) {
+        VLOG(6) << "s3compact: invalid copysetNode";
+        s3adapterManager_->ReleaseS3Adapter(s3adapterIndex);
+        return;
+    }
     auto ret =
         UpdateInode(task.copysetNodeWrapper->Get(), compactCtx.pinfo, inodeId,
                     std::move(s3ChunkInfoAdd), std::move(s3ChunkInfoRemove));

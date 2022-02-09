@@ -82,6 +82,7 @@ std::pair<uint64_t, S3Adapter*> S3AdapterManager::GetS3Adapter() {
 
 void S3AdapterManager::ReleaseS3Adapter(uint64_t index) {
     std::lock_guard<std::mutex> lock(mtx_);
+    if (!inited_) return;
     assert(index < used_.size());
     assert(used_[index] == true);
     used_[index] = false;
