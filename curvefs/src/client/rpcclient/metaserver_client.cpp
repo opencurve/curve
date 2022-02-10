@@ -586,8 +586,15 @@ void MetaServerClientImpl::UpdateInodeAsync(const Inode &inode,
         MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
     auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
         metaCache_, channelManager_, taskCtx);
-    TaskExecutorDone *taskDone = new TaskExecutorDone(excutor, done);
-    excutor->DoAsyncRPCTask(taskDone);
+    TaskExecutorDone *taskDone = new TaskExecutorDone(
+        excutor, done);
+    brpc::ClosureGuard taskDone_guard(taskDone);
+    int ret = excutor->DoAsyncRPCTask(taskDone);
+    if (ret < 0) {
+        taskDone->SetRetCode(ret);
+        return;
+    }
+    taskDone_guard.release();
 }
 
 MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
@@ -741,8 +748,15 @@ void MetaServerClientImpl::GetOrModifyS3ChunkInfoAsync(
         MetaServerOpType::GetOrModifyS3ChunkInfo, task, fsId, inodeId);
     auto excutor = std::make_shared<GetOrModifyS3ChunkInfoExcutor>(opt_,
         metaCache_, channelManager_, taskCtx);
-    TaskExecutorDone *taskDone = new TaskExecutorDone(excutor, done);
-    excutor->DoAsyncRPCTask(taskDone);
+    TaskExecutorDone *taskDone = new TaskExecutorDone(
+        excutor, done);
+    brpc::ClosureGuard taskDone_guard(taskDone);
+    int ret = excutor->DoAsyncRPCTask(taskDone);
+    if (ret < 0) {
+        taskDone->SetRetCode(ret);
+        return;
+    }
+    taskDone_guard.release();
 }
 
 MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
