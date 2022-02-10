@@ -749,6 +749,69 @@ TEST_F(MetaServerClientImplTest, test_UpdateInode) {
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
+TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
+    uint32_t fsId = 1;
+    uint64_t inodeId = 100;
+    google::protobuf::Map<
+        uint64_t, S3ChunkInfoList> s3ChunkInfos;
+    bool returnS3ChunkInfoMap = true;
+    google::protobuf::Map<
+        uint64_t, S3ChunkInfoList> out;
+    uint64_t applyIndex = 10;
+
+    // test1: success
+    curvefs::metaserver::GetOrModifyS3ChunkInfoResponse response;
+    response.set_statuscode(curvefs::metaserver::OK);
+    response.set_appliedindex(applyIndex);
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<
+                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
+                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                              SetArgPointee<3>(applyIndex), Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+
+    MetaStatusCode status = metaserverCli_.GetOrModifyS3ChunkInfo(
+        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+
+    ASSERT_EQ(MetaStatusCode::OK, status);
+
+    // test2: overload
+    response.set_statuscode(curvefs::metaserver::OVERLOAD);
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<
+                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
+                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
+    status = metaserverCli_.GetOrModifyS3ChunkInfo(
+        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+    ASSERT_EQ(MetaStatusCode::OVERLOAD, status);
+
+    // test3: has no applyIndex
+    response.set_statuscode(curvefs::metaserver::OK);
+    response.clear_appliedindex();
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(SetRpcService<
+                curvefs::metaserver::GetOrModifyS3ChunkInfoRequest,
+                curvefs::metaserver::GetOrModifyS3ChunkInfoResponse>)));
+    status = metaserverCli_.GetOrModifyS3ChunkInfo(
+        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+
+    // test4: get target always fail
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+        .WillRepeatedly(Return(false));
+    status = metaserverCli_.GetOrModifyS3ChunkInfo(
+        fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
+    ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+}
+
 TEST_F(MetaServerClientImplTest, test_CreateInode) {
     // in
     InodeParam inode;

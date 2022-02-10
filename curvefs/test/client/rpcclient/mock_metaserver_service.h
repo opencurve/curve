@@ -83,6 +83,12 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
                       const ::curvefs::metaserver::DeleteInodeRequest *request,
                       ::curvefs::metaserver::DeleteInodeResponse *response,
                       ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(GetOrModifyS3ChunkInfo,
+        void(::google::protobuf::RpcController *controller,
+            const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest *request,
+             ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse *response,
+             ::google::protobuf::Closure *done));
 };
 }  // namespace rpcclient
 }  // namespace client
