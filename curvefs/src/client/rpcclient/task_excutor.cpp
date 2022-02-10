@@ -79,37 +79,38 @@ int TaskExecutor::DoRPCTask() {
     return retCode;
 }
 
-void TaskExecutor::DoAsyncRPCTask(TaskExecutorDone *done) {
-    brpc::ClosureGuard done_guard(done);
+int TaskExecutor::DoAsyncRPCTask(TaskExecutorDone *done) {
     task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
+
     int retCode = -1;
 
-    if (task_->retryTimes++ > opt_.maxRetry) {
-        LOG(ERROR) << task_->TaskContextStr()
-                   << " retry times exceeds the limit";
-        done->SetRetCode(retCode);
-        return;
-    }
+    do {
+        if (task_->retryTimes++ > opt_.maxRetry) {
+            LOG(ERROR) << task_->TaskContextStr()
+                       << " retry times exceeds the limit";
+            break;
+        }
 
-    if (!HasValidTarget() && !GetTarget()) {
-        LOG(WARNING) << "get target fail for " << task_->TaskContextStr()
-                     << ", sleep and retry";
-        done->SetRetCode(retCode);
-        return;
-    }
+        if (!HasValidTarget() && !GetTarget()) {
+            LOG(WARNING) << "get target fail for " << task_->TaskContextStr()
+                         << ", sleep and retry";
+            bthread_usleep(opt_.retryIntervalUS);
+            continue;
+        }
 
-    auto channel = channelManager_->GetOrCreateChannel(
-        task_->target.metaServerID, task_->target.endPoint);
-    if (!channel) {
-        LOG(WARNING) << "GetOrCreateChannel fail for "
-                     << task_->TaskContextStr() << ", sleep and retry";
-        done->SetRetCode(retCode);
-        return;
-    }
+        auto channel = channelManager_->GetOrCreateChannel(
+            task_->target.metaServerID, task_->target.endPoint);
+        if (!channel) {
+            LOG(WARNING) << "GetOrCreateChannel fail for "
+                         << task_->TaskContextStr() << ", sleep and retry";
+            bthread_usleep(opt_.retryIntervalUS);
+            continue;
+        }
+        retCode = ExcuteTask(channel.get(), done);
+        break;
+    } while (true);
 
-    ExcuteTask(channel.get(), done);
-    done_guard.release();
-    return;
+    return retCode;
 }
 
 bool TaskExecutor::OnReturn(int retCode) {
@@ -303,7 +304,11 @@ void TaskExecutorDone::Run() {
     needRetry = excutor_->OnReturn(code_);
     if (needRetry) {
         excutor_->PreProcessBeforeRetry(code_);
-        excutor_->DoAsyncRPCTask(this);
+        code_ = excutor_->DoAsyncRPCTask(this);
+        if (code_ < 0) {
+            done_->SetMetaStatusCode(ConvertToMetaStatusCode(code_));
+            return;
+        }
         self_guard.release();
         done_guard.release();
     } else {
