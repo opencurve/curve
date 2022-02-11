@@ -164,7 +164,8 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     auto find = std::find(fsInfo.mountpoints().begin(),
                           fsInfo.mountpoints().end(), mountPointWithHost);
     if (find != fsInfo.mountpoints().end()) {
-        LOG(ERROR) << "MountFs found mountPoint exist";
+        LOG(ERROR) << "MountFs found mountPoint: " << mountPointWithHost
+                   << " exist";
         return CURVEFS_ERROR::MOUNT_POINT_EXIST;
     }
     ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
