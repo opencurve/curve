@@ -324,7 +324,7 @@ class FsCacheManager {
 
     bool Set(DataCachePtr dataCache,
              std::list<DataCachePtr>::iterator *outIter);
-    void Delete(std::list<DataCachePtr>::iterator iter);
+    bool Delete(std::list<DataCachePtr>::iterator iter);
     void Get(std::list<DataCachePtr>::iterator iter);
 
     CURVEFS_ERROR FsSync(bool force);

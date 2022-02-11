@@ -120,16 +120,17 @@ void FsCacheManager::Get(std::list<DataCachePtr>::iterator iter) {
                                  lruReadDataCacheList_, iter);
 }
 
-void FsCacheManager::Delete(std::list<DataCachePtr>::iterator iter) {
+bool FsCacheManager::Delete(std::list<DataCachePtr>::iterator iter) {
     std::lock_guard<std::mutex> lk(lruMtx_);
 
     if (!(*iter)->InReadCache()) {
-        return;
+        return false;
     }
 
     (*iter)->SetReadCacheState(false);
     lruByte_ -= (*iter)->GetActualLen();
     lruReadDataCacheList_.erase(iter);
+    return true;
 }
 
 CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
@@ -1249,8 +1250,9 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
     for (auto key : deleteKeyVec) {
         auto iter = dataRCacheMap_.find(key);
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
-        s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter);
-        dataRCacheMap_.erase(iter);
+        if (s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter)) {
+            dataRCacheMap_.erase(iter);
+        }
     }
     std::list<DataCachePtr>::iterator outIter;
     bool ret =
@@ -1287,9 +1289,10 @@ void ChunkCacheManager::ReleaseCache() {
     WriteLockGuard writeLockGuard(rwLockRead_);
     auto iter = dataRCacheMap_.begin();
     for (; iter != dataRCacheMap_.end(); iter++) {
-        s3ClientAdaptor_->GetFsCacheManager()->Delete(iter->second);
+        if (s3ClientAdaptor_->GetFsCacheManager()->Delete(iter->second)) {
+            dataRCacheMap_.erase(iter);
+        }
     }
-    dataRCacheMap_.clear();
 }
 
 void ChunkCacheManager::TruncateCache(uint64_t chunkPos) {
@@ -1331,8 +1334,9 @@ void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
         uint64_t dcLen = (*rIter->second)->GetLen();
         uint64_t dcActualLen = (*rIter->second)->GetActualLen();
         if ((dcChunkPos + dcLen) > chunkPos) {
-            s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second);
-            dataRCacheMap_.erase(next(rIter).base());
+            if (s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second)) {
+                dataRCacheMap_.erase(next(rIter).base());
+            }
         } else {
             break;
         }
