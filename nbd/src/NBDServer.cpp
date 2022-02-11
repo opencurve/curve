@@ -246,7 +246,7 @@ void NBDServer::WriterFunc() {
         if (ctx->command == NBD_CMD_READ && ctx->reply.error == htonl(0)) {
             r = safeIO_->Write(sock_, ctx->data.get(), ctx->request.len);
             if (r < 0) {
-                LOG(ERROR) << *ctx << ": faield to write reply date : "
+                LOG(ERROR) << *ctx << ": faield to write reply data : "
                            << cpp_strerror(r);
                 return;
             }
