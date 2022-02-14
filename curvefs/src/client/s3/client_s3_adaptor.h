@@ -45,7 +45,6 @@ namespace curvefs {
 namespace client {
 
 using ::curve::common::Thread;
-using curvefs::client::common::S3ClientAdaptorOption;
 using curvefs::client::common::DiskCacheType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;

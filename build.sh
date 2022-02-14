@@ -51,16 +51,16 @@ curve_version=${tag_version}+${commit_id}${debug}
 
 
 #step3 执行编译
-# check bazel verion, bazel vesion must = 0.17.2
+# check bazel verion, bazel vesion must = 4.2.2
 bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]
 then
-    echo "please install bazel 0.17.2 first"
+    echo "please install bazel 4.2.2 first"
     exit
 fi
-if [ ${bazel_version} != "0.17.2" ]
+if [ ${bazel_version} != "4.2.2" ]
 then
-    echo "bazel version must 0.17.2"
+    echo "bazel version must 4.2.2"
     echo "now version is ${bazel_version}"
     exit
 fi

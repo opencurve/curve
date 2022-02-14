@@ -43,8 +43,6 @@ namespace client {
 
 using curvefs::common::PosixWrapper;
 
-class S3ClientAdaptorOption;
-
 struct DiskCacheOption {
     DiskCacheType diskCacheType;
     uint64_t trimCheckIntervalSec;

@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     uint64_t sn             = 1;
     char fillCh             = 'a';
     PeerId leader;
-    Configuration conf;
+    curve::chunkserver::Configuration conf;
 
     if (0 != conf.parse_from(FLAGS_confs)) {
         LOG(FATAL) << "conf parse failed: " << FLAGS_confs;

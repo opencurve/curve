@@ -40,5 +40,6 @@ cc_library(
         "//src/common:curve_common",
         "//test/util:test_util",
         "@com_google_googletest//:gtest",
+        "//include:include-common",
     ],
 )
