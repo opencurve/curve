@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # tmpl.sh = /usr/local/metaserver.conf /tmp/metaserver.conf
+# $1: tag $2: os
 function tmpl() {
     dsv=$1
     src=$2
@@ -15,7 +16,7 @@ function tmpl() {
     done < $src > $dst
 }
 
-prefix="$(pwd)/docker/curvefs"
+prefix="$(pwd)/docker/$2/curvefs"
 mkdir -p $prefix $prefix/conf
 make install prefix="$prefix"
 make install prefix="$prefix" only=etcd
@@ -29,5 +30,5 @@ do
     tmpl $dsv "conf/$file" "$prefix/conf/$file"
 done
 
-docker pull opencurvedocker/curve-base:debian9
-docker build -t "$1" "$(pwd)/docker"
+docker pull opencurvedocker/curve-base:$2
+docker build -t "$1" "$(pwd)/docker/$2"

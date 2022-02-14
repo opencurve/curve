@@ -17,6 +17,8 @@ g_build_opts=(
     "--copt -DUSE_BTHREAD_MUTEX"
 )
 
+g_os="debian9"
+
 ############################  BASIC FUNCTIONS
 get_version() {
     #get tag version
@@ -81,7 +83,7 @@ _EOC_
 }
 
 get_options() {
-    local args=`getopt -o lorh --long list,only:,release: -n "$0" -- "$@"`
+    local args=`getopt -o lorh --long list,only:,os:,release: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
@@ -96,6 +98,10 @@ get_options() {
                 ;;
             -r|--release)
                 g_release=$2
+                shift 2
+                ;;
+            --os)
+                g_os=$2
                 shift 2
                 ;;
             -h)
@@ -136,6 +142,10 @@ build_target() {
     fi
     # set version
     g_build_opts+=("--copt -DCURVEVERSION=${curve_version}")
+
+    if [ "$g_os" == "debian10" -o "$g_os" == "debian11" ]; then
+        g_build_opts+=("--config=gcc7-later")
+    fi
 
     for target in `get_target`
     do
