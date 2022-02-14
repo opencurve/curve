@@ -120,9 +120,8 @@ CURVE_LLVM_FLAGS = [
     "-Wvla",
     "-Wwrite-strings",
     "-Wno-float-conversion",
-    "-Wno-implicit-float-conversion",
-    "-Wno-implicit-int-float-conversion",
-    "-Wno-implicit-int-conversion",
+    "-Wno-float-conversion",
+    "-Wno-float-overflow-conversion",
     "-Wno-shorten-64-to-32",
     "-Wno-sign-conversion",
     "-DNOMINMAX",
@@ -146,10 +145,16 @@ CURVE_LLVM_TEST_FLAGS = [
     "-Wno-used-but-marked-unused",
     "-Wno-zero-as-null-pointer-constant",
     "-Wno-gnu-zero-variadic-macro-arguments",
+    "-Wbraced-scalar-init",
+]
+
+# FIXME: temporary disabled because triggered in many places
+CURVE_LLVM_DISABLED_FLGAS = [
+    "-Wno-c++11-narrowing",
 ]
 
 CURVE_DEFAULT_COPTS = select({
-    "//:clang_compiler": CURVE_LLVM_FLAGS + CXX_FLAGS + BASE_FLAGS,
+    "//:clang_compiler": CURVE_LLVM_FLAGS + CXX_FLAGS + BASE_FLAGS + CURVE_LLVM_DISABLED_FLGAS,
     "//conditions:default": CURVE_GCC_FLAGS + CXX_FLAGS + BASE_FLAGS + CURVE_GCC_DISABLED_FLGAS,
 })
 

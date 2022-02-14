@@ -769,9 +769,9 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
         cntl.set_timeout_ms(2000);
         request.set_logicpoolid(logicPoolID);
         request.set_copysetid(copysetId);
-        Peer *peer = new Peer();
-        request.set_allocated_peer(peer);
-        peer->set_address(peerId.to_string());
+        Peer *peerP = new Peer();
+        request.set_allocated_peer(peerP);
+        peerP->set_address(peerId.to_string());
         request.set_queryhash(true);
         stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
         LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
