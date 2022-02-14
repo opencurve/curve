@@ -21,7 +21,7 @@ cc_library(
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
     copts = CURVE_DEFAULT_COPTS + [
-        "-Wno-write-strings"
+        "-Wno-write-strings",
     ],
     visibility = ["//visibility:public"],
     deps = [

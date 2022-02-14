@@ -3216,3 +3216,16 @@ index 08d0bfc..77a1bab 100644
  }  // namespace logging
 +}  // namespace butil
  #endif
+diff --git a/src/bvar/scoped_timer.h b/src/bvar/scoped_timer.h
+index 34de59fb..7ad92c5d 100644
+--- a/src/bvar/scoped_timer.h
++++ b/src/bvar/scoped_timer.h
+@@ -49,7 +49,7 @@ public:
+ 
+ private:
+     DISALLOW_COPY_AND_ASSIGN(ScopedTimer);
+-    const int64_t _start_time;
++    int64_t _start_time;
+     T* _bvar;
+ };
+ } // namespace bvar

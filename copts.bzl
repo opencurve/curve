@@ -58,6 +58,7 @@ CURVE_GCC_FLAGS = [
     "-Wwrite-strings",
     "-Werror",
     "-DNOMINMAX",
+    "-falign-jumps",
 ]
 
 CURVE_GCC_TEST_FLAGS = [
@@ -68,6 +69,7 @@ CURVE_GCC_TEST_FLAGS = [
     "-Wno-unused-function",
     "-Wno-unused-parameter",
     "-Wno-unused-result",
+    "-Wno-implicit-fallthrough",
 ]
 
 # FIXME: temporary disabled because triggered in many places
@@ -146,10 +148,16 @@ CURVE_LLVM_TEST_FLAGS = [
     "-Wno-used-but-marked-unused",
     "-Wno-zero-as-null-pointer-constant",
     "-Wno-gnu-zero-variadic-macro-arguments",
+    "-Wbraced-scalar-init",
+]
+
+# FIXME: temporary disabled because triggered in many places
+CURVE_LLVM_DISABLED_FLGAS = [
+    "-Wno-c++11-narrowing",
 ]
 
 CURVE_DEFAULT_COPTS = select({
-    "//:clang_compiler": CURVE_LLVM_FLAGS + CXX_FLAGS + BASE_FLAGS,
+    "//:clang_compiler": CURVE_LLVM_FLAGS + CXX_FLAGS + BASE_FLAGS + CURVE_LLVM_DISABLED_FLGAS,
     "//conditions:default": CURVE_GCC_FLAGS + CXX_FLAGS + BASE_FLAGS + CURVE_GCC_DISABLED_FLGAS,
 })
 

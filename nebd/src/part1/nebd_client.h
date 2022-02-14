@@ -184,7 +184,8 @@ class NebdClient {
     static int ExecAsyncRpcTask(void* meta, bthread::TaskIterator<AsyncRpcTask>& iter);  // NOLINT
 
     void PushAsyncTask(const AsyncRpcTask& task) {
-        static thread_local unsigned int seed = time(nullptr);
+        static thread_local unsigned int seed;
+        seed = time(nullptr);
 
         int idx = rand_r(&seed) % rpcTaskQueues_.size();
         int rc = bthread::execution_queue_execute(rpcTaskQueues_[idx], task);

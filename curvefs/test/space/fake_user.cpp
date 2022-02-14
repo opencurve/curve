@@ -145,7 +145,8 @@ void Init() {
 }
 
 void Run() {
-    thread_local unsigned int seed = time(nullptr);
+    static thread_local unsigned int seed;
+    seed = time(nullptr);
     while (true) {
         if (rand_r(&seed) % 4 == 0 ||
             noSpace.load(std::memory_order_relaxed) == true) {

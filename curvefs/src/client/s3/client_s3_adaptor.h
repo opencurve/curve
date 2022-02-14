@@ -45,7 +45,6 @@ namespace curvefs {
 namespace client {
 
 using ::curve::common::Thread;
-using curvefs::client::common::S3ClientAdaptorOption;
 using curvefs::client::common::DiskCacheType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
@@ -181,7 +180,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
 
  public:
     void PushAsyncTask(const AsyncDownloadTask& task) {
-        static thread_local unsigned int seed = time(nullptr);
+        static thread_local unsigned int seed;
+        seed = time(nullptr);
 
         int idx = rand_r(&seed) % downloadTaskQueues_.size();
         int rc = bthread::execution_queue_execute(
