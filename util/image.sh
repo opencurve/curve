@@ -15,7 +15,7 @@ function tmpl() {
     done < $src > $dst
 }
 
-prefix="$(pwd)/docker/curvebs"
+prefix="$(pwd)/docker/$2/curvebs"
 mkdir -p $prefix $prefix/conf
 make install prefix="$prefix"
 make install prefix="$prefix" only=etcd
@@ -39,5 +39,5 @@ do
     tmpl $dsv "$dir/$file" "$prefix/conf/$dst"
 done
 
-docker pull opencurvedocker/curve-base:debian9
-docker build -t "$1" "$(pwd)/docker"
+docker pull opencurvedocker/curve-base:$2
+docker build -t "$1" "$(pwd)/docker/$2"

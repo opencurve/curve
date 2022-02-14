@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
     LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(opt))
     << "Failed to init concurrent apply module";
 
-    Configuration conf;
+    curve::chunkserver::Configuration conf;
     if (conf.parse_from(FLAGS_conf) != 0) {
         LOG(ERROR) << "Fail to parse configuration `" << FLAGS_conf << '\'';
         return -1;

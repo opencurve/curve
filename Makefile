@@ -7,15 +7,16 @@ release?= 0
 only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
+os?= "debian9"
 
 list:
 	@bash util/build.sh --list
 
 build:
-	@bash util/build.sh --only=$(only) --release=$(release)
+	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os)
 
 install:
 	@bash util/install.sh --prefix=$(prefix) --only=$(only)
 
 image:
-	@bash util/image.sh $(tag)
+	@bash util/image.sh $(tag) $(os)

@@ -7,6 +7,7 @@ release?= 0
 only?= "*"
 hosts?= "*"
 tag?= "curvefs:unknown"
+os?= "debian9"
 
 define deploy_begin
 	@bash util/deploy.sh begin
@@ -31,13 +32,13 @@ define only_specify
 endef
 
 build:
-	@bash util/build.sh --only=$(only) --release=$(release)
+	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os)
 
 install:
 	@bash util/install.sh --prefix=$(prefix) --only=$(only)
 
 image:
-	@bash util/image.sh $(tag)
+	@bash util/image.sh $(tag) $(os)
 
 deploy:
 	$(call deploy_begin)

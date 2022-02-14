@@ -23,6 +23,8 @@
 #include "test/integration/common/chunkservice_op.h"
 #include "proto/chunk.pb.h"
 
+#include "include/curve_compiler_specific.h"
+
 namespace curve {
 namespace chunkserver {
 
@@ -305,6 +307,7 @@ int ChunkServiceOp::GetChunkInfo(struct ChunkServiceOpConf *opConf,
         switch (response.chunksn().size()) {
         case 2:
             *snapSn = response.chunksn(1);
+            FALLTHROUGH_INTENDED;
         case 1:
             *curSn = response.chunksn(0);
             break;
