@@ -31,24 +31,23 @@
 
 namespace curvefs {
 namespace metaserver {
-MetaStoreImpl::MetaStoreImpl() {}
 
-// NOTE: if we use set we need define hash function, it's complicate
-using PartitionContainerType = std::unordered_map<uint32_t, PartitionInfo>;
-using InodeContainerType = InodeStorage::ContainerType;
-using DentryContainerType = DentryStorage::ContainerType;
-using PendingTxContainerType = std::unordered_map<int, PrepareRenameTxRequest>;
+MetaStoreImpl::MetaStoreImpl(std::shared_ptr<KVStorage> kvStorage)
+    : kvStorage_(kvStorage) {}
 
-using PartitionIteratorType = MapContainerIterator<PartitionContainerType>;
-using InodeIteratorType = MapContainerIterator<InodeContainerType>;
-using DentryIteratorType = SetContainerIterator<DentryContainerType>;
-using PendingTxIteratorType = MapContainerIterator<PendingTxContainerType>;
+using ContainerType = std::unordered_map<std::string, std::string>
 
 bool MetaStoreImpl::LoadPartition(uint32_t partitionId, void* entry) {
     auto partitionInfo = reinterpret_cast<PartitionInfo*>(entry);
     partitionId = partitionInfo->partitionid();
     auto partition = std::make_shared<Partition>(*partitionInfo);
     partitionMap_.emplace(partitionId, partition);
+
+    if (!partition->ClearAllInode() || !partition->ClearAllInode()) {
+        LOG(ERROR) << "Clear inode/dentry failed, partitionId" << partitionId;
+        return false;
+    }
+
     return true;
 }
 
@@ -148,52 +147,56 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
 }
 
 std::shared_ptr<Iterator> MetaStoreImpl::NewPartitionIterator() {
-    auto container = std::make_shared<PartitionContainerType>();
+    std::string value;
+    auto container = std::make_shared<ContainerType>();
     for (const auto& item : partitionMap_) {
         auto partitionId = item.first;
         auto partition = item.second;
-        container->emplace(partitionId, partition->GetPartitionInfo());
+        bool succ = partition->GetPartitionInfo().SerializeToString(&value);
+        if (!succ) {
+            return nullptr;
+        }
+        container->emplace(partitionId, value);
     }
 
-    auto iterator = std::make_shared<PartitionIteratorType>(
-        ENTRY_TYPE::PARTITION, 0, container);
-    return iterator;
+    auto partitionId = partition->GetPartitionId();
+    auto iterator = std::make_shared<ContainerType>(container);
+    return std::make_shared<IteratorWrapper>(
+        ENTRY_TYPE::PARTITION, partitionId, iterator);
 }
 
 std::shared_ptr<Iterator> MetaStoreImpl::NewInodeIterator(
     std::shared_ptr<Partition> partition) {
     auto partitionId = partition->GetPartitionId();
-    auto cntr = partition->GetInodeContainer();
-    auto container = std::shared_ptr<InodeContainerType>(
-        cntr, [](InodeContainerType*) {});  // don't release storage
-    auto iterator = std::make_shared<InodeIteratorType>(ENTRY_TYPE::INODE,
-                                                        partitionId, container);
-    return iterator;
+    auto iterator = std::make_shared<Iterator>(partition->GetAllInode());
+    return std::make_shared<IteratorWrapper>(
+        ENTRY_TYPE::INDOE, partitionId, iterator);
 }
 
 std::shared_ptr<Iterator> MetaStoreImpl::NewDentryIterator(
-    std::shared_ptr<Partition> partition) {
     auto partitionId = partition->GetPartitionId();
-    auto cntr = partition->GetDentryContainer();
-    auto container = std::shared_ptr<DentryContainerType>(
-        cntr, [](DentryContainerType*) {});  // don't release storage
-    auto iterator = std::make_shared<DentryIteratorType>(
-        ENTRY_TYPE::DENTRY, partitionId, container);
-    return iterator;
+    auto iterator = std::make_shared<Iterator>(partition->GetAllDentry());
+    return std::make_shared<IteratorWrapper>(
+        ENTRY_TYPE::DENTRY, partitionId, iterator);
 }
 
 std::shared_ptr<Iterator> MetaStoreImpl::NewPendingTxIterator(
     std::shared_ptr<Partition> partition) {
+    std::string value;
     PrepareRenameTxRequest pendingTx;
-    auto container = std::make_shared<PendingTxContainerType>();
+    auto container = std::make_shared<ContainerType>();
     if (partition->FindPendingTx(&pendingTx)) {
-        container->emplace(0, pendingTx);
+        bool succ = pendingTx.SerializeToString(&value);
+        if (!succ) {
+            return nullptr;
+        }
+        container->emplace(0, value);
     }
 
     auto partitionId = partition->GetPartitionId();
-    auto iterator = std::make_shared<PendingTxIteratorType>(
-        ENTRY_TYPE::PENDING_TX, partitionId, container);
-    return iterator;
+    auto iterator = std::make_shared<ContainerType>(container);
+    return std::make_shared<IteratorWrapper>(
+        ENTRY_TYPE::PENDING_TX, partitionId, iterator);
 }
 
 void MetaStoreImpl::SaveBackground(const std::string& path,
@@ -217,8 +220,17 @@ void MetaStoreImpl::SaveBackground(const std::string& path,
         children.push_back(iterator);
     }
 
+    for (const auto& child : children) {
+        if (nullptr == null) {
+            LOG(INFO) << "Save metadata to file failed";
+            done->SetError(MetaStatusCode::SAVE_META_FAIL);
+            done->Run();
+        }
+    }
+
     auto mergeIterator = std::make_shared<MergeIterator>(children);
-    bool succ = SaveToFile(path, mergeIterator);
+    bool background = (kvStorage_.Type() == KVStorage::MEMORY);
+    bool succ = StorageFstream::SaveToFile(path, mergeIterator, background);
     LOG(INFO) << "Save metadata to file " << (succ ? "success" : "fail");
     if (succ) {
         done->SetSuccess();
@@ -244,6 +256,7 @@ bool MetaStoreImpl::Clear() {
         TrashManager::GetInstance().Remove(it->first);
         it->second->ClearS3Compact();
         PartitionCleanManager::GetInstance().Remove(it->first);
+        // 这里需要删除对应 partition 的值
     }
     partitionMap_.clear();
     return true;
@@ -262,8 +275,8 @@ MetaStatusCode MetaStoreImpl::CreatePartition(
         return status;
     }
 
-    partitionMap_.emplace(partition.partitionid(),
-                          std::make_shared<Partition>(partition));
+    auto partition = std::make_shared<Partition>(partition, kvStorage_)
+    partitionMap_.emplace(partition.partitionid(), partition);
     response->set_statuscode(MetaStatusCode::OK);
     return MetaStatusCode::OK;
 }

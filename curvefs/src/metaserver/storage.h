@@ -60,6 +60,7 @@ static std::vector<Pair> pairs{
     Pair(ENTRY_TYPE::UNKNOWN, "u"),
 };
 
+// e.g: ENTRY_TYPE::INODE -> "i"
 static std::string type2str(ENTRY_TYPE t) {
     for (const auto& pair : pairs) {
         if (pair.first == t) {
@@ -69,6 +70,7 @@ static std::string type2str(ENTRY_TYPE t) {
     return "";
 }
 
+// e.g: "i" -> ENTRY_TYPE::INODE
 static ENTRY_TYPE str2type(const std::string& s) {
     for (const auto& pair : pairs) {
         if (pair.second == s) {
@@ -77,6 +79,10 @@ static ENTRY_TYPE str2type(const std::string& s) {
     }
     return ENTRY_TYPE::UNKNOWN;
 }
+
+
+
+
 
 template<typename ContainerType>
 class ContainerIterator : public Iterator {
@@ -273,7 +279,8 @@ inline bool InvokeCallback(ENTRY_TYPE entryType,
 }
 
 inline bool SaveToFile(const std::string& pathname,
-                       std::shared_ptr<MergeIterator> iterator) {
+                       std::shared_ptr<MergeIterator> iterator,
+                       bool background) {
     auto dumpfile = DumpFile(pathname);
     if (dumpfile.Open() != DUMPFILE_ERROR::OK) {
         LOG(ERROR) << "Open dumpfile failed";
@@ -281,7 +288,8 @@ inline bool SaveToFile(const std::string& pathname,
     }
 
     auto defer = absl::MakeCleanup([&dumpfile]() { dumpfile.Close(); });
-    auto retCode = dumpfile.SaveBackground(iterator);
+    auto retCode = background ? dumpfile.SaveBackground(iterator)
+                              : dumpfile.Save(iterator);
     LOG(INFO) << "retcode = " << retCode;
     return (retCode == DUMPFILE_ERROR::OK) && (iterator->Status() == 0);
 }

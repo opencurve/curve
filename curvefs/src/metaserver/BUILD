@@ -22,14 +22,22 @@ cc_library(
         ["*.cpp"],
         exclude = [
             "main.cpp",
+            "storage/rocksdb_storage.cpp",
         ],
     ) + glob(
         ["copyset/*.cpp"],
+    ) + glob(
+        ["storage/*.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
+        exclude = [
+            "storage/rocksdb_storage.h",
+        ],
     ) + glob(
         ["copyset/*.h"],
+    ) + glob(
+        ["storage/*.h"],
     ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],

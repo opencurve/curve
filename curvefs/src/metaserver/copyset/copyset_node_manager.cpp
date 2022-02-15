@@ -255,6 +255,11 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
     return true;
 }
 
+
+std::shared_ptr<KVStorage> CopysetNodeManager::GetKVStorage() {
+    return kvStorage_;
+}
+
 void CopysetNodeManager::GetAllCopysets(
     std::vector<CopysetNode*>* nodes) const {
     nodes->clear();

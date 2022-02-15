@@ -236,6 +236,28 @@ bool Heartbeat::GetProcMemory(uint64_t* vmRSS) {
     return false;
 }
 
+bool Heartbeat::GetMetaServerState(MetaServerState* state) {
+    auto kvStorage_ = ::curvefs::metaserver::storage::GetStorageInstance()
+    storage::StorageStatistics statistic;
+    bool succ = kvStorage_->GetStatistics(&statistic);
+    if (!succ) {
+        return false;
+    }
+
+    state.set_memorythresholdbyte(statistic.MaxMemoryBytes);
+    state.set_memorymetaserverusedbyte(statistic.UsageMemoryBytes);
+    state.set_diskthresholdbyte(statistic.MaxDiskQuotaBytes);
+    state.set_diskmetaserverusedbyte(statistic.UsageDiskBytes);
+    if (kvStorage_->Type() == STORAGE_TYPE::MEMORY) {
+        state.set_diskcopysetminrequirebyte(0);
+    } else {
+        state.set_diskcopysetminrequirebyte();  // 平均值
+    }
+    state.set_memoryCopySetMinRequireByte(); // 平均值，内存值除以  copysetnode 的数量
+
+    return true;
+}
+
 int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     int ret;
 
@@ -263,6 +285,13 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         return -1;
     }
     req->set_memoryused(vmRss);
+
+    MetaServerState state;
+    if (!GetMetaServerState(&state)) {
+        LOG(ERROR) << "Get metaserver state failed.";
+        return -1;
+    }
+    req->set_metaserverstate(state);
 
     std::vector<CopysetNode *> copysets;
     copysetMan_->GetAllCopysets(&copysets);

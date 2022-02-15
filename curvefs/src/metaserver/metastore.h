@@ -122,7 +122,7 @@ class MetaStore {
 
 class MetaStoreImpl : public MetaStore {
  public:
-    MetaStoreImpl();
+    explict MetaStoreImpl(std::shared_ptr<KVStorage> kvStorage_);
 
     bool Load(const std::string& pathname) override;
     bool Save(const std::string& path,
@@ -200,9 +200,11 @@ class MetaStoreImpl : public MetaStore {
 
  private:
     RWLock rwLock_;  // protect partitionMap_
+    std::shared_ptr<KVStorage> kvStorage_;
     std::map<uint32_t, std::shared_ptr<Partition>> partitionMap_;
     std::list<uint32_t> partitionIds_;
 };
+
 }  // namespace metaserver
 }  // namespace curvefs
 #endif  // CURVEFS_SRC_METASERVER_METASTORE_H_

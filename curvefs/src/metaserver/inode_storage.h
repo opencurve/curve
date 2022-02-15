@@ -37,114 +37,61 @@ using curve::common::RWLock;
 namespace curvefs {
 namespace metaserver {
 
-struct InodeKey {
-    uint32_t fsId;
-    uint64_t inodeId;
-
-    InodeKey(uint32_t fs, uint64_t inode) : fsId(fs), inodeId(inode) {}
-
-    explicit InodeKey(const Inode &inode)
-        : fsId(inode.fsid()), inodeId(inode.inodeid()) {}
-
-    explicit InodeKey(const std::shared_ptr<Inode> &inode)
-        : fsId(inode->fsid()), inodeId(inode->inodeid()) {}
-
-    bool operator==(const InodeKey &k1) const {
-        return k1.fsId == fsId && k1.inodeId == inodeId;
-    }
-};
-
-struct hashInode {
-    size_t operator()(const InodeKey &key) const {
-        return std::hash<uint64_t>()(key.inodeId) ^
-               std::hash<uint32_t>()(key.fsId);
-    }
-};
-
 class InodeStorage {
  public:
-    using ContainerType = std::unordered_map<
-        InodeKey, std::shared_ptr<Inode>, hashInode>;
+    using CounterType = absl::btree_set<uint64_t>;
 
  public:
-    virtual MetaStatusCode Insert(const Inode &inode) = 0;
-    virtual MetaStatusCode Get(
-        const InodeKey &key, std::shared_ptr<Inode> *inode) = 0;
-    virtual MetaStatusCode GetCopy(
-        const InodeKey &key, Inode *inode) = 0;
-    virtual MetaStatusCode Delete(const InodeKey &key) = 0;
-    virtual MetaStatusCode Update(const Inode &inode) = 0;
-    virtual int Count() = 0;
-    virtual ContainerType* GetContainer() = 0;
-    virtual void GetInodeIdList(std::list<uint64_t>* InodeIdList) = 0;
-    virtual ~InodeStorage() = default;
-};
+    InodeStorage(std::shared_ptr<KVStorage> kvStorage, uint32_t partitionId);
 
-class MemoryInodeStorage : public InodeStorage {
- public:
+    std::string Name();
+
     /**
      * @brief insert inode to storage
-     *
      * @param[in] inode: the inode want to insert
-     *
      * @return If inode exist, return INODE_EXIST; else insert and return OK
      */
-    MetaStatusCode Insert(const Inode &inode) override;
+    MetaStatusCode Insert(const Inode& inode);
 
     /**
      * @brief get inode from storage
-     *
      * @param[in] key: the key of inode want to get
      * @param[out] inode: the inode got
-     *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Get(
-        const InodeKey &key, std::shared_ptr<Inode> *inode) override;
-
-    /**
-     * @brief get inode from storage
-     *
-     * @param[in] key: the key of inode want to get
-     * @param[out] inode: the inode got
-     *
-     * @return If inode not exist, return NOT_FOUND; else return OK
-     */
-    MetaStatusCode GetCopy(const InodeKey &key, Inode *inode) override;
+    MetaStatusCode Get(const std::string& key, Inode* inode);
 
     /**
      * @brief delete inode from storage
-     *
      * @param[in] key: the key of inode want to delete
-     *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Delete(const InodeKey &key) override;
+    MetaStatusCode Delete(const std:;string& key);
 
     /**
      * @brief update inode from storage
-     *
      * @param[in] inode: the inode want to update
-     *
      * @return If inode not exist, return NOT_FOUND; else replace and  return OK
      */
-    MetaStatusCode Update(const Inode &inode) override;
+    MetaStatusCode Update(const Inode &inode);
 
-    int Count() override;
+    Iterator GetAll();
 
-    /**
-     * @brief get Inode container
-     *
-     * @return Inode container, here returns inodeMap_ pointer
-     */
-    ContainerType* GetContainer() override;
+    MetaStatusCode Clear();
 
-    void GetInodeIdList(std::list<uint64_t>* inodeIdList) override;
+    void GetInodeIdList(std::list<uint64_t>* inodeIdList);
+
+ private:
+    void AddInode(uint64_t fsId, uint64_t inodeId);
+    void DelInode(uint64_t fsId, uint64_t inodeId);
+    bool InodeExist(uint64_t fsId, uint64_t inodeId);
 
  private:
     RWLock rwLock_;
-    // use fsid + inodeid as key
-    ContainerType inodeMap_;
+    uint32_t partiionId_;
+    std::string tableName_;
+    std::unordered_map<uint64_t, std::shared_ptr<CounterType>> inodeIds_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 }  // namespace metaserver

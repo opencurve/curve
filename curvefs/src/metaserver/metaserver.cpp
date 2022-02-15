@@ -34,6 +34,7 @@
 #include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
 #include "src/common/string_util.h"
@@ -126,6 +127,7 @@ void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
 }
 
 void Metaserver::Init() {
+    ::curvefs::metaserver::storage::Init();
     InitRegisterOptions();
     TrashOption trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
@@ -302,6 +304,22 @@ void Metaserver::InitHeartbeat() {
     heartbeatOptions_.fs = localFileSystem_;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
         << "Failed to init Heartbeat manager.";
+}
+
+void Metaserver::InitStorage() {
+    LOG_IF(FATAL, !conf_->GetStringValue("storage.type", &StorageOptions_.Type));
+    LOG_IF(FATAL,
+        StorageOptions_.type != "memory" && StorageOptions_.type != "rocksdb",
+        << "Invalid storage type: " << StorageOptions_.type;
+    LOG_IF(FATAL, !conf_->GetStringValue("storage.DataDir",
+           &StorageOptions_.DataDir));
+    LOG_IF(FATAL, !conf_->GetUInt64Value("storage.maxMemoryBytes",
+                                         &StorageOptions_.MaxMemoryBytes));
+    LOG_IF(FATAL, !conf_->GetUInt64Value("storage.maxDiskQuotaBytes",
+                                         &StorageOptions_.MaxDiskQuotaBytes));
+
+    bool succ = ::curvefs::metadata::storage::InitStorage(StorageOptions_);
+    LOG_IF(FATAL, !succ) << "Init storage failed";
 }
 
 void Metaserver::InitCopysetNodeManager() {

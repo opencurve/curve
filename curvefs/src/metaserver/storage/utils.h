@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,42 +14,35 @@
  *  limitations under the License.
  */
 
-/**
+/*
  * Project: Curve
- * Created Date: 2021-07-23
+ * Date: 2022-02-27
  * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_METASERVER_ITERATOR_H_
-#define CURVEFS_SRC_METASERVER_ITERATOR_H_
+#ifndef CURVEFS_SRC_METASERVER_STORAGE_UTILS_H_
+#define CURVEFS_SRC_METASERVER_STORAGE_UTILS_H_
 
 #include <string>
+#include <memory>
+#include <functional>
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
-// The iterator can traverse different data struct: like hash, B+ tree, skiplist
-class Iterator {
- public:
-    virtual ~Iterator() = default;
+inline size_t Hash(std::string& key) {
+    return std::hash<std::string>{}(key);
+}
 
-    // TODO(Wine93): remove this interface
-    virtual uint64_t Size() = 0;
+std::string EncodeNumber(size_t num);
 
-    virtual bool Valid() = 0;
+inline size_t DecodeNumber(std::string str) {
+    return *reinterpret_cast<size_t*>(str.c_str());
+}
 
-    virtual void SeekToFirst() = 0;
+}  // namespace storage
+}  // namespace metaserver
+}  // namespace curvefs
 
-    virtual void Next() = 0;
-
-    virtual std::string Key() = 0;
-
-    virtual std::string Value() = 0;
-
-    virtual int Status() = 0;
-};
-
-};  // namespace metaserver
-};  // namespace curvefs
-
-#endif  // CURVEFS_SRC_METASERVER_ITERATOR_H_
+#endif  //  CURVEFS_SRC_METASERVER_STORAGE_UTILS_H_

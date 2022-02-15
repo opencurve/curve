@@ -168,50 +168,6 @@ TEST_F(DumpFileTest, TestSaveInTherad) {
     ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
 }
 
-// TEST_F(DumpFileTest, TestSaveWithSet) {
-//     Hash hash;
-//     auto hashIterator = std::make_shared<HashIterator>(&hash);
-
-//     volatile bool running = true;
-
-//     auto pushThread = std::thread([&](){
-//         int i = 0;
-//         while (running) {
-//             auto key = std::to_string(++i);
-//             hash.emplace(key, key);
-//         }
-//     });
-
-//     std::this_thread::sleep_for(std::chrono::seconds(3));
-
-//     auto saveThread = std::thread([&](){
-//         ASSERT_EQ(dumpfile_->SaveBackground(hashIterator), DUMPFILE_ERROR::OK);  // NOLINT
-//     });
-
-//     std::this_thread::sleep_for(std::chrono::seconds(1));
-
-//     running = false;
-//     pushThread.join();
-//     saveThread.join();
-
-//     // Check the dump file
-//     std::set<int> set;
-//     auto iter = dumpfile_->Load();
-//     for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
-//         ASSERT_EQ(iter->Key(), iter->Value());
-//         set.insert(std::stoi(iter->Key()));
-//     }
-//     ASSERT_GE(set.size(), 0);
-//     ASSERT_LE(set.size(), hash.size());
-//     ASSERT_EQ(set.size(), iter->Size());
-
-//     int last = 0;
-//     for (auto& i : set) {
-//         ASSERT_EQ(i, last + 1);
-//         last = i;
-//     }
-// }
-
 TEST_F(DumpFileTest, TestSaveBigData) {
     Hash hash;
     auto hashIterator = std::make_shared<HashIterator>(&hash);

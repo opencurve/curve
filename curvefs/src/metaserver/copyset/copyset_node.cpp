@@ -108,7 +108,8 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
     }
 
     // create metastore
-    metaStore_ = absl::make_unique<MetaStoreImpl>();
+    metaStore_ = absl::make_unique<MetaStoreImpl>(
+        ::curvefs::metaserver::storage::GetStorageInstance());
 
     InitRaftNodeOptions();
 

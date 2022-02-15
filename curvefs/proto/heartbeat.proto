@@ -44,6 +44,16 @@ message CandidateError {
     required string errMsg = 2;
 };
 
+message MetaSeverState {
+    // if memoryThreshold - memoryMetaserverUsed  - memoryCopySetMinRequire > 0 , memory meets the conditions, 还可以增加copyset
+    required uint64 memoryThresholdByte = 1;  // Byte,这个metaserver最多能使用的内存量
+    required uint64 memoryCopySetMinRequireByte = 2;  // Byte, 这个metaserver上的copyset的最小的内存需求
+    required uint64 memoryMetaserverUsedByte = 3; // Byte, 这个metaserver当前的进程使用的内存量
+    required uint64 diskThresholdByte = 4;  // Byte, metaserver需要考虑磁盘预留，这里传的是磁盘物理容量乘以一定百分比之后的值
+    required uint64 diskCopysetMinRequireByte = 5; //  Byte，一个copyset最少需要的磁盘需求
+    required uint64 diskMetaserverUsedByte = 6;  // Byte，这个metaserver当前的磁盘使用量
+}
+
 message MetaServerHeartbeatRequest {
     required uint32 metaServerID = 1;
     required string token = 2;
@@ -56,6 +66,7 @@ message MetaServerHeartbeatRequest {
     required uint64 metadataSpaceTotal = 9;  // KB
     required uint64 metadataSpaceUsed = 10;  // KB
     required uint64 memoryUsed = 11;  // KB
+    required MetaSeverState metaserverState = 12;
 };
 
 message CopySetConf {

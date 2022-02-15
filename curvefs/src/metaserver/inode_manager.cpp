@@ -140,7 +140,8 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
                                       Inode *inode) {
     VLOG(1) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
-    MetaStatusCode ret = inodeStorage_->GetCopy(InodeKey(fsId, inodeId), inode);
+    auto key = inodeStorage_->InodeKey(fsId, inodeId);
+    MetaStatusCode ret = inodeStorage_->Get(key, inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "GetInode fail, fsId = " << fsId
                    << ", inodeId = " << inodeId
@@ -157,7 +158,8 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
 MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     VLOG(1) << "DeleteInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
-    MetaStatusCode ret = inodeStorage_->Delete(InodeKey(fsId, inodeId));
+    auto key = inodeStorage_->InodeKey(fsId, inodeId);
+    MetaStatusCode ret = inodeStorage_->Delete(key);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "DeleteInode fail, fsId = " << fsId
                    << ", inodeId = " << inodeId
@@ -176,8 +178,9 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
             request.fsid(), request.inodeid()));
 
     std::shared_ptr<Inode> old;
-    MetaStatusCode ret = inodeStorage_->Get(
-        InodeKey(request.fsid(), request.inodeid()), &old);
+    Inode* old;
+    auto key = inodeStorage_->InodeKey(fsId, inodeId);
+    MetaStatusCode ret = inodeStorage_->Get(key, old);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "GetInode fail, " << request.ShortDebugString()
                    << ", ret: " << MetaStatusCode_Name(ret);

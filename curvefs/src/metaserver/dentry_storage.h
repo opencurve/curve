@@ -32,6 +32,7 @@
 
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -51,8 +52,6 @@ bool operator==(const Dentry& lhs, const Dentry& rhs);
 
 class DentryStorage {
  public:
-    using ContainerType = Btree;
-
     enum class TX_OP_TYPE {
         PREPARE,
         COMMIT,
@@ -60,46 +59,24 @@ class DentryStorage {
     };
 
  public:
-    virtual ~DentryStorage() = default;
+    DentryStorage::DentryStorage(std::shared_ptr<KVStorage> kvStorage,
+                                 std::string tablename);
 
-    virtual MetaStatusCode Insert(const Dentry& dentry) = 0;
+    MetaStatusCode Insert(const Dentry& dentry);
 
-    virtual MetaStatusCode Delete(const Dentry& dentry) = 0;
+    MetaStatusCode Delete(const Dentry& dentry);
 
-    virtual MetaStatusCode Get(Dentry* dentry) = 0;
-
-    virtual MetaStatusCode List(const Dentry& dentry,
-                                std::vector<Dentry>* dentrys,
-                                uint32_t limit) = 0;
-
-    virtual MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentrys) = 0;
-
-    virtual size_t Size() = 0;
-
-    virtual void Clear() = 0;
-
-    virtual ContainerType* GetContainer() = 0;
-};
-
-class MemoryDentryStorage : public DentryStorage {
- public:
-    MetaStatusCode Insert(const Dentry& dentry) override;
-
-    MetaStatusCode Delete(const Dentry& dentry) override;
-
-    MetaStatusCode Get(Dentry* dentry) override;
+    MetaStatusCode Get(Dentry* dentry);
 
     MetaStatusCode List(const Dentry& dentry,
                         std::vector<Dentry>* dentrys,
                         uint32_t limit) override;
 
-    MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry) override;
+    MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry);
 
-    size_t Size() override;
+    Iterator GetAll();
 
-    void Clear() override;
-
-    ContainerType* GetContainer() override;
+    MetaStatusCode Clear();
 
  private:
     bool BelongSameOne(const Dentry& lhs, const Dentry& rhs);
@@ -112,8 +89,8 @@ class MemoryDentryStorage : public DentryStorage {
 
  private:
     RWLock rwLock_;
-
-    Btree dentryTree_;
+    std::string tablename_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 }  // namespace metaserver

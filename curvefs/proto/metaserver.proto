@@ -14,334 +14,329 @@
  *  limitations under the License.
  */
 
-syntax="proto2";
+syntax = "proto2";
 import "curvefs/proto/common.proto";
 package curvefs.metaserver;
 option cc_generic_services = true;
 
 enum MetaStatusCode {
-    OK = 0;
-    UNKNOWN_ERROR = 1;
-    PARAM_ERROR = 2;
-    NOT_FOUND = 3;
-    INODE_EXIST = 4;
-    DENTRY_EXIST = 5;
-    SYM_LINK_EMPTY = 6;
-    RPC_ERROR = 7;
-    COPYSET_NOTEXIST = 8;
-    REDIRECTED = 9;
-    OVERLOAD = 10;
-    TARGET_DIRECTORY_EXIST = 11;
-    HANDLE_PENDING_TX_FAILED = 12;
-    HANDLE_TX_FAILED = 13;
-    PARTITION_NOT_FOUND = 14;
-    PARTITION_EXIST = 15;
-    PARTITION_DELETING = 16;
-    PARTITION_ALLOC_ID_FAIL = 17;
-    SAVE_META_FAIL = 18;
-    S3_DELETE_ERR = 19;
-    PARTITION_ID_MISSMATCH = 20;
-    IDEMPOTENCE_OK = 21;
+  OK = 0;
+  UNKNOWN_ERROR = 1;
+  PARAM_ERROR = 2;
+  NOT_FOUND = 3;
+  INODE_EXIST = 4;
+  DENTRY_EXIST = 5;
+  SYM_LINK_EMPTY = 6;
+  RPC_ERROR = 7;
+  COPYSET_NOTEXIST = 8;
+  REDIRECTED = 9;
+  OVERLOAD = 10;
+  TARGET_DIRECTORY_EXIST = 11;
+  HANDLE_PENDING_TX_FAILED = 12;
+  HANDLE_TX_FAILED = 13;
+  PARTITION_NOT_FOUND = 14;
+  PARTITION_EXIST = 15;
+  PARTITION_DELETING = 16;
+  PARTITION_ALLOC_ID_FAIL = 17;
+  SAVE_META_FAIL = 18;
+  S3_DELETE_ERR = 19;
+  PARTITION_ID_MISSMATCH = 20;
+  IDEMPOTENCE_OK = 21;
+  STORAGE_INTERNAL_ERROR = 22;
 }
 
 // dentry interface
 message GetDentryRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 parentInodeId = 5;
-    required string name = 6;
-    required uint64 txId = 7;
-    optional uint64 appliedIndex = 8;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 parentInodeId = 5;
+  required string name = 6;
+  required uint64 txId = 7;
+  optional uint64 appliedIndex = 8;
 }
 
 enum DentryFlag {
-    TYPE_FILE_FLAG = 1;
-    DELETE_MARK_FLAG = 2;
-    TRANSACTION_PREPARE_FLAG = 4;
+  TYPE_FILE_FLAG = 1;
+  DELETE_MARK_FLAG = 2;
+  TRANSACTION_PREPARE_FLAG = 4;
 }
 
 message Dentry {
-    required uint32 fsId = 1;
-    required uint64 inodeId = 2;
-    required uint64 parentInodeId = 3;
-    required string name = 4;
-    required uint64 txId = 5;
-    optional uint32 flag = 6;
+  required uint32 fsId = 1;
+  required uint64 inodeId = 2;
+  required uint64 parentInodeId = 3;
+  required string name = 4;
+  required uint64 txId = 5;
+  optional uint32 flag = 6;
 }
 
 message GetDentryResponse {
-    required MetaStatusCode statusCode = 1;
-    optional Dentry dentry = 2;
-    optional uint64 appliedIndex = 3;
+  required MetaStatusCode statusCode = 1;
+  optional Dentry dentry = 2;
+  optional uint64 appliedIndex = 3;
 }
 
 message ListDentryRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 dirInodeId = 5;
-    required uint64 txId = 6;
-    optional string last = 7;     // the name of last entry
-    optional uint32 count = 8;    // the number of entry required
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 dirInodeId = 5;
+  required uint64 txId = 6;
+  optional string last = 7;  // the name of last entry
+  optional uint32 count = 8; // the number of entry required
 }
 
 message ListDentryResponse {
-    required MetaStatusCode statusCode = 1;
-    repeated Dentry dentrys = 2;
-    optional uint64 appliedIndex = 3;
+  required MetaStatusCode statusCode = 1;
+  repeated Dentry dentrys = 2;
+  optional uint64 appliedIndex = 3;
 }
 
 message CreateDentryRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required Dentry dentry = 4;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required Dentry dentry = 4;
 }
 
 message CreateDentryResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
 message DeleteDentryRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 txId = 5;
-    required uint64 parentInodeId = 6;
-    required string name = 7;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 txId = 5;
+  required uint64 parentInodeId = 6;
+  required string name = 7;
 }
 
 message DeleteDentryResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
 message PrepareRenameTxRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    repeated Dentry dentrys = 4;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  repeated Dentry dentrys = 4;
 }
 
 message PrepareRenameTxResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
 // inode interface
 message GetInodeRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 inodeId = 5;
-    optional uint64 appliedIndex = 7;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 inodeId = 5;
+  optional uint64 appliedIndex = 7;
 }
 
 enum FsFileType {
-    TYPE_DIRECTORY = 1;
-    TYPE_FILE = 2;
-    TYPE_SYM_LINK = 3;
-    TYPE_S3 = 4;
+  TYPE_DIRECTORY = 1;
+  TYPE_FILE = 2;
+  TYPE_SYM_LINK = 3;
+  TYPE_S3 = 4;
 };
 
 message VolumeExtent {
-    required uint64 fsOffset = 1;
-    required uint64 volumeOffset = 2;
-    required uint64 length = 3;
-    required bool isused = 4;
+  required uint64 fsOffset = 1;
+  required uint64 volumeOffset = 2;
+  required uint64 length = 3;
+  required bool isused = 4;
 }
 
-message VolumeExtentList {
-    repeated VolumeExtent volumeExtents = 1;
-}
-
+message VolumeExtentList { repeated VolumeExtent volumeExtents = 1; }
 
 message S3ChunkInfo {
-    required uint64 chunkId = 1;
-    required uint64 compaction = 2;
-    required uint64 offset = 3;  // file offset
-    required uint64 len = 4;  // file logic length
-    required uint64 size = 5; // file size in object storage
-    required bool zero = 6; //
+  required uint64 chunkId = 1;
+  required uint64 compaction = 2;
+  required uint64 offset = 3; // file offset
+  required uint64 len = 4;    // file logic length
+  required uint64 size = 5;   // file size in object storage
+  required bool zero = 6;     //
 };
 
-message S3ChunkInfoList {
-    repeated S3ChunkInfo s3Chunks = 1;
-};
+message S3ChunkInfoList { repeated S3ChunkInfo s3Chunks = 1; };
 
 message Inode {
-    required uint64 inodeId = 1;
-    required uint32 fsId = 2;
-    required uint64 length = 3;
-    required uint64 ctime = 4;
-    required uint32 ctime_ns = 5;
-    required uint64 mtime = 6;
-    required uint32 mtime_ns = 7;
-    required uint64 atime = 8;
-    required uint32 atime_ns = 9;
-    required uint32 uid = 10;
-    required uint32 gid = 11;
-    required uint32 mode = 12;
-    required uint32 nlink = 13;
-    required FsFileType type = 14;
-    optional string symlink = 15;   // TYPE_SYM_LINK only
-    optional uint64 rdev = 16;
-    optional VolumeExtentList volumeExtentList = 17;  // TYPE_FILE only
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
-    optional uint32 dtime = 19;
-    optional bool openflag = 20;
+  required uint64 inodeId = 1;
+  required uint32 fsId = 2;
+  required uint64 length = 3;
+  required uint64 ctime = 4;
+  required uint32 ctime_ns = 5;
+  required uint64 mtime = 6;
+  required uint32 mtime_ns = 7;
+  required uint64 atime = 8;
+  required uint32 atime_ns = 9;
+  required uint32 uid = 10;
+  required uint32 gid = 11;
+  required uint32 mode = 12;
+  required uint32 nlink = 13;
+  required FsFileType type = 14;
+  optional string symlink = 15; // TYPE_SYM_LINK only
+  optional uint64 rdev = 16;
+  optional VolumeExtentList volumeExtentList = 17; // TYPE_FILE only
+  map<uint64, S3ChunkInfoList> s3ChunkInfoMap =
+      18; // TYPE_S3 only, first is chunk index
+  optional uint32 dtime = 19;
+  optional bool openflag = 20;
 }
 
 message GetInodeResponse {
-    required MetaStatusCode statusCode = 1;
-    optional Inode inode = 2;
-    optional uint64 appliedIndex = 3;
+  required MetaStatusCode statusCode = 1;
+  optional Inode inode = 2;
+  optional uint64 appliedIndex = 3;
 }
 
 message CreateInodeRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 length = 5;
-    required uint32 uid = 6;
-    required uint32 gid = 7;
-    required uint32 mode = 8;
-    required FsFileType type = 9;
-    optional uint64 rdev = 10;
-    optional string symlink = 11;   // TYPE_SYM_LINK only
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 length = 5;
+  required uint32 uid = 6;
+  required uint32 gid = 7;
+  required uint32 mode = 8;
+  required FsFileType type = 9;
+  optional uint64 rdev = 10;
+  optional string symlink = 11; // TYPE_SYM_LINK only
 }
 
 message CreateInodeResponse {
-    required MetaStatusCode statusCode = 1;
-    optional Inode inode = 2;
-    optional uint64 appliedIndex = 3;
+  required MetaStatusCode statusCode = 1;
+  optional Inode inode = 2;
+  optional uint64 appliedIndex = 3;
 }
 
 message CreateRootInodeRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint32 uid = 5;
-    required uint32 gid = 6;
-    required uint32 mode = 7;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint32 uid = 5;
+  required uint32 gid = 6;
+  required uint32 mode = 7;
 }
 
 message CreateRootInodeResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
 message UpdateInodeRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 inodeId = 5;
-    optional uint64 length = 6;
-    optional uint64 ctime = 7;
-    optional uint32 ctime_ns = 8;
-    optional uint64 mtime = 9;
-    optional uint32 mtime_ns = 10;
-    optional uint64 atime = 11;
-    optional uint32 atime_ns = 12;
-    optional uint32 uid = 13;
-    optional uint32 gid = 14;
-    optional uint32 mode = 15;
-    optional VolumeExtentList volumeExtentList = 16;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
-    optional uint32 nlink = 18;
-    optional bool openflag = 19;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 inodeId = 5;
+  optional uint64 length = 6;
+  optional uint64 ctime = 7;
+  optional uint32 ctime_ns = 8;
+  optional uint64 mtime = 9;
+  optional uint32 mtime_ns = 10;
+  optional uint64 atime = 11;
+  optional uint32 atime_ns = 12;
+  optional uint32 uid = 13;
+  optional uint32 gid = 14;
+  optional uint32 mode = 15;
+  optional VolumeExtentList volumeExtentList = 16;
+  map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
+  optional uint32 nlink = 18;
+  optional bool openflag = 19;
 }
 
 message UpdateInodeResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 message DeleteInodeRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 inodeId = 5;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 inodeId = 5;
 }
 
 message DeleteInodeResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
-message CreatePartitionRequest {
-    required common.PartitionInfo partition = 1;
-}
+message CreatePartitionRequest { required common.PartitionInfo partition = 1; }
 
 message CreatePartitionResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
 message DeletePartitionRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
 }
 
 message DeletePartitionResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
 }
 
 message MetaServerMetadata {
-    required uint32 version = 1;
-    required uint32 id = 2;
-    required string token = 3;
-    // required uint32 checksum = 4;
+  required uint32 version = 1;
+  required uint32 id = 2;
+  required string token = 3;
+  // required uint32 checksum = 4;
 }
 
 message GetOrModifyS3ChunkInfoRequest {
-    required uint32 poolId = 1;
-    required uint32 copysetId = 2;
-    required uint32 partitionId = 3;
-    required uint32 fsId = 4;
-    required uint64 inodeId = 5;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
-    required bool returnS3ChunkInfoMap = 8;
-    optional bool fromS3Compaction = 9;
-    // todo: we only need a bit flag to indicate a lot of bool
+  required uint32 poolId = 1;
+  required uint32 copysetId = 2;
+  required uint32 partitionId = 3;
+  required uint32 fsId = 4;
+  required uint64 inodeId = 5;
+  map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 6;
+  map<uint64, S3ChunkInfoList> s3ChunkInfoRemove = 7;
+  required bool returnS3ChunkInfoMap = 8;
+  optional bool fromS3Compaction = 9;
+  // todo: we only need a bit flag to indicate a lot of bool
 }
 
 message GetOrModifyS3ChunkInfoResponse {
-    required MetaStatusCode statusCode = 1;
-    optional uint64 appliedIndex = 2;
-    map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 3;
+  required MetaStatusCode statusCode = 1;
+  optional uint64 appliedIndex = 2;
+  map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 3;
 }
 
 service MetaServerService {
-    // dentry interface
-    rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
-    rpc ListDentry(ListDentryRequest) returns (ListDentryResponse);
-    rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
-    rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
-    rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
+  // dentry interface
+  rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
+  rpc ListDentry(ListDentryRequest) returns (ListDentryResponse);
+  rpc CreateDentry(CreateDentryRequest) returns (CreateDentryResponse);
+  rpc DeleteDentry(DeleteDentryRequest) returns (DeleteDentryResponse);
+  rpc PrepareRenameTx(PrepareRenameTxRequest) returns (PrepareRenameTxResponse);
 
-    // inode interface
-    rpc GetInode(GetInodeRequest) returns (GetInodeResponse);
-    rpc CreateInode(CreateInodeRequest) returns (CreateInodeResponse);
-    rpc UpdateInode(UpdateInodeRequest) returns (UpdateInodeResponse);
-    rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
-    rpc CreateRootInode(CreateRootInodeRequest) returns
-                                            (CreateRootInodeResponse);
-    rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
+  // inode interface
+  rpc GetInode(GetInodeRequest) returns (GetInodeResponse);
+  rpc CreateInode(CreateInodeRequest) returns (CreateInodeResponse);
+  rpc UpdateInode(UpdateInodeRequest) returns (UpdateInodeResponse);
+  rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
+  rpc CreateRootInode(CreateRootInodeRequest) returns (CreateRootInodeResponse);
+  rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest)
+      returns (GetOrModifyS3ChunkInfoResponse);
 
-    // partition interface
-    rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
-    rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
+  // partition interface
+  rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
+  rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
 }
