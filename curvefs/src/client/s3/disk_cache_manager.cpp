@@ -60,6 +60,7 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     cacheRead_ = cacheRead;
     isRunning_ = false;
     usedBytes_ = 0;
+    readUsedBytes_ = 0;
     diskFsUsedRatio_ = 0;
     fullRatio_ = 0;
     safeRatio_ = 0;
@@ -75,6 +76,7 @@ int DiskCacheManager::Init(S3Client *client,
     trimCheckIntervalSec_ = option.diskCacheOpt.trimCheckIntervalSec;
     fullRatio_ = option.diskCacheOpt.fullRatio;
     safeRatio_ = option.diskCacheOpt.safeRatio;
+    limitReadUesdRatio_ = option.diskCacheOpt.limitReadUesdRatio;
     cacheDir_ = option.diskCacheOpt.cacheDir;
     maxUsableSpaceBytes_ = option.diskCacheOpt.maxUsableSpaceBytes;
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
@@ -103,6 +105,7 @@ int DiskCacheManager::Init(S3Client *client,
     TrimRun();
 
     SetDiskInitUsedBytes();
+    SetDiskInitReadUsedBytes();
     SetDiskFsUsedRatio();
 
     FLAGS_avgFlushIops = option_.diskCacheOpt.avgFlushIops;
@@ -238,15 +241,24 @@ int DiskCacheManager::WriteReadDirect(const std::string fileName,
     // write hrottle
     diskCacheThrottle_.Add(false, length);
     int ret = cacheRead_->WriteDiskFile(fileName, buf, length);;
-    if (ret > 0)
+    if (ret > 0) {
         AddDiskUsedBytes(ret);
+        AddDiskReadUsedBytes(ret);
+    }
     return ret;
 }
 
 int DiskCacheManager::LinkWriteToRead(const std::string fileName,
                                       const std::string fullWriteDir,
-                                      const std::string fullReadDir) {
-    return cacheRead_->LinkWriteToRead(fileName, fullWriteDir, fullReadDir);
+                                      const std::string fullReadDir,
+                                      uint64_t length) {
+    int ret =  cacheRead_->LinkWriteToRead(fileName, fullWriteDir, fullReadDir);
+    if (ret == 0) {
+        // after file has been removed in write disk cache,
+        // then the used bytes will be added in disk read cache.
+        AddDiskReadUsedBytes(length);
+    }
+    return ret;
 }
 
 int64_t DiskCacheManager::SetDiskFsUsedRatio() {
@@ -288,6 +300,26 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
     return;
 }
 
+int32_t DiskCacheManager::SetDiskInitReadUsedBytes() {
+    std::string cmd = "timeout " + std::to_string(cmdTimeoutSec_) +
+        " du -sb " + cacheDir_ + "/" + cacheRead_->GetIoDir() +
+        " | awk '{printf $1}' ";
+    SysUtils sysUtils;
+    std::string result = sysUtils.RunSysCmd(cmd);
+    if (result.empty()) {
+        LOG(ERROR) << "get disk read used size failed.";
+        return -1;
+    }
+    uint64_t usedBytes = 0;
+    if (!curve::common::StringToUll(result, &usedBytes)) {
+        LOG(ERROR) << "get disk read used size failed.";
+        return -1;
+    }
+    readUsedBytes_.fetch_add(usedBytes, std::memory_order_seq_cst);
+    VLOG(3) << "cache disk read used size is: " << result;
+    return 0;
+}
+
 bool DiskCacheManager::IsDiskCacheFull() {
     int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
     uint64_t usedBytes = GetDiskUsedbytes();
@@ -311,6 +343,27 @@ bool DiskCacheManager::IsDiskCacheSafe() {
     return false;
 }
 
+bool DiskCacheManager::IsDiskCacheReadFull() {
+    uint64_t usedBytes = GetDiskReadUsedbytes();
+    if (usedBytes >= (maxUsableSpaceBytes_ * limitReadUesdRatio_ / 100)) {
+        VLOG(3) << "disk read cache is full, used bytes is: " << usedBytes;
+        return true;
+    }
+    VLOG(6) << "disk read cache is not full, used bytes is: " << usedBytes;
+    return false;
+}
+
+bool DiskCacheManager::IsDiskCacheReadSafe() {
+    uint64_t usedBytes = GetDiskReadUsedbytes();
+    if (usedBytes <= (safeRatio_ * maxUsableSpaceBytes_ *
+        limitReadUesdRatio_) / (100 * 100)) {
+        VLOG(3) << "disk read cache is safe, used bytes is: " << usedBytes;
+        return true;
+    }
+    VLOG(6) << "disk read cache is not safe, used bytes is: " << usedBytes;
+    return false;
+}
+
 void DiskCacheManager::TrimCache() {
     const std::chrono::seconds sleepSec(trimCheckIntervalSec_);
     LOG(INFO) << "trim function start.";
@@ -325,7 +378,7 @@ void DiskCacheManager::TrimCache() {
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
         SetDiskFsUsedRatio();
-        if (IsDiskCacheFull()) {
+        if (IsDiskCacheFull() || IsDiskCacheReadFull()) {
             VLOG(3) << "disk cache full, begin trim.";
             std::string cacheReadFullDir;
             std::string cacheWriteFullDir;
@@ -336,7 +389,8 @@ void DiskCacheManager::TrimCache() {
                 std::lock_guard<bthread::Mutex> lk(mtx_);
                 cachedObjNameTmp = cachedObjName_;
             }
-            while (!IsDiskCacheSafe()) {
+            while (!IsDiskCacheSafe() ||
+              !IsDiskCacheReadSafe() ) {
                 std::string cacheReadFile, cacheWriteFile;
                 std::set<std::string>::iterator cacheKeyIter;
                 cacheKeyIter = cachedObjNameTmp.begin();
@@ -395,6 +449,7 @@ void DiskCacheManager::TrimCache() {
                     continue;
                 }
                 DecDiskUsedBytes(statReadFile.st_size);
+                DecDiskReadUsedBytes(statReadFile.st_size);
                 VLOG(3) << "remove disk file success, file is: "
                         << *cacheKeyIter;
                 cachedObjNameTmp.erase(cacheKeyIter);

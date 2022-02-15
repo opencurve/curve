@@ -48,8 +48,9 @@ struct DiskCacheOption {
     DiskCacheType diskCacheType;
     uint64_t trimCheckIntervalSec;
     uint64_t asyncLoadPeriodMs;
-    uint64_t fullRatio;
-    uint64_t safeRatio;
+    uint32_t fullRatio;
+    uint32_t safeRatio;
+    uint32_t limitReadUesdRatio;
     std::string cacheDir;
     bool forceFlush;
     uint64_t maxUsableSpaceBytes;

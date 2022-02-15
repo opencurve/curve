@@ -80,9 +80,11 @@ struct DiskCacheOption {
     // async load interval
     uint64_t asyncLoadPeriodMs;
     // trim start if disk usage over fullRatio
-    uint64_t fullRatio;
+    uint32_t fullRatio;
     // trim finish until disk usage below safeRatio
-    uint64_t safeRatio;
+    uint32_t safeRatio;
+    // the limit ratio disk read cache can use
+    uint32_t limitReadUesdRatio;
     // the max size disk cache can use
     uint64_t maxUsableSpaceBytes;
     // the max time system command can run

@@ -86,7 +86,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
     cacheWriteFullDir = diskCacheManager_->GetCacheWriteFullDir();
     cacheReadFullDir = diskCacheManager_->GetCacheReadFullDir();
     int linkRet = diskCacheManager_->LinkWriteToRead(name, cacheWriteFullDir,
-                                                     cacheReadFullDir);
+                    cacheReadFullDir, writeRet);
     if (linkRet < 0) {
         LOG(ERROR) << "link write file to read error. linkRet = " << linkRet;
         return linkRet;

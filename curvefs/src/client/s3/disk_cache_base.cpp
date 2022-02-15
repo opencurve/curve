@@ -42,6 +42,10 @@ void DiskCacheBase::Init(std::shared_ptr<PosixWrapper> wrapper,
     posixWrapper_ = wrapper;
 }
 
+std::string DiskCacheBase::GetIoDir() {
+    return cacheIoDir_;
+}
+
 int DiskCacheBase::CreateIoDir(bool writreDir) {
     struct stat statFile;
     bool ret;

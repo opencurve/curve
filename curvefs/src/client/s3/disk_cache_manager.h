@@ -79,7 +79,8 @@ class DiskCacheManager {
                     char* buf, uint64_t offset, uint64_t length);
     int LinkWriteToRead(const std::string fileName,
                        const std::string fullWriteDir,
-                       const std::string fullReadDir);
+                       const std::string fullReadDir,
+                       uint64_t length);
     int UploadAllCacheWriteFile();
     /**
      * @brief get use ratio of cache disk
@@ -88,6 +89,8 @@ class DiskCacheManager {
     int64_t SetDiskFsUsedRatio();
     virtual bool IsDiskCacheFull();
     bool IsDiskCacheSafe();
+    bool IsDiskCacheReadFull();
+    bool IsDiskCacheReadSafe();
     /**
      * @brief: start trim thread.
      */
@@ -122,9 +125,34 @@ class DiskCacheManager {
             << usedBytes_.load(std::memory_order_seq_cst);
          return;
     }
+    /**
+     * @brief add the read used bytes of disk cache.
+    */
+    void AddDiskReadUsedBytes(uint64_t length) {
+        readUsedBytes_.fetch_add(length, std::memory_order_seq_cst);
+        VLOG(9) << "add disk read used size is: "
+          << readUsedBytes_.load(std::memory_order_seq_cst);
+        return;
+    }
+    /**
+     * @brief dec the read used bytes of disk cache.
+    */
+    void DecDiskReadUsedBytes(uint64_t length) {
+        int64_t usedBytes;
+        usedBytes = readUsedBytes_.fetch_sub(length, std::memory_order_seq_cst);
+        assert(usedBytes >= 0);
+        (void) usedBytes;
+        VLOG(9) << "dec disk read used size is: "
+            << readUsedBytes_.load(std::memory_order_seq_cst);
+        return;
+    }
     void SetDiskInitUsedBytes();
     uint64_t GetDiskUsedbytes() {
         return usedBytes_.load(std::memory_order_seq_cst);
+    }
+    int32_t SetDiskInitReadUsedBytes();
+    uint64_t GetDiskReadUsedbytes() {
+        return readUsedBytes_.load(std::memory_order_seq_cst);
     }
 
     void InitQosParam();
@@ -139,9 +167,12 @@ class DiskCacheManager {
     uint32_t trimCheckIntervalSec_;
     uint32_t fullRatio_;
     uint32_t safeRatio_;
+    uint32_t limitReadUesdRatio_;
     uint64_t maxUsableSpaceBytes_;
     // used bytes of disk cache
     std::atomic<int64_t> usedBytes_;
+    // used bytes of disk read cache
+    std::atomic<int64_t> readUsedBytes_;
     // used ratio of the file system in disk cache
     std::atomic<int32_t> diskFsUsedRatio_;
     uint32_t cmdTimeoutSec_;
