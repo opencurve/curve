@@ -163,9 +163,9 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(
 }
 
 std::string CopysetConfGenerator::BuildPeerByMetaserverId(
-    MetaServerIdType csId) {
+    MetaServerIdType msId) {
     MetaServer metaServer;
-    if (!topo_->GetMetaServer(csId, &metaServer)) {
+    if (!topo_->GetMetaServer(msId, &metaServer)) {
         return "";
     }
 

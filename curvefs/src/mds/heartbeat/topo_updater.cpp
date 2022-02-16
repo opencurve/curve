@@ -97,6 +97,36 @@ void TopoUpdater::UpdateCopysetTopo(
                        << recordCopySetInfo.GetEpoch();
             return;
         }
+
+        // no configuration changes in heartbeat report (no candidate)
+        if (!reportCopySetInfo.HasCandidate()) {
+            // configuration changes on mds (has candidate)
+            if (recordCopySetInfo.HasCandidate()) {
+                LOG(WARNING) << "metasever " << reportCopySetInfo.GetLeader()
+                        << " heartbeat,topoUpdater find report copyset("
+                        << reportCopySetInfo.GetPoolId()
+                        << "," << reportCopySetInfo.GetId()
+                        << ") no candidate but record has candidate: "
+                        << recordCopySetInfo.GetCandidate();
+                needUpdate = true;
+            }
+        } else if (!recordCopySetInfo.HasCandidate()) {
+            // configuration changes reported but not on mds
+            needUpdate = true;
+        } else if (reportCopySetInfo.GetCandidate() !=
+                   recordCopySetInfo.GetCandidate()) {
+            // reported data and mds record have different configuration changes
+            LOG(WARNING) << "metaserver " << reportCopySetInfo.GetLeader()
+                    << " heartbeat, topoUpdater find report candidate "
+                    << reportCopySetInfo.GetCandidate()
+                    << ", record candidate: "
+                    << recordCopySetInfo.GetCandidate()
+                    << " on copyset("
+                    << reportCopySetInfo.GetPoolId()
+                    << "," << reportCopySetInfo.GetId()
+                    << ") not same";
+            needUpdate = true;
+        }
     } else if (recordCopySetInfo.GetEpoch() > reportCopySetInfo.GetEpoch()) {
         // this case will trigger an alarm since epoch of copyset leader should
         // always larger or equal than the epoch of mds record

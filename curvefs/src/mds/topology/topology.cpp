@@ -1028,6 +1028,11 @@ TopoStatusCode TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
         it->second.SetPartitionNum(data.GetPartitionNum());
         it->second.SetCopySetMembers(data.GetCopySetMembers());
         it->second.SetDirtyFlag(true);
+        if (data.HasCandidate()) {
+            it->second.SetCandidate(data.GetCandidate());
+        } else {
+            it->second.ClearCandidate();
+        }
         return TopoStatusCode::TOPO_OK;
     } else {
         LOG(WARNING) << "UpdateCopySetTopo can not find copyset, "

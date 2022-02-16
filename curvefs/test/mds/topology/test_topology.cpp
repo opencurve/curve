@@ -1932,12 +1932,13 @@ TEST_F(TestTopology, UpdateCopySetTopo_success) {
     PrepareAddCopySet(copysetId, poolId, replicas);
 
     std::set<MetaServerIdType> replicas2;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x44);
+    replicas2.insert(0x41);
+    replicas2.insert(0x42);
+    replicas2.insert(0x44);
 
     CopySetInfo csInfo(poolId, copysetId);
     csInfo.SetCopySetMembers(replicas2);
+    csInfo.SetCandidate(0x45);
 
     int ret = topology_->UpdateCopySetTopo(csInfo);
 
