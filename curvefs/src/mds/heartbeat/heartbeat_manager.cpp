@@ -240,6 +240,19 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
     // set leader
     topoCopysetInfo.SetLeader(leader);
 
+    // set info of configuration changes
+    if (info.configchangeinfo().IsInitialized()) {
+        MetaServerIdType res =
+            GetMetaserverIdByPeerStr(info.configchangeinfo().peer().address());
+        if (res == UNINITIALIZE_ID) {
+            LOG(ERROR) << "heartbeat manager can not get metaInfo"
+                       "according to report candidate ipPort: "
+                       << info.configchangeinfo().peer().address();
+            return false;
+        }
+        topoCopysetInfo.SetCandidate(res);
+    }
+
     *out = topoCopysetInfo;
     return true;
 }
