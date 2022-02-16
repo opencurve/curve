@@ -109,7 +109,8 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
 
     auto info = GetCopySetInfoForTest();
     PeerInfo peer(4, 1, 1, "127.0.0.1", 9000);
-    MetaServerInfo csInfo(peer, OnlineState::ONLINE, 10, 1);
+    MetaServerSpace space(10, 1);
+    MetaServerInfo csInfo(peer, OnlineState::ONLINE, space);
 
     ::curvefs::mds::heartbeat::CopySetConf res;
     {
@@ -250,9 +251,10 @@ TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
 
     auto info = GetCopySetInfoForTest();
     PeerInfo peer(4, 1, 1, "127.0.0.1", 9000);
-    MetaServerInfo csInfo(peer, OnlineState::ONLINE, 10, 1);
+    MetaServerSpace space(10, 1);
+    MetaServerInfo csInfo(peer, OnlineState::ONLINE, space);
     PeerInfo peer1(1, 1, 1, "127.0.0.1", 9001);
-    MetaServerInfo csInfo1(peer1, OnlineState::ONLINE, 10, 1);
+    MetaServerInfo csInfo1(peer1, OnlineState::ONLINE, space);
 
     ::curvefs::mds::heartbeat::CopySetConf res;
     {
@@ -480,7 +482,8 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
     std::vector<PeerInfo> peerInfos;
     for (int i = 1; i <= 6; i++) {
         PeerInfo peer(i, i % 3 + 1, i, "192.168.0." + std::to_string(i), 9000);
-        MetaServerInfo csInfo(peer, OnlineState::ONLINE, 10, 1);
+        MetaServerSpace space(10, 1);
+        MetaServerInfo csInfo(peer, OnlineState::ONLINE, space);
         if (i <= 3) {
             csInfo.state = OnlineState::OFFLINE;
         }

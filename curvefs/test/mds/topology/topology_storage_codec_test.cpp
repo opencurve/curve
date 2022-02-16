@@ -60,7 +60,7 @@ TEST_F(TopologyStorageCodecTest, TestPoolDataEncodeDecodeEqual) {
     rap.copysetNum = 3;
     rap.zoneNum = 3;
 
-    Pool data(0x11, "pool", rap, 0, true);
+    Pool data(0x11, "pool", rap, 0);
     std::string value;
     ASSERT_TRUE(testObj.EncodePoolData(data, &value));
 

@@ -64,7 +64,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPool_success) {
     rap.replicaNum = 3;
     rap.copysetNum = 3;
     rap.zoneNum = 3;
-    Pool data(0x11, "pool", rap, 0, true);
+    Pool data(0x11, "pool", rap, 0);
 
     std::string key = codec_->EncodePoolKey(data.GetId());
     std::string value;
@@ -131,7 +131,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPool_IdDuplicated) {
     rap.replicaNum = 3;
     rap.copysetNum = 3;
     rap.zoneNum = 3;
-    Pool data(0x11, "pool", rap, 0, true);
+    Pool data(0x11, "pool", rap, 0);
 
     std::string key = codec_->EncodePoolKey(data.GetId());
     std::string value;
@@ -550,7 +550,7 @@ TEST_F(TestTopologyStorageEtcd, test_StotagePool_success) {
     rap.replicaNum = 3;
     rap.copysetNum = 3;
     rap.zoneNum = 3;
-    Pool data(0x11, "pool", rap, 0, true);
+    Pool data(0x11, "pool", rap, 0);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK));
@@ -564,7 +564,7 @@ TEST_F(TestTopologyStorageEtcd, test_StotagePool_putInfoEtcdFail) {
     rap.replicaNum = 3;
     rap.copysetNum = 3;
     rap.zoneNum = 3;
-    Pool data(0x11, "pool", rap, 0, true);
+    Pool data(0x11, "pool", rap, 0);
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));

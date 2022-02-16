@@ -513,7 +513,7 @@ void TopologyManager::CreatePool(const CreatePoolRequest *request,
 
     uint64_t time = TimeUtility::GetTimeofDaySec();
 
-    Pool pool(pid, request->poolname(), rap, time, true);
+    Pool pool(pid, request->poolname(), rap, time);
 
     TopoStatusCode errcode = topology_->AddPool(pool);
     if (TopoStatusCode::TOPO_OK == errcode) {

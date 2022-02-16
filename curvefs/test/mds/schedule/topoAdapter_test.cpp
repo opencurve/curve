@@ -30,6 +30,7 @@ using ::curvefs::mds::topology::MockTopologyManager;
 using ::curvefs::mds::topology::TopologyIdGenerator;
 using ::curvefs::mds::topology::TopologyTokenGenerator;
 using ::curvefs::mds::topology::TopologyStorage;
+using ::curvefs::mds::topology::MetaServerSpace;
 
 using ::testing::_;
 using ::testing::Return;
@@ -82,8 +83,6 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
     auto testTopoCopySet = GetTopoCopySetInfoForTest();
     auto testTopoMetaServer = GetTopoMetaServerForTest();
     auto testTopoServer = GetServerForTest();
-    ::curvefs::mds::topology::Pool lpool;
-    lpool.SetPoolAvaliableFlag(true);
     {
         // 1. test GetCopySetInfo cannot get CopySetInfo
         EXPECT_CALL(*mockTopo_, GetCopySet(_, _)).WillOnce(Return(false));
@@ -113,8 +112,6 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]), Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(4, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[3]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
         ASSERT_TRUE(topoAdapter_->GetCopySetInfo(key, &info));
         ASSERT_EQ(testcopySetInfo.id.first, info.id.first);
         ASSERT_EQ(testcopySetInfo.id.second, info.id.second);
@@ -123,15 +120,11 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
         ASSERT_EQ(testcopySetInfo.peers.size(), info.peers.size());
         ASSERT_EQ(testcopySetInfo.configChangeInfo.peer().address(),
                   info.configChangeInfo.peer().address());
-        ASSERT_TRUE(info.poolWork);
-        ASSERT_FALSE(testcopySetInfo.poolWork);
     }
     {
         // 3. test GetCopySetInfo cannot get Metaserver
         EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
         EXPECT_CALL(*mockTopo_, GetMetaServer(1, _)).WillOnce(Return(false));
         ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
     }
@@ -139,8 +132,6 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
         // 4. test GetCopySetInfo can not get server
         EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
         EXPECT_CALL(*mockTopo_, GetMetaServer(1, _))
             .WillOnce(
                 DoAll(SetArgPointee<1>(testTopoMetaServer[0]), Return(true)));
@@ -178,8 +169,6 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]), Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(3, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
         auto out = topoAdapter_->GetCopySetInfos();
         ASSERT_EQ(1, out.size());
         ASSERT_EQ(testcopySetInfo.id.first, out[0].id.first);
@@ -219,8 +208,6 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]), Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(3, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
         auto out = topoAdapter_->GetCopySetInfosInMetaServer(1);
         ASSERT_EQ(1, out.size());
         ASSERT_EQ(testcopySetInfo.id.first, out[0].id.first);
@@ -229,66 +216,6 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
         ASSERT_EQ(testcopySetInfo.leader, out[0].leader);
         ASSERT_EQ(testcopySetInfo.peers.size(), out[0].peers.size());
         ASSERT_FALSE(info.configChangeInfo.IsInitialized());
-    }
-    {
-        // 9. test GetCopySetInfo can not get poolId
-        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _)).WillOnce(Return(false));
-        ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
-    }
-    {
-        // 10. test GetCopySetInfos  pool unavailable
-        std::vector<CopySetKey> infos{testcopySetInfo.id};
-        EXPECT_CALL(*mockTopo_, GetCopySetsInCluster(_))
-            .WillOnce(Return(infos));
-        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
-        lpool.SetPoolAvaliableFlag(false);
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetMetaServer(1, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetMetaServer(2, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[1]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetMetaServer(3, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[2]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(3, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]), Return(true)));
-        ASSERT_EQ(0, topoAdapter_->GetCopySetInfos().size());
-    }
-    {
-        // 11. test GetCopySetInfosInMetaServer  pool unavailable
-        std::vector<CopySetKey> infos{testcopySetInfo.id};
-        EXPECT_CALL(*mockTopo_, GetCopySetsInMetaServer(_, _))
-            .WillOnce(Return(infos));
-        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetMetaServer(1, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetMetaServer(2, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[1]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetMetaServer(3, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[2]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(2, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(3, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetPool(1, _))
-            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
-        ASSERT_TRUE(topoAdapter_->GetCopySetInfosInMetaServer(1).empty());
     }
 }
 
@@ -432,7 +359,8 @@ TEST(TestCopySetInfo, test_copySetInfo_function) {
 }
 
 TEST(TestMetaServerInfo, test_onlineState) {
-    MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE, 1, 2);
+    MetaServerSpace space;
+    MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE, space);
     ASSERT_TRUE(ms.IsOnline());
     ASSERT_FALSE(ms.IsOffline());
     ASSERT_TRUE(ms.IsHealthy());
@@ -444,6 +372,236 @@ TEST(TestMetaServerInfo, test_onlineState) {
     ms.state = OnlineState::UNSTABLE;
     ASSERT_TRUE(ms.IsUnstable());
     ASSERT_FALSE(ms.IsHealthy());
+}
+
+TEST(TestMetaServerInfo, test_IsResourceOverload) {
+    // disk overload
+    {
+        uint64_t diskThreshold = 10;
+        uint64_t diskUsed = 20;
+        uint64_t memoryUsed = 0;
+        uint64_t memoryThreshold = 0;
+        uint64_t memoryCopySetMinRequire = 0;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_TRUE(ms.IsResourceOverload());
+    }
+
+    // memory overload
+    {
+        uint64_t diskThreshold = 0;
+        uint64_t diskUsed = 0;
+        uint64_t memoryUsed = 20;
+        uint64_t memoryThreshold = 10;
+        uint64_t memoryCopySetMinRequire = 2;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_TRUE(ms.IsResourceOverload());
+    }
+
+    // both overload
+    {
+        uint64_t diskThreshold = 10;
+        uint64_t diskUsed = 20;
+        uint64_t memoryUsed = 20;
+        uint64_t memoryThreshold = 10;
+        uint64_t memoryCopySetMinRequire = 2;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_TRUE(ms.IsResourceOverload());
+    }
+
+    // not overload
+    {
+        uint64_t diskThreshold = 20;
+        uint64_t diskUsed = 10;
+        uint64_t memoryUsed = 10;
+        uint64_t memoryThreshold = 20;
+        uint64_t memoryCopySetMinRequire = 2;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_FALSE(ms.IsResourceOverload());
+    }
+}
+
+TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
+    // default is 0
+    {
+        MetaServerSpace space;
+        PeerInfo info;
+        MetaServerInfo ms(info, OnlineState::ONLINE, space);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
+    }
+
+    // memoryCopySetMinRequireByte is 0, calc disk usage
+    {
+        uint64_t diskThreshold = 20;
+        uint64_t diskUsed = 10;
+        uint64_t memoryUsed = 10;
+        uint64_t memoryThreshold = 40;
+        uint64_t memoryCopySetMinRequire = 0;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 50);
+    }
+
+    // memoryCopySetMinRequireByte is 0, calc disk usage, but diskThreshold is 0
+    {
+        uint64_t diskThreshold = 0;
+        uint64_t diskUsed = 10;
+        uint64_t memoryUsed = 10;
+        uint64_t memoryThreshold = 40;
+        uint64_t memoryCopySetMinRequire = 0;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
+    }
+
+    // memoryCopySetMinRequireByte is not 0, calc memory usage
+    {
+        uint64_t diskThreshold = 20;
+        uint64_t diskUsed = 10;
+        uint64_t memoryUsed = 10;
+        uint64_t memoryThreshold = 40;
+        uint64_t memoryCopySetMinRequire = 2;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 25);
+    }
+
+    // memory RequireByte is not 0, calc memory usage, but threshold is 0
+    {
+        uint64_t diskThreshold = 20;
+        uint64_t diskUsed = 10;
+        uint64_t memoryUsed = 10;
+        uint64_t memoryThreshold = 0;
+        uint64_t memoryCopySetMinRequire = 2;
+        uint64_t diskCopysetMinRequire = 0;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
+    }
+}
+
+TEST(TestMetaServerInfo, test_IsMetaserverResourceAvailable) {
+    // metaserver not online
+    {
+        MetaServerSpace space;
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::OFFLINE,
+                          space);
+        ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
+    }
+
+    // disk not enough, momory enough
+    {
+        uint64_t diskThreshold = 200;
+        uint64_t diskUsed = 190;
+        uint64_t memoryUsed = 40;
+        uint64_t memoryThreshold = 200;
+        uint64_t memoryCopySetMinRequire = 20;
+        uint64_t diskCopysetMinRequire = 20;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
+    }
+
+    // disk enough, momory not enough
+    {
+        uint64_t diskThreshold = 200;
+        uint64_t diskUsed = 40;
+        uint64_t memoryUsed = 190;
+        uint64_t memoryThreshold = 200;
+        uint64_t memoryCopySetMinRequire = 20;
+        uint64_t diskCopysetMinRequire = 20;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
+    }
+
+    // disk enough, momory not enough, but momory require 0
+    {
+        uint64_t diskThreshold = 200;
+        uint64_t diskUsed = 40;
+        uint64_t memoryUsed = 210;
+        uint64_t memoryThreshold = 200;
+        uint64_t memoryCopySetMinRequire = 0;
+        uint64_t diskCopysetMinRequire = 20;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_TRUE(ms.IsMetaserverResourceAvailable());
+    }
+
+    // disk, momory both eough
+    {
+        uint64_t diskThreshold = 200;
+        uint64_t diskUsed = 40;
+        uint64_t memoryUsed = 40;
+        uint64_t memoryThreshold = 200;
+        uint64_t memoryCopySetMinRequire = 20;
+        uint64_t diskCopysetMinRequire = 20;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_TRUE(ms.IsMetaserverResourceAvailable());
+    }
+
+    // disk, momory both not eough
+    {
+        uint64_t diskThreshold = 200;
+        uint64_t diskUsed = 190;
+        uint64_t memoryUsed = 190;
+        uint64_t memoryThreshold = 200;
+        uint64_t memoryCopySetMinRequire = 20;
+        uint64_t diskCopysetMinRequire = 20;
+        MetaServerSpace space(diskThreshold, diskUsed, diskCopysetMinRequire,
+                              memoryThreshold, memoryUsed,
+                              memoryCopySetMinRequire);
+        MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
+                          space);
+        ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
+    }
 }
 }  // namespace schedule
 }  // namespace mds

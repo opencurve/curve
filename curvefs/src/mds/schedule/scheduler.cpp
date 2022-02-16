@@ -85,14 +85,29 @@ MetaServerIdType Scheduler::SelectBestPlacementMetaServer(
         return UNINITIALIZE_ID;
     }
 
-    MetaServerIdType target;
-    bool ret = topo_->ChooseRecoveredMetaServer(poolId, excludeZones,
-        excludeMetaservers, &target);
+    MetaServerIdType target = UNINITIALIZE_ID;
+    bool ret = topo_->ChooseNewMetaServerForCopyset(
+        poolId, excludeZones, excludeMetaservers, &target);
     if (ret) {
         return target;
     }
 
+    LOG(WARNING) << "can not find new metaserver for copyset:"
+                 << copySetInfo.CopySetInfoStr() << ", oldPeer = " << oldPeer;
     return UNINITIALIZE_ID;
+}
+
+bool Scheduler::CopysetAllPeersOnline(const CopySetInfo &copySetInfo) {
+    for (auto &peer : copySetInfo.peers) {
+        MetaServerInfo out;
+        if (!topo_->GetMetaServerInfo(peer.id, &out)) {
+            return false;
+        } else if (out.IsOffline()) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 }  // namespace schedule

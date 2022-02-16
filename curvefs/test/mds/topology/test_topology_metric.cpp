@@ -63,7 +63,7 @@ class TestTopologyMetric : public ::testing::Test {
                         const Pool::RedundanceAndPlaceMentPolicy &rap =
                             Pool::RedundanceAndPlaceMentPolicy(),
                         uint64_t createTime = 0x888) {
-        Pool pool(id, name, rap, createTime, true);
+        Pool pool(id, name, rap, createTime);
 
         EXPECT_CALL(*storage_, StoragePool(_)).WillOnce(Return(true));
 
@@ -103,7 +103,7 @@ class TestTopologyMetric : public ::testing::Test {
                               uint32_t port = 0) {
         MetaServer cs(id, hostname, token, serverId, hostIp, port, "ip", 0);
         MetaServerSpace st;
-        st.SetDiskCapacity(100 * 1024);
+        st.SetDiskThreshold(100 * 1024);
         st.SetDiskUsed(10 * 1024);
         st.SetMemoryUsed(20 * 1024);
         cs.SetMetaServerSpace(st);

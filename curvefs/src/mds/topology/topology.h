@@ -211,7 +211,7 @@ class Topology {
             return true;
         }) const = 0;
 
-    virtual TopoStatusCode ChooseRecoveredMetaServer(
+    virtual TopoStatusCode ChooseNewMetaServerForCopyset(
         PoolIdType poolId,
         const std::set<ZoneIdType> &unavailableZones,
         const std::set<MetaServerIdType> &unavailableMs,
@@ -426,7 +426,7 @@ class TopologyImpl : public Topology {
     std::list<Partition> GetPartitionInfosInCopyset(
         CopySetIdType copysetId) const override;
 
-    TopoStatusCode ChooseRecoveredMetaServer(
+    TopoStatusCode ChooseNewMetaServerForCopyset(
         PoolIdType poolId,
         const std::set<ZoneIdType> &unavailableZones,
         const std::set<MetaServerIdType> &unavailableMs,

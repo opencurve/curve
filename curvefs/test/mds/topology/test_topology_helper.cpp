@@ -31,8 +31,7 @@ bool ComparePool(const Pool &lh, const Pool &rh) {
            lh.GetName() == rh.GetName() &&
            lh.GetRedundanceAndPlaceMentPolicyJsonStr() ==
            rh.GetRedundanceAndPlaceMentPolicyJsonStr() &&
-           lh.GetCreateTime() == rh.GetCreateTime() &&
-           lh.GetPoolAvaliableFlag() == rh.GetPoolAvaliableFlag();
+           lh.GetCreateTime() == rh.GetCreateTime();
 }
 
 bool CompareZone(const Zone &lh, const Zone &rh) {
@@ -62,8 +61,8 @@ bool CompareMetaServer(const MetaServer &lh, const MetaServer &rh) {
            lh.GetExternalIp() == rh.GetExternalIp() &&
            lh.GetExternalPort() == rh.GetExternalPort() &&
            lh.GetStartUpTime() == rh.GetStartUpTime() &&
-           lh.GetMetaServerSpace().GetDiskCapacity() ==
-               rh.GetMetaServerSpace().GetDiskCapacity() &&
+           lh.GetMetaServerSpace().GetDiskThreshold() ==
+               rh.GetMetaServerSpace().GetDiskThreshold() &&
            lh.GetMetaServerSpace().GetDiskUsed() ==
                rh.GetMetaServerSpace().GetDiskUsed() &&
            lh.GetMetaServerSpace().GetMemoryUsed() ==

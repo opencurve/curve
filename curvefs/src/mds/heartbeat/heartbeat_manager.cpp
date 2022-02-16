@@ -95,10 +95,7 @@ void HeartbeatManager::MetaServerHealthyChecker() {
 
 void HeartbeatManager::UpdateMetaServerSpace(
     const MetaServerHeartbeatRequest &request) {
-    MetaServerSpace space;
-    space.SetDiskCapacity(request.metadataspacetotal());
-    space.SetDiskUsed(request.metadataspaceused());
-    space.SetMemoryUsed(request.memoryused());
+    MetaServerSpace space(request.spacestatus());
     TopoStatusCode ret =
         topology_->UpdateMetaServerSpace(space, request.metaserverid());
     if (ret != TopoStatusCode::TOPO_OK) {

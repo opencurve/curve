@@ -121,16 +121,17 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_metaserver) {
     auto testCopySetInfo = GetCopySetInfoForTest();
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    MetaServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE, 100,
-                           100);
-    MetaServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE, 100,
-                           100);
-    MetaServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE, 100,
-                           100);
+    MetaServerSpace space(100, 100);
+    MetaServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE,
+                           space);
+    MetaServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                           space);
+    MetaServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                           space);
     PeerInfo peer4(4, 1, 1, "192.168.10.1", 9001);
     PeerInfo peer5(5, 1, 1, "192.168.10.1", 9002);
-    MetaServerInfo csInfo4(peer4, OnlineState::OFFLINE, 100, 100);
-    MetaServerInfo csInfo5(peer5, OnlineState::UNSTABLE, 100, 100);
+    MetaServerInfo csInfo4(peer4, OnlineState::OFFLINE, space);
+    MetaServerInfo csInfo5(peer5, OnlineState::UNSTABLE, space);
 
     EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(csInfo1.info.id, _))
         .WillOnce(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
@@ -149,16 +150,17 @@ TEST_F(TestRecoverSheduler,
     auto testCopySetInfo = GetCopySetInfoForTest();
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    MetaServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE, 100,
-                           100);
-    MetaServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE, 100,
-                           100);
-    MetaServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE, 100,
-                           100);
+    MetaServerSpace space(100, 100);
+    MetaServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE,
+                           space);
+    MetaServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                           space);
+    MetaServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                           space);
     PeerInfo peer4(4, 1, 1, "192.168.10.1", 9001);
     PeerInfo peer5(5, 1, 1, "192.168.10.1", 9002);
-    MetaServerInfo csInfo4(peer4, OnlineState::OFFLINE, 100, 100);
-    MetaServerInfo csInfo5(peer5, OnlineState::OFFLINE, 100, 100);
+    MetaServerInfo csInfo4(peer4, OnlineState::OFFLINE, space);
+    MetaServerInfo csInfo5(peer5, OnlineState::OFFLINE, space);
     EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(csInfo1.info.id, _))
         .WillOnce(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(csInfo2.info.id, _))
@@ -178,14 +180,15 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
     auto testCopySetInfo = GetCopySetInfoForTest();
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    MetaServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE, 100,
-                           100);
-    MetaServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE, 100,
-                           100);
-    MetaServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE, 100,
-                           100);
+    MetaServerSpace space(100, 100);
+    MetaServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
+                           space);
+    MetaServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                           space);
+    MetaServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                           space);
     PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
-    MetaServerInfo csInfo4(peer4, OnlineState::ONLINE, 100, 100);
+    MetaServerInfo csInfo4(peer4, OnlineState::ONLINE, space);
     MetaServerIdType id1 = 1;
     MetaServerIdType id2 = 2;
     MetaServerIdType id3 = 3;
@@ -246,7 +249,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInPool(_))
             .WillOnce(Return(3));
         std::map<MetaServerIdType, int> map1{{3, 1}};
-        EXPECT_CALL(*topoAdapter_, ChooseRecoveredMetaServer(_, _, _, _))
+        EXPECT_CALL(*topoAdapter_, ChooseNewMetaServerForCopyset(_, _, _, _))
             .WillOnce(DoAll(SetArgPointee<3>(4), Return(true)));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtMetaServer(_, _))
             .WillOnce(Return(true));
@@ -276,7 +279,7 @@ TEST_F(TestRecoverSheduler, test_all_metaServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInPool(_))
             .WillOnce(Return(3));
         std::map<MetaServerIdType, int> map1{{3, 1}};
-        EXPECT_CALL(*topoAdapter_, ChooseRecoveredMetaServer(_, _, _, _))
+        EXPECT_CALL(*topoAdapter_, ChooseNewMetaServerForCopyset(_, _, _, _))
             .WillOnce(DoAll(SetArgPointee<3>(4), Return(true)));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtMetaServer(_, _))
             .WillOnce(Return(false));

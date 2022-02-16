@@ -69,19 +69,13 @@ class Pool {
 
  public:
     Pool()
-        : id_(UNINITIALIZE_ID),
-          name_(""),
-          createTime_(0),
-          avaliable_(true),
-          diskCapacity_(0) {}
+        : id_(UNINITIALIZE_ID), name_(""), createTime_(0), diskCapacity_(0) {}
     Pool(PoolIdType id, const std::string &name,
-         const RedundanceAndPlaceMentPolicy &rap, uint64_t createTime,
-         bool avaliable)
+         const RedundanceAndPlaceMentPolicy &rap, uint64_t createTime)
         : id_(id),
           name_(name),
           rap_(rap),
           createTime_(createTime),
-          avaliable_(avaliable),
           diskCapacity_(0) {}
 
     PoolIdType GetId() const { return id_; }
@@ -105,15 +99,10 @@ class Pool {
 
     uint64_t GetCreateTime() const { return createTime_; }
 
-    void SetPoolAvaliableFlag(bool avaliable) { avaliable_ = avaliable; }
-
-    // TODO(cw123) : not use yet
-    bool GetPoolAvaliableFlag() const { return avaliable_; }
-
-    void SetDiskCapacity(uint64_t diskCapacity) {
+    void SetDiskThreshold(uint64_t diskCapacity) {
         diskCapacity_ = diskCapacity;
     }
-    uint64_t GetDiskCapacity() const { return diskCapacity_; }
+    uint64_t GetDiskThreshold() const { return diskCapacity_; }
 
     void AddZone(ZoneIdType id) { zoneList_.push_back(id); }
 
@@ -130,7 +119,6 @@ class Pool {
     std::string name_;
     RedundanceAndPlaceMentPolicy rap_;
     uint64_t createTime_;
-    bool avaliable_;
     uint64_t diskCapacity_;
 
     std::list<ZoneIdType> zoneList_;
@@ -233,23 +221,108 @@ class Server {
 
 class MetaServerSpace {
  public:
-    MetaServerSpace(uint64_t diskCapacity = 0, uint64_t diskUsed = 0,
-                    uint64_t memoryUsed = 0)
-        : diskCapacity_(diskCapacity),
-          diskUsed_(diskUsed),
-          memoryUsed_(memoryUsed) {}
+    // for test only
+    MetaServerSpace(uint64_t diskThreshold = 0, uint64_t diskUsed = 0,
+                    uint64_t diskCopysetMinRequire = 0,
+                    uint64_t memoryThreshold = 0, uint64_t memoryUsed = 0,
+                    uint64_t memoryCopySetMinRequire = 0) {
+        memoryThresholdByte_ = memoryThreshold;
+        memoryCopySetMinRequireByte_ = memoryCopySetMinRequire;
+        memoryUsedByte_ = memoryUsed;
+        diskThresholdByte_ = diskThreshold;
+        diskCopysetMinRequireByte_ = diskCopysetMinRequire;
+        diskUsedByte_ = diskUsed;
+    }
 
-    void SetDiskCapacity(uint64_t capacity) { diskCapacity_ = capacity; }
-    uint64_t GetDiskCapacity() const { return diskCapacity_; }
-    void SetDiskUsed(uint64_t diskUsed) { diskUsed_ = diskUsed; }
-    uint64_t GetDiskUsed() const { return diskUsed_; }
-    void SetMemoryUsed(uint64_t memoryUsed) { memoryUsed_ = memoryUsed; }
-    uint64_t GetMemoryUsed() const { return memoryUsed_; }
+    explicit MetaServerSpace(heartbeat::MetaSeverSpaceStatus status) {
+        SetSpaceStatus(status);
+    }
+
+    void SetDiskThreshold(uint64_t threshold) {
+        diskThresholdByte_ = threshold;
+    }
+    uint64_t GetDiskThreshold() const { return diskThresholdByte_; }
+    void SetDiskUsed(uint64_t diskUsed) { diskUsedByte_ = diskUsed; }
+    uint64_t GetDiskUsed() const { return diskUsedByte_; }
+    void SetDiskMinRequire(uint64_t require) {
+        diskCopysetMinRequireByte_ = require;
+    }
+    uint64_t GetDiskMinRequire() const { return diskCopysetMinRequireByte_; }
+
+    void SetMemoryThreshold(uint64_t threshold) {
+        memoryThresholdByte_ = threshold;
+    }
+    uint64_t GetMemoryThreshold() const { return memoryThresholdByte_; }
+    void SetMemoryUsed(uint64_t memoryUsed) { memoryUsedByte_ = memoryUsed; }
+    uint64_t GetMemoryUsed() const { return memoryUsedByte_; }
+    void SetMemoryMinRequire(uint64_t require) {
+        memoryCopySetMinRequireByte_ = require;
+    }
+    uint64_t GetMemoryMinRequire() const {
+        return memoryCopySetMinRequireByte_;
+    }
+
+    void SetSpaceStatus(heartbeat::MetaSeverSpaceStatus status) {
+        diskThresholdByte_ = status.diskthresholdbyte();
+        diskCopysetMinRequireByte_ = status.diskcopysetminrequirebyte();
+        diskUsedByte_ = status.diskusedbyte();
+        memoryThresholdByte_ = status.memorythresholdbyte();
+        memoryCopySetMinRequireByte_ = status.memorycopysetminrequirebyte();
+        memoryUsedByte_ = status.memoryusedbyte();
+    }
+
+    double GetResourceUseRatioPercent() {
+        if (memoryCopySetMinRequireByte_ == 0) {
+            if (diskThresholdByte_ != 0) {
+                return 100.0 * diskUsedByte_ / diskThresholdByte_;
+            } else {
+                return 0;
+            }
+        } else {
+            if (memoryThresholdByte_ != 0) {
+                return 100.0 * memoryUsedByte_ / memoryThresholdByte_;
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    bool IsMetaserverResourceAvailable() {
+        if (diskThresholdByte_ < (diskCopysetMinRequireByte_ + diskUsedByte_)) {
+            return false;
+        }
+
+        if (memoryCopySetMinRequireByte_ != 0 &&
+            (memoryThresholdByte_ <
+             (memoryCopySetMinRequireByte_ + memoryUsedByte_))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // if memoryCopySetMinRequireByte_ equals 0, not consider the memory usage
+    bool IsResourceOverload() {
+        if (diskThresholdByte_ < diskUsedByte_) {
+            return true;
+        }
+
+        if (memoryCopySetMinRequireByte_ != 0 &&
+            memoryThresholdByte_ < memoryUsedByte_) {
+            return true;
+        }
+
+        return false;
+    }
 
  private:
-    uint64_t diskCapacity_;
-    uint64_t diskUsed_;
-    uint64_t memoryUsed_;
+    uint64_t memoryThresholdByte_;
+    uint64_t memoryCopySetMinRequireByte_;
+    uint64_t memoryUsedByte_;
+
+    uint64_t diskThresholdByte_;
+    uint64_t diskCopysetMinRequireByte_;
+    uint64_t diskUsedByte_;
 };
 
 class MetaServer {
@@ -333,9 +406,7 @@ class MetaServer {
 
     uint32_t GetInternalPort() const { return internalPort_; }
 
-    void SetInternalIp(std::string internalIp) {
-        internalIp_ = internalIp;
-    }
+    void SetInternalIp(std::string internalIp) { internalIp_ = internalIp; }
 
     void SetInternalPort(uint32_t internalPort) {
         internalPort_ = internalPort;
@@ -514,11 +585,9 @@ class CopySetInfo {
 
     bool ParseFromString(const std::string &value);
 
-    void AddPartitionId(const PartitionIdType& id) {
-        partitionIds_.insert(id);
-    }
+    void AddPartitionId(const PartitionIdType &id) { partitionIds_.insert(id); }
 
-    const std::set<PartitionIdType>& GetPartitionIds() const {
+    const std::set<PartitionIdType> &GetPartitionIds() const {
         return partitionIds_;
     }
 
@@ -641,9 +710,7 @@ class Partition {
         return partition;
     }
 
-    FsIdType GetFsId() const {
-        return fsId_;
-    }
+    FsIdType GetFsId() const { return fsId_; }
 
     void SetFsId(FsIdType fsId) { fsId_ = fsId; }
 

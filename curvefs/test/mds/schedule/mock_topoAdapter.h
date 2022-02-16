@@ -23,6 +23,7 @@
 #define CURVEFS_TEST_MDS_SCHEDULE_MOCK_TOPOADAPTER_H_
 
 #include <gmock/gmock.h>
+#include <list>
 #include <map>
 #include <set>
 #include <vector>
@@ -72,13 +73,18 @@ class MockTopoAdapter : public TopoAdapter {
 
     MOCK_METHOD1(GetCopySetInfosInPool, std::vector<CopySetInfo>(PoolIdType));
 
+    MOCK_METHOD1(GetMetaServersInZone,
+                 std::vector<MetaServerInfo>(ZoneIdType zoneId));
+
+    MOCK_METHOD1(GetZoneInPool, std::list<ZoneIdType>(PoolIdType poolId));
+
     MOCK_METHOD1(GetMetaServersInPool, std::vector<MetaServerInfo>(PoolIdType));
 
-    MOCK_METHOD4(ChooseRecoveredMetaServer,
-               bool(PoolIdType poolId,
-               const std::set<ZoneIdType> &excludeZones,
-               const std::set<MetaServerIdType> &excludeMetaservers,
-               MetaServerIdType *target));
+    MOCK_METHOD4(ChooseNewMetaServerForCopyset,
+                 bool(PoolIdType poolId,
+                      const std::set<ZoneIdType> &excludeZones,
+                      const std::set<MetaServerIdType> &excludeMetaservers,
+                      MetaServerIdType *target));
 };
 }  // namespace schedule
 }  // namespace mds

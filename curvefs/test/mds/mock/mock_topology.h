@@ -319,7 +319,7 @@ class MockTopology : public TopologyImpl {
                        std::vector<CopySetInfo>(PoolIdType poolId,
                                                 CopySetFilter filter));
     MOCK_CONST_METHOD4(
-        ChooseRecoveredMetaServer,
+        ChooseNewMetaServerForCopyset,
         TopoStatusCode(PoolIdType poolId,
                        const std::set<ZoneIdType> &unavailableZones,
                        const std::set<MetaServerIdType> &unavailableMs,

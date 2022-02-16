@@ -108,7 +108,7 @@ std::vector<::curvefs::mds::topology::Server> GetServerForTest() {
     policy.zoneNum = 3;
     policy.copysetNum = 10;
 
-    ::curvefs::mds::topology::Pool pool(1, "poolname", policy, 1000, true);
+    ::curvefs::mds::topology::Pool pool(1, "poolname", policy, 1000);
     return pool;
 }
 }  // namespace schedule

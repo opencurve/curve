@@ -29,16 +29,20 @@ namespace schedule {
 
 // only support one type now, add more type later
 enum class SchedulerType {
-  RecoverSchedulerType,
+    RecoverSchedulerType,
+    CopysetSchedulerType,
 };
 
 struct ScheduleOption {
  public:
     // recover switch
     bool enableRecoverScheduler;
+    // copyset scheduler switch
+    bool enableCopysetScheduler;
 
     // xxxSchedulerIntervalSec: time interval of calculation for xxx scheduling
     uint32_t recoverSchedulerIntervalSec;
+    uint32_t copysetSchedulerIntervalSec;
 
     // number of copyset that can operate configuration changing at the same time on single metaserver //NOLINT
     uint32_t operatorConcurrent;
@@ -58,6 +62,8 @@ struct ScheduleOption {
     // operation arrive, the operation will wait for the replay and will be
     // stuck and exceed the 'leadertimeout' if the replay takes too long time.
     uint32_t metaserverCoolingTimeSec;
+
+    uint32_t balanceRatioPercent;
 };
 
 }  // namespace schedule
