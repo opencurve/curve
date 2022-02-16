@@ -47,7 +47,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         MetaServer ms;
         if (topo_->GetMetaServer(msId, &ms)) {
             it->second->diskCapacity.set_value(
-                ms.GetMetaServerSpace().GetDiskCapacity());
+                ms.GetMetaServerSpace().GetDiskThreshold());
             it->second->diskUsed.set_value(
                 ms.GetMetaServerSpace().GetDiskUsed());
             it->second->memoryUsed.set_value(
@@ -56,8 +56,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
     }
 
     // process pool
-    std::vector<PoolIdType> pools = topo_->GetPoolInCluster(
-        [](const Pool &pool) { return pool.GetPoolAvaliableFlag(); });
+    std::vector<PoolIdType> pools = topo_->GetPoolInCluster();
     for (auto pid : pools) {
         Pool pool;
         if (!topo_->GetPool(pid, &pool)) {

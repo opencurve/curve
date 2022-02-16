@@ -91,6 +91,16 @@ class Scheduler {
     MetaServerIdType SelectBestPlacementMetaServer(
         const CopySetInfo &copySetInfo, MetaServerIdType oldPeer);
 
+    /**
+     * @brief CopysetAllPeersOnline Check whether all replicas of a copyset are
+     *        online
+     *
+     * @param[in] copySetInfo Copyset to check
+     *
+     * @return true if all online, false if there's any offline replica
+     */
+    bool CopysetAllPeersOnline(const CopySetInfo &copySetInfo);
+
  protected:
     std::shared_ptr<TopoAdapter> topo_;
     // operator management module
@@ -147,6 +157,68 @@ class RecoverScheduler : public Scheduler {
  private:
     // running interval of RecoverScheduler
     int64_t runInterval_;
+};
+
+class CopySetScheduler : public Scheduler {
+ public:
+    CopySetScheduler(const ScheduleOption &opt,
+                     const std::shared_ptr<TopoAdapter> &topo,
+                     const std::shared_ptr<OperatorController> &opController)
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.copysetSchedulerIntervalSec;
+        balanceRatioPercent_ = opt.balanceRatioPercent;
+    }
+
+    /**
+     * @brief Schedule Generating operator according to
+     *        the condition of the cluster
+     *
+     * @return operator num generated
+     */
+    int Schedule() override;
+
+    /**
+     * @brief get running interval of CopySetScheduler
+     *
+     * @return time interval
+     */
+    int64_t GetRunningInterval() override;
+
+ private:
+    /**
+     * @brief CopySetScheduleForPool Operate copyset balancing on
+     *        specified pool
+     *
+     * @param[in] poolId Specified pool id
+     *
+     * @return Source node of the migration, for test
+     */
+    int CopySetScheduleForPool(PoolIdType poolId);
+
+    void GetCopySetDistribution(
+        const std::vector<CopySetInfo> &copysetList,
+        const std::vector<MetaServerInfo> &metaserverList,
+        std::map<MetaServerIdType, std::vector<CopySetInfo>> *out);
+
+    bool TransferCopyset(const CopySetInfo &copyset, MetaServerIdType sourceId,
+                         MetaServerIdType destId);
+
+    bool IsCopysetCanTransfer(const CopySetInfo &copyset);
+
+    int CopySetScheduleOverloadMetaserver(PoolIdType poolId);
+
+    int CopySetScheduleNormalMetaserver(PoolIdType poolId);
+
+    int CheckAndBalanceZone(ZoneIdType zoneId);
+
+    void FileterUnhealthyMetaserver(
+        std::vector<MetaServerInfo> *metaserverVector);
+
+ private:
+    // Running interval of CopySetScheduler
+    int64_t runInterval_;
+
+    uint32_t balanceRatioPercent_;
 };
 }  // namespace schedule
 }  // namespace mds

@@ -108,9 +108,15 @@ void MDS::InitTopologyOption(TopologyOption* topologyOption) {
 void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
     conf_->GetValueFatalIfFail("mds.enable.recover.scheduler",
                                &scheduleOption->enableRecoverScheduler);
+    conf_->GetValueFatalIfFail("mds.enable.copyset.scheduler",
+                               &scheduleOption->enableCopysetScheduler);
+    conf_->GetValueFatalIfFail("mds.copyset.scheduler.balanceRatioPercent",
+                               &scheduleOption->balanceRatioPercent);
 
     conf_->GetValueFatalIfFail("mds.recover.scheduler.intervalSec",
                                &scheduleOption->recoverSchedulerIntervalSec);
+    conf_->GetValueFatalIfFail("mds.copyset.scheduler.intervalSec",
+                               &scheduleOption->copysetSchedulerIntervalSec);
 
     conf_->GetValueFatalIfFail("mds.schduler.operator.concurrent",
                                &scheduleOption->operatorConcurrent);

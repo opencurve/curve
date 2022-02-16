@@ -61,7 +61,6 @@ message PoolData {
     required string PoolName = 2;
     required uint64 createTime = 3;
     required string redundanceAndPlacementPolicy = 4;
-    required bool availFlag = 5;
 }
 
 message ZoneData {
@@ -90,9 +89,7 @@ message MetaServerData {
     required string externalIP = 6;
     required uint32 externalPort = 7;
     required uint32 serverId = 8;
-    required uint64 diskCapacity = 9;
-    required uint64 diskUsed = 10;
-    required uint64 memoryUsed = 11;
+    required heartbeat.MetaSeverSpaceStatus spaceStatus = 9;
 }
 
 message CopysetData {
@@ -490,5 +487,5 @@ service TopologyService {
     rpc ListCopysetInfo(ListCopysetInfoRequest) returns (ListCopysetInfoResponse);
     rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
 
-    rpc ListTopology(ListTopologyRequest) returns (ListTopologyResponse); 
+    rpc ListTopology(ListTopologyRequest) returns (ListTopologyResponse);
 }

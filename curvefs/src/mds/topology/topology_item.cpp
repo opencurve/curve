@@ -46,8 +46,7 @@ bool ClusterInformation::ParseFromString(const std::string &value) {
 }
 
 bool Pool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
-                    const std::string &jsonStr,
-                    RedundanceAndPlaceMentPolicy *rap) {
+    const std::string &jsonStr, RedundanceAndPlaceMentPolicy *rap) {
     Json::Reader reader;
     Json::Value rapJson;
     if (!reader.parse(jsonStr, rapJson)) {
@@ -93,7 +92,6 @@ bool Pool::SerializeToString(std::string *value) const {
     data.set_createtime(createTime_);
     data.set_redundanceandplacementpolicy(
         this->GetRedundanceAndPlaceMentPolicyJsonStr());
-    data.set_availflag(avaliable_);
     return data.SerializeToString(value);
 }
 
@@ -102,10 +100,8 @@ bool Pool::ParseFromString(const std::string &value) {
     bool ret = data.ParseFromString(value);
     id_ = data.poolid();
     name_ = data.poolname();
-    SetRedundanceAndPlaceMentPolicyByJson(
-        data.redundanceandplacementpolicy());
+    SetRedundanceAndPlaceMentPolicyByJson(data.redundanceandplacementpolicy());
     createTime_ = data.createtime();
-    avaliable_ = data.availflag();
     return ret;
 }
 
@@ -163,9 +159,16 @@ bool MetaServer::SerializeToString(std::string *value) const {
     data.set_externalip(externalIp_);
     data.set_externalport(externalPort_);
     data.set_serverid(serverId_);
-    data.set_diskcapacity(space_.GetDiskCapacity());
-    data.set_diskused(space_.GetDiskUsed());
-    data.set_memoryused(space_.GetMemoryUsed());
+    data.mutable_spacestatus()->set_diskthresholdbyte(
+        space_.GetDiskThreshold());
+    data.mutable_spacestatus()->set_diskcopysetminrequirebyte(
+        space_.GetDiskMinRequire());
+    data.mutable_spacestatus()->set_diskusedbyte(space_.GetDiskUsed());
+    data.mutable_spacestatus()->set_memorythresholdbyte(
+        space_.GetMemoryThreshold());
+    data.mutable_spacestatus()->set_memorycopysetminrequirebyte(
+        space_.GetMemoryMinRequire());
+    data.mutable_spacestatus()->set_memoryusedbyte(space_.GetMemoryUsed());
     return data.SerializeToString(value);
 }
 
@@ -181,9 +184,7 @@ bool MetaServer::ParseFromString(const std::string &value) {
     externalIp_ = data.externalip();
     externalPort_ = data.externalport();
     onlineState_ = OnlineState::UNSTABLE;
-    space_.SetDiskCapacity(data.diskcapacity());
-    space_.SetDiskUsed(data.diskused());
-    space_.SetMemoryUsed(data.memoryused());
+    space_.SetSpaceStatus(data.spacestatus());
     return ret;
 }
 

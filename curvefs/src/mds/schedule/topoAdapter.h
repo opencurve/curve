@@ -23,16 +23,17 @@
 #ifndef CURVEFS_SRC_MDS_SCHEDULE_TOPOADAPTER_H_
 #define CURVEFS_SRC_MDS_SCHEDULE_TOPOADAPTER_H_
 #include <cstdint>
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
-#include "curvefs/src/mds/topology/topology.h"
-#include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/topology/topology.h"
+#include "curvefs/src/mds/topology/topology_manager.h"
 
 namespace curvefs {
 namespace mds {
@@ -51,6 +52,7 @@ using ::curvefs::mds::topology::MetaServer;
 using ::curvefs::mds::topology::Server;
 using ::curvefs::mds::topology::Pool;
 using ::curvefs::mds::topology::UNINITIALIZE_ID;
+using ::curvefs::mds::topology::MetaServerSpace;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
 using ::curve::mds::heartbeat::ConfigChangeType;
 
@@ -85,11 +87,10 @@ struct CopySetConf {
 
 struct CopySetInfo {
  public:
-    CopySetInfo() : poolWork(false) {}
+    CopySetInfo() = default;
     CopySetInfo(CopySetKey id, EpochType epoch, MetaServerIdType leader,
                 const std::vector<PeerInfo> &peers,
-                const ConfigChangeInfo &info)
-        : poolWork(false) {
+                const ConfigChangeInfo &info) {
         this->id.first = id.first;
         this->id.second = id.second;
         this->epoch = epoch;
@@ -103,9 +104,6 @@ struct CopySetInfo {
     std::string CopySetInfoStr() const;
 
     CopySetKey id;
-    // during the initialization, the logical pool will be available after all
-    // copyset are created, and will be unavailable during the creation
-    bool poolWork;
     EpochType epoch;
     MetaServerIdType leader;
     std::vector<PeerInfo> peers;
@@ -115,21 +113,22 @@ struct CopySetInfo {
 
 struct MetaServerInfo {
  public:
-    MetaServerInfo()
-        : diskCapacity(0), diskUsed(0), startUpTime(0) {}
+    MetaServerInfo() : startUpTime(0) {}
     MetaServerInfo(const PeerInfo &info, OnlineState state,
-                   uint64_t capacity, uint64_t used);
+                   const MetaServerSpace &space);
 
     bool IsOnline() const;
     bool IsOffline() const;
     bool IsUnstable() const;
     bool IsHealthy() const;
+    bool IsResourceOverload() const;
+    double GetResourceUseRatioPercent() const;
+    bool IsMetaserverResourceAvailable() const;
 
-    uint64_t diskCapacity;
-    uint64_t diskUsed;
     uint64_t startUpTime;
     PeerInfo info;
     OnlineState state;
+    mutable MetaServerSpace space;
 };
 
 /**
@@ -139,9 +138,9 @@ class TopoAdapter {
  public:
     virtual ~TopoAdapter() {}
     /**
-     * @brief get logical pools
+     * @brief get pools
      *
-     * @return logical pool list
+     * @return pool list
      */
     virtual std::vector<PoolIdType> Getpools() = 0;
 
@@ -172,6 +171,8 @@ class TopoAdapter {
     virtual std::vector<CopySetInfo> GetCopySetInfosInMetaServer(
         MetaServerIdType id) = 0;
 
+    virtual std::vector<CopySetInfo> GetCopySetInfosInPool(PoolIdType id) = 0;
+
     /**
      * @brief GetMetaServerInfo get the specified metaserver info
      *
@@ -192,26 +193,31 @@ class TopoAdapter {
 
     /**
      * @brief GetMetaServersInPool get all the metaservers in the
-     *                                     specified logical pool
+     *                                     specified pool
      *
-     * @prarm[in] lid the id of the logical pool
+     * @prarm[in] poolId the id of the pool
      *
-     * @return the metaserver list of the logocal pool
+     * @return the metaserver list of the pool
      */
     virtual std::vector<MetaServerInfo> GetMetaServersInPool(
-        PoolIdType lid) = 0;
+        PoolIdType poolId) = 0;
+
+    virtual std::vector<MetaServerInfo> GetMetaServersInZone(
+        ZoneIdType zoneId) = 0;
+
+    virtual std::list<ZoneIdType> GetZoneInPool(PoolIdType poolId) = 0;
 
     /**
      * @brief GetStandardZoneNumInPool get the standard zone num of the
-     *                                        logical pool
+     *                                        pool
      *
-     * @return the zone num of the logical pool
+     * @return the zone num of the pool
      */
     virtual uint16_t GetStandardZoneNumInPool(PoolIdType id) = 0;
 
     /**
      * @brief GetStandardReplicaNumInPool get the standard replica
-     *                                           num in logical pool
+     *                                           num in pool
      *
      * @return the standard replica num
      */
@@ -260,8 +266,8 @@ class TopoAdapter {
         const ::curvefs::mds::topology::MetaServer &origin,
         ::curvefs::mds::schedule::MetaServerInfo *out) = 0;
 
-    virtual bool ChooseRecoveredMetaServer(PoolIdType poolId,
-        const std::set<ZoneIdType> &excludeZones,
+    virtual bool ChooseNewMetaServerForCopyset(
+        PoolIdType poolId, const std::set<ZoneIdType> &excludeZones,
         const std::set<MetaServerIdType> &excludeMetaservers,
         MetaServerIdType *target) = 0;
 };
@@ -282,11 +288,18 @@ class TopoAdapterImpl : public TopoAdapter {
     std::vector<CopySetInfo> GetCopySetInfosInMetaServer(
         MetaServerIdType id) override;
 
+    std::vector<CopySetInfo> GetCopySetInfosInPool(PoolIdType id) override;
+
     bool GetMetaServerInfo(MetaServerIdType id, MetaServerInfo *info) override;
 
     std::vector<MetaServerInfo> GetMetaServerInfos() override;
 
     std::vector<MetaServerInfo> GetMetaServersInPool(PoolIdType lid) override;
+
+    std::vector<MetaServerInfo> GetMetaServersInZone(
+        ZoneIdType zoneId) override;
+
+    std::list<ZoneIdType> GetZoneInPool(PoolIdType poolId) override;
 
     uint16_t GetStandardZoneNumInPool(PoolIdType id) override;
 
@@ -303,8 +316,8 @@ class TopoAdapterImpl : public TopoAdapter {
         const ::curvefs::mds::topology::MetaServer &origin,
         ::curvefs::mds::schedule::MetaServerInfo *out) override;
 
-    bool ChooseRecoveredMetaServer(PoolIdType poolId,
-        const std::set<ZoneIdType> &excludeZones,
+    bool ChooseNewMetaServerForCopyset(
+        PoolIdType poolId, const std::set<ZoneIdType> &excludeZones,
         const std::set<MetaServerIdType> &excludeMetaservers,
         MetaServerIdType *target) override;
 

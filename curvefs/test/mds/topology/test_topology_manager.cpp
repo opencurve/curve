@@ -102,7 +102,7 @@ class TestTopologyManager : public ::testing::Test {
                         const Pool::RedundanceAndPlaceMentPolicy &rap =
                             Pool::RedundanceAndPlaceMentPolicy(),
                         uint64_t createTime = 0x888) {
-        Pool pool(id, name, rap, createTime, true);
+        Pool pool(id, name, rap, createTime);
         EXPECT_CALL(*storage_, StoragePool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPool(pool);
@@ -1728,9 +1728,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 1, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 2, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 1), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 2), 0x43);
 
     EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
@@ -1790,9 +1790,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
 
     CreatePartitionRequest request;
     CreatePartitionResponse response;
@@ -1829,9 +1829,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 100, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 100), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
 
     CreatePartitionRequest request;
     CreatePartitionResponse response;
@@ -1870,10 +1870,10 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x44, "ms4", "token4", 0x33, "127.0.0.1", 7780, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x44);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x44);
 
     EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
@@ -1938,9 +1938,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x44, "ms4", "token4", 0x34, "127.0.0.1", 7780, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
 
     CreatePartitionRequest request;
     CreatePartitionResponse response;
@@ -1982,10 +1982,10 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x44, "ms4", "token4", 0x34, "127.0.0.1", 7780, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x43);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x44);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x44);
 
     PrepareAddPool(poolId1, "pool2", policy);
     PrepareAddZone(0x25, "zone5", poolId1);
@@ -2003,9 +2003,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x47, "ms7", "token7", 0x37, "127.0.0.1", 7779, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x45);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x46);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x47);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x45);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x46);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x47);
 
     EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
@@ -2068,9 +2068,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0, 0), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90, 0), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90, 0), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90), 0x42);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90), 0x43);
 
     PrepareAddPool(poolId1, "pool2", policy);
     PrepareAddZone(0x25, "zone5", poolId1);
@@ -2088,9 +2088,9 @@ TEST_F(TestTopologyManager,
                          8888);
     PrepareAddMetaServer(0x47, "ms7", "token7", 0x37, "127.0.0.1", 7779, "ip2",
                          8888);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50, 0), 0x45);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50, 0), 0x46);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50, 0), 0x47);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x45);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x46);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x47);
 
     EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))

@@ -23,9 +23,11 @@
 #include "curvefs/src/mds/schedule/topoAdapter.h"
 #include <glog/logging.h>
 #include <cfloat>
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
 
@@ -59,7 +61,7 @@ CopySetConf::CopySetConf(const CopySetKey &key, EpochType epoch,
 }
 
 bool CopySetInfo::ContainPeer(MetaServerIdType id) const {
-    for (auto peerId : peers) {
+    for (auto &peerId : peers) {
         if (id == peerId.id) {
             return true;
         }
@@ -76,7 +78,7 @@ std::string CopySetInfo::CopySetInfoStr() const {
                       std::to_string(id.second) + "), epoch:" +
                       std::to_string(epoch) + ", leader:" +
                       std::to_string(leader) + ", peers:(";
-    for (auto peer : peers) {
+    for (auto &peer : peers) {
         res += std::to_string(peer.id) + ",";
     }
 
@@ -87,12 +89,10 @@ std::string CopySetInfo::CopySetInfoStr() const {
 }
 
 MetaServerInfo::MetaServerInfo(const PeerInfo &info, OnlineState state,
-                               uint64_t capacity,
-                               uint64_t used) {
+                               const MetaServerSpace &space) {
     this->info = info;
     this->state = state;
-    this->diskCapacity = capacity;
-    this->diskUsed = used;
+    this->space = space;
     this->startUpTime = 0;
 }
 
@@ -105,6 +105,21 @@ bool MetaServerInfo::IsUnstable() const {
 }
 
 bool MetaServerInfo::IsHealthy() const { return state == OnlineState::ONLINE; }
+
+bool MetaServerInfo::IsResourceOverload() const {
+    return space.IsResourceOverload();
+}
+
+double MetaServerInfo::GetResourceUseRatioPercent() const {
+    return space.GetResourceUseRatioPercent();
+}
+
+bool MetaServerInfo::IsMetaserverResourceAvailable() const {
+    if (!IsHealthy()) {
+        return false;
+    }
+    return space.IsMetaserverResourceAvailable();
+}
 
 TopoAdapterImpl::TopoAdapterImpl(std::shared_ptr<Topology> topo,
                                  std::shared_ptr<TopologyManager> manager) {
@@ -123,28 +138,19 @@ bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
         return false;
     }
 
-    // cannot get logical pool
-    ::curvefs::mds::topology::Pool lpool;
-    if (!topo_->GetPool(csInfo.GetPoolId(), &lpool)) {
-        return false;
-    }
-
     if (!CopySetFromTopoToSchedule(csInfo, info)) {
         return false;
     }
 
-    info->poolWork = lpool.GetPoolAvaliableFlag();
     return true;
 }
 
 std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
     std::vector<CopySetInfo> infos;
-    for (auto copySetKey : topo_->GetCopySetsInCluster()) {
+    for (auto &copySetKey : topo_->GetCopySetsInCluster()) {
         CopySetInfo copySetInfo;
         if (GetCopySetInfo(copySetKey, &copySetInfo)) {
-            if (copySetInfo.poolWork) {
-                infos.push_back(copySetInfo);
-            }
+            infos.push_back(std::move(copySetInfo));
         }
     }
     return infos;
@@ -155,12 +161,24 @@ std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInMetaServer(
     std::vector<CopySetKey> keys = topo_->GetCopySetsInMetaServer(id);
 
     std::vector<CopySetInfo> out;
-    for (auto key : keys) {
+    for (auto &key : keys) {
         CopySetInfo info;
         if (GetCopySetInfo(key, &info)) {
-            if (info.poolWork) {
-                out.emplace_back(info);
-            }
+            out.emplace_back(std::move(info));
+        }
+    }
+    return out;
+}
+
+std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInPool(PoolIdType id) {
+    std::vector<curvefs::mds::topology::CopySetInfo> copysetsInTopo =
+        topo_->GetCopySetInfosInPool(id);
+
+    std::vector<CopySetInfo> out;
+    for (auto &csInfo : copysetsInTopo) {
+        CopySetInfo info;
+        if (CopySetFromTopoToSchedule(csInfo, &info)) {
+            out.emplace_back(std::move(info));
         }
     }
     return out;
@@ -183,7 +201,7 @@ std::vector<MetaServerInfo> TopoAdapterImpl::GetMetaServerInfos() {
     for (auto metaServerId : topo_->GetMetaServerInCluster()) {
         MetaServerInfo info;
         if (GetMetaServerInfo(metaServerId, &info)) {
-            infos.push_back(info);
+            infos.push_back(std::move(info));
         }
     }
 
@@ -197,10 +215,27 @@ std::vector<MetaServerInfo> TopoAdapterImpl::GetMetaServersInPool(
     for (auto id : ids) {
         MetaServerInfo out;
         if (GetMetaServerInfo(id, &out)) {
-            infos.emplace_back(out);
+            infos.emplace_back(std::move(out));
         }
     }
     return infos;
+}
+
+std::vector<MetaServerInfo> TopoAdapterImpl::GetMetaServersInZone(
+    ZoneIdType zoneId) {
+    std::vector<MetaServerInfo> infos;
+    auto ids = topo_->GetMetaServerInZone(zoneId);
+    for (auto id : ids) {
+        MetaServerInfo out;
+        if (GetMetaServerInfo(id, &out)) {
+            infos.emplace_back(std::move(out));
+        }
+    }
+    return infos;
+}
+
+std::list<ZoneIdType> TopoAdapterImpl::GetZoneInPool(PoolIdType poolId) {
+    return topo_->GetZoneInPool(poolId);
 }
 
 uint16_t TopoAdapterImpl::GetStandardZoneNumInPool(PoolIdType id) {
@@ -250,7 +285,7 @@ bool TopoAdapterImpl::CopySetFromTopoToSchedule(
     for (auto id : origin.GetCopySetMembers()) {
         PeerInfo peerInfo;
         if (GetPeerInfo(id, &peerInfo)) {
-            out->peers.emplace_back(peerInfo);
+            out->peers.emplace_back(std::move(peerInfo));
         } else {
             return false;
         }
@@ -274,9 +309,8 @@ bool TopoAdapterImpl::MetaServerFromTopoToSchedule(
 
     ::curvefs::mds::topology::Server server;
     if (topo_->GetServer(origin.GetServerId(), &server)) {
-        out->info =
-            PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
-                     origin.GetInternalIp(), origin.GetInternalPort()};
+        out->info = PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
+                             origin.GetInternalIp(), origin.GetInternalPort()};
     } else {
         LOG(ERROR) << "can not get server:" << origin.GetId()
                    << ", ip:" << origin.GetInternalIp()
@@ -287,8 +321,7 @@ bool TopoAdapterImpl::MetaServerFromTopoToSchedule(
 
     out->startUpTime = origin.GetStartUpTime();
     out->state = origin.GetOnlineState();
-    out->diskCapacity = origin.GetMetaServerSpace().GetDiskCapacity();
-    out->diskUsed = origin.GetMetaServerSpace().GetDiskUsed();
+    out->space = origin.GetMetaServerSpace();
     return true;
 }
 
@@ -298,13 +331,12 @@ bool TopoAdapterImpl::CreateCopySetAtMetaServer(CopySetKey id,
                                                        msId);
 }
 
-bool TopoAdapterImpl::ChooseRecoveredMetaServer(
-    PoolIdType poolId,
-    const std::set<ZoneIdType> &excludeZones,
+bool TopoAdapterImpl::ChooseNewMetaServerForCopyset(
+    PoolIdType poolId, const std::set<ZoneIdType> &excludeZones,
     const std::set<MetaServerIdType> &excludeMetaservers,
     MetaServerIdType *target) {
-    TopoStatusCode ret = topo_->ChooseRecoveredMetaServer(poolId, excludeZones,
-        excludeMetaservers, target);
+    TopoStatusCode ret = topo_->ChooseNewMetaServerForCopyset(
+        poolId, excludeZones, excludeMetaservers, target);
     return ret == TopoStatusCode::TOPO_OK;
 }
 

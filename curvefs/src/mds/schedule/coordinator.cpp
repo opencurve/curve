@@ -40,6 +40,9 @@ namespace schedule {
 static bool pass_bool(const char *, bool) { return true; }
 DEFINE_bool(enableRecoverScheduler, true, "switch of recover scheduler");
 DEFINE_validator(enableRecoverScheduler, &pass_bool);
+DEFINE_bool(enableCopySetScheduler, true, "switch of copyset scheduler");
+DEFINE_validator(enableCopySetScheduler, &pass_bool);
+
 
 Coordinator::Coordinator(const std::shared_ptr<TopoAdapter> &topo) {
     this->topo_ = topo;
@@ -58,6 +61,12 @@ void Coordinator::InitScheduler(const ScheduleOption &conf,
         schedulerController_[SchedulerType::RecoverSchedulerType] =
             std::make_shared<RecoverScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init recover scheduler ok!";
+    }
+
+    if (conf.enableCopysetScheduler) {
+        schedulerController_[SchedulerType::CopysetSchedulerType] =
+            std::make_shared<CopySetScheduler>(conf, topo_, opController_);
+        LOG(INFO) << "init copyset scheduler ok!";
     }
 }
 
@@ -277,6 +286,8 @@ bool Coordinator::ScheduleNeedRun(SchedulerType type) {
     switch (type) {
         case SchedulerType::RecoverSchedulerType:
             return FLAGS_enableRecoverScheduler;
+        case SchedulerType::CopysetSchedulerType:
+            return FLAGS_enableCopySetScheduler;
         default:
             return false;
     }
@@ -286,6 +297,8 @@ std::string Coordinator::ScheduleName(SchedulerType type) {
     switch (type) {
         case SchedulerType::RecoverSchedulerType:
             return "RecoverScheduler";
+        case SchedulerType::CopysetSchedulerType:
+            return "CopySetScheduler";
         default:
             return "Unknown";
     }

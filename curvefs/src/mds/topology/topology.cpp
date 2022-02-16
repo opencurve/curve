@@ -57,7 +57,7 @@ std::string TopologyImpl::AllocateToken() {
     return tokenGenerator_->GenToken();
 }
 
-TopoStatusCode TopologyImpl::AddPool(const Pool& data) {
+TopoStatusCode TopologyImpl::AddPool(const Pool &data) {
     WriteLockGuard wlockPool(poolMutex_);
     if (poolMap_.find(data.GetId()) == poolMap_.end()) {
         if (!storage_->StoragePool(data)) {
@@ -120,7 +120,7 @@ TopoStatusCode TopologyImpl::AddMetaServer(const MetaServer &data) {
 
     // fetch lock on pool, server and metaserver
     WriteLockGuard wlockPool(poolMutex_);
-    uint64_t metaserverCapacity = 0;
+    uint64_t metaserverThreshold = 0;
     {
         ReadLockGuard rlockServer(serverMutex_);
         WriteLockGuard wlockMetaServer(metaServerMutex_);
@@ -132,8 +132,8 @@ TopoStatusCode TopologyImpl::AddMetaServer(const MetaServer &data) {
                 }
                 it->second.AddMetaServer(data.GetId());
                 metaServerMap_[data.GetId()] = data;
-                metaserverCapacity =
-                    data.GetMetaServerSpace().GetDiskCapacity();
+                metaserverThreshold =
+                    data.GetMetaServerSpace().GetDiskThreshold();
             } else {
                 return TopoStatusCode::TOPO_ID_DUPLICATED;
             }
@@ -145,9 +145,9 @@ TopoStatusCode TopologyImpl::AddMetaServer(const MetaServer &data) {
     // update pool
     auto it = poolMap_.find(poolId);
     if (it != poolMap_.end()) {
-        uint64_t totalCapacity = it->second.GetDiskCapacity();
-        totalCapacity += metaserverCapacity;
-        it->second.SetDiskCapacity(totalCapacity);
+        uint64_t totalThreshold = it->second.GetDiskThreshold();
+        totalThreshold += metaserverThreshold;
+        it->second.SetDiskThreshold(totalThreshold);
     } else {
         return TopoStatusCode::TOPO_POOL_NOT_FOUND;
     }
@@ -222,8 +222,8 @@ TopoStatusCode TopologyImpl::RemoveMetaServer(MetaServerIdType id) {
     WriteLockGuard wlockMetaServer(metaServerMutex_);
     auto it = metaServerMap_.find(id);
     if (it != metaServerMap_.end()) {
-        uint64_t metaserverCapacity =
-            it->second.GetMetaServerSpace().GetDiskCapacity();
+        uint64_t metaserverThreshold =
+            it->second.GetMetaServerSpace().GetDiskThreshold();
         if (!storage_->DeleteMetaServer(id)) {
             return TopoStatusCode::TOPO_STORGE_FAIL;
         }
@@ -238,8 +238,8 @@ TopoStatusCode TopologyImpl::RemoveMetaServer(MetaServerIdType id) {
         PoolIdType poolId = ix->second.GetPoolId();
         auto it = poolMap_.find(poolId);
         if (it != poolMap_.end()) {
-            it->second.SetDiskCapacity(it->second.GetDiskCapacity() -
-                metaserverCapacity);
+            it->second.SetDiskThreshold(it->second.GetDiskThreshold() -
+                                        metaserverThreshold);
         } else {
             return TopoStatusCode::TOPO_POOL_NOT_FOUND;
         }
@@ -345,24 +345,39 @@ TopoStatusCode TopologyImpl::UpdateMetaServerSpace(const MetaServerSpace &space,
 
     // fetch write lock of the pool and read lock of metaserver map
     WriteLockGuard wlocklPool(poolMutex_);
-    int64_t diffCapacity = 0;
+    int64_t diffThreshold = 0;
     {
         ReadLockGuard rlockMetaServerMap(metaServerMutex_);
         auto it = metaServerMap_.find(id);
         if (it != metaServerMap_.end()) {
             WriteLockGuard wlockMetaServer(it->second.GetRWLockRef());
-            diffCapacity = space.GetDiskCapacity() -
-                           it->second.GetMetaServerSpace().GetDiskCapacity();
+            diffThreshold = space.GetDiskThreshold() -
+                            it->second.GetMetaServerSpace().GetDiskThreshold();
             int64_t diffUsed = space.GetDiskUsed() -
                                it->second.GetMetaServerSpace().GetDiskUsed();
-            int64_t diffMemory =
+            int64_t diffDiskMinRequire =
+                space.GetDiskMinRequire() -
+                it->second.GetMetaServerSpace().GetDiskMinRequire();
+            int64_t diffMemoryThreshold =
+                space.GetMemoryThreshold() -
+                it->second.GetMetaServerSpace().GetMemoryThreshold();
+            int64_t diffMemoryUsed =
                 space.GetMemoryUsed() -
                 it->second.GetMetaServerSpace().GetMemoryUsed();
-            it->second.SetMetaServerSpace(space);
-            if (diffCapacity != 0 || diffUsed != 0 || diffMemory != 0) {
-                DVLOG(6) << "update metaserver, diffCapacity = " << diffCapacity
-                         << ", diffUsed = " << diffUsed
-                         << ", diffMemory = " << diffMemory;
+            int64_t diffMemoryMinRequire =
+                space.GetMemoryMinRequire() -
+                it->second.GetMetaServerSpace().GetMemoryMinRequire();
+
+            if (diffThreshold != 0 || diffUsed != 0 ||
+                diffDiskMinRequire != 0 || diffMemoryThreshold != 0 ||
+                diffMemoryUsed != 0 || diffMemoryMinRequire != 0) {
+                DVLOG(6) << "update metaserver, diffThreshold = "
+                         << diffThreshold << ", diffUsed = " << diffUsed
+                         << ", diffDiskMinRequire = " << diffDiskMinRequire
+                         << ", diffMemoryThreshold = " << diffMemoryThreshold
+                         << ", diffMemoryUsed = " << diffMemoryUsed
+                         << ", diffMemoryMinRequire = " << diffMemoryMinRequire;
+                it->second.SetMetaServerSpace(space);
                 it->second.SetDirtyFlag(true);
             } else {
                 return TopoStatusCode::TOPO_OK;
@@ -373,14 +388,14 @@ TopoStatusCode TopologyImpl::UpdateMetaServerSpace(const MetaServerSpace &space,
         }
     }
 
-    if (diffCapacity != 0) {
+    if (diffThreshold != 0) {
         // update pool
         auto it = poolMap_.find(belongPoolId);
         if (it != poolMap_.end()) {
-            uint64_t totalCapacity = it->second.GetDiskCapacity();
-            totalCapacity += diffCapacity;
-            DVLOG(6) << "update pool to " << totalCapacity;
-            it->second.SetDiskCapacity(totalCapacity);
+            uint64_t totalThreshold = it->second.GetDiskThreshold();
+            totalThreshold += diffThreshold;
+            DVLOG(6) << "update pool to " << totalThreshold;
+            it->second.SetDiskThreshold(totalThreshold);
         } else {
             return TopoStatusCode::TOPO_POOL_NOT_FOUND;
         }
@@ -600,7 +615,6 @@ TopoStatusCode TopologyImpl::UpdatePartitionStatistic(
         return TopoStatusCode::TOPO_PARTITION_NOT_FOUND;
     }
 }
-
 
 TopoStatusCode TopologyImpl::UpdatePartitionStatus(PartitionIdType partitionId,
                                                    PartitionStatus status) {
@@ -923,10 +937,10 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
 
         auto it = poolMap_.find(poolId);
         if (it != poolMap_.end()) {
-            uint64_t totalCapacity =
-                it->second.GetDiskCapacity() +
-                pair.second.GetMetaServerSpace().GetDiskCapacity();
-            it->second.SetDiskCapacity(totalCapacity);
+            uint64_t totalThreshold =
+                it->second.GetDiskThreshold() +
+                pair.second.GetMetaServerSpace().GetDiskThreshold();
+            it->second.SetDiskThreshold(totalThreshold);
         } else {
             LOG(ERROR) << "TopologyImpl::Init Fail On Get Pool, "
                        << "poolId = " << poolId;
@@ -994,8 +1008,8 @@ TopoStatusCode TopologyImpl::AddCopySet(const CopySetInfo &data) {
 TopoStatusCode TopologyImpl::AddCopySetCreating(const CopySetKey &key) {
     WriteLockGuard wlockCopySetCreating(copySetCreatingMutex_);
     auto iter = copySetCreating_.insert(key);
-    return iter.second ? TopoStatusCode::TOPO_OK :
-        TopoStatusCode::TOPO_ID_DUPLICATED;
+    return iter.second ? TopoStatusCode::TOPO_OK
+                       : TopoStatusCode::TOPO_ID_DUPLICATED;
 }
 
 TopoStatusCode TopologyImpl::RemoveCopySet(CopySetKey key) {
@@ -1193,14 +1207,16 @@ TopoStatusCode TopologyImpl::UpdatePartitionTxIds(
     return TopoStatusCode::TOPO_STORGE_FAIL;
 }
 
-TopoStatusCode TopologyImpl::ChooseRecoveredMetaServer(
-    PoolIdType poolId,
-    const std::set<ZoneIdType> &unavailableZones,
-    const std::set<MetaServerIdType> &unavailableMs,
-    MetaServerIdType *target) {
-    auto metaservers = GetMetaServerInPool(poolId);
+TopoStatusCode TopologyImpl::ChooseNewMetaServerForCopyset(
+    PoolIdType poolId, const std::set<ZoneIdType> &unavailableZones,
+    const std::set<MetaServerIdType> &unavailableMs, MetaServerIdType *target) {
+    MetaServerFilter filter = [](const MetaServer &ms) {
+        return ms.GetOnlineState() == OnlineState::ONLINE;
+    };
+
+    auto metaservers = GetMetaServerInPool(poolId, filter);
     *target = UNINITIALIZE_ID;
-    double usedCapacityPercent = 1;
+    double tempUsedPercent = 100;
 
     for (const auto &it : metaservers) {
         auto iter = unavailableMs.find(it);
@@ -1214,12 +1230,13 @@ TopoStatusCode TopologyImpl::ChooseRecoveredMetaServer(
             if (GetServer(metaserver.GetServerId(), &server)) {
                 auto iter = unavailableZones.find(server.GetZoneId());
                 if (iter == unavailableZones.end()) {
-                    auto used = static_cast<double>(
-                        metaserver.GetMetaServerSpace().GetDiskUsed()) /
-                        metaserver.GetMetaServerSpace().GetDiskCapacity();
-                    if (used < usedCapacityPercent) {
+                    double used = metaserver.GetMetaServerSpace()
+                                      .GetResourceUseRatioPercent();
+                    if (metaserver.GetMetaServerSpace()
+                            .IsMetaserverResourceAvailable() &&
+                        used < tempUsedPercent) {
                         *target = it;
-                        usedCapacityPercent = used;
+                        tempUsedPercent = used;
                     }
                 }
             } else {
@@ -1241,27 +1258,26 @@ TopoStatusCode TopologyImpl::ChooseRecoveredMetaServer(
 }
 
 TopoStatusCode TopologyImpl::ChooseAvailableMetaServers(
-    std::set<MetaServerIdType> *metaServers,
-    PoolIdType *poolId) {
+    std::set<MetaServerIdType> *metaServers, PoolIdType *poolId) {
     ReadLockGuard rlockMetaserver(metaServerMutex_);
-    std::vector<const MetaServer*> vec;
+    std::vector<const MetaServer *> vec;
     for (const auto &it : metaServerMap_) {
-        vec.emplace_back(&(it.second));
+        if (it.second.GetOnlineState() == OnlineState::ONLINE) {
+            vec.emplace_back(&(it.second));
+        }
     }
-    // sort by left disk capacity
-    std::sort(vec.begin(), vec.end(), [](const MetaServer *a,
-        const MetaServer *b) {
-        return static_cast<double>(a->GetMetaServerSpace().GetDiskUsed()) /
-            a->GetMetaServerSpace().GetDiskCapacity() <
-            static_cast<double>(b->GetMetaServerSpace().GetDiskUsed()) /
-            b->GetMetaServerSpace().GetDiskCapacity();});
+
+    // sort by resource usage
+    std::sort(vec.begin(), vec.end(),
+              [](const MetaServer *a, const MetaServer *b) {
+                  return a->GetMetaServerSpace().GetResourceUseRatioPercent() <
+                         b->GetMetaServerSpace().GetResourceUseRatioPercent();
+              });
 
     std::map<PoolIdType, std::map<ZoneIdType, MetaServer>> candidateMap;
     std::map<PoolIdType, uint16_t> replicaMap;
     for (const auto &it : vec) {
-        uint64_t leftSize = it->GetMetaServerSpace().GetDiskCapacity() -
-            it->GetMetaServerSpace().GetDiskUsed();
-        if (it->GetOnlineState() != OnlineState::ONLINE || leftSize <= 0) {
+        if (!it->GetMetaServerSpace().IsMetaserverResourceAvailable()) {
             continue;
         }
 
@@ -1334,24 +1350,24 @@ uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
 }
 std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
     std::vector<CopySetInfo> ret;
-    for (auto const& i : copySetMap_) {
+    for (auto const &i : copySetMap_) {
         ret.emplace_back(i.second);
     }
     return ret;
 }
 
 void TopologyImpl::GetMetaServersSpace(
-    ::google::protobuf::RepeatedPtrField<curvefs::mds::topology::MetadataUsage>*
-        spaces) {
+    ::google::protobuf::RepeatedPtrField<curvefs::mds::topology::MetadataUsage>
+        *spaces) {
     ReadLockGuard rlockMetaServerMap(metaServerMutex_);
-    for (auto const& i : metaServerMap_) {
+    for (auto const &i : metaServerMap_) {
         ReadLockGuard rlockMetaServer(i.second.GetRWLockRef());
         auto metaServerUsage = new curvefs::mds::topology::MetadataUsage();
         metaServerUsage->set_metaserveraddr(
             i.second.GetInternalIp() + ":" +
             std::to_string(i.second.GetInternalPort()));
-        auto const& space = i.second.GetMetaServerSpace();
-        metaServerUsage->set_total(space.GetDiskCapacity());
+        auto const &space = i.second.GetMetaServerSpace();
+        metaServerUsage->set_total(space.GetDiskThreshold());
         metaServerUsage->set_used(space.GetDiskUsed());
         spaces->AddAllocated(metaServerUsage);
     }
@@ -1380,7 +1396,6 @@ bool TopologyImpl::IsCopysetCreating(const CopySetKey &key) const {
     ReadLockGuard rlockCopySetCreating(copySetCreatingMutex_);
     return copySetCreating_.count(key) != 0;
 }
-
 
 }  // namespace topology
 }  // namespace mds

@@ -77,10 +77,11 @@ class SchedulerTest : public ::testing::Test {
     std::shared_ptr<MockStorage> storage_;
 };
 
+// test1: can not get metaserver info of oldpeer
 TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test1) {
     CopySetInfo copySetInfo;
     MetaServerIdType oldPeer = 1;
-    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(_, _))
+    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(oldPeer, _))
         .WillOnce(Return(false));
     MetaServerIdType metaserverId =
         scheduler_->SelectBestPlacementMetaServer(copySetInfo, oldPeer);
@@ -88,6 +89,7 @@ TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test1) {
     ASSERT_EQ(metaserverId, UNINITIALIZE_ID);
 }
 
+// test2: get metaserver list empty
 TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test2) {
     CopySetInfo copySetInfo;
     PoolIdType poolId = 1;
@@ -106,6 +108,7 @@ TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test2) {
     ASSERT_EQ(metaserverId, UNINITIALIZE_ID);
 }
 
+// test3: the standard zone num in pool is 0
 TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test3) {
     CopySetInfo copySetInfo;
     PoolIdType poolId = 1;
@@ -145,6 +148,154 @@ TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test3) {
     MetaServerIdType metaserverId =
         scheduler_->SelectBestPlacementMetaServer(copySetInfo, oldPeer);
     ASSERT_EQ(metaserverId, UNINITIALIZE_ID);
+}
+
+// test4: choose new metaserver fail
+TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test4) {
+    CopySetInfo copySetInfo;
+    PoolIdType poolId = 1;
+    copySetInfo.id.first = poolId;
+    PeerInfo peer1;
+    PeerInfo peer2;
+    PeerInfo peer3;
+    peer1.id = 10;
+    peer2.id = 11;
+    peer3.id = 12;
+    peer1.zoneId = 20;
+    peer2.zoneId = 21;
+    peer3.zoneId = 22;
+    copySetInfo.peers.push_back(peer1);
+    copySetInfo.peers.push_back(peer2);
+    copySetInfo.peers.push_back(peer3);
+    MetaServerIdType oldPeer = 2;
+    MetaServerInfo oldPeerInfo;
+    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(oldPeer, _))
+        .WillOnce(DoAll(SetArgPointee<1>(oldPeerInfo), Return(true)));
+
+    std::vector<MetaServerInfo> metaServers;
+    MetaServerInfo metaServer1;
+    MetaServerInfo metaServer2;
+    MetaServerInfo metaServer3;
+    MetaServerInfo metaServer4;
+    metaServers.push_back(metaServer1);
+    metaServers.push_back(metaServer2);
+    metaServers.push_back(metaServer3);
+    metaServers.push_back(metaServer4);
+    EXPECT_CALL(*topoAdapter_, GetMetaServersInPool(poolId))
+        .WillOnce(Return(metaServers));
+
+    EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInPool(poolId))
+        .WillOnce(Return(3));
+
+    EXPECT_CALL(*topoAdapter_, ChooseNewMetaServerForCopyset(poolId, _, _, _))
+        .WillOnce(Return(false));
+
+    MetaServerIdType metaserverId =
+        scheduler_->SelectBestPlacementMetaServer(copySetInfo, oldPeer);
+    ASSERT_EQ(metaserverId, UNINITIALIZE_ID);
+}
+
+// test5: choose new metaserver success
+TEST_F(SchedulerTest, SelectBestPlacementMetaServer_test5) {
+    CopySetInfo copySetInfo;
+    PoolIdType poolId = 1;
+    copySetInfo.id.first = poolId;
+    PeerInfo peer1;
+    PeerInfo peer2;
+    PeerInfo peer3;
+    peer1.id = 10;
+    peer2.id = 11;
+    peer3.id = 12;
+    peer1.zoneId = 20;
+    peer2.zoneId = 21;
+    peer3.zoneId = 22;
+    copySetInfo.peers.push_back(peer1);
+    copySetInfo.peers.push_back(peer2);
+    copySetInfo.peers.push_back(peer3);
+    MetaServerIdType oldPeer = 2;
+    MetaServerInfo oldPeerInfo;
+    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(oldPeer, _))
+        .WillOnce(DoAll(SetArgPointee<1>(oldPeerInfo), Return(true)));
+
+    std::vector<MetaServerInfo> metaServers;
+    MetaServerInfo metaServer1;
+    MetaServerInfo metaServer2;
+    MetaServerInfo metaServer3;
+    MetaServerInfo metaServer4;
+    metaServers.push_back(metaServer1);
+    metaServers.push_back(metaServer2);
+    metaServers.push_back(metaServer3);
+    metaServers.push_back(metaServer4);
+    EXPECT_CALL(*topoAdapter_, GetMetaServersInPool(poolId))
+        .WillOnce(Return(metaServers));
+
+    EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInPool(poolId))
+        .WillOnce(Return(3));
+
+    MetaServerIdType newPeerId = 30;
+    EXPECT_CALL(*topoAdapter_, ChooseNewMetaServerForCopyset(poolId, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<3>(newPeerId), Return(true)));
+
+    MetaServerIdType metaserverId =
+        scheduler_->SelectBestPlacementMetaServer(copySetInfo, oldPeer);
+    ASSERT_EQ(metaserverId, newPeerId);
+}
+
+TEST_F(SchedulerTest, CopysetAllPeersOnline_Test) {
+    CopySetInfo copySetInfo;
+    PeerInfo peer1;
+    PeerInfo peer2;
+    PeerInfo peer3;
+    peer1.id = 10;
+    peer2.id = 11;
+    peer3.id = 12;
+    copySetInfo.peers.push_back(peer1);
+    copySetInfo.peers.push_back(peer2);
+    copySetInfo.peers.push_back(peer3);
+    {
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(10, _))
+            .WillOnce(Return(false));
+
+        ASSERT_FALSE(scheduler_->CopysetAllPeersOnline(copySetInfo));
+    }
+
+    {
+        MetaServerSpace space;
+        MetaServerInfo info1(peer1, OnlineState::OFFLINE, space);
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(10, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info1), Return(true)));
+
+        ASSERT_FALSE(scheduler_->CopysetAllPeersOnline(copySetInfo));
+    }
+
+    {
+        MetaServerSpace space;
+        MetaServerInfo info1(peer1, OnlineState::ONLINE, space);
+        MetaServerInfo info2(peer2, OnlineState::OFFLINE, space);
+
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(10, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info1), Return(true)));
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(11, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info2), Return(true)));
+
+        ASSERT_FALSE(scheduler_->CopysetAllPeersOnline(copySetInfo));
+    }
+
+    {
+        MetaServerSpace space;
+        MetaServerInfo info1(peer1, OnlineState::ONLINE, space);
+        MetaServerInfo info2(peer2, OnlineState::ONLINE, space);
+        MetaServerInfo info3(peer3, OnlineState::ONLINE, space);
+
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(10, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info1), Return(true)));
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(11, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info2), Return(true)));
+        EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(12, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info3), Return(true)));
+
+        ASSERT_TRUE(scheduler_->CopysetAllPeersOnline(copySetInfo));
+    }
 }
 }  // namespace schedule
 }  // namespace mds

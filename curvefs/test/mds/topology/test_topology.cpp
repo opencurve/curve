@@ -66,7 +66,7 @@ class TestTopology : public ::testing::Test {
                 Pool::RedundanceAndPlaceMentPolicy(),
             uint64_t createTime = 0x888
             ) {
-        Pool pool(id, name, rap, createTime, true);
+        Pool pool(id, name, rap, createTime);
         EXPECT_CALL(*storage_, StoragePool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPool(pool);
@@ -165,7 +165,7 @@ TEST_F(TestTopology, test_init_success) {
     std::unordered_map<PartitionIdType, Partition> partitionMap_;
 
     poolMap_[0x11] = Pool(0x11, "pool",
-        Pool::RedundanceAndPlaceMentPolicy(), 0, true);
+        Pool::RedundanceAndPlaceMentPolicy(), 0);
     zoneMap_[0x21] = Zone(0x21, "zone1", 0x11);
     serverMap_[0x31] = Server(0x31, "server", "127.0.0.1", 8080,
                                 "127.0.0.1", 8080, 0x21, 0x11);
@@ -375,8 +375,7 @@ TEST_F(TestTopology, test_AddPool_success) {
     Pool pool(0x01,
             "test1",
             Pool::RedundanceAndPlaceMentPolicy(),
-            0,
-            true);
+            0);
 
     EXPECT_CALL(*storage_, StoragePool(_))
         .WillOnce(Return(true));
@@ -393,8 +392,7 @@ TEST_F(TestTopology, test_AddPool_IdDuplicated) {
     Pool pool(id,
             "test2",
             Pool::RedundanceAndPlaceMentPolicy(),
-            0,
-            true);
+            0);
 
     int ret = topology_->AddPool(pool);
 
@@ -402,7 +400,7 @@ TEST_F(TestTopology, test_AddPool_IdDuplicated) {
 }
 
 TEST_F(TestTopology, test_AddPool_StorageFail) {
-    Pool pool(0x01, "test1", Pool::RedundanceAndPlaceMentPolicy(), 0, true);
+    Pool pool(0x01, "test1", Pool::RedundanceAndPlaceMentPolicy(), 0);
 
     EXPECT_CALL(*storage_, StoragePool(_))
         .WillOnce(Return(false));
@@ -957,8 +955,7 @@ TEST_F(TestTopology, UpdatePool_success) {
     Pool pool(poolId,
             "name1",
             Pool::RedundanceAndPlaceMentPolicy(),
-            1,
-            true);
+            1);
 
     EXPECT_CALL(*storage_, UpdatePool(_))
         .WillOnce(Return(true));
@@ -977,8 +974,7 @@ TEST_F(TestTopology, UpdatePool_PoolNotFound) {
     Pool pool(poolId,
             "name1",
             Pool::RedundanceAndPlaceMentPolicy(),
-            0,
-            true);
+            0);
 
     int ret = topology_->UpdatePool(pool);
 
@@ -995,8 +991,7 @@ TEST_F(TestTopology, UpdatePool_StorageFail) {
     Pool pool(poolId,
             "name1",
             Pool::RedundanceAndPlaceMentPolicy(),
-            0,
-            true);
+            0);
 
     EXPECT_CALL(*storage_, UpdatePool(_))
         .WillOnce(Return(false));

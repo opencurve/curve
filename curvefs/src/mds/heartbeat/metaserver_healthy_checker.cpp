@@ -20,10 +20,10 @@
  * Author: chenwei
  */
 
-#include <glog/logging.h>
 #include "curvefs/src/mds/heartbeat/metaserver_healthy_checker.h"
-#include "curvefs/src/mds/topology/topology_item.h"
+#include <glog/logging.h>
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 
 using ::curvefs::mds::topology::MetaServer;
 using ::curvefs::mds::topology::TopoStatusCode;

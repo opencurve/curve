@@ -254,15 +254,16 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         return -1;
     }
 
-    req->set_metadataspaceused(capacityKB - availKB);
-    req->set_metadataspacetotal(capacityKB);
+    // TODO(cw123) : this should replace
+    // req->set_metadataspaceused(capacityKB - availKB);
+    // req->set_metadataspacetotal(capacityKB);
 
-    uint64_t vmRss = 0;
-    if (!GetProcMemory(&vmRss)) {
-        LOG(ERROR) << "Failed to get proc memory information metaserver";
-        return -1;
-    }
-    req->set_memoryused(vmRss);
+    // uint64_t vmRss = 0;
+    // if (!GetProcMemory(&vmRss)) {
+    //     LOG(ERROR) << "Failed to get proc memory information metaserver";
+    //     return -1;
+    // }
+    // req->set_memoryused(vmRss);
 
     std::vector<CopysetNode *> copysets;
     copysetMan_->GetAllCopysets(&copysets);
@@ -288,10 +289,10 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
     VLOG(6) << "Heartbeat request: Metaserver ID: " << request.metaserverid()
              << ", IP = " << request.ip() << ", port = " << request.port()
              << ", copyset count = " << request.copysetcount()
-             << ", leader count = " << request.leadercount()
-             << ", metadataSpaceTotal = " << request.metadataspacetotal()
-             << " KB, metadataSpaceUsed = " << request.metadataspaceused()
-             << " KB, memoryUsed = " << request.memoryused() << " KB";
+             << ", leader count = " << request.leadercount();
+            //  << ", metadataSpaceTotal = " << request.metadataspacetotal()
+            //  << " KB, metadataSpaceUsed = " << request.metadataspaceused()
+            //  << " KB, memoryUsed = " << request.memoryused() << " KB";
     for (int i = 0; i < request.copysetinfos_size(); i++) {
         const curvefs::mds::heartbeat::CopySetInfo &info =
             request.copysetinfos(i);

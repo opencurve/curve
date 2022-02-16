@@ -82,9 +82,14 @@ MetaServerHeartbeatRequest GetMetaServerHeartbeatRequestForTest() {
     request.set_starttime(1000);
     request.set_leadercount(10);
     request.set_copysetcount(100);
-    request.set_metadataspaceused(0);
-    request.set_metadataspacetotal(0);
-    request.set_memoryused(0);
+    MetaSeverSpaceStatus status;
+    status.set_diskcopysetminrequirebyte(0);
+    status.set_diskthresholdbyte(0);
+    status.set_diskusedbyte(0);
+    status.set_memorythresholdbyte(0);
+    status.set_memorycopysetminrequirebyte(0);
+    status.set_memoryusedbyte(0);
+    request.mutable_spacestatus()->CopyFrom(status);
 
     auto info = request.add_copysetinfos();
     info->set_poolid(1);

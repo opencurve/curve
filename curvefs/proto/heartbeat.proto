@@ -20,6 +20,12 @@ import "proto/heartbeat.proto";
 package curvefs.mds.heartbeat;
 option cc_generic_services = true;
 
+// TODO(cw123): add copyset resource usage state later
+// message CopySetState {
+//     required uint64 momoryUsedByte = 1;  // the momory this copyset used
+//     required uint64 diskUsedByte = 2;  // the disk this copyset used
+// };
+
 message CopySetInfo {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -30,6 +36,7 @@ message CopySetInfo {
     required common.Peer leaderPeer = 5;
     repeated common.PartitionInfo partitionInfoList = 6;
     optional ConfigChangeInfo configChangeInfo = 7;
+    // required CopySetState state = 8;
 };
 
 message ConfigChangeInfo {
@@ -44,6 +51,24 @@ message CandidateError {
     required string errMsg = 2;
 };
 
+message MetaSeverSpaceStatus {
+    // The metaserver needs to consider the disk reservation.
+    // The value passed here is the physical capacity of the disk multiplied
+    // by a certain percentage.
+    required uint64 diskThresholdByte = 1;
+    // Minimum disk requirements for a copyset
+    required uint64 diskCopysetMinRequireByte = 2;
+    // The current disk usage of this metaserver
+    required uint64 diskUsedByte = 3;
+
+    // The maximum amount of memory this metaserver can use
+    required uint64 memoryThresholdByte = 4;
+    // Minimum memory requirement for copy on this metaserver
+    required uint64 memoryCopySetMinRequireByte = 5;
+    // The amount of memory used by the current process of this metaserver
+    required uint64 memoryUsedByte = 6;
+}
+
 message MetaServerHeartbeatRequest {
     required uint32 metaServerID = 1;
     required string token = 2;
@@ -53,9 +78,7 @@ message MetaServerHeartbeatRequest {
     repeated CopySetInfo copysetInfos = 6;
     required uint32 leaderCount = 7;
     required uint32 copysetCount = 8;
-    required uint64 metadataSpaceTotal = 9;  // KB
-    required uint64 metadataSpaceUsed = 10;  // KB
-    required uint64 memoryUsed = 11;  // KB
+    required MetaSeverSpaceStatus spaceStatus = 9;
 };
 
 message CopySetConf {
