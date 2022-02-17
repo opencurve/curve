@@ -84,7 +84,7 @@ class TestDiskCacheWrite : public ::testing::Test {
 };
 
 TEST_F(TestDiskCacheWrite, ReadFile) {
-    uint64_t length;
+    uint64_t length = 0;
     char* buf;
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillOnce(Return(-1));

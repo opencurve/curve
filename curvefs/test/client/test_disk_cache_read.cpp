@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "src/common/lru_cache.h"
 #include "curvefs/test/client/mock_test_posix_wapper.h"
 #include "curvefs/test/client/mock_disk_cache_base.h"
 #include "curvefs/src/client/s3/disk_cache_read.h"
@@ -46,6 +47,9 @@ using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::ReturnArg;
 
+using ::curve::common::CacheMetrics;
+using ::curve::common::SglLRUCache;
+
 class TestDiskCacheRead : public ::testing::Test {
  protected:
     TestDiskCacheRead() {}
@@ -66,7 +70,6 @@ class TestDiskCacheRead : public ::testing::Test {
     std::shared_ptr<DiskCacheRead> diskCacheRead_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
 };
-
 
 TEST_F(TestDiskCacheRead, ReadDiskFile) {
     EXPECT_CALL(*wrapper_, open(_, _, _))
@@ -154,15 +157,18 @@ TEST_F(TestDiskCacheRead, LinkWriteToRead) {
 TEST_F(TestDiskCacheRead, LoadAllCacheReadFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillOnce(Return(-1));
-    std::set<std::string> cachedObj;
-    int ret = diskCacheRead_->LoadAllCacheReadFile(&cachedObj);
+    std::shared_ptr<SglLRUCache<std::string>> cachedObj;
+    cachedObj = std::make_shared<
+      SglLRUCache<std::string>>(0,
+      std::make_shared<CacheMetrics>("diskcache"));
+    int ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, opendir(NotNull()))
         .WillOnce(ReturnNull());
-    ret = diskCacheRead_->LoadAllCacheReadFile(&cachedObj);
+    ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(-1, ret);
 
     DIR* dir = opendir(".");
@@ -174,7 +180,7 @@ TEST_F(TestDiskCacheRead, LoadAllCacheReadFile) {
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .WillOnce(ReturnNull());
-    ret = diskCacheRead_->LoadAllCacheReadFile(&cachedObj);
+    ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(0, ret);
 
     struct dirent* dirent;
@@ -190,7 +196,7 @@ TEST_F(TestDiskCacheRead, LoadAllCacheReadFile) {
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(0));
-    ret = diskCacheRead_->LoadAllCacheReadFile(&cachedObj);
+    ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(0, ret);
 }
 

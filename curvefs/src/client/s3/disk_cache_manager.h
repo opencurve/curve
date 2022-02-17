@@ -24,12 +24,14 @@
 
 #include <bthread/mutex.h>
 
+#include <list>
 #include <string>
 #include <vector>
 #include <set>
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
+#include "src/common/lru_cache.h"
 #include "src/common/throttle.h"
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
@@ -40,8 +42,10 @@
 namespace curvefs {
 namespace client {
 
+using ::curve::common::LRUCache;
 using curvefs::common::PosixWrapper;
 using curve::common::ReadWriteThrottleParams;
+using ::curve::common::SglLRUCache;
 using curvefs::common::SysUtils;
 using curve::common::ThrottleParams;
 using curve::common::Throttle;
@@ -148,9 +152,7 @@ class DiskCacheManager {
     std::string cacheDir_;
     std::shared_ptr<DiskCacheWrite> cacheWrite_;
     std::shared_ptr<DiskCacheRead> cacheRead_;
-    std::set<std::string> cachedObjName_;
-
-    bthread::Mutex mtx_;
+    std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
 
     S3Client *client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
