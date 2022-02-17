@@ -69,24 +69,33 @@ Curve ops is more friendly than Curve in the block storage scenario.
 
 ## Quick Start of CurveBS
 
-Want to try on it? Take it easy! We'll help you step by step, but make sure you've read this [Tips](docs/en/deploy_en.md#Tips) before you start.
+In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS (scaleout, upgrade and other functions are under development), please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
 
 ### Deploy an all-in-one environment (to try how CURVE works)
+Please refer to the CurveBS cluster deployment steps in the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment) , for the single-machine experience environment, please use the template about "cluster topology file for single-machine deployment".
 
-[Deploy on single machine](docs/en/deploy_en.md#deploy-on-single-machine)
+
+[Deploy on single machine - deprecated method](docs/en/deploy_en.md#deploy-on-single-machine)
 
 ### Deploy multi-machine cluster (try it in production environment)
+Please refer to the CurveBS cluster deployment steps in the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment) , please use the template about "cluster topology file for multi-machine deployment".
 
-[Deploy on multiple machines](docs/en/deploy_en.md#deploy-on-multiple-machines)
+
+[Deploy on multiple machines - deprecated method](docs/en/deploy_en.md#deploy-on-multiple-machines)
 
 ### curve_ops_tool introduction
 
 [curve_ops_tool introduction](docs/en/curve_ops_tool_en.md)
 
 ## Quick Start of CurveFS
-In order to improve the convenience of Curve operation and maintenance, we have designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used to deploy and manage Curve clusters. Currently, it supports the deployment of CurveFS ​​(CurveBS support is under development).
+In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS (scaleout, upgrade and other functions are under development), please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
 
-Detail for CurveFS deploy: [CurveFS ​​deployment](https://github.com/opencurve/curveadm#deploy-cluster)
+Detail for deploying CurveFS cluster: [CurveFS ​​deployment](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment)
+
+### curvefs_tool introduction
+
+[curvefs_tool introduction](curvefs/src/tools#readme)
+
 
 ## For Developers
 
@@ -98,7 +107,7 @@ Detail for CurveFS deploy: [CurveFS ​​deployment](https://github.com/opencur
 [test cases compiling and running](docs/en/build_and_run_en.md#test-case-compilation-and-execution)
 
 ### FIO curve block storage engine
-Fio curve engine is added, you can clone https://github.com/skypexu/fio/tree/nebd_engine and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+Fio curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
 
 ### Coding style guides
 CURVE is coded following [Google C++ Style Guide strictly](https://google.github.io/styleguide/cppguide.html). Please follow this guideline if you're trying to contribute your codes.

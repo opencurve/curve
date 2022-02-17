@@ -67,25 +67,34 @@ Ceph: L/N
   - [更多](https://github.com/opencurve/curve-meetup-slides/tree/main/CurveFS)
 
 ## CurveBS快速开始
-
-在您开始动手部署前请先仔细阅读特别说明部分：[特别说明](docs/cn/deploy.md#%E7%89%B9%E5%88%AB%E8%AF%B4%E6%98%8E)
+为了提升 Curve 的运维便利性，我们设计开发了 [CurveAdm](https://github.com/opencurve/curveadm) 项目，其主要用于部署和管理 Curve 集群，目前已支持部署CurveBS & CurveFS（扩容、版本升级等更多功能正在开发中），相关使用文档请参考 [CurveAdm用户手册](https://github.com/opencurve/curveadm/wiki)，并根据手册首先安装CurveAdm工具之后再进行Curve集群的部署。
 
 ### 部署All-in-one体验环境
+请参考CurveAdm用户手册中[CurveBS集群部署步骤](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)，单机体验环境请使用“集群拓扑文件-单机部署”模板。
 
-[单机部署](docs/cn/deploy.md#%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2)
+
+[单机部署 - 即将废弃方式](docs/cn/deploy.md#%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2)
 
 ### 部署多机集群
+请参考CurveAdm用户手册中[CurveBS集群部署步骤](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)，请使用“集群拓扑文件-多机部署”模板。
 
-[多机部署](docs/cn/deploy.md#%E5%A4%9A%E6%9C%BA%E9%83%A8%E7%BD%B2)
 
-### 查询工具说明
+[多机部署 - 即将废弃方式](docs/cn/deploy.md#%E5%A4%9A%E6%9C%BA%E9%83%A8%E7%BD%B2)
 
-[查询工具说明](docs/cn/curve_ops_tool.md)
+### 命令行工具说明
+
+[命令行工具说明](docs/cn/curve_ops_tool.md)
 
 ## CurveFS快速开始
-为了提升 Curve 的运维便利性，我们设计开发了 [CurveAdm](https://github.com/opencurve/curveadm) 项目，其主要用于部署和管理 Curve 集群，目前已支持部署 CurveFS（CurveBS 的支持正在开发中）。
+为了提升 Curve 的运维便利性，我们设计开发了 [CurveAdm](https://github.com/opencurve/curveadm) 项目，其主要用于部署和管理 Curve 集群，目前已支持部署CurveBS & CurveFS（扩容、版本升级等更多功能正在开发中），相关使用文档请参考 [CurveAdm用户手册](https://github.com/opencurve/curveadm/wiki)，并根据手册首先安装CurveAdm工具之后再进行Curve集群的部署。
 
-具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm#deploy-cluster)
+
+具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment)
+
+### 命令行工具说明
+
+[命令行工具说明](curvefs/src/tools#readme)
+
 
 ## 参与开发
 
@@ -97,7 +106,7 @@ Ceph: L/N
 [测试用例编译及运行](docs/cn/build_and_run.md#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E7%BC%96%E8%AF%91%E5%8F%8A%E6%89%A7%E8%A1%8C)
 
 ### FIO curve块存储引擎
-fio的curve块存储引擎代码已经上传到 https://github.com/skypexu/fio/tree/nebd_engine ，请自行编译测试（依赖nebd库），fio命令行示例：`./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+fio的curve块存储引擎代码已经上传到 https://github.com/opencurve/fio ，请自行编译测试（依赖nebd库），fio命令行示例：`./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
 
 ### 编码规范
 CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，请您也遵循这一指南来提交您的代码。
