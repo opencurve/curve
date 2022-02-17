@@ -50,7 +50,7 @@ The configuration of the monitoring target uses the prometheus file-based servic
 
 2. ```docker compose``` is used to orchestrate the configuration of docker components, including Promethues, Grafana and Repoter.
 
-3. ```python``` scripts. [target_json.py](../../monitor/target_json.py) is used to generate the monitoring target configuration that prometheus service discovery depends on. The generated file is in json format and the script depends on [target.ini](../. ./monitor/target.ini.example) to obtain mds, etcd information from the configuration. [grafana-report.py](../../monitor/grafana-report.py) is used to export the data information required by the daily reporter from Grafana.
+3. ```python``` scripts. [target_json.py](../../monitor/target_json.py) is used to generate the monitoring target configuration that prometheus service discovery depends on. The generated file is in json format and the script depends on [target.ini](../../monitor/target.ini) to obtain mds, etcd information from the configuration. [grafana-report.py](../../monitor/grafana-report.py) is used to export the data information required by the daily reporter from Grafana.
 
 ## Renderings Show
 
