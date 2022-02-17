@@ -261,6 +261,23 @@ TEST_F(TestDiskCacheManager, WriteDiskFile) {
     ASSERT_EQ(0, ret);
 }
 
+TEST_F(TestDiskCacheManager, IsCached) {
+    std::string fileName = "test";
+    std::string fileName2 = "test2";
+    bool ret = diskCacheManager_->IsCached(fileName);
+    ASSERT_EQ(false, ret);
+
+    diskCacheManager_->AddCache(fileName);
+    diskCacheManager_->AddCache(fileName2);
+    ret = diskCacheManager_->IsCached(fileName2);
+    ASSERT_EQ(true, ret);
+
+    diskCacheManager_->AddCache(fileName);
+    diskCacheManager_->AddCache(fileName2);
+    ret = diskCacheManager_->IsCached(fileName);
+    ASSERT_EQ(true, ret);
+}
+
 TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
         .WillOnce(Return(-1));

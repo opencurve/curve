@@ -64,6 +64,11 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     fullRatio_ = 0;
     safeRatio_ = 0;
     maxUsableSpaceBytes_ = 0;
+    // cannot limit the size,
+    // because cache is been delete must after upload to s3
+    cachedObjName_ = std::make_shared<
+      SglLRUCache<std::string>>(0,
+      std::make_shared<CacheMetrics>("diskcache"));
 }
 
 int DiskCacheManager::Init(S3Client *client,
@@ -93,12 +98,14 @@ int DiskCacheManager::Init(S3Client *client,
     std::thread uploadThread =
         std::thread(&DiskCacheManager::UploadAllCacheWriteFile, this);
     uploadThread.detach();
+
     // load all cache read file
-    ret = cacheRead_->LoadAllCacheReadFile(&cachedObjName_);
+    ret = cacheRead_->LoadAllCacheReadFile(cachedObjName_);
     if (ret < 0) {
         LOG(ERROR) << "load all cache read file error. ret = " << ret;
         return ret;
     }
+
     // start trim thread
     TrimRun();
 
@@ -145,15 +152,12 @@ int DiskCacheManager::UploadAllCacheWriteFile() {
 }
 
 void DiskCacheManager::AddCache(const std::string name) {
-    std::lock_guard<bthread::Mutex> lk(mtx_);
-    cachedObjName_.emplace(name);
+    cachedObjName_->Put(name);
+    VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
 bool DiskCacheManager::IsCached(const std::string name) {
-    std::lock_guard<bthread::Mutex> lk(mtx_);
-    std::set<std::string>::iterator cacheKeyIter;
-    cacheKeyIter = cachedObjName_.find(name);
-    if (cacheKeyIter == cachedObjName_.end()) {
+    if (!cachedObjName_->IsCached(name)) {
         VLOG(9) << "not cached, name = " << name;
         return false;
     }
@@ -331,23 +335,23 @@ void DiskCacheManager::TrimCache() {
             std::string cacheWriteFullDir;
             cacheReadFullDir = GetCacheReadFullDir();
             cacheWriteFullDir = GetCacheWriteFullDir();
-            std::set<std::string> cachedObjNameTmp;
-            {
-                std::lock_guard<bthread::Mutex> lk(mtx_);
-                cachedObjNameTmp = cachedObjName_;
-            }
+
             while (!IsDiskCacheSafe()) {
                 std::string cacheReadFile, cacheWriteFile;
-                std::set<std::string>::iterator cacheKeyIter;
-                cacheKeyIter = cachedObjNameTmp.begin();
-                if (cacheKeyIter == cachedObjNameTmp.end()) {
+                if (cachedObjName_->Size() == 0) {
                     VLOG(3) << "remove disk file error"
-                               << ", cachedObjName is empty.";
+                            << ", cachedObjName is empty.";
                     break;
                 }
-
-                cacheReadFile = cacheReadFullDir + "/" + *cacheKeyIter;
-                cacheWriteFile = cacheWriteFullDir + "/" + *cacheKeyIter;
+                std::string cacheKey;
+                cachedObjName_->GetBack(&cacheKey);
+                if (cacheKey.empty()) {
+                    VLOG(3) << "cachekey is empty";
+                    break;
+                }
+                VLOG(9) << "obj will be removed: " << cacheKey;
+                cacheReadFile = cacheReadFullDir + "/" + cacheKey;
+                cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
                 struct stat statFile;
                 int ret;
                 ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
@@ -359,28 +363,15 @@ void DiskCacheManager::TrimCache() {
                 if (ret == 0) {
                     VLOG(3) << "do not remove this disk file"
                             << ", file has not been uploaded to S3."
-                            << ", file is: " << *cacheKeyIter;
-                    cachedObjNameTmp.erase(cacheKeyIter);
-                    continue;
+                            << ", file is: " << cacheKey;
+                    break;
                 }
-                {
-                    std::lock_guard<bthread::Mutex> lk(mtx_);
-                    std::set<std::string>::iterator iter;
-                    iter = cachedObjName_.find(*cacheKeyIter);
-                    if (iter == cachedObjName_.end()) {
-                        VLOG(6) << "remove disk file error"
-                                << ", file is not exist in cachedObjName"
-                                << ", file is: " << *cacheKeyIter;
-                        cachedObjNameTmp.erase(cacheKeyIter);
-                        continue;
-                    }
-                    cachedObjName_.erase(iter);
-                }
+                cachedObjName_->Remove(cacheKey);
                 struct stat statReadFile;
                 ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
                 if (ret != 0) {
-                    VLOG(3) << "remove disk file error"
-                               << ", file is: " << *cacheKeyIter;
+                    VLOG(3) << "stat disk file error"
+                            << ", file is: " << cacheKey;
                     continue;
                 }
                 // if remove disk file before delete cache,
@@ -390,14 +381,12 @@ void DiskCacheManager::TrimCache() {
                 ret = posixWrapper_->remove(toDelFile);
                 if (ret < 0) {
                     LOG(ERROR)
-                        << "remove disk file error, file is: " << *cacheKeyIter;
-                    cachedObjNameTmp.erase(cacheKeyIter);
+                        << "remove disk file error, file is: " << cacheKey;
                     continue;
                 }
                 DecDiskUsedBytes(statReadFile.st_size);
                 VLOG(3) << "remove disk file success, file is: "
-                        << *cacheKeyIter;
-                cachedObjNameTmp.erase(cacheKeyIter);
+                        << cacheKey;
             }
             VLOG(3) << "trim over.";
         }

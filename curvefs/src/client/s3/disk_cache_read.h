@@ -22,18 +22,21 @@
 #ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_READ_H_
 #define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_READ_H_
 
+#include <list>
 #include <string>
-#include <vector>
 #include <set>
+#include <vector>
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
+#include "src/common/lru_cache.h"
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/client/s3/disk_cache_base.h"
 
 namespace curvefs {
 namespace client {
 
+using ::curve::common::SglLRUCache;
 using curvefs::common::PosixWrapper;
 
 class DiskCacheRead : public DiskCacheBase {
@@ -53,7 +56,8 @@ class DiskCacheRead : public DiskCacheBase {
     /**
     * @brief after reboot，load all files that store in read cache.
     */
-    virtual int LoadAllCacheReadFile(std::set<std::string>* cachedObj);
+    virtual int LoadAllCacheReadFile(std::shared_ptr<
+      SglLRUCache<std::string>> cachedObj);
     virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
         metric_ = metric;
     }
