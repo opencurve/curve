@@ -4,7 +4,7 @@
 
 curve集群监控的控制脚本，用于启动、停止、重启监控功能。
 
-##### docker-compose.yml.example:
+##### docker-compose.yml:
 
 编排监控系统相关容器的配置文件，包括prometheus容器、grafana容器。
 
@@ -18,7 +18,7 @@ curve集群监控的控制脚本，用于启动、停止、重启监控功能。
 
 用于生成prometheus监控对象的python脚本，每隔一段时间用curve_ops_tool拉取监控目标并更新。
 
-##### target.ini.example
+##### target.ini
 
 target_json.py脚本依赖的一些配置
 
@@ -26,7 +26,7 @@ target_json.py脚本依赖的一些配置
 
 grafana相关目录
 
-##### grafana/grafana.ini.example:
+##### grafana/grafana.ini:
 
 grafana的启动配置文件，将映射到容器的 `/etc/grafana/grafana.ini` 上
 
@@ -49,7 +49,7 @@ grafana的datasources的json文件存放目录，grafana将从该目录加载文
 
 prometheus相关目录
 
-##### prometheus/prometheus.yml.example:
+##### prometheus/prometheus.yml:
 
 prometheus的配置文件
 
