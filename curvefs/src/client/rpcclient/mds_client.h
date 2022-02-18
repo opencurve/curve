@@ -64,15 +64,6 @@ class MdsClient {
     virtual FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                               MDSBaseClient *baseclient) = 0;
 
-    virtual FSStatusCode CreateFs(const std::string &fsName, uint64_t blockSize,
-                                  const Volume &volume) = 0;
-
-    virtual FSStatusCode CreateFsS3(const std::string &fsName,
-                                    uint64_t blockSize,
-                                    const S3Info &s3Info) = 0;
-
-    virtual FSStatusCode DeleteFs(const std::string &fsName) = 0;
-
     virtual FSStatusCode MountFs(const std::string &fsName,
                                  const std::string &mountPt,
                                  FsInfo *fsInfo) = 0;
@@ -117,14 +108,6 @@ class MdsClientImpl : public MdsClient {
 
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                       MDSBaseClient *baseclient) override;
-
-    FSStatusCode CreateFs(const std::string &fsName, uint64_t blockSize,
-                          const Volume &volume) override;
-
-    FSStatusCode CreateFsS3(const std::string &fsName, uint64_t blockSize,
-                            const S3Info &s3Info) override;
-
-    FSStatusCode DeleteFs(const std::string &fsName) override;
 
     FSStatusCode MountFs(const std::string &fsName, const std::string &mountPt,
                          FsInfo *fsInfo) override;

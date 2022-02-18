@@ -63,25 +63,6 @@ CURVEFS_ERROR FuseS3Client::FuseOpInit(void *userdata,
     return ret;
 }
 
-CURVEFS_ERROR FuseS3Client::CreateFs(void *userdata, FsInfo *fsInfo) {
-    struct MountOption *mOpts = (struct MountOption *)userdata;
-    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-    ::curvefs::common::S3Info s3Info;
-    s3Info.set_ak(option_.s3Opt.s3AdaptrOpt.ak);
-    s3Info.set_sk(option_.s3Opt.s3AdaptrOpt.sk);
-    s3Info.set_endpoint(option_.s3Opt.s3AdaptrOpt.s3Address);
-    s3Info.set_bucketname(option_.s3Opt.s3AdaptrOpt.bucketName);
-    s3Info.set_blocksize(option_.s3Opt.s3ClientAdaptorOpt.blockSize);
-    s3Info.set_chunksize(option_.s3Opt.s3ClientAdaptorOpt.chunkSize);
-    // fsBlockSize means min allocsize, for s3, we do not need this.
-    FSStatusCode ret = mdsClient_->CreateFsS3(fsName, 1, s3Info);
-    if (ret != FSStatusCode::OK) {
-        return CURVEFS_ERROR::INTERNAL;
-    }
-
-    return CURVEFS_ERROR::OK;
-}
-
 CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                                         const char *buf, size_t size, off_t off,
                                         struct fuse_file_info *fi,

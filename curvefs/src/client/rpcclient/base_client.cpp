@@ -27,42 +27,6 @@
 namespace curvefs {
 namespace client {
 namespace rpcclient {
-void MDSBaseClient::CreateFs(const std::string& fsName, uint64_t blockSize,
-                             const Volume& volume, CreateFsResponse* response,
-                             brpc::Controller* cntl, brpc::Channel* channel) {
-    CreateFsRequest request;
-    request.set_fsname(fsName);
-    request.set_blocksize(blockSize);
-    request.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
-    Volume* vol = new Volume;
-    vol->CopyFrom(volume);
-    request.mutable_fsdetail()->set_allocated_volume(vol);
-    curvefs::mds::MdsService_Stub stub(channel);
-    stub.CreateFs(cntl, &request, response, nullptr);
-}
-
-void MDSBaseClient::CreateFsS3(const std::string& fsName, uint64_t blockSize,
-                               const S3Info& s3Info, CreateFsResponse* response,
-                               brpc::Controller* cntl, brpc::Channel* channel) {
-    CreateFsRequest request;
-    request.set_fsname(fsName);
-    request.set_blocksize(blockSize);
-    request.set_fstype(FSType::TYPE_S3);
-    S3Info* info = new S3Info;
-    info->CopyFrom(s3Info);
-    request.mutable_fsdetail()->set_allocated_s3info(info);
-    curvefs::mds::MdsService_Stub stub(channel);
-    stub.CreateFs(cntl, &request, response, nullptr);
-}
-
-void MDSBaseClient::DeleteFs(const std::string& fsName,
-                             DeleteFsResponse* response, brpc::Controller* cntl,
-                             brpc::Channel* channel) {
-    DeleteFsRequest request;
-    request.set_fsname(fsName);
-    curvefs::mds::MdsService_Stub stub(channel);
-    stub.DeleteFs(cntl, &request, response, nullptr);
-}
 
 void MDSBaseClient::MountFs(const std::string& fsName,
                             const std::string& mountPt,

@@ -85,9 +85,6 @@ class FuseS3Client : public FuseClient {
 
     void FlushData() override;
 
-    CURVEFS_ERROR CreateFs(
-        void *userdata, FsInfo *fsInfo) override;
-
  private:
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;

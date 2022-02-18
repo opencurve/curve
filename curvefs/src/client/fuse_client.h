@@ -236,8 +236,6 @@ class FuseClient {
 
     virtual void FlushData() = 0;
 
-    virtual CURVEFS_ERROR CreateFs(void* userdata, FsInfo* fsInfo) = 0;
-
  protected:
     // mds client
     std::shared_ptr<MdsClient> mdsClient_;

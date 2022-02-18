@@ -57,34 +57,6 @@ void FuseVolumeClient::UnInit() {
     FuseClient::UnInit();
 }
 
-CURVEFS_ERROR FuseVolumeClient::CreateFs(void *userdata, FsInfo *fsInfo) {
-    struct MountOption *mOpts = (struct MountOption *)userdata;
-    std::string volName = (mOpts->volume == nullptr) ? "" : mOpts->volume;
-    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-    std::string user = (mOpts->user == nullptr) ? "" : mOpts->user;
-
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    BlockDeviceStat stat;
-    ret = blockDeviceClient_->Stat(volName, user, &stat);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "Stat volume failed, ret = " << ret
-                   << ", volName = " << volName << ", user = " << user;
-        return ret;
-    }
-
-    Volume vol;
-    vol.set_volumesize(stat.length);
-    vol.set_blocksize(volOpts_.volBlockSize);
-    vol.set_volumename(volName);
-    vol.set_user(user);
-
-    FSStatusCode ret2 = mdsClient_->CreateFs(fsName, volOpts_.fsBlockSize, vol);
-    if (ret2 != FSStatusCode::OK) {
-        return CURVEFS_ERROR::INTERNAL;
-    }
-    return CURVEFS_ERROR::OK;
-}
-
 CURVEFS_ERROR FuseVolumeClient::FuseOpInit(
     void *userdata, struct fuse_conn_info *conn) {
     struct MountOption *mOpts = (struct MountOption *) userdata;
