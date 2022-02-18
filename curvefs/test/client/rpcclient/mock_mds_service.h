@@ -35,10 +35,6 @@ class MockMdsService : public curvefs::mds::MdsService {
     MockMdsService() : MdsService() {}
     ~MockMdsService() = default;
 
-    MOCK_METHOD4(CreateFs, void(::google::protobuf::RpcController *controller,
-                                const ::curvefs::mds::CreateFsRequest *request,
-                                ::curvefs::mds::CreateFsResponse *response,
-                                ::google::protobuf::Closure *done));
     MOCK_METHOD4(MountFs, void(::google::protobuf::RpcController *controller,
                                const ::curvefs::mds::MountFsRequest *request,
                                ::curvefs::mds::MountFsResponse *response,
@@ -52,10 +48,6 @@ class MockMdsService : public curvefs::mds::MdsService {
                       const ::curvefs::mds::GetFsInfoRequest *request,
                       ::curvefs::mds::GetFsInfoResponse *response,
                       ::google::protobuf::Closure *done));
-    MOCK_METHOD4(DeleteFs, void(::google::protobuf::RpcController *controller,
-                                const ::curvefs::mds::DeleteFsRequest *request,
-                                ::curvefs::mds::DeleteFsResponse *response,
-                                ::google::protobuf::Closure *done));
 };
 }  // namespace rpcclient
 }  // namespace client

@@ -70,10 +70,6 @@ using curvefs::common::Volume;
 
 using curvefs::mds::AllocateS3ChunkRequest;
 using curvefs::mds::AllocateS3ChunkResponse;
-using curvefs::mds::CreateFsRequest;
-using curvefs::mds::CreateFsResponse;
-using curvefs::mds::DeleteFsRequest;
-using curvefs::mds::DeleteFsResponse;
 using curvefs::mds::FsInfo;
 using curvefs::mds::FsStatus;
 using curvefs::mds::GetFsInfoRequest;
@@ -130,17 +126,6 @@ inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
 class MDSBaseClient {
  public:
     virtual ~MDSBaseClient() = default;
-
-    virtual void CreateFs(const std::string& fsName, uint64_t blockSize,
-                          const Volume& volume, CreateFsResponse* response,
-                          brpc::Controller* cntl, brpc::Channel* channel);
-
-    virtual void CreateFsS3(const std::string& fsName, uint64_t blockSize,
-                            const S3Info& s3Info, CreateFsResponse* response,
-                            brpc::Controller* cntl, brpc::Channel* channel);
-
-    virtual void DeleteFs(const std::string& fsName, DeleteFsResponse* response,
-                          brpc::Controller* cntl, brpc::Channel* channel);
 
     virtual void MountFs(const std::string& fsName, const std::string& mountPt,
                          MountFsResponse* response, brpc::Controller* cntl,

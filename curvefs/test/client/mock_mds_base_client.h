@@ -37,15 +37,6 @@ class MockMDSBaseClient : public MDSBaseClient {
     MockMDSBaseClient() : MDSBaseClient() {}
     ~MockMDSBaseClient() = default;
 
-    MOCK_METHOD6(CreateFs,
-                 void(const std::string &fsName, uint64_t blockSize,
-                      const Volume &volume, CreateFsResponse *response,
-                      brpc::Controller *cntl, brpc::Channel *channel));
-
-    MOCK_METHOD4(DeleteFs,
-                 void(const std::string &fsName, DeleteFsResponse *response,
-                      brpc::Controller *cntl, brpc::Channel *channel));
-
     MOCK_METHOD5(MountFs,
                  void(const std::string &fsName, const std::string &mountPt,
                       MountFsResponse *response, brpc::Controller *cntl,

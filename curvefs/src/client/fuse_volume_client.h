@@ -96,9 +96,6 @@ class FuseVolumeClient : public FuseClient {
 
     void FlushData() override;
 
-    CURVEFS_ERROR CreateFs(
-        void *userdata, FsInfo *fsInfo) override;
-
  private:
     // space client
     std::shared_ptr<SpaceClient> spaceClient_;

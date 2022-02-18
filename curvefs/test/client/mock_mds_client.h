@@ -48,16 +48,6 @@ class MockMdsClient : public MdsClient {
                  FSStatusCode(const ::curve::client::MetaServerOption& mdsOpt,
                               MDSBaseClient* baseclient));
 
-    MOCK_METHOD3(CreateFs,
-                 FSStatusCode(const std::string& fsName, uint64_t blockSize,
-                              const Volume& volume));
-
-    MOCK_METHOD3(CreateFsS3,
-                 FSStatusCode(const std::string& fsName, uint64_t blockSize,
-                              const S3Info& s3Info));
-
-    MOCK_METHOD1(DeleteFs, FSStatusCode(const std::string& fsName));
-
     MOCK_METHOD3(MountFs,
                  FSStatusCode(const std::string& fsName,
                               const std::string& mountPt, FsInfo* fsInfo));
