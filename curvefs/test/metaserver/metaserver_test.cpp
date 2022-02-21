@@ -54,8 +54,9 @@ namespace metaserver {
 class MetaserverTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        metaserverListenAddr_ = "127.0.0.1:16702";
-        topologyServiceAddr_ = "127.0.0.1:16700";
+        metaserverIp_ = "127.0.0.1";
+        metaserverPort_ = "56702";
+        topologyServiceAddr_ = "127.0.0.1:56700";
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockHeartbeatService_,
@@ -69,7 +70,8 @@ class MetaserverTest : public ::testing::Test {
         return;
     }
 
-    std::string metaserverListenAddr_;
+    std::string metaserverIp_;
+    std::string metaserverPort_;
     std::string topologyServiceAddr_;
     MockTopologyService mockTopologyService_;
     MockHeartbeatService mockHeartbeatService_;
@@ -94,7 +96,9 @@ TEST_F(MetaserverTest, register_to_mds_success) {
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath("curvefs/conf/metaserver.conf");
     ASSERT_TRUE(conf->LoadConfig());
-    conf->SetStringValue("metaserver.listen.addr", metaserverListenAddr_);
+    conf->SetStringValue("mds.listen.addr", topologyServiceAddr_);
+    conf->SetStringValue("global.ip", metaserverIp_);
+    conf->SetStringValue("global.port", metaserverPort_);
 
     // initialize MDS options
     metaserver.InitOptions(conf);
@@ -136,7 +140,9 @@ TEST_F(MetaserverTest, test2) {
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath("curvefs/conf/metaserver.conf");
     ASSERT_TRUE(conf->LoadConfig());
-    conf->SetStringValue("metaserver.listen.addr", metaserverListenAddr_);
+    conf->SetStringValue("mds.listen.addr", topologyServiceAddr_);
+    conf->SetStringValue("global.ip", metaserverIp_);
+    conf->SetStringValue("global.port", metaserverPort_);
 
     // mock RegistMetaServer
     MetaServerRegistResponse response;
