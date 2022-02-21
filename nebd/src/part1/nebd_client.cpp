@@ -294,7 +294,7 @@ int64_t NebdClient::GetFileSize(int fd) {
 
         *rpcFailed = cntl->Failed();
         if (*rpcFailed) {
-            LOG(WARNING) << "GetFileSize faield, error = "
+            LOG(WARNING) << "GetFileSize failed, error = "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
             return -1;
