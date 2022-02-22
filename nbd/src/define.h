@@ -55,6 +55,7 @@ namespace nbd {
 
 #define HELP_INFO 1
 #define VERSION_INFO 2
+#define CURVE_NBD_BLKSIZE 4096UL    // CURVE后端当前支持4096大小对齐的IO
 
 #define NBD_MAX_PATH "/sys/module/nbd/parameters/nbds_max"
 #define PROCESS_NAME "curve-nbd"
@@ -89,8 +90,6 @@ struct NBDConfig {
     int retry_times = 25;
     // unmap重试之间的睡眠间隔
     int sleep_ms = 200;
-    // device's block size
-    int block_size = 4096;
     // libnebd config file path
     std::string nebd_conf;
 
@@ -170,7 +169,6 @@ inline std::string NBDConfig::MapOptions() const {
     opts.append(KeyValueOption("max_part", max_part, 255, &firstOpt));
     opts.append(BoolOption("try-netlink", try_netlink, &firstOpt));
     opts.append(KeyValueOption("timeout", timeout, 3600, &firstOpt));
-    opts.append(KeyValueOption("block-size", block_size, 4096, &firstOpt));
     opts.append(KeyValueOption("nebd-conf", nebd_conf, {}, &firstOpt));
     opts.append(BoolOption("no-exclusive", !exclusive, &firstOpt));
 

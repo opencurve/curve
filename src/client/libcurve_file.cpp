@@ -43,7 +43,7 @@
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
-#include "src/common/fast_align.h"
+#include "src/common/string_util.h"
 
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
@@ -59,8 +59,6 @@ namespace client {
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
-
-uint32_t kMinIOAlignment = 512;
 
 namespace {
 
@@ -140,11 +138,6 @@ FileClient::FileClient()
       mdsClient_(),
       inited_(false),
       openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
-
-bool FileClient::CheckAligned(off_t offset, size_t length) const {
-    return common::is_aligned(offset, kMinIOAlignment) &&
-           common::is_aligned(length, kMinIOAlignment);
-}
 
 int FileClient::Init(const std::string& configpath) {
     if (inited_) {

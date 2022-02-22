@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "src/common/net_common.h"
-#include "src/common/fast_align.h"
 #include "src/common/string_util.h"
 
 #define RETURN_IF_FALSE(x) \
@@ -38,8 +37,6 @@
 
 namespace curve {
 namespace client {
-
-extern uint32_t kMinIOAlignment;
 
 static constexpr int kDefaultDummyServerPort = 9000;
 
@@ -273,31 +270,6 @@ int ClientConfig::Init(const std::string& configpath) {
     LOG_IF(ERROR, ret == false) << "config no discard.taskDelayMs info";
     RETURN_IF_FALSE(ret);
 
-    ret = conf_.GetUInt32Value(
-        "global.alignment.commonVolume",
-        &fileServiceOption_.ioOpt.ioSplitOpt.alignment.commonVolume);
-    LOG_IF(ERROR, ret == false)
-        << "config no global.alignment.commonVolume info";
-    RETURN_IF_FALSE(ret);
-
-    ret = conf_.GetUInt32Value(
-        "global.alignment.cloneVolume",
-        &fileServiceOption_.ioOpt.ioSplitOpt.alignment.cloneVolume);
-    LOG_IF(ERROR, ret == false)
-        << "config no global.alignment.cloneVolume info";
-    RETURN_IF_FALSE(ret);
-
-    if (!common::is_aligned(
-            fileServiceOption_.ioOpt.ioSplitOpt.alignment.commonVolume, 512) ||
-        !common::is_aligned(
-            fileServiceOption_.ioOpt.ioSplitOpt.alignment.cloneVolume, 512)) {
-        LOG(ERROR) << "global.alignment.commonVolume and "
-                      "global.alignment.cloneVolume must align to 512";
-        RETURN_IF_FALSE(false);
-    }
-
-    kMinIOAlignment =
-        fileServiceOption_.ioOpt.ioSplitOpt.alignment.commonVolume;
     return 0;
 }
 

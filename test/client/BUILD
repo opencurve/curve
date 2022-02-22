@@ -34,8 +34,7 @@ cc_test(
                 "lease_executor_test.cpp",
                 "request_sender_test.cpp",
                 "mds_client_test.cpp",
-                "client_mdsclient_metacache_unittest.cpp",
-                "splitor_test.cpp"
+                "client_mdsclient_metacache_unittest.cpp"
                 ]
     ),
     copts = CURVE_TEST_COPTS,
@@ -344,20 +343,5 @@ cc_test(
         "//test/client/fake:fake_lib",
         "//test/integration/cluster_common:integration_cluster_common",
         "//test/client/mock:client_mock_lib",
-    ]
-)
-
-cc_test(
-    name = "client_splitor_test",
-    srcs = [
-        "splitor_test.cpp"
-    ],
-    copts = CURVE_TEST_COPTS,
-    defines = ["UNIT_TEST", "FIU_ENABLE"],
-    linkopts = ["-lfiu"],
-    deps = [
-        "//include/client:include_client",
-        "//src/client:curve_client",
-        "@com_google_googletest//:gtest",
     ]
 )
