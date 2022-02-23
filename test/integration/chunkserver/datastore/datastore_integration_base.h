@@ -52,6 +52,7 @@ namespace chunkserver {
 
 const uint64_t kMB = 1024 * 1024;
 const ChunkSizeType CHUNK_SIZE = 16 * kMB;
+const ChunkSizeType BLOCK_SIZE = 4096;
 const PageSizeType PAGE_SIZE = 4 * 1024;
 
 extern const string baseDir;    // NOLINT
@@ -76,7 +77,8 @@ class DatastoreIntegrationBase : public testing::Test {
         DataStoreOptions options;
         options.baseDir = baseDir;
         options.chunkSize = CHUNK_SIZE;
-        options.pageSize = PAGE_SIZE;
+        options.metaPageSize = PAGE_SIZE;
+        options.blockSize = BLOCK_SIZE;
         dataStore_ = std::make_shared<CSDataStore>(lfs_,
                                                    filePool_,
                                                    options);
@@ -84,11 +86,12 @@ class DatastoreIntegrationBase : public testing::Test {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
 
-        FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
-                                                   CHUNK_SIZE,
-                                                   PAGE_SIZE,
-                                                   poolDir,
-                                                   poolMetaPath);
+        FilePoolMeta meta;
+        meta.chunkSize = CHUNK_SIZE;
+        meta.metaPageSize = PAGE_SIZE;
+        meta.filePoolPath = poolDir;
+
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta, poolMetaPath);
 
         InitChunkPool(10);
         ASSERT_TRUE(dataStore_->Initialize());

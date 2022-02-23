@@ -61,6 +61,25 @@ using ::curve::common::ChunkServerLocation;
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
+    if (request->has_blocksize() && request->has_chunksize()) {
+        if (request->blocksize() != mds::g_block_size ||
+            request->chunksize() != mds::g_chunk_size) {
+            response->set_statuscode(kTopoErrCodeConflictBlockSizeAndChunkSize);
+            LOG(WARNING) << "chunk's block size or chunk size is not identical "
+                            "with MDS, block size: "
+                         << mds::g_block_size
+                         << ", request block size: " << request->blocksize()
+                         << ", chunk size: " << mds::g_chunk_size
+                         << ", request chunk size: " << request->chunksize();
+            return;
+        }
+    } else if (request->has_blocksize() || request->has_chunksize()) {
+        LOG(WARNING) << "block size and chunk size must be present or absent "
+                        "at the same time";
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
+
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
     ChunkServerStat stat;

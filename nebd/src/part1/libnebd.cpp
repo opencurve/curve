@@ -118,6 +118,10 @@ int64_t nebd_lib_filesize(int fd) {
     return GetFileSize4Nebd(fd);
 }
 
+int64_t nebd_lib_blocksize(int fd) {
+    return GetBlockSize4Nebd(fd);
+}
+
 int nebd_lib_resize(int fd, int64_t size) {
     return Extend4Nebd(fd, size);
 }

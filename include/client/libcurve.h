@@ -54,6 +54,7 @@ typedef struct FileStatInfo {
     int             fileStatus;
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
+    uint32_t        blocksize;
 } FileStatInfo_t;
 
 // 存储用户信息
@@ -438,7 +439,7 @@ class CurveClient {
      * @param fd 文件fd
      * @return 返回错误码
      */
-    virtual int64_t StatFile(int fd);
+    virtual int64_t StatFile(int fd, FileStatInfo* fileStat);
 
     /**
      * 异步读

@@ -148,7 +148,7 @@ TEST(ClientSession, LeaseTaskTest) {
     curvefsservice->SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file
-    int openret = fileinstance.Open(filename, userinfo);
+    int openret = fileinstance.Open();
     ASSERT_EQ(openret, LIBCURVE_ERROR::OK);
 
     // 4. wait for refresh

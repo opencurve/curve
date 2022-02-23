@@ -167,6 +167,8 @@ message ChunkServerRegistRequest {
     optional uint64 chunkFilepoolSize = 8;
     optional bool   useChunkFilePoolAsWalPool = 9;
     optional uint32 useChunkFilePoolAsWalPoolReserve = 10;
+    optional uint32 blockSize = 11;
+    optional uint32 chunkSize = 12;
 };
 
 message ChunkServerRegistResponse {

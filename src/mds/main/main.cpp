@@ -93,16 +93,15 @@ void LoadConfigFromCmdline(Configuration *conf) {
 int main(int argc, char **argv) {
     // config initialization
     google::ParseCommandLineFlags(&argc, &argv, false);
-    std::string confPath = FLAGS_confPath.c_str();
     auto conf = std::make_shared<Configuration>();
-    conf->SetConfigPath(confPath);
+    conf->SetConfigPath(FLAGS_confPath);
     LOG_IF(FATAL, !conf->LoadConfig())
-        << "load mds configuration fail, conf path = " << confPath;
+        << "load mds configuration fail, conf path = " << FLAGS_confPath;
     LoadConfigFromCmdline(conf.get());
     conf->PrintConfig();
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("mds.common.logDir", &FLAGS_log_dir)) {
-            LOG(WARNING) << "no mds.common.logDir in " << confPath
+            LOG(WARNING) << "no mds.common.logDir in " << FLAGS_confPath
                          << ", will log to /tmp";
         }
     }

@@ -124,6 +124,8 @@ const std::vector<string> csCommonConf{
     string("mds.listen.addr=" + ALLMDS_IP_PORT),
     string("curve.config_path=" + clientConfPath),
     string("s3.config_path=" + kS3ConfigPath),
+    string("global.block_size=4096"),
+    string("global.meta_page_size=4096"),
 };
 
 const std::vector<string> chunkserverConf1{

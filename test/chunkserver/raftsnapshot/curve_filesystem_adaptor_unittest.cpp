@@ -36,23 +36,25 @@ using curve::fs::LocalFileSystem;
 using curve::chunkserver::FilePool;
 namespace curve {
 namespace chunkserver {
+
+static const char* kFilePool = "./raftsnap/chunkfilepool/";
+static const char* kFilePoolMeta = "./raftsnap/chunkfilepool.meta";
+
 class CurveFilesystemAdaptorTest : public testing::Test {
  public:
     void SetUp() {
         fsptr = curve::fs::LocalFsFactory::CreateFs(
                         curve::fs::FileSystemType::EXT4, "/dev/sda");
         chunkFilePoolPtr_ = std::make_shared<FilePool>(fsptr);
-        if (chunkFilePoolPtr_ == nullptr) {
-            LOG(FATAL) << "allocate chunkfile pool failed!";
-        }
+        ASSERT_TRUE(chunkFilePoolPtr_);
+
         int count = 1;
         fsptr->Mkdir("./raftsnap");
         fsptr->Mkdir("./raftsnap/chunkfilepool");
-        std::string dirname = "./raftsnap/chunkfilepool";
         while (count < 4) {
-            std::string  filename = "./raftsnap/chunkfilepool/"
-                                  + std::to_string(count);
+            std::string filename = kFilePool + std::to_string(count);
             int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
+            ASSERT_GE(fd, 0);
             char data[8192];
             memset(data, 'a', 8192);
             fsptr->Write(fd, data, 0, 8192);
@@ -62,26 +64,25 @@ class CurveFilesystemAdaptorTest : public testing::Test {
 
         uint32_t chunksize = 4096;
         uint32_t metapagesize = 4096;
+        uint32_t blockSize = 4096;
+
+        FilePoolMeta meta;
+        meta.chunkSize = chunksize;
+        meta.metaPageSize = metapagesize;
+        meta.hasBlockSize = true;
+        meta.blockSize = blockSize;
+        meta.filePoolPath = kFilePool;
 
         FilePoolOptions cpopt;
         cpopt.getFileFromPool = true;
         cpopt.fileSize = chunksize;
         cpopt.metaPageSize = metapagesize;
-        cpopt.metaFileSize = 4096;
-        memcpy(cpopt.filePoolDir, "./raftsnap/chunkfilepool", 17);
-        memcpy(cpopt.metaPath, "./raftsnap/chunkfilepool.meta", 30);
+        cpopt.blockSize = blockSize;
+        strcpy(cpopt.filePoolDir, kFilePool);   // NOLINT(runtime/printf)
+        strcpy(cpopt.metaPath, kFilePoolMeta);  // NOLINT(runtime/printf)
 
-        int ret = FilePoolHelper::PersistEnCodeMetaInfo(
-                                                    fsptr,
-                                                    chunksize,
-                                                    metapagesize,
-                                                    dirname,
-                                            "./raftsnap/chunkfilepool.meta");
-
-        if (ret == -1) {
-            LOG(ERROR) << "persist chunkfile pool meta info failed!";
-            return;
-        }
+        ASSERT_EQ(0, FilePoolHelper::PersistEnCodeMetaInfo(fsptr, meta,
+                                                           kFilePoolMeta));
 
         rfa = new CurveFilesystemAdaptor(chunkFilePoolPtr_, fsptr);
         std::vector<std::string> filterList;

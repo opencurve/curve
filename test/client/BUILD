@@ -343,5 +343,6 @@ cc_test(
         "//test/client/fake:fake_lib",
         "//test/integration/cluster_common:integration_cluster_common",
         "//test/client/mock:client_mock_lib",
+        "@com_google_absl//absl/memory",
     ]
 )

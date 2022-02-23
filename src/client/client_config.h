@@ -35,7 +35,7 @@ class ClientConfig {
  public:
     int Init(const std::string& configpath);
 
-    FileServiceOption GetFileServiceOption() const {
+    const FileServiceOption& GetFileServiceOption() const {
         return fileServiceOption_;
     }
 

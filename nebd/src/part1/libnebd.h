@@ -159,6 +159,8 @@ int nebd_lib_sync(int fd);
  */
 int64_t nebd_lib_filesize(int fd);
 
+int64_t nebd_lib_blocksize(int fd);
+
 /**
  *  @brief resize文件
  *  @param fd：文件的fd

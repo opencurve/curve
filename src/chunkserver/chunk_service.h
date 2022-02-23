@@ -41,7 +41,7 @@ class CopysetNodeManager;
 
 class ChunkServiceImpl : public ChunkService {
  public:
-    explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions,
+    explicit ChunkServiceImpl(const ChunkServiceOptions& chunkServiceOptions,
         const std::shared_ptr<EpochMap> &epochMap);
     ~ChunkServiceImpl() {}
 
@@ -105,7 +105,7 @@ class ChunkServiceImpl : public ChunkService {
      * @param len[in]: op request' length
      * @return true，说明合法，否则返回false
      */
-    bool CheckRequestOffsetAndLength(uint32_t offset, uint32_t len);
+    bool CheckRequestOffsetAndLength(uint32_t offset, uint32_t len) const;
 
  private:
     ChunkServiceOptions chunkServiceOptions_;
@@ -114,6 +114,7 @@ class ChunkServiceImpl : public ChunkService {
     uint32_t            maxChunkSize_;
 
     std::shared_ptr<EpochMap> epochMap_;
+    uint32_t blockSize_;
 };
 
 }  // namespace chunkserver

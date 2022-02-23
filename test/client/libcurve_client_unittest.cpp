@@ -40,7 +40,7 @@ using ::testing::SetArgPointee;
 
 const char* kWrongFileName = "xxxxx";
 const char* kValidFileName = "/filename_user_";
-int kVlidFileFd = 123;
+constexpr int kValidFileFd = 123;
 
 constexpr uint64_t kTiB = 1ull * 1024 * 1024 * 1024 * 1024;
 
@@ -145,7 +145,9 @@ TEST_F(CurveClientTest, TestStatFile) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(-LIBCURVE_ERROR::FAILED)));
 
-        ASSERT_EQ(-LIBCURVE_ERROR::FAILED, client_.StatFile(kVlidFileFd));
+        FileStatInfo stat;
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.StatFile(kValidFileFd, &stat));
     }
 
     // statfile success
@@ -158,7 +160,9 @@ TEST_F(CurveClientTest, TestStatFile) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(info), Return(LIBCURVE_ERROR::OK)));
 
-        ASSERT_EQ(1 * kTiB, client_.StatFile(kVlidFileFd));
+        FileStatInfo stat;
+        ASSERT_EQ(LIBCURVE_ERROR::OK, client_.StatFile(kValidFileFd, &stat));
+        ASSERT_EQ(1 * kTiB, stat.length);
     }
 }
 

@@ -39,6 +39,8 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
+static constexpr uint32_t kOpRequestAlignSize = 4096;
+
 class RaftSnapFilePoolTest : public testing::Test {
  protected:
     virtual void SetUp() {
