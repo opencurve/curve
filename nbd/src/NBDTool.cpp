@@ -34,6 +34,8 @@
 namespace curve {
 namespace nbd {
 
+extern int g_nbd_index;
+
 std::ostream& operator<<(std::ostream& os, const DeviceInfo& info) {
     TextTable tbl;
     tbl.define_column("pid", TextTable::LEFT, TextTable::LEFT);
@@ -85,6 +87,14 @@ int NBDTool::Connect(NBDConfig *cfg) {
         return -1;
     }
 
+    int64_t blockSize = imageInstance->GetBlockSize();
+    std::cerr << "curve-nbd: block size is " << blockSize << std::endl;
+    if (blockSize <= 0) {
+        std::cerr << "curve-nbd: Get block size failed, image block size: "
+                  << blockSize << std::endl;
+        return -1;
+    }
+
     // load nbd module
     ret = load_module(cfg);
     if (ret < 0) {
@@ -101,7 +111,7 @@ int NBDTool::Connect(NBDConfig *cfg) {
     if (cfg->readonly) {
         flags |= NBD_FLAG_READ_ONLY;
     }
-    ret = nbdCtrl->SetUp(cfg, socketPair_.First(), fileSize, flags);
+    ret = nbdCtrl->SetUp(cfg, socketPair_.First(), fileSize, blockSize, flags);
     if (ret < 0) {
         return -1;
     }

@@ -132,14 +132,15 @@ struct CloneSourceInfo {
 };
 
 typedef struct FInfo {
-    uint64_t        id;
-    uint64_t        parentid;
-    FileType        filetype;
-    uint32_t        chunksize;
-    uint32_t        segmentsize;
-    uint64_t        length;
-    uint64_t        ctime;
-    uint64_t        seqnum;
+    uint64_t id;
+    uint64_t parentid;
+    FileType filetype;
+    uint32_t chunksize;
+    uint32_t blocksize;
+    uint32_t segmentsize;
+    uint64_t length;
+    uint64_t ctime;
+    uint64_t seqnum;
     // userinfo是当前操作这个文件的用户信息
     UserInfo_t      userinfo;
     // owner是当前文件所属信息

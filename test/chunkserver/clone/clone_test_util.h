@@ -59,8 +59,6 @@ using ::google::protobuf::Message;
 using ::google::protobuf::Closure;
 
 const uint32_t SLICE_SIZE = 1024 * 1024;
-const uint32_t PAGE_SIZE = 4 * 1024;
-const uint32_t CHUNK_SIZE = 16 * 1024 * 1024;
 const uint32_t LAST_INDEX = 5;
 
 class FakeChunkClosure : public ::google::protobuf::Closure {

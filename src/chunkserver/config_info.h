@@ -89,7 +89,9 @@ struct CopysetNodeOptions {
     // WAL segment file size
     uint32_t maxWalSegmentSize;
     // chunk文件的page大小
-    uint32_t pageSize;
+    uint32_t metaPageSize;
+    // alignment for I/O request
+    uint32_t blockSize;
     // clone chunk的location长度限制
     uint32_t locationLimit;
 
@@ -145,6 +147,27 @@ struct ChunkServiceOptions {
     CloneManager *cloneManager;
     std::shared_ptr<InflightThrottle> inflightThrottle;
 };
+
+inline CopysetNodeOptions::CopysetNodeOptions()
+    : electionTimeoutMs(1000),
+      snapshotIntervalS(3600),
+      catchupMargin(1000),
+      usercodeInPthread(false),
+      logUri("/log"),
+      raftMetaUri("/raft_meta"),
+      raftSnapshotUri("/raft_snapshot"),
+      chunkDataUri("/data"),
+      chunkSnapshotUri("/snapshot"),
+      recyclerUri("/recycler"),
+      port(8200),
+      maxChunkSize(16 * 1024 * 1024),
+      metaPageSize(4096),
+      blockSize(4096),
+      concurrentapply(nullptr),
+      chunkFilePool(nullptr),
+      walFilePool(nullptr),
+      localFileSystem(nullptr),
+      snapshotThrottle(nullptr) {}
 
 }  // namespace chunkserver
 }  // namespace curve

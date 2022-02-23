@@ -37,13 +37,11 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ListChunkServerRequest;
 using ::curve::mds::topology::ListChunkServerResponse;
 
-class FakeReturn {
- public:
-    FakeReturn(::google::protobuf::RpcController* controller,
-              void* response) {
-        response_ = response;
-        controller_ = controller;
-    }
+struct FakeReturn {
+    FakeReturn() : FakeReturn(nullptr, nullptr) {}
+
+    FakeReturn(::google::protobuf::RpcController* controller, void* response)
+        : response_(response), controller_(controller) {}
 
     void* response_;
     ::google::protobuf::RpcController* controller_;
@@ -175,6 +173,13 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         auto resp = static_cast<::curve::mds::RenameFileResponse*>(
                     fakerenamefile_->response_);
         response->CopyFrom(*resp);
+    }
+
+    void RefreshSession(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::ReFreshSessionRequest* request,
+                        ::curve::mds::ReFreshSessionResponse* response,
+                        ::google::protobuf::Closure* done) {
+        done->Run();
     }
 
     void ExtendFile(::google::protobuf::RpcController* controller,

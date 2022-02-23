@@ -32,9 +32,9 @@ namespace curve {
 namespace client {
 SnapshotClient::SnapshotClient() {}
 
-int SnapshotClient::Init(ClientConfigOption clientopt) {
-    google::SetCommandLineOption("minloglevel",
-            std::to_string(clientopt.loginfo.logLevel).c_str());
+int SnapshotClient::Init(const ClientConfigOption& clientopt) {
+    google::SetCommandLineOption(
+        "minloglevel", std::to_string(clientopt.loginfo.logLevel).c_str());
     int ret = -LIBCURVE_ERROR::FAILED;
     do {
         if (mdsclient_.Initialize(clientopt.metaServerOpt)
@@ -53,31 +53,20 @@ int SnapshotClient::Init(ClientConfigOption clientopt) {
     return ret;
 }
 
-int SnapshotClient::Init(const std::string& configpath) {
-    if (-1 == clientconfig_.Init(configpath.c_str())) {
+int SnapshotClient::Init(const std::string &configpath) {
+    if (-1 == clientconfig_.Init(configpath)) {
         LOG(ERROR) << "config init failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    int ret = -LIBCURVE_ERROR::FAILED;
-    do {
-        auto rt = mdsclient_.Initialize(
-                  clientconfig_.GetFileServiceOption().metaServerOpt);
-        if (rt != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "MDSClient init failed!";
-            break;
-        }
+    const auto& fileOpt = clientconfig_.GetFileServiceOption();
+    ClientConfigOption opt;
+    opt.loginfo = fileOpt.loginfo;
+    opt.ioOpt = fileOpt.ioOpt;
+    opt.commonOpt = fileOpt.commonOpt;
+    opt.metaServerOpt = fileOpt.metaServerOpt;
 
-        bool rc = iomanager4chunk_.Initialize(
-                   clientconfig_.GetFileServiceOption().ioOpt, &mdsclient_);
-        if (!rc) {
-            LOG(ERROR) << "Init io context manager failed!";
-            break;
-        }
-        ret = LIBCURVE_ERROR::OK;
-    } while (0);
-
-    return ret;
+    return Init(opt);
 }
 
 void SnapshotClient::UnInit() {

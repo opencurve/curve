@@ -23,6 +23,8 @@
 #ifndef SRC_CLIENT_CLIENT_CONFIG_H_
 #define SRC_CLIENT_CLIENT_CONFIG_H_
 
+#include <string>
+
 #include "src/client/config_info.h"
 #include "src/common/configuration.h"
 
@@ -33,7 +35,7 @@ class ClientConfig {
  public:
     int Init(const std::string& configpath);
 
-    FileServiceOption GetFileServiceOption() const {
+    const FileServiceOption& GetFileServiceOption() const {
         return fileServiceOption_;
     }
 

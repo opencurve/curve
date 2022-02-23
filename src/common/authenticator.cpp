@@ -44,8 +44,8 @@
 #endif
 
 #include <glog/logging.h>
-#include <openssl/sha.h>
 #include <openssl/hmac.h>
+#include <openssl/x509.h>
 
 #include <string.h>
 

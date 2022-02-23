@@ -262,7 +262,7 @@ int get_mapped_info(int pid, NBDConfig *cfg) {
     }
     ifs >> cmdline;
 
-    for (int i = 0; i < cmdline.size(); i++) {
+    for (size_t i = 0; i < cmdline.size(); i++) {
         char *arg = &cmdline[i];
         if (i == 0) {
             if (strcmp(basename(arg) , PROCESS_NAME) != 0) {
@@ -325,8 +325,7 @@ int check_dev_can_unmap(const NBDConfig *cfg) {
 
 int check_size_from_file(const std::string &path, uint64_t expected_size,
                          bool sizeInSector = false) {
-    std::ifstream ifs;
-    ifs.open(path.c_str(), std::ifstream::in);
+    std::ifstream ifs(path, std::ifstream::in);
     if (!ifs.is_open()) {
         cerr << "curve-nbd: failed to open " << path << std::endl;
         return -EINVAL;
@@ -334,7 +333,6 @@ int check_size_from_file(const std::string &path, uint64_t expected_size,
 
     uint64_t size = 0;
     ifs >> size;
-    size *= CURVE_NBD_BLKSIZE;
 
     if (size == 0) {
         // Newer kernel versions will report real size only after nbd
@@ -348,22 +346,26 @@ int check_size_from_file(const std::string &path, uint64_t expected_size,
 
     if (size != expected_size) {
         cerr << "curve-nbd: kernel reported invalid size (" << size
-            << ", expected " << expected_size << ")" << std::endl;
+             << ", expected " << expected_size << ")"
+             << ", from: " << path << std::endl;
         return -EINVAL;
     }
 
     return 0;
 }
 
+static std::string sys_block_path(int nbd_index) {
+    return "/sys/block/nbd" + std::to_string(nbd_index);
+}
+
 int check_block_size(int nbd_index, uint64_t expected_size) {
-    std::string path = "/sys/block/nbd" + std::to_string(nbd_index)
-                     + "/queue/hw_sector_size";
+    std::string path = sys_block_path(nbd_index) + "/queue/logical_block_size";
     int ret = check_size_from_file(path, expected_size);
     if (ret < 0) {
         return ret;
     }
-    path = "/sys/block/nbd" + std::to_string(nbd_index)
-         + "/queue/minimum_io_size";
+
+    path = sys_block_path(nbd_index) + "/queue/physical_block_size";
     ret = check_size_from_file(path, expected_size);
     if (ret < 0) {
         return ret;
@@ -376,7 +378,7 @@ int check_device_size(int nbd_index, uint64_t expected_size) {
     // overflow for large image sizes. This check is to ensure we are
     // not affected.
 
-    std::string path = "/sys/block/nbd" + std::to_string(nbd_index) + "/size";
+    std::string path = sys_block_path(nbd_index) + "/size";
     return check_size_from_file(path, expected_size, true);
 }
 

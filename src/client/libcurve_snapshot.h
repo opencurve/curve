@@ -44,7 +44,7 @@ class SnapshotClient {
    * @param: opt为外围配置选项
    * @return：0为成功，-1为失败
    */
-  int Init(ClientConfigOption opt);
+  int Init(const ClientConfigOption& opt);
 
   /**
    * file对象初始化函数

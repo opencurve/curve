@@ -59,6 +59,7 @@ std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
 void writecallbacktest(CurveAioContext* context) {
+    std::lock_guard<std::mutex> lk(writeinterfacemtx);
     writeflag = true;
     writeinterfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
@@ -294,7 +295,8 @@ TEST(TestLibcurveInterface, FileClientTest) {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
         writeinterfacecv.wait(lk, []()->bool{return writeflag;});
     }
-    char* readbuffer = new char[8 * 1024];
+    char *readbuffer = new char[8 * 1024];
+    memset(readbuffer, 0xFF, 8 * 1024);
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -308,6 +310,7 @@ TEST(TestLibcurveInterface, FileClientTest) {
         interfacecv.wait(lk, []()->bool{return readflag;});
     }
 
+    ASSERT_EQ(readaioctx.ret, readaioctx.length);
     for (int i = 0; i < 1024; i++) {
         ASSERT_EQ(readbuffer[i], 'a');
         ASSERT_EQ(readbuffer[i +  1024], 'b');
@@ -599,20 +602,8 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
 
     ASSERT_EQ(0, Init(configpath.c_str()));
 
-
-    char* buffer = new char[8 * 1024];
-    memset(buffer, 'a', 8*1024);
-
-    // not aligned test
-    CurveAioContext ctx;
-    ctx.buf = buffer;
-    ctx.offset = 1;
-    ctx.length = 7 * 1024;
-    ctx.cb = writecallbacktest;
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
-    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096 , 123));
+    char *buffer = new char[8 * 1024];
+    memset(buffer, 'a', 8 * 1024);
 
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
@@ -699,7 +690,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+    int fd = fileinstance_.Open();
 
     MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
@@ -883,7 +874,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+    int fd = fileinstance_.Open();
 
     MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 

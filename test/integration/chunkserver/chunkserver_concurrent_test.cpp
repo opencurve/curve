@@ -43,7 +43,9 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 using curve::common::Thread;
 
-const char* kFakeMdsAddr = "127.0.0.1:9329";
+static const char* kFakeMdsAddr = "127.0.0.1:9329";
+
+constexpr uint32_t kOpRequestAlignSize = 4096;
 
 static char *chunkConcurrencyParams1[1][16] = {
     {
@@ -113,6 +115,8 @@ class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
         cg1.SetKV("copyset.election_timeout_ms", "3000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
         cg1.SetKV("mds.listen.addr", kFakeMdsAddr);
+        cg1.SetKV("global.block_size", "4096");
+        cg1.SetKV("global.meta_page_size", "4096");
         ASSERT_TRUE(cg1.Generate());
 
         logicPoolId = 1;
@@ -202,11 +206,8 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
             + std::to_string(PeerCluster::PeerToId(peer1))
             + "/chunkfilepool.meta";
 
-        FilePoolHelper::PersistEnCodeMetaInfo(lfs,
-                                                   kChunkSize,
-                                                   kPageSize,
-                                                   poolDir,
-                                                   metaDir);
+        FilePoolMeta meta(kChunkSize, kPageSize, poolDir);
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs, meta, metaDir);
 
         allocateChunk(lfs, kChunkNum, poolDir, kChunkSize);
     }

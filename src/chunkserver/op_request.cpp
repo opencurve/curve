@@ -377,9 +377,9 @@ bool ReadChunkRequest::NeedClone(const CSChunkInfo& chunkInfo) {
     if (chunkInfo.isClone) {
         off_t offset = request_->offset();
         size_t length = request_->size();
-        uint32_t pageSize = chunkInfo.pageSize;
-        uint32_t beginIndex = offset / pageSize;
-        uint32_t endIndex = (offset + length - 1) / pageSize;
+        uint32_t blockSize = chunkInfo.blockSize;
+        uint32_t beginIndex = offset / blockSize;
+        uint32_t endIndex = (offset + length - 1) / blockSize;
         // 如果是clone chunk，且存在未被写过的page，就需要拷贝
         if (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
             != Bitmap::NO_POS) {

@@ -369,7 +369,6 @@ cc_test(
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-        "//test/client/mock:curve_client_mock",
-    ],
+        "@com_google_absl//absl/memory",
+    ]
 )

@@ -48,7 +48,7 @@ using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
 
 using curve::fs::MockLocalFileSystem;
-using curve::common::kFilePoolMaigic;
+using curve::common::kFilePoolMagic;
 
 namespace curve {
 namespace chunkserver {
@@ -56,6 +56,7 @@ namespace chunkserver {
 const ChunkSizeType CHUNK_SIZE = 16 * 1024 * 1024;
 const PageSizeType PAGE_SIZE = 4096;
 const uint32_t metaFileSize = 4096;
+const uint32_t blockSize = 4096;
 const uint32_t fileSize = CHUNK_SIZE + PAGE_SIZE;
 const std::string poolDir = "./chunkfilepool_dat";  // NOLINT
 const std::string poolMetaPath = "./chunkfilepool_dat.meta";  // NOLINT
@@ -65,6 +66,7 @@ const char* kChunkSize = "chunkSize";
 const char* kMetaPageSize = "metaPageSize";
 const char* kChunkFilePoolPath = "chunkfilepool_path";
 const char* kCRC = "crc";
+const char* kBlockSize = "blockSize";
 
 class CSChunkfilePoolMockTest : public testing::Test {
  public:
@@ -74,29 +76,27 @@ class CSChunkfilePoolMockTest : public testing::Test {
 
     void TearDown() {}
 
-    Json::Value GenerateMetaJson() {
+    static Json::Value GenerateMetaJson(bool hasBlockSize = false) {
         // 正常的meta文件的json格式
-        uint32_t crcsize = sizeof(kFilePoolMaigic) +
-                           sizeof(CHUNK_SIZE) +
-                           sizeof(PAGE_SIZE) +
-                           poolDir.size();
-        char* crcbuf = new char[crcsize];
-        ::memcpy(crcbuf, kFilePoolMaigic,
-                sizeof(kFilePoolMaigic));
-        ::memcpy(crcbuf + sizeof(kFilePoolMaigic),
-                &CHUNK_SIZE, sizeof(uint32_t));
-        ::memcpy(crcbuf + sizeof(uint32_t) + sizeof(kFilePoolMaigic),
-                &PAGE_SIZE, sizeof(uint32_t));
-        ::memcpy(crcbuf + 2 * sizeof(uint32_t) + sizeof(kFilePoolMaigic),
-                poolDir.c_str(), poolDir.size());
-        uint32_t crc = ::curve::common::CRC32(crcbuf, crcsize);
-        delete[] crcbuf;
+        FilePoolMeta meta;
+        meta.chunkSize = CHUNK_SIZE;
+        meta.metaPageSize = PAGE_SIZE;
+        meta.hasBlockSize = hasBlockSize;
+        if (hasBlockSize) {
+            meta.blockSize = blockSize;
+        }
+        meta.filePoolPath = poolDir;
 
         Json::Value jsonContent;
         jsonContent[kChunkSize] = CHUNK_SIZE;
         jsonContent[kMetaPageSize] = PAGE_SIZE;
+
+        if (hasBlockSize) {
+            jsonContent[kBlockSize] = blockSize;
+        }
+
         jsonContent[kChunkFilePoolPath] = poolDir;
-        jsonContent[kCRC] = crc;
+        jsonContent[kCRC] = meta.Crc32();
         return jsonContent;
     }
 
@@ -158,6 +158,12 @@ class CSChunkfilePoolMockTest : public testing::Test {
 
 // PersistEnCodeMetaInfo接口的异常测试
 TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
+    FilePoolMeta meta;
+    meta.chunkSize = CHUNK_SIZE;
+    meta.metaPageSize = PAGE_SIZE;
+    meta.hasBlockSize = false;
+    meta.filePoolPath = poolDir;
+
     // open失败
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
@@ -166,12 +172,8 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
             .Times(0);
         EXPECT_CALL(*lfs_, Close(_))
             .Times(0);
-        ASSERT_EQ(-1,
-            FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
-                                                       CHUNK_SIZE,
-                                                       PAGE_SIZE,
-                                                       poolDir,
-                                                       poolMetaPath));
+        ASSERT_EQ(-1, FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta,
+                                                            poolMetaPath));
     }
     // open成功，write失败
     {
@@ -181,12 +183,8 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
             .WillOnce(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
-                                                       CHUNK_SIZE,
-                                                       PAGE_SIZE,
-                                                       poolDir,
-                                                       poolMetaPath));
+        ASSERT_EQ(-1, FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta,
+                                                            poolMetaPath));
     }
     // open成功，write成功
     {
@@ -196,20 +194,15 @@ TEST_F(CSChunkfilePoolMockTest, PersistEnCodeMetaInfoTest) {
             .WillOnce(Return(4096));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(0,
-            FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
-                                                       CHUNK_SIZE,
-                                                       PAGE_SIZE,
-                                                       poolDir,
-                                                       poolMetaPath));
+        ASSERT_EQ(
+            0, FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta, poolMetaPath));
     }
 }
 
 // DecodeMetaInfoFromMetaFile接口的异常测试
 TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
-    uint32_t chunksize;
-    uint32_t metapagesize;
-    std::string chunkfilePath;
+    FilePoolMeta meta;
+
     // open失败
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
@@ -218,13 +211,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
             .Times(0);
         EXPECT_CALL(*lfs_, Close(_))
             .Times(0);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // read失败
     {
@@ -234,13 +222,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
             .WillOnce(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // read成功，解析Json格式失败
     {
@@ -252,13 +235,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // 解析Json格式成功，chunksize为空
     {
@@ -275,13 +253,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // 解析Json格式成功，metapagesize为空
     {
@@ -298,13 +271,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // 解析Json格式成功，kFilePoolPath为空
     {
@@ -321,13 +289,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // 解析Json格式成功，kCRC为空
     {
@@ -344,13 +307,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // 解析Json格式成功，crc不匹配
     {
@@ -367,13 +325,8 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(-1,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(-1, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                          lfs_, poolMetaPath, metaFileSize, &meta));
     }
     // 正常流程
     {
@@ -389,13 +342,26 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
-        ASSERT_EQ(0,
-            FilePoolHelper::DecodeMetaInfoFromMetaFile(lfs_,
-                                                            poolMetaPath,
-                                                            metaFileSize,
-                                                            &chunksize,
-                                                            &metapagesize,
-                                                            &chunkfilePath));
+        ASSERT_EQ(0, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                         lfs_, poolMetaPath, metaFileSize, &meta));
+    }
+
+    // 正常流程
+    {
+        char buf[metaFileSize] = {0};
+        Json::Value root = GenerateMetaJson(true);
+        memcpy(buf, root.toStyledString().c_str(),
+               root.toStyledString().size());
+
+        EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
+            .WillOnce(Return(1));
+        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+            .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
+                            Return(metaFileSize)));
+        EXPECT_CALL(*lfs_, Close(1))
+            .Times(1);
+        ASSERT_EQ(0, FilePoolHelper::DecodeMetaInfoFromMetaFile(
+                         lfs_, poolMetaPath, metaFileSize, &meta));
     }
 }
 

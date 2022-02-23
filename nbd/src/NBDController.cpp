@@ -42,12 +42,16 @@
 namespace curve {
 namespace nbd {
 
-int IOController::InitDevAttr(NBDConfig* config, uint64_t size,
+int g_nbd_index;
+
+int IOController::InitDevAttr(NBDConfig* config,
+                              uint64_t size,
+                              uint32_t blocksize,
                               uint64_t flags) {
     int ret = -1;
 
     do {
-        ret = ioctl(nbdFd_, NBD_SET_BLKSIZE, CURVE_NBD_BLKSIZE);
+        ret = ioctl(nbdFd_, NBD_SET_BLKSIZE, blocksize);
         if (ret < 0) {
             break;
         }
@@ -133,11 +137,15 @@ int IOController::MapOnNbdDeviceByDevPath(int sockfd,
 
     nbdFd_ = devfd;
     nbdIndex_ = index;
+    g_nbd_index = nbdIndex_;
     return 0;
 }
 
-int IOController::SetUp(NBDConfig* config, int sockfd,
-                        uint64_t size, uint64_t flags) {
+int IOController::SetUp(NBDConfig* config,
+                        int sockfd,
+                        uint64_t size,
+                        uint32_t blocksize,
+                        uint64_t flags) {
     int ret = -1;
 
     if (config->devpath.empty()) {
@@ -150,10 +158,18 @@ int IOController::SetUp(NBDConfig* config, int sockfd,
         return -1;
     }
 
-    ret = InitDevAttr(config, size, flags);
-    if (ret == 0) {
+    do {
+        ret = InitDevAttr(config, size, blocksize, flags);
+        if (ret < 0) {
+            break;
+        }
+
         ret = check_device_size(nbdIndex_, size);
-    }
+        if (ret < 0) {
+            break;
+        }
+    } while (0);
+
     if (ret < 0) {
         cerr << "curve-nbd: failed to map, status: "
              << cpp_strerror(ret) << std::endl;
@@ -240,8 +256,11 @@ void NetLinkController::Uninit() {
     nlId_ = -1;
 }
 
-int NetLinkController::SetUp(NBDConfig* config, int sockfd,
-                             uint64_t size, uint64_t flags) {
+int NetLinkController::SetUp(NBDConfig* config,
+                             int sockfd,
+                             uint64_t size,
+                             uint32_t blocksize,
+                             uint64_t flags) {
     int ret = Init();
     if (ret < 0) {
         cerr << "curve-nbd: Netlink interface not supported."
@@ -249,7 +268,7 @@ int NetLinkController::SetUp(NBDConfig* config, int sockfd,
         return ret;
     }
 
-    ret = ConnectInternal(config, sockfd, size, flags);
+    ret = ConnectInternal(config, sockfd, size, blocksize, flags);
     Uninit();
     if (ret < 0) {
         return ret;
@@ -259,7 +278,7 @@ int NetLinkController::SetUp(NBDConfig* config, int sockfd,
     if (index < 0) {
         return index;
     }
-    ret = check_block_size(index, CURVE_NBD_BLKSIZE);
+    ret = check_block_size(index, blocksize);
     if (ret < 0) {
         return ret;
     }
@@ -360,8 +379,11 @@ static int netlink_connect_cb(struct nl_msg *msg, void *arg) {
     return NL_OK;
 }
 
-int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
-                                       uint64_t size, uint64_t flags) {
+int NetLinkController::ConnectInternal(NBDConfig* config,
+                                       int sockfd,
+                                       uint64_t size,
+                                       uint32_t blocksize,
+                                       uint64_t flags) {
     struct nlattr *sock_attr = nullptr;
     struct nlattr *sock_opt = nullptr;
     struct nl_msg *msg = nullptr;
@@ -393,7 +415,7 @@ int NetLinkController::ConnectInternal(NBDConfig* config, int sockfd,
         NLA_PUT_U64(msg, NBD_ATTR_TIMEOUT, config->timeout);
     }
     NLA_PUT_U64(msg, NBD_ATTR_SIZE_BYTES, size);
-    NLA_PUT_U64(msg, NBD_ATTR_BLOCK_SIZE_BYTES, CURVE_NBD_BLKSIZE);
+    NLA_PUT_U64(msg, NBD_ATTR_BLOCK_SIZE_BYTES, blocksize);
     NLA_PUT_U64(msg, NBD_ATTR_SERVER_FLAGS, flags);
 
     sock_attr = nla_nest_start(msg, NBD_ATTR_SOCKETS);
