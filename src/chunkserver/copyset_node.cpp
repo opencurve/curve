@@ -120,7 +120,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     DataStoreOptions dsOptions;
     dsOptions.baseDir = chunkDataApath_;
     dsOptions.chunkSize = options.maxChunkSize;
-    dsOptions.pageSize = options.pageSize;
+    dsOptions.metaPageSize = options.metaPageSize;
+    dsOptions.blockSize = options.blockSize;
     dsOptions.locationLimit = options.locationLimit;
     dsOptions.enableOdsyncWhenOpenChunkFile =
         options.enableOdsyncWhenOpenChunkFile;

@@ -203,6 +203,8 @@ mds.curvefs.defaultSegmentSize={{ segment_size }}
 mds.curvefs.minFileLength={{ min_file_length }}
 # curvefs的默认最大文件大小，20TB = 20*1024*1024*1024*1024 = 21990232555520
 mds.curvefs.maxFileLength={{ max_file_length }}
+# smallest read/write unit for volume, support |512| and |4096|
+mds.curvefs.blockSize={{ chunkserver_block_size }}
 
 #
 # chunkseverclient config

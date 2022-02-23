@@ -47,6 +47,7 @@ struct RegisterOptions {
     std::string chunkserverDiskType;
     int registerRetries;
     int registerTimeout;
+    uint32_t blockSize;
 
     std::shared_ptr<LocalFileSystem> fs;
 };

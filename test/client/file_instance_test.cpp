@@ -78,5 +78,18 @@ TEST(FileInstanceTest, OpenReadonlyAndDiscardTest) {
     ASSERT_EQ(-1, instance.AioDiscard(&aioctx));
 }
 
+TEST(FileInstanceTest, IoAlignmentTest) {
+    ASSERT_TRUE(CheckIoAligned(4096, 4096, 4096));
+
+    ASSERT_FALSE(CheckIoAligned(512, 4096, 4096));
+    ASSERT_FALSE(CheckIoAligned(4096, 512, 4096));
+
+    ASSERT_TRUE(CheckIoAligned(4096, 4096, 512));
+    ASSERT_TRUE(CheckIoAligned(512, 4096, 512));
+    ASSERT_TRUE(CheckIoAligned(512, 512, 512));
+
+    ASSERT_FALSE(CheckIoAligned(511, 511, 512));
+}
+
 }  // namespace client
 }  // namespace curve

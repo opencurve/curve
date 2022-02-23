@@ -55,7 +55,6 @@ namespace nbd {
 
 #define HELP_INFO 1
 #define VERSION_INFO 2
-#define CURVE_NBD_BLKSIZE 4096UL    // CURVE后端当前支持4096大小对齐的IO
 
 #define NBD_MAX_PATH "/sys/module/nbd/parameters/nbds_max"
 #define PROCESS_NAME "curve-nbd"

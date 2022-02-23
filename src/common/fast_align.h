@@ -5,34 +5,12 @@ Distributed under the Boost Software License, Version 1.0.
 (http://www.boost.org/LICENSE_1_0.txt)
 */
 
-/*
- *  Copyright (c) 2021 NetEase Inc.
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
-/**
- * Project: curve
- * File Created: Fri Jul 16 21:22:40 CST 2021
- * Author: wuhanqing
- */
-
-#ifndef CURVEFS_SRC_COMMON_FAST_ALIGN_H_
-#define CURVEFS_SRC_COMMON_FAST_ALIGN_H_
+#ifndef SRC_COMMON_FAST_ALIGN_H_
+#define SRC_COMMON_FAST_ALIGN_H_
 
 #include <cstdint>
 
-namespace curvefs {
+namespace curve {
 namespace common {
 
 namespace detail {
@@ -77,7 +55,11 @@ inline bool is_aligned(const void* ptr, std::size_t alignment) noexcept {
     return is_aligned((std::size_t)ptr, alignment);  // NOLINT
 }
 
-}  // namespace common
-}  // namespace curvefs
+constexpr inline bool is_alignment(std::size_t value) noexcept {
+    return (value > 0) && ((value & (value - 1)) == 0);
+}
 
-#endif  // CURVEFS_SRC_COMMON_FAST_ALIGN_H_
+}  // namespace common
+}  // namespace curve
+
+#endif  // SRC_COMMON_FAST_ALIGN_H_

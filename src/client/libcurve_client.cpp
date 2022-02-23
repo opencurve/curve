@@ -83,6 +83,12 @@ int CurveClient::Extend(const std::string& filename,
 
 int64_t CurveClient::StatFile(const std::string& filename) {
     FileStatInfo fileStatInfo;
+    auto rc = StatFile(filename, &fileStatInfo);
+    return rc == LIBCURVE_ERROR::OK ? fileStatInfo.length : rc;
+}
+
+int64_t CurveClient::StatFile(const std::string& filename,
+                              FileStatInfo* statInfo) {
     curve::client::UserInfo userInfo;
     std::string realFileName;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -93,8 +99,7 @@ int64_t CurveClient::StatFile(const std::string& filename) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    int rc = fileClient_->StatFile(realFileName, userInfo, &fileStatInfo);
-    return rc == LIBCURVE_ERROR::OK ? fileStatInfo.length : rc;
+    return fileClient_->StatFile(realFileName, userInfo, statInfo);
 }
 
 int CurveClient::AioRead(int fd, CurveAioContext* aioctx,

@@ -92,6 +92,7 @@ message FileInfo {
     optional    uint64      stripeCount = 16;
 
     optional    FileThrottleParams throttleParams = 17;
+    optional    uint32      blocksize = 18;
 }
 
 // status code

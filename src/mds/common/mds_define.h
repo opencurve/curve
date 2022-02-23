@@ -51,6 +51,9 @@ const int kCsClientCSOffline = -6;
 // to prevent the request from being intercepted and played back
 const uint64_t kStaledRequestTimeIntervalUs = 15 * 1000 * 1000u;
 
+// io block size
+extern uint32_t g_block_size;
+
 }  // namespace mds
 }  // namespace curve
 
@@ -93,6 +96,7 @@ const int kTopoErrCodeNameDuplicated = -16;
 const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
 const int kTopoErrCodeCannotRemoveNotRetired = -18;
 const int kTopoErrCodeLogicalPoolExist = -19;
+const int kTopoErrCodeConflictBlockSize = -20;
 
 }  // namespace topology
 }  // namespace mds

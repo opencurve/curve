@@ -50,9 +50,15 @@ class FakeConcurrentApplyModule : public ConcurrentApplyModule {
     }
 };
 
-class OpRequestTest : public testing::Test {
+class OpRequestTest
+    : public testing::TestWithParam<
+          std::tuple<ChunkSizeType, ChunkSizeType, PageSizeType>> {
  public:
     void SetUp() {
+        chunksize_ = std::get<0>(GetParam());
+        blocksize_ = std::get<1>(GetParam());
+        metapagesize_ = std::get<2>(GetParam());
+
         node_ = std::make_shared<MockCopysetNode>();
         datastore_ = std::make_shared<MockDataStore>();
         cloneMgr_ = std::make_shared<MockCloneManager>();
@@ -86,18 +92,22 @@ class OpRequestTest : public testing::Test {
     }
 
  protected:
+    ChunkSizeType chunksize_;
+    ChunkSizeType blocksize_;
+    PageSizeType metapagesize_;
+
     std::shared_ptr<MockCopysetNode> node_;
     std::shared_ptr<MockDataStore> datastore_;
     std::shared_ptr<MockCloneManager> cloneMgr_;
     std::shared_ptr<FakeConcurrentApplyModule>  concurrentApplyModule_;
 };
 
-TEST_F(OpRequestTest, CreateCloneTest) {
+TEST_P(OpRequestTest, CreateCloneTest) {
     // 创建CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
-    uint32_t size = CHUNK_SIZE;
+    uint32_t size = chunksize_;
     uint64_t sn = 1;
     string location("test@cs");
     ChunkRequest* request = new ChunkRequest();
@@ -309,7 +319,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
     closure->Release();
 }
 
-TEST_F(OpRequestTest, PasteChunkTest) {
+TEST_P(OpRequestTest, PasteChunkTest) {
     // 生成临时的readrequest
     ChunkResponse *response = new ChunkResponse();
     std::shared_ptr<ReadChunkRequest> readChunkRequest =
@@ -537,13 +547,13 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     closure->Release();
 }
 
-TEST_F(OpRequestTest, ReadChunkTest) {
+TEST_P(OpRequestTest, ReadChunkTest) {
     // 创建CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
     uint32_t offset = 0;
-    uint32_t length = 5 * PAGE_SIZE;
+    uint32_t length = 5 * blocksize_;
     ChunkRequest* request = new ChunkRequest();
     request->set_logicpoolid(logicPoolId);
     request->set_copysetid(copysetId);
@@ -641,9 +651,10 @@ TEST_F(OpRequestTest, ReadChunkTest) {
 
     CSChunkInfo info;
     info.isClone = true;
-    info.pageSize = PAGE_SIZE;
-    info.chunkSize = CHUNK_SIZE;
-    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    info.metaPageSize = metapagesize_;
+    info.chunkSize = chunksize_;
+    info.blockSize = blocksize_;
+    info.bitmap = std::make_shared<Bitmap>(chunksize_ / blocksize_);
 
     /**
      * 测试Process
@@ -997,13 +1008,13 @@ TEST_F(OpRequestTest, ReadChunkTest) {
     closure->Release();
 }
 
-TEST_F(OpRequestTest, RecoverChunkTest) {
+TEST_P(OpRequestTest, RecoverChunkTest) {
     // 创建CreateCloneChunkRequest
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
     uint32_t offset = 0;
-    uint32_t length = 5 * PAGE_SIZE;
+    uint32_t length = 5 * blocksize_;
     ChunkRequest* request = new ChunkRequest();
     request->set_logicpoolid(logicPoolId);
     request->set_copysetid(copysetId);
@@ -1071,9 +1082,10 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
 
     CSChunkInfo info;
     info.isClone = true;
-    info.pageSize = PAGE_SIZE;
-    info.chunkSize = CHUNK_SIZE;
-    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    info.metaPageSize = metapagesize_;
+    info.chunkSize = chunksize_;
+    info.blockSize = blocksize_;
+    info.bitmap = std::make_shared<Bitmap>(chunksize_ / blocksize_);
 
     /**
      * 测试Process
@@ -1353,6 +1365,16 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
     // 释放资源
     closure->Release();
 }
+
+INSTANTIATE_TEST_CASE_P(
+    OpRequestTest,
+    OpRequestTest,
+    ::testing::Values(
+        //                chunk size        block size,     metapagesize
+        std::make_tuple(16U * 1024 * 1024, 4096U, 4096U),
+        std::make_tuple(16U * 1024 * 1024, 4096U, 8192U),
+        std::make_tuple(16U * 1024 * 1024, 512U, 8192U),
+        std::make_tuple(16U * 1024 * 1024, 512U, 4096U * 4)));
 
 }  // namespace chunkserver
 }  // namespace curve

@@ -46,30 +46,26 @@ namespace client {
 
 class CurveClientUserAuthFail : public ::testing::Test {
  public:
-    void SetUp() {
+    void SetUp() override {
         metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
 
         metaopt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
         metaopt.rpcRetryOpt.rpcTimeoutMs = 500;
         metaopt.rpcRetryOpt.rpcRetryIntervalUS = 200;
 
-        if (server.AddService(&curvefsservice,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-            LOG(FATAL) << "Fail to add service";
-        }
+        ASSERT_EQ(0, server.AddService(&curvefsservice,
+                                       brpc::SERVER_DOESNT_OWN_SERVICE))
+            << "Fail to add service";
 
-        if (server.AddService(&topologyservice,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-            LOG(FATAL) << "Fail to add service";
-        }
+        ASSERT_EQ(0, server.AddService(&topologyservice,
+                                       brpc::SERVER_DOESNT_OWN_SERVICE))
+            << "Fail to add service";
 
-        brpc::ServerOptions options;
-        options.idle_timeout_sec = -1;
-        LOG(INFO) << "meta server addr = " << mdsMetaServerAddr.c_str();
-        ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), &options), 0);
+        LOG(INFO) << "meta server addr = " << mdsMetaServerAddr;
+        ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), nullptr), 0);
     }
 
-    void TearDown() {
+    void TearDown() override {
         ASSERT_EQ(0, server.Stop(0));
         ASSERT_EQ(0, server.Join());
     }
@@ -160,7 +156,7 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     curvefsservice.SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file auth failed
-    int openret = fileinstance.Open(filename, userinfo);
+    int openret = fileinstance.Open();
     ASSERT_EQ(openret, -LIBCURVE_ERROR::AUTHFAIL);
 
     // 4. open file success
@@ -169,7 +165,7 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&openresponse));
     curvefsservice.SetOpenFile(openfakeret2);
 
-    openret = fileinstance.Open(filename, userinfo);
+    openret = fileinstance.Open();
     ASSERT_EQ(openret, LIBCURVE_ERROR::OK);
 /*
     // 5. wait for refresh

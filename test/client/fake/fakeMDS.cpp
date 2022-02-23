@@ -425,7 +425,7 @@ void FakeMDS::CreateFakeChunkservers(bool enablecli) {
         }
 
         if (chunkservers_[i]->Start(server_addrs_[i], &options) != 0) {
-            LOG(FATAL) << "Fail to start Server";
+            LOG(FATAL) << "Fail to start Server, addr: " << server_addrs_[i];
         }
         LOG(INFO) << "Created chunkserver: " << server_addrs_[i];
 

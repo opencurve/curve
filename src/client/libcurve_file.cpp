@@ -208,7 +208,7 @@ int FileClient::Open(const std::string& filename,
         return -1;
     }
 
-    int ret = fileserv->Open(filename, userinfo);
+    int ret = fileserv->Open();
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Open file failed, filename: " << filename
                    << ", retCode: " << ret;
@@ -292,12 +292,6 @@ int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
         return -LIBCURVE_ERROR::OK;
     }
 
-    if (CheckAligned(offset, len) == false) {
-        LOG(ERROR) << "Read request not aligned, length = " << len
-                   << ", offset = " << offset << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
-    }
-
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
@@ -311,12 +305,6 @@ int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     // 长度为0，直接返回，不做任何操作
     if (len == 0) {
         return -LIBCURVE_ERROR::OK;
-    }
-
-    if (CheckAligned(offset, len) == false) {
-        LOG(ERROR) << "Write request not aligned, length = " << len
-                   << ", offset = " << offset << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
@@ -346,12 +334,6 @@ int FileClient::AioRead(int fd, CurveAioContext* aioctx,
         return -LIBCURVE_ERROR::OK;
     }
 
-    if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        LOG(ERROR) << "AioRead request not aligned, length = " << aioctx->length
-                   << ", offset = " << aioctx->offset << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
-    }
-
     int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
@@ -369,13 +351,6 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
     // 长度为0，直接返回，不做任何操作
     if (aioctx->length == 0) {
         return -LIBCURVE_ERROR::OK;
-    }
-
-    if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        LOG(ERROR) << "AioWrite request not aligned, length = "
-                   << aioctx->length << ", offset = " << aioctx->offset
-                   << ", fd = " << fd;
-        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     int ret = -LIBCURVE_ERROR::FAILED;
@@ -482,6 +457,7 @@ int FileClient::StatFile(const std::string& filename,
         finfo->parentid = fi.parentid;
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
+        finfo->blocksize = fi.blocksize;
         finfo->filetype = fi.filetype;
         finfo->stripeUnit = fi.stripeUnit;
         finfo->stripeCount = fi.stripeCount;

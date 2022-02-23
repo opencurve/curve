@@ -22,6 +22,7 @@
 
 #include <fiu-control.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <brpc/channel.h>
 #include <json/json.h>
 #include <string>
@@ -32,6 +33,8 @@
 #include "src/common/timeutility.h"
 #include "src/common/string_util.h"
 
+#include "test/mds/mock/mock_etcdclient.h"
+
 using ::curve::common::Thread;
 
 DECLARE_string(mdsAddr);
@@ -39,6 +42,9 @@ DECLARE_string(etcdAddr);
 
 namespace curve {
 namespace mds {
+
+extern uint32_t g_block_size;
+
 class MDSTest : public ::testing::Test {
  protected:
     void SetUp() {
@@ -215,6 +221,45 @@ TEST_F(MDSTest, common) {
     mdsThread.join();
     uint64_t stopTime = curve::common::TimeUtility::GetTimeofDayMs();
     ASSERT_LE(stopTime - startTime, 100);
+}
+
+TEST_F(MDSTest, TestBlockSize) {
+    using ::testing::_;
+    using ::testing::Return;
+    using ::testing::Invoke;
+
+    auto client = std::make_shared<MockEtcdClient>();
+
+    // etcd doesn't has block size on startup
+    {
+        EXPECT_CALL(*client, Get(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdKeyNotExist));
+        EXPECT_CALL(*client, Put(_, _))
+            .WillOnce(Return(EtcdErrCode::EtcdOK));
+        ASSERT_TRUE(CheckOrInsertBlockSize(client.get()));
+    }
+
+    // etcd has block size but different with `g_block_size`
+    {
+        g_block_size = 4096;
+        EXPECT_CALL(*client, Get(_, _))
+            .WillOnce(Invoke([](const std::string&, std::string* value) {
+                *value = std::to_string(g_block_size / 2);
+                return EtcdErrCode::EtcdOK;
+            }));
+        ASSERT_FALSE(CheckOrInsertBlockSize(client.get()));
+    }
+
+    // etcd has block size
+    {
+        g_block_size = 4096;
+        EXPECT_CALL(*client, Get(_, _))
+            .WillOnce(Invoke([](const std::string&, std::string* value) {
+                *value = std::to_string(g_block_size);
+                return EtcdErrCode::EtcdOK;
+            }));
+        ASSERT_TRUE(CheckOrInsertBlockSize(client.get()));
+    }
 }
 
 }  // namespace mds

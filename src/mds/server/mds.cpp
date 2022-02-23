@@ -25,6 +25,9 @@
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
 #include "src/common/lru_cache.h"
+#include "src/common/namespace_define.h"
+#include "src/common/string_util.h"
+#include "src/common/fast_align.h"
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
@@ -34,6 +37,7 @@ namespace mds {
 
 using LRUCache = ::curve::common::LRUCache<std::string, std::string>;
 using CacheMetrics = ::curve::common::CacheMetrics;
+using ::curve::common::BLOCKSIZEKEY;
 
 MDS::~MDS() {
     if (etcdEndpoints_) {
@@ -118,6 +122,9 @@ void MDS::StartCompaginLeader() {
 }
 
 void MDS::Init() {
+    LOG_IF(FATAL, !CheckOrInsertBlockSize(etcdClient_.get()))
+        << "Check or insert block size failed";
+
     InitSegmentAllocStatistic(options_.retryInterTimes,
                               options_.periodicPersistInterMs);
     InitNameServerStorage(options_.mdsCacheCount);
@@ -500,6 +507,12 @@ void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
         "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
     conf_->GetValueFatalIfFail(
         "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
+    conf_->GetValueFatalIfFail("mds.curvefs.blockSize", &g_block_size);
+
+    if (g_block_size != 4096 && g_block_size != 512) {
+        LOG(FATAL) << "mds.curvefs.blockSize only supports 512 and 4096";
+    }
+
     FileRecordOptions fileRecordOptions;
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
@@ -647,5 +660,47 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
     conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
                         &heartbeatOption->cleanFollowerAfterMs);
 }
+
+bool CheckOrInsertBlockSize(EtcdClientImp* etcdclient) {
+    std::string value;
+    auto err = etcdclient->Get(BLOCKSIZEKEY, &value);
+
+    switch (err) {
+        case EtcdErrCode::EtcdOK: {
+            uint32_t blocksize = 0;
+            if (!curve::common::StringToUl(value, &blocksize)) {
+                LOG(WARNING) << "Convert block size to value failed, raw value "
+                                "from etcd is: "
+                             << value;
+                return false;
+            }
+
+            if (blocksize != g_block_size) {
+                LOG(WARNING) << "Block size `" << blocksize
+                             << "` in etcd  is not identical with "
+                                "block size `"
+                             << g_block_size << "` in configurations";
+                return false;
+            }
+
+            return true;
+        }
+        case EtcdErrCode::EtcdKeyNotExist: {
+            std::string value = std::to_string(g_block_size);
+            err = etcdclient->Put(BLOCKSIZEKEY, value);
+            if (err != EtcdErrCode::EtcdOK) {
+                LOG(WARNING) << "Put block size `" << g_block_size
+                             << "` to etcd failed, error: " << err;
+                return false;
+            }
+
+            return true;
+        }
+        default:
+            LOG(WARNING) << "Get block size from etcd failed";
+            return false;
+    }
+}
+
 }  // namespace mds
 }  // namespace curve

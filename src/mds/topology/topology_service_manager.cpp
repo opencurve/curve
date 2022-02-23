@@ -55,9 +55,21 @@ using ::curve::mds::copyset::Copyset;
 using ::curve::mds::copyset::CopysetConstrait;
 using ::curve::common::CopysetInfo;
 
+
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
+    if (request->has_blocksize()) {
+        if (request->blocksize() != mds::g_block_size) {
+            response->set_statuscode(kTopoErrCodeConflictBlockSize);
+            LOG(WARNING)
+                << "chunk's block size is not identical with MDS, block size: "
+                << mds::g_block_size
+                << ", request block size: " << request->blocksize();
+            return;
+        }
+    }
+
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
     ::curve::common::NameLockGuard lock(registCsMutex,

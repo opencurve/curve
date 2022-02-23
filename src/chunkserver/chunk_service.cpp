@@ -35,14 +35,19 @@
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/chunk_service_closure.h"
+#include "src/common/fast_align.h"
 
 namespace curve {
 namespace chunkserver {
 
-ChunkServiceImpl::ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions) :
-    chunkServiceOptions_(chunkServiceOptions),
-    copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
-    inflightThrottle_(chunkServiceOptions.inflightThrottle) {
+using curve::common::is_aligned;
+
+ChunkServiceImpl::ChunkServiceImpl(
+    const ChunkServiceOptions &chunkServiceOptions)
+    : chunkServiceOptions_(chunkServiceOptions),
+      copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
+      inflightThrottle_(chunkServiceOptions.inflightThrottle),
+      ioAlignment_(copysetNodeManager_->GetCopysetNodeOptions().blockSize) {
     maxChunkSize_ = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
 }
 
@@ -541,17 +546,7 @@ bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
         return false;
     }
 
-    // 检查offset是否对齐
-    if (offset % kOpRequestAlignSize != 0) {
-        return false;
-    }
-
-    // 检查len是否对齐
-    if (len % kOpRequestAlignSize != 0) {
-        return false;
-    }
-
-    return true;
+    return is_aligned(offset, ioAlignment_) && is_aligned(len, ioAlignment_);
 }
 
 }  // namespace chunkserver

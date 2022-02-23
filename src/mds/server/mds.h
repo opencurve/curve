@@ -238,6 +238,8 @@ class MDS {
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
 };
 
+bool CheckOrInsertBlockSize(EtcdClientImp* etcdclient);
+
 }  // namespace mds
 }  // namespace curve
 

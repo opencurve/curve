@@ -142,6 +142,7 @@ typedef struct FInfo {
     uint64_t parentid;
     FileType filetype;
     uint32_t chunksize;
+    uint32_t blocksize;
     uint32_t segmentsize;
     uint64_t length;
     uint64_t ctime;

@@ -36,6 +36,7 @@ using ::testing::_;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::SaveArg;
+using ::testing::Invoke;
 
 class TestReuqestExecutorCurveClosure : public google::protobuf::Closure {
  public:
@@ -231,14 +232,14 @@ TEST_F(TestReuqestExecutorCurve, test_GetInfo) {
     // 1. nebdFileIns不是CurveFileInstance类型, stat失败
     {
         auto nebdFileIns = new NebdFileInstance();
-        EXPECT_CALL(*curveClient_, StatFile(_)).Times(0);
+        EXPECT_CALL(*curveClient_, StatFile(_, _)).Times(0);
         ASSERT_EQ(-1, executor.GetInfo(nebdFileIns, &fileInfo));
     }
 
     // 2. nebdFileIns中的fileName为空, extend失败
     {
         auto curveFileIns = new CurveFileInstance();
-        EXPECT_CALL(*curveClient_, StatFile(_)).Times(0);
+        EXPECT_CALL(*curveClient_, StatFile(_, _)).Times(0);
         ASSERT_EQ(-1, executor.GetInfo(curveFileIns, &fileInfo));
     }
 
@@ -246,18 +247,27 @@ TEST_F(TestReuqestExecutorCurve, test_GetInfo) {
     {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fileName = curveFilename;
-        EXPECT_CALL(*curveClient_, StatFile(curveFilename))
+        EXPECT_CALL(*curveClient_, StatFile(curveFilename, _))
             .WillOnce(Return(-1));
         ASSERT_EQ(-1, executor.GetInfo(curveFileIns, &fileInfo));
     }
 
     // 4. extend成功
     {
+        const uint64_t size = 10ull * 1024 * 1024 * 1024;
+        const uint32_t blocksize = 4096;
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fileName = curveFilename;
-        EXPECT_CALL(*curveClient_, StatFile(curveFilename)).WillOnce(Return(1));
+        EXPECT_CALL(*curveClient_, StatFile(curveFilename, _))
+            .WillOnce(Invoke(
+                [size, blocksize](const std::string&, FileStatInfo* info) {
+                    info->length = size;
+                    info->blocksize = blocksize;
+                    return 0;
+                }));
         ASSERT_EQ(0, executor.GetInfo(curveFileIns, &fileInfo));
-        ASSERT_EQ(1, fileInfo.size);
+        ASSERT_EQ(size, fileInfo.size);
+        ASSERT_EQ(blocksize, fileInfo.block_size);
     }
 }
 

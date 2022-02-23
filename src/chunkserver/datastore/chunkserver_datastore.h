@@ -46,18 +46,20 @@ using curve::fs::LocalFileSystem;
 using ::curve::common::Atomic;
 using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
 
-inline void TrivialDeleter(void* ptr) {}
+inline void TrivialDeleter(void* /*ptr*/) {}
 
 /**
  * DataStore configuration parameters
  * baseDir: Directory path managed by DataStore
  * chunkSize: The size of the chunk file or snapshot file in the DataStore
- * pageSize: the size of the smallest read-write unit
+ * blockSize: the size of the smallest read-write unit
+ * metaPageSize: meta page size for chunk
  */
 struct DataStoreOptions {
     std::string                         baseDir;
     ChunkSizeType                       chunkSize;
-    PageSizeType                        pageSize;
+    ChunkSizeType                       blockSize;
+    PageSizeType                        metaPageSize;
     uint32_t                            locationLimit;
     bool                                enableOdsyncWhenOpenChunkFile;
 };
@@ -320,7 +322,8 @@ class CSDataStore {
     // The size of each chunk
     ChunkSizeType chunkSize_;
     // page size, which is the smallest atomic read and write unit
-    PageSizeType pageSize_;
+    ChunkSizeType blockSize_;
+    PageSizeType metaPageSize_;
     // clone chunk location length limit
     uint32_t locationLimit_;
     // datastore management directory

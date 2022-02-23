@@ -77,8 +77,12 @@ void ImageInstance::Flush(NebdClientAioContext* context) {
     nebd_lib_flush(fd_, context);
 }
 
-int64_t ImageInstance::GetImageSize() {
+int64_t ImageInstance::GetImageSize() const {
     return nebd_lib_filesize(fd_);
+}
+
+int64_t ImageInstance::GetBlockSize() const {
+    return nebd_lib_blocksize(fd_);
 }
 
 ImageInstance::~ImageInstance() {

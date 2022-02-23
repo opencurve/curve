@@ -63,12 +63,14 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
         req.set_externalip(ops_.chunkserverExternalIp);
     }
     req.set_port(ops_.chunkserverPort);
+    req.set_blocksize(ops_.blockSize);
 
     LOG(INFO) << " Registering to MDS " << mdsEps_[inServiceIndex_]
               << ". internal ip: " << ops_.chunkserverInternalIp
               << ", port: " << ops_.chunkserverPort
               << ", enable external server: " << ops_.enableExternalServer
-              << ", external ip: " << ops_.chunkserverExternalIp;
+              << ", external ip: " << ops_.chunkserverExternalIp
+              << ", block size: " << ops_.blockSize;
 
     int retries = ops_.registerRetries;
     while (retries >= 0) {

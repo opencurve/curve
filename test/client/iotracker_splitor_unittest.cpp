@@ -173,8 +173,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         openresponse->set_allocated_fileinfo(fin);
         FakeReturn* openfakeret = new FakeReturn(nullptr, static_cast<void*>(openresponse));      // NOLINT
         curvefsservice.SetOpenFile(openfakeret);
-        // open will set the finfo for file instance
-        fileinstance_->Open("1_userinfo_.txt", userinfo);
+        fileinstance_->Open();
 
         /**
          * 2. set closefile response
@@ -321,6 +320,26 @@ class IOTrackerSplitorTest : public ::testing::Test {
         curvefsservice.SetCloseFile(closeFakeRet);
     }
 
+    void PrepareOpenFile() {
+        openResp_.set_statuscode(curve::mds::StatusCode::kOK);
+        auto* session = openResp_.mutable_protosession();
+        session->set_sessionid("xxx");
+        session->set_leasetime(10000);
+        session->set_createtime(10000);
+        session->set_sessionstatus(curve::mds::SessionStatus::kSessionOK);
+        auto* fileinfo = openResp_.mutable_fileinfo();
+        fileinfo->set_id(1);
+        fileinfo->set_filename("filename");
+        fileinfo->set_parentid(0);
+        fileinfo->set_length(10ULL * 1024 * 1024 * 1024);
+        fileinfo->set_blocksize(4096);
+
+        fakeOpen_.reset(
+            new FakeReturn(nullptr, static_cast<void*>(&openResp_)));
+
+        curvefsservice.SetOpenFile(fakeOpen_.get());
+    }
+
     FileClient *fileClient_;
     UserInfo_t userinfo;
     std::shared_ptr<MDSClient> mdsclient_;
@@ -332,6 +351,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
     FakeReturn *getsegmentfakeret;
     FakeReturn *notallocatefakeret;
     FakeReturn *getsegmentfakeretclone;
+
+    OpenFileResponse openResp_;
+    std::unique_ptr<FakeReturn> fakeOpen_;
 };
 
 TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
@@ -735,7 +757,7 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
 
     ASSERT_TRUE(fileserv->Initialize("/test", mdsclient_, rootuserinfo,
                                      OpenFlags{}, fopt));
-    ASSERT_EQ(LIBCURVE_ERROR::OK, fileserv->Open("1_userinfo_.txt", userinfo));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileserv->Open());
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
 
@@ -1308,8 +1330,11 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegment2) {
 // read the chunks some haven't been write from clone volume with clonesource
 TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     curvefsservice.SetGetOrAllocateSegmentFakeReturn(notallocatefakeret);
-    curvefsservice.SetGetOrAllocateSegmentFakeReturnForClone
-                                                (getsegmentfakeretclone);
+    curvefsservice.SetGetOrAllocateSegmentFakeReturnForClone(
+        getsegmentfakeretclone);
+
+    PrepareOpenFile();
+
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
     mockschuler->DelegateToFake();
 
@@ -1319,6 +1344,7 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, OpenFlags{},
                               fopt);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileinstance2->Open());
 
     MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
     mockschuler2->DelegateToFake();
@@ -1385,6 +1411,8 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     curvefsservice.SetGetOrAllocateSegmentFakeReturn(notallocatefakeret);
     curvefsservice.SetGetOrAllocateSegmentFakeReturnForClone
                                                 (getsegmentfakeretclone);
+    PrepareOpenFile();
+
     MockRequestScheduler* mockschuler = new MockRequestScheduler;
     mockschuler->DelegateToFake();
 
@@ -1394,6 +1422,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, OpenFlags{},
                               fopt);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileinstance2->Open());
 
     MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
     mockschuler2->DelegateToFake();

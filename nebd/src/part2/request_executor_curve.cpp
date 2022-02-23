@@ -180,12 +180,14 @@ int CurveRequestExecutor::GetInfo(
         return -1;
     }
 
-    int64_t size = client_->StatFile(fileName);
-    if (size < 0) {
+    FileStatInfo statInfo;
+    int64_t rc = client_->StatFile(fileName, &statInfo);
+    if (rc < 0) {
         return -1;
     }
 
-    fileInfo->size = size;
+    fileInfo->size = statInfo.length;
+    fileInfo->block_size = statInfo.blocksize;
     return 0;
 }
 

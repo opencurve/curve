@@ -167,7 +167,9 @@ do
   -filePoolDir=$dataDir/chunkserver$i/chunkfilepool \
   -filePoolMetaPath=$dataDir/chunkserver$i/chunkfilepool.meta \
   -fileSize={{ chunk_size }} \
-  -fileSystemPath=$dataDir/chunkserver$i/chunkfilepool  &
+  -fileSystemPath=$dataDir/chunkserver$i/chunkfilepool \
+  -metaPageSize={{ chunkserver_meta_page_size }} \
+  -blockSize={{ chunkserver_block_size }} &
 done
 wait
 }
@@ -185,7 +187,9 @@ function deploy_one_walfile_pool {
   -filePoolDir=$dataDir/chunkserver$1/walfilepool \
   -filePoolMetaPath=$dataDir/chunkserver$1/walfilepool.meta \
   -fileSize={{ chunkserver_walfilepool_segment_size }} \
-  -fileSystemPath=$dataDir/chunkserver$1/walfilepool  &
+  -fileSystemPath=$dataDir/chunkserver$1/walfilepool \
+  -metaPageSize={{ chunkserver_meta_page_size }} \
+  -blockSize={{ chunkserver_block_size }} &
 }
 
 
@@ -286,7 +290,9 @@ function deploy_one {
   -filePoolDir=$dirname/chunkfilepool \
   -filePoolMetaPath=$dirname/chunkfilepool.meta \
   -fileSize={{ chunk_size }} \
-  -fileSystemPath=$dirname/chunkfilepool  &
+  -fileSystemPath=$dirname/chunkfilepool \
+  -metaPageSize={{ chunkserver_meta_page_size }} \
+  -blockSize={{ chunkserver_block_size }} &
   wait
   # release disk reserved space
   sudo tune2fs -m 0 $diskname

@@ -120,6 +120,12 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     if (finfo.has_stripecount()) {
         fi->stripeCount = finfo.stripecount();
     }
+    if (finfo.has_blocksize()) {
+        fi->blocksize = finfo.blocksize();
+    } else {
+        // for backward compatibility
+        fi->blocksize = 4096;
+    }
 
     if (finfo.has_throttleparams()) {
         fi->throttleParams =

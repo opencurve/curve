@@ -12,6 +12,8 @@ global.external_subnet={{ chunkserver_external_subnet }}
 global.chunk_size={{ chunk_size }}
 # chunk 元数据页大小，一般4KB
 global.meta_page_size={{ chunkserver_meta_page_size }}
+# chunk block size，一般4KB
+global.block_size={{ chunkserver_block_size }}
 # clone chunk允许的最长location长度
 global.location_limit={{ chunkserver_location_limit }}
 
@@ -108,9 +110,9 @@ copyset.scan_rpc_timeout_ms={{ chunkserver_copyset_scan_rpc_timeout_ms }}
 copyset.scan_rpc_retry_times={{ chunkserver_copyset_scan_rpc_retry_times }}
 # the follower send scanmap to leader rpc retry interval
 copyset.scan_rpc_retry_interval_us={{ chunkserver_copyset_scan_rpc_retry_interval_us }}
-copyset.copyset_enable_odsync_when_open_chunkfile={{ chunkserver_copyset_enable_odsync_when_open_chunkfile }}
-copyset.copyset_synctimer_interval_ms={{ chunkserver_copyset_synctimer_interval_ms }}
-copyset.copyset_check_syncing_interval_ms={{ chunkserver_copyset_check_syncing_interval_ms }}
+copyset.enable_odsync_when_open_chunkfile={{ chunkserver_copyset_enable_odsync_when_open_chunkfile }}
+copyset.synctimer_interval_ms={{ chunkserver_copyset_synctimer_interval_ms }}
+copyset.check_syncing_interval_ms={{ chunkserver_copyset_check_syncing_interval_ms }}
 
 #
 # Clone settings

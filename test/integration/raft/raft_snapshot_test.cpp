@@ -41,6 +41,7 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
 const char kRaftSnapshotTestLogDir[] = "./runlog/RaftSnapshot";
+static constexpr uint32_t kOpRequestAlignSize = 4096;
 
 static char *raftVoteParam[4][16] = {
     {

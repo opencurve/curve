@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,21 +16,17 @@
 
 /*
  * Project: curve
- * Created Date: Friday March 29th 2019
- * Author: yangyaokai
+ * Date: Wednesday Mar 30 11:04:35 CST 2022
+ * Author: wuhanqing
  */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <iostream>
+#include "src/mds/common/mds_define.h"
 
-int main(int argc, char ** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::InitGoogleMock(&argc, argv);
-    google::ParseCommandLineFlags(&argc, &argv, false);
-    int ret = RUN_ALL_TESTS();
+namespace curve {
+namespace mds {
 
-    return ret;
-}
+// io block size
+uint32_t g_block_size;
+
+}  // namespace mds
+}  // namespace curve

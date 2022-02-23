@@ -35,8 +35,12 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "src/common/crc32.h"
+#include "src/common/bitmap.h"
 #include "src/common/curve_define.h"
 #include "src/chunkserver/datastore/file_pool.h"
+#include "src/common/fast_align.h"
+
+using ::curve::common::is_aligned;
 
 /**
  * chunkfile pool预分配工具，提供两种分配方式
@@ -53,9 +57,17 @@ DEFINE_uint32(fileSize,
               16 * 1024 * 1024,
               "chunk size");
 
-DEFINE_uint32(metaPagSize,
+DEFINE_uint32(metaPageSize,
               4 * 1024,
               "metapage size for every chunk");
+
+static bool ValidateMetaPageSize(const char* /*name*/, uint32_t metaPageSize) {
+    return is_aligned(metaPageSize, 4096);
+}
+
+DEFINE_validator(metaPageSize, &ValidateMetaPageSize);
+
+DEFINE_uint32(blockSize, 4096, "minimum io alignment supported");
 
 DEFINE_string(fileSystemPath,
               "./",
@@ -90,7 +102,8 @@ using curve::fs::FileSystemType;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemInfo;
 using curve::fs::LocalFileSystem;
-using curve::common::kFilePoolMaigic;
+using curve::common::kFilePoolMagic;
+using curve::chunkserver::FilePoolMeta;
 
 class CompareInternal {
  public:
@@ -111,8 +124,8 @@ struct AllocateStruct {
 };
 
 int AllocateFiles(AllocateStruct* allocatestruct) {
-    char* data = new(std::nothrow)char[FLAGS_fileSize + FLAGS_metaPagSize];
-    memset(data, 0, FLAGS_fileSize + FLAGS_metaPagSize);
+    char* data = new(std::nothrow)char[FLAGS_fileSize + FLAGS_metaPageSize];
+    memset(data, 0, FLAGS_fileSize + FLAGS_metaPageSize);
 
     uint64_t count = 0;
     while (count < allocatestruct->chunknum) {
@@ -126,31 +139,31 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
         std::string tmpchunkfilepath = FLAGS_filePoolDir + "/"
             + filename + allocatestruct->cleanChunkSuffix;
 
-        int ret = allocatestruct->fsptr->Open(tmpchunkfilepath.c_str(),
+        int ret = allocatestruct->fsptr->Open(tmpchunkfilepath,
                                              O_RDWR | O_CREAT);
         if (ret < 0) {
             *allocatestruct->checkwrong = true;
-            LOG(ERROR) << "file open failed, " << tmpchunkfilepath.c_str();
+            LOG(ERROR) << "file open failed, " << tmpchunkfilepath;
             break;
         }
         int fd = ret;
 
         ret = allocatestruct->fsptr->Fallocate(fd, 0, 0,
-                                        FLAGS_fileSize + FLAGS_metaPagSize);
+                                        FLAGS_fileSize + FLAGS_metaPageSize);
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
             *allocatestruct->checkwrong = true;
-            LOG(ERROR) << "Fallocate failed, " << tmpchunkfilepath.c_str();
+            LOG(ERROR) << "Fallocate failed, " << tmpchunkfilepath;
             break;
         }
 
         if (FLAGS_needWriteZero) {
             ret = allocatestruct->fsptr->Write(fd, data, 0,
-                FLAGS_fileSize + FLAGS_metaPagSize);
+                FLAGS_fileSize + FLAGS_metaPageSize);
             if (ret < 0) {
                 allocatestruct->fsptr->Close(fd);
                 *allocatestruct->checkwrong = true;
-                LOG(ERROR) << "write failed, " << tmpchunkfilepath.c_str();
+                LOG(ERROR) << "write failed, " << tmpchunkfilepath;
                 break;
             }
         }
@@ -159,20 +172,49 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
             *allocatestruct->checkwrong = true;
-            LOG(ERROR) << "fsync failed, " << tmpchunkfilepath.c_str();
+            LOG(ERROR) << "fsync failed, " << tmpchunkfilepath;
             break;
         }
 
         allocatestruct->fsptr->Close(fd);
         if (ret < 0) {
             *allocatestruct->checkwrong = true;
-            LOG(ERROR) << "close failed, " << tmpchunkfilepath.c_str();
+            LOG(ERROR) << "close failed, " << tmpchunkfilepath;
             break;
         }
         count++;
     }
     delete[] data;
     return *allocatestruct->checkwrong == true ? 0 : -1;
+}
+
+// Minimum extra meta size except bitmap.
+// See src/chunkserver/datastore/chunkserver_chunkfile.h, for normal/clone chunk
+// metapage usage.
+// See src/chunkserver/datastore/chunkserver_snapshot.h, for snapshot chunk
+// metapage usage. We hard code it for compatibility.
+// TODO(all): remove this hard code value, it's should calculated by actual
+// usage.
+static constexpr uint32_t kMinimumExtraMetaSize = 4096 - 512;
+
+// for clone chunk and snapshot chunk, we have bitmap to identify whether
+// corresponding block is written or not,
+// so, check whether meta page size is enough for store bitmap
+// and other metadata
+static bool CheckChunkAndMetaPageSize() {
+    if (!is_aligned(FLAGS_fileSize, FLAGS_blockSize)) {
+        LOG(ERROR) << "io alignment or file size is wrong";
+        return false;
+    }
+
+    auto bitmapBytes =
+        FLAGS_fileSize / FLAGS_blockSize / curve::common::BITMAP_UNIT_SIZE;
+    if (bitmapBytes + kMinimumExtraMetaSize > FLAGS_metaPageSize) {
+        LOG(ERROR) << "meta page size is too small";
+        return false;
+    }
+
+    return true;
 }
 
 // TODO(tongguangxun) :添加单元测试
@@ -187,12 +229,16 @@ int main(int argc, char** argv) {
     std::atomic<uint64_t> allocateChunknum_(0);
     std::vector<std::string> tmpvec;
 
-    if (fsptr->Mkdir(FLAGS_filePoolDir.c_str()) < 0) {
-        LOG(ERROR) << "mkdir failed!, " << FLAGS_filePoolDir.c_str();
+    if (!CheckChunkAndMetaPageSize()) {
         return -1;
     }
-    if (fsptr->List(FLAGS_filePoolDir.c_str(), &tmpvec) < 0) {
-        LOG(ERROR) << "list dir failed!, " << FLAGS_filePoolDir.c_str();
+
+    if (fsptr->Mkdir(FLAGS_filePoolDir) < 0) {
+        LOG(ERROR) << "mkdir failed!, " << FLAGS_filePoolDir;
+        return -1;
+    }
+    if (fsptr->List(FLAGS_filePoolDir, &tmpvec) < 0) {
+        LOG(ERROR) << "list dir failed!, " << FLAGS_filePoolDir;
         return -1;
     }
 
@@ -222,7 +268,7 @@ int main(int argc, char** argv) {
 
     if (FLAGS_allocateByPercent) {
         preAllocateChunkNum = preAllocateSize
-                              / (FLAGS_fileSize + FLAGS_metaPagSize);
+                              / (FLAGS_fileSize + FLAGS_metaPageSize);
     } else {
         preAllocateChunkNum = FLAGS_preAllocateNum;
     }
@@ -240,8 +286,8 @@ int main(int argc, char** argv) {
     allocateStruct.cleanChunkSuffix =
         curve::chunkserver::FilePool::GetCleanChunkSuffix();
 
-    thvec.push_back(std::move(std::thread(AllocateFiles, &allocateStruct)));
-    thvec.push_back(std::move(std::thread(AllocateFiles, &allocateStruct)));
+    thvec.push_back(std::thread(AllocateFiles, &allocateStruct));
+    thvec.push_back(std::thread(AllocateFiles, &allocateStruct));
 
     for (auto& iter : thvec) {
         iter.join();
@@ -252,12 +298,14 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    FilePoolMeta meta;
+    meta.chunkSize = FLAGS_fileSize;
+    meta.metaPageSize = FLAGS_metaPageSize;
+    meta.hasBlockSize = true;
+    meta.blockSize = FLAGS_blockSize;
+    meta.filePoolPath = FLAGS_filePoolDir;
     int ret = curve::chunkserver::FilePoolHelper::PersistEnCodeMetaInfo(
-                                                fsptr,
-                                                FLAGS_fileSize,
-                                                FLAGS_metaPagSize,
-                                                FLAGS_filePoolDir,
-                                                FLAGS_filePoolMetaPath);
+        fsptr, meta, FLAGS_filePoolMetaPath);
 
     if (ret == -1) {
         LOG(ERROR) << "persist chunkfile pool meta info failed!";
@@ -265,40 +313,36 @@ int main(int argc, char** argv) {
     }
 
     // 读取meta文件，检查是否写入正确
-    uint32_t chunksize = 0;
-    uint32_t metapagesize = 0;
-    std::string chunkfilePath;
-
+    FilePoolMeta recordMeta;
     ret = curve::chunkserver::FilePoolHelper::DecodeMetaInfoFromMetaFile(
-                                                fsptr,
-                                                FLAGS_filePoolMetaPath,
-                                                4096,
-                                                &chunksize,
-                                                &metapagesize,
-                                                &chunkfilePath);
+        fsptr, FLAGS_filePoolMetaPath, 4096, &recordMeta);
     if (ret == -1) {
         LOG(ERROR) << "chunkfile pool meta info file got something wrong!";
-        fsptr->Delete(FLAGS_filePoolMetaPath.c_str());
+        fsptr->Delete(FLAGS_filePoolMetaPath);
         return -1;
     }
 
     bool valid = false;
     do {
-        if (chunksize != FLAGS_fileSize) {
+        if (recordMeta.chunkSize != FLAGS_fileSize) {
             LOG(ERROR) << "chunksize meta info persistency wrong!";
             break;
         }
 
-        if (metapagesize != FLAGS_metaPagSize) {
+        if (recordMeta.metaPageSize != FLAGS_metaPageSize) {
             LOG(ERROR) << "metapagesize meta info persistency wrong!";
             break;
         }
 
-        if (strcmp(chunkfilePath.c_str(),
-            FLAGS_filePoolDir.c_str()) != 0) {
+        if (recordMeta.blockSize != FLAGS_blockSize) {
+            LOG(ERROR) << "block size meta info persistency wrong!";
+            break;
+        }
+
+        if (recordMeta.filePoolPath != FLAGS_filePoolDir) {
             LOG(ERROR) << "meta info persistency failed!"
-                    << ", read chunkpath = " << chunkfilePath.c_str()
-                    << ", real chunkpath = " << FLAGS_filePoolDir.c_str();
+                    << ", read chunkpath = " << recordMeta.filePoolPath
+                    << ", real chunkpath = " << FLAGS_filePoolDir;
             break;
         }
 

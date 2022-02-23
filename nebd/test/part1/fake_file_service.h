@@ -33,7 +33,8 @@ namespace client {
 
 class FakeNebdFileService: public NebdFileService {
  public:
-    FakeNebdFileService() {}
+    explicit FakeNebdFileService(uint32_t blockSize = 4096)
+        : fileSize_(0), blockSize_(blockSize) {}
 
     virtual ~FakeNebdFileService() {}
 
@@ -84,6 +85,7 @@ class FakeNebdFileService: public NebdFileService {
 
  private:
     int64_t fileSize_;
+    uint32_t blockSize_;
 };
 }  // namespace client
 }  // namespace nebd

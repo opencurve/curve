@@ -43,6 +43,8 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 using curve::common::Thread;
 
+static constexpr uint32_t kOpRequestAlignSize = 4096;
+
 static char *chunkConcurrencyParams1[1][16] = {
     {
         "chunkserver",
@@ -110,6 +112,8 @@ class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
         ASSERT_TRUE(cg1.Init("9076"));
         cg1.SetKV("copyset.election_timeout_ms", "3000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
+        cg1.SetKV("global.block_size", "4096");
+        cg1.SetKV("global.meta_page_size", "4096");
         ASSERT_TRUE(cg1.Generate());
 
         logicPoolId = 1;
@@ -198,11 +202,8 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
             + std::to_string(PeerCluster::PeerToId(peer1))
             + "/chunkfilepool.meta";
 
-        FilePoolHelper::PersistEnCodeMetaInfo(lfs,
-                                                   kChunkSize,
-                                                   kPageSize,
-                                                   poolDir,
-                                                   metaDir);
+        FilePoolMeta meta(kChunkSize, kPageSize, poolDir);
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs, meta, metaDir);
 
         // There maybe one chunk in cleaning, so you should allocate
         // (kChunkNum + 1) chunks in start if you want to use kChunkNum chunks.

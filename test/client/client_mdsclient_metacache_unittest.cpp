@@ -53,6 +53,8 @@
 #include "test/util/config_generator.h"
 #include "test/client/mock/mock_namespace_service.h"
 
+#include "absl/memory/memory.h"
+
 uint32_t chunk_size = 4 * 1024 * 1024;
 uint32_t segment_size = 1 * 1024 * 1024 * 1024;
 std::string mdsMetaServerAddr = "127.0.0.1:29104";  // NOLINT
@@ -852,54 +854,58 @@ TEST_F(MDSClientTest, StatFile) {
 }
 
 TEST_F(MDSClientTest, GetFileInfo) {
-    std::string filename = "/1_userinfo_";
-    curve::mds::FileInfo *info = new curve::mds::FileInfo;
-    ::curve::mds::GetFileInfoResponse response;
-    info->set_filename("_filename_");
-    info->set_id(1);
-    info->set_parentid(0);
-    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-    info->set_chunksize(4 * 1024 * 1024);
-    info->set_length(4 * 1024 * 1024 * 1024ul);
-    info->set_ctime(12345678);
-    info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+    uint32_t blocksize = 512;
+    for (auto hasBlockSize : {true, false}) {
+        std::string filename = "/1_userinfo_";
+        auto info = absl::make_unique<curve::mds::FileInfo>();
+        ::curve::mds::GetFileInfoResponse response;
+        info->set_filename("_filename_");
+        info->set_id(1);
+        info->set_parentid(0);
+        info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+        info->set_chunksize(4 * 1024 * 1024);
+        info->set_length(4 * 1024 * 1024 * 1024ul);
+        info->set_ctime(12345678);
+        info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
 
-    response.set_allocated_fileinfo(info);
-    response.set_statuscode(::curve::mds::StatusCode::kOK);
+        if (hasBlockSize) {
+            info->set_blocksize(blocksize);
+        }
 
-    FakeReturn *fakeret =
-        new FakeReturn(nullptr, static_cast<void *>(&response));
-    curvefsservice.SetGetFileInfoFakeReturn(fakeret);
+        response.set_allocated_fileinfo(info.release());
+        response.set_statuscode(::curve::mds::StatusCode::kOK);
 
-    curve::client::FInfo_t *finfo = new curve::client::FInfo_t;
-    mdsclient_.GetFileInfo(filename, userinfo, finfo);
+        auto fakeret = absl::make_unique<FakeReturn>(
+            nullptr, static_cast<void *>(&response));
+        curvefsservice.SetGetFileInfoFakeReturn(fakeret.get());
 
-    ASSERT_EQ(finfo->filename, "_filename_");
-    ASSERT_EQ(finfo->id, 1);
-    ASSERT_EQ(finfo->parentid, 0);
-    ASSERT_EQ(static_cast<curve::mds::FileType>(finfo->filetype),
-              curve::mds::FileType::INODE_PAGEFILE);
-    ASSERT_EQ(finfo->chunksize, 4 * 1024 * 1024);
-    ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024ul);
-    ASSERT_EQ(finfo->ctime, 12345678);
-    ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
+        auto finfo = absl::make_unique<curve::client::FInfo_t>();
+        mdsclient_.GetFileInfo(filename, userinfo, finfo.get());
 
-    // 设置rpc失败，触发重试
-    brpc::Controller cntl;
-    cntl.SetFailed(-1, "failed");
+        ASSERT_EQ(finfo->filename, "_filename_");
+        ASSERT_EQ(finfo->id, 1);
+        ASSERT_EQ(finfo->parentid, 0);
+        ASSERT_EQ(static_cast<curve::mds::FileType>(finfo->filetype),
+                  curve::mds::FileType::INODE_PAGEFILE);
+        ASSERT_EQ(finfo->chunksize, 4 * 1024 * 1024);
+        ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(finfo->ctime, 12345678);
+        ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(finfo->blocksize, hasBlockSize ? blocksize : 4096);
 
-    FakeReturn *fakeret2 =
-        new FakeReturn(&cntl, static_cast<void *>(&response));
+        // 设置rpc失败，触发重试
+        brpc::Controller cntl;
+        cntl.SetFailed(-1, "failed");
 
-    curvefsservice.SetGetFileInfoFakeReturn(fakeret2);
-    curvefsservice.CleanRetryTimes();
+        auto fakeret2 = absl::make_unique<FakeReturn>(
+            &cntl, static_cast<void *>(&response));
 
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-              mdsclient_.GetFileInfo(filename.c_str(), userinfo, finfo));
+        curvefsservice.SetGetFileInfoFakeReturn(fakeret2.get());
+        curvefsservice.CleanRetryTimes();
 
-    delete fakeret;
-    delete fakeret2;
-    delete finfo;
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsclient_.GetFileInfo(filename, userinfo, finfo.get()));
+    }
 }
 
 TEST_F(MDSClientTest, GetOrAllocateSegment) {

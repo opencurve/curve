@@ -51,6 +51,10 @@ int64_t GetFileSize4Nebd(int fd) {
     return nebd::client::nebdClient.GetFileSize(fd);
 }
 
+int64_t GetBlockSize4Nebd(int fd) {
+    return nebd::client::nebdClient.GetBlockSize(fd);
+}
+
 int Discard4Nebd(int fd, NebdClientAioContext* aioctx) {
     return nebd::client::nebdClient.Discard(fd, aioctx);
 }

@@ -275,12 +275,14 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
 
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
-            ProtoSession leasesession = response.protosession();
+            const ProtoSession &leasesession = response.protosession();
             lease->sessionID = leasesession.sessionid();
             lease->leaseTime = leasesession.leasetime();
             lease->createTime = leasesession.createtime();
 
             const curve::mds::FileInfo &protoFileInfo = response.fileinfo();
+            LOG(INFO) << "OpenFile succeeded, filename: " << filename
+                      << ", file info " << protoFileInfo.DebugString();
             ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi);
 
             if (protoFileInfo.has_clonesource() &&

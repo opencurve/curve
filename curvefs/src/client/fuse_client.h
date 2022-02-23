@@ -41,7 +41,7 @@
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/common/fast_align.h"
+#include "src/common/fast_align.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/common/define.h"
@@ -69,7 +69,7 @@ using rpcclient::MdsClientImpl;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 
-using curvefs::common::is_aligned;
+using curve::common::is_aligned;
 
 const uint32_t kMaxHostNameLength = 255u;
 

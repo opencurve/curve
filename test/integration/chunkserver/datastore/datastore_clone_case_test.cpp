@@ -64,7 +64,8 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(id, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
@@ -84,7 +85,8 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(id, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
@@ -104,7 +106,8 @@ TEST_F(CloneTestSuit, CloneTest) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(2, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
@@ -267,7 +270,8 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(id, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);
@@ -287,7 +291,8 @@ TEST_F(CloneTestSuit, RecoverTest) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(correctedSn, info.correctedSn);
     ASSERT_EQ(id, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(true, info.isClone);
     ASSERT_NE(nullptr, info.bitmap);

@@ -133,8 +133,6 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                              butil::IOBuf* data, off_t off, size_t len,
                              MDSClient* mdsclient, const FInfo_t* fileInfo,
                              ChunkIndex chunkidx) {
-    const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
-
     lldiv_t res = std::div(
         static_cast<long long>(chunkidx) * fileInfo->chunksize,  // NOLINT
         static_cast<long long>(fileInfo->segmentsize));          // NOLINT
@@ -343,7 +341,6 @@ int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
 
     uint64_t cur = offset;
     uint64_t left = length;
-    uint64_t curChunkIndex = 0;
 
     while (left > 0) {
         uint64_t blockIndex = cur / stripeUnit;

@@ -40,7 +40,7 @@ class CopysetNodeManager;
 
 class ChunkServiceImpl : public ChunkService {
  public:
-    explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions);
+    explicit ChunkServiceImpl(const ChunkServiceOptions& chunkServiceOptions);
     ~ChunkServiceImpl() {}
 
     void DeleteChunk(RpcController *controller,
@@ -105,6 +105,7 @@ class ChunkServiceImpl : public ChunkService {
     CopysetNodeManager  *copysetNodeManager_;
     std::shared_ptr<InflightThrottle> inflightThrottle_;
     uint32_t            maxChunkSize_;
+    uint32_t ioAlignment_;
 };
 
 }  // namespace chunkserver

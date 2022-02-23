@@ -44,6 +44,8 @@ namespace chunkserver {
 
 using curve::common::UUIDGenerator;
 
+static constexpr uint32_t kOpRequestAlignSize = 4096;
+
 class ChunkService2Test : public testing::Test {
  protected:
     virtual void SetUp() {

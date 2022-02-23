@@ -56,7 +56,7 @@ const uint32_t kMB      = 1024*kKB;
 const uint32_t kGB      = 1024*kMB;
 
 // maigic number用于FilePool_meta file计算crc
-const char kFilePoolMaigic[3] = "01";
+const char kFilePoolMagic[3] = "01";
 }  // namespace common
 }  // namespace curve
 

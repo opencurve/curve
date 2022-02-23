@@ -40,6 +40,7 @@
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/datastore/file_pool.h"
+#include "src/common/fast_align.h"
 
 namespace curve {
 namespace chunkserver {
@@ -105,8 +106,11 @@ struct ChunkOptions {
     // The size of the page, each bit in the bitmap represents 1 page,
     // and the size of the metapage is also 1 page
     PageSizeType    pageSize;
+    ChunkSizeType   blockSize;
     // enable O_DSYNC When Open ChunkFile
     bool enableOdsyncWhenOpenChunkFile;
+    // The size of the meta page, each bit in the bitmap represents 1 block
+    PageSizeType    metaPageSize;
     // datastore internal statistical metric
     std::shared_ptr<DataStoreMetric> metric;
 
@@ -116,7 +120,8 @@ struct ChunkOptions {
                    , baseDir("")
                    , location("")
                    , chunkSize(0)
-                   , pageSize(0)
+                   , blockSize(0)
+                   , metaPageSize(0)
                    , metric(nullptr) {}
 };
 
@@ -306,31 +311,31 @@ class CSChunkFile {
     }
 
     inline uint32_t fileSize() {
-        return pageSize_ + size_;
+        return metaPageSize_ + size_;
     }
 
     inline int readMetaPage(char* buf) {
-        return lfs_->Read(fd_, buf, 0, pageSize_);
+        return lfs_->Read(fd_, buf, 0, metaPageSize_);
     }
 
     inline int writeMetaPage(const char* buf) {
-        return lfs_->Write(fd_, buf, 0, pageSize_);
+        return lfs_->Write(fd_, buf, 0, metaPageSize_);
     }
 
     inline int readData(char* buf, off_t offset, size_t length) {
-        return lfs_->Read(fd_, buf, offset + pageSize_, length);
+        return lfs_->Read(fd_, buf, offset + metaPageSize_, length);
     }
 
     inline int writeData(const char* buf, off_t offset, size_t length) {
-        int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
+        int rc = lfs_->Write(fd_, buf, offset + metaPageSize_, length);
         if (rc < 0) {
             return rc;
         }
         // If it is a clone chunk, you need to determine whether you need to
         // change the bitmap and update the metapage
         if (isCloneChunk_) {
-            uint32_t beginIndex = offset / pageSize_;
-            uint32_t endIndex = (offset + length - 1) / pageSize_;
+            uint32_t beginIndex = offset / blockSize_;
+            uint32_t endIndex = (offset + length - 1) / blockSize_;
             for (uint32_t i = beginIndex; i <= endIndex; ++i) {
                 // record dirty page
                 if (!metaPage_.bitmap->Test(i)) {
@@ -342,15 +347,16 @@ class CSChunkFile {
     }
 
     inline int writeData(const butil::IOBuf& buf, off_t offset, size_t length) {
-        int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
+        int rc = lfs_->Write(fd_, buf, offset + metaPageSize_, length);
         if (rc < 0) {
             return rc;
         }
         // If it is a clone chunk, you need to determine whether you need to
         // change the bitmap and update the metapage
+        // page size to alignment
         if (isCloneChunk_) {
-            uint32_t beginIndex = offset / pageSize_;
-            uint32_t endIndex = (offset + length - 1) / pageSize_;
+            uint32_t beginIndex = offset / blockSize_;
+            uint32_t endIndex = (offset + length - 1) / blockSize_;
             for (uint32_t i = beginIndex; i <= endIndex; ++i) {
                 // record dirty page
                 if (!metaPage_.bitmap->Test(i)) {
@@ -371,17 +377,8 @@ class CSChunkFile {
             return false;
         }
 
-        // Check if the offset is aligned
-        if (offset % pageSize_ != 0) {
-            return false;
-        }
-
-        // Check if len is aligned
-        if (len % pageSize_ != 0) {
-            return false;
-        }
-
-        return true;
+        return common::is_aligned(offset, blockSize_) &&
+               common::is_aligned(len, blockSize_);
     }
 
  private:
@@ -389,8 +386,8 @@ class CSChunkFile {
     int fd_;
     // The logical size of the chunk, not including metapage
     ChunkSizeType size_;
-    // The smallest atomic read and write unit
-    PageSizeType pageSize_;
+    ChunkSizeType blockSize_;
+    PageSizeType metaPageSize_;
     // chunk id
     ChunkID chunkId_;
     // The directory where the chunk is located

@@ -87,7 +87,8 @@ TEST_F(BasicTestSuit, BasicTest) {
     ASSERT_EQ(0, info.snapSn);
     ASSERT_EQ(0, info.correctedSn);
     ASSERT_EQ(id, info.chunkId);
-    ASSERT_EQ(PAGE_SIZE, info.pageSize);
+    ASSERT_EQ(PAGE_SIZE, info.metaPageSize);
+    ASSERT_EQ(BLOCK_SIZE, info.blockSize);
     ASSERT_EQ(CHUNK_SIZE, info.chunkSize);
     ASSERT_EQ(false, info.isClone);
     ASSERT_EQ(nullptr, info.bitmap);

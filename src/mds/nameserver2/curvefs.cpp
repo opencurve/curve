@@ -317,6 +317,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_filestatus(FileStatus::kFileCreated);
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
+        fileInfo.set_blocksize(g_block_size);
 
         if (filetype == FileType::INODE_PAGEFILE) {
             fileInfo.set_allocated_throttleparams(
@@ -1609,8 +1610,6 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
         return ret;
     }
 
-    LOG(INFO) << "FileInfo, " << fileInfo->DebugString();
-
     if (fileInfo->filetype() != FileType::INODE_PAGEFILE) {
         LOG(ERROR) << "OpenFile file type not support, fileName = " << fileName
                    << ", clientIP = " << clientIP
@@ -1623,6 +1622,10 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
     // clone file
     if (fileInfo->has_clonesource() && isPathValid(fileInfo->clonesource())) {
         return ListCloneSourceFileSegments(fileInfo, cloneSourceSegment);
+    }
+
+    if (!fileInfo->blocksize()) {
+        fileInfo->set_blocksize(g_block_size);
     }
 
     return StatusCode::kOK;
@@ -2402,6 +2405,10 @@ uint64_t CurveFS::GetMinFileLength() {
 
 uint64_t CurveFS::GetMaxFileLength() {
     return maxFileLength_;
+}
+
+uint32_t CurveFS::GetBlockSize() const {
+    return g_block_size;
 }
 
 StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,

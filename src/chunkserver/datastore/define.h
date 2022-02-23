@@ -80,9 +80,10 @@ struct CSChunkInfo {
     // the id of the chunk
     ChunkID chunkId;
     // page size
-    uint32_t pageSize;
+    uint32_t metaPageSize;
     // The size of the chunk
     uint32_t chunkSize;
+    uint32_t blockSize;
     // The sequence number of the chunk file
     SequenceNum curSn;
     // The sequence number of the chunk snapshot,
@@ -99,8 +100,9 @@ struct CSChunkInfo {
     // otherwise it is nullptr
     std::shared_ptr<Bitmap> bitmap;
     CSChunkInfo() : chunkId(0)
-                  , pageSize(4096)
+                  , metaPageSize(4096)
                   , chunkSize(16 * 4096 * 4096)
+                  , blockSize(4096)
                   , curSn(0)
                   , snapSn(0)
                   , correctedSn(0)
@@ -110,8 +112,9 @@ struct CSChunkInfo {
 
     bool operator== (const CSChunkInfo& rhs) const {
         if (chunkId != rhs.chunkId ||
-            pageSize != rhs.pageSize ||
+            metaPageSize != rhs.metaPageSize ||
             chunkSize != rhs.chunkSize ||
+            blockSize != rhs.blockSize ||
             curSn != rhs.curSn ||
             snapSn != rhs.snapSn ||
             correctedSn != rhs.correctedSn ||

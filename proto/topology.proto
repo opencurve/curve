@@ -149,6 +149,7 @@ message ChunkServerRegistRequest {
     required string hostIp = 3;
     required uint32 port = 4;
     optional string externalIp = 5;
+    optional uint32 blockSize = 6;
 };
 
 message ChunkServerRegistResponse {

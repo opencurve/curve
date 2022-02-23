@@ -38,7 +38,6 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-
 class TopologyServiceManager {
  public:
     TopologyServiceManager(

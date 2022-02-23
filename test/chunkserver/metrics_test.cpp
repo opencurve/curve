@@ -50,6 +50,7 @@ butil::AtExitManager atExitManager;
 
 const uint64_t kMB = 1024 * 1024;
 const ChunkSizeType CHUNK_SIZE = 4 * kMB;
+const ChunkSizeType BLOCK_SIZE = 4096;
 const PageSizeType PAGE_SIZE = 4 * 1024;
 const int chunkNum = 10;
 const LogicPoolID logicId = 1;
@@ -81,14 +82,12 @@ class CSMetricTest : public ::testing::Test {
     void InitFilePool(std::shared_ptr<FilePool> filePool,
                       const std::string& poolDir,
                       const std::string& poolMetaPath) {
-        FilePoolHelper::PersistEnCodeMetaInfo(lfs_,
-                                                   CHUNK_SIZE,
-                                                   PAGE_SIZE,
-                                                   poolDir,
-                                                   poolMetaPath);
+        FilePoolMeta meta(CHUNK_SIZE, PAGE_SIZE, BLOCK_SIZE, poolDir);
+        FilePoolHelper::PersistEnCodeMetaInfo(lfs_, meta, poolMetaPath);
         FilePoolOptions cfop;
         cfop.fileSize = CHUNK_SIZE;
         cfop.metaPageSize = PAGE_SIZE;
+        cfop.blockSize = BLOCK_SIZE;
         memcpy(cfop.metaPath, poolMetaPath.c_str(), poolMetaPath.size());
 
         if (lfs_->DirExists(poolDir))

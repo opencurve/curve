@@ -583,6 +583,12 @@ class CurveFS {
      */
     uint64_t GetMaxFileLength();
 
+    /**
+     * @brief get the block size of curve volume
+     * @return block size
+     */
+    uint32_t GetBlockSize() const;
+
  private:
     CurveFS() = default;
 
