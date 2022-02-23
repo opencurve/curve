@@ -123,8 +123,11 @@ inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
 }
 #define ToGroupIdStr   ToGroupIdString
 
-// TODO(wudmeiao): 是否需要考虑可配置
-const uint32_t kOpRequestAlignSize = 4096;
+// Meta page is header of chunkfile, and is used to store meta data of
+// chunkfile.
+// Currently, we need to ensure the atomicity of the meta page update, so set
+// its size to 4k.
+constexpr size_t kChunkfileMetaPageSize = 4096;
 
 }  // namespace chunkserver
 }  // namespace curve

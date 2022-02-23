@@ -52,6 +52,9 @@ using curve::common::UriParser;
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemType;
+using curve::chunkserver::FilePoolHelper;
+using curve::chunkserver::FilePoolMeta;
 
 DEFINE_string(ip, "127.0.0.1",
               "Initial configuration of the replication group");
@@ -101,12 +104,20 @@ void CreateChunkFilePool(const std::string &dirname, uint64_t chunksize,
     cpopt.fileSize = chunksize;
     cpopt.metaPageSize = 4096;
     cpopt.metaFileSize = 4096;
+    cpopt.blockSize = 4096;
 
     memcpy(cpopt.filePoolDir, datadir.c_str(), datadir.size());
     memcpy(cpopt.metaPath, metapath.c_str(), metapath.size());
 
-    (void)FilePoolHelper::PersistEnCodeMetaInfo(fsptr, chunksize, 4096, datadir,
-                                                metapath);
+    FilePoolMeta meta;
+    meta.chunkSize =  cpopt.fileSize;
+    meta.metaPageSize = cpopt.metaFileSize;
+    meta.hasBlockSize = true;
+    meta.blockSize = cpopt.blockSize;
+    meta.filePoolPath = datadir;
+
+    // FIXME(wuhanqing): why void?
+    (void)FilePoolHelper::PersistEnCodeMetaInfo(fsptr, meta, metapath);
 }
 
 int main(int argc, char *argv[]) {
@@ -146,7 +157,8 @@ int main(int argc, char *argv[]) {
     std::string raftSnapshotUri = copysetUri;
     raftSnapshotUri.replace(raftSnapshotUri.find("local"), 5, "curve");
     copysetNodeOptions.raftSnapshotUri = raftSnapshotUri;
-    copysetNodeOptions.pageSize = 4 * 1024;
+    copysetNodeOptions.metaPageSize = 4 * 1024;
+    copysetNodeOptions.blockSize = 4 * 1024;
     copysetNodeOptions.maxChunkSize = kMaxChunkSize;
 
     copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
@@ -172,6 +184,7 @@ int main(int argc, char *argv[]) {
     cfop.fileSize = kMaxChunkSize;
     if (cfop.getFileFromPool) {
         cfop.metaFileSize = 4096;
+        cfop.blockSize = 4096;
         if (FLAGS_create_chunkfilepool) {
             CreateChunkFilePool(chunkDataDir, kMaxChunkSize, fs);
         }

@@ -3575,6 +3575,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     }
 }
 
+namespace {
+
 bool gWriteSuccessFlag = false;
 
 void WriteCallBack(CurveAioContext* aioctx) {
@@ -3582,7 +3584,32 @@ void WriteCallBack(CurveAioContext* aioctx) {
     delete aioctx;
 }
 
+void PrepareOpenFile(FakeCurveFSService *service,
+                     OpenFileResponse *openresp,
+                     FakeReturn *fakeReturn) {
+    openresp->set_statuscode(curve::mds::StatusCode::kOK);
+    auto *session = openresp->mutable_protosession();
+    session->set_sessionid("xxx");
+    session->set_leasetime(10000);
+    session->set_createtime(10000);
+    session->set_sessionstatus(curve::mds::SessionStatus::kSessionOK);
+    auto *fileinfo = openresp->mutable_fileinfo();
+    fileinfo->set_id(1);
+    fileinfo->set_filename("filename");
+    fileinfo->set_parentid(0);
+    fileinfo->set_length(10ULL * 1024 * 1024 * 1024);
+    fileinfo->set_blocksize(4096);
+
+    *fakeReturn = FakeReturn(nullptr, static_cast<void *>(openresp));
+
+    service->SetOpenFile(fakeReturn);
+}
+
+}  // namespace
+
 TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
+    const std::string endpoint = "127.0.0.1:9102";
+
     ClientConfig cc;
     const std::string& configPath = "./conf/client.conf";
     cc.Init(configPath.c_str());
@@ -3591,8 +3618,13 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
     userinfo.owner = "userinfo";
 
     std::shared_ptr<MDSClient> mdsclient = std::make_shared<MDSClient>();
-    ASSERT_EQ(LIBCURVE_ERROR::OK,
-              mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt));
+
+    // set mds addr
+    auto mdsopts = cc.GetFileServiceOption().metaServerOpt;
+    mdsopts.rpcRetryOpt.addrs.clear();
+    mdsopts.rpcRetryOpt.addrs.push_back(endpoint);
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient->Initialize(mdsopts));
     ASSERT_TRUE(fileinstance.Initialize(
         "/test", mdsclient, userinfo, OpenFlags{}, cc.GetFileServiceOption()));
 
@@ -3601,15 +3633,23 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
     // 设置cli服务
     CliServiceFake fakeCliservice;
 
+    FakeCurveFSService curvefsService;
+    OpenFileResponse openresp;
+    FakeReturn fakeReturn;
+
+    PrepareOpenFile(&curvefsService, &openresp, &fakeReturn);
+
     brpc::Server server;
     ASSERT_EQ(0, server.AddService(&fakechunkservice,
         brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add fakechunkservice";
     ASSERT_EQ(0, server.AddService(&fakeCliservice,
         brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add fakecliservice";
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    ASSERT_EQ(0, server.Start("127.0.0.1:9102", &options))
-        << "Fail to start server add 127.0.0.1:9102";
+    ASSERT_EQ(
+        0, server.AddService(&curvefsService, brpc::SERVER_DOESNT_OWN_SERVICE))
+        << "Fail to add curvefsService";
+
+    ASSERT_EQ(0, server.Start(endpoint.c_str(), nullptr))
+        << "Fail to start server at " << endpoint;
 
     // fill metacache
     curve::client::MetaCache* mc =
@@ -3637,6 +3677,8 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
 
     const int kNewFileSn = 100;
     const int kOldFileSn = 30;
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileinstance.Open());
 
     // 设置文件版本号
     fileinstance.GetIOManager4File()->SetLatestFileSn(kNewFileSn);
@@ -3676,6 +3718,9 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
 
     // 上次写请求成功
     ASSERT_EQ(true, gWriteSuccessFlag);
+
+    server.Stop(0);
+    server.Join();
 }
 
 TEST_F(CopysetClientTest, retry_rpc_sleep_test) {

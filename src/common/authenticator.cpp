@@ -47,8 +47,8 @@
 
 #include <glog/logging.h>
 #include <openssl/hmac.h>
-#include <openssl/sha.h>
 #include <openssl/x509.h>
+
 #include <string.h>
 
 // Older openssl does not have EVP_sha256. To make the code always compile,

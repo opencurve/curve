@@ -38,7 +38,7 @@ namespace client {
 
 class CURVE_CACHELINE_ALIGNMENT FileInstance {
  public:
-    FileInstance();
+    FileInstance() = default;
     ~FileInstance() = default;
 
     /**
@@ -52,33 +52,17 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @return: 成功返回true、否则返回false
      */
     bool Initialize(const std::string& filename,
-                    std::shared_ptr<MDSClient> mdsclient,
-                    const UserInfo_t& userinfo,
+                    const std::shared_ptr<MDSClient>& mdsclient,
+                    const UserInfo& userinfo,
                     const OpenFlags& openflags,
                     const FileServiceOption& fileservicopt,
                     bool readonly = false);
     /**
      * 打开文件
-     * @param: filename为文件名
-     * @param: userinfo为user信息
      * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
      */
-    int Open(const std::string& filename,
-             const UserInfo& userinfo,
-             std::string* sessionId = nullptr);
+    int Open(std::string* sessionId = nullptr);
 
-    /**
-     * 重新打开文件
-     * @param filename为文件名
-     * @param sessionId为上次打开文件时返回的sessionid
-     * @param userInfo为user信息
-     * @param[out] newSessionId为ReOpen成功时返回的新sessionid
-     * @return 成功返回LIBCURVE_ERROR::OK, 否则LIBCURVE_ERROR::FAILED
-     */
-    int ReOpen(const std::string& filenam,
-               const std::string& sessionId,
-               const UserInfo& userInfo,
-               std::string* newSessionId);
     /**
      * 同步模式读
      * @param: buf为当前待读取的缓冲区
@@ -158,15 +142,17 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     static FileInstance* NewInitedFileInstance(
         const FileServiceOption& fileServiceOption,
-        std::shared_ptr<MDSClient> mdsClient,
+        const std::shared_ptr<MDSClient>& mdsclient,
         const std::string& filename,
         const UserInfo& userInfo,
         const OpenFlags& openflags,
         bool readonly);
 
     static FileInstance* Open4Readonly(
-        const FileServiceOption& opt, std::shared_ptr<MDSClient> mdsclient,
-        const std::string& filename, const UserInfo& userInfo,
+        const FileServiceOption& opt,
+        const std::shared_ptr<MDSClient>& mdsclient,
+        const std::string& filename,
+        const UserInfo& userInfo,
         const OpenFlags& openflags = DefaultReadonlyOpenFlags());
 
  private:
@@ -174,7 +160,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
  private:
     // 保存当前file的文件信息
-    FInfo_t                 finfo_;
+    FInfo finfo_;
 
     // 当前FileInstance的初始化配置信息
     FileServiceOption       fileopt_;
@@ -189,8 +175,14 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     IOManager4File          iomanager4file_;
 
     // 是否为只读方式
-    bool                   readonly_;
+    bool                   readonly_ = false;
+
+    // offset and length must align with `blocksize_`
+    // 4096 for backward compatibility
+    size_t blocksize_ = 4096;
 };
+
+bool CheckAlign(off_t off, size_t length, size_t blocksize);
 
 }   // namespace client
 }   // namespace curve

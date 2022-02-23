@@ -59,7 +59,7 @@ DEFINE_string(chunkServerExternalIp, "127.0.0.1", "chunkserver external ip");
 DEFINE_int32(chunkServerPort, 8200, "chunkserver port");
 DEFINE_string(chunkServerStoreUri, "local://./0/", "chunkserver store uri");
 DEFINE_string(chunkServerMetaUri,
-    "local://./0/chunkserver.dat", "chunnkserver meata uri");
+    "local://./0/chunkserver.dat", "chunkserver meta uri");
 DEFINE_string(copySetUri, "local://./0/copysets", "copyset data uri");
 DEFINE_string(raftSnapshotUri, "curve://./0/copysets", "raft snapshot uri");
 DEFINE_string(raftLogUri, "curve://./0/copysets", "raft log uri");
@@ -137,6 +137,7 @@ int ChunkServer::Run(int argc, char** argv) {
     InitChunkFilePoolOptions(&conf, &chunkFilePoolOptions);
     std::shared_ptr<FilePool> chunkfilePool =
             std::make_shared<FilePool>(fs);
+
     LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
         << "Failed to init chunk file pool";
 
@@ -195,12 +196,14 @@ int ChunkServer::Run(int argc, char** argv) {
     registerOptions.useChunkFilePoolAsWalPool = useChunkFilePoolAsWalPool;
     registerOptions.fs = fs;
     registerOptions.chunkFilepool = chunkfilePool;
+    registerOptions.blockSize = chunkfilePool->GetFilePoolOpt().blockSize;
+    registerOptions.chunkSize = chunkfilePool->GetFilePoolOpt().fileSize;
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     ChunkServerMetadata localMetadata;
     // 从本地获取meta
     std::string metaPath = UriParser::GetPathFromUri(
-        registerOptions.chunkserverMetaUri).c_str();
+        registerOptions.chunkserverMetaUri);
 
     auto epochMap = std::make_shared<EpochMap>();
     if (fs->FileExists(metaPath)) {
@@ -243,6 +246,13 @@ int ChunkServer::Run(int argc, char** argv) {
         FilePoolOptions poolOpt = walFilePool->GetFilePoolOpt();
         uint32_t maxWalSegmentSize = poolOpt.fileSize + poolOpt.metaPageSize;
         copysetNodeOptions.maxWalSegmentSize = maxWalSegmentSize;
+
+        if (poolOpt.getFileFromPool) {
+            // overwrite from file pool
+            copysetNodeOptions.maxChunkSize = poolOpt.fileSize;
+            copysetNodeOptions.metaPageSize = poolOpt.metaPageSize;
+            copysetNodeOptions.blockSize = poolOpt.blockSize;
+        }
     }
 
     // install snapshot的带宽限制
@@ -474,8 +484,15 @@ void ChunkServer::InitChunkFilePoolOptions(
     common::Configuration *conf, FilePoolOptions *chunkFilePoolOptions) {
     LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
         &chunkFilePoolOptions->fileSize));
+
     LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
-        &chunkFilePoolOptions->metaPageSize));
+                                        &chunkFilePoolOptions->metaPageSize))
+        << "Not found `global.meta_page_size` in config file";
+
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.block_size",
+                                        &chunkFilePoolOptions->blockSize))
+        << "Not found `global.block_size` in config file";
+
     LOG_IF(FATAL, !conf->GetUInt32Value("chunkfilepool.cpmeta_file_size",
         &chunkFilePoolOptions->metaFileSize));
     LOG_IF(FATAL, !conf->GetBoolValue(
@@ -580,6 +597,10 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->recyclerUri));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
         &copysetNodeOptions->maxChunkSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
+        &copysetNodeOptions->metaPageSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.block_size",
+        &copysetNodeOptions->blockSize));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.location_limit",
         &copysetNodeOptions->locationLimit));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.load_concurrency",

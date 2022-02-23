@@ -633,6 +633,12 @@ class CurveFS {
     StatusCode BuildEpochMap(::google::protobuf::Map<
         ::google::protobuf::uint64, ::google::protobuf::uint64> *epochMap);
 
+    /**
+     * @brief get the block size of curve volume
+     * @return block size
+     */
+    uint32_t GetBlockSize() const;
+
  private:
     CurveFS() = default;
 

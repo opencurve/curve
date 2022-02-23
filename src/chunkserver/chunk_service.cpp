@@ -35,16 +35,23 @@
 #include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/chunk_service_closure.h"
+#include "src/common/fast_align.h"
+
+#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace chunkserver {
 
-ChunkServiceImpl::ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions,
-    const std::shared_ptr<EpochMap> &epochMap) :
-    chunkServiceOptions_(chunkServiceOptions),
-    copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
-    inflightThrottle_(chunkServiceOptions.inflightThrottle),
-    epochMap_(epochMap) {
+using ::curve::common::is_aligned;
+
+ChunkServiceImpl::ChunkServiceImpl(
+        const ChunkServiceOptions& chunkServiceOptions,
+        const std::shared_ptr<EpochMap>& epochMap)
+    : chunkServiceOptions_(chunkServiceOptions),
+      copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
+      inflightThrottle_(chunkServiceOptions.inflightThrottle),
+      epochMap_(epochMap),
+      blockSize_(copysetNodeManager_->GetCopysetNodeOptions().blockSize) {
     maxChunkSize_ = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
 }
 
@@ -571,23 +578,13 @@ void ChunkServiceImpl::UpdateEpoch(RpcController *controller,
 }
 
 bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
-                                                   uint32_t len) {
+                                                   uint32_t len) const {
     // 检查offset+len是否越界
-    if (offset + len > maxChunkSize_) {
+    if (CURVE_UNLIKELY(offset + len > maxChunkSize_)) {
         return false;
     }
 
-    // 检查offset是否对齐
-    if (offset % kOpRequestAlignSize != 0) {
-        return false;
-    }
-
-    // 检查len是否对齐
-    if (len % kOpRequestAlignSize != 0) {
-        return false;
-    }
-
-    return true;
+    return is_aligned(offset, blockSize_) && is_aligned(len, blockSize_);
 }
 
 }  // namespace chunkserver

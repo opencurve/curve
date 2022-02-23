@@ -24,16 +24,15 @@
 
 #include <butil/iobuf.h>
 
-#include <vector>
 #include <string>
+#include <vector>
 
-#include "src/client/metacache.h"
-#include "src/client/io_tracker.h"
-#include "src/client/config_info.h"
-#include "src/client/metacache.h"
-#include "src/client/request_context.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
+#include "src/client/config_info.h"
+#include "src/client/io_tracker.h"
+#include "src/client/metacache.h"
+#include "src/client/request_context.h"
 
 namespace curve {
 namespace client {

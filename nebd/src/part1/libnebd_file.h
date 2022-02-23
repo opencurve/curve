@@ -62,6 +62,9 @@ int Extend4Nebd(int fd, int64_t newsize);
  *  @return 成功返回文件size，失败返回错误码
  */
 int64_t GetFileSize4Nebd(int fd);
+
+int64_t GetBlockSize4Nebd(int fd);
+
 /**
  *  @brief discard文件，异步函数
  *  @param fd：文件的fd

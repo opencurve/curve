@@ -77,13 +77,16 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
         req.set_chunkserverid(localMetadata->id());
         req.set_token(localMetadata->token());
     }
+    req.set_blocksize(ops_.blockSize);
+    req.set_chunksize(ops_.chunkSize);
 
     LOG(INFO) << " Registering to MDS " << mdsEps_[inServiceIndex_]
               << ". internal ip: " << ops_.chunkserverInternalIp
               << ", port: " << ops_.chunkserverPort
               << ", enable external server: " << ops_.enableExternalServer
               << ", external ip: " << ops_.chunkserverExternalIp
-              << ", size =" << chunkPoolSize;
+              << ", size =" << chunkPoolSize
+              << ", block size: " << ops_.blockSize;
 
     int retries = ops_.registerRetries;
     while (retries >= 0) {

@@ -94,10 +94,8 @@ int CurveClient::Extend(const std::string& filename,
     return fileClient_->Extend(realFileName, userInfo, newsize);
 }
 
-int64_t CurveClient::StatFile(int fd) {
-    FileStatInfo fileStatInfo;
-    int rc = fileClient_->StatFile(fd, &fileStatInfo);
-    return rc == LIBCURVE_ERROR::OK ? fileStatInfo.length : rc;
+int64_t CurveClient::StatFile(int fd, FileStatInfo* statInfo) {
+    return fileClient_->StatFile(fd, statInfo);
 }
 
 int CurveClient::AioRead(int fd, CurveAioContext* aioctx,

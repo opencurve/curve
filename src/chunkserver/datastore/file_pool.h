@@ -59,6 +59,7 @@ struct FilePoolOptions {
     char        filePoolDir[256];
     uint32_t    fileSize;
     uint32_t    metaPageSize;
+    uint32_t    blockSize;
     char        metaPath[256];
     uint32_t    metaFileSize;
     // retry times for get file
@@ -73,24 +74,57 @@ struct FilePoolOptions {
         fileSize = 0;
         metaPageSize = 0;
         retryTimes = 5;
+        blockSize = 0;
         ::memset(metaPath, 0, 256);
         ::memset(filePoolDir, 0, 256);
     }
 };
 
-typedef struct FilePoolState {
+struct FilePoolState {
     // How many dirty chunks are not used by the datastore
-    uint64_t    dirtyChunksLeft;
+    uint64_t    dirtyChunksLeft = 0;
     // How many clean chunks are not used by the datastore
-    uint64_t    cleanChunksLeft;
+    uint64_t    cleanChunksLeft = 0;
     // How many pre-allocated chunks are not used by the datastore
-    uint64_t    preallocatedChunksLeft;
+    uint64_t    preallocatedChunksLeft = 0;
 
     // chunksize
-    uint32_t    chunkSize;
+    uint32_t    chunkSize = 0;
     // metapage size
-    uint32_t    metaPageSize;
-} FilePoolState_t;
+    uint32_t    metaPageSize = 0;
+    // io alignment
+    uint32_t    blockSize = 0;
+};
+
+struct FilePoolMeta {
+    uint32_t chunkSize = 0;
+    uint32_t metaPageSize = 0;
+    bool hasBlockSize = false;
+    uint32_t blockSize = 0;
+    std::string filePoolPath;
+
+    FilePoolMeta() = default;
+
+    FilePoolMeta(uint32_t chunksize,
+                 uint32_t metapagesize,
+                 uint32_t blocksize,
+                 const std::string& filepool)
+        : chunkSize(chunksize),
+          metaPageSize(metapagesize),
+          hasBlockSize(true),
+          blockSize(blocksize),
+          filePoolPath(filepool) {}
+
+    FilePoolMeta(uint32_t chunksize,
+                 uint32_t metapagesize,
+                 const std::string& filepool)
+        : chunkSize(chunksize),
+          metaPageSize(metapagesize),
+          hasBlockSize(false),
+          filePoolPath(filepool) {}
+
+    uint32_t Crc32() const;
+};
 
 class FilePoolHelper {
  public:
@@ -98,6 +132,7 @@ class FilePoolHelper {
     static const char* kMetaPageSize;
     static const char* kFilePoolPath;
     static const char* kCRC;
+    static const char* kBlockSize;
     static const uint32_t kPersistSize;
 
     /**
@@ -110,10 +145,8 @@ class FilePoolHelper {
      * @return: success 0, otherwise -1
      */
     static int PersistEnCodeMetaInfo(std::shared_ptr<LocalFileSystem> fsptr,
-                               uint32_t fileSize,
-                               uint32_t metaPageSize,
-                               const std::string& filepoolPath,
-                               const std::string& persistPath);
+                                     const FilePoolMeta& meta,
+                                     const std::string& persistPath);
 
     /**
      * Parse the current chunk pool information from the persistent meta data
@@ -126,12 +159,10 @@ class FilePoolHelper {
      * @return: success 0, otherwise -1
      */
     static int DecodeMetaInfoFromMetaFile(
-                                  std::shared_ptr<LocalFileSystem> fsptr,
-                                  const std::string& metaFilePath,
-                                  uint32_t metaFileSize,
-                                  uint32_t* fileSize,
-                                  uint32_t* metaPageSize,
-                                  std::string* filepoolPath);
+        std::shared_ptr<LocalFileSystem> fsptr,
+        const std::string& metaFilePath,
+        uint32_t metaFileSize,
+        FilePoolMeta* meta);
 };
 
 class CURVE_CACHELINE_ALIGNMENT FilePool {
@@ -166,7 +197,7 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
     /**
      * Get the allocation status of FilePool
      */
-    virtual FilePoolState_t GetState();
+    virtual FilePoolState GetState() const;
     /**
      * Get the option configuration information of the current FilePool
      */
@@ -289,7 +320,7 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
     FilePoolOptions poolOpt_;
 
     // FilePool allocation status
-    FilePoolState_t currentState_;
+    FilePoolState currentState_;
 
     // Whether the clean thread is alive
     Atomic<bool> cleanAlived_;

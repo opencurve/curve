@@ -335,7 +335,8 @@ TEST_F(CopysetNodeTest, error_test) {
         DataStoreOptions options;
         options.baseDir = "./test-temp";
         options.chunkSize = 16 * 1024 * 1024;
-        options.pageSize = 4 * 1024;
+        options.metaPageSize = 4 * 1024;
+        options.blockSize = 4 * 1024;
         std::shared_ptr<FakeCSDataStore> dataStore =
             std::make_shared<FakeCSDataStore>(options, fs);
         copysetNode.SetCSDateStore(dataStore);
@@ -363,7 +364,8 @@ TEST_F(CopysetNodeTest, error_test) {
         DataStoreOptions options;
         options.baseDir = "./test-temp";
         options.chunkSize = 16 * 1024 * 1024;
-        options.pageSize = 4 * 1024;
+        options.metaPageSize = 4 * 1024;
+        options.blockSize = 4 * 1024;
         std::shared_ptr<FakeCSDataStore> dataStore =
             std::make_shared<FakeCSDataStore>(options, fs);
         copysetNode.SetCSDateStore(dataStore);

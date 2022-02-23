@@ -111,7 +111,9 @@ const std::vector<std::string> chunkserverConfigOptions{
     std::string("curve.config_path=") + kCsClientConfigPath,
     std::string("s3.config_path=") + kS3ConfigPath,
     "walfilepool.use_chunk_file_pool=false",
-    "walfilepool.enable_get_segment_from_pool=false"
+    "walfilepool.enable_get_segment_from_pool=false",
+    "global.block_size=4096",
+    "global.meta_page_size=4096",
 };
 
 const std::vector<std::string> csClientConfigOptions{

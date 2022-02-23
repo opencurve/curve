@@ -39,10 +39,9 @@ class FakeRequestContext : public RequestContext {
 
 class FakeRequestClosure : public RequestClosure {
  public:
-    explicit FakeRequestClosure(curve::common::CountDownEvent *cond,
-                                RequestContext *reqctx)
-        : cond_(cond),
-          RequestClosure(reqctx) {
+    explicit FakeRequestClosure(curve::common::CountDownEvent* cond,
+                                RequestContext* reqctx)
+        : RequestClosure(reqctx), cond_(cond) {
         reqCtx_ = reqctx;
     }
     virtual ~FakeRequestClosure() {}

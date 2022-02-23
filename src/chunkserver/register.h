@@ -49,6 +49,8 @@ struct RegisterOptions {
     std::string chunkserverDiskType;
     int registerRetries;
     int registerTimeout;
+    uint32_t blockSize = 0;
+    uint32_t chunkSize = 0;
 
     uint32_t useChunkFilePoolAsWalPoolReserve;
     bool useChunkFilePoolAsWalPool;

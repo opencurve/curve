@@ -42,7 +42,7 @@ using ::testing::Return;
 class IOTrackerTest : public ::testing::Test {
  public:
     void SetUp() override {
-        opt_.taskDelayMs = 10;
+        opt_.taskDelayMs = 100;
         IOTracker::InitDiscardOption(opt_);
 
         metric.reset(new DiscardMetric("IOTrackerTest"));
