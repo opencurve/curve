@@ -43,6 +43,7 @@ using curve::fs::FileSystemType;
 
 const char kRaftLogRepTestLogDir[] = "./runlog/RaftLogRep";
 const char* kFakeMdsAddr = "127.0.0.1:9070";
+static constexpr uint32_t kOpRequestAlignSize = 4096;
 
 static char* raftLogParam[5][16] = {
     {

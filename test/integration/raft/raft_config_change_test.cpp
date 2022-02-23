@@ -43,6 +43,8 @@ using curve::fs::FileSystemType;
 const char kRaftConfigChangeTestLogDir[] = "./runlog/RaftConfigChange";
 const char* kFakeMdsAddr = "127.0.0.1:9080";
 
+static constexpr uint32_t kOpRequestAlignSize = 4096;
+
 static char* raftConfigParam[5][16] = {
     {
         "chunkserver",

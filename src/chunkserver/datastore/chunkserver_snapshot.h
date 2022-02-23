@@ -150,24 +150,24 @@ class CSSnapshot {
                FileNameOperator::GenerateSnapshotName(chunkId_, metaPage_.sn);
     }
 
-    inline uint32_t fileSize() {
-        return pageSize_ + size_;
+    uint32_t fileSize() const {
+        return metaPageSize_ + size_;
     }
 
     inline int readMetaPage(char* buf) {
-        return lfs_->Read(fd_, buf, 0, pageSize_);
+        return lfs_->Read(fd_, buf, 0, metaPageSize_);
     }
 
     inline int writeMetaPage(const char* buf) {
-        return lfs_->Write(fd_, buf, 0, pageSize_);
+        return lfs_->Write(fd_, buf, 0, metaPageSize_);
     }
 
     inline int readData(char* buf, off_t offset, size_t length) {
-        return lfs_->Read(fd_, buf, offset + pageSize_, length);
+        return lfs_->Read(fd_, buf, offset + metaPageSize_, length);
     }
 
     inline int writeData(const char* buf, off_t offset, size_t length) {
-        return lfs_->Write(fd_, buf, offset + pageSize_, length);
+        return lfs_->Write(fd_, buf, offset + metaPageSize_, length);
     }
 
  private:
@@ -177,9 +177,10 @@ class CSSnapshot {
     ChunkID chunkId_;
     // Logical size of the snapshot file, excluding metapage
     ChunkSizeType size_;
+    ChunkSizeType blockSize_;
     // The smallest atomic read and write unit, which is also the size of
     // the metapage
-    PageSizeType pageSize_;
+    PageSizeType metaPageSize_;
     // The directory where the snapshot file is located
     std::string baseDir_;
     // The metapage of the snapshot file

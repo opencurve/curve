@@ -296,6 +296,7 @@ void NebdFileServiceImpl::GetInfo(
         info->set_size(fileInfo.size);
         info->set_objsize(fileInfo.obj_size);
         info->set_objnums(fileInfo.num_objs);
+        info->set_blocksize(fileInfo.block_size);
         response->set_retcode(RetCode::kOK);
         response->set_allocated_info(info);
     }

@@ -33,6 +33,7 @@ cc_library(
         "//include/chunkserver:include-chunkserver",
         "//src/fs:lfs",
         "//src/common:curve_common",
-        "//external:json"
+        "//external:json",
+        "@com_google_absl//absl/utility",
     ],
 )

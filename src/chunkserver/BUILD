@@ -72,6 +72,7 @@ cc_library(
         "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
         "//src/client:curve_client",
+        "//include:include-common",
 	"//include/client:include_client",
     ],
 )

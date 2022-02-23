@@ -38,7 +38,7 @@ class MockNBDController : public NBDController {
     ~MockNBDController() = default;
 
     MOCK_METHOD1(Resize, int(uint64_t));
-    MOCK_METHOD4(SetUp, int(NBDConfig*, int, uint64_t, uint64_t));
+    MOCK_METHOD5(SetUp, int(NBDConfig*, int, uint64_t, uint32_t, uint64_t));
     MOCK_METHOD1(DisconnectByPath, int(const std::string&));
 };
 

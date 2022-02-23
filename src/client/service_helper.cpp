@@ -30,9 +30,12 @@
 #include <utility>
 #include "src/client/client_config.h"
 #include "src/client/client_metric.h"
+#include "src/common/curve_define.h"
 
 namespace curve {
 namespace client {
+
+using ::curve::common::kDefaultBlockSize;
 
 void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
                                         FInfo_t* fi, FileEpoch_t* fEpoch) {
@@ -77,6 +80,12 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     }
     if (finfo.has_stripecount()) {
         fi->stripeCount = finfo.stripecount();
+    }
+    if (finfo.has_blocksize()) {
+        fi->blocksize = finfo.blocksize();
+    } else {
+        // for backward compatibility
+        fi->blocksize = kDefaultBlockSize;
     }
     if (finfo.has_poolset()) {
         fi->poolset = finfo.poolset();

@@ -235,6 +235,9 @@ class MDS {
 bool ParsePoolsetRules(const std::string& str,
                        std::map<std::string, std::string>* rules);
 
+bool CheckOrInsertBlockSize(EtcdClientImp* etcdclient);
+bool CheckOrInsertChunkSize(EtcdClientImp* etcdclient);
+
 }  // namespace mds
 }  // namespace curve
 

@@ -29,6 +29,8 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
+#include "src/common/curve_define.h"
+#include "src/common/fast_align.h"
 
 namespace curve {
 namespace client {
@@ -36,18 +38,15 @@ namespace client {
 using curve::client::ClientConfig;
 using curve::common::TimeUtility;
 using curve::mds::SessionStatus;
+using curve::common::is_aligned;
 
-FileInstance::FileInstance()
-    : finfo_(),
-      fileopt_(),
-      mdsclient_(nullptr),
-      leaseExecutor_(),
-      iomanager4file_(),
-      readonly_(false) {}
+bool CheckAlign(off_t off, size_t length, size_t blocksize) {
+    return is_aligned(off, blocksize) && is_aligned(length, blocksize);
+}
 
 bool FileInstance::Initialize(const std::string& filename,
-                              std::shared_ptr<MDSClient> mdsclient,
-                              const UserInfo_t& userinfo,
+                              const std::shared_ptr<MDSClient>& mdsclient,
+                              const UserInfo& userinfo,
                               const OpenFlags& openflags,
                               const FileServiceOption& fileservicopt,
                               bool readonly) {
@@ -65,10 +64,9 @@ bool FileInstance::Initialize(const std::string& filename,
             break;
         }
 
+        mdsclient_ = mdsclient;
         finfo_.openflags = openflags;
         finfo_.userinfo = userinfo;
-        mdsclient_ = std::move(mdsclient);
-
         finfo_.fullPathName = filename;
 
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt,
@@ -83,14 +81,14 @@ bool FileInstance::Initialize(const std::string& filename,
         leaseExecutor_.reset(new (std::nothrow) LeaseExecutor(
             fileopt_.leaseOpt, finfo_.userinfo, mdsclient_.get(),
             &iomanager4file_));
-        if (CURVE_UNLIKELY(leaseExecutor_ == nullptr)) {
+        if (leaseExecutor_ == nullptr) {
             LOG(ERROR) << "Allocate LeaseExecutor failed, filename = "
                        << filename;
             break;
         }
 
         ret = true;
-    } while (0);
+    } while (false);
 
     return ret;
 }
@@ -105,26 +103,61 @@ void FileInstance::UnInitialize() {
 }
 
 int FileInstance::Read(char* buf, off_t offset, size_t length) {
+    if (CURVE_UNLIKELY(!CheckAlign(offset, length, blocksize_))) {
+        LOG(ERROR) << "IO not aligned, off: " << offset
+                   << ", length: " << length
+                   << ", block size: " << blocksize_;
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     return iomanager4file_.Read(buf, offset, length, mdsclient_.get());
 }
 
-int FileInstance::Write(const char* buf, off_t offset, size_t len) {
-    if (readonly_) {
+int FileInstance::Write(const char *buf, off_t offset, size_t len) {
+    if (CURVE_UNLIKELY(readonly_)) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
+
+    if (CURVE_UNLIKELY(!CheckAlign(offset, len, blocksize_))) {
+        LOG(ERROR) << "IO not aligned, off: " << offset << ", length: " << len
+                   << ", block size: " << blocksize_;
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     return iomanager4file_.Write(buf, offset, len, mdsclient_.get());
 }
 
 int FileInstance::AioRead(CurveAioContext* aioctx, UserDataType dataType) {
+    if (CURVE_UNLIKELY(
+                !CheckAlign(aioctx->offset, aioctx->length, blocksize_))) {
+        LOG(ERROR) << "IO not aligned, off: " << aioctx->offset
+                   << ", length: " << aioctx->length
+                   << ", block size: " << blocksize_;
+        aioctx->ret = -LIBCURVE_ERROR::NOT_ALIGNED;
+        aioctx->cb(aioctx);
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     return iomanager4file_.AioRead(aioctx, mdsclient_.get(), dataType);
 }
 
-int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
-    if (readonly_) {
+int FileInstance::AioWrite(CurveAioContext *aioctx, UserDataType dataType) {
+    if (CURVE_UNLIKELY(readonly_)) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
+
+    if (CURVE_UNLIKELY(
+                !CheckAlign(aioctx->offset, aioctx->length, blocksize_))) {
+        LOG(ERROR) << "IO not aligned, off: " << aioctx->offset
+                   << ", length: " << aioctx->length
+                   << ", block size: " << blocksize_;
+        aioctx->ret = -LIBCURVE_ERROR::NOT_ALIGNED;
+        aioctx->cb(aioctx);
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     return iomanager4file_.AioWrite(aioctx, mdsclient_.get(), dataType);
 }
 
@@ -136,15 +169,13 @@ int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
 //    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
 //    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
 //    等待一段时间再去Open，如果依然失败，就向上层返回失败。
-int FileInstance::Open(const std::string& filename,
-                       const UserInfo& userinfo,
-                       std::string* sessionId) {
+int FileInstance::Open(std::string* sessionId) {
     LeaseSession_t  lease;
     int ret = LIBCURVE_ERROR::FAILED;
 
-    FileEpoch_t fEpoch;
-    ret = mdsclient_->OpenFile(filename, finfo_.userinfo,
-        &finfo_, &fEpoch, &lease);
+    FileEpoch fEpoch;
+    ret = mdsclient_->OpenFile(finfo_.fullPathName, finfo_.userinfo, &finfo_,
+                               &fEpoch, &lease);
     if (ret == LIBCURVE_ERROR::OK) {
         ret = leaseExecutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                    : LIBCURVE_ERROR::FAILED;
@@ -152,21 +183,15 @@ int FileInstance::Open(const std::string& filename,
             sessionId->assign(lease.sessionID);
         }
         iomanager4file_.UpdateFileEpoch(fEpoch);
+        blocksize_ = finfo_.blocksize;
     }
     return -ret;
 }
 
-int FileInstance::ReOpen(const std::string& filename,
-                         const std::string& sessionId,
-                         const UserInfo& userInfo,
-                         std::string* newSessionId) {
-    return Open(filename, userInfo, newSessionId);
-}
-
-int FileInstance::GetFileInfo(const std::string& filename,
-    FInfo_t* fi, FileEpoch_t *fEpoch) {
-    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, finfo_.userinfo,
-                                                 fi, fEpoch);
+int FileInstance::GetFileInfo(const std::string &filename, FInfo_t *fi,
+                              FileEpoch_t *fEpoch) {
+    LIBCURVE_ERROR ret =
+        mdsclient_->GetFileInfo(filename, finfo_.userinfo, fi, fEpoch);
     return -ret;
 }
 
@@ -185,7 +210,7 @@ int FileInstance::Close() {
 
 FileInstance* FileInstance::NewInitedFileInstance(
     const FileServiceOption& fileServiceOption,
-    std::shared_ptr<MDSClient> mdsClient,
+    const std::shared_ptr<MDSClient>& mdsClient,
     const std::string& filename,
     const UserInfo& userInfo,
     const OpenFlags& openflags,  // TODO(all): maybe we can put userinfo and readonly into openflags  // NOLINT
@@ -196,8 +221,8 @@ FileInstance* FileInstance::NewInitedFileInstance(
         return nullptr;
     }
 
-    bool ret = instance->Initialize(filename, std::move(mdsClient), userInfo,
-                                    openflags, fileServiceOption, readonly);
+    bool ret = instance->Initialize(filename, mdsClient, userInfo, openflags,
+                                    fileServiceOption, readonly);
     if (!ret) {
         LOG(ERROR) << "FileInstance initialize failed"
                    << ", filename = " << filename
@@ -210,21 +235,22 @@ FileInstance* FileInstance::NewInitedFileInstance(
     return instance;
 }
 
-FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
-                                          std::shared_ptr<MDSClient> mdsclient,
-                                          const std::string& filename,
-                                          const UserInfo& userInfo,
-                                          const OpenFlags& openflags) {
+FileInstance* FileInstance::Open4Readonly(
+    const FileServiceOption& opt,
+    const std::shared_ptr<MDSClient>& mdsclient,
+    const std::string& filename,
+    const UserInfo& userInfo,
+    const OpenFlags& openflags) {
     FileInstance* instance = FileInstance::NewInitedFileInstance(
-        opt, std::move(mdsclient), filename, userInfo, openflags, true);
+        opt, mdsclient, filename, userInfo, openflags, true);
     if (instance == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance failed, filename = " << filename;
         return nullptr;
     }
 
-    FInfo fileInfo;
     FileEpoch_t fEpoch;
-    int ret = instance->GetFileInfo(filename, &fileInfo, &fEpoch);
+    int ret = mdsclient->GetFileInfo(filename, userInfo, &instance->finfo_,
+                                     &fEpoch);
     if (ret != 0) {
         LOG(ERROR) << "Get file info failed!";
         instance->UnInitialize();
@@ -232,10 +258,12 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
         return nullptr;
     }
 
-    fileInfo.openflags = openflags;
-    fileInfo.userinfo = userInfo;
-    fileInfo.fullPathName = filename;
-    instance->GetIOManager4File()->UpdateFileInfo(fileInfo);
+    instance->finfo_.openflags = openflags;
+    instance->finfo_.userinfo = userInfo;
+    instance->finfo_.fullPathName = filename;
+    instance->blocksize_ = instance->finfo_.blocksize;
+    LOG(INFO) << "block size is " << instance->blocksize_;
+    instance->GetIOManager4File()->UpdateFileInfo(instance->finfo_);
     instance->GetIOManager4File()->UpdateFileEpoch(fEpoch);
 
     return instance;

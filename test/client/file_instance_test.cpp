@@ -59,5 +59,18 @@ TEST(FileInstanceTest, CommonTest) {
     fi4.UnInitialize();
 }
 
+TEST(FileInstanceTest, IoAlignmentTest) {
+    ASSERT_TRUE(CheckAlign(4096, 4096, 4096));
+
+    ASSERT_FALSE(CheckAlign(512, 4096, 4096));
+    ASSERT_FALSE(CheckAlign(4096, 512, 4096));
+
+    ASSERT_TRUE(CheckAlign(4096, 4096, 512));
+    ASSERT_TRUE(CheckAlign(512, 4096, 512));
+    ASSERT_TRUE(CheckAlign(512, 512, 512));
+
+    ASSERT_FALSE(CheckAlign(511, 511, 512));
+}
+
 }  // namespace client
 }  // namespace curve

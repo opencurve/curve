@@ -341,8 +341,9 @@ void NameSpaceService::GetFileInfo(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", GetFileInfo request, filename = " << request->filename();
+    LOG_EVERY_SECOND(INFO) << "logid = " << cntl->log_id()
+                           << ", GetFileInfo request, filename = "
+                           << request->filename();
 
     FileReadLockGuard guard(fileLockManager_, request->filename());
 

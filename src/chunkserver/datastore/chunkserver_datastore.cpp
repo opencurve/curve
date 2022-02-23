@@ -38,9 +38,10 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
                          std::shared_ptr<FilePool> chunkFilePool,
                          const DataStoreOptions& options)
     : chunkSize_(options.chunkSize),
-      pageSize_(options.pageSize),
-      baseDir_(options.baseDir),
+      blockSize_(options.blockSize),
+      metaPageSize_(options.metaPageSize),
       locationLimit_(options.locationLimit),
+      baseDir_(options.baseDir),
       chunkFilePool_(chunkFilePool),
       lfs_(lfs),
       enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
@@ -232,7 +233,8 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.location = cloneSourceLocation;
-        options.pageSize = pageSize_;
+        options.blockSize = blockSize_;
+        options.metaPageSize = metaPageSize_;
         options.metric = metric_;
         options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
         CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
@@ -296,7 +298,8 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         options.location = location;
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
-        options.pageSize = pageSize_;
+        options.blockSize = blockSize_;
+        options.metaPageSize = metaPageSize_;
         options.metric = metric_;
         CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
         if (errorCode != CSErrorCode::Success) {
@@ -388,7 +391,8 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         options.sn = 0;
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
-        options.pageSize = pageSize_;
+        options.blockSize = blockSize_;
+        options.metaPageSize = metaPageSize_;
         options.metric = metric_;
         CSChunkFilePtr chunkFilePtr =
             std::make_shared<CSChunkFile>(lfs_,

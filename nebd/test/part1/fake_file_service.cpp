@@ -157,6 +157,7 @@ void FakeNebdFileService::GetInfo(::google::protobuf::RpcController* controller,
     info->set_size(fileSize_);
     info->set_objsize(fileSize_);
     info->set_objnums(1);
+    info->set_blocksize(blockSize_);
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("GetInfo OK");
     response->set_allocated_info(info);

@@ -71,11 +71,15 @@ class NBDController {
      * @param config: 启动NBD设备相关的配置参数
      * @param sockfd: socketpair其中一端的fd，传给NBD设备用于跟NBDServer间的数据传输
      * @param size: 设置NBD设备的大小
+     * @param blocksize: device's block size
      * @param flags: 设置加载NBD设备的flags
      * @return: 成功返回0，失败返回负值
      */
-    virtual int SetUp(NBDConfig* config, int sockfd,
-                      uint64_t size, uint64_t flags) = 0;
+    virtual int SetUp(NBDConfig* config,
+                      int sockfd,
+                      uint64_t size,
+                      uint32_t blocksize,
+                      uint64_t flags) = 0;
     /**
      * @brief: 根据设备名来卸载已经映射的NBD设备
      * @param devpath: 设备路径，例如/dev/nbd0
@@ -141,13 +145,19 @@ class IOController : public NBDController {
     IOController() {}
     ~IOController() {}
 
-    int SetUp(NBDConfig* config, int sockfd,
-              uint64_t size, uint64_t flags) override;
+    int SetUp(NBDConfig* config,
+              int sockfd,
+              uint64_t size,
+              uint32_t blocksize,
+              uint64_t flags) override;
     int DisconnectByPath(const std::string& devpath) override;
     int Resize(uint64_t size) override;
 
  private:
-    int InitDevAttr(NBDConfig* config, uint64_t size, uint64_t flags);
+    int InitDevAttr(NBDConfig* config,
+                    uint64_t size,
+                    uint32_t blocksize,
+                    uint64_t flags);
     int MapOnUnusedNbdDevice(int sockfd, std::string* devpath);
     int MapOnNbdDeviceByDevPath(int sockfd, const std::string& devpath,
                                 bool logWhenError = true);
@@ -158,8 +168,11 @@ class NetLinkController : public NBDController {
     NetLinkController() : nlId_(-1), sock_(nullptr) {}
     ~NetLinkController() {}
 
-    int SetUp(NBDConfig* config, int sockfd,
-              uint64_t size, uint64_t flags) override;
+    int SetUp(NBDConfig* config,
+              int sockfd,
+              uint64_t size,
+              uint32_t blocksize,
+              uint64_t flags) override;
     int DisconnectByPath(const std::string& devpath) override;
     int Resize(uint64_t size) override;
     bool Support();
@@ -171,8 +184,11 @@ class NetLinkController : public NBDController {
  private:
     int Init();
     void Uninit();
-    int ConnectInternal(NBDConfig* config, int sockfd,
-                        uint64_t size, uint64_t flags);
+    int ConnectInternal(NBDConfig* config,
+                        int sockfd,
+                        uint64_t size,
+                        uint32_t blocksize,
+                        uint64_t flags);
     int DisconnectInternal(int index);
     int ResizeInternal(int nbdIndex, uint64_t size);
 

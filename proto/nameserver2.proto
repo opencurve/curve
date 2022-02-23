@@ -73,6 +73,7 @@ message FileInfo {
 
     optional    uint64      epoch = 18;
     optional    string      poolset = 19;
+    optional    uint32      blocksize = 20;
 }
 
 // status code

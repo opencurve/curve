@@ -31,3 +31,6 @@ sed -i "s;https://github.com/aws/aws-sdk-cpp/archive/1.7.340.tar.gz;https://curv
 
 # glog
 sed -i "s;https://github.com/google/glog;https://gitee.com/mirrors/glog;g" WORKSPACE
+
+# abseil-cpp
+sed -i "s;https://github.com/abseil/abseil-cpp/archive/refs/tags/20210324.2.tar.gz;https://curve-build.nos-eastchina1.126.net/abseil-cpp-20210324.2.tar.gz;g" WORKSPACE

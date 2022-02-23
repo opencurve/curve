@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
         cg.SetKV("mds.listen.addr", "127.0.0.1:7777,127.0.0.1:9300");
         cg.SetKV("mds.heartbeat_interval", "1");
         cg.SetKV("copyset.snapshot_interval_s", "30");
+        cg.SetKV("global.block_size", "4096");
         CHECK(cg.Generate()) << "Generate config file fail";
     }
 

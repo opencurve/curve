@@ -25,6 +25,9 @@
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
+#include "src/common/namespace_define.h"
+#include "src/common/string_util.h"
+#include "src/common/fast_align.h"
 
 #include "absl/strings/str_split.h"
 
@@ -34,6 +37,10 @@ using ::curve::mds::topology::ChunkServerRegistInfoBuilder;
 
 namespace curve {
 namespace mds {
+
+using ::curve::common::BLOCKSIZEKEY;
+using ::curve::common::CHUNKSIZEKEY;
+
 MDS::~MDS() {
     if (etcdEndpoints_) {
         delete etcdEndpoints_;
@@ -117,6 +124,11 @@ void MDS::StartCompaginLeader() {
 }
 
 void MDS::Init() {
+    LOG_IF(FATAL, !CheckOrInsertBlockSize(etcdClient_.get()))
+        << "Check or insert block size failed";
+    LOG_IF(FATAL, !CheckOrInsertChunkSize(etcdClient_.get()))
+        << "Check or insert chunk size failed";
+
     InitSegmentAllocStatistic(options_.retryInterTimes,
                               options_.periodicPersistInterMs);
     InitNameServerStorage(options_.mdsCacheCount);
@@ -470,13 +482,20 @@ void MDS::InitAuthOptions(RootAuthOption *authOptions) {
 void MDS::InitCurveFSOptions(CurveFSOption *curveFSOptions) {
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize);
+    g_chunk_size = curveFSOptions->defaultChunkSize;
+
     conf_->GetValueFatalIfFail(
         "mds.curvefs.defaultSegmentSize", &curveFSOptions->defaultSegmentSize);
     conf_->GetValueFatalIfFail(
         "mds.curvefs.minFileLength", &curveFSOptions->minFileLength);
     conf_->GetValueFatalIfFail(
         "mds.curvefs.maxFileLength", &curveFSOptions->maxFileLength);
-    FileRecordOptions fileRecordOptions;
+    conf_->GetValueFatalIfFail("mds.curvefs.blockSize", &g_block_size);
+
+    if (g_block_size != 4096 && g_block_size != 512) {
+        LOG(FATAL) << "mds.curvefs.blockSize only supports 512 and 4096";
+    }
+
     InitFileRecordOptions(&curveFSOptions->fileRecordOptions);
 
     InitAuthOptions(&curveFSOptions->authOptions);
@@ -617,6 +636,59 @@ bool ParsePoolsetRules(const std::string& str,
     }
 
     return true;
+}
+
+namespace {
+bool CheckOrInsertValue(EtcdClientImp* etcdclient,
+                        const std::string& key,
+                        uint32_t expected) {
+    std::string value;
+    auto err = etcdclient->Get(key, &value);
+
+    switch (err) {
+        case EtcdErrCode::EtcdOK: {
+            uint32_t val = 0;
+            if (!curve::common::StringToUl(value, &val)) {
+                LOG(WARNING) << "Convert failed, raw value "
+                                "from etcd is: "
+                             << value;
+                return false;
+            }
+
+            if (val != expected) {
+                LOG(WARNING) << "Key " << key << "`" << val
+                             << "` in etcd  is not identical with "
+                                "expected `"
+                             << expected << "`";
+                return false;
+            }
+
+            return true;
+        }
+        case EtcdErrCode::EtcdKeyNotExist: {
+            std::string value = std::to_string(expected);
+            err = etcdclient->Put(key, value);
+            if (err != EtcdErrCode::EtcdOK) {
+                LOG(WARNING) << "Put " << key << " `" << expected
+                             << "` to etcd failed, error: " << err;
+                return false;
+            }
+
+            return true;
+        }
+        default:
+            LOG(WARNING) << "Get " << key << " from etcd failed";
+            return false;
+    }
+}
+}  // namespace
+
+bool CheckOrInsertBlockSize(EtcdClientImp* etcdclient) {
+    return CheckOrInsertValue(etcdclient, BLOCKSIZEKEY, g_block_size);
+}
+
+bool CheckOrInsertChunkSize(EtcdClientImp* etcdclient) {
+    return CheckOrInsertValue(etcdclient, CHUNKSIZEKEY, g_chunk_size);
 }
 
 }  // namespace mds

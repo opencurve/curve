@@ -105,6 +105,8 @@ struct NebdFileInfo {
     uint64_t obj_size;
     // object数量
     uint64_t num_objs;
+    // block size
+    uint32_t block_size;
 };
 
 using ExtendAttribute = std::map<std::string, std::string>;
