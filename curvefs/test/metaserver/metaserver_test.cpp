@@ -29,23 +29,23 @@
 #include "curvefs/test/metaserver/mock_topology_service.h"
 #include "curvefs/test/metaserver/mock_heartbeat_service.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
-using ::testing::_;
-using ::testing::Return;
-using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
-using ::testing::SaveArg;
-using ::testing::Invoke;
-using ::curvefs::mds::topology::MockTopologyService;
-using ::curvefs::mds::topology::MetaServerRegistRequest;
-using ::curvefs::mds::topology::MetaServerRegistResponse;
-using ::curvefs::mds::topology::TopoStatusCode;
-using ::curvefs::mds::heartbeat::MockHeartbeatService;
+using ::curvefs::mds::heartbeat::HeartbeatStatusCode;
 using ::curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using ::curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
-using ::curvefs::mds::heartbeat::HeartbeatStatusCode;
+using ::curvefs::mds::heartbeat::MockHeartbeatService;
+using ::curvefs::mds::topology::MetaServerRegistRequest;
+using ::curvefs::mds::topology::MetaServerRegistResponse;
+using ::curvefs::mds::topology::MockTopologyService;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::ReturnArg;
+using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 butil::AtExitManager atExit;
 
@@ -54,14 +54,27 @@ namespace metaserver {
 class MetaserverTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        metaserverIp_ = "127.0.0.1";
-        metaserverPort_ = "56702";
-        topologyServiceAddr_ = "127.0.0.1:56700";
+        // run mds server
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockHeartbeatService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(topologyServiceAddr_.c_str(), nullptr));
+        uint16_t port = 56800;
+        int ret = 0;
+        while (port < 65535) {
+            topologyServiceAddr_ = "127.0.0.1:" + std::to_string(port);
+            ret = server_.Start(topologyServiceAddr_.c_str(), nullptr);
+            if (ret >= 0) {
+                LOG(INFO) << "topology service success, listen port = " << port;
+                break;
+            }
+
+            ++port;
+        }
+        ASSERT_EQ(0, ret);
+
+        metaserverIp_ = "127.0.0.1";
+        metaserverPort_ = "56702";
     }
 
     void TearDown() override {
@@ -116,8 +129,8 @@ TEST_F(MetaserverTest, register_to_mds_success) {
     response1.set_statuscode(HeartbeatStatusCode::hbOK);
     EXPECT_CALL(mockHeartbeatService_, MetaServerHeartbeat(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(response1),
-                        Invoke(RpcService<MetaServerHeartbeatRequest,
-                                          MetaServerHeartbeatResponse>)));
+                              Invoke(RpcService<MetaServerHeartbeatRequest,
+                                                MetaServerHeartbeatResponse>)));
 
     // Initialize other modules after winning election
     metaserver.Init();
@@ -157,8 +170,8 @@ TEST_F(MetaserverTest, test2) {
     response1.set_statuscode(HeartbeatStatusCode::hbOK);
     EXPECT_CALL(mockHeartbeatService_, MetaServerHeartbeat(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(response1),
-                        Invoke(RpcService<MetaServerHeartbeatRequest,
-                                          MetaServerHeartbeatResponse>)));
+                              Invoke(RpcService<MetaServerHeartbeatRequest,
+                                                MetaServerHeartbeatResponse>)));
 
     // initialize Metaserver options
     metaserver.InitOptions(conf);
