@@ -68,7 +68,7 @@ void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
 
 class UpdateInodeAsyncDone : public MetaServerClientDone {
  public:
-    UpdateInodeAsyncDone(
+    explicit UpdateInodeAsyncDone(
         const std::shared_ptr<InodeWrapper> &inodeWrapper):
         inodeWrapper_(inodeWrapper) {}
     ~UpdateInodeAsyncDone() {}
@@ -92,7 +92,7 @@ class UpdateInodeAsyncDone : public MetaServerClientDone {
 
 class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
  public:
-    GetOrModifyS3ChunkInfoAsyncDone(
+    explicit GetOrModifyS3ChunkInfoAsyncDone(
         const std::shared_ptr<InodeWrapper> &inodeWrapper):
         inodeWrapper_(inodeWrapper) {}
     ~GetOrModifyS3ChunkInfoAsyncDone() {}
@@ -282,37 +282,21 @@ CURVEFS_ERROR InodeWrapper::DecreaseNLink() {
 }
 
 CURVEFS_ERROR InodeWrapper::Open() {
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (0 == openCount_) {
-        ret = SetOpenFlag(true);
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
-        }
-    }
-    openCount_++;
-    return CURVEFS_ERROR::OK;
+    openFlag_ = true;
+    return UpdateInodeStatus(InodeOpenStatusChange::OPEN);
 }
 
-bool InodeWrapper::IsOpen() { return openCount_ > 0; }
+bool InodeWrapper::IsOpen() { return openFlag_; }
 
 CURVEFS_ERROR InodeWrapper::Release() {
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (1 == openCount_) {
-        ret = SetOpenFlag(false);
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
-        }
-    }
-    openCount_--;
-    return CURVEFS_ERROR::OK;
+    openFlag_ = false;
+    return UpdateInodeStatus(InodeOpenStatusChange::CLOSE);
 }
 
-CURVEFS_ERROR InodeWrapper::SetOpenFlag(bool flag) {
-    bool old = inode_.openflag();
-    inode_.set_openflag(flag);
-    MetaStatusCode ret = metaClient_->UpdateInode(inode_);
+CURVEFS_ERROR
+InodeWrapper::UpdateInodeStatus(InodeOpenStatusChange statusChange) {
+    MetaStatusCode ret = metaClient_->UpdateInode(inode_, statusChange);
     if (ret != MetaStatusCode::OK) {
-        inode_.set_openflag(old);
         LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();

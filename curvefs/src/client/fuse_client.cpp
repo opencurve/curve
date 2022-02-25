@@ -52,6 +52,7 @@ using ::curvefs::mds::FSStatusCode_Name;
         }                                                                      \
     } while (0)
 
+
 namespace curvefs {
 namespace client {
 
@@ -819,8 +820,9 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
     LOG(INFO) << "FuseOpRelease, ino: " << ino;
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     std::shared_ptr<InodeWrapper> inodeWrapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+    ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
                    << ", inodeid = " << ino;
@@ -830,6 +832,11 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
 
     ret = inodeWrapper->Release();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager release inode fail, ret = " << ret
+                   << ", inodeid = " << ino;
+        return ret;
+    }
     return ret;
 }
 

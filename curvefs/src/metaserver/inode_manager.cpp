@@ -127,7 +127,7 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_ctime(now.tv_sec);
     inode->set_ctime_ns(now.tv_nsec);
 
-    inode->set_openflag(false);
+    inode->set_openmpcount(0);
     if (FsFileType::TYPE_DIRECTORY == type) {
         inode->set_nlink(2);
     } else {
@@ -214,6 +214,28 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     if (request.has_volumeextentlist()) {
         VLOG(1) << "update inode has extent";
         old->mutable_volumeextentlist()->CopyFrom(request.volumeextentlist());
+    }
+
+    // TODO(@one): openmpcount is incorrect in exceptional cases
+    // 1. rpc retry: metaserver update ok but client do not have response, it
+    // will retry.
+    // 2. client exits unexpectedly: openmpcount will not be updated forerver.
+    // if inode is in delete status, operation of DeleteIndoe will be performed
+    // incorrectly.
+    if (request.has_inodeopenstatuschange() && old->has_openmpcount() &&
+        InodeOpenStatusChange::NOCHANGE != request.inodeopenstatuschange()) {
+        VLOG(1) << "update inode open status";
+        int32_t oldcount = old->openmpcount();
+        int32_t newcount =
+            request.inodeopenstatuschange() == InodeOpenStatusChange::OPEN
+                ? oldcount + 1
+                : oldcount - 1;
+        if (newcount < 0) {
+            LOG(ERROR) << "open mount point for inode: " << request.inodeid()
+                       << " is " << newcount;
+        } else {
+            old->set_openmpcount(newcount);
+        }
     }
 
     if (needAddTrash) {

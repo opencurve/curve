@@ -27,21 +27,25 @@
 #include "curvefs/test/metaserver/test_helper.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
+using ::google::protobuf::util::MessageDifferencer;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
-using ::google::protobuf::util::MessageDifferencer;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
 namespace curvefs {
 namespace metaserver {
 class InodeManagerTest : public ::testing::Test {
  protected:
-    void SetUp() override { return; }
+    void SetUp() override {
+        inodeStorage = std::make_shared<MemoryInodeStorage>();
+        trash = std::make_shared<TrashImpl>(inodeStorage);
+        manager = std::make_shared<InodeManager>(inodeStorage, trash);
+    }
 
     void TearDown() override { return; }
 
@@ -57,14 +61,14 @@ class InodeManagerTest : public ::testing::Test {
                first.symlink() == second.symlink() &&
                first.nlink() == second.nlink();
     }
+
+ protected:
+    std::shared_ptr<InodeStorage> inodeStorage;
+    std::shared_ptr<TrashImpl> trash;
+    std::shared_ptr<InodeManager> manager;
 };
 
 TEST_F(InodeManagerTest, test1) {
-    std::shared_ptr<InodeStorage> inodeStorage =
-        std::make_shared<MemoryInodeStorage>();
-    auto trash = std::make_shared<TrashImpl>(inodeStorage);
-    InodeManager manager(inodeStorage, trash);
-
     // CREATE
     uint32_t fsId = 1;
     uint64_t length = 100;
@@ -74,71 +78,72 @@ TEST_F(InodeManagerTest, test1) {
     FsFileType type = FsFileType::TYPE_FILE;
     std::string symlink = "";
     Inode inode1;
-    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
-        symlink, 0, &inode1),
-        MetaStatusCode::OK);
+    ASSERT_EQ(manager->CreateInode(fsId, 2, length, uid, gid, mode, type,
+                                   symlink, 0, &inode1),
+              MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
     Inode inode2;
-    ASSERT_EQ(manager.CreateInode(fsId, 3, length, uid, gid, mode, type,
-        symlink, 0, &inode2),
-        MetaStatusCode::OK);
+    ASSERT_EQ(manager->CreateInode(fsId, 3, length, uid, gid, mode, type,
+                                   symlink, 0, &inode2),
+              MetaStatusCode::OK);
     ASSERT_EQ(inode2.inodeid(), 3);
 
     Inode inode3;
-    ASSERT_EQ(manager.CreateInode(fsId, 4, length, uid, gid, mode,
-        FsFileType::TYPE_SYM_LINK, symlink, 0, &inode3),
-        MetaStatusCode::SYM_LINK_EMPTY);
+    ASSERT_EQ(manager->CreateInode(fsId, 4, length, uid, gid, mode,
+                                   FsFileType::TYPE_SYM_LINK, symlink, 0,
+                                   &inode3),
+              MetaStatusCode::SYM_LINK_EMPTY);
 
-    ASSERT_EQ(
-        manager.CreateInode(fsId, 4, length, uid, gid, mode,
-        FsFileType::TYPE_SYM_LINK, "SYMLINK", 0, &inode3),
-        MetaStatusCode::OK);
+    ASSERT_EQ(manager->CreateInode(fsId, 4, length, uid, gid, mode,
+                                   FsFileType::TYPE_SYM_LINK, "SYMLINK", 0,
+                                   &inode3),
+              MetaStatusCode::OK);
     ASSERT_EQ(inode3.inodeid(), 4);
 
     Inode inode4;
-    ASSERT_EQ(manager.CreateInode(fsId, 5, length, uid, gid, mode,
-        FsFileType::TYPE_S3, symlink, 0, &inode4),
-        MetaStatusCode::OK);
+    ASSERT_EQ(manager->CreateInode(fsId, 5, length, uid, gid, mode,
+                                   FsFileType::TYPE_S3, symlink, 0, &inode4),
+              MetaStatusCode::OK);
     ASSERT_EQ(inode4.inodeid(), 5);
     ASSERT_EQ(inode4.type(), FsFileType::TYPE_S3);
 
     // GET
     Inode temp1;
-    ASSERT_EQ(manager.GetInode(fsId, inode1.inodeid(), &temp1),
+    ASSERT_EQ(manager->GetInode(fsId, inode1.inodeid(), &temp1),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode1, temp1));
 
     Inode temp2;
-    ASSERT_EQ(manager.GetInode(fsId, inode2.inodeid(), &temp2),
+    ASSERT_EQ(manager->GetInode(fsId, inode2.inodeid(), &temp2),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode2, temp2));
 
     Inode temp3;
-    ASSERT_EQ(manager.GetInode(fsId, inode3.inodeid(), &temp3),
+    ASSERT_EQ(manager->GetInode(fsId, inode3.inodeid(), &temp3),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode3, temp3));
 
     Inode temp4;
-    ASSERT_EQ(manager.GetInode(fsId, inode4.inodeid(), &temp4),
+    ASSERT_EQ(manager->GetInode(fsId, inode4.inodeid(), &temp4),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode4, temp4));
 
     // DELETE
-    ASSERT_EQ(manager.DeleteInode(fsId, inode1.inodeid()), MetaStatusCode::OK);
-    ASSERT_EQ(manager.DeleteInode(fsId, inode1.inodeid()),
+    ASSERT_EQ(manager->DeleteInode(fsId, inode1.inodeid()), MetaStatusCode::OK);
+    ASSERT_EQ(manager->DeleteInode(fsId, inode1.inodeid()),
               MetaStatusCode::NOT_FOUND);
-    ASSERT_EQ(manager.GetInode(fsId, inode1.inodeid(), &temp1),
+    ASSERT_EQ(manager->GetInode(fsId, inode1.inodeid(), &temp1),
               MetaStatusCode::NOT_FOUND);
 
     // UPDATE
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode1);
-    ASSERT_EQ(manager.UpdateInode(request), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::NOT_FOUND);
     temp2.set_atime(100);
     UpdateInodeRequest request2 = MakeUpdateInodeRequestFromInode(temp2);
-    ASSERT_EQ(manager.UpdateInode(request2), MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request2), MetaStatusCode::OK);
     Inode temp5;
-    ASSERT_EQ(manager.GetInode(fsId, inode2.inodeid(), &temp5),
+    ASSERT_EQ(manager->GetInode(fsId, inode2.inodeid(), &temp5),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(temp5, temp2));
     ASSERT_FALSE(CompareInode(inode2, temp2));
@@ -169,48 +174,40 @@ TEST_F(InodeManagerTest, test1) {
         s3ChunkInfoAdd[j] = list[j];
     }
 
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> s3Out1;
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetOrModifyS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
-            true, &s3Out1, false));
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3Out1;
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetOrModifyS3ChunkInfo(
+                                      fsId, inode3.inodeid(), s3ChunkInfoAdd,
+                                      s3ChunkInfoRemove, true, &s3Out1, false));
 
     ASSERT_EQ(10, s3Out1.size());
     for (int j = 0; j < 10; j++) {
-        ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
-                s3Out1.at(j)));
+        ASSERT_TRUE(
+            MessageDifferencer::Equals(s3ChunkInfoAdd[j], s3Out1.at(j)));
     }
 
     // Idempotent test
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> s3Out2;
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetOrModifyS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoAdd, s3ChunkInfoRemove,
-            true, &s3Out2, false));
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3Out2;
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetOrModifyS3ChunkInfo(
+                                      fsId, inode3.inodeid(), s3ChunkInfoAdd,
+                                      s3ChunkInfoRemove, true, &s3Out2, false));
 
     ASSERT_EQ(10, s3Out2.size());
     for (int j = 0; j < 10; j++) {
-        ASSERT_TRUE(MessageDifferencer::Equals(s3ChunkInfoAdd[j],
-                s3Out2.at(j)));
+        ASSERT_TRUE(
+            MessageDifferencer::Equals(s3ChunkInfoAdd[j], s3Out2.at(j)));
     }
 
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> s3Out3;
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetOrModifyS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
-        true, &s3Out3, false));
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3Out3;
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetOrModifyS3ChunkInfo(
+                                      fsId, inode3.inodeid(), s3ChunkInfoRemove,
+                                      s3ChunkInfoAdd, true, &s3Out3, false));
     ASSERT_EQ(0, s3Out3.size());
 
     // Idempotent test
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> s3Out4;
-    ASSERT_EQ(MetaStatusCode::OK,
-        manager.GetOrModifyS3ChunkInfo(
-            fsId, inode3.inodeid(), s3ChunkInfoRemove, s3ChunkInfoAdd,
-            true, &s3Out4, false));
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3Out4;
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetOrModifyS3ChunkInfo(
+                                      fsId, inode3.inodeid(), s3ChunkInfoRemove,
+                                      s3ChunkInfoAdd, true, &s3Out4, false));
     ASSERT_EQ(0, s3Out4.size());
 
     // s3compact
@@ -252,21 +249,64 @@ TEST_F(InodeManagerTest, test1) {
     }
     addMap.insert({0, add0});
     ASSERT_EQ(MetaStatusCode::OK,
-              manager.GetOrModifyS3ChunkInfo(fsId, inode3.inodeid(), addMap,
-                                             deleteMap, true, &s3Out5, false));
+              manager->GetOrModifyS3ChunkInfo(fsId, inode3.inodeid(), addMap,
+                                              deleteMap, true, &s3Out5, false));
     ASSERT_EQ(1, s3Out5.size());
     ASSERT_EQ(10, s3Out5.at(0).s3chunks_size());
     addMap.clear();
     addMap.insert({0, add1});
     deleteMap.insert({0, delete1});
     ASSERT_EQ(MetaStatusCode::OK,
-              manager.GetOrModifyS3ChunkInfo(fsId, inode3.inodeid(), addMap,
-                                             deleteMap, true, &s3Out5, true));
+              manager->GetOrModifyS3ChunkInfo(fsId, inode3.inodeid(), addMap,
+                                              deleteMap, true, &s3Out5, true));
     ASSERT_EQ(1, s3Out5.size());
     ASSERT_EQ(3, s3Out5.at(0).s3chunks_size());
     ASSERT_EQ(7, s3Out5.at(0).s3chunks(0).chunkid());
     ASSERT_EQ(8, s3Out5.at(0).s3chunks(1).chunkid());
     ASSERT_EQ(9, s3Out5.at(0).s3chunks(2).chunkid());
 }
+
+TEST_F(InodeManagerTest, UpdateInode) {
+    // create inode
+    uint32_t fsId = 1;
+    uint64_t length = 100;
+    uint32_t uid = 200;
+    uint32_t gid = 300;
+    uint32_t mode = 400;
+    uint64_t ino = 2;
+    FsFileType type = FsFileType::TYPE_FILE;
+    std::string symlink = "";
+    Inode inode;
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->CreateInode(fsId, ino, length, uid, gid, mode, type,
+                                   symlink, 0, &inode));
+
+    // 1. test add openmpcount
+    UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode);
+    request.set_inodeopenstatuschange(InodeOpenStatusChange::OPEN);
+    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    Inode updateOne;
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
+    ASSERT_EQ(1, updateOne.openmpcount());
+
+    // 2. test openmpcount nochange
+    request.set_inodeopenstatuschange(InodeOpenStatusChange::NOCHANGE);
+    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
+    ASSERT_EQ(1, updateOne.openmpcount());
+
+    // 3. test sub openmpcount
+    request.set_inodeopenstatuschange(InodeOpenStatusChange::CLOSE);
+    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
+    ASSERT_EQ(0, updateOne.openmpcount());
+
+    // 4. test update fail
+    request.set_inodeopenstatuschange(InodeOpenStatusChange::CLOSE);
+    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
+    ASSERT_EQ(0, updateOne.openmpcount());
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

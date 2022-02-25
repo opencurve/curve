@@ -29,16 +29,16 @@
 namespace curvefs {
 namespace client {
 
-using ::testing::Return;
 using ::testing::_;
 using ::testing::Contains;
-using ::testing::SetArgPointee;
-using ::testing::SetArgReferee;
 using ::testing::DoAll;
 using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
 
-using rpcclient::MockMetaServerClient;
 using rpcclient::MetaServerClientDone;
+using rpcclient::MockMetaServerClient;
 
 class TestInodeCacheManager : public ::testing::Test {
  protected:
@@ -74,8 +74,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
 
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
-        .WillOnce(DoAll(SetArgPointee<2>(inode),
-                Return(MetaStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
@@ -111,8 +110,7 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
     inode.set_type(FsFileType::TYPE_FILE);
     EXPECT_CALL(*metaClient_, CreateInode(_, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))
-        .WillOnce(DoAll(SetArgPointee<1>(inode),
-            Return(MetaStatusCode::OK)));
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(MetaStatusCode::OK)));
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = iCacheManager_->CreateInode(param, inodeWrapper);
@@ -160,29 +158,30 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
     inode.set_fsid(fsId_);
     inode.set_type(FsFileType::TYPE_FILE);
 
-    std::shared_ptr<InodeWrapper> inodeWrapper = std::make_shared<InodeWrapper>(
-            inode, metaClient_);
+    std::shared_ptr<InodeWrapper> inodeWrapper =
+        std::make_shared<InodeWrapper>(inode, metaClient_);
     inodeWrapper->MarkDirty();
     S3ChunkInfo info;
     inodeWrapper->AppendS3ChunkInfo(1, info);
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAsync(_, _))
-        .WillOnce(Invoke([](const Inode &inode,
-        MetaServerClientDone *done){
+    EXPECT_CALL(*metaClient_, UpdateInodeAsync(_, _, _))
+        .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
+                            InodeOpenStatusChange statusChange) {
             done->SetMetaStatusCode(MetaStatusCode::OK);
             done->Run();
         }));
 
     EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))
-        .WillOnce(Invoke([](uint32_t fsId, uint64_t inodeId,
-        const google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> &s3ChunkInfos,
-        MetaServerClientDone *done){
-            done->SetMetaStatusCode(MetaStatusCode::OK);
-            done->Run();
-        }));
+        .WillOnce(
+            Invoke([](uint32_t fsId, uint64_t inodeId,
+                      const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+                          &s3ChunkInfos,
+                      MetaServerClientDone *done) {
+                done->SetMetaStatusCode(MetaStatusCode::OK);
+                done->Run();
+            }));
 
     iCacheManager_->FlushAll();
 }
