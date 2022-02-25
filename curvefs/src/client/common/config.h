@@ -26,6 +26,7 @@
 #include <string>
 
 #include "curvefs/src/client/common/common.h"
+#include "curvefs/proto/common.pb.h"
 #include "src/client/config_info.h"
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
@@ -33,6 +34,7 @@
 using ::curve::common::Configuration;
 using ::curve::common::S3AdapterOption;
 using ::curvefs::client::common::DiskCacheType;
+using ::curve::common::S3InfoOption;
 
 namespace curvefs {
 namespace client {
@@ -157,6 +159,15 @@ struct FuseClientOption {
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
+
+void SetFuseClientS3Option(FuseClientOption *clientOption,
+    const S3InfoOption &fsS3Opt);
+
+void S3Info2FsS3Option(const curvefs::common::S3Info& s3,
+                       S3InfoOption* fsS3Opt);
+
+void InitMdsOption(Configuration *conf, MdsOption *mdsOpt);
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs

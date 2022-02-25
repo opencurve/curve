@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
         printf("Init glog failed, confpath = %s\n", mOpts.conf);
     }
 
-    ret = InitFuseClient(mOpts.conf, mOpts.fsType);
+    ret = InitFuseClient(mOpts.conf, mOpts.fsName, mOpts.fsType);
     if (ret < 0) {
         printf("init fuse client fail, conf =%s\n", mOpts.conf);
         goto err_out2;

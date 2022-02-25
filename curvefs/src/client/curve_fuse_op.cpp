@@ -33,6 +33,8 @@
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/client/rpcclient/base_client.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -40,9 +42,11 @@ using ::curvefs::client::FuseClient;
 using ::curvefs::client::FuseS3Client;
 using ::curvefs::client::FuseVolumeClient;
 using ::curvefs::client::common::FuseClientOption;
+using ::curvefs::client::rpcclient::MdsClientImpl;
+using ::curvefs::client::rpcclient::MDSBaseClient;
 
 static FuseClient *g_ClientInstance = nullptr;
-static FuseClientOption *fuseClientOption = nullptr;
+static FuseClientOption *g_fuseClientOption = nullptr;
 
 DECLARE_int32(v);
 
@@ -61,6 +65,27 @@ void EnableSplice(struct fuse_conn_info* conn) {
         conn->want |= FUSE_CAP_SPLICE_WRITE;
         LOG(INFO) << "FUSE_CAP_SPLICE_WRITE enabled";
     }
+}
+
+int GetFsInfo(const char* fsName, std::shared_ptr<FsInfo> fsInfo) {
+    MdsClientImpl mdsClient;
+    MDSBaseClient mdsBase;
+    mdsClient.Init(g_fuseClientOption->mdsOpt, &mdsBase);
+
+    std::string fn = (fsName == nullptr) ? "" : fsName;
+    FSStatusCode ret = mdsClient.GetFsInfo(fn, fsInfo.get());
+    if (ret != FSStatusCode::OK) {
+        if (FSStatusCode::NOT_FOUND == ret) {
+            LOG(ERROR) << "The fsName not exist, fsName = " << fsName;
+            return -1;
+        } else {
+            LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
+                       << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
+                       << ", fsName = " << fsName;
+            return -1;
+        }
+    }
+    return 0;
 }
 
 }  // namespace
@@ -90,7 +115,8 @@ int InitGlog(const char *confPath, const char *argv0) {
     return 0;
 }
 
-int InitFuseClient(const char *confPath, const char *fsType) {
+int InitFuseClient(const char *confPath, const char* fsName,
+    const char *fsType) {
     Configuration conf;
     conf.SetConfigPath(confPath);
     if (!conf.LoadConfig()) {
@@ -100,19 +126,36 @@ int InitFuseClient(const char *confPath, const char *fsType) {
 
     conf.PrintConfig();
 
-    std::string fsTypeStr = (fsType == nullptr) ? "" : fsType;
+    g_fuseClientOption = new FuseClientOption();
+    curvefs::client::common::InitFuseClientOption(&conf, g_fuseClientOption);
 
-    fuseClientOption = new FuseClientOption();
-    curvefs::client::common::InitFuseClientOption(&conf, fuseClientOption);
-    if (fsTypeStr == "s3") {
+    std::shared_ptr<FsInfo> fsInfo = std::make_shared<FsInfo>();
+    if (GetFsInfo(fsName, fsInfo) != 0) {
+        return -1;
+    }
+
+    std::string fsTypeStr = (fsType == nullptr) ? "" : fsType;
+    std::string fsTypeMds;
+    if (fsInfo->fstype() == FSType::TYPE_S3) {
+       fsTypeMds = "s3";
+    } else if (fsInfo->fstype() == FSType::TYPE_VOLUME) {
+       fsTypeMds = "volume";
+    }
+
+    if (fsTypeMds != fsTypeStr) {
+        LOG(ERROR) << "The parameter fstype is inconsistent with mds!";
+        return -1;
+    } else if (fsTypeStr == "s3") {
         g_ClientInstance = new FuseS3Client();
     } else if (fsTypeStr == "volume") {
         g_ClientInstance = new FuseVolumeClient();
     } else {
-        LOG(ERROR) << "fsTypeStr invalid, which is " << fsTypeStr;
+        LOG(ERROR) << "unknown fstype! fstype is " << fsTypeStr;
         return -1;
     }
-    CURVEFS_ERROR ret = g_ClientInstance->Init(*fuseClientOption);
+
+    g_ClientInstance->SetFsInfo(fsInfo);
+    CURVEFS_ERROR ret = g_ClientInstance->Init(*g_fuseClientOption);
     if (ret != CURVEFS_ERROR::OK) {
         return -1;
     }
@@ -127,7 +170,7 @@ void UnInitFuseClient() {
     g_ClientInstance->Fini();
     g_ClientInstance->UnInit();
     delete g_ClientInstance;
-    delete fuseClientOption;
+    delete g_fuseClientOption;
 }
 
 void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
@@ -135,8 +178,8 @@ void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
     if (ret != CURVEFS_ERROR::OK) {
         LOG(FATAL) << "FuseOpInit failed, ret = " << ret;
     }
-
     EnableSplice(conn);
+    LOG(INFO) << "Fuse op init success!";
 }
 
 void FuseOpDestroy(void *userdata) {
@@ -192,7 +235,7 @@ void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
         FuseReplyErrByErrCode(req, ret);
         return;
     }
-    fuse_reply_attr(req, &attr, fuseClientOption->attrTimeOut);
+    fuse_reply_attr(req, &attr, g_fuseClientOption->attrTimeOut);
 }
 
 void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
@@ -336,7 +379,7 @@ void FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         FuseReplyErrByErrCode(req, ret);
         return;
     }
-    fuse_reply_attr(req, &attrOut, fuseClientOption->attrTimeOut);
+    fuse_reply_attr(req, &attrOut, g_fuseClientOption->attrTimeOut);
 }
 
 void FuseOpSymlink(fuse_req_t req, const char *link, fuse_ino_t parent,

@@ -32,6 +32,7 @@
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/mock/mock_cli2.h"
+#include "curvefs/test/mds/mock_mds_s3.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -104,9 +105,10 @@ class MdsServiceTest : public ::testing::Test {
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
+        s3Client_ = std::make_shared<MockS3Client>();
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
                                             metaserverClient_, topoManager_,
-                                            fsManagerOption);
+                                            s3Client_, fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
         return;
     }
@@ -138,6 +140,7 @@ class MdsServiceTest : public ::testing::Test {
     std::shared_ptr<MetaserverClient> metaserverClient_;
     std::shared_ptr<MockKVStorageClient> kvstorage_;
     std::shared_ptr<MockTopologyManager> topoManager_;
+    std::shared_ptr<MockS3Client> s3Client_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -299,6 +302,7 @@ TEST_F(MdsServiceTest, test1) {
         .WillOnce(DoAll(
         SetArgPointee<2>(getLeaderResponse),
         Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(*s3Client_, BucketExist()).WillOnce(Return(true));
 
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {

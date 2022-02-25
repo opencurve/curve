@@ -37,13 +37,21 @@ namespace curvefs {
 namespace client {
 
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
-    CURVEFS_ERROR ret = FuseClient::Init(option);
+    FuseClientOption opt(option);
+    CURVEFS_ERROR ret = FuseClient::Init(opt);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
+
+    // set fsS3Option
+    const auto& s3Info = fsInfo_->detail().s3info();
+    ::curve::common::S3InfoOption fsS3Option;
+    ::curvefs::client::common::S3Info2FsS3Option(s3Info, &fsS3Option);
+    SetFuseClientS3Option(&opt, fsS3Option);
+
     s3Client_ = std::make_shared<S3ClientImpl>();
-    s3Client_->Init(option.s3Opt.s3AdaptrOpt);
-    ret = s3Adaptor_->Init(option.s3Opt.s3ClientAdaptorOpt, s3Client_.get(),
+    s3Client_->Init(opt.s3Opt.s3AdaptrOpt);
+    ret = s3Adaptor_->Init(opt.s3Opt.s3ClientAdaptorOpt, s3Client_.get(),
                            inodeManager_, mdsClient_);
     return ret;
 }

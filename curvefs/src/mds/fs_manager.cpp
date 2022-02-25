@@ -28,6 +28,7 @@
 #include <list>
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
+#include "curvefs/src/mds/s3/mds_s3.h"
 
 namespace curvefs {
 namespace mds {
@@ -179,6 +180,19 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
             skipCreateNewFs = true;
         } else {
             return FSStatusCode::FS_EXIST;
+        }
+    }
+
+    // check s3info
+    if (detail.has_s3info()) {
+        const auto& s3Info = detail.s3info();
+        s3Client_->Reinit(s3Info.ak(), s3Info.sk(), s3Info.endpoint(),
+            s3Info.bucketname());
+        if (!s3Client_->BucketExist()) {
+            LOG(ERROR) << "CreateFs " << fsName
+                       << " error, s3info is not available, s3info is "
+                       << s3Info.ShortDebugString();
+            return FSStatusCode::S3_INFO_ERROR;
         }
     }
 

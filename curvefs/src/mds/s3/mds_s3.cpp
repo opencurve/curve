@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 /*
  * Project: curve
- * Created Date: 2021-8-13
+ * Created Date: 2022-02-28
  * Author: chengyi
  */
 
-#include "curvefs/src/metaserver/s3/metaserver_s3.h"
+#include "curvefs/src/mds/s3/mds_s3.h"
 
 namespace curvefs {
-namespace metaserver {
+namespace mds {
 
 void S3ClientImpl::SetAdaptor(
     std::shared_ptr<curve::common::S3Adapter> s3Adapter) {
@@ -44,40 +44,9 @@ void S3ClientImpl::Reinit(const std::string& ak, const std::string& sk,
     s3Adapter_->Reinit(option_);
 }
 
-int S3ClientImpl::Delete(const std::string& name) {
-    int ret = 0;
-    const Aws::String aws_key(name.c_str(), name.length());
-    ret = s3Adapter_->DeleteObject(aws_key);
-    if (ret < 0) {
-        // -1
-        LOG(ERROR) << "delete object: " << aws_key << " get error:" << ret;
-        if (!s3Adapter_->ObjectExist(aws_key)) {
-            // the aws_key is not exist
-            // may delete by others
-            ret = 1;
-        }
-    } else {
-        // 0
-        LOG(INFO) << "delete object: " << aws_key << " end, ret:" << ret;
-    }
-
-    return ret;
+bool S3ClientImpl::BucketExist() {
+    return s3Adapter_->BucketExist();
 }
 
-int S3ClientImpl::DeleteBatch(const std::list<std::string>& nameList) {
-    std::list<Aws::String> keyList;
-    for (const std::string& name : nameList) {
-        keyList.emplace_back(name.c_str(), name.length());
-    }
-    int ret = s3Adapter_->DeleteObjects(keyList);
-    if (ret != 0) {
-        LOG(ERROR) << "delete object fail";
-    } else {
-        LOG(INFO) << "delete object success";
-    }
-
-    return ret;
-}
-
-}  // namespace metaserver
+}  // namespace mds
 }  // namespace curvefs

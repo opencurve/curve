@@ -17,18 +17,12 @@
 load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
-    name = "common",
+    name = "fs_mds_s3",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//curvefs/proto:curvefs_common_cc_proto",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
         "//src/common:curve_s3_adapter",
     ],
 )

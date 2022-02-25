@@ -33,6 +33,7 @@ void PartitionCleanManager::Add(
     cleaner->SetS3Aapter(S3ClientAdaptor_);
     cleaner->SetCopysetNode(copysetNode);
     cleaner->SetIndoDeletePeriod(inodeDeletePeriodMs_);
+    cleaner->SetMdsClient(mdsClient_);
     partitonCleanerList_.push_back(cleaner);
     partitionCleanerCount << 1;
 }

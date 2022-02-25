@@ -35,6 +35,7 @@ cc_library(
         "//curvefs/src/mds/metric:fs_mds_metric",
         "//curvefs/src/mds/spaceclient:curvefs_mds_spaceclient",
         "//curvefs/src/mds/topology:curvefs_topology",
+        "//curvefs/src/mds/s3:fs_mds_s3",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",

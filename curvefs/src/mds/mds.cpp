@@ -41,6 +41,7 @@ namespace mds {
 using ::curve::election::LeaderElection;
 using ::curve::idgenerator::EtcdIdGenerator;
 using ::curve::kvstorage::EtcdClientImp;
+using curvefs::mds::S3ClientImpl;
 
 MDS::MDS()
     : conf_(),
@@ -150,9 +151,16 @@ void MDS::Init() {
     FsManagerOption fsManagerOption;
     InitFsManagerOptions(&fsManagerOption);
 
+    s3Client_ = std::make_shared<S3ClientImpl>();
+    s3Client_->SetAdaptor(std::make_shared<curve::common::S3Adapter>());
+    curve::common::S3AdapterOption s3AdaptorOption;
+    ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(conf_.get(),
+                                                         &s3AdaptorOption);
+    s3Client_->Init(s3AdaptorOption);
+
     fsManager_ =
         std::make_shared<FsManager>(fsStorage_, spaceClient_, metaserverClient_,
-                                    topologyManager_, fsManagerOption);
+            topologyManager_, s3Client_, fsManagerOption);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);

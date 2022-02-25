@@ -148,27 +148,13 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    FsInfo fsInfo;
-    FSStatusCode ret = mdsClient_->GetFsInfo(fsName, &fsInfo);
-    if (ret != FSStatusCode::OK) {
-        if (FSStatusCode::NOT_FOUND == ret) {
-            LOG(ERROR) << "The fsName not exist, fsName = " << fsName;
-            return CURVEFS_ERROR::NOTEXIST;
-        } else {
-            LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
-                       << ", FSStatusCode_Name = "
-                       << FSStatusCode_Name(ret)
-                       << ", fsName = " << fsName;
-            return CURVEFS_ERROR::INTERNAL;
-        }
-    }
-    auto find = std::find(fsInfo.mountpoints().begin(),
-                          fsInfo.mountpoints().end(), mountPointWithHost);
-    if (find != fsInfo.mountpoints().end()) {
+    auto find = std::find(fsInfo_->mountpoints().begin(),
+                          fsInfo_->mountpoints().end(), mountPointWithHost);
+    if (find != fsInfo_->mountpoints().end()) {
         LOG(ERROR) << "MountFs found mountPoint exist";
         return CURVEFS_ERROR::MOUNT_POINT_EXIST;
     }
-    ret = mdsClient_->MountFs(fsName, mountPointWithHost, &fsInfo);
+    auto ret = mdsClient_->MountFs(fsName, mountPointWithHost, fsInfo_.get());
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
         LOG(ERROR) << "MountFs failed, FSStatusCode = " << ret
                    << ", FSStatusCode_Name = "
@@ -177,9 +163,8 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                    << ", mountPoint = " << mountPointWithHost;
         return CURVEFS_ERROR::MOUNT_FAILED;
     }
-    fsInfo_ = std::make_shared<FsInfo>(fsInfo);
-    inodeManager_->SetFsId(fsInfo.fsid());
-    dentryManager_->SetFsId(fsInfo.fsid());
+    inodeManager_->SetFsId(fsInfo_->fsid());
+    dentryManager_->SetFsId(fsInfo_->fsid());
     LOG(INFO) << "Mount " << fsName << " on " << mountPointWithHost
               << " success!";
 
