@@ -36,6 +36,7 @@
 #include "src/common/concurrent/concurrent.h"
 
 using ::curvefs::metaserver::Inode;
+using ::curvefs::metaserver::InodeOpenStatusChange;
 using ::curvefs::metaserver::VolumeExtentList;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::metaserver::S3ChunkInfo;
@@ -63,7 +64,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     InodeWrapper(const Inode &inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(inode),
-        openCount_(0),
         status_(InodeStatus::Normal),
         metaClient_(metaClient),
         dirty_(false) {}
@@ -71,7 +71,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     InodeWrapper(Inode &&inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
       : inode_(std::move(inode)),
-        openCount_(0),
         status_(InodeStatus::Normal),
         metaClient_(metaClient),
         dirty_(false) {}
@@ -222,14 +221,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR Release();
 
-    void SetOpenCount(uint32_t openCount) {
-        openCount_ = openCount;
-    }
-
-    uint32_t GetOpenCount() const {
-        return openCount_;
-    }
-
     void MarkDirty() {
         dirty_ = true;
     }
@@ -275,11 +266,11 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
  private:
-    CURVEFS_ERROR SetOpenFlag(bool flag);
+    CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
  private:
      Inode inode_;
-     uint32_t openCount_;
+     bool openFlag_;
      InodeStatus status_;
 
      google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;

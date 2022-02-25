@@ -319,6 +319,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
     return CURVEFS_ERROR::NOTSUPPORT;
 }
 
+CURVEFS_ERROR FuseVolumeClient::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
+                                            struct fuse_file_info *fi) {
+    // TODO(wuhangqin): implement me
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
     // Todo: call volume truncate
     return CURVEFS_ERROR::OK;

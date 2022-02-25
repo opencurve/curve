@@ -39,6 +39,7 @@ using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
+using ::curvefs::metaserver::InodeOpenStatusChange;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::space::AllocateType;
 using ::curvefs::metaserver::S3ChunkInfoList;
@@ -80,10 +81,14 @@ class MetaServerClient {
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                                     Inode *out) = 0;
 
-    virtual MetaStatusCode UpdateInode(const Inode &inode) = 0;
+    virtual MetaStatusCode UpdateInode(const Inode &inode,
+                                       InodeOpenStatusChange statusChange =
+                                           InodeOpenStatusChange::NOCHANGE) = 0;
 
     virtual void UpdateInodeAsync(const Inode &inode,
-        MetaServerClientDone *done) = 0;
+                                  MetaServerClientDone *done,
+                                  InodeOpenStatusChange statusChange =
+                                      InodeOpenStatusChange::NOCHANGE) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -136,10 +141,13 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out) override;
 
-    MetaStatusCode UpdateInode(const Inode &inode) override;
+    MetaStatusCode UpdateInode(const Inode &inode,
+                               InodeOpenStatusChange statusChange =
+                                   InodeOpenStatusChange::NOCHANGE) override;
 
-    void UpdateInodeAsync(const Inode &inode,
-        MetaServerClientDone *done) override;
+    void UpdateInodeAsync(const Inode &inode, MetaServerClientDone *done,
+                          InodeOpenStatusChange statusChange =
+                              InodeOpenStatusChange::NOCHANGE) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,

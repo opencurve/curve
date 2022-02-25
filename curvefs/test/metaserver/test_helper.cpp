@@ -49,7 +49,6 @@ UpdateInodeRequest MakeUpdateInodeRequestFromInode(const Inode &inode,
     request.set_allocated_volumeextentlist(vlist);
     *(request.mutable_s3chunkinfomap()) = inode.s3chunkinfomap();
     request.set_nlink(inode.nlink());
-    request.set_openflag(inode.openflag());
     return request;
 }
 

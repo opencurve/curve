@@ -38,6 +38,8 @@ DECLARE_int32(health_check_interval);
 namespace curvefs {
 namespace client {
 namespace common {
+DEFINE_bool(enableCto, true, "acheieve cto consistency");
+
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
     conf->GetValueFatalIfFail("mdsOpt.rpcRetryOpt.maxRPCTimeoutMS",
@@ -210,7 +212,9 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->enableICacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
-
+    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
+    conf->GetValueFatalIfFail("fuseClient.flushRetryIntervalMs",
+                              &clientOption->flushRetryIntervalMS);
     conf->GetValueFatalIfFail("client.dummyserver.startport",
                               &clientOption->dummyServerStartPort);
 

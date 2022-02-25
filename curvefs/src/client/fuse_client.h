@@ -187,6 +187,9 @@ class FuseClient {
                                       int datasync,
                                       struct fuse_file_info* fi) = 0;
 
+    virtual CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
+                                      struct fuse_file_info *fi) = 0;
+
     void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
         fsInfo_ = fsInfo;
         init_ = true;

@@ -34,12 +34,12 @@ using ::google::protobuf::util::MessageDifferencer;
 namespace curvefs {
 namespace client {
 
-using ::testing::Return;
 using ::testing::_;
 using ::testing::Contains;
+using ::testing::DoAll;
+using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::DoAll;
 
 using rpcclient::MockMetaServerClient;
 
@@ -76,8 +76,8 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     AppendS3ChunkInfoToMap(chunkIndex1, info1, &s3ChunkInfoMap);
     ASSERT_EQ(1, s3ChunkInfoMap.size());
     ASSERT_EQ(1, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
-    ASSERT_TRUE(MessageDifferencer::Equals(info1,
-        s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
+    ASSERT_TRUE(MessageDifferencer::Equals(
+        info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
 
 
     // add to same chunkIndex
@@ -91,10 +91,10 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     AppendS3ChunkInfoToMap(chunkIndex1, info2, &s3ChunkInfoMap);
     ASSERT_EQ(1, s3ChunkInfoMap.size());
     ASSERT_EQ(2, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
-    ASSERT_TRUE(MessageDifferencer::Equals(info1,
-        s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
-    ASSERT_TRUE(MessageDifferencer::Equals(info2,
-        s3ChunkInfoMap[chunkIndex1].s3chunks(1)));
+    ASSERT_TRUE(MessageDifferencer::Equals(
+        info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
+    ASSERT_TRUE(MessageDifferencer::Equals(
+        info2, s3ChunkInfoMap[chunkIndex1].s3chunks(1)));
 
     // add to diff chunkIndex
     S3ChunkInfo info3;
@@ -108,14 +108,14 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     AppendS3ChunkInfoToMap(chunkIndex2, info3, &s3ChunkInfoMap);
     ASSERT_EQ(2, s3ChunkInfoMap.size());
     ASSERT_EQ(2, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
-    ASSERT_TRUE(MessageDifferencer::Equals(info1,
-        s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
-    ASSERT_TRUE(MessageDifferencer::Equals(info2,
-        s3ChunkInfoMap[chunkIndex1].s3chunks(1)));
+    ASSERT_TRUE(MessageDifferencer::Equals(
+        info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
+    ASSERT_TRUE(MessageDifferencer::Equals(
+        info2, s3ChunkInfoMap[chunkIndex1].s3chunks(1)));
 
     ASSERT_EQ(1, s3ChunkInfoMap[chunkIndex2].s3chunks_size());
-    ASSERT_TRUE(MessageDifferencer::Equals(info3,
-        s3ChunkInfoMap[chunkIndex2].s3chunks(0)));
+    ASSERT_TRUE(MessageDifferencer::Equals(
+        info3, s3ChunkInfoMap[chunkIndex2].s3chunks(0)));
 }
 
 TEST_F(TestInodeWrapper, testSyncSuccess) {
@@ -132,7 +132,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _))
@@ -156,7 +156,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(Return(MetaStatusCode::OK));
 

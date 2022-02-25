@@ -195,7 +195,7 @@ message Inode {
     optional VolumeExtentList volumeExtentList = 17;  // TYPE_FILE only
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
-    optional bool openflag = 20;
+    optional uint32 openmpcount = 20; // openmpcount mount points had the file open
 }
 
 message GetInodeResponse {
@@ -239,6 +239,12 @@ message CreateRootInodeResponse {
     optional uint64 appliedIndex = 2;
 }
 
+enum InodeOpenStatusChange {
+    OPEN = 1;
+    CLOSE = 2;
+    NOCHANGE = 3;
+}
+
 message UpdateInodeRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -258,7 +264,7 @@ message UpdateInodeRequest {
     optional VolumeExtentList volumeExtentList = 16;
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
-    optional bool openflag = 19;
+    optional InodeOpenStatusChange inodeOpenstatusChange = 19;
 }
 
 message UpdateInodeResponse {

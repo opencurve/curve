@@ -74,10 +74,13 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(GetInode, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, Inode *out));
 
-    MOCK_METHOD1(UpdateInode, MetaStatusCode(const Inode &inode));
+    MOCK_METHOD2(UpdateInode,
+                 MetaStatusCode(const Inode &inode,
+                                InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD2(UpdateInodeAsync, void(const Inode &inode,
-        MetaServerClientDone *done));
+    MOCK_METHOD3(UpdateInodeAsync,
+                 void(const Inode &inode, MetaServerClientDone *done,
+                      InodeOpenStatusChange statusChange));
 
     MOCK_METHOD5(GetOrModifyS3ChunkInfo, MetaStatusCode(
         uint32_t fsId, uint64_t inodeId,

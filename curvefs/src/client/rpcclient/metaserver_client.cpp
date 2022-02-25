@@ -434,7 +434,9 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
+MetaStatusCode
+MetaServerClientImpl::UpdateInode(const Inode &inode,
+                                  InodeOpenStatusChange statusChange) {
     auto task = RPCTask {
         metaserverClientMetric_->updateInode.qps.count << 1;
         UpdateInodeResponse response;
@@ -452,7 +454,7 @@ MetaStatusCode MetaServerClientImpl::UpdateInode(const Inode &inode) {
         request.set_gid(inode.gid());
         request.set_mode(inode.mode());
         request.set_nlink(inode.nlink());
-        request.set_openflag(inode.openflag());
+        request.set_inodeopenstatuschange(statusChange);
         if (inode.has_volumeextentlist()) {
             curvefs::metaserver::VolumeExtentList *vlist =
                 new curvefs::metaserver::VolumeExtentList;
@@ -547,8 +549,9 @@ void UpdateInodeRpcDone::Run() {
     return;
 }
 
-void MetaServerClientImpl::UpdateInodeAsync(const Inode &inode,
-    MetaServerClientDone *done) {
+void MetaServerClientImpl::UpdateInodeAsync(
+    const Inode &inode, MetaServerClientDone *done,
+    InodeOpenStatusChange statusChange) {
     auto task = AsyncRPCTask {
         metaserverClientMetric_->updateInode.qps.count << 1;
 
@@ -566,7 +569,7 @@ void MetaServerClientImpl::UpdateInodeAsync(const Inode &inode,
         request.set_gid(inode.gid());
         request.set_mode(inode.mode());
         request.set_nlink(inode.nlink());
-        request.set_openflag(inode.openflag());
+        request.set_inodeopenstatuschange(statusChange);
         if (inode.has_volumeextentlist()) {
             curvefs::metaserver::VolumeExtentList *vlist =
                 new curvefs::metaserver::VolumeExtentList;
