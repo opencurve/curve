@@ -47,6 +47,7 @@ enum FSStatusCode {
     GET_PARTITIONINFOOFFS_ERROR = 24;
     PARTITION_EXIST = 25;
     DELETE_PARTITION_ERROR = 26;
+    S3_INFO_ERROR = 27;
 }
 
 // fs interface

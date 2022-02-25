@@ -22,11 +22,15 @@
 
 #include "curvefs/src/metaserver/trash.h"
 #include "src/common/timeutility.h"
+#include "curvefs/proto/mds.pb.h"
 
 using ::curve::common::TimeUtility;
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::mds::FsInfo;
+using ::curvefs::mds::FSStatusCode;
 
 void TrashOption::InitTrashOptionFromConf(std::shared_ptr<Configuration> conf) {
     conf->GetValueFatalIfFail("trash.scanPeriodSec", &scanPeriodSec);
@@ -36,6 +40,7 @@ void TrashOption::InitTrashOptionFromConf(std::shared_ptr<Configuration> conf) {
 void TrashImpl::Init(const TrashOption &option) {
     options_ = option;
     s3Adaptor_ = option.s3Adaptor;
+    mdsClient_ = option.mdsClient;
     isStop_ = false;
 }
 
@@ -139,6 +144,29 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
     if (FsFileType::TYPE_FILE == inode.type()) {
         // TODO(xuchaojie) : delete on volume
     } else if (FsFileType::TYPE_S3 == inode.type()) {
+        // get s3info from mds
+        FsInfo fsInfo;
+        auto ret = mdsClient_->GetFsInfo(item.fsId, &fsInfo);
+        if (ret != FSStatusCode::OK) {
+            if (FSStatusCode::NOT_FOUND == ret) {
+                LOG(ERROR) << "The fsName not exist, fsId = " << item.fsId;
+                return MetaStatusCode::S3_DELETE_ERR;
+            } else {
+                LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
+                        << ", FSStatusCode_Name = "
+                        << FSStatusCode_Name(ret)
+                        << ", fsId = " << item.fsId;
+                return MetaStatusCode::S3_DELETE_ERR;
+            }
+        }
+        const auto& s3Info = fsInfo.detail().s3info();
+        // reinit s3 adaptor
+        S3ClientAdaptorOption clientAdaptorOption;
+        s3Adaptor_->GetS3ClientAdaptorOption(&clientAdaptorOption);
+        clientAdaptorOption.blockSize = s3Info.blocksize();
+        clientAdaptorOption.chunkSize = s3Info.chunksize();
+        s3Adaptor_->Reinit(clientAdaptorOption, s3Info.ak(), s3Info.sk(),
+            s3Info.endpoint(), s3Info.bucketname());
         int retVal = s3Adaptor_->Delete(inode);
         if (retVal != 0) {
             LOG(ERROR) << "S3ClientAdaptor delete s3 data failed"

@@ -58,10 +58,10 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
         EXPECT_CALL(*mockCacheMgr, ReleaseReadDataCache(_)).Times(0);
 
         for (size_t i = 0; i < maxReadCacheByte / smallDataCacheByte; ++i) {
-            manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
-                                                    mockCacheMgr.get(), 0,
-                                                    smallDataCacheByte, buf),
-                        &outIter);
+            auto tmp = std::make_shared<DataCache>(s3ClientAdaptor_,
+                                                   mockCacheMgr.get(), 0,
+                                                   smallDataCacheByte, buf);
+            manager.Set(tmp, &outIter);
         }
     }
 

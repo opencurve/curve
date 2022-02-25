@@ -62,7 +62,7 @@ void CreateFsTool::PrintHelp() {
               << " -s3_endpoint=" << FLAGS_s3_endpoint
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
-              << " -s3_chunkSize=" << FLAGS_s3_chunksize
+              << " -s3_chunksize=" << FLAGS_s3_chunksize
               << "] [-mdsAddr=" << FLAGS_mdsAddr
               << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
               << "-rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]" << std::endl;
@@ -138,27 +138,33 @@ void CreateFsTool::SetController() {
 }
 
 bool CreateFsTool::AfterSendRequestToHost(const std::string& host) {
-    bool ret = true;
+    bool ret = false;
     if (controller_->Failed()) {
         errorOutput_ << "send create fs request to mds: " << host
                      << " failed, errorcode= " << controller_->ErrorCode()
                      << ", error text: " << controller_->ErrorText()
                      << std::endl;
-        ret = false;
-    } else if (response_->statuscode() == mds::FSStatusCode::OK) {
-        // create success
-        std::cout << "create fs success." << std::endl;
-    } else if (response_->statuscode() == mds::FSStatusCode::FS_EXIST) {
-        // fs exist
-        std::cerr << "create fs error, fs [" << FLAGS_fsName
-                  << "] exist. please check the parameters!" << std::endl;
-    } else {
-        // create fail
-        std::cerr << "create fs failed, errorcode= " << response_->statuscode()
-                  << ", error name: "
-                  << mds::FSStatusCode_Name(response_->statuscode())
-                  << std::endl;
-        ret = false;
+        return ret;
+    }
+
+    switch (response_->statuscode()) {
+        case mds::FSStatusCode::OK:
+            std::cout << "create fs success." << std::endl;
+            ret = true;
+            break;
+        case mds::FSStatusCode::FS_EXIST:
+            std::cerr << "create fs error, fs [" << FLAGS_fsName
+                      << "] exist. But S3 info is inconsistent!" << std::endl;
+            break;
+        case mds::FSStatusCode::S3_INFO_ERROR:
+            std::cerr << "create fs error, the s3 info is not available!"
+                      << std::endl;
+            break;
+        default:
+            std::cerr << "create fs failed, errorcode= "
+                      << response_->statuscode() << ", error name: "
+                      << mds::FSStatusCode_Name(response_->statuscode())
+                      << std::endl;
     }
     return ret;
 }

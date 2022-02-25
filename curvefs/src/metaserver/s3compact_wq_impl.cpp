@@ -35,7 +35,7 @@
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 
 using curve::common::Configuration;
-using curve::common::InitS3AdaptorOption;
+using curve::common::InitS3AdaptorOptionExceptFsS3Option;
 using curve::common::S3Adapter;
 using curve::common::S3AdapterOption;
 using curve::common::TaskThreadPool;
@@ -492,8 +492,12 @@ S3Adapter* S3CompactWorkQueueImpl::SetupS3Adapter(uint64_t fsId,
         if (s3adapter->GetS3Ak() != s3info.ak() ||
             s3adapter->GetS3Sk() != s3info.sk() ||
             s3adapter->GetS3Endpoint() != s3info.endpoint()) {
-            s3adapter->Reinit(s3info.ak(), s3info.sk(), s3info.endpoint(),
-                              s3adapterManager_->GetBasicS3AdapterOption());
+            auto option = s3adapterManager_->GetBasicS3AdapterOption();
+            option.ak = s3info.ak();
+            option.sk = s3info.sk();
+            option.s3Address = s3info.endpoint();
+            option.bucketName = s3info.bucketname();
+            s3adapter->Reinit(option);
         }
         Aws::String bucketName(s3info.bucketname().c_str(),
                                s3info.bucketname().size());

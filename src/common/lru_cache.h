@@ -331,6 +331,7 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::RemoveOldest(V *eliminated) {
     if (ll_.begin() != ll_.end()) {
         *eliminated = ll_.back().value;
         RemoveElement(--ll_.end());
+        return true;
     }
     return false;
 }
@@ -354,6 +355,203 @@ template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
 std::shared_ptr<CacheMetrics>
     LRUCache<K, V, KeyTraits, ValueTraits>::GetCacheMetrics() const {
     return  cacheMetrics_;
+}
+
+template <typename K>
+class SglLRUCacheInterface {
+ public:
+    /**
+     * @brief Store key to the cache
+     * @param[in] key
+     */
+    virtual void Put(const K &key) = 0;
+
+    /**
+     * @brief whether the key has been stored in cache,
+     *        if so, then move it to list front
+     * @param[in] key
+     */
+    virtual bool IsCached(const K &key) = 0;
+
+    /*
+    * @brief Remove key from cache
+    * @param[in] key
+    */
+    virtual void Remove(const K &key) = 0;
+
+    /*
+    * @brief Get back key from cache
+    * @param[out] the back key
+    */
+    virtual void GetBack(K *value) = 0;
+
+    /*
+    * @brief Get the size
+    */
+    virtual uint64_t Size() = 0;
+};
+
+template <typename K, typename KeyTraits = CacheTraits<K>>
+class SglLRUCache : public SglLRUCacheInterface<K> {
+ public:
+    explicit SglLRUCache(uint64_t maxCount,
+        std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
+      : maxCount_(maxCount),
+        cacheMetrics_(cacheMetrics) {}
+
+    explicit SglLRUCache(std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
+      : maxCount_(0),
+        cacheMetrics_(cacheMetrics) {}
+
+    void Put(const K &key) override;
+
+    bool IsCached(const K &key) override;
+
+    void Remove(const K &key) override;
+
+    void GetBack(K *value);
+
+    uint64_t Size();
+
+    std::shared_ptr<CacheMetrics> GetCacheMetrics() const;
+
+ private:
+    void PutLocked(const K &key);
+
+    void RemoveLocked(const K &key);
+
+    void MoveToFront(const typename std::list<K>::iterator &elem);
+
+    void RemoveOldest();
+
+    void RemoveElement(const typename std::list<K>::iterator &elem);
+
+ private:
+    ::curve::common::RWLock lock_;
+
+    // the maximum length of the queue. 0 indicates unlimited length
+    uint64_t maxCount_;
+    // dequeue for storing items
+    std::list<K> ll_;
+    // record the position of the item corresponding to the key in the dequeue
+    std::unordered_map<K, typename std::list<K>::iterator> cache_;
+
+    // cache related metric data
+    std::shared_ptr<CacheMetrics> cacheMetrics_;
+};
+
+template <typename K, typename KeyTraits>
+std::shared_ptr<CacheMetrics>
+    SglLRUCache<K, KeyTraits>::GetCacheMetrics() const {
+    return  cacheMetrics_;
+}
+
+template <typename K, typename KeyTraits>
+uint64_t SglLRUCache<K, KeyTraits>::Size() {
+    ::curve::common::WriteLockGuard guard(lock_);
+    return ll_.size();
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::Put(const K &key) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    PutLocked(key);
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::GetBack(K *value) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    if (ll_.empty()) {
+        LOG(INFO) << "cache is empty.";
+        return;
+    }
+    *value = ll_.back();
+    return;
+}
+
+template <typename K, typename KeyTraits>
+bool SglLRUCache<K, KeyTraits>::IsCached(const K &key) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    auto iter = cache_.find(key);
+    if (iter == cache_.end()) {
+        if (cacheMetrics_ != nullptr) {
+            cacheMetrics_->OnCacheMiss();
+        }
+        return false;
+    }
+
+    if (cacheMetrics_ != nullptr) {
+        cacheMetrics_->OnCacheHit();
+    }
+
+    // update the position of the target item in the list
+    MoveToFront(iter->second);
+    return true;
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::Remove(const K &key) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    RemoveLocked(key);
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::PutLocked(const K &key) {
+    auto iter = cache_.find(key);
+
+    // delete the old value if already exist
+    if (iter != cache_.end()) {
+        RemoveElement(iter->second);
+    }
+    // put new value
+    ll_.push_front(key);
+    cache_[key] = ll_.begin();
+    if (cacheMetrics_ != nullptr) {
+        cacheMetrics_->UpdateAddToCacheCount();
+        cacheMetrics_->UpdateAddToCacheBytes(KeyTraits::CountBytes(key));
+    }
+    if (maxCount_ != 0 && ll_.size() > maxCount_) {
+        RemoveOldest();
+    }
+    return;
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::RemoveLocked(const K &key) {
+    auto iter = cache_.find(key);
+    if (iter != cache_.end()) {
+        RemoveElement(iter->second);
+    }
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::MoveToFront(
+    const typename std::list<K>::iterator &elem) {
+    K tmp = *elem;
+    ll_.erase(elem);
+    ll_.push_front(tmp);
+    cache_[tmp] = ll_.begin();
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::RemoveOldest() {
+    if (ll_.begin() != ll_.end()) {
+        RemoveElement(--ll_.end());
+    }
+    return;
+}
+
+template <typename K, typename KeyTraits>
+void SglLRUCache<K, KeyTraits>::RemoveElement(
+    const typename std::list<K>::iterator &elem) {
+    if (cacheMetrics_ != nullptr) {
+        cacheMetrics_->UpdateRemoveFromCacheCount();
+        cacheMetrics_->UpdateRemoveFromCacheBytes(
+            KeyTraits::CountBytes(*elem));
+    }
+    auto iter = cache_.find(*elem);
+    cache_.erase(iter);
+    ll_.erase(elem);
 }
 
 }  // namespace common

@@ -31,3 +31,16 @@ cc_test(
    ],
    visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "rpcclient_test_mock",
+    hdrs = glob(["*.h"]),
+    copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+       "//external:gtest",
+       "@com_google_googletest//:gtest_main",
+       "//curvefs/src/client/rpcclient:rpcclient",
+       "//curvefs/proto:curvefs_topology_cc_proto",
+    ],
+)

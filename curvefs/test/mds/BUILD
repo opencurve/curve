@@ -32,6 +32,7 @@ cc_test(
             "//src/common:curve_common",
             "//curvefs/proto:space_cc_proto",
             "//curvefs/test/mds/mock:curvefs_mds_mock",
+            "//test/common:common_mock"
     ],
 )
 

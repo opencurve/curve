@@ -49,6 +49,12 @@ class S3ClientAdaptor {
      */
     virtual void Init(const S3ClientAdaptorOption& option,
                       S3Client* client) = 0;
+        /**
+     * @brief Reinitialize s3 client
+     */
+    virtual void Reinit(const S3ClientAdaptorOption& option,
+        const std::string& ak, const std::string& sk,
+        const std::string& endpoint, const std::string& bucketName) = 0;
 
     /**
      * @brief delete inode from s3
@@ -61,6 +67,14 @@ class S3ClientAdaptor {
      * Step.2 delete chunk from s3 client
      */
     virtual int Delete(const Inode& inode) = 0;
+
+    /**
+     * @brief get S3ClientAdaptorOption
+     * 
+     * @param option return value
+     * @details
+     */
+    virtual void GetS3ClientAdaptorOption(S3ClientAdaptorOption *option) = 0;
 };
 
 class S3ClientAdaptorImpl : public S3ClientAdaptor {
@@ -80,6 +94,13 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     void Init(const S3ClientAdaptorOption& option, S3Client* client) override;
 
     /**
+     * @brief Reinitialize s3 client
+     */
+    void Reinit(const S3ClientAdaptorOption& option,
+        const std::string& ak, const std::string& sk,
+        const std::string& endpoint, const std::string& bucketName) override;
+
+    /**
      * @brief delete inode from s3
      * @param inode
      * @return int
@@ -88,6 +109,14 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
      * Step.2 delete chunk from s3 client
      */
     int Delete(const Inode& inode) override;
+
+    /**
+     * @brief get S3ClientAdaptorOption
+     * 
+     * @param option return value
+     * @details
+     */
+    void GetS3ClientAdaptorOption(S3ClientAdaptorOption *option) override;
 
  private:
     /**

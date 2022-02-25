@@ -42,7 +42,7 @@
 #include "src/common/s3_adapter.h"
 
 using curve::common::Configuration;
-using curve::common::InitS3AdaptorOption;
+using curve::common::InitS3AdaptorOptionExceptFsS3Option;
 using curve::common::S3Adapter;
 using curve::common::S3AdapterOption;
 using curve::common::TaskThreadPool;

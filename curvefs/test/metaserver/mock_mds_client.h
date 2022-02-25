@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,38 +16,44 @@
 
 /*
  * Project: curve
- * Created Date: 2021-8-13
- * Author: chengyi
+ * Created Date: 2022-03-02
+ * Author: chengyi01
  */
 
-#ifndef CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
-#define CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
+#ifndef CURVEFS_TEST_METASERVER_MOCK_MDS_CLIENT_H_
+#define CURVEFS_TEST_METASERVER_MOCK_MDS_CLIENT_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <string>
-#include <list>
 
-#include "curvefs/src/metaserver/s3/metaserver_s3.h"
+#include <map>
+#include <string>
+#include <vector>
+
+#include "curvefs/src/metaserver/mdsclient/mds_client.h"
 
 using ::testing::_;
 using ::testing::Return;
 
 namespace curvefs {
 namespace metaserver {
-class MockS3Client : public S3Client {
- public:
-    MockS3Client() {}
-    ~MockS3Client() {}
+namespace mdsclient {
 
-    MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption &options));
-    MOCK_METHOD1(Delete, int(const std::string &name));
-    MOCK_METHOD1(DeleteBatch, int(const std::list<std::string>& nameList));
-    MOCK_METHOD4(Reinit, void(const std::string& ak, const std::string& sk,
-                        const std::string& endpoint,
-                        const std::string& bucketName));
+class MockMdsClient : public MdsClient {
+ public:
+    MockMdsClient() {}
+    ~MockMdsClient() {}
+    MOCK_METHOD2(Init,
+                 FSStatusCode(const ::curve::client::MetaServerOption& mdsOpt,
+                              MDSBaseClient* baseclient));
+    MOCK_METHOD2(GetFsInfo,
+                 FSStatusCode(const std::string& fsName, FsInfo* fsInfo));
+
+    MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo* fsInfo));
 };
+
+}  // namespace mdsclient
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
+#endif  // CURVEFS_TEST_METASERVER_MOCK_MDS_CLIENT_H_

@@ -16,38 +16,37 @@
 
 /*
  * Project: curve
- * Created Date: 2021-8-13
+ * Created Date: 2022-02-28
  * Author: chengyi
  */
 
-#ifndef CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
-#define CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
+#ifndef CURVEFS_TEST_MDS_MOCK_MDS_S3_H_
+#define CURVEFS_TEST_MDS_MOCK_MDS_S3_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <string>
 #include <list>
 
-#include "curvefs/src/metaserver/s3/metaserver_s3.h"
+#include "curvefs/src/mds/s3/mds_s3.h"
 
 using ::testing::_;
 using ::testing::Return;
 
 namespace curvefs {
-namespace metaserver {
+namespace mds {
 class MockS3Client : public S3Client {
  public:
     MockS3Client() {}
     ~MockS3Client() {}
 
     MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption &options));
-    MOCK_METHOD1(Delete, int(const std::string &name));
-    MOCK_METHOD1(DeleteBatch, int(const std::list<std::string>& nameList));
     MOCK_METHOD4(Reinit, void(const std::string& ak, const std::string& sk,
                         const std::string& endpoint,
                         const std::string& bucketName));
+    MOCK_METHOD0(BucketExist, bool());
 };
-}  // namespace metaserver
+}  // namespace mds
 }  // namespace curvefs
 
-#endif  // CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_H_
+#endif  // CURVEFS_TEST_MDS_MOCK_MDS_S3_H_

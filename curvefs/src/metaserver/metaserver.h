@@ -38,6 +38,8 @@
 #include "curvefs/src/metaserver/inflight_throttle.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/partition_clean_manager.h"
+#include "curvefs/src/metaserver/mdsclient/mds_client.h"
+#include "curvefs/src/client/rpcclient/base_client.h"
 #include "src/common/configuration.h"
 #include "src/fs/local_filesystem.h"
 
@@ -50,6 +52,10 @@ using ::curvefs::metaserver::copyset::CopysetNodeManager;
 using ::curvefs::metaserver::copyset::CopysetNodeOptions;
 using ::curvefs::metaserver::copyset::CopysetServiceImpl;
 using ::curvefs::metaserver::copyset::RaftCliService2;
+using ::curvefs::metaserver::mdsclient::MdsClient;
+using ::curvefs::metaserver::mdsclient::MdsClientImpl;
+using ::curvefs::client::rpcclient::MDSBaseClient;
+using ::curvefs::client::common::MdsOption;
 
 struct MetaserverOptions {
     std::string ip;
@@ -75,6 +81,7 @@ class Metaserver {
     void InitRegisterOptions();
     void InitBRaftFlags(const std::shared_ptr<Configuration>& conf);
     void InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
+                              std::shared_ptr<MdsClient> mdsClient,
                              PartitionCleanOption* partitionCleanOption);
 
  private:
@@ -86,6 +93,9 @@ class Metaserver {
     bool running_ = false;
 
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
+    std::shared_ptr<MdsClient> mdsClient_;
+    MDSBaseClient* mdsBase_;
+    MdsOption mdsOptions_;
     MetaserverOptions options_;
     MetaServerMetadata metadate_;
 

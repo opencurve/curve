@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,30 +15,30 @@
  */
 /*
  * Project: curve
- * Created Date: 2021-8-13
+ * Created Date: 2022-02-28
  * Author: chengyi
  */
 
-#ifndef CURVEFS_SRC_METASERVER_S3_METASERVER_S3_H_
-#define CURVEFS_SRC_METASERVER_S3_METASERVER_S3_H_
+#ifndef CURVEFS_SRC_MDS_S3_MDS_S3_H_
+#define CURVEFS_SRC_MDS_S3_MDS_S3_H_
 
 #include <memory>
 #include <string>
 #include <list>
+
 #include "src/common/s3_adapter.h"
 
 namespace curvefs {
-namespace metaserver {
+namespace mds {
 class S3Client {
  public:
     S3Client() {}
     virtual ~S3Client() {}
     virtual void Init(const curve::common::S3AdapterOption& option) = 0;
-    virtual int Delete(const std::string& name) = 0;
-    virtual int DeleteBatch(const std::list<std::string>& nameList) = 0;
     virtual void Reinit(const std::string& ak, const std::string& sk,
                         const std::string& endpoint,
                         const std::string& bucketName) = 0;
+    virtual bool BucketExist() = 0;
 };
 
 class S3ClientImpl : public S3Client {
@@ -50,25 +50,13 @@ class S3ClientImpl : public S3Client {
     void Init(const curve::common::S3AdapterOption& option) override;
     void Reinit(const std::string& ak, const std::string& sk,
       const std::string& endpoint, const std::string& bucketName) override;
-    /**
-     * @brief
-     *
-     * @param name object_key
-     * @return int
-     *  1:  object is not exist
-     *  0:  delete sucess
-     *  -1: delete fail
-     * @details
-     */
-    int Delete(const std::string& name) override;
-
-    int DeleteBatch(const std::list<std::string>& nameList) override;
+    bool BucketExist();
 
  private:
     std::shared_ptr<curve::common::S3Adapter> s3Adapter_;
     curve::common::S3AdapterOption option_;
 };
-}  // namespace metaserver
+}  // namespace mds
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_S3_METASERVER_S3_H_
+#endif  // CURVEFS_SRC_MDS_S3_MDS_S3_H_

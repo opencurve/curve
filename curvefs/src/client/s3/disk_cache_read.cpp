@@ -102,7 +102,8 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
     return 0;
 }
 
-int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string> *cachedObj) {
+int DiskCacheRead::LoadAllCacheReadFile(
+  std::shared_ptr<SglLRUCache<std::string>> cachedObj) {
     LOG(INFO) << "LoadAllCacheReadFile start. ";
     std::string cacheReadPath;
     bool ret;
@@ -124,7 +125,7 @@ int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string> *cachedObj) {
             (!strncmp(cacheReadDirent->d_name, "..", 2)))
             continue;
         std::string fileName = cacheReadDirent->d_name;
-        cachedObj->emplace(fileName);
+        cachedObj->Put(fileName);
         VLOG(3) << "LoadAllCacheReadFile obj, name = " << fileName;
     }
     VLOG(6) << "close start.";
@@ -133,6 +134,7 @@ int DiskCacheRead::LoadAllCacheReadFile(std::set<std::string> *cachedObj) {
         LOG(ERROR) << "opendir error， errno = " << errno;
         return rc;
     }
+
     LOG(INFO) << "LoadAllCacheReadFile success.";
     return 0;
 }

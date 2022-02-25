@@ -33,6 +33,7 @@
 #include "curvefs/test/mds/mock/mock_space.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/mock/mock_cli2.h"
+#include "curvefs/test/mds/mock_mds_s3.h"
 
 using ::curvefs::mds::topology::TopologyManager;
 using ::curvefs::mds::topology::MockTopologyManager;
@@ -111,12 +112,13 @@ class FsManagerTest2 : public testing::Test {
         topoManager_ = std::make_shared<MockTopologyManager>(
                             std::make_shared<TopologyImpl>(idGenerator_,
                             tokenGenerator_, topoStorage_), metaServerClient_);
+        s3Client_ = std::make_shared<MockS3Client>();
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
         fsManager_ = std::make_shared<FsManager>(storage_, spaceClient_,
                                             metaServerClient_, topoManager_,
-                                            fsManagerOption);
+                                            s3Client_, fsManagerOption);
 
         spaceService_ = std::make_shared<MockSpaceService>();
         metaserverService_ = std::make_shared<MockMetaserverService>();
@@ -155,6 +157,7 @@ class FsManagerTest2 : public testing::Test {
     MockCliService2 mockCliService2_;
     std::shared_ptr<FsManager> fsManager_;
     brpc::Server server_;
+    std::shared_ptr<MockS3Client> s3Client_;
 };
 
 TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticialToPreviousOne) {
@@ -307,6 +310,7 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
 
     EXPECT_CALL(*storage_, Update(_))
         .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*s3Client_, BucketExist()).WillOnce(Return(true));
 
     FsInfo resultInfo;
     EXPECT_EQ(FSStatusCode::OK, fsManager_->CreateFs(fsname, type, blocksize,

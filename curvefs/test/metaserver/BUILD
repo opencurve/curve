@@ -45,13 +45,17 @@ cc_test(
             "//curvefs/proto:curvefs_topology_cc_proto",
             "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
             "//curvefs/src/metaserver:metaserver_s3_lib",
+            "//curvefs/test/client/rpcclient:rpcclient_test_mock"
     ],
 )
 
 cc_test(
     name = "curvefs_partition_clean_test",
-    srcs = glob(
-        ["partition_clean_test.cpp", "mock_metaserver_s3_adaptor.h"],
+    srcs = glob([
+        "partition_clean_test.cpp",
+        "mock_metaserver_s3_adaptor.h",
+        "mock_mds_client.h",
+    ],
         exclude = [],
     ),
     copts = CURVE_TEST_COPTS,

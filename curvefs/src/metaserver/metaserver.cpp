@@ -109,38 +109,47 @@ void Metaserver::InitLocalFileSystem() {
 
 void InitS3Option(const std::shared_ptr<Configuration>& conf,
                   S3ClientAdaptorOption* s3Opt) {
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.blocksize", &s3Opt->blockSize));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.chunksize", &s3Opt->chunkSize));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.batchsize", &s3Opt->batchSize));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.enableDeleteObjects",
                                       &s3Opt->enableDeleteObjects));
 }
 
 void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
+                              std::shared_ptr<MdsClient> mdsClient,
                          PartitionCleanOption* partitionCleanOption) {
     LOG_IF(FATAL, !conf_->GetUInt32Value("partition.clean.scanPeriodSec",
                                         &partitionCleanOption->scanPeriodSec));
     LOG_IF(FATAL, !conf_->GetUInt32Value("partition.clean.inodeDeletePeriodMs",
                                 &partitionCleanOption->inodeDeletePeriodMs));
     partitionCleanOption->s3Adaptor = s3Adaptor;
+    partitionCleanOption->mdsClient = mdsClient;
 }
 
 void Metaserver::Init() {
     InitRegisterOptions();
     TrashOption trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
+
+    // init mds client
+    mdsBase_ = new MDSBaseClient();
+    ::curvefs::client::common::InitMdsOption(conf_.get(), &mdsOptions_);
+    mdsClient_ = std::make_shared<MdsClientImpl>();
+    mdsClient_->Init(mdsOptions_, mdsBase_);
+
     s3Adaptor_ = std::make_shared<S3ClientAdaptorImpl>();
 
     S3ClientAdaptorOption s3ClientAdaptorOption;
     InitS3Option(conf_, &s3ClientAdaptorOption);
     curve::common::S3AdapterOption s3AdaptorOption;
-    ::curve::common::InitS3AdaptorOption(conf_.get(), &s3AdaptorOption);
+    ::curve::common::InitS3AdaptorOptionExceptFsS3Option(conf_.get(),
+                                                         &s3AdaptorOption);
     auto s3Client_ = new S3ClientImpl;
     s3Client_->SetAdaptor(std::make_shared<curve::common::S3Adapter>());
     s3Client_->Init(s3AdaptorOption);
     // s3Adaptor_ own the s3Client_, and will delete it when destruct.
     s3Adaptor_->Init(s3ClientAdaptorOption, s3Client_);
     trashOption.s3Adaptor = s3Adaptor_;
+    trashOption.mdsClient = mdsClient_;
     TrashManager::GetInstance().Init(trashOption);
 
     // NOTE: Do not arbitrarily adjust the order, there are dependencies
@@ -153,7 +162,7 @@ void Metaserver::Init() {
     S3CompactManager::GetInstance().Init(conf_);
 
     PartitionCleanOption partitionCleanOption;
-    InitPartitionOption(s3Adaptor_, &partitionCleanOption);
+    InitPartitionOption(s3Adaptor_, mdsClient_, &partitionCleanOption);
     PartitionCleanManager::GetInstance().Init(partitionCleanOption);
 
     inited_ = true;

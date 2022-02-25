@@ -157,6 +157,82 @@ TEST(CaCheTest, TestCacheHitAndMissMetric) {
     ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
 }
 
+TEST(SglCaCheTest, test_cache_with_capacity_limit) {
+    int maxCount = 5;
+    auto cache = std::make_shared<SglLRUCache<std::string>>(maxCount,
+        std::make_shared<CacheMetrics>("LruCache"));
+
+    // 1. 测试 put/IsCached
+    uint64_t cacheSize = 0;
+    for (int i = 1; i <= maxCount; i++) {
+        cache->Put(std::to_string(i));
+        cacheSize++;
+        ASSERT_EQ(i, cache->GetCacheMetrics()->cacheCount.get_value());
+        ASSERT_TRUE(cache->IsCached(std::to_string(i)));
+    }
+
+    // 2. 第一个元素被剔出
+    cache->Put(std::to_string(11));
+    ASSERT_FALSE(cache->IsCached(std::to_string(1)));
+
+    // 3. 测试删除元素
+    // 删除不存在的元素
+    cache->Remove("1");
+    // 删除list中存在的元素
+    cache->Remove("2");
+    ASSERT_FALSE(cache->IsCached("2"));
+    ASSERT_EQ(maxCount - 1, cache->GetCacheMetrics()->cacheCount.get_value());
+
+    // 4. 重复put
+    cache->Put("4");
+    ASSERT_TRUE(cache->IsCached("4"));
+    ASSERT_EQ(maxCount - 1, cache->GetCacheMetrics()->cacheCount.get_value());
+}
+
+TEST(SglCaCheTest, test_cache_with_capacity_no_limit) {
+    auto cache = std::make_shared<SglLRUCache<std::string>>(
+        std::make_shared<CacheMetrics>("LruCache"));
+
+    // 1. 测试 put/IsCached
+    std::string res;
+    for (int i = 1; i <= 10; i++) {
+        std::string eliminated;
+        cache->Put(std::to_string(i));
+        ASSERT_TRUE(cache->IsCached(std::to_string(i)));
+        ASSERT_FALSE(cache->IsCached(std::to_string(100)));
+    }
+
+    // 2. 测试元素删除
+    cache->Remove("1");
+    ASSERT_FALSE(cache->IsCached("1"));
+}
+
+TEST(SglCaCheTest, TestCacheHitAndMissMetric) {
+    auto cache = std::make_shared<SglLRUCache<std::string>>(
+        std::make_shared<CacheMetrics>("LruCache"));
+    ASSERT_EQ(0, cache->GetCacheMetrics()->cacheHit.get_value());
+    ASSERT_EQ(0, cache->GetCacheMetrics()->cacheMiss.get_value());
+
+    std::string existKey = "hello";
+    std::string notExistKey = "world";
+    cache->Put(existKey);
+
+    for (int i = 0; i < 10; ++i) {
+        ASSERT_TRUE(cache->IsCached(existKey));
+        ASSERT_FALSE(cache->IsCached(notExistKey));
+    }
+
+    ASSERT_EQ(10, cache->GetCacheMetrics()->cacheHit.get_value());
+    ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
+
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_TRUE(cache->IsCached(existKey));
+    }
+
+    ASSERT_EQ(15, cache->GetCacheMetrics()->cacheHit.get_value());
+    ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
+}
+
 }  // namespace common
 }  // namespace curve
 

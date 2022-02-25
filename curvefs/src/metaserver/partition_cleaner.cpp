@@ -23,9 +23,14 @@
 #include "curvefs/src/metaserver/partition_cleaner.h"
 #include <list>
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
+#include "curvefs/proto/mds.pb.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::mds::FsInfo;
+using ::curvefs::mds::FSStatusCode;
+using ::curvefs::mds::FSStatusCode_Name;
 
 bool PartitionCleaner::ScanPartition() {
     if (!copysetNode_->IsLeaderTerm()) {
@@ -79,6 +84,29 @@ bool PartitionCleaner::ScanPartition() {
 MetaStatusCode PartitionCleaner::CleanDataAndDeleteInode(const Inode& inode) {
     // TODO(cw123) : consider FsFileType::TYPE_FILE
     if (FsFileType::TYPE_S3 == inode.type()) {
+         // get s3info from mds
+        FsInfo fsInfo;
+        auto ret = mdsClient_->GetFsInfo(inode.fsid(), &fsInfo);
+        if (ret != FSStatusCode::OK) {
+            if (FSStatusCode::NOT_FOUND == ret) {
+                LOG(ERROR) << "The fsName not exist, fsId = " << inode.fsid();
+                return MetaStatusCode::S3_DELETE_ERR;
+            } else {
+                LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
+                        << ", FSStatusCode_Name = "
+                        << FSStatusCode_Name(ret)
+                        << ", fsId = " << inode.fsid();
+                return MetaStatusCode::S3_DELETE_ERR;
+            }
+        }
+        const auto& s3Info = fsInfo.detail().s3info();
+        // reinit s3 adaptor
+        S3ClientAdaptorOption clientAdaptorOption;
+        s3Adaptor_->GetS3ClientAdaptorOption(&clientAdaptorOption);
+        clientAdaptorOption.blockSize = s3Info.blocksize();
+        clientAdaptorOption.chunkSize = s3Info.chunksize();
+        s3Adaptor_->Reinit(clientAdaptorOption, s3Info.ak(), s3Info.sk(),
+            s3Info.endpoint(), s3Info.bucketname());
         int retVal = s3Adaptor_->Delete(inode);
         if (retVal != 0) {
             LOG(ERROR) << "S3ClientAdaptor delete s3 data failed"
