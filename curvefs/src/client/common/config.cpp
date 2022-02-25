@@ -137,10 +137,6 @@ void InitDiskCacheOption(Configuration *conf,
 }
 
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
-    conf->GetValueFatalIfFail("s3.blocksize",
-                              &s3Opt->s3ClientAdaptorOpt.blockSize);
-    conf->GetValueFatalIfFail("s3.chunksize",
-                              &s3Opt->s3ClientAdaptorOpt.chunkSize);
     conf->GetValueFatalIfFail("s3.fuseMaxSize",
                               &s3Opt->s3ClientAdaptorOpt.fuseMaxSize);
     conf->GetValueFatalIfFail("s3.pagesize",
@@ -161,7 +157,8 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.nearfullRatio);
     conf->GetValueFatalIfFail("s3.baseSleepUs",
                               &s3Opt->s3ClientAdaptorOpt.baseSleepUs);
-    ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
+    ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(conf,
+                                                         &s3Opt->s3AdaptrOpt);
     InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }
 
@@ -220,6 +217,26 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->dummyServerStartPort);
 
     SetBrpcOpt(conf);
+}
+
+void SetFuseClientS3Option(FuseClientOption *clientOption,
+    const S3InfoOption &fsS3Opt) {
+    clientOption->s3Opt.s3ClientAdaptorOpt.blockSize = fsS3Opt.blockSize;
+    clientOption->s3Opt.s3ClientAdaptorOpt.chunkSize = fsS3Opt.chunkSize;
+    clientOption->s3Opt.s3AdaptrOpt.s3Address = fsS3Opt.s3Address;
+    clientOption->s3Opt.s3AdaptrOpt.ak = fsS3Opt.ak;
+    clientOption->s3Opt.s3AdaptrOpt.sk = fsS3Opt.sk;
+    clientOption->s3Opt.s3AdaptrOpt.bucketName = fsS3Opt.bucketName;
+}
+
+void S3Info2FsS3Option(const curvefs::common::S3Info& s3,
+                       S3InfoOption* fsS3Opt) {
+    fsS3Opt->ak = s3.ak();
+    fsS3Opt->sk = s3.sk();
+    fsS3Opt->s3Address = s3.endpoint();
+    fsS3Opt->bucketName = s3.bucketname();
+    fsS3Opt->blockSize = s3.blocksize();
+    fsS3Opt->chunkSize = s3.chunksize();
 }
 
 }  // namespace common

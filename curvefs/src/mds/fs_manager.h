@@ -43,6 +43,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "src/common/interruptible_sleeper.h"
+#include "src/common/s3_adapter.h"
 
 namespace curvefs {
 namespace mds {
@@ -52,9 +53,11 @@ using ::curvefs::mds::topology::Topology;
 using ::curve::common::Thread;
 using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Atomic;
+using ::curve::common::S3Adapter;
 
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
+    curve::common::S3AdapterOption s3AdapterOption;
 };
 
 class FsManager {
@@ -63,12 +66,15 @@ class FsManager {
               std::shared_ptr<SpaceClient> spaceClient,
               std::shared_ptr<MetaserverClient> metaserverClient,
               std::shared_ptr<TopologyManager> topoManager,
+              std::shared_ptr<S3Adapter> s3Adapter,
               const FsManagerOption& option)
         : fsStorage_(fsStorage),
           spaceClient_(spaceClient),
           metaserverClient_(metaserverClient),
           topoManager_(topoManager),
-          nameLock_() {
+          s3Adapter_(s3Adapter),
+          nameLock_(),
+          s3AdapterOption_(option.s3AdapterOption) {
         isStop_ = true;
         backEndThreadRunInterSec_ = option.backEndThreadRunInterSec;
     }
@@ -194,12 +200,14 @@ class FsManager {
     std::shared_ptr<MetaserverClient> metaserverClient_;
     curve::common::GenericNameLock<Mutex> nameLock_;
     std::shared_ptr<TopologyManager> topoManager_;
+    std::shared_ptr<S3Adapter> s3Adapter_;
 
     // Manage fs backgroud delete threads
     Thread backEndThread_;
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;
     int backEndThreadRunInterSec_;
+    curve::common::S3AdapterOption s3AdapterOption_;
 };
 }  // namespace mds
 }  // namespace curvefs

@@ -45,6 +45,7 @@ cc_library(
         "//src/leader_election",
         "//curvefs/src/mds/schedule:curvefs_schedule",
         "//curvefs/src/mds/schedule/scheduleService:curvefs_schedule_service",
+        "//src/common:curve_s3_adapter",
     ],
 )
 

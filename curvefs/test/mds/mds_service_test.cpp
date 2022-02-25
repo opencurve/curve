@@ -32,6 +32,7 @@
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/mock/mock_cli2.h"
+#include "test/common/mock_s3_adapter.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -70,6 +71,7 @@ using ::curvefs::mds::topology::CreatePartitionResponse;
 using ::curvefs::mds::topology::TopoStatusCode;
 using ::curvefs::metaserver::copyset::MockCliService2;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
+using ::curve::common::MockS3Adapter;
 
 namespace curvefs {
 namespace mds {
@@ -80,10 +82,10 @@ class MdsServiceTest : public ::testing::Test {
 
         SpaceOptions spaceOptions;
         spaceOptions.spaceAddr = "127.0.0.1:6703";
-        spaceOptions.rpcTimeoutMs = 500;
+        spaceOptions.rpcTimeoutMs = 5000;
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = "127.0.0.1:6703";
-        metaserverOptions.rpcTimeoutMs = 500;
+        metaserverOptions.rpcTimeoutMs = 5000;
         fsStorage_ = std::make_shared<MemoryFsStorage>();
         spaceClient_ = std::make_shared<SpaceClient>(spaceOptions);
         metaserverClient_ =
@@ -104,9 +106,10 @@ class MdsServiceTest : public ::testing::Test {
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
+        s3Adapter_ = std::make_shared<MockS3Adapter>();
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
                                             metaserverClient_, topoManager_,
-                                            fsManagerOption);
+                                            s3Adapter_, fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
         return;
     }
@@ -138,6 +141,7 @@ class MdsServiceTest : public ::testing::Test {
     std::shared_ptr<MetaserverClient> metaserverClient_;
     std::shared_ptr<MockKVStorageClient> kvstorage_;
     std::shared_ptr<MockTopologyManager> topoManager_;
+    std::shared_ptr<MockS3Adapter> s3Adapter_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -300,7 +304,9 @@ TEST_F(MdsServiceTest, test1) {
         .WillOnce(DoAll(
         SetArgPointee<2>(getLeaderResponse),
         Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
+    cntl.set_timeout_ms(5000);
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), FSStatusCode::OK);

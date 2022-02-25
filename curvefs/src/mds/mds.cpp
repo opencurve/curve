@@ -135,6 +135,8 @@ void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
 void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
     conf_->GetValueFatalIfFail("mds.fsmanager.backEndThreadRunInterSec",
                                &fsManagerOption->backEndThreadRunInterSec);
+    ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(
+        conf_.get(), &fsManagerOption->s3AdapterOption);
 }
 
 void MDS::Init() {
@@ -156,9 +158,10 @@ void MDS::Init() {
     FsManagerOption fsManagerOption;
     InitFsManagerOptions(&fsManagerOption);
 
+    s3Adapter_ = std::make_shared<S3Adapter>();
     fsManager_ =
         std::make_shared<FsManager>(fsStorage_, spaceClient_, metaserverClient_,
-                                    topologyManager_, fsManagerOption);
+            topologyManager_, s3Adapter_, fsManagerOption);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);

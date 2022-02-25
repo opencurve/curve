@@ -36,6 +36,16 @@ void S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option,
     client_ = client;
 }
 
+void S3ClientAdaptorImpl::Reinit(const S3ClientAdaptorOption& option,
+        const std::string& ak, const std::string& sk,
+        const std::string& endpoint, const std::string& bucketName) {
+    blockSize_ = option.blockSize;
+    chunkSize_ = option.chunkSize;
+    batchSize_ = option.batchSize;
+    enableDeleteObjects_ = option.enableDeleteObjects;
+    client_->Reinit(ak, sk, endpoint, bucketName);
+}
+
 int S3ClientAdaptorImpl::Delete(const Inode &inode) {
     if (enableDeleteObjects_) {
         return DeleteInodeByDeleteBatchChunk(inode);
@@ -193,6 +203,14 @@ void S3ClientAdaptorImpl::GenObjNameListForChunkInfo(
         ++blockIndex;
     }
     return;
+}
+
+void S3ClientAdaptorImpl::GetS3ClientAdaptorOption(
+    S3ClientAdaptorOption *option) {
+    option->blockSize = blockSize_;
+    option->chunkSize = chunkSize_;
+    option->batchSize = batchSize_;
+    option->enableDeleteObjects = enableDeleteObjects_;
 }
 
 }  // namespace metaserver

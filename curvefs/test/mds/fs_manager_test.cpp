@@ -30,6 +30,7 @@
 #include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_space.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
+#include "test/common/mock_s3_adapter.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -76,6 +77,7 @@ using ::curvefs::mds::topology::CreatePartitionResponse;
 using ::curvefs::mds::topology::TopoStatusCode;
 using ::curvefs::metaserver::copyset::MockCliService2;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
+using ::curve::common::MockS3Adapter;
 
 namespace curvefs {
 namespace mds {
@@ -110,9 +112,11 @@ class FSManagerTest : public ::testing::Test {
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
+        s3Adapter_ = std::make_shared<MockS3Adapter>();
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
                                                  metaserverClient_,
-                                                 topoManager_, fsManagerOption);
+                                                 topoManager_, s3Adapter_,
+                                                 fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
 
         ASSERT_EQ(0, server_.AddService(&mockSpaceService_,
@@ -174,6 +178,7 @@ class FSManagerTest : public ::testing::Test {
     MockCliService2 mockCliService2_;
     std::shared_ptr<MockTopologyManager> topoManager_;
     brpc::Server server_;
+    std::shared_ptr<MockS3Adapter> s3Adapter_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -308,6 +313,8 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
+    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
+
     ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
                                enableSumInDir, detail2, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
@@ -329,6 +336,7 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
+    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
     ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
                                enableSumInDir, detail2, &s3FsInfo);
@@ -341,6 +349,14 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(s3FsInfo.blocksize(), blockSize);
     ASSERT_EQ(s3FsInfo.mountnum(), 0);
     ASSERT_EQ(s3FsInfo.fstype(), FSType::TYPE_S3);
+
+    // create s3 fs fail
+    std::string fsName3 = "fs3";
+    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(false));
+
+    ret = fsManager_->CreateFs(fsName3, FSType::TYPE_S3, blockSize,
+                               enableSumInDir, detail2, &s3FsInfo);
+    ASSERT_EQ(ret, FSStatusCode::S3_INFO_ERROR);
 
     // TEST GetFsInfo
     FsInfo fsInfo1;
@@ -551,6 +567,7 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
+    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
     ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
                                enableSumInDir, detail2, &s3FsInfo);

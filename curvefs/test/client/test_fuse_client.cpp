@@ -159,9 +159,6 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     std::string user = mOpts.user;
     std::string fsName = mOpts.volume;
 
-    EXPECT_CALL(*mdsClient_, GetFsInfo(fsName, _))
-        .WillOnce(Return(FSStatusCode::OK));
-
     FsInfo fsInfoExp;
     fsInfoExp.set_fsid(200);
     fsInfoExp.set_fsname(fsName);
@@ -179,30 +176,6 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
 
     ASSERT_EQ(fsInfo->fsid(), fsInfoExp.fsid());
     ASSERT_EQ(fsInfo->fsname(), fsInfoExp.fsname());
-}
-
-TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_not_exist) {
-    MountOption mOpts;
-    memset(&mOpts, 0, sizeof(mOpts));
-    mOpts.mountPoint = "host1:/test";
-    mOpts.volume = "xxx";
-    mOpts.fsName = "xxx";
-    mOpts.user = "test";
-    mOpts.fsType = "curve";
-
-    std::string volName = mOpts.volume;
-    std::string user = mOpts.user;
-    std::string fsName = mOpts.volume;
-
-    EXPECT_CALL(*mdsClient_, GetFsInfo(fsName, _))
-        .WillOnce(Return(FSStatusCode::NOT_FOUND));
-
-    FsInfo fsInfoExp;
-    fsInfoExp.set_fsid(100);
-    fsInfoExp.set_fsname(fsName);
-
-    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpDestroy) {
@@ -1668,6 +1641,10 @@ class TestFuseS3Client : public ::testing::Test {
         fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
         fuseClientOption_.dummyServerStartPort = 5000;
         fuseClientOption_.maxNameLength = 20u;
+        auto fsInfo = std::make_shared<FsInfo>();
+        fsInfo->set_fsid(fsId);
+        fsInfo->set_fsname("s3fs");
+        client_->SetFsInfo(fsInfo);
         client_->Init(fuseClientOption_);
         PrepareFsInfo();
     }
@@ -1712,9 +1689,6 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
 
     std::string fsName = mOpts.fsName;
 
-    EXPECT_CALL(*mdsClient_, GetFsInfo(fsName, _))
-        .WillOnce(Return(FSStatusCode::OK));
-
     FsInfo fsInfoExp;
     fsInfoExp.set_fsid(200);
     fsInfoExp.set_fsname(fsName);
@@ -1729,27 +1703,6 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
 
     ASSERT_EQ(fsInfo->fsid(), fsInfoExp.fsid());
     ASSERT_EQ(fsInfo->fsname(), fsInfoExp.fsname());
-}
-
-TEST_F(TestFuseS3Client, FuseOpInit_when_fs_not_exist) {
-    MountOption mOpts;
-    memset(&mOpts, 0, sizeof(mOpts));
-    mOpts.fsName = "s3fs";
-    mOpts.mountPoint = "host1:/test";
-    mOpts.user = "test";
-    mOpts.fsType = "s3";
-
-    std::string fsName = mOpts.fsName;
-
-    EXPECT_CALL(*mdsClient_, GetFsInfo(fsName, _))
-        .WillOnce(Return(FSStatusCode::NOT_FOUND));
-
-    FsInfo fsInfoExp;
-    fsInfoExp.set_fsid(100);
-    fsInfoExp.set_fsname(fsName);
-
-    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpDestroy) {

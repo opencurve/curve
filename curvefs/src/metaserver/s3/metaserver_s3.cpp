@@ -32,6 +32,16 @@ void S3ClientImpl::SetAdaptor(
 
 void S3ClientImpl::Init(const curve::common::S3AdapterOption& option) {
     s3Adapter_->Init(option);
+    option_ = option;
+}
+
+void S3ClientImpl::Reinit(const std::string& ak, const std::string& sk,
+    const std::string& endpoint, const std::string& bucketName) {
+    option_.ak = ak;
+    option_.sk = sk;
+    option_.s3Address = endpoint;
+    option_.bucketName = bucketName;
+    s3Adapter_->Reinit(option_);
 }
 
 int S3ClientImpl::Delete(const std::string& name) {
