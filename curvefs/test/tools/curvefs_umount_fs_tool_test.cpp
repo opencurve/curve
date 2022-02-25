@@ -54,7 +54,19 @@ class UmountfsToolTest : public testing::Test {
     void SetUp() override {
         ASSERT_EQ(0, server_.AddService(&mockMdsService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
+        uint16_t port = 56800;
+        int ret = 0;
+        while (port < 65535) {
+            addr_ = "127.0.0.1:" + std::to_string(port);
+            ret = server_.Start(addr_.c_str(), nullptr);
+            if (ret >= 0) {
+                LOG(INFO) << "service success, listen port = " << port;
+                break;
+            }
+            ++port;
+        }
+
+        ASSERT_EQ(0, ret);
     }
     void TearDown() override {
         server_.Stop(0);
@@ -62,7 +74,7 @@ class UmountfsToolTest : public testing::Test {
     }
 
  protected:
-    std::string addr_ = "127.0.0.1:16701";
+    std::string addr_;
     brpc::Server server_;
     MockMdsService mockMdsService_;
     UmountFsTool ut_;

@@ -36,6 +36,9 @@ class S3Client {
     virtual void Init(const curve::common::S3AdapterOption& option) = 0;
     virtual int Delete(const std::string& name) = 0;
     virtual int DeleteBatch(const std::list<std::string>& nameList) = 0;
+    virtual void Reinit(const std::string& ak, const std::string& sk,
+                        const std::string& endpoint,
+                        const std::string& bucketName) = 0;
 };
 
 class S3ClientImpl : public S3Client {
@@ -45,6 +48,8 @@ class S3ClientImpl : public S3Client {
 
     void SetAdaptor(std::shared_ptr<curve::common::S3Adapter> s3Adapter);
     void Init(const curve::common::S3AdapterOption& option) override;
+    void Reinit(const std::string& ak, const std::string& sk,
+      const std::string& endpoint, const std::string& bucketName) override;
     /**
      * @brief
      *
@@ -61,6 +66,7 @@ class S3ClientImpl : public S3Client {
 
  private:
     std::shared_ptr<curve::common::S3Adapter> s3Adapter_;
+    curve::common::S3AdapterOption option_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

@@ -87,8 +87,20 @@ struct S3AdapterOption {
     uint64_t bpsWriteMB;
 };
 
-void InitS3AdaptorOption(Configuration *conf,
-    S3AdapterOption *s3Opt);
+struct S3InfoOption {
+    // should get from mds
+    std::string ak;
+    std::string sk;
+    std::string s3Address;
+    std::string bucketName;
+    uint64_t blockSize;
+    uint64_t chunkSize;
+};
+
+void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
+                                         S3AdapterOption* s3Opt);
+
+void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt);
 
 typedef std::function<void(const S3Adapter*,
     const std::shared_ptr<GetObjectAsyncContext>&)>
@@ -127,11 +139,23 @@ class S3Adapter {
     /**
      * 初始化S3Adapter
      */
-    virtual void Init(const std::string &path);
+    virtual void Init(const std::string& path);
+    /**
+     * 初始化S3Adapter
+     * 但不包括 S3InfoOption
+     */
+    virtual void InitExceptFsS3Option(const std::string& path);
     /**
      * 初始化S3Adapter
      */
     virtual void Init(const S3AdapterOption &option);
+    /**
+     * @brief 
+     * 
+     * @details
+     */
+    virtual void SetS3Option(const S3InfoOption &fsS3Opt);
+
     /**
      * 释放S3Adapter资源
      */
@@ -143,8 +167,7 @@ class S3Adapter {
     /**
      * reinit s3client with new AWSCredentials
      */
-    virtual void Reinit(const std::string& ak, const std::string& sk,
-                        const std::string& endpoint, S3AdapterOption option);
+    virtual void Reinit(const S3AdapterOption& option);
     /**
      * get s3 ak
      */
@@ -308,14 +331,14 @@ class S3Adapter {
     };
 
  private:
-    // S3服务器地址，由配置文件指定
+    // S3服务器地址
     Aws::String s3Address_;
-    // 用于用户认证的AK/SK，需要从对象存储的用户管理中申请，并在配置文件中指定
+    // 用于用户认证的AK/SK，需要从对象存储的用户管理中申请
     Aws::String s3Ak_;
     Aws::String s3Sk_;
-    // 对象的桶名，根据配置文件指定
+    // 对象的桶名
     Aws::String bucketName_;
-    // aws sdk的配置，同样由配置文件指定
+    // aws sdk的配置
     Aws::Client::ClientConfiguration *clientCfg_;
     Aws::S3::S3Client *s3Client_;
     Configuration conf_;

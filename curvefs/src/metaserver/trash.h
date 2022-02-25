@@ -32,6 +32,7 @@
 #include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 
 using ::curve::common::Configuration;
 using ::curve::common::Thread;
@@ -39,6 +40,8 @@ using ::curve::common::Atomic;
 using ::curve::common::Mutex;
 using ::curve::common::LockGuard;
 using ::curve::common::InterruptibleSleeper;
+using ::curvefs::client::rpcclient::MdsClient;
+using ::curvefs::client::rpcclient::MdsClientImpl;
 
 namespace curvefs {
 namespace metaserver {
@@ -57,10 +60,12 @@ struct TrashOption {
     uint32_t scanPeriodSec;
     uint32_t expiredAfterSec;
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor;
+    std::shared_ptr<MdsClient> mdsClient;
     TrashOption()
       : scanPeriodSec(0),
         expiredAfterSec(0),
-        s3Adaptor(nullptr) {}
+        s3Adaptor(nullptr),
+        mdsClient(nullptr) {}
 
     void InitTrashOptionFromConf(std::shared_ptr<Configuration> conf);
 };
@@ -110,6 +115,7 @@ class TrashImpl : public Trash {
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
+    std::shared_ptr<MdsClient> mdsClient_;
 
     std::list<TrashItem> trashItems_;
 

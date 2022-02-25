@@ -27,9 +27,13 @@
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/partition.h"
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::client::rpcclient::MdsClient;
+
 class PartitionCleaner {
  public:
     explicit PartitionCleaner(const std::shared_ptr<Partition> &partition)
@@ -52,6 +56,10 @@ class PartitionCleaner {
         copysetNode_ = copysetNode;
     }
 
+    void SetMdsClient(std::shared_ptr<MdsClient> mdsClient) {
+        mdsClient_ = mdsClient;
+    }
+
     bool ScanPartition();
     MetaStatusCode CleanDataAndDeleteInode(const Inode &inode);
     MetaStatusCode DeleteInode(const Inode& inode);
@@ -68,6 +76,7 @@ class PartitionCleaner {
     std::shared_ptr<Partition> partition_;
     copyset::CopysetNode *copysetNode_;
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
+    std::shared_ptr<MdsClient> mdsClient_;
     bool isStop_;
     uint32_t inodeDeletePeriodMs_;
 };

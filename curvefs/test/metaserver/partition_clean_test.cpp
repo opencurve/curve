@@ -20,13 +20,20 @@
  * @Author: chenwei
  */
 #include <gtest/gtest.h>
-#include "curvefs/src/metaserver/partition_clean_manager.h"
-#include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
-#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 
-using ::testing::Return;
+#include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/partition_clean_manager.h"
+#include "curvefs/src/metaserver/partition_cleaner.h"
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
+#include "curvefs/test/client/rpcclient/mock_mds_client.h"
+#include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
+
+using ::curvefs::mds::FSStatusCode;
+using ::curvefs::client::rpcclient::MockMdsClient;
 using ::testing::_;
 using ::testing::Invoke;
+using ::testing::Matcher;
+using ::testing::Return;
 
 namespace curvefs {
 namespace metaserver {
@@ -44,6 +51,9 @@ TEST_F(PartitionCleanManagerTest, test1) {
     std::shared_ptr<MockS3ClientAdaptor> s3Adaptor =
                             std::make_shared<MockS3ClientAdaptor>();
     option.s3Adaptor = s3Adaptor;
+    std::shared_ptr<MockMdsClient> mdsclient =
+        std::make_shared<MockMdsClient>();
+    option.mdsClient = mdsclient;
     manager->Init(option);
     manager->Run();
     uint32_t partitionId = 1;
@@ -101,6 +111,10 @@ TEST_F(PartitionCleanManagerTest, test1) {
 
     EXPECT_CALL(*s3Adaptor, Delete(_))
         .WillOnce(Return(0));
+    EXPECT_CALL(*mdsclient, GetFsInfo(Matcher<uint32_t>(_), _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*s3Adaptor, GetS3ClientAdaptorOption(_));
+    EXPECT_CALL(*s3Adaptor, Reinit(_, _, _, _, _));
 
     manager->Add(partitionId, partitionCleaner, &copysetNode);
 
@@ -108,5 +122,34 @@ TEST_F(PartitionCleanManagerTest, test1) {
     manager->Fini();
     ASSERT_EQ(manager->GetCleanerCount(), 0);
 }
+
+TEST_F(PartitionCleanManagerTest, fsinfo_not_found) {
+    PartitionInfo partition;
+    PartitionCleaner cleaner(std::make_shared<Partition>(partition));
+    std::shared_ptr<MockMdsClient> mdsClient =
+        std::make_shared<MockMdsClient>();
+    cleaner.SetMdsClient(mdsClient);
+    Inode inode;
+    inode.set_type(FsFileType::TYPE_S3);
+    EXPECT_CALL(*mdsClient, GetFsInfo(Matcher<uint32_t>(_), _))
+        .WillOnce(Return(FSStatusCode::NOT_FOUND));
+    ASSERT_EQ(cleaner.CleanDataAndDeleteInode(inode),
+              MetaStatusCode::S3_DELETE_ERR);
+}
+
+TEST_F(PartitionCleanManagerTest, fsinfo_other_error) {
+    PartitionInfo partition;
+    PartitionCleaner cleaner(std::make_shared<Partition>(partition));
+    std::shared_ptr<MockMdsClient> mdsClient =
+        std::make_shared<MockMdsClient>();
+    cleaner.SetMdsClient(mdsClient);
+    Inode inode;
+    inode.set_type(FsFileType::TYPE_S3);
+    EXPECT_CALL(*mdsClient, GetFsInfo(Matcher<uint32_t>(_), _))
+        .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
+    ASSERT_EQ(cleaner.CleanDataAndDeleteInode(inode),
+              MetaStatusCode::S3_DELETE_ERR);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

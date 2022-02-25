@@ -23,6 +23,9 @@
 #define CURVEFS_TEST_METASERVER_MOCK_METASERVER_S3_ADAPTOR_H_
 
 #include <gmock/gmock.h>
+
+#include <string>
+
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 
 namespace curvefs {
@@ -37,6 +40,10 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
                  void(const S3ClientAdaptorOption& option, S3Client* client));
     MOCK_METHOD1(Delete, int(const Inode& inode));
     MOCK_METHOD1(DeleteBatch, int(const Inode& inode));
+    MOCK_METHOD5(Reinit, void(const S3ClientAdaptorOption& option,
+        const std::string& ak, const std::string& sk,
+        const std::string& endpoint, const std::string& bucketName));
+    MOCK_METHOD1(GetS3ClientAdaptorOption, void(S3ClientAdaptorOption *option));
 };
 
 }  // namespace metaserver

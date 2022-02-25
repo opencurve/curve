@@ -40,6 +40,7 @@ cc_library(
         "//curvefs/proto:curvefs_heartbeat_cc_proto",
         "//curvefs/proto:curvefs_topology_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:mds_cc_proto",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/metaserver/common:fs_metaserver_common",
         "//external:braft",
@@ -54,8 +55,8 @@ cc_library(
 
 cc_library(
     name = "metaserver_s3_lib",
-    srcs = glob(["s3/*.cpp"]),
-    hdrs = glob(["s3/*.h"]),
+    srcs = glob(["s3/*.cpp", "mdsclient/*.cpp"]),
+    hdrs = glob(["s3/*.h", "mdsclient/*.h"]),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
@@ -65,6 +66,9 @@ cc_library(
         "//external:gflags",
         "//external:glog",
         "//src/common:curve_s3_adapter",
+        "//curvefs/src/client/common",
+        "//curvefs/src/client/metric:client_metric",
+        "//curvefs/src/client/rpcclient",
     ],
 )
 

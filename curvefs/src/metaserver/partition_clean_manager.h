@@ -25,13 +25,19 @@
 #include <list>
 #include <memory>
 #include "curvefs/src/metaserver/partition_cleaner.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::client::rpcclient::MdsClient;
+using ::curvefs::client::rpcclient::MdsClientImpl;
+
 struct PartitionCleanOption {
     uint32_t scanPeriodSec;
     uint32_t inodeDeletePeriodMs;
     std::shared_ptr<S3ClientAdaptor> s3Adaptor;
+    std::shared_ptr<MdsClient> mdsClient;
 };
 
 class PartitionCleanManager {
@@ -59,6 +65,7 @@ class PartitionCleanManager {
         scanPeriodSec_ = option.scanPeriodSec;
         inodeDeletePeriodMs_ = option.inodeDeletePeriodMs;
         S3ClientAdaptor_ = option.s3Adaptor;
+        mdsClient_ = option.mdsClient;
         partitionCleanerCount.expose_as("partition_clean_manager_", "cleaner");
     }
 
@@ -78,6 +85,7 @@ class PartitionCleanManager {
     std::list<std::shared_ptr<PartitionCleaner>> partitonCleanerList_;
     std::shared_ptr<PartitionCleaner> inProcessingCleaner_;
     std::shared_ptr<S3ClientAdaptor> S3ClientAdaptor_;
+    std::shared_ptr<MdsClient> mdsClient_;
     uint32_t scanPeriodSec_;
     uint32_t inodeDeletePeriodMs_;
     Atomic<bool> isStop_;

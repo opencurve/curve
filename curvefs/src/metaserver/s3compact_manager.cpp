@@ -29,7 +29,7 @@
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
 
 using curve::common::Configuration;
-using curve::common::InitS3AdaptorOption;
+using curve::common::InitS3AdaptorOptionExceptS3InfoOption;
 using curve::common::ReadLockGuard;
 using curve::common::S3Adapter;
 using curve::common::S3AdapterOption;

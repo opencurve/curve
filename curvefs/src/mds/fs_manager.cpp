@@ -21,11 +21,14 @@
  */
 
 #include "curvefs/src/mds/fs_manager.h"
+
 #include <glog/logging.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <sys/stat.h>  // for S_IFDIR
+
 #include <limits>
 #include <list>
+
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
 
@@ -39,6 +42,7 @@ using curvefs::mds::topology::TopoStatusCode;
 bool FsManager::Init() {
     LOG_IF(FATAL, !spaceClient_->Init()) << "spaceClient Init fail";
     LOG_IF(FATAL, !fsStorage_->Init()) << "fsStorage Init fail";
+    s3Adapter_->Init(s3AdapterOption_);
 
     return true;
 }
@@ -150,8 +154,7 @@ void FsManager::BackEndFunc() {
 
 FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
                                  uint64_t blockSize, bool enableSumInDir,
-                                 const FsDetail& detail,
-                                 FsInfo* fsInfo) {
+                                 const FsDetail& detail, FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);
     FsInfoWrapper wrapper;
     bool skipCreateNewFs = false;
@@ -183,6 +186,22 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
         }
     }
 
+    // check s3info
+    if (detail.has_s3info()) {
+        const auto& s3Info = detail.s3info();
+        s3AdapterOption_.ak = s3Info.ak();
+        s3AdapterOption_.sk = s3Info.sk();
+        s3AdapterOption_.s3Address = s3Info.endpoint();
+        s3AdapterOption_.bucketName = s3Info.bucketname();
+        s3Adapter_->Reinit(s3AdapterOption_);
+        if (!s3Adapter_->BucketExist()) {
+            LOG(ERROR) << "CreateFs " << fsName
+                       << " error, s3info is not available, s3info is "
+                       << s3Info.ShortDebugString();
+            return FSStatusCode::S3_INFO_ERROR;
+        }
+    }
+
     if (!skipCreateNewFs) {
         uint64_t fsId = fsStorage_->NextFsId();
         if (fsId == INVALID_FS_ID) {
@@ -190,9 +209,8 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
             return FSStatusCode::INTERNAL_ERROR;
         }
 
-        wrapper =
-            GenerateFsInfoWrapper(fsName, fsId, blockSize, GetRootId(), detail,
-                                  enableSumInDir);
+        wrapper = GenerateFsInfoWrapper(fsName, fsId, blockSize, GetRootId(),
+                                        detail, enableSumInDir);
 
         FSStatusCode ret = fsStorage_->Insert(wrapper);
         if (ret != FSStatusCode::OK) {
@@ -531,7 +549,9 @@ int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
     return -1;
 }
 
-uint64_t FsManager::GetRootId() { return ROOTINODEID; }
+uint64_t FsManager::GetRootId() {
+    return ROOTINODEID;
+}
 
 void FsManager::GetAllFsInfo(
     ::google::protobuf::RepeatedPtrField<::curvefs::mds::FsInfo>* fsInfoVec) {

@@ -41,6 +41,7 @@
 #include "src/common/configuration.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/leader_election/leader_election.h"
+#include "src/common/s3_adapter.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::TopologyOption;
@@ -59,6 +60,7 @@ using ::curvefs::mds::schedule::Coordinator;
 using ::curvefs::mds::schedule::ScheduleOption;
 using ::curvefs::mds::schedule::ScheduleMetrics;
 using ::curvefs::mds::schedule::TopoAdapterImpl;
+using ::curve::common::S3Adapter;
 
 namespace curvefs {
 namespace mds {
@@ -146,6 +148,7 @@ class MDS {
     std::shared_ptr<Coordinator> coordinator_;
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
     std::shared_ptr<TopologyMetricService> topologyMetricService_;
+    std::shared_ptr<S3Adapter> s3Adapter_;
     MDSOptions options_;
 
     bool etcdClientInited_;

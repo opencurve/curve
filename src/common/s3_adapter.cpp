@@ -68,15 +68,48 @@ Aws::String GetObjectRequestRange(uint64_t offset, uint64_t len) {
 
 }  // namespace
 
-void InitS3AdaptorOption(Configuration *conf,
-    S3AdapterOption *s3Opt) {
+void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt) {
     LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
     LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
     LOG_IF(FATAL, !conf->GetStringValue("s3.endpoint", &s3Opt->s3Address));
     LOG_IF(FATAL, !conf->GetStringValue("s3.ak", &s3Opt->ak));
     LOG_IF(FATAL, !conf->GetStringValue("s3.sk", &s3Opt->sk));
-    LOG_IF(FATAL, !conf->GetStringValue("s3.bucket_name",
-        &s3Opt->bucketName));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.bucket_name", &s3Opt->bucketName));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
+    LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.max_connections", &s3Opt->maxConnections));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.connect_timeout", &s3Opt->connectTimeout));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.request_timeout", &s3Opt->requestTimeout));
+    LOG_IF(FATAL,
+           !conf->GetIntValue("s3.async_thread_num", &s3Opt->asyncThreadNum));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsTotalLimit",
+                                        &s3Opt->iopsTotalLimit));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsReadLimit",
+                                        &s3Opt->iopsReadLimit));
+    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsWriteLimit",
+                                        &s3Opt->iopsWriteLimit));
+    LOG_IF(FATAL,
+           !conf->GetUInt64Value("s3.throttle.bpsTotalMB", &s3Opt->bpsTotalMB));
+    LOG_IF(FATAL,
+           !conf->GetUInt64Value("s3.throttle.bpsReadMB", &s3Opt->bpsReadMB));
+    LOG_IF(FATAL,
+           !conf->GetUInt64Value("s3.throttle.bpsWriteMB", &s3Opt->bpsWriteMB));
+
+    if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
+                              &s3Opt->maxAsyncRequestInflightBytes)) {
+        LOG(WARNING)
+            << "Not found s3.max_async_request_inflight_bytes in conf ";
+        s3Opt->maxAsyncRequestInflightBytes = 0;
+    }
+}
+
+void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
+                                           S3AdapterOption* s3Opt) {
+    LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
     LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
     LOG_IF(FATAL, !conf->GetIntValue("s3.max_connections",
@@ -107,13 +140,23 @@ void InitS3AdaptorOption(Configuration *conf,
     }
 }
 
-void S3Adapter::Init(const std::string &path) {
+void S3Adapter::Init(const std::string& path) {
     LOG(INFO) << "Loading s3 configurations";
     conf_.SetConfigPath(path);
     LOG_IF(FATAL, !conf_.LoadConfig())
-              << "Failed to open s3 config file: " << conf_.GetConfigPath();
+        << "Failed to open s3 config file: " << conf_.GetConfigPath();
     S3AdapterOption option;
     InitS3AdaptorOption(&conf_, &option);
+    Init(option);
+}
+
+void S3Adapter::InitExceptFsS3Option(const std::string& path) {
+    LOG(INFO) << "Loading s3 configurations";
+    conf_.SetConfigPath(path);
+    LOG_IF(FATAL, !conf_.LoadConfig())
+        << "Failed to open s3 config file: " << conf_.GetConfigPath();
+    S3AdapterOption option;
+    InitS3AdaptorOptionExceptS3InfoOption(&conf_, &option);
     Init(option);
 }
 
@@ -183,12 +226,8 @@ void S3Adapter::Shutdown() {
     std::call_once(S3SHUTDOWN_FLAG, shutdownSDK);
 }
 
-void S3Adapter::Reinit(const std::string& ak, const std::string& sk,
-                       const std::string& endpoint, S3AdapterOption option) {
+void S3Adapter::Reinit(const S3AdapterOption& option) {
     Deinit();
-    option.ak = ak;
-    option.sk = sk;
-    option.s3Address = endpoint;
     Init(option);
 }
 
@@ -661,6 +700,12 @@ void S3Adapter::AsyncRequestInflightBytesThrottle::OnComplete(uint64_t len) {
     std::unique_lock<std::mutex> lock(mtx_);
     inflightBytes_ -= len;
     cond_.notify_all();
+}
+void S3Adapter::SetS3Option(const S3InfoOption& fsS3Opt) {
+    s3Address_ = fsS3Opt.s3Address.c_str();
+    s3Ak_ = fsS3Opt.ak.c_str();
+    s3Sk_ = fsS3Opt.sk.c_str();
+    bucketName_ = fsS3Opt.bucketName.c_str();
 }
 
 }  // namespace common
