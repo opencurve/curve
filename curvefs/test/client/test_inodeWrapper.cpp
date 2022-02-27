@@ -121,6 +121,7 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
 TEST_F(TestInodeWrapper, testSyncSuccess) {
     inodeWrapper_->MarkDirty();
     inodeWrapper_->SetLength(1024);
+    inodeWrapper_->SetType(FsFileType::TYPE_S3);
 
     S3ChunkInfo info1;
     info1.set_chunkid(1);
@@ -145,6 +146,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
 TEST_F(TestInodeWrapper, testSyncFailed) {
     inodeWrapper_->MarkDirty();
     inodeWrapper_->SetLength(1024);
+    inodeWrapper_->SetType(FsFileType::TYPE_S3);
 
     S3ChunkInfo info1;
     info1.set_chunkid(1);

@@ -184,7 +184,7 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
     Inode inode;
     inode.set_inodeid(inodeId);
     inode.set_fsid(fsId_);
-    inode.set_type(FsFileType::TYPE_FILE);
+    inode.set_type(FsFileType::TYPE_S3);
 
     std::shared_ptr<InodeWrapper> inodeWrapper =
         std::make_shared<InodeWrapper>(inode, metaClient_);

@@ -64,6 +64,8 @@ class PersistKVStorageTest : public ::testing::Test {
         volume.set_volumesize(4096);
         volume.set_volumename("/hello");
         volume.set_user("test");
+        volume.set_blockgroupsize(128ull * 1024 * 1024);
+        volume.set_bitmaplocation(common::BitmapLocation::AtStart);
 
         FsDetail helloDetail;
         helloDetail.set_allocated_volume(new common::Volume(volume));

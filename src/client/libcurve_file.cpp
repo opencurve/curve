@@ -623,6 +623,8 @@ bool FileClient::StartDummyServer() {
         return true;
     }
 
+    // FIXME(wuhanqing): if curve-fuse and curve-client both want to start
+    //                   dummy server, curve-fuse mount will fail
     static std::once_flag flag;
     uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
     std::call_once(flag, [&]() {

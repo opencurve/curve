@@ -30,12 +30,11 @@
 #include <string>
 #include <vector>
 
-#include "curvefs/test/mds/mock_etcdclient.h"
+#include "curvefs/test/mds/mock/mock_etcd_client.h"
 
 namespace curvefs {
 namespace mds {
 
-using curve::kvstorage::KVStorageClient;
 using std::make_shared;
 using std::set;
 using std::shared_ptr;

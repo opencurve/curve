@@ -21,9 +21,9 @@
  */
 
 #include "test/integration/common/chunkservice_op.h"
-#include "proto/chunk.pb.h"
 
 #include "include/curve_compiler_specific.h"
+#include "proto/chunk.pb.h"
 
 namespace curve {
 namespace chunkserver {

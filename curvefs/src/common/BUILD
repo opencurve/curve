@@ -19,12 +19,28 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 cc_library(
     name = "curvefs_common",
     srcs = glob(["*.cpp"]),
-    hdrs = glob(["*.h"]),
+    hdrs = glob(
+        ["*.h"],
+        exclude = ["metric_utils.h"],
+    ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//src/common:curve_common",
         "//external:gflags",
         "//external:glog",
+        "//src/common:curve_common",
     ],
+)
+
+cc_library(
+    name = "metric_utils",
+    hdrs = [
+        "metric_utils.h"
+    ],
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:bvar",
+        "//external:butil",
+    ]
 )

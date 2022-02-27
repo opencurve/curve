@@ -23,10 +23,17 @@
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
 #include <map>
+#include <utility>
 #include <vector>
+
+#include "curvefs/proto/space.pb.h"
+
 namespace curvefs {
 namespace client {
 namespace rpcclient {
+
+using ::curvefs::mds::space::SpaceErrCode;
+using ::curvefs::mds::space::SpaceErrCode_Name;
 
 FSStatusCode
 MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
@@ -476,6 +483,107 @@ FSStatusCode MdsClientImpl::ReturnError(int retcode) {
     // logic error
     return static_cast<FSStatusCode>(retcode);
 }
+
+static SpaceErrCode ToSpaceErrCode(int err) {
+    if (err < 0) {
+        return SpaceErrCode::SpaceErrUnknown;
+    }
+
+    return static_cast<SpaceErrCode>(err);
+}
+
+#define CHECK_RPC_AND_RETRY_IF_ERROR(msg)                                  \
+    do {                                                                   \
+        if (cntl->Failed()) {                                              \
+            LOG(WARNING) << msg << " failed, error: " << cntl->ErrorText() \
+                         << ", log id: " << cntl->log_id();                \
+            return -cntl->ErrorCode();                                     \
+        }                                                                  \
+    } while (0)
+
+SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
+    uint32_t fsId,
+    uint32_t count,
+    const std::string &owner,
+    std::vector<curvefs::mds::space::BlockGroup> *groups) {
+    auto task = RPCTask {
+        AllocateBlockGroupResponse response;
+        mdsbasecli_->AllocateVolumeBlockGroup(fsId, count, owner, &response,
+                                              cntl, channel);
+
+        CHECK_RPC_AND_RETRY_IF_ERROR("AllocateVolumeBlockGroup");
+
+        auto status = response.status();
+        if (status != SpaceErrCode::SpaceOk) {
+            LOG(WARNING) << "Allocate volume block group failed, err: "
+                         << SpaceErrCode_Name(status);
+        } else if (response.blockgroups_size() == 0) {
+            LOG(WARNING) << "Allocate volume block group failed, no block "
+                            "group allcoated";
+            return SpaceErrCode::SpaceErrNoSpace;
+        } else {
+            VLOG(9) << "AllocateVolumeBlockGroup, response: "
+                    << response.ShortDebugString();
+            groups->reserve(response.blockgroups_size());
+            for (int i = 0; i < response.blockgroups_size(); ++i) {
+                groups->push_back(std::move(*response.mutable_blockgroups(i)));
+            }
+        }
+
+        return status;
+    };
+
+    return ToSpaceErrCode(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
+SpaceErrCode MdsClientImpl::AcquireVolumeBlockGroup(
+    uint32_t fsId,
+    uint64_t blockGroupOffset,
+    const std::string &owner,
+    curvefs::mds::space::BlockGroup *groups) {
+    auto task = RPCTask {
+        AcquireBlockGroupResponse response;
+        mdsbasecli_->AcquireVolumeBlockGroup(fsId, blockGroupOffset, owner,
+                                             &response, cntl, channel);
+
+        CHECK_RPC_AND_RETRY_IF_ERROR("AcquireVolumeBlockGroup");
+
+        auto status = response.status();
+        if (status != SpaceErrCode::SpaceOk) {
+            LOG(WARNING) << "Acquire volume block group failed, err: "
+                         << SpaceErrCode_Name(status);
+        } else {
+            groups->Swap(response.mutable_blockgroups());
+        }
+
+        return status;
+    };
+
+    return ToSpaceErrCode(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
+SpaceErrCode MdsClientImpl::ReleaseVolumeBlockGroup(
+    uint32_t fsId,
+    const std::string &owner,
+    const std::vector<curvefs::mds::space::BlockGroup> &blockGroups) {
+    auto task = RPCTask {
+        ReleaseBlockGroupResponse response;
+        mdsbasecli_->ReleaseVolumeBlockGroup(fsId, owner, blockGroups,
+                                             &response, cntl, channel);
+
+        CHECK_RPC_AND_RETRY_IF_ERROR("ReleaseVolumeBlockGroup");
+
+        LOG_IF(WARNING, SpaceErrCode::SpaceOk != response.status())
+            << "Release volume block group failed, err: "
+            << SpaceErrCode_Name(response.status());
+
+        return response.status();
+    };
+
+    return ToSpaceErrCode(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
+#undef CHECK_RPC_AND_RETRY_IF_ERROR
 
 }  // namespace rpcclient
 }  // namespace client

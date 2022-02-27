@@ -630,7 +630,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
                          << ", sessionid = " << sessionid
                          << ", status code = " << StatusCode_Name(stcode);
         } else {
-            LOG_EVERY_SECOND(INFO)
+            LOG_EVERY_N(INFO, 100)
                 << "RefreshSession returned: filename = " << filename
                 << ", owner = " << userinfo.owner
                 << ", sessionid = " << sessionid

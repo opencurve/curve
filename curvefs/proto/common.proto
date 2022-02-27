@@ -23,12 +23,22 @@ enum FSType {
     TYPE_S3 = 2;
 }
 
+// bitmap location for each block group
+enum BitmapLocation {
+    AtStart = 1;
+    AtEnd = 2;
+}
+
 message Volume {
     required uint64 volumeSize = 1;
     required uint64 blockSize = 2;
     required string volumeName = 3;
     required string user = 4;
     optional string password = 5;
+    required uint64 blockGroupSize = 6;
+    required BitmapLocation bitmapLocation = 7;
+
+    // TODO(all): maybe we need curvebs cluster's mds ip and port in here
 }
 
 message S3Info {

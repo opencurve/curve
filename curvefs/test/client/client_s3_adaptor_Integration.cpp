@@ -30,7 +30,6 @@
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/client/mock_metaserver_service.h"
-#include "curvefs/test/client/mock_spacealloc_service.h"
 #include "src/common/curve_define.h"
 
 namespace curvefs {
@@ -1185,9 +1184,6 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big1) {
     uint64_t len = 1 * 1024 * 1024;
     CURVEFS_ERROR ret;
     uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
-    ::curvefs::space::AllocateS3ChunkResponse response;
-    response.set_status(::curvefs::space::SpaceStatusCode::SPACE_OK);
-    response.set_chunkid(25);
     //  mock
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
@@ -1238,9 +1234,6 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big2) {
     memset(buf, 'a', len);
     uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
 
-    ::curvefs::space::AllocateS3ChunkResponse response;
-    response.set_status(::curvefs::space::SpaceStatusCode::SPACE_OK);
-    response.set_chunkid(25);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
         .WillOnce(
@@ -1291,9 +1284,6 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     uint64_t len = 1 * 1024 * 1024;
     CURVEFS_ERROR ret;
     uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
-    ::curvefs::space::AllocateS3ChunkResponse response;
-    response.set_status(::curvefs::space::SpaceStatusCode::SPACE_OK);
-    response.set_chunkid(25);
     //  mock
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))

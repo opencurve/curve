@@ -27,8 +27,8 @@
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_service.h"
 #include "curvefs/test/client/rpcclient/mock_metaserver_service.h"
-#include "curvefs/test/client/rpcclient/mock_spacealloc_service.h"
 #include "curvefs/test/client/rpcclient/mock_topology_service.h"
+#include "curvefs/test/client/rpcclient/mock_space_service.h"
 
 namespace curvefs {
 namespace client {
@@ -38,6 +38,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using ::curvefs::mds::space::MockSpaceService;
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -58,8 +59,6 @@ class BaseClientTest : public testing::Test {
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockMdsService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.AddService(&mockSpaceAllocService_,
-                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
@@ -74,7 +73,6 @@ class BaseClientTest : public testing::Test {
     MockMetaServerService mockMetaServerService_;
     MockMdsService mockMdsService_;
     MockTopologyService mockTopologyService_;
-    MockSpaceAllocService mockSpaceAllocService_;
     MDSBaseClient mdsbasecli_;
     // TODO(lixiaocui): add base client for curve block storage
     // SpaceBaseClient spacebasecli_;
@@ -156,6 +154,8 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsName) {
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
+    vresp->set_blockgroupsize(128ULL * 1024 * 1024);
+    vresp->set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
     auto detail = new curvefs::mds::FsDetail();
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
@@ -202,6 +202,8 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
+    vresp->set_blockgroupsize(128ULL * 1024 * 1024);
+    vresp->set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
     auto detail = new curvefs::mds::FsDetail();
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);

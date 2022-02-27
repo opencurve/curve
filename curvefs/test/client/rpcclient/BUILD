@@ -29,6 +29,7 @@ cc_test(
        "//curvefs/src/client/rpcclient:rpcclient",
        "//curvefs/proto:curvefs_topology_cc_proto",
        "//curvefs/src/common:curvefs_common",
+       "//curvefs/test/utils:curvefs_test_utils",
    ],
    visibility = ["//visibility:public"],
 )

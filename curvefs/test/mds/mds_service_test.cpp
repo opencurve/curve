@@ -28,11 +28,11 @@
 #include <gtest/gtest.h>
 
 #include "curvefs/test/mds/fake_metaserver.h"
-#include "curvefs/test/mds/fake_space.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "test/common/mock_s3_adapter.h"
+#include "curvefs/test/mds/mock/mock_space_manager.h"
 
 using ::curve::common::MockS3Adapter;
 using ::curvefs::common::S3Info;
@@ -41,6 +41,14 @@ using ::curvefs::mds::RefreshSessionRequest;
 using ::curvefs::mds::RefreshSessionResponse;
 using ::curvefs::mds::topology::CreatePartitionRequest;
 using ::curvefs::mds::topology::CreatePartitionResponse;
+using ::curvefs::metaserver::FakeMetaserverImpl;
+using ::curvefs::mds::topology::TopologyManager;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::topology::MockIdGenerator;
+using ::curvefs::mds::topology::MockTokenGenerator;
+using ::curvefs::mds::topology::MockStorage;
+using ::curvefs::mds::topology::TopologyIdGenerator;
 using ::curvefs::mds::topology::DefaultIdGenerator;
 using ::curvefs::mds::topology::DefaultTokenGenerator;
 using ::curvefs::mds::topology::MockEtcdClient;
@@ -59,9 +67,6 @@ using ::curvefs::mds::topology::TopoStatusCode;
 using ::curvefs::metaserver::FakeMetaserverImpl;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 using ::curvefs::metaserver::copyset::MockCliService2;
-using ::curvefs::space::FakeSpaceImpl;
-using ::curvefs::space::InitSpaceResponse;
-using ::curvefs::space::SpaceStatusCode;
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -75,6 +80,8 @@ using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
+using ::curve::common::MockS3Adapter;
+using ::curvefs::mds::space::MockSpaceManager;
 
 namespace curvefs {
 namespace mds {
@@ -83,14 +90,10 @@ class MdsServiceTest : public ::testing::Test {
     void SetUp() override {
         kvstorage_ = std::make_shared<MockKVStorageClient>();
 
-        SpaceOptions spaceOptions;
-        spaceOptions.spaceAddr = "127.0.0.1:6703";
-        spaceOptions.rpcTimeoutMs = 5000;
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = "127.0.0.1:6703";
         metaserverOptions.rpcTimeoutMs = 5000;
         fsStorage_ = std::make_shared<MemoryFsStorage>();
-        spaceClient_ = std::make_shared<SpaceClient>(spaceOptions);
         metaserverClient_ =
             std::make_shared<MetaserverClient>(metaserverOptions);
         // init mock topology manager
@@ -99,6 +102,7 @@ class MdsServiceTest : public ::testing::Test {
         std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
             std::make_shared<DefaultTokenGenerator>();
 
+        spaceManager_ = std::make_shared<MockSpaceManager>();
         auto etcdClient_ = std::make_shared<MockEtcdClient>();
         auto codec = std::make_shared<TopologyStorageCodec>();
         auto topoStorage_ =
@@ -110,7 +114,7 @@ class MdsServiceTest : public ::testing::Test {
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
-        fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
+        fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceManager_,
                                             metaserverClient_, topoManager_,
                                             s3Adapter_, fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
@@ -140,7 +144,7 @@ class MdsServiceTest : public ::testing::Test {
 
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<FsStorage> fsStorage_;
-    std::shared_ptr<SpaceClient> spaceClient_;
+    std::shared_ptr<MockSpaceManager> spaceManager_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
     std::shared_ptr<MockKVStorageClient> kvstorage_;
     std::shared_ptr<MockTopologyManager> topoManager_;
@@ -164,11 +168,6 @@ TEST_F(MdsServiceTest, test1) {
     // add metaserver service
     MdsServiceImpl mdsService(fsManager_, nullptr);
     ASSERT_EQ(server.AddService(&mdsService, brpc::SERVER_DOESNT_OWN_SERVICE),
-              0);
-
-    // MockSpaceService spaceService;
-    FakeSpaceImpl spaceService;
-    ASSERT_EQ(server.AddService(&spaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
               0);
 
     FakeMetaserverImpl metaserverService;
@@ -220,6 +219,8 @@ TEST_F(MdsServiceTest, test1) {
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
+    volume.set_blockgroupsize(128ull * 1024 * 1024);
+    volume.set_bitmaplocation(common::BitmapLocation::AtStart);
 
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
@@ -335,7 +336,6 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
         ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
         ASSERT_EQ(mountResponse.fsinfo().mountpoints(0), mountPoint);
-        ASSERT_EQ(spaceService.initCount, 1);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -345,7 +345,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::MOUNT_POINT_EXIST);
-        ASSERT_EQ(spaceService.initCount, 1);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -357,7 +356,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(mountResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(mountResponse.fsinfo().mountnum(), 2);
@@ -373,7 +371,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(mountResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(mountResponse.fsinfo().mountnum(), 3);
@@ -389,7 +386,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(mountResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(mountResponse.fsinfo().mountnum(), 4);
@@ -418,7 +414,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(getResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 4);
@@ -434,7 +429,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(getResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
@@ -462,7 +456,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(getResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 4);
@@ -479,7 +472,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(getResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
@@ -508,7 +500,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(getResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo2));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 0);
@@ -584,7 +575,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.GetFsInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(spaceService.initCount, 1);
         ASSERT_TRUE(getResponse.has_fsinfo());
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 2);

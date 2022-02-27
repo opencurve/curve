@@ -28,6 +28,7 @@
 #include <set>
 #include <string>
 #include <vector>
+
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/common/define.h"
@@ -35,7 +36,7 @@
 #include "curvefs/src/mds/fs_info_wrapper.h"
 #include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/metaserverclient/metaserver_client.h"
-#include "curvefs/src/mds/spaceclient/space_client.h"
+#include "curvefs/src/mds/space/manager.h"
 #include "curvefs/src/mds/topology/topology.h"
 #include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
@@ -48,6 +49,12 @@
 namespace curvefs {
 namespace mds {
 
+using ::curvefs::mds::space::SpaceManager;
+using ::curvefs::mds::topology::Topology;
+using ::curvefs::mds::topology::TopologyManager;
+
+using ::curve::common::Thread;
+using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
 using ::curve::common::S3Adapter;
@@ -58,27 +65,26 @@ using ::curvefs::mds::topology::TopologyManager;
 
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
+    uint32_t spaceReloadConcurrency;
     curve::common::S3AdapterOption s3AdapterOption;
 };
 
 class FsManager {
  public:
-    FsManager(std::shared_ptr<FsStorage> fsStorage,
-              std::shared_ptr<SpaceClient> spaceClient,
-              std::shared_ptr<MetaserverClient> metaserverClient,
-              std::shared_ptr<TopologyManager> topoManager,
-              std::shared_ptr<S3Adapter> s3Adapter,
+    FsManager(const std::shared_ptr<FsStorage>& fsStorage,
+              const std::shared_ptr<SpaceManager>& spaceManager,
+              const std::shared_ptr<MetaserverClient>& metaserverClient,
+              const std::shared_ptr<TopologyManager>& topoManager,
+              const std::shared_ptr<S3Adapter>& s3Adapter,
               const FsManagerOption& option)
         : fsStorage_(fsStorage),
-          spaceClient_(spaceClient),
+          spaceManager_(spaceManager),
           metaserverClient_(metaserverClient),
           topoManager_(topoManager),
           s3Adapter_(s3Adapter),
           nameLock_(),
-          s3AdapterOption_(option.s3AdapterOption) {
-        isStop_ = true;
-        backEndThreadRunInterSec_ = option.backEndThreadRunInterSec;
-    }
+          isStop_(true),
+          option_(option) {}
 
     bool Init();
     void Run();
@@ -197,12 +203,14 @@ class FsManager {
     // set partition status to DELETING in topology
     bool SetPartitionToDeleting(const PartitionInfo& partition);
 
+    FSStatusCode ReloadMountedFsVolumeSpace();
+
  private:
     uint64_t GetRootId();
 
  private:
     std::shared_ptr<FsStorage> fsStorage_;
-    std::shared_ptr<SpaceClient> spaceClient_;
+    std::shared_ptr<SpaceManager> spaceManager_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
     curve::common::GenericNameLock<Mutex> nameLock_;
     std::shared_ptr<TopologyManager> topoManager_;
@@ -212,8 +220,7 @@ class FsManager {
     Thread backEndThread_;
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;
-    int backEndThreadRunInterSec_;
-    curve::common::S3AdapterOption s3AdapterOption_;
+    FsManagerOption option_;
 };
 }  // namespace mds
 }  // namespace curvefs

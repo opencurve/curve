@@ -616,7 +616,8 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
                                           UpdateInodeResponse* response) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
-    if (request->has_volumeextentlist() && !request->s3chunkinfomap().empty()) {
+    if (!request->volumeextentmap().empty() &&
+        !request->s3chunkinfomap().empty()) {
         LOG(ERROR) << "only one of type space info, choose volume or s3";
         response->set_statuscode(MetaStatusCode::PARAM_ERROR);
         return MetaStatusCode::PARAM_ERROR;

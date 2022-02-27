@@ -34,7 +34,7 @@
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/fuse_common.h"
-#include "curvefs/src/client/extent_manager.h"
+#include "curvefs/src/client/client_operator.h"
 #include "src/common/timeutility.h"
 #include "src/common/dummyserver.h"
 #include "src/client/client_common.h"
@@ -167,33 +167,34 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
-    std::string mountPointWithHost;
-    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountpoint_);
     if (retVal < 0) {
         LOG(ERROR) << "AddHostNameToMountPointStr failed, ret = " << retVal;
         return CURVEFS_ERROR::INTERNAL;
     }
 
     auto find = std::find(fsInfo_->mountpoints().begin(),
-                          fsInfo_->mountpoints().end(), mountPointWithHost);
+                          fsInfo_->mountpoints().end(), mountpoint_);
     if (find != fsInfo_->mountpoints().end()) {
         LOG(ERROR) << "MountFs found mountPoint exist";
         return CURVEFS_ERROR::MOUNT_POINT_EXIST;
     }
-    auto ret = mdsClient_->MountFs(fsName, mountPointWithHost, fsInfo_.get());
+
+    auto ret = mdsClient_->MountFs(fsName, mountpoint_, fsInfo_.get());
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
         LOG(ERROR) << "MountFs failed, FSStatusCode = " << ret
                    << ", FSStatusCode_Name = "
                    << FSStatusCode_Name(ret)
                    << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointWithHost;
+                   << ", mountPoint = " << mountpoint_;
         return CURVEFS_ERROR::MOUNT_FAILED;
     }
+
     inodeManager_->SetFsId(fsInfo_->fsid());
     dentryManager_->SetFsId(fsInfo_->fsid());
     enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
-    LOG(INFO) << "Mount " << fsName << " on " << mountPointWithHost
-              << " success!" << " enableSumInDir = " << enableSumInDir_;
+    LOG(INFO) << "Mount " << fsName << " on " << mountpoint_ << " success!"
+              << " enableSumInDir = " << enableSumInDir_;
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
 

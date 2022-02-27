@@ -69,13 +69,13 @@ void EnableSplice(struct fuse_conn_info* conn) {
     }
 }
 
-int GetFsInfo(const char* fsName, std::shared_ptr<FsInfo> fsInfo) {
+int GetFsInfo(const char* fsName, FsInfo* fsInfo) {
     MdsClientImpl mdsClient;
     MDSBaseClient mdsBase;
     mdsClient.Init(g_fuseClientOption->mdsOpt, &mdsBase);
 
     std::string fn = (fsName == nullptr) ? "" : fsName;
-    FSStatusCode ret = mdsClient.GetFsInfo(fn, fsInfo.get());
+    FSStatusCode ret = mdsClient.GetFsInfo(fn, fsInfo);
     if (ret != FSStatusCode::OK) {
         if (FSStatusCode::NOT_FOUND == ret) {
             LOG(ERROR) << "The fsName not exist, fsName = " << fsName;
@@ -132,7 +132,7 @@ int InitFuseClient(const char *confPath, const char* fsName,
     curvefs::client::common::InitFuseClientOption(&conf, g_fuseClientOption);
 
     std::shared_ptr<FsInfo> fsInfo = std::make_shared<FsInfo>();
-    if (GetFsInfo(fsName, fsInfo) != 0) {
+    if (GetFsInfo(fsName, fsInfo.get()) != 0) {
         return -1;
     }
 
@@ -165,6 +165,7 @@ int InitFuseClient(const char *confPath, const char* fsName,
     if (ret != CURVEFS_ERROR::OK) {
         return -1;
     }
+
     return 0;
 }
 
@@ -468,4 +469,12 @@ void FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
            struct fuse_file_info *fi) {
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpFlush(req, ino, fi);
     FuseReplyErrByErrCode(req, ret);
+}
+
+void FuseOpBmap(fuse_req_t req,
+                fuse_ino_t /*ino*/,
+                size_t /*blocksize*/,
+                uint64_t /*idx*/) {
+    // TODO(wuhanqing): implement for volume storage
+    FuseReplyErrByErrCode(req, CURVEFS_ERROR::NOTSUPPORT);
 }

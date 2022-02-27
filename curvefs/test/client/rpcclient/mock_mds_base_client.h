@@ -88,6 +88,31 @@ class MockMDSBaseClient : public MDSBaseClient {
                  void(const std::vector<PartitionTxId> &txIds,
                       RefreshSessionResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
+
+    MOCK_METHOD6(AllocateVolumeBlockGroup,
+                 void(uint32_t fsId,
+                      uint32_t count,
+                      const std::string &owner,
+                      AllocateBlockGroupResponse *response,
+                      brpc::Controller *cntl,
+                      brpc::Channel *channel));
+
+    MOCK_METHOD6(AcquireVolumeBlockGroup,
+                 void(uint32_t fsId,
+                      uint64_t blockGroupOffset,
+                      const std::string &owner,
+                      AcquireBlockGroupResponse *response,
+                      brpc::Controller *cntl,
+                      brpc::Channel *channel));
+
+    MOCK_METHOD6(
+        ReleaseVolumeBlockGroup,
+        void(uint32_t fsId,
+             const std::string &owner,
+             const std::vector<curvefs::mds::space::BlockGroup> &blockGroups,
+             ReleaseBlockGroupResponse *response,
+             brpc::Controller *cntl,
+             brpc::Channel *channel));
 };
 }  // namespace rpcclient
 }  // namespace client

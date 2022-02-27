@@ -31,6 +31,7 @@
 
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
+#include "curvefs/src/mds/space/reloader.h"
 
 namespace curvefs {
 namespace mds {
@@ -38,13 +39,17 @@ namespace mds {
 using ::curvefs::common::FSType;
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 using curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::mds::space::Reloader;
 
 bool FsManager::Init() {
-    LOG_IF(FATAL, !spaceClient_->Init()) << "spaceClient Init fail";
     LOG_IF(FATAL, !fsStorage_->Init()) << "fsStorage Init fail";
-    s3Adapter_->Init(s3AdapterOption_);
+    s3Adapter_->Init(option_.s3AdapterOption);
+    auto ret = ReloadMountedFsVolumeSpace();
+    if (ret != FSStatusCode::OK) {
+        LOG(ERROR) << "Reload mounted fs volume space error";
+    }
 
-    return true;
+    return ret == FSStatusCode::OK;
 }
 
 void FsManager::Run() {
@@ -67,7 +72,6 @@ void FsManager::Uninit() {
     }
 
     fsStorage_->Uninit();
-    spaceClient_->Uninit();
     LOG(INFO) << "FsManager Uninit ok.";
 }
 
@@ -123,12 +127,24 @@ void FsManager::ScanFs(const FsInfoWrapper& wrapper) {
     if (partitionList.empty()) {
         LOG(INFO) << "fs has no partition, delete fs record, fsName = "
                   << wrapper.GetFsName() << ", fsId = " << wrapper.GetFsId();
+
+        if (wrapper.GetFsType() == FSType::TYPE_VOLUME) {
+            auto err = spaceManager_->DeleteVolume(wrapper.GetFsId());
+            if (err != space::SpaceOk && err != space::SpaceErrNotFound) {
+                LOG(ERROR) << "Delete volume space failed, fsId: "
+                           << wrapper.GetFsId()
+                           << ", err: " << space::SpaceErrCode_Name(err);
+                return;
+            }
+        }
+
         FSStatusCode ret = fsStorage_->Delete(wrapper.GetFsName());
         if (ret != FSStatusCode::OK) {
             LOG(ERROR) << "delete fs record fail, fsName = "
                        << wrapper.GetFsName()
                        << ", errCode = " << FSStatusCode_Name(ret);
         }
+
         return;
     }
 
@@ -143,7 +159,8 @@ void FsManager::ScanFs(const FsInfoWrapper& wrapper) {
 }
 
 void FsManager::BackEndFunc() {
-    while (sleeper_.wait_for(std::chrono::seconds(backEndThreadRunInterSec_))) {
+    while (sleeper_.wait_for(
+        std::chrono::seconds(option_.backEndThreadRunInterSec))) {
         std::vector<FsInfoWrapper> wrapperVec;
         fsStorage_->GetAll(&wrapperVec);
         for (const FsInfoWrapper& wrapper : wrapperVec) {
@@ -189,11 +206,11 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
     // check s3info
     if (detail.has_s3info()) {
         const auto& s3Info = detail.s3info();
-        s3AdapterOption_.ak = s3Info.ak();
-        s3AdapterOption_.sk = s3Info.sk();
-        s3AdapterOption_.s3Address = s3Info.endpoint();
-        s3AdapterOption_.bucketName = s3Info.bucketname();
-        s3Adapter_->Reinit(s3AdapterOption_);
+        option_.s3AdapterOption.ak = s3Info.ak();
+        option_.s3AdapterOption.sk = s3Info.sk();
+        option_.s3AdapterOption.s3Address = s3Info.endpoint();
+        option_.s3AdapterOption.bucketName = s3Info.bucketname();
+        s3Adapter_->Reinit(option_.s3AdapterOption);
         if (!s3Adapter_->BucketExist()) {
             LOG(ERROR) << "CreateFs " << fsName
                        << " error, s3info is not available!";
@@ -391,12 +408,12 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
         wrapper.IsMountPointEmpty()) {
         FsInfo tempFsInfo = wrapper.ProtoFsInfo();
-        ret = spaceClient_->InitSpace(tempFsInfo);
-        if (ret != FSStatusCode::OK) {
+        auto ret = spaceManager_->AddVolume(tempFsInfo);
+        if (ret != space::SpaceOk) {
             LOG(ERROR) << "MountFs fail, init space fail, fsName = " << fsName
                        << ", mountpoint = " << mountpoint
-                       << ", errCode = " << FSStatusCode_Name(ret);
-            return ret;
+                       << ", errCode = " << FSStatusCode_Name(INIT_SPACE_ERROR);
+            return INIT_SPACE_ERROR;
         }
     }
 
@@ -452,12 +469,13 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     // 3. if no mount point exist, uninit space
     if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
         wrapper.IsMountPointEmpty()) {
-        ret = spaceClient_->UnInitSpace(wrapper.GetFsId());
-        if (ret != FSStatusCode::OK) {
+        auto ret = spaceManager_->RemoveVolume(wrapper.GetFsId());
+        if (ret != space::SpaceOk) {
             LOG(ERROR) << "UmountFs fail, uninit space fail, fsName = "
                        << fsName << ", mountpoint = " << mountpoint
-                       << ", errCode = " << FSStatusCode_Name(ret);
-            return ret;
+                       << ", errCode = "
+                       << FSStatusCode_Name(UNINIT_SPACE_ERROR);
+            return UNINIT_SPACE_ERROR;
         }
     }
 
@@ -570,6 +588,31 @@ void FsManager::RefreshSession(
     std::vector<PartitionTxId> in = {txIds.begin(), txIds.end()};
     topoManager_->GetLatestPartitionsTxId(in, &out);
     *needUpdate = {out.begin(), out.end()};
+}
+
+FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {
+    std::vector<FsInfoWrapper> allfs;
+    fsStorage_->GetAll(&allfs);
+
+    Reloader reloader(spaceManager_.get(), option_.spaceReloadConcurrency);
+    for (auto& fs : allfs) {
+        if (fs.GetFsType() != FSType::TYPE_VOLUME) {
+            continue;
+        }
+
+        if (!fs.MountPoints().empty()) {
+            reloader.Add(fs.ProtoFsInfo());
+        }
+    }
+
+    auto err = reloader.Wait();
+    if (err != space::SpaceOk) {
+        LOG(ERROR) << "Reload volume space failed, err: "
+                   << space::SpaceErrCode_Name(err);
+        return FSStatusCode::INIT_SPACE_ERROR;
+    }
+
+    return FSStatusCode::OK;
 }
 
 }  // namespace mds

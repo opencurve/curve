@@ -43,10 +43,7 @@ UpdateInodeRequest MakeUpdateInodeRequestFromInode(const Inode &inode,
     request.set_uid(inode.uid());
     request.set_gid(inode.gid());
     request.set_mode(inode.mode());
-    VolumeExtentList *vlist =
-        new VolumeExtentList;
-    vlist->CopyFrom(inode.volumeextentlist());
-    request.set_allocated_volumeextentlist(vlist);
+    *(request.mutable_volumeextentmap()) = inode.volumeextentmap();
     *(request.mutable_s3chunkinfomap()) = inode.s3chunkinfomap();
     *(request.mutable_xattr()) = inode.xattr();
     request.set_nlink(inode.nlink());

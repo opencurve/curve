@@ -55,6 +55,10 @@ inline bool is_aligned(const void* ptr, std::size_t alignment) noexcept {
     return is_aligned((std::size_t)ptr, alignment);  // NOLINT
 }
 
+constexpr inline bool is_alignment(std::size_t value) noexcept {
+    return (value > 0) && ((value & (value - 1)) == 0);
+}
+
 }  // namespace common
 }  // namespace curve
 

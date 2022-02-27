@@ -146,10 +146,11 @@ message GetInodeRequest {
 }
 
 enum FsFileType {
-    TYPE_DIRECTORY = 1;
-    TYPE_FILE = 2;
-    TYPE_SYM_LINK = 3;
-    TYPE_S3 = 4;
+    TYPE_DIRECTORY = 1;   // 1 << 0
+    TYPE_FILE = 2;        // 1 << 1
+    TYPE_SYM_LINK = 4;    // 1 << 2
+    TYPE_S3 = 18;         // (1 << 4) | TYPE_FILE
+    TYPE_VOLUME = 34;     // (1 << 5) | TYPE_FILE
 };
 
 message VolumeExtent {
@@ -194,7 +195,7 @@ message Inode {
     required FsFileType type = 14;
     optional string symlink = 15;   // TYPE_SYM_LINK only
     optional uint64 rdev = 16;
-    optional VolumeExtentList volumeExtentList = 17;  // TYPE_FILE only
+    map<uint64, VolumeExtentList> volumeExtentMap = 17;  // TYPE_FILE only, key is file's offset
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
@@ -266,7 +267,7 @@ message UpdateInodeRequest {
     optional uint32 uid = 13;
     optional uint32 gid = 14;
     optional uint32 mode = 15;
-    optional VolumeExtentList volumeExtentList = 16;
+    map<uint64, VolumeExtentList> volumeExtentMap = 16;
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
     optional InodeOpenStatusChange inodeOpenstatusChange = 19;

@@ -62,8 +62,8 @@ class Bitmap {
      * @param bitmap: 外部提供的用于初始化的bitmap
      */
     explicit Bitmap(uint32_t bits, const char* bitmap);
-    virtual ~Bitmap();
-    Bitmap() = delete;
+    ~Bitmap();
+
     /**
      * 拷贝构造，使用深拷贝
      * @param bitmap：从该对象拷贝内容
@@ -75,6 +75,10 @@ class Bitmap {
      * @reutrn：返回拷贝后对象引用
      */
     Bitmap& operator = (const Bitmap& bitmap);
+
+    Bitmap(Bitmap&& other) noexcept;
+    Bitmap& operator=(Bitmap&& other) noexcept;
+
     /**
      * 比较两个bitmap是否相同
      * @param bitmap：待比较的bitmap

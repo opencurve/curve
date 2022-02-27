@@ -43,8 +43,8 @@ namespace common {
 using MdsOption = ::curve::client::MetaServerOption;
 
 struct BlockDeviceClientOptions {
-    // config path
     std::string configPath;
+    uint32_t threadnum;
 };
 
 struct MetaCacheOpt {
@@ -131,10 +131,26 @@ struct S3Option {
     S3AdapterOption s3AdaptrOpt;
 };
 
+struct BlockGroupOption {
+    uint32_t allocateOnce;
+};
+
+struct BitmapAllocatorOption {
+    uint64_t sizePerBit;
+    double smallAllocProportion;
+};
+
+struct VolumeAllocatorOption {
+    std::string type;
+    BitmapAllocatorOption bitmapAllocatorOption;
+    BlockGroupOption blockGroupOption;
+};
+
 struct VolumeOption {
     uint64_t bigFileSize;
     uint64_t volBlockSize;
     uint64_t fsBlockSize;
+    VolumeAllocatorOption allocatorOption;
 };
 
 struct ExtentManagerOption {

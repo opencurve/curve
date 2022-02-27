@@ -20,12 +20,19 @@
  * Author: lixiaocui
  */
 
-#include <glog/logging.h>
-#include <set>
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
+
+#include <glog/logging.h>
+
+#include <string>
+#include <vector>
+
+#include "proto/nameserver2.pb.h"
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/namespace_define.h"
+#include "src/common/timeutility.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic_helper.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
-#include "src/common/concurrent/concurrent.h"
 
 using ::curve::common::Thread;
 using ::curve::common::ReadLockGuard;

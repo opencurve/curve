@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,115 +15,103 @@
  */
 
 syntax="proto2";
-import "curvefs/proto/mds.proto";
+package curvefs.mds.space;
 import "curvefs/proto/common.proto";
-package curvefs.space;
-option cc_generic_services = true;
+option cc_generic_services=true;
 
-enum SpaceStatusCode {
-    SPACE_OK = 0;
-    SPACE_UNKNOWN_ERROR = 1;
-    SPACE_NO_SPACE = 2;
-    SPACE_NOT_FOUND = 3;
-    SPACE_EXISTS = 4;
-    SPACE_RELOAD_ERROR = 5;
-    SPACE_DEALLOC_ERROR = 6;
+enum SpaceErrCode {
+    SpaceOk = 0;
+    SpaceErrUnknown = 1;
+    SpaceErrNoSpace = 2;
+    SpaceErrNotFound = 3;
+    SpaceErrConflict = 4;
+    SpaceErrEncode = 5;
+    SpaceErrDecode = 6;
+    SpaceErrCreate = 7;
+    SpaceErrExist = 8;
+    SpaceErrStorage = 9;
+    SpaceErrParam = 10;
 }
 
-// space interface
-message Extent {
-    required uint64 offset = 1;  // the offset in the volume
-    required uint64 length = 2;
+message BlockGroup {
+    // start offset on volume
+    required uint64 offset = 1;
+    // total bytes of each block group
+    // this must be fixed when create fs or mkfs, so, this field maybe not needed
+    required uint64 size = 2;
+    // available bytes
+    required uint64 available = 3;
+    // bitmap location
+    required common.BitmapLocation bitmaplocation = 4;
+    // owner, who owns this block group
+    optional string owner = 5;
 }
 
-enum AllocateType {
-    NONE = 0;
-    SMALL = 1;     // small type file allocate
-    BIG = 2;       // big type file allocate
-    S3 = 3;
-}
-
-message AllocateHint {
-    optional AllocateType allocType = 1;
-    optional uint64 leftOffset = 2;        // The starting position of the address space expected
-    optional uint64 rightOffset = 3;       // The end position of the address space expected
-}
-
-message InitSpaceRequest {
-    required mds.FsInfo fsInfo = 1;
-}
-
-message InitSpaceResponse {
-    required SpaceStatusCode status = 1;
-}
-
-message AllocateSpaceRequest {
+message AllocateBlockGroupRequest {
     required uint32 fsId = 1;
-    required uint32 size = 2;
-    optional AllocateHint allocHint = 3;
+    required uint64 count = 2;    // number of block groups
+    required string owner = 3;    // or just ip:port
 }
 
-message AllocateSpaceResponse {
-    required SpaceStatusCode status = 1;
-    repeated Extent extents = 2;     // The applied address space may not be continuous, so it is represented by repeated
+message AllocateBlockGroupResponse {
+    required SpaceErrCode status = 1;
+    repeated BlockGroup blockGroups = 2;
 }
 
-message DeallocateSpaceRequest {
+message AcquireBlockGroupRequest {
     required uint32 fsId = 1;
-    repeated Extent extents = 2;     // the space deallocate
+    required string owner = 2;
+    required uint64 blockGroupOffset = 3;
 }
 
-message DeallocateSpaceResponse {
-    required SpaceStatusCode status = 1;
+message AcquireBlockGroupResponse {
+    required SpaceErrCode status = 1;
+    optional BlockGroup blockGroups = 2;
+}
+
+message ReleaseBlockGroupRequest {
+    required uint32 fsId = 1;
+    required string owner = 2;
+    repeated BlockGroup blockGroups = 3;
+}
+
+message ReleaseBlockGroupResponse {
+    required SpaceErrCode status = 1;
 }
 
 message StatSpaceRequest {
     required uint32 fsId = 1;
 }
 
+message SpaceInfo {
+    required uint64 size = 1;
+    required uint64 available = 2;
+    required uint32 totalBlockGroups = 3;
+    required uint32 allocatedBlockGroups = 4;
+}
+
 message StatSpaceResponse {
-    required SpaceStatusCode status = 1;
-    optional uint64 blockSize = 2;
-    optional uint64 totalBlock = 3;
-    optional uint64 availableBlock = 4;
-    optional uint64 usedBlock = 5;
+    required SpaceErrCode status = 1;
+    optional SpaceInfo spaceInfo = 2;
 }
 
-message UnInitSpaceRequest {
+message UpdateUsageRequest {
     required uint32 fsId = 1;
+
+    // TODO(wuhanqing): maybe only need some fields of BlockGroup
+    repeated BlockGroup blockGroups = 2;
 }
 
-message UnInitSpaceResponse {
-    required SpaceStatusCode status = 1;
+message UpdateUsageResponse {
+    required SpaceErrCode status = 1;
 }
 
-message AllocateS3ChunkRequest {
-    required uint32 fsId = 1;
-}
+service SpaceService {
+    rpc AllocateBlockGroup(AllocateBlockGroupRequest) returns(AllocateBlockGroupResponse);
+    rpc AcquireBlockGroup(AcquireBlockGroupRequest) returns(AcquireBlockGroupResponse);
+    rpc ReleaseBlockGroup(ReleaseBlockGroupRequest) returns(ReleaseBlockGroupResponse);
+    rpc StatSpace(StatSpaceRequest) returns(StatSpaceResponse);
 
-message AllocateS3ChunkResponse {
-   required SpaceStatusCode status = 1;  // 状态码
-   required uint64 chunkId = 2;
-}
-
-message StatClusterSpaceRequest{
-}
-
-message StatClusterSpaceResponse{
-    required SpaceStatusCode status = 1;
-    required common.FSType fsType = 2;
-    optional uint32 total = 3;
-    optional uint32 used = 4;
-    optional uint32 left = 5;
-}
-
-service SpaceAllocService {
-    // space interface
-    rpc InitSpace(InitSpaceRequest) returns (InitSpaceResponse);
-    rpc AllocateSpace(AllocateSpaceRequest) returns (AllocateSpaceResponse);
-    rpc DeallocateSpace(DeallocateSpaceRequest) returns (DeallocateSpaceResponse);
-    rpc StatSpace(StatSpaceRequest) returns (StatSpaceResponse);
-    rpc UnInitSpace(UnInitSpaceRequest) returns (UnInitSpaceResponse);
-    rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
-    rpc StatClusterSpace (StatClusterSpaceRequest) returns (StatClusterSpaceResponse);
+    // TODO(wuhanqing): client should update usage periodicly
+    rpc UpdateUsage(UpdateUsageRequest) returns(UpdateUsageResponse);
 }

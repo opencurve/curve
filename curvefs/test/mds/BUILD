@@ -21,7 +21,7 @@ cc_test(
     srcs = glob(["*.cpp", "*.h"],
         exclude = [
             "chunkid_allocator_test.cpp",
-            "mock_etcdclient.h"
+            "mock_etcdclient.h",
         ]),
     copts = CURVE_TEST_COPTS,
     deps = [
@@ -50,5 +50,6 @@ cc_test(
             "//external:brpc",
             "//src/common:curve_common",
             "//curvefs/proto:space_cc_proto",
+            "//curvefs/test/mds/mock:curvefs_mds_mock",
     ],
 )

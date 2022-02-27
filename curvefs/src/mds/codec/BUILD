@@ -25,5 +25,6 @@ cc_library(
     deps = [
         "//curvefs/src/mds/common:fs_mds_common",
         "//external:protobuf",
+        "//src/common:curve_common",
     ],
 )

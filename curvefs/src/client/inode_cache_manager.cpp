@@ -61,6 +61,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     }
 
     Inode inode;
+
     MetaStatusCode ret2 = metaClient_->GetInode(fsId_, inodeid, &inode);
     if (ret2 != MetaStatusCode::OK) {
         LOG_IF(ERROR, ret2 != MetaStatusCode::NOT_FOUND)

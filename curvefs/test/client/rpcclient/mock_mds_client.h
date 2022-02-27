@@ -90,6 +90,24 @@ class MockMdsClient : public MdsClient {
     MOCK_METHOD2(RefreshSession,
                  FSStatusCode(const std::vector<PartitionTxId> &txIds,
                               std::vector<PartitionTxId> *latestTxIdList));
+
+    MOCK_METHOD4(AllocateVolumeBlockGroup,
+                 SpaceErrCode(uint32_t,
+                              uint32_t,
+                              const std::string&,
+                              std::vector<curvefs::mds::space::BlockGroup>*));
+
+    MOCK_METHOD4(AcquireVolumeBlockGroup,
+                 SpaceErrCode(uint32_t,
+                              uint64_t,
+                              const std::string&,
+                              curvefs::mds::space::BlockGroup*));
+
+    MOCK_METHOD3(
+        ReleaseVolumeBlockGroup,
+        SpaceErrCode(uint32_t,
+                     const std::string&,
+                     const std::vector<curvefs::mds::space::BlockGroup>&));
 };
 }  // namespace rpcclient
 }  // namespace client

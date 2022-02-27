@@ -33,7 +33,6 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/proto/topology.pb.h"
-#include "curvefs/src/client/common/extent.h"
 #include "src/client/client_common.h"
 
 namespace curvefs {
@@ -81,12 +80,6 @@ using curvefs::mds::RefreshSessionResponse;
 using curvefs::mds::UmountFsRequest;
 using curvefs::mds::UmountFsResponse;
 
-using curvefs::space::AllocateSpaceRequest;
-using curvefs::space::AllocateSpaceResponse;
-using curvefs::space::DeallocateSpaceRequest;
-using curvefs::space::DeallocateSpaceResponse;
-using curvefs::space::Extent;
-
 using ::curve::client::CopysetID;
 using ::curve::client::LogicPoolID;
 
@@ -105,6 +98,14 @@ using curvefs::mds::topology::ListPartitionRequest;
 using curvefs::mds::topology::ListPartitionResponse;
 using curvefs::mds::topology::PartitionTxId;
 using curvefs::mds::topology::TopoStatusCode;
+
+using ::curvefs::mds::space::AllocateBlockGroupRequest;
+using ::curvefs::mds::space::AllocateBlockGroupResponse;
+using ::curvefs::mds::space::AcquireBlockGroupRequest;
+using ::curvefs::mds::space::AcquireBlockGroupResponse;
+using ::curvefs::mds::space::ReleaseBlockGroupRequest;
+using ::curvefs::mds::space::ReleaseBlockGroupResponse;
+
 struct InodeParam {
     uint64_t fsId;
     uint64_t length;
@@ -179,6 +180,28 @@ class MDSBaseClient {
     virtual void RefreshSession(const std::vector<PartitionTxId> &txIds,
                                 RefreshSessionResponse *response,
                                 brpc::Controller *cntl, brpc::Channel *channel);
+
+    virtual void AllocateVolumeBlockGroup(uint32_t fsId,
+                                          uint32_t count,
+                                          const std::string& owner,
+                                          AllocateBlockGroupResponse* response,
+                                          brpc::Controller* cntl,
+                                          brpc::Channel* channel);
+
+    virtual void AcquireVolumeBlockGroup(uint32_t fsId,
+                                         uint64_t blockGroupOffset,
+                                         const std::string& owner,
+                                         AcquireBlockGroupResponse* response,
+                                         brpc::Controller* cntl,
+                                         brpc::Channel* channel);
+
+    virtual void ReleaseVolumeBlockGroup(
+        uint32_t fsId,
+        const std::string& owner,
+        const std::vector<curvefs::mds::space::BlockGroup>& blockGroups,
+        ReleaseBlockGroupResponse* response,
+        brpc::Controller* cntl,
+        brpc::Channel* channel);
 };
 
 }  // namespace rpcclient

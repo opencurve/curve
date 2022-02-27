@@ -24,6 +24,7 @@
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
+#include "src/common/fast_align.h"
 
 DECLARE_string(fsName);
 DECLARE_string(confPath);
@@ -35,6 +36,8 @@ DECLARE_uint64(volumeBlockSize);
 DECLARE_string(volumeName);
 DECLARE_string(volumeUser);
 DECLARE_string(volumePassword);
+DECLARE_uint64(volumeBlockGroupSize);
+DECLARE_string(volumeBitmapLocation);
 DECLARE_string(s3_ak);
 DECLARE_string(s3_sk);
 DECLARE_string(s3_endpoint);
@@ -49,16 +52,22 @@ namespace curvefs {
 namespace tools {
 namespace create {
 
+using ::curve::common::is_aligned;
+using ::curvefs::common::BitmapLocation;
+using ::curvefs::common::BitmapLocation_Parse;
+
 void CreateFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsName=" << FLAGS_fsName
               << " [-blockSize=" << FLAGS_blockSize
               << "] [-enableSumInDir=" << FLAGS_enableSumInDir
               << "] [-fsType=volume -volumeSize=" << FLAGS_volumeSize
+              << " -volumeBlockGroupSize=" << FLAGS_volumeBlockGroupSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
               << " -volumeName=" << FLAGS_volumeName
               << " -volumeUser=" << FLAGS_volumeUser
               << " -volumePassword=" << FLAGS_volumePassword
+              << " -volumeBitmapLocation=AtStart|AtEnd"
               << "]|[-fsType=s3 -s3_ak=" << FLAGS_s3_ak
               << " -s3_sk=" << FLAGS_s3_sk
               << " -s3_endpoint=" << FLAGS_s3_endpoint
@@ -79,6 +88,8 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeName);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeUser);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumePassword);
+    AddUpdateFlagsFunc(curvefs::tools::SetVolumeBlockSize);
+    AddUpdateFlagsFunc(curvefs::tools::SetVolumeBitmapLocation);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_ak);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_endpoint);
@@ -115,14 +126,45 @@ int CreateFsTool::Init() {
         s3->set_chunksize(FLAGS_s3_chunksize);
         request.mutable_fsdetail()->set_allocated_s3info(s3);
     } else if (FLAGS_fsType == kFsTypeVolume) {
+        // precheck
+        if (!is_aligned(FLAGS_volumeBlockSize, 4096)) {
+            std::cerr << "volumeBlockSize should align with 4096";
+            return -1;
+        }
+
+        if (!is_aligned(FLAGS_volumeBlockGroupSize, FLAGS_volumeBlockSize)) {
+            std::cerr
+                << "volumeBlockGroupSize should align with volumeBlockSize";
+            return -1;
+        }
+
+        if (!is_aligned(FLAGS_volumeBlockGroupSize, 128ULL * 1024 * 1024)) {
+            std::cerr << "volumeBlockGroupSize should align with 128MiB";
+            return -1;
+        }
+
+        if (!is_aligned(FLAGS_volumeSize, FLAGS_volumeBlockGroupSize)) {
+            std::cerr << "volumeSize should align with volumeBlockGroupSize";
+            return -1;
+        }
+
+        BitmapLocation location;
+        if (!BitmapLocation_Parse(FLAGS_volumeBitmapLocation, &location)) {
+            std::cerr << "Parse volumeBitmapLocation error, only support "
+                         "|AtStart| and |AtEnd|";
+            return -1;
+        }
+
         // volume
         request.set_fstype(common::FSType::TYPE_VOLUME);
-        auto volume = new common::Volume();
+        auto* volume = new common::Volume();
         volume->set_volumesize(FLAGS_volumeSize);
         volume->set_blocksize(FLAGS_volumeBlockSize);
         volume->set_volumename(FLAGS_volumeName);
         volume->set_user(FLAGS_volumeUser);
         volume->set_password(FLAGS_volumePassword);
+        volume->set_blockgroupsize(FLAGS_volumeBlockGroupSize);
+        volume->set_bitmaplocation(location);
         request.mutable_fsdetail()->set_allocated_volume(volume);
     } else {
         std::cerr << "-fsType should be " << kFsTypeS3 << " or "

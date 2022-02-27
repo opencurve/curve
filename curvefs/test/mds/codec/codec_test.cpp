@@ -56,6 +56,8 @@ TEST(CodecTest, TestEncodeProtobufMessage) {
     volume.set_blocksize(4096);
     volume.set_volumename("/curvefs");
     volume.set_user("test");
+    volume.set_blockgroupsize(4096);
+    volume.set_bitmaplocation(curvefs::common::BitmapLocation::AtEnd);
 
     fsinfo.mutable_detail()->set_allocated_volume(new Volume(volume));
 
@@ -85,6 +87,8 @@ TEST(CodecTest, TestDecodeProtobufMessage) {
     volume.set_blocksize(4096);
     volume.set_volumename("/curvefs");
     volume.set_user("test");
+    volume.set_blockgroupsize(4096);
+    volume.set_bitmaplocation(curvefs::common::BitmapLocation::AtEnd);
 
     fsinfo.mutable_detail()->set_allocated_volume(new Volume(volume));
 

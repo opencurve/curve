@@ -38,10 +38,12 @@
 #include "curvefs/src/mds/topology/topology_metric.h"
 #include "curvefs/src/mds/topology/topology_service.h"
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
+#include "curvefs/src/mds/space/manager.h"
 #include "src/common/configuration.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/leader_election/leader_election.h"
 #include "src/common/s3_adapter.h"
+#include "curvefs/src/mds/space/service.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::TopologyOption;
@@ -70,12 +72,14 @@ using ::curve::election::LeaderElection;
 using ::curve::election::LeaderElectionOptions;
 using curve::kvstorage::EtcdClientImp;
 using ::curve::kvstorage::KVStorageClient;
+
 // TODO(split InitEtcdConf): split this InitEtcdConf to a single module
+
+using ::curvefs::mds::space::SpaceManager;
 
 struct MDSOptions {
     int dummyPort;
     std::string mdsListenAddr;
-    SpaceOptions spaceOptions;
     MetaserverOptions metaserverOptions;
     // TODO(add EtcdConf): add etcd configure
 
@@ -115,7 +119,6 @@ class MDS {
     void InitScheduleOption(ScheduleOption* scheduleOption);
 
  private:
-    void InitSpaceOption(SpaceOptions* spaceOption);
     void InitMetaServerOption(MetaserverOptions* metaserverOption);
     void InitTopologyOption(TopologyOption* topologyOption);
 
@@ -140,7 +143,7 @@ class MDS {
     bool running_;
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<FsStorage> fsStorage_;
-    std::shared_ptr<SpaceClient> spaceClient_;
+    std::shared_ptr<SpaceManager> spaceManager_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;
     std::shared_ptr<TopologyImpl> topology_;

@@ -29,6 +29,7 @@
 #include "curvefs/test/client/rpcclient/mock_mds_service.h"
 #include "src/client/mds_client.h"
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/test/utils/protobuf_message_utils.h"
 
 namespace curvefs {
 namespace client {
@@ -665,6 +666,134 @@ TEST_F(MdsClientImplTest, RefreshSession) {
             .WillRepeatedly(Invoke(RefreshSessionRpcFailed));
         ASSERT_EQ(FSStatusCode::RPC_ERROR,
                   mdsclient_.RefreshSession(txIds, &out));
+    }
+}
+
+TEST_F(MdsClientImplTest, TestAllocateVolumeBlockGroup) {
+    // rpc error
+    {
+        EXPECT_CALL(mockmdsbasecli_, AllocateVolumeBlockGroup(_, _, _, _, _, _))
+            .WillRepeatedly(Invoke(
+                [](uint32_t, uint32_t, const std::string &,
+                   AllocateBlockGroupResponse *, brpc::Controller *cntl,
+                   brpc::Channel *) { cntl->SetFailed(ENOENT, "Not Found"); }));
+
+        std::vector<curvefs::mds::space::BlockGroup> groups;
+
+        ASSERT_EQ(SpaceErrCode::SpaceErrUnknown,
+                  mdsclient_.AllocateVolumeBlockGroup(1, 1, "hello", &groups));
+    }
+
+    // response error
+    {
+        AllocateBlockGroupResponse response;
+        response.set_status(SpaceErrCode::SpaceErrNoSpace);
+
+        EXPECT_CALL(mockmdsbasecli_, AllocateVolumeBlockGroup(_, _, _, _, _, _))
+            .WillOnce(SetArgPointee<3>(response));
+
+        std::vector<curvefs::mds::space::BlockGroup> groups;
+
+        ASSERT_EQ(SpaceErrCode::SpaceErrNoSpace,
+                  mdsclient_.AllocateVolumeBlockGroup(1, 1, "hello", &groups));
+    }
+
+    // no block groups
+    {
+        AllocateBlockGroupResponse response;
+        response.set_status(SpaceErrCode::SpaceOk);
+
+        EXPECT_CALL(mockmdsbasecli_, AllocateVolumeBlockGroup(_, _, _, _, _, _))
+            .WillOnce(SetArgPointee<3>(response));
+
+        std::vector<curvefs::mds::space::BlockGroup> groups;
+
+        ASSERT_EQ(SpaceErrCode::SpaceErrNoSpace,
+                  mdsclient_.AllocateVolumeBlockGroup(1, 1, "hello", &groups));
+    }
+
+    // success
+    {
+        AllocateBlockGroupResponse response;
+        response.set_status(SpaceErrCode::SpaceOk);
+
+        auto blockgroup = curvefs::test::GenerateAnDefaultInitializedMessage(
+            "curvefs.mds.space.BlockGroup");
+        *response.add_blockgroups() =
+            static_cast<curvefs::mds::space::BlockGroup &>(*blockgroup);
+
+        EXPECT_CALL(mockmdsbasecli_, AllocateVolumeBlockGroup(_, _, _, _, _, _))
+            .WillOnce(SetArgPointee<3>(response));
+
+        std::vector<curvefs::mds::space::BlockGroup> groups;
+
+        ASSERT_EQ(SpaceErrCode::SpaceOk,
+                  mdsclient_.AllocateVolumeBlockGroup(1, 1, "hello", &groups));
+        ASSERT_EQ(1, groups.size());
+    }
+}
+
+TEST_F(MdsClientImplTest, TestAcquireVolumeBlockGroup) {
+    // rpc error
+    {
+        EXPECT_CALL(mockmdsbasecli_, AcquireVolumeBlockGroup(_, _, _, _, _, _))
+            .WillRepeatedly(Invoke(
+                [](uint32_t, uint64_t, const std::string &,
+                   AcquireBlockGroupResponse *, brpc::Controller *cntl,
+                   brpc::Channel *) { cntl->SetFailed(ENOENT, "Not Found"); }));
+
+        curvefs::mds::space::BlockGroup blockGroup;
+
+        ASSERT_EQ(
+            SpaceErrCode::SpaceErrUnknown,
+            mdsclient_.AcquireVolumeBlockGroup(1, 1, "hello", &blockGroup));
+    }
+
+    // response error
+    {
+        AcquireBlockGroupResponse response;
+        response.set_status(SpaceErrCode::SpaceErrNotFound);
+        EXPECT_CALL(mockmdsbasecli_, AcquireVolumeBlockGroup(_, _, _, _, _, _))
+            .WillOnce(SetArgPointee<3>(response));
+
+        curvefs::mds::space::BlockGroup blockGroup;
+
+        ASSERT_EQ(
+            SpaceErrCode::SpaceErrNotFound,
+            mdsclient_.AcquireVolumeBlockGroup(1, 1, "hello", &blockGroup));
+    }
+}
+
+TEST_F(MdsClientImplTest, TestReleaseVolumeBlockGroup) {
+    // rpc error
+    {
+        EXPECT_CALL(mockmdsbasecli_, ReleaseVolumeBlockGroup(_, _, _, _, _, _))
+            .WillRepeatedly(Invoke(
+                [](uint32_t, const std::string &,
+                   const std::vector<curvefs::mds::space::BlockGroup> &,
+                   ReleaseBlockGroupResponse *, brpc::Controller *cntl,
+                   brpc::Channel *) { cntl->SetFailed(ENOENT, "Not Found"); }));
+
+        std::vector<curvefs::mds::space::BlockGroup> blockGroups;
+
+        ASSERT_EQ(SpaceErrCode::SpaceErrUnknown,
+                  mdsclient_.ReleaseVolumeBlockGroup(1, "hello", blockGroups));
+    }
+
+    {
+        for (auto err :
+             {SpaceErrCode::SpaceOk, SpaceErrCode::SpaceErrNoSpace}) {
+            ReleaseBlockGroupResponse response;
+            response.set_status(err);
+            EXPECT_CALL(mockmdsbasecli_,
+                        ReleaseVolumeBlockGroup(_, _, _, _, _, _))
+                .WillOnce(SetArgPointee<3>(response));
+
+            std::vector<curvefs::mds::space::BlockGroup> blockGroups;
+
+            ASSERT_EQ(err, mdsclient_.ReleaseVolumeBlockGroup(1, "hello",
+                                                              blockGroups));
+        }
     }
 }
 

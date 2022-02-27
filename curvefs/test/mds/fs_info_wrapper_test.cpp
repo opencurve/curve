@@ -64,6 +64,8 @@ TEST(FsInfoWrapperTest, TestGenerateFsInfoWrapper) {
         volume.set_blocksize(blocksize);
         volume.set_volumename("/curvefs");
         volume.set_user("test");
+        volume.set_blockgroupsize(128ull * 1024 * 1024);
+        volume.set_bitmaplocation(common::BitmapLocation::AtStart);
 
         detail.set_allocated_volume(new Volume(volume));
 

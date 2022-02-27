@@ -89,16 +89,10 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
     conf->GetValueFatalIfFail("excutorOpt.batchLimit", &opts->batchLimit);
 }
 
-void InitSpaceServerOption(Configuration *conf,
-                           SpaceAllocServerOption *spaceOpt) {
-    conf->GetValueFatalIfFail("spaceserver.spaceaddr", &spaceOpt->spaceaddr);
-    conf->GetValueFatalIfFail("spaceserver.rpcTimeoutMs",
-                              &spaceOpt->rpcTimeoutMs);
-}
-
 void InitBlockDeviceOption(Configuration *conf,
                            BlockDeviceClientOptions *bdevOpt) {
     conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
+    conf->GetValueFatalIfFail("bdev.threadnum", &bdevOpt->threadnum);
 }
 
 void InitDiskCacheOption(Configuration *conf,
@@ -166,6 +160,24 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
     conf->GetValueFatalIfFail("volume.bigFileSize", &volumeOpt->bigFileSize);
     conf->GetValueFatalIfFail("volume.volBlockSize", &volumeOpt->volBlockSize);
     conf->GetValueFatalIfFail("volume.fsBlockSize", &volumeOpt->fsBlockSize);
+    conf->GetValueFatalIfFail("volume.allocator.type",
+                              &volumeOpt->allocatorOption.type);
+
+    conf->GetValueFatalIfFail(
+        "volume.blockgroup.allocate_once",
+        &volumeOpt->allocatorOption.blockGroupOption.allocateOnce);
+
+    if (volumeOpt->allocatorOption.type == "bitmap") {
+        conf->GetValueFatalIfFail(
+            "volume.bitmapallocator.size_per_bit",
+            &volumeOpt->allocatorOption.bitmapAllocatorOption.sizePerBit);
+        conf->GetValueFatalIfFail(
+            "volume.bitmapallocator.small_alloc_proportion",
+            &volumeOpt->allocatorOption.bitmapAllocatorOption
+                 .smallAllocProportion);
+    } else {
+        CHECK(false) << "only support bitmap allocator";
+    }
 }
 
 void InitExtentManagerOption(Configuration *conf,
@@ -192,7 +204,6 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitMdsOption(conf, &clientOption->mdsOpt);
     InitMetaCacheOption(conf, &clientOption->metaCacheOpt);
     InitExcutorOption(conf, &clientOption->excutorOpt);
-    InitSpaceServerOption(conf, &clientOption->spaceOpt);
     InitBlockDeviceOption(conf, &clientOption->bdevOpt);
     InitS3Option(conf, &clientOption->s3Opt);
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);

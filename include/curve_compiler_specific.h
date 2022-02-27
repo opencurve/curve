@@ -47,6 +47,8 @@
 #define CURVE_MOCK
 #endif  // UNIT_TEST
 
+// FALLTHROUGH_INTENDED
+
 #if defined(__GNUC__) && __GNUC__ >= 7
 #define FALLTHROUGH_INTENDED __attribute__((fallthrough))
 #else

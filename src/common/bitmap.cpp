@@ -87,6 +87,20 @@ Bitmap& Bitmap::operator = (const Bitmap& bitmap) {
     return *this;
 }
 
+Bitmap::Bitmap(Bitmap&& other) noexcept
+    : bits_(other.bits_), bitmap_(other.bitmap_) {
+    other.bits_ = 0;
+    other.bitmap_ = nullptr;
+}
+
+Bitmap& Bitmap::operator=(Bitmap&& other) noexcept {
+    using std::swap;
+    swap(bits_, other.bits_);
+    swap(bitmap_, other.bitmap_);
+
+    return *this;
+}
+
 bool Bitmap::operator == (const Bitmap& bitmap) const {
     if (bits_ != bitmap.Size())
         return false;
@@ -107,6 +121,7 @@ void Bitmap::Set(uint32_t index) {
 }
 
 void Bitmap::Set(uint32_t startIndex, uint32_t endIndex) {
+    // TODO(wuhanqing): implement fast algorithm if one byte is all set
     for (uint32_t index = startIndex; index <= endIndex; ++index) {
         Set(index);
     }
@@ -122,6 +137,7 @@ void Bitmap::Clear(uint32_t index) {
 }
 
 void Bitmap::Clear(uint32_t startIndex, uint32_t endIndex) {
+    // TODO(wuhanqing): implement fast algorithm if one byte is all clear
     for (uint32_t index = startIndex; index <= endIndex; ++index) {
         Clear(index);
     }
