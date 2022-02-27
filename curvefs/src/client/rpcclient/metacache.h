@@ -61,7 +61,7 @@ struct CopysetGroupID {
 
     CopysetGroupID() = default;
     CopysetGroupID(const LogicPoolID &poolid, const CopysetID &copysetid)
-        : copysetID(copysetid), poolID(poolid) {}
+        : poolID(poolid), copysetID(copysetid) {}
 
     std::string ToString() const {
         return "{" + std::to_string(poolID) + "," + std::to_string(copysetID) +

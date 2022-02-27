@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <glog/logging.h>
 #include <vector>
 #include <string>
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic_helper.h"

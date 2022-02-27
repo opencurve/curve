@@ -98,8 +98,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
                                         size_t *wSize) {
     // check align
     if (fi->flags & O_DIRECT) {
-        if (!(is_aligned(off, DirectIOAlignemnt) &&
-              is_aligned(size, DirectIOAlignemnt)))
+        if (!(is_aligned(off, DirectIOAlignment) &&
+              is_aligned(size, DirectIOAlignment)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
     uint64_t start = butil::cpuwide_time_us();
@@ -169,8 +169,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
                                        size_t *rSize) {
     // check align
     if (fi->flags & O_DIRECT) {
-        if (!(is_aligned(off, DirectIOAlignemnt) &&
-              is_aligned(size, DirectIOAlignemnt)))
+        if (!(is_aligned(off, DirectIOAlignment) &&
+              is_aligned(size, DirectIOAlignment)))
             return CURVEFS_ERROR::INVALIDPARAM;
     }
 

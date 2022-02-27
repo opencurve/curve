@@ -440,7 +440,7 @@ TEST_F(MetastoreTest, test_inode) {
     updateRequest3.set_fsid(fsId);
     updateRequest3.set_inodeid(createResponse.inode().inodeid());
     VolumeExtentList volumeExtentList;
-    updateRequest3.mutable_volumeextentlist()->CopyFrom(volumeExtentList);
+    updateRequest3.mutable_volumeextentmap()->insert({0, volumeExtentList});
     S3ChunkInfoList s3ChunkInfoList;
     updateRequest3.mutable_s3chunkinfomap()->insert({0, s3ChunkInfoList});
     ret = metastore.UpdateInode(&updateRequest3, &updateResponse3);

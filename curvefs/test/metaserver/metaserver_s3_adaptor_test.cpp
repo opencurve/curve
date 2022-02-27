@@ -29,8 +29,6 @@ class MetaserverS3AdaptorTest : public testing::Test {
     void SetUp() override {
         ASSERT_EQ(0, server_.AddService(&mockMetaServerService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.AddService(&mockSpaceAllocService_,
-                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
 
         S3ClientAdaptorOption option;
@@ -59,7 +57,6 @@ class MetaserverS3AdaptorTest : public testing::Test {
     client::MockS3Client mockClientS3Client_;
 
     client::MockMetaServerService mockMetaServerService_;
-    client::MockSpaceAllocService mockSpaceAllocService_;
     std::string addr_ = "127.0.0.1:5629";
     brpc::Server server_;
 };

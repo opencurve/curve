@@ -52,12 +52,13 @@ class RequestScheduler;
  */
 class CopysetClient {
  public:
-    CopysetClient() :
-        sessionNotValid_(false),
-        metaCache_(nullptr),
-        senderManager_(nullptr),
-        scheduler_(nullptr),
-        exitFlag_(false) {}
+    CopysetClient()
+        : metaCache_(nullptr),
+          senderManager_(nullptr),
+          sessionNotValid_(false),
+          scheduler_(nullptr),
+          fileMetric_(nullptr),
+          exitFlag_(false) {}
 
     CopysetClient(const CopysetClient&) = delete;
     CopysetClient& operator=(const CopysetClient&) = delete;

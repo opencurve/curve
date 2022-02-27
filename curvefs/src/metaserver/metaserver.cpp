@@ -312,7 +312,7 @@ int Metaserver::PersistDataToLocalFile(std::shared_ptr<LocalFileSystem> fs,
     }
 
     int writtenCount = fs->Write(fd, data.c_str(), 0, data.size());
-    if (writtenCount < data.size()) {
+    if (writtenCount < 0 || static_cast<size_t>(writtenCount) != data.size()) {
         LOG(ERROR) << "Failed to write data to file, path = " << localPath
                    << ", writtenCount = " << writtenCount
                    << ", data size = " << data.size();

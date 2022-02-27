@@ -23,7 +23,6 @@
 #define SRC_COMMON_ENCODE_H_
 
 #include <stdint.h>
-#include <glog/logging.h>
 
 namespace curve {
 namespace common {
@@ -38,6 +37,13 @@ static inline void EncodeBigEndian(char* buf, uint64_t value) {
     buf[5] = (value >> 16) & 0xff;
     buf[6] = (value >> 8) & 0xff;
     buf[7] = value & 0xff;
+}
+
+inline void EncodeBigEndian_uint32(char* buf, uint32_t value) {
+    buf[0] = (value >> 24) & 0xff;
+    buf[1] = (value >> 16) & 0xff;
+    buf[2] = (value >> 8) & 0xff;
+    buf[3] = value & 0xff;
 }
 
 }  // namespace common

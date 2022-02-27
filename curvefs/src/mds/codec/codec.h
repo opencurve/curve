@@ -62,6 +62,8 @@ inline bool DecodeProtobufMessage(const std::string& encode, Message* message) {
     return message->ParseFromString(encode);
 }
 
+std::string EncodeBlockGroupKey(uint32_t fsId, uint64_t offset);
+
 }  // namespace codec
 }  // namespace mds
 }  // namespace curvefs

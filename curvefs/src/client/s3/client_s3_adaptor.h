@@ -31,7 +31,6 @@
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/error_code.h"
@@ -49,8 +48,6 @@ using curvefs::client::common::DiskCacheType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
 using curvefs::metaserver::S3ChunkInfoList;
-using curvefs::space::AllocateS3ChunkRequest;
-using curvefs::space::AllocateS3ChunkResponse;
 using rpcclient::MdsClient;
 using curvefs::client::metric::S3Metric;
 

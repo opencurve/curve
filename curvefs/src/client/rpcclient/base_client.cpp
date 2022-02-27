@@ -21,11 +21,12 @@
  */
 
 #include "curvefs/src/client/rpcclient/base_client.h"
-#include "curvefs/src/client/common/extent.h"
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
+
+using ::curvefs::mds::space::SpaceService_Stub;
 
 void MDSBaseClient::MountFs(const std::string& fsName,
                             const std::string& mountPt,
@@ -157,6 +158,60 @@ void MDSBaseClient::RefreshSession(const std::vector<PartitionTxId> &txIds,
     curvefs::mds::MdsService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
 }
+
+// TODO(all): do we really need pass `fsId` all the time?
+//            each curve-fuse process only mount one filesystem
+void MDSBaseClient::AllocateVolumeBlockGroup(
+    uint32_t fsId,
+    uint32_t count,
+    const std::string& owner,
+    AllocateBlockGroupResponse* response,
+    brpc::Controller* cntl,
+    brpc::Channel* channel) {
+    AllocateBlockGroupRequest request;
+    request.set_fsid(fsId);
+    request.set_count(count);
+    request.set_owner(owner);
+
+    SpaceService_Stub stub(channel);
+    stub.AllocateBlockGroup(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::AcquireVolumeBlockGroup(uint32_t fsId,
+                                            uint64_t blockGroupOffset,
+                                            const std::string& owner,
+                                            AcquireBlockGroupResponse* response,
+                                            brpc::Controller* cntl,
+                                            brpc::Channel* channel) {
+    AcquireBlockGroupRequest request;
+    request.set_fsid(fsId);
+    request.set_owner(owner);
+    request.set_blockgroupoffset(blockGroupOffset);
+
+    SpaceService_Stub stub(channel);
+    stub.AcquireBlockGroup(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::ReleaseVolumeBlockGroup(
+    uint32_t fsId,
+    const std::string& owner,
+    const std::vector<curvefs::mds::space::BlockGroup>& blockGroups,
+    ReleaseBlockGroupResponse* response,
+    brpc::Controller* cntl,
+    brpc::Channel* channel) {
+    ReleaseBlockGroupRequest request;
+    request.set_fsid(fsId);
+    request.set_owner(owner);
+
+    google::protobuf::RepeatedPtrField<curvefs::mds::space::BlockGroup> groups(
+        blockGroups.begin(), blockGroups.end());
+
+    request.mutable_blockgroups()->Swap(&groups);
+
+    SpaceService_Stub stub(channel);
+    stub.ReleaseBlockGroup(cntl, &request, response, nullptr);
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

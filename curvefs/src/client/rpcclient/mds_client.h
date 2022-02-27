@@ -35,6 +35,7 @@
 #include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/proto/space.pb.h"
 
 using ::curve::client::CopysetID;
 using ::curve::client::CopysetInfo;
@@ -49,6 +50,7 @@ using ::curvefs::common::Peer;
 using ::curvefs::common::Volume;
 using ::curvefs::mds::FsInfo;
 using ::curvefs::mds::FSStatusCode;
+using ::curvefs::mds::space::SpaceErrCode;
 using ::curvefs::mds::topology::Copyset;
 using ::curvefs::mds::topology::TopoStatusCode;
 
@@ -103,6 +105,26 @@ class MdsClient {
     virtual FSStatusCode
     RefreshSession(const std::vector<PartitionTxId> &txIds,
                    std::vector<PartitionTxId> *latestTxIdList) = 0;
+
+    // allocate block group
+    virtual SpaceErrCode AllocateVolumeBlockGroup(
+        uint32_t fsId,
+        uint32_t count,
+        const std::string &owner,
+        std::vector<curvefs::mds::space::BlockGroup> *groups) = 0;
+
+    // acquire block group
+    virtual SpaceErrCode AcquireVolumeBlockGroup(
+        uint32_t fsId,
+        uint64_t blockGroupOffset,
+        const std::string &owner,
+        curvefs::mds::space::BlockGroup *groups) = 0;
+
+    // release block group
+    virtual SpaceErrCode ReleaseVolumeBlockGroup(
+        uint32_t fsId,
+        const std::string &owner,
+        const std::vector<curvefs::mds::space::BlockGroup> &blockGroups) = 0;
 };
 
 class MdsClientImpl : public MdsClient {
@@ -149,6 +171,27 @@ class MdsClientImpl : public MdsClient {
     FSStatusCode
     RefreshSession(const std::vector<PartitionTxId> &txIds,
                    std::vector<PartitionTxId> *latestTxIdList) override;
+
+    // allocate block group
+    SpaceErrCode AllocateVolumeBlockGroup(
+        uint32_t fsId,
+        uint32_t size,
+        const std::string &owner,
+        std::vector<curvefs::mds::space::BlockGroup> *groups) override;
+
+    // acquire block group
+    SpaceErrCode AcquireVolumeBlockGroup(
+        uint32_t fsId,
+        uint64_t blockGroupOffset,
+        const std::string &owner,
+        curvefs::mds::space::BlockGroup *groups) override;
+
+    // release block group
+    SpaceErrCode ReleaseVolumeBlockGroup(
+        uint32_t fsId,
+        const std::string &owner,
+        const std::vector<curvefs::mds::space::BlockGroup> &blockGroups)
+        override;
 
  private:
     FSStatusCode ReturnError(int retcode);

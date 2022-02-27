@@ -28,9 +28,9 @@
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "curvefs/test/mds/mock/mock_fs_stroage.h"
 #include "curvefs/test/mds/mock/mock_metaserver.h"
-#include "curvefs/test/mds/mock/mock_space.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "test/common/mock_s3_adapter.h"
+#include "curvefs/test/mds/mock/mock_space_manager.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -42,18 +42,12 @@ using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::testing::Mock;
 using ::testing::Invoke;
-using ::curvefs::space::MockSpaceService;
 using ::curvefs::metaserver::MockMetaserverService;
 using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
 using curvefs::metaserver::DeletePartitionRequest;
 using curvefs::metaserver::DeletePartitionResponse;
-using curvefs::space::InitSpaceRequest;
-using curvefs::space::InitSpaceResponse;
-using curvefs::space::UnInitSpaceRequest;
-using curvefs::space::UnInitSpaceResponse;
 using curvefs::metaserver::MetaStatusCode;
-using curvefs::space::SpaceStatusCode;
 using ::google::protobuf::util::MessageDifferencer;
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
@@ -78,6 +72,7 @@ using ::curvefs::mds::topology::TopoStatusCode;
 using ::curvefs::metaserver::copyset::MockCliService2;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 using ::curve::common::MockS3Adapter;
+using ::curvefs::mds::space::MockSpaceManager;
 
 namespace curvefs {
 namespace mds {
@@ -85,14 +80,12 @@ class FSManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
         std::string addr = "127.0.0.1:6704";
-        SpaceOptions spaceOptions;
-        spaceOptions.spaceAddr = addr;
-        spaceOptions.rpcTimeoutMs = 500;
+
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = addr;
         metaserverOptions.rpcTimeoutMs = 500;
         fsStorage_ = std::make_shared<MemoryFsStorage>();
-        spaceClient_ = std::make_shared<SpaceClient>(spaceOptions);
+        spaceManager_ = std::make_shared<MockSpaceManager>();
         metaserverClient_ =
             std::make_shared<MetaserverClient>(metaserverOptions);
         // init mock topology manager
@@ -113,14 +106,12 @@ class FSManagerTest : public ::testing::Test {
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
-        fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
+        fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceManager_,
                                                  metaserverClient_,
                                                  topoManager_, s3Adapter_,
                                                  fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
 
-        ASSERT_EQ(0, server_.AddService(&mockSpaceService_,
-                                        brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockMetaserverService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockCliService2_,
@@ -171,9 +162,8 @@ class FSManagerTest : public ::testing::Test {
  protected:
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<FsStorage> fsStorage_;
-    std::shared_ptr<SpaceClient> spaceClient_;
+    std::shared_ptr<MockSpaceManager> spaceManager_;
     std::shared_ptr<MetaserverClient> metaserverClient_;
-    MockSpaceService mockSpaceService_;
     MockMetaserverService mockMetaserverService_;
     MockCliService2 mockCliService2_;
     std::shared_ptr<MockTopologyManager> topoManager_;
@@ -393,21 +383,14 @@ TEST_F(FSManagerTest, test1) {
     FsInfo fsInfo3;
 
     // mount volumefs initspace fail
-    InitSpaceResponse initSpaceResponse;
-    initSpaceResponse.set_status(SpaceStatusCode::SPACE_UNKNOWN_ERROR);
-    EXPECT_CALL(mockSpaceService_, InitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(initSpaceResponse),
-                  Invoke(RpcService<InitSpaceRequest, InitSpaceResponse>)));
+    EXPECT_CALL(*spaceManager_, AddVolume(_))
+        .WillOnce(Return(space::SpaceErrCreate));
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::INIT_SPACE_ERROR);
 
     // mount volumefs success
-    initSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
-    EXPECT_CALL(mockSpaceService_, InitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(initSpaceResponse),
-                  Invoke(RpcService<InitSpaceRequest, InitSpaceResponse>)));
+    EXPECT_CALL(*spaceManager_, AddVolume(_))
+        .WillOnce(Return(space::SpaceOk));
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareVolumeFs(volumeFsInfo1, fsInfo3));
@@ -419,7 +402,6 @@ TEST_F(FSManagerTest, test1) {
 
     // mount s3 fs success
     FsInfo fsInfo4;
-    initSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareS3Fs(s3FsInfo, fsInfo4));
@@ -431,22 +413,15 @@ TEST_F(FSManagerTest, test1) {
 
     // TEST UmountFs
     // umount UnInitSpace fail
-    UnInitSpaceResponse uninitSpaceResponse;
-    uninitSpaceResponse.set_status(SpaceStatusCode::SPACE_UNKNOWN_ERROR);
-    EXPECT_CALL(mockSpaceService_, UnInitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(uninitSpaceResponse),
-                  Invoke(RpcService<UnInitSpaceRequest, UnInitSpaceResponse>)));
+    EXPECT_CALL(*spaceManager_, RemoveVolume(_))
+        .WillOnce(Return(space::SpaceErrNotFound));
     ret = fsManager_->UmountFs(fsName1, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::UNINIT_SPACE_ERROR);
 
     // for persistence consider
     // umount UnInitSpace success
-    uninitSpaceResponse.set_status(SpaceStatusCode::SPACE_OK);
-    EXPECT_CALL(mockSpaceService_, UnInitSpace(_, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<2>(uninitSpaceResponse),
-                  Invoke(RpcService<UnInitSpaceRequest, UnInitSpaceResponse>)));
+    EXPECT_CALL(*spaceManager_, RemoveVolume(_))
+        .WillOnce(Return(space::SpaceOk));
     ret = fsManager_->UmountFs(fsName1, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::OK);
 
@@ -481,7 +456,7 @@ TEST_F(FSManagerTest, backgroud_thread_test) {
     fsManager_->Uninit();
 }
 
-TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
+TEST_F(FSManagerTest, background_thread_deletefs_test) {
     fsManager_->Run();
     std::string addr = "127.0.0.1:6704";
     std::string leader = "127.0.0.1:6704:0";
@@ -636,10 +611,13 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
     EXPECT_CALL(*topoManager_, UpdatePartitionStatus(_, _))
         .WillOnce(Return(TopoStatusCode::TOPO_OK));
 
+    EXPECT_CALL(*spaceManager_, DeleteVolume(_))
+        .WillOnce(Return(space::SpaceOk));
     ret = fsManager_->DeleteFs(fsName1);
     ASSERT_EQ(ret, FSStatusCode::OK);
 
     sleep(4);
+
     // query fs deleted
     FsInfo fsInfo3;
     ret = fsManager_->GetFsInfo(fsInfo1.fsid(), &fsInfo3);

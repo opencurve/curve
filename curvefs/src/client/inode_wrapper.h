@@ -35,6 +35,7 @@
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "src/common/concurrent/concurrent.h"
+#include "curvefs/src/client/volume/extent_cache.h"
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeOpenStatusChange;
@@ -68,7 +69,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         status_(InodeStatus::Normal),
         metaClient_(metaClient),
         openCount_(0),
-        dirty_(false) {}
+        dirty_(false) {
+        BuildExtentCache();
+        }
 
     InodeWrapper(Inode &&inode,
         const std::shared_ptr<MetaServerClient> &metaClient)
@@ -76,7 +79,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         status_(InodeStatus::Normal),
         metaClient_(metaClient),
         openCount_(0),
-        dirty_(false) {}
+        dirty_(false) {
+        BuildExtentCache();
+        }
 
     ~InodeWrapper() {}
 
@@ -103,6 +108,11 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void SetLength(uint64_t len) {
         inode_.set_length(len);
+        dirty_ = true;
+    }
+
+    void SetType(FsFileType type) {
+        inode_.set_type(type);
         dirty_ = true;
     }
 
@@ -249,12 +259,28 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     CURVEFS_ERROR DecreaseNLink();
 
     CURVEFS_ERROR Sync() {
-        CURVEFS_ERROR ret = SyncAttr();
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
+        VLOG(9) << "sync inode: " << inode_.ShortDebugString();
+
+        switch (inode_.type()) {
+            case FsFileType::TYPE_S3: {
+                auto ret = SyncAttr();
+                if (ret != CURVEFS_ERROR::OK) {
+                    return ret;
+                }
+
+                return SyncS3ChunkInfo();
+            }
+
+            case FsFileType::TYPE_VOLUME: {
+                return SyncFullInode();
+            }
+
+            default:
+                return CURVEFS_ERROR::INVALIDPARAM;
         }
-        return SyncS3ChunkInfo();
     }
+
+    CURVEFS_ERROR SyncFullInode();
 
     CURVEFS_ERROR SyncAttr();
 
@@ -262,7 +288,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void FlushAsync() {
         FlushAttrAsync();
-        FlushS3ChunkInfoAsync();
+
+        if (inode_.type() == FsFileType::TYPE_S3) {
+            FlushS3ChunkInfoAsync();
+        }
     }
 
     void FlushAttrAsync();
@@ -333,23 +362,34 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void SetOpenCount(uint32_t openCount) { openCount_ = openCount; }
 
+    ExtentCache* GetMutableExtentCache() {
+        curve::common::UniqueLock lk(mtx_);
+        dirty_ = true;
+        return &extentCache_;
+    }
+
  private:
     CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
+    void BuildExtentCache();
+
  private:
-     Inode inode_;
-     uint32_t openCount_;
-     InodeStatus status_;
+    Inode inode_;
+    uint32_t openCount_;
+    InodeStatus status_;
 
-     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
 
-     std::shared_ptr<MetaServerClient> metaClient_;
-     bool dirty_;
-     mutable ::curve::common::Mutex mtx_;
+    std::shared_ptr<MetaServerClient> metaClient_;
+    bool dirty_;
+    mutable ::curve::common::Mutex mtx_;
 
-     mutable ::curve::common::Mutex syncingInodeMtx_;
-     mutable ::curve::common::Mutex syncingXattrMtx_;
-     mutable ::curve::common::Mutex syncingS3ChunkInfoMtx_;
+    mutable ::curve::common::Mutex syncingInodeMtx_;
+    mutable ::curve::common::Mutex syncingXattrMtx_;
+    mutable ::curve::common::Mutex syncingS3ChunkInfoMtx_;
+
+    mutable ::curve::common::Mutex syncingVolumeExtentsMtx_;
+    ExtentCache extentCache_;
 };
 
 }  // namespace client

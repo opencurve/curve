@@ -45,7 +45,6 @@ using ::curvefs::metaserver::InodeOpenStatusChange;
 using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
-using ::curvefs::space::AllocateType;
 using ::curvefs::metaserver::S3ChunkInfoList;
 
 namespace curvefs {

@@ -358,6 +358,7 @@ bool PersisKVStorage::LoadAllFs() {
                   << "' success, detail: " << fsInfo.ShortDebugString();
 
         idToName_.emplace(fsInfo.fsid(), fsInfo.fsname());
+
         fs_.emplace(fsInfo.fsname(), std::move(fsInfo));
     }
 

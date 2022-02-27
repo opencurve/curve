@@ -27,36 +27,33 @@
 #include <memory>
 
 #include "curvefs/src/client/fuse_client.h"
-#include "curvefs/src/client/space_client.h"
-#include "curvefs/src/client/extent_manager.h"
+#include "curvefs/src/client/volume/volume_storage.h"
+#include "curvefs/src/volume/block_device_client.h"
+#include "curvefs/src/volume/space_manager.h"
 
 namespace curvefs {
 namespace client {
 
 using common::VolumeOption;
+using ::curvefs::volume::BlockDeviceClient;
+using ::curvefs::volume::BlockDeviceClientImpl;
+using ::curvefs::volume::SpaceManager;
 
 class FuseVolumeClient : public FuseClient {
  public:
     FuseVolumeClient()
-      : FuseClient(),
-    spaceClient_(std::make_shared<SpaceAllocServerClientImpl>()),
-    extManager_(std::make_shared<SimpleExtentManager>()),
-    blockDeviceClient_(std::make_shared<BlockDeviceClientImpl>()),
-    spaceBase_(nullptr) {}
+        : FuseClient(),
+          blockDeviceClient_(std::make_shared<BlockDeviceClientImpl>()) {}
 
-    FuseVolumeClient(const std::shared_ptr<MdsClient> &mdsClient,
+    // for UNIT_TEST
+    FuseVolumeClient(
+        const std::shared_ptr<MdsClient> &mdsClient,
         const std::shared_ptr<MetaServerClient> &metaClient,
         const std::shared_ptr<InodeCacheManager> &inodeManager,
         const std::shared_ptr<DentryCacheManager> &dentryManager,
-        const std::shared_ptr<SpaceClient> &spaceClient,
-        const std::shared_ptr<ExtentManager> &extManager,
         const std::shared_ptr<BlockDeviceClient> &blockDeviceClient)
-    : FuseClient(mdsClient, metaClient,
-        inodeManager, dentryManager),
-      spaceClient_(spaceClient),
-      extManager_(extManager),
-      blockDeviceClient_(blockDeviceClient),
-      spaceBase_(nullptr) {}
+        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager),
+          blockDeviceClient_(blockDeviceClient) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
@@ -64,8 +61,6 @@ class FuseVolumeClient : public FuseClient {
 
     CURVEFS_ERROR FuseOpInit(
         void *userdata, struct fuse_conn_info *conn) override;
-
-    void FuseOpDestroy(void *userdata) override;
 
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
@@ -90,22 +85,19 @@ class FuseVolumeClient : public FuseClient {
     CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                               struct fuse_file_info *fi) override;
 
+    void SetSpaceManagerForTesting(SpaceManager *manager);
+
+    void SetVolumeStorageForTesting(VolumeStorage *storage);
+
  private:
     CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
 
     void FlushData() override;
 
  private:
-    // space client
-    std::shared_ptr<SpaceClient> spaceClient_;
-
-    // extent manager
-    std::shared_ptr<ExtentManager> extManager_;
-
-    // curve client
     std::shared_ptr<BlockDeviceClient> blockDeviceClient_;
-
-    std::shared_ptr<SpaceBaseClient> spaceBase_;
+    std::unique_ptr<SpaceManager> spaceManager_;
+    std::unique_ptr<VolumeStorage> storage_;
 
     VolumeOption volOpts_;
 };

@@ -626,7 +626,6 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
     return MetaStatusCode::OK;
 }
 
-
 MetaStatusCode
 MetaServerClientImpl::UpdateInode(const Inode &inode,
                                   InodeOpenStatusChange statusChange) {
@@ -649,12 +648,12 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
         request.set_nlink(inode.nlink());
         request.set_inodeopenstatuschange(statusChange);
         *(request.mutable_parent()) = inode.parent();
-        if (inode.has_volumeextentlist()) {
-            curvefs::metaserver::VolumeExtentList *vlist =
-                new curvefs::metaserver::VolumeExtentList;
-            vlist->CopyFrom(inode.volumeextentlist());
-            request.set_allocated_volumeextentlist(vlist);
+
+        if (!inode.volumeextentmap().empty()) {
+            auto *exts = request.mutable_volumeextentmap();
+            *exts = inode.volumeextentmap();
         }
+
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.UpdateInode(cntl, &request, &response, nullptr);
 
@@ -765,11 +764,10 @@ void MetaServerClientImpl::UpdateInodeAsync(
         request.set_nlink(inode.nlink());
         request.set_inodeopenstatuschange(statusChange);
         *(request.mutable_parent()) = inode.parent();
-        if (inode.has_volumeextentlist()) {
-            curvefs::metaserver::VolumeExtentList *vlist =
-                new curvefs::metaserver::VolumeExtentList;
-            vlist->CopyFrom(inode.volumeextentlist());
-            request.set_allocated_volumeextentlist(vlist);
+
+        if (!inode.volumeextentmap().empty()) {
+            auto *exts = request.mutable_volumeextentmap();
+            *exts = inode.volumeextentmap();
         }
 
         auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone,

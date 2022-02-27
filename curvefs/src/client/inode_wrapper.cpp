@@ -136,6 +136,28 @@ class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
     std::shared_ptr<InodeWrapper> inodeWrapper_;
 };
 
+CURVEFS_ERROR InodeWrapper::SyncFullInode() {
+    std::lock_guard<std::mutex> lk(syncingXattrMtx_);
+    std::lock_guard<std::mutex> lk2(syncingVolumeExtentsMtx_);
+
+    if (!dirty_) {
+        return CURVEFS_ERROR::OK;
+    }
+
+    auto tmp = extentCache_.ToInodePb();
+    inode_.mutable_volumeextentmap()->swap(tmp);
+    VLOG(9) << "Update inode: " << inode_.ShortDebugString();
+    auto ret = metaClient_->UpdateInode(inode_);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "update inode failed, error: " << MetaStatusCode_Name(ret)
+                   << ", inodeid: " << inode_.inodeid();
+        return MetaStatusCodeToCurvefsErrCode(ret);
+    }
+
+    dirty_ = false;
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR InodeWrapper::SyncAttr() {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
     if (dirty_) {
@@ -173,6 +195,12 @@ CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo() {
 void InodeWrapper::FlushAttrAsync() {
     if (dirty_) {
         LockSyncingInode();
+
+        if (inode_.type() == FsFileType::TYPE_VOLUME) {
+            auto tmp = extentCache_.ToInodePb();
+            inode_.mutable_volumeextentmap()->swap(tmp);
+        }
+
         auto *done = new UpdateInodeAsyncDone(shared_from_this());
         metaClient_->UpdateInodeAsync(inode_, done);
         dirty_ = false;
@@ -288,6 +316,23 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
             }
         }
 
+        // TODO(all): Maybe we need separate unlink from UpdateInode, because
+        //            it's wired that we need to update extents when unlinking
+        //            inode.
+        //            Currently, the reason is when unlinking an inode,
+        //            we delete the inode from InodeCacheManager, so next time
+        //            read the inode again, InodeCacheManager will fetch inode
+        //            from metaserver. If we don't update extents here, read
+        //            will read nothing.
+        //            scenario: pjdtest/tests/unlink/14.t
+        //                      1. open a file with O_RDWR
+        //                      2. write "hello, world"
+        //                      3. unlink this file
+        //                      4. pread from 0 to 13, expected "hello, world"
+        auto extents = extentCache_.ToInodePb();
+        if (!extents.empty()) {
+            inode_.mutable_volumeextentmap()->swap(extents);
+        }
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
         VLOG(6) << "UnLinkInode, inodeid = " << inode_.inodeid()
                 << ", nlink = " << inode_.nlink();
@@ -388,6 +433,15 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
     }
     dirty_ = false;
     return CURVEFS_ERROR::OK;
+}
+
+void InodeWrapper::BuildExtentCache() {
+    if (inode_.type() != FsFileType::TYPE_VOLUME) {
+        return;
+    }
+
+    VLOG(9) << "Build extent for inode: " << inode_.ShortDebugString();
+    extentCache_.Build(inode_.volumeextentmap());
 }
 
 }  // namespace client

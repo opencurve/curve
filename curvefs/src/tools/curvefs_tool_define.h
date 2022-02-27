@@ -235,6 +235,12 @@ extern std::function<void(curve::common::Configuration*,
     SetVolumePassword;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
+    SetVolumeBlockSize;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeBitmapLocation;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
     SetS3_ak;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>

@@ -33,7 +33,7 @@ cc_library(
         "//curvefs/src/mds/idgenerator:fs_mds_idgenerator",
         "//curvefs/src/mds/metaserverclient:curvefs_mds_metaserverclient",
         "//curvefs/src/mds/metric:fs_mds_metric",
-        "//curvefs/src/mds/spaceclient:curvefs_mds_spaceclient",
+        "//curvefs/src/mds/space:curvefs_mds_space",
         "//curvefs/src/mds/topology:curvefs_topology",
         "//external:brpc",
         "//external:gflags",

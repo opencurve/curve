@@ -48,6 +48,7 @@ enum class CURVEFS_ERROR {
     MOUNT_FAILED = -14,
     OUT_OF_RANGE = -15,
     NODATA = -16,
+    IO_ERROR = -17,
 };
 
 

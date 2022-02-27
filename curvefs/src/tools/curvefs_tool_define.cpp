@@ -67,6 +67,14 @@ DEFINE_string(mds_addr, "127.0.0.1:6700",
               "mds ip and port, separated by \",\"");  // NOLINT
 DEFINE_string(cluster_map, "topo_example.json", "cluster topology map.");
 
+DEFINE_uint64(volumeBlockGroupSize,
+              128ULL * 1024 * 1024,
+              "volume block group size");
+
+DEFINE_string(volumeBitmapLocation,
+              "AtStart",
+              "volume space bitmap location, support |AtStart| and |AtEnd|");
+
 namespace curvefs {
 
 namespace tools {
@@ -159,6 +167,20 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetVolumePassword = std::bind(&SetFlagInfo<fLS::clstring>,
                                   std::placeholders::_1, std::placeholders::_2,
                                   "volumePassword", &FLAGS_volumePassword);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetVolumeBlockGroupSize = std::bind(&SetFlagInfo<uint64_t>,
+                                        std::placeholders::_1,
+                                        std::placeholders::_2,
+                                        "volumeBlockGroupSize",
+                                        &FLAGS_volumeBlockGroupSize);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetVolumeBitmapLocation = std::bind(&SetFlagInfo<fLS::clstring>,
+                                        std::placeholders::_1,
+                                        std::placeholders::_2,
+                                        "volumeBitmapLocation",
+                                        &FLAGS_volumeBitmapLocation);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetS3_ak = std::bind(&SetDiffFlagInfo<fLS::clstring>, std::placeholders::_1,

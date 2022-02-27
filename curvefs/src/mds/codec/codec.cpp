@@ -25,12 +25,18 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "src/common/encode.h"
+
 namespace curvefs {
 namespace mds {
 namespace codec {
 
 using ::curvefs::mds::COMMON_PREFIX_LENGTH;
 using ::curvefs::mds::FS_NAME_KEY_PREFIX;
+using ::curvefs::mds::BLOCKGROUP_KEY_PREFIX;
+using ::curvefs::mds::BLOCKGROUP_KEY_END;
+using ::curve::common::EncodeBigEndian;
+using ::curve::common::EncodeBigEndian_uint32;
 
 std::string EncodeFsName(const std::string& fsName) {
     std::string key;
@@ -39,6 +45,21 @@ std::string EncodeFsName(const std::string& fsName) {
 
     memcpy(&key[0], FS_NAME_KEY_PREFIX, COMMON_PREFIX_LENGTH);
     memcpy(&key[COMMON_PREFIX_LENGTH], fsName.data(), fsName.size());
+
+    return key;
+}
+
+std::string EncodeBlockGroupKey(uint32_t fsId, uint64_t offset) {
+    static const size_t size =
+        COMMON_PREFIX_LENGTH + sizeof(fsId) + sizeof(offset);
+
+    std::string key;
+    key.resize(size);
+
+    memcpy(&key[0], BLOCKGROUP_KEY_PREFIX, COMMON_PREFIX_LENGTH);
+
+    EncodeBigEndian_uint32(&key[COMMON_PREFIX_LENGTH], fsId);
+    EncodeBigEndian(&key[COMMON_PREFIX_LENGTH + sizeof(fsId)], offset);
 
     return key;
 }

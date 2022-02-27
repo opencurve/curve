@@ -41,6 +41,8 @@ namespace mds {
 using ::curve::election::LeaderElection;
 using ::curve::idgenerator::EtcdIdGenerator;
 using ::curve::kvstorage::EtcdClientImp;
+using ::curvefs::mds::space::SpaceManagerImpl;
+using ::curvefs::mds::space::SpaceServiceImpl;
 
 MDS::MDS()
     : conf_(),
@@ -48,7 +50,6 @@ MDS::MDS()
       running_(false),
       fsManager_(),
       fsStorage_(),
-      spaceClient_(),
       metaserverClient_(),
       topology_(),
       options_(),
@@ -65,16 +66,9 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
     conf_->GetValueFatalIfFail("mds.dummy.port", &options_.dummyPort);
 
-    InitSpaceOption(&options_.spaceOptions);
     InitMetaServerOption(&options_.metaserverOptions);
     InitTopologyOption(&options_.topologyOptions);
     InitScheduleOption(&options_.scheduleOption);
-}
-
-void MDS::InitSpaceOption(SpaceOptions* spaceOption) {
-    conf_->GetValueFatalIfFail("space.addr", &spaceOption->spaceAddr);
-    conf_->GetValueFatalIfFail("space.rpcTimeoutMs",
-                               &spaceOption->rpcTimeoutMs);
 }
 
 void MDS::InitMetaServerOption(MetaserverOptions* metaserverOption) {
@@ -149,7 +143,7 @@ void MDS::Init() {
     InitEtcdClient();
 
     fsStorage_ = std::make_shared<PersisKVStorage>(etcdClient_);
-    spaceClient_ = std::make_shared<SpaceClient>(options_.spaceOptions);
+    spaceManager_ = std::make_shared<SpaceManagerImpl>(etcdClient_);
     metaserverClient_ =
         std::make_shared<MetaserverClient>(options_.metaserverOptions);
 
@@ -163,9 +157,9 @@ void MDS::Init() {
     InitFsManagerOptions(&fsManagerOption);
 
     s3Adapter_ = std::make_shared<S3Adapter>();
-    fsManager_ =
-        std::make_shared<FsManager>(fsStorage_, spaceClient_, metaserverClient_,
-            topologyManager_, s3Adapter_, fsManagerOption);
+    fsManager_ = std::make_shared<FsManager>(
+        fsStorage_, spaceManager_, metaserverClient_, topologyManager_,
+        s3Adapter_, fsManagerOption);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);
@@ -245,6 +239,11 @@ void MDS::Run() {
     LOG_IF(FATAL, server.AddService(&topologyService,
                                     brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add topologyService error";
+
+    SpaceServiceImpl spaceService(spaceManager_.get());
+    LOG_IF(FATAL, server.AddService(&spaceService,
+                                    brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add space service error";
 
     // start rpc server
     brpc::ServerOptions option;

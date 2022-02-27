@@ -51,8 +51,8 @@ class RequestScheduler : public Uncopyable {
     RequestScheduler()
         : running_(false),
           stop_(true),
-          blockingQueue_(true),
-          client_() {}
+          client_(),
+          blockingQueue_(true) {}
     virtual ~RequestScheduler();
 
     /**

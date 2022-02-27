@@ -33,7 +33,6 @@
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
-#include "curvefs/src/client/block_device_client.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/dir_buffer.h"
@@ -50,7 +49,7 @@
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/lease/lease_excutor.h"
 
-#define DirectIOAlignemnt 512
+#define DirectIOAlignment 512
 
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
@@ -205,7 +204,7 @@ class FuseClient {
         return CURVEFS_ERROR::OK;
     }
 
-    void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
+    void SetFsInfo(const std::shared_ptr<FsInfo>& fsInfo) {
         fsInfo_ = fsInfo;
         init_ = true;
     }
@@ -299,6 +298,8 @@ class FuseClient {
     bool enableSumInDir_;
 
     std::shared_ptr<FSMetric> fsMetric_;
+
+    std::string mountpoint_;
 
  private:
     MDSBaseClient* mdsBase_;

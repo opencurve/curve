@@ -104,7 +104,7 @@ class LeaseExecutor : public LeaseExecutorBase {
      * 测试使用，主动失效增加刷新失败
      */
     void InvalidLease() {
-        for (int i = 0; i <= leaseoption_.mdsRefreshTimesPerLease; i++) {
+        for (uint32_t i = 0; i <= leaseoption_.mdsRefreshTimesPerLease; i++) {
             IncremRefreshFailed();
         }
     }

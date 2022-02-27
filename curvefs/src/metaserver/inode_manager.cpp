@@ -247,9 +247,9 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
         old->set_nlink(request.nlink());
     }
 
-    if (request.has_volumeextentlist()) {
-        VLOG(1) << "update inode has extent";
-        old->mutable_volumeextentlist()->CopyFrom(request.volumeextentlist());
+    // FIXME(wuhanqing): turncate
+    if (!request.volumeextentmap().empty()) {
+        *old->mutable_volumeextentmap() = request.volumeextentmap();
     }
 
     if (!request.xattr().empty()) {
