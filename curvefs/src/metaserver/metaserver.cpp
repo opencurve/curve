@@ -63,6 +63,7 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::LocalFileSystemOption;
 
 using ::curvefs::metaserver::copyset::ApplyQueueOption;
+using ::curvefs::metaserver::storage::GetStorageInstance;
 
 void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
@@ -440,6 +441,9 @@ void Metaserver::Stop() {
 
     S3CompactManager::GetInstance().Stop();
     LOG(INFO) << "MetaServer stopped success";
+
+    LOG_IF(ERROR, !GetStorageInstance()->Close())
+        << "Failed to close storage.";
 }
 
 void Metaserver::InitHeartbeatOptions() {
@@ -467,14 +471,35 @@ void Metaserver::InitHeartbeat() {
 }
 
 void Metaserver::InitStorage() {
-    LOG_IF(FATAL, !conf_->GetStringValue("storage.data_dir",
-                                         &storageOptions_.dataDir));
-    LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_memory_quota_bytes",
-                                         &storageOptions_.maxMemoryQuotaBytes));
+    LOG_IF(FATAL, !conf_->GetStringValue("storage.type",
+                                         &storageOptions_.Type));
+    LOG_IF(FATAL,
+        storageOptions_.Type != "memory" && storageOptions_.Type != "rocksdb")
+        << "Invalid storage type: " << storageOptions_.Type;
+    LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_memory_bytes",
+                                         &storageOptions_.MaxMemoryBytes));
     LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_disk_quota_bytes",
-                                         &storageOptions_.maxDiskQuotaBytes));
+                                         &storageOptions_.MaxDiskQuotaBytes));
+    LOG_IF(FATAL, !conf_->GetStringValue("storage.rocksdb.data_dir",
+                                         &storageOptions_.DataDir));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.unordered_write_buffer_size",
+        &storageOptions_.UnorderedWriteBufferSize));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.unordered_max_write_buffer_number",
+        &storageOptions_.UnorderedMaxWriteBufferNumber));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.ordered_write_buffer_size",
+        &storageOptions_.OrderedWriteBufferSize));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.ordered_max_write_buffer_number",
+        &storageOptions_.OrderedMaxWriteBufferNumber));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.block_cache_capacity",
+        &storageOptions_.BlockCacheCapacity));
 
-    ::curvefs::metaserver::storage::InitStorage(storageOptions_);
+    bool succ = ::curvefs::metaserver::storage::InitStorage(storageOptions_);
+    LOG_IF(FATAL, !succ) << "Init storage failed";
 }
 
 void Metaserver::InitCopysetNodeManager() {

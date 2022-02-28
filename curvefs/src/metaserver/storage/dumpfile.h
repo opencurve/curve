@@ -20,14 +20,14 @@
  * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_METASERVER_DUMPFILE_H_
-#define CURVEFS_SRC_METASERVER_DUMPFILE_H_
+#ifndef CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
+#define CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
 
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "curvefs/src/metaserver/iterator.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
 
 namespace curve {
 namespace fs {
@@ -40,6 +40,7 @@ class Ext4FileSystemImpl;
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::Ext4FileSystemImpl;
@@ -149,6 +150,7 @@ class DumpFile {
 
  private:
     friend class DumpFileIterator;
+    friend class DumpFileTest;
 
  private:
     std::string pathname_;
@@ -208,7 +210,8 @@ class DumpFileIterator : public Iterator {
     DumpFile* dumpfile_;
 };
 
+}  // namespace storage
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_DUMPFILE_H_
+#endif  // CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_

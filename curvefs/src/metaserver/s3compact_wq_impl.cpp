@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 
@@ -456,11 +457,23 @@ bool S3CompactWorkQueueImpl::CompactPrecheck(
         return false;
     }
 
-    // s3chunkinfomap size 0?
-    if (inode->s3chunkinfomap().size() == 0) {
-        VLOG(6) << "s3compact: empty s3chunkinfomap";
-        return false;
+    // pandding s3chunkinfomap for inode
+    {
+        if (inode->s3chunkinfomap().size() != 0) {
+            LOG(ERROR) << "Inode s3chunkinfo is not empty"
+            return false;
+        }
+
+        auto inodeManager = task.inodeManager;
+        auto inodeKey = task.inodeKey
+        MetaStatusCode rc = inodeManager->PaddingInodeS3ChunkInfo(
+            inodeKey.fsId, inodeKey.inodeId, inode);
+        if (rc != MetaStatusCode::OK) {
+            LOG(ERROR) << "Padding inode s3chunkinfo failed"
+            return false;
+        }
     }
+
     // need compact?
     *needCompact = GetNeedCompact(inode->s3chunkinfomap());
     if (needCompact->empty()) {

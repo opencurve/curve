@@ -30,10 +30,18 @@ namespace metaserver {
 namespace storage {
 
 struct StorageOptions {
-    std::string dataDir;
-    uint64_t maxMemoryQuotaBytes;
-    uint64_t maxDiskQuotaBytes;
+    std::string Type;
+    uint64_t MaxMemoryBytes;
+    uint64_t MaxDiskQuotaBytes;
+    std::string DataDir;
+    uint64_t UnorderedWriteBufferSize;
+    uint64_t UnorderedMaxWriteBufferNumber;
+    uint64_t OrderedWriteBufferSize;
+    uint64_t OrderedMaxWriteBufferNumber;
+    uint64_t BlockCacheCapacity;
 };
+
+// TODO(@Wine93): support default value
 
 }  // namespace storage
 }  // namespace metaserver

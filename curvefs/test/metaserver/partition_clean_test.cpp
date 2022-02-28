@@ -27,6 +27,8 @@
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
 
 using ::curvefs::mds::FSStatusCode;
 using ::curvefs::client::rpcclient::MockMdsClient;
@@ -35,12 +37,23 @@ using ::testing::Invoke;
 using ::testing::Matcher;
 using ::testing::Return;
 
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+
 namespace curvefs {
 namespace metaserver {
 class PartitionCleanManagerTest : public testing::Test {
  protected:
-    void SetUp() override {}
+    void SetUp() override {
+        StorageOptions options;
+        kvStorage_ = std::make_shared<MemoryStorage>(options);
+    }
+
+ protected:
+    std::shared_ptr<KVStorage> kvStorage_;
 };
+
 TEST_F(PartitionCleanManagerTest, test1) {
     ASSERT_TRUE(true);
     PartitionCleanManager* manager = &PartitionCleanManager::GetInstance();
@@ -64,10 +77,13 @@ TEST_F(PartitionCleanManagerTest, test1) {
     partitionInfo.set_start(0);
     partitionInfo.set_end(100);
     std::shared_ptr<Partition> partition =
-                std::make_shared<Partition>(partitionInfo);
+                std::make_shared<Partition>(partitionInfo, kvStorage_);
     Dentry dentry;
     dentry.set_fsid(fsId);
     dentry.set_parentinodeid(0);
+    dentry.set_name("/");
+    dentry.set_inodeid(100);
+    dentry.set_txid(0);
     ASSERT_EQ(partition->CreateDentry(dentry, true), MetaStatusCode::OK);
 
     ASSERT_EQ(partition->CreateRootInode(fsId, 0, 0, 0), MetaStatusCode::OK);

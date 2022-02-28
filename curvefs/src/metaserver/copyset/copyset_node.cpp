@@ -35,6 +35,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/utility/utility.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/meta_operator_closure.h"
 #include "curvefs/src/metaserver/copyset/metric.h"
@@ -54,6 +55,7 @@ namespace copyset {
 
 using ::curve::common::TimeUtility;
 using ::curve::common::UriParser;
+using ::curvefs::metaserver::storage::GetStorageInstance;
 
 const char* kConfEpochFilename = "conf.epoch";
 const char* kMetaDataFilename = "metadata";
@@ -108,7 +110,7 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
     }
 
     // create metastore
-    metaStore_ = absl::make_unique<MetaStoreImpl>(this);
+    metaStore_ = absl::make_unique<MetaStoreImpl>(this, GetStorageInstance());
 
     InitRaftNodeOptions();
 

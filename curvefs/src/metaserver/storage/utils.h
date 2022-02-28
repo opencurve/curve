@@ -24,10 +24,22 @@
 #define CURVEFS_SRC_METASERVER_STORAGE_UTILS_H_
 
 #include <string>
+#include <memory>
+#include <functional>
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
+
+inline size_t Hash(const std::string& key) {
+    return std::hash<std::string>{}(key);
+}
+
+std::string EncodeNumber(size_t num);
+
+inline size_t DecodeNumber(std::string str) {
+    return *reinterpret_cast<const size_t*>(str.c_str());
+}
 
 bool GetFileSystemSpaces(const std::string& path,
                          uint64_t* capacity,

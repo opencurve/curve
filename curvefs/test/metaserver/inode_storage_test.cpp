@@ -25,6 +25,9 @@
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/common/define.h"
 
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
+
 using ::testing::AtLeast;
 using ::testing::StrEq;
 using ::testing::_;
@@ -34,11 +37,18 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+
 namespace curvefs {
 namespace metaserver {
 class InodeStorageTest : public ::testing::Test {
  protected:
-    void SetUp() override { return; }
+    void SetUp() override {
+        tablename_ = "partition:1";
+        kvStorage_ = std::make_shared<MemoryStorage>(options_);
+    }
 
     void TearDown() override { return; }
 
@@ -47,22 +57,37 @@ class InodeStorageTest : public ::testing::Test {
                first.atime() == second.atime() &&
                first.inodeid() == second.inodeid();
     }
+
+    Inode GenInode(uint32_t fsId, uint64_t inodeId) {
+        Inode inode;
+        inode.set_fsid(fsId);
+        inode.set_inodeid(inodeId);
+        inode.set_length(4096);
+        inode.set_ctime(0);
+        inode.set_ctime_ns(0);
+        inode.set_mtime(0);
+        inode.set_mtime_ns(0);
+        inode.set_atime(0);
+        inode.set_atime_ns(0);
+        inode.set_uid(0);
+        inode.set_gid(0);
+        inode.set_mode(0);
+        inode.set_nlink(0);
+        inode.set_type(FsFileType::TYPE_FILE);
+        return inode;
+    }
+
+ protected:
+    std::string tablename_;
+    StorageOptions options_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(InodeStorageTest, test1) {
-    MemoryInodeStorage storage;
-    Inode inode1;
-    Inode inode2;
-    Inode inode3;
-    inode1.set_inodeid(1);
-    inode1.set_fsid(1);
-    inode1.set_atime(100);
-    inode2.set_inodeid(1);
-    inode2.set_fsid(2);
-    inode2.set_atime(200);
-    inode3.set_inodeid(2);
-    inode3.set_fsid(1);
-    inode3.set_atime(300);
+    InodeStorage storage(kvStorage_, tablename_);
+    Inode inode1 = GenInode(1, 1);
+    Inode inode2 = GenInode(2, 2);
+    Inode inode3 = GenInode(3, 3);
 
     // insert
     ASSERT_EQ(storage.Insert(inode1), MetaStatusCode::OK);
@@ -71,40 +96,35 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_EQ(storage.Insert(inode1), MetaStatusCode::INODE_EXIST);
     ASSERT_EQ(storage.Insert(inode2), MetaStatusCode::INODE_EXIST);
     ASSERT_EQ(storage.Insert(inode3), MetaStatusCode::INODE_EXIST);
-    ASSERT_EQ(storage.Count(), 3);
+    ASSERT_EQ(storage.Size(), 3);
 
     // get
     Inode temp;
-    ASSERT_EQ(storage.GetCopy(InodeKey(inode1), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(InodeKey(inode1), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode1, temp));
-    ASSERT_EQ(storage.GetCopy(InodeKey(inode2), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(InodeKey(inode2), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode2, temp));
-    ASSERT_EQ(storage.GetCopy(InodeKey(inode3), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(InodeKey(inode3), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode3, temp));
 
     // delete
     ASSERT_EQ(storage.Delete(InodeKey(inode1)), MetaStatusCode::OK);
-    ASSERT_EQ(storage.Count(), 2);
-    ASSERT_EQ(storage.GetCopy(InodeKey(inode1), &temp),
+    ASSERT_EQ(storage.Size(), 2);
+    ASSERT_EQ(storage.Get(InodeKey(inode1), &temp),
         MetaStatusCode::NOT_FOUND);
     ASSERT_EQ(storage.Delete(InodeKey(inode1)), MetaStatusCode::NOT_FOUND);
 
     // update
     ASSERT_EQ(storage.Update(inode1), MetaStatusCode::NOT_FOUND);
     Inode oldInode;
-    ASSERT_EQ(storage.GetCopy(InodeKey(inode2), &oldInode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(InodeKey(inode2), &oldInode), MetaStatusCode::OK);
     inode2.set_atime(400);
     ASSERT_EQ(storage.Update(inode2), MetaStatusCode::OK);
     Inode newInode;
-    ASSERT_EQ(storage.GetCopy(InodeKey(inode2), &newInode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(InodeKey(inode2), &newInode), MetaStatusCode::OK);
     ASSERT_FALSE(CompareInode(oldInode, newInode));
     ASSERT_FALSE(CompareInode(oldInode, inode2));
     ASSERT_TRUE(CompareInode(newInode, inode2));
-
-    // GetInodeContainer
-    auto mapPtr = storage.GetContainer();
-    ASSERT_TRUE(CompareInode(*((*mapPtr)[InodeKey(inode2)]), inode2));
-    ASSERT_TRUE(CompareInode(*((*mapPtr)[InodeKey(inode3)]), inode3));
 
     // GetInodeIdList
     std::list<uint64_t> inodeIdList;
@@ -113,7 +133,7 @@ TEST_F(InodeStorageTest, test1) {
 }
 
 TEST_F(InodeStorageTest, testGetAttrNotFound) {
-    MemoryInodeStorage storage;
+    InodeStorage storage(kvStorage_, tablename_);
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -137,7 +157,7 @@ TEST_F(InodeStorageTest, testGetAttrNotFound) {
 }
 
 TEST_F(InodeStorageTest, testGetAttr) {
-    MemoryInodeStorage storage;
+    InodeStorage storage(kvStorage_, tablename_);
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -164,10 +184,21 @@ TEST_F(InodeStorageTest, testGetAttr) {
 }
 
 TEST_F(InodeStorageTest, testGetXAttr) {
-    MemoryInodeStorage storage;
+    InodeStorage storage(kvStorage_, tablename_);
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
+    inode.set_length(1);
+    inode.set_ctime(100);
+    inode.set_ctime_ns(100);
+    inode.set_mtime(100);
+    inode.set_mtime_ns(100);
+    inode.set_atime(100);
+    inode.set_atime_ns(100);
+    inode.set_uid(0);
+    inode.set_gid(0);
+    inode.set_mode(777);
+    inode.set_nlink(2);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
     inode.mutable_xattr()->insert({XATTRFILES, "1"});
     inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});

@@ -29,11 +29,12 @@
 #include <unordered_map>
 
 #include "curvefs/src/common/process.h"
-#include "curvefs/src/metaserver/iterator.h"
-#include "curvefs/src/metaserver/dumpfile.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/dumpfile.h"
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
 using Hash = std::unordered_map<std::string, std::string>;
 
@@ -105,6 +106,14 @@ class DumpFileTest : public ::testing::Test {
         }
     }
 
+    bool CloseSockets() {
+        return dumpfile_->CloseSockets() == DUMPFILE_ERROR::OK;
+    }
+
+    bool InitSignals() {
+        return dumpfile_->InitSignals() == DUMPFILE_ERROR::OK;
+    }
+
  protected:
     std::string dirname_;
     std::shared_ptr<DumpFile> dumpfile_;
@@ -168,50 +177,6 @@ TEST_F(DumpFileTest, TestSaveInTherad) {
     ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
 }
 
-// TEST_F(DumpFileTest, TestSaveWithSet) {
-//     Hash hash;
-//     auto hashIterator = std::make_shared<HashIterator>(&hash);
-
-//     volatile bool running = true;
-
-//     auto pushThread = std::thread([&](){
-//         int i = 0;
-//         while (running) {
-//             auto key = std::to_string(++i);
-//             hash.emplace(key, key);
-//         }
-//     });
-
-//     std::this_thread::sleep_for(std::chrono::seconds(3));
-
-//     auto saveThread = std::thread([&](){
-//         ASSERT_EQ(dumpfile_->SaveBackground(hashIterator), DUMPFILE_ERROR::OK);  // NOLINT
-//     });
-
-//     std::this_thread::sleep_for(std::chrono::seconds(1));
-
-//     running = false;
-//     pushThread.join();
-//     saveThread.join();
-
-//     // Check the dump file
-//     std::set<int> set;
-//     auto iter = dumpfile_->Load();
-//     for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
-//         ASSERT_EQ(iter->Key(), iter->Value());
-//         set.insert(std::stoi(iter->Key()));
-//     }
-//     ASSERT_GE(set.size(), 0);
-//     ASSERT_LE(set.size(), hash.size());
-//     ASSERT_EQ(set.size(), iter->Size());
-
-//     int last = 0;
-//     for (auto& i : set) {
-//         ASSERT_EQ(i, last + 1);
-//         last = i;
-//     }
-// }
-
 TEST_F(DumpFileTest, TestSaveBigData) {
     Hash hash;
     auto hashIterator = std::make_shared<HashIterator>(&hash);
@@ -252,10 +217,11 @@ TEST_F(DumpFileTest, TestLoadLargeValue) {
     ASSERT_EQ(dumpfile_->GetLoadStatus(), DUMPFILE_LOAD_STATUS::INVALID_PAIRS);
 }
 
-TEST_F(DumpFileTest, TestFileNotOpen) {
+TEST_F(DumpFileTest, MiscTest) {
     Hash hash;
     auto hashIterator = std::make_shared<HashIterator>(&hash);
 
+    // CASE 1: file not opened
     auto dumpfile = DumpFile(".dumpfile/curvefs.dump");
     ASSERT_EQ(dumpfile.Save(hashIterator), DUMPFILE_ERROR::BAD_FD);
     ASSERT_EQ(dumpfile.SaveBackground(hashIterator), DUMPFILE_ERROR::BAD_FD);
@@ -267,15 +233,12 @@ TEST_F(DumpFileTest, TestFileNotOpen) {
     dumpfile = DumpFile(".dumpfile/curvefs.dump");
     ASSERT_EQ(dumpfile.Open(), DUMPFILE_ERROR::OK);
     ASSERT_EQ(dumpfile.Open(), DUMPFILE_ERROR::OK);
+
+    // CASE 2: some child process handler, we should gurantee invoke success
+    ASSERT_TRUE(CloseSockets());
+    ASSERT_TRUE(InitSignals());
 }
 
-};  // namespace metaserver
-};  // namespace curvefs
-
-int main(int argc, char* argv[]) {
-    testing::InitGoogleTest(&argc, argv);
-
-    ::curvefs::common::Process::InitSetProcTitle(argc, argv);
-
-    return RUN_ALL_TESTS();
-}
+}  // namespace storage
+}  // namespace metaserver
+}  // namespace curvefs

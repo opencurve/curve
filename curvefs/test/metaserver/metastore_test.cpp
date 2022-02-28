@@ -26,6 +26,8 @@
 #include <condition_variable>  // NOLINT
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -38,10 +40,17 @@ using ::testing::StrEq;
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+
 class MetastoreTest : public ::testing::Test {
  protected:
     void SetUp() override {
         test_path_ = "./metastore_test.dat";
+        StorageOptions options;
+        kvStorage_ = std::make_shared<MemoryStorage>(options);
     }
 
     void TearDown() override {
@@ -139,11 +148,13 @@ class MetastoreTest : public ::testing::Test {
         std::condition_variable condition_;
     };
 
+ protected:
     std::string test_path_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(MetastoreTest, partition) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
     PartitionInfo partitionInfo;
@@ -238,7 +249,7 @@ TEST_F(MetastoreTest, partition) {
 }
 
 TEST_F(MetastoreTest, test_inode) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -472,7 +483,7 @@ TEST_F(MetastoreTest, test_inode) {
 }
 
 TEST_F(MetastoreTest, test_dentry) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -540,6 +551,7 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry1.set_inodeid(inodeId);
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name(name);
+    dentry1.set_txid(0);
 
     createRequest.set_poolid(poolId);
     createRequest.set_copysetid(copysetId);
@@ -550,6 +562,7 @@ TEST_F(MetastoreTest, test_dentry) {
     ret = metastore.CreateDentry(&createRequest, &createResponse);
     ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::PARTITION_NOT_FOUND);
     ASSERT_EQ(createResponse.statuscode(), ret);
+
 
     createRequest.set_partitionid(partitionId);
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -565,6 +578,7 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry2.set_inodeid(inodeId + 1);
     dentry2.set_parentinodeid(parentId);
     dentry2.set_name("dentry2");
+    dentry2.set_txid(0);
     createRequest.mutable_dentry()->CopyFrom(dentry2);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -576,6 +590,7 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry3.set_inodeid(inodeId + 2);
     dentry3.set_parentinodeid(parentId);
     dentry3.set_name("dentry3");
+    dentry3.set_txid(0);
     createRequest.mutable_dentry()->CopyFrom(dentry3);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -630,9 +645,10 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.statuscode(), ret);
     ASSERT_EQ(listResponse.dentrys_size(), 3);
+
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry1));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry2));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry3));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry2));
 
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
@@ -644,8 +660,8 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.dentrys_size(), 2);
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry2));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry3));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry2));
 
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
@@ -697,7 +713,7 @@ TEST_F(MetastoreTest, test_dentry) {
 }
 
 TEST_F(MetastoreTest, persist_success) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -811,7 +827,7 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(nullptr);
+    MetaStoreImpl metastoreNew(nullptr, kvStorage_);
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load(test_path_));
 
@@ -835,7 +851,7 @@ TEST_F(MetastoreTest, persist_success) {
 }
 
 TEST_F(MetastoreTest, persist_deleting_partition_success) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -963,7 +979,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(nullptr);
+    MetaStoreImpl metastoreNew(nullptr, kvStorage_);
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load(test_path_));
 
@@ -987,7 +1003,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
 }
 
 TEST_F(MetastoreTest, persist_partition_fail) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1011,7 +1027,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 }
 
 TEST_F(MetastoreTest, persist_dentry_fail) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
 
     // create partition1
@@ -1068,6 +1084,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     dentry1.set_inodeid(2000);
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name("dentry1");
+    dentry1.set_txid(0);
 
     createDentryRequest.set_poolid(2);
     createDentryRequest.set_copysetid(3);
@@ -1093,7 +1110,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
 }
 
 TEST_F(MetastoreTest, testBatchGetInodeAttr) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
 
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1166,7 +1183,7 @@ TEST_F(MetastoreTest, testBatchGetInodeAttr) {
 }
 
 TEST_F(MetastoreTest, testBatchGetXAttr) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
 
     // create partition1
     CreatePartitionRequest createPartitionRequest;

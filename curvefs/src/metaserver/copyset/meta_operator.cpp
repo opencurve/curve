@@ -157,7 +157,6 @@ OPERATOR_ON_APPLY(BatchGetInodeAttr);
 OPERATOR_ON_APPLY(BatchGetXAttr);
 OPERATOR_ON_APPLY(CreateInode);
 OPERATOR_ON_APPLY(UpdateInode);
-OPERATOR_ON_APPLY(GetOrModifyS3ChunkInfo);
 OPERATOR_ON_APPLY(DeleteInode);
 OPERATOR_ON_APPLY(CreateRootInode);
 OPERATOR_ON_APPLY(CreatePartition);
@@ -181,7 +180,6 @@ OPERATOR_ON_APPLY_FROM_LOG(CreateDentry);
 OPERATOR_ON_APPLY_FROM_LOG(DeleteDentry);
 OPERATOR_ON_APPLY_FROM_LOG(CreateInode);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateInode);
-OPERATOR_ON_APPLY_FROM_LOG(GetOrModifyS3ChunkInfo);
 OPERATOR_ON_APPLY_FROM_LOG(DeleteInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreateRootInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreatePartition);
@@ -306,6 +304,45 @@ OPERATOR_TYPE(CreatePartition);
 OPERATOR_TYPE(DeletePartition);
 
 #undef OPERATOR_TYPE
+
+// NOTE:
+ GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
+                                         google::protobuf::Closure* done,
+                                         uint64_t startTimeUs) {
+    brpc::ClosureGuard doneGuard(done);
+    auto status = node_->GetMetaStore()->TYPE(
+        cntl_
+        static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_),
+        static_cast<GetOrModifyS3ChunkInfoResponse*>(response_),
+        done_,
+        false);
+    if (status == MetaStatusCode::OK) {
+        node_->UpdateAppliedIndex(index);
+        static_cast<GetOrModifyS3ChunkInfoResponse*>(response_)->set_appliedindex(
+            std::max<uint64_t>(index, node_->GetAppliedIndex()));
+        node_->GetMetric()->OnOperatorComplete(
+            OperatorType::GetOrModifyS3ChunkInfo,
+            TimeUtility::GetTimeofDayUs() - startTimeUs, true);
+    } else {
+        node_->GetMetric()->OnOperatorComplete(
+            OperatorType::GetOrModifyS3ChunkInfo,
+            TimeUtility::GetTimeofDayUs() - startTimeUs, false);
+    }
+}
+
+void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
+    std::unique_ptr<GetOrModifyS3ChunkInfoOperator> selfGuard(this);
+    GetOrModifyS3ChunkInfoResponse response;
+    auto status = node_->GetMetaStore()->GetOrModifyS3ChunkInfo(
+        cntl_,
+        static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_),
+        &response,
+        done_,
+        true);
+    node_->GetMetric()->OnOperatorComplete(
+        OperatorType::TYPE, TimeUtility::GetTimeofDayUs() - startTimeUs,
+        status == MetaStatusCode::OK);
+}
 
 }  // namespace copyset
 }  // namespace metaserver

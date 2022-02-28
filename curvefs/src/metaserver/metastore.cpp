@@ -27,107 +27,34 @@
 #include <utility>
 #include <vector>
 #include "curvefs/src/metaserver/partition_clean_manager.h"
-#include "curvefs/src/metaserver/storage.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/storage_fstream.h"
 
 namespace curvefs {
 namespace metaserver {
 
-// NOTE: if we use set we need define hash function, it's complicate
-using PartitionContainerType = std::unordered_map<uint32_t, PartitionInfo>;
-using InodeContainerType = InodeStorage::ContainerType;
-using DentryContainerType = DentryStorage::ContainerType;
-using PendingTxContainerType = std::unordered_map<int, PrepareRenameTxRequest>;
+using ::curvefs::metaserver::storage::IteratorWrapper;
+using ::curvefs::metaserver::storage::ContainerIterator;
+using ::curvefs::metaserver::storage::MergeIterator;
+using ::curvefs::metaserver::storage::ENTRY_TYPE;
+using ::curvefs::metaserver::storage::SaveToFile;
+using ::curvefs::metaserver::storage::LoadFromFile;
 
-using PartitionIteratorType = MapContainerIterator<PartitionContainerType>;
-using InodeIteratorType = MapContainerIterator<InodeContainerType>;
-using DentryIteratorType = SetContainerIterator<DentryContainerType>;
-using PendingTxIteratorType = MapContainerIterator<PendingTxContainerType>;
+using ContainerType = std::unordered_map<std::string, std::string>;
+using KVStorage = ::curvefs::metaserver::storage::KVStorage;
+using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
+using Key4ChunkInfoList = ::curvefs::metaserver::KeyGenerator::Key4ChunkInfoList;
 
-MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode* node) : copysetNode_(node) {}
-
-bool MetaStoreImpl::LoadPartition(uint32_t partitionId, void* entry) {
-    auto partitionInfo = reinterpret_cast<PartitionInfo*>(entry);
-    partitionId = partitionInfo->partitionid();
-    auto partition = std::make_shared<Partition>(*partitionInfo);
-    partitionMap_.emplace(partitionId, partition);
-    return true;
-}
-
-bool MetaStoreImpl::LoadInode(uint32_t partitionId, void* entry) {
-    auto partition = GetPartition(partitionId);
-    if (nullptr == partition) {
-        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
-        return false;
-    }
-
-    auto inode = reinterpret_cast<Inode*>(entry);
-    MetaStatusCode rc = partition->InsertInode(*inode);
-    if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "InsertInode failed, retCode = "
-                   << MetaStatusCode_Name(rc);
-        return false;
-    }
-    return true;
-}
-
-bool MetaStoreImpl::LoadDentry(uint32_t partitionId, void* entry) {
-    auto partition = GetPartition(partitionId);
-    if (nullptr == partition) {
-        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
-        return false;
-    }
-
-    auto dentry = reinterpret_cast<Dentry*>(entry);
-    MetaStatusCode rc = partition->CreateDentry(*dentry, true);
-    if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateDentry failed, retCode = "
-                   << MetaStatusCode_Name(rc);
-        return false;
-    }
-    return true;
-}
-
-bool MetaStoreImpl::LoadPendingTx(uint32_t partitionId, void* entry) {
-    auto partition = GetPartition(partitionId);
-    if (nullptr == partition) {
-        LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
-        return false;
-    }
-
-    auto pendingTx = reinterpret_cast<PrepareRenameTxRequest*>(entry);
-    auto rc = partition->InsertPendingTx(*pendingTx);
-    if (!rc) {
-        LOG(ERROR) << "InsertPendingTx failed, retCode " << rc;
-        return false;
-    }
-    return true;
-}
+MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode* node,
+                             std::shared_ptr<KVStorage> kvStorage)
+    : copysetNode_(node), kvStorage_(kvStorage) {}
 
 bool MetaStoreImpl::Load(const std::string& pathname) {
-    auto callback = [&](ENTRY_TYPE entryType, uint32_t paritionId,
-                        void* entry) -> bool {
-        switch (entryType) {
-            case ENTRY_TYPE::PARTITION:
-                return LoadPartition(paritionId, entry);
-            case ENTRY_TYPE::INODE:
-                return LoadInode(paritionId, entry);
-            case ENTRY_TYPE::DENTRY:
-                return LoadDentry(paritionId, entry);
-            case ENTRY_TYPE::PENDING_TX:
-                return LoadPendingTx(paritionId, entry);
-            case ENTRY_TYPE::UNKNOWN:
-            default:
-                break;
-        }
-
-        LOG(ERROR) << "Load failed, unknown entry type";
-        return false;
-    };
-
     // Load from raft snap file to memory
     WriteLockGuard writeLockGuard(rwLock_);
-    auto succ = LoadFromFile(pathname, callback);
+    MetaStoreFStream fstream(partitionMap_, kvStorage_);
+    auto succ = fstream.Load(pathname);
     if (!succ) {
         partitionMap_.clear();
         LOG(ERROR) << "Load metadata failed.";
@@ -146,85 +73,18 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
     return succ;
 }
 
-std::shared_ptr<Iterator> MetaStoreImpl::NewPartitionIterator() {
-    auto container = std::make_shared<PartitionContainerType>();
-    for (const auto& item : partitionMap_) {
-        auto partitionId = item.first;
-        auto partition = item.second;
-        container->emplace(partitionId, partition->GetPartitionInfo());
-    }
-
-    auto iterator = std::make_shared<PartitionIteratorType>(
-        ENTRY_TYPE::PARTITION, 0, container);
-    return iterator;
-}
-
-std::shared_ptr<Iterator> MetaStoreImpl::NewInodeIterator(
-    std::shared_ptr<Partition> partition) {
-    auto partitionId = partition->GetPartitionId();
-    auto cntr = partition->GetInodeContainer();
-    auto container = std::shared_ptr<InodeContainerType>(
-        cntr, [](InodeContainerType*) {});  // don't release storage
-    auto iterator = std::make_shared<InodeIteratorType>(ENTRY_TYPE::INODE,
-                                                        partitionId, container);
-    return iterator;
-}
-
-std::shared_ptr<Iterator> MetaStoreImpl::NewDentryIterator(
-    std::shared_ptr<Partition> partition) {
-    auto partitionId = partition->GetPartitionId();
-    auto cntr = partition->GetDentryContainer();
-    auto container = std::shared_ptr<DentryContainerType>(
-        cntr, [](DentryContainerType*) {});  // don't release storage
-    auto iterator = std::make_shared<DentryIteratorType>(
-        ENTRY_TYPE::DENTRY, partitionId, container);
-    return iterator;
-}
-
-std::shared_ptr<Iterator> MetaStoreImpl::NewPendingTxIterator(
-    std::shared_ptr<Partition> partition) {
-    PrepareRenameTxRequest pendingTx;
-    auto container = std::make_shared<PendingTxContainerType>();
-    if (partition->FindPendingTx(&pendingTx)) {
-        container->emplace(0, pendingTx);
-    }
-
-    auto partitionId = partition->GetPartitionId();
-    auto iterator = std::make_shared<PendingTxIteratorType>(
-        ENTRY_TYPE::PENDING_TX, partitionId, container);
-    return iterator;
-}
-
 void MetaStoreImpl::SaveBackground(const std::string& path,
                                    OnSnapshotSaveDoneClosure* done) {
     LOG(INFO) << "Save metadata to file background.";
-
-    std::vector<std::shared_ptr<Iterator>> children;
-    auto iterator = NewPartitionIterator();  // partition
-    children.push_back(iterator);
-
-    for (const auto& item : partitionMap_) {
-        auto partition = item.second;
-
-        iterator = NewInodeIterator(partition);  // inode
-        children.push_back(iterator);
-
-        iterator = NewDentryIterator(partition);  // dentry
-        children.push_back(iterator);
-
-        iterator = NewPendingTxIterator(partition);  // pending tx
-        children.push_back(iterator);
-    }
-
-    auto mergeIterator = std::make_shared<MergeIterator>(children);
-    bool succ = SaveToFile(path, mergeIterator);
+    MetaStoreFStream fstream(partitionMap_, kvStorage_);
+    bool succ = fstream.Save(path);
     LOG(INFO) << "Save metadata to file " << (succ ? "success" : "fail");
+
     if (succ) {
         done->SetSuccess();
     } else {
         done->SetError(MetaStatusCode::SAVE_META_FAIL);
     }
-
     done->Run();
 }
 
@@ -262,7 +122,7 @@ MetaStatusCode MetaStoreImpl::CreatePartition(
     }
 
     partitionMap_.emplace(partition.partitionid(),
-                          std::make_shared<Partition>(partition));
+                          std::make_shared<Partition>(partition, kvStorage_));
     response->set_statuscode(MetaStatusCode::OK);
     return MetaStatusCode::OK;
 }
@@ -629,24 +489,96 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
     return status;
 }
 
+MetaStatusCode MetaStoreImpl::SendS3ChunkInfoByStream(
+    google::protobuf::RpcController* controller,
+    std::shared_ptr<Iterator> iterator) {
+    brpc::StreamId streamId;
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    if (brpc::StreamAccept(&streamId, *cntl, nullptr) != 0) {
+        cntl->SetFailed("Fail to accept stream");
+        return MetaStatusCode::BRPC_STREAM_ERROR;
+    }
+
+    auto defer = absl::MakeCleanup([&]() {
+        if (brpc::StreamClose(streamId) != 0) {
+            LOG(ERROR) << "Close brpc stream failed";
+        }
+    });
+
+    auto WriteBuffer = [](const brpc::StreamId& streamId,
+                          const butil::IOBuf& buffer) {
+        for (int i = 0; i < 2; i++) {
+            int rc = brpc::StreamWrite(streamId, buffer);
+            if (rc == brpc::EAGAIN) {
+                rc = StreamWait(streamId, butil::milliseconds_from_now(100));
+                if (rc == 0) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            break;
+        }
+        return rc == 0;
+    };
+
+    KeyGenerator keyGenerator;
+    Key4S3ChunkInfoList key4S3ChunkInfoList;
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        std::string key = iterator->Key();
+        std::string value = iterator->Value();
+        if (!keyGenerator.ParseFromString(key, &key4S3ChunkInfoList)) {
+            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+        }
+
+        butil::IOBuf buffer;
+        uint64_t chunkIndex = key4S3ChunkInfoList.chunkIndex;
+        buffer.append(std::to_string(chunkIndex));
+        buffer.append(":");
+        buffer.append(value);
+        if (WriteBuffer(streamId, buffer) != 0) {
+            return MetaStatusCode::BRPC_STREAM_ERROR;
+        }
+    }
+
+    // ending buffer
+    butil::IOBuf buffer("\0");
+    return WriteBuffer(streamId, buffer);
+}
+
 MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
+    google::protobuf::RpcController* controller,
     const GetOrModifyS3ChunkInfoRequest* request,
-    GetOrModifyS3ChunkInfoResponse* response) {
+    GetOrModifyS3ChunkInfoResponse* response,
+    google::protobuf::Closure* done,
+    bool fromRaftLog) {
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
     ReadLockGuard readLockGuard(rwLock_);
-    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
-    if (partition == nullptr) {
-        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
-        response->set_statuscode(status);
-        return status;
+
+    MetaStatusCode rc;
+    std::shared_ptr<Iterator> iterator;
+    {
+        brpc::ClosureGuard doneGuard(done);
+        auto partition = GetPartition(request->partitionid());
+        if (partition == nullptr) {
+            rc = MetaStatusCode::PARTITION_NOT_FOUND;
+            response->set_statuscode(rc);
+            return rc;
+        }
+
+        rc = partition->GetOrModifyS3ChunkInfo(fsId,
+                                               inodeId,
+                                               request->s3chunkinfoadd(),
+                                               &iterator,
+                                               request->returns3chunkinfomap(),
+                                               request->froms3compaction());
+        if (rc != MetaStatusCode::OK || fromRaftLog) {
+            return rc;
+        }
     }
-    MetaStatusCode status = partition->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, request->s3chunkinfoadd(), request->s3chunkinforemove(),
-        request->returns3chunkinfomap(), response->mutable_s3chunkinfomap(),
-        request->has_froms3compaction() && request->froms3compaction());
-    response->set_statuscode(status);
-    return status;
+
+    return SendS3ChunkInfoByStream(controller, iterator);
 }
 
 std::shared_ptr<Partition> MetaStoreImpl::GetPartition(uint32_t partitionId) {

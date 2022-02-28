@@ -47,6 +47,7 @@ using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::space::AllocateType;
 using ::curvefs::metaserver::S3ChunkInfoList;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace client {
@@ -194,6 +195,13 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
+
+ private:
+    StreamStatus ParseStreamBuffer(butil::IOBuf* buffer,
+                                   uint64_t* chunkIndex,
+                                   S3ChunkInfoList* list);
+
+    StreamStatus HandleStreamBuffer(butil::IOBuf* buffer, S3ChunkInfoMap* out);
 
  private:
     ExcutorOpt opt_;

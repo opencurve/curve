@@ -27,16 +27,26 @@
 
 #include <memory>
 
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
+
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
 
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        dentryStorage_ = std::make_shared<MemoryDentryStorage>();
+        tablename_ = "partition:1";
+        kvStorage_ = std::make_shared<MemoryStorage>(options_);
+        dentryStorage_ = std::make_shared<DentryStorage>(
+            kvStorage_, tablename_);
         txManager_ = std::make_shared<TxManager>(dentryStorage_);
-        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
-                                                         txManager_);
+        dentryManager_ = std::make_shared<DentryManager>(
+            dentryStorage_, txManager_);
     }
 
     void TearDown() override {}
@@ -58,6 +68,9 @@ class DentryManagerTest : public ::testing::Test {
     }
 
  protected:
+    std::string tablename_;
+    StorageOptions options_;
+    std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;
     std::shared_ptr<TxManager> txManager_;
@@ -129,8 +142,8 @@ TEST_F(DentryManagerTest, ListDentry) {
     auto rc = dentryManager_->ListDentry(dentry, &dentrys, 0);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
-    ASSERT_EQ(dentrys[0].name(), "A");
-    ASSERT_EQ(dentrys[1].name(), "B");
+    ASSERT_EQ(dentrys[0].name(), "B");
+    ASSERT_EQ(dentrys[1].name(), "A");
 }
 
 TEST_F(DentryManagerTest, HandleRenameTx) {

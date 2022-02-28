@@ -40,6 +40,12 @@ using ::curve::fs::LocalFileSystem;
 using ::curve::fs::Ext4FileSystemImpl;
 using ::curve::common::StringToUll;
 
+std::string EncodeNumber(size_t num) {
+    char buffer[sizeof(size_t)];
+    std::memcpy(buffer, reinterpret_cast<char*>(&num), sizeof(size_t));
+    return std::string(buffer, sizeof(size_t));
+}
+
 bool GetFileSystemSpaces(const std::string& path,
                          uint64_t* total,
                          uint64_t* available) {

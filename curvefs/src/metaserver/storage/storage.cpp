@@ -24,17 +24,26 @@
 
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/memory_storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
+using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::MemoryStorage;
+using ::curvefs::metaserver::storage::RocksDBStorage;
 
 static std::shared_ptr<KVStorage> kKVStorage;
 
-void InitStorage(StorageOptions options) {
-    kKVStorage = std::make_shared<MemoryStorage>(options);
+bool InitStorage(StorageOptions options) {
+    if (options.Type == "memory") {
+        kKVStorage = std::make_shared<MemoryStorage>(options);
+    } else {
+        kKVStorage = std::make_shared<RocksDBStorage>(options);
+    }
+    return kKVStorage->Open();
 }
 
 std::shared_ptr<KVStorage> GetStorageInstance() {

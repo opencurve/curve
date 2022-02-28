@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <memory>
 
 #include "curvefs/src/client/s3/disk_cache_read.h"
 #include "curvefs/src/common/s3util.h"

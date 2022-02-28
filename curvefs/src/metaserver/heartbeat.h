@@ -44,9 +44,14 @@ using ::curvefs::metaserver::copyset::CopysetNode;
 namespace curvefs {
 namespace metaserver {
 
+using ::curve::fs::LocalFileSystem;
 using HeartbeatRequest = curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using HeartbeatResponse = curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
+<<<<<<< HEAD
 using MetaServerSpaceStatus = curvefs::mds::heartbeat::MetaServerSpaceStatus;
+=======
+using MetaServerState = curvefs::mds::heartbeat::MetaServerState;
+>>>>>>> 29a6befb... curvefs/metaserver: now we support rocksdb storage.
 using ::curvefs::mds::heartbeat::CopySetConf;
 using TaskStatus = butil::Status;
 using CopysetNodePtr = std::shared_ptr<CopysetNode>;
