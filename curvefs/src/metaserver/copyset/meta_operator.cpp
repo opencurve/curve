@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/common/rpc_stream.h"
 #include "curvefs/src/metaserver/copyset/meta_operator_closure.h"
 #include "curvefs/src/metaserver/copyset/raft_log_codec.h"
 #include "curvefs/src/metaserver/metastore.h"
@@ -39,6 +40,7 @@ namespace metaserver {
 namespace copyset {
 
 using ::curve::common::TimeUtility;
+using ::curvefs::common::StreamConnection;
 
 MetaOperator::~MetaOperator() {
     if (ownRequest_ && request_) {
@@ -157,7 +159,6 @@ OPERATOR_ON_APPLY(BatchGetInodeAttr);
 OPERATOR_ON_APPLY(BatchGetXAttr);
 OPERATOR_ON_APPLY(CreateInode);
 OPERATOR_ON_APPLY(UpdateInode);
-OPERATOR_ON_APPLY(GetOrModifyS3ChunkInfo);
 OPERATOR_ON_APPLY(DeleteInode);
 OPERATOR_ON_APPLY(CreateRootInode);
 OPERATOR_ON_APPLY(CreatePartition);
@@ -165,6 +166,57 @@ OPERATOR_ON_APPLY(DeletePartition);
 OPERATOR_ON_APPLY(PrepareRenameTx);
 
 #undef OPERATOR_ON_APPLY
+
+// NOTE: now we need struct `brpc::Controller` for sending data by stream,
+// so we redefine OnApply() and OnApplyFromLog() instead of using macro.
+// It may not be an elegant implementation, can you provide a better idea?
+void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
+                                             google::protobuf::Closure* done,
+                                             uint64_t startTimeUs) {
+    MetaStatusCode rc;
+    auto request = static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_);
+    auto response = static_cast<GetOrModifyS3ChunkInfoResponse*>(response_);
+    bool streaming = request->returns3chunkinfomap();
+    auto metastore = node_->GetMetaStore();
+    std::shared_ptr<StreamConnection> connection;
+    std::shared_ptr<Iterator> iterator;
+    auto streamServer = metastore->GetStreamServer();
+    {
+        brpc::ClosureGuard doneGuard(done);
+
+        rc = metastore->GetOrModifyS3ChunkInfo(request, response, &iterator);
+        if (rc == MetaStatusCode::OK) {
+            node_->UpdateAppliedIndex(index);
+            response->set_appliedindex(
+                std::max<uint64_t>(index, node_->GetAppliedIndex()));
+            node_->GetMetric()->OnOperatorComplete(
+                OperatorType::GetOrModifyS3ChunkInfo,
+                TimeUtility::GetTimeofDayUs() - startTimeUs, true);
+        } else {
+            node_->GetMetric()->OnOperatorComplete(
+                OperatorType::GetOrModifyS3ChunkInfo,
+                TimeUtility::GetTimeofDayUs() - startTimeUs, false);
+        }
+
+        brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_);
+        if (rc != MetaStatusCode::OK || !streaming) {
+            return;
+        }
+
+        // rc == MetaStatusCode::OK && streaming
+        connection = streamServer->Accept(cntl);
+        if (nullptr == connection) {
+            LOG(ERROR) << "Accept stream connection failed in server-side";
+            response->set_statuscode(MetaStatusCode::RPC_STREAM_ERROR);
+            return;
+        }
+    }
+
+    rc = metastore->SendS3ChunkInfoByStream(connection, iterator);
+    if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "Sending s3chunkinfo by stream failed";
+    }
+}
 
 #define OPERATOR_ON_APPLY_FROM_LOG(TYPE)                                     \
     void TYPE##Operator::OnApplyFromLog(uint64_t startTimeUs) {              \
@@ -181,7 +233,6 @@ OPERATOR_ON_APPLY_FROM_LOG(CreateDentry);
 OPERATOR_ON_APPLY_FROM_LOG(DeleteDentry);
 OPERATOR_ON_APPLY_FROM_LOG(CreateInode);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateInode);
-OPERATOR_ON_APPLY_FROM_LOG(GetOrModifyS3ChunkInfo);
 OPERATOR_ON_APPLY_FROM_LOG(DeleteInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreateRootInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreatePartition);
@@ -189,6 +240,21 @@ OPERATOR_ON_APPLY_FROM_LOG(DeletePartition);
 OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
+
+void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
+    std::unique_ptr<GetOrModifyS3ChunkInfoOperator> selfGuard(this);
+    GetOrModifyS3ChunkInfoRequest request;
+    GetOrModifyS3ChunkInfoResponse response;
+    std::shared_ptr<Iterator> iterator;
+    request = *static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_);
+    request.set_returns3chunkinfomap(false);
+    auto status = node_->GetMetaStore()->GetOrModifyS3ChunkInfo(
+        &request, &response, &iterator);
+    node_->GetMetric()->OnOperatorComplete(
+        OperatorType::GetOrModifyS3ChunkInfo,
+        TimeUtility::GetTimeofDayUs() - startTimeUs,
+        status == MetaStatusCode::OK);
+}
 
 #define READONLY_OPERATOR_ON_APPLY_FROM_LOG(TYPE)               \
     void TYPE##Operator::OnApplyFromLog(uint64_t startTimeUs) { \

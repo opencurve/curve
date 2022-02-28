@@ -24,7 +24,9 @@
 #include <gtest/gtest.h>
 
 #include "curvefs/src/metaserver/trash_manager.h"
-#include "curvefs/test/metaserver/mock_inode_storage.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/test/metaserver/storage/utils.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -38,20 +40,71 @@ using ::testing::SaveArg;
 namespace curvefs {
 namespace metaserver {
 
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::RandomStoragePath;
+
 class TestTrash : public ::testing::Test {
  protected:
     void SetUp() override {
-        inodeStorage_ = std::make_shared<MockInodeStorage>();
+        dataDir_ = RandomStoragePath();;
+        StorageOptions options;
+        options.dataDir = dataDir_;
+        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        ASSERT_TRUE(kvStorage_->Open());
+
+        tablename_ = "partition:1";
+        inodeStorage_ = std::make_shared<InodeStorage>(kvStorage_, tablename_);
         trashManager_ = std::make_shared<TrashManager>();
     }
 
     void TearDown() override {
         inodeStorage_ = nullptr;
         trashManager_ = nullptr;
+        ASSERT_TRUE(kvStorage_->Close());
+        auto output = execShell("rm -rf " + dataDir_);
+        ASSERT_EQ(output.size(), 0);
+    }
+
+    std::string execShell(const std::string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
+
+    Inode GenInode(uint32_t fsId, uint64_t inodeId) {
+        Inode inode;
+        inode.set_fsid(fsId);
+        inode.set_inodeid(inodeId);
+        inode.set_length(4096);
+        inode.set_ctime(0);
+        inode.set_ctime_ns(0);
+        inode.set_mtime(0);
+        inode.set_mtime_ns(0);
+        inode.set_atime(0);
+        inode.set_atime_ns(0);
+        inode.set_uid(0);
+        inode.set_gid(0);
+        inode.set_mode(0);
+        inode.set_nlink(0);
+        inode.set_type(FsFileType::TYPE_FILE);
+        return inode;
     }
 
  protected:
-    std::shared_ptr<MockInodeStorage> inodeStorage_;
+    std::string dataDir_;
+    std::string tablename_;
+    std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<TrashManager> trashManager_;
 };
 
@@ -68,9 +121,11 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     trashManager_->Add(1, trash1);
     trashManager_->Add(2, trash2);
 
-    EXPECT_CALL(*inodeStorage_, Delete(_))
-        .Times(3)
-        .WillRepeatedly(Return(MetaStatusCode::OK));
+    inodeStorage_->Insert(GenInode(1, 1));
+    inodeStorage_->Insert(GenInode(1, 2));
+    inodeStorage_->Insert(GenInode(2, 1));
+
+    ASSERT_EQ(inodeStorage_->Size(), 3);
 
     trash1->Add(1, 1, 0);
     trash1->Add(1, 2, 0);
@@ -83,6 +138,8 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     trashManager_->ListItems(&list);
 
     ASSERT_EQ(0, list.size());
+
+    ASSERT_EQ(inodeStorage_->Size(), 0);
 
     trashManager_->Fini();
 }

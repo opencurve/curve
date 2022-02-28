@@ -25,20 +25,41 @@
 #include <cstring>
 #include <fstream>
 #include <algorithm>
+#include <functional>
 
+#include "src/common/string_util.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "src/fs/ext4_filesystem_impl.h"
-#include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
+using ::curve::common::StringToUll;
+using ::curve::common::ReadLockGuard;
+using ::curve::common::WriteLockGuard;
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::Ext4FileSystemImpl;
-using ::curve::common::StringToUll;
+using ContainerType = Counter::ContainerType;
+
+size_t Hash(const std::string& key) {
+    return std::hash<std::string>{}(key);
+}
+
+std::string Number2BinaryString(size_t num) {
+    char buffer[sizeof(size_t)];
+    std::memcpy(buffer, reinterpret_cast<char*>(&num), sizeof(size_t));
+    return std::string(buffer, sizeof(size_t));
+}
+
+size_t BinrayString2Number(const std::string& str) {
+    if (str.size() < sizeof(size_t)) {
+        return 0;
+    }
+    return *reinterpret_cast<const size_t*>(str.c_str());
+}
 
 bool GetFileSystemSpaces(const std::string& path,
                          uint64_t* total,
@@ -48,8 +69,8 @@ bool GetFileSystemSpaces(const std::string& path,
     auto localFS = Ext4FileSystemImpl::getInstance();
     int ret = localFS->Statfs(path, &info);
     if (ret != 0) {
-        LOG(ERROR) << "Failed to get file system space information, "
-                   << " error message: " << strerror(errno);
+        LOG(ERROR) << "Failed to get file system space information"
+                   << ", error message: " << strerror(errno);
         return false;
     }
 
@@ -79,10 +100,62 @@ bool GetProcMemory(uint64_t* vmRSS) {
 
         value.erase(std::remove_if(value.begin(), value.end(), isspace),
                     value.end());
-        return StringToUll(value, vmRSS);
+        if (!StringToUll(value, vmRSS)) {
+            return false;
+        }
+        *vmRSS *= 1024;
+        return true;
     }
 
     return false;
+}
+
+std::shared_ptr<ContainerType> Counter::GetContainer(const std::string& name) {
+    {
+        ReadLockGuard readLockGuard(rwLock_);
+        auto iter = containerDict_.find(name);
+        if (iter != containerDict_.end()) {
+            return iter->second;
+        }
+    }
+    {
+        WriteLockGuard writeLockGuard(rwLock_);
+        auto ret = containerDict_.emplace(
+            name, std::make_shared<ContainerType>());
+        return ret.first->second;
+    }
+}
+
+size_t Counter::ToInternalKey(const std::string& key) {
+    return Hash(key);
+}
+
+void Counter::Insert(const std::string& name, const std::string& key) {
+    auto container = GetContainer(name);
+    auto ikey = ToInternalKey(key);
+    container->emplace(ikey);
+}
+
+void Counter::Erase(const std::string& name, const std::string& key) {
+    auto container = GetContainer(name);
+    auto ikey = ToInternalKey(key);
+    container->erase(ikey);
+}
+
+bool Counter::Find(const std::string& name, const std::string& key) {
+    auto container = GetContainer(name);
+    auto ikey = ToInternalKey(key);
+    return container->find(ikey) != container->end();
+}
+
+size_t Counter::Size(const std::string& name) {
+    auto container = GetContainer(name);
+    return container->size();
+}
+
+void Counter::Clear(const std::string& name) {
+    auto container = GetContainer(name);
+    container->clear();
 }
 
 }  // namespace storage

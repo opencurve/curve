@@ -25,6 +25,9 @@
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
 
+#include <thread>
+
+#include "absl/cleanup/cleanup.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/test/client/rpcclient/mock_metacache.h"
 #include "curvefs/test/client/rpcclient/mock_metaserver_service.h"
@@ -32,6 +35,7 @@
 #include "curvefs/src/client/rpcclient/channel_manager.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/src/common/process.h"
 
 namespace curvefs {
 namespace client {
@@ -49,7 +53,11 @@ using ::curvefs::metaserver::BatchGetInodeAttrRequest;
 using ::curvefs::metaserver::BatchGetInodeAttrResponse;
 using ::curvefs::metaserver::BatchGetXAttrRequest;
 using ::curvefs::metaserver::BatchGetXAttrResponse;
-
+using ::curvefs::common::StreamServer;
+using ::curvefs::common::StreamOptions;
+using ::curvefs::common::StreamConnection;
+using ::curvefs::metaserver::S3ChunkInfo;
+using S3ChunkInofMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -75,16 +83,17 @@ class MetaServerClientImplTest : public testing::Test {
         auto channelManager_ = std::make_shared<ChannelManager<MetaserverID>>();
         metaserverCli_.Init(opt_, mockMetacache_, channelManager_);
 
-        // start metaserver service
-        ASSERT_EQ(0, server_.AddService(&mockMetaServerService_,
-                                        brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
+        server_.AddService(&mockMetaServerService_,
+                            brpc::SERVER_DOESNT_OWN_SERVICE);
+        server_.Start(addr_.c_str(), nullptr);
 
         target_.groupID = std::move(CopysetGroupID(1, 100));
         target_.metaServerID = 1;
         target_.partitionID = 200;
         target_.txId = 10;
         butil::str2endpoint(addr_.c_str(), &target_.endPoint);
+
+        streamServer_ = std::make_shared<StreamServer>();
     }
 
     void TearDown() override {
@@ -102,6 +111,8 @@ class MetaServerClientImplTest : public testing::Test {
     std::string addr_ = "127.0.0.1:5200";
     brpc::Server server_;
     CopysetTarget target_;
+
+    std::shared_ptr<StreamServer> streamServer_;
 };
 
 TEST_F(MetaServerClientImplTest, test_GetDentry) {
@@ -767,7 +778,7 @@ TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
     uint64_t inodeId = 100;
     google::protobuf::Map<
         uint64_t, S3ChunkInfoList> s3ChunkInfos;
-    bool returnS3ChunkInfoMap = true;
+    bool returnS3ChunkInfoMap = false;
     google::protobuf::Map<
         uint64_t, S3ChunkInfoList> out;
     uint64_t applyIndex = 10;
@@ -823,6 +834,87 @@ TEST_F(MetaServerClientImplTest, test_GetOrModifyS3ChunkInfo) {
     status = metaserverCli_.GetOrModifyS3ChunkInfo(
         fsId, inodeId, s3ChunkInfos, returnS3ChunkInfoMap, &out);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
+}
+
+TEST_F(MetaServerClientImplTest, GetOrModifyS3ChunkInfo_ReturnS3ChunkInfoMap) {
+    uint32_t fsId = 1;
+    uint64_t inodeId = 100;
+    uint64_t applyIndex = 10;
+    uint64_t chunkIndex = 100;
+    S3ChunkInfoList list;
+    S3ChunkInofMap out, map2add;
+    S3ChunkInfo s3ChunkInfo;
+    s3ChunkInfo.set_chunkid(1);
+    s3ChunkInfo.set_compaction(2);
+    s3ChunkInfo.set_offset(3);
+    s3ChunkInfo.set_len(4);
+    s3ChunkInfo.set_size(5);
+    s3ChunkInfo.set_zero(false);
+
+    EXPECT_CALL(mockMetaServerService_, GetOrModifyS3ChunkInfo(_, _, _, _))
+        .WillOnce(Invoke([&](
+            ::google::protobuf::RpcController *controller,
+            const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest* request,
+            ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse* response,
+            ::google::protobuf::Closure* done) {
+            std::shared_ptr<StreamConnection> connection;
+            {
+                brpc::ClosureGuard doneGuard(done);
+                brpc::Controller* cntl =
+                    static_cast<brpc::Controller*>(controller);
+                connection = streamServer_->Accept(cntl);
+                if (nullptr == connection) {
+                    cntl->SetFailed("Fail to accept stream");
+                    LOG(ERROR) << "Accept stream connection failed";
+                    return;
+                }
+                response->set_appliedindex(applyIndex);
+                response->set_statuscode(curvefs::metaserver::OK);
+            }
+
+            // step1: sending s3chunkinfo list
+            butil::IOBuf buffer;
+            std::string value;
+            auto addedInfo = list.add_s3chunks();
+            addedInfo->CopyFrom(s3ChunkInfo);
+            if (!list.SerializeToString(&value)) {
+                LOG(ERROR) << "Serialize s3chunkinfo list failed";
+                return;
+            }
+            buffer.append(std::to_string(chunkIndex) + ":" + value);
+            if (!connection->Write(buffer)) {
+                LOG(ERROR) << "Connection write failed";
+                return;
+            }
+
+            // step2: sending eof
+            if (!connection->WriteDone()) {
+                LOG(ERROR) << "Connection write done failed";
+            }
+        }));
+
+    EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                              SetArgPointee<3>(applyIndex),
+                              Return(true)));
+    EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
+
+    MetaStatusCode status = metaserverCli_.GetOrModifyS3ChunkInfo(
+        fsId, inodeId, map2add, true, &out);
+    ASSERT_EQ(MetaStatusCode::OK, status);
+    ASSERT_EQ(out.size(), 1);
+    for (const auto& pair : out) {
+        ASSERT_EQ(pair.first, chunkIndex);
+        ASSERT_EQ(pair.second.s3chunks_size(), 1);
+
+        auto info = pair.second.s3chunks(0);
+        ASSERT_EQ(s3ChunkInfo.chunkid(), info.chunkid());
+        ASSERT_EQ(s3ChunkInfo.compaction(), info.compaction());
+        ASSERT_EQ(s3ChunkInfo.offset(), info.offset());
+        ASSERT_EQ(s3ChunkInfo.len(), info.len());
+        ASSERT_EQ(s3ChunkInfo.size(), info.size());
+        ASSERT_EQ(s3ChunkInfo.zero(), info.zero());
+    }
 }
 
 TEST_F(MetaServerClientImplTest, test_CreateInode) {

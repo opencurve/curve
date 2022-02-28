@@ -2,7 +2,7 @@
 bash replace-curve-repo.sh
 WORKSPACE=`pwd`
 rm -fr ${WORKSPACE}/curve/unittest
-rm -fr ${WORKSPACE}/runlog
+rm -fr ${WORKSPACE}/runlog ${WORKSPACE}/storage
 mkdir ${WORKSPACE}/curve_unittest/
 set -e
 ulimit -a
@@ -17,7 +17,7 @@ cd ${WORKSPACE}/thirdparties/etcdclient && make clean && make all
 
 export LD_LIBRARY_PATH=${WORKSPACE}thirdparties/etcdclient:${LD_LIBRARY_PATH}
 cd ${WORKSPACE}
-mkdir runlog
+mkdir runlog storage
 bazel clean --async
 sleep 5
 
@@ -25,7 +25,7 @@ bazel build tools/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 
 bazel build src/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
 bazel build test/... --compilation_mode=dbg --collect_code_coverage  --jobs=64 --copt   -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
 for i in 0 1 2 3; do mkdir -p $i/{copysets,recycler}; done
-for i in `find bazel-bin/test/ -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do $i 2>&1 | tee $i.log  & done  
+for i in `find bazel-bin/test/ -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do $i 2>&1 | tee $i.log  & done
 
 count=2
 check=0
@@ -41,7 +41,7 @@ do
     echo "==========================================================================================================================================="
 
    #for i in `find bazel-bin/test/ -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do cat $i.log;done
-    
+
     echo "==========================================================================================================================================="
     f1=""
     f2=""
@@ -69,7 +69,7 @@ do
     fi
 done
 
-    
+
 #echo "==========================================================================================================================================="
 
 #for i in `find bazel-bin/test/ -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do cat $i.log;done

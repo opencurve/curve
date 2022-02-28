@@ -23,6 +23,8 @@
 #ifndef CURVEFS_SRC_CLIENT_LEASE_LEASE_EXCUTOR_H_
 #define CURVEFS_SRC_CLIENT_LEASE_LEASE_EXCUTOR_H_
 
+#include <memory>
+
 #include "curvefs/src/client/rpcclient/metacache.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/common/config.h"

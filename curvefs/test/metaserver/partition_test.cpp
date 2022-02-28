@@ -26,6 +26,11 @@
 
 #include "curvefs/test/metaserver/test_helper.h"
 
+#include "curvefs/src/metaserver/dentry_manager.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/test/metaserver/storage/utils.h"
+
 using ::testing::AtLeast;
 using ::testing::StrEq;
 using ::testing::_;
@@ -34,6 +39,11 @@ using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::RandomStoragePath;
 
 namespace curvefs {
 namespace metaserver {
@@ -48,11 +58,40 @@ class PartitionTest : public ::testing::Test {
         param_.type = FsFileType::TYPE_FILE;
         param_.symlink = "";
         param_.rdev = 0;
+
+        dataDir_ = RandomStoragePath();;
+        StorageOptions options;
+        options.dataDir = dataDir_;
+        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        ASSERT_TRUE(kvStorage_->Open());
     }
 
-    void TearDown() override {}
+    void TearDown() override {
+        ASSERT_TRUE(kvStorage_->Close());
+        auto output = execShell("rm -rf " + dataDir_);
+        ASSERT_EQ(output.size(), 0);
+    }
+
+    std::string execShell(const std::string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
 
     InodeParam param_;
+
+ protected:
+    std::string dataDir_;
+    StorageOptions options_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(PartitionTest, testInodeIdGen1) {
@@ -64,7 +103,7 @@ TEST_F(PartitionTest, testInodeIdGen1) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_TRUE(partition1.IsDeletable());
     for (int i = 0; i < 100; i++) {
@@ -84,7 +123,7 @@ TEST_F(PartitionTest, testInodeIdGen2) {
     partitionInfo1.set_end(199);
     partitionInfo1.set_nextid(150);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_TRUE(partition1.IsDeletable());
     for (int i = 0; i < 50; i++) {
@@ -104,7 +143,7 @@ TEST_F(PartitionTest, testInodeIdGen3) {
     partitionInfo1.set_end(199);
     partitionInfo1.set_nextid(200);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
     ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
@@ -123,7 +162,7 @@ TEST_F(PartitionTest, testInodeIdGen4_NextId) {
         partitionInfo1.set_start(t.first);
         partitionInfo1.set_end(199);
 
-        Partition p(partitionInfo1);
+        Partition p(partitionInfo1, kvStorage_);
         EXPECT_EQ(t.second, p.GetNewInodeId());
     }
 }
@@ -139,7 +178,7 @@ TEST_F(PartitionTest, testInodeIdGen5_paritionstatus) {
     partitionInfo1.set_nextid(198);
     partitionInfo1.set_status(PartitionStatus::READWRITE);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_EQ(partition1.GetNewInodeId(), 198);
     ASSERT_EQ(partition1.GetPartitionInfo().status(),
@@ -161,7 +200,7 @@ TEST_F(PartitionTest, test1) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_TRUE(partition1.IsDeletable());
     ASSERT_TRUE(partition1.IsInodeBelongs(1, 100));
@@ -183,7 +222,7 @@ TEST_F(PartitionTest, inodenum) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_EQ(partition1.GetInodeNum(), 0);
     Inode inode;
@@ -205,7 +244,7 @@ TEST_F(PartitionTest, dentrynum) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
     ASSERT_EQ(partition1.GetDentryNum(), 0);
 
 
@@ -237,7 +276,7 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     Dentry dentry1;
     dentry1.set_fsid(2);
@@ -344,7 +383,7 @@ TEST_F(PartitionTest, testGetInodeAttr) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     // create parent inode
     Inode inode;
@@ -372,7 +411,7 @@ TEST_F(PartitionTest, testGetXAttr) {
     partitionInfo1.set_start(100);
     partitionInfo1.set_end(199);
 
-    Partition partition1(partitionInfo1);
+    Partition partition1(partitionInfo1, kvStorage_);
 
     // create parent inode
     Inode inode;

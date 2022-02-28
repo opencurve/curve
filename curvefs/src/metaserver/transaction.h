@@ -27,7 +27,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "curvefs/src/metaserver/storage.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
 
 namespace curvefs {

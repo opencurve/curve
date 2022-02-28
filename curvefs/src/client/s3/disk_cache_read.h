@@ -26,6 +26,7 @@
 #include <string>
 #include <set>
 #include <vector>
+#include <memory>
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
