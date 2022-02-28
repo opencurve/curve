@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,42 +14,37 @@
  *  limitations under the License.
  */
 
-/**
+/*
  * Project: Curve
- * Created Date: 2021-07-23
+ * Date: 2022-02-14
  * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_METASERVER_ITERATOR_H_
-#define CURVEFS_SRC_METASERVER_ITERATOR_H_
+#ifndef CURVEFS_SRC_METASERVER_STORAGE_CONFIG_H_
+#define CURVEFS_SRC_METASERVER_STORAGE_CONFIG_H_
 
 #include <string>
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
-// The iterator can traverse different data struct: like hash, B+ tree, skiplist
-class Iterator {
- public:
-    virtual ~Iterator() = default;
-
-    // TODO(Wine93): remove this interface
-    virtual uint64_t Size() = 0;
-
-    virtual bool Valid() = 0;
-
-    virtual void SeekToFirst() = 0;
-
-    virtual void Next() = 0;
-
-    virtual std::string Key() = 0;
-
-    virtual std::string Value() = 0;
-
-    virtual int Status() = 0;
+struct StorageOptions {
+    std::string Type;
+    uint64_t MaxMemoryBytes;
+    uint64_t MaxDiskQuotaBytes;
+    std::string DataDir;
+    uint64_t UnorderedWriteBufferSize;
+    uint64_t UnorderedMaxWriteBufferNumber;
+    uint64_t OrderedWriteBufferSize;
+    uint64_t OrderedMaxWriteBufferNumber;
+    uint64_t BlockCacheCapacity;
 };
 
-};  // namespace metaserver
-};  // namespace curvefs
+// TODO(@Wine93): support default value
 
-#endif  // CURVEFS_SRC_METASERVER_ITERATOR_H_
+}  // namespace storage
+}  // namespace metaserver
+}  // namespace curvefs
+
+#endif  // CURVEFS_SRC_METASERVER_STORAGE_CONFIG_H_

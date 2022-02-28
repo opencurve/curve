@@ -25,16 +25,24 @@
 
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <list>
+#include <string>
 #include <memory>
 
-#include "curvefs/proto/metaserver.pb.h"
+#include "absl/container/btree_set.h"
 #include "src/common/concurrent/rw_lock.h"
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 using curve::common::RWLock;
+using ::curvefs::metaserver::storage::Status;
+using ::curvefs::metaserver::storage::Iterator;
+using KVStorage = ::curvefs::metaserver::storage::KVStorage;
+
 namespace curvefs {
 namespace metaserver {
 
@@ -55,36 +63,11 @@ struct InodeKey {
     }
 };
 
-struct hashInode {
-    size_t operator()(const InodeKey &key) const {
-        return std::hash<uint64_t>()(key.inodeId) ^
-               std::hash<uint32_t>()(key.fsId);
-    }
-};
-
 class InodeStorage {
  public:
-    using ContainerType = std::unordered_map<
-        InodeKey, std::shared_ptr<Inode>, hashInode>;
+    InodeStorage(std::shared_ptr<KVStorage> kvStorage,
+                 const std::string& tablename);
 
- public:
-    virtual MetaStatusCode Insert(const Inode &inode) = 0;
-    virtual MetaStatusCode Get(
-        const InodeKey &key, std::shared_ptr<Inode> *inode) = 0;
-    virtual MetaStatusCode GetCopy(
-        const InodeKey &key, Inode *inode) = 0;
-    virtual MetaStatusCode GetAttr(const InodeKey &key, InodeAttr *attr) = 0;
-    virtual MetaStatusCode GetXAttr(const InodeKey &key, XAttr *xattr) = 0;
-    virtual MetaStatusCode Delete(const InodeKey &key) = 0;
-    virtual MetaStatusCode Update(const Inode &inode) = 0;
-    virtual int Count() = 0;
-    virtual ContainerType* GetContainer() = 0;
-    virtual void GetInodeIdList(std::list<uint64_t>* InodeIdList) = 0;
-    virtual ~InodeStorage() = default;
-};
-
-class MemoryInodeStorage : public InodeStorage {
- public:
     /**
      * @brief insert inode to storage
      *
@@ -92,7 +75,7 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return If inode exist, return INODE_EXIST; else insert and return OK
      */
-    MetaStatusCode Insert(const Inode &inode) override;
+    MetaStatusCode Insert(const Inode& inode);
 
     /**
      * @brief get inode from storage
@@ -102,18 +85,7 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Get(
-        const InodeKey &key, std::shared_ptr<Inode> *inode) override;
-
-    /**
-     * @brief get inode from storage
-     *
-     * @param[in] key: the key of inode want to get
-     * @param[out] inode: the inode got
-     *
-     * @return If inode not exist, return NOT_FOUND; else return OK
-     */
-    MetaStatusCode GetCopy(const InodeKey &key, Inode *inode) override;
+    MetaStatusCode Get(const InodeKey& inodeKey, Inode* inode);
 
     /**
      * @brief get inode attribute from storage
@@ -123,7 +95,7 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode GetAttr(const InodeKey &key, InodeAttr *attr) override;
+    MetaStatusCode GetAttr(const InodeKey& inodeKey, InodeAttr *attr);
 
     /**
      * @brief get inode extended attributes from storage
@@ -133,7 +105,7 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode GetXAttr(const InodeKey &key, XAttr *xattr) override;
+    MetaStatusCode GetXAttr(const InodeKey& inodeKey, XAttr *xattr);
 
     /**
      * @brief delete inode from storage
@@ -142,32 +114,44 @@ class MemoryInodeStorage : public InodeStorage {
      *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Delete(const InodeKey &key) override;
+    MetaStatusCode Delete(const InodeKey& inodeKey);
 
     /**
      * @brief update inode from storage
-     *
      * @param[in] inode: the inode want to update
      *
      * @return If inode not exist, return NOT_FOUND; else replace and return OK
      */
-    MetaStatusCode Update(const Inode &inode) override;
+    MetaStatusCode Update(const Inode& inode);
 
-    int Count() override;
+    std::shared_ptr<Iterator> GetAll();
 
-    /**
-     * @brief get Inode container
-     *
-     * @return Inode container, here returns inodeMap_ pointer
-     */
-    ContainerType* GetContainer() override;
+    MetaStatusCode Clear();
 
-    void GetInodeIdList(std::list<uint64_t>* inodeIdList) override;
+    size_t Size();
+
+    void GetInodeIdList(std::list<uint64_t>* inodeIdList);
+
+ private:
+    std::string Key2Str(const InodeKey& key);
+
+    std::pair<uint32_t, uint64_t> ExtractKey(const std::string& key);
+
+    bool Inode2Str(const Inode& inode, std::string* value);
+
+    bool Str2Inode(const std::string& value, Inode* inode);
+
+    void AddInodeId(const std::string& key);
+
+    void DeleteInodeId(const std::string& key);
+
+    bool InodeIdExist(const std::string& key);
 
  private:
     RWLock rwLock_;
-    // use fsid + inodeid as key
-    ContainerType inodeMap_;
+    std::string tablename_;
+    std::unordered_set<std::string> counter_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 }  // namespace metaserver

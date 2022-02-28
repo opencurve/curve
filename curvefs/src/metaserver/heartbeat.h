@@ -44,8 +44,10 @@ using ::curvefs::metaserver::copyset::CopysetNode;
 namespace curvefs {
 namespace metaserver {
 
+using ::curve::fs::LocalFileSystem;
 using HeartbeatRequest = curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using HeartbeatResponse = curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
+using MetaServerState = curvefs::mds::heartbeat::MetaServerState;
 using ::curvefs::mds::heartbeat::CopySetConf;
 using TaskStatus = butil::Status;
 using CopysetNodePtr = std::shared_ptr<CopysetNode>;
@@ -131,6 +133,8 @@ class Heartbeat {
      * print HeartbeatResponse to log
      */
     void DumpHeartbeatResponse(const HeartbeatResponse& response);
+
+    bool GetMetaServerState(MetaServerState* state, uint64_t ncopysets);
 
  private:
      Thread hbThread_;

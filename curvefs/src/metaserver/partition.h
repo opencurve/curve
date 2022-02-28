@@ -35,16 +35,21 @@
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3compact.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+
 namespace curvefs {
 namespace metaserver {
 using curvefs::common::PartitionInfo;
 using curvefs::common::PartitionStatus;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::Iterator;
 
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
 class Partition {
  public:
-    explicit Partition(const PartitionInfo& paritionInfo);
+    Partition(const PartitionInfo& paritionInfo,
+              std::shared_ptr<KVStorage> kvStorage);
 
     ~Partition() {}
 
@@ -118,9 +123,13 @@ class Partition {
 
     PartitionInfo GetPartitionInfo();
 
-    InodeStorage::ContainerType* GetInodeContainer();
+    std::shared_ptr<Iterator> GetAllInode();
 
-    DentryStorage::ContainerType* GetDentryContainer();
+    std::shared_ptr<Iterator> GetAllDentry();
+
+    bool ClearAllInode();
+
+    bool ClearAllDentry();
 
     // get new inode id in partition range.
     // if no available inode id in this partiton ,return UINT64_MAX
@@ -137,6 +146,8 @@ class Partition {
     PartitionStatus GetStatus() { return partitionInfo_.status(); }
 
     void ClearS3Compact() { s3compact_ = nullptr; }
+
+    std::string GetStorageTablename();
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;

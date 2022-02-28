@@ -25,6 +25,7 @@
 #include <list>
 #include <thread>
 
+#include "src/common/string_util.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
 

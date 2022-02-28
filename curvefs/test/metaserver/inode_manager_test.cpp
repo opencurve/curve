@@ -27,6 +27,8 @@
 #include "curvefs/test/metaserver/test_helper.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 using ::testing::_;
@@ -38,13 +40,21 @@ using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+
 namespace curvefs {
 namespace metaserver {
 class InodeManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        inodeStorage = std::make_shared<MemoryInodeStorage>();
-        trash = std::make_shared<TrashImpl>(inodeStorage);
+        StorageOptions options;
+        auto tablename = "partition:1";
+        auto kvStorage = std::make_shared<MemoryStorage>(options);
+        auto inodeStorage = std::make_shared<InodeStorage>(
+            kvStorage, tablename);
+        auto trash = std::make_shared<TrashImpl>(inodeStorage);
         manager = std::make_shared<InodeManager>(inodeStorage, trash);
     }
 
@@ -64,8 +74,6 @@ class InodeManagerTest : public ::testing::Test {
     }
 
  protected:
-    std::shared_ptr<InodeStorage> inodeStorage;
-    std::shared_ptr<TrashImpl> trash;
     std::shared_ptr<InodeManager> manager;
 };
 
@@ -311,11 +319,6 @@ TEST_F(InodeManagerTest, UpdateInode) {
 
 
 TEST_F(InodeManagerTest, testGetAttr) {
-    std::shared_ptr<InodeStorage> inodeStorage =
-        std::make_shared<MemoryInodeStorage>();
-    auto trash = std::make_shared<TrashImpl>(inodeStorage);
-    InodeManager manager(inodeStorage, trash);
-
     // CREATE
     uint32_t fsId = 1;
     uint64_t length = 100;
@@ -325,13 +328,13 @@ TEST_F(InodeManagerTest, testGetAttr) {
     FsFileType type = FsFileType::TYPE_FILE;
     std::string symlink = "";
     Inode inode1;
-    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
+    ASSERT_EQ(manager->CreateInode(fsId, 2, length, uid, gid, mode, type,
         symlink, 0, &inode1),
         MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
     InodeAttr attr;
-    ASSERT_EQ(manager.GetInodeAttr(fsId, inode1.inodeid(), &attr),
+    ASSERT_EQ(manager->GetInodeAttr(fsId, inode1.inodeid(), &attr),
               MetaStatusCode::OK);
     ASSERT_EQ(attr.fsid(), 1);
     ASSERT_EQ(attr.inodeid(), 2);
@@ -345,11 +348,6 @@ TEST_F(InodeManagerTest, testGetAttr) {
 }
 
 TEST_F(InodeManagerTest, testGetXAttr) {
-    std::shared_ptr<InodeStorage> inodeStorage =
-        std::make_shared<MemoryInodeStorage>();
-    auto trash = std::make_shared<TrashImpl>(inodeStorage);
-    InodeManager manager(inodeStorage, trash);
-
     // CREATE
     uint32_t fsId = 1;
     uint64_t length = 100;
@@ -359,7 +357,7 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     FsFileType type = FsFileType::TYPE_FILE;
     std::string symlink = "";
     Inode inode1;
-    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
+    ASSERT_EQ(manager->CreateInode(fsId, 2, length, uid, gid, mode, type,
         symlink, 0, &inode1),
         MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
@@ -367,7 +365,7 @@ TEST_F(InodeManagerTest, testGetXAttr) {
 
     Inode inode2;
     ASSERT_EQ(
-        manager.CreateInode(fsId, 3, length, uid, gid, mode,
+        manager->CreateInode(fsId, 3, length, uid, gid, mode,
         FsFileType::TYPE_DIRECTORY, symlink, 0, &inode2),
         MetaStatusCode::OK);
     ASSERT_FALSE(inode2.xattr().empty());
@@ -378,7 +376,7 @@ TEST_F(InodeManagerTest, testGetXAttr) {
 
     // GET
     XAttr xattr;
-    ASSERT_EQ(manager.GetXAttr(fsId, inode2.inodeid(), &xattr),
+    ASSERT_EQ(manager->GetXAttr(fsId, inode2.inodeid(), &xattr),
               MetaStatusCode::OK);
     ASSERT_EQ(xattr.fsid(), fsId);
     ASSERT_EQ(xattr.inodeid(), inode2.inodeid());
@@ -394,11 +392,11 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
     inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
-    ASSERT_EQ(manager.UpdateInode(request), MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::OK);
 
     // GET
     XAttr xattr1;
-    ASSERT_EQ(manager.GetXAttr(fsId, inode2.inodeid(), &xattr1),
+    ASSERT_EQ(manager->GetXAttr(fsId, inode2.inodeid(), &xattr1),
               MetaStatusCode::OK);
     ASSERT_EQ(xattr1.xattrinfos_size(), 4);
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRFILES)->second, "1");
