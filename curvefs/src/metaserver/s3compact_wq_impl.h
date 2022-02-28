@@ -37,6 +37,7 @@
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
+#include "curvefs/src/metaserver/storage_common.h"
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
@@ -83,9 +84,9 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     std::shared_ptr<S3AdapterManager> s3adapterManager_;
     std::shared_ptr<S3InfoCache> s3infoCache_;
     S3CompactWorkQueueOption opts_;
-    std::deque<InodeKey> compactingInodes_;
+    std::deque<Key4Inode> compactingInodes_;
     copyset::CopysetNodeManager* copysetNodeMgr_;
-    void Enqueue(std::shared_ptr<InodeManager> inodeManager, InodeKey inodeKey,
+    void Enqueue(std::shared_ptr<InodeManager> inodeManager, Key4Inode inodeKey,
                  PartitionInfo pinfo);
     std::function<void()> Dequeue();
     void ThreadFunc();
@@ -93,7 +94,7 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     // compact task for one partition
     struct S3CompactTask {
         std::shared_ptr<InodeManager> inodeManager;
-        InodeKey inodeKey;
+        Key4Inode inodeKey;
         PartitionInfo pinfo;
         std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper;
     };

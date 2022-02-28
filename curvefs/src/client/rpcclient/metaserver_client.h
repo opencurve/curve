@@ -36,6 +36,7 @@
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/src/common/rpc_stream.h"
 
 using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::metaserver::Dentry;
@@ -47,6 +48,9 @@ using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::space::AllocateType;
 using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::common::StreamStatus;
+using ::curvefs::common::StreamReceiver;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace client {
@@ -129,7 +133,8 @@ class MetaServerClientImpl : public MetaServerClient {
  public:
     explicit MetaServerClientImpl(const std::string &metricPrefix = "")
         : metaserverClientMetric_(
-            std::make_shared<MetaServerClientMetric>(metricPrefix)) {}
+            std::make_shared<MetaServerClientMetric>(metricPrefix)),
+          streamReceiver_(std::make_shared<StreamReceiver>()) {}
 
     MetaStatusCode
     Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
@@ -196,10 +201,19 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
 
  private:
+    StreamStatus ParseStreamBuffer(butil::IOBuf* buffer,
+                                   uint64_t* chunkIndex,
+                                   S3ChunkInfoList* list);
+
+    StreamStatus HandleStreamBuffer(butil::IOBuf* buffer, S3ChunkInfoMap* out);
+
+ private:
     ExcutorOpt opt_;
 
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;
+
+    std::shared_ptr<StreamReceiver> streamReceiver_;
 
     std::shared_ptr<MetaServerClientMetric> metaserverClientMetric_;
 };

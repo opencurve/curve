@@ -48,6 +48,7 @@ namespace curvefs {
 namespace metaserver {
 
 using ::curve::common::Configuration;
+using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::copyset::ApplyQueue;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
 using ::curvefs::metaserver::copyset::CopysetNodeOptions;

@@ -25,6 +25,7 @@
 #include <list>
 #include <thread>
 
+#include "src/common/string_util.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
 
@@ -215,7 +216,10 @@ void S3CompactManager::Enqueue() {
         auto inodeManager = s3compact->GetInodeManager();
 
         std::list<uint64_t> inodes;
-        inodeManager->GetInodeIdList(&inodes);
+        if (!inodeManager->GetInodeIdList(&inodes)) {
+            inodes.clear();
+        }
+
         uint64_t fsid = pinfo.fsid();
 
         if (inodes.empty()) {
@@ -225,7 +229,7 @@ void S3CompactManager::Enqueue() {
         for (const auto& inodeid : inodes) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             s3compactworkqueueImpl_->Enqueue(
-                inodeManager, InodeKey(fsid, inodeid), pinfo);
+                inodeManager, Key4Inode(fsid, inodeid), pinfo);
         }
     }
     {

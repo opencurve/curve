@@ -25,12 +25,19 @@
 #include <algorithm>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
+#include "src/common/string_util.h"
+#include "curvefs/src/common/rpc_stream.h"
+
+using ::curve::common::StringToUl;
+using ::curve::common::StringToUll;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoRequest;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoResponse;
 using curvefs::metaserver::BatchGetInodeAttrRequest;
 using curvefs::metaserver::BatchGetInodeAttrResponse;
 using curvefs::metaserver::BatchGetXAttrRequest;
 using curvefs::metaserver::BatchGetXAttrResponse;
+using ::curvefs::common::GetStreamEOFString;
 
 namespace curvefs {
 namespace client {
@@ -46,6 +53,9 @@ using GetInodeExcutor = TaskExecutor;
 using BatchGetInodeAttrExcutor = TaskExecutor;
 using BatchGetXAttrExcutor = TaskExecutor;
 using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
+
+using ::curvefs::common::StreamOptions;
+using ::curvefs::common::StreamConnection;
 
 MetaStatusCode MetaServerClientImpl::Init(
     const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
@@ -819,6 +829,59 @@ void MetaServerClientImpl::UpdateXattrAsync(const Inode &inode,
     excutor->DoAsyncRPCTask(taskDone);
 }
 
+StreamStatus MetaServerClientImpl::ParseStreamBuffer(butil::IOBuf* buffer,
+                                                     uint64_t* chunkIndex,
+                                                     S3ChunkInfoList* list) {
+    std::string str4eof = GetStreamEOFString();
+    if (buffer->size() == str4eof.size() && buffer->to_string() == str4eof) {
+        return StreamStatus::RECEIVE_EOF;
+    }
+
+    // key
+    butil::IOBuf out;
+    std::string delim = ":";
+    if (buffer->cut_until(&out, delim) != 0) {
+        LOG(ERROR) << "Invalid received buffer";
+        return StreamStatus::RECEIVE_ERROR;
+    } else if (!StringToUll(out.to_string(), chunkIndex)) {
+        LOG(ERROR) << "Invalid chunk index in buffer";
+        return StreamStatus::RECEIVE_ERROR;
+    } else if (!list->ParseFromString(buffer->to_string())) {
+        LOG(ERROR) << "Parse from string for s3chunkinfo list failed";
+        return StreamStatus::RECEIVE_ERROR;
+    }
+
+    return StreamStatus::RECEIVE_OK;
+}
+
+StreamStatus MetaServerClientImpl::HandleStreamBuffer(butil::IOBuf* buffer,
+                                                      S3ChunkInfoMap* out) {
+    uint64_t chunkIndex;
+    S3ChunkInfoList list;
+    StreamStatus status = ParseStreamBuffer(buffer, &chunkIndex, &list);
+    if (status == StreamStatus::RECEIVE_EOF ||
+        status == StreamStatus::RECEIVE_ERROR) {
+        return status;
+    }
+
+
+    auto merge = [](const S3ChunkInfoList& from, S3ChunkInfoList* to) {
+        for (size_t i = 0; i < from.s3chunks_size(); i++) {
+            auto chunkinfo = to->add_s3chunks();
+            chunkinfo->CopyFrom(from.s3chunks(i));
+        }
+    };
+
+    // StreamStatus::RECEIVE_OK
+    auto iter = out->find(chunkIndex);
+    if (iter == out->end()) {
+        out->insert({chunkIndex, list});
+    } else {
+        merge(list, &iter->second);
+    }
+    return status;
+}
+
 MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
     const google::protobuf::Map<
@@ -840,6 +903,24 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
+
+        // stream connection for s3chunkinfo list
+        std::shared_ptr<StreamConnection> connection = nullptr;
+        auto defer = absl::MakeCleanup([&]() {
+            streamReceiver_->Close(connection);
+        });
+        auto receiveCallback = [&](butil::IOBuf* buffer) {
+            return HandleStreamBuffer(buffer, out);
+        };
+        if (returnS3ChunkInfoMap) {
+            StreamOptions options(opt_.rpcStreamIdleTimeoutMS);
+            connection = streamReceiver_->Open(cntl, receiveCallback, options);
+            if (nullptr == connection) {
+                LOG(ERROR) << "Open stream connection failed";
+                return MetaStatusCode::RPC_STREAM_ERROR;
+            }
+        }
+
         stub.GetOrModifyS3ChunkInfo(cntl, &request, &response, nullptr);
 
         if (cntl->Failed()) {
@@ -863,12 +944,15 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
                                          response.appliedindex());
             if (returnS3ChunkInfoMap) {
                 CHECK(out != nullptr) << "out ptr should be set.";
-                out->swap(*response.mutable_s3chunkinfomap());
+                if (!connection->WaitAllDataReceived()) {
+                    LOG(ERROR) << "Not all s3chunkinfo received";
+                    return MetaStatusCode::RPC_STREAM_ERROR;
+                }
             }
         } else {
             LOG(WARNING) << "GetOrModifyS3ChunkInfo,  inodeId: " << inodeId
                          << ", fsId: " << fsId
-                         << "ok, but applyIndex or inode not set in response: "
+                         << " ok, but applyIndex or inode not set in response: "
                          << response.DebugString();
             return -1;
         }

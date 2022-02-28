@@ -30,9 +30,11 @@ cc_library(
         "//curvefs/proto:space_cc_proto",
         "//curvefs/src/client/common",
         "//curvefs/src/client/metric:client_metric",
+        "//curvefs/src/common:curvefs_common",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
         "//src/client:curve_client",
+        "@com_google_absl//absl/cleanup",
     ],
 )

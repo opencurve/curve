@@ -30,9 +30,23 @@ namespace metaserver {
 namespace storage {
 
 struct StorageOptions {
-    std::string dataDir;
+    std::string type;
+
     uint64_t maxMemoryQuotaBytes;
+
     uint64_t maxDiskQuotaBytes;
+
+    std::string dataDir;
+
+    uint64_t unorderedWriteBufferSize;
+
+    uint64_t unorderedMaxWriteBufferNumber;
+
+    uint64_t orderedWriteBufferSize;
+
+    uint64_t orderedMaxWriteBufferNumber;
+
+    uint64_t blockCacheCapacity;
 };
 
 }  // namespace storage

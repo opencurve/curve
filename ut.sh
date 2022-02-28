@@ -15,6 +15,16 @@ ps -ef | grep mds | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs k
 ps -ef | grep etcd | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true
 ps -ef | grep test | grep -v grep | grep -v gcc | awk '{print $2}' | sudo xargs kill -9 || true
 
+################################################################ __ROCKSDB__
+g_build_opts=()
+kernel_version=`uname -r | awk -F . '{print $1 * 1000 + $2}'`
+if [ $kernel_version -gt 5001 ]; then
+    g_build_opts+=("--define IO_URING_SUPPORT=1")
+fi
+g_rocksdb_root="${PWD}/thirdparties/rocksdb"
+(cd ${g_rocksdb_root} && make build && make install prefix=${g_rocksdb_root})
+################################################################ __ROCKSDB__
+
 if [ -f /home/nbs/etcdclient/libetcdclient.h ] && [ -f /home/nbs/etcdclient/libetcdclient.so ]
 then
     cp /home/nbs/etcdclient/libetcdclient.h ${WORKSPACE}thirdparties/etcdclient
@@ -70,7 +80,7 @@ fi
 
 set -e
 
-bazel build ... -c dbg --collect_code_coverage --copt -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+bazel build ... -c dbg --collect_code_coverage --copt -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX ${g_build_opts[@]}
 
 #test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
 if [ $1 == "curvebs" ];then

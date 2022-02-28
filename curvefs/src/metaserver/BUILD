@@ -50,6 +50,7 @@ cc_library(
         "//external:braft",
         "//src/common:curve_common",
         "//src/fs:lfs",
+        "@rocksdb//:rocksdb_lib",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/memory",

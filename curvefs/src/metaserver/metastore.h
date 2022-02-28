@@ -30,6 +30,8 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/copyset/snapshot_closure.h"
 #include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/common/rpc_stream.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -71,6 +73,9 @@ using curvefs::metaserver::DeletePartitionRequest;
 using curvefs::metaserver::DeletePartitionResponse;
 
 using ::curvefs::metaserver::copyset::OnSnapshotSaveDoneClosure;
+using ::curvefs::metaserver::storage::Iterator;
+using ::curvefs::common::StreamSender;
+using ::curvefs::common::StreamConnection;
 
 class MetaStore {
  public:
@@ -90,6 +95,8 @@ class MetaStore {
         DeletePartitionResponse* response) = 0;
 
     virtual std::list<PartitionInfo> GetPartitionInfoList() = 0;
+
+    virtual std::shared_ptr<StreamSender> GetStreamSender() = 0;
 
     // dentry
     virtual MetaStatusCode CreateDentry(const CreateDentryRequest* request,
@@ -134,12 +141,18 @@ class MetaStore {
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response) = 0;
+        GetOrModifyS3ChunkInfoResponse* response,
+        std::shared_ptr<Iterator>* iterator) = 0;
+
+    virtual MetaStatusCode SendS3ChunkInfoByStream(
+        std::shared_ptr<StreamConnection> connection,
+        std::shared_ptr<Iterator> iterator) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
  public:
-    explicit MetaStoreImpl(copyset::CopysetNode* node);
+    MetaStoreImpl(copyset::CopysetNode* node,
+                  std::shared_ptr<KVStorage> kvStorage_);
 
     bool Load(const std::string& pathname) override;
     bool Save(const std::string& path,
@@ -153,6 +166,8 @@ class MetaStoreImpl : public MetaStore {
                                    DeletePartitionResponse* response) override;
 
     std::list<PartitionInfo> GetPartitionInfoList() override;
+
+    std::shared_ptr<StreamSender> GetStreamSender() override;
 
     // dentry
     MetaStatusCode CreateDentry(const CreateDentryRequest* request,
@@ -194,39 +209,28 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response) override;
+        GetOrModifyS3ChunkInfoResponse* response,
+        std::shared_ptr<Iterator>* iterator) override;
+
+    MetaStatusCode SendS3ChunkInfoByStream(
+        std::shared_ptr<StreamConnection> connection,
+        std::shared_ptr<Iterator> iterator) override;
 
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
  private:
-    bool LoadPartition(uint32_t partitionId, void* entry);
-
-    bool LoadInode(uint32_t partitionId, void* entry);
-
-    bool LoadDentry(uint32_t partitionId, void* entry);
-
-    bool LoadPendingTx(uint32_t partitionId, void* entry);
-
-    std::shared_ptr<Iterator> NewPartitionIterator();
-
-    std::shared_ptr<Iterator> NewInodeIterator(
-        std::shared_ptr<Partition> partition);
-
-    std::shared_ptr<Iterator> NewDentryIterator(
-        std::shared_ptr<Partition> partition);
-
-    std::shared_ptr<Iterator> NewPendingTxIterator(
-        std::shared_ptr<Partition> partition);
-
     void SaveBackground(const std::string& path,
                         OnSnapshotSaveDoneClosure* done);
 
  private:
     RWLock rwLock_;  // protect partitionMap_
+    std::shared_ptr<KVStorage> kvStorage_;
     std::map<uint32_t, std::shared_ptr<Partition>> partitionMap_;
     std::list<uint32_t> partitionIds_;
 
     copyset::CopysetNode* copysetNode_;
+
+    std::shared_ptr<StreamSender> streamSender_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

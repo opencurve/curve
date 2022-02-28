@@ -160,6 +160,15 @@ build_target() {
     done
 }
 
+build_requirements() {
+    kernel_version=`uname -r | awk -F . '{print $1 * 1000 + $2}'`
+    if [ $kernel_version -gt 5001 ]; then
+        g_build_opts+=("--define IO_URING_SUPPORT=1")
+    fi
+    g_rocksdb_root="$(dirname ${PWD})/thirdparties/rocksdb"
+    (cd ${g_rocksdb_root} && make build && make install prefix=${g_rocksdb_root})
+}
+
 main() {
     get_options "$@"
     get_version
@@ -170,6 +179,7 @@ main() {
         usage
         exit 1
     else
+        build_requirements
         build_target
     fi
 }
