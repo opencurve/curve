@@ -44,6 +44,16 @@ message CandidateError {
     required string errMsg = 2;
 };
 
+
+message MetaServerState {
+    required uint64 memoryThresholdByte = 1;
+    required uint64 memoryCopySetMinRequireByte = 2;
+    required uint64 memoryMetaserverUsedByte = 3;
+    required uint64 diskThresholdByte = 4;
+    required uint64 diskCopysetMinRequireByte = 5;
+    required uint64 diskMetaserverUsedByte = 6;
+}
+
 message MetaServerHeartbeatRequest {
     required uint32 metaServerID = 1;
     required string token = 2;
@@ -56,6 +66,7 @@ message MetaServerHeartbeatRequest {
     required uint64 metadataSpaceTotal = 9;  // KB
     required uint64 metadataSpaceUsed = 10;  // KB
     required uint64 memoryUsed = 11;  // KB
+    required MetaServerState metaserverState = 12;
 };
 
 message CopySetConf {

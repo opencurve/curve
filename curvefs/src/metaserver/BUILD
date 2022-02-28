@@ -21,15 +21,19 @@ cc_library(
     srcs = glob(
         ["*.cpp"],
         exclude = [
-            "main.cpp",
+            "main.cpp"
         ],
     ) + glob(
         ["copyset/*.cpp"],
+    ) + glob(
+        ["storage/*.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
     ) + glob(
         ["copyset/*.h"],
+    ) + glob(
+        ["storage/*.h"],
     ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
@@ -45,6 +49,7 @@ cc_library(
         "//external:braft",
         "//src/common:curve_common",
         "//src/fs:lfs",
+        "@rocksdb//:rocksdb_lib",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/memory",

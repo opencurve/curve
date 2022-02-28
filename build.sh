@@ -102,6 +102,11 @@ cd ${dir}
 
 cp ${dir}/thirdparties/etcdclient/libetcdclient.h ${dir}/include/etcdclient/etcdclient.h
 
+################################################################ __ROCKSDB__
+g_rocksdb_root="${PWD}/thirdparties/rocksdb"
+(cd ${g_rocksdb_root} && make clean && make build && make install prefix=${g_rocksdb_root})
+################################################################ __ROCKSDB__
+
 if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -le 6 ]
 then
     bazelflags=''

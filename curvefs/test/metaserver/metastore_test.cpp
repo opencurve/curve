@@ -25,6 +25,8 @@
 #include <gtest/gtest.h>
 #include <condition_variable>  // NOLINT
 #include "curvefs/src/common/process.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -37,9 +39,17 @@ using ::testing::StrEq;
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+
 class MetastoreTest : public ::testing::Test {
  protected:
-    void SetUp() override {}
+    void SetUp() override {
+        StorageOptions options;
+        kvStorage_ = std::make_shared<MemoryStorage>(options);
+    }
 
     void TearDown() override {}
 
@@ -132,10 +142,13 @@ class MetastoreTest : public ::testing::Test {
         std::mutex mtx_;
         std::condition_variable condition_;
     };
+
+ protected:
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(MetastoreTest, partition) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
     PartitionInfo partitionInfo;
@@ -230,7 +243,7 @@ TEST_F(MetastoreTest, partition) {
 }
 
 TEST_F(MetastoreTest, test_inode) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -464,7 +477,7 @@ TEST_F(MetastoreTest, test_inode) {
 }
 
 TEST_F(MetastoreTest, test_dentry) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -689,7 +702,7 @@ TEST_F(MetastoreTest, test_dentry) {
 }
 
 TEST_F(MetastoreTest, persist_success) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -803,7 +816,7 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(nullptr);
+    MetaStoreImpl metastoreNew(nullptr, kvStorage_);
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
 
@@ -827,7 +840,7 @@ TEST_F(MetastoreTest, persist_success) {
 }
 
 TEST_F(MetastoreTest, persist_deleting_partition_success) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -955,7 +968,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(nullptr);
+    MetaStoreImpl metastoreNew(nullptr, kvStorage_);
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
 
@@ -979,7 +992,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
 }
 
 TEST_F(MetastoreTest, persist_partition_fail) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1003,7 +1016,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 }
 
 TEST_F(MetastoreTest, persist_dentry_fail) {
-    MetaStoreImpl metastore(nullptr);
+    MetaStoreImpl metastore(nullptr, kvStorage_);
     uint32_t partitionId = 4;
 
     // create partition1

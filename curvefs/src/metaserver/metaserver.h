@@ -45,6 +45,7 @@ namespace curvefs {
 namespace metaserver {
 
 using ::curve::common::Configuration;
+using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::copyset::ApplyQueue;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
 using ::curvefs::metaserver::copyset::CopysetNodeOptions;
@@ -66,6 +67,7 @@ class Metaserver {
     void Stop();
 
  private:
+    void InitStorage();
     void InitCopysetNodeOptions();
     void InitCopysetNodeManager();
     void InitLocalFileSystem();
@@ -98,6 +100,8 @@ class Metaserver {
 
     HeartbeatOptions heartbeatOptions_;
     Heartbeat heartbeat_;
+
+    StorageOptions storageOptions_;
 
     CopysetNodeOptions copysetNodeOptions_;
     CopysetNodeManager* copysetNodeManager_;

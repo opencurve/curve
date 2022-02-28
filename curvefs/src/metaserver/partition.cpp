@@ -32,11 +32,13 @@
 namespace curvefs {
 namespace metaserver {
 
-Partition::Partition(const PartitionInfo& paritionInfo) {
+Partition::Partition(const PartitionInfo& paritionInfo,
+                     std::shared_ptr<KVStorage> kvStorage) {
     assert(paritionInfo.start() <= paritionInfo.end());
 
-    inodeStorage_ = std::make_shared<MemoryInodeStorage>();
-    dentryStorage_ = std::make_shared<MemoryDentryStorage>();
+    std::string tablename = GetStorageTablename();
+    inodeStorage_ = std::make_shared<InodeStorage>(kvStorage, tablename);
+    dentryStorage_ = std::make_shared<DentryStorage>(kvStorage, tablename);
     trash_ = std::make_shared<TrashImpl>(inodeStorage_);
     inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
@@ -281,7 +283,7 @@ bool Partition::IsDeletable() {
         return false;
     }
 
-    if (inodeStorage_->Count() != 0) {
+    if (inodeStorage_->Size() != 0) {
         return false;
     }
 
@@ -322,12 +324,22 @@ uint32_t Partition::GetPartitionId() { return partitionInfo_.partitionid(); }
 
 PartitionInfo Partition::GetPartitionInfo() { return partitionInfo_; }
 
-InodeStorage::ContainerType* Partition::GetInodeContainer() {
-    return inodeStorage_->GetContainer();
+std::shared_ptr<Iterator> Partition::GetAllInode() {
+    return inodeStorage_->GetAll();
 }
 
-DentryStorage::ContainerType* Partition::GetDentryContainer() {
-    return dentryStorage_->GetContainer();
+std::shared_ptr<Iterator> Partition::GetAllDentry() {
+    return dentryStorage_->GetAll();
+}
+
+bool Partition::ClearAllInode() {
+    auto rc = inodeStorage_->Clear();
+    return rc == MetaStatusCode::OK;
+}
+
+bool Partition::ClearAllDentry() {
+    auto rc = dentryStorage_->Clear();
+    return rc == MetaStatusCode::OK;
 }
 
 uint64_t Partition::GetNewInodeId() {
@@ -341,11 +353,18 @@ uint64_t Partition::GetNewInodeId() {
 }
 
 uint32_t Partition::GetInodeNum() {
-    return inodeStorage_->Count();
+    return static_cast<uint32_t>(inodeStorage_->Size());
 }
 
 uint32_t Partition::GetDentryNum() {
-    return dentryStorage_->Size();
+    return static_cast<uint32_t>(dentryStorage_->Size());
 }
+
+std::string Partition::GetStorageTablename() {
+    std::ostringstream oss;
+    oss << "partition:" << GetPartitionId();
+    return oss.str();
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

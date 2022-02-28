@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 

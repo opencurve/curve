@@ -36,7 +36,9 @@
 
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "src/common/timeutility.h"
+#include "src/common/string_util.h"
 #include "src/common/uri_parser.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -46,6 +48,9 @@ using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
 using ::curvefs::metaserver::copyset::CopysetService_Stub;
 using ::curvefs::metaserver::copyset::ToGroupIdString;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::StorageStatistics;
+using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
 
 namespace {
 
@@ -236,6 +241,32 @@ bool Heartbeat::GetProcMemory(uint64_t* vmRSS) {
     return false;
 }
 
+bool Heartbeat::GetMetaServerState(MetaServerState* state, uint64_t ncopysets) {
+    auto kvStorage_ = ::curvefs::metaserver::storage::GetStorageInstance();
+    StorageStatistics statistics;
+    bool succ = kvStorage_->GetStatistics(&statistics);
+    if (!succ) {
+        return false;
+    }
+
+    state->set_memorythresholdbyte(statistics.MaxMemoryBytes);
+    state->set_memorymetaserverusedbyte(statistics.MemoryUsageBytes);
+    state->set_diskthresholdbyte(statistics.MaxDiskQuotaBytes);
+    state->set_diskmetaserverusedbyte(statistics.DiskUsageBytes);
+
+    // TODO(@Wine93): more useful require value
+    uint64_t memoryUsageBytes = statistics.MemoryUsageBytes;
+    uint64_t diskUsageBytes = statistics.DiskUsageBytes;
+    if (kvStorage_->Type() == STORAGE_TYPE::MEMORY_STORAGE) {
+        state->set_diskcopysetminrequirebyte(0);
+    } else {
+        state->set_diskcopysetminrequirebyte(memoryUsageBytes / ncopysets);
+    }
+    state->set_memorycopysetminrequirebyte(diskUsageBytes / ncopysets);
+
+    return true;
+}
+
 int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     int ret;
 
@@ -280,6 +311,12 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         }
     }
     req->set_leadercount(leaders);
+
+    MetaServerState* state = req->mutable_metaserverstate();
+    if (!GetMetaServerState(state, copysets.size())) {
+        LOG(ERROR) << "Get metaserver state failed.";
+        return -1;
+    }
 
     return 0;
 }

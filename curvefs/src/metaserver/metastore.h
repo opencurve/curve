@@ -30,6 +30,7 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/copyset/snapshot_closure.h"
 #include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -66,6 +67,7 @@ using curvefs::metaserver::DeletePartitionRequest;
 using curvefs::metaserver::DeletePartitionResponse;
 
 using ::curvefs::metaserver::copyset::OnSnapshotSaveDoneClosure;
+using ::curvefs::metaserver::storage::Iterator;
 
 class MetaStore {
  public:
@@ -127,7 +129,8 @@ class MetaStore {
 
 class MetaStoreImpl : public MetaStore {
  public:
-    explicit MetaStoreImpl(copyset::CopysetNode* node);
+    MetaStoreImpl(copyset::CopysetNode* node,
+                  std::shared_ptr<KVStorage> kvStorage_);
 
     bool Load(const std::string& pathname) override;
     bool Save(const std::string& path,
@@ -181,13 +184,21 @@ class MetaStoreImpl : public MetaStore {
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);
 
  private:
-    bool LoadPartition(uint32_t partitionId, void* entry);
+    bool LoadPartition(uint32_t partitionId,
+                       const std::string& key,
+                       const std::string& value);
 
-    bool LoadInode(uint32_t partitionId, void* entry);
+    bool LoadInode(uint32_t partitionId,
+                   const std::string& key,
+                   const std::string& value);
 
-    bool LoadDentry(uint32_t partitionId, void* entry);
+    bool LoadDentry(uint32_t partitionId,
+                    const std::string& key,
+                    const std::string& value);
 
-    bool LoadPendingTx(uint32_t partitionId, void* entry);
+    bool LoadPendingTx(uint32_t partitionId,
+                       const std::string& key,
+                       const std::string& value);
 
     std::shared_ptr<Iterator> NewPartitionIterator();
 
@@ -205,6 +216,7 @@ class MetaStoreImpl : public MetaStore {
 
  private:
     RWLock rwLock_;  // protect partitionMap_
+    std::shared_ptr<KVStorage> kvStorage_;
     std::map<uint32_t, std::shared_ptr<Partition>> partitionMap_;
     std::list<uint32_t> partitionIds_;
 

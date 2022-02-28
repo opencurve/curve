@@ -26,6 +26,8 @@
 
 #include "curvefs/test/metaserver/test_helper.h"
 #include "curvefs/src/metaserver/inode_manager.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -37,11 +39,18 @@ using ::testing::SetArgPointee;
 using ::testing::SaveArg;
 using ::google::protobuf::util::MessageDifferencer;
 
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+
 namespace curvefs {
 namespace metaserver {
 class InodeManagerTest : public ::testing::Test {
  protected:
-    void SetUp() override { return; }
+    void SetUp() override {
+        tablename_ = "partition:1";
+        kvStorage_ = std::make_shared<MemoryStorage>(options_);
+    }
 
     void TearDown() override { return; }
 
@@ -57,11 +66,16 @@ class InodeManagerTest : public ::testing::Test {
                first.symlink() == second.symlink() &&
                first.nlink() == second.nlink();
     }
+
+ protected:
+    std::string tablename_;
+    StorageOptions options_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(InodeManagerTest, test1) {
     std::shared_ptr<InodeStorage> inodeStorage =
-        std::make_shared<MemoryInodeStorage>();
+        std::make_shared<InodeStorage>(kvStorage_, tablename_);
     auto trash = std::make_shared<TrashImpl>(inodeStorage);
     InodeManager manager(inodeStorage, trash);
 

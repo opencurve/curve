@@ -25,6 +25,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <thread>  //NOLINT
 #include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/mds/schedule/operatorFactory.h"

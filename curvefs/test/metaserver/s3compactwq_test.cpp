@@ -28,6 +28,8 @@
 #include "curvefs/test/metaserver/mock_s3_adapter.h"
 #include "curvefs/test/metaserver/mock_s3compactwq_impl.h"
 #include "curvefs/test/metaserver/mock_s3infocache.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -38,6 +40,10 @@ using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
 
 namespace curvefs {
 namespace metaserver {
@@ -61,7 +67,10 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         butil::EndPoint metaserverAddr;
         s3infoCache_ = std::make_shared<MockS3InfoCache>(
             cacheCapacity, mdsAddrs, metaserverAddr);
-        inodeStorage_ = std::make_shared<MemoryInodeStorage>();
+        StorageOptions options;
+        auto kvStorage_ = std::make_shared<MemoryStorage>(options);
+        inodeStorage_ = std::make_shared<InodeStorage>(
+            kvStorage_, "partition:1");
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
         impl_ = std::make_shared<S3CompactWorkQueueImpl>(s3adapterManager_,
@@ -547,6 +556,16 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     inode1.set_inodeid(1);
     inode1.set_length(60);
     inode1.set_nlink(1);
+    inode1.set_ctime(0);
+    inode1.set_ctime_ns(0);
+    inode1.set_mtime(0);
+    inode1.set_mtime_ns(0);
+    inode1.set_atime(0);
+    inode1.set_atime_ns(0);
+    inode1.set_uid(0);
+    inode1.set_gid(0);
+    inode1.set_mode(0);
+    inode1.set_type(FsFileType::TYPE_FILE);
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3chunkinfoMap;
     *inode1.mutable_s3chunkinfomap() = s3chunkinfoMap;
     ASSERT_EQ(inodeStorage_->Insert(inode1), MetaStatusCode::OK);
