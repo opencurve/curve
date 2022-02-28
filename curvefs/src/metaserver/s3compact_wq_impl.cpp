@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
@@ -46,7 +47,7 @@ namespace curvefs {
 namespace metaserver {
 
 void S3CompactWorkQueueImpl::Enqueue(std::shared_ptr<InodeManager> inodeManager,
-                                     InodeKey inodeKey, PartitionInfo pinfo) {
+                                     Key4Inode inodeKey, PartitionInfo pinfo) {
     std::unique_lock<std::mutex> guard(mutex_);
 
     // inodeKey already in working queue, just return
@@ -471,11 +472,24 @@ bool S3CompactWorkQueueImpl::CompactPrecheck(
         return false;
     }
 
-    // s3chunkinfomap size 0?
-    if (inode->s3chunkinfomap().size() == 0) {
-        VLOG(6) << "s3compact: empty s3chunkinfomap";
-        return false;
+    // pandding s3chunkinfomap for inode
+    {
+        auto inodeKey = task.inodeKey;
+        auto inodeManager = task.inodeManager;
+        MetaStatusCode rc = inodeManager->PaddingInodeS3ChunkInfo(
+            inodeKey.fsId, inodeKey.inodeId, inode);
+        if (rc != MetaStatusCode::OK) {
+            LOG(ERROR) << "Padding inode s3chunkinfo failed, "
+                       << "retCode = " << MetaStatusCode_Name(ret);
+            return false;
+        }
+
+        if (inode->s3chunkinfomap().size() == 0) {
+            VLOG(6) << "Inode s3chunkinfo is empty";
+            return false;
+        }
     }
+
     // need compact?
     *needCompact = GetNeedCompact(inode->s3chunkinfomap());
     if (needCompact->empty()) {

@@ -20,21 +20,37 @@
  * Author: Jingli Chen (Wine93)
  */
 
+#include <glog/logging.h>
+
 #include <memory>
 
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/memory_storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
+using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::MemoryStorage;
+using ::curvefs::metaserver::storage::RocksDBStorage;
 
 static std::shared_ptr<KVStorage> kKVStorage;
 
-void InitStorage(StorageOptions options) {
-    kKVStorage = std::make_shared<MemoryStorage>(options);
+bool InitStorage(StorageOptions options) {
+    if (options.type == "memory") {
+        kKVStorage = std::make_shared<MemoryStorage>(options);
+        LOG(INFO) << "using memory storage";
+    } else if (options.type == "rocksdb") {
+        kKVStorage = std::make_shared<RocksDBStorage>(options);
+        LOG(INFO) << "using rocksdb storage";
+    } else {
+        LOG(ERROR) << "unsupport storage type (" << options.type << ")";
+        return false;
+    }
+    return kKVStorage->Open();
 }
 
 std::shared_ptr<KVStorage> GetStorageInstance() {

@@ -35,11 +35,12 @@
 #include "src/common/timeutility.h"
 #include "src/fs/ext4_filesystem_impl.h"
 #include "curvefs/src/common/process.h"
-#include "curvefs/src/metaserver/iterator.h"
-#include "curvefs/src/metaserver/dumpfile.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/dumpfile.h"
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
 #define RETURN_IF_UNSUCCESS(statement) \
 do { \
@@ -561,5 +562,6 @@ int DumpFileIterator::Status() {
     return 0;
 }
 
-};  // namespace metaserver
-};  // namespace curvefs
+}  // namespace storage
+}  // namespace metaserver
+}  // namespace curvefs

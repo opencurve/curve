@@ -27,6 +27,7 @@
 
 #include <string>
 #include <list>
+#include <memory>
 
 #include "curvefs/src/metaserver/metastore.h"
 
@@ -71,12 +72,20 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                                              DeleteInodeResponse*));
     MOCK_METHOD2(UpdateInode, MetaStatusCode(const UpdateInodeRequest*,
                                              UpdateInodeResponse*));
-    MOCK_METHOD2(GetOrModifyS3ChunkInfo, MetaStatusCode(
-        const GetOrModifyS3ChunkInfoRequest* request,
-        GetOrModifyS3ChunkInfoResponse* response));
 
     MOCK_METHOD2(PrepareRenameTx, MetaStatusCode(const PrepareRenameTxRequest*,
                                                  PrepareRenameTxResponse*));
+
+    MOCK_METHOD0(GetStreamServer, std::shared_ptr<StreamServer>());
+
+    MOCK_METHOD3(GetOrModifyS3ChunkInfo, MetaStatusCode(
+        const GetOrModifyS3ChunkInfoRequest* request,
+        GetOrModifyS3ChunkInfoResponse* response,
+        std::shared_ptr<Iterator>* iterator));
+
+    MOCK_METHOD2(SendS3ChunkInfoByStream, MetaStatusCode(
+        std::shared_ptr<StreamConnection> connection,
+        std::shared_ptr<Iterator> iterator));
 };
 
 }  // namespace mock

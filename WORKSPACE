@@ -205,3 +205,10 @@ http_archive(
   strip_prefix = "abseil-cpp-20210324.2",
   sha256 = "59b862f50e710277f8ede96f083a5bb8d7c9595376146838b9580be90374ee1f",
 )
+
+# RocksDB
+new_local_repository(
+    name = "rocksdb",
+    build_file = "bazel/rocksdb.BUILD",
+    path = "thirdparties/rocksdb",
+)

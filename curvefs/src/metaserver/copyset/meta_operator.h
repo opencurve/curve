@@ -27,6 +27,7 @@
 #include <google/protobuf/message.h>
 
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/common/rpc_stream.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 
 namespace curvefs {

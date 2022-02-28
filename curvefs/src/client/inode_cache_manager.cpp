@@ -73,6 +73,15 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
 
+    // NOTE: now the s3chunkinfo in inode is empty for
+    // we had store it with alone, so we should invoke
+    // RefreshS3ChunkInfo() to padding inode's s3chunkinfo.
+    CURVEFS_ERROR rc = out->RefreshS3ChunkInfo();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "RefreshS3ChunkInfo() failed, retCode = " << rc;
+        return rc;
+    }
+
     std::shared_ptr<InodeWrapper> eliminatedOne;
     bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
     if (eliminated) {

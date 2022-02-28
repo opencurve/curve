@@ -38,7 +38,10 @@ bool PartitionCleaner::ScanPartition() {
     }
 
     std::list<uint64_t> InodeIdList;
-    partition_->GetInodeIdList(&InodeIdList);
+    if (!partition_->GetInodeIdList(&InodeIdList)) {
+        return false;
+    }
+
     for (auto inodeId : InodeIdList) {
         if (isStop_ || !copysetNode_->IsLeaderTerm()) {
             return false;
