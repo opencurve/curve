@@ -33,6 +33,8 @@
 #include "src/common/concurrent/name_lock.h"
 
 using ::curve::common::NameLock;
+using ::curvefs::metaserver::S3ChunkInfoList;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace metaserver {
@@ -60,23 +62,29 @@ class InodeManager {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest &request);
 
-    MetaStatusCode GetOrModifyS3ChunkInfo(
-        uint32_t fsId, uint64_t inodeId,
-        const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoAdd,
-        const google::protobuf::Map<uint64_t, S3ChunkInfoList>&
-            s3ChunkInfoRemove,
-        bool returnS3ChunkInfoMap,
-        google::protobuf::Map<uint64_t, S3ChunkInfoList>* out,
-        bool fromS3Compaction);
+    MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId,
+                                          uint64_t inodeId,
+                                          const S3ChunkInfoMap& map2add,
+                                          std::shared_ptr<Iterator>* iterator,
+                                          bool returnS3ChunkInfoMap,
+                                          bool compaction);
+
+    MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
+                                           uint64_t inodeId,
+                                           Inode* inode);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
         uint64_t inodeId, bool isCreate);
 
     MetaStatusCode InsertInode(const Inode &inode);
 
-    void GetInodeIdList(std::list<uint64_t>* inodeIdList);
+    bool GetInodeIdList(std::list<uint64_t>* inodeIdList);
 
  private:
+    bool AppendS3ChunkInfo(uint32_t fsId,
+                           uint64_t inodeId,
+                           S3ChunkInfoMap added);
+
     void GenerateInodeInternal(uint64_t inodeId, uint32_t fsId, uint64_t length,
                                uint32_t uid, uint32_t gid, uint32_t mode,
                                FsFileType type, uint64_t rdev, Inode *inode);

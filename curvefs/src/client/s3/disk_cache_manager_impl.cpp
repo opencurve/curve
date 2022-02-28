@@ -24,6 +24,7 @@
 #include <string>
 #include <cstdio>
 #include <list>
+#include <memory>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/disk_cache_manager_impl.h"

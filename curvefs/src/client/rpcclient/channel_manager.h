@@ -67,7 +67,7 @@ ChannelManager<T>::GetOrCreateChannel(const T &id,
     }
 
     auto channel = std::make_shared<brpc::Channel>();
-    if (0 != channel->Init(leaderAddr, NULL)) {
+    if (0 != channel->Init(leaderAddr, nullptr)) {
         LOG(ERROR) << "failed to init channel to server, " << id << ", "
                    << butil::endpoint2str(leaderAddr).c_str();
         return nullptr;

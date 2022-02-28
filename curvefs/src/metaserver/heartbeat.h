@@ -44,6 +44,7 @@ using ::curvefs::metaserver::copyset::CopysetNode;
 namespace curvefs {
 namespace metaserver {
 
+using ::curve::fs::LocalFileSystem;
 using HeartbeatRequest = curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using HeartbeatResponse = curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
 using MetaServerSpaceStatus = curvefs::mds::heartbeat::MetaServerSpaceStatus;

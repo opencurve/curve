@@ -32,8 +32,177 @@ namespace curvefs {
 namespace metaserver {
 namespace storage {
 
+using UnorderedType = MemoryStorage::UnorderedType;
+using OrderedType = MemoryStorage::OrderedType;
+
 MemoryStorage::MemoryStorage(StorageOptions options)
     : options_(options) {}
+
+STORAGE_TYPE MemoryStorage::Type() {
+    return STORAGE_TYPE::MEMORY_STORAGE;
+}
+
+bool MemoryStorage::Open() {
+    return true;
+}
+
+bool MemoryStorage::Close() {
+    return true;
+}
+
+std::shared_ptr<UnorderedType> MemoryStorage::GetUnordered(
+    const std::string& name) {
+    {
+        ReadLockGuard readLockGuard(rwLock_);
+        auto iter = unorderedDict_.find(name);
+        if (iter != unorderedDict_.end()) {
+            return iter->second;
+        }
+    }
+    {
+        WriteLockGuard writeLockGuard(rwLock_);
+        auto ret = unorderedDict_.emplace(
+            name, std::make_shared<UnorderedType>());
+        return ret.first->second;
+    }
+}
+
+std::shared_ptr<OrderedType> MemoryStorage::GetOrdered(
+    const std::string& name) {
+    {
+        ReadLockGuard readLockGuard(rwLock_);
+        auto iter = orderedDict_.find(name);
+        if (iter != orderedDict_.end()) {
+            return iter->second;
+        }
+    }
+    {
+        WriteLockGuard writeLockGuard(rwLock_);
+        auto ret = orderedDict_.emplace(
+            name, std::make_shared<OrderedType>());
+        return ret.first->second;
+    }
+}
+
+Status MemoryStorage::HGet(const std::string& name,
+                           const std::string& key,
+                           std::string* value) {
+    auto container = GetUnordered(name);
+    auto iter = container->find(key);
+    if (iter == container->end()) {
+        return Status::NotFound();
+    }
+    *value = iter->second;
+    return Status::OK();
+}
+
+Status MemoryStorage::HSet(const std::string& name,
+                           const std::string& key,
+                           const std::string& value) {
+    auto container = GetUnordered(name);
+    auto ret = container->emplace(key, value);
+    if (!ret.second) {  // already exist
+        ret.first->second = value;
+    }
+    return Status::OK();
+}
+
+Status MemoryStorage::HDel(const std::string& name,
+                           const std::string& key) {
+    auto container = GetUnordered(name);
+    auto iter = container->find(key);
+    if (iter == container->end()) {
+        return Status::NotFound();
+    }
+    container->erase(iter);
+    return Status::OK();
+}
+
+std::shared_ptr<Iterator> MemoryStorage::HGetAll(const std::string& name) {
+    auto container = GetUnordered(name);
+    return std::make_shared<UnorderedContainerIterator<UnorderedType>>(
+        container, "");
+}
+
+size_t MemoryStorage::HSize(const std::string& name) {
+    auto container = GetUnordered(name);
+    return container->size();
+}
+
+Status MemoryStorage::HClear(const std::string& name) {
+    auto container = GetUnordered(name);
+    container->clear();
+    return Status::OK();
+}
+
+Status MemoryStorage::SGet(const std::string& name,
+                           const std::string& key,
+                           std::string* value) {
+    auto container = GetOrdered(name);
+    auto iter = container->find(key);
+    if (iter == container->end()) {
+        return Status::NotFound();
+    }
+    *value = iter->second;
+    return Status::OK();
+}
+
+Status MemoryStorage::SSet(const std::string& name,
+                           const std::string& key,
+                           const std::string& value) {
+    auto container = GetOrdered(name);
+    auto ret = container->emplace(key, value);
+    if (!ret.second) {  // already exist
+        ret.first->second = value;
+    }
+    return Status::OK();
+}
+
+Status MemoryStorage::SDel(const std::string& name, const std::string& key) {
+    auto container = GetOrdered(name);
+    auto iter = container->find(key);
+    if (iter == container->end()) {
+        return Status::NotFound();
+    }
+    container->erase(iter);
+    return Status::OK();
+}
+
+std::shared_ptr<Iterator> MemoryStorage::SSeek(const std::string& name,
+                                                const std::string& prefix) {
+    auto container = GetOrdered(name);
+    return std::make_shared<OrderedContainerIterator<OrderedType>>(
+        container, prefix);
+}
+
+std::shared_ptr<Iterator> MemoryStorage::SGetAll(const std::string& name) {
+    auto container = GetOrdered(name);
+    return std::make_shared<OrderedContainerIterator<OrderedType>>(
+        container, "");
+}
+
+size_t MemoryStorage::SSize(const std::string& name) {
+    auto container = GetOrdered(name);
+    return container->size();
+}
+
+Status MemoryStorage::SClear(const std::string& name) {
+    auto container = GetOrdered(name);
+    container->clear();
+    return Status::OK();
+}
+
+std::shared_ptr<StorageTransaction> MemoryStorage::BeginTransaction() {
+    return std::shared_ptr<MemoryStorage>(this, [](MemoryStorage*){});
+}
+
+Status MemoryStorage::Commit() {
+    return Status::OK();
+}
+
+Status MemoryStorage::Rollback()  {
+    return Status::OK();
+}
 
 bool MemoryStorage::GetStatistics(StorageStatistics* statistics) {
     statistics->maxMemoryQuotaBytes = options_.maxMemoryQuotaBytes;
@@ -44,9 +213,7 @@ bool MemoryStorage::GetStatistics(StorageStatistics* statistics) {
     if (!GetProcMemory(&vmRSS)) {
         return false;
     }
-
-    // vmRSS is KB, change it to Byte
-    statistics->memoryUsageBytes = vmRSS * 1024;
+    statistics->memoryUsageBytes = vmRSS * 1024;  // unit of vmRSS if KB
 
     // disk usage bytes
     uint64_t total, available;
