@@ -7,6 +7,7 @@
 g_list=0
 g_target=""
 g_release=0
+g_build_rocksdb=0
 g_mark_left="==========>>>>>>>>>>"
 g_mark_right="==========<<<<<<<<<<"
 g_build_opts=(
@@ -81,7 +82,7 @@ _EOC_
 }
 
 get_options() {
-    local args=`getopt -o lorh --long list,only:,release: -n "$0" -- "$@"`
+    local args=`getopt -o lorh --long list,only:,release:,io_uring:,build_rocksdb: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
@@ -96,6 +97,10 @@ get_options() {
                 ;;
             -r|--release)
                 g_release=$2
+                shift 2
+                ;;
+            --build_rocksdb)
+                g_build_rocksdb=$2
                 shift 2
                 ;;
             -h)
@@ -160,6 +165,15 @@ build_target() {
     done
 }
 
+build_requirements() {
+    kernel_version=`uname -r | awk -F . '{print $1 * 1000 + $2}'`
+    if [ $kernel_version -gt 5001 ]; then
+        g_build_opts+=("--define IO_URING_SUPPORT=1")
+    fi
+    g_rocksdb_root="$(dirname ${PWD})/thirdparties/rocksdb"
+    (cd ${g_rocksdb_root} && make build from_source=${g_build_rocksdb} && make install prefix=${g_rocksdb_root})
+}
+
 main() {
     get_options "$@"
     get_version
@@ -170,6 +184,7 @@ main() {
         usage
         exit 1
     else
+        build_requirements
         build_target
     fi
 }

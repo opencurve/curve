@@ -60,6 +60,7 @@ struct ExcutorOpt {
     uint32_t maxRetry = 3;
     uint64_t retryIntervalUS = 200;
     uint64_t rpcTimeoutMS = 1000;
+    uint64_t rpcStreamIdleTimeoutMS = 500;
     uint64_t maxRPCTimeoutMS = 64000;
     uint64_t maxRetrySleepIntervalUS = 64ull * 1000 * 1000;
     uint64_t minRetryTimesForceTimeoutBackoff = 5;

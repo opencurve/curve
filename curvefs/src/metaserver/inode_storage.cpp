@@ -20,129 +20,339 @@
  * Author: chenwei
  */
 
-#include "curvefs/src/metaserver/inode_storage.h"
-
-#include <algorithm>
+#include <string>
+#include <memory>
 #include <vector>
+#include <algorithm>
+
+#include "src/common/string_util.h"
+#include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
-MetaStatusCode MemoryInodeStorage::Insert(const Inode &inode) {
+
+using ::curve::common::StringStartWith;
+using ::curvefs::metaserver::storage::Status;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using ::curvefs::metaserver::storage::Prefix4ChunkIndexS3ChunkInfoList;
+using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
+using ::curvefs::metaserver::storage::Prefix4AllInode;
+using Transaction = std::shared_ptr<StorageTransaction>;
+
+InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
+                           const std::string& tablename)
+    : kvStorage_(kvStorage),
+      table4inode_(RealTablename(KEY_TYPE::kTypeInode, tablename)),
+      table4s3chunkinfo_(RealTablename(KEY_TYPE::kTypeS3ChunkInfo, tablename)),
+      conv_(std::make_shared<Converter>()) {}
+
+MetaStatusCode InodeStorage::Insert(const Inode& inode) {
     WriteLockGuard writeLockGuard(rwLock_);
-    std::shared_ptr<Inode> newInode = std::make_shared<Inode>(inode);
-    auto it = inodeMap_.emplace(InodeKey(inode), newInode);
-    if (it.second == false) {
+    Key4Inode key(inode.fsid(), inode.inodeid());
+    std::string skey = conv_->SerializeToString(key);
+    if (FindKey(skey)) {
         return MetaStatusCode::INODE_EXIST;
     }
-    return MetaStatusCode::OK;
+
+    Status s = kvStorage_->HSet(table4inode_, skey, inode);
+    if (s.ok()) {
+        InsertKey(skey);
+        return MetaStatusCode::OK;
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-MetaStatusCode MemoryInodeStorage::Get(
-    const InodeKey &key, std::shared_ptr<Inode> *inode) {
+MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
     ReadLockGuard readLockGuard(rwLock_);
-    auto it = inodeMap_.find(key);
-    if (it == inodeMap_.end()) {
+    std::string skey = conv_->SerializeToString(key);
+    if (!FindKey(skey)) {
         return MetaStatusCode::NOT_FOUND;
     }
-    *inode = it->second;
-    return MetaStatusCode::OK;
-}
 
-MetaStatusCode MemoryInodeStorage::GetCopy(const InodeKey &key, Inode *inode) {
-    ReadLockGuard readLockGuard(rwLock_);
-    auto it = inodeMap_.find(key);
-    if (it == inodeMap_.end()) {
-        return MetaStatusCode::NOT_FOUND;
+    Status s = kvStorage_->HGet(table4inode_, skey, inode);
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-    *inode = *(it->second);
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode MemoryInodeStorage::GetAttr(const InodeKey &key,
+MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     InodeAttr *attr) {
     ReadLockGuard readLockGuard(rwLock_);
-    auto it = inodeMap_.find(key);
-    if (it == inodeMap_.end()) {
+    std::string skey = conv_->SerializeToString(key);
+    if (!FindKey(skey)) {
         return MetaStatusCode::NOT_FOUND;
+    }
+
+    Inode inode;
+    Status s = kvStorage_->HGet(table4inode_, skey, &inode);
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     // get attr from inode
-    attr->set_inodeid(it->second->inodeid());
-    attr->set_fsid(it->second->fsid());
-    attr->set_length(it->second->length());
-    attr->set_ctime(it->second->ctime());
-    attr->set_ctime_ns(it->second->ctime_ns());
-    attr->set_mtime(it->second->mtime());
-    attr->set_mtime_ns(it->second->mtime_ns());
-    attr->set_atime(it->second->atime());
-    attr->set_atime_ns(it->second->atime_ns());
-    attr->set_uid(it->second->uid());
-    attr->set_gid(it->second->gid());
-    attr->set_mode(it->second->mode());
-    attr->set_nlink(it->second->nlink());
-    attr->set_type(it->second->type());
-    if (it->second->has_symlink()) {
-        attr->set_symlink(it->second->symlink());
+    attr->set_inodeid(inode.inodeid());
+    attr->set_fsid(inode.fsid());
+    attr->set_length(inode.length());
+    attr->set_ctime(inode.ctime());
+    attr->set_ctime_ns(inode.ctime_ns());
+    attr->set_mtime(inode.mtime());
+    attr->set_mtime_ns(inode.mtime_ns());
+    attr->set_atime(inode.atime());
+    attr->set_atime_ns(inode.atime_ns());
+    attr->set_uid(inode.uid());
+    attr->set_gid(inode.gid());
+    attr->set_mode(inode.mode());
+    attr->set_nlink(inode.nlink());
+    attr->set_type(inode.type());
+    if (inode.has_symlink()) {
+        attr->set_symlink(inode.symlink());
     }
-    if (it->second->has_rdev()) {
-        attr->set_rdev(it->second->rdev());
+    if (inode.has_rdev()) {
+        attr->set_rdev(inode.rdev());
     }
-    if (it->second->has_dtime()) {
-        attr->set_dtime(it->second->dtime());
+    if (inode.has_dtime()) {
+        attr->set_dtime(inode.dtime());
     }
-    if (it->second->has_openmpcount()) {
-        attr->set_openmpcount(it->second->openmpcount());
+    if (inode.has_openmpcount()) {
+        attr->set_openmpcount(inode.openmpcount());
     }
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode MemoryInodeStorage::GetXAttr(const InodeKey &key, XAttr *xattr) {
+MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& key, XAttr *xattr) {
     ReadLockGuard readLockGuard(rwLock_);
-    auto it = inodeMap_.find(key);
-    if (it == inodeMap_.end()) {
+    std::string skey = conv_->SerializeToString(key);
+    if (!FindKey(skey)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
-    if (!it->second->xattr().empty()) {
-        *(xattr->mutable_xattrinfos()) = it->second->xattr();
+    Inode inode;
+    Status s = kvStorage_->HGet(table4inode_, skey, &inode);
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    if (!inode.xattr().empty()) {
+        *(xattr->mutable_xattrinfos()) = inode.xattr();
     }
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode MemoryInodeStorage::Delete(const InodeKey &key) {
+MetaStatusCode InodeStorage::Delete(const Key4Inode& key) {
     WriteLockGuard writeLockGuard(rwLock_);
-    auto it = inodeMap_.find(key);
-    if (it != inodeMap_.end()) {
-        inodeMap_.erase(it);
+    std::string skey = conv_->SerializeToString(key);
+    if (!FindKey(skey)) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+
+    Status s = kvStorage_->HDel(table4inode_, skey);
+    if (s.ok()) {
+        EraseKey(skey);
         return MetaStatusCode::OK;
     }
-    return MetaStatusCode::NOT_FOUND;
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-MetaStatusCode MemoryInodeStorage::Update(const Inode &inode) {
+MetaStatusCode InodeStorage::Update(const Inode& inode) {
     WriteLockGuard writeLockGuard(rwLock_);
-    auto it = inodeMap_.find(InodeKey(inode));
-    if (it == inodeMap_.end()) {
+    std::string skey;
+    Key4Inode key(inode.fsid(), inode.inodeid());
+    skey = conv_->SerializeToString(key);
+    if (!FindKey(skey)) {
         return MetaStatusCode::NOT_FOUND;
     }
-    *(it->second) = inode;
+
+    Status s = kvStorage_->HSet(table4inode_, skey, inode);
+    if (s.ok()) {
+        return MetaStatusCode::OK;
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+MetaStatusCode InodeStorage::AddS3ChunkInfoList(
+    Transaction txn,
+    uint32_t fsId,
+    uint64_t inodeId,
+    uint64_t chunkIndex,
+    const S3ChunkInfoList& list2add) {
+    // key
+    size_t size = list2add.s3chunks_size();
+    uint64_t firstChunkId = list2add.s3chunks(0).chunkid();
+    uint64_t lastChunkId = list2add.s3chunks(size - 1).chunkid();
+    Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
+                            firstChunkId, lastChunkId);
+    std::string skey = conv_->SerializeToString(key);
+
+    Status s = txn->SSet(table4s3chunkinfo_, skey, list2add);
+    return s.ok() ? MetaStatusCode::OK :
+                    MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+// NOTE: s3chunkinfo which its chunkid equal or
+// less then min chunkid should be removed
+MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
+                                                   uint32_t fsId,
+                                                   uint64_t inodeId,
+                                                   uint64_t chunkIndex,
+                                                   uint64_t minChunkId) {
+    Prefix4ChunkIndexS3ChunkInfoList prefix(fsId, inodeId, chunkIndex);
+    std::string sprefix = conv_->SerializeToString(prefix);
+    auto iterator = txn->SSeek(table4s3chunkinfo_, sprefix);
+    if (iterator->Status() != 0) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    uint64_t lastChunkId;
+    Key4S3ChunkInfoList key;
+    std::vector<std::string> key2del;
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        std::string skey = iterator->Key();
+        if (!StringStartWith(skey, sprefix)) {
+            break;
+        } else if (!conv_->ParseFromString(skey, &key)) {
+            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+        } else if (key.firstChunkId >= minChunkId) {
+            break;
+        }
+
+        // firstChunkId < minChunkId
+        key2del.push_back(skey);
+    }
+
+    for (const auto& skey : key2del) {
+        if (!txn->SDel(table4s3chunkinfo_, skey).ok()) {
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
+    }
     return MetaStatusCode::OK;
 }
 
-int MemoryInodeStorage::Count() {
-    ReadLockGuard readLockGuard(rwLock_);
-    return inodeMap_.size();
-}
-
-InodeStorage::ContainerType* MemoryInodeStorage::GetContainer() {
-    return &inodeMap_;
-}
-
-void MemoryInodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
-    ReadLockGuard readLockGuard(rwLock_);
-    for (auto it = inodeMap_.begin(); it != inodeMap_.end(); ++it) {
-        inodeIdList->push_back(it->second->inodeid());
+MetaStatusCode InodeStorage::AppendS3ChunkInfoList(
+    uint32_t fsId,
+    uint64_t inodeId,
+    uint64_t chunkIndex,
+    const S3ChunkInfoList& list2add,
+    bool compaction) {
+    WriteLockGuard writeLockGuard(rwLock_);
+    size_t size = list2add.s3chunks_size();
+    if (size == 0) {
+        return MetaStatusCode::OK;
     }
+
+    auto txn = kvStorage_->BeginTransaction();
+    if (nullptr == txn) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    MetaStatusCode rc;
+    rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
+    if (rc == MetaStatusCode::OK && compaction) {
+        uint64_t minChunkId = list2add.s3chunks(0).chunkid();
+        rc = RemoveS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, minChunkId);
+    }
+
+    if (rc != MetaStatusCode::OK) {
+        txn->Rollback();
+    } else if (!txn->Commit().ok()) {
+        rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    return rc;
+}
+
+MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
+                                                     uint64_t inodeId,
+                                                     Inode* inode) {
+    ReadLockGuard readLockGuard(rwLock_);
+    auto iterator = GetInodeS3ChunkInfoList(fsId, inodeId);
+    if (iterator->Status() != 0) {
+        LOG(ERROR) << "Get inode s3chunkinfo failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    auto merge = [](const S3ChunkInfoList& from, S3ChunkInfoList* to) {
+        for (int i = 0; i < from.s3chunks_size(); i++) {
+            auto chunkinfo = to->add_s3chunks();
+            chunkinfo->CopyFrom(from.s3chunks(i));
+        }
+    };
+
+    Key4S3ChunkInfoList key;
+    S3ChunkInfoList list;
+    auto m = inode->mutable_s3chunkinfomap();
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        std::string skey = iterator->Key();
+        std::string svalue = iterator->Value();
+        if (!conv_->ParseFromString(skey, &key)) {
+            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+        } else if (!iterator->ParseFromValue(&list)) {
+            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+        }
+
+        uint64_t chunkIndex = key.chunkIndex;
+        auto iter = m->find(chunkIndex);
+        if (iter == m->end()) {
+            m->insert({chunkIndex, list});
+        } else {
+            merge(list, &iter->second);
+        }
+    }
+
+    return MetaStatusCode::OK;
+}
+
+std::shared_ptr<Iterator> InodeStorage::GetInodeS3ChunkInfoList(
+    uint32_t fsId, uint64_t inodeId) {
+    ReadLockGuard readLockGuard(rwLock_);
+    Prefix4InodeS3ChunkInfoList prefix(fsId, inodeId);
+    std::string sprefix = conv_->SerializeToString(prefix);
+    return kvStorage_->SSeek(table4s3chunkinfo_, sprefix);
+}
+
+std::shared_ptr<Iterator> InodeStorage::GetAllS3ChunkInfoList() {
+    ReadLockGuard readLockGuard(rwLock_);
+    return kvStorage_->SGetAll(table4s3chunkinfo_);
+}
+
+std::shared_ptr<Iterator> InodeStorage::GetAllInode() {
+    ReadLockGuard readLockGuard(rwLock_);
+    std::string sprefix = conv_->SerializeToString(Prefix4AllInode());
+    return kvStorage_->HGetAll(table4inode_);
+}
+
+size_t InodeStorage::Size() {
+    return kvStorage_->HSize(table4inode_);
+}
+
+MetaStatusCode InodeStorage::Clear() {
+    ReadLockGuard w(rwLock_);
+    Status s = kvStorage_->HClear(table4inode_);
+    if (!s.ok()) {
+        LOG(ERROR) << "InodeStorage HClear() failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    s = kvStorage_->SClear(table4s3chunkinfo_);
+    if (!s.ok()) {
+        LOG(ERROR) << "InodeStorage SClear() failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    keySet_.clear();
+    return MetaStatusCode::OK;
+}
+
+bool InodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
+    ReadLockGuard readLockGuard(rwLock_);
+    Key4Inode key;
+    for (const auto& skey : keySet_) {
+        if (!conv_->ParseFromString(skey, &key)) {
+            return false;
+        }
+        inodeIdList->push_back(key.inodeId);
+    }
+    return true;
 }
 
 }  // namespace metaserver

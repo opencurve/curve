@@ -50,6 +50,7 @@ namespace metaserver {
 class HeartbeatTest : public ::testing::Test {
  public:
     void SetUp() {
+        options_.type = "rocksdb";
         options_.dataDir = "/tmp";
         options_.maxMemoryQuotaBytes = 1024;
         options_.maxDiskQuotaBytes = 10240;

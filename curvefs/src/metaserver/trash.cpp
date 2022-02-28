@@ -111,7 +111,7 @@ bool TrashImpl::NeedDelete(const TrashItem &item) {
     uint32_t now = TimeUtility::GetTimeofDaySec();
     Inode inode;
     MetaStatusCode ret =
-        inodeStorage_->GetCopy(InodeKey(item.fsId, item.inodeId), &inode);
+        inodeStorage_->Get(Key4Inode(item.fsId, item.inodeId), &inode);
     if (MetaStatusCode::NOT_FOUND == ret) {
         LOG(WARNING) << "GetInode find inode not exist, fsId = " << item.fsId
                      << ", inodeId = " << item.inodeId
@@ -133,7 +133,7 @@ bool TrashImpl::NeedDelete(const TrashItem &item) {
 MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
     Inode inode;
     MetaStatusCode ret =
-        inodeStorage_->GetCopy(InodeKey(item.fsId, item.inodeId), &inode);
+        inodeStorage_->Get(Key4Inode(item.fsId, item.inodeId), &inode);
     if (ret != MetaStatusCode::OK) {
         LOG(WARNING) << "GetInode fail, fsId = " << item.fsId
                      << ", inodeId = " << item.inodeId
@@ -176,7 +176,7 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
         }
     }
 
-    ret = inodeStorage_->Delete(InodeKey(item.fsId, item.inodeId));
+    ret = inodeStorage_->Delete(Key4Inode(item.fsId, item.inodeId));
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "Delete Inode fail, fsId = " << item.fsId
                    << ", inodeId = " << item.inodeId

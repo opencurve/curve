@@ -20,14 +20,15 @@
  * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_METASERVER_DUMPFILE_H_
-#define CURVEFS_SRC_METASERVER_DUMPFILE_H_
+#ifndef CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
+#define CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
 
 #include <memory>
 #include <string>
 #include <utility>
+#include <condition_variable>
 
-#include "curvefs/src/metaserver/iterator.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
 
 namespace curve {
 namespace fs {
@@ -40,6 +41,7 @@ class Ext4FileSystemImpl;
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::Ext4FileSystemImpl;
@@ -75,6 +77,27 @@ std::ostream& operator<<(std::ostream& os, DUMPFILE_ERROR code);
 
 std::ostream& operator<<(std::ostream& os, DUMPFILE_LOAD_STATUS code);
 
+class DumpFileClosure {
+ public:
+    DumpFileClosure(): runned_(false) {}
+
+    void Runned() {
+        std::lock_guard<std::mutex> lk(mtx_);
+        runned_ = true;
+        cond_.notify_one();
+    }
+
+    void WaitRunned() {
+        std::unique_lock<std::mutex> lk(mtx_);
+        cond_.wait(lk, [this]() { return runned_; });
+    }
+
+ private:
+    bool runned_;
+    std::mutex mtx_;
+    std::condition_variable cond_;
+};
+
 /*
  * dumpfile format:
  *   +---------+---------+------+-----------------+-----------+
@@ -101,7 +124,8 @@ class DumpFile {
 
     DUMPFILE_ERROR Save(std::shared_ptr<Iterator> iter);
 
-    DUMPFILE_ERROR SaveBackground(std::shared_ptr<Iterator> iter);
+    DUMPFILE_ERROR SaveBackground(std::shared_ptr<Iterator> iter,
+                                  DumpFileClosure* done);
 
     std::shared_ptr<Iterator> Load();
 
@@ -149,6 +173,7 @@ class DumpFile {
 
  private:
     friend class DumpFileIterator;
+    friend class DumpFileTest;
 
  private:
     std::string pathname_;
@@ -185,6 +210,8 @@ class DumpFileIterator : public Iterator {
 
     std::string Value() override;
 
+    bool ParseFromValue(ValueType* value) override;
+
     int Status() override;
 
  private:
@@ -208,7 +235,8 @@ class DumpFileIterator : public Iterator {
     DumpFile* dumpfile_;
 };
 
+}  // namespace storage
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_DUMPFILE_H_
+#endif  // CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_

@@ -102,6 +102,8 @@ function create_directory() {
     chmod 700 "$g_prefix/data"
     if [ "$g_role" == "etcd" ]; then
         mkdir -p "$g_prefix/data/wal"
+    elif [ "$g_role" == "metaserver" ]; then
+        mkdir -p "$g_prefix/data/storage"
     elif [ "$g_role" == "client" ]; then
         mkdir -p "$g_prefix/mnt"
     fi

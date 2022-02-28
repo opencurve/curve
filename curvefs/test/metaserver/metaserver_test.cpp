@@ -84,6 +84,20 @@ class MetaserverTest : public ::testing::Test {
         return;
     }
 
+    std::string execShell(const string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
+
     std::string metaserverIp_;
     std::string metaserverPort_;
     std::string metaserverExternalPort_;
@@ -249,7 +263,6 @@ TEST_F(MetaserverTest, test2) {
 
     // Initialize other modules after winning election
     metaserver.Init();
-    metaserver.Init();
 
     // start metaserver server
     std::thread metaserverThread(&Metaserver::Run, &metaserver);
@@ -259,6 +272,7 @@ TEST_F(MetaserverTest, test2) {
 
     // stop server and background threads
     metaserver.Stop();
+    brpc::AskToQuit();
     metaserverThread.join();
 }
 

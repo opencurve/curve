@@ -42,6 +42,10 @@ enum MetaStatusCode {
     S3_DELETE_ERR = 19;
     PARTITION_ID_MISSMATCH = 20;
     IDEMPOTENCE_OK = 21;
+    SERIALIZE_TO_STRING_FAILED = 22;
+    PARSE_FROM_STRING_FAILED = 23;
+    STORAGE_INTERNAL_ERROR = 24;
+    RPC_STREAM_ERROR = 25;
 }
 
 // dentry interface
@@ -381,13 +385,13 @@ message BatchGetXAttrRequest {
     repeated uint64 inodeId = 5;
     optional uint64 appliedIndex = 6;
 }
- 
+
 message XAttr {
     required uint64 inodeId = 1;
     required uint32 fsId = 2;
     map<string, string> xAttrInfos = 3;
 }
- 
+
 message BatchGetXAttrResponse {
     required MetaStatusCode statusCode = 1;
     repeated XAttr xattr = 2;
