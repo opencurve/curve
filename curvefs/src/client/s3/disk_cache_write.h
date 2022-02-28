@@ -26,6 +26,7 @@
 #include <bthread/condition_variable.h>
 #include <bthread/mutex.h>
 
+#include <memory>
 #include <string>
 #include <list>
 #include <set>
@@ -94,7 +95,7 @@ class DiskCacheWrite : public DiskCacheBase {
     virtual int ReadFile(const std::string name, char** buf,
       uint64_t* size);
     /**
-     * @brief upload file in write cache to S3 
+     * @brief upload file in write cache to S3
      * @param[in] name file name
      * @param[in] syncTask wait upload finish
      * @return success: 0, fail : < 0

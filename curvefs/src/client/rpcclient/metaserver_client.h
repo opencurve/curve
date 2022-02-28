@@ -36,6 +36,7 @@
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/src/common/rpc_stream.h"
 
 using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::metaserver::Dentry;
@@ -46,10 +47,14 @@ using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::common::StreamStatus;
+using ::curvefs::common::StreamClient;
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
+
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 class MetaServerClient {
  public:
@@ -127,8 +132,9 @@ class MetaServerClient {
 class MetaServerClientImpl : public MetaServerClient {
  public:
     explicit MetaServerClientImpl(const std::string &metricPrefix = "")
-        : metaserverClientMetric_(
-            std::make_shared<MetaServerClientMetric>(metricPrefix)) {}
+        : metaserverClientMetric_(std::make_shared<MetaServerClientMetric>(
+                                  metricPrefix)),
+          streamClient_(std::make_shared<StreamClient>()) {}
 
     MetaStatusCode
     Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
@@ -195,10 +201,19 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
 
  private:
+    bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
+                                 uint64_t* chunkIndex,
+                                 S3ChunkInfoList* list);
+
+    bool HandleS3MetaStreamBuffer(butil::IOBuf* buffer, S3ChunkInfoMap* out);
+
+ private:
     ExcutorOpt opt_;
 
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;
+
+    std::shared_ptr<StreamClient> streamClient_;
 
     std::shared_ptr<MetaServerClientMetric> metaserverClientMetric_;
 };

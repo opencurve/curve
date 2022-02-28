@@ -78,6 +78,8 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
     conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
                               &opts->retryIntervalUS);
     conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.rpcStreamIdleTimeoutMS",
+                              &opts->rpcStreamIdleTimeoutMS);
     conf->GetValueFatalIfFail("excutorOpt.maxRPCTimeoutMS",
                               &opts->maxRPCTimeoutMS);
     conf->GetValueFatalIfFail("excutorOpt.maxRetrySleepIntervalUS",

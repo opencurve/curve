@@ -69,7 +69,7 @@ http_archive(
     sha256 = "9510dd2afc29e7245e9e884336f848c8a6600a14ae726adb6befdb4f786f0be2",
     urls = ["https://github.com/google/protobuf/archive/v3.6.1.3.zip"],
 )
- 
+
 bind(
     name = "protobuf",
     actual = "@com_google_protobuf//:protobuf",
@@ -228,4 +228,11 @@ http_archive(
     sha256 = "b601beaf841244de5c5a50d2b2eddd34839788000fa1be4260ce6603ca0d8eb7",
     strip_prefix = "platforms-98939346da932eef0b54cf808622f5bb0928f00b",
     urls = ["https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf808622f5bb0928f00b.zip"],
+)
+
+# RocksDB
+new_local_repository(
+    name = "rocksdb",
+    build_file = "external/bazel/rocksdb.BUILD",
+    path = "thirdparties/rocksdb",
 )

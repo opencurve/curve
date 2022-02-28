@@ -35,11 +35,12 @@
 #include "src/common/timeutility.h"
 #include "src/fs/ext4_filesystem_impl.h"
 #include "curvefs/src/common/process.h"
-#include "curvefs/src/metaserver/iterator.h"
-#include "curvefs/src/metaserver/dumpfile.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/dumpfile.h"
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
 #define RETURN_IF_UNSUCCESS(statement) \
 do { \
@@ -420,14 +421,21 @@ void DumpFile::SaveWorker(std::shared_ptr<Iterator> iter) {
     _exit(succ ? 0 : 1);
 }
 
-DUMPFILE_ERROR DumpFile::SaveBackground(std::shared_ptr<Iterator> iter) {
+DUMPFILE_ERROR DumpFile::SaveBackground(std::shared_ptr<Iterator> iter,
+                                        DumpFileClosure* done) {
     if (fd_ < 0) {
+        if (done != nullptr) {
+            done->Runned();
+        }
         return DUMPFILE_ERROR::BAD_FD;
     }
 
     auto startTime = ::curve::common::TimeUtility::GetTimeofDayMs();
     auto proc = [this, iter]() { SaveWorker(iter); };
     pid_t childpid = ::curvefs::common::Process::SpawnProcess(proc);
+    if (done != nullptr) {  // child process forked
+        done->Runned();
+    }
     if (childpid == -1) {
         return DUMPFILE_ERROR::FORK_FAILED;
     }
@@ -557,9 +565,14 @@ std::string DumpFileIterator::Value() {
     return iter_.second;
 }
 
+bool DumpFileIterator::ParseFromValue(ValueType* value) {
+    return true;
+}
+
 int DumpFileIterator::Status() {
     return 0;
 }
 
-};  // namespace metaserver
-};  // namespace curvefs
+}  // namespace storage
+}  // namespace metaserver
+}  // namespace curvefs

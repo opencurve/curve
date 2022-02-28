@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <list>
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include "src/common/concurrent/concurrent.h"
 

@@ -16,13 +16,20 @@
 
 load("//:copts.bzl", "CURVE_TEST_COPTS")
 
+cc_library(
+    name = "metaserver_storage_test_utils",
+    hdrs = glob(["storage/utils.h"]),
+    srcs = glob(["storage/utils.cpp"]),
+    copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
 cc_test(
     name = "curvefs_metaserver_test",
     srcs = glob(
         ["*.cpp", "*.h"],
         exclude = [
-            "dumpfile_test.cpp",
-            "storage_test.cpp",
             "metastore_test.cpp",
             "mock_client_s3.h",
             "mock_metaserver_s3.h",
@@ -45,6 +52,7 @@ cc_test(
             "//curvefs/proto:curvefs_topology_cc_proto",
             "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
             "//curvefs/src/metaserver:metaserver_s3_lib",
+            "//curvefs/test/metaserver:metaserver_storage_test_utils",
     ],
 )
 
@@ -66,7 +74,8 @@ cc_test(
             "//curvefs/proto:curvefs_topology_cc_proto",
             "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
             "//curvefs/src/metaserver:metaserver_s3_lib",
-            "//curvefs/test/client/rpcclient:rpcclient_test_mock"
+            "//curvefs/test/client/rpcclient:rpcclient_test_mock",
+            "//curvefs/test/metaserver:metaserver_storage_test_utils",
     ],
 )
 
@@ -109,24 +118,33 @@ cc_test(
     name = "curvefs_metaserver_metastore_test",
     srcs = glob(
         ["metastore*"],
+
     ),
     copts = CURVE_TEST_COPTS,
     deps = [
-            "//curvefs/src/metaserver:curvefs_metaserver",
-            "@com_google_googletest//:gtest_main",
-            "@com_google_googletest//:gtest",
-            "//external:brpc",
+        "//curvefs/src/metaserver:curvefs_metaserver",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_googletest//:gtest",
+        "//external:brpc",
+        "//curvefs/test/metaserver:metaserver_storage_test_utils",
     ],
 )
 
 cc_test(
-    name = "dumpfile_test",
-    srcs = glob([ "dumpfile_test.cpp" ]),
+    name = "s3compactwq_test",
+    srcs = glob([
+        "s3compactwq_test.cpp",
+        "mock_s3compactwq_impl.h",
+        "mock_s3_adapter.h",
+        "mock_s3infocache.h"
+    ]),
     copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
         "//curvefs/src/metaserver:curvefs_metaserver",
+        "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
+        "//curvefs/test/metaserver:metaserver_storage_test_utils",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
     ],
@@ -134,33 +152,17 @@ cc_test(
 
 cc_test(
     name = "storage_test",
-    srcs = glob([ "storage_test.cpp" ]),
-    copts = CURVE_TEST_COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//curvefs/src/metaserver:curvefs_metaserver",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
-    ],
-)
-
-cc_test(
-    name = "s3compactwq_test",
     srcs = glob(
-               [ "s3compactwq_test.cpp",
-                 "mock_s3compactwq_impl.h",
-                 "mock_s3_adapter.h",
-                 "mock_s3infocache.h"]
-               ),
+        ["storage/*.cpp", "storage/*.h"],
+    ),
     copts = CURVE_TEST_COPTS,
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
     deps = [
-        "//curvefs/src/metaserver:curvefs_metaserver",
+        "//external:gflags",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
-        "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
+        "//curvefs/src/metaserver:curvefs_metaserver",
     ],
 )
 

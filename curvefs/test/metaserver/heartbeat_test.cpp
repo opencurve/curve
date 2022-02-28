@@ -50,13 +50,17 @@ namespace metaserver {
 class HeartbeatTest : public ::testing::Test {
  public:
     void SetUp() {
+        options_.type = "rocksdb";
         options_.dataDir = "/tmp";
         options_.maxMemoryQuotaBytes = 1024;
         options_.maxDiskQuotaBytes = 10240;
         InitStorage(options_);
     }
 
-    void TearDown() {}
+    void TearDown() {
+        auto kvStorage = GetStorageInstance();
+        ASSERT_TRUE(kvStorage->Close());
+    }
 
     bool GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
                                   uint64_t ncopysets) {
@@ -216,13 +220,13 @@ TEST_F(HeartbeatTest, GetMetaServerSpaceStatusTest) {
     succ = GetMetaserverSpaceStatus(&status, 1);
     ASSERT_TRUE(succ);
     LOG(INFO) << "metaserver space status: " << status.ShortDebugString();
-    ASSERT_EQ(status.diskthresholdbyte(), statistics.maxDiskQuotaBytes);
-    ASSERT_EQ(status.diskusedbyte(), statistics.diskUsageBytes);
-    ASSERT_EQ(status.diskcopysetminrequirebyte(), statistics.diskUsageBytes);
     ASSERT_EQ(status.memorythresholdbyte(), options_.maxMemoryQuotaBytes);
-    ASSERT_EQ(status.memoryusedbyte(), statistics.memoryUsageBytes);
+    ASSERT_EQ(status.diskthresholdbyte(), options_.maxDiskQuotaBytes);
+    ASSERT_GT(status.memoryusedbyte(), 0);
+    ASSERT_GT(status.diskusedbyte(), 0);
+    ASSERT_EQ(status.diskcopysetminrequirebyte(), status.diskusedbyte());
     ASSERT_EQ(status.memorycopysetminrequirebyte(),
-              statistics.memoryUsageBytes);
+              status.memoryusedbyte());
 }
 
 }  // namespace metaserver
