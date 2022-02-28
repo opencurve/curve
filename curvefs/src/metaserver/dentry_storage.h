@@ -26,20 +26,20 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <memory>
 #include <functional>
 
 #include "absl/container/btree_set.h"
-
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 
 namespace curvefs {
 namespace metaserver {
 
 using curve::common::RWLock;
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
-using Btree = absl::btree_set<Dentry>;
+using ::curvefs::metaserver::storage::Iterator;
+using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 
 #define EQUAL(a) (lhs.a() == rhs.a())
 #define LESS(a) (lhs.a() < rhs.a())
@@ -49,9 +49,11 @@ using Btree = absl::btree_set<Dentry>;
 
 bool operator==(const Dentry& lhs, const Dentry& rhs);
 
+bool operator<(const Dentry& lhs, const Dentry& rhs);
+
 class DentryStorage {
  public:
-    using ContainerType = Btree;
+    using BTree = absl::btree_set<Dentry>;
 
     enum class TX_OP_TYPE {
         PREPARE,
@@ -60,62 +62,47 @@ class DentryStorage {
     };
 
  public:
-    virtual ~DentryStorage() = default;
+    DentryStorage(std::shared_ptr<KVStorage> kvStorage,
+                  const std::string& tablename);
 
-    virtual MetaStatusCode Insert(const Dentry& dentry) = 0;
+    MetaStatusCode Insert(const Dentry& dentry);
 
-    virtual MetaStatusCode Delete(const Dentry& dentry) = 0;
+    MetaStatusCode Delete(const Dentry& dentry);
 
-    virtual MetaStatusCode Get(Dentry* dentry) = 0;
-
-    virtual MetaStatusCode List(const Dentry& dentry,
-                                std::vector<Dentry>* dentrys,
-                                uint32_t limit,
-                                bool onlyDir = false) = 0;
-
-    virtual MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentrys) = 0;
-
-    virtual size_t Size() = 0;
-
-    virtual void Clear() = 0;
-
-    virtual ContainerType* GetContainer() = 0;
-};
-
-class MemoryDentryStorage : public DentryStorage {
- public:
-    MetaStatusCode Insert(const Dentry& dentry) override;
-
-    MetaStatusCode Delete(const Dentry& dentry) override;
-
-    MetaStatusCode Get(Dentry* dentry) override;
+    MetaStatusCode Get(Dentry* dentry);
 
     MetaStatusCode List(const Dentry& dentry,
                         std::vector<Dentry>* dentrys,
                         uint32_t limit,
-                        bool onlyDir = false) override;
+                        bool onlyDir = false);
 
-    MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry) override;
+    MetaStatusCode HandleTx(TX_OP_TYPE type, const Dentry& dentry);
 
-    size_t Size() override;
+    std::shared_ptr<Iterator> GetAll();
 
-    void Clear() override;
+    size_t Size();
 
-    ContainerType* GetContainer() override;
+    MetaStatusCode Clear();
 
  private:
+    std::string DentryKey(const Dentry& dentry, bool ignoreTxId = false);
+
+    std::string SameParentKey(const Dentry& dentry);
+
     bool BelongSameOne(const Dentry& lhs, const Dentry& rhs);
 
     bool IsSameDentry(const Dentry& lhs, const Dentry& rhs);
 
     bool HasDeleteMarkFlag(const Dentry& dentry);
 
-    Btree::iterator Find(const Dentry& dentry, bool compress);
+    bool CompressDentry(BTree* dentrys);
+
+    MetaStatusCode Find(const Dentry& kDentry, Dentry* vDentry, bool compress);
 
  private:
     RWLock rwLock_;
-
-    Btree dentryTree_;
+    std::string tablename_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 }  // namespace metaserver

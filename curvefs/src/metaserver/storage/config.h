@@ -30,9 +30,29 @@ namespace metaserver {
 namespace storage {
 
 struct StorageOptions {
-    std::string dataDir;
+    StorageOptions() {}
+
+    std::string type;
+
     uint64_t maxMemoryQuotaBytes;
+
     uint64_t maxDiskQuotaBytes;
+
+    std::string dataDir;
+
+    // only memory storage interested the below config item
+    bool compression;
+
+    // only rocksdb storage interested the below config item
+    uint64_t unorderedWriteBufferSize;
+
+    uint64_t unorderedMaxWriteBufferNumber;
+
+    uint64_t orderedWriteBufferSize;
+
+    uint64_t orderedMaxWriteBufferNumber;
+
+    uint64_t blockCacheCapacity;
 };
 
 }  // namespace storage

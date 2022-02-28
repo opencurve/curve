@@ -29,6 +29,9 @@
 #include "curvefs/test/metaserver/mock_s3_adapter.h"
 #include "curvefs/test/metaserver/mock_s3compactwq_impl.h"
 #include "curvefs/test/metaserver/mock_s3infocache.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/test/metaserver/storage/utils.h"
 
 using ::curvefs::metaserver::copyset::CopysetNode;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
@@ -42,6 +45,11 @@ using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::RandomStoragePath;
 
 namespace curvefs {
 namespace metaserver {
@@ -65,7 +73,15 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         butil::EndPoint metaserverAddr;
         s3infoCache_ = std::make_shared<MockS3InfoCache>(
             cacheCapacity, mdsAddrs, metaserverAddr);
-        inodeStorage_ = std::make_shared<MemoryInodeStorage>();
+
+        dataDir_ = RandomStoragePath();
+        StorageOptions options;
+        options.dataDir = dataDir_;
+        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        ASSERT_TRUE(kvStorage_->Open());
+
+        inodeStorage_ = std::make_shared<InodeStorage>(
+            kvStorage_, "partition:1");
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
         impl_ = std::make_shared<S3CompactWorkQueueImpl>(
@@ -79,7 +95,23 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
     }
 
     void TearDown() override {
-        return;
+        ASSERT_TRUE(kvStorage_->Close());
+        auto output = execShell("rm -rf " + dataDir_);
+        ASSERT_EQ(output.size(), 0);
+    }
+
+    std::string execShell(const std::string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
     }
 
  protected:
@@ -95,6 +127,8 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
     std::shared_ptr<MockS3CompactWorkQueueImpl> mockImpl_;
     std::shared_ptr<MockCopysetNodeWrapper> mockCopysetNodeWrapper_;
     std::shared_ptr<MockCopysetNodeManager> mockCopystNodeManager_;
+    std::string dataDir_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(S3CompactWorkQueueImplTest, test_CopysetNodeWrapper) {
@@ -544,7 +578,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     EXPECT_CALL(*s3adapter_, GetBucketName()).WillRepeatedly(Return(v));
 
     struct S3CompactWorkQueueImpl::S3CompactTask t {
-        inodeManager_, InodeKey(0, 1), PartitionInfo(), mockCopysetNodeWrapper_
+        inodeManager_, Key4Inode(0, 1), PartitionInfo(), mockCopysetNodeWrapper_
     };
     // inode not exist
     mockImpl_->CompactChunks(t);
@@ -555,10 +589,20 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     inode1.set_inodeid(1);
     inode1.set_length(60);
     inode1.set_nlink(1);
+    inode1.set_ctime(0);
+    inode1.set_ctime_ns(0);
+    inode1.set_mtime(0);
+    inode1.set_mtime_ns(0);
+    inode1.set_atime(0);
+    inode1.set_atime_ns(0);
+    inode1.set_uid(0);
+    inode1.set_gid(0);
+    inode1.set_mode(0);
+    inode1.set_type(FsFileType::TYPE_FILE);
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3chunkinfoMap;
     *inode1.mutable_s3chunkinfomap() = s3chunkinfoMap;
     ASSERT_EQ(inodeStorage_->Insert(inode1), MetaStatusCode::OK);
-    t.inodeKey = InodeKey(1, 1);
+    t.inodeKey = Key4Inode(1, 1);
     mockImpl_->CompactChunks(t);
     // normal
     std::cerr << "normal" << std::endl;
@@ -582,7 +626,9 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
         ref->set_size(5);
         ref->set_zero(false);
     }
-    (*inode1.mutable_s3chunkinfomap())[0] = l0;
+    auto rc = inodeStorage_->AppendS3ChunkInfoList(
+        inode1.fsid(), inode1.inodeid(), 0, l0, false);
+    ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
     mockImpl_->CompactChunks(t);
     ASSERT_EQ(tmp.s3chunkinfomap().size(), 1);

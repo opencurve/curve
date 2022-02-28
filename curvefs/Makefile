@@ -4,6 +4,7 @@
 
 prefix?= "$(PWD)/devops/projects"
 release?= 0
+build_rocksdb?= 0
 only?= "*"
 hosts?= "*"
 tag?= "curvefs:unknown"
@@ -32,7 +33,7 @@ define only_specify
 endef
 
 build:
-	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os)
+	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os) --build_rocksdb=$(build_rocksdb)
 
 install:
 	@bash util/install.sh --prefix=$(prefix) --only=$(only)

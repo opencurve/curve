@@ -76,8 +76,15 @@ int TaskExecutor::DoRPCTaskInner(TaskExecutorDone *done) {
             continue;
         }
 
-        auto channel = channelManager_->GetOrCreateChannel(
-            task_->target.metaServerID, task_->target.endPoint);
+        std::shared_ptr<brpc::Channel> channel;
+        if (!task_->streaming) {
+            channel = channelManager_->GetOrCreateChannel(
+                task_->target.metaServerID, task_->target.endPoint);
+        } else {
+            channel = channelManager_->GetOrCreateStreamChannel(
+                task_->target.metaServerID, task_->target.endPoint);
+        }
+
         if (!channel) {
             LOG(WARNING) << "GetOrCreateChannel fail for "
                          << task_->TaskContextStr() << ", sleep and retry";
@@ -131,6 +138,10 @@ bool TaskExecutor::OnReturn(int retCode) {
             needRetry = true;
             // need choose a new coopyset
             OnPartitionAllocIDFail();
+            break;
+
+        case MetaStatusCode::RPC_STREAM_ERROR:
+            needRetry = true;
             break;
 
         default:

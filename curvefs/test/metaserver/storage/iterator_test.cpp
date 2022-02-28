@@ -29,14 +29,15 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/process.h"
-#include "curvefs/src/metaserver/storage.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/storage_fstream.h"
 
 namespace curvefs {
 namespace metaserver {
+namespace storage {
 
 using Hash = std::unordered_map<std::string, std::string>;
-using DentryHash = std::unordered_map<std::string, Dentry>;
-using InodeHash = std::unordered_map<std::string, Inode>;
+using ContainerType = std::map<std::string, std::string>;
 using google::protobuf::util::MessageDifferencer;
 
 class HashIterator : public Iterator {
@@ -50,16 +51,17 @@ class HashIterator : public Iterator {
     void Next() override { iter_++; }
     std::string Key() override { return iter_->first; }
     std::string Value() override { return iter_->second; }
+    bool ParseFromValue(ValueType* value) { return true; }
     int Status() override { return 0; }
 
  private:
-    Hash::iterator iter_;
     Hash* hash_;
+    Hash::iterator iter_;
 };
 
-class StorageTest : public ::testing::Test {
+class IteratorTest : public ::testing::Test {
  protected:
-    StorageTest()
+    IteratorTest()
     : dirname_(".dump"),
       pathname_(".dump/storage.dump") {}
 
@@ -120,46 +122,49 @@ class StorageTest : public ::testing::Test {
     std::string pathname_;
 };
 
-TEST_F(StorageTest, ContainerIterator) {
-    // CASE 1: dentry storage
-    auto dentry = GenDentry();
-    auto dentryStorage = DentryHash{ {"A", dentry}, {"B", dentry} };
-    auto dcontainer = std::shared_ptr<DentryHash>(
-        &dentryStorage, [](DentryHash*) {});
-    auto diter = MapContainerIterator<DentryHash>(
-        ENTRY_TYPE::DENTRY, 100, dcontainer);
+TEST_F(IteratorTest, ContainerIterator) {
+    // CASE 1: dentry
+    {
+        std::string exceptValue;
+        auto dentry = GenDentry();
+        ASSERT_TRUE(dentry.SerializeToString(&exceptValue));
 
-    auto size = 0;
-    std::string exceptValue;
-    ASSERT_TRUE(dentry.SerializeToString(&exceptValue));
-    for (diter.SeekToFirst(); diter.Valid(); diter.Next()) {
-        ASSERT_EQ(diter.Key(), "d:100");
-        ASSERT_EQ(diter.Value(), exceptValue);
-        size++;
+        auto container = std::make_shared<ContainerType>();
+        container->emplace("key", exceptValue);
+        auto iterator = ContainerIterator<ContainerType>(container);
+
+        auto size = 0;
+        for (iterator.SeekToFirst(); iterator.Valid(); iterator.Next()) {
+            ASSERT_EQ(iterator.Key(), "key");
+            ASSERT_EQ(iterator.Value(), exceptValue);
+            size++;
+        }
+        ASSERT_EQ(iterator.Size(), 1);
+        ASSERT_EQ(size, 1);
     }
-    ASSERT_EQ(diter.Size(), 2);
-    ASSERT_EQ(size, 2);
 
-    // CASE 2: inode storage
-    auto inode = GenInode();
-    auto inodeStorage = InodeHash{ {"A", inode}, {"B", inode} };
-    auto icontainer = std::shared_ptr<InodeHash>(
-        &inodeStorage, [](InodeHash*) {});
-    auto iiter = MapContainerIterator<InodeHash>(
-        ENTRY_TYPE::INODE, 200, icontainer);
+    // CASE 2: indoe
+    {
+        std::string exceptValue;
+        auto inode = GenInode();
+        ASSERT_TRUE(inode.SerializeToString(&exceptValue));
 
-    size = 0;
-    ASSERT_TRUE(inode.SerializeToString(&exceptValue));
-    for (iiter.SeekToFirst(); iiter.Valid(); iiter.Next()) {
-        ASSERT_EQ(iiter.Key(), "i:200");
-        ASSERT_EQ(iiter.Value(), exceptValue);
-        size++;
+        auto container = std::make_shared<ContainerType>();
+        container->emplace("key", exceptValue);
+        auto iterator = ContainerIterator<ContainerType>(container);
+
+        auto size = 0;
+        for (iterator.SeekToFirst(); iterator.Valid(); iterator.Next()) {
+            ASSERT_EQ(iterator.Key(), "key");
+            ASSERT_EQ(iterator.Value(), exceptValue);
+            size++;
+        }
+        ASSERT_EQ(iterator.Size(), 1);
+        ASSERT_EQ(size, 1);
     }
-    ASSERT_EQ(iiter.Size(), 2);
-    ASSERT_EQ(size, 2);
 }
 
-TEST_F(StorageTest, MergeIterator) {
+TEST_F(IteratorTest, MergeIterator) {
     auto TEST_MERGE = [&](std::vector<Hash>&& hashs) {
         std::vector<std::pair<std::string, std::string>> except, out;
         std::vector<std::shared_ptr<Iterator>> children;
@@ -217,7 +222,7 @@ TEST_F(StorageTest, MergeIterator) {
     });
 }
 
-TEST_F(StorageTest, MergeIteratorSize) {
+TEST_F(IteratorTest, MergeIteratorSize) {
     auto hash1 = Hash{ { "A0", "A0" } };
     auto hash2 = Hash{ { "B0", "B0" } };
     std::vector<std::shared_ptr<Iterator>> children;
@@ -236,65 +241,6 @@ TEST_F(StorageTest, MergeIteratorSize) {
     ASSERT_EQ(size, 3);
 }
 
-TEST_F(StorageTest, Storage) {
-    // step1: generate merge iterator
-    auto dentry = GenDentry();
-    auto dentryStorage = DentryHash{ {"A", dentry}, {"B", dentry} };
-    auto dcontainer = std::shared_ptr<DentryHash>(
-        &dentryStorage, [](DentryHash*) {});
-    auto diter = std::make_shared<MapContainerIterator<DentryHash>>(
-        ENTRY_TYPE::DENTRY, 100, dcontainer);
-
-    auto inode = GenInode();
-    auto inodeStorage = InodeHash{ {"A", inode}, {"B", inode} };
-    auto icontainer = std::shared_ptr<InodeHash>(
-        &inodeStorage, [](InodeHash*) {});
-    auto iiter = std::make_shared<MapContainerIterator<InodeHash>>(
-        ENTRY_TYPE::INODE, 200, icontainer);
-
-    auto children = std::vector<std::shared_ptr<Iterator>>{ diter, iiter };
-    auto miter = std::make_shared<MergeIterator>(children);
-
-    // step2: save to file
-    auto succ = SaveToFile(pathname_, miter);
-    ASSERT_TRUE(succ);
-
-    // step3: load from file
-    auto ndentry = 0;
-    auto ninode = 0;
-    auto match = true;
-    auto callback = [&](ENTRY_TYPE type, uint32_t partitionId, void* entry) {
-        if (type == ENTRY_TYPE::DENTRY) {
-            auto equal = MessageDifferencer::Equals(
-                dentry, *reinterpret_cast<Dentry*>(entry));
-            if (!equal || partitionId != 100) {
-                return false;
-            }
-            ndentry++;
-        } else if (type == ENTRY_TYPE::INODE) {
-            auto equal = MessageDifferencer::Equals(
-                inode, *reinterpret_cast<Inode*>(entry));
-            if (!equal || partitionId != 200) {
-                return false;
-            }
-            ninode++;
-        }
-        return true;
-    };
-    succ = LoadFromFile<decltype(callback)>(pathname_, callback);
-    ASSERT_TRUE(succ);
-    ASSERT_EQ(ndentry, 2);
-    ASSERT_EQ(ninode, 2);
-    ASSERT_TRUE(match);
-}
-
-};  // namespace metaserver
-};  // namespace curvefs
-
-int main(int argc, char* argv[]) {
-    testing::InitGoogleTest(&argc, argv);
-
-    ::curvefs::common::Process::InitSetProcTitle(argc, argv);
-
-    return RUN_ALL_TESTS();
-}
+}  // namespace storage
+}  // namespace metaserver
+}  // namespace curvefs

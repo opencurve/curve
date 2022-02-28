@@ -32,17 +32,20 @@
 namespace curvefs {
 namespace metaserver {
 
-Partition::Partition(const PartitionInfo& paritionInfo) {
+Partition::Partition(const PartitionInfo& paritionInfo,
+                     std::shared_ptr<KVStorage> kvStorage) {
     assert(paritionInfo.start() <= paritionInfo.end());
+    partitionInfo_ = paritionInfo;
 
-    inodeStorage_ = std::make_shared<MemoryInodeStorage>();
-    dentryStorage_ = std::make_shared<MemoryDentryStorage>();
+    inodeStorage_ = std::make_shared<InodeStorage>(
+        kvStorage, GetInodeTablename());
+    dentryStorage_ = std::make_shared<DentryStorage>(
+        kvStorage, GetDentryTablename());
     trash_ = std::make_shared<TrashImpl>(inodeStorage_);
     inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
     dentryManager_ =
         std::make_shared<DentryManager>(dentryStorage_, txManager_);
-    partitionInfo_ = paritionInfo;
     if (!paritionInfo.has_nextid()) {
         partitionInfo_.set_nextid(
             std::max(kMinPartitionStartId, partitionInfo_.start()));
@@ -257,12 +260,12 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
 }
 
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
-    uint32_t fsId, uint64_t inodeId,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoAdd,
-    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoRemove,
+    uint32_t fsId,
+    uint64_t inodeId,
+    const S3ChunkInfoMap& list2add,
+    std::shared_ptr<Iterator>* iterator,
     bool returnS3ChunkInfoMap,
-    google::protobuf::Map<uint64_t, S3ChunkInfoList>* out,
-    bool fromS3Compaction) {
+    bool compaction) {
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -272,8 +275,7 @@ MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     }
 
     return inodeManager_->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, s3ChunkInfoAdd, s3ChunkInfoRemove, returnS3ChunkInfoMap,
-        out, fromS3Compaction);
+        fsId, inodeId, list2add, iterator, returnS3ChunkInfoMap, compaction);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {
@@ -284,8 +286,8 @@ MetaStatusCode Partition::InsertInode(const Inode& inode) {
     return inodeManager_->InsertInode(inode);
 }
 
-void Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
-    inodeManager_->GetInodeIdList(InodeIdList);
+bool Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
+    return inodeManager_->GetInodeIdList(InodeIdList);
 }
 
 bool Partition::IsDeletable() {
@@ -294,7 +296,7 @@ bool Partition::IsDeletable() {
         return false;
     }
 
-    if (inodeStorage_->Count() != 0) {
+    if (inodeStorage_->Size() != 0) {
         return false;
     }
 
@@ -335,12 +337,27 @@ uint32_t Partition::GetPartitionId() { return partitionInfo_.partitionid(); }
 
 PartitionInfo Partition::GetPartitionInfo() { return partitionInfo_; }
 
-InodeStorage::ContainerType* Partition::GetInodeContainer() {
-    return inodeStorage_->GetContainer();
+std::shared_ptr<Iterator> Partition::GetAllInode() {
+    return inodeStorage_->GetAllInode();
 }
 
-DentryStorage::ContainerType* Partition::GetDentryContainer() {
-    return dentryStorage_->GetContainer();
+std::shared_ptr<Iterator> Partition::GetAllDentry() {
+    return dentryStorage_->GetAll();
+}
+
+std::shared_ptr<Iterator> Partition::GetAllS3ChunkInfoList() {
+    return inodeStorage_->GetAllS3ChunkInfoList();
+}
+
+bool Partition::Clear() {
+    if (inodeStorage_->Clear() != MetaStatusCode::OK) {
+        LOG(ERROR) << "Clear inode storage failed";
+        return false;
+    } else if (dentryStorage_->Clear() != MetaStatusCode::OK) {
+        LOG(ERROR) << "Clear dentry storage failed";
+        return false;
+    }
+    return true;
 }
 
 uint64_t Partition::GetNewInodeId() {
@@ -354,11 +371,24 @@ uint64_t Partition::GetNewInodeId() {
 }
 
 uint32_t Partition::GetInodeNum() {
-    return inodeStorage_->Count();
+    return static_cast<uint32_t>(inodeStorage_->Size());
 }
 
 uint32_t Partition::GetDentryNum() {
-    return dentryStorage_->Size();
+    return static_cast<uint32_t>(dentryStorage_->Size());
 }
+
+std::string Partition::GetInodeTablename() {
+    std::ostringstream oss;
+    oss << "partition:" << GetPartitionId() << ":inode";
+    return oss.str();
+}
+
+std::string Partition::GetDentryTablename() {
+    std::ostringstream oss;
+    oss << "partition:" << GetPartitionId() << ":dentry";
+    return oss.str();
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

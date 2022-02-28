@@ -26,6 +26,8 @@
 namespace curvefs {
 namespace metaserver {
 
+using curve::common::ReadLockGuard;
+
 #define FOR_EACH_DENTRY(action) \
 do { \
     for (const auto& dentry : dentrys_) { \

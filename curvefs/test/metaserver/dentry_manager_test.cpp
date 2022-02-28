@@ -27,19 +27,53 @@
 
 #include <memory>
 
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/test/metaserver/storage/utils.h"
+
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::RandomStoragePath;
 
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        dentryStorage_ = std::make_shared<MemoryDentryStorage>();
+        tablename_ = "partition:1";
+        dataDir_ = RandomStoragePath();;
+        StorageOptions options;
+        options.dataDir = dataDir_;
+        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        ASSERT_TRUE(kvStorage_->Open());
+        dentryStorage_ = std::make_shared<DentryStorage>(
+            kvStorage_, tablename_);
         txManager_ = std::make_shared<TxManager>(dentryStorage_);
-        dentryManager_ = std::make_shared<DentryManager>(dentryStorage_,
-                                                         txManager_);
+        dentryManager_ = std::make_shared<DentryManager>(
+            dentryStorage_, txManager_);
     }
 
-    void TearDown() override {}
+    void TearDown() override {
+        ASSERT_TRUE(kvStorage_->Close());
+        auto output = execShell("rm -rf " + dataDir_);
+        ASSERT_EQ(output.size(), 0);
+    }
+
+    std::string execShell(const std::string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
 
     Dentry GenDentry(uint32_t fsId,
                      uint64_t parentId,
@@ -58,6 +92,9 @@ class DentryManagerTest : public ::testing::Test {
     }
 
  protected:
+    std::string dataDir_;
+    std::string tablename_;
+    std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;
     std::shared_ptr<TxManager> txManager_;
@@ -129,8 +166,8 @@ TEST_F(DentryManagerTest, ListDentry) {
     auto rc = dentryManager_->ListDentry(dentry, &dentrys, 0);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
-    ASSERT_EQ(dentrys[0].name(), "A");
-    ASSERT_EQ(dentrys[1].name(), "B");
+    ASSERT_EQ(dentrys[0].name(), "B");
+    ASSERT_EQ(dentrys[1].name(), "A");
 }
 
 TEST_F(DentryManagerTest, HandleRenameTx) {

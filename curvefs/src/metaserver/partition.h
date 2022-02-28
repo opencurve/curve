@@ -35,16 +35,22 @@
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3compact.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
+
 namespace curvefs {
 namespace metaserver {
 using curvefs::common::PartitionInfo;
 using curvefs::common::PartitionStatus;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::Iterator;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
 class Partition {
  public:
-    explicit Partition(const PartitionInfo& paritionInfo);
+    Partition(const PartitionInfo& paritionInfo,
+              std::shared_ptr<KVStorage> kvStorage);
 
     ~Partition() {}
 
@@ -84,18 +90,16 @@ class Partition {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest& request);
 
-    MetaStatusCode GetOrModifyS3ChunkInfo(
-        uint32_t fsId, uint64_t inodeId,
-        const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoAdd,
-        const google::protobuf::Map<uint64_t, S3ChunkInfoList>&
-            s3ChunkInfoRemove,
-        bool returnS3ChunkInfoMap,
-        google::protobuf::Map<uint64_t, S3ChunkInfoList>* out,
-        bool fromS3Compaction);
+    MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId,
+                                          uint64_t inodeId,
+                                          const S3ChunkInfoMap& list2add,
+                                          std::shared_ptr<Iterator>* iterator,
+                                          bool returnS3ChunkInfoMap,
+                                          bool compaction);
 
     MetaStatusCode InsertInode(const Inode& inode);
 
-    void GetInodeIdList(std::list<uint64_t>* InodeIdList);
+    bool GetInodeIdList(std::list<uint64_t>* InodeIdList);
 
     // if patition has no inode or no dentry, it is deletable
     bool IsDeletable();
@@ -116,10 +120,6 @@ class Partition {
 
     PartitionInfo GetPartitionInfo();
 
-    InodeStorage::ContainerType* GetInodeContainer();
-
-    DentryStorage::ContainerType* GetDentryContainer();
-
     // get new inode id in partition range.
     // if no available inode id in this partiton ,return UINT64_MAX
     uint64_t GetNewInodeId();
@@ -135,6 +135,18 @@ class Partition {
     PartitionStatus GetStatus() { return partitionInfo_.status(); }
 
     void ClearS3Compact() { s3compact_ = nullptr; }
+
+    std::string GetInodeTablename();
+
+    std::string GetDentryTablename();
+
+    std::shared_ptr<Iterator> GetAllInode();
+
+    std::shared_ptr<Iterator> GetAllDentry();
+
+    std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
+
+    bool Clear();
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;

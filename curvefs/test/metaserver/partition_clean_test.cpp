@@ -27,6 +27,9 @@
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/test/metaserver/storage/utils.h"
 
 using ::curvefs::mds::FSStatusCode;
 using ::curvefs::client::rpcclient::MockMdsClient;
@@ -35,12 +38,48 @@ using ::testing::Invoke;
 using ::testing::Matcher;
 using ::testing::Return;
 
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::RandomStoragePath;
+
 namespace curvefs {
 namespace metaserver {
 class PartitionCleanManagerTest : public testing::Test {
  protected:
-    void SetUp() override {}
+    void SetUp() override {
+        dataDir_ = RandomStoragePath();;
+        StorageOptions options;
+        options.dataDir = dataDir_;
+        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        ASSERT_TRUE(kvStorage_->Open());
+    }
+
+    void TearDown() override {
+        ASSERT_TRUE(kvStorage_->Close());
+        auto output = execShell("rm -rf " + dataDir_);
+        ASSERT_EQ(output.size(), 0);
+    }
+
+    std::string execShell(const string& cmd) {
+        std::array<char, 128> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                      pclose);
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+        return result;
+    }
+
+ protected:
+    std::string dataDir_;
+    std::shared_ptr<KVStorage> kvStorage_;
 };
+
 TEST_F(PartitionCleanManagerTest, test1) {
     ASSERT_TRUE(true);
     PartitionCleanManager* manager = &PartitionCleanManager::GetInstance();
@@ -64,7 +103,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
     partitionInfo.set_start(0);
     partitionInfo.set_end(100);
     std::shared_ptr<Partition> partition =
-                std::make_shared<Partition>(partitionInfo);
+                std::make_shared<Partition>(partitionInfo, kvStorage_);
     Dentry dentry;
     dentry.set_fsid(fsId);
     dentry.set_parentinodeid(0);
@@ -77,6 +116,10 @@ TEST_F(PartitionCleanManagerTest, test1) {
     param.type = FsFileType::TYPE_DIRECTORY;
     param.length = 0;
     param.rdev = 0;
+
+    dentry.set_name("/");
+    dentry.set_inodeid(100);
+    dentry.set_txid(0);
     ASSERT_EQ(partition->CreateDentry(dentry, true), MetaStatusCode::OK);
     ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
 
@@ -135,7 +178,8 @@ TEST_F(PartitionCleanManagerTest, test1) {
 
 TEST_F(PartitionCleanManagerTest, fsinfo_not_found) {
     PartitionInfo partition;
-    PartitionCleaner cleaner(std::make_shared<Partition>(partition));
+    PartitionCleaner cleaner(std::make_shared<Partition>(
+        partition, kvStorage_));
     std::shared_ptr<MockMdsClient> mdsClient =
         std::make_shared<MockMdsClient>();
     cleaner.SetMdsClient(mdsClient);
@@ -149,7 +193,8 @@ TEST_F(PartitionCleanManagerTest, fsinfo_not_found) {
 
 TEST_F(PartitionCleanManagerTest, fsinfo_other_error) {
     PartitionInfo partition;
-    PartitionCleaner cleaner(std::make_shared<Partition>(partition));
+    PartitionCleaner cleaner(std::make_shared<Partition>(
+        partition, kvStorage_));
     std::shared_ptr<MockMdsClient> mdsClient =
         std::make_shared<MockMdsClient>();
     cleaner.SetMdsClient(mdsClient);
