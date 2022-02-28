@@ -11,6 +11,19 @@
 
 Curve is a distributed storage system designed and developed by NetEase, featured with high performance, easy operation and cloud native. Curve is compose of CurveBS(Curve Block Storage) and CurveFS(Curve FileSystem). CurveBS supports snapshot, clone, and recover, also supports virtual machines with qemu and physical machine with nbd. CurveFS supports POSIX based on Fuse.
 
+## Curve Architecture
+The architecture overview of Curve is as follows:
+
+<image src="docs/images/Curve-arch.png" width=70%>
+
+Curve supports deployment in private cloud and public cloud environment, and can also be used in hybrid cloud. The deployment architecture in private cloud environment is as follows:
+
+<image src="docs/images/Curve-deploy-on-premises-idc.png" width=60%>
+
+The CurveFS shared file storage system can be elastically scaled to public cloud storage, which can provide users with greater capacity elasticity, lower costs, and better performance experience:
+
+<image src="docs/images/Curve-deploy-on-public-cloud.png" width=55%>
+
 ## Curve Block Service vs Ceph Block Device
 
 Curve: v1.2.0
@@ -54,10 +67,10 @@ Curve ops is more friendly than Curve in the block storage scenario.
   - [Client Python API](docs/en/curve-client-python-api_en.md)
 - Application based on CurveBS
   - [Work with k8s](docs/en/k8s_csi_interface_en.md)
-- Want more details about CurveFS? Our documentation for every component:
-  - [Architecture design](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%E6%96%B9%E6%A1%88%E8%AE%BE%E8%AE%A1%EF%BC%88%E6%80%BB%E4%BD%93%E8%AE%BE%E8%AE%A1%EF%BC%8C%E5%8F%AA%E5%AE%9E%E7%8E%B0%E4%BA%86%E9%83%A8%E5%88%86%EF%BC%89.pdf)
-  - [Client design](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%20Client%20%E6%A6%82%E8%A6%81%E8%AE%BE%E8%AE%A1.pdf)
-  - [Metadata management](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%85%83%E6%95%B0%E6%8D%AE%E7%AE%A1%E7%90%86.pdf)
+- Want more details about CurveFS? Our documentation for every component(Chinese version only, English version will be uploaded soon):
+  - [Architecture design](docs/cn/curvefs_architecture.md)
+  - [Client design](docs/cn/curvefs-client-design.md)
+  - [Metadata management](docs/cn/curvefs-metaserver-overview.md)
   - [Data caching](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%94%AF%E6%8C%81S3%20%E6%95%B0%E6%8D%AE%E7%BC%93%E5%AD%98%E6%96%B9%E6%A1%88.pdf)
   - [Space allocation](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88.pdf)
   - [more details](https://github.com/opencurve/curve-meetup-slides/tree/main/CurveFS)
@@ -114,7 +127,7 @@ CURVE is coded following [Google C++ Style Guide strictly](https://google.github
 
 ### Other processes
 
-After finishing the development of your code, you should submit a pull request to master branch of CURVE and fill out a pull request template. The pull request will trigger the CI automatically, and the code will only be merged after passing the CI and being reviewed.
+After finishing the development of your code, you should submit a pull request to master branch of CURVE and fill out a pull request template. The pull request will trigger the CI automatically, and the code will only be merged after passing the CI and being reviewed. The Jenkins username and password of CI is netease/netease. If the CI fails to run, you can login to the Jenkins platform to view the reason for the failure.
 
 For more detail, please refer to [CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
