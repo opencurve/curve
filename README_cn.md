@@ -16,6 +16,22 @@
 
 Curve是网易自主设计研发的高性能、易运维、云原生的分布式存储系统，目前提供块(CurveBS)和文件(CurveFS)两种存储方式。CurveBS支持快照克隆和恢复,支持QEMU虚拟机和物理机NBD设备两种挂载方式。CurveFS基于Fuse支持POSIX文件系统接口。
 
+## Curve Architecture
+Curve总体架构图：
+
+<image src="docs/images/Curve-arch.png" width=70%>
+
+
+Curve支持部署在私有云和公有云环境，也可以以混合云方式使用，私有云环境下的部署架构如下：
+<image src="docs/images/Curve-deploy-on-premises-idc.png" width=60%>
+
+其中CurveFS共享文件存储系统可以弹性伸缩到公有云存储，可以为用户提供更大的容量弹性、更低的成本、更好的性能体验。
+
+
+公有云环境下，用户可以部署CurveFS集群，用来替换云厂商提供的共享文件存储系统，并利用云盘进行加速，可极大的降低业务成本，其部署架构如下：
+
+<image src="docs/images/Curve-deploy-on-public-cloud.png" width=55%>
+
 ## Curve Block Service vs Ceph Block Device
 
 Curve: v1.2.0
@@ -59,9 +75,9 @@ Ceph: L/N
 - CurveBS上层应用
   - [对接k8s文档](docs/cn/k8s_csi_interface.md)
 - CurveFS相关文档
-  - [架构设计](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%E6%96%B9%E6%A1%88%E8%AE%BE%E8%AE%A1%EF%BC%88%E6%80%BB%E4%BD%93%E8%AE%BE%E8%AE%A1%EF%BC%8C%E5%8F%AA%E5%AE%9E%E7%8E%B0%E4%BA%86%E9%83%A8%E5%88%86%EF%BC%89.pdf)
-  - [Client概要设计](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/CurveFS%20Client%20%E6%A6%82%E8%A6%81%E8%AE%BE%E8%AE%A1.pdf)
-  - [元数据管理](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%85%83%E6%95%B0%E6%8D%AE%E7%AE%A1%E7%90%86.pdf)
+  - [架构设计](docs/cn/curvefs_architecture.md)
+  - [Client概要设计](docs/cn/curvefs-client-design.md)
+  - [元数据管理](docs/cn/curvefs-metaserver-overview.md)
   - [数据缓存方案](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%94%AF%E6%8C%81S3%20%E6%95%B0%E6%8D%AE%E7%BC%93%E5%AD%98%E6%96%B9%E6%A1%88.pdf)
   - [空间分配方案](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88.pdf)
   - [更多](https://github.com/opencurve/curve-meetup-slides/tree/main/CurveFS)
@@ -117,7 +133,7 @@ CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-goo
 3. 异常测试：暂不做要求
 
 ### 其他开发流程说明
-代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。
+代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。CI的Jenkins用户名密码为netease/netease，如遇到CI运行失败可以登录Jenkins平台查看失败原因。
 具体规则请见[CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
 ## 版本发布周期
