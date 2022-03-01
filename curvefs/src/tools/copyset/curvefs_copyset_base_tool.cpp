@@ -155,7 +155,7 @@ bool Response2CopysetInfo(
     const curvefs::mds::topology::ListCopysetInfoResponse& response,
     std::map<uint64_t, std::vector<curvefs::mds::topology::CopysetValue>>*
         key2Info) {
-    bool ret = false;
+    bool ret = true;
     for (auto const& i : response.copysetvalues()) {
         if (i.has_copysetinfo()) {
             (*key2Info)[GetCopysetKey(i.copysetinfo().copysetid(),
@@ -172,7 +172,7 @@ bool Response2CopysetInfo(
     const curvefs::mds::topology::GetCopysetsInfoResponse& response,
     std::map<uint64_t, std::vector<curvefs::mds::topology::CopysetValue>>*
         key2Info) {
-    bool ret = false;
+    bool ret = true;
     for (auto const& i : response.copysetvalues()) {
         if (i.has_copysetinfo()) {
             (*key2Info)[GetCopysetKey(i.copysetinfo().copysetid(),
