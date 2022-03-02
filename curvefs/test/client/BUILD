@@ -57,6 +57,7 @@ cc_binary(
     srcs = glob([
         "main.cpp",
         "client_s3_adaptor_test.cpp",
+        "client_s3_adaptor_test2.cpp",
         "client_s3_test.cpp",
         "*.h",
     ]),
@@ -83,6 +84,7 @@ cc_test(
        "*.h"],
        exclude = [ "block_device_client_test.cpp",
                    "client_s3_adaptor_test.cpp",
+                   "client_s3_adaptor_test2.cpp",
                    "client_s3_test.cpp" ]
    ),
    copts = CURVE_TEST_COPTS + ["-I/usr/local/include/fuse3"],

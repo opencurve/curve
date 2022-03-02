@@ -145,7 +145,6 @@ struct FuseClientOption {
     ExtentManagerOption extentManagerOpt;
     VolumeOption volumeOpt;
 
-    uint32_t flushRetryIntervalMS;
     double attrTimeOut;
     double entryTimeOut;
     uint32_t listDentryLimit;

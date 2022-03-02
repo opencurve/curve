@@ -43,8 +43,27 @@ using curvefs::common::PosixWrapper;
 using curve::common::InterruptibleSleeper;
 using curve::common::PutObjectAsyncCallBack;
 
-
 class DiskCacheWrite : public DiskCacheBase {
+ public:
+    class SynchronizationTask {
+     public:
+        explicit SynchronizationTask(int enventNum) {
+            countDownEnvent_.Reset(enventNum);
+            errorCount_ = 0;
+        }
+        void Wait() { countDownEnvent_.Wait(); }
+
+        void Signal() { countDownEnvent_.Signal(); }
+
+        void SetError() { errorCount_.fetch_add(1); }
+
+        bool Success() { return errorCount_ == 0; }
+
+     public:
+        curve::common::CountDownEvent countDownEnvent_;
+        std::atomic<int> errorCount_;
+    };
+
  public:
     // init isRunning_ should here，
     // otherwise when call AsyncUploadStop in ~DiskCacheWrite will failed:
@@ -77,9 +96,15 @@ class DiskCacheWrite : public DiskCacheBase {
     /**
      * @brief upload file in write cache to S3 
      * @param[in] name file name
+     * @param[in] syncTask wait upload finish
      * @return success: 0, fail : < 0
      */
-    virtual int UploadFile(const std::string name);
+    virtual int
+    UploadFile(const std::string &name,
+               std::shared_ptr<SynchronizationTask> syncTask = nullptr);
+
+    virtual int UploadFileByInode(const std::string &inode);
+
     /**
      * @brief: start aync upload thread
      */
@@ -99,13 +124,18 @@ class DiskCacheWrite : public DiskCacheBase {
     }
 
  private:
-    virtual int AsyncUploadFunc();
+    int AsyncUploadFunc();
+    void UploadFile(const std::list<std::string> &toUpload,
+                    std::shared_ptr<SynchronizationTask> syncTask = nullptr);
+    bool WriteCacheValid();
+    int GetUploadFile(const std::string &inode,
+                      std::list<std::string> *toUpload);
+    int FileExist(const std::string &inode);
 
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     std::list<std::string> waitUpload_;
     bthread::Mutex mtx_;
-    bthread::ConditionVariable cond_;
     InterruptibleSleeper sleeper_;
     uint64_t asyncLoadPeriodMs_;
     S3Client *client_;

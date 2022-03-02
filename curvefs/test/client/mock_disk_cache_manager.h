@@ -29,9 +29,11 @@
 #include <vector>
 #include <set>
 #include <memory>
+#include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/disk_cache_manager.h"
+#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
 
 namespace curvefs {
 namespace client {
@@ -53,6 +55,41 @@ class MockDiskCacheManager : public DiskCacheManager {
                       const char* buf, uint64_t length));
 };
 
+class MockDiskCacheManager2 : public DiskCacheManager {
+ public:
+    MockDiskCacheManager2() : DiskCacheManager() {}
+    ~MockDiskCacheManager2() {}
+
+    MOCK_METHOD2(Init,
+                 int(S3Client *client, const S3ClientAdaptorOption option));
+    MOCK_METHOD0(IsDiskCacheFull, bool());
+    MOCK_METHOD3(WriteReadDirect, int(const std::string fileName,
+                                      const char *buf, uint64_t length));
+};
+
+class MockDiskCacheManagerImpl : public DiskCacheManagerImpl {
+ public:
+    MockDiskCacheManagerImpl() : DiskCacheManagerImpl() {}
+    ~MockDiskCacheManagerImpl() {}
+
+    MOCK_METHOD1(UploadWriteCacheByInode, int(const std::string &inode));
+    MOCK_METHOD1(ClearReadCache, int(const std::list<std::string> &files));
+};
+
+class MockFsCacheManager : public FsCacheManager {
+ public:
+    MockFsCacheManager() : FsCacheManager() {}
+    ~MockFsCacheManager() {}
+
+    MOCK_METHOD1(FindFileCacheManager, FileCacheManagerPtr(uint64_t inodeId));
+};
+
+class MockFileCacheManager : public FileCacheManager {
+ public:
+    MockFileCacheManager() : FileCacheManager() {}
+    ~MockFileCacheManager() {}
+    MOCK_METHOD2(Flush, CURVEFS_ERROR(bool force, bool toS3));
+};
 
 }  // namespace client
 }  // namespace curvefs

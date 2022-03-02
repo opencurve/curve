@@ -138,7 +138,7 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
 
     uint64_t GetActualLen() { return actualLen_; }
 
-    CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
+    CURVEFS_ERROR Flush(uint64_t inodeId, bool force, bool toS3 = false);
     void Release();
     bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
     void SetDelete() { return delete_.store(true, std::memory_order_release); }
@@ -223,7 +223,7 @@ class ChunkCacheManager {
     void ReadByReadCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
                          uint64_t dataBufOffset,
                          std::vector<ReadRequest> *requests);
-    CURVEFS_ERROR Flush(uint64_t inodeId, bool force);
+    CURVEFS_ERROR Flush(uint64_t inodeId, bool force, bool toS3 = false);
     uint64_t GetIndex() { return index_; }
     bool IsEmpty() {
         ReadLockGuard writeCacheLock(rwLockChunk_);
@@ -260,11 +260,11 @@ class FileCacheManager {
     FileCacheManager(uint32_t fsid, uint64_t inode,
                      S3ClientAdaptorImpl *s3ClientAdaptor)
         : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
+    FileCacheManager() {}
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
-    void ReleaseChunkCacheManager(uint64_t index);
     void ReleaseCache();
     void TruncateCache(uint64_t offset, uint64_t fileSize);
-    CURVEFS_ERROR Flush(bool force);
+    virtual CURVEFS_ERROR Flush(bool force, bool toS3 = false);
     int Write(uint64_t offset, uint64_t length, const char *dataBuf);
     int Read(uint64_t inodeId, uint64_t offset, uint64_t length, char *dataBuf);
     bool IsEmpty() { return chunkCacheMap_.empty(); }
@@ -316,8 +316,8 @@ class FsCacheManager {
           readCacheMaxByte_(readCacheMaxByte),
           writeCacheMaxByte_(writeCacheMaxByte),
           s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false) {}
-
-    FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
+    FsCacheManager() {}
+    virtual FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
     FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
                                                      uint64_t inodeId);
     void ReleaseFileCacheManager(uint64_t inodeId);

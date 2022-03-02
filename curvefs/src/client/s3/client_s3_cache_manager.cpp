@@ -29,6 +29,14 @@
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 
 FileCacheManagerPtr FsCacheManager::FindFileCacheManager(uint64_t inodeId) {
     ReadLockGuard readLockGuard(rwLock_);
@@ -62,7 +70,12 @@ void FsCacheManager::ReleaseFileCacheManager(uint64_t inodeId) {
     WriteLockGuard writeLockGuard(rwLock_);
 
     auto iter = fileCacheManagerMap_.find(inodeId);
-    assert(iter != fileCacheManagerMap_.end());
+    if (iter == fileCacheManagerMap_.end()) {
+        VLOG(1) << "ReleaseFileCacheManager, do not find file cache manager of "
+                   "inode: "
+                << inodeId;
+        return;
+    }
 
     fileCacheManagerMap_.erase(iter);
     return;
@@ -163,16 +176,22 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
         {
             WriteLockGuard writeLockGuard(rwLock_);
             auto iter1 = fileCacheManagerMap_.find(iter->first);
-            VLOG(9) << "FileCacheManagerPtr count:"
-                    << iter1->second.use_count();
-            // tmp and fileCacheManagerMap_ has this FileCacheManagerPtr, so
-            // count is 2 if count more than 2, this mean someone thread has
-            // this FileCacheManagerPtr
-            if ((iter1->second->IsEmpty()) &&
-                (2 == iter1->second.use_count())) {
-                VLOG(9) << "Release FileCacheManager, inode id: "
-                        << iter1->second->GetInodeId();
-                fileCacheManagerMap_.erase(iter1);
+            if (iter1 == fileCacheManagerMap_.end()) {
+                VLOG(1) << "FsSync, chunk cache for inodeid: " << iter->first
+                        << " is removed";
+                continue;
+            } else {
+                VLOG(9) << "FileCacheManagerPtr count:"
+                        << iter1->second.use_count();
+                // tmp and fileCacheManagerMap_ has this FileCacheManagerPtr, so
+                // count is 2 if count more than 2, this mean someone thread has
+                // this FileCacheManagerPtr
+                if ((iter1->second->IsEmpty()) &&
+                    (2 == iter1->second.use_count())) {
+                    VLOG(9) << "Release FileCacheManager, inode id: "
+                            << iter1->second->GetInodeId();
+                    fileCacheManagerMap_.erase(iter1);
+                }
             }
         }
     }
@@ -295,6 +314,8 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                 ::curve::common::UniqueLock lgGuard =
                     inodeWrapper->GetUniqueLock();
                 Inode* inode = inodeWrapper->GetMutableInodeUnlocked();
+                LOG(INFO) << "FileCacheManager::Read Inode: "
+                          << inode->DebugString();
                 fileLen = inode->length();
                 for (; iter != totalRequests.end(); iter++) {
                     VLOG(6) << "ReadRequest index:" << iter->index
@@ -522,7 +543,9 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
             DataCachePtr dataCache = std::make_shared<DataCache>(
             s3ClientAdaptor_, chunkCacheManager.get(), chunkPos,
             (*responses)[i].GetBufLen(), (*responses)[i].GetDataBuf());
-            chunkCacheManager->AddReadDataCache(dataCache);
+            if (!curvefs::client::common::FLAGS_enableCto) {
+                chunkCacheManager->AddReadDataCache(dataCache);
+            }
             i++;
         }
     }
@@ -906,7 +929,7 @@ void FileCacheManager::TruncateCache(uint64_t offset, uint64_t fileSize) {
     return;
 }
 
-CURVEFS_ERROR FileCacheManager::Flush(bool force) {
+CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
     CURVEFS_ERROR ret;
     std::map<uint64_t, ChunkCacheManagerPtr> tmp;
     {
@@ -916,7 +939,7 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force) {
     auto iter = tmp.begin();
 
     for (; iter != tmp.end(); iter++) {
-        ret = iter->second->Flush(inode_, force);
+        ret = iter->second->Flush(inode_, force, toS3);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "fileCacheManager Flush error, ret:" << ret
                        << ",chunkIndex:" << iter->second->GetIndex();
@@ -926,14 +949,22 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force) {
         {
             WriteLockGuard writeLockGuard(rwLock_);
             auto iter1 = chunkCacheMap_.find(iter->first);
-            VLOG(9) << "ChunkCacheManagerPtr count:"
-                    << iter1->second.use_count();
-            // tmp and chunkCacheMap_ has this ChunkCacheManagerPtr, so count is
-            // 2 if count more than 2, this mean someone thread has this
-            // ChunkCacheManagerPtr
-            if (iter1->second->IsEmpty() && (2 == iter1->second.use_count())) {
-                VLOG(9) << "chunkCacheMap_ erase.";
-                chunkCacheMap_.erase(iter1);
+            if (iter1 == chunkCacheMap_.end()) {
+                VLOG(1) << "Flush, chunk cache for inodeid: " << inode_
+                        << " is removed";
+                continue;
+            } else {
+                // tmp and chunkCacheMap_ has this ChunkCacheManagerPtr, so
+                // count is 2 if count more than 2, this mean someone thread has
+                // this ChunkCacheManagerPtr
+                VLOG(9) << "Flush, ChunkCacheManagerPtr count:"
+                        << iter1->second.use_count();
+
+                if (iter1->second->IsEmpty() &&
+                    (2 == iter1->second.use_count())) {
+                    VLOG(9) << "chunkCacheMap_ erase.";
+                    chunkCacheMap_.erase(iter1);
+                }
             }
         }
     }
@@ -1364,7 +1395,8 @@ void ChunkCacheManager::ReleaseWriteDataCache(const DataCachePtr &dataCache) {
     }
 }
 
-CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
+CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force,
+                                       bool toS3) {
     std::map<uint64_t, DataCachePtr> tmp;
     curve::common::LockGuard lg(flushMtx_);
     CURVEFS_ERROR ret;
@@ -1378,7 +1410,7 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
                 << ",len:" << iter->second->GetLen() << ",inodeId:" << inodeId
                 << ",chunkIndex:" << index_;
         assert(iter->second->IsDirty());
-        ret = iter->second->Flush(inodeId, force);
+        ret = iter->second->Flush(inodeId, force, toS3);
         if ((ret != CURVEFS_ERROR::OK) && (ret != CURVEFS_ERROR::NOFLUSH)) {
             LOG(WARNING) << "dataCache flush failed. ret:" << ret
                          << ",index:" << index_
@@ -1392,7 +1424,9 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force) {
                         << iter->second->GetChunkPos()
                         << ",len:" << iter->second->GetLen()
                         << ",inodeId:" << inodeId << ",chunkIndex:" << index_;
-                AddReadDataCache(iter->second);
+                if (!curvefs::client::common::FLAGS_enableCto) {
+                    AddReadDataCache(iter->second);
+                }
                 ReleaseWriteDataCache(iter->second);
             } else {
                 VLOG(6) << "data cache is dirty.";
@@ -1915,7 +1949,7 @@ void DataCache::CopyDataCacheToBuf(uint64_t offset, uint64_t len, char *data) {
     return;
 }
 
-CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
+CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint32_t flushIntervalSec = s3ClientAdaptor_->GetFlushInterval();
@@ -2005,8 +2039,10 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force) {
             };
 
         std::vector<std::shared_ptr<PutObjectAsyncContext>> uploadTasks;
-        bool useDiskCache = s3ClientAdaptor_->IsReadWriteCache() &&
-        !s3ClientAdaptor_->GetDiskCacheManager()->IsDiskCacheFull();
+        bool useDiskCache =
+            s3ClientAdaptor_->IsReadWriteCache() &&
+            !s3ClientAdaptor_->GetDiskCacheManager()->IsDiskCacheFull() &&
+            !toS3;
         while (tmpLen > 0) {
             if (blockPos + tmpLen > blockSize) {
                 n = blockSize - blockPos;

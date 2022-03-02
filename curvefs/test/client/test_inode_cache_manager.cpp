@@ -29,6 +29,14 @@
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 
 using ::testing::_;
 using ::testing::Contains;
@@ -48,6 +56,7 @@ class TestInodeCacheManager : public ::testing::Test {
     ~TestInodeCacheManager() {}
 
     virtual void SetUp() {
+        curvefs::client::common::FLAGS_enableCto = false;
         metaClient_ = std::make_shared<MockMetaServerClient>();
         iCacheManager_ = std::make_shared<InodeCacheManagerImpl>(metaClient_);
         iCacheManager_->SetFsId(fsId_);
@@ -97,9 +106,26 @@ TEST_F(TestInodeCacheManager, GetInode) {
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
+
+    curvefs::client::common::FLAGS_enableCto = true;
+    inodeWrapper->SetOpenCount(0);
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND));
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(inodeId, out.inodeid());
+    ASSERT_EQ(fsId_, out.fsid());
+    ASSERT_EQ(fileLength, out.length());
+
+    inodeWrapper->SetOpenCount(1);
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND));
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 }
 
 TEST_F(TestInodeCacheManager, CreateAndGetInode) {
+    curvefs::client::common::FLAGS_enableCto = false;
     uint64_t inodeId = 100;
 
     InodeParam param;

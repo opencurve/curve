@@ -36,7 +36,7 @@
 namespace curvefs {
 namespace client {
 
-using ::curve::common::SglLRUCache;
+using curve::common::SglLRUCache;
 using curvefs::common::PosixWrapper;
 
 class DiskCacheRead : public DiskCacheBase {
@@ -44,20 +44,21 @@ class DiskCacheRead : public DiskCacheBase {
     DiskCacheRead() {}
     virtual ~DiskCacheRead() {}
     virtual void Init(std::shared_ptr<PosixWrapper> posixWrapper,
-                   const std::string cacheDir);
-    virtual int ReadDiskFile(const std::string name,
-                  char* buf, uint64_t offset, uint64_t length);
-    virtual int WriteDiskFile(const std::string fileName,
-                              const char* buf, uint64_t length);
+                      const std::string cacheDir);
+    virtual int ReadDiskFile(const std::string name, char *buf, uint64_t offset,
+                             uint64_t length);
+    virtual int WriteDiskFile(const std::string fileName, const char *buf,
+                              uint64_t length);
     virtual int LinkWriteToRead(const std::string fileName,
-                   const std::string fullWriteDir,
-                   const std::string fullReadDir);
+                                const std::string fullWriteDir,
+                                const std::string fullReadDir);
 
     /**
-    * @brief after reboot，load all files that store in read cache.
-    */
-    virtual int LoadAllCacheReadFile(std::shared_ptr<
-      SglLRUCache<std::string>> cachedObj);
+     * @brief after reboot，load all files that store in read cache.
+     */
+    virtual int
+    LoadAllCacheReadFile(std::shared_ptr<SglLRUCache<std::string>> cachedObj);
+    virtual int ClearReadCache(const std::list<std::string> &files);
     virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
         metric_ = metric;
     }

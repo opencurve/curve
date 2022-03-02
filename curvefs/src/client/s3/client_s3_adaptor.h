@@ -80,6 +80,7 @@ class S3ClientAdaptor {
     virtual CURVEFS_ERROR Truncate(Inode *inode, uint64_t size) = 0;
     virtual void ReleaseCache(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR Flush(uint64_t inodeId) = 0;
+    virtual CURVEFS_ERROR FlushAllCache(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR FsSync() = 0;
     virtual int Stop() = 0;
     virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) = 0;
@@ -111,6 +112,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     CURVEFS_ERROR Truncate(Inode *inode, uint64_t size);
     void ReleaseCache(uint64_t inodeId);
     CURVEFS_ERROR Flush(uint64_t inodeId);
+    CURVEFS_ERROR FlushAllCache(uint64_t inodeId);
     CURVEFS_ERROR FsSync();
     int Stop();
     uint64_t GetBlockSize() {
@@ -172,12 +174,29 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     void InitMetrics(const std::string &fsName);
     void CollectMetrics(InterfaceMetric *interface, int count, uint64_t start);
 
+    // for test
+    void InitForTest(
+        std::shared_ptr<DiskCacheManagerImpl> diskcacheManagerImpl,
+        std::shared_ptr<FsCacheManager> fsCacheManager,
+        std::shared_ptr<InodeCacheManager> inodeManager) {
+        diskCacheManagerImpl_ = diskcacheManagerImpl;
+        fsCacheManager_ = fsCacheManager;
+        inodeManager_ = inodeManager;
+        chunkSize_ = 4 * 1024 * 1024;
+    }
+
+    void SetDiskCache(DiskCacheType type) {
+       diskCacheType_ = type;
+    }
+
  private:
     void BackGroundFlush();
 
     using AsyncDownloadTask = std::function<void()>;
 
     static int ExecAsyncDownloadTask(void* meta, bthread::TaskIterator<AsyncDownloadTask>& iter);  // NOLINT
+
+    int ClearDiskCache(int64_t inodeId);
 
  public:
     void PushAsyncTask(const AsyncDownloadTask& task) {

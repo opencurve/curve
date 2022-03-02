@@ -16,31 +16,22 @@
 
 /*
  * Project: curve
- * Created Date: Thur Oct 14 2021
- * Author: majie1
+ * Created Date: Thur Mar 02 2022
+ * Author: lixiaocui
  */
 
-#ifndef CURVEFS_SRC_COMMON_S3UTIL_H_
-#define CURVEFS_SRC_COMMON_S3UTIL_H_
-
-#include <string>
+#include <vector>
+#include "src/common/string_util.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 namespace common {
 namespace s3util {
-
-inline std::string GenObjName(uint64_t chunkid, uint64_t index,
-                              uint64_t compaction, uint64_t fsid,
-                              uint64_t inodeid) {
-    return std::to_string(fsid) + "_" + std::to_string(inodeid) + "_" +
-           std::to_string(chunkid) + "_" + std::to_string(index) + "_" +
-           std::to_string(compaction);
+bool ValidNameOfInode(const std::string &inode, const std::string &objName) {
+    std::vector<std::string> res;
+    curve::common::SplitString(objName, "_", &res);
+    return res.size() == 5 && res[1] == inode;
 }
-
-bool ValidNameOfInode(const std::string &inode, const std::string &objName);
-
 }  // namespace s3util
 }  // namespace common
 }  // namespace curvefs
-
-#endif  // CURVEFS_SRC_COMMON_S3UTIL_H_

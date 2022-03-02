@@ -74,9 +74,6 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
            struct fuse_file_info *fi) override;
 
-    CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
-                              struct fuse_file_info *fi) override;
-
     CURVEFS_ERROR FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
                                 struct fuse_file_info *fi) override;
 

@@ -24,6 +24,7 @@
 #include <string>
 #include <cstdio>
 #include <memory>
+#include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/disk_cache_manager.h"
@@ -36,7 +37,7 @@ namespace client {
  * use curl -L mdsIp:port/flags/avgFlushBytes?setvalue=true
  * for dynamic parameter configuration
  */
-static bool pass_uint64(const char*, uint64_t) { return true;}
+static bool pass_uint64(const char *, uint64_t) { return true; }
 DEFINE_uint64(avgFlushBytes, 83886080, "the write throttle bps of disk cache");
 DEFINE_validator(avgFlushBytes, &pass_uint64);
 DEFINE_uint64(burstFlushBytes, 104857600, "the write burst bps of disk cache");
@@ -46,10 +47,9 @@ DEFINE_validator(burstSecs, &pass_uint64);
 DEFINE_uint64(avgFlushIops, 0, "the write throttle iops of disk cache");
 DEFINE_validator(avgFlushIops, &pass_uint64);
 DEFINE_uint64(avgReadFileBytes, 83886080,
-  "the read throttle bps of disk cache");
+              "the read throttle bps of disk cache");
 DEFINE_validator(avgReadFileBytes, &pass_uint64);
-DEFINE_uint64(avgReadFileIops, 0,
-  "the read throttle iops of disk cache");
+DEFINE_uint64(avgReadFileIops, 0, "the read throttle iops of disk cache");
 DEFINE_validator(avgReadFileIops, &pass_uint64);
 
 DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
@@ -66,9 +66,8 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     maxUsableSpaceBytes_ = 0;
     // cannot limit the size,
     // because cache is been delete must after upload to s3
-    cachedObjName_ = std::make_shared<
-      SglLRUCache<std::string>>(0,
-      std::make_shared<CacheMetrics>("diskcache"));
+    cachedObjName_ = std::make_shared<SglLRUCache<std::string>>(
+        0, std::make_shared<CacheMetrics>("diskcache"));
 }
 
 int DiskCacheManager::Init(S3Client *client,
@@ -85,7 +84,7 @@ int DiskCacheManager::Init(S3Client *client,
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
 
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_,
-      option.diskCacheOpt.asyncLoadPeriodMs);
+                      option.diskCacheOpt.asyncLoadPeriodMs);
     cacheRead_->Init(posixWrapper_, cacheDir_);
     int ret;
     ret = CreateDir();
@@ -133,22 +132,25 @@ int DiskCacheManager::Init(S3Client *client,
 
 void DiskCacheManager::InitQosParam() {
     ReadWriteThrottleParams params;
-    params.iopsWrite = ThrottleParams(
-      FLAGS_avgFlushIops, 0, 0);
-    params.bpsWrite = ThrottleParams(
-      FLAGS_avgFlushBytes,
-      FLAGS_burstFlushBytes,
-      FLAGS_burstSecs);
-    params.iopsRead = ThrottleParams(
-      FLAGS_avgReadFileIops, 0, 0);
-    params.bpsRead = ThrottleParams(
-      FLAGS_avgReadFileBytes, 0, 0);
+    params.iopsWrite = ThrottleParams(FLAGS_avgFlushIops, 0, 0);
+    params.bpsWrite = ThrottleParams(FLAGS_avgFlushBytes, FLAGS_burstFlushBytes,
+                                     FLAGS_burstSecs);
+    params.iopsRead = ThrottleParams(FLAGS_avgReadFileIops, 0, 0);
+    params.bpsRead = ThrottleParams(FLAGS_avgReadFileBytes, 0, 0);
 
     diskCacheThrottle_.UpdateThrottleParams(params);
 }
 
 int DiskCacheManager::UploadAllCacheWriteFile() {
     return cacheWrite_->UploadAllCacheWriteFile();
+}
+
+int DiskCacheManager::UploadWriteCacheByInode(const std::string &inode) {
+    return cacheWrite_->UploadFileByInode(inode);
+}
+
+int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
+    return cacheRead_->ClearReadCache(files);
 }
 
 void DiskCacheManager::AddCache(const std::string name) {
@@ -184,8 +186,7 @@ int DiskCacheManager::CreateDir() {
     ret = posixWrapper_->stat(cacheDir_.c_str(), &statFile);
     if (ret < 0) {
         ret = posixWrapper_->mkdir(cacheDir_.c_str(), 0755);
-        if ((ret < 0) &&
-            (errno != EEXIST)) {
+        if ((ret < 0) && (errno != EEXIST)) {
             LOG(ERROR) << "create cache dir error. errno = " << errno
                        << ", dir = " << cacheDir_;
             return -1;
@@ -238,10 +239,10 @@ int DiskCacheManager::ReadDiskFile(const std::string name, char *buf,
 }
 
 int DiskCacheManager::WriteReadDirect(const std::string fileName,
-                 const char* buf, uint64_t length) {
+                                      const char *buf, uint64_t length) {
     // write hrottle
     diskCacheThrottle_.Add(false, length);
-    int ret = cacheRead_->WriteDiskFile(fileName, buf, length);;
+    int ret = cacheRead_->WriteDiskFile(fileName, buf, length);
     if (ret > 0)
         AddDiskUsedBytes(ret);
     return ret;
@@ -274,8 +275,8 @@ int64_t DiskCacheManager::SetDiskFsUsedRatio() {
 }
 
 void DiskCacheManager::SetDiskInitUsedBytes() {
-    std::string cmd = "timeout " + std::to_string(cmdTimeoutSec_) +
-        " du -sb " + cacheDir_ + " | awk '{printf $1}' ";
+    std::string cmd = "timeout " + std::to_string(cmdTimeoutSec_) + " du -sb " +
+                      cacheDir_ + " | awk '{printf $1}' ";
     SysUtils sysUtils;
     std::string result = sysUtils.RunSysCmd(cmd);
     if (result.empty()) {
@@ -295,11 +296,10 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
 bool DiskCacheManager::IsDiskCacheFull() {
     int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
     uint64_t usedBytes = GetDiskUsedbytes();
-    if (ratio >= fullRatio_ ||
-      usedBytes >= maxUsableSpaceBytes_) {
+    if (ratio >= fullRatio_ || usedBytes >= maxUsableSpaceBytes_) {
         VLOG(3) << "disk cache is full"
-                     << ", ratio is: " << ratio << ", fullRatio is: "
-                     << fullRatio_ << ", used bytes is: " << usedBytes;
+                << ", ratio is: " << ratio << ", fullRatio is: " << fullRatio_
+                << ", used bytes is: " << usedBytes;
         return true;
     }
     return false;
@@ -385,8 +385,7 @@ void DiskCacheManager::TrimCache() {
                     continue;
                 }
                 DecDiskUsedBytes(statReadFile.st_size);
-                VLOG(3) << "remove disk file success, file is: "
-                        << cacheKey;
+                VLOG(3) << "remove disk file success, file is: " << cacheKey;
             }
             VLOG(3) << "trim over.";
         }

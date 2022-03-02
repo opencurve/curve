@@ -35,6 +35,15 @@
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
+using ::curve::common::kMB;
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -42,7 +51,6 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::WithArg;
-using ::curve::common::kMB;
 
 using rpcclient::MockMdsClient;
 
@@ -115,6 +123,7 @@ class ClientS3AdaptorTest : public testing::Test {
         s3ClientAdaptor_->Init(option, &mockS3Client_, mockInodeManager,
                                mockMdsClient);
         s3ClientAdaptor_->SetFsId(2);
+        curvefs::client::common::FLAGS_enableCto = false;
     }
 
     void TearDown() override {
@@ -1364,11 +1373,11 @@ TEST_F(ClientS3AdaptorTest, test_flush_first_write) {
         .WillRepeatedly(Return(1 * 1024 * 1024));
 
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                    context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                context->retCode = 0;
+                context->cb(context);
+            }));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
         .WillRepeatedly(
@@ -1425,11 +1434,11 @@ TEST_F(ClientS3AdaptorTest, test_flush_overlap_write) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                    context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                context->retCode = 0;
+                context->cb(context);
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
     offset = 1 * 1024 * 1024;
@@ -1484,11 +1493,11 @@ TEST_F(ClientS3AdaptorTest, test_flush_overlap_write2) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                    context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                context->retCode = 0;
+                context->cb(context);
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
     offset = 16749056;
@@ -1547,11 +1556,11 @@ TEST_F(ClientS3AdaptorTest, test_flush_hole_write) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                    context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                context->retCode = 0;
+                context->cb(context);
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
     offset = 2 * 1024 * 1024;
@@ -1610,11 +1619,11 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_more_chunk) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                    context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                context->retCode = 0;
+                context->cb(context);
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
 
@@ -1676,15 +1685,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read1) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                   S3Data& tmp = gObjectDataMaps[context->key];
-                   tmp.len = context->bufferSize;
-                   tmp.buf = new char[context->bufferSize];
-                   strncpy(tmp.buf, context->buffer, context->bufferSize);
-                   context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
+                tmp.len = context->bufferSize;
+                tmp.buf = new char[context->bufferSize];
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
+                context->retCode = 0;
+                context->cb(context);
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
     len = 1 * 1024 * 1024;
@@ -1754,15 +1763,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read2) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-            .WillRepeatedly(Invoke(
-                [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                   S3Data& tmp = gObjectDataMaps[context->key];
-                   tmp.len = context->bufferSize;
-                   tmp.buf = new char[context->bufferSize];
-                   strncpy(tmp.buf, context->buffer, context->bufferSize);
-                   context->retCode = 0;
-                   context->cb(context);
-    }));
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
+                tmp.len = context->bufferSize;
+                tmp.buf = new char[context->bufferSize];
+                strncpy(tmp.buf, context->buffer, context->bufferSize);
+                context->retCode = 0;
+                context->cb(context);
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
 
@@ -1834,15 +1843,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read3) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
 
@@ -1934,15 +1943,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read4) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
 
@@ -2016,15 +2025,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read5) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
 
@@ -2089,7 +2098,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read6) {
     InitInode(&inode);
     uint64_t offset = 1024;
     uint64_t len = 1 * 1024 * 1024 - 2048;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
 
     uint64_t chunkId = 25;
@@ -2106,15 +2115,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read6) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     // inode.set_length(offset + len);
 
@@ -2149,10 +2158,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read6) {
 
     offset = 1024;
     len = 1024 * 1024 - 2048;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'c', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'a', len);
     memset(expectBuf + 1024, 'b', 512 * 1024);
     memset(expectBuf + len, 0, 1);
@@ -2178,7 +2187,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read7) {
     InitInode(&inode);
     uint64_t offset = 0;
     uint64_t len = 1 * 1024 * 1024;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
 
     uint64_t chunkId = 25;
@@ -2194,18 +2203,18 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read7) {
         .WillRepeatedly(Invoke(S3Download));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
-         .WillRepeatedly(
+        .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     // inode.set_length(offset + len);
 
@@ -2246,10 +2255,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read7) {
 
     offset = 0;
     len = 1024 * 1024;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'd', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'a', len);
     memset(expectBuf + 1024, 'b', 512);
     memset(expectBuf + 2048, 'c', 512);
@@ -2276,7 +2285,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read8) {
     InitInode(&inode);
     uint64_t offset = 20971520;
     uint64_t len = 4194304;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
 
     uint64_t chunkId = 25;
@@ -2293,18 +2302,18 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read8) {
         .WillRepeatedly(Invoke(S3Download));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
-         .WillRepeatedly(
+        .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
 
 
@@ -2343,10 +2352,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read8) {
 
     offset = 20971520;
     len = 4194304;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'd', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'a', len);
     memset(expectBuf, 'c', 1048576);
     memset(expectBuf + len, 0, 1);
@@ -2372,7 +2381,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read9) {
     InitInode(&inode);
     uint64_t offset = 92274688;
     uint64_t len = 4194304;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
     memset(buf + (93210624 - 92274688), 'b', 1024);
 
@@ -2390,18 +2399,18 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read9) {
         .WillRepeatedly(Invoke(S3Download));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
-         .WillRepeatedly(
+        .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
 
 
@@ -2442,10 +2451,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read9) {
 
     offset = 93210624;
     len = 1024;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'e', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
 
@@ -2470,7 +2479,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read10) {
     InitInode(&inode);
     uint64_t offset = 8388608;
     uint64_t len = 4194304;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
 
     uint64_t chunkId = 1;
@@ -2498,15 +2507,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read10) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
 
 
@@ -2563,20 +2572,19 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read10) {
     ret = s3ClientAdaptor_->Flush(inode.inodeid());
 
 
-
     s3ClientAdaptor_->ReleaseCache(inode.inodeid());
     inode = inodeWrapper->GetInodeUnlocked();
-/*
-    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
-    auto s3chunkInfoListIter = s3ChunkInfoMap->find(22);
-    ASSERT_EQ(3, s3chunkInfoListIter->second.s3chunks_size());
-*/
+    /*
+        auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+        auto s3chunkInfoListIter = s3ChunkInfoMap->find(22);
+        ASSERT_EQ(3, s3chunkInfoListIter->second.s3chunks_size());
+    */
     offset = 9437184;
     len = 131072;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'h', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'g', len);
     memset(expectBuf + len, 0, 1);
 
@@ -2601,7 +2609,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read11) {
     InitInode(&inode);
     uint64_t offset = 196608;
     uint64_t len = 131072;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
 
     uint64_t chunkId = 1;
@@ -2620,15 +2628,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read11) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
 
 
@@ -2659,10 +2667,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read11) {
 
     offset = 196608;
     len = 131072;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'c', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'a', len);
     memset(expectBuf + 126976, 'b', 4096);
     memset(expectBuf + len, 0, 1);
@@ -2688,7 +2696,7 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read12) {
     InitInode(&inode);
     uint64_t offset = 196608;
     uint64_t len = 131072;
-    char* buf = new char[len];
+    char *buf = new char[len];
     memset(buf, 'a', len);
 
     uint64_t chunkId = 1;
@@ -2707,15 +2715,15 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read12) {
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
 
 
@@ -2746,10 +2754,10 @@ TEST_F(ClientS3AdaptorTest, test_flush_write_and_read12) {
 
     offset = 196608;
     len = 131072;
-    char* readBuf = new char[len + 1];
+    char *readBuf = new char[len + 1];
     memset(readBuf, 'c', len);
     memset(readBuf + len, 0, 1);
-    char* expectBuf = new char[len + 1];
+    char *expectBuf = new char[len + 1];
     memset(expectBuf, 'a', len);
     memset(expectBuf + 126976, 'b', 4096);
     memset(expectBuf + len, 0, 1);
@@ -2793,15 +2801,15 @@ TEST_F(ClientS3AdaptorTest, test_fssync_success_and_fail) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                         Return(CURVEFS_ERROR::INTERNAL)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
 
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
@@ -2855,15 +2863,15 @@ TEST_F(ClientS3AdaptorTest, test_fssync_overlap_write) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
-            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
-                S3Data& tmp = gObjectDataMaps[context->key];
+        .WillRepeatedly(
+            Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                S3Data &tmp = gObjectDataMaps[context->key];
                 tmp.len = context->bufferSize;
                 tmp.buf = new char[context->bufferSize];
                 strncpy(tmp.buf, context->buffer, context->bufferSize);
                 context->retCode = 0;
                 context->cb(context);
-    }));
+            }));
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
     offset = 1 * 1024 * 1024;

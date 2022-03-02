@@ -1692,7 +1692,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     inode.set_inodeid(ino);
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-
+    inodeWrapper->SetOpenCount(1);
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
@@ -1715,7 +1715,6 @@ class TestFuseS3Client : public ::testing::Test {
         client_ = std::make_shared<FuseS3Client>(mdsClient_, metaClient_,
                                                  inodeManager_, dentryManager_,
                                                  s3ClientAdaptor_);
-        fuseClientOption_.flushRetryIntervalMS = 1000;
         fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
         fuseClientOption_.dummyServerStartPort = 5000;
         fuseClientOption_.maxNameLength = 20u;
@@ -1945,37 +1944,6 @@ TEST_F(TestFuseS3Client, FuseOpFsync) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 
-TEST_F(TestFuseS3Client, FuseOpFlush) {
-    fuse_req_t req;
-    fuse_ino_t ino = 1;
-    struct fuse_file_info *fi;
-
-    Inode inode;
-    inode.set_inodeid(ino);
-    inode.set_length(0);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-    inodeWrapper->SetUid(32);
-
-    // 1. test sync once
-    EXPECT_CALL(*s3ClientAdaptor_, Flush(_))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    curvefs::client::common::FLAGS_enableCto = false;
-    ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpFlush(req, ino, fi));
-
-    // 2. test until success
-    EXPECT_CALL(*s3ClientAdaptor_, Flush(_))
-        .WillOnce(Return(CURVEFS_ERROR::UNKNOWN))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    curvefs::client::common::FLAGS_enableCto = true;
-    ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpFlush(req, ino, fi));
-}
-
 TEST_F(TestFuseS3Client, FuseOpRelease) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
@@ -1986,15 +1954,16 @@ TEST_F(TestFuseS3Client, FuseOpRelease) {
     inode.set_length(0);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     inodeWrapper->SetUid(32);
+    inodeWrapper->SetOpenCount(1);
 
-    // 1. test do not need sync, get inode error
+    LOG(INFO) << "############ case1: test do not need sync, get inode error";
         curvefs::client::common::FLAGS_enableCto = false;
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                         Return(CURVEFS_ERROR::INTERNAL)));
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, client_->FuseOpRelease(req, ino, fi));
 
-    // 2. test do not need fsync, get inode ok
+    LOG(INFO) << "############ case2: test do not need fsync, get inode ok";
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
@@ -2002,21 +1971,19 @@ TEST_F(TestFuseS3Client, FuseOpRelease) {
         .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpRelease(req, ino, fi));
 
-    // 3. test need fsync, but sync error
+    LOG(INFO) << "############ case3: test need fsync, but sync error";
     curvefs::client::common::FLAGS_enableCto = true;
-    EXPECT_CALL(*s3ClientAdaptor_, Flush(_))
+    EXPECT_CALL(*s3ClientAdaptor_, FlushAllCache(_))
         .WillOnce(Return(CURVEFS_ERROR::UNKNOWN));
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, client_->FuseOpRelease(req, ino, fi));
 
-    // 4. test need fsync, and sync ok
+    LOG(INFO) << "############ case4: test need fsync, and sync ok";
+    inodeWrapper->SetOpenCount(1);
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*s3ClientAdaptor_, Flush(_))
+    EXPECT_CALL(*s3ClientAdaptor_, FlushAllCache(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
-    EXPECT_CALL(*inodeManager_, ClearInodeCache(ino)).Times(1);
     EXPECT_CALL(*metaClient_, UpdateInode(_, InodeOpenStatusChange::CLOSE))
         .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpRelease(req, ino, fi));
