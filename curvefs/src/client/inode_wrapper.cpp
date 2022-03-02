@@ -261,6 +261,7 @@ CURVEFS_ERROR InodeWrapper::IncreaseNLink() {
 CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
     curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
+    VLOG(1) << "Unlink inode = " << inode_.DebugString();
     if (old > 0) {
         uint32_t newnlink = old - 1;
         if (newnlink == 1 && inode_.type() == FsFileType::TYPE_DIRECTORY) {
@@ -286,7 +287,8 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
         dirty_ = false;
         return CURVEFS_ERROR::OK;
     }
-    LOG(ERROR) << "Unlink find nlink <= 0, nlink = " << old;
+    LOG(ERROR) << "Unlink find nlink <= 0, nlink = " << old
+               << ", inode = " << inode_.inodeid();
     return CURVEFS_ERROR::INTERNAL;
 }
 
@@ -313,15 +315,29 @@ CURVEFS_ERROR InodeWrapper::DecreaseNLink() {
 }
 
 CURVEFS_ERROR InodeWrapper::Open() {
-    openFlag_ = true;
-    return UpdateInodeStatus(InodeOpenStatusChange::OPEN);
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    if (0 == openCount_) {
+        ret = UpdateInodeStatus(InodeOpenStatusChange::OPEN);
+        if (ret != CURVEFS_ERROR::OK) {
+            return ret;
+        }
+    }
+    openCount_++;
+    return CURVEFS_ERROR::OK;
 }
 
-bool InodeWrapper::IsOpen() { return openFlag_; }
+bool InodeWrapper::IsOpen() { return openCount_ > 0; }
 
 CURVEFS_ERROR InodeWrapper::Release() {
-    openFlag_ = false;
-    return UpdateInodeStatus(InodeOpenStatusChange::CLOSE);
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    if (1 == openCount_) {
+        ret = UpdateInodeStatus(InodeOpenStatusChange::CLOSE);
+        if (ret != CURVEFS_ERROR::OK) {
+            return ret;
+        }
+    }
+    openCount_--;
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR

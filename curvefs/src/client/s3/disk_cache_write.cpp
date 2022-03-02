@@ -29,14 +29,16 @@
 #include <vector>
 
 #include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 
 namespace client {
 
 void DiskCacheWrite::Init(S3Client *client,
-                    std::shared_ptr<PosixWrapper> posixWrapper,
-                    const std::string cacheDir, uint64_t asyncLoadPeriodMs) {
+                          std::shared_ptr<PosixWrapper> posixWrapper,
+                          const std::string cacheDir,
+                          uint64_t asyncLoadPeriodMs) {
     client_ = client;
     posixWrapper_ = posixWrapper;
     asyncLoadPeriodMs_ = asyncLoadPeriodMs;
@@ -48,8 +50,8 @@ void DiskCacheWrite::AsyncUploadEnqueue(const std::string objName) {
     waitUpload_.push_back(objName);
 }
 
-int DiskCacheWrite::ReadFile(const std::string name,
-  char** buf, uint64_t* size) {
+int DiskCacheWrite::ReadFile(const std::string name, char **buf,
+                             uint64_t *size) {
     std::string fileFullPath;
     bool fileExist;
     fileFullPath = GetCacheIoFullDir() + "/" + name;
@@ -109,19 +111,30 @@ int DiskCacheWrite::ReadFile(const std::string name,
     return 0;
 }
 
-int DiskCacheWrite::UploadFile(const std::string name) {
+int DiskCacheWrite::UploadFile(const std::string &name,
+                               std::shared_ptr<SynchronizationTask> syncTask) {
     uint64_t fileSize;
-    char* buffer = nullptr;
+    char *buffer = nullptr;
     int ret = ReadFile(name, &buffer, &fileSize);
     if (ret < 0) {
-        if (buffer != nullptr)
+        if (buffer != nullptr) {
             posixWrapper_->free(buffer);
+        }
+
+        if (syncTask) {
+            // need signal fail
+            syncTask->Signal();
+            VLOG(3) << "UploadFile, read file " << name << " error";
+            return -1;
+        }
+
         LOG(ERROR) << "read file failed";
         return -1;
     }
     VLOG(9) << "async upload start, file = " << name;
     PutObjectAsyncCallBack cb =
-        [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
+        [&, buffer,
+         syncTask](const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
                 if (metric_.get() != nullptr) {
                     metric_->writeS3.bps.count << context->bufferSize;
@@ -133,6 +146,14 @@ int DiskCacheWrite::UploadFile(const std::string name) {
                 VLOG(9) << "PutObjectAsyncCallBack success, "
                         << "remove file: " << context->key;
                 posixWrapper_->free(buffer);
+            } else if (syncTask) {
+                syncTask->SetError();
+            }
+
+            if (syncTask) {
+                VLOG(9) << "UploadFile, name = " << name << " signal start";
+                syncTask->Signal();
+                VLOG(9) << "UploadFile, name = " << name << " signal finish";
             }
         };
     auto context = std::make_shared<PutObjectAsyncContext>();
@@ -146,15 +167,111 @@ int DiskCacheWrite::UploadFile(const std::string name) {
     return 0;
 }
 
-int DiskCacheWrite::AsyncUploadFunc() {
+void DiskCacheWrite::UploadFile(const std::list<std::string> &toUpload,
+                                std::shared_ptr<SynchronizationTask> syncTask) {
+    std::list<std::string>::const_iterator iter;
+    for (iter = toUpload.begin(); iter != toUpload.end(); iter++) {
+        UploadFile(*iter, syncTask);
+    }
+}
+
+bool DiskCacheWrite::WriteCacheValid() {
+    return IsFileExist(GetCacheIoFullDir());
+}
+
+int DiskCacheWrite::GetUploadFile(const std::string &inode,
+                                  std::list<std::string> *toUpload) {
+    std::unique_lock<bthread::Mutex> lk(mtx_);
+    if (waitUpload_.empty()) {
+        return 0;
+    }
+
+    if (inode.empty()) {
+        toUpload->swap(waitUpload_);
+        return toUpload->size();
+    }
+
+    waitUpload_.remove_if([&](const std::string &filename) {
+        bool inodeFile =
+            curvefs::common::s3util::ValidNameOfInode(inode, filename);
+        if (inodeFile) {
+            toUpload->emplace_back(filename);
+        }
+
+        return inodeFile;
+    });
+    return toUpload->size();
+}
+
+int DiskCacheWrite::FileExist(const std::string &inode) {
+    // load all write cacahe
+    std::set<std::string> cachedObj;
+    int ret = LoadAllCacheFile(&cachedObj);
+    if (ret < 0) {
+        LOG(ERROR) << "DiskCacheWrite, load all cacched file fail ret = "
+                   << ret;
+        return ret;
+    }
+
+    for (auto iter = cachedObj.begin(); iter != cachedObj.end(); iter++) {
+        bool exist = curvefs::common::s3util::ValidNameOfInode(inode, *iter);
+        if (exist) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int DiskCacheWrite::UploadFileByInode(const std::string &inode) {
+    if (!WriteCacheValid()) {
+        LOG(ERROR) << "UploadFileByInode, cache write dir is not exist.";
+        return -1;
+    }
+
+    // upload file of inode
     std::list<std::string> toUpload;
-    std::string fileFullPath;
-    fileFullPath = GetCacheIoFullDir();
-    bool ret = IsFileExist(fileFullPath);
-    if (!ret) {
+    do {
+        // get upload files
+        toUpload.clear();
+        int num = GetUploadFile(inode, &toUpload);
+        if (num <= 0) {
+            break;
+        }
+
+        // upload file and wait finish
+        auto syncTask = std::make_shared<SynchronizationTask>(num);
+        VLOG(3) << "UploadFileByInode, inode: " << inode
+                << ", task num: " << num;
+        UploadFile(toUpload, syncTask);
+        syncTask->Wait();
+        if (!syncTask->Success()) {
+            return -1;
+        }
+    } while (!toUpload.empty());
+
+    // wait all file upload ok
+    int ret = 1;
+    while (ret) {
+        ret = FileExist(inode);
+        if (ret <= 0) {
+            return ret;
+        }
+        LOG(INFO) << "UploadFileByInode, need wait file on disk uopload ok";
+        sleeper_.wait_for(std::chrono::milliseconds(asyncLoadPeriodMs_));
+    }
+
+    return 0;
+}
+
+int DiskCacheWrite::AsyncUploadFunc() {
+    if (!WriteCacheValid()) {
         LOG(ERROR) << "cache write dir is not exist.";
         return -1;
     }
+
+    std::list<std::string> toUpload;
+
     VLOG(6) << "async upload function start.";
     while (sleeper_.wait_for(std::chrono::milliseconds(asyncLoadPeriodMs_))) {
         if (!isRunning_) {
@@ -162,22 +279,11 @@ int DiskCacheWrite::AsyncUploadFunc() {
             return 0;
         }
         toUpload.clear();
-        {
-            std::unique_lock<bthread::Mutex> lk(mtx_);
-            if (waitUpload_.empty())
-                continue;
-            toUpload.swap(waitUpload_);
+        if (GetUploadFile("", &toUpload) <= 0) {
+            return 0;
         }
         VLOG(3) << "async upload file size = " << toUpload.size();
-        std::list<std::string>::iterator iter;
-        int ret;
-        for (iter = toUpload.begin(); iter != toUpload.end(); iter++) {
-            ret = UploadFile(*iter);
-            if (ret < 0) {
-                LOG(ERROR) << "upload and remove file fail, file = " << *iter;
-                continue;
-            }
-        }
+        UploadFile(toUpload, nullptr);
     }
     return 0;
 }
@@ -242,12 +348,10 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     }
     curve::common::CountDownEvent cond(1);
     std::atomic<uint64_t> pendingReq(0);
-    pendingReq.fetch_add(uploadObjs.size(),
-                std::memory_order_seq_cst);
-    for (auto iter = uploadObjs.begin();
-      iter != uploadObjs.end(); iter++) {
+    pendingReq.fetch_add(uploadObjs.size(), std::memory_order_seq_cst);
+    for (auto iter = uploadObjs.begin(); iter != uploadObjs.end(); iter++) {
         uint64_t fileSize;
-        char* buffer = nullptr;
+        char *buffer = nullptr;
         doRet = ReadFile(*iter, &buffer, &fileSize);
         if (doRet < 0 || buffer == nullptr) {
             if (buffer != nullptr)
@@ -257,15 +361,15 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             continue;
         }
         PutObjectAsyncCallBack cb =
-        [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
-            if (pendingReq.fetch_sub(1) == 1) {
-                VLOG(3) << "pendingReq is over";
-                cond.Signal();
-            }
-            VLOG(3) << "PutObjectAsyncCallBack success"
-                    << ", file: " << context->key;
-            posixWrapper_->free(buffer);
-        };
+            [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                if (pendingReq.fetch_sub(1) == 1) {
+                    VLOG(3) << "pendingReq is over";
+                    cond.Signal();
+                }
+                VLOG(3) << "PutObjectAsyncCallBack success"
+                        << ", file: " << context->key;
+                posixWrapper_->free(buffer);
+            };
         auto context = std::make_shared<PutObjectAsyncContext>();
         context->key = *iter;
         context->buffer = buffer;
@@ -277,8 +381,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         VLOG(9) << "wait for pendingReq";
         cond.Wait();
     }
-    for (auto iter = uploadObjs.begin();
-      iter != uploadObjs.end(); iter++) {
+    for (auto iter = uploadObjs.begin(); iter != uploadObjs.end(); iter++) {
         RemoveFile(*iter);
     }
     VLOG(3) << "upload all cached write file end.";

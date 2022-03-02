@@ -199,6 +199,9 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     if (retVal < 0) {
         return;
     }
+    LOG(INFO) << "Umount " << fsName << " on " << mountPointWithHost
+              << " start";
+
     FSStatusCode ret = mdsClient_->UmountFs(fsName, mountPointWithHost);
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_NOT_EXIST) {
         LOG(ERROR) << "UmountFs failed, FSStatusCode = " << ret

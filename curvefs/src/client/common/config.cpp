@@ -211,8 +211,6 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
-    conf->GetValueFatalIfFail("fuseClient.flushRetryIntervalMs",
-                              &clientOption->flushRetryIntervalMS);
     conf->GetValueFatalIfFail("client.dummyserver.startport",
                               &clientOption->dummyServerStartPort);
 

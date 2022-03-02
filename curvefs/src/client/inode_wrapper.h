@@ -66,6 +66,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
       : inode_(inode),
         status_(InodeStatus::Normal),
         metaClient_(metaClient),
+        openCount_(0),
         dirty_(false) {}
 
     InodeWrapper(Inode &&inode,
@@ -73,6 +74,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
       : inode_(std::move(inode)),
         status_(InodeStatus::Normal),
         metaClient_(metaClient),
+        openCount_(0),
         dirty_(false) {}
 
     ~InodeWrapper() {}
@@ -288,12 +290,14 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(syncingS3ChunkInfoMtx_);
     }
 
+    void SetOpenCount(uint32_t openCount) { openCount_ = openCount; }
+
  private:
     CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
  private:
      Inode inode_;
-     bool openFlag_;
+     uint32_t openCount_;
      InodeStatus status_;
 
      google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;

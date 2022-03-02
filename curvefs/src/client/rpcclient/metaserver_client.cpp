@@ -946,8 +946,8 @@ void GetOrModifyS3ChunkInfoRpcDone::Run() {
         done_->SetRetCode(-1);
         return;
     }
-    VLOG(6) << "GetOrModifyS3ChunkInfo success, "
-            << "response: " << response.DebugString();
+    VLOG(6) << "GetOrModifyS3ChunkInfo success, response: "
+            << response.DebugString();
     done_->SetRetCode(ret);
     return;
 }

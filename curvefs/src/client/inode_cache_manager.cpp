@@ -33,6 +33,14 @@ using ::curvefs::metaserver::MetaStatusCode_Name;
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
@@ -41,7 +49,15 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     NameLockGuard lock(nameLock_, std::to_string(inodeid));
     bool ok = iCache_->Get(inodeid, &out);
     if (ok) {
-        return CURVEFS_ERROR::OK;
+        // if enableCto, we need and is unopen, we need reload from
+        // metaserver
+        if (curvefs::client::common::FLAGS_enableCto && !out->IsOpen()) {
+            VLOG(6) << "InodeCacheManagerImpl, GetInode: enableCto and inode: "
+                    << inodeid << " opencount is 0";
+            iCache_->Remove(inodeid);
+        } else {
+            return CURVEFS_ERROR::OK;
+        }
     }
 
     Inode inode;

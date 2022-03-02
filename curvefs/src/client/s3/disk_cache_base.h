@@ -39,6 +39,7 @@ namespace client {
 using curvefs::common::PosixWrapper;
 using curvefs::client::metric::DiskCacheMetric;
 #define MODE 0644
+
 class DiskCacheBase {
  public:
     DiskCacheBase() {}
@@ -54,6 +55,8 @@ class DiskCacheBase {
      * @brief Get Read/Write Cache full Dir(include CacheDir_).
     */
     virtual std::string GetCacheIoFullDir();
+
+    virtual int LoadAllCacheFile(std::set<std::string> *cachedObj);
 
  private:
     std::string cacheIoDir_;

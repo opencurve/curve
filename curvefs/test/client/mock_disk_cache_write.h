@@ -65,6 +65,7 @@ class MockDiskCacheWrite : public DiskCacheWrite {
 
     MOCK_METHOD1(AsyncUploadEnqueue,
                 void(const std::string objName));
+    MOCK_METHOD1(UploadFileByInode, int(const std::string &inode));
 };
 
 }  // namespace client

@@ -252,55 +252,52 @@ CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
     return s3Adaptor_->Truncate(inode, length);
 }
 
-CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
-                                        struct fuse_file_info *fi) {
-    LOG(INFO) << "FuseOpFlush, ino: " << ino;
-
-    if (curvefs::client::common::FLAGS_enableCto) {
-        // need retry until success
-        while (CURVEFS_ERROR::OK != FuseOpFsync(req, ino, 0, fi)) {
-            sleep(option_.flushRetryIntervalMS / 1000);
-        }
-
-        return CURVEFS_ERROR::OK;
-    } else {
-        return FuseOpFsync(req, ino, 0, fi);
-    }
-}
-
 CURVEFS_ERROR FuseS3Client::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
-                                        struct fuse_file_info *fi) {
+                                          struct fuse_file_info *fi) {
     LOG(INFO) << "FuseOpRelease, ino: " << ino;
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
 
-    if (::curvefs::client::common::FLAGS_enableCto) {
-        ret = FuseOpFsync(req, ino, 0, fi);
+    // if enableCto, flush all write cache both in memory cache and disk cache
+    if (curvefs::client::common::FLAGS_enableCto) {
+        ret = s3Adaptor_->FlushAllCache(ino);
         if (ret != CURVEFS_ERROR::OK) {
-            LOG(INFO) << "FuseOpRelease, ino: " << ino
-                      << " do fsync error: " << ret;
+            LOG(ERROR) << "FuseOpRelease, flush all cache fail, ret = " << ret
+                       << ", inodeid = " << ino;
             return ret;
         }
+        VLOG(1) << "FuseOpRelease, FlushAllCache ok";
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
     ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << ino;
+        LOG(ERROR) << "FuseOpRelease, inodeManager get inode fail, ret = "
+                   << ret << ", inodeid = " << ino;
         return ret;
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    // if enableCto, need sync inode meta
+    if (::curvefs::client::common::FLAGS_enableCto) {
+        ret = inodeWrapper->Sync();
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "FuseOpRelease, inode sync s3 chunk info fail, ret = "
+                       << ret << ", inodeid = " << ino;
+            return ret;
+        }
+        VLOG(1) << "FuseOpRelease, inode" << ino << " sync ok";
+    }
+
+    // update opencount
     ret = inodeWrapper->Release();
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager release inode fail, ret = " << ret
-                   << ", inodeid = " << ino;
+        LOG(ERROR) << "FuseOpRelease, inodeManager release inode fail, ret = "
+                   << ret << ", inodeid = " << ino;
         return ret;
     }
 
-    if (::curvefs::client::common::FLAGS_enableCto) {
-        inodeManager_->ClearInodeCache(ino);
-    }
+    LOG(INFO) << "FuseOpRelease, ino: " << ino << " success";
+
     return ret;
 }
 
