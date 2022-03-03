@@ -146,15 +146,17 @@ int DiskCacheWrite::UploadFile(const std::string &name,
                 VLOG(9) << "PutObjectAsyncCallBack success, "
                         << "remove file: " << context->key;
                 posixWrapper_->free(buffer);
-            } else if (syncTask) {
-                syncTask->SetError();
+                if (syncTask) {
+                    VLOG(9) << "UploadFile, name = "
+                            << name << " signal start";
+                    syncTask->Signal();
+                    VLOG(9) << "UploadFile, name = "
+                            << name << " signal finish";
+                }
+                return;
             }
-
-            if (syncTask) {
-                VLOG(9) << "UploadFile, name = " << name << " signal start";
-                syncTask->Signal();
-                VLOG(9) << "UploadFile, name = " << name << " signal finish";
-            }
+            LOG(WARNING) << "upload object failed: " << context->key;
+            client_->UploadAsync(context);
         };
     auto context = std::make_shared<PutObjectAsyncContext>();
     context->key = name;
@@ -361,7 +363,8 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             continue;
         }
         PutObjectAsyncCallBack cb =
-            [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
+        [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
+            if (context->retCode == 0) {
                 if (pendingReq.fetch_sub(1) == 1) {
                     VLOG(3) << "pendingReq is over";
                     cond.Signal();
@@ -369,7 +372,11 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
                 VLOG(3) << "PutObjectAsyncCallBack success"
                         << ", file: " << context->key;
                 posixWrapper_->free(buffer);
-            };
+                return;
+            }
+            LOG(WARNING) << "upload object failed: " << context->key;
+            client_->UploadAsync(context);
+        };
         auto context = std::make_shared<PutObjectAsyncContext>();
         context->key = *iter;
         context->buffer = buffer;
