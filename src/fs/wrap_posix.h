@@ -60,6 +60,7 @@ class PosixWrapper {
                            const void *buf,
                            size_t count,
                            off_t offset);
+    virtual int fdatasync(int fd);
     virtual int fstat(int fd, struct stat *buf);
     virtual int fallocate(int fd, int mode, off_t offset, off_t len);
     virtual int fsync(int fd);

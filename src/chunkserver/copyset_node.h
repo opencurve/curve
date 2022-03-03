@@ -24,11 +24,13 @@
 #define SRC_CHUNKSERVER_COPYSET_NODE_H_
 
 #include <butil/memory/ref_counted.h>
+#include <braft/repeated_timer_task.h>
 
 #include <string>
 #include <vector>
 #include <climits>
 #include <memory>
+#include <deque>
 
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
@@ -98,6 +100,22 @@ class ConfigurationChangeDone : public braft::Closure {
     std::shared_ptr<ConfigurationChange> curCfgChange;
     // 这次配置变更对应的配置变更信息
     ConfigurationChange expectedCfgChange;
+};
+
+class CopysetNode;
+
+class SyncTimer : public braft::RepeatedTimerTask {
+ public:
+    SyncTimer() : node_(nullptr) {}
+    virtual ~SyncTimer() {}
+
+    int init(CopysetNode *node, int timeoutMs);
+
+    void run() override;
+
+ protected:
+    void on_destroy() override {}
+    CopysetNode *node_;
 };
 
 /**
@@ -402,6 +420,23 @@ class CopysetNode : public braft::StateMachine,
      */
     int SaveConfEpoch(const std::string &filePath);
 
+ public:
+    void save_snapshot_background(::braft::SnapshotWriter *writer,
+                                  ::braft::Closure *done);
+
+    void ShipToSync(ChunkID chunkId) {
+        curve::common::LockGuard lg(chunkIdsLock_);
+        chunkIdsToSync_.push_back(chunkId);
+    }
+
+    void HandleSyncTimerOut();
+
+    void SyncAllChunks();
+
+    void ForceSyncAllChunks();
+
+    void WaitSnapshotDone();
+
  private:
     inline std::string GroupId() {
         return ToGroupId(logicPoolId_, copysetId_);
@@ -463,6 +498,23 @@ class CopysetNode : public braft::StateMachine,
     uint64_t lastScanSec_;
     // failed check scanmap
     std::vector<ScanMap> failedScanMaps_;
+
+    // enable O_DSYNC when open file
+    bool enableOdsyncWhenOpenChunkFile_;
+    // sync chunk timer
+    SyncTimer syncTimer_;
+    // sync timer timeout interval
+    uint32_t syncTimerIntervalMs_;
+    // chunkIds need to sync
+    std::deque<ChunkID> chunkIdsToSync_;
+    // lock for chunkIdsToSync_
+    mutable curve::common::Mutex chunkIdsLock_;
+    // is syncing
+    std::atomic<bool> isSyncing_;
+    // do snapshot check syncing interval
+    uint32_t checkSyncingIntervalMs_;
+    // async snapshot future object
+    std::future<void> snapshotFuture_;
 };
 
 }  // namespace chunkserver
