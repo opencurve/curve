@@ -59,6 +59,7 @@ struct DataStoreOptions {
     ChunkSizeType                       chunkSize;
     PageSizeType                        pageSize;
     uint32_t                            locationLimit;
+    bool                                enableOdsyncWhenOpenChunkFile;
 };
 
 /**
@@ -223,6 +224,10 @@ class CSDataStore {
                                 uint32_t* cost,
                                 const std::string & cloneSourceLocation = "");
 
+
+    virtual CSErrorCode SyncChunk(ChunkID id);
+
+
     // Deprecated, only use for unit & integration test
     virtual CSErrorCode WriteChunk(
         ChunkID id, SequenceNum sn, const char* buf, off_t offset,
@@ -314,6 +319,8 @@ class CSDataStore {
     std::shared_ptr<LocalFileSystem> lfs_;
     // internal statistics of datastore
     DataStoreMetricPtr metric_;
+    // enable O_DSYNC When Open ChunkFile
+    bool enableOdsyncWhenOpenChunkFile_;
 };
 
 }  // namespace chunkserver

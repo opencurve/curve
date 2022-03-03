@@ -154,7 +154,8 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
       snapshot_(nullptr),
       chunkFilePool_(chunkFilePool),
       lfs_(lfs),
-      metric_(options.metric) {
+      metric_(options.metric),
+      enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
     CHECK(lfs_ != nullptr) << "Create chunk file failed";
     metaPage_.sn = options.sn;
@@ -214,7 +215,12 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
             return CSErrorCode::InternalError;
         }
     }
-    int rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME|O_DSYNC);
+    int rc = -1;
+    if (enableOdsyncWhenOpenChunkFile_) {
+        rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME|O_DSYNC);
+    } else {
+        rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME);
+    }
     if (rc < 0) {
         LOG(ERROR) << "Error occured when opening file."
                    << " filepath = " << chunkFilePath;
@@ -399,6 +405,17 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                    << ",request sn: " << sn
                    << ",chunk sn: " << metaPage_.sn;
         return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSChunkFile::Sync() {
+    WriteLockGuard writeGuard(rwLock_);
+    int rc = SyncData();
+    if (rc < 0) {
+        LOG(ERROR) << "Sync data failed, "
+                   << "ChunkID:" << chunkId_;
+        return CSErrorCode::InternalError;
     }
     return CSErrorCode::Success;
 }

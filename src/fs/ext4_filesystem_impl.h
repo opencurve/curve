@@ -55,6 +55,7 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int Read(int fd, char* buf, uint64_t offset, int length) override;
     int Write(int fd, const char* buf, uint64_t offset, int length) override;
     int Write(int fd, butil::IOBuf buf, uint64_t offset, int length) override;
+    int Sync(int fd) override;
     int Append(int fd, const char* buf, int length) override;
     int Fallocate(int fd, int op, uint64_t offset,
                   int length) override;

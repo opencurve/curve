@@ -96,6 +96,10 @@ ssize_t PosixWrapper::pwrite(int fd,
     return ::pwrite(fd, buf, count, offset);
 }
 
+int PosixWrapper::fdatasync(int fd) {
+    return ::fdatasync(fd);
+}
+
 int PosixWrapper::fstat(int fd, struct stat *buf) {
     return ::fstat(fd, buf);
 }

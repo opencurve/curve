@@ -107,6 +107,8 @@ struct ChunkOptions {
     // The size of the page, each bit in the bitmap represents 1 page,
     // and the size of the metapage is also 1 page
     PageSizeType    pageSize;
+    // enable O_DSYNC When Open ChunkFile
+    bool enableOdsyncWhenOpenChunkFile;
     // datastore internal statistical metric
     std::shared_ptr<DataStoreMetric> metric;
 
@@ -166,6 +168,9 @@ class CSChunkFile {
                       off_t offset,
                       size_t length,
                       uint32_t* cost);
+
+    CSErrorCode Sync();
+
     /**
      * Write the copied data into Chunk
      * Only write areas that have not been written, and will not overwrite
@@ -338,6 +343,10 @@ class CSChunkFile {
         return rc;
     }
 
+    inline int SyncData() {
+        return lfs_->Sync(fd_);
+    }
+
     inline bool CheckOffsetAndLength(off_t offset, size_t len, size_t align) {
         // Check if offset+len is out of bounds
         if (offset + len > size_) {
@@ -376,6 +385,8 @@ class CSChunkFile {
     std::shared_ptr<LocalFileSystem> lfs_;
     // datastore internal statistical indicators
     std::shared_ptr<DataStoreMetric> metric_;
+    // enable O_DSYNC When Open ChunkFile
+    bool enableOdsyncWhenOpenChunkFile_;
 };
 }  // namespace chunkserver
 }  // namespace curve

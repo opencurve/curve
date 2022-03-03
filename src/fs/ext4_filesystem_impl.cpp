@@ -357,6 +357,15 @@ int Ext4FileSystemImpl::Write(int fd,
     return length;
 }
 
+int Ext4FileSystemImpl::Sync(int fd) {
+    int rc = posixWrapper_->fdatasync(fd);
+    if (rc < 0) {
+        LOG(ERROR) << "fdatasync failed: " << strerror(errno);
+        return -errno;
+    }
+    return 0;
+}
+
 int Ext4FileSystemImpl::Append(int fd,
                                const char *buf,
                                int length) {
