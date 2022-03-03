@@ -94,6 +94,12 @@ copyset.check_retrytimes=3
 copyset.finishload_margin=2000
 # 循环判定copyset是否加载完成的内部睡眠时间
 copyset.check_loadmargin_interval_ms=1000
+# enable O_DSYNC when open chunkfile
+copyset.enable_odsync_when_open_chunkfile=false
+# sync timer timeout interval
+copyset.synctimer_interval_ms=30000
+# check syncing interval
+copyset.check_syncing_interval_ms=500
 
 #
 # Clone settings

@@ -496,6 +496,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
     auto maxIndex =
         (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
     response_->set_appliedindex(maxIndex);
+    node_->ShipToSync(request_->chunkid());
 }
 
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
