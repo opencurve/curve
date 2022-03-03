@@ -356,38 +356,50 @@ TEST_F(TestDiskCacheWrite, UploadAllCacheWriteFile_2) {
     dir = opendir(".");
     EXPECT_NE(dir, nullptr);
 
-    struct dirent fake;
+    struct dirent fake, fake2;
     strcpy(fake.d_name, "fake");  // NOLINT
+    strcpy(fake2.d_name, "fake2");  // NOLINT
 
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .Times(3)
-        .WillOnce(Return(0))
-        .WillOnce(Return(0))
-        .WillOnce(Return(0));
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*wrapper_, opendir(NotNull()))
         .WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
-        .Times(2)
+        .Times(3)
         .WillOnce(Return(&fake))
+        .WillOnce(Return(&fake2))
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, closedir(NotNull()))
         .WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, open(_, _, _))
-        .WillOnce(Return(0));
+        .WillRepeatedly(Return(0));
     EXPECT_CALL(*wrapper_, close(_))
-        .WillOnce(Return(0));
+        .WillRepeatedly(Return(0));
 
-    EXPECT_CALL(*wrapper_, malloc(_))
-        .WillOnce(Return(&path));
+     EXPECT_CALL(*wrapper_, malloc(_))
+        .WillRepeatedly(Return(&path));
     EXPECT_CALL(*wrapper_, memset(_, _, _))
-        .WillOnce(Return(&path));
+        .WillRepeatedly(Return(&path));
     EXPECT_CALL(*wrapper_, free(_))
         .WillRepeatedly(Return());
     EXPECT_CALL(*wrapper_, read(_, _, _))
-        .WillOnce(Return(239772865546436));
+        .WillRepeatedly(Return(239772865546436));
 
-     EXPECT_CALL(*client_, UploadAsync(_))
-        .WillRepeatedly(Invoke(
+    EXPECT_CALL(*client_, UploadAsync(_))
+        .Times(3)
+        .WillOnce(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                context->key = "test";
+                context->retCode = 0;
+                context->cb(context);
+    }))
+        .WillOnce(Invoke(
+            [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
+                context->key = "test";
+                context->retCode = -1;
+                context->cb(context);
+    }))
+        .WillOnce(Invoke(
             [&] (const std::shared_ptr<PutObjectAsyncContext>& context) {
                 context->key = "test";
                 context->retCode = 0;
