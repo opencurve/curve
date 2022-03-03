@@ -579,6 +579,16 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->finishLoadMargin));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_loadmargin_interval_ms",
         &copysetNodeOptions->checkLoadMarginIntervalMs));
+
+    LOG_IF(FATAL, !conf->GetBoolValue(
+        "copyset.enable_odsync_when_open_chunkfile",
+        &copysetNodeOptions->enableOdsyncWhenOpenChunkFile));
+    if (!copysetNodeOptions->enableOdsyncWhenOpenChunkFile) {
+        LOG_IF(FATAL, !conf->GetUInt32Value("copyset.synctimer_interval_ms",
+            &copysetNodeOptions->syncTimerIntervalMs));
+        LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_syncing_interval_ms",
+            &copysetNodeOptions->checkSyncingIntervalMs));
+    }
 }
 
 void ChunkServer::InitCopyerOptions(

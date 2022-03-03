@@ -32,6 +32,9 @@
 #include <memory>
 #include <algorithm>
 #include <cassert>
+#include <future>
+#include <deque>
+#include <set>
 
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
@@ -68,7 +71,11 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     scaning_(false),
     lastScanSec_(0),
     lastSnapshotIndex_(0),
-    configChange_(std::make_shared<ConfigurationChange>()) {
+    configChange_(std::make_shared<ConfigurationChange>()),
+    enableOdsyncWhenOpenChunkFile_(false),
+    syncTimerIntervalMs_(30000),
+    isSyncing_(false),
+    checkSyncingIntervalMs_(500) {
 }
 
 CopysetNode::~CopysetNode() {
@@ -115,6 +122,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     dsOptions.chunkSize = options.maxChunkSize;
     dsOptions.pageSize = options.pageSize;
     dsOptions.locationLimit = options.locationLimit;
+    dsOptions.enableOdsyncWhenOpenChunkFile =
+        options.enableOdsyncWhenOpenChunkFile;
     dataStore_ = std::make_shared<CSDataStore>(options.localFileSystem,
                                                options.chunkFilePool,
                                                dsOptions);
@@ -171,6 +180,10 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     // without using global variables.
     StoreOptForCurveSegmentLogStorage(lsOptions);
 
+    syncTimerIntervalMs_ = options.syncTimerIntervalMs;
+    checkSyncingIntervalMs_ = options.checkSyncingIntervalMs;
+    enableOdsyncWhenOpenChunkFile_ = options.enableOdsyncWhenOpenChunkFile;
+
     return 0;
 }
 
@@ -181,12 +194,27 @@ int CopysetNode::Run() {
                    << "Copyset: " << GroupIdString();
         return -1;
     }
+
+    if (!enableOdsyncWhenOpenChunkFile_) {
+        CHECK_EQ(0, syncTimer_.init(this, syncTimerIntervalMs_));
+        LOG(INFO) << "Init sync timer success, interval = "
+                  << syncTimerIntervalMs_;
+
+        syncTimer_.start();
+    }
+
     LOG(INFO) << "Run copyset success."
               << "Copyset: " << GroupIdString();
     return 0;
 }
 
 void CopysetNode::Fini() {
+    if (!enableOdsyncWhenOpenChunkFile_) {
+        syncTimer_.destroy();
+    }
+
+    WaitSnapshotDone();
+
     if (nullptr != raftNode_) {
         // 关闭所有关于此raft node的服务
         raftNode_->shutdown(nullptr);
@@ -290,12 +318,30 @@ void CopysetNode::on_shutdown() {
 
 void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
                                    ::braft::Closure *done) {
+    snapshotFuture_ =
+        std::async(std::launch::async,
+            &CopysetNode::save_snapshot_background, this, writer, done);
+}
+
+void CopysetNode::WaitSnapshotDone() {
+    // wait async snapshot done
+    if (snapshotFuture_.valid()) {
+        snapshotFuture_.wait();
+    }
+}
+
+void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
+                                   ::braft::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
 
     /**
      * 1.flush I/O to disk，确保数据都落盘
      */
     concurrentapply_->Flush();
+
+    if (!enableOdsyncWhenOpenChunkFile_) {
+        ForceSyncAllChunks();
+    }
 
     /**
      * 2.保存配置版本: conf.epoch，注意conf.epoch是存放在data目录下
@@ -936,6 +982,57 @@ bool CopysetNode::GetLeaderStatus(NodeStatus *leaderStaus) {
     leaderStaus->last_index = response.lastindex();
     leaderStaus->disk_index = response.diskindex();
     return true;
+}
+
+void CopysetNode::HandleSyncTimerOut() {
+    if (isSyncing_.exchange(true)) {
+        return;
+    }
+    SyncAllChunks();
+    isSyncing_ = false;
+}
+
+void CopysetNode::ForceSyncAllChunks() {
+    while (isSyncing_.exchange(true)) {
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(checkSyncingIntervalMs_));
+    }
+    SyncAllChunks();
+    isSyncing_ = false;
+}
+
+void CopysetNode::SyncAllChunks() {
+    std::deque<ChunkID> temp;
+    {
+        curve::common::LockGuard lg(chunkIdsLock_);
+        temp.swap(chunkIdsToSync_);
+    }
+    size_t total = temp.size();
+    std::set<ChunkID> chunkIds;
+    for (auto chunkId : temp) {
+        chunkIds.insert(chunkId);
+    }
+    for (ChunkID chunk : chunkIds) {
+        CSErrorCode r = dataStore_->SyncChunk(chunk);
+        if (r != CSErrorCode::Success) {
+            LOG(FATAL) << "Sync Chunk failed in Copyset: "
+                       << GroupIdString()
+                       << ", chunkid: " << chunk
+                       << " data store return: " << r;
+        }
+    }
+}
+
+int SyncTimer::init(CopysetNode *node, int timeoutMs) {
+    if (RepeatedTimerTask::init(timeoutMs) != 0) {
+        return -1;
+    }
+    node_ = node;
+    return 0;
+}
+
+void SyncTimer::run() {
+    node_->HandleSyncTimerOut();
 }
 
 }  // namespace chunkserver

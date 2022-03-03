@@ -121,6 +121,13 @@ struct CopysetNodeOptions {
     // 循环判定copyset是否加载完成的内部睡眠时间
     uint32_t checkLoadMarginIntervalMs = 1000;
 
+    // enable O_DSYNC when open chunkfile
+    bool enableOdsyncWhenOpenChunkFile = false;
+    // sync timer timeout interval
+    uint32_t syncTimerIntervalMs = 30000u;
+    // check syncing interval
+    uint32_t checkSyncingIntervalMs = 500u;
+
     CopysetNodeOptions();
 };
 

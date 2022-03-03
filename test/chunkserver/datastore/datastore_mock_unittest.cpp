@@ -107,6 +107,7 @@ class CSDataStore_test : public testing::Test {
             options.chunkSize = CHUNK_SIZE;
             options.pageSize = PAGE_SIZE;
             options.locationLimit = kLocationLimit;
+            options.enableOdsyncWhenOpenChunkFile = true;
             dataStore = std::make_shared<CSDataStore>(lfs_,
                                                       fpool_,
                                                       options);
@@ -708,6 +709,17 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
                                                           offset,
                                                           length,
                                                           nullptr));
+
+    EXPECT_CALL(*lfs_, Sync(4))
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+
+    // sync chunk success
+    EXPECT_EQ(CSErrorCode::Success, dataStore->SyncChunk(id));
+
+    // sync chunk failed
+    EXPECT_EQ(CSErrorCode::InternalError, dataStore->SyncChunk(id));
+
     CSChunkInfo info;
     dataStore->GetChunkInfo(id, &info);
     ASSERT_EQ(1, info.curSn);

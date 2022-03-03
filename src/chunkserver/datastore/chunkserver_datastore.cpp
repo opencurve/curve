@@ -42,7 +42,8 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
       baseDir_(options.baseDir),
       locationLimit_(options.locationLimit),
       chunkFilePool_(chunkFilePool),
-      lfs_(lfs) {
+      lfs_(lfs),
+      enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
     CHECK(!baseDir_.empty()) << "Create datastore failed";
     CHECK(lfs_ != nullptr) << "Create datastore failed";
     CHECK(chunkFilePool_ != nullptr) << "Create datastore failed";
@@ -249,6 +250,7 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
         options.location = cloneSourceLocation;
         options.pageSize = pageSize_;
         options.metric = metric_;
+        options.enableOdsyncWhenOpenChunkFile = enableOdsyncWhenOpenChunkFile_;
         CSErrorCode errorCode = CreateChunkFile(options, &chunkFile);
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -262,6 +264,21 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                                              cost);
     if (errorCode != CSErrorCode::Success) {
         LOG(WARNING) << "Write chunk file failed."
+                     << "ChunkID = " << id;
+        return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSDataStore::SyncChunk(ChunkID id) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile == nullptr) {
+        LOG(WARNING) << "Sync chunk not exist, ChunkID = " << id;
+        return CSErrorCode::Success;
+    }
+    CSErrorCode errorCode = chunkFile->Sync();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(WARNING) << "Sync chunk file failed."
                      << "ChunkID = " << id;
         return errorCode;
     }

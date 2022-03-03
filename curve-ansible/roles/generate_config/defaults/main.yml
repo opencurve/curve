@@ -132,6 +132,9 @@ chunkserver_copyset_scan_size_byte: 4194304
 chunkserver_copyset_scan_rpc_timeout_ms: 1000
 chunkserver_copyset_scan_rpc_retry_times: 3
 chunkserver_copyset_scan_rpc_retry_interval_us: 100000
+chunkserver_copyset_enable_odsync_when_open_chunkfile: false
+chunkserver_copyset_synctimer_interval_ms: 30000
+chunkserver_copyset_check_syncing_interval_ms: 500
 chunkserver_clone_slice_size: 1048576
 chunkserver_clone_enable_paste: false
 chunkserver_clone_thread_num: 10
