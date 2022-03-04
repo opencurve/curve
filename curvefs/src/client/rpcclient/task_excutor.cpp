@@ -222,7 +222,7 @@ bool TaskExecutor::GetTarget() {
 int TaskExecutor::ExcuteTask(brpc::Channel *channel,
     TaskExecutorDone *done) {
     task_->cntl_.Reset();
-    task_->cntl_.set_timeout_ms(opt_.rpcTimeoutMS);
+    task_->cntl_.set_timeout_ms(task_->rpcTimeoutMs);
     return task_->rpctask(task_->target.groupID.poolID,
                           task_->target.groupID.copysetID,
                           task_->target.partitionID, task_->target.txId,
