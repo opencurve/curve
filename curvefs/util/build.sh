@@ -160,6 +160,11 @@ build_target() {
     done
 }
 
+build_requirements_once() {
+    g_rocksdb_root="$(dirname ${PWD})/thirdparties/rocksdb"
+    (cd ${g_rocksdb_root} && make build && make install prefix=${g_rocksdb_root})
+}
+
 main() {
     get_options "$@"
     get_version
@@ -170,6 +175,7 @@ main() {
         usage
         exit 1
     else
+        build_requirements_once
         build_target
     fi
 }
