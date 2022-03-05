@@ -71,8 +71,7 @@ function convert_map_opts() {
 function map() {
     if [ ! -f ${confPath}.bak ]
     then
-        echo "ERROR: not found configuration file, confPath is ${confPath}.bak!"
-        exit
+        exit 0
     fi
 
     cat ${confPath}.bak | grep -v '#' | while read line
