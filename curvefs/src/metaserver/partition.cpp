@@ -35,6 +35,7 @@ namespace metaserver {
 Partition::Partition(const PartitionInfo& paritionInfo,
                      std::shared_ptr<KVStorage> kvStorage) {
     assert(paritionInfo.start() <= paritionInfo.end());
+    partitionInfo_ = paritionInfo;
 
     std::string tablename = GetStorageTablename();
     inodeStorage_ = std::make_shared<InodeStorage>(kvStorage, tablename);
@@ -44,7 +45,6 @@ Partition::Partition(const PartitionInfo& paritionInfo,
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
     dentryManager_ =
         std::make_shared<DentryManager>(dentryStorage_, txManager_);
-    partitionInfo_ = paritionInfo;
     if (!paritionInfo.has_nextid()) {
         partitionInfo_.set_nextid(
             std::max(kMinPartitionStartId, partitionInfo_.start()));
