@@ -82,9 +82,9 @@ MetaServerHeartbeatRequest GetMetaServerHeartbeatRequestForTest() {
     request.set_starttime(1000);
     request.set_leadercount(10);
     request.set_copysetcount(100);
-    MetaSeverSpaceStatus status;
-    status.set_diskcopysetminrequirebyte(0);
+    MetaServerSpaceStatus status;
     status.set_diskthresholdbyte(0);
+    status.set_diskcopysetminrequirebyte(0);
     status.set_diskusedbyte(0);
     status.set_memorythresholdbyte(0);
     status.set_memorycopysetminrequirebyte(0);

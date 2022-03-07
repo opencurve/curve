@@ -51,7 +51,7 @@ message CandidateError {
     required string errMsg = 2;
 };
 
-message MetaSeverSpaceStatus {
+message MetaServerSpaceStatus {
     // The metaserver needs to consider the disk reservation.
     // The value passed here is the physical capacity of the disk multiplied
     // by a certain percentage.
@@ -78,7 +78,7 @@ message MetaServerHeartbeatRequest {
     repeated CopySetInfo copysetInfos = 6;
     required uint32 leaderCount = 7;
     required uint32 copysetCount = 8;
-    required MetaSeverSpaceStatus spaceStatus = 9;
+    required MetaServerSpaceStatus spaceStatus = 9;
 };
 
 message CopySetConf {

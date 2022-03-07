@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 #include "curvefs/src/metaserver/heartbeat.h"
 #include "curvefs/test/metaserver/mock_heartbeat_service.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -39,13 +40,32 @@ using ::curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
 using ::curvefs::mds::heartbeat::HeartbeatStatusCode;
 using ::curve::fs::FileSystemType;
 using ::curve::fs::LocalFsFactory;
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::StorageStatistics;
+using ::curvefs::metaserver::storage::InitStorage;
+using ::curvefs::metaserver::storage::GetStorageInstance;
 
 namespace curvefs {
 namespace metaserver {
 class HeartbeatTest : public ::testing::Test {
  public:
-    void SetUp() {}
+    void SetUp() {
+        options_.dataDir = "/tmp";
+        options_.maxMemoryQuotaBytes = 1024;
+        options_.maxDiskQuotaBytes = 10240;
+        InitStorage(options_);
+    }
+
     void TearDown() {}
+
+    bool GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
+                                  uint64_t ncopysets) {
+        Heartbeat heartbeat;
+        return heartbeat.GetMetaserverSpaceStatus(status, ncopysets);
+    }
+
+ protected:
+    StorageOptions options_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -181,5 +201,29 @@ TEST_F(HeartbeatTest, test_fail) {
     server.Stop(0);
     server.Join();
 }
+
+TEST_F(HeartbeatTest, GetMetaServerSpaceStatusTest) {
+    StorageStatistics statistics;
+    auto kvStorage = GetStorageInstance();
+    bool succ = kvStorage->GetStatistics(&statistics);
+    ASSERT_TRUE(succ);
+    ASSERT_EQ(statistics.maxMemoryQuotaBytes, options_.maxMemoryQuotaBytes);
+    ASSERT_EQ(statistics.maxDiskQuotaBytes, options_.maxDiskQuotaBytes);
+    ASSERT_GT(statistics.diskUsageBytes, 0);
+    ASSERT_GT(statistics.memoryUsageBytes, 0);
+
+    MetaServerSpaceStatus status;
+    succ = GetMetaserverSpaceStatus(&status, 1);
+    ASSERT_TRUE(succ);
+    LOG(INFO) << "metaserver space status: " << status.ShortDebugString();
+    ASSERT_EQ(status.diskthresholdbyte(), statistics.maxDiskQuotaBytes);
+    ASSERT_EQ(status.diskusedbyte(), statistics.diskUsageBytes);
+    ASSERT_EQ(status.diskcopysetminrequirebyte(), statistics.diskUsageBytes);
+    ASSERT_EQ(status.memorythresholdbyte(), options_.maxMemoryQuotaBytes);
+    ASSERT_EQ(status.memoryusedbyte(), statistics.memoryUsageBytes);
+    ASSERT_EQ(status.memorycopysetminrequirebyte(),
+              statistics.memoryUsageBytes);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs

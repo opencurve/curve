@@ -40,6 +40,7 @@
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/configuration.h"
 #include "src/fs/local_filesystem.h"
 
@@ -56,6 +57,7 @@ using ::curvefs::client::rpcclient::MdsClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::common::MdsOption;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 struct MetaserverOptions {
     std::string ip;
@@ -72,6 +74,7 @@ class Metaserver {
     void Stop();
 
  private:
+    void InitStorage();
     void InitCopysetNodeOptions();
     void InitCopysetNodeManager();
     void InitLocalFileSystem();
@@ -108,6 +111,8 @@ class Metaserver {
 
     HeartbeatOptions heartbeatOptions_;
     Heartbeat heartbeat_;
+
+    StorageOptions storageOptions_;
 
     CopysetNodeOptions copysetNodeOptions_;
     CopysetNodeManager* copysetNodeManager_;

@@ -35,6 +35,7 @@
 #include <utility>
 
 #include "curvefs/src/metaserver/copyset/utils.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/timeutility.h"
 #include "src/common/uri_parser.h"
 
@@ -46,6 +47,8 @@ using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
 using ::curvefs::metaserver::copyset::CopysetService_Stub;
 using ::curvefs::metaserver::copyset::ToGroupIdString;
+using ::curvefs::metaserver::storage::StorageStatistics;
+using ::curvefs::metaserver::storage::GetStorageInstance;
 
 namespace {
 
@@ -193,47 +196,35 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
     }
 }
 
-int Heartbeat::GetFileSystemSpaces(uint64_t* capacityKB, uint64_t* availKB) {
-    struct curve::fs::FileSystemInfo info;
-
-    int ret = options_.fs->Statfs(storePath_, &info);
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to get file system space information, "
-                   << " error message: " << strerror(errno);
-        return -1;
-    }
-
-    *capacityKB = info.total / 1024;
-    *availKB = info.available / 1024;
-
-    return 0;
-}
-
-bool Heartbeat::GetProcMemory(uint64_t* vmRSS) {
-    std::string fileName = "/proc/self/status";
-    std::ifstream file(fileName);
-    if (!file.is_open()) {
-        LOG(ERROR) << "Open file " << fileName << " failed";
+// TODO(@Wine93): now we use memory storage, so we gather disk usage bytes
+// which only has raft related capacity. If we use rocksdb storage, maybe
+// we should need more flexible strategy.
+bool Heartbeat::GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
+                                         uint64_t ncopysets) {
+    StorageStatistics statistics;
+    auto kvStorage = GetStorageInstance();
+    bool succ = kvStorage->GetStatistics(&statistics);
+    if (!succ) {
+        LOG(ERROR) << "Get storage statistics failed";
         return false;
     }
 
-    std::string line;
-    while (getline(file, line)) {
-        auto position = line.find("VmRSS:");
-        if (position == line.npos) {
-            continue;
-        }
-
-        std::string value = line.substr(position + 6);
-        position = value.find("kB");
-        value = value.substr(0, position);
-
-        value.erase(std::remove_if(value.begin(), value.end(), isspace),
-                    value.end());
-        return curve::common::StringToUll(value, vmRSS);
+    status->set_memorythresholdbyte(statistics.maxMemoryQuotaBytes);
+    status->set_memoryusedbyte(statistics.memoryUsageBytes);
+    status->set_diskthresholdbyte(statistics.maxDiskQuotaBytes);
+    status->set_diskusedbyte(statistics.diskUsageBytes);
+    if (ncopysets == 0) {
+        status->set_memorycopysetminrequirebyte(0);
+        status->set_diskcopysetminrequirebyte(0);
+    } else {
+        status->set_memorycopysetminrequirebyte(
+            uint64_t(statistics.memoryUsageBytes / ncopysets));
+        status->set_diskcopysetminrequirebyte(
+            uint64_t(statistics.diskUsageBytes / ncopysets));
     }
-
-    return false;
+    LOG(INFO) << "Send metaserver space status, status = "
+              << status->ShortDebugString();
+    return true;
 }
 
 int Heartbeat::BuildRequest(HeartbeatRequest* req) {
@@ -244,26 +235,6 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     req->set_starttime(startUpTime_);
     req->set_ip(options_.ip);
     req->set_port(options_.port);
-
-    uint64_t capacityKB = 0;
-    uint64_t availKB = 0;
-    ret = GetFileSystemSpaces(&capacityKB, &availKB);
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to get file system space information for path "
-                   << storePath_;
-        return -1;
-    }
-
-    // TODO(cw123) : this should replace
-    // req->set_metadataspaceused(capacityKB - availKB);
-    // req->set_metadataspacetotal(capacityKB);
-
-    // uint64_t vmRss = 0;
-    // if (!GetProcMemory(&vmRss)) {
-    //     LOG(ERROR) << "Failed to get proc memory information metaserver";
-    //     return -1;
-    // }
-    // req->set_memoryused(vmRss);
 
     std::vector<CopysetNode *> copysets;
     copysetMan_->GetAllCopysets(&copysets);
@@ -281,6 +252,12 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         }
     }
     req->set_leadercount(leaders);
+
+    MetaServerSpaceStatus* status = req->mutable_spacestatus();
+    if (!GetMetaserverSpaceStatus(status, copysets.size())) {
+        LOG(ERROR) << "Get metaserver space status failed.";
+        return -1;
+    }
 
     return 0;
 }

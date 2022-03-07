@@ -46,6 +46,7 @@ namespace metaserver {
 
 using HeartbeatRequest = curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using HeartbeatResponse = curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
+using MetaServerSpaceStatus = curvefs::mds::heartbeat::MetaServerSpaceStatus;
 using ::curvefs::mds::heartbeat::CopySetConf;
 using TaskStatus = butil::Status;
 using CopysetNodePtr = std::shared_ptr<CopysetNode>;
@@ -110,10 +111,6 @@ class Heartbeat {
      */
     void HeartbeatWorker();
 
-    int GetFileSystemSpaces(uint64_t* capacity, uint64_t* free);
-
-    bool GetProcMemory(uint64_t* vmRSS);
-
     void BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
                          CopysetNode* copyset);
 
@@ -131,6 +128,12 @@ class Heartbeat {
      * print HeartbeatResponse to log
      */
     void DumpHeartbeatResponse(const HeartbeatResponse& response);
+
+    bool GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
+                                  uint64_t ncopysets);
+
+ private:
+    friend class HeartbeatTest;
 
  private:
      Thread hbThread_;
