@@ -25,11 +25,15 @@ cc_library(
         ],
     ) + glob(
         ["copyset/*.cpp"],
+    ) + glob(
+        ["storage/*.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
     ) + glob(
         ["copyset/*.h"],
+    ) + glob(
+        ["storage/*.h"],
     ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],

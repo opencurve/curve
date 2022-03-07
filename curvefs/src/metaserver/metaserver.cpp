@@ -34,6 +34,7 @@
 #include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
 #include "src/common/string_util.h"
@@ -155,6 +156,7 @@ void Metaserver::Init() {
     // NOTE: Do not arbitrarily adjust the order, there are dependencies
     //       between different modules
     InitLocalFileSystem();
+    InitStorage();
     InitCopysetNodeManager();
     InitHeartbeat();
     InitInflightThrottle();
@@ -311,6 +313,17 @@ void Metaserver::InitHeartbeat() {
     heartbeatOptions_.fs = localFileSystem_;
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
         << "Failed to init Heartbeat manager.";
+}
+
+void Metaserver::InitStorage() {
+    LOG_IF(FATAL, !conf_->GetStringValue("storage.data_dir",
+                                         &storageOptions_.dataDir));
+    LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_memory_quota_bytes",
+                                         &storageOptions_.maxMemoryQuotaBytes));
+    LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_disk_quota_bytes",
+                                         &storageOptions_.maxDiskQuotaBytes));
+
+    ::curvefs::metaserver::storage::InitStorage(storageOptions_);
 }
 
 void Metaserver::InitCopysetNodeManager() {

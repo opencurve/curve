@@ -234,7 +234,7 @@ class MetaServerSpace {
         diskUsedByte_ = diskUsed;
     }
 
-    explicit MetaServerSpace(heartbeat::MetaSeverSpaceStatus status) {
+    explicit MetaServerSpace(heartbeat::MetaServerSpaceStatus status) {
         SetSpaceStatus(status);
     }
 
@@ -262,13 +262,15 @@ class MetaServerSpace {
         return memoryCopySetMinRequireByte_;
     }
 
-    void SetSpaceStatus(heartbeat::MetaSeverSpaceStatus status) {
+    void SetSpaceStatus(heartbeat::MetaServerSpaceStatus status) {
         diskThresholdByte_ = status.diskthresholdbyte();
         diskCopysetMinRequireByte_ = status.diskcopysetminrequirebyte();
         diskUsedByte_ = status.diskusedbyte();
         memoryThresholdByte_ = status.memorythresholdbyte();
         memoryCopySetMinRequireByte_ = status.memorycopysetminrequirebyte();
         memoryUsedByte_ = status.memoryusedbyte();
+        LOG(INFO) << "Receive space status from metaserver: "
+                  << status.ShortDebugString();
     }
 
     double GetResourceUseRatioPercent() {
