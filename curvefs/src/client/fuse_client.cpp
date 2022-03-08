@@ -1121,6 +1121,56 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
+CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
+                            char *value, size_t size, size_t *realSize) {
+    LOG(INFO) << "FuseOpListXattr, ino: " << ino
+              << ", size = " << size;
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << ino;
+        return ret;
+    }
+
+    Inode inode = inodeWrapper->GetInodeLocked();
+    // get xattr key
+    for (const auto &it : inode.xattr()) {
+        // +1 because, the format is key\0key\0
+        *realSize += it.first.length() + 1;
+    }
+
+    // add summary xattr key
+    if (inode.type() == FsFileType::TYPE_DIRECTORY) {
+        *realSize += strlen(XATTRRFILES) + 1;
+        *realSize += strlen(XATTRRSUBDIRS) + 1;
+        *realSize += strlen(XATTRRENTRIES) + 1;
+        *realSize += strlen(XATTRRFBYTES) + 1;
+    }
+
+    if (size == 0) {
+        return CURVEFS_ERROR::OK;
+    } else if (size >= *realSize) {
+        for (const auto &it : inode.xattr()) {
+            auto tsize = it.first.length() + 1;
+            memcpy(value, it.first.c_str(), tsize);
+            value += tsize;
+        }
+        if (inode.type() == FsFileType::TYPE_DIRECTORY) {
+            memcpy(value, XATTRRFILES, strlen(XATTRRFILES) + 1);
+            value += strlen(XATTRRFILES) + 1;
+            memcpy(value, XATTRRSUBDIRS, strlen(XATTRRSUBDIRS) + 1);
+            value += strlen(XATTRRSUBDIRS) + 1;
+            memcpy(value, XATTRRENTRIES, strlen(XATTRRENTRIES) + 1);
+            value += strlen(XATTRRENTRIES) + 1;
+            memcpy(value, XATTRRFBYTES, strlen(XATTRRFBYTES) + 1);
+            value += strlen(XATTRRFBYTES) + 1;
+        }
+        return CURVEFS_ERROR::OK;
+    }
+    return CURVEFS_ERROR::OUT_OF_RANGE;
+}
+
 CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
                                         fuse_ino_t parent, const char *name,
                                         fuse_entry_param *e) {

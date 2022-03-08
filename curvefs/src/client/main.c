@@ -42,6 +42,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .getattr    = FuseOpGetAttr,
     .setattr    = FuseOpSetAttr,
     .getxattr   = FuseOpGetXattr,
+    .listxattr  = FuseOpListXattr,
     .symlink    = FuseOpSymlink,
     .link       = FuseOpLink,
     .readlink   = FuseOpReadLink,
