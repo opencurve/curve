@@ -72,7 +72,14 @@ set -e
 
 bazel build ... -c dbg --collect_code_coverage --copt -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
 
-test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
+#test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
+if [ $1 == "curvebs" ];then
+test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/"
+elif [ $1 == "curvefs" ];then
+test_bin_dirs="bazel-bin/curvefs/test/"
+fi
+echo $test_bin_dirs
+
 
 for i in 0 1 2 3; do mkdir -p $i/{copysets,recycler}; done
 
