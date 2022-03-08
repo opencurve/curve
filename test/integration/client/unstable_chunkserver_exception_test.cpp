@@ -298,7 +298,7 @@ int UnstableCSModuleException::fd = 0;
 std::unique_ptr<CurveCluster> UnstableCSModuleException::cluster;
 std::unordered_map<int, ChunkserverParam> UnstableCSModuleException::chunkServers; // NOLINT
 
-TEST_F(UnstableCSModuleException, TestCommonReadAndWrite) {
+TEST_F(UnstableCSModuleException, DISABLED_TestCommonReadAndWrite) {
     const std::string filename = "/TestCommonReadAndWrite";
     constexpr size_t length = 4ull * 1024 * 1024;
     constexpr off_t offset = 4ull * 1024 * 1024;
@@ -324,7 +324,7 @@ TEST_F(UnstableCSModuleException, TestCommonReadAndWrite) {
 //     1个etcd
 //     1个mds
 //     3个zone，每个里面2个chunkserver
-TEST_F(UnstableCSModuleException, HangOneZone) {
+TEST_F(UnstableCSModuleException, DISABLED_HangOneZone) {
     srand(time(nullptr));
 
     // 开启多个线程写文件
