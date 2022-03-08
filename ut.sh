@@ -148,7 +148,10 @@ cd bazel-bin
 cp ${WORKSPACE}/tools/ci/*.py ./
 ./gen-coverage.py
 cp ${WORKSPACE}/tools/ci/check_coverage.sh ./
-./check_coverage.sh
+if [ $1 == "curvebs" ];then
+./check_coverage.sh "curvebs"
+elif [ $1 == "curvefs" ];then
+./check_coverage.sh "curvefs"
 cp -r coverage ${WORKSPACE}
 gcovr -x -r src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/bazel_out/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
 cp coverage.xml ${WORKSPACE}
