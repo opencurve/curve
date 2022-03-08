@@ -19,16 +19,16 @@
  * Created Date: 21-8-18
  * Author: huyao
  */
-
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
-
 #include <utility>
-
+#include "src/common/crc32.h"
+#include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 namespace client {
+
+using ::curve::common::CRC32;
 
 FileCacheManagerPtr FsCacheManager::FindFileCacheManager(uint64_t inodeId) {
     ReadLockGuard readLockGuard(rwLock_);
@@ -519,6 +519,13 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
         std::vector<uint64_t> &DataCacheVec = dataCacheMapIter.second;
         WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
         for (auto &chunkPos : DataCacheVec) {
+            if (s3ClientAdaptor_->GetS3Client()->IsDataCrc()) {
+                int checkSum = CRC32((*responses)[i].GetDataBuf(),
+                                     (*responses)[i].GetBufLen());
+                VLOG(3) << "response data chunkPos: " << chunkPos
+                        << ", crc: " << checkSum
+                        << ", len: " << (*responses)[i].GetBufLen();
+            }
             DataCachePtr dataCache = std::make_shared<DataCache>(
             s3ClientAdaptor_, chunkCacheManager.get(), chunkPos,
             (*responses)[i].GetBufLen(), (*responses)[i].GetDataBuf());

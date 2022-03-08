@@ -43,6 +43,7 @@ class MockS3Client : public S3Client {
     MOCK_METHOD1(Init, void(const curve::common::S3AdapterOption &options));
     MOCK_METHOD1(Delete, int(const std::string &name));
     MOCK_METHOD1(DeleteBatch, int(const std::list<std::string>& nameList));
+    MOCK_METHOD0(IsDataCrc, bool());
 };
 }  // namespace metaserver
 }  // namespace curvefs

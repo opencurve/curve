@@ -19,11 +19,15 @@
  * Created Date: 21-5-31
  * Author: huyao
  */
+#include "src/common/crc32.h"
 #include "curvefs/src/client/s3/client_s3.h"
 
 namespace curvefs {
 
 namespace client {
+
+using ::curve::common::CRC32;
+
 void S3ClientImpl::Init(const curve::common::S3AdapterOption &option) {
     s3Adapter_->Init(option);
 }
@@ -69,6 +73,11 @@ int S3ClientImpl::Download(const std::string &name, char *buf, uint64_t offset,
             ret = -2;
         }
         LOG(ERROR) << "download error:" << ret;
+    }
+
+    if (dataCrc_) {
+        uint32_t checkSum = CRC32(buf, length);
+        VLOG(3) << "download name: " << name << " ,crc: " << checkSum;
     }
 
     VLOG(9) << "download end, ret:" << ret << ",length:" << length;

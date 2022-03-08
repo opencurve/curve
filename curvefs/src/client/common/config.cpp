@@ -158,6 +158,8 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.nearfullRatio);
     conf->GetValueFatalIfFail("s3.baseSleepUs",
                               &s3Opt->s3ClientAdaptorOpt.baseSleepUs);
+    conf->GetValueFatalIfFail("s3.dataCrc",
+                              &s3Opt->s3DataCrc);
     ::curve::common::InitS3AdaptorOption(conf, &s3Opt->s3AdaptrOpt);
     InitDiskCacheOption(conf, &s3Opt->s3ClientAdaptorOpt.diskCacheOpt);
 }

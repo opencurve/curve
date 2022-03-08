@@ -50,6 +50,7 @@ class MockS3Client : public S3Client {
                                char* buf, uint64_t offset, uint64_t length));
     MOCK_METHOD1(DownloadAsync, void(
                  std::shared_ptr<GetObjectAsyncContext> context));
+    MOCK_METHOD0(IsDataCrc, bool());
 };
 
 

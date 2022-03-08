@@ -120,6 +120,7 @@ struct S3ClientAdaptorOption {
 struct S3Option {
     S3ClientAdaptorOption s3ClientAdaptorOpt;
     S3AdapterOption s3AdaptrOpt;
+    bool s3DataCrc;
 };
 
 struct VolumeOption {
