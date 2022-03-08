@@ -180,12 +180,9 @@ void InodeWrapper::FlushAttrAsync() {
 }
 
 void InodeWrapper::FlushXattrAsync() {
-    if (dirty_) {
-        LockSyncingXattr();
-        auto *done = new UpdateXattrAsyncDone(shared_from_this());
-        metaClient_->UpdateXattrAsync(inode_, done);
-        dirty_ = false;
-    }
+    LockSyncingXattr();
+    auto *done = new UpdateXattrAsyncDone(shared_from_this());
+    metaClient_->UpdateXattrAsync(inode_, done);
 }
 
 void InodeWrapper::FlushS3ChunkInfoAsync() {

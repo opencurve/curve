@@ -298,36 +298,23 @@ TEST_F(TestInodeCacheManager, ParentMap) {
     uint64_t p2 = 200;
     uint64_t p3 = 300;
 
-    std::list<uint64_t> parents;
-    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parents));
+    uint64_t parent;
+    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parent));
 
     iCacheManager_->AddParent(inodeId1, p1);
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
-    ASSERT_EQ(parents.size(), 1);
-    ASSERT_EQ(*(parents.begin()), p1);
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parent));
+    ASSERT_EQ(parent, p1);
 
-    parents.clear();
     iCacheManager_->AddParent(inodeId1, p2);
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
-    ASSERT_EQ(parents.size(), 2);
-    ASSERT_EQ(*(parents.begin()), p1);
-    ASSERT_EQ(*(++parents.begin()), p2);
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parent));
+    ASSERT_EQ(parent, p2);
 
-    parents.clear();
-    ASSERT_TRUE(iCacheManager_->UpdateParent(inodeId1, p1, p3));
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
-    ASSERT_EQ(parents.size(), 2);
-    ASSERT_EQ(*(parents.begin()), p3);
+    ASSERT_TRUE(iCacheManager_->UpdateParent(inodeId1, p3));
+    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parent));
+    ASSERT_EQ(parent, p3);
 
-    parents.clear();
-    iCacheManager_->RemoveParent(inodeId1, p3);
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parents));
-    ASSERT_EQ(parents.size(), 1);
-    ASSERT_EQ(*(parents.begin()), p2);
-
-    parents.clear();
     iCacheManager_->ClearParent(inodeId1);
-    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parents));
+    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parent));
 }
 
 }  // namespace client

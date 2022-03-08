@@ -67,16 +67,13 @@ class MockInodeCacheManager : public InodeCacheManager {
     MOCK_METHOD2(AddParent, void(uint64_t inodeId,
         uint64_t parentId));
 
-    MOCK_METHOD2(RemoveParent, void(uint64_t inodeId,
-        uint64_t parentId));
-
     MOCK_METHOD1(ClearParent, void(uint64_t inodeId));
 
     MOCK_METHOD2(GetParent, bool(uint64_t inodeId,
-        std::list<uint64_t> *parentId));
+        uint64_t *parentId));
 
-    MOCK_METHOD3(UpdateParent, bool(uint64_t inodeId,
-        uint64_t oldParentId, uint64_t newParentId));
+    MOCK_METHOD2(UpdateParent, bool(uint64_t inodeId,
+        uint64_t newParentId));
 };
 
 }  // namespace client
