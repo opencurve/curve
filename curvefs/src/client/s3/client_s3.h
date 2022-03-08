@@ -45,12 +45,14 @@ class S3Client {
                          uint64_t length) = 0;
     virtual void DownloadAsync(
         std::shared_ptr<GetObjectAsyncContext> context) = 0;
+    virtual bool IsDataCrc() = 0;
 };
 
 class S3ClientImpl : public S3Client {
  public:
-    S3ClientImpl() : S3Client() {
+    explicit S3ClientImpl(bool dataCrc) : S3Client() {
         s3Adapter_ = std::make_shared<curve::common::S3Adapter>();
+        dataCrc_ = dataCrc;
     }
     virtual ~S3ClientImpl() {}
     void Init(const curve::common::S3AdapterOption& option);
@@ -63,9 +65,12 @@ class S3ClientImpl : public S3Client {
     void SetAdapter(std::shared_ptr<curve::common::S3Adapter> adapter) {
         s3Adapter_ = adapter;
     }
-
+    bool IsDataCrc() {
+        return dataCrc_;
+    }
  private:
     std::shared_ptr<curve::common::S3Adapter> s3Adapter_;
+    bool dataCrc_;
 };
 
 }  // namespace client
