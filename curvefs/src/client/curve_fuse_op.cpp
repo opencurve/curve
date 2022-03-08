@@ -218,6 +218,24 @@ void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     }
 }
 
+void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::memset(buf.get(), 0, size);
+    size_t xattrSize = 0;
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpListXattr(req, ino, buf.get(),
+                                                          size, &xattrSize);
+    if (ret != CURVEFS_ERROR::OK) {
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+
+    if (size == 0) {
+        fuse_reply_xattr(req, xattrSize);
+    } else {
+        fuse_reply_buf(req, buf.get(), xattrSize);
+    }
+}
+
 void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                    struct fuse_file_info *fi) {
     char *buffer = nullptr;

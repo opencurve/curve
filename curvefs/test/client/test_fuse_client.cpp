@@ -2821,5 +2821,71 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     ASSERT_EQ(p.xattr().find(XATTRFBYTES)->second, "100");
 }
 
+TEST_F(TestFuseS3Client, FuseOpListXattr) {
+    char buf[256];
+    std::memset(buf, 0, 256);
+    size_t size = 0;
+
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    struct fuse_file_info fi;
+    Inode inode;
+    inode.set_inodeid(ino);
+    inode.set_length(4096);
+    inode.set_type(FsFileType::TYPE_S3);
+    std::string key = "security";
+    inode.mutable_xattr()->insert({key, "0"});
+
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    size_t realSize = 0;
+
+    // failed when get inode
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper),
+                Return(CURVEFS_ERROR::INTERNAL)));
+    CURVEFS_ERROR ret = client_->FuseOpListXattr(
+        req, ino, buf, size, &realSize);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(
+        req, ino, buf, size, &realSize);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(realSize, key.length() + 1);
+
+    realSize = 0;
+    inodeWrapper->GetMutableInodeUnlocked()->
+        set_type(FsFileType::TYPE_DIRECTORY);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(
+        req, ino, buf, size, &realSize);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    auto expected = key.length() + 1 + strlen(XATTRRFILES) + 1 +
+                    strlen(XATTRRSUBDIRS) + 1 + strlen(XATTRRENTRIES) + 1 +
+                    strlen(XATTRRFBYTES) + 1;
+    ASSERT_EQ(realSize, expected);
+
+    realSize = 0;
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(
+        req, ino, buf, expected - 1, &realSize);
+    ASSERT_EQ(CURVEFS_ERROR::OUT_OF_RANGE, ret);
+
+    realSize = 0;
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    ret = client_->FuseOpListXattr(
+        req, ino, buf, expected, &realSize);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+}
+
 }  // namespace client
 }  // namespace curvefs
