@@ -52,6 +52,7 @@ check_module_branch_coverage() {
         exit -1
     fi
 }
+if [ $1 == "curvebs" ];then
 
 check_repo_branch_coverage 59
 check_repo_line_coverage 76
@@ -67,14 +68,16 @@ check_module_branch_coverage "src/fs" 65
 check_module_branch_coverage "src/idgenerator" 85
 check_module_branch_coverage "src/kvstorageclient" 70
 check_module_branch_coverage "src/leader_election" 100
+check_module_branch_coverage "nebd" 75
+
+elif [ $1 == "curvefs" ];then
 
 check_module_branch_coverage "curvefs/src/mds" 59
 check_module_branch_coverage "curvefs/src/client" 59
 check_module_branch_coverage "curvefs/src/metaserver" 65
 check_module_branch_coverage "curvefs/src/common" 16
 check_module_branch_coverage "curvefs/src/tools" 0
-
-check_module_branch_coverage "nebd" 75
+fi
 
 echo "Checking repo coverage succeeded!"
 
