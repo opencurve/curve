@@ -89,15 +89,11 @@ class InodeCacheManager {
 
     virtual void AddParent(uint64_t inodeId, uint64_t parentId) = 0;
 
-    virtual void RemoveParent(uint64_t inodeId, uint64_t parentId) = 0;
-
     virtual void ClearParent(uint64_t inodeId) = 0;
 
-    virtual bool GetParent(uint64_t inodeId,
-        std::list<uint64_t> *parentIds) = 0;
+    virtual bool GetParent(uint64_t inodeId, uint64_t *parentId) = 0;
 
-    virtual bool UpdateParent(uint64_t inodeId, uint64_t oldParentId,
-        uint64_t newParentId) = 0;
+    virtual bool UpdateParent(uint64_t inodeId, uint64_t newParentId) = 0;
 
  protected:
     uint32_t fsId_;
@@ -151,14 +147,11 @@ class InodeCacheManagerImpl : public InodeCacheManager {
 
     void AddParent(uint64_t inodeId, uint64_t parentId) override;
 
-    void RemoveParent(uint64_t inodeId, uint64_t parentId) override;
-
     void ClearParent(uint64_t inodeId) override;
 
-    bool GetParent(uint64_t inodeId, std::list<uint64_t> *parentIds) override;
+    bool GetParent(uint64_t inodeId, uint64_t *parentId) override;
 
-    bool UpdateParent(uint64_t inodeId, uint64_t oldParentId,
-        uint64_t newParentId) override;
+    bool UpdateParent(uint64_t inodeId, uint64_t newParentId) override;
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
@@ -168,8 +161,8 @@ class InodeCacheManagerImpl : public InodeCacheManager {
     std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
     curve::common::Mutex dirtyMapMutex_;
 
-    // inodeid to parent inodeid, may have more parent at hard link
-    std::map<uint64_t, std::list<uint64_t>> parentIdMap_;
+    // inodeid to parent inodeid
+    std::map<uint64_t, uint64_t> parentIdMap_;
     curve::common::Mutex parentIdMapMutex_;
 
     curve::common::GenericNameLock<Mutex> nameLock_;

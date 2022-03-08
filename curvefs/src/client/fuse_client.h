@@ -240,7 +240,7 @@ class FuseClient {
         return 0;
     }
 
-    CURVEFS_ERROR UpdateParentInodeXattr(const std::list<uint64_t> &parentIds,
+    CURVEFS_ERROR UpdateParentInodeXattr(uint64_t parentId,
         const XAttr &xattr, bool direction);
 
  private:

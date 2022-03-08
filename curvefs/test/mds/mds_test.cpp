@@ -91,7 +91,7 @@ class MdsTest : public ::testing::Test {
         EtcdConf conf{const_cast<char*>(kEtcdAddr), strlen(kEtcdAddr), 1000};
         uint64_t now = curve::common::TimeUtility::GetTimeofDaySec();
         bool initSucc = false;
-        while (curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
+        while (curve::common::TimeUtility::GetTimeofDaySec() - now <= 50) {
             if (0 == client->Init(conf, 0, 3)) {
                 initSucc = true;
                 break;

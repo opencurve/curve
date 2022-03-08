@@ -129,9 +129,9 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(*wSize)});
-        std::list<uint64_t> parentIds;
-        if (inodeManager_->GetParent(ino, &parentIds)) {
-            ret = UpdateParentInodeXattr(parentIds, xattr, true);
+        uint64_t parentId;
+        if (inodeManager_->GetParent(ino, &parentId)) {
+            ret = UpdateParentInodeXattr(parentId, xattr, true);
         } else {
             LOG(ERROR) << "inodeManager getParent failed, inodeId = " << ino;
             return CURVEFS_ERROR::INTERNAL;

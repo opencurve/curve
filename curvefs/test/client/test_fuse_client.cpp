@@ -2577,8 +2577,7 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     parentInode.mutable_xattr()->insert({XATTRENTRIES, "1"});
     parentInode.mutable_xattr()->insert({XATTRFBYTES, "0"});
 
-    std::list<uint64_t> parentIds;
-    parentIds.emplace_back(1);
+    uint64_t parentId = 1;
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
@@ -2592,7 +2591,7 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
         .WillOnce(Return(size));
     EXPECT_CALL(*inodeManager_,  GetParent(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(parentIds), Return(true)));
+        .WillOnce(DoAll(SetArgPointee<1>(parentId), Return(true)));
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
             MetaServerClientDone *done){
@@ -2621,61 +2620,9 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
     fuse_ino_t newparent = 2;
     const char* newname = "xxxx";
 
-    uint32_t nlink = 100;
-
-    Inode inode;
-    inode.set_inodeid(ino);
-    inode.set_length(0);
-    inode.set_nlink(nlink);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-
-    Inode parentInode;
-    parentInode.set_fsid(fsId);
-    parentInode.set_inodeid(newparent);
-    parentInode.set_type(FsFileType::TYPE_DIRECTORY);
-    parentInode.set_nlink(2);
-    parentInode.mutable_xattr()->insert({XATTRFILES, "1"});
-    parentInode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
-    parentInode.mutable_xattr()->insert({XATTRENTRIES, "2"});
-    parentInode.mutable_xattr()->insert({XATTRFBYTES, "100"});
-    auto parentInodeWrapper = std::make_shared<InodeWrapper>(
-        parentInode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(parentInodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
-
-    EXPECT_CALL(*dentryManager_, CreateDentry(_))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
-
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
-        .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*inodeManager_, AddParent(_, _))
-        .Times(1);
-    EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
-        .WillOnce(Invoke([](const Inode &inode,
-            MetaServerClientDone *done){
-            done->SetMetaStatusCode(MetaStatusCode::OK);
-            done->Run();
-        }));
-
     fuse_entry_param e;
     CURVEFS_ERROR ret = client_->FuseOpLink(req, ino, newparent, newname, &e);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    Inode inode2 = inodeWrapper->GetInodeUnlocked();
-    ASSERT_EQ(nlink + 1, inode2.nlink());
-
-    auto p = parentInodeWrapper->GetInodeLocked();
-    ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "2");
-    ASSERT_EQ(p.xattr().find(XATTRSUBDIRS)->second, "1");
-    ASSERT_EQ(p.xattr().find(XATTRENTRIES)->second, "3");
-    ASSERT_EQ(p.xattr().find(XATTRFBYTES)->second, "100");
+    ASSERT_EQ(CURVEFS_ERROR::NOTSUPPORT, ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
@@ -2733,7 +2680,7 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*inodeManager_, RemoveParent(_, _))
+    EXPECT_CALL(*inodeManager_, ClearParent(_))
         .Times(1);
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
@@ -2786,8 +2733,7 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
 
-    std::list<uint64_t> parentIds;
-    parentIds.emplace_back(1);
+    uint64_t parentId = 1;
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
@@ -2800,7 +2746,7 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
     EXPECT_CALL(*inodeManager_,  GetParent(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(parentIds), Return(true)));
+        .WillOnce(DoAll(SetArgPointee<1>(parentId), Return(true)));
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
             MetaServerClientDone *done){

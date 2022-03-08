@@ -183,47 +183,36 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
 void InodeCacheManagerImpl::AddParent(uint64_t inodeId, uint64_t parentId) {
     curve::common::LockGuard lg2(parentIdMapMutex_);
     if (parentIdMap_.count(inodeId)) {
-        parentIdMap_[inodeId].emplace_back(parentId);
-    } else {
-        parentIdMap_.emplace(inodeId, std::list<uint64_t>({parentId}));
+        LOG(WARNING) << "AddParent but exist, inodeId = " << inodeId
+                     << ", parentId = " << parentIdMap_[inodeId]
+                     << ", need2AddParentId = " << parentId;
     }
-}
-
-void InodeCacheManagerImpl::RemoveParent(uint64_t inodeId, uint64_t parentId) {
-    curve::common::LockGuard lg2(parentIdMapMutex_);
-    if (parentIdMap_.count(inodeId)) {
-        auto iter = std::find(parentIdMap_[inodeId].begin(),
-            parentIdMap_[inodeId].end(), parentId);
-        if (iter != parentIdMap_[inodeId].end()) {
-            parentIdMap_[inodeId].erase(iter);
-        }
-    }
+    parentIdMap_[inodeId] = parentId;
 }
 
 void InodeCacheManagerImpl::ClearParent(uint64_t inodeId) {
     curve::common::LockGuard lg2(parentIdMapMutex_);
     parentIdMap_.erase(inodeId);
+    VLOG(1) << "ClearParent inodeId = " << inodeId
+            << ", after clear the parentmap size = "
+            << parentIdMap_.size();
 }
 
-bool InodeCacheManagerImpl::UpdateParent(uint64_t inodeId, uint64_t oldParentId,
+bool InodeCacheManagerImpl::UpdateParent(uint64_t inodeId,
     uint64_t newParentId) {
     curve::common::LockGuard lg2(parentIdMapMutex_);
     if (parentIdMap_.count(inodeId)) {
-        auto iter = std::find(parentIdMap_[inodeId].begin(),
-            parentIdMap_[inodeId].end(), oldParentId);
-        if (iter != parentIdMap_[inodeId].end()) {
-            *iter = newParentId;
-            return true;
-        }
+        parentIdMap_[inodeId] = newParentId;
+        return true;
     }
     return false;
 }
 
 bool InodeCacheManagerImpl::GetParent(uint64_t inodeId,
-    std::list<uint64_t> *parentIds) {
+    uint64_t *parentId) {
     curve::common::LockGuard lg2(parentIdMapMutex_);
     if (parentIdMap_.count(inodeId)) {
-        *parentIds = parentIdMap_[inodeId];
+        *parentId = parentIdMap_[inodeId];
         return true;
     }
     return false;

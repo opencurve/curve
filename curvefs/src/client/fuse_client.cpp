@@ -30,6 +30,7 @@
 #include <vector>
 #include <stack>
 #include <set>
+#include <unordered_map>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/fuse_common.h"
@@ -308,9 +309,9 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                 XAttr xattr;
                 xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
                     std::to_string(length)});
-                std::list<uint64_t> parentIds;
-                if (inodeManager_->GetParent(inode->inodeid(), &parentIds)) {
-                    ret = UpdateParentInodeXattr(parentIds, xattr, false);
+                uint64_t parentId;
+                if (inodeManager_->GetParent(inode->inodeid(), &parentId)) {
+                    ret = UpdateParentInodeXattr(parentId, xattr, false);
                 } else {
                     LOG(ERROR) << "inodeManager getParent failed, inodeId = "
                                << inode;
@@ -417,8 +418,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         }
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(inodeWrapper->GetLength())});
-        ret = UpdateParentInodeXattr(
-            std::list<uint64_t>({parent}), xattr, true);
+        ret = UpdateParentInodeXattr(parent, xattr, true);
     }
 
     GetDentryParamFromInode(inodeWrapper, e);
@@ -516,7 +516,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
     if (enableSumInDir_) {
         // remove parent relationshaip
-        inodeManager_->RemoveParent(ino, parent);
+        inodeManager_->ClearParent(ino);
 
         // update parent summary info
         XAttr xattr;
@@ -528,8 +528,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         }
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(inodeWrapper->GetLength())});
-        ret = UpdateParentInodeXattr(
-            std::list<uint64_t>({parent}), xattr, false);
+        ret = UpdateParentInodeXattr(parent, xattr, false);
     }
 
     inodeManager_->ClearInodeCache(ino);
@@ -669,17 +668,15 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(inodeWrapper->GetLength())});
 
-        if (inodeManager_->UpdateParent(ino, parent, newparent)) {
+        if (inodeManager_->UpdateParent(ino, newparent)) {
             // TODO(wanghai): deal with failure
-            rc = UpdateParentInodeXattr(
-                std::list<uint64_t>({parent}), xattr, false);
+            rc = UpdateParentInodeXattr(parent, xattr, false);
             if (rc != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "UpdateParentInodeXattr failed, parentId = "
                            << parent;
                 return rc;
             }
-            rc = UpdateParentInodeXattr(
-                std::list<uint64_t>({newparent}), xattr, true);
+            rc = UpdateParentInodeXattr(newparent, xattr, true);
             if (rc != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "UpdateParentInodeXattr failed, parentId = "
                            << newparent;
@@ -782,10 +779,10 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
             XAttr xattr;
             xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
                 std::to_string(std::abs(changeSize))});
-            std::list<uint64_t> parentIds;
-            if (inodeManager_->GetParent(ino, &parentIds)) {
+            uint64_t parentId;
+            if (inodeManager_->GetParent(ino, &parentId)) {
                 bool direction = changeSize > 0;
-                ret = UpdateParentInodeXattr(parentIds, xattr, direction);
+                ret = UpdateParentInodeXattr(parentId, xattr, direction);
             } else {
                 LOG(ERROR) << "inodeManager getParent failed, inodeId = "
                            << inode;
@@ -893,7 +890,8 @@ CURVEFS_ERROR FuseClient::CalOneLayerSumInfo(Inode *inode) {
 
 CURVEFS_ERROR FuseClient::CalAllLayerSumInfo(Inode *inode) {
     std::stack<uint64_t> iStack;
-    // use set can deal with hard link
+    // record hard link, <inodeId, need2minus>
+    std::unordered_map<uint64_t, uint64_t> hardLinkMap;
     std::set<uint64_t> inodeIds;
     std::list<InodeAttr> attrs;
     auto ino = inode->inodeid();
@@ -935,6 +933,15 @@ CURVEFS_ERROR FuseClient::CalAllLayerSumInfo(Inode *inode) {
                     }
                     rentries++;
                     rfbytes += it.length();
+                    // record hardlink
+                    if (it.type() != FsFileType::TYPE_DIRECTORY &&
+                        it.nlink() > 1) {
+                        if (hardLinkMap.count(it.inodeid())) {
+                            hardLinkMap[it.inodeid()] += it.length();
+                        } else {
+                            hardLinkMap.emplace(it.inodeid(), 0);
+                        }
+                    }
                 }
                 inodeIds.clear();
                 attrs.clear();
@@ -942,6 +949,11 @@ CURVEFS_ERROR FuseClient::CalAllLayerSumInfo(Inode *inode) {
                 return ret;
             }
         }
+    }
+
+    // deal with hardlink
+    for (const auto &it : hardLinkMap) {
+        rfbytes -= it.second;
     }
 
     inode->mutable_xattr()->insert({XATTRRFILES,
@@ -1180,8 +1192,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(inodeWrapper->GetLength())});
-        ret = UpdateParentInodeXattr(
-            std::list<uint64_t>({parent}), xattr, true);
+        ret = UpdateParentInodeXattr(parent, xattr, true);
     }
 
     GetDentryParamFromInode(inodeWrapper, e);
@@ -1194,6 +1205,12 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     LOG(INFO) << "FuseOpLink, ino: " << ino
               << ", newparent: " << newparent
               << ", newname: " << newname;
+    if (enableSumInDir_) {
+        // don't support hardlink
+        LOG(ERROR) << "FuseOpLink doesn't support when enableSumInDir.";
+        return CURVEFS_ERROR::NOTSUPPORT;
+    }
+
     if (strlen(newname) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -1244,19 +1261,6 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    if (enableSumInDir_) {
-        // recore parent inodeId
-        inodeManager_->AddParent(inodeWrapper->GetInodeId(), newparent);
-        // update parent summary info
-        XAttr xattr;
-        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
-        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
-            std::to_string(inodeWrapper->GetLength())});
-        ret = UpdateParentInodeXattr(
-            std::list<uint64_t>({newparent}), xattr, true);
-    }
-
     GetDentryParamFromInode(inodeWrapper, e);
     return ret;
 }
@@ -1297,10 +1301,6 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    if (enableSumInDir_) {
-        // update parent relationship
-        inodeManager_->ClearParent(ino);
-    }
     return ret;
 }
 
@@ -1313,41 +1313,31 @@ void FuseClient::FlushAll() {
     FlushInodeAll();
 }
 
-CURVEFS_ERROR FuseClient::UpdateParentInodeXattr(
-    const std::list<uint64_t> &parentIds,
+CURVEFS_ERROR FuseClient::UpdateParentInodeXattr(uint64_t parentId,
     const XAttr &xattr, bool direction) {
-    for (const auto &parentId : parentIds) {
-        VLOG(1) << "UpdateParentInodeXattr inodeId = " << parentId
-                << ", \nxattr = " << xattr.DebugString();
-        std::shared_ptr<InodeWrapper> pInodeWrapper;
-        CURVEFS_ERROR ret = inodeManager_->GetInode(parentId, pInodeWrapper);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "UpdateParentInodeXattr get parent inode fail, ret = "
-                    << ret << ", inodeid = " << parentId;
-            return ret;
-        }
-        // if dirty, flush attr first
-        if (pInodeWrapper->Dirty()) {
-            ret = pInodeWrapper->SyncAttr();
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "sync parent inode attr failed when"
-                           << " UpdateParentInodeXattr, inodeId = " << parentId;
-                return ret;
-            }
-        }
-        ::curve::common::UniqueLock lgGuard = pInodeWrapper->GetUniqueLock();
-        auto inode = pInodeWrapper->GetMutableInodeUnlocked();
-        for (const auto &it : xattr.xattrinfos()) {
-            auto iter = inode->mutable_xattr()->find(it.first);
-            if (iter != inode->mutable_xattr()->end()) {
-                if (!AddUllStringToFirst(&(iter->second), it.second,
-                                        direction)) {
-                    return CURVEFS_ERROR::INTERNAL;
-                }
-            }
-        }
-        pInodeWrapper->FlushXattrAsync();
+    VLOG(1) << "UpdateParentInodeXattr inodeId = " << parentId
+            << ", direction = " << direction
+            << ", \nxattr = " << xattr.DebugString();
+    std::shared_ptr<InodeWrapper> pInodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(parentId, pInodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "UpdateParentInodeXattr get parent inode fail, ret = "
+                << ret << ", inodeid = " << parentId;
+        return ret;
     }
+
+    ::curve::common::UniqueLock lgGuard = pInodeWrapper->GetUniqueLock();
+    auto inode = pInodeWrapper->GetMutableInodeUnlocked();
+    for (const auto &it : xattr.xattrinfos()) {
+        auto iter = inode->mutable_xattr()->find(it.first);
+        if (iter != inode->mutable_xattr()->end()) {
+            if (!AddUllStringToFirst(&(iter->second), it.second,
+                                    direction)) {
+                return CURVEFS_ERROR::INTERNAL;
+            }
+        }
+    }
+    pInodeWrapper->FlushXattrAsync();
     return CURVEFS_ERROR::OK;
 }
 

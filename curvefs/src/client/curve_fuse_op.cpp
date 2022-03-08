@@ -209,7 +209,7 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
         fuse_reply_err(req, ENOTEMPTY);
         break;
     case CURVEFS_ERROR::NOTSUPPORT:
-        fuse_reply_err(req, ENOSYS);
+        fuse_reply_err(req, EOPNOTSUPP);
         break;
     case CURVEFS_ERROR::NAMETOOLONG:
         fuse_reply_err(req, ENAMETOOLONG);
