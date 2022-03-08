@@ -72,11 +72,11 @@ check_module_branch_coverage "nebd" 75
 
 elif [ $1 == "curvefs" ];then
 
-check_module_branch_coverage "curvefs/src/mds" 59
-check_module_branch_coverage "curvefs/src/client" 59
-check_module_branch_coverage "curvefs/src/metaserver" 65
-check_module_branch_coverage "curvefs/src/common" 16
-check_module_branch_coverage "curvefs/src/tools" 0
+check_module_branch_coverage "mds" 59
+check_module_branch_coverage "client" 59
+check_module_branch_coverage "metaserver" 65
+check_module_branch_coverage "common" 16
+check_module_branch_coverage "tools" 0
 fi
 
 echo "Checking repo coverage succeeded!"
