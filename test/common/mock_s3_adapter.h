@@ -40,6 +40,7 @@ class MockS3Adapter : public S3Adapter {
     ~MockS3Adapter() {}
 
     MOCK_METHOD1(Init, void(const std::string &));
+    MOCK_METHOD1(Init, void(const S3AdapterOption &));
     MOCK_METHOD0(Deinit, void());
     MOCK_METHOD0(CreateBucket, int());
     MOCK_METHOD0(DeleteBucket, int());
