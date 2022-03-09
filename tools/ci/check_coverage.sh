@@ -65,7 +65,7 @@ check_module_branch_coverage "src/snapshotcloneserver" 65
 check_module_branch_coverage "src/tools" 65
 check_module_branch_coverage "src/common" 65
 check_module_branch_coverage "src/fs" 65
-check_module_branch_coverage "src/idgenerator" 82
+check_module_branch_coverage "src/idgenerator" 79
 check_module_branch_coverage "src/kvstorageclient" 70
 check_module_branch_coverage "src/leader_election" 100
 check_module_branch_coverage "nebd" 75
