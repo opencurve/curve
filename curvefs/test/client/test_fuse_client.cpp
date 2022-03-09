@@ -1005,7 +1005,24 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
         .WillOnce(DoAll(SetArgPointee<2>(dstPartitionId),
                         SetArgPointee<3>(dstTxId), Return(MetaStatusCode::OK)));
 
-    // step2: precheck
+    // step2: link dest parent inode
+    Inode destParentInode;
+    destParentInode.set_inodeid(newparent);
+    destParentInode.set_nlink(2);
+    auto inodeWrapper =
+        std::make_shared<InodeWrapper>(destParentInode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(newparent, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                  Return(CURVEFS_ERROR::OK)));
+    // include below unlink operate
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+        .Times(2)
+        .WillRepeatedly(Invoke([&](const Inode& inode,
+                                   InodeOpenStatusChange statusChange) {
+            return MetaStatusCode::OK;
+        }));
+
+    // step3: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
     auto dentry = GenDentry(fsId, parent, name, srcTxId, inodeId, 0);
     EXPECT_CALL(*dentryManager_, GetDentry(parent, name, _))
@@ -1013,7 +1030,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     EXPECT_CALL(*dentryManager_, GetDentry(newparent, newname, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
 
-    // step3: prepare tx
+    // step4: prepare tx
     EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
         .WillOnce(Invoke([&](const std::vector<Dentry>& dentrys) {
             auto srcDentry = GenDentry(fsId, parent, name,
@@ -1033,7 +1050,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
             return MetaStatusCode::UNKNOWN_ERROR;
         }));
 
-    // step4: commit tx
+    // step5: commit tx
     EXPECT_CALL(*mdsClient_, CommitTx(_))
         .WillOnce(Invoke([&](const std::vector<PartitionTxId>& txIds) {
             if (txIds.size() == 2 && txIds[0].partitionid() == srcPartitionId &&
@@ -1045,7 +1062,16 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
             return TopoStatusCode::TOPO_INTERNAL_ERROR;
         }));
 
-    // step5: update cache
+    // step6: unlink source parent inode
+    Inode srcParentInode;
+    srcParentInode.set_inodeid(parent);
+    srcParentInode.set_nlink(3);
+    inodeWrapper = std::make_shared<InodeWrapper>(srcParentInode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(parent, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                  Return(CURVEFS_ERROR::OK)));
+
+    // step7: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry& dentry) {
@@ -1055,7 +1081,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
-    // step6: set txid
+    // step8: set txid
     EXPECT_CALL(*metaClient_, SetTxId(srcPartitionId, srcTxId + 1)).Times(1);
     EXPECT_CALL(*metaClient_, SetTxId(dstPartitionId, dstTxId + 1)).Times(1);
 
@@ -1119,18 +1145,33 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
             return TopoStatusCode::TOPO_INTERNAL_ERROR;
         }));
 
-    // step5: unlink old inode
+    // step5: unlink source parent inode
+    Inode srcParentInode;
+    srcParentInode.set_inodeid(parent);
+    srcParentInode.set_nlink(3);
+    auto inodeWrapper =
+        std::make_shared<InodeWrapper>(srcParentInode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(parent, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                  Return(CURVEFS_ERROR::OK)));
+    // include below unlink old inode
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+        .Times(2)
+        .WillRepeatedly(Invoke([&](const Inode& inode,
+                                   InodeOpenStatusChange statusChange) {
+            return MetaStatusCode::OK;
+        }));
+
+    // step6: unlink old inode
     Inode inode;
     inode.set_inodeid(oldInodeId);
     inode.set_nlink(1);
-    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(oldInodeId, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                        Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*metaClient_, UpdateInode(_))
-        .WillOnce(Return(MetaStatusCode::OK));
+                  Return(CURVEFS_ERROR::OK)));
 
-    // step6: update cache
+    // step7: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry& dentry) {
@@ -1139,7 +1180,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
-    // step7: set txid
+    // step8: set txid
     EXPECT_CALL(*metaClient_, SetTxId(partitionId, txId + 1)).Times(2);
 
     auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
@@ -1214,27 +1255,68 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameNameTooLong) {
 TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
     fuse_req_t req;
     uint64_t txId = 0;
-    auto dentry = GenDentry(0, 0, "A", 0, 0, FILE);
+    auto dentry = GenDentry(1, 1, "A", 0, 10, FILE);
     int nThread = 3;
     int timesPerThread = 10000;
     int times = nThread * timesPerThread;
     volatile bool start = false;
     bool success = true;
 
-    EXPECT_CALL(*metaClient_, GetTxId(_, _, _, _)).Times(2 * times)
+    // step1: get txid
+    EXPECT_CALL(*metaClient_, GetTxId(_, _, _, _))
+        .Times(2 * times)
         .WillRepeatedly(DoAll(SetArgPointee<3>(txId),
-                              Return(MetaStatusCode::OK)));
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _)).Times(2 * times)
+                        Return(MetaStatusCode::OK)));
+
+    // step2: precheck
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .Times(2 * times)
         .WillRepeatedly(DoAll(SetArgPointee<2>(dentry),
-                              Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*metaClient_, PrepareRenameTx(_)).Times(times)
+                        Return(CURVEFS_ERROR::OK)));
+
+    // step3: prepare tx
+    EXPECT_CALL(*metaClient_, PrepareRenameTx(_))
+        .Times(times)
         .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*mdsClient_, CommitTx(_)).Times(times)
+
+    // step4: commit tx
+    EXPECT_CALL(*mdsClient_, CommitTx(_))
+        .Times(times)
         .WillRepeatedly(Return(TopoStatusCode::TOPO_OK));
+
+    // step5: unlink source directory
+    Inode srcParentInode;
+    srcParentInode.set_inodeid(1);
+    srcParentInode.set_nlink(times + 2);
+    auto srcParentInodeWrapper =
+        std::make_shared<InodeWrapper>(srcParentInode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(srcParentInode.inodeid(), _))
+        .Times(times)
+        .WillRepeatedly(DoAll(SetArgReferee<1>(srcParentInodeWrapper),
+                              Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+        .Times(times * 2)  // include below operator which unlink old inode
+        .WillRepeatedly(Return(MetaStatusCode::OK));
+
+    // step6: unlink old inode
+    Inode inode;
+    inode.set_inodeid(10);
+    inode.set_nlink(times);
+    inode.set_type(FsFileType::TYPE_FILE);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(inode.inodeid(), _))
+        .Times(times)
+        .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
+                              Return(CURVEFS_ERROR::OK)));
+
+    // step7: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(_, _)).Times(times);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_)).Times(times);
-    EXPECT_CALL(*metaClient_, SetTxId(_, _)).Times(2 *times)
-        .WillRepeatedly(Invoke([&](uint32_t partitionId, uint64_t _){
+
+    // step8: set txid
+    EXPECT_CALL(*metaClient_, SetTxId(_, _))
+        .Times(2 * times)
+        .WillRepeatedly(Invoke([&](uint32_t partitionId, uint64_t _) {
             txId = txId + 1;
         }));
 
@@ -1259,7 +1341,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
     }
 
     ASSERT_TRUE(success);
-    // in our caes, for each renema, we plus txid twice
+    // in our cases, for each renema, we plus txid twice
     ASSERT_EQ(2 * times, txId);
 }
 

@@ -50,8 +50,10 @@ class RenameOperator {
 
     CURVEFS_ERROR GetTxId();
     CURVEFS_ERROR Precheck();
+    CURVEFS_ERROR LinkDestParentInode();
     CURVEFS_ERROR PrepareTx();
     CURVEFS_ERROR CommitTx();
+    void UnlinkSrcParentInode();
     void UnlinkOldInode();
     void UpdateCache();
 
@@ -68,6 +70,10 @@ class RenameOperator {
     void SetTxId(uint32_t partitionId, uint64_t txId);
 
     CURVEFS_ERROR PrepareRenameTx(const std::vector<Dentry>& dentrys);
+
+    CURVEFS_ERROR LinkInode(uint64_t inodeId);
+
+    CURVEFS_ERROR UnLinkInode(uint64_t inodeId);
 
  private:
     uint32_t fsId_;

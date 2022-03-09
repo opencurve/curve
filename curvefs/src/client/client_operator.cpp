@@ -209,22 +209,70 @@ CURVEFS_ERROR RenameOperator::CommitTx() {
     return CURVEFS_ERROR::OK;
 }
 
-void RenameOperator::UnlinkOldInode() {
-    if (oldInodeId_ == 0) {
-        return;
-    }
-
+CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
-    auto rc = inodeManager_->GetInode(oldInodeId_, inodeWrapper);
+    auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("GetInode", rc);
-        return;
+        return rc;
+    }
+
+    rc = inodeWrapper->LinkLocked();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("Link", rc);
+        return rc;
+    }
+
+    // CURVEFS_ERROR::OK
+    return rc;
+}
+
+CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId) {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("GetInode", rc);
+        return rc;
     }
 
     rc = inodeWrapper->UnLinkLocked();
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("UnLink", rc);
+        return rc;
     }
+
+    // CURVEFS_ERROR::OK
+    return rc;
+}
+
+CURVEFS_ERROR RenameOperator::LinkDestParentInode() {
+    // Link action is unnecessary when met one of the following 2 conditions:
+    //   (1) source and destination under same directory
+    //   (2) destination already exist
+    if (parentId_ == newParentId_ || oldInodeId_ != 0) {
+        return CURVEFS_ERROR::OK;
+    }
+    return LinkInode(newParentId_);
+}
+
+void RenameOperator::UnlinkSrcParentInode() {
+    // UnLink action is unnecessary when met the following 2 conditions:
+    //   (1) source and destination under same directory
+    //   (2) destination not exist
+    if (parentId_ == newParentId_ && oldInodeId_ == 0) {
+        return;
+    }
+    auto rc = UnLinkInode(parentId_);
+    LOG(INFO) << "Unlink source parent inode, retCode = " << rc;
+}
+
+void RenameOperator::UnlinkOldInode() {
+    if (oldInodeId_ == 0) {
+        return;
+    }
+
+    auto rc = UnLinkInode(oldInodeId_);
+    LOG(INFO) << "Unlink old inode, retCode = " << rc;
 }
 
 void RenameOperator::UpdateCache() {
