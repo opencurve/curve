@@ -631,8 +631,10 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
     RETURN_IF_UNSUCCESS(GetTxId);
     RETURN_IF_UNSUCCESS(Precheck);
+    RETURN_IF_UNSUCCESS(LinkDestParentInode);
     RETURN_IF_UNSUCCESS(PrepareTx);
     RETURN_IF_UNSUCCESS(CommitTx);
+    renameOp.UnlinkSrcParentInode();
     renameOp.UnlinkOldInode();
     renameOp.UpdateCache();
 
