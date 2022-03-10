@@ -82,7 +82,12 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       ongoingConfChange_(),
       metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)) {}
 
-CopysetNode::~CopysetNode() { Stop(); }
+CopysetNode::~CopysetNode() {
+    Stop();
+    raftNode_.reset();
+    applyQueue_.reset();
+    metaStore_.reset();
+}
 
 bool CopysetNode::Init(const CopysetNodeOptions& options) {
     options_ = options;
@@ -141,18 +146,15 @@ void CopysetNode::Stop() {
     if (raftNode_) {
         raftNode_->shutdown(nullptr);
         raftNode_->join();
-        raftNode_.reset();
     }
 
     if (applyQueue_) {
         applyQueue_->Flush();
         applyQueue_->Stop();
-        applyQueue_.reset();
     }
 
     if (metaStore_) {
         metaStore_->Clear();
-        metaStore_.reset();
     }
 }
 

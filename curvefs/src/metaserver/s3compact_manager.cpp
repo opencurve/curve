@@ -152,7 +152,8 @@ void S3CompactManager::Init(std::shared_ptr<Configuration> conf) {
             std::make_shared<S3AdapterManager>(opts_.queueSize, opts_.s3opts);
         s3adapterManager_->Init();
         s3compactworkqueueImpl_ = std::make_shared<S3CompactWorkQueueImpl>(
-            s3adapterManager_, s3infoCache_, opts_);
+            s3adapterManager_, s3infoCache_, opts_,
+            &copyset::CopysetNodeManager::GetInstance());
         inited_ = true;
     } else {
         LOG(INFO) << "s3compact: not enabled";
@@ -210,8 +211,6 @@ void S3CompactManager::Enqueue() {
         }
 
         auto pinfo = s3compact->GetPartition();
-        auto copysetNode = CopysetNodeManager::GetInstance().GetCopysetNode(
-            pinfo.poolid(), pinfo.copysetid());
         // traverse inode container
         auto inodeManager = s3compact->GetInodeManager();
 
@@ -226,7 +225,7 @@ void S3CompactManager::Enqueue() {
         for (const auto& inodeid : inodes) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             s3compactworkqueueImpl_->Enqueue(
-                inodeManager, InodeKey(fsid, inodeid), pinfo, copysetNode);
+                inodeManager, InodeKey(fsid, inodeid), pinfo);
         }
     }
     {

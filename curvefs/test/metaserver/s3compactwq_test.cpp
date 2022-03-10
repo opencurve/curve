@@ -25,10 +25,14 @@
 
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node_manager.h"
 #include "curvefs/test/metaserver/mock_s3_adapter.h"
 #include "curvefs/test/metaserver/mock_s3compactwq_impl.h"
 #include "curvefs/test/metaserver/mock_s3infocache.h"
 
+using ::curvefs::metaserver::copyset::CopysetNode;
+using ::curvefs::metaserver::copyset::CopysetNodeManager;
+using ::curvefs::metaserver::copyset::MockCopysetNodeManager;
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
@@ -64,10 +68,13 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         inodeStorage_ = std::make_shared<MemoryInodeStorage>();
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
-        impl_ = std::make_shared<S3CompactWorkQueueImpl>(s3adapterManager_,
-                                                         s3infoCache_, opts_);
+        impl_ = std::make_shared<S3CompactWorkQueueImpl>(
+            s3adapterManager_, s3infoCache_, opts_,
+            &copyset::CopysetNodeManager::GetInstance());
+        mockCopystNodeManager_ = std::make_shared<MockCopysetNodeManager>();
         mockImpl_ = std::make_shared<MockS3CompactWorkQueueImpl>(
-            s3adapterManager_, s3infoCache_, opts_);
+            s3adapterManager_, s3infoCache_, opts_,
+            mockCopystNodeManager_.get());
         mockCopysetNodeWrapper_ = std::make_shared<MockCopysetNodeWrapper>();
     }
 
@@ -87,12 +94,13 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
     std::shared_ptr<S3CompactWorkQueueImpl> impl_;
     std::shared_ptr<MockS3CompactWorkQueueImpl> mockImpl_;
     std::shared_ptr<MockCopysetNodeWrapper> mockCopysetNodeWrapper_;
+    std::shared_ptr<MockCopysetNodeManager> mockCopystNodeManager_;
 };
 
 TEST_F(S3CompactWorkQueueImplTest, test_CopysetNodeWrapper) {
     braft::Configuration c;
-    CopysetNode n(0, 0, c, nullptr);
-    CopysetNodeWrapper cw1(&n);
+    auto n = std::make_shared<CopysetNode>(0, 0, c, nullptr);
+    CopysetNodeWrapper cw1(n);
     ASSERT_EQ(cw1.IsLeaderTerm(), false);
     ASSERT_EQ(cw1.IsValid(), true);
     CopysetNodeWrapper cw2(nullptr);
