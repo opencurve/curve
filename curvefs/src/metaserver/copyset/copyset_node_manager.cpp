@@ -27,7 +27,6 @@
 #include <string>
 #include <utility>
 
-#include "absl/memory/memory.h"
 #include "curvefs/src/metaserver/copyset/copyset_reloader.h"
 #include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
 #include "curvefs/src/metaserver/copyset/utils.h"
@@ -38,13 +37,6 @@ namespace metaserver {
 namespace copyset {
 
 using ::curve::common::TimeUtility;
-
-CopysetNodeManager::CopysetNodeManager()
-    : options_(),
-      running_(false),
-      loadFinished_(false),
-      lock_(),
-      copysets_() {}
 
 bool CopysetNodeManager::IsLoadFinished() const {
     return loadFinished_.load(std::memory_order_acquire);
@@ -164,6 +156,18 @@ CopysetNode* CopysetNodeManager::GetCopysetNode(PoolId poolId,
     return nullptr;
 }
 
+std::shared_ptr<CopysetNode> CopysetNodeManager::GetSharedCopysetNode(
+    PoolId poolId, CopysetId copysetId) {
+    ReadLockGuard lock(lock_);
+
+    auto it = copysets_.find(ToGroupId(poolId, copysetId));
+    if (it != copysets_.end()) {
+        return it->second;
+    }
+
+    return nullptr;
+}
+
 int CopysetNodeManager::IsCopysetNodeExist(
     const CreateCopysetRequest::Copyset& copyset) {
     ReadLockGuard lock(lock_);
@@ -175,16 +179,16 @@ int CopysetNodeManager::IsCopysetNodeExist(
         auto copysetNode = iter->second.get();
         std::vector<Peer> peers;
         copysetNode->ListPeers(&peers);
-        if (peers.size() != copyset.peers_size()) {
+        if (peers.size() != static_cast<size_t>(copyset.peers_size())) {
             return -1;
         }
 
         for (int i = 0; i < copyset.peers_size(); i++) {
-            auto cspeer = copyset.peers(i);
-            auto iter = std::find_if(
-            peers.begin(), peers.end(),
-            [&cspeer](const Peer& p) { return
-                cspeer.address() == p.address();});
+            const auto& cspeer = copyset.peers(i);
+            auto iter = std::find_if(peers.begin(), peers.end(),
+                                     [&cspeer](const Peer& p) {
+                                         return cspeer.address() == p.address();
+                                     });
             if (iter == peers.end()) {
                 return -1;
             }
@@ -203,7 +207,7 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
     }
 
     braft::GroupId groupId = ToGroupId(poolId, copysetId);
-    std::unique_ptr<CopysetNode> copysetNode;
+    std::shared_ptr<CopysetNode> copysetNode;
 
     WriteLockGuard lock(lock_);
     if (copysets_.count(groupId) != 0) {
@@ -212,7 +216,7 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
         return false;
     }
 
-    copysetNode = absl::make_unique<CopysetNode>(poolId, copysetId, conf, this);
+    copysetNode = std::make_shared<CopysetNode>(poolId, copysetId, conf, this);
     if (!copysetNode->Init(options_)) {
         LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
                    << "init failed";

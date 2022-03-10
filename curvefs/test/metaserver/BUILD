@@ -156,5 +156,6 @@ cc_test(
         "//curvefs/src/metaserver:curvefs_metaserver",
         "@com_google_googletest//:gtest_main",
         "@com_google_googletest//:gtest",
+        "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
     ],
 )

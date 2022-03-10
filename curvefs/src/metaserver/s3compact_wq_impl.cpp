@@ -33,6 +33,7 @@
 
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
+#include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 
 using curve::common::Configuration;
 using curve::common::InitS3AdaptorOption;
@@ -45,8 +46,7 @@ namespace curvefs {
 namespace metaserver {
 
 void S3CompactWorkQueueImpl::Enqueue(std::shared_ptr<InodeManager> inodeManager,
-                                     InodeKey inodeKey, PartitionInfo pinfo,
-                                     CopysetNode* copysetNode) {
+                                     InodeKey inodeKey, PartitionInfo pinfo) {
     std::unique_lock<std::mutex> guard(mutex_);
 
     // inodeKey already in working queue, just return
@@ -58,12 +58,26 @@ void S3CompactWorkQueueImpl::Enqueue(std::shared_ptr<InodeManager> inodeManager,
     while (IsFullUnlock()) {
         notFull_.wait(guard);
     }
+
+    auto copysetNode = copysetNodeMgr_->GetSharedCopysetNode(pinfo.poolid(),
+                                                             pinfo.copysetid());
+    if (!copysetNode) {
+        VLOG(6) << "Copyset node not found, poolid: " << pinfo.poolid()
+                << ", copysetid: " << pinfo.copysetid()
+                << ", fsid: " << inodeKey.fsId
+                << ", inodeid: " << inodeKey.inodeId;
+        return;
+    }
+
     compactingInodes_.push_back(inodeKey);
+
     struct S3CompactTask t {
         inodeManager, inodeKey, pinfo,
             std::make_shared<CopysetNodeWrapper>(copysetNode)
     };
-    auto task = std::bind(&S3CompactWorkQueueImpl::CompactChunks, this, t);
+
+    auto task =
+        std::bind(&S3CompactWorkQueueImpl::CompactChunks, this, std::move(t));
     // am i copysetnode leader?_
     queue_.push_back(std::move(task));
     notEmpty_.notify_one();
@@ -101,7 +115,8 @@ std::vector<uint64_t> S3CompactWorkQueueImpl::GetNeedCompact(
             VLOG(9) << "s3compact: reach max chunks to compact per time";
             break;
         }
-        if (item.second.s3chunks_size() > opts_.fragmentThreshold) {
+        if (static_cast<uint64_t>(item.second.s3chunks_size()) >
+            opts_.fragmentThreshold) {
             needCompact.push_back(item.first);
         }
     }
