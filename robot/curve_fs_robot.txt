@@ -222,13 +222,13 @@ inject kill all etcd
     [Teardown]    test start process  etcd
 
 check cp data consistency
-    [Tags]    P0    base    first release   failover
-    checksum data
+    [Tags]    P0    base    first release   failover  
+#    checksum data
     check fuse mount success
     wait op finish
 
 check mv data consistency
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     mv data
     checksum mv data
     check fuse mount success
@@ -256,8 +256,8 @@ init failover cluster
      mount test dir
      sleep  10
      check fuse mount success
-     write check data
-     cp check data
+#     write check data
+#     cp check data
      start fs op test
 
 clean log
