@@ -234,16 +234,16 @@ TEST_F(TestInodeCacheManager, BatchGetInodeAttr) {
     attr.set_inodeid(inodeId2);
     attrs.emplace_back(attr);
 
-    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, inodeIds, _))
+    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, &inodeIds, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(attrs),
                 Return(MetaStatusCode::OK)));
 
     std::list<InodeAttr> getAttrs;
-    CURVEFS_ERROR ret = iCacheManager_->BatchGetInodeAttr(inodeIds, &getAttrs);
+    CURVEFS_ERROR ret = iCacheManager_->BatchGetInodeAttr(&inodeIds, &getAttrs);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = iCacheManager_->BatchGetInodeAttr(inodeIds, &getAttrs);
+    ret = iCacheManager_->BatchGetInodeAttr(&inodeIds, &getAttrs);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(getAttrs.size(), 2);
     ASSERT_THAT(getAttrs.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
@@ -274,16 +274,16 @@ TEST_F(TestInodeCacheManager, BatchGetXAttr) {
     xattr.mutable_xattrinfos()->find(XATTRFBYTES)->second = "200";
     xattrs.emplace_back(xattr);
 
-    EXPECT_CALL(*metaClient_, BatchGetXAttr(fsId_, inodeIds, _))
+    EXPECT_CALL(*metaClient_, BatchGetXAttr(fsId_, &inodeIds, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(xattrs),
                 Return(MetaStatusCode::OK)));
 
     std::list<XAttr> getXAttrs;
-    CURVEFS_ERROR ret = iCacheManager_->BatchGetXAttr(inodeIds, &getXAttrs);
+    CURVEFS_ERROR ret = iCacheManager_->BatchGetXAttr(&inodeIds, &getXAttrs);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = iCacheManager_->BatchGetXAttr(inodeIds, &getXAttrs);
+    ret = iCacheManager_->BatchGetXAttr(&inodeIds, &getXAttrs);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(getXAttrs.size(), 2);
     ASSERT_THAT(getXAttrs.begin()->inodeid(), AnyOf(inodeId1, inodeId2));

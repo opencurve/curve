@@ -82,8 +82,23 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
-    const std::set<uint64_t> &inodeIds,
+    std::set<uint64_t> *inodeIds,
     std::list<InodeAttr> *attr) {
+    // get some inode in icache
+    for (auto iter = inodeIds->begin(); iter != inodeIds->end();) {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        NameLockGuard lock(nameLock_, std::to_string(*iter));
+        bool ok = iCache_->Get(*iter, &inodeWrapper);
+        if (ok) {
+            InodeAttr tmpAttr;
+            inodeWrapper->GetInodeAttrLocked(&tmpAttr);
+            attr->emplace_back(tmpAttr);
+            iter = inodeIds->erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+
     MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, inodeIds, attr);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr failed, MetaStatusCode = "
@@ -94,8 +109,23 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
-    const std::set<uint64_t> &inodeIds,
+    std::set<uint64_t> *inodeIds,
     std::list<XAttr> *xattr) {
+    // get some inode in icache
+    for (auto iter = inodeIds->begin(); iter != inodeIds->end();) {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        NameLockGuard lock(nameLock_, std::to_string(*iter));
+        bool ok = iCache_->Get(*iter, &inodeWrapper);
+        if (ok) {
+            XAttr tmpXattr;
+            inodeWrapper->GetXattrLocked(&tmpXattr);
+            xattr->emplace_back(tmpXattr);
+            iter = inodeIds->erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+
     MetaStatusCode ret = metaClient_->BatchGetXAttr(fsId_, inodeIds, xattr);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetXAttr failed, MetaStatusCode = "
@@ -182,7 +212,7 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
 
 void InodeCacheManagerImpl::AddParent(uint64_t inodeId, uint64_t parentId) {
     curve::common::LockGuard lg2(parentIdMapMutex_);
-    if (parentIdMap_.count(inodeId)) {
+    if (parentIdMap_.count(inodeId) && parentIdMap_[inodeId] != parentId) {
         LOG(WARNING) << "AddParent but exist, inodeId = " << inodeId
                      << ", parentId = " << parentIdMap_[inodeId]
                      << ", need2AddParentId = " << parentId;

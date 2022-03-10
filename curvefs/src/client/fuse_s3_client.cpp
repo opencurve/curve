@@ -108,8 +108,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
     *wSize = wRet;
+    size_t changeSize = 0;
     // update file len
     if (inode->length() < off + *wSize) {
+        changeSize = off + *wSize - inode->length();
         inode->set_length(off + *wSize);
     }
     struct timespec now;
@@ -125,10 +127,10 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         // Todo: do some cache flush later
     }
 
-    if (enableSumInDir_) {
+    if (enableSumInDir_ && changeSize != 0) {
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
-            std::to_string(*wSize)});
+            std::to_string(changeSize)});
         uint64_t parentId;
         if (inodeManager_->GetParent(ino, &parentId)) {
             ret = UpdateParentInodeXattr(parentId, xattr, true);

@@ -176,6 +176,43 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return;
     }
 
+    void GetInodeAttrLocked(InodeAttr *attr) {
+        curve::common::UniqueLock lg(mtx_);
+        attr->set_inodeid(inode_.inodeid());
+        attr->set_fsid(inode_.fsid());
+        attr->set_length(inode_.length());
+        attr->set_ctime(inode_.ctime());
+        attr->set_ctime_ns(inode_.ctime_ns());
+        attr->set_mtime(inode_.mtime());
+        attr->set_mtime_ns(inode_.mtime_ns());
+        attr->set_atime(inode_.atime());
+        attr->set_atime_ns(inode_.atime_ns());
+        attr->set_uid(inode_.uid());
+        attr->set_gid(inode_.gid());
+        attr->set_mode(inode_.mode());
+        attr->set_nlink(inode_.nlink());
+        attr->set_type(inode_.type());
+        if (inode_.has_symlink()) {
+            attr->set_symlink(inode_.symlink());
+        }
+        if (inode_.has_rdev()) {
+            attr->set_rdev(inode_.rdev());
+        }
+        if (inode_.has_dtime()) {
+            attr->set_dtime(inode_.dtime());
+        }
+        if (inode_.has_openmpcount()) {
+            attr->set_openmpcount(inode_.openmpcount());
+        }
+    }
+
+    void GetXattrLocked(XAttr *xattr) {
+        curve::common::UniqueLock lg(mtx_);
+        xattr->set_fsid(inode_.fsid());
+        xattr->set_inodeid(inode_.inodeid());
+        *(xattr->mutable_xattrinfos()) = inode_.xattr();
+    }
+
     bool GetXattrUnLocked(const char *name, std::string *value) {
         auto it = inode_.xattr().find(name);
         if (it != inode_.xattr().end()) {

@@ -855,7 +855,7 @@ CURVEFS_ERROR FuseClient::CalOneLayerSumInfo(Inode *inode) {
     for (const auto &it : dentryList) {
         inodeIds.emplace(it.inodeid());
     }
-    ret = inodeManager_->BatchGetInodeAttr(inodeIds, &attrs);
+    ret = inodeManager_->BatchGetInodeAttr(&inodeIds, &attrs);
     if (ret == CURVEFS_ERROR::OK) {
         uint64_t files = 0;
         uint64_t subdirs = 0;
@@ -923,7 +923,7 @@ CURVEFS_ERROR FuseClient::CalAllLayerSumInfo(Inode *inode) {
         }
         // check size
         if (inodeIds.size() >= attrsLimit || iStack.empty()) {
-            ret = inodeManager_->BatchGetInodeAttr(inodeIds, &attrs);
+            ret = inodeManager_->BatchGetInodeAttr(&inodeIds, &attrs);
             if (ret == CURVEFS_ERROR::OK) {
                 for (const auto &it : attrs) {
                     if (it.type() == FsFileType::TYPE_DIRECTORY) {
@@ -1008,7 +1008,7 @@ CURVEFS_ERROR FuseClient::FastCalAllLayerSumInfo(Inode *inode) {
         }
         // check size
         if (inodeIds.size() >= xattrsLimit || iStack.empty()) {
-            ret = inodeManager_->BatchGetXAttr(inodeIds, &xattrs);
+            ret = inodeManager_->BatchGetXAttr(&inodeIds, &xattrs);
             if (ret == CURVEFS_ERROR::OK) {
                 for (const auto &it : xattrs) {
                     if (it.xattrinfos().count(XATTRFILES)) {
