@@ -47,25 +47,25 @@ using curve::common::S3Adapter;
 using curve::common::S3AdapterOption;
 using curve::common::TaskThreadPool;
 using curvefs::metaserver::copyset::CopysetNode;
+using curvefs::metaserver::copyset::CopysetNodeManager;
 
 namespace curvefs {
 namespace metaserver {
 
 class CopysetNodeWrapper {
  public:
-    explicit CopysetNodeWrapper(CopysetNode* copysetNode)
+    explicit CopysetNodeWrapper(const std::shared_ptr<CopysetNode>& copysetNode)
         : copysetNode_(copysetNode) {}
     virtual ~CopysetNodeWrapper() {}
-    CopysetNode* copysetNode_;
+    std::shared_ptr<CopysetNode> copysetNode_;
     virtual bool IsLeaderTerm() {
-        if (copysetNode_ == nullptr) return false;
-        return copysetNode_->IsLeaderTerm();
+        return copysetNode_ && copysetNode_->IsLeaderTerm();
     }
     virtual bool IsValid() {
         return copysetNode_ != nullptr;
     }
     CopysetNode* Get() {
-        return copysetNode_;
+        return copysetNode_.get();
     }
 };
 
@@ -73,20 +73,24 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
  public:
     S3CompactWorkQueueImpl(std::shared_ptr<S3AdapterManager> s3adapterManager,
                            std::shared_ptr<S3InfoCache> s3infoCache,
-                           const S3CompactWorkQueueOption& opts)
+                           const S3CompactWorkQueueOption& opts,
+                           copyset::CopysetNodeManager* nodeMgr)
         : s3adapterManager_(s3adapterManager),
           s3infoCache_(s3infoCache),
-          opts_(opts) {}
+          opts_(opts),
+          copysetNodeMgr_(nodeMgr) {}
 
     std::shared_ptr<S3AdapterManager> s3adapterManager_;
     std::shared_ptr<S3InfoCache> s3infoCache_;
     S3CompactWorkQueueOption opts_;
     std::deque<InodeKey> compactingInodes_;
+    copyset::CopysetNodeManager* copysetNodeMgr_;
     void Enqueue(std::shared_ptr<InodeManager> inodeManager, InodeKey inodeKey,
-                 PartitionInfo pinfo, CopysetNode* copyset);
+                 PartitionInfo pinfo);
     std::function<void()> Dequeue();
     void ThreadFunc();
 
+    // compact task for one partition
     struct S3CompactTask {
         std::shared_ptr<InodeManager> inodeManager;
         InodeKey inodeKey;

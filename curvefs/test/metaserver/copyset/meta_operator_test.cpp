@@ -91,6 +91,7 @@ using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
+using ::testing::AtLeast;
 
 class MetaOperatorTest : public testing::Test {
  protected:
@@ -389,9 +390,9 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     EXPECT_CALL(*mockRaftNode, apply(_))
         .Times(0);
     EXPECT_CALL(*mockRaftNode, shutdown(_))
-        .Times(1);
+        .Times(AtLeast(1));
     EXPECT_CALL(*mockRaftNode, join())
-        .Times(1);
+        .Times(AtLeast(1));
     EXPECT_CALL(*mockMetaStore, GetDentry(_, _))
         .WillOnce(Return(MetaStatusCode::OK));
 

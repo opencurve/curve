@@ -44,8 +44,8 @@ class MockS3CompactWorkQueueImpl : public S3CompactWorkQueueImpl {
     MockS3CompactWorkQueueImpl(
         std::shared_ptr<S3AdapterManager> s3AdapterManager,
         std::shared_ptr<S3InfoCache> s3infoCache,
-        const S3CompactWorkQueueOption& opts)
-        : S3CompactWorkQueueImpl(s3AdapterManager, s3infoCache, opts) {}
+        const S3CompactWorkQueueOption& opts, copyset::CopysetNodeManager* mgr)
+        : S3CompactWorkQueueImpl(s3AdapterManager, s3infoCache, opts, mgr) {}
     MetaStatusCode UpdateInode(
         CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
         ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,

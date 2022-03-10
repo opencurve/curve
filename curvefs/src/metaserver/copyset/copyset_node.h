@@ -58,7 +58,7 @@ class CopysetNode : public braft::StateMachine {
                 const braft::Configuration& conf,
                 CopysetNodeManager* nodeManager);
 
-    ~CopysetNode();
+    ~CopysetNode() override;
 
     bool Init(const CopysetNodeOptions& options);
 
