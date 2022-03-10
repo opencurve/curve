@@ -448,9 +448,9 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
 bool GroupInodeIdByPartition(
     uint32_t fsId,
     std::shared_ptr<MetaCache> metaCache,
-    const std::set<uint64_t> &inodeIds,
+    std::set<uint64_t> *inodeIds,
     std::unordered_map<uint32_t, std::list<uint64_t>> *inodeGroups) {
-    for (const auto &it : inodeIds) {
+    for (const auto &it : *inodeIds) {
         uint32_t pId = 0;
         if (metaCache->GetPartitionIdByInodeId(fsId, it, &pId)) {
             auto iter = inodeGroups->find(pId);
@@ -469,7 +469,7 @@ bool GroupInodeIdByPartition(
 }
 
 MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
-    const std::set<uint64_t> &inodeIds,
+    std::set<uint64_t> *inodeIds,
     std::list<InodeAttr> *attr) {
     uint32_t limit = opt_.batchLimit;
     // group inodeid by partition
@@ -548,7 +548,7 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
 }
 
 MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
-    const std::set<uint64_t> &inodeIds,
+    std::set<uint64_t> *inodeIds,
     std::list<XAttr> *xattr) {
     uint32_t limit = opt_.batchLimit;
     // group inodeid by partition

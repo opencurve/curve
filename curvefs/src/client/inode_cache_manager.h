@@ -67,10 +67,10 @@ class InodeCacheManager {
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
     virtual CURVEFS_ERROR BatchGetInodeAttr(
-        const std::set<uint64_t> &inodeIds,
+        std::set<uint64_t> *inodeIds,
         std::list<InodeAttr> *attrs) = 0;
 
-    virtual CURVEFS_ERROR BatchGetXAttr(const std::set<uint64_t> &inodeIds,
+    virtual CURVEFS_ERROR BatchGetXAttr(std::set<uint64_t> *inodeIds,
         std::list<XAttr> *xattrs) = 0;
 
     virtual CURVEFS_ERROR CreateInode(const InodeParam &param,
@@ -125,10 +125,10 @@ class InodeCacheManagerImpl : public InodeCacheManager {
     CURVEFS_ERROR GetInode(uint64_t inodeid,
         std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
 
-    CURVEFS_ERROR BatchGetInodeAttr(const std::set<uint64_t> &inodeIds,
+    CURVEFS_ERROR BatchGetInodeAttr(std::set<uint64_t> *inodeIds,
         std::list<InodeAttr> *attrs) override;
 
-    CURVEFS_ERROR BatchGetXAttr(const std::set<uint64_t> &inodeIds,
+    CURVEFS_ERROR BatchGetXAttr(std::set<uint64_t> *inodeIds,
         std::list<XAttr> *xattrs) override;
 
     CURVEFS_ERROR CreateInode(const InodeParam &param,
