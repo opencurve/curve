@@ -45,6 +45,7 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::AtLeast;
 
 using ::curve::fs::MockLocalFileSystem;
 
@@ -540,6 +541,41 @@ TEST_F(CopysetNodeTest, StartWithoutInitReturnFailed) {
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
 
     EXPECT_FALSE(node.Start());
+}
+
+namespace {
+
+struct FakeClosure : public braft::Closure {
+    void Run() override {}
+};
+
+};  // namespace
+
+TEST_F(CopysetNodeTest, ProposeAfterStopWontFatal) {
+    CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
+
+    EXPECT_TRUE(node.Init(options_));
+
+    auto* mockRaftNode = new MockRaftNode();
+    node.SetRaftNode(mockRaftNode);
+
+    EXPECT_CALL(*mockRaftNode, init(_))
+        .WillOnce(Return(0));
+
+    ASSERT_EQ(true, node.Start());
+
+    EXPECT_CALL(*mockRaftNode, shutdown(_))
+        .Times(AtLeast(1));
+    EXPECT_CALL(*mockRaftNode, join())
+        .Times(AtLeast(1));
+
+    node.Stop();
+
+    FakeClosure fakeDone;
+    braft::Task task;
+    task.done = &fakeDone;
+
+    ASSERT_NO_FATAL_FAILURE({ node.Propose(task); });
 }
 
 }  // namespace copyset

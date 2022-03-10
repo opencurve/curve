@@ -57,6 +57,9 @@ class CopysetNodeManager {
 
     virtual CopysetNode* GetCopysetNode(PoolId poolId, CopysetId copysetId);
 
+    virtual std::shared_ptr<CopysetNode> GetSharedCopysetNode(
+        PoolId poolId, CopysetId copysetId);
+
     /**
      * @return 0: not exist; 1: key exist and peers are exactly same;
      * -1: key exist but peers are not exactly same
@@ -76,8 +79,14 @@ class CopysetNodeManager {
     virtual bool IsLoadFinished() const;
 
  public:
-    CopysetNodeManager();
+    CopysetNodeManager()
+        : options_(),
+          running_(false),
+          loadFinished_(false),
+          lock_(),
+          copysets_() {}
 
+ public:
     /**
      * @brief Add raft related services to server
      */
@@ -89,7 +98,7 @@ class CopysetNodeManager {
 
  private:
     using CopysetNodeMap =
-        std::unordered_map<braft::GroupId, std::unique_ptr<CopysetNode>>;
+        std::unordered_map<braft::GroupId, std::shared_ptr<CopysetNode>>;
 
     CopysetNodeOptions options_;
 
