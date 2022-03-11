@@ -106,7 +106,7 @@ def write_check_data():
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     test_dir = config.fs_mount_path
     size = "1G"
-    for name in config.fs_mount_dir:
+    for name in config.fs_md5check_dir:
         ori_cmd = "fio -directory=%s -ioengine=psync \
                                       -rw=randwrite -bs=4k   \
                                       -direct=1 -group_reporting=1 \
@@ -129,7 +129,7 @@ def cp_check_data():
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     test_dir = config.fs_mount_path
     operator = "cp"
-    for name in config.fs_mount_dir:
+    for name in config.fs_md5check_dir:
         ori_cmd = operator + ' ' + test_dir + name + ".0.0" + ' ' + test_dir + name
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"cp fail"
@@ -140,7 +140,7 @@ def checksum_data():
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     test_dir = config.fs_mount_path
     check_list = []
-    for name in config.fs_mount_dir:
+    for name in config.fs_md5check_dir:
         ori_cmd = "md5sum " + test_dir + name  + '/' + name + ".0.0"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         md5 = "".join(rs[1]).split(" ")[0]
@@ -148,11 +148,24 @@ def checksum_data():
     logger.info("check file md5 is %s"%check_list)
     assert check_list == config.md5_check,"md5 check fail,begin is %s,end is %s"%(config.md5_check,check_list)
 
+def checksum_cto_data(mountfs=""):
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    test_dir = config.fs_mount_path
+    md5 = ""
+    name = config.fs_md5check_dir[0]
+    ori_cmd = "md5sum " + test_dir + mountfs  + '/' + name + ".0.0"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    md5 = "".join(rs[1]).split(" ")[0]
+    logger.info("cto check file md5 is %s"%md5)
+#    assert md5 == config.md5_check[0],"cto md5 check fail,ont mount ponit is %s,other is %s"%(config.md5_check[0],md5)
+    return md5
+
 def mv_data():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     operator = "mv"
-    for name in config.fs_mount_dir:
+    for name in config.fs_md5check_dir:
         test_dir = os.path.join(config.fs_mount_path,name)
         ori_cmd = operator + ' ' + test_dir + '/' + name + ".0.0" + ' ' + test_dir + '/' + name + ".0.0.bak"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -163,7 +176,7 @@ def checksum_mv_data():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
     check_list = []
-    for name in config.fs_mount_dir:
+    for name in config.fs_md5check_dir:
         test_dir = os.path.join(config.fs_mount_path,name)
         ori_cmd = "md5sum " + test_dir + '/' + name + ".0.0.bak"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -323,10 +336,13 @@ def check_corefile():
     if rs[1] != []:
         assert False,"/corefile have coredump file,is %s"%rs[1]
 
-def get_test_dir_file_md5():
+def get_test_dir_file_md5(testdir=""):
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
+    if testdir == "":
+        test_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
+    else:
+        test_dir = os.path.join(config.fs_mount_path,testdir)
     ori_cmd ="cd " + test_dir +  " && find vdb.1_1.dir/  -name 'vdb_*' -type f -print0 | xargs -0 md5sum  > md5_1"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"get file md5_1 error, output %s"%rs[1]
@@ -341,8 +357,21 @@ def check_test_dir_file_md5():
     ori_cmd = "cd " + test_dir + " && diff md5_1 md5_2"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"diff md5 file fail, output %s"%rs[1]
-    assert rs[1] == [],"check fio test dir file md5 fail,diff is %s"%rs[1]
+    assert rs[1] == [],"check vdbench test dir file md5 fail,diff is %s"%rs[1]
 
+def check_cto_dir_file_md5(testdir=""):
+    test_client = config.fs_test_client[0]
+    ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+    test_dir = os.path.join(config.fs_mount_path,testdir)
+    ori_cmd ="cd " + test_dir +  " && find vdb.1_1.dir/  -name 'vdb_*' -type f -print0 | xargs -0 md5sum  > md5_cto"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"get file md5_ctx error, output %s"%rs[1]
+    source_dir = os.path.join(config.fs_mount_path,config.fs_mount_dir[1])
+    source_md5_file = os.path.join(source_dir,"md5_1")
+    ori_cmd = "cd " + test_dir + " && diff md5_cto " + source_md5_file 
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"diff cto md5 fail,output %s"%rs[1]
+    assert rs[1] == [],"check cto test dir file md5 fail,diff is %s"%rs[1]
 
 def test_fuse_client_mem_stress(stress=80):
     client_host = config.fs_test_client[0]
@@ -507,7 +536,7 @@ def mount_umount_test():
 
 def loop_mount_umount():
     thread = mythread.runThread(mount_umount_test)
-    logger.debug("thrash mount %s")
+    logger.debug("thrash mount umount")
     config.fs_mount_thread = thread
     thread.start()
 
@@ -522,5 +551,22 @@ def stop_loop_mount():
         result = t.get_result()
         logger2.info("mount umount test time is %d"%result)
         assert result > 0,"test mount fail,result is %d"%result
+    except:
+        raise
+
+def start_cto_file_md5check():
+    thread = mythread.runThread(checksum_cto_data,"test4")
+    logger.debug("check cto file md5")
+    config.fs_md5check_thread = thread
+    thread.start()
+
+def stop_cto_file_md5check():
+    try:
+        if config.fs_md5check_thread == []:
+            assert False," md5check not up"
+        t = config.fs_md5check_thread
+        assert t.exitcode == 0,"cto md5check fail"
+        result = t.get_result()
+        assert result  == config.md5_check[0],"cto md5 check fail,ont mount ponit is %s,other is %s"%(config.md5_check[0],result)
     except:
         raise
