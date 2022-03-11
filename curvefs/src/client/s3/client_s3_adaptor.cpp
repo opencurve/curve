@@ -20,19 +20,21 @@
  * Author: huyao
  */
 
-#include "curvefs/src/client/s3/client_s3_adaptor.h"
+
 
 #include <brpc/channel.h>
 #include <brpc/controller.h>
-
 #include <algorithm>
+#include <list>
+#include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 
 namespace client {
 
 CURVEFS_ERROR
-S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption& option, S3Client* client,
+S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
                           std::shared_ptr<InodeCacheManager> inodeManager,
                           std::shared_ptr<MdsClient> mdsClient) {
     pendingReq_ = 0;
@@ -85,16 +87,16 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption& option, S3Client* client,
             std::make_shared<DiskCacheManagerImpl>(diskCacheManager, client);
         if (diskCacheManagerImpl_->Init(option) < 0) {
             LOG(ERROR) << "Init disk cache failed";
-            return  CURVEFS_ERROR::INTERNAL;
+            return CURVEFS_ERROR::INTERNAL;
         }
         // init rpc send exec-queue
         downloadTaskQueues_.resize(prefetchExecQueueNum_);
-        for (auto& q : downloadTaskQueues_) {
+        for (auto &q : downloadTaskQueues_) {
             int rc = bthread::execution_queue_start(
                 &q, nullptr, &S3ClientAdaptorImpl::ExecAsyncDownloadTask, this);
             if (rc != 0) {
                 LOG(ERROR) << "Init AsyncRpcQueues failed";
-                return  CURVEFS_ERROR::INTERNAL;
+                return CURVEFS_ERROR::INTERNAL;
             }
         }
     }
@@ -102,7 +104,7 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption& option, S3Client* client,
 }
 
 int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
-                               uint64_t length, const char* buf) {
+                               uint64_t length, const char *buf) {
     VLOG(6) << "write start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     uint64_t start = butil::cpuwide_time_us();
@@ -114,8 +116,8 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
         VLOG(6) << "pendingReq_ is: " << pendingReq_;
         uint64_t pendingReq = pendingReq_.load(std::memory_order_seq_cst);
         fsCacheManager_->DataCacheByteInc(length);
-        if ((fsCacheManager_->GetDataCacheSize() + pendingReq*fuseMaxSize_)
-        >= fsCacheManager_->GetDataCacheMaxSize()) {
+        if ((fsCacheManager_->GetDataCacheSize() + pendingReq * fuseMaxSize_) >=
+            fsCacheManager_->GetDataCacheMaxSize()) {
             LOG(INFO) << "write cache is full, wait flush";
             fsCacheManager_->WaitFlush();
         }
@@ -124,11 +126,12 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     int64_t exceedRatio = memCacheRatio - memCacheNearfullRatio_;
     if (exceedRatio > 0) {
         // upload to s3 derectly or cache disk full
-        bool needSleep = (DisableDiskCache() || IsReadCache()) ||
-          (IsReadWriteCache() && diskCacheManagerImpl_->IsDiskCacheFull());
+        bool needSleep =
+            (DisableDiskCache() || IsReadCache()) ||
+            (IsReadWriteCache() && diskCacheManagerImpl_->IsDiskCacheFull());
         if (needSleep) {
-            uint32_t exponent = pow(2, (exceedRatio)/10);
-            bthread_usleep(throttleBaseSleepUs_*exceedRatio*exponent);
+            uint32_t exponent = pow(2, (exceedRatio) / 10);
+            bthread_usleep(throttleBaseSleepUs_ * exceedRatio * exponent);
             LOG(INFO) << "write cache is nearfull and use ratio is: "
                       << memCacheRatio << ", exponent is: " << exponent;
         }
@@ -164,14 +167,15 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     return ret;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode* inode, uint64_t size) {
+CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
     uint64_t fileSize = inode->length();
 
     if (size < fileSize) {
-        VLOG(6) << "Truncate size:" << size << " less than fileSize:"
-                << fileSize;
+        VLOG(6) << "Truncate size:" << size
+                << " less than fileSize:" << fileSize;
         FileCacheManagerPtr fileCacheManager =
-        fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inode->inodeid());
+            fsCacheManager_->FindOrCreateFileCacheManager(fsId_,
+                                                          inode->inodeid());
         fileCacheManager->TruncateCache(size, fileSize);
         return CURVEFS_ERROR::OK;
     } else if (size == fileSize) {
@@ -246,8 +250,8 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Flush(uint64_t inodeId) {
     if (!fileCacheManager) {
         return CURVEFS_ERROR::OK;
     }
-    VLOG(6) << "Flush inodeId:" << inodeId;
-    return fileCacheManager->Flush(true);
+    VLOG(6) << "Flush data of inodeId:" << inodeId;
+    return fileCacheManager->Flush(true, false);
 }
 
 CURVEFS_ERROR S3ClientAdaptorImpl::FsSync() {
@@ -255,7 +259,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::FsSync() {
 }
 
 FSStatusCode S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
-                                                 uint64_t* chunkId) {
+                                                 uint64_t *chunkId) {
     return mdsClient_->AllocS3ChunkId(fsId, chunkId);
 }
 
@@ -270,8 +274,8 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
         }
         if (fsCacheManager_->MemCacheRatio() > memCacheNearfullRatio_) {
             VLOG(3) << "BackGroundFlush radically, write cache num is: "
-                      << fsCacheManager_->GetDataCacheNum()
-                      << "cache ratio is: " << fsCacheManager_->MemCacheRatio();
+                    << fsCacheManager_->GetDataCacheNum()
+                    << "cache ratio is: " << fsCacheManager_->MemCacheRatio();
             fsCacheManager_->FsSync(true);
 
         } else {
@@ -293,7 +297,7 @@ int S3ClientAdaptorImpl::Stop() {
     FsSyncSignal();
     bgFlushThread_.join();
     if (HasDiskCache()) {
-        for (auto& q : downloadTaskQueues_) {
+        for (auto &q : downloadTaskQueues_) {
             bthread::execution_queue_stop(q);
             bthread::execution_queue_join(q);
         }
@@ -304,14 +308,15 @@ int S3ClientAdaptorImpl::Stop() {
     return 0;
 }
 
-int S3ClientAdaptorImpl::ExecAsyncDownloadTask(void* meta,
-                                 bthread::TaskIterator<AsyncDownloadTask>& iter) {  // NOLINT
+int S3ClientAdaptorImpl::ExecAsyncDownloadTask(
+    void *meta,
+    bthread::TaskIterator<AsyncDownloadTask> &iter) {  // NOLINT
     if (iter.is_queue_stopped()) {
         return 0;
     }
 
     for (; iter; ++iter) {
-        auto& task = *iter;
+        auto &task = *iter;
         task();
     }
 
@@ -331,6 +336,40 @@ void S3ClientAdaptorImpl::CollectMetrics(InterfaceMetric *interface, int count,
     interface->bps.count << count;
     interface->qps.count << 1;
     interface->latency << (butil::cpuwide_time_us() - start);
+}
+
+CURVEFS_ERROR S3ClientAdaptorImpl::FlushAllCache(uint64_t inodeId) {
+    VLOG(6) << "FlushAllCache, inodeId:" << inodeId;
+    FileCacheManagerPtr fileCacheManager =
+        fsCacheManager_->FindFileCacheManager(inodeId);
+    if (!fileCacheManager) {
+        return CURVEFS_ERROR::OK;
+    }
+
+    // force flush data in memory to s3
+    VLOG(6) << "FlushAllCache, flush memory data of inodeId:" << inodeId;
+    CURVEFS_ERROR ret = fileCacheManager->Flush(true, false);
+    if (ret != CURVEFS_ERROR::OK) {
+        return ret;
+    }
+
+    // force flush data in diskcache to s3
+    if (HasDiskCache()) {
+        if (ClearDiskCache(inodeId) < 0) {
+            return CURVEFS_ERROR::INTERNAL;
+        }
+    }
+
+    return ret;
+}
+
+int S3ClientAdaptorImpl::ClearDiskCache(int64_t inodeId) {
+    // flush disk cache. read cache do not need clean
+    int ret =
+        diskCacheManagerImpl_->UploadWriteCacheByInode(std::to_string(inodeId));
+    LOG_IF(ERROR, ret < 0) << "FlushAllCache, inode:" << inodeId
+                           << ", upload write cache fail";
+    return ret;
 }
 
 }  // namespace client

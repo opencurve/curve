@@ -196,6 +196,7 @@ class CurvefsToolRpc : public CurvefsTool {
      * as long as one succeeds, it returns true and ends sending
      */
     virtual bool SendRequestToServices() {
+        uint32_t failHostNumner = 0;
         for (const std::string& host : hostsAddr_) {
             SetController();
             if (channel_->Init(host.c_str(), nullptr) != 0) {
@@ -206,12 +207,18 @@ class CurvefsToolRpc : public CurvefsTool {
             // it will crash in there
             service_stub_func_(controller_.get(), &requestQueue_.front(),
                                response_.get());
+            if (controller_->Failed()) {
+                ++failHostNumner;
+            }
             if (AfterSendRequestToHost(host) == true) {
                 controller_->Reset();
                 return true;
             }
             controller_->Reset();
             SetController();
+        }
+        if (hostsAddr_.size() != failHostNumner) {
+            errorOutput_.str("");
         }
         // send request to all host failed
         return false;

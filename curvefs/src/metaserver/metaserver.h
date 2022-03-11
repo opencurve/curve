@@ -33,13 +33,14 @@
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
-#include "curvefs/src/metaserver/register.h"
 #include "curvefs/src/metaserver/heartbeat.h"
 #include "curvefs/src/metaserver/inflight_throttle.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/register.h"
 #include "src/common/configuration.h"
 #include "src/fs/local_filesystem.h"
 
@@ -56,10 +57,13 @@ using ::curvefs::client::rpcclient::MdsClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::common::MdsOption;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 struct MetaserverOptions {
     std::string ip;
     int port;
+    std::string externalIp;
+    int externalPort;
     int bthreadWorkerCount = -1;
     bool enableExternalServer;
 };
@@ -72,6 +76,7 @@ class Metaserver {
     void Stop();
 
  private:
+    void InitStorage();
     void InitCopysetNodeOptions();
     void InitCopysetNodeManager();
     void InitLocalFileSystem();
@@ -83,6 +88,15 @@ class Metaserver {
     void InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
                               std::shared_ptr<MdsClient> mdsClient,
                              PartitionCleanOption* partitionCleanOption);
+    void GetMetaserverDataByLoadOrRegister();
+    int PersistMetaserverMeta(std::string path, MetaServerMetadata* metadata);
+    int LoadMetaserverMeta(const std::string& metaFilePath,
+                           MetaServerMetadata* metadata);
+    int LoadDataFromLocalFile(std::shared_ptr<LocalFileSystem> fs,
+                              const std::string& localPath, std::string* data);
+    int PersistDataToLocalFile(std::shared_ptr<LocalFileSystem> fs,
+                               const std::string& localPath,
+                               const std::string& data);
 
  private:
     // metaserver configuration items
@@ -97,7 +111,8 @@ class Metaserver {
     MDSBaseClient* mdsBase_;
     MdsOption mdsOptions_;
     MetaserverOptions options_;
-    MetaServerMetadata metadate_;
+    MetaServerMetadata metadata_;
+    std::string metaFilePath_;
 
     std::unique_ptr<brpc::Server> server_;
     std::unique_ptr<brpc::Server> externalServer_;
@@ -108,6 +123,8 @@ class Metaserver {
 
     HeartbeatOptions heartbeatOptions_;
     Heartbeat heartbeat_;
+
+    StorageOptions storageOptions_;
 
     CopysetNodeOptions copysetNodeOptions_;
     CopysetNodeManager* copysetNodeManager_;

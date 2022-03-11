@@ -236,11 +236,11 @@ std::string S3Adapter::GetS3Ak() {
 }
 
 std::string S3Adapter::GetS3Sk() {
-    return std::string(s3Sk_.c_str(), s3Sk_.c_str());
+    return std::string(s3Sk_.c_str(), s3Sk_.size());
 }
 
 std::string S3Adapter::GetS3Endpoint() {
-    return std::string(s3Address_.c_str(), s3Address_.c_str());
+    return std::string(s3Address_.c_str(), s3Address_.size());
 }
 
 int S3Adapter::CreateBucket() {

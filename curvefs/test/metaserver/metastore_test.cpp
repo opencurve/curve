@@ -40,9 +40,14 @@ namespace curvefs {
 namespace metaserver {
 class MetastoreTest : public ::testing::Test {
  protected:
-    void SetUp() override {}
+    void SetUp() override {
+        test_path_ = "./metastore_test.dat";
+    }
 
-    void TearDown() override {}
+    void TearDown() override {
+        std::string cmd = "rm -rf " + test_path_;
+        system(cmd.c_str());
+    }
 
     bool CompareInode(const Inode &first, const Inode &second) {
         uint64_t firstMtime = first.mtime() * 1000000000u
@@ -133,6 +138,8 @@ class MetastoreTest : public ::testing::Test {
         std::mutex mtx_;
         std::condition_variable condition_;
     };
+
+    std::string test_path_;
 };
 
 TEST_F(MetastoreTest, partition) {
@@ -797,7 +804,7 @@ TEST_F(MetastoreTest, persist_success) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save("./metastore_test", &done));
+    ASSERT_TRUE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -806,7 +813,7 @@ TEST_F(MetastoreTest, persist_success) {
     // load MetaStoreImpl to new meta
     MetaStoreImpl metastoreNew(nullptr);
     LOG(INFO) << "MetastoreTest test Load";
-    ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
+    ASSERT_TRUE(metastoreNew.Load(test_path_));
 
     // compare two meta
     ASSERT_TRUE(ComparePartition(
@@ -949,7 +956,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save("./metastore_test", &done));
+    ASSERT_TRUE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -958,7 +965,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     // load MetaStoreImpl to new meta
     MetaStoreImpl metastoreNew(nullptr);
     LOG(INFO) << "MetastoreTest test Load";
-    ASSERT_TRUE(metastoreNew.Load("./metastore_test"));
+    ASSERT_TRUE(metastoreNew.Load(test_path_));
 
     // compare two meta
     ASSERT_TRUE(ComparePartition(
@@ -996,7 +1003,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save("./metastore_test", &done));
+    ASSERT_TRUE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -1074,7 +1081,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save("./metastore_test", &done));
+    ASSERT_TRUE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();

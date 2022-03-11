@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <list>
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
@@ -64,8 +65,9 @@ struct DiskCacheOption {
 
 class DiskCacheManagerImpl {
  public:
-    DiskCacheManagerImpl(std::shared_ptr<DiskCacheManager>
-      diskCacheManager, S3Client *client);
+    DiskCacheManagerImpl(std::shared_ptr<DiskCacheManager> diskCacheManager,
+                         S3Client *client);
+    DiskCacheManagerImpl() {}
     virtual ~DiskCacheManagerImpl() {}
     /**
      * @brief init DiskCacheManagerImpl
@@ -81,7 +83,7 @@ class DiskCacheManagerImpl {
      * @param[in] length wtite length
      * @return success: write length, fail : < 0
      */
-    int Write(const std::string name, const char* buf, uint64_t length);
+    int Write(const std::string name, const char *buf, uint64_t length);
     /**
      * @brief whether obj is cached in cached disk
      * @param[in] name obj name
@@ -96,8 +98,8 @@ class DiskCacheManagerImpl {
      * @param[in] length read length
      * @return success: length, fail : < length
      */
-    int Read(const std::string name,
-             char* buf, uint64_t offset, uint64_t length);
+    int Read(const std::string name, char *buf, uint64_t offset,
+             uint64_t length);
     /**
      * @brief umount disk cache
      * @return success: 0, fail : < 0
@@ -105,12 +107,16 @@ class DiskCacheManagerImpl {
     int UmountDiskCache();
 
     bool IsDiskCacheFull();
-    int WriteReadDirect(const std::string fileName,
-                        const char* buf, uint64_t length);
+    int WriteReadDirect(const std::string fileName, const char *buf,
+                        uint64_t length);
     void InitMetrics(std::string fsName);
 
+    virtual int UploadWriteCacheByInode(const std::string &inode);
+
+    virtual int ClearReadCache(const std::list<std::string> &files);
+
  private:
-    int WriteDiskFile(const std::string name, const char* buf, uint64_t length);
+    int WriteDiskFile(const std::string name, const char *buf, uint64_t length);
 
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
     bool forceFlush_;

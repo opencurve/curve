@@ -43,6 +43,7 @@ enum TopoStatusCode {
     TOPO_LEADER_NOT_FOUND = 19;
     TOPO_PARTITION_NOT_FOUND = 20;
     TOPO_CREATE_PARTITION_FAIL = 21;
+    TOPO_METASERVER_EXIST = 22;
 }
 
 enum OnlineState {
@@ -89,7 +90,7 @@ message MetaServerData {
     required string externalIP = 6;
     required uint32 externalPort = 7;
     required uint32 serverId = 8;
-    required heartbeat.MetaSeverSpaceStatus spaceStatus = 9;
+    required heartbeat.MetaServerSpaceStatus spaceStatus = 9;
 }
 
 message CopysetData {

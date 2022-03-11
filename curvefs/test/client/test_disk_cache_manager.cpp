@@ -33,23 +33,23 @@
 namespace curvefs {
 namespace client {
 
+using ::curve::common::Configuration;
 using ::testing::_;
 using ::testing::Contains;
-using ::curve::common::Configuration;
+using ::testing::DoAll;
+using ::testing::ElementsAre;
 using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::Mock;
-using ::testing::DoAll;
+using ::testing::NotNull;
 using ::testing::Return;
-using ::testing::ReturnRef;
+using ::testing::ReturnArg;
 using ::testing::ReturnNull;
 using ::testing::ReturnPointee;
-using ::testing::NotNull;
-using ::testing::StrEq;
-using ::testing::ElementsAre;
+using ::testing::ReturnRef;
 using ::testing::SetArgPointee;
-using ::testing::ReturnArg;
 using ::testing::SetArgReferee;
+using ::testing::StrEq;
 
 class TestDiskCacheManager : public ::testing::Test {
  protected:
@@ -59,10 +59,10 @@ class TestDiskCacheManager : public ::testing::Test {
     virtual void SetUp() {
         S3Client *client = nullptr;
         wrapper = std::make_shared<MockPosixWrapper>();
-        diskCacheWrite_ =  std::make_shared<MockDiskCacheWrite>();
-        diskCacheRead_ =  std::make_shared<MockDiskCacheRead>();
+        diskCacheWrite_ = std::make_shared<MockDiskCacheWrite>();
+        diskCacheRead_ = std::make_shared<MockDiskCacheRead>();
         diskCacheManager_ = std::make_shared<DiskCacheManager>(
-                          wrapper, diskCacheWrite_, diskCacheRead_);
+            wrapper, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper, "/mnt/test");
         diskCacheWrite_->Init(client, wrapper, "/mnt/test", 1);
     }
@@ -82,164 +82,136 @@ class TestDiskCacheManager : public ::testing::Test {
 TEST_F(TestDiskCacheManager, Init) {
     S3ClientAdaptorOption s3AdaptorOption;
     S3Client *client = nullptr;
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*wrapper, mkdir(_, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     int ret = diskCacheManager_->Init(client, s3AdaptorOption);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*wrapper, mkdir(_, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(0));
     EXPECT_CALL(*diskCacheWrite_, CreateIoDir("/mnt/test"))
         .WillOnce(Return(-1));
     ret = diskCacheManager_->Init(client, s3AdaptorOption);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(0));
     EXPECT_CALL(*diskCacheWrite_, CreateIoDir("/mnt/test"))
         .WillOnce(Return(-1));
     ret = diskCacheManager_->Init(client, s3AdaptorOption);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-          .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_)).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_)).WillOnce(Return(-1));
     ret = diskCacheManager_->Init(client, s3AdaptorOption);
     ASSERT_EQ(-1, ret);
-/*
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-          .WillOnce(Return(-1));
-    EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
-          .WillOnce(Return(0));
-    ret = diskCacheManager_->Init(client, s3AdaptorOption);
-    ASSERT_EQ(0, ret);
+    /*
+        EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+              .WillOnce(Return(-1));
+        EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
+              .WillOnce(Return(0));
+        ret = diskCacheManager_->Init(client, s3AdaptorOption);
+        ASSERT_EQ(0, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
-          .WillOnce(Return(-1));
-    ret = diskCacheManager_->Init(client, s3AdaptorOption);
-    ASSERT_EQ(-1, ret);
+        EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
+              .WillOnce(Return(-1));
+        ret = diskCacheManager_->Init(client, s3AdaptorOption);
+        ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
-          .WillOnce(Return(0));
-    ret = diskCacheManager_->Init(client, s3AdaptorOption);
-    ASSERT_EQ(0, ret);
-*/
+        EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+              .WillOnce(Return(0));
+        EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
+              .WillOnce(Return(0));
+        ret = diskCacheManager_->Init(client, s3AdaptorOption);
+        ASSERT_EQ(0, ret);
+    */
 }
 
 TEST_F(TestDiskCacheManager, CreateDir) {
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*wrapper, mkdir(_, _))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     int ret = diskCacheManager_->CreateDir();
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*wrapper, mkdir(_, _))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(0));
     EXPECT_CALL(*diskCacheWrite_, CreateIoDir("/mnt/test"))
         .WillOnce(Return(-1));
     ret = diskCacheManager_->CreateDir();
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(0));
     EXPECT_CALL(*diskCacheWrite_, CreateIoDir("/mnt/test"))
         .WillOnce(Return(-1));
     ret = diskCacheManager_->CreateDir();
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-          .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_)).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_)).WillOnce(Return(-1));
     ret = diskCacheManager_->CreateDir();
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-          .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-          .WillOnce(Return(0));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_)).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheRead_, CreateIoDir(_)).WillOnce(Return(0));
     ret = diskCacheManager_->CreateDir();
     ASSERT_EQ(0, ret);
 }
 
 TEST_F(TestDiskCacheManager, AsyncUploadEnqueue) {
     std::string objName = "test";
-    EXPECT_CALL(*diskCacheWrite_, AsyncUploadEnqueue(_))
-          .WillOnce(Return());
+    EXPECT_CALL(*diskCacheWrite_, AsyncUploadEnqueue(_)).WillOnce(Return());
     diskCacheManager_->AsyncUploadEnqueue(objName);
 }
 
 TEST_F(TestDiskCacheManager, ReadDiskFile) {
     std::string fileName = "test";
     uint64_t length = 10;
-    EXPECT_CALL(*diskCacheRead_, ReadDiskFile(_, _, _, _))
-          .WillOnce(Return(-1));
-    int ret = diskCacheManager_->ReadDiskFile(fileName,
-                                const_cast<char*>(fileName.c_str()),
-                                length, length);
+    EXPECT_CALL(*diskCacheRead_, ReadDiskFile(_, _, _, _)).WillOnce(Return(-1));
+    int ret = diskCacheManager_->ReadDiskFile(
+        fileName, const_cast<char *>(fileName.c_str()), length, length);
     ASSERT_EQ(-1, ret);
-    EXPECT_CALL(*diskCacheRead_, ReadDiskFile(_, _, _, _))
-          .WillOnce(Return(0));
-    ret = diskCacheManager_->ReadDiskFile(fileName,
-                            const_cast<char*>(fileName.c_str()),
-                            length, length);
+    EXPECT_CALL(*diskCacheRead_, ReadDiskFile(_, _, _, _)).WillOnce(Return(0));
+    ret = diskCacheManager_->ReadDiskFile(
+        fileName, const_cast<char *>(fileName.c_str()), length, length);
     ASSERT_EQ(0, ret);
 }
 
 TEST_F(TestDiskCacheManager, LinkWriteToRead) {
     std::string fileName = "test";
-    EXPECT_CALL(*diskCacheRead_, LinkWriteToRead(_, _, _))
-          .WillOnce(Return(-1));
-    int ret = diskCacheManager_->LinkWriteToRead(
-            fileName, fileName, fileName);
+    EXPECT_CALL(*diskCacheRead_, LinkWriteToRead(_, _, _)).WillOnce(Return(-1));
+    int ret = diskCacheManager_->LinkWriteToRead(fileName, fileName, fileName);
     ASSERT_EQ(-1, ret);
 
-    EXPECT_CALL(*diskCacheRead_, LinkWriteToRead(_, _, _))
-          .WillOnce(Return(0));
-    ret = diskCacheManager_->LinkWriteToRead(
-            fileName, fileName, fileName);
+    EXPECT_CALL(*diskCacheRead_, LinkWriteToRead(_, _, _)).WillOnce(Return(0));
+    ret = diskCacheManager_->LinkWriteToRead(fileName, fileName, fileName);
     ASSERT_EQ(0, ret);
 }
 
@@ -247,17 +219,15 @@ TEST_F(TestDiskCacheManager, WriteDiskFile) {
     std::string fileName = "test";
     uint64_t length = 10;
     EXPECT_CALL(*diskCacheWrite_, WriteDiskFile(_, _, _, _))
-          .WillOnce(Return(-1));
-    int ret = diskCacheManager_->WriteDiskFile(fileName,
-                                 const_cast<char*>(fileName.c_str()),
-                                 length, true);
+        .WillOnce(Return(-1));
+    int ret = diskCacheManager_->WriteDiskFile(
+        fileName, const_cast<char *>(fileName.c_str()), length, true);
     ASSERT_EQ(-1, ret);
 
     EXPECT_CALL(*diskCacheWrite_, WriteDiskFile(_, _, _, _))
-          .WillOnce(Return(0));
-    ret = diskCacheManager_->WriteDiskFile(fileName,
-                                 const_cast<char*>(fileName.c_str()),
-                                 length, true);
+        .WillOnce(Return(0));
+    ret = diskCacheManager_->WriteDiskFile(
+        fileName, const_cast<char *>(fileName.c_str()), length, true);
     ASSERT_EQ(0, ret);
 }
 
@@ -279,8 +249,7 @@ TEST_F(TestDiskCacheManager, IsCached) {
 }
 
 TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
-    EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull())).WillOnce(Return(-1));
     int ret = diskCacheManager_->SetDiskFsUsedRatio();
     ASSERT_EQ(-1, ret);
 
@@ -290,7 +259,7 @@ TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
     stat.f_bfree = 0;
     stat.f_bavail = 0;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-       .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
     ret = diskCacheManager_->SetDiskFsUsedRatio();
     ASSERT_EQ(101, ret);
 }
@@ -320,107 +289,114 @@ TEST_F(TestDiskCacheManager, TrimStop) {
 
 TEST_F(TestDiskCacheManager, TrimRun_1) {
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
-           .WillRepeatedly(Return(-1));
+        .WillRepeatedly(Return(-1));
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
     diskCacheManager_->TrimStop();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_2) {
-     struct statfs stat;
-     stat.f_frsize = 1;
-     stat.f_blocks = 1;
-     stat.f_bfree = 0;
-     stat.f_bavail = 0;
-     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-     stat.f_frsize = 1;
-     stat.f_blocks = 1;
-     stat.f_bfree = 2;
-     stat.f_bavail = 101;
-     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-     std::string buf = "test";
-     EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
-           .WillRepeatedly(Return(buf));
-     EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
-           .WillRepeatedly(Return(buf));
-     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .WillRepeatedly(Return(0));
-     diskCacheManager_->AddCache("test");
-     int ret = diskCacheManager_->TrimRun();
-     sleep(6);
-     diskCacheManager_->TrimStop();
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 2;
+    stat.f_bavail = 101;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    std::string buf = "test";
+    EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillRepeatedly(Return(0));
+    diskCacheManager_->AddCache("test");
+    int ret = diskCacheManager_->TrimRun();
+    sleep(6);
+    diskCacheManager_->TrimStop();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_4) {
-     struct statfs stat;
-     stat.f_frsize = 1;
-     stat.f_blocks = 1;
-     stat.f_bfree = 0;
-     stat.f_bavail = 0;
-     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-     stat.f_frsize = 1;
-     stat.f_blocks = 1;
-     stat.f_bfree = 2;
-     stat.f_bavail = 101;
-     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-     std::string buf = "test";
-     EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
-           .WillRepeatedly(Return(buf));
-     EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
-           .WillRepeatedly(Return(buf));
-     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 2;
+    stat.f_bavail = 101;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    std::string buf = "test";
+    EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
-     EXPECT_CALL(*wrapper, remove(_))
-        .WillRepeatedly(Return(-1));
-     diskCacheManager_->AddCache("test");
-     int ret = diskCacheManager_->TrimRun();
-     sleep(6);
-     diskCacheManager_->TrimStop();
+    EXPECT_CALL(*wrapper, remove(_)).WillRepeatedly(Return(-1));
+    diskCacheManager_->AddCache("test");
+    int ret = diskCacheManager_->TrimRun();
+    sleep(6);
+    diskCacheManager_->TrimStop();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_5) {
-     struct statfs stat;
-     stat.f_frsize = 1;
-     stat.f_blocks = 1;
-     stat.f_bfree = 0;
-     stat.f_bavail = 0;
-     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-     stat.f_frsize = 1;
-     stat.f_blocks = 1;
-     stat.f_bfree = 2;
-     stat.f_bavail = 101;
-     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 2;
+    stat.f_bavail = 101;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
 
-     std::string buf = "test";
-     EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
-           .WillRepeatedly(Return(buf));
-     EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
-           .WillRepeatedly(Return(buf));
-     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+    std::string buf = "test";
+    EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
-     EXPECT_CALL(*wrapper, remove(_))
-        .WillRepeatedly(Return(0));
-     diskCacheManager_->AddCache("test");
-     int ret = diskCacheManager_->TrimRun();
-     sleep(6);
-     diskCacheManager_->TrimStop();
+    EXPECT_CALL(*wrapper, remove(_)).WillRepeatedly(Return(0));
+    diskCacheManager_->AddCache("test");
+    int ret = diskCacheManager_->TrimRun();
+    sleep(6);
+    diskCacheManager_->TrimStop();
 }
 
 TEST_F(TestDiskCacheManager, WriteReadDirect) {
     std::string fileName = "test";
     std::string buf = "test";
 
-    EXPECT_CALL(*diskCacheRead_, WriteDiskFile(_, _, _))
-          .WillOnce(Return(0));
-    int ret = diskCacheManager_->WriteReadDirect(fileName,
-            const_cast<char*>(buf.c_str()), 10);
+    EXPECT_CALL(*diskCacheRead_, WriteDiskFile(_, _, _)).WillOnce(Return(0));
+    int ret = diskCacheManager_->WriteReadDirect(
+        fileName, const_cast<char *>(buf.c_str()), 10);
     ASSERT_EQ(0, ret);
+}
+
+TEST_F(TestDiskCacheManager, UploadWriteCacheByInode) {
+    EXPECT_CALL(*diskCacheWrite_, UploadFileByInode(_)).WillOnce(Return(0));
+    ASSERT_EQ(0, diskCacheManager_->UploadWriteCacheByInode("1"));
+}
+
+TEST_F(TestDiskCacheManager, ClearReadCache) {
+    std::list<std::string> files{"16777216"};
+    EXPECT_CALL(*diskCacheRead_, ClearReadCache(_)).WillOnce(Return(0));
+    ASSERT_EQ(0, diskCacheManager_->ClearReadCache(files));
 }
 
 }  // namespace client

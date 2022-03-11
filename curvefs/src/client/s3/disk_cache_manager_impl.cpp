@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <string>
 #include <cstdio>
+#include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/disk_cache_manager_impl.h"
@@ -100,7 +101,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
 }
 
 int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
-                    const char* buf, uint64_t length) {
+                                          const char *buf, uint64_t length) {
     if (diskCacheManager_->IsDiskCacheFull()) {
         LOG(ERROR) << "write disk file fail, disk full.";
         return -1;
@@ -157,6 +158,14 @@ int DiskCacheManagerImpl::UmountDiskCache() {
 
 void DiskCacheManagerImpl::InitMetrics(std::string fsName) {
     diskCacheManager_->InitMetrics(fsName);
+}
+
+int DiskCacheManagerImpl::UploadWriteCacheByInode(const std::string &inode) {
+    return diskCacheManager_->UploadWriteCacheByInode(inode);
+}
+
+int DiskCacheManagerImpl::ClearReadCache(const std::list<std::string> &files) {
+    return diskCacheManager_->ClearReadCache(files);
 }
 
 }  // namespace client

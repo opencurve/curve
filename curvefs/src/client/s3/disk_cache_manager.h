@@ -43,20 +43,21 @@ namespace curvefs {
 namespace client {
 
 using ::curve::common::LRUCache;
-using curvefs::common::PosixWrapper;
 using curve::common::ReadWriteThrottleParams;
 using ::curve::common::SglLRUCache;
-using curvefs::common::SysUtils;
-using curve::common::ThrottleParams;
 using curve::common::Throttle;
+using curve::common::ThrottleParams;
 using curvefs::client::common::S3ClientAdaptorOption;
+using curvefs::common::PosixWrapper;
+using curvefs::common::SysUtils;
 
 class DiskCacheManager {
  public:
     DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
-                    std::shared_ptr<DiskCacheWrite> cacheWrite,
-                    std::shared_ptr<DiskCacheRead> cacheRead);
-    virtual ~DiskCacheManager() {TrimStop();}
+                     std::shared_ptr<DiskCacheWrite> cacheWrite,
+                     std::shared_ptr<DiskCacheRead> cacheRead);
+    DiskCacheManager() {}
+    virtual ~DiskCacheManager() { TrimStop(); }
 
     virtual int Init(S3Client *client, const S3ClientAdaptorOption option);
 
@@ -73,18 +74,19 @@ class DiskCacheManager {
     std::string GetCacheReadFullDir();
     std::string GetCacheWriteFullDir();
 
-    int WriteDiskFile(const std::string fileName,
-                     const char* buf, uint64_t length,
-                     bool force = true);
+    int WriteDiskFile(const std::string fileName, const char *buf,
+                      uint64_t length, bool force = true);
     void AsyncUploadEnqueue(const std::string objName);
-    virtual int WriteReadDirect(const std::string fileName,
-                        const char* buf, uint64_t length);
-    int ReadDiskFile(const std::string name,
-                    char* buf, uint64_t offset, uint64_t length);
+    virtual int WriteReadDirect(const std::string fileName, const char *buf,
+                                uint64_t length);
+    int ReadDiskFile(const std::string name, char *buf, uint64_t offset,
+                     uint64_t length);
     int LinkWriteToRead(const std::string fileName,
-                       const std::string fullWriteDir,
-                       const std::string fullReadDir);
+                        const std::string fullWriteDir,
+                        const std::string fullReadDir);
     int UploadAllCacheWriteFile();
+    int UploadWriteCacheByInode(const std::string &inode);
+    int ClearReadCache(const std::list<std::string> &files);
     /**
      * @brief get use ratio of cache disk
      * @return the use ratio
@@ -105,26 +107,26 @@ class DiskCacheManager {
  private:
     /**
      * @brief add the used bytes of disk cache.
-    */
+     */
     void AddDiskUsedBytes(uint64_t length) {
         usedBytes_.fetch_add(length, std::memory_order_seq_cst);
         VLOG(9) << "add disk used size is: "
-          << usedBytes_.load(std::memory_order_seq_cst);
+                << usedBytes_.load(std::memory_order_seq_cst);
         return;
     }
     /**
      * @brief dec the used bytes of disk cache.
      * can not dec disk used bytes after file have been loaded,
      * because there are link in read cache
-    */
+     */
     void DecDiskUsedBytes(uint64_t length) {
-         int64_t usedBytes;
-         usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
-         assert(usedBytes >= 0);
-         (void) usedBytes;
-         VLOG(9) << "dec disk used size is: "
-            << usedBytes_.load(std::memory_order_seq_cst);
-         return;
+        int64_t usedBytes;
+        usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
+        assert(usedBytes >= 0);
+        (void)usedBytes;
+        VLOG(9) << "dec disk used size is: "
+                << usedBytes_.load(std::memory_order_seq_cst);
+        return;
     }
     void SetDiskInitUsedBytes();
     uint64_t GetDiskUsedbytes() {
@@ -134,7 +136,7 @@ class DiskCacheManager {
     void InitQosParam();
     /**
      * @brief trim cache func.
-    */
+     */
     void TrimCache();
 
     curve::common::Thread backEndThread_;

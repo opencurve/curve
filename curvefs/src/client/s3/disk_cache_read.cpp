@@ -28,6 +28,7 @@
 #include <dirent.h>
 
 #include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
 
@@ -103,50 +104,31 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
 }
 
 int DiskCacheRead::LoadAllCacheReadFile(
-  std::shared_ptr<SglLRUCache<std::string>> cachedObj) {
-    LOG(INFO) << "LoadAllCacheReadFile start. ";
-    std::string cacheReadPath;
-    bool ret;
-    DIR *cacheReadDir = NULL;
-    struct dirent *cacheReadDirent = NULL;
-    cacheReadPath = GetCacheIoFullDir();
-    ret = IsFileExist(cacheReadPath);
-    if (!ret) {
-        LOG(ERROR) << "cache read dir is not exist.";
-        return -1;
-    }
-    cacheReadDir = posixWrapper_->opendir(cacheReadPath.c_str());
-    if (!cacheReadDir) {
-        LOG(ERROR) << "opendir error， errno = " << errno;
-        return -1;
-    }
-    while ((cacheReadDirent = posixWrapper_->readdir(cacheReadDir)) != NULL) {
-        if ((!strncmp(cacheReadDirent->d_name, ".", 1)) ||
-            (!strncmp(cacheReadDirent->d_name, "..", 2)))
-            continue;
-        std::string fileName = cacheReadDirent->d_name;
-        cachedObj->Put(fileName);
-        VLOG(3) << "LoadAllCacheReadFile obj, name = " << fileName;
-    }
-    VLOG(6) << "close start.";
-    int rc = posixWrapper_->closedir(cacheReadDir);
-    if (rc < 0) {
-        LOG(ERROR) << "opendir error， errno = " << errno;
-        return rc;
+    std::shared_ptr<SglLRUCache<std::string>> cachedObj) {
+    std::set<std::string> tmp;
+    int ret = LoadAllCacheFile(&tmp);
+    if (ret < 0) {
+        LOG(ERROR)
+            << "LoadAllCacheReadFile, load all cacched read file fail ret = "
+            << ret;
+        return ret;
     }
 
-    LOG(INFO) << "LoadAllCacheReadFile success.";
-    return 0;
+    for (auto iter = tmp.begin(); iter != tmp.end(); iter++) {
+        cachedObj->Put(std::move(*iter));
+    }
+
+    return ret;
 }
 
-int DiskCacheRead::WriteDiskFile(const std::string fileName,
-                      const char* buf, uint64_t length) {
+int DiskCacheRead::WriteDiskFile(const std::string fileName, const char *buf,
+                                 uint64_t length) {
     VLOG(9) << "WriteDiskFile start. name = " << fileName
-                 << ", length = " << length;
+            << ", length = " << length;
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + fileName;
-    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR|O_CREAT, MODE);
+    fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno
                    << ", file = " << fileName;
@@ -167,8 +149,41 @@ int DiskCacheRead::WriteDiskFile(const std::string fileName,
     }
 
     VLOG(9) << "WriteDiskFile success. name = " << fileName
-              << ", length = " << length;
+            << ", length = " << length;
     return writeLen;
+}
+
+int DiskCacheRead::ClearReadCache(const std::list<std::string> &files) {
+    VLOG(1) << "ClearReadCache start";
+
+    std::string cachePath = GetCacheIoFullDir();
+    if (!IsFileExist(cachePath)) {
+        LOG(ERROR) << "ClearReadCache, cache read dir is not exist";
+        return -1;
+    }
+
+    int filemum = 0;
+    int ret = 0;
+    for (auto iter = files.begin(); iter != files.end(); iter++) {
+        std::string toDel = cachePath + "/" + *iter;
+        ret = posixWrapper_->remove(toDel.c_str());
+        if (ret < 0) {
+            if (IsFileExist(toDel)) {
+                 LOG(ERROR) << "ClearReadCache, remove " << toDel
+                       << " from read cache fail " << ret;
+                 return ret;
+            } else {
+                ret = 0;
+                VLOG(1) << "ClearReadCache, remove " << toDel
+                        << " from read cache not exist ";
+            }
+        }
+        VLOG(1) << "ClearReadCache, clear " << *iter << " ok";
+        filemum++;
+    }
+
+    VLOG(1) << "ClearReadCache end, clear " << filemum << " read cache files";
+    return ret;
 }
 
 }  // namespace client

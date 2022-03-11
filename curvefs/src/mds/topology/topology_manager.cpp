@@ -61,14 +61,26 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
         });
     if (1 == list.size()) {
         // report duplicated register (already a metaserver with same ip and
-        // port in the cluster) to promise the idempotence of the interface
-        MetaServer ms;
-        topology_->GetMetaServer(list[0], &ms);
-        response->set_statuscode(TopoStatusCode::TOPO_OK);
-        response->set_metaserverid(ms.GetId());
-        response->set_token(ms.GetToken());
-        LOG(WARNING) << "Received duplicated registMetaServer message, "
-                     << "hostip = " << hostIp << ", port = " << port;
+        // port in the cluster) to promise the idempotence of the interface.
+        // If metaserver has copyset, return TOPO_METASERVER_EXIST;
+        // else return OK
+        auto copysetList = topology_->GetCopySetsInMetaServer(list[0]);
+        if (copysetList.empty()) {
+            MetaServer ms;
+            topology_->GetMetaServer(list[0], &ms);
+            response->set_statuscode(TopoStatusCode::TOPO_OK);
+            response->set_metaserverid(ms.GetId());
+            response->set_token(ms.GetToken());
+            LOG(WARNING) << "Received duplicated registMetaServer message, "
+                         << "metaserver is empty, hostip = "
+                         << hostIp << ", port = " << port;
+        } else {
+            response->set_statuscode(TopoStatusCode::TOPO_METASERVER_EXIST);
+            LOG(ERROR) << "Received duplicated registMetaServer message, "
+                       << "metaserver is not empty, hostip = "
+                       << hostIp << ", port = " << port;
+        }
+
         return;
     } else if (list.size() > 1) {
         // more than one metaserver with same ip:port found, internal error

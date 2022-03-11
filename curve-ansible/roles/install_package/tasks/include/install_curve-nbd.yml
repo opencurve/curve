@@ -73,5 +73,5 @@
             file_mode: 0755
           include_tasks: copy_file_to_remote.yml
         - name: enable service
-          shell: sudo systemctl daemon-reload && sudo systemctl enable map_curve_disk.service && sudo systemctl start map_curve_disk.service
+          shell: sudo systemctl daemon-reload && sudo systemctl enable map_curve_disk.service
   when: not install_with_deb | bool

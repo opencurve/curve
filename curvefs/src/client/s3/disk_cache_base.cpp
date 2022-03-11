@@ -85,5 +85,39 @@ std::string DiskCacheBase::GetCacheIoFullDir() {
     return fullPath;
 }
 
+int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
+    std::string cachePath = GetCacheIoFullDir();
+    bool ret = IsFileExist(cachePath);
+    if (!ret) {
+        LOG(ERROR) << "LoadAllCacheFile, cache read dir is not exist.";
+        return -1;
+    }
+
+    LOG(INFO) << "LoadAllCacheFile start, dir: " << cachePath;
+    DIR *cacheDir = NULL;
+    struct dirent *cacheDirent = NULL;
+    cacheDir = posixWrapper_->opendir(cachePath.c_str());
+    if (!cacheDir) {
+        LOG(ERROR) << "LoadAllCacheFile, opendir error, errno = " << errno;
+        return -1;
+    }
+    while ((cacheDirent = posixWrapper_->readdir(cacheDir)) != NULL) {
+        if ((!strncmp(cacheDirent->d_name, ".", 1)) ||
+            (!strncmp(cacheDirent->d_name, "..", 2)))
+            continue;
+        std::string fileName = cacheDirent->d_name;
+        cachedObj->emplace(fileName);
+        VLOG(3) << "LoadAllCacheFile obj, name = " << fileName;
+    }
+
+    int rc = posixWrapper_->closedir(cacheDir);
+    if (rc < 0) {
+        LOG(ERROR) << "LoadAllCacheFile, opendir error, errno = " << errno;
+        return rc;
+    }
+    LOG(INFO) << "LoadAllCacheReadFile end, dir: " << cachePath;
+    return 0;
+}
+
 }  // namespace client
 }  // namespace curvefs
