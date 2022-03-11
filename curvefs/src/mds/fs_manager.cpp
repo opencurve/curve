@@ -196,8 +196,7 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
         s3Adapter_->Reinit(s3AdapterOption_);
         if (!s3Adapter_->BucketExist()) {
             LOG(ERROR) << "CreateFs " << fsName
-                       << " error, s3info is not available, s3info is "
-                       << s3Info.ShortDebugString();
+                       << " error, s3info is not available!";
             return FSStatusCode::S3_INFO_ERROR;
         }
     }

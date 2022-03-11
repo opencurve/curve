@@ -42,7 +42,7 @@ int CurvefsTool::Run() {
 }
 
 void CurvefsTool::PrintError() {
-    if (errorOutput_.tellg() > 0) {
+    if (errorOutput_.tellp() > 0) {
         // only show if errorOutput is not empty
         std::cerr << "[error]" << std::endl;
         std::cerr << errorOutput_.str();
