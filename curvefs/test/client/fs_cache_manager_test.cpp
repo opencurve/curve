@@ -59,7 +59,7 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
 
         for (size_t i = 0; i < maxReadCacheByte / smallDataCacheByte; ++i) {
             manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
-                                                    mockCacheMgr.get(), 0,
+                                                    mockCacheMgr, 0,
                                                     smallDataCacheByte, buf),
                         &outIter);
         }
@@ -73,7 +73,7 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
         manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
-                                                mockCacheMgr.get(), 0,
+                                                mockCacheMgr, 0,
                                                 dataCacheByte, buf),
                     &outIter);
 
@@ -89,7 +89,7 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
 
         manager.Set(std::make_shared<DataCache>(s3ClientAdaptor_,
-                                                mockCacheMgr.get(), 0,
+                                                mockCacheMgr, 0,
                                                 dataCacheByte, buf),
                     &outIter);
         counter.Wait();
