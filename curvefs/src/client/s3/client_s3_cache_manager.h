@@ -98,7 +98,7 @@ using PageDataMap = std::map<uint64_t, PageData *>;
 class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
-              ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
+              ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
               uint64_t len, const char *data);
     virtual ~DataCache() {
         auto iter = dataMap_.begin();
@@ -171,7 +171,7 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
 
  private:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
-    ChunkCacheManager* chunkCacheManager_;
+    ChunkCacheManagerPtr chunkCacheManager_;
     uint64_t chunkPos_;  // useful chunkPos
     uint64_t len_;  // useful len
     uint64_t actualChunkPos_;  // after alignment the actual chunkPos
@@ -203,7 +203,8 @@ class S3ReadResponse {
     uint64_t len_;
 };
 
-class ChunkCacheManager {
+class ChunkCacheManager
+    : public std::enable_shared_from_this<ChunkCacheManager> {
  public:
     ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl *s3ClientAdaptor)
         : index_(index), s3ClientAdaptor_(s3ClientAdaptor) {}

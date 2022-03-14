@@ -527,7 +527,7 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                         << ", len: " << (*responses)[i].GetBufLen();
             }
             DataCachePtr dataCache = std::make_shared<DataCache>(
-            s3ClientAdaptor_, chunkCacheManager.get(), chunkPos,
+            s3ClientAdaptor_, chunkCacheManager, chunkPos,
             (*responses)[i].GetBufLen(), (*responses)[i].GetDataBuf());
             chunkCacheManager->AddReadDataCache(dataCache);
             i++;
@@ -1212,11 +1212,10 @@ DataCachePtr ChunkCacheManager::FindWriteableDataCache(
 void ChunkCacheManager::WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                                           uint32_t chunkPos, uint32_t len,
                                           const char *data) {
-    DataCachePtr dataCache =
-        std::make_shared<DataCache>(s3ClientAdaptor, this, chunkPos, len, data);
+    DataCachePtr dataCache = std::make_shared<DataCache>(
+        s3ClientAdaptor, this->shared_from_this(), chunkPos, len, data);
     VLOG(9) << "WriteNewDataCache chunkPos:" << chunkPos << ", len:" << len
-            << ", new len:" << dataCache->GetLen()
-            << ",chunkIndex:" << index_;
+            << ", new len:" << dataCache->GetLen() << ",chunkIndex:" << index_;
     WriteLockGuard writeLockGuard(rwLockWrite_);
 
     auto ret = dataWCacheMap_.emplace(chunkPos, dataCache);
@@ -1426,7 +1425,7 @@ void ChunkCacheManager::UpdateWriteCacheMap(uint64_t oldChunkPos,
 }
 
 DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
-                     ChunkCacheManager *chunkCacheManager, uint64_t chunkPos,
+                     ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
                      uint64_t len, const char *data)
     : s3ClientAdaptor_(s3ClientAdaptor), chunkCacheManager_(chunkCacheManager),
       dirty_(true), delete_(false), inReadCache_(false) {
