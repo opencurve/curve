@@ -44,7 +44,9 @@ bool MemoryStorage::GetStatistics(StorageStatistics* statistics) {
     if (!GetProcMemory(&vmRSS)) {
         return false;
     }
-    statistics->memoryUsageBytes = vmRSS;
+
+    // vmRSS is KB, change it to Byte
+    statistics->memoryUsageBytes = vmRSS * 1024;
 
     // disk usage bytes
     uint64_t total, available;

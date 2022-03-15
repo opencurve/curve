@@ -178,7 +178,7 @@ TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsOnePool) {
     ASSERT_EQ(2, gMetaServerMetrics[0x41]->scatterWidth.get_value());
     ASSERT_EQ(1, gMetaServerMetrics[0x41]->copysetNum.get_value());
     ASSERT_EQ(0, gMetaServerMetrics[0x41]->leaderNum.get_value());
-    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x41]->diskCapacity.get_value());
+    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x41]->diskThreshold.get_value());
     ASSERT_EQ(10 * 1024, gMetaServerMetrics[0x41]->diskUsed.get_value());
     ASSERT_EQ(20 * 1024, gMetaServerMetrics[0x41]->memoryUsed.get_value());
     ASSERT_EQ(3, gMetaServerMetrics[0x41]->partitionNum.get_value());
@@ -186,7 +186,7 @@ TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsOnePool) {
     ASSERT_EQ(2, gMetaServerMetrics[0x42]->scatterWidth.get_value());
     ASSERT_EQ(1, gMetaServerMetrics[0x42]->copysetNum.get_value());
     ASSERT_EQ(0, gMetaServerMetrics[0x42]->leaderNum.get_value());
-    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x42]->diskCapacity.get_value());
+    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x42]->diskThreshold.get_value());
     ASSERT_EQ(10 * 1024, gMetaServerMetrics[0x42]->diskUsed.get_value());
     ASSERT_EQ(20 * 1024, gMetaServerMetrics[0x42]->memoryUsed.get_value());
     ASSERT_EQ(3, gMetaServerMetrics[0x42]->partitionNum.get_value());
@@ -194,7 +194,7 @@ TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsOnePool) {
     ASSERT_EQ(2, gMetaServerMetrics[0x43]->scatterWidth.get_value());
     ASSERT_EQ(1, gMetaServerMetrics[0x43]->copysetNum.get_value());
     ASSERT_EQ(0, gMetaServerMetrics[0x43]->leaderNum.get_value());
-    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x43]->diskCapacity.get_value());
+    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x43]->diskThreshold.get_value());
     ASSERT_EQ(10 * 1024, gMetaServerMetrics[0x43]->diskUsed.get_value());
     ASSERT_EQ(20 * 1024, gMetaServerMetrics[0x43]->memoryUsed.get_value());
     ASSERT_EQ(3, gMetaServerMetrics[0x43]->partitionNum.get_value());
@@ -202,7 +202,7 @@ TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsOnePool) {
     ASSERT_EQ(1, gPoolMetrics.size());
     ASSERT_EQ(3, gPoolMetrics[poolId]->metaServerNum.get_value());
     ASSERT_EQ(1, gPoolMetrics[poolId]->copysetNum.get_value());
-    ASSERT_EQ(100 * 1024 * 3, gPoolMetrics[poolId]->diskCapacity.get_value());
+    ASSERT_EQ(100 * 1024 * 3, gPoolMetrics[poolId]->diskThreshold.get_value());
     ASSERT_EQ(10 * 1024 * 3, gPoolMetrics[poolId]->diskUsed.get_value());
     ASSERT_EQ(30, gPoolMetrics[poolId]->inodeNum.get_value());
     ASSERT_EQ(300, gPoolMetrics[poolId]->dentryNum.get_value());
