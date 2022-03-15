@@ -46,38 +46,37 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
         MetaServer ms;
         if (topo_->GetMetaServer(msId, &ms)) {
-            it->second->diskCapacity.set_value(
+            it->second->diskThreshold.set_value(
                 ms.GetMetaServerSpace().GetDiskThreshold());
             it->second->diskUsed.set_value(
                 ms.GetMetaServerSpace().GetDiskUsed());
+            it->second->diskMinRequire.set_value(
+                ms.GetMetaServerSpace().GetDiskMinRequire());
+            it->second->memoryThreshold.set_value(
+                ms.GetMetaServerSpace().GetMemoryThreshold());
             it->second->memoryUsed.set_value(
                 ms.GetMetaServerSpace().GetMemoryUsed());
+            it->second->memoryMinRequire.set_value(
+                ms.GetMetaServerSpace().GetMemoryMinRequire());
         }
     }
 
     // process pool
     std::vector<PoolIdType> pools = topo_->GetPoolInCluster();
     for (auto pid : pools) {
+        // prepare pool metrics
         Pool pool;
         if (!topo_->GetPool(pid, &pool)) {
             continue;
         }
         std::string poolName = pool.GetName();
-
-        std::vector<CopySetInfo> copysets = topo_->GetCopySetInfosInPool(pid);
-
-        std::map<MetaServerIdType, MetaServerMetricInfo> metaServerMetricInfo;
-        CalcMetaServerMetrics(copysets, &metaServerMetricInfo);
-
         auto it = gPoolMetrics.find(pid);
         if (it == gPoolMetrics.end()) {
             PoolMetricPtr lptr(new PoolMetric(poolName));
             it = gPoolMetrics.emplace(pid, std::move(lptr)).first;
         }
 
-        it->second->metaServerNum.set_value(metaServerMetricInfo.size());
-        it->second->copysetNum.set_value(copysets.size());
-
+        // update partitionNum, inodeNum, dentryNum
         uint64_t totalInodeNum = 0;
         uint64_t totalDentryNum = 0;
         std::list<Partition> partitions = topo_->GetPartitionInfosInPool(pid);
@@ -89,10 +88,13 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         it->second->dentryNum.set_value(totalDentryNum);
         it->second->partitionNum.set_value(partitions.size());
 
-        uint64_t totalDiskCapacity = 0;
-        uint64_t totalDiskUsed = 0;
+        // update copyset
+        std::vector<CopySetInfo> copysets = topo_->GetCopySetInfosInPool(pid);
+        it->second->copysetNum.set_value(copysets.size());
 
-        // process the metric of metaserver.
+        // process the metric of metaserver
+        std::map<MetaServerIdType, MetaServerMetricInfo> metaServerMetricInfo;
+        CalcMetaServerMetrics(copysets, &metaServerMetricInfo);
         for (const auto &cm : metaServerMetricInfo) {
             auto ix = gMetaServerMetrics.find(cm.first);
             if (ix == gMetaServerMetrics.end()) {
@@ -104,13 +106,32 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             ix->second->copysetNum.set_value(cm.second.copysetNum);
             ix->second->leaderNum.set_value(cm.second.leaderNum);
             ix->second->partitionNum.set_value(cm.second.partitionNum);
-
-            totalDiskCapacity += ix->second->diskCapacity.get_value();
-            totalDiskUsed += ix->second->diskUsed.get_value();
         }
 
-        it->second->diskCapacity.set_value(totalDiskCapacity);
+        // update pool resource usage
+        uint64_t totalDiskThreshold = 0;
+        uint64_t totalDiskUsed = 0;
+        uint64_t totalMemoryThreshold = 0;
+        uint64_t totalMemoryUsed = 0;
+        auto msIdInPool = topo_->GetMetaServerInPool(pid);
+        for (auto msId : msIdInPool) {
+            auto ix = gMetaServerMetrics.find(msId);
+            if (ix == gMetaServerMetrics.end()) {
+                MetaServerMetricPtr cptr(new MetaServerMetric(msId));
+                ix = gMetaServerMetrics.emplace(msId, std::move(cptr)).first;
+            }
+
+            totalDiskThreshold += ix->second->diskThreshold.get_value();
+            totalDiskUsed += ix->second->diskUsed.get_value();
+            totalMemoryThreshold += ix->second->memoryThreshold.get_value();
+            totalMemoryUsed += ix->second->memoryUsed.get_value();
+        }
+
+        it->second->metaServerNum.set_value(msIdInPool.size());
+        it->second->diskThreshold.set_value(totalDiskThreshold);
         it->second->diskUsed.set_value(totalDiskUsed);
+        it->second->memoryThreshold.set_value(totalMemoryThreshold);
+        it->second->memoryUsed.set_value(totalMemoryUsed);
     }
 
     // remove pool metrics that no longer exist
