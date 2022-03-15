@@ -223,25 +223,30 @@ inject kill all etcd
 
 check cp data consistency
     [Tags]    P0    base    first release   failover  
-#    checksum data
+    checksum data
     check fuse mount success
     wait op finish
 
 check mv data consistency
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release   failover 
     mv data
     checksum mv data
     check fuse mount success
+
+check cto file md5
+    [Tags]    P0    base    first release   failover
+    stop cto file md5check
 
 check umount date consistency
     [Tags]    P1    base    first release   failover
     sleep  60
     get test dir file md5
     umount test dir   test2
-    wait fuse exit   test2
+    wait fuse exit   failover/test2
     mount test dir   test2
     sleep  60
     check test dir file md5
+    check cto dir file md5  test5
 #    [Teardown]   mount test dir
 
 *** Keywords ***
@@ -256,9 +261,10 @@ init failover cluster
      mount test dir
      sleep  10
      check fuse mount success
-#     write check data
-#     cp check data
+     write check data
+     cp check data
      start fs op test
+     mount fuse cto test 
 
 clean log
      clean fs kernel log
@@ -270,6 +276,11 @@ start fs op test
      loop mount umount
      sleep  60
 
+mount fuse cto test 
+     mount test dir   test1  test4
+     mount test dir   test2  test5
+     start cto file md5check
+     
 clean failover env
      check log
 #     destroy curvefs
