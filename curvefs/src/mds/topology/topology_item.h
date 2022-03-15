@@ -99,8 +99,8 @@ class Pool {
 
     uint64_t GetCreateTime() const { return createTime_; }
 
-    void SetDiskThreshold(uint64_t diskCapacity) {
-        diskCapacity_ = diskCapacity;
+    void SetDiskThreshold(uint64_t diskThreshold) {
+        diskCapacity_ = diskThreshold;
     }
     uint64_t GetDiskThreshold() const { return diskCapacity_; }
 
@@ -269,8 +269,6 @@ class MetaServerSpace {
         memoryThresholdByte_ = status.memorythresholdbyte();
         memoryCopySetMinRequireByte_ = status.memorycopysetminrequirebyte();
         memoryUsedByte_ = status.memoryusedbyte();
-        LOG(INFO) << "Receive space status from metaserver: "
-                  << status.ShortDebugString();
     }
 
     double GetResourceUseRatioPercent() {
