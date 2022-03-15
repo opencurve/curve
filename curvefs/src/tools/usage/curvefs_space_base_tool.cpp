@@ -26,9 +26,10 @@ namespace curvefs {
 namespace tools {
 namespace usage {
 
-const uint64_t TB = 1024 * 1024 * 1024;
-const uint64_t GB = 1024 * 1024;
-const uint64_t MB = 1024;
+constexpr uint64_t kKiB = 1024ULL;
+constexpr uint64_t kMiB = 1024ULL * kKiB;
+constexpr uint64_t kGiB = 1024ULL * kMiB;
+constexpr uint64_t kTiB = 1024ULL * kGiB;
 
 std::string ToReadableByte(uint64_t byte) {
     // Convert byte KB to a appropriate magnitude
@@ -36,18 +37,20 @@ std::string ToReadableByte(uint64_t byte) {
     std::stringstream ss;
     ss.setf(std::ios::fixed);
     ss.precision(2);  // 2 decimal places
-    if (byte >= 1 * TB) {
+    if (byte >= 1 * kTiB) {
         // TB
-        ss << double(byte) / double(TB) << " TB";
-    } else if (byte >= 1 * GB) {
+        ss << double(byte) / double(kTiB) << " TiB";
+    } else if (byte >= 1 * kGiB) {
         // GB
-        ss << double(byte) / double(GB) << " GB";
-    } else if (byte >= 1024) {
+        ss << double(byte) / double(kGiB) << " GiB";
+    } else if (byte >= 1 * kMiB) {
         // MB
-        ss << double(byte) / double(MB) << " MB";
-    } else {
+        ss << double(byte) / double(kMiB) << " MiB";
+    } else if (byte >= 1 * kKiB) {
         // KB
-        ss << byte << " KB";
+        ss << double(byte) / double(kKiB) << " KiB";
+    } else {
+        ss << double(byte)  << " Byte";
     }
     return ss.str();
 }
