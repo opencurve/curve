@@ -50,12 +50,18 @@ struct MetaServerMetric {
     bvar::Status<uint32_t> copysetNum;
     // leader numbers
     bvar::Status<uint32_t> leaderNum;
-    // disk capacity
-    bvar::Status<uint64_t> diskCapacity;
-    // disk utilization
+    // disk threshold, Byte
+    bvar::Status<uint64_t> diskThreshold;
+    // disk utilization, Byte
     bvar::Status<uint64_t> diskUsed;
-    // memory utilization
+    // disk copyset min required, Byte
+    bvar::Status<uint64_t> diskMinRequire;
+    // memory threshold, Byte
+    bvar::Status<uint64_t> memoryThreshold;
+    // memory utilization, Byte
     bvar::Status<uint64_t> memoryUsed;
+    // memory copyset min required, Byte
+    bvar::Status<uint64_t> memoryMinRequire;
     // partition numbers
     bvar::Status<uint32_t> partitionNum;
 
@@ -66,12 +72,18 @@ struct MetaServerMetric {
                      std::to_string(msId) + "_copyset_num", 0),
           leaderNum(kTopologyMetaServerMetricPrefix,
                     std::to_string(msId) + "_leader_num", 0),
-          diskCapacity(kTopologyMetaServerMetricPrefix,
-                       std::to_string(msId) + "_disk_capacity", 0),
+          diskThreshold(kTopologyMetaServerMetricPrefix,
+                        std::to_string(msId) + "_disk_threshold", 0),
           diskUsed(kTopologyMetaServerMetricPrefix,
                    std::to_string(msId) + "_disk_used", 0),
+          diskMinRequire(kTopologyMetaServerMetricPrefix,
+                         std::to_string(msId) + "_disk_min_require", 0),
+          memoryThreshold(kTopologyMetaServerMetricPrefix,
+                          std::to_string(msId) + "_memory_threshold", 0),
           memoryUsed(kTopologyMetaServerMetricPrefix,
                      std::to_string(msId) + "_memory_used", 0),
+          memoryMinRequire(kTopologyMetaServerMetricPrefix,
+                           std::to_string(msId) + "_memory_min_require", 0),
           partitionNum(kTopologyMetaServerMetricPrefix,
                        std::to_string(msId) + "_partition_num", 0) {}
 };
@@ -82,8 +94,10 @@ struct PoolMetric {
     const std::string kTopologyPoolMetricPrefix = "topology_metric_pool_";
     bvar::Status<uint32_t> metaServerNum;
     bvar::Status<uint32_t> copysetNum;
-    bvar::Status<uint64_t> diskCapacity;
+    bvar::Status<uint64_t> diskThreshold;
     bvar::Status<uint64_t> diskUsed;
+    bvar::Status<uint64_t> memoryThreshold;
+    bvar::Status<uint64_t> memoryUsed;
     bvar::Status<uint64_t> inodeNum;
     bvar::Status<uint64_t> dentryNum;
     bvar::Status<uint64_t> partitionNum;
@@ -93,9 +107,12 @@ struct PoolMetric {
                         0),
           copysetNum(kTopologyPoolMetricPrefix, poolName + "_copyset_num", 0),
 
-          diskCapacity(kTopologyPoolMetricPrefix, poolName + "_disk_capacity",
-                       0),
+          diskThreshold(kTopologyPoolMetricPrefix, poolName + "_disk_threshold",
+                        0),
           diskUsed(kTopologyPoolMetricPrefix, poolName + "_disk_used", 0),
+          memoryThreshold(kTopologyPoolMetricPrefix,
+                          poolName + "_memory_threshold", 0),
+          memoryUsed(kTopologyPoolMetricPrefix, poolName + "_memory_used", 0),
           inodeNum(kTopologyPoolMetricPrefix, poolName + "_inode_num", 0),
           dentryNum(kTopologyPoolMetricPrefix, poolName + "_dentry_num", 0),
           partitionNum(kTopologyPoolMetricPrefix, poolName + "_partition_num",

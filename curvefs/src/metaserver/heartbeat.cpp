@@ -266,10 +266,19 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
     VLOG(6) << "Heartbeat request: Metaserver ID: " << request.metaserverid()
              << ", IP = " << request.ip() << ", port = " << request.port()
              << ", copyset count = " << request.copysetcount()
-             << ", leader count = " << request.leadercount();
-            //  << ", metadataSpaceTotal = " << request.metadataspacetotal()
-            //  << " KB, metadataSpaceUsed = " << request.metadataspaceused()
-            //  << " KB, memoryUsed = " << request.memoryused() << " KB";
+             << ", leader count = " << request.leadercount()
+             << ", diskThresholdByte = "
+             << request.spacestatus().diskthresholdbyte()
+             << ", diskCopysetMinRequireByte = "
+             << request.spacestatus().diskcopysetminrequirebyte()
+             << ", diskUsedByte = "
+             << request.spacestatus().diskusedbyte()
+             << ", memoryThresholdByte = "
+             << request.spacestatus().memorythresholdbyte()
+             << ", memoryCopySetMinRequireByte = "
+             << request.spacestatus().memorycopysetminrequirebyte()
+             << ", memoryUsedByte = " << request.spacestatus().memoryusedbyte();
+
     for (int i = 0; i < request.copysetinfos_size(); i++) {
         const curvefs::mds::heartbeat::CopySetInfo &info =
             request.copysetinfos(i);
