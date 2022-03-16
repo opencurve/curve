@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <utility>
+
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/proto/metaserver.pb.h"
 
@@ -41,7 +42,23 @@ MetaStatusCode ConvertToMetaStatusCode(int retcode) {
 
 int TaskExecutor::DoRPCTask() {
     task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
+    return DoRPCTaskInner(nullptr);
+}
 
+void TaskExecutor::DoAsyncRPCTask(TaskExecutorDone *done) {
+    brpc::ClosureGuard done_guard(done);
+
+    task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
+    int ret = DoRPCTaskInner(done);
+    if (ret < 0) {
+        done->SetRetCode(ret);
+        return;
+    }
+    done_guard.release();
+    return;
+}
+
+int TaskExecutor::DoRPCTaskInner(TaskExecutorDone *done) {
     int retCode = -1;
     bool needRetry = true;
 
@@ -68,47 +85,13 @@ int TaskExecutor::DoRPCTask() {
             continue;
         }
 
-        retCode = ExcuteTask(channel.get(), nullptr);
+        retCode = ExcuteTask(channel.get(), done);
         needRetry = OnReturn(retCode);
 
         if (needRetry) {
             PreProcessBeforeRetry(retCode);
         }
     } while (needRetry);
-
-    return retCode;
-}
-
-int TaskExecutor::DoAsyncRPCTask(TaskExecutorDone *done) {
-    task_->rpcTimeoutMs = opt_.rpcTimeoutMS;
-
-    int retCode = -1;
-
-    do {
-        if (task_->retryTimes++ > opt_.maxRetry) {
-            LOG(ERROR) << task_->TaskContextStr()
-                       << " retry times exceeds the limit";
-            break;
-        }
-
-        if (!HasValidTarget() && !GetTarget()) {
-            LOG(WARNING) << "get target fail for " << task_->TaskContextStr()
-                         << ", sleep and retry";
-            bthread_usleep(opt_.retryIntervalUS);
-            continue;
-        }
-
-        auto channel = channelManager_->GetOrCreateChannel(
-            task_->target.metaServerID, task_->target.endPoint);
-        if (!channel) {
-            LOG(WARNING) << "GetOrCreateChannel fail for "
-                         << task_->TaskContextStr() << ", sleep and retry";
-            bthread_usleep(opt_.retryIntervalUS);
-            continue;
-        }
-        retCode = ExcuteTask(channel.get(), done);
-        break;
-    } while (true);
 
     return retCode;
 }
@@ -304,7 +287,7 @@ void TaskExecutorDone::Run() {
     needRetry = excutor_->OnReturn(code_);
     if (needRetry) {
         excutor_->PreProcessBeforeRetry(code_);
-        code_ = excutor_->DoAsyncRPCTask(this);
+        code_ = excutor_->DoRPCTaskInner(this);
         if (code_ < 0) {
             done_->SetMetaStatusCode(ConvertToMetaStatusCode(code_));
             return;

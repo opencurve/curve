@@ -140,7 +140,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
-        VLOG(6) << "GetDentry success, request: " << request.DebugString()
+        VLOG(6) << "GetDentry done, request: " << request.DebugString()
                 << "response: " << response.ShortDebugString();
         return ret;
     };
@@ -208,7 +208,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
-        VLOG(6) << "ListDentry success, request: " << request.DebugString()
+        VLOG(6) << "ListDentry done, request: " << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
     };
@@ -328,7 +328,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
             return -1;
         }
 
-        VLOG(6) << "DeleteDentry success, request: " << request.DebugString()
+        VLOG(6) << "DeleteDentry done, request: " << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
     };
@@ -377,7 +377,7 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
             return -1;
         }
 
-        VLOG(6) << "PrepareRenameTx success, request: " << request.DebugString()
+        VLOG(6) << "PrepareRenameTx done, request: " << request.DebugString()
                 << "response: " << response.DebugString();
         return rc;
     };
@@ -681,7 +681,7 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
             return -1;
         }
 
-        VLOG(6) << "UpdateInode success, request: " << request.DebugString()
+        VLOG(6) << "UpdateInode done, request: " << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
     };
@@ -736,7 +736,7 @@ void UpdateInodeRpcDone::Run() {
         return;
     }
 
-    VLOG(6) << "UpdateInode success, "
+    VLOG(6) << "UpdateInode done, "
             << "response: " << response.DebugString();
     done_->SetRetCode(ret);
     return;
@@ -784,13 +784,7 @@ void MetaServerClientImpl::UpdateInodeAsync(
         metaCache_, channelManager_, taskCtx);
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
-    brpc::ClosureGuard taskDone_guard(taskDone);
-    int ret = excutor->DoAsyncRPCTask(taskDone);
-    if (ret < 0) {
-        taskDone->SetRetCode(ret);
-        return;
-    }
-    taskDone_guard.release();
+    excutor->DoAsyncRPCTask(taskDone);
 }
 
 void MetaServerClientImpl::UpdateXattrAsync(const Inode &inode,
@@ -822,13 +816,7 @@ void MetaServerClientImpl::UpdateXattrAsync(const Inode &inode,
         metaCache_, channelManager_, taskCtx);
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
-    brpc::ClosureGuard taskDone_guard(taskDone);
-    int ret = excutor->DoAsyncRPCTask(taskDone);
-    if (ret < 0) {
-        taskDone->SetRetCode(ret);
-        return;
-    }
-    taskDone_guard.release();
+    excutor->DoAsyncRPCTask(taskDone);
 }
 
 MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
@@ -884,7 +872,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
                          << response.DebugString();
             return -1;
         }
-        VLOG(6) << "GetOrModifyS3ChunkInfo success, request: "
+        VLOG(6) << "GetOrModifyS3ChunkInfo done, request: "
                 << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
@@ -946,7 +934,7 @@ void GetOrModifyS3ChunkInfoRpcDone::Run() {
         done_->SetRetCode(-1);
         return;
     }
-    VLOG(6) << "GetOrModifyS3ChunkInfo success, response: "
+    VLOG(6) << "GetOrModifyS3ChunkInfo done, response: "
             << response.DebugString();
     done_->SetRetCode(ret);
     return;
@@ -984,13 +972,7 @@ void MetaServerClientImpl::GetOrModifyS3ChunkInfoAsync(
         metaCache_, channelManager_, taskCtx);
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
-    brpc::ClosureGuard taskDone_guard(taskDone);
-    int ret = excutor->DoAsyncRPCTask(taskDone);
-    if (ret < 0) {
-        taskDone->SetRetCode(ret);
-        return;
-    }
-    taskDone_guard.release();
+    excutor->DoAsyncRPCTask(taskDone);
 }
 
 MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
@@ -1044,7 +1026,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
             return -1;
         }
 
-        VLOG(6) << "CreateInode success, request: " << request.DebugString()
+        VLOG(6) << "CreateInode done, request: " << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
     };
@@ -1094,7 +1076,7 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
             return -1;
         }
 
-        VLOG(6) << "DeleteInode success, request: " << request.DebugString()
+        VLOG(6) << "DeleteInode done, request: " << request.DebugString()
                 << "response: " << response.DebugString();
         return ret;
     };
