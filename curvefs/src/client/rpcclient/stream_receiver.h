@@ -72,12 +72,12 @@ class StreamReceiver : public brpc::StreamInputHandler {
     void WaitFinished();
 
  private:
+    ReceiveCallback callback_;
+    brpc::StreamId streamId_;
+    StreamStatus status_;
     bool finished_;
     std::mutex mtx_;
     std::condition_variable cond_;
-    brpc::StreamId streamId_;
-    ReceiveCallback callback_;
-    StreamStatus status_;
 };
 
 }  // namespace rpcclient

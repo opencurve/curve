@@ -28,8 +28,8 @@ namespace rpcclient {
 
 StreamReceiver::StreamReceiver()
     : streamId_(-1),
-      finished_(true),
-      status_(StreamStatus::RECEIVE_EOF) {}
+      status_(StreamStatus::RECEIVE_EOF),
+      finished_(true) {}
 
 bool StreamReceiver::Open(brpc::Controller* cntl,
                           StreamOptions options,
@@ -42,9 +42,9 @@ bool StreamReceiver::Open(brpc::Controller* cntl,
         return false;
     }
 
-    finished_ = false;
     callback_ = callback;
     status_ = StreamStatus::RECEIVE_OK;
+    finished_ = false;
     return true;
 }
 

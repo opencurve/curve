@@ -26,12 +26,10 @@
 #include <vector>
 
 #include "src/common/string_util.h"
-
 #include "curvefs/src/client/rpcclient/stream_receiver.h"
 
 using ::curve::common::StringToUl;
 using ::curve::common::StringToUll;
-
 using curvefs::metaserver::GetOrModifyS3ChunkInfoRequest;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoResponse;
 using curvefs::metaserver::BatchGetInodeAttrRequest;
@@ -838,121 +836,10 @@ void MetaServerClientImpl::UpdateXattrAsync(const Inode &inode,
     taskDone_guard.release();
 }
 
-class StreamReceiver : public brpc::StreamInputHandler {
- public:
-    enum class Status {
-        STATUS_EOF,
-        STATUS_OK,
-        STATUS_ERROR,
-    };
-
- public:
-    StreamReceiver(google::protobuf::Map<uint64_t, S3ChunkInfoList>* out)
-        : out_(out),
-          done_(true),
-          success_(true) {}
-
-    bool Init(brpc::Controller* cntl, ExcutorOpt options) {
-        brpc::StreamOptions stream_options;
-        stream_options.handler = this;
-        stream_options.idle_timeout_ms = options.rpcStreamIdleTimeoutMS;
-        if (brpc::StreamCreate(&streamId_, *cntl, &stream_options) != 0) {
-            LOG(ERROR) << "Fail to create stream";
-            return false;
-        }
-        LOG(INFO) << "Created stream, stream=" << streamId_;
-        done_ = false;
-        return true;
-    }
-
-    bool Wait() {
-        WaitDone();
-        if (brpc::StreamClose(streamId_) != 0) {
-            return false;
-        }
-        return success_;
-    }
-
-    int on_received_messages(brpc::StreamId id,
-                             butil::IOBuf* const buffers[],
-                             size_t size) override {
-        uint64_t chunkIndex;
-        S3ChunkInfoList list;
-        for (size_t i = 0; i < size; i++) {
-            auto status = ParseBuffer(buffers[i], &chunkIndex, &list);
-            if (status == Status::STATUS_EOF) {
-                success_ = true;
-                Done();
-                return 0;
-            } else if (status == Status::STATUS_ERROR) {
-                success_ = false;
-                Done();
-                return 0;
-            }
-
-            auto merge = [](const S3ChunkInfoList& from, S3ChunkInfoList* to) {
-                for (const auto& item : from) {
-                auto info = to->add_s3chunks();
-                info->CopyFrom(item);
-                }
-            };
-
-            auto iter = out_->find(chunkIndex);
-            if (iter == out_->end()) {
-                out_->insert({chunkIndex, list});
-            } else {
-                merge(list, &iter->second);
-            }
-        }
-        return 0;
-    }
-
-    void on_idle_timeout(brpc::StreamId id) override {
-        LOG(INFO) << "Stream=" << id << " has no data transmission for a while";
-        success_ = false;
-        Done();
-    }
-
-    void on_closed(brpc::StreamId id) override {
-        LOG(INFO) << "Stream=" << id << " is closed";
-        success_ = false;
-        Done();
-    }
-
- private:
-
-
-    void Done() {
-        std::lock_guard<std::mutex> l(mtx_);
-        done_ = true;
-        cond_.notify_one();
-    }
-
-    void WaitDone() {
-        std::unique_lock<std::mutex> ul(mtx_);
-        cond_.wait(ul, [this]() { return done_; });
-    }
-
-    void Merge(const S3ChunkInfoList& from, S3ChunkInfoList* to) {
-        for (const auto& item : from.s3chunks()) {
-            auto info = to->add_s3chunks();
-            info->CopyFrom(item);
-        }
-    }
-
- private:
-    bool done_;
-    bool success_;
-    brpc::StreamId streamId_;
-    google::protobuf::Map<uint64_t, S3ChunkInfoList>* out_;
-    std::mutex mtx_;
-    std::condition_variable cond_;
-};
-
 StreamStatus MetaServerClientImpl::ParseStreamBuffer(butil::IOBuf* buffer,
                                                      uint64_t* chunkIndex,
                                                      S3ChunkInfoList* list) {
-    if (buffer->size() == 1 && buffer->to_string() == "\0") {
+    if (buffer->size() == 1 && buffer->to_string()[0] == '\0') {
         return StreamStatus::RECEIVE_EOF;
     }
 
@@ -1009,11 +896,9 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     bool returnS3ChunkInfoMap,
     google::protobuf::Map<
             uint64_t, S3ChunkInfoList> *out) {
-
     auto task = RPCTask {
         metaserverClientMetric_->appendS3ChunkInfo.qps.count << 1;
 
-        StreamReceiver receiver(out);  // stream receiver for S3ChunkInfo
         GetOrModifyS3ChunkInfoRequest request;
         GetOrModifyS3ChunkInfoResponse response;
         request.set_poolid(poolID);
@@ -1024,13 +909,13 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         request.set_returns3chunkinfomap(returnS3ChunkInfoMap);
         *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
 
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
         // stream receiver for s3chunkinfo list
         StreamReceiver receiver;
         StreamOptions streamOptions(opt_.rpcStreamIdleTimeoutMS);
         auto receiveCallback = [&](butil::IOBuf* buffer) {
             return ReceiveStream(buffer);
         };
-        curvefs::metaserver::MetaServerService_Stub stub(channel);
         if (returnS3ChunkInfoMap &&
             !receiver.Open(cntl_, streamOptions, receiveCallback)) {
             return MetaStatusCode::RPC_STREAM_ERROR;
@@ -1058,7 +943,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
                                          response.appliedindex());
             if (returnS3ChunkInfoMap) {
                 CHECK(out != nullptr) << "out ptr should be set.";
-                if (!receiver.Close()) {  // wait receive all S3ChunkInfo done
+                if (!receiver.Close()) {  // wait all data received
                     return MetaStatusCode::RPC_STREAM_ERROR;
                 }
             }
