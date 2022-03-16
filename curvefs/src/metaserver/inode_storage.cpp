@@ -31,9 +31,6 @@
 namespace curvefs {
 namespace metaserver {
 
-using ::curve::common::StringToUl;
-using ::curve::common::StringToUll;
-using ::curve::common::SplitString;
 using ::curve::common::StringStartWith;
 using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::KVStorage;
@@ -42,98 +39,11 @@ using Key4Inode = KeyGenerator::Key4Inode;
 using Key4ChunkInfoList = KeyGenerator::Key4ChunkInfoList;
 using Prefix4InodeChunkInfoList = KeyGenerator::Prefix4InodeChunkInfoList;
 
-const size_t KeyGenerator::kMaxUint64Len_ =
-    std::to_string(std::numeric_limits<uint64_t>::max()).size();
-
-// kTypeInode:fsId:InodeId
-inline std::string KeyGenerator::SerializeToString(Key4Inode key) {
-    std::ostringstream oss;
-    oss << kTypeInode << ":" << key.fsId << ":" << key.inodeId;
-    return oss.str();
-}
-
-// kTypeS3ChunkInfo:fsId:inodeId:chunkIndex:firstChunkId:lastChunkId
-inline std::string KeyGenerator::SerializeToString(Key4ChunkInfoList key) {
-    std::ostringstream oss;
-    oss << kTypeS3ChunkInfo << ":" << key.fsId << ":"
-        << key.inodeId << ":" << key.chunkIndex << ":"
-        << std::setw(kMaxUint64Len_) << std::setfill('0') << key.firstChunkId
-        << std::setw(kMaxUint64Len_) << std::setfill('0') << key.lastChunkId;
-    return oss.str();
-}
-
-// kTypeS3ChunkInfo:fsId:inodeId:
-inline std::string KeyGenerator::SerializeToString(Prefix4InodeChunkInfoList key) {
-    std::ostringstream oss;
-    oss << kTypeS3ChunkInfo << ":" << key.fsId << ":" << key.inodeId << ":";
-    return oss.str();
-}
-
-std::string KeyGenerator::SerializeToString(Prefix4AllS3ChunkInfoList key) {
-    std::ostringstream oss;
-    oss << kTypeS3ChunkInfo << ":";
-    return oss.str();
-}
-
-inline bool KeyGenerator::PraseFromString(const std::string& s,
-                                          Key4Inode* key) {
-    std::vector<std::string> items;
-    SplitString(key, ":", &items);
-    if (items.size() != 3 ||
-        !StringToUl(items[1], &key->fsId) ||
-        !StringToUll(items[2], &key->inodeId) {
-        return false;
-    }
-    return true;
-}
-
-inline bool KeyGenerator::PraseFromString(const std::string& s,
-                                          Key4ChunkInfoList* key) {
-    std::vector<std::string> items;
-    SplitString(key, ":", &items);
-    if (items.size() != 6 ||
-        !StringToUl(items[1], &key->fsId) ||
-        !StringToUll(items[2], &key->inodeId ||
-        !StringToUll(items[3], &key->chunkIndex ||
-        !StringToUll(items[4], &key->firstChunkId ||
-        !StringToUll(items[5], &key->lastChunkId) {
-        return false;
-    }
-    return true;
-}
-
-inline bool ValueGenerator::SerializeToString(Inode& inode,
-                                              std::string* value) {
-    if (!inode.IsInitialized()) {
-        return false;
-    }
-    return inode.SerializeToString(value);
-}
-
-inline bool ValueGenerator::SerializeToString(S3ChunkInfoList& list,
-                                              std::string* value) {
-    if (!list.IsInitialized()) {
-        return false;
-    }
-    return list.SerializeToString(value);
-}
-
-
-inline bool ValueGenerator::PraseFromString(std::string& value,
-                                            Inode* inode) {
-    return inode->ParseFromString(value);
-}
-
-inline bool ValueGenerator::PraseFromString(std::string& value,
-                                            S3ChunkInfoList* list) {
-    return list->ParseFromString(value);
-}
-
 InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
                            const std::string& tablename)
     : kvStorage_(kvStorage),
-      tablename_(tablename) {}
-
+      tablename_(tablename),
+      converter_(std::make_shared<Converter>()) {}
 
 inline void InodeStorage::AddInodeId(const std::string& key) {
     counter_.insert(key);
@@ -379,7 +289,7 @@ std::shared_ptr<Iterator> InodeStorage::GetInodeS3ChunkInfoList(
 
 std::shared_ptr<Iterator> InodeStorage::GetAllS3ChunkInfoList() {
     ReadLockGuard readLockGuard(rwLock_);
-    std::string prefix = kg_.SerializeToString(Prefix4AllS3ChunkInfoList());
+    std::string prefix = kg_.SerializeToString(Prefix4AllInodeS3ChunkInfoList());
     return kvStorage_->SSeek(tablename_, prefix);
 }
 
@@ -424,8 +334,9 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
     return MetaStatusCode::OK;
 }
 
-std::shared_ptr<Iterator> InodeStorage::GetAll() {
-    return kvStorage_->HGetAll(tablename_);
+std::shared_ptr<Iterator> InodeStorage::GetAllInode() {
+    std::string prefix = converter_->SerializeToString(Pre4AllInode());
+    return kvStorage_->SSeek(tablename_, prefix);
 }
 
 MetaStatusCode InodeStorage::Clear() {

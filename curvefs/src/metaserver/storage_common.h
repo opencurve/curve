@@ -52,6 +52,9 @@ struct Key4Inode {
     uint64_t inodeId;
 };
 
+struct Prefix4AllInode {
+};
+
  struct Key4S3ChunkInfoList {
      uint32_t fsId;
      uint64_t inodeId;
@@ -71,7 +74,8 @@ struct Key4Inode {
      uint64_t inodeId;
  };
 
- struct Prefix4AllS3ChunkInfoList {};
+ struct Prefix4AllS3ChunkInfoList {
+ };
 
 class Converter {
  public:
@@ -79,6 +83,8 @@ class Converter {
 
     // key
     std::string SerializeToString(Key4Inode key);
+
+    std::string SerializeToString(Key4AllInode key);
 
     std::string SerializeToString(Key4S3ChunkInfoList key);
 
@@ -125,6 +131,13 @@ const size_t Converter::kMaxUint64Length_ =
 inline std::string Converter::SerializeToString(Key4Inode key) {
     std::ostringstream oss;
     oss << kTypeInode << ":" << key.fsId << ":" << key.inodeId;
+    return oss.str();
+}
+
+// kTypeInode:
+inline std::string Converter::SerializeToString(Key4AllInode key) {
+    std::ostringstream oss;
+    oss << kTypeInode << ":";
     return oss.str();
 }
 

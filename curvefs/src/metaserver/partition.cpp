@@ -344,7 +344,7 @@ uint32_t Partition::GetPartitionId() { return partitionInfo_.partitionid(); }
 PartitionInfo Partition::GetPartitionInfo() { return partitionInfo_; }
 
 std::shared_ptr<Iterator> Partition::GetAllInode() {
-    return inodeStorage_->GetAll();
+    return inodeStorage_->GetAllInode();
 }
 
 std::shared_ptr<Iterator> Partition::GetAllDentry() {

@@ -178,11 +178,10 @@ class InodeStorage {
 
  private:
     RWLock rwLock_;
-    KeyGenerator kg_;
-    ValueGenerator vg_;
     std::string tablename_;
     std::unordered_set<std::string> counter_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<Converter> converter_;
 };
 
 }  // namespace metaserver
