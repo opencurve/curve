@@ -100,28 +100,28 @@ TEST_F(InodeStorageTest, test1) {
 
     // get
     Inode temp;
-    ASSERT_EQ(storage.Get(InodeKey(inode1), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(Key4Inode(inode1), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode1, temp));
-    ASSERT_EQ(storage.Get(InodeKey(inode2), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(Key4Inode(inode2), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode2, temp));
-    ASSERT_EQ(storage.Get(InodeKey(inode3), &temp), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(Key4Inode(inode3), &temp), MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(inode3, temp));
 
     // delete
-    ASSERT_EQ(storage.Delete(InodeKey(inode1)), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 2);
-    ASSERT_EQ(storage.Get(InodeKey(inode1), &temp),
+    ASSERT_EQ(storage.Get(Key4Inode(inode1), &temp),
         MetaStatusCode::NOT_FOUND);
-    ASSERT_EQ(storage.Delete(InodeKey(inode1)), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::NOT_FOUND);
 
     // update
     ASSERT_EQ(storage.Update(inode1), MetaStatusCode::NOT_FOUND);
     Inode oldInode;
-    ASSERT_EQ(storage.Get(InodeKey(inode2), &oldInode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(Key4Inode(inode2), &oldInode), MetaStatusCode::OK);
     inode2.set_atime(400);
     ASSERT_EQ(storage.Update(inode2), MetaStatusCode::OK);
     Inode newInode;
-    ASSERT_EQ(storage.Get(InodeKey(inode2), &newInode), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Get(Key4Inode(inode2), &newInode), MetaStatusCode::OK);
     ASSERT_FALSE(CompareInode(oldInode, newInode));
     ASSERT_FALSE(CompareInode(oldInode, inode2));
     ASSERT_TRUE(CompareInode(newInode, inode2));
@@ -152,7 +152,7 @@ TEST_F(InodeStorageTest, testGetAttrNotFound) {
 
     ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
     InodeAttr attr;
-    ASSERT_EQ(storage.GetAttr(InodeKey(1, 2), &attr),
+    ASSERT_EQ(storage.GetAttr(Key4Inode(1, 2), &attr),
         MetaStatusCode::NOT_FOUND);
 }
 
@@ -176,7 +176,7 @@ TEST_F(InodeStorageTest, testGetAttr) {
 
     ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
     InodeAttr attr;
-    ASSERT_EQ(storage.GetAttr(InodeKey(1, 1), &attr), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetAttr(Key4Inode(1, 1), &attr), MetaStatusCode::OK);
     ASSERT_EQ(attr.inodeid(), 1);
     ASSERT_EQ(attr.ctime(), 100);
     ASSERT_EQ(attr.uid(), 0);
@@ -212,7 +212,7 @@ TEST_F(InodeStorageTest, testGetXAttr) {
 
     ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
     XAttr xattr;
-    ASSERT_EQ(storage.GetXAttr(InodeKey(1, 1), &xattr), MetaStatusCode::OK);
+    ASSERT_EQ(storage.GetXAttr(Key4Inode(1, 1), &xattr), MetaStatusCode::OK);
     ASSERT_FALSE(xattr.xattrinfos().empty());
 
     ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "1");

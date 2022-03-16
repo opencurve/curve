@@ -46,7 +46,7 @@ namespace curvefs {
 namespace metaserver {
 
 void S3CompactWorkQueueImpl::Enqueue(std::shared_ptr<InodeManager> inodeManager,
-                                     InodeKey inodeKey, PartitionInfo pinfo,
+                                     Key4Inode inodeKey, PartitionInfo pinfo,
                                      CopysetNode* copysetNode) {
     std::unique_lock<std::mutex> guard(mutex_);
 

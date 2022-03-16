@@ -81,15 +81,15 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     std::shared_ptr<S3AdapterManager> s3adapterManager_;
     std::shared_ptr<S3InfoCache> s3infoCache_;
     S3CompactWorkQueueOption opts_;
-    std::deque<InodeKey> compactingInodes_;
-    void Enqueue(std::shared_ptr<InodeManager> inodeManager, InodeKey inodeKey,
+    std::deque<Key4Inode> compactingInodes_;
+    void Enqueue(std::shared_ptr<InodeManager> inodeManager, Key4Inode inodeKey,
                  PartitionInfo pinfo, CopysetNode* copyset);
     std::function<void()> Dequeue();
     void ThreadFunc();
 
     struct S3CompactTask {
         std::shared_ptr<InodeManager> inodeManager;
-        InodeKey inodeKey;
+        Key4Inode inodeKey;
         PartitionInfo pinfo;
         std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper;
     };

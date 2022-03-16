@@ -35,10 +35,11 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/utils.h"
 
+using curve::common::RWLock;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
-using curve::common::RWLock;
 using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::Iterator;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
@@ -46,80 +47,52 @@ using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 namespace curvefs {
 namespace metaserver {
 
-struct InodeKey {
-    uint32_t fsId;
-    uint64_t inodeId;
-
-    InodeKey(uint32_t fs, uint64_t inode) : fsId(fs), inodeId(inode) {}
-
-    explicit InodeKey(const Inode &inode)
-        : fsId(inode.fsid()), inodeId(inode.inodeid()) {}
-
-    explicit InodeKey(const std::shared_ptr<Inode> &inode)
-        : fsId(inode->fsid()), inodeId(inode->inodeid()) {}
-
-    bool operator==(const InodeKey &k1) const {
-        return k1.fsId == fsId && k1.inodeId == inodeId;
-    }
-};
-
 class InodeStorage {
  public:
-    InodeStorage(std::shared_ptr<KVStorage> kvStorage,
-                 const std::string& tablename); // TODO(@Wine93): 这里需要一个 INDOE/DENTRY 来做区分
+    InodeStorage(const std::string& tablename
+                 std::shared_ptr<KVStorage> kvStorage);
 
     /**
      * @brief insert inode to storage
-     *
      * @param[in] inode: the inode want to insert
-     *
      * @return If inode exist, return INODE_EXIST; else insert and return OK
      */
     MetaStatusCode Insert(const Inode& inode);
 
     /**
      * @brief get inode from storage
-     *
      * @param[in] key: the key of inode want to get
      * @param[out] inode: the inode got
-     *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Get(const InodeKey& inodeKey, Inode* inode);
+    MetaStatusCode Get(const Key4Inode& key4Inode, Inode* inode);
 
     /**
      * @brief get inode attribute from storage
-     *
      * @param[in] key: the key of inode want to get
      * @param[out] attr: the inode attribute got
-     *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode GetAttr(const InodeKey& inodeKey, InodeAttr *attr);
+    MetaStatusCode GetAttr(const Key4Inode& key4Inode, InodeAttr *attr);
 
     /**
      * @brief get inode extended attributes from storage
-     *
      * @param[in] key: the key of inode want to get
      * @param[out] attr: the inode extended attribute got
-     *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode GetXAttr(const InodeKey& inodeKey, XAttr *xattr);
+    MetaStatusCode GetXAttr(const Key4Inode& key4Inode, XAttr *xattr);
 
     /**
      * @brief delete inode from storage
-     *
      * @param[in] key: the key of inode want to delete
-     *
      * @return If inode not exist, return NOT_FOUND; else return OK
      */
-    MetaStatusCode Delete(const InodeKey& inodeKey);
+    MetaStatusCode Delete(const Key4Inode& key4Inode);
 
     /**
      * @brief update inode from storage
      * @param[in] inode: the inode want to update
-     *
      * @return If inode not exist, return NOT_FOUND; else replace and return OK
      */
     MetaStatusCode Update(const Inode& inode);
@@ -137,31 +110,17 @@ class InodeStorage {
                                            uint64_t inodeId,
                                            Inode* inode);
 
-    std::shared_ptr<Iterator> GetAll();
+    std::shared_ptr<Iterator> GetAllInode();
 
     std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
 
-    MetaStatusCode Clear();
-
     size_t Size();
+
+    MetaStatusCode Clear();
 
     void GetInodeIdList(std::list<uint64_t>* inodeIdList);
 
  private:
-    std::string Key2Str(const InodeKey& key);
-
-    std::pair<uint32_t, uint64_t> ExtractKey(const std::string& key);
-
-    bool Inode2Str(const Inode& inode, std::string* value);
-
-    bool Str2Inode(const std::string& value, Inode* inode);
-
-    void AddInodeId(const std::string& key);
-
-    void DeleteInodeId(const std::string& key);
-
-    bool InodeIdExist(const std::string& key);
-
     MetaStatusCode AddS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
         uint32_t fsId,
@@ -176,12 +135,24 @@ class InodeStorage {
         uint64_t chunkIndex,
         uint64_t minChunkId);
 
+    bool FindKey(const std::string& key) {
+        return keySet_.find(key) != keySet_.end();
+    }
+
+    void InsertKey(const std::string& key) {
+        keySet_.insert(key);
+    }
+
+    void EraseKey(const std::string& key) {
+        keySet_.erase(key);
+    }
+
  private:
     RWLock rwLock_;
     std::string tablename_;
-    std::unordered_set<std::string> counter_;
+    std::shared_ptr<Counter> counter_;
     std::shared_ptr<KVStorage> kvStorage_;
-    std::shared_ptr<Converter> converter_;
+    std::unordered_set<std::string> keySet_;
 };
 
 }  // namespace metaserver

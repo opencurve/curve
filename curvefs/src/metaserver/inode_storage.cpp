@@ -27,6 +27,7 @@
 
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/inode_storage.h"
+#include "curvefs/src/metaserver/storage_common.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -35,52 +36,36 @@ using ::curve::common::StringStartWith;
 using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::KVStorage;
 using Transaction = std::shared<StorageTransaction>;
-using Key4Inode = KeyGenerator::Key4Inode;
-using Key4ChunkInfoList = KeyGenerator::Key4ChunkInfoList;
-using Prefix4InodeChunkInfoList = KeyGenerator::Prefix4InodeChunkInfoList;
 
-InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
-                           const std::string& tablename)
-    : kvStorage_(kvStorage),
-      tablename_(tablename),
+InodeStorage::InodeStorage(const std::string& tablename
+                           std::shared_ptr<KVStorage> kvStorage)
+    : tablename_(tablename),
+      kvStorage_(kvStorage),
       converter_(std::make_shared<Converter>()) {}
-
-inline void InodeStorage::AddInodeId(const std::string& key) {
-    counter_.insert(key);
-}
-
-inline void InodeStorage::DeleteInodeId(const std::string& key) {
-    counter_.erase(key);
-}
-
-inline bool InodeStorage::InodeIdExist(const std::string& key) {
-    return counter_.find(key) != counter_.end();
-}
 
 MetaStatusCode InodeStorage::Insert(const Inode& inode) {
     WriteLockGuard writeLockGuard(rwLock_);
-    std::string key = keyGenerator_.SerializeToString(
-        Key4Inode(inode.fsid(), inode.inodeid()))
+    Key4Inode key4Inode(inode.fsid(), inode.inodeid());
+    std::string key = converter_->SerializeToString(key4Inode);
     std::string value;
-    if (InodeIdExist(key)) {
+    if (FindKey(key)) {
         return MetaStatusCode::INODE_EXIST;
-    } else if (!valueGenerator_.SerializeToString(inode, &value)) {
-        return MetaStatusCode::ENCODE_INODE_FAILED;
+    } else if (!converter_->SerializeToString(inode, &value)) {
+        return MetaStatusCode::SERIALIZE_TO_STRING_FAILED;
     }
 
     Status s = kvStorage_->HSet(tablename_, key, value);
     if (s.ok()) {
-        AddInodeId(key);
+        InsertKey(key);
         return MetaStatusCode::OK;
     }
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-MetaStatusCode InodeStorage::Get(const InodeKey& inodeKey, Inode* inode) {
+MetaStatusCode InodeStorage::Get(const Key4Inode& key4Inode, Inode* inode) {
     ReadLockGuard readLockGuard(rwLock_);
-    std::string key = keyGenerator_.SerializeToString(
-        Key4Inode(Inodek.fsid(), inode.inodeid()))
-    if (!InodeIdExist(key)) {
+    std::string key = converter_->SerializeToString(key4Inode);
+    if (!FindKey(key)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -88,17 +73,17 @@ MetaStatusCode InodeStorage::Get(const InodeKey& inodeKey, Inode* inode) {
     Status s = kvStorage_->HGet(tablename_, key, &value);
     if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    } else if (!Str2Inode(value, inode)) {
-        return MetaStatusCode::DECODE_INODE_FAILED;
+    } else if (!converter_->SerializeToString(inode, &value)) {
+        return MetaStatusCode::SERIALIZE_TO_STRING_FAILED;
     }
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::GetAttr(const InodeKey& inodeKey,
+MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key4Inode,
     InodeAttr *attr) {
     ReadLockGuard readLockGuard(rwLock_);
-    std::string key = Key2Str(inodeKey);
-    if (!InodeIdExist(key)) {
+    std::string key = converter_->SerializeToString(key4Inode);
+    if (!FindKey(key)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -107,7 +92,7 @@ MetaStatusCode InodeStorage::GetAttr(const InodeKey& inodeKey,
     Status s = kvStorage_->HGet(tablename_, key, &value);
     if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    } else if (!Str2Inode(value, &inode)) {
+    } else if (!converter_->SerializeToString(inode, &value)) {
         return MetaStatusCode::DECODE_INODE_FAILED;
     }
 
@@ -141,10 +126,10 @@ MetaStatusCode InodeStorage::GetAttr(const InodeKey& inodeKey,
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::GetXAttr(const InodeKey& inodeKey, XAttr *xattr) {
+MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& inodeKey, XAttr *xattr) {
     ReadLockGuard readLockGuard(rwLock_);
-    std::string key = Key2Str(inodeKey);
-    if (!InodeIdExist(key)) {
+    std::string key = converter_->SerializeToString(key4Inode);
+    if (!FindKey(key)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -153,7 +138,7 @@ MetaStatusCode InodeStorage::GetXAttr(const InodeKey& inodeKey, XAttr *xattr) {
     Status s = kvStorage_->HGet(tablename_, key, &value);
     if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    } else if (!Str2Inode(value, &inode)) {
+    } else if (!converter_->SerializeToString(inode, &value)) {
         return MetaStatusCode::DECODE_INODE_FAILED;
     }
 
@@ -163,16 +148,16 @@ MetaStatusCode InodeStorage::GetXAttr(const InodeKey& inodeKey, XAttr *xattr) {
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::Delete(const InodeKey& inodeKey) {
+MetaStatusCode InodeStorage::Delete(const Key4Inode& key4Inode) {
     WriteLockGuard writeLockGuard(rwLock_);
-    std::string key = Key2Str(inodeKey);
-    if (!InodeIdExist(key)) {
+    std::string key = converter_->SerializeToString(key4Inode);
+    if (!FindKey(key)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
     Status s = kvStorage_->HDel(tablename_, key);
     if (s.ok()) {
-        DeleteInodeId(key);
+        EraseKey(key);
         return MetaStatusCode::OK;
     }
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
@@ -181,11 +166,12 @@ MetaStatusCode InodeStorage::Delete(const InodeKey& inodeKey) {
 MetaStatusCode InodeStorage::Update(const Inode& inode) {
     WriteLockGuard writeLockGuard(rwLock_);
     std::string value;
-    std::string key = Key2Str(InodeKey(inode.fsid(), inode.inodeid()));
-    if (!InodeIdExist(key)) {
+    Key4Inode key4Inode(inode.fsid(), inode.inodeid());
+    std::string key = converter_->SerializeToString(key4Inode);
+    if (!FindKey(key)) {
         return MetaStatusCode::NOT_FOUND;
-    } else if (!Inode2Str(inode, &value)) {
-        return MetaStatusCode::ENCODE_INODE_FAILED;
+    } else if (converter_->SerializeToString(inode, &value)) {
+        return MetaStatusCode::SERIALIZE_TO_STRING_FAILED;
     }
 
     Status s = kvStorage_->HSet(tablename_, key, value);
@@ -203,14 +189,15 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(Transaction txn,
     // key
     uint64_t firstChunkId = list2add.s3chunks(0).chunkid();
     uint64_t lastChunkId = list2add.s3chunks(size - 1).chunkid();
-    std::string key = keyGenerator_ Key4AppendS3ChunkInfo(
-        fsId, inodeId, chunkIndex, firstChunkId, lastChunkId);
+    Key4S3ChunkInfoList key4List(fsId, inodeId, chunkindex,
+                                 firstChunkId, lastChunkId);
+    std::string key = converter_->SerializeToString(key4List);
 
     // value
     std::string value;
-    if (!list2add.SerializeToString(&value)) {
+    if (!converter_->SerializeToString(list2add, &value)) {
         LOG(ERROR) << "Serialize S3ChunkInfoList failed."
-        return MetaStatusCode::ENCODE_ENTRY_FAILED;
+        return MetaStatusCode::SERIALIZE_TO_STRING_FAILED;
     }
 
     Status s = kvStorage_->SSet(key, value);
@@ -224,20 +211,22 @@ MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
                                                    uint64_t inodeId,
                                                    uint64_t chunkIndex,
                                                    uint64_t minChunkId) {
-    std::string prefix = Key4GetS3ChunkInfo(fsId, inodeId, chunkIndex);
+    Prefix4ChunkIndexS3ChunkInfoList prefixKey(fsId, inodeId, chunkIndex);
+    std::string prefix = converter_->SerializeToString(prefixKey);
     auto iterator = kvStorage_->SSeek(prefix);
     if (iterator->Status() != 0) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     uint64_t lastChunkId;
+    Key4S3ChunkInfoList key4List;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         std::string key = iterator->Key();
         if (!StringStartWith(key, prefix)) {
             break;
-        } else if (!ParseKey4AppendS3ChunkInfoList(key, &lastChunkId)) {
-            return  MetaStatusCode::DECODE_KEY_FAILED;
-        } else if (lastChunkId > minChunkId) {
+        } else if (converter_->ParseFromString(key, &key4List)) {
+            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
+        } else if (key4List.lastChunkId > minChunkId) {
             continue;
         }
 
@@ -289,7 +278,8 @@ std::shared_ptr<Iterator> InodeStorage::GetInodeS3ChunkInfoList(
 
 std::shared_ptr<Iterator> InodeStorage::GetAllS3ChunkInfoList() {
     ReadLockGuard readLockGuard(rwLock_);
-    std::string prefix = kg_.SerializeToString(Prefix4AllInodeS3ChunkInfoList());
+    std::string prefix = converter_->SerializeToString(
+        Prefix4AllInodeS3ChunkInfoList());
     return kvStorage_->SSeek(tablename_, prefix);
 }
 
@@ -305,8 +295,8 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
 
     auto merge = [](const S3ChunkInfoList& from, S3ChunkInfoList* to) {
         for (const auto& item : from) {
-            auto info = to->add_s3chunks();
-            info->CopyFrom(item);
+            auto chunkinfo = to->add_s3chunks();
+            chunkinfo->CopyFrom(item);
         }
     };
 
@@ -339,17 +329,18 @@ std::shared_ptr<Iterator> InodeStorage::GetAllInode() {
     return kvStorage_->SSeek(tablename_, prefix);
 }
 
+size_t InodeStorage::Size() {
+    return kvStorage_->HSize(tablename_);
+}
+
 MetaStatusCode InodeStorage::Clear() {
     ReadLockGuard w(rwLock_);
     Status s = kvStorage_->HClear(tablename_);
-    if (s.ok()) {
-        return MetaStatusCode::OK;
+    if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-}
-
-size_t InodeStorage::Size() {
-    return kvStorage_->HSize(tablename_);
+    keySet_.clear();
+    return MetaStatusCode::OK;
 }
 
 void InodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {

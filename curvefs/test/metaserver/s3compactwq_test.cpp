@@ -545,7 +545,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     EXPECT_CALL(*s3adapter_, GetBucketName()).WillRepeatedly(Return(v));
 
     struct S3CompactWorkQueueImpl::S3CompactTask t {
-        inodeManager_, InodeKey(0, 1), PartitionInfo(), mockCopysetNodeWrapper_
+        inodeManager_, Key4Inode(0, 1), PartitionInfo(), mockCopysetNodeWrapper_
     };
     // inode not exist
     mockImpl_->CompactChunks(t);
@@ -569,7 +569,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3chunkinfoMap;
     *inode1.mutable_s3chunkinfomap() = s3chunkinfoMap;
     ASSERT_EQ(inodeStorage_->Insert(inode1), MetaStatusCode::OK);
-    t.inodeKey = InodeKey(1, 1);
+    t.inodeKey = Key4Inode(1, 1);
     mockImpl_->CompactChunks(t);
     // normal
     std::cerr << "normal" << std::endl;

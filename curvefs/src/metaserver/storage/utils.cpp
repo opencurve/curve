@@ -36,9 +36,56 @@ namespace curvefs {
 namespace metaserver {
 namespace storage {
 
+using ::curve::common::StringToUll;
+using ::curve::common::RWLock;
+using ::curve::common::ReadLockGuard;
+using ::curve::common::WriteLockGuard;
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::Ext4FileSystemImpl;
-using ::curve::common::StringToUll;
+using ContainerType = Counter::ContainerType;
+
+std::shared_ptr<ContainerType> Counter::GetContainer(const std::string& name) {
+    {
+        ReadLockGuard readLockGuard(rwLock_);
+        auto iter = containerDict_.find(name);
+        if (iter != containerDict_.end()) {
+            return iter->second;
+        }
+    }
+    {
+        WriteLockGuard writeLockGuard(rwLock_);
+        auto ret = containerDict_.emplace(
+            name, std::make_shared<ContainerType>());
+        return ret.first->second;
+    }
+}
+
+inline size_t Counter::ToInternalKey(const std::string& key) {
+    return Hash(key);
+}
+
+inline void Counter::Insert(const std::string& name, const std::string& key) {
+    auto container = GetContainer(name);
+    auto ikey = ToInternalKey(key);
+    container->emplace(ikey);
+}
+
+inline void Counter::Erase(const std::string& name, const std::string& key) {
+    auto container = GetContainer(name);
+    auto ikey = ToInternalKey(key);
+    container->erase(ikey);
+}
+
+inline bool Counter::Find(const std::string& name, const std::string& key) {
+    auto container = GetContainer(name);
+    auto ikey = ToInternalKey(key);
+    return container->find(ikey) != container->end();
+}
+
+inline size_t Counter::Size(const std::string& name) {
+    auto container = GetContainer(name);
+    return container->size();
+}
 
 std::string EncodeNumber(size_t num) {
     char buffer[sizeof(size_t)];

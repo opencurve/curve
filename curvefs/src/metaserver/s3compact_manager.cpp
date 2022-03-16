@@ -227,7 +227,7 @@ void S3CompactManager::Enqueue() {
         for (const auto& inodeid : inodes) {
             sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
             s3compactworkqueueImpl_->Enqueue(
-                inodeManager, InodeKey(fsid, inodeid), pinfo, copysetNode);
+                inodeManager, Key4Inode(fsid, inodeid), pinfo, copysetNode);
         }
     }
     {

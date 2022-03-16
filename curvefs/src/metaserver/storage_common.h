@@ -45,6 +45,7 @@ using ::curvefs::common::PartitionInfo;
 enum KEY_TYPE : unsigned char {
     kTypeInode = 0,
     kTypeS3ChunkInfo = 1,
+    kTypeDentry = 2,
 };
 
 struct Key4Inode {
@@ -52,8 +53,7 @@ struct Key4Inode {
     uint64_t inodeId;
 };
 
-struct Prefix4AllInode {
-};
+struct Prefix4AllInode {};
 
  struct Key4S3ChunkInfoList {
      uint32_t fsId;
@@ -74,8 +74,7 @@ struct Prefix4AllInode {
      uint64_t inodeId;
  };
 
- struct Prefix4AllS3ChunkInfoList {
- };
+ struct Prefix4AllS3ChunkInfoList {};
 
 class Converter {
  public:
@@ -124,7 +123,7 @@ class Converter {
 };
 
 const size_t Converter::kMaxUint64Length_ =
-        std::to_string(std::numeric_limits<uint64_t>::max()).size();
+    std::to_string(std::numeric_limits<uint64_t>::max()).size();
 
 // key
 // kTypeInode:fsId:InodeId
@@ -203,73 +202,36 @@ inline bool Converter::PraseFromString(const std::string& s,
 }
 
 // value
-inline bool Converter::SerializeToString(PartitionInfo& info,
-                                         std::string* value) {
-    if (!info.IsInitialized()) {
-        LOG(ERROR) << "PartitionInfo not initialized";
-        return false;
-    }
-    return info.SerializeToString(value);
+#define SERIALIZE_TO_STRING(TYPE) \
+inline bool Converter::SerializeToString(TYPE& entry, \
+                                         std::string* value) { \
+    if (!entry.IsInitialized()) { \
+        return false; \
+    } \
+    return entry.SerializeToString(value); \
 }
 
-inline bool Converter::SerializeToString(Inode& inode, std::string* value) {
-    if (!inode.IsInitialized()) {
-        LOG(ERROR) << "Inode not initialized";
-        return false;
-    }
-    return inode.SerializeToString(value);
+SERIALIZE_TO_STRING(PartitionInfo)
+SERIALIZE_TO_STRING(Inode)
+SERIALIZE_TO_STRING(Dentry)
+SERIALIZE_TO_STRING(S3ChunkInfoList)
+SERIALIZE_TO_STRING(PrepareRenameTxRequest)
+
+#undef SERIALIZE_TO_STRING
+
+#define PARSE_FROM_STRING(TYPE) \
+inline bool Converter::PraseFromString(std::string& value, \
+                                       TYPE* entry) { \
+    return entry->ParseFromString(value); \
 }
 
-inline bool Converter::SerializeToString(Dentry& dentry, std::string* value) {
-    if (!dentry.IsInitialized()) {
-        LOG(ERROR) << "Dentry not initialized";
-        return false;
-    }
-    return dentry.SerializeToString(value);
-}
+PARSE_FROM_STRING(PartitionInfo)
+PARSE_FROM_STRING(Inode)
+PARSE_FROM_STRING(Dentry)
+PARSE_FROM_STRING(S3ChunkInfoList)
+PARSE_FROM_STRING(PrepareRenameTxRequest)
 
-inline bool Converter::SerializeToString(S3ChunkInfoList& list,
-                                         std::string* value) {
-    if (!list.IsInitialized()) {
-        LOG(ERROR) << "S3ChunkInfoList not initialized";
-        return false;
-    }
-    return list.SerializeToString(value);
-}
-
-inline bool Converter::SerializeToString(PrepareRenameTxRequest& request,
-                                         std::string* value) {
-    if (!request.IsInitialized()) {
-        LOG(ERROR) << "PrepareRenameTxRequest not initialized";
-        return false;
-    }
-    return request.SerializeToString(value);
-}
-
-inline bool Converter::PraseFromString(std::string& value,
-                                       PartitionInfo* info) {
-    return info->ParseFromString(value);
-}
-
-inline bool Converter::PraseFromString(std::string& value,
-                                       Inode* inode) {
-    return inode->ParseFromString(value);
-}
-
-inline bool Converter::PraseFromString(std::string& value,
-                                       Dentry* dentry) {
-    return dentry->ParseFromString(value);
-}
-
-inline bool Converter::PraseFromString(std::string& value,
-                                       S3ChunkInfoList* list) {
-    return list->ParseFromString(value);
-}
-
-inline bool Converter::PraseFromString(std::string& value,
-                                       PrepareRenameTxRequest* request) {
-    return request->ParseFromString(value);
-}
+#undef PARSE_FROM_STRING
 
 }  // namespace metaserver
 }  // namespace curvefs

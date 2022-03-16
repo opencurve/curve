@@ -57,34 +57,6 @@ using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
 
 class RocksDBStorageTest;
 
-class Counter {
- public:
-    using ContainerType = absl::btree_set<size_t>;
-
- public:
-    Counter() = default;
-
-    void Insert(const std::string& name, const std::string& key);
-
-    void Erase(const std::string& name, const std::string& key);
-
-    bool Find(const std::string& name, const std::string& key);
-
-    size_t Size(const std::string& name);
-
-    void Clear(const std::string& name);
-
- private:
-    size_t ToInternalKey(const std::string& key);
-
-    std::shared_ptr<ContainerType> GetContainer(const std::string& name);
-
- private:
-    RWLock rwLock_;
-    std::unordered_map<std::string,
-                       std::shared_ptr<ContainerType>> containerDict_;
-};
-
 class RocksDBOptions {
  public:
     explicit RocksDBOptions(StorageOptions options);
