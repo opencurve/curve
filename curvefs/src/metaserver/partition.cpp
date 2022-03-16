@@ -175,11 +175,7 @@ bool Partition::FindPendingTx(PrepareRenameTxRequest* pendingTx) {
 }
 
 // inode
-MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
-                                      uint32_t uid, uint32_t gid, uint32_t mode,
-                                      FsFileType type,
-                                      const std::string& symlink,
-                                      uint64_t rdev,
+MetaStatusCode Partition::CreateInode(const InodeParam &param,
                                       Inode* inode) {
     if (GetStatus() == PartitionStatus::READONLY) {
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
@@ -194,17 +190,15 @@ MetaStatusCode Partition::CreateInode(uint32_t fsId, uint64_t length,
         return MetaStatusCode::PARTITION_ALLOC_ID_FAIL;
     }
 
-    if (!IsInodeBelongs(fsId, inodeId)) {
+    if (!IsInodeBelongs(param.fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    return inodeManager_->CreateInode(fsId, inodeId, length, uid, gid, mode,
-                                      type, symlink, rdev, inode);
+    return inodeManager_->CreateInode(inodeId, param, inode);
 }
 
-MetaStatusCode Partition::CreateRootInode(uint32_t fsId, uint32_t uid,
-                                          uint32_t gid, uint32_t mode) {
-    if (!IsInodeBelongs(fsId)) {
+MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
+    if (!IsInodeBelongs(param.fsId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
@@ -212,7 +206,7 @@ MetaStatusCode Partition::CreateRootInode(uint32_t fsId, uint32_t uid,
         return MetaStatusCode::PARTITION_DELETING;
     }
 
-    return inodeManager_->CreateRootInode(fsId, uid, gid, mode);
+    return inodeManager_->CreateRootInode(param);
 }
 
 MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,

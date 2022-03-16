@@ -648,6 +648,7 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
         request.set_mode(inode.mode());
         request.set_nlink(inode.nlink());
         request.set_inodeopenstatuschange(statusChange);
+        *(request.mutable_parent()) = inode.parent();
         if (inode.has_volumeextentlist()) {
             curvefs::metaserver::VolumeExtentList *vlist =
                 new curvefs::metaserver::VolumeExtentList;
@@ -763,6 +764,7 @@ void MetaServerClientImpl::UpdateInodeAsync(
         request.set_mode(inode.mode());
         request.set_nlink(inode.nlink());
         request.set_inodeopenstatuschange(statusChange);
+        *(request.mutable_parent()) = inode.parent();
         if (inode.has_volumeextentlist()) {
             curvefs::metaserver::VolumeExtentList *vlist =
                 new curvefs::metaserver::VolumeExtentList;
@@ -992,6 +994,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         request.set_type(param.type);
         request.set_rdev(param.rdev);
         request.set_symlink(param.symlink);
+        request.set_parent(param.parent);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateInode(cntl, &request, &response, nullptr);
 

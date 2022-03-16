@@ -199,6 +199,7 @@ message Inode {
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
     map<string, string> xattr = 21;
+    repeated uint64 parent = 22;
 }
 
 message GetInodeResponse {
@@ -217,8 +218,9 @@ message CreateInodeRequest {
     required uint32 gid = 7;
     required uint32 mode = 8;
     required FsFileType type = 9;
-    optional uint64 rdev = 10;
-    optional string symlink = 11;   // TYPE_SYM_LINK only
+    required uint64 parent = 10;
+    optional uint64 rdev = 11;
+    optional string symlink = 12;   // TYPE_SYM_LINK only
 }
 
 message CreateInodeResponse {
@@ -269,6 +271,7 @@ message UpdateInodeRequest {
     optional uint32 nlink = 18;
     optional InodeOpenStatusChange inodeOpenstatusChange = 19;
     map<string, string> xattr = 20;
+    repeated uint64 parent = 21;
 }
 
 message UpdateInodeResponse {

@@ -450,22 +450,24 @@ MetaStatusCode MetaStoreImpl::PrepareRenameTx(
 // inode
 MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
                                           CreateInodeResponse* response) {
-    uint32_t fsId = request->fsid();
-    uint64_t length = request->length();
-    uint32_t uid = request->uid();
-    uint32_t gid = request->gid();
-    uint32_t mode = request->mode();
-    FsFileType type = request->type();
-    std::string symlink;
-    uint32_t rdev = request->rdev();
-    if (type == FsFileType::TYPE_SYM_LINK) {
+    InodeParam param;
+    param.fsId = request->fsid();
+    param.length = request->length();
+    param.uid = request->uid();
+    param.gid = request->gid();
+    param.mode = request->mode();
+    param.type = request->type();
+    param.parent = request->parent();
+    param.rdev = request->rdev();
+    param.symlink = "";
+    if (param.type == FsFileType::TYPE_SYM_LINK) {
         if (!request->has_symlink()) {
             response->set_statuscode(MetaStatusCode::SYM_LINK_EMPTY);
             return MetaStatusCode::SYM_LINK_EMPTY;
         }
 
-        symlink = request->symlink();
-        if (symlink.empty()) {
+        param.symlink = request->symlink();
+        if (param.symlink.empty()) {
             response->set_statuscode(MetaStatusCode::SYM_LINK_EMPTY);
             return MetaStatusCode::SYM_LINK_EMPTY;
         }
@@ -479,8 +481,7 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
         return status;
     }
     MetaStatusCode status =
-        partition->CreateInode(fsId, length, uid, gid, mode, type, symlink,
-                               rdev, response->mutable_inode());
+        partition->CreateInode(param, response->mutable_inode());
     response->set_statuscode(status);
     if (status != MetaStatusCode::OK) {
         response->clear_inode();
@@ -490,10 +491,15 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
 
 MetaStatusCode MetaStoreImpl::CreateRootInode(
     const CreateRootInodeRequest* request, CreateRootInodeResponse* response) {
-    uint32_t fsId = request->fsid();
-    uint32_t uid = request->uid();
-    uint32_t gid = request->gid();
-    uint32_t mode = request->mode();
+    InodeParam param;
+    param.fsId = request->fsid();
+    param.uid = request->uid();
+    param.gid = request->gid();
+    param.mode = request->mode();
+    param.length = 0;
+    param.type = FsFileType::TYPE_DIRECTORY;
+    param.rdev = 0;
+    param.parent = 0;
 
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
@@ -503,12 +509,12 @@ MetaStatusCode MetaStoreImpl::CreateRootInode(
         return status;
     }
 
-    MetaStatusCode status = partition->CreateRootInode(fsId, uid, gid, mode);
+    MetaStatusCode status = partition->CreateRootInode(param);
     response->set_statuscode(status);
     if (status != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateRootInode fail, fsId = " << fsId
-                   << ", uid = " << uid << ", gid = " << gid
-                   << ", mode = " << mode
+        LOG(ERROR) << "CreateRootInode fail, fsId = " << param.fsId
+                   << ", uid = " << param.uid << ", gid = " << param.gid
+                   << ", mode = " << param.mode
                    << ", retCode = " << MetaStatusCode_Name(status);
     }
     return status;

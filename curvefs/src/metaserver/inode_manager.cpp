@@ -35,68 +35,57 @@ using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace metaserver {
-MetaStatusCode InodeManager::CreateInode(uint32_t fsId, uint64_t inodeId,
-                                         uint64_t length, uint32_t uid,
-                                         uint32_t gid, uint32_t mode,
-                                         FsFileType type,
-                                         const std::string &symlink,
-                                         uint64_t rdev,
+MetaStatusCode InodeManager::CreateInode(uint64_t inodeId,
+                                         const InodeParam &param,
                                          Inode *newInode) {
-    VLOG(1) << "CreateInode, fsId = " << fsId << ", length = " << length
-            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
-            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
-            << ", rdev = " << rdev;
-    if (type == FsFileType::TYPE_SYM_LINK && symlink.empty()) {
+    VLOG(1) << "CreateInode, fsId = " << param.fsId
+            << ", length = " << param.length
+            << ", uid = " << param.uid << ", gid = " << param.gid
+            << ", mode = " << param.mode
+            << ", type =" << FsFileType_Name(param.type)
+            << ", symlink = " << param.symlink
+            << ", rdev = " << param.rdev
+            << ", parent = " << param.parent;
+    if (param.type == FsFileType::TYPE_SYM_LINK && param.symlink.empty()) {
         return MetaStatusCode::SYM_LINK_EMPTY;
     }
 
     // 1. generate inode
     Inode inode;
-    GenerateInodeInternal(inodeId, fsId, length, uid, gid, mode, type, rdev,
-                          &inode);
-    if (type == FsFileType::TYPE_SYM_LINK) {
-        inode.set_symlink(symlink);
+    GenerateInodeInternal(inodeId, param, &inode);
+    if (param.type == FsFileType::TYPE_SYM_LINK) {
+        inode.set_symlink(param.symlink);
     }
 
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateInode fail, fsId = " << fsId
-                   << ", length = " << length << ", uid = " << uid
-                   << ", gid = " << gid << ", mode = " << mode
-                   << ", type =" << FsFileType_Name(type)
-                   << ", symlink = " << symlink
-                   << ", ret = " << MetaStatusCode_Name(ret);
+        LOG(ERROR) << "ret = " << MetaStatusCode_Name(ret)
+                   << "inode = " << inode.DebugString();
         return ret;
     }
 
     newInode->CopyFrom(inode);
-    VLOG(1) << "CreateInode success, fsId = " << fsId << ", length = " << length
-            << ", uid = " << uid << ", gid = " << gid << ", mode = " << mode
-            << ", type =" << FsFileType_Name(type) << ", symlink = " << symlink
-            << ", rdev = " << rdev
-            << " ," << inode.ShortDebugString();
-
+    VLOG(1) << "CreateInode success, inode = " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
-                                             uint32_t gid, uint32_t mode) {
-    VLOG(1) << "CreateRootInode, fsId = " << fsId << ", uid = " << uid
-            << ", gid = " << gid << ", mode = " << mode;
+MetaStatusCode InodeManager::CreateRootInode(const InodeParam &param) {
+    VLOG(1) << "CreateRootInode, fsId = " << param.fsId
+            << ", uid = " << param.uid
+            << ", gid = " << param.gid
+            << ", mode = " << param.mode;
 
     // 1. generate inode
     Inode inode;
-    uint64_t length = 0;
-    GenerateInodeInternal(ROOTINODEID, fsId, length, uid, gid, mode,
-                          FsFileType::TYPE_DIRECTORY, 0, &inode);
+    GenerateInodeInternal(ROOTINODEID, param, &inode);
 
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateRootInode fail, fsId = " << fsId
-                   << ", uid = " << uid << ", gid = " << gid
-                   << ", mode = " << mode
+        LOG(ERROR) << "CreateRootInode fail, fsId = " << param.fsId
+                   << ", uid = " << param.uid << ", gid = " << param.gid
+                   << ", mode = " << param.mode
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
     }
@@ -105,19 +94,18 @@ MetaStatusCode InodeManager::CreateRootInode(uint32_t fsId, uint32_t uid,
     return MetaStatusCode::OK;
 }
 
-void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
-                                         uint64_t length, uint32_t uid,
-                                         uint32_t gid, uint32_t mode,
-                                         FsFileType type, uint64_t rdev,
+void InodeManager::GenerateInodeInternal(uint64_t inodeId,
+                                         const InodeParam &param,
                                          Inode *inode) {
     inode->set_inodeid(inodeId);
-    inode->set_fsid(fsId);
-    inode->set_length(length);
-    inode->set_uid(uid);
-    inode->set_gid(gid);
-    inode->set_mode(mode);
-    inode->set_type(type);
-    inode->set_rdev(rdev);
+    inode->set_fsid(param.fsId);
+    inode->set_length(param.length);
+    inode->set_uid(param.uid);
+    inode->set_gid(param.gid);
+    inode->set_mode(param.mode);
+    inode->set_type(param.type);
+    inode->set_rdev(param.rdev);
+    inode->add_parent(param.parent);
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
@@ -129,7 +117,7 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId, uint32_t fsId,
     inode->set_ctime_ns(now.tv_nsec);
 
     inode->set_openmpcount(0);
-    if (FsFileType::TYPE_DIRECTORY == type) {
+    if (FsFileType::TYPE_DIRECTORY == param.type) {
         inode->set_nlink(2);
         // set summary xattr
         inode->mutable_xattr()->insert({XATTRFILES, "0"});
@@ -247,6 +235,8 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     UPDATE_INODE(uid)
     UPDATE_INODE(gid)
     UPDATE_INODE(mode)
+
+    *(old->mutable_parent()) = request.parent();
 
     if (request.has_nlink()) {
         if (old->nlink() != 0 && request.nlink() == 0) {

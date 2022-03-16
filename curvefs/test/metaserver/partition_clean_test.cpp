@@ -68,12 +68,22 @@ TEST_F(PartitionCleanManagerTest, test1) {
     Dentry dentry;
     dentry.set_fsid(fsId);
     dentry.set_parentinodeid(0);
-    ASSERT_EQ(partition->CreateDentry(dentry, true), MetaStatusCode::OK);
 
-    ASSERT_EQ(partition->CreateRootInode(fsId, 0, 0, 0), MetaStatusCode::OK);
+    InodeParam param;
+    param.fsId = fsId;
+    param.gid = 0;
+    param.uid = 0;
+    param.mode = 0;
+    param.type = FsFileType::TYPE_DIRECTORY;
+    param.length = 0;
+    param.rdev = 0;
+    ASSERT_EQ(partition->CreateDentry(dentry, true), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
+
     Inode inode1;
-    ASSERT_EQ(partition->CreateInode(fsId, 0, 0, 0, 0, FsFileType::TYPE_S3,
-                                "", 0, &inode1), MetaStatusCode::OK);
+    param.type = FsFileType::TYPE_S3;
+    param.symlink = "";
+    ASSERT_EQ(partition->CreateInode(param, &inode1), MetaStatusCode::OK);
     ASSERT_EQ(partition->GetInodeNum(), 2);
     ASSERT_EQ(partition->GetDentryNum(), 1);
     Inode inode2;

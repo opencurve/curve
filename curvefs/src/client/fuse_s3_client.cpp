@@ -131,12 +131,13 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(changeSize)});
-        uint64_t parentId;
-        if (inodeManager_->GetParent(ino, &parentId)) {
-            ret = UpdateParentInodeXattr(parentId, xattr, true);
-        } else {
-            LOG(ERROR) << "inodeManager getParent failed, inodeId = " << ino;
-            return CURVEFS_ERROR::INTERNAL;
+        for (const auto &it : inode->parent()) {
+            auto tret = UpdateParentInodeXattr(it, xattr, true);
+            if (tret != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "UpdateParentInodeXattr failed,"
+                           << " inodeId = " << it
+                           << ", xattr = " << xattr.DebugString();
+            }
         }
     }
     return ret;

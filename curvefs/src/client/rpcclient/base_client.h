@@ -112,6 +112,7 @@ struct InodeParam {
     FsFileType type;
     uint64_t rdev;
     std::string symlink;
+    uint64_t parent;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
