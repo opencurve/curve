@@ -106,7 +106,8 @@ class TaskExecutor {
     }
 
     int DoRPCTask();
-    int DoAsyncRPCTask(TaskExecutorDone *done);
+    void DoAsyncRPCTask(TaskExecutorDone *done);
+    int DoRPCTaskInner(TaskExecutorDone *done);
 
     bool OnReturn(int retCode);
     void PreProcessBeforeRetry(int retCode);
