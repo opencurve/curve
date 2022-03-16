@@ -133,8 +133,8 @@ int DiskCacheWrite::UploadFile(const std::string &name,
     }
     VLOG(9) << "async upload start, file = " << name;
     PutObjectAsyncCallBack cb =
-        [&, buffer,
-         syncTask](const std::shared_ptr<PutObjectAsyncContext> &context) {
+        [&, buffer, syncTask, name]
+            (const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
                 if (metric_.get() != nullptr) {
                     metric_->writeS3.bps.count << context->bufferSize;
