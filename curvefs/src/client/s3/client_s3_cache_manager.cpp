@@ -2020,14 +2020,14 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
         PutObjectAsyncCallBack cb =
             [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
                 if (context->retCode == 0) {
-                    if (pendingReq.fetch_sub(1) == 1) {
-                        VLOG(9) << "pendingReq is over";
-                        cond.Signal();
-                    }
                     if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
                         s3ClientAdaptor_->CollectMetrics(
                             &s3ClientAdaptor_->s3Metric_->adaptorWriteS3,
                             context->bufferSize, context->startTime);
+                    }
+                    if (pendingReq.fetch_sub(1) == 1) {
+                        VLOG(9) << "pendingReq is over";
+                        cond.Signal();
                     }
                     VLOG(9) << "PutObjectAsyncCallBack: " << context->key
                             << " pendingReq is: " << pendingReq;
