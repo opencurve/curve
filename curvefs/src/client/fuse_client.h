@@ -47,6 +47,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/client/common/common.h"
+#include "curvefs/src/client/client_operator.h"
 
 #define DirectIOAlignemnt 512
 
@@ -262,6 +263,10 @@ class FuseClient {
     CURVEFS_ERROR CalAllLayerSumInfo(Inode *inode);
 
     CURVEFS_ERROR FastCalAllLayerSumInfo(Inode *inode);
+
+    CURVEFS_ERROR UpdateParentXattrAfterRename(fuse_ino_t parent,
+        fuse_ino_t newparent, const char *newname,
+        RenameOperator* renameOp);
 
  protected:
     // mds client

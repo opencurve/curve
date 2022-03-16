@@ -982,9 +982,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     EXPECT_CALL(*inodeManager_, GetInode(newparent, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
-    // include below unlink operate
+    // include below unlink operate and update inode parent
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(Invoke([&](const Inode& inode,
                                    InodeOpenStatusChange statusChange) {
             return MetaStatusCode::OK;
@@ -1038,7 +1038,16 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
 
-    // step7: update cache
+    // step7: update inode parent
+    Inode InodeInfo;
+    InodeInfo.set_inodeid(inodeId);
+    InodeInfo.add_parent(parent);
+    inodeWrapper = std::make_shared<InodeWrapper>(InodeInfo, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(inodeId, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                  Return(CURVEFS_ERROR::OK)));
+
+    // step8: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry &dentry) {
@@ -1047,7 +1056,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
-    // step8: set txid
+    // step9: set txid
     EXPECT_CALL(*metaClient_, SetTxId(srcPartitionId, srcTxId + 1)).Times(1);
     EXPECT_CALL(*metaClient_, SetTxId(dstPartitionId, dstTxId + 1)).Times(1);
 
@@ -1120,9 +1129,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     EXPECT_CALL(*inodeManager_, GetInode(parent, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
-    // include below unlink old inode
+    // include below unlink old inode and update inode parent
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(Invoke([&](const Inode& inode,
                                    InodeOpenStatusChange statusChange) {
             return MetaStatusCode::OK;
@@ -1134,10 +1143,20 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     inode.set_nlink(1);
     inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(oldInodeId, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
+                  Return(CURVEFS_ERROR::OK)));
+
+    // step7: update inode parent
+    Inode InodeInfo;
+    InodeInfo.set_inodeid(inodeId);
+    InodeInfo.add_parent(parent);
+    inodeWrapper = std::make_shared<InodeWrapper>(InodeInfo, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(inodeId, _))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
 
-    // step7: update cache
+    // step8: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
     EXPECT_CALL(*dentryManager_, InsertOrReplaceCache(_))
         .WillOnce(Invoke([&](const Dentry &dentry) {
@@ -1146,7 +1165,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
             ASSERT_TRUE(dentry == dstDentry);
         }));
 
-    // step8: set txid
+    // step9: set txid
     EXPECT_CALL(*metaClient_, SetTxId(partitionId, txId + 1)).Times(2);
 
     auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
@@ -1259,8 +1278,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
         .Times(times)
         .WillRepeatedly(DoAll(SetArgReferee<1>(srcParentInodeWrapper),
                               Return(CURVEFS_ERROR::OK)));
+    // include below operator which unlink old inode and update inode parent
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
-        .Times(times * 2)  // include below operator which unlink old inode
+        .Times(times * 3)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     // step6: unlink old inode
@@ -1270,7 +1290,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
     inode.set_type(FsFileType::TYPE_FILE);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(inode.inodeid(), _))
-        .Times(times)
+        .Times(3 * times)
         .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                               Return(CURVEFS_ERROR::OK)));
 
@@ -2523,8 +2543,6 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*inodeManager_, AddParent(ino, parent))
-        .Times(1);
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
             MetaServerClientDone *done){
@@ -2559,6 +2577,7 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
     Inode inode;
     inode.set_inodeid(ino);
     inode.set_length(0);
+    inode.add_parent(0);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     Inode parentInode;
@@ -2575,8 +2594,9 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
 
     auto parentInodeWrapper = std::make_shared<InodeWrapper>(
         parentInode, metaClient_);
-
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+    EXPECT_CALL(*inodeManager_, ShipToFlush(_))
+        .Times(1);
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -2584,8 +2604,6 @@ TEST_F(TestFuseS3Client, FuseOpWrite_EnableSummary) {
                 Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*s3ClientAdaptor_, Write(_, _, _, _))
         .WillOnce(Return(size));
-    EXPECT_CALL(*inodeManager_,  GetParent(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(parentId), Return(true)));
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
             MetaServerClientDone *done){
@@ -2614,9 +2632,45 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
     fuse_ino_t newparent = 2;
     const char* newname = "xxxx";
 
+    Inode inode;
+    inode.set_inodeid(ino);
+    inode.set_length(100);
+    inode.add_parent(0);
+    inode.set_nlink(1);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+
+    Inode pinode;
+    pinode.set_inodeid(0);
+    pinode.set_length(0);
+    pinode.mutable_xattr()->insert({XATTRFILES, "0"});
+    pinode.mutable_xattr()->insert({XATTRSUBDIRS, "0"});
+    pinode.mutable_xattr()->insert({XATTRENTRIES, "0"});
+    pinode.mutable_xattr()->insert({XATTRFBYTES, "0"});
+    auto pinodeWrapper = std::make_shared<InodeWrapper>(pinode, metaClient_);
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillRepeatedly(
+            DoAll(SetArgReferee<1>(pinodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+        .WillRepeatedly(Return(MetaStatusCode::OK));
+    EXPECT_CALL(*dentryManager_, CreateDentry(_))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+    EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
+        .WillOnce(Invoke([](const Inode &inode,
+            MetaServerClientDone *done){
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }));
     fuse_entry_param e;
     CURVEFS_ERROR ret = client_->FuseOpLink(req, ino, newparent, newname, &e);
-    ASSERT_EQ(CURVEFS_ERROR::NOTSUPPORT, ret);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    auto p = pinodeWrapper->GetInodeLocked();
+    ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTRSUBDIRS)->second, "0");
+    ASSERT_EQ(p.xattr().find(XATTRENTRIES)->second, "1");
+    ASSERT_EQ(p.xattr().find(XATTRFBYTES)->second, "100");
 }
 
 TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
@@ -2674,8 +2728,6 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*inodeManager_, ClearParent(_))
-        .Times(1);
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
             MetaServerClientDone *done){
@@ -2712,6 +2764,7 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_FILE);
     inode.set_openmpcount(0);
+    inode.add_parent(0);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     Inode parentInode;
@@ -2729,7 +2782,7 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
 
     uint64_t parentId = 1;
 
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -2739,8 +2792,6 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
         .WillOnce(Return(CURVEFS_ERROR::OK));
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*inodeManager_,  GetParent(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(parentId), Return(true)));
     EXPECT_CALL(*metaClient_, UpdateXattrAsync(_, _))
         .WillOnce(Invoke([](const Inode &inode,
             MetaServerClientDone *done){

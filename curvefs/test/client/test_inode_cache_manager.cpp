@@ -292,30 +292,5 @@ TEST_F(TestInodeCacheManager, BatchGetXAttr) {
         AnyOf("100", "200"));
 }
 
-TEST_F(TestInodeCacheManager, ParentMap) {
-    uint64_t inodeId1 = 1;
-    uint64_t p1 = 100;
-    uint64_t p2 = 200;
-    uint64_t p3 = 300;
-
-    uint64_t parent;
-    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parent));
-
-    iCacheManager_->AddParent(inodeId1, p1);
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parent));
-    ASSERT_EQ(parent, p1);
-
-    iCacheManager_->AddParent(inodeId1, p2);
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parent));
-    ASSERT_EQ(parent, p2);
-
-    ASSERT_TRUE(iCacheManager_->UpdateParent(inodeId1, p3));
-    ASSERT_TRUE(iCacheManager_->GetParent(inodeId1, &parent));
-    ASSERT_EQ(parent, p3);
-
-    iCacheManager_->ClearParent(inodeId1);
-    ASSERT_FALSE(iCacheManager_->GetParent(inodeId1, &parent));
-}
-
 }  // namespace client
 }  // namespace curvefs

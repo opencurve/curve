@@ -69,12 +69,10 @@ class Partition {
     bool FindPendingTx(PrepareRenameTxRequest* pendingTx);
 
     // inode
-    MetaStatusCode CreateInode(uint32_t fsId, uint64_t length, uint32_t uid,
-                               uint32_t gid, uint32_t mode, FsFileType type,
-                               const std::string& symlink, uint64_t rdev,
+    MetaStatusCode CreateInode(const InodeParam &param,
                                Inode* inode);
-    MetaStatusCode CreateRootInode(uint32_t fsId, uint32_t uid, uint32_t gid,
-                                   uint32_t mode);
+
+    MetaStatusCode CreateRootInode(const InodeParam &param);
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode* inode);
 
     MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,

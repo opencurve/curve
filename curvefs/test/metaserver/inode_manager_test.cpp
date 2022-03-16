@@ -46,6 +46,15 @@ class InodeManagerTest : public ::testing::Test {
         inodeStorage = std::make_shared<MemoryInodeStorage>();
         trash = std::make_shared<TrashImpl>(inodeStorage);
         manager = std::make_shared<InodeManager>(inodeStorage, trash);
+
+        param_.fsId = 1;
+        param_.length = 100;
+        param_.uid = 200;
+        param_.gid = 300;
+        param_.mode = 400;
+        param_.type = FsFileType::TYPE_FILE;
+        param_.symlink = "";
+        param_.rdev = 0;
     }
 
     void TearDown() override { return; }
@@ -67,44 +76,36 @@ class InodeManagerTest : public ::testing::Test {
     std::shared_ptr<InodeStorage> inodeStorage;
     std::shared_ptr<TrashImpl> trash;
     std::shared_ptr<InodeManager> manager;
+    InodeParam param_;
 };
 
 TEST_F(InodeManagerTest, test1) {
     // CREATE
     uint32_t fsId = 1;
-    uint64_t length = 100;
-    uint32_t uid = 200;
-    uint32_t gid = 300;
-    uint32_t mode = 400;
-    FsFileType type = FsFileType::TYPE_FILE;
-    std::string symlink = "";
+
     Inode inode1;
-    ASSERT_EQ(manager->CreateInode(fsId, 2, length, uid, gid, mode, type,
-                                   symlink, 0, &inode1),
+    ASSERT_EQ(manager->CreateInode(2, param_, &inode1),
               MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
     Inode inode2;
-    ASSERT_EQ(manager->CreateInode(fsId, 3, length, uid, gid, mode, type,
-                                   symlink, 0, &inode2),
+    ASSERT_EQ(manager->CreateInode(3, param_, &inode2),
               MetaStatusCode::OK);
     ASSERT_EQ(inode2.inodeid(), 3);
 
     Inode inode3;
-    ASSERT_EQ(manager->CreateInode(fsId, 4, length, uid, gid, mode,
-                                   FsFileType::TYPE_SYM_LINK, symlink, 0,
-                                   &inode3),
+    param_.type = FsFileType::TYPE_SYM_LINK;
+    ASSERT_EQ(manager->CreateInode(4, param_, &inode3),
               MetaStatusCode::SYM_LINK_EMPTY);
 
-    ASSERT_EQ(manager->CreateInode(fsId, 4, length, uid, gid, mode,
-                                   FsFileType::TYPE_SYM_LINK, "SYMLINK", 0,
-                                   &inode3),
+    param_.symlink = "SYMLINK";
+    ASSERT_EQ(manager->CreateInode(4, param_, &inode3),
               MetaStatusCode::OK);
     ASSERT_EQ(inode3.inodeid(), 4);
 
     Inode inode4;
-    ASSERT_EQ(manager->CreateInode(fsId, 5, length, uid, gid, mode,
-                                   FsFileType::TYPE_S3, symlink, 0, &inode4),
+    param_.type = FsFileType::TYPE_S3;
+    ASSERT_EQ(manager->CreateInode(5, param_, &inode4),
               MetaStatusCode::OK);
     ASSERT_EQ(inode4.inodeid(), 5);
     ASSERT_EQ(inode4.type(), FsFileType::TYPE_S3);
@@ -270,17 +271,11 @@ TEST_F(InodeManagerTest, test1) {
 TEST_F(InodeManagerTest, UpdateInode) {
     // create inode
     uint32_t fsId = 1;
-    uint64_t length = 100;
-    uint32_t uid = 200;
-    uint32_t gid = 300;
-    uint32_t mode = 400;
     uint64_t ino = 2;
-    FsFileType type = FsFileType::TYPE_FILE;
-    std::string symlink = "";
+
     Inode inode;
     ASSERT_EQ(MetaStatusCode::OK,
-              manager->CreateInode(fsId, ino, length, uid, gid, mode, type,
-                                   symlink, 0, &inode));
+              manager->CreateInode(ino, param_, &inode));
 
     // 1. test add openmpcount
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode);
@@ -318,15 +313,8 @@ TEST_F(InodeManagerTest, testGetAttr) {
 
     // CREATE
     uint32_t fsId = 1;
-    uint64_t length = 100;
-    uint32_t uid = 200;
-    uint32_t gid = 300;
-    uint32_t mode = 400;
-    FsFileType type = FsFileType::TYPE_FILE;
-    std::string symlink = "";
     Inode inode1;
-    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
-        symlink, 0, &inode1),
+    ASSERT_EQ(manager.CreateInode(2, param_, &inode1),
         MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
 
@@ -340,7 +328,7 @@ TEST_F(InodeManagerTest, testGetAttr) {
     ASSERT_EQ(attr.gid(), 300);
     ASSERT_EQ(attr.mode(), 400);
     ASSERT_EQ(attr.type(), FsFileType::TYPE_FILE);
-    ASSERT_EQ(attr.symlink(), symlink);
+    ASSERT_EQ(attr.symlink(), "");
     ASSERT_EQ(attr.rdev(), 0);
 }
 
@@ -352,23 +340,16 @@ TEST_F(InodeManagerTest, testGetXAttr) {
 
     // CREATE
     uint32_t fsId = 1;
-    uint64_t length = 100;
-    uint32_t uid = 200;
-    uint32_t gid = 300;
-    uint32_t mode = 400;
-    FsFileType type = FsFileType::TYPE_FILE;
-    std::string symlink = "";
     Inode inode1;
-    ASSERT_EQ(manager.CreateInode(fsId, 2, length, uid, gid, mode, type,
-        symlink, 0, &inode1),
+    ASSERT_EQ(manager.CreateInode(2, param_, &inode1),
         MetaStatusCode::OK);
     ASSERT_EQ(inode1.inodeid(), 2);
     ASSERT_TRUE(inode1.xattr().empty());
 
     Inode inode2;
+    param_.type = FsFileType::TYPE_DIRECTORY;
     ASSERT_EQ(
-        manager.CreateInode(fsId, 3, length, uid, gid, mode,
-        FsFileType::TYPE_DIRECTORY, symlink, 0, &inode2),
+        manager.CreateInode(3, param_, &inode2),
         MetaStatusCode::OK);
     ASSERT_FALSE(inode2.xattr().empty());
     ASSERT_EQ(inode2.xattr().find(XATTRFILES)->second, "0");

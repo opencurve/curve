@@ -30,6 +30,7 @@
 #include <memory>
 #include <string>
 
+#include "curvefs/src/common/define.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
@@ -236,11 +237,14 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(mtx_);
     }
 
-    CURVEFS_ERROR LinkLocked();
+    CURVEFS_ERROR UpdateParentLocked(uint64_t oldParent, uint64_t newParent);
+
+    // dir will not update parent
+    CURVEFS_ERROR LinkLocked(uint64_t parent = 0);
+
+    CURVEFS_ERROR UnLinkLocked(uint64_t parent = 0);
 
     CURVEFS_ERROR IncreaseNLink();
-
-    CURVEFS_ERROR UnLinkLocked();
 
     CURVEFS_ERROR DecreaseNLink();
 

@@ -39,9 +39,20 @@ namespace curvefs {
 namespace metaserver {
 class PartitionTest : public ::testing::Test {
  protected:
-    void SetUp() override {}
+    void SetUp() override {
+        param_.fsId = 1;
+        param_.length = 0;
+        param_.uid = 0;
+        param_.gid = 0;
+        param_.mode = 0;
+        param_.type = FsFileType::TYPE_FILE;
+        param_.symlink = "";
+        param_.rdev = 0;
+    }
 
     void TearDown() override {}
+
+    InodeParam param_;
 };
 
 TEST_F(PartitionTest, testInodeIdGen1) {
@@ -176,8 +187,8 @@ TEST_F(PartitionTest, inodenum) {
 
     ASSERT_EQ(partition1.GetInodeNum(), 0);
     Inode inode;
-    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
-                                     0, &inode),
+
+    ASSERT_EQ(partition1.CreateInode(param_, &inode),
               MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetInodeNum(), 1);
 
@@ -201,8 +212,7 @@ TEST_F(PartitionTest, dentrynum) {
     // create parent inode
     Inode inode;
     inode.set_inodeid(100);
-    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
-                                     0, &inode),
+    ASSERT_EQ(partition1.CreateInode(param_, &inode),
         MetaStatusCode::OK);
 
     Dentry dentry;
@@ -278,19 +288,14 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
 
     // test CreateInode
     uint32_t fsId = 1;
-    uint64_t length = 0;
-    uint32_t uid = 0;
-    uint32_t gid = 0;
-    uint32_t mode = 0;
-    FsFileType type = FsFileType::TYPE_DIRECTORY;
-    std::string symlink;
+    param_.type = FsFileType::TYPE_DIRECTORY;
+    param_.fsId = fsId + 1;
     Inode inode1;
-    ASSERT_EQ(partition1.CreateInode(fsId + 1, length, uid, gid, mode, type,
-                                     symlink, 0, &inode1),
+    ASSERT_EQ(partition1.CreateInode(param_, &inode1),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test CreateRootInode
-    ASSERT_EQ(partition1.CreateRootInode(fsId + 1, uid, gid, mode),
+    ASSERT_EQ(partition1.CreateRootInode(param_),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
 
     // test GetInode
@@ -344,8 +349,9 @@ TEST_F(PartitionTest, testGetInodeAttr) {
     // create parent inode
     Inode inode;
     inode.set_inodeid(100);
-    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0, FsFileType::TYPE_FILE, "",
-                                     0, &inode), MetaStatusCode::OK);
+    param_.type = FsFileType::TYPE_FILE;
+    param_.fsId = 1;
+    ASSERT_EQ(partition1.CreateInode(param_, &inode), MetaStatusCode::OK);
     InodeAttr attr;
     ASSERT_EQ(partition1.GetInodeAttr(1, 100, &attr), MetaStatusCode::OK);
     ASSERT_EQ(attr.inodeid(), 100);
@@ -371,9 +377,8 @@ TEST_F(PartitionTest, testGetXAttr) {
     // create parent inode
     Inode inode;
     inode.set_inodeid(100);
-    ASSERT_EQ(partition1.CreateInode(1, 0, 0, 0, 0,
-        FsFileType::TYPE_DIRECTORY, "",
-        0, &inode), MetaStatusCode::OK);
+    param_.type = FsFileType::TYPE_DIRECTORY;
+    ASSERT_EQ(partition1.CreateInode(param_, &inode), MetaStatusCode::OK);
     XAttr xattr;
     ASSERT_EQ(partition1.GetXAttr(1, 100, &xattr), MetaStatusCode::OK);
     ASSERT_EQ(xattr.inodeid(), 100);

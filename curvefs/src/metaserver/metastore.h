@@ -228,6 +228,7 @@ class MetaStoreImpl : public MetaStore {
 
     copyset::CopysetNode* copysetNode_;
 };
+
 }  // namespace metaserver
 }  // namespace curvefs
 #endif  // CURVEFS_SRC_METASERVER_METASTORE_H_

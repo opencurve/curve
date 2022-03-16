@@ -210,44 +210,5 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
     }
 }
 
-void InodeCacheManagerImpl::AddParent(uint64_t inodeId, uint64_t parentId) {
-    curve::common::LockGuard lg2(parentIdMapMutex_);
-    if (parentIdMap_.count(inodeId) && parentIdMap_[inodeId] != parentId) {
-        LOG(WARNING) << "AddParent but exist, inodeId = " << inodeId
-                     << ", parentId = " << parentIdMap_[inodeId]
-                     << ", need2AddParentId = " << parentId;
-    }
-    parentIdMap_[inodeId] = parentId;
-}
-
-void InodeCacheManagerImpl::ClearParent(uint64_t inodeId) {
-    curve::common::LockGuard lg2(parentIdMapMutex_);
-    parentIdMap_.erase(inodeId);
-    VLOG(1) << "ClearParent inodeId = " << inodeId
-            << ", after clear the parentmap size = "
-            << parentIdMap_.size();
-}
-
-bool InodeCacheManagerImpl::UpdateParent(uint64_t inodeId,
-    uint64_t newParentId) {
-    curve::common::LockGuard lg2(parentIdMapMutex_);
-    if (parentIdMap_.count(inodeId)) {
-        parentIdMap_[inodeId] = newParentId;
-        return true;
-    }
-    return false;
-}
-
-bool InodeCacheManagerImpl::GetParent(uint64_t inodeId,
-    uint64_t *parentId) {
-    curve::common::LockGuard lg2(parentIdMapMutex_);
-    if (parentIdMap_.count(inodeId)) {
-        *parentId = parentIdMap_[inodeId];
-        return true;
-    }
-    return false;
-}
-
-
 }  // namespace client
 }  // namespace curvefs

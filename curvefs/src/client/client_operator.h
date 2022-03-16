@@ -50,12 +50,21 @@ class RenameOperator {
 
     CURVEFS_ERROR GetTxId();
     CURVEFS_ERROR Precheck();
+    CURVEFS_ERROR RecordOldInodeInfo();
     CURVEFS_ERROR LinkDestParentInode();
     CURVEFS_ERROR PrepareTx();
     CURVEFS_ERROR CommitTx();
     void UnlinkSrcParentInode();
     void UnlinkOldInode();
+    CURVEFS_ERROR UpdateInodeParent();
     void UpdateCache();
+
+    void GetOldInode(uint64_t *oldInodeId, int64_t *oldInodeSize,
+                     FsFileType *oldInodeType) {
+        *oldInodeId = oldInodeId_;
+        *oldInodeSize = oldInodeSize_;
+        *oldInodeType = oldInodeType_;
+    }
 
  private:
     std::string DebugString();
@@ -71,9 +80,9 @@ class RenameOperator {
 
     CURVEFS_ERROR PrepareRenameTx(const std::vector<Dentry>& dentrys);
 
-    CURVEFS_ERROR LinkInode(uint64_t inodeId);
+    CURVEFS_ERROR LinkInode(uint64_t inodeId, uint64_t parent = 0);
 
-    CURVEFS_ERROR UnLinkInode(uint64_t inodeId);
+    CURVEFS_ERROR UnLinkInode(uint64_t inodeId, uint64_t parent = 0);
 
  private:
     uint32_t fsId_;
@@ -87,6 +96,9 @@ class RenameOperator {
     uint64_t srcTxId_;
     uint64_t dstTxId_;
     uint64_t oldInodeId_;
+    // if dest exist, record the size and type of file or empty dir
+    int64_t oldInodeSize_;
+    FsFileType oldInodeType_;
     Dentry srcDentry_;
     Dentry dstDentry_;
     Dentry dentry_;

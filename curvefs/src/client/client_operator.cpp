@@ -53,6 +53,7 @@ RenameOperator::RenameOperator(uint32_t fsId,
       srcTxId_(0),
       dstTxId_(0),
       oldInodeId_(0),
+      oldInodeSize_(-1),
       dentryManager_(dentryManager),
       inodeManager_(inodeManager),
       metaClient_(metaClient),
@@ -144,6 +145,23 @@ CURVEFS_ERROR RenameOperator::Precheck() {
     return rc;
 }
 
+// record old inode info if overwrite
+CURVEFS_ERROR RenameOperator::RecordOldInodeInfo() {
+    if (oldInodeId_ != 0) {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        auto rc = inodeManager_->GetInode(oldInodeId_, inodeWrapper);
+        if (rc == CURVEFS_ERROR::OK) {
+            oldInodeSize_ = inodeWrapper->GetLength();
+            oldInodeType_ = inodeWrapper->GetType();
+        } else {
+            LOG_ERROR("GetInode", rc);
+            return CURVEFS_ERROR::NOTEXIST;
+        }
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR RenameOperator::PrepareRenameTx(
     const std::vector<Dentry>& dentrys) {
     auto rc = metaClient_->PrepareRenameTx(dentrys);
@@ -209,7 +227,7 @@ CURVEFS_ERROR RenameOperator::CommitTx() {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId) {
+CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId, uint64_t parent) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
     auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
     if (rc != CURVEFS_ERROR::OK) {
@@ -217,7 +235,7 @@ CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId) {
         return rc;
     }
 
-    rc = inodeWrapper->LinkLocked();
+    rc = inodeWrapper->LinkLocked(parent);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("Link", rc);
         return rc;
@@ -227,7 +245,7 @@ CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId) {
     return rc;
 }
 
-CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId) {
+CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId, uint64_t parent) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
     auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
     if (rc != CURVEFS_ERROR::OK) {
@@ -235,7 +253,7 @@ CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId) {
         return rc;
     }
 
-    rc = inodeWrapper->UnLinkLocked();
+    rc = inodeWrapper->UnLinkLocked(parent);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("UnLink", rc);
         return rc;
@@ -271,8 +289,27 @@ void RenameOperator::UnlinkOldInode() {
         return;
     }
 
-    auto rc = UnLinkInode(oldInodeId_);
+    auto rc = UnLinkInode(oldInodeId_, newParentId_);
     LOG(INFO) << "Unlink old inode, retCode = " << rc;
+}
+
+CURVEFS_ERROR RenameOperator::UpdateInodeParent() {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(srcDentry_.inodeid(), inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("GetInode", rc);
+        return rc;
+    }
+
+    rc = inodeWrapper->UpdateParentLocked(parentId_, newParentId_);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("UpdateInodeParent", rc);
+        return rc;
+    }
+
+    LOG(INFO) << "UpdateInodeParent oldParent = " << parentId_
+              << ", newParent = " << newParentId_;
+    return rc;
 }
 
 void RenameOperator::UpdateCache() {
