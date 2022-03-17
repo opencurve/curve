@@ -237,6 +237,8 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
     // set leader
     topoCopysetInfo.SetLeader(leader);
 
+    topoCopysetInfo.SetPartitionNum(info.partitioninfolist_size());
+
     // set info of configuration changes
     if (info.configchangeinfo().IsInitialized()) {
         MetaServerIdType res =
