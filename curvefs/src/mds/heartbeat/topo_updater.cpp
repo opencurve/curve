@@ -98,6 +98,18 @@ void TopoUpdater::UpdateCopysetTopo(
             return;
         }
 
+        if (reportCopySetInfo.GetPartitionNum() !=
+            recordCopySetInfo.GetPartitionNum()) {
+            LOG(WARNING) << "copyset(" << reportCopySetInfo.GetPoolId() << ","
+                         << reportCopySetInfo.GetId()
+                         << "), partitionNum in topogy = "
+                         << recordCopySetInfo.GetPartitionNum()
+                         << ", partitionNum in hearbeat = "
+                         << reportCopySetInfo.GetPartitionNum()
+                         << ", need update in topo";
+            needUpdate = true;
+        }
+
         // no configuration changes in heartbeat report (no candidate)
         if (!reportCopySetInfo.HasCandidate()) {
             // configuration changes on mds (has candidate)
