@@ -44,6 +44,8 @@ namespace curvefs {
 namespace client {
 
 using ::curve::common::Thread;
+using ::curve::common::TaskThreadPool;
+using curvefs::client::common::S3ClientAdaptorOption;
 using curvefs::client::common::DiskCacheType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
@@ -52,6 +54,8 @@ using rpcclient::MdsClient;
 using curvefs::client::metric::S3Metric;
 
 class DiskCacheManagerImpl;
+class FlushChunkCacheContext;
+class ChunkCacheManager;
 
 class S3ClientAdaptor {
  public:
@@ -87,6 +91,17 @@ class S3ClientAdaptor {
     virtual void InitMetrics(const std::string &fsName) = 0;
     virtual void CollectMetrics(InterfaceMetric *interface, int count,
                                 uint64_t start) = 0;
+};
+
+using FlushChunkCacheCallBack = std::function<
+  void(const std::shared_ptr<FlushChunkCacheContext>&)>;
+
+struct FlushChunkCacheContext {
+    uint64_t inode;
+    ChunkCacheManagerPtr chunkCacheManptr;
+    bool force;
+    FlushChunkCacheCallBack cb;
+    CURVEFS_ERROR retCode;
 };
 
 // client use s3 internal interface
@@ -205,6 +220,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     }
     std::shared_ptr<S3Metric> s3Metric_;
 
+    void Enqueue(std::shared_ptr<FlushChunkCacheContext> context);
+
  private:
     std::shared_ptr<S3Client> client_;
     uint64_t blockSize_;
@@ -214,6 +231,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t prefetchExecQueueNum_;
     std::string allocateServerEps_;
     uint32_t flushIntervalSec_;
+    uint32_t chunkFlushThreads_;
     uint32_t memCacheNearfullRatio_;
     uint32_t throttleBaseSleepUs_;
     Thread bgFlushThread_;
@@ -233,6 +251,11 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>
       downloadTaskQueues_;
     uint32_t pageSize_;
+
+    int FlushChunkClosure(std::shared_ptr<FlushChunkCacheContext> context);
+
+    TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
+        taskPool_;
 };
 
 }  // namespace client

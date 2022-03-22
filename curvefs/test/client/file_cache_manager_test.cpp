@@ -55,6 +55,7 @@ class FileCacheManagerTest : public testing::Test {
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
+        option.chunkFlushThreads = 5;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager_ = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte,
@@ -256,3 +257,4 @@ TEST_F(FileCacheManagerTest, test_read_s3) {
 
 }  // namespace client
 }  // namespace curvefs
+

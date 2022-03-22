@@ -85,7 +85,6 @@ void FsCacheManager::ReleaseFileCacheManager(uint64_t inodeId) {
 bool FsCacheManager::Set(DataCachePtr dataCache,
                          std::list<DataCachePtr>::iterator *outIter) {
     std::lock_guard<std::mutex> lk(lruMtx_);
-
     VLOG(3) << "lru current byte:" << lruByte_
             << ",lru max byte:" << readCacheMaxByte_
             << ", dataCache len:" << dataCache->GetLen();
@@ -154,6 +153,7 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
         WriteLockGuard writeLockGuard(rwLock_);
         tmp = fileCacheManagerMap_;
     }
+
     auto iter = tmp.begin();
     VLOG(3) << "FsSync force: " << force;
     for (; iter != tmp.end(); iter++) {
@@ -932,45 +932,85 @@ void FileCacheManager::TruncateCache(uint64_t offset, uint64_t fileSize) {
 }
 
 CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
-    CURVEFS_ERROR ret;
+    // Todo: concurrent flushes within one file
+    // instead of multiple file flushes may be better
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     std::map<uint64_t, ChunkCacheManagerPtr> tmp;
     {
         WriteLockGuard writeLockGuard(rwLock_);
         tmp = chunkCacheMap_;
     }
-    auto iter = tmp.begin();
 
-    for (; iter != tmp.end(); iter++) {
-        ret = iter->second->Flush(inode_, force, toS3);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "fileCacheManager Flush error, ret:" << ret
-                       << ",chunkIndex:" << iter->second->GetIndex();
-            return ret;
-        }
-
-        {
+    std::atomic<uint64_t> pendingReq(0);
+    curve::common::CountDownEvent cond(1);
+    FlushChunkCacheCallBack cb =
+        [&](const std::shared_ptr<FlushChunkCacheContext> &context) {
             WriteLockGuard writeLockGuard(rwLock_);
-            auto iter1 = chunkCacheMap_.find(iter->first);
-            if (iter1 == chunkCacheMap_.end()) {
-                VLOG(1) << "Flush, chunk cache for inodeid: " << inode_
+            if (ret != CURVEFS_ERROR::OK) {
+                return;
+            }
+            ret = context->retCode;
+            if (context->retCode != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "fileCacheManager Flush error, ret:" << ret
+                       << ", inode: " << context->inode
+                       << ", chunkIndex: "
+                       << context->chunkCacheManptr->GetIndex();
+                cond.Signal();
+                return;
+            }
+            {
+                auto iter1 = chunkCacheMap_.find(
+                  context->chunkCacheManptr->GetIndex());
+                if (iter1 == chunkCacheMap_.end()) {
+                    VLOG(9) << "Flush, chunk cache for inodeid: " << inode_
                         << " is removed";
-                continue;
-            } else {
-                // tmp and chunkCacheMap_ has this ChunkCacheManagerPtr, so
-                // count is 2 if count more than 2, this mean someone thread has
-                // this ChunkCacheManagerPtr
-                VLOG(9) << "Flush, ChunkCacheManagerPtr count:"
-                        << iter1->second.use_count();
-
+                    if (pendingReq.fetch_sub(1,
+                      std::memory_order_seq_cst) == 1) {
+                        VLOG(9) << "pendingReq is over";
+                        cond.Signal();
+                    }
+                    return;
+                }
+                VLOG(6) << "ChunkCacheManagerPtr count:"
+                        << context->chunkCacheManptr.use_count();
+                // tmp and chunkCacheMap_ has this ChunkCacheManagerPtr,
+                // so count is 2 if count more than 2,
+                // this mean someone thread has this ChunkCacheManagerPtr
                 if (iter1->second->IsEmpty() &&
-                    (2 == iter1->second.use_count())) {
-                    VLOG(9) << "chunkCacheMap_ erase.";
+                  (2 == iter1->second.use_count())) {
+                    VLOG(9) << "erase iter: " << iter1->first
+                            << ", inode: " << context->inode;
                     chunkCacheMap_.erase(iter1);
                 }
             }
+            if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
+                VLOG(9) << "pendingReq is over";
+                cond.Signal();
+            }
+        };
+        std::vector<std::shared_ptr<FlushChunkCacheContext>> flushTasks;
+        auto iter = tmp.begin();
+        VLOG(6) << "flush size is: " << tmp.size();
+        for (; iter != tmp.end(); iter++) {
+            auto context = std::make_shared<FlushChunkCacheContext>();
+            context->inode = inode_;
+            context->cb = cb;
+            context->force = force;
+            context->chunkCacheManptr = iter->second;
+            flushTasks.emplace_back(context);
         }
-    }
-    return CURVEFS_ERROR::OK;
+        pendingReq.fetch_add(flushTasks.size(), std::memory_order_seq_cst);
+        for (auto iter = flushTasks.begin();
+          iter != flushTasks.end(); ++iter) {
+            s3ClientAdaptor_->Enqueue(*iter);
+        }
+
+        if (pendingReq.load(std::memory_order_seq_cst)) {
+            VLOG(6) << "wait for pendingReq";
+            cond.Wait();
+        }
+        VLOG(6) << "file cache flush over";
+        return ret;
 }
 
 void ChunkCacheManager::ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
@@ -1261,13 +1301,11 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
     uint64_t len = dataCache->GetLen();
     WriteLockGuard writeLockGuard(rwLockRead_);
     std::vector<uint64_t> deleteKeyVec;
-
     auto iter = dataRCacheMap_.begin();
     for (; iter != dataRCacheMap_.end(); iter++) {
         if (chunkPos + len <= iter->first) {
             break;
         }
-
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
         uint64_t dcChunkPos = (*dcpIter)->GetChunkPos();
         uint64_t dcLen = (*dcpIter)->GetLen();
@@ -1278,7 +1316,6 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
             deleteKeyVec.emplace_back(dcChunkPos);
         }
     }
-
     for (auto key : deleteKeyVec) {
         auto iter = dataRCacheMap_.find(key);
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
@@ -1400,12 +1437,13 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force,
                                        bool toS3) {
     std::map<uint64_t, DataCachePtr> tmp;
     curve::common::LockGuard lg(flushMtx_);
-    CURVEFS_ERROR ret;
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     {
         WriteLockGuard writeLockGuard(rwLockChunk_);
         tmp = dataWCacheMap_;
     }
     auto iter = tmp.begin();
+    VLOG(6) << "ChunkCacheManager start , size: " << tmp.size();
     for (; iter != tmp.end(); iter++) {
         VLOG(9) << "Flush datacache chunkPos:" << iter->second->GetChunkPos()
                 << ",len:" << iter->second->GetLen() << ",inodeId:" << inodeId
@@ -1434,7 +1472,6 @@ CURVEFS_ERROR ChunkCacheManager::Flush(uint64_t inodeId, bool force,
             }
         }
     }
-
     return CURVEFS_ERROR::OK;
 }
 
@@ -1580,7 +1617,6 @@ void DataCache::CopyBufToDataCache(uint64_t dataCachePos, uint64_t len,
         len -= n;
         blockPos = (blockPos + n) % blockSize;
     }
-
     actualLen_ += addLen;
     VLOG(9) << "chunkPos:" << chunkPos_ << ", len:" << len_
             << ",actualChunkPos_:" << actualChunkPos_
@@ -1925,6 +1961,7 @@ void DataCache::CopyDataCacheToBuf(uint64_t offset, uint64_t len, char *data) {
 
     VLOG(9) << "CopyDataCacheToBuf start Offset:" << offset
             << ", newChunkPos:" << newChunkPos << ",len:" << len;
+
     while (len > 0) {
         if (blockPos + len > blockSize) {
             n = blockSize - blockPos;
@@ -1989,7 +2026,8 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
             isFlush = false;
         }
     }
-    VLOG(9) << "now:" << now << ",createTime:" << createTime_
+    VLOG(9) << "DataCache::Flush : now:"
+            << now << ",createTime:" << createTime_
             << ",flushIntervalSec:" << flushIntervalSec
             << ",isFlush:" << isFlush << ",chunkPos:" << chunkPos_
             << ", len:" << len_ << ", inodeId:" << inodeId
@@ -2001,7 +2039,6 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
         mtx_.unlock();
         return CURVEFS_ERROR::NOFLUSH;
     }
-
     if (isFlush) {
         tmpLen = len_;
         blockPos = chunkPos_ % blockSize;
@@ -2036,7 +2073,11 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
                             &s3ClientAdaptor_->s3Metric_->adaptorWriteS3,
                             context->bufferSize, context->startTime);
                     }
-                    if (pendingReq.fetch_sub(1) == 1) {
+                    // Don't move the if sentence to the front
+                    // it will cause core dumped because s3Metric_
+                    // will be destructed before being accessed
+                    if (pendingReq.fetch_sub(
+                      1, std::memory_order_seq_cst) == 1) {
                         VLOG(9) << "pendingReq is over";
                         cond.Signal();
                     }
@@ -2044,7 +2085,6 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
                             << " pendingReq is: " << pendingReq;
                     return;
                 }
-
                 LOG(WARNING) << "Put object failed, key: " << context->key;
                 s3ClientAdaptor_->GetS3Client()->UploadAsync(context);
             };
@@ -2065,44 +2105,35 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
                 chunkId, blockIndex, 0, fsId, inodeId);
             int ret = 0;
             uint64_t start = butil::cpuwide_time_us();
-            if (useDiskCache) {
-                ret = s3ClientAdaptor_->GetDiskCacheManager()->Write(
-                    objectName, data + writeOffset, n);
-            } else {
-                auto context = std::make_shared<PutObjectAsyncContext>();
-                context->key = objectName;
-                context->buffer = data + writeOffset;
-                context->bufferSize = n;
-                context->cb = cb;
-                context->startTime = butil::cpuwide_time_us();
-                uploadTasks.emplace_back(context);
-            }
-            if (ret < 0) {
-                LOG(ERROR) << "write object fail. object: " << objectName;
-                delete[] data;
-                dirty_.store(true, std::memory_order_release);
-                return CURVEFS_ERROR::INTERNAL;
-            }
-            if (useDiskCache) {
-                if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
-                    s3ClientAdaptor_->CollectMetrics(
-                        &s3ClientAdaptor_->s3Metric_->adaptorWriteDiskCache, n,
-                        start);
-                }
-            }
+            auto context = std::make_shared<PutObjectAsyncContext>();
+            context->key = objectName;
+            context->buffer = data + writeOffset;
+            context->bufferSize = n;
+            context->cb = cb;
+            context->startTime = butil::cpuwide_time_us();
+            uploadTasks.emplace_back(context);
             tmpLen -= n;
             blockIndex++;
             writeOffset += n;
             blockPos = (blockPos + n) % blockSize;
         }
-        if (!useDiskCache) {
-            pendingReq.fetch_add(uploadTasks.size(), std::memory_order_seq_cst);
-            VLOG(9) << "pendingReq init: " << pendingReq;
-            for (auto iter = uploadTasks.begin(); iter != uploadTasks.end();
-                 ++iter) {
-                VLOG(9) << "upload start: " << (*iter)->key
-                        << " len : " << (*iter)->bufferSize;
+
+        pendingReq.fetch_add(uploadTasks.size(), std::memory_order_seq_cst);
+        VLOG(9) << "DataCache::Flush data cache flush pendingReq init: "
+          << pendingReq.load(std::memory_order_seq_cst);
+        if (pendingReq.load(std::memory_order_seq_cst) == 0) {
+            VLOG(3) << "upload task is empty.";
+            delete[] data;
+            return CURVEFS_ERROR::NOFLUSH;
+        }
+        for (auto iter = uploadTasks.begin(); iter != uploadTasks.end();
+            ++iter) {
+            VLOG(9) << "upload start: " << (*iter)->key
+                    << " len : " << (*iter)->bufferSize;
+            if (!useDiskCache) {
                 s3ClientAdaptor_->GetS3Client()->UploadAsync(*iter);
+            } else {
+                s3ClientAdaptor_->GetDiskCacheManager()->Enqueue(*iter);
             }
         }
 
@@ -2110,7 +2141,6 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
             VLOG(9) << "wait for pendingReq";
             cond.Wait();
         }
-
         delete[] data;
         VLOG(9) << "update inode start, chunkId:" << chunkId
                 << ",offset:" << offset << ",len:" << writeOffset
@@ -2131,11 +2161,11 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
             inodeWrapper->AppendS3ChunkInfo(chunkIndex, info);
             s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
         }
-
         VLOG(9) << "data flush end, inodeId: " << inodeId;
         return CURVEFS_ERROR::OK;
     }
     mtx_.unlock();
+    VLOG(9) << "Flush end " << inodeId;
     return CURVEFS_ERROR::NOFLUSH;
 }
 

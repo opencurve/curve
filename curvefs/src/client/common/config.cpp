@@ -118,6 +118,8 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->maxUsableSpaceBytes);
     conf->GetValueFatalIfFail("diskCache.cmdTimeoutSec",
                               &diskCacheOption->cmdTimeoutSec);
+    conf->GetValueFatalIfFail("diskCache.threads",
+                              &diskCacheOption->threads);
     conf->GetValueFatalIfFail("diskCache.avgFlushBytes",
                               &diskCacheOption->avgFlushBytes);
     conf->GetValueFatalIfFail("diskCache.burstFlushBytes",
@@ -145,6 +147,8 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
                               &s3Opt->s3ClientAdaptorOpt.intervalSec);
     conf->GetValueFatalIfFail("s3.flushIntervalSec",
                               &s3Opt->s3ClientAdaptorOpt.flushIntervalSec);
+    conf->GetValueFatalIfFail("s3.chunkFlushThreads",
+                              &s3Opt->s3ClientAdaptorOpt.chunkFlushThreads);
     conf->GetValueFatalIfFail("s3.writeCacheMaxByte",
                               &s3Opt->s3ClientAdaptorOpt.writeCacheMaxByte);
     conf->GetValueFatalIfFail("s3.readCacheMaxByte",

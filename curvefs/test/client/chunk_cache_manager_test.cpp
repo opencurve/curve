@@ -52,6 +52,7 @@ class ChunkCacheManagerTest : public testing::Test {
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
+        option.chunkFlushThreads = 5;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager_ = std::make_shared<FsCacheManager>(
@@ -85,12 +86,15 @@ TEST_F(ChunkCacheManagerTest, test_write_new_data) {
 }
 
 TEST_F(ChunkCacheManagerTest, test_add_read_data_cache) {
+     VLOG(0) << "wghs000";
     uint64_t offset = 0;
     uint64_t len = 1024 * 1024;
     char *buf = new char[len];
     auto dataCache = std::make_shared<DataCache>(
         s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+    VLOG(0) << "wghs001";
     chunkCacheManager_->AddReadDataCache(dataCache);
+    VLOG(0) << "wghs002";
     ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
     offset = 2 * 1024 * 1024;
     auto dataCache1 = std::make_shared<DataCache>(
@@ -367,3 +371,4 @@ TEST_F(ChunkCacheManagerTest, test_truncate_cache) {
 
 }  // namespace client
 }  // namespace curvefs
+
