@@ -59,6 +59,7 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
     ~TestDiskCacheManagerImpl() {}
 
     virtual void SetUp() {
+        Aws::InitAPI(awsOptions_);
         client_ = new MockS3Client();
         wrapper_ = std::make_shared<MockPosixWrapper>();
         diskCacheWrite_ = std::make_shared<MockDiskCacheWrite>();
@@ -66,7 +67,11 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
         diskCacheManager_ = std::make_shared<MockDiskCacheManager>(
             wrapper_, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper_, "/mnt/test");
-        diskCacheWrite_->Init(client_, wrapper_, "/mnt/test", 1);
+
+        std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
+          = std::make_shared<LRUCache<std::string, bool>>
+              (0, std::make_shared<CacheMetrics>("diskcache"));
+        diskCacheWrite_->Init(client_, wrapper_, "/mnt/test", 1, cachedObjName);
         diskCacheManagerImpl_ =
             std::make_shared<DiskCacheManagerImpl>(diskCacheManager_, client_);
     }
@@ -78,6 +83,7 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
         Mock::VerifyAndClear(diskCacheWrite_.get());
         Mock::VerifyAndClear(diskCacheRead_.get());
         Mock::VerifyAndClear(diskCacheManager_.get());
+        Aws::ShutdownAPI(awsOptions_);
     }
     std::shared_ptr<MockDiskCacheRead> diskCacheRead_;
     std::shared_ptr<MockDiskCacheWrite> diskCacheWrite_;
@@ -85,6 +91,7 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
     MockS3Client *client_;
+    Aws::SDKOptions awsOptions_;
 };
 
 
@@ -97,6 +104,36 @@ TEST_F(TestDiskCacheManagerImpl, Init) {
     EXPECT_CALL(*diskCacheManager_, Init(_, _)).WillOnce(Return(0));
     ret = diskCacheManagerImpl_->Init(s3AdaptorOption);
     ASSERT_EQ(0, ret);
+}
+
+TEST_F(TestDiskCacheManagerImpl, WriteClosure) {
+    PutObjectAsyncCallBack cb =
+        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+    };
+
+    auto context = std::make_shared<PutObjectAsyncContext>();
+    context->key = "objectName";
+    char data[5] = "gggg";
+    context->buffer = data + 0;
+    context->bufferSize = 2;
+    context->cb = cb;
+    context->startTime = butil::cpuwide_time_us();
+
+    S3ClientAdaptorOption s3AdaptorOption;
+    s3AdaptorOption.diskCacheOpt.threads = 5;
+    EXPECT_CALL(*diskCacheManager_, Init(_, _)).WillOnce(Return(0));
+    diskCacheManagerImpl_->Init(s3AdaptorOption);
+    std::string fileName = "test";
+    std::string buf = "test";
+    EXPECT_CALL(*diskCacheManager_, IsDiskCacheFull()).WillOnce(Return(false));
+    EXPECT_CALL(*diskCacheWrite_, WriteDiskFile(_, _, _, _))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir()).WillOnce(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir()).WillOnce(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, LinkWriteToRead(_, _, _)).WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, AsyncUploadEnqueue(_)).WillOnce(Return());
+    diskCacheManagerImpl_->Enqueue(context);
+    sleep(5);
 }
 
 TEST_F(TestDiskCacheManagerImpl, Write) {

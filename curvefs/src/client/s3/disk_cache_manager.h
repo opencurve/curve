@@ -34,6 +34,7 @@
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
 #include "src/common/throttle.h"
+#include "src/common/wait_interval.h"
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
@@ -111,8 +112,8 @@ class DiskCacheManager {
      */
     void AddDiskUsedBytes(uint64_t length) {
         usedBytes_.fetch_add(length, std::memory_order_seq_cst);
-        VLOG(9) << "add disk used size is: "
-                << usedBytes_.load(std::memory_order_seq_cst);
+        VLOG(9) << "add disk used size is: " << length
+                << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
         return;
     }
     /**
@@ -125,8 +126,8 @@ class DiskCacheManager {
         usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
         assert(usedBytes >= 0);
         (void)usedBytes;
-        VLOG(9) << "dec disk used size is: "
-                << usedBytes_.load(std::memory_order_seq_cst);
+        VLOG(9) << "dec disk used size is: " << length
+                << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
         return;
     }
     void SetDiskInitUsedBytes();
@@ -143,6 +144,7 @@ class DiskCacheManager {
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
+    curve::common::WaitInterval waitIntervalSec_;
     uint32_t trimCheckIntervalSec_;
     uint32_t fullRatio_;
     uint32_t safeRatio_;
@@ -155,7 +157,8 @@ class DiskCacheManager {
     std::string cacheDir_;
     std::shared_ptr<DiskCacheWrite> cacheWrite_;
     std::shared_ptr<DiskCacheRead> cacheRead_;
-    std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
+
+    std::shared_ptr<LRUCache<std::string, bool>> cachedObjName_;
 
     S3Client *client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;

@@ -28,6 +28,7 @@ cc_binary(
     ],
     deps = [
         ":fuse_client_lib",
+        "@com_google_absl//absl/memory",
     ],
 )
 
