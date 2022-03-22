@@ -322,18 +322,15 @@ FSStatusCode MetaserverClient::DeletePartition(
     }
 }
 
-FSStatusCode MetaserverClient::CreateCopySet(
-    uint32_t poolId, std::set<uint32_t> copysetIds,
-    const std::set<std::string> &addrs) {
+FSStatusCode MetaserverClient::CreateCopySet(uint32_t poolId,
+                    uint32_t copysetId, const std::set<std::string> &addrs) {
     CreateCopysetRequest request;
     CreateCopysetResponse response;
-    for (auto id : copysetIds) {
-        auto copyset = request.add_copysets();
-        copyset->set_poolid(poolId);
-        copyset->set_copysetid(id);
-        for (auto item : addrs) {
-            copyset->add_peers()->set_address(BuildPeerIdWithAddr(item));
-        }
+    auto copyset = request.add_copysets();
+    copyset->set_poolid(poolId);
+    copyset->set_copysetid(copysetId);
+    for (auto item : addrs) {
+        copyset->add_peers()->set_address(BuildPeerIdWithAddr(item));
     }
 
     for (const std::string &item : addrs) {

@@ -766,7 +766,7 @@ TEST_F(MetaserverClientTest, CreateCopySetSuccess) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(RpcService<CreateCopysetRequest, CreateCopysetResponse>)));
-    ASSERT_EQ(client.CreateCopySet(1, {2}, addrs), FSStatusCode::OK);
+    ASSERT_EQ(client.CreateCopySet(1, 2, addrs), FSStatusCode::OK);
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetRpcFailed) {
@@ -777,18 +777,19 @@ TEST_F(MetaserverClientTest, CreateCopySetRpcFailed) {
     std::set<std::string> addrs;
     addrs.emplace("127.0.0.1:6705");
 
-    ASSERT_EQ(client.CreateCopySet(1, {2}, addrs), FSStatusCode::RPC_ERROR);
+    ASSERT_EQ(client.CreateCopySet(1, 2, addrs), FSStatusCode::RPC_ERROR);
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetRpcFailed2) {
     MetaserverOptions options;
     options.rpcRetryTimes = 1;
     options.rpcTimeoutMs = 500;
+    options.rpcRetryIntervalUs = 5000;
     MetaserverClient client(options);
     std::set<std::string> addrs;
     addrs.emplace("127.0.0.1:6705");
 
-    ASSERT_EQ(client.CreateCopySet(1, {2}, addrs), FSStatusCode::RPC_ERROR);
+    ASSERT_EQ(client.CreateCopySet(1, 2, addrs), FSStatusCode::RPC_ERROR);
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetFailed) {
@@ -805,7 +806,7 @@ TEST_F(MetaserverClientTest, CreateCopySetFailed) {
         .WillOnce(DoAll(
             SetArgPointee<2>(response),
             Invoke(RpcService<CreateCopysetRequest, CreateCopysetResponse>)));
-    ASSERT_EQ(client.CreateCopySet(1, {2}, addrs),
+    ASSERT_EQ(client.CreateCopySet(1, 2, addrs),
               FSStatusCode::CREATE_COPYSET_ERROR);
 }
 

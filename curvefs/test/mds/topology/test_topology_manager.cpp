@@ -60,8 +60,10 @@ class TestTopologyManager : public ::testing::Test {
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                    tokenGenerator_, storage_);
         TopologyOption topologyOption;
-        topologyOption.createCopysetNumber = 1;
+        topologyOption.initialCopysetNumber = 1;
+        topologyOption.minAvailableCopysetNum = 1;
         topologyOption.createPartitionNumber = 3;
+
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = addr;
         metaserverOptions.rpcTimeoutMs = 500;
@@ -2085,7 +2087,7 @@ TEST_F(TestTopologyManager,
                          8888);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90), 0x43);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 100), 0x43);
 
     PrepareAddPool(poolId1, "pool2", policy);
     PrepareAddZone(0x25, "zone5", poolId1);
