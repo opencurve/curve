@@ -32,15 +32,23 @@
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
+#include "src/common/lru_cache.h"
+#include "src/common/throttle.h"
+#include "src/common/wait_interval.h"
 #include "curvefs/src/common/wrap_posix.h"
-#include "curvefs/src/client/s3/disk_cache_base.h"
+#include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
+#include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/common/config.h"
+#include "curvefs/src/client/s3/disk_cache_base.h"
 
 namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
 using curve::common::InterruptibleSleeper;
+using ::curve::common::LRUCache;
 using curve::common::PutObjectAsyncCallBack;
 
 class DiskCacheWrite : public DiskCacheBase {
@@ -73,7 +81,8 @@ class DiskCacheWrite : public DiskCacheBase {
        AsyncUploadStop();
     }
     void Init(S3Client *client, std::shared_ptr<PosixWrapper> posixWrapper,
-              const std::string cacheDir, uint64_t asyncLoadPeriodMs);
+              const std::string cacheDir, uint64_t asyncLoadPeriodMs,
+              std::shared_ptr<LRUCache<std::string, bool>> cachedObjName);
     /**
      * @brief write obj to write cahce disk
      * @param[in] client S3Client
@@ -142,6 +151,8 @@ class DiskCacheWrite : public DiskCacheBase {
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
+
+    std::shared_ptr<LRUCache<std::string, bool>> cachedObjName_;
 };
 
 }  // namespace client

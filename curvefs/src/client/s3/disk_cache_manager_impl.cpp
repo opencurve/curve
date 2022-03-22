@@ -47,7 +47,29 @@ int DiskCacheManagerImpl::Init(const S3ClientAdaptorOption option) {
     }
 
     forceFlush_ = option.diskCacheOpt.forceFlush;
+    threads_ = option.diskCacheOpt.threads;
+    taskPool_.Start(threads_);
     LOG(INFO) << "DiskCacheManagerImpl init end.";
+    return 0;
+}
+
+void DiskCacheManagerImpl::Enqueue(
+  std::shared_ptr<PutObjectAsyncContext> context) {
+    auto task = [this, context]() {
+        this->WriteClosure(context);
+    };
+    taskPool_.Enqueue(task);
+}
+
+int DiskCacheManagerImpl::WriteClosure(
+  std::shared_ptr<PutObjectAsyncContext> context) {
+    VLOG(9) << "WriteClosure start, name: " << context->key;
+    int ret = Write(context->key, context->buffer, context->bufferSize);
+     // set the returned value
+    // it is need in CallBack
+    context->retCode = ret;
+    context->cb(context);
+    VLOG(9) << "WriteClosure end, name: " << context->key;
     return 0;
 }
 
@@ -153,6 +175,7 @@ int DiskCacheManagerImpl::UmountDiskCache() {
         LOG(ERROR) << "umount disk cache error.";
         return -1;
     }
+    taskPool_.Stop();
     return 0;
 }
 

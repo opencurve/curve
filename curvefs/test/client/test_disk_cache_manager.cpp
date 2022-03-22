@@ -64,7 +64,10 @@ class TestDiskCacheManager : public ::testing::Test {
         diskCacheManager_ = std::make_shared<DiskCacheManager>(
             wrapper, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper, "/mnt/test");
-        diskCacheWrite_->Init(client, wrapper, "/mnt/test", 1);
+         std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
+          = std::make_shared<LRUCache<std::string, bool>>
+              (0, std::make_shared<CacheMetrics>("diskcache"));
+        diskCacheWrite_->Init(client, wrapper, "/mnt/test", 1, cachedObjName);
     }
 
     virtual void TearDown() {
@@ -105,52 +108,6 @@ TEST_F(TestDiskCacheManager, Init) {
     EXPECT_CALL(*diskCacheRead_, CreateIoDir(_)).WillOnce(Return(-1));
     ret = diskCacheManager_->Init(client, s3AdaptorOption);
     ASSERT_EQ(-1, ret);
-    /*
-        EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-              .WillOnce(Return(-1));
-        EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
-              .WillOnce(Return(0));
-        ret = diskCacheManager_->Init(client, s3AdaptorOption);
-        ASSERT_EQ(0, ret);
-
-        EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
-              .WillOnce(Return(-1));
-        ret = diskCacheManager_->Init(client, s3AdaptorOption);
-        ASSERT_EQ(-1, ret);
-
-        EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, CreateIoDir(_))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheRead_, CreateIoDir(_))
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, AsyncUploadRun())
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-              .WillOnce(Return(0));
-        EXPECT_CALL(*diskCacheRead_, LoadAllCacheReadFile(_))
-              .WillOnce(Return(0));
-        ret = diskCacheManager_->Init(client, s3AdaptorOption);
-        ASSERT_EQ(0, ret);
-    */
 }
 
 TEST_F(TestDiskCacheManager, CreateDir) {

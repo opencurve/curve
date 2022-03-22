@@ -20,11 +20,11 @@
  * Author: hzwuhongsong
  */
 
-#include <sys/stat.h>
-#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <dirent.h>
 
 #include "curvefs/src/client/s3/disk_cache_read.h"
@@ -104,7 +104,7 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
 }
 
 int DiskCacheRead::LoadAllCacheReadFile(
-    std::shared_ptr<SglLRUCache<std::string>> cachedObj) {
+    std::shared_ptr<LRUCache<std::string, bool>> cachedObj) {
     std::set<std::string> tmp;
     int ret = LoadAllCacheFile(&tmp);
     if (ret < 0) {
@@ -115,7 +115,7 @@ int DiskCacheRead::LoadAllCacheReadFile(
     }
 
     for (auto iter = tmp.begin(); iter != tmp.end(); iter++) {
-        cachedObj->Put(std::move(*iter));
+        cachedObj->Put(std::move(*iter), false);
     }
 
     return ret;

@@ -20,12 +20,12 @@
  * Author: huyao
  */
 
-
-
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <algorithm>
 #include <list>
+
+#include "absl/memory/memory.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
 
@@ -54,6 +54,7 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
     memCacheNearfullRatio_ = option.nearfullRatio;
     throttleBaseSleepUs_ = option.baseSleepUs;
     flushIntervalSec_ = option.flushIntervalSec;
+    chunkFlushThreads_ = option.chunkFlushThreads;
     client_ = client;
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;
@@ -101,6 +102,8 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
         }
     }
 
+    // start chunk flush threads
+    taskPool_.Start(chunkFlushThreads_);
     return CURVEFS_ERROR::OK;
 }
 
@@ -117,15 +120,21 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
         VLOG(6) << "pendingReq_ is: " << pendingReq_;
         uint64_t pendingReq = pendingReq_.load(std::memory_order_seq_cst);
         fsCacheManager_->DataCacheByteInc(length);
-        if ((fsCacheManager_->GetDataCacheSize() + pendingReq * fuseMaxSize_) >=
-            fsCacheManager_->GetDataCacheMaxSize()) {
-            LOG(INFO) << "write cache is full, wait flush";
+        uint64_t size = fsCacheManager_->GetDataCacheSize();
+        uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
+        if ((size + pendingReq * fuseMaxSize_) >= maxSize) {
+            LOG(INFO) << "write cache is full, wait flush. size:" << size
+                      << ", maxSize:" << maxSize;
+            // offer to do flush
+            waitIntervalSec_.StopWait();
             fsCacheManager_->WaitFlush();
         }
     }
     uint64_t memCacheRatio = fsCacheManager_->MemCacheRatio();
     int64_t exceedRatio = memCacheRatio - memCacheNearfullRatio_;
     if (exceedRatio > 0) {
+        // offer to do flush
+        waitIntervalSec_.StopWait();
         // upload to s3 derectly or cache disk full
         bool needSleep =
             (DisableDiskCache() || IsReadCache()) ||
@@ -164,7 +173,8 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     if (s3Metric_.get() != nullptr) {
         CollectMetrics(&s3Metric_->adaptorRead, ret, start);
     }
-
+    VLOG(6) << "read end offset:" << offset << ", len:" << length
+            << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     return ret;
 }
 
@@ -304,8 +314,8 @@ int S3ClientAdaptorImpl::Stop() {
         }
         diskCacheManagerImpl_->UmountDiskCache();
     }
+    taskPool_.Stop();
     client_->Deinit();
-    LOG(INFO) << "Stopping S3ClientAdaptor success";
     return 0;
 }
 
@@ -371,6 +381,27 @@ int S3ClientAdaptorImpl::ClearDiskCache(int64_t inodeId) {
     LOG_IF(ERROR, ret < 0) << "FlushAllCache, inode:" << inodeId
                            << ", upload write cache fail";
     return ret;
+}
+
+void S3ClientAdaptorImpl::Enqueue(
+  std::shared_ptr<FlushChunkCacheContext> context) {
+    auto task = [this, context]() {
+        this->FlushChunkClosure(context);
+    };
+    taskPool_.Enqueue(task);
+}
+
+int S3ClientAdaptorImpl::FlushChunkClosure(
+  std::shared_ptr<FlushChunkCacheContext> context) {
+    VLOG(9) << "FlushChunkCacheClosure start: " << context->inode;
+    CURVEFS_ERROR ret = context->chunkCacheManptr->Flush(
+      context->inode, context->force);
+    // set the returned value
+    // it is need in FlushChunkCacheCallBack
+    context->retCode = ret;
+    context->cb(context);
+    VLOG(9) << "FlushChunkCacheClosure end: " << context->inode;
+    return 0;
 }
 
 }  // namespace client

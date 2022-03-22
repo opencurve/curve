@@ -66,8 +66,9 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     maxUsableSpaceBytes_ = 0;
     // cannot limit the size,
     // because cache is been delete must after upload to s3
-    cachedObjName_ = std::make_shared<SglLRUCache<std::string>>(
-        0, std::make_shared<CacheMetrics>("diskcache"));
+    cachedObjName_ = std::make_shared<
+      LRUCache<std::string, bool>>(0,
+        std::make_shared<CacheMetrics>("diskcache"));
 }
 
 int DiskCacheManager::Init(S3Client *client,
@@ -84,7 +85,7 @@ int DiskCacheManager::Init(S3Client *client,
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
 
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_,
-                      option.diskCacheOpt.asyncLoadPeriodMs);
+                      option.diskCacheOpt.asyncLoadPeriodMs, cachedObjName_);
     cacheRead_->Init(posixWrapper_, cacheDir_);
     int ret;
     ret = CreateDir();
@@ -92,18 +93,19 @@ int DiskCacheManager::Init(S3Client *client,
         LOG(ERROR) << "create cache dir error, ret = " << ret;
         return ret;
     }
-    // start aync upload thread
-    cacheWrite_->AsyncUploadRun();
-    std::thread uploadThread =
-        std::thread(&DiskCacheManager::UploadAllCacheWriteFile, this);
-    uploadThread.detach();
-
     // load all cache read file
+    // the all value of cachedObjName_ is set false
     ret = cacheRead_->LoadAllCacheReadFile(cachedObjName_);
     if (ret < 0) {
         LOG(ERROR) << "load all cache read file error. ret = " << ret;
         return ret;
     }
+
+    // start aync upload thread
+    cacheWrite_->AsyncUploadRun();
+    std::thread uploadThread =
+        std::thread(&DiskCacheManager::UploadAllCacheWriteFile, this);
+    uploadThread.detach();
 
     // start trim thread
     TrimRun();
@@ -154,12 +156,13 @@ int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
 }
 
 void DiskCacheManager::AddCache(const std::string name) {
-    cachedObjName_->Put(name);
+    cachedObjName_->Put(name, true);
     VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
 bool DiskCacheManager::IsCached(const std::string name) {
-    if (!cachedObjName_->IsCached(name)) {
+    bool exist;
+    if (!cachedObjName_->Get(name, &exist)) {
         VLOG(9) << "not cached, name = " << name;
         return false;
     }
@@ -297,10 +300,15 @@ bool DiskCacheManager::IsDiskCacheFull() {
     int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
     uint64_t usedBytes = GetDiskUsedbytes();
     if (ratio >= fullRatio_ || usedBytes >= maxUsableSpaceBytes_) {
-        VLOG(3) << "disk cache is full"
-                << ", ratio is: " << ratio << ", fullRatio is: " << fullRatio_
-                << ", used bytes is: " << usedBytes;
+        VLOG(6) << "disk cache is full"
+                     << ", ratio is: " << ratio << ", fullRatio is: "
+                     << fullRatio_ << ", used bytes is: " << usedBytes;
+        waitIntervalSec_.StopWait();
         return true;
+    }
+    if (!IsDiskCacheSafe()) {
+        VLOG(6) << "wake up trim thread.";
+        waitIntervalSec_.StopWait();
     }
     return false;
 }
@@ -310,12 +318,12 @@ bool DiskCacheManager::IsDiskCacheSafe() {
     uint64_t usedBytes = GetDiskUsedbytes();
     if ((usedBytes < (safeRatio_ * maxUsableSpaceBytes_ / 100))
       && (ratio < safeRatio_)) {
-        VLOG(3) << "disk cache is safe"
+        VLOG(9) << "disk cache is safe"
                 << ", usedBytes is: " << usedBytes
                 << ", use ratio is: " << ratio;
         return true;
     }
-    VLOG(3) << "disk cache is not safe"
+    VLOG(6) << "disk cache is not safe"
                 << ", usedBytes is: " << usedBytes
                 << ", use ratio is: " << ratio;
     return false;
@@ -324,10 +332,16 @@ bool DiskCacheManager::IsDiskCacheSafe() {
 void DiskCacheManager::TrimCache() {
     const std::chrono::seconds sleepSec(trimCheckIntervalSec_);
     LOG(INFO) << "trim function start.";
+    waitIntervalSec_.Init(trimCheckIntervalSec_ * 1000);
     // 1. check cache disk usage every sleepSec seconds.
     // 2. if cache disk is full,
     //    then remove disk file until cache disk is lower than safeRatio_.
-    while (sleeper_.wait_for(sleepSec)) {
+    std::string cacheReadFullDir, cacheWriteFullDir,
+      cacheReadFile, cacheWriteFile, cacheKey;
+    cacheReadFullDir = GetCacheReadFullDir();
+    cacheWriteFullDir = GetCacheWriteFullDir();
+    while (true) {
+        waitIntervalSec_.WaitForNextExcution();
         if (!isRunning_) {
             LOG(INFO) << "trim thread end.";
             return;
@@ -335,29 +349,15 @@ void DiskCacheManager::TrimCache() {
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
         SetDiskFsUsedRatio();
-        if (IsDiskCacheFull()) {
-            VLOG(3) << "disk cache full, begin trim.";
-            std::string cacheReadFullDir, cacheWriteFullDir,
-              cacheReadFile, cacheWriteFile;
-            cacheReadFullDir = GetCacheReadFullDir();
-            cacheWriteFullDir = GetCacheWriteFullDir();
-            std::string cacheKey, cacheKeyBfo, cacheKeyDel;
-            if (!cachedObjName_->GetBack(&cacheKey)) {
-                VLOG(3) << "remove disk file error"
-                        << ", cachedObjName is empty.";
-                continue;
-            }
             while (!IsDiskCacheSafe()) {
-                cacheKeyDel = cacheKey;
-                if (!cachedObjName_->GetBefore(cacheKey, &cacheKeyBfo)) {
+                if (!cachedObjName_->GetLast(false, &cacheKey)) {
                     VLOG(3) << "obj is empty";
                     break;
                 }
-                cacheKey = cacheKeyBfo;
 
-                VLOG(3) << "obj will be removed: " << cacheKeyDel;
-                cacheReadFile = cacheReadFullDir + "/" + cacheKeyDel;
-                cacheWriteFile = cacheWriteFullDir + "/" + cacheKeyDel;
+                VLOG(6) << "obj will be removed01: " << cacheKey;
+                cacheReadFile = cacheReadFullDir + "/" + cacheKey;
+                cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
                 struct stat statFile;
                 int ret;
                 ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
@@ -367,17 +367,17 @@ void DiskCacheManager::TrimCache() {
                 // and then it cannot load the file from S3.
                 // so read is fail.
                 if (ret == 0) {
-                    VLOG(3) << "do not remove this disk file"
+                    VLOG(1) << "do not remove this disk file"
                             << ", file has not been uploaded to S3."
-                            << ", file is: " << cacheKeyDel;
+                            << ", file is: " << cacheKey;
                     continue;
                 }
-                cachedObjName_->Remove(cacheKeyDel);
+                cachedObjName_->Remove(cacheKey);
                 struct stat statReadFile;
                 ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
                 if (ret != 0) {
-                    VLOG(3) << "stat disk file error"
-                            << ", file is: " << cacheKeyDel;
+                    VLOG(0) << "stat disk file error"
+                            << ", file is: " << cacheKey;
                     continue;
                 }
                 // if remove disk file before delete cache,
@@ -387,14 +387,13 @@ void DiskCacheManager::TrimCache() {
                 ret = posixWrapper_->remove(toDelFile);
                 if (ret < 0) {
                     LOG(ERROR)
-                        << "remove disk file error, file is: " << cacheKeyDel;
+                        << "remove disk file error, file is: " << cacheKey;
                     continue;
                 }
                 DecDiskUsedBytes(statReadFile.st_size);
-                VLOG(3) << "remove disk file success, file is: " << cacheKeyDel;
+                VLOG(6) << "remove disk file success, file is: " << cacheKey;
             }
-            VLOG(3) << "trim over.";
-        }
+            VLOG(6) << "trim over.";
     }
     LOG(INFO) << "trim function end.";
 }
@@ -413,7 +412,7 @@ int DiskCacheManager::TrimStop() {
     if (isRunning_.exchange(false)) {
         LOG(INFO) << "stop DiskCacheManager trim thread...";
         isRunning_ = false;
-        sleeper_.interrupt();
+        waitIntervalSec_.StopWait();
         backEndThread_.join();
         LOG(INFO) << "stop DiskCacheManager trim thread ok.";
         return -1;

@@ -148,13 +148,30 @@ TEST(CaCheTest, TestCacheHitAndMissMetric) {
 
     ASSERT_EQ(10, cache->GetCacheMetrics()->cacheHit.get_value());
     ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
-
     for (int i = 0; i < 5; ++i) {
         ASSERT_TRUE(cache->Get(existKey, &out));
     }
 
     ASSERT_EQ(15, cache->GetCacheMetrics()->cacheHit.get_value());
     ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
+}
+
+TEST(CaCheTest, TestCacheGetLast) {
+    auto cache = std::make_shared<LRUCache<int, bool>>(
+        std::make_shared<CacheMetrics>("LruCache"));
+
+    for (int i = 0; i < 3; ++i) {
+        cache->Put(i, true);
+    }
+    cache->Put(3, false);
+    for (int i = 4; i < 6; ++i) {
+        cache->Put(i, true);
+    }
+    int out;
+    cache->GetLast(false, &out);
+    ASSERT_EQ(3, out);
+    cache->GetLast(true, &out);
+    ASSERT_EQ(0, out);
 }
 
 TEST(SglCaCheTest, TestGetBefore) {

@@ -42,6 +42,7 @@ namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
+using curve::common::TaskThreadPool;
 
 struct DiskCacheOption {
     DiskCacheType diskCacheType;
@@ -53,6 +54,7 @@ struct DiskCacheOption {
     bool forceFlush;
     uint64_t maxUsableSpaceBytes;
     uint32_t cmdTimeoutSec;
+    uint32_t threads;
     uint64_t avgFlushBytes;
     uint64_t burstFlushBytes;
     uint64_t burstSecs;
@@ -113,12 +115,21 @@ class DiskCacheManagerImpl {
 
     virtual int ClearReadCache(const std::list<std::string> &files);
 
+    void Enqueue(std::shared_ptr<PutObjectAsyncContext> context);
+
  private:
     int WriteDiskFile(const std::string name, const char *buf, uint64_t length);
 
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
+
     bool forceFlush_;
     S3Client *client_;
+
+    int WriteClosure(std::shared_ptr<PutObjectAsyncContext> context);
+    // threads for disk cache
+    uint32_t threads_;
+    TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
+        taskPool_;
 };
 
 }  // namespace client
