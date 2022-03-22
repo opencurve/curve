@@ -45,7 +45,7 @@ class MockMetaserverClient : public MetaserverClient {
                                  uint64_t idStart, uint64_t idEnd,
                                  const std::set<std::string> &addrs));
     MOCK_METHOD3(CreateCopySet, FSStatusCode(uint32_t poolId,
-            std::set<uint32_t> copysetId, const std::set<std::string> &addrs));
+            uint32_t copysetId, const std::set<std::string> &addrs));
 };
 
 }  // namespace mds

@@ -91,16 +91,20 @@ void MDS::InitMetaServerOption(MetaserverOptions* metaserverOption) {
 void MDS::InitTopologyOption(TopologyOption* topologyOption) {
     conf_->GetValueFatalIfFail("mds.topology.TopologyUpdateToRepoSec",
                                &topologyOption->topologyUpdateToRepoSec);
-    conf_->GetValueFatalIfFail("mds.topology.PartitionNumberInCopyset",
-                               &topologyOption->partitionNumberInCopyset);
+    conf_->GetValueFatalIfFail("mds.topology.MaxPartitionNumberInCopyset",
+                               &topologyOption->maxPartitionNumberInCopyset);
     conf_->GetValueFatalIfFail("mds.topology.IdNumberInPartition",
                                &topologyOption->idNumberInPartition);
     conf_->GetValueFatalIfFail("mds.topology.ChoosePoolPolicy",
                                &topologyOption->choosePoolPolicy);
-    conf_->GetValueFatalIfFail("mds.topology.CreateCopysetNumber",
-                               &topologyOption->createCopysetNumber);
+    conf_->GetValueFatalIfFail("mds.topology.InitialCopysetNumber",
+                               &topologyOption->initialCopysetNumber);
+    conf_->GetValueFatalIfFail("mds.topology.MinAvailableCopysetNum",
+                               &topologyOption->minAvailableCopysetNum);
     conf_->GetValueFatalIfFail("mds.topology.CreatePartitionNumber",
                                &topologyOption->createPartitionNumber);
+    conf_->GetValueFatalIfFail("mds.topology.MaxCopysetNumInMetaserver",
+                               &topologyOption->maxCopysetNumInMetaserver);
     conf_->GetValueFatalIfFail("mds.topology.UpdateMetricIntervalSec",
                                &topologyOption->UpdateMetricIntervalSec);
 }

@@ -33,25 +33,31 @@ struct TopologyOption {
     // time interval that topology data updated to storage
     uint32_t topologyUpdateToRepoSec;
     // partition number in each copyset
-    uint64_t partitionNumberInCopyset;
+    uint64_t maxPartitionNumberInCopyset;
     // id number in each partition
     uint64_t idNumberInPartition;
     // policy of pool choosing
     int choosePoolPolicy;
-    // create copyset number
-    uint32_t createCopysetNumber;
+    // initial create copyset number
+    uint32_t initialCopysetNumber;
+    // min available copyset num
+    uint32_t minAvailableCopysetNum;
     // create partition number
     uint32_t createPartitionNumber;
+    // max copyset num in metaserver
+    uint32_t maxCopysetNumInMetaserver;
     // time interval for updating topology metric
     uint32_t UpdateMetricIntervalSec;
 
     TopologyOption()
         : topologyUpdateToRepoSec(0),
-          partitionNumberInCopyset(256),
+          maxPartitionNumberInCopyset(256),
           idNumberInPartition(16777216),
           choosePoolPolicy(0),
-          createCopysetNumber(10),
+          initialCopysetNumber(10),
+          minAvailableCopysetNum(10),
           createPartitionNumber(3),
+          maxCopysetNumInMetaserver(100),
           UpdateMetricIntervalSec(60) {}
 };
 

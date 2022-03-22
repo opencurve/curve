@@ -90,9 +90,8 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
         return;
     }
 
-    ServerIdType serverId =
-        topology_->FindServerByHostIpPort(request->internalip(),
-            request->internalport());
+    ServerIdType serverId = topology_->FindServerByHostIpPort(
+        request->internalip(), request->internalport());
     if (serverId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
         response->set_statuscode(TopoStatusCode::TOPO_SERVER_NOT_FOUND);
         return;
@@ -634,18 +633,22 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
     response->set_statuscode(TopoStatusCode::TOPO_OK);
 
     while (partitionInfoList->size() < count) {
-        CopySetInfo copyset;
-        if (!topology_->GetAvailableCopyset(&copyset)) {
-            LOG(INFO) << "Have no available copyset when create partition.";
-            if (TopoStatusCode::TOPO_OK == CreateCopyset()) {
-                CreatePartitions(request, response);
-                break;
-            } else {
+        if (topology_->GetAvailableCopysetNum()
+                            < option_.minAvailableCopysetNum) {
+            if (CreateEnoughCopyset() != TopoStatusCode::TOPO_OK) {
                 LOG(ERROR) << "Create copyset failed when create partition.";
                 response->set_statuscode(
                     TopoStatusCode::TOPO_CREATE_COPYSET_ERROR);
                 return;
             }
+        }
+
+        CopySetInfo copyset;
+        if (!topology_->GetAvailableCopyset(&copyset)) {
+            LOG(ERROR) << "Get available copyset fail when create partition.";
+            response->set_statuscode(
+                TopoStatusCode::TOPO_GET_AVAILABLE_COPYSET_ERROR);
+            return;
         }
 
         // get copyset members
@@ -735,25 +738,95 @@ bool TopologyManager::CreateCopysetNodeOnMetaServer(
 }
 
 void TopologyManager::ClearCopysetCreating(PoolIdType poolId,
-    const std::set<CopySetIdType> &copysets) {
-    for (const auto &id : copysets) {
-        topology_->RemoveCopySetCreating(CopySetKey(poolId, id));
-    }
+                                           CopySetIdType copysetId) {
+    topology_->RemoveCopySetCreating(CopySetKey(poolId, copysetId));
 }
 
-TopoStatusCode TopologyManager::CreateCopyset() {
-    PoolIdType poolId;
-    std::set<MetaServerIdType> metaServerIds;
-    std::set<std::string> metaServerAddrs;
-    TopoStatusCode ret = topology_->ChooseAvailableMetaServers(&metaServerIds,
-        &poolId);
-    if (TopoStatusCode::TOPO_OK != ret) {
-        LOG(ERROR) << "choose metaserver failed when create copyset"
-                    << ", error msg = " << TopoStatusCode_Name(ret);
+TopoStatusCode TopologyManager::CreateEnoughCopyset() {
+    int avaibleCopysetNum = topology_->GetAvailableCopysetNum();
+    int copysetNumTotal = topology_->GetCopySetsInCluster().size();
+
+    // if the cluster has no copyset, it create batch copysets random, the
+    // create num equals option_.initialCopysetNumber;
+    // else create copyset by metaserver resource usage, the create num equals
+    // option_.minAvailableCopysetNum - avaibleCopysetNum
+    TopoStatusCode ret = TopoStatusCode::TOPO_OK;
+    if (copysetNumTotal == 0) {
+        ret = InitialCreateCopyset();
+    } else {
+        int createNum = option_.minAvailableCopysetNum - avaibleCopysetNum;
+        if (createNum <= 0) {
+            return TopoStatusCode::TOPO_OK;
+        }
+        ret = CreateCopysetByResourceUsage(createNum);
+    }
+
+    return ret;
+}
+
+TopoStatusCode TopologyManager::InitialCreateCopyset() {
+    std::list<CopysetCreateInfo> copysetList;
+    TopoStatusCode ret =
+        topology_->GenInitialCopysetAddrBatch(option_.initialCopysetNumber,
+                                              &copysetList);
+    if (ret != TopoStatusCode::TOPO_OK) {
+        LOG(ERROR) << "initial create copyset, generate copyset addr fail";
         return ret;
     }
 
-    for (const auto &it : metaServerIds) {
+    for (auto copyset : copysetList) {
+        // alloce copyset id
+        auto copysetId = topology_->AllocateCopySetId(copyset.poolId);
+        if (copysetId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
+            return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
+        }
+
+        copyset.copysetId = copysetId;
+        ret = CreateCopyset(copyset);
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "initial create copyset, create copyset fail";
+            return ret;
+        }
+    }
+
+    return TopoStatusCode::TOPO_OK;
+}
+
+TopoStatusCode TopologyManager::CreateCopysetByResourceUsage(int createNum) {
+    for (int i = 0; i < createNum; i++) {
+        // select metaserver for copyset
+        std::set<MetaServerIdType> metaServerIds;
+        PoolIdType poolId;
+        TopoStatusCode ret =
+            topology_->GenCopysetAddrByResourceUsage(&metaServerIds, &poolId);
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "Generate copyset addr fail";
+            return ret;
+        }
+
+        // alloce copyset id
+        CopySetIdType copysetId = topology_->AllocateCopySetId(poolId);
+        if (copysetId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
+            return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
+        }
+
+        CopysetCreateInfo copyset(poolId, copysetId, metaServerIds);
+        ret = CreateCopyset(copyset);
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "Create copyset fail";
+            return ret;
+        }
+    }
+
+    return TopoStatusCode::TOPO_OK;
+}
+
+TopoStatusCode TopologyManager::CreateCopyset(
+    const CopysetCreateInfo &copyset) {
+    LOG(INFO) << "Create new copyset: " << copyset.ToString();
+    // translate metaserver id to metaserver addr
+    std::set<std::string> metaServerAddrs;
+    for (const auto &it : copyset.metaServerIds) {
         MetaServer metaServer;
         if (topology_->GetMetaServer(it, &metaServer)) {
             metaServerAddrs.emplace(
@@ -765,42 +838,34 @@ TopoStatusCode TopologyManager::CreateCopyset() {
         }
     }
 
-    // send create copyset request
-    std::set<CopySetIdType> copysetIds;
-    for (uint32_t i = 0; i < option_.createCopysetNumber; i++) {
-        CopySetIdType copysetId = topology_->AllocateCopySetId(poolId);
-        if (copysetId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
-            return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
-        }
-        if (TopoStatusCode::TOPO_OK !=
-            topology_->AddCopySetCreating(CopySetKey(poolId, copysetId))) {
-            LOG(WARNING) << "the copyset key = (" << poolId
-                         << ", " << copysetId << ") is already creating.";
-            continue;
-        }
-        copysetIds.emplace(copysetId);
+    if (TopoStatusCode::TOPO_OK !=
+        topology_->AddCopySetCreating(
+            CopySetKey(copyset.poolId, copyset.copysetId))) {
+        LOG(WARNING) << "the copyset key = (" << copyset.poolId << ", "
+                     << copyset.copysetId << ") is already creating.";
     }
 
-    FSStatusCode retcode =
-        metaserverClient_->CreateCopySet(poolId, copysetIds, metaServerAddrs);
-    if (FSStatusCode::OK == retcode) {
-        for (auto id : copysetIds) {
-            CopySetInfo copyset(poolId, id);
-            copyset.SetCopySetMembers(metaServerIds);
-            ret = topology_->AddCopySet(copyset);
-            if (TopoStatusCode::TOPO_OK != ret) {
-                LOG(ERROR) << "Add copyset failed after create copyset."
-                           << " poolId = " << poolId << ", copysetId = " << id
-                           << ", error msg = " << TopoStatusCode_Name(ret);
-                ClearCopysetCreating(poolId, copysetIds);
-                return ret;
-            }
-        }
-    } else {
-        ClearCopysetCreating(poolId, copysetIds);
+    // create copyset on metaserver
+    FSStatusCode retcode = metaserverClient_->CreateCopySet(
+        copyset.poolId, copyset.copysetId, metaServerAddrs);
+    if (FSStatusCode::OK != retcode) {
+        ClearCopysetCreating(copyset.poolId, copyset.copysetId);
         return TopoStatusCode::TOPO_CREATE_COPYSET_ON_METASERVER_FAIL;
     }
-    ClearCopysetCreating(poolId, copysetIds);
+
+    // add copyset record to topogy
+    CopySetInfo copysetInfo(copyset.poolId, copyset.copysetId);
+    copysetInfo.SetCopySetMembers(copyset.metaServerIds);
+    auto ret = topology_->AddCopySet(copysetInfo);
+    if (TopoStatusCode::TOPO_OK != ret) {
+        LOG(ERROR) << "Add copyset failed after create copyset."
+                   << " poolId = " << copyset.poolId
+                   << ", copysetId = " << copyset.copysetId
+                   << ", error msg = " << TopoStatusCode_Name(ret);
+        ClearCopysetCreating(copyset.poolId, copyset.copysetId);
+        return ret;
+    }
+
     return TopoStatusCode::TOPO_OK;
 }
 
@@ -1004,9 +1069,9 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
         for (auto const& i : info.GetPartitionIds()) {
             Partition tmp;
             if (!topology_->GetPartition(i, &tmp)) {
-                LOG(WARNING)
-                    << "poolId=" << poolId << " copysetid=" << copysetId
-                    << " has pattition error, partitionId=" << i;
+                LOG(WARNING) << "poolId=" << poolId
+                             << " copysetid=" << copysetId
+                             << " has pattition error, partitionId=" << i;
                 copysetValue->set_statuscode(
                     TopoStatusCode::TOPO_PARTITION_NOT_FOUND);
             } else {
@@ -1039,9 +1104,9 @@ void TopologyManager::GetCopysetsInfo(const GetCopysetsInfoRequest* request,
     }
 }
 
-void TopologyManager::ListCopysetsInfo(ListCopysetInfoResponse* response) {
+void TopologyManager::ListCopysetsInfo(ListCopysetInfoResponse *response) {
     auto cpysetInfoVec = topology_->ListCopysetInfo();
-    for (auto const& i : cpysetInfoVec) {
+    for (auto const &i : cpysetInfoVec) {
         auto copysetValue = response->add_copysetvalues();
         // default is ok, when find error set to error code
         copysetValue->set_statuscode(TopoStatusCode::TOPO_OK);
@@ -1087,9 +1152,9 @@ void TopologyManager::ListCopysetsInfo(ListCopysetInfoResponse* response) {
         for (auto const& j : i.GetPartitionIds()) {
             Partition tmp;
             if (!topology_->GetPartition(j, &tmp)) {
-                LOG(WARNING)
-                    << "poolId=" << i.GetPoolId() << " copysetid=" << i.GetId()
-                    << " has pattition error, partitionId=" << j;
+                LOG(WARNING) << "poolId=" << i.GetPoolId()
+                             << " copysetid=" << i.GetId()
+                             << " has pattition error, partitionId=" << j;
                 copysetValue->set_statuscode(
                     TopoStatusCode::TOPO_PARTITION_NOT_FOUND);
             } else {
@@ -1103,12 +1168,12 @@ void TopologyManager::ListCopysetsInfo(ListCopysetInfoResponse* response) {
 }
 
 void TopologyManager::GetMetaServersSpace(
-    ::google::protobuf::RepeatedPtrField<curvefs::mds::topology::MetadataUsage>*
-        spaces) {
+    ::google::protobuf::RepeatedPtrField<curvefs::mds::topology::MetadataUsage>
+        *spaces) {
     topology_->GetMetaServersSpace(spaces);
 }
 
-void TopologyManager::GetTopology(ListTopologyResponse* response) {
+void TopologyManager::GetTopology(ListTopologyResponse *response) {
     // cluster info
     ClusterInformation info;
     if (topology_->GetClusterInfo(&info)) {
