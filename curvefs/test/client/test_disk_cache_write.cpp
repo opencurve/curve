@@ -63,7 +63,10 @@ class TestDiskCacheWrite : public ::testing::Test {
 
         std::shared_ptr<PosixWrapper> wrapper =
             std::make_shared<PosixWrapper>();
-        diskCacheWrite_->Init(client_, wrapper_, "test", 1);
+         std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
+          = std::make_shared<LRUCache<std::string, bool>>
+              (0, std::make_shared<CacheMetrics>("diskcache"));
+        diskCacheWrite_->Init(client_, wrapper_, "test", 1, cachedObjName);
     }
 
     virtual void TearDown() {
@@ -535,4 +538,3 @@ TEST_F(TestDiskCacheWrite, test_SynchronizationTask) {
 
 }  // namespace client
 }  // namespace curvefs
-

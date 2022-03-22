@@ -37,7 +37,7 @@
 namespace curvefs {
 namespace client {
 
-using curve::common::SglLRUCache;
+using curve::common::LRUCache;
 using curvefs::common::PosixWrapper;
 
 class DiskCacheRead : public DiskCacheBase {
@@ -58,7 +58,8 @@ class DiskCacheRead : public DiskCacheBase {
      * @brief after reboot，load all files that store in read cache.
      */
     virtual int
-    LoadAllCacheReadFile(std::shared_ptr<SglLRUCache<std::string>> cachedObj);
+    LoadAllCacheReadFile(std::shared_ptr<LRUCache<
+      std::string, bool>> cachedObj);
     virtual int ClearReadCache(const std::list<std::string> &files);
     virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
         metric_ = metric;

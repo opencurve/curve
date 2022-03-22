@@ -53,6 +53,7 @@ class FsCacheManagerTest : public testing::Test {
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
+        option.chunkFlushThreads = 5;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         fsCacheManager_ = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, maxReadCacheByte_, maxWriteCacheByte);

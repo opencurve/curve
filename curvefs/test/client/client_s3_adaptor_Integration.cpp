@@ -111,7 +111,7 @@ class ClientS3IntegrationTest : public testing::Test {
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
-
+        option.chunkFlushThreads = 5;
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
             &mockInodeManager_);
         std::shared_ptr<MockMdsClient> mockMdsClient(&mockMdsClient_);
@@ -2979,3 +2979,4 @@ TEST_F(ClientS3IntegrationTest, test_fssync_overlap_write) {
 
 }  // namespace client
 }  // namespace curvefs
+
