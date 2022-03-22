@@ -126,6 +126,10 @@ class LRUCacheInterface {
     * @param[in] key
     */
     virtual void Remove(const K &key) = 0;
+    /*
+    * @brief Get the size of the lru
+    */
+    virtual uint64_t Size() = 0;
 };
 
 
@@ -185,6 +189,19 @@ class LRUCache : public LRUCacheInterface<K, V> {
     * @param[in] key
     */
     void Remove(const K &key) override;
+    /*
+    * @brief Get the first key that $value = value
+    *
+    * @param[in] value
+    * @param[out] key
+    *
+    * @return false if not find the value, true if succeeded
+    */
+    bool GetLast(const V value, K *key);
+    /*
+    * @brief Get the size of the lru
+    */
+    uint64_t Size() override;
 
     std::shared_ptr<CacheMetrics> GetCacheMetrics() const;
 
@@ -243,6 +260,12 @@ class LRUCache : public LRUCacheInterface<K, V> {
 };
 
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+uint64_t LRUCache<K, V, KeyTraits, ValueTraits>::Size() {
+    ::curve::common::WriteLockGuard guard(lock_);
+    return ll_.size();
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
 void LRUCache<K, V, KeyTraits, ValueTraits>::Put(
     const K &key, const V &value) {
     V eliminated;
@@ -275,6 +298,24 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::Get(const K &key, V *value) {
     // update the position of the target item in the list
     MoveToFront(iter->second);
     *value = cache_[key]->value;
+    return true;
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(const V value, K *key) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    if (ll_.empty()) {
+        return false;
+    }
+    auto it = ll_.rbegin();
+    for (; it != ll_.rend(); ++it) {
+        if ((*it).value == value) {
+            break;
+        }
+    }
+    if (it == ll_.rend())
+        return false;
+    *key = (*it).key;
     return true;
 }
 

@@ -38,10 +38,13 @@ namespace client {
 void DiskCacheWrite::Init(S3Client *client,
                           std::shared_ptr<PosixWrapper> posixWrapper,
                           const std::string cacheDir,
-                          uint64_t asyncLoadPeriodMs) {
+                          uint64_t asyncLoadPeriodMs,
+                          std::shared_ptr<LRUCache<
+                            std::string, bool>> cachedObjName) {
     client_ = client;
     posixWrapper_ = posixWrapper;
     asyncLoadPeriodMs_ = asyncLoadPeriodMs;
+    cachedObjName_ = cachedObjName;
     DiskCacheBase::Init(posixWrapper, cacheDir);
 }
 
@@ -143,7 +146,7 @@ int DiskCacheWrite::UploadFile(const std::string &name,
                         << (butil::cpuwide_time_us() - context->startTime);
                 }
                 RemoveFile(context->key);
-                VLOG(9) << "PutObjectAsyncCallBack success, "
+                VLOG(9) << " PutObjectAsyncCallBack success, "
                         << "remove file: " << context->key;
                 posixWrapper_->free(buffer);
                 if (syncTask) {
@@ -187,12 +190,10 @@ int DiskCacheWrite::GetUploadFile(const std::string &inode,
     if (waitUpload_.empty()) {
         return 0;
     }
-
     if (inode.empty()) {
         toUpload->swap(waitUpload_);
         return toUpload->size();
     }
-
     waitUpload_.remove_if([&](const std::string &filename) {
         bool inodeFile =
             curvefs::common::s3util::ValidNameOfInode(inode, filename);
@@ -274,7 +275,7 @@ int DiskCacheWrite::AsyncUploadFunc() {
 
     std::list<std::string> toUpload;
 
-    VLOG(6) << "async upload function start.";
+    VLOG(3) << "async upload function start.";
     while (sleeper_.wait_for(std::chrono::milliseconds(asyncLoadPeriodMs_))) {
         if (!isRunning_) {
             LOG(INFO) << "async upload thread stop.";
@@ -285,8 +286,9 @@ int DiskCacheWrite::AsyncUploadFunc() {
             VLOG(9) << "no need to upload";
             continue;
         }
-        VLOG(3) << "async upload file size = " << toUpload.size();
+        VLOG(6) << "async upload file size = " << toUpload.size();
         UploadFile(toUpload, nullptr);
+        VLOG(6) << "async upload all files";
     }
     return 0;
 }
@@ -366,7 +368,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         PutObjectAsyncCallBack cb =
         [&, buffer](const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
-                if (pendingReq.fetch_sub(1) == 1) {
+                if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(3) << "pendingReq is over";
                     cond.Signal();
                 }
@@ -391,6 +393,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     }
     for (auto iter = uploadObjs.begin(); iter != uploadObjs.end(); iter++) {
         RemoveFile(*iter);
+        cachedObjName_->Put(*iter, false);
     }
     VLOG(3) << "upload all cached write file end.";
     return 0;
@@ -407,6 +410,7 @@ int DiskCacheWrite::RemoveFile(const std::string fileName) {
                    << ", errno = " << errno;
         return -1;
     }
+    cachedObjName_->Put(fileName, false);
     VLOG(9) << "remove file success, file = " << fileName;
     return 0;
 }
@@ -426,11 +430,13 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
     }
     ssize_t writeLen = posixWrapper_->write(fd, buf, length);
     if (writeLen < 0 || writeLen < length) {
-        LOG(ERROR) << "write disk file error. ret = " << writeLen
-                   << ", file = " << fileName;
+        LOG(ERROR) << "write disk file error. ret: " << writeLen
+                   << ", file: " << fileName
+                   << ", error: " << errno;
         posixWrapper_->close(fd);
         return -1;
     }
+
     // force to flush
     if (force) {
         ret = posixWrapper_->fdatasync(fd);
@@ -441,6 +447,7 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
             return -1;
         }
     }
+
     ret = posixWrapper_->close(fd);
     if (ret < 0) {
         LOG(ERROR) << "close disk file error. errno = " << errno

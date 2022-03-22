@@ -113,7 +113,8 @@ class ClientS3AdaptorTest : public testing::Test {
         option.flushIntervalSec = 5000;
         option.readCacheMaxByte = 104857600;
         option.writeCacheMaxByte = 10485760000;
-        // option.fuseMaxSize = 131072;
+        option.fuseMaxSize = 131072;
+        option.chunkFlushThreads = 5;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
 
         std::shared_ptr<MockInodeCacheManager> mockInodeManager(
@@ -2907,3 +2908,4 @@ TEST_F(ClientS3AdaptorTest, test_fssync_overlap_write) {
 
 }  // namespace client
 }  // namespace curvefs
+
