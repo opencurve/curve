@@ -288,7 +288,8 @@ class MetaServerSpace {
     }
 
     bool IsMetaserverResourceAvailable() {
-        if (diskThresholdByte_ < (diskCopysetMinRequireByte_ + diskUsedByte_)) {
+        if (diskThresholdByte_ <= diskUsedByte_ ||
+            diskThresholdByte_ < (diskCopysetMinRequireByte_ + diskUsedByte_)) {
             return false;
         }
 

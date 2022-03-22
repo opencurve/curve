@@ -85,7 +85,7 @@ class MetaserverClient {
                                          const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreateCopySet(uint32_t poolId,
-                                       std::set<uint32_t> copysetIds,
+                                       uint32_t copysetId,
                                        const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreateCopySetOnOneMetaserver(uint32_t poolId,
