@@ -73,6 +73,7 @@ class MockLRUCache : public Cache {
     MOCK_METHOD3(Put, bool(
         const std::string&, const std::string&, std::string*));
     MOCK_METHOD2(Get, bool(const std::string&, std::string*));
+    MOCK_METHOD0(Size, uint64_t());
     MOCK_METHOD1(Remove, void(const std::string&));
 };
 }  // namespace mds
