@@ -1,4 +1,6 @@
 #!/bin/bash
+#TODO(chengyi01): rm sudo
+apt install sudo;
 WORKSPACE="/var/lib/jenkins/workspace/curve/curve_multijob/"
 sudo mkdir /var/lib/jenkins/log/curve_unittest/$BUILD_NUMBER
 set -e
