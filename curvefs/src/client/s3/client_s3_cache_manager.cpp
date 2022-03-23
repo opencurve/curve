@@ -314,7 +314,7 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                 ::curve::common::UniqueLock lgGuard =
                     inodeWrapper->GetUniqueLock();
                 Inode* inode = inodeWrapper->GetMutableInodeUnlocked();
-                LOG(INFO) << "FileCacheManager::Read Inode: "
+                VLOG(9) << "FileCacheManager::Read Inode: "
                           << inode->DebugString();
                 fileLen = inode->length();
                 for (; iter != totalRequests.end(); iter++) {
