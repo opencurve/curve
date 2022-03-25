@@ -2787,24 +2787,6 @@ TEST_F(TestTopology, GetCopySetsInChunkServer_success) {
     ASSERT_EQ(1, csList.size());
 }
 
-
-
-
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-
-
-
-
-
-
-
-
-
-
-
-
-
-

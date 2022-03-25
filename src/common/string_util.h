@@ -40,7 +40,7 @@
 namespace curve {
 namespace common {
 
-static void SplitString(const std::string& full,
+inline void SplitString(const std::string& full,
                                const std::string& delim,
                                std::vector<std::string>* result) {
     result->clear();
@@ -69,7 +69,22 @@ static void SplitString(const std::string& full,
     }
 }
 
-static bool StringToUll(const std::string &value, uint64_t *out) {
+inline bool StringToUl(const std::string &value, uint32_t *out) {
+    try {
+        *out = std::stoul(value);
+        return true;
+    } catch (std::invalid_argument &e) {
+        LOG(ERROR) << "decode string:{" << value << "} to number err:"
+                   << e.what();
+        return false;
+    } catch (std::out_of_range &e) {
+        LOG(ERROR) << "decode string:{" << value << "} to number err:"
+                   << e.what();
+        return false;
+    }
+}
+
+inline bool StringToUll(const std::string &value, uint64_t *out) {
     try {
         *out = std::stoull(value);
         return true;
@@ -84,7 +99,7 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
     }
 }
 
-static bool StringToInt(const std::string &value, int32_t *out) {
+inline bool StringToInt(const std::string &value, int32_t *out) {
     try {
         *out = std::stoi(value);
         return true;
@@ -99,19 +114,19 @@ static bool StringToInt(const std::string &value, int32_t *out) {
     }
 }
 
-static bool StringStartWith(const std::string& value,
+inline bool StringStartWith(const std::string& value,
                             const std::string& starting) {
     return value.rfind(starting, 0) == 0;
 }
 
-static bool StringEndsWith(const std::string& value,
+inline bool StringEndsWith(const std::string& value,
                            const std::string& ending) {
     if (ending.size() > value.size())
         return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-static bool StringToTime(const std::string& value, uint64_t* expireTime) {
+inline bool StringToTime(const std::string& value, uint64_t* expireTime) {
     *expireTime = 0;
     auto length = value.length();
     if (0 == length) {
@@ -140,7 +155,7 @@ static bool StringToTime(const std::string& value, uint64_t* expireTime) {
 
 inline std::string ToHexString(void* p) {
     std::ostringstream oss;
-    oss << "0x" << std::hex << reinterpret_cast<uint64_t>(p);
+    oss << p;
     return oss.str();
 }
 

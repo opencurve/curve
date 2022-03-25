@@ -50,14 +50,6 @@
 #include <sstream>
 #include <string>
 
-namespace std {
-
-inline std::string to_string(const std::string& val) {
-    return val;
-}
-
-}  // namespace std
-
 namespace curve {
 namespace nbd {
 
@@ -87,6 +79,8 @@ struct NBDConfig {
     bool try_netlink = false;
     // 需要映射的后端文件名称
     std::string imgname;
+    // exclusive open image or not
+    bool exclusive = true;
     // 指定需要映射的nbd设备路径
     std::string devpath;
     // force unmap even if the device is mounted
@@ -142,9 +136,16 @@ inline std::string BoolOption(const std::string& name, bool value,
     return opts;
 }
 
+inline std::string to_string(const std::string& val) {
+    return val;
+}
+
 template <typename T>
 inline std::string KeyValueOption(const std::string& optName, const T& value,
                                   const T& defaultValue, bool* firstOpt) {
+    using curve::nbd::to_string;
+    using std::to_string;
+
     std::string opts;
 
     if (value != defaultValue) {
@@ -152,7 +153,7 @@ inline std::string KeyValueOption(const std::string& optName, const T& value,
             opts += ",";
         }
 
-        opts += std::string(optName + "=") + std::to_string(value);
+        opts += std::string(optName + "=") + to_string(value);
         *firstOpt = false;
     }
 
@@ -171,6 +172,7 @@ inline std::string NBDConfig::MapOptions() const {
     opts.append(KeyValueOption("timeout", timeout, 3600, &firstOpt));
     opts.append(KeyValueOption("block-size", block_size, 4096, &firstOpt));
     opts.append(KeyValueOption("nebd-conf", nebd_conf, {}, &firstOpt));
+    opts.append(BoolOption("no-exclusive", !exclusive, &firstOpt));
 
     return opts.empty() ? "defaults" : opts;
 }

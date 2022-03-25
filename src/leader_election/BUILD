@@ -14,39 +14,34 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS")
 
 cc_library(
     name = "leader_election",
     srcs = ["leader_election.cpp"],
     hdrs = ["leader_election.h"],
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//src/kvstorageclient:kvstorage_client",
-        "//src/mds/nameserver2/helper:helper",
+        "//external:gflags",
         "//external:glog",
-        "//external:gflags"
+        "//src/kvstorageclient:kvstorage_client",
+        "//src/mds/nameserver2/helper",
     ],
 )
-
 
 cc_library(
     name = "leader_election_for_test",
     srcs = ["leader_election.cpp"],
     hdrs = ["leader_election.h"],
-    copts = GCC_FLAGS,
-    visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
     defines = ["FIU_ENABLE"],
-    deps = [
-        "//src/kvstorageclient:kvstorage_client",
-        "//src/common:curve_common",
-        "//external:glog",
-        "//external:gflags"
-    ],
     linkopts = ["-lfiu"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:glog",
+        "//src/common:curve_common",
+        "//src/kvstorageclient:kvstorage_client",
+    ],
 )

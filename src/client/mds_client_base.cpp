@@ -32,6 +32,16 @@ using curve::common::Authenticator;
 
 const char* kRootUserName = "root";
 
+template <typename T>
+void FillClienIpPortIfRegistered(T* request) {
+    auto& clientinfo = ClientDummyServerInfo::GetInstance();
+
+    if (clientinfo.GetRegister()) {
+        request->set_clientip(clientinfo.GetIP());
+        request->set_clientport(clientinfo.GetPort());
+    }
+}
+
 void MDSClientBase::OpenFile(const std::string& filename,
                              const UserInfo_t& userinfo,
                              OpenFileResponse* response,
@@ -74,7 +84,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
 
     LOG(INFO) << "CreateFile: filename = " << filename
                 << ", owner = " << userinfo.owner
-                << ", is nomalfile: " << normalFile
+                << ", is normalfile: " << normalFile
                 << ", log id = " << cntl->log_id()
                 << ", stripeUnit = " << stripeUnit
                 << ", stripeCount = " << stripeCount;
@@ -93,6 +103,7 @@ void MDSClientBase::CloseFile(const std::string& filename,
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     FillUserInfo(&request, userinfo);
+    FillClienIpPortIfRegistered(&request);
 
     LOG(INFO) << "CloseFile: filename = " << filename
                 << ", owner = " << userinfo.owner
@@ -222,16 +233,8 @@ void MDSClientBase::RefreshSession(const std::string& filename,
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     request.set_clientversion(curve::common::CurveVersion());
-
-    static ClientDummyServerInfo& clientInfo =
-        ClientDummyServerInfo::GetInstance();
-
-    if (clientInfo.GetRegister()) {
-        request.set_clientip(clientInfo.GetIP());
-        request.set_clientport(clientInfo.GetPort());
-    }
-
     FillUserInfo(&request, userinfo);
+    FillClienIpPortIfRegistered(&request);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename
                           << ", owner = " << userinfo.owner

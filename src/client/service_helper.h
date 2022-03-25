@@ -52,13 +52,13 @@ struct GetLeaderRpcOption {
 struct GetLeaderInfo {
     LogicPoolID logicPoolId;
     CopysetID   copysetId;
-    std::vector<CopysetPeerInfo> copysetPeerInfo;
+    std::vector<CopysetPeerInfo<ChunkServerID>> copysetPeerInfo;
     int16_t     currentLeaderIndex;
     GetLeaderRpcOption rpcOption;
 
     GetLeaderInfo(const LogicPoolID& logicPoolId,
                   const CopysetID& copysetId,
-                  const std::vector<CopysetPeerInfo>& copysetPeerInfo,
+                  const std::vector<CopysetPeerInfo<ChunkServerID>>& copysetPeerInfo, //NOLINT
                   int16_t currentLeaderIndex,
                   const GetLeaderRpcOption& rpcOption = GetLeaderRpcOption())
       : logicPoolId(logicPoolId),
@@ -110,7 +110,7 @@ class ServiceHelper {
      * @return: 成功返回0，否则返回-1
      */
     static int GetLeader(const GetLeaderInfo& getLeaderInfo,
-                         ChunkServerAddr *leaderAddr,
+                         PeerAddr *leaderAddr,
                          ChunkServerID* leaderId = nullptr,
                          FileMetric* fileMetric = nullptr);
     /**

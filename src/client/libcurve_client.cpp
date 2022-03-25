@@ -43,7 +43,7 @@ void CurveClient::UnInit() {
 }
 
 int CurveClient::Open(const std::string& filename,
-                      std::string* sessionId) {
+                      const OpenFlags& openflags) {
     curve::client::UserInfo userInfo;
     std::string realFileName;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -54,24 +54,12 @@ int CurveClient::Open(const std::string& filename,
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    return fileClient_->Open(realFileName, userInfo, sessionId);
+    return fileClient_->Open(realFileName, userInfo, openflags);
 }
 
 int CurveClient::ReOpen(const std::string& filename,
-                        const std::string& sessionId,
-                        std::string* newSessionId) {
-    curve::client::UserInfo userInfo;
-    std::string realFileName;
-    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
-        filename, &realFileName, &userInfo.owner);
-
-    if (!ret) {
-        LOG(ERROR) << "Get User Info from filename failed!";
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    return fileClient_->ReOpen(realFileName, sessionId,
-                               userInfo, newSessionId);
+                        const OpenFlags& openflags) {
+    return Open(filename, openflags);
 }
 
 int CurveClient::Close(int fd) {

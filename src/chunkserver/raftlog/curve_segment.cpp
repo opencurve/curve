@@ -63,7 +63,7 @@ int CurveSegment::create() {
     std::string path(_path);
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, _first_index);
     char* metaPage = new char[_meta_page_size];
-    memset(metaPage, 0, sizeof(metaPage));
+    memset(metaPage, 0, _meta_page_size);
     memcpy(metaPage, &_meta.bytes, sizeof(_meta.bytes));
     int res = _walFilePool->GetFile(path, metaPage);
     delete metaPage;
@@ -632,19 +632,6 @@ int CurveSegment::sync(bool will_sync) {
     } else {
         return 0;
     }
-}
-
-static void* run_unlink(void* arg) {
-    std::string* file_path = (std::string*) arg;
-    butil::Timer timer;
-    timer.start();
-    int ret = ::unlink(file_path->c_str());
-    timer.stop();
-    BRAFT_VLOG << "unlink " << *file_path << " ret " << ret
-               << " time: " << timer.u_elapsed();
-    delete file_path;
-
-    return NULL;
 }
 
 int CurveSegment::unlink() {

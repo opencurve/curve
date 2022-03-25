@@ -80,29 +80,32 @@ TEST_F(TestReuqestExecutorCurve, test_Open) {
     {
         std::string errFileName("cbd:pool1/:");
         EXPECT_CALL(*curveClient_, Open(fileName, _)).Times(0);
-        std::shared_ptr<NebdFileInstance> ret = executor.Open(errFileName);
+        std::shared_ptr<NebdFileInstance> ret =
+            executor.Open(errFileName, nullptr);
         ASSERT_TRUE(nullptr == ret);
     }
 
     // 2. curveclient open失败
     {
         EXPECT_CALL(*curveClient_, Open(curveFileName, _))
-            .WillOnce(DoAll(SetArgPointee<1>(""), Return(-1)));
-        std::shared_ptr<NebdFileInstance> ret = executor.Open(fileName);
+            .WillOnce(Return(-1));
+        std::shared_ptr<NebdFileInstance> ret =
+            executor.Open(fileName, nullptr);
         ASSERT_TRUE(nullptr == ret);
     }
 
     // 3. open成功
     {
         EXPECT_CALL(*curveClient_, Open(curveFileName, _))
-            .WillOnce(DoAll(SetArgPointee<1>("abc"), Return(1)));
-        std::shared_ptr<NebdFileInstance> ret = executor.Open(fileName);
+            .WillOnce(Return(1));
+        std::shared_ptr<NebdFileInstance> ret =
+            executor.Open(fileName, nullptr);
         ASSERT_TRUE(nullptr != ret);
         auto *curveIns = dynamic_cast<CurveFileInstance *>(ret.get());
         ASSERT_TRUE(nullptr != curveIns);
         ASSERT_EQ(curveFileName, curveIns->fileName);
         ASSERT_EQ(1, curveIns->fd);
-        ASSERT_EQ("abc", curveIns->xattr["session"]);
+        ASSERT_EQ("", curveIns->xattr["session"]);
     }
 }
 
@@ -124,8 +127,8 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
 
     // 2. repoen失败
     {
-        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, xattr["session"], _))
-            .WillOnce(DoAll(SetArgPointee<2>(""), Return(-1)));
+        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, _))
+            .WillOnce(Return(-1));
         std::shared_ptr<NebdFileInstance> ret =
             executor.Reopen(fileName, xattr);
         ASSERT_TRUE(nullptr == ret);
@@ -133,8 +136,8 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
 
     // 3. reopen成功
     {
-        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, xattr["session"], _))
-            .WillOnce(DoAll(SetArgPointee<2>("bcd"), Return(1)));
+        EXPECT_CALL(*curveClient_, ReOpen(curveFileName, _))
+            .WillOnce(Return(1));
          std::shared_ptr<NebdFileInstance> ret =
             executor.Reopen(fileName, xattr);
         ASSERT_TRUE(nullptr != ret);
@@ -142,7 +145,7 @@ TEST_F(TestReuqestExecutorCurve, test_ReOpen) {
         ASSERT_TRUE(nullptr != curveIns);
         ASSERT_EQ(curveFileName, curveIns->fileName);
         ASSERT_EQ(1, curveIns->fd);
-        ASSERT_EQ("bcd", curveIns->xattr["session"]);
+        ASSERT_EQ("", curveIns->xattr["session"]);
     }
 }
 

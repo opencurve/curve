@@ -21,9 +21,15 @@ package nebd.client;
 
 option cc_generic_services = true;
 
+message ProtoOpenFlags {
+   required bool exclusive = 1;
+}
+
 message OpenFileRequest {
    required string fileName = 1;
+   optional ProtoOpenFlags flags = 2;
 }
+
 message OpenFileResponse {
    required RetCode retCode = 1;
    optional string retMsg = 2;

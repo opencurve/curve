@@ -3,8 +3,9 @@
 set -e
 
 chmod +x /usr/bin/map_curve_disk.sh
-cp /usr/bin/map_curve_disk.sh /etc/init.d
-update-rc.d map_curve_disk.sh defaults
+
+systemctl daemon-reload
+systemctl enable map_curve_disk.service
 
 CURVETAB=/etc/curve/curvetab
 CURVETABBAK=/etc/curve/curvetab-bak

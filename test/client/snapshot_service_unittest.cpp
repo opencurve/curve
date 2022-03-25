@@ -54,8 +54,8 @@ class SnapCloneClosureTest : public curve::client::SnapCloneClosure {
 TEST(SnapInstance, SnapShotTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
-    opt.metaServerOpt.mdsRPCTimeoutMs = 500;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9103");
+    opt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -495,7 +495,7 @@ TEST(SnapInstance, SnapShotTest) {
 TEST(SnapInstance, ReadChunkSnapshotTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9103");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -517,7 +517,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     // fake metacache
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
-    CopysetInfo cpinfo;
+    CopysetInfo<ChunkServerID> cpinfo;
     mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
@@ -552,7 +552,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
 TEST(SnapInstance, DeleteChunkSnapshotTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9103");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -573,7 +573,7 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
     // fake metacache
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
-    CopysetInfo cpinfo;
+    CopysetInfo<ChunkServerID> cpinfo;
     mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
@@ -592,7 +592,7 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
 TEST(SnapInstance, GetChunkInfoTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9103");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -611,7 +611,7 @@ TEST(SnapInstance, GetChunkInfoTest) {
     // fake metacache
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
-    CopysetInfo cpinfo;
+    CopysetInfo<ChunkServerID> cpinfo;
     mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
@@ -632,7 +632,7 @@ TEST(SnapInstance, GetChunkInfoTest) {
 TEST(SnapInstance, RecoverChunkTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9103");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -653,7 +653,7 @@ TEST(SnapInstance, RecoverChunkTest) {
     // fake metacache
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
-    CopysetInfo cpinfo;
+    CopysetInfo<ChunkServerID> cpinfo;
     mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
@@ -674,7 +674,7 @@ TEST(SnapInstance, RecoverChunkTest) {
 TEST(SnapInstance, CreateCloneChunkTest) {
     ClientConfigOption opt;
     opt.metaServerOpt.mdsMaxRetryMS = 1000;
-    opt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9103");
+    opt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
@@ -695,7 +695,7 @@ TEST(SnapInstance, CreateCloneChunkTest) {
     // fake metacache
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
-    CopysetInfo cpinfo;
+    CopysetInfo<ChunkServerID> cpinfo;
     mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 

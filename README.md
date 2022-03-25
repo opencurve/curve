@@ -5,18 +5,26 @@
 
 # CURVE
 
-[![Jenkins Coverage](https://img.shields.io/jenkins/coverage/cobertura?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_untest_job%2F)](http://59.111.91.248:8080/job/curve_untest_job/HTML_20Report/)
-[![Robot failover](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_failover_testjob%2F&label=failover)](http://59.111.91.248:8080/job/curve_failover_testjob/)
-[![Robot interface](https://img.shields.io/jenkins/tests?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_robot_job%2F)](http://59.111.91.248:8080/job/curve_robot_job/)
-[![Curve_choas](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_choas_test%2F&label=choas)](http://59.111.91.248:8080/job/curve_choas_test/)
-[![BUILD Status](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fopencurve_multijob%2F)](http://59.111.91.248:8080/job/opencurve_multijob/lastBuild)
 [![Docs](https://img.shields.io/badge/docs-latest-green.svg)](https://github.com/opencurve/curve/tree/master/docs)
 [![Releases](https://img.shields.io/github/v/release/opencurve/curve?include_prereleases)](https://github.com/opencurve/curve/releases)
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 
 Curve is a distributed storage system designed and developed by NetEase, featured with high performance, easy operation and cloud native. Curve is compose of CurveBS(Curve Block Storage) and CurveFS(Curve FileSystem). CurveBS supports snapshot, clone, and recover, also supports virtual machines with qemu and physical machine with nbd. CurveFS supports POSIX based on Fuse.
 
-## Curve vs Ceph
+## Curve Architecture
+The architecture overview of Curve is as follows:
+
+<image src="docs/images/Curve-arch.png" width=70%>
+
+Curve supports deployment in private cloud and public cloud environment, and can also be used in hybrid cloud. The deployment architecture in private cloud environment is as follows:
+
+<image src="docs/images/Curve-deploy-on-premises-idc.png" width=60%>
+
+The CurveFS shared file storage system can be elastically scaled to public cloud storage, which can provide users with greater capacity elasticity, lower costs, and better performance experience:
+
+<image src="docs/images/Curve-deploy-on-public-cloud.png" width=55%>
+
+## Curve Block Service vs Ceph Block Device
 
 Curve: v1.2.0
 
@@ -47,8 +55,8 @@ Curve ops is more friendly than Curve in the block storage scenario.
 
 ## Design Documentation
 
-- Wanna have a glance at CURVE? Click here for [Intro to CURVE](https://www.opencurve.io/)!
-- Want more details? Our documentation for every component:
+- Wanna have a glance at Curve? Click here for [Intro to Curve](https://www.opencurve.io/)!
+- Want more details about CurveBS? Our documentation for every component:
   - [NEBD](docs/en/nebd_en.md)
   - [MDS](docs/en/mds_en.md)
   - [Chunkserver](docs/en/chunkserver_design_en.md)
@@ -57,24 +65,45 @@ Curve ops is more friendly than Curve in the block storage scenario.
   - [CURVE monitoring](docs/en/monitor_en.md)
   - [Client](docs/en/client_en.md)
   - [Client Python API](docs/en/curve-client-python-api_en.md)
-- Application based on CURVE
+- Application based on CurveBS
   - [Work with k8s](docs/en/k8s_csi_interface_en.md)
+- Want more details about CurveFS? Our documentation for every component(Chinese version only, English version will be uploaded soon):
+  - [Architecture design](docs/cn/curvefs_architecture.md)
+  - [Client design](docs/cn/curvefs-client-design.md)
+  - [Metadata management](docs/cn/curvefs-metaserver-overview.md)
+  - [Data caching](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%94%AF%E6%8C%81S3%20%E6%95%B0%E6%8D%AE%E7%BC%93%E5%AD%98%E6%96%B9%E6%A1%88.pdf)
+  - [Space allocation](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88.pdf)
+  - [more details](https://github.com/opencurve/curve-meetup-slides/tree/main/CurveFS)
 
-## Quick Start
+## Quick Start of CurveBS
 
-Want to try on it? Take it easy! We'll help you step by step, but make sure you've read this [Tips](docs/en/deploy_en.md#Tips) before you start.
+In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS (scaleout, upgrade and other functions are under development), please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
 
 ### Deploy an all-in-one environment (to try how CURVE works)
+Please refer to the CurveBS cluster deployment steps in the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment) , for the single-machine experience environment, please use the template about "cluster topology file for single-machine deployment".
 
-[Deploy on single machine](docs/en/deploy_en.md#deploy-on-single-machine)
+
+[Deploy on single machine - deprecated method](docs/en/deploy_en.md#deploy-on-single-machine)
 
 ### Deploy multi-machine cluster (try it in production environment)
+Please refer to the CurveBS cluster deployment steps in the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment) , please use the template about "cluster topology file for multi-machine deployment".
 
-[Deploy on multiple machines](docs/en/deploy_en.md#deploy-on-multiple-machines)
+
+[Deploy on multiple machines - deprecated method](docs/en/deploy_en.md#deploy-on-multiple-machines)
 
 ### curve_ops_tool introduction
 
 [curve_ops_tool introduction](docs/en/curve_ops_tool_en.md)
+
+## Quick Start of CurveFS
+In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS (scaleout, upgrade and other functions are under development), please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
+
+Detail for deploying CurveFS cluster: [CurveFS ​​deployment](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment)
+
+### curvefs_tool introduction
+
+[curvefs_tool introduction](curvefs/src/tools#readme)
+
 
 ## For Developers
 
@@ -86,7 +115,7 @@ Want to try on it? Take it easy! We'll help you step by step, but make sure you'
 [test cases compiling and running](docs/en/build_and_run_en.md#test-case-compilation-and-execution)
 
 ### FIO curve block storage engine
-Fio curve engine is added, you can clone https://github.com/skypexu/fio/tree/nebd_engine and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+Fio curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
 
 ### Coding style guides
 CURVE is coded following [Google C++ Style Guide strictly](https://google.github.io/styleguide/cppguide.html). Please follow this guideline if you're trying to contribute your codes.
@@ -98,7 +127,7 @@ CURVE is coded following [Google C++ Style Guide strictly](https://google.github
 
 ### Other processes
 
-After finishing the development of your code, you should submit a pull request to master branch of CURVE and fill out a pull request template. The pull request will trigger the CI automatically, and the code will only be merged after passing the CI and being reviewed.
+After finishing the development of your code, you should submit a pull request to master branch of CURVE and fill out a pull request template. The pull request will trigger the CI automatically, and the code will only be merged after passing the CI and being reviewed. The Jenkins username and password of CI is netease/netease. If the CI fails to run, you can login to the Jenkins platform to view the reason for the failure.
 
 For more detail, please refer to [CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
@@ -116,5 +145,6 @@ All the developments will be done under master branch. If there's any new versio
 - [Github Issues](https://github.com/openCURVE/CURVE/issues)：You are sincerely welcomed to issue any bugs you came across or any suggestions through Github issues. If you have any question you can refer to our FAQ or join our user group for more details.
 - [FAQ](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ)：Frequently asked question in our user group, and we'll keep working on it.
 - User group：We use Wechat group currently.
+- [Double Week Meetings](https://github.com/opencurve/curve-meetup-slides/tree/main/2022): We have an online community meeting every two weeks which talk about what Curve is doing and planning to do. The time and links of the meeting are public in the user group and [Double Week Meetings](https://github.com/opencurve/curve-meetup-slides/tree/main/2022).
 
 <img src="docs/images/curve-wechat.jpeg" style="zoom: 75%;" />

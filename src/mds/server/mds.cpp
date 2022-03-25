@@ -24,12 +24,17 @@
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
+#include "src/common/lru_cache.h"
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
 
 namespace curve {
 namespace mds {
+
+using LRUCache = ::curve::common::LRUCache<std::string, std::string>;
+using CacheMetrics = ::curve::common::CacheMetrics;
+
 MDS::~MDS() {
     if (etcdEndpoints_) {
         delete etcdEndpoints_;
@@ -238,7 +243,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
     auto res = etcdClient_->Init(etcdConf, etcdTimeout, retryTimes);
     LOG_IF(FATAL, res != EtcdErrCode::EtcdOK)
         << "init etcd client err! "
-        << "etcdaddr: " << etcdConf.Endpoints
+        << "etcdaddr: " << std::string{etcdConf.Endpoints, etcdConf.len}
         << ", etcdaddr len: " << etcdConf.len
         << ", etcdtimeout: " << etcdConf.DialTimeout
         << ", operation timeout: " << etcdTimeout
@@ -252,7 +257,7 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
         << "Run mds err. Check if etcd is running.";
 
     LOG(INFO) << "init etcd client ok! "
-            << "etcdaddr: " << etcdConf.Endpoints
+            << "etcdaddr: " << std::string{etcdConf.Endpoints, etcdConf.len}
             << ", etcdaddr len: " << etcdConf.len
             << ", etcdtimeout: " << etcdConf.DialTimeout
             << ", operation timeout: " << etcdTimeout
@@ -388,7 +393,9 @@ void MDS::InitTopologyChunkAllocator(const TopologyOption& option) {
 
 void MDS::InitNameServerStorage(int mdsCacheCount) {
     // init LRUCache
-    auto cache = std::make_shared<LRUCache>(mdsCacheCount);
+
+    auto cache = std::make_shared<LRUCache>(mdsCacheCount,
+        std::make_shared<CacheMetrics>("mds_nameserver_cache_metric"));
     LOG(INFO) << "init LRUCache success.";
 
     // init NameServerStorage

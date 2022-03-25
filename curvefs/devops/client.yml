@@ -1,0 +1,16 @@
+---
+- hosts: "{{ hosts }}"
+  roles:
+    - { role: common }
+  vars_files:
+    - vars/main.yml
+    - vars/client.yml
+
+  tasks:
+    - name: mount fs
+      shell: "{{ project_mount_command | echo('mount command:') }}"
+      tags: [mount]
+
+    - name: umount fs
+      shell: "fusermount3 -u {{ curvefs_client_mount_path }}"
+      tags: [umount]

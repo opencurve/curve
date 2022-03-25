@@ -14,11 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_binary(
     name = "filemanager_test",
     srcs = glob([
         "file_manager_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
@@ -32,6 +35,7 @@ cc_binary(
     srcs = glob([
         "file_service_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
@@ -45,6 +49,7 @@ cc_binary(
     srcs = glob([
         "heartbeat_service_test.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
@@ -58,6 +63,7 @@ cc_binary(
     srcs = glob([
         "heartbeat_manager_unittest.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
@@ -71,6 +77,7 @@ cc_binary(
     srcs = glob([
         "metafile_manager_test.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
@@ -84,6 +91,7 @@ cc_binary(
     srcs = glob([
         "test_nebd_server.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
@@ -97,24 +105,25 @@ cc_binary(
     srcs = glob([
         "test_request_executor_curve.cpp",
     ]),
+    copts = CURVE_TEST_COPTS,
     deps = [
         "//external:gflags",
         "//nebd/src/part2:nebdserver",
         "//nebd/test/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
-    linkopts = ["-lpthread"],
 )
 
 cc_library(
     name = "mock_lib",
     srcs = glob([
-	 "mock_*",
+        "mock_*",
     ]),
     hdrs = glob(["*.h"]),
-    deps = [
-        "@com_google_googletest//:gtest",
-        "//nebd/src/part2:nebdserver",
-    ],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
+    deps = [
+        "//nebd/src/part2:nebdserver",
+        "@com_google_googletest//:gtest",
+    ],
 )

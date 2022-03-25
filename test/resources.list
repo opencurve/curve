@@ -93,3 +93,6 @@ Used port list:
 
 # common
     dlock_test              2375
+
+# fuse client
+    fuse-client-test         5600 5601

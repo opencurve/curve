@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_library(
     name = "datastore_mock",
     srcs = [
@@ -24,6 +26,7 @@ cc_library(
             "//src/chunkserver/datastore:chunkserver_datastore",
             ],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )
 
 cc_library(
@@ -36,7 +39,7 @@ cc_library(
             "@com_google_googletest//:gtest",
             "//src/chunkserver/datastore:chunkserver_datastore",
             ],
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
 )
 
@@ -49,8 +52,7 @@ cc_test(
         "datastore_unittest_main.cpp",
         "file_helper_unittest.cpp",
     ],
-    includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = [
         "@com_google_googletest//:gtest",
         "//external:gflags",

@@ -14,6 +14,8 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
     name = "lfs",
     srcs = glob([
@@ -23,13 +25,11 @@ cc_library(
                 "wrap_posix.h"
            ]),
     hdrs = ["local_filesystem.h","fs_common.h"],
-    linkopts = ([
-        "-std=c++11",
-    ]),
     deps = [
                 "//src/common:curve_common",
                 "//external:glog",
                 "//external:butil",
             ],
     visibility = ["//visibility:public"],
+    copts = CURVE_DEFAULT_COPTS,
 )

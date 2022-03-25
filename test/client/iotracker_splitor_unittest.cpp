@@ -83,9 +83,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fiu_init(0);
-        fopt.metaServerOpt.mdsAddrs.push_back("127.0.0.1:9104");
-        fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
-        fopt.metaServerOpt.mdsRPCRetryIntervalUS = 50000;
+        fopt.metaServerOpt.rpcRetryOpt.addrs.push_back("127.0.0.1:9104");
+        fopt.metaServerOpt.rpcRetryOpt.rpcTimeoutMs = 500;
+        fopt.metaServerOpt.rpcRetryOpt.rpcRetryIntervalUS = 50000;
         fopt.loginfo.logLevel = 0;
         fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
         fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
@@ -107,7 +107,8 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
         mdsclient_ = std::make_shared<MDSClient>();
         mdsclient_->Initialize(fopt.metaServerOpt);
-        fileinstance_->Initialize("/test", mdsclient_, userinfo, fopt);
+        fileinstance_->Initialize("/test", mdsclient_, userinfo, OpenFlags{},
+                                  fopt);
         InsertMetaCache();
 
         SourceReader::GetInstance().SetOption(fopt);
@@ -304,7 +305,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
             ++count;
         }
 
-        std::vector<CopysetInfo> cpinfoVec;
+        std::vector<CopysetInfo<ChunkServerID>> cpinfoVec;
         mdsclient_->GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec,
                                   &cpinfoVec);
 
@@ -732,7 +733,8 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     rootuserinfo.owner = "root";
     rootuserinfo.password = "root_password";
 
-    ASSERT_TRUE(fileserv->Initialize("/test", mdsclient_, rootuserinfo, fopt));
+    ASSERT_TRUE(fileserv->Initialize("/test", mdsclient_, rootuserinfo,
+                                     OpenFlags{}, fopt));
     ASSERT_EQ(LIBCURVE_ERROR::OK, fileserv->Open("1_userinfo_.txt", userinfo));
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
@@ -1315,7 +1317,8 @@ TEST_F(IOTrackerSplitorTest, StartReadNotAllocateSegmentFromOrigin) {
     userinfo.owner = "cloneuser-test1";
     userinfo.password = "12345";
     mdsclient_->Initialize(fopt.metaServerOpt);
-    fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, fopt);
+    fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, OpenFlags{},
+                              fopt);
 
     MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
     mockschuler2->DelegateToFake();
@@ -1389,7 +1392,8 @@ TEST_F(IOTrackerSplitorTest, AsyncStartReadNotAllocateSegmentFromOrigin) {
     userinfo.owner = "cloneuser-test2";
     userinfo.password = "12345";
     mdsclient_->Initialize(fopt.metaServerOpt);
-    fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, fopt);
+    fileinstance2->Initialize("/clonesource", mdsclient_, userinfo, OpenFlags{},
+                              fopt);
 
     MockRequestScheduler* mockschuler2 = new MockRequestScheduler;
     mockschuler2->DelegateToFake();

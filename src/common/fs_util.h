@@ -32,7 +32,7 @@ namespace curve {
 namespace common {
 
 // 计算path2相对于path1的相对路径
-static std::string CalcRelativePath(const std::string& path1,
+inline std::string CalcRelativePath(const std::string& path1,
                                     const std::string& path2) {
     if (path1.empty() || path2.empty()) {
         return "";
@@ -66,7 +66,7 @@ static std::string CalcRelativePath(const std::string& path1,
 }
 
 // Check whether the path2 is the subpath of path1
-static bool IsSubPath(const std::string& path1,
+inline bool IsSubPath(const std::string& path1,
                       const std::string& path2) {
     return StringStartWith(CalcRelativePath(path1, path2), "./");
 }

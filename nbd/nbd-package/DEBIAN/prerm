@@ -2,7 +2,6 @@
 
 set -e
 
-update-rc.d map_curve_disk.sh remove
-rm -f /etc/init.d/map_curve_disk.sh
+systemctl disable map_curve_disk.service
 
 exit 0

@@ -48,13 +48,13 @@ struct ThrottleParams {
     uint64_t burst;
 
     // maximum length in seconds of burst
-    // note: the real burst duration will be longer than burstLength
-    uint64_t burstLength;
+    // note: the real burst duration will be longer than burstSeconds
+    uint64_t burstSeconds;
 
     ThrottleParams() : ThrottleParams(0, 0, 1) {}
 
-    ThrottleParams(uint64_t limit, uint64_t burst, uint64_t burstLength)
-        : limit(limit), burst(burst), burstLength(burstLength) {}
+    ThrottleParams(uint64_t limit, uint64_t burst, uint64_t burstSeconds)
+        : limit(limit), burst(burst), burstSeconds(burstSeconds) {}
 };
 
 class LeakyBucket {
@@ -66,13 +66,29 @@ class LeakyBucket {
         uint64_t burst = 0;
 
         // burst leak duration
-        uint64_t burstLength = 0;
+        uint64_t burstSeconds = 0;
+
+        // the capacity of avgBucket if burst is set
+        double capacity = 0;
 
         // currnet level
         double level = 0;
 
         // burst level
         double burstLevel = 0;
+        // whether level has been initial
+        bool levelInitial = true;
+        // whether burst level has been initial
+        bool burstLevelInitial = true;
+        // the times that burst leaky bucket is empty
+        uint32_t burstBucketEmptyTimes = 0;
+        // the times that leaky bucket is empty
+        uint32_t avgBucketEmptyTimes = 0;
+
+        /**
+         * @brief initial bucket, prevent the rate exceed
+         */
+        void BucketInitial(bool burst = false);
 
         /**
          * @brief Add tokens to current bucket
@@ -85,14 +101,13 @@ class LeakyBucket {
 
         /**
          * @brief Leak tokens in bucket
-         * @param intervalUs time interval in microseconds from last leak
          */
-        void Leak(uint64_t intervalUs);
+        void Leak();
 
         /**
          * @brief Reset bucket limit
          */
-        void Reset(uint64_t avg, uint64_t burst, uint64_t burstLength);
+        void Reset(uint64_t avg, uint64_t burst, uint64_t burstSeconds);
     };
 
     struct PendingRequest {
@@ -152,7 +167,7 @@ class LeakyBucket {
      * @brief Set the throttle params
      * @return return true if parameters are valid, otherwise return false
      */
-    bool SetLimit(uint64_t average, uint64_t burst, uint64_t burstLength);
+    bool SetLimit(uint64_t average, uint64_t burst, uint64_t burstSeconds);
 
     /**
      * @brief Stop this throttle
@@ -212,13 +227,13 @@ class LeakyBucket {
 
 inline bool operator==(const ThrottleParams& lhs, const ThrottleParams& rhs) {
     return lhs.limit == rhs.limit && lhs.burst == rhs.burst &&
-           lhs.burstLength == rhs.burstLength;
+           lhs.burstSeconds== rhs.burstSeconds;
 }
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const ThrottleParams& params) {
     os << "limit = " << params.limit << ", burst = " << params.burst
-       << ", burst length = " << params.burstLength;
+       << ", burst length = " << params.burstSeconds;
 
     return os;
 }

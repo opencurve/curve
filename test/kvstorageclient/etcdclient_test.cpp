@@ -80,7 +80,7 @@ class TestEtcdClinetImp : public ::testing::Test {
         // 一定时间内尝试init直到etcd完全起来
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
-        while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
+        while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 50) {
             if (0 == client_->Init(conf, 0, 3)) {
                 initSuccess = true;
                 break;

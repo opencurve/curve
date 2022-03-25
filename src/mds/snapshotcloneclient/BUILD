@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS",
-)
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "snapshotcloneclient",
@@ -26,13 +22,13 @@ cc_library(
         "*.cpp",
         "*.h",
     ]),
-    copts = GCC_FLAGS,
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:brpc",
         "//external:glog",
         "//external:json",
-        "//src/common/snapshotclone:curve_snapshotclone",
         "//proto:nameserver2_cc_proto",
+        "//src/common/snapshotclone:curve_snapshotclone",
     ],
 )

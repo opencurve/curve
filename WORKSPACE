@@ -189,3 +189,19 @@ new_http_archive(
     strip_prefix = "aws-checksums-0.1.5",
     build_file = "//:thirdparties/aws/aws-checksums.BUILD",
 )
+
+# C++ rules for Bazel.
+http_archive(
+    name = "rules_cc",
+    urls = ["https://github.com/bazelbuild/rules_cc/archive/9e10b8a6db775b1ecd358d8ddd3dab379a2c29a5.zip"],
+    strip_prefix = "rules_cc-9e10b8a6db775b1ecd358d8ddd3dab379a2c29a5",
+    sha256 = "954b7a3efc8752da957ae193a13b9133da227bdacf5ceb111f2e11264f7e8c95",
+)
+
+# abseil-cpp
+http_archive(
+  name = "com_google_absl",
+  urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20210324.2.tar.gz"],
+  strip_prefix = "abseil-cpp-20210324.2",
+  sha256 = "59b862f50e710277f8ede96f083a5bb8d7c9595376146838b9580be90374ee1f",
+)

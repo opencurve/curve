@@ -86,9 +86,9 @@ int EtcdClientImp::Get(const std::string &key, std::string *out) {
             *out = std::string(res.r1, res.r1 + res.r2);
             free(res.r1);
         } else if (res.r0 == EtcdErrCode::EtcdKeyNotExist) {
-            LOG(INFO) << "file not exist";
+            LOG(INFO) << "key '" << key << "' not exist";
         } else {
-            LOG(WARNING) << "get file err: " << res.r0
+            LOG(WARNING) << "get key err: " << res.r0
                          << ", retry:" << retry << ", needRetry:" << retry;
         }
     } while (needRetry && ++retry <= retryTimes_);
@@ -352,4 +352,3 @@ bool EtcdClientImp::NeedRetry(int errCode) {
 
 }  // namespace kvstorage
 }  // namespace curve
-

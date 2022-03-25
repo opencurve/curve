@@ -172,6 +172,15 @@ class LocalFileSystem {
                       int length) = 0;
 
     /**
+     * @brief sync one fd
+     *
+     * @param fd : file descriptor
+     *
+     * @return succcess return 0, otherwsie reutrn -1
+     */
+    virtual int Sync(int fd) = 0;
+
+    /**
      * 向文件末尾追加数据
      * @param fd：文件句柄id，通过Open接口获取
      * @param buf：待追加数据的buffer
@@ -207,9 +216,9 @@ class LocalFileSystem {
     virtual int Fsync(int fd) = 0;
 
  private:
-    virtual int DoRename(const string& oldPath,
-                         const string& newPath,
-                         unsigned int flags) { return -1; }
+    virtual int DoRename(const string& /* oldPath */,
+                         const string& /* newPath */,
+                         unsigned int /* flags */) { return -1; }
 };
 
 

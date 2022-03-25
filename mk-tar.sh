@@ -454,6 +454,7 @@ fi
 echo "end copy"
 
 # step 4.1 prepare for nebd-package
+mkdir -p build/nebd-package/include/nebd
 mkdir -p build/nebd-package/bin
 mkdir -p build/nebd-package/lib/nebd
 
@@ -462,6 +463,7 @@ do
     cp -f $i build/nebd-package/lib/nebd
 done
 
+cp nebd/src/part1/libnebd.h build/nebd-package/include/nebd
 cp bazel-bin/nebd/src/part2/nebd-server build/nebd-package/bin
 
 # step 4.2 prepare for curve-nbd package
@@ -470,6 +472,7 @@ mkdir -p build/nbd-package/etc
 cp bazel-bin/nbd/src/curve-nbd build/nbd-package/bin
 cp nbd/nbd-package/usr/bin/map_curve_disk.sh build/nbd-package/bin
 cp nbd/nbd-package/etc/curve/curvetab build/nbd-package/etc
+cp nbd/nbd-package/etc/systemd/system/map_curve_disk.service build/nbd-package/etc
 
 #step5 打包tar包
 echo "start make tarball"

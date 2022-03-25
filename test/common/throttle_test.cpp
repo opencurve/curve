@@ -26,7 +26,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <chrono>
+#include <chrono> // NOLINT
 
 namespace curve {
 namespace common {
@@ -156,6 +156,22 @@ TEST_F(ThrottleTest, TestReadAndWriteCannotExceedTotalLimit) {
         ASSERT_GE(seconds, 9);
         ASSERT_LE(seconds, 11);
     }
+}
+
+TEST_F(ThrottleTest, TestBpsBurst) {
+    params_.bpsTotal = ThrottleParams(
+      4 * 1024, 4 * 1024 * 2, 10);  // bps limit is 4096
+    throttle_.UpdateThrottleParams(params_);
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // consume 1 iops token and 40960 bps tokens
+    // so this call will wait 10 seconds
+    throttle_.Add(false, 4096 * 10);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto seconds =
+        std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+    ASSERT_GE(seconds, 5);
+    ASSERT_LE(seconds, 7);
 }
 
 }  // namespace common

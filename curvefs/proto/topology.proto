@@ -1,0 +1,492 @@
+/*
+ *  Copyright (c) 2021 NetEase Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+syntax="proto2";
+import "curvefs/proto/common.proto";
+import "curvefs/proto/heartbeat.proto";
+package curvefs.mds.topology;
+option cc_generic_services = true;
+
+enum TopoStatusCode {
+    TOPO_OK = 0;
+    TOPO_INTERNAL_ERROR = 1;
+    TOPO_INVALID_PARAM = 2;
+    TOPO_INIT_FAIL = 3;
+    TOPO_STORGE_FAIL = 4;
+    TOPO_ID_DUPLICATED = 5;
+    TOPO_METASERVER_NOT_FOUND = 6;
+    TOPO_SERVER_NOT_FOUND = 7;
+    TOPO_ZONE_NOT_FOUND = 8;
+    TOPO_POOL_NOT_FOUND = 9;
+    TOPO_COPYSET_NOT_FOUND = 10;
+    TOPO_CREATE_COPYSET_ERROR = 11;
+    TOPO_ALLOCATE_ID_FAIL = 12;
+    TOPO_CANNOT_REMOVE_WHEN_NOT_EMPTY = 13;
+    TOPO_IP_PORT_DUPLICATED = 14;
+    TOPO_NAME_DUPLICATED = 15;
+    TOPO_CREATE_COPYSET_ON_METASERVER_FAIL = 16;
+    TOPO_CANNOT_REMOVE_NOT_OFFLINE = 17;
+    TOPO_POOL_EXIST = 18;
+    TOPO_LEADER_NOT_FOUND = 19;
+    TOPO_PARTITION_NOT_FOUND = 20;
+    TOPO_CREATE_PARTITION_FAIL = 21;
+    TOPO_METASERVER_EXIST = 22;
+}
+
+enum OnlineState {
+    ONLINE = 0;
+    OFFLINE = 1;
+    UNSTABLE = 2;
+}
+
+// etcd struct defination
+message ClusterInfoData {
+    required string clusterId = 1;
+}
+
+message PoolData {
+    required uint32 PoolId = 1;
+    required string PoolName = 2;
+    required uint64 createTime = 3;
+    required string redundanceAndPlacementPolicy = 4;
+}
+
+message ZoneData {
+    required uint32 zoneId = 1;
+    required string zoneName = 2;
+    required uint32 PoolId = 3;
+}
+
+message ServerData {
+    required uint32 serverId = 1;
+    required string hostName = 2;
+    required string internalIP = 3;
+    required uint32 internalPort = 4;
+    required string externalIP = 5;
+    required uint32 externalPort = 6;
+    required uint32 zoneId = 7;
+    required uint32 PoolId = 8;
+}
+
+message MetaServerData {
+    required uint32 MetaServerId = 1;
+    required string hostName = 2;
+    required string token = 3;
+    required string internalIP = 4;
+    required uint32 internalPort = 5;
+    required string externalIP = 6;
+    required uint32 externalPort = 7;
+    required uint32 serverId = 8;
+    required heartbeat.MetaServerSpaceStatus spaceStatus = 9;
+}
+
+message CopysetData {
+    required uint32 copysetId = 1;
+    required uint32 PoolId = 2;
+    required uint64 epoch = 3;
+    repeated uint32 MetaServerIds = 4;
+    required uint32 PartitionNumber = 5;
+    optional bool availFlag = 6;
+}
+
+// rpc struct defination
+
+message Copyset {
+    required uint32 poolId = 1;
+    required uint32 copysetId   = 2;
+    repeated common.Peer peers  = 3;
+}
+
+message MetaServerInfo {
+    required uint32 metaServerID = 1;
+    required string hostname = 2;
+    required string internalIp = 3;
+    required uint32 internalPort = 4;
+    required string externalIp = 5;
+    required uint32 externalPort = 6;
+    required OnlineState onlineState = 7;
+    optional uint32 serverId = 8;
+}
+
+// MetaServer message
+message MetaServerRegistRequest {
+    required string hostName = 1;
+    required string internalIp = 2;
+    required uint32 internalPort = 3;
+    required string externalIp = 4;
+    required uint32 externalPort = 5;
+};
+
+message MetaServerRegistResponse {
+    required TopoStatusCode statusCode = 1;
+    optional uint32 metaServerID = 2;
+    optional string token = 3;
+};
+
+message ListMetaServerRequest {
+    required uint32 serverID = 1;
+}
+
+message ListMetaServerResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated MetaServerInfo MetaServerInfos = 2;
+}
+
+message GetMetaServerInfoRequest {
+    //use either metaServerID  or  hostIp&port to query MetaServer
+    optional uint32 metaServerID = 1;
+    optional string hostIp = 2;
+    optional uint32 port = 3;
+}
+
+message GetMetaServerInfoResponse {
+    required TopoStatusCode statusCode = 1;
+    optional MetaServerInfo MetaServerInfo = 2;
+}
+
+message DeleteMetaServerRequest {
+    required uint32 metaServerID = 1;
+}
+
+message DeleteMetaServerResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
+// server message
+message ServerInfo {
+    required uint32 serverID = 1;
+    required string hostName = 2;
+    required string internalIp = 3;
+    required uint32 internalPort = 4;
+    required string externalIp = 5;
+    required uint32 externalPort = 6;
+    required uint32 zoneID = 7;
+    optional string zoneName = 8;
+    required uint32 PoolID = 9;
+    optional string PoolName = 10;
+}
+
+message ServerRegistRequest {
+    required string hostName = 1;
+    required string internalIp = 2;
+    optional uint32 internalPort = 3;
+    required string externalIp = 4;
+    optional uint32 externalPort = 5;
+    required string zoneName = 6;
+    required string PoolName = 7;
+}
+
+message ServerRegistResponse {
+    required TopoStatusCode statusCode = 1;
+    optional uint32 serverID = 2;
+}
+
+message GetServerRequest {
+    // use either serverID or hostName or hostIp(internalIP or externalIp) to getServer
+    optional uint32 serverID = 1;
+    optional string hostName = 2;
+    optional string hostIp = 3;
+    optional uint32 port = 4;
+}
+
+message GetServerResponse {
+    required TopoStatusCode statusCode = 1;
+    optional ServerInfo serverInfo = 2;
+}
+
+message DeleteServerRequest {
+    required uint32 serverID = 1;
+}
+
+message DeleteServerResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
+message ListZoneServerRequest {
+    //user either zoneID  or zoneName&PoolName to
+    //List Servers under the zone
+    optional uint32 zoneID = 1;
+    optional string zoneName = 2;
+    optional string poolName = 3;
+}
+
+message ListZoneServerResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated ServerInfo serverInfo = 2;
+}
+
+// zone message
+message ZoneInfo {
+    required uint32 zoneID  = 1;
+    required string zoneName = 2;
+    required uint32 PoolID = 3;
+    optional string PoolName = 4;
+}
+
+message CreateZoneRequest {
+    required string zoneName  = 1;
+    required string PoolName = 2;
+}
+
+message CreateZoneResponse {
+    required TopoStatusCode statusCode = 1;
+    optional ZoneInfo zoneInfo = 2;
+}
+
+message DeleteZoneRequest {
+    required uint32 zoneID = 1;
+}
+
+message DeleteZoneResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
+message GetZoneRequest {
+    required uint32 zoneID = 1;
+}
+
+message GetZoneResponse {
+    required TopoStatusCode statusCode = 1;
+    optional ZoneInfo zoneInfo = 2;
+}
+
+message ListPoolZoneRequest {
+    required uint32 poolID = 1;
+}
+
+message ListPoolZoneResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated ZoneInfo zones = 2;
+}
+
+// pool message
+message PoolInfo {
+    required uint32 PoolID = 1;
+    required string PoolName = 2;
+    required uint64 createTime = 3;
+    required bytes redundanceAndPlaceMentPolicy = 4;
+}
+
+message CreatePoolRequest {
+    required string PoolName = 1;
+    required bytes redundanceAndPlaceMentPolicy = 2;
+}
+
+message CreatePoolResponse {
+    required TopoStatusCode statusCode = 1;
+    optional PoolInfo PoolInfo = 2;
+}
+
+message  DeletePoolRequest {
+    required uint32 PoolID = 1;
+}
+
+message DeletePoolResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
+message GetPoolRequest {
+    required uint32 PoolID = 1;
+}
+
+message GetPoolResponse {
+    required TopoStatusCode statusCode = 1;
+    optional PoolInfo PoolInfo = 2;
+}
+
+message ListPoolRequest {
+}
+
+message ListPoolResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated PoolInfo PoolInfos = 2;
+}
+
+// for client interface
+message GetMetaServerListInCopySetsRequest {
+    required uint32 PoolId = 1;
+    repeated uint32 copysetId = 2;
+}
+
+message MetaServerLocation {
+    required uint32 metaServerID = 1;
+    required string internalIp = 2;
+    required uint32 internalport = 3;
+    optional string externalIp = 4;
+    optional uint32 externalPort = 5;
+}
+
+message CopySetServerInfo {
+    required uint32 copysetId = 1;
+    repeated MetaServerLocation csLocs = 2;
+}
+
+message GetMetaServerListInCopySetsResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated CopySetServerInfo csInfo = 2;
+}
+
+message CreatePartitionRequest {
+    required uint32 fsId = 1;
+    required uint32 count = 2;
+}
+
+message CreatePartitionResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated common.PartitionInfo partitionInfoList = 2;
+}
+
+message ListPartitionRequest {
+    required uint32 fsId = 1;
+}
+
+message ListPartitionResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated common.PartitionInfo partitionInfoList = 2;
+}
+
+message GetCopysetOfPartitionRequest {
+    repeated uint32 partitionId = 1;
+}
+
+message GetCopysetOfPartitionResponse {
+    required TopoStatusCode statusCode = 1;
+    map<uint32, Copyset> copysetMap = 2;
+}
+
+message PartitionTxId {
+    required uint32 partitionId = 1;
+    required uint64 txId = 2;
+}
+
+message CommitTxRequest {
+    repeated PartitionTxId partitionTxIds = 1;
+}
+
+message CommitTxResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
+message ListPartitionsRequest {
+    repeated uint32 fsId = 1;
+}
+
+message PartitionInfoList {
+    repeated common.PartitionInfo partitionInfoList = 1;
+}
+
+message ListPartitionsResponse {
+    required TopoStatusCode statusCode = 1;
+    map<uint32, PartitionInfoList> fsId2partitionList = 2;
+}
+
+message CopysetKey {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+}
+
+message GetCopysetsInfoRequest {
+    repeated CopysetKey copysetKeys = 1;
+}
+
+message CopysetValue {
+    required TopoStatusCode statusCode = 1;
+    optional curvefs.mds.heartbeat.CopySetInfo copysetInfo = 2;
+}
+
+message GetCopysetsInfoResponse {
+    repeated CopysetValue copysetValues = 1;
+}
+
+message ListCopysetInfoRequest {
+}
+
+message ListCopysetInfoResponse {
+    repeated CopysetValue copysetValues = 1;
+}
+
+message StatMetadataUsageRequest{
+}
+
+message MetadataUsage{
+    // KB
+    required string metaserverAddr = 1;
+    required uint64 total = 2;
+    required uint64 used = 3;
+}
+
+message StatMetadataUsageResponse{
+    repeated MetadataUsage metadataUsages = 1;
+}
+
+message ListTopologyRequest {
+}
+
+message ListZoneResponse {
+    // use for ListTopologyResponse
+    required TopoStatusCode statusCode = 1;
+    repeated ZoneInfo zoneInfos = 2;
+}
+
+message ListServerResponse {
+    // use for ListTopologyResponse
+    required TopoStatusCode statusCode = 1;
+    repeated ServerInfo serverInfos = 2;
+}
+
+message ListTopologyResponse {
+    required string clusterId = 1;
+    required ListPoolResponse pools = 2;
+    required ListZoneResponse zones = 3;
+    required ListServerResponse servers = 4;
+    required ListMetaServerResponse metaservers = 5;
+}
+
+service TopologyService {
+    rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
+    rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
+    // TODO(chengyi): mv to GetMateservers
+    rpc GetMetaServer(GetMetaServerInfoRequest)         returns (GetMetaServerInfoResponse);
+    rpc DeleteMetaServer(DeleteMetaServerRequest)       returns (DeleteMetaServerResponse);
+
+    rpc RegistServer(ServerRegistRequest)       returns (ServerRegistResponse);
+    rpc GetServer(GetServerRequest)             returns (GetServerResponse);
+    rpc DeleteServer(DeleteServerRequest)       returns (DeleteServerResponse);
+    rpc ListZoneServer(ListZoneServerRequest)   returns (ListZoneServerResponse);
+
+    rpc CreateZone(CreateZoneRequest)     returns (CreateZoneResponse);
+    rpc DeleteZone(DeleteZoneRequest)     returns (DeleteZoneResponse);
+    rpc GetZone(GetZoneRequest)           returns (GetZoneResponse);
+    rpc ListPoolZone(ListPoolZoneRequest) returns (ListPoolZoneResponse);
+
+    rpc CreatePool(CreatePoolRequest)     returns (CreatePoolResponse);
+    rpc DeletePool(DeletePoolRequest)     returns (DeletePoolResponse);
+    rpc GetPool(GetPoolRequest)           returns (GetPoolResponse);
+    rpc ListPool(ListPoolRequest)         returns (ListPoolResponse);
+
+    rpc GetMetaServerListInCopysets(GetMetaServerListInCopySetsRequest)
+        returns (GetMetaServerListInCopySetsResponse);
+    rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
+    rpc ListPartition(ListPartitionRequest) returns (ListPartitionResponse);
+    rpc GetCopysetOfPartition(GetCopysetOfPartitionRequest) returns (GetCopysetOfPartitionResponse);
+    rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
+    rpc GetCopysetsInfo (GetCopysetsInfoRequest) returns (GetCopysetsInfoResponse);
+    rpc ListPartitions(ListPartitionsRequest) returns (ListPartitionsResponse);
+    rpc ListCopysetInfo(ListCopysetInfoRequest) returns (ListCopysetInfoResponse);
+    rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
+
+    rpc ListTopology(ListTopologyRequest) returns (ListTopologyResponse);
+}

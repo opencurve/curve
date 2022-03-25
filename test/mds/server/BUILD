@@ -14,11 +14,13 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_binary
 cc_binary(
     name = "mds-test",
     srcs = glob(["*.cpp"]),
-    copts = [],
+    copts = CURVE_TEST_COPTS,
     defines = ["FIU_ENABLE"],
     visibility = ["//visibility:public"],
     deps = [

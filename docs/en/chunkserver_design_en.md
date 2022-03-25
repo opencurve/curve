@@ -1,4 +1,4 @@
-[中文版](../cn/chunkserver.md)
+[中文版](../cn/chunkserver_design.md)
 
 # Chunkserver
 

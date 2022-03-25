@@ -31,7 +31,7 @@
 #include "src/common/crc32.h"
 #include "src/common/string_util.h"
 #include "src/chunkserver/register.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "proto/topology.pb.h"
 
@@ -137,7 +137,7 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
 int Register::PersistChunkServerMeta(const ChunkServerMetadata &metadata) {
     int fd;
     std::string metaFile =
-        UriParser::GetPathFromUri(ops_.chunkserverMetaUri);
+        curve::common::UriParser::GetPathFromUri(ops_.chunkserverMetaUri);
 
     std::string metaStr;
     if (!ChunkServerMetaHelper::EncodeChunkServerMeta(metadata, &metaStr)) {

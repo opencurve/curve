@@ -166,10 +166,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
     MetaCacheErrorType errCode =
         metaCache->GetChunkInfoByIndex(chunkidx, &chunkIdInfo);
 
-
-    if (errCode == MetaCacheErrorType::CHUNKINFO_NOT_FOUND ||
-       (errCode == MetaCacheErrorType::OK && !chunkIdInfo.chunkExist &&
-       iotracker->Optype() == OpType::WRITE)) {
+    if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), chunkIdInfo,
+                                 metaCache)) {
         bool isAllocateSegment =
             iotracker->Optype() == OpType::READ ? false : true;
         if (false == GetOrAllocateSegment(
@@ -253,7 +251,7 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
         ++count;
     }
 
-    std::vector<CopysetInfo> copysetInfos;
+    std::vector<CopysetInfo<ChunkServerID>> copysetInfos;
     errCode = mdsClient->GetServerList(segmentInfo.lpcpIDInfo.lpid,
                                        segmentInfo.lpcpIDInfo.cpidVec,
                                        &copysetInfos);
@@ -274,7 +272,7 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
     for (const auto& copysetInfo : copysetInfos) {
         for (const auto& peerInfo : copysetInfo.csinfos_) {
             metaCache->AddCopysetIDInfo(
-                peerInfo.chunkserverID,
+                peerInfo.peerID,
                 CopysetIDInfo(segmentInfo.lpcpIDInfo.lpid, copysetInfo.cpid_));
         }
     }
@@ -467,6 +465,20 @@ RequestSourceInfo Splitor::CalcRequestSourceInfo(IOTracker* ioTracker,
     }
 
     return {};
+}
+
+bool Splitor::NeedGetOrAllocateSegment(MetaCacheErrorType error, OpType opType,
+                                       const ChunkIDInfo& chunkInfo,
+                                       const MetaCache* metaCache) {
+    if (error == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
+        return true;
+    } else if (error == MetaCacheErrorType::OK && !chunkInfo.chunkExist) {
+        return (opType == OpType::WRITE) ||
+               (opType == OpType::READ &&
+                !metaCache->GetFileInfo()->openflags.exclusive);
+    }
+
+    return false;
 }
 
 }   // namespace client

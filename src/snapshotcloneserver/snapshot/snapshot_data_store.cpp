@@ -122,12 +122,3 @@ std::vector<ChunkIndexType> ChunkIndexData::GetAllChunkIndex() const {
 
 }   // namespace snapshotcloneserver
 }   // namespace curve
-
-
-
-
-
-
-
-
-

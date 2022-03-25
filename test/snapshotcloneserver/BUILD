@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS"
-    )
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
         name = "snapshot_server_utest",
@@ -31,7 +27,7 @@ cc_test(
                 "//src/snapshotcloneserver:snapshot_server_lib",
                 "//test/util:test_util", 
                 ],
-        copts = GCC_TEST_FLAGS
+        copts = CURVE_TEST_COPTS
         )
 
 cc_library(
@@ -41,4 +37,5 @@ cc_library(
             ],
     deps = [],
     visibility = ["//visibility:public"],
+    copts = CURVE_TEST_COPTS,
 )

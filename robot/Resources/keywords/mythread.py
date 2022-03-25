@@ -1,5 +1,4 @@
 import threading, traceback, sys
-import base_operate
 
 class runThread(threading.Thread):
     def __init__(self, funcName, *args):

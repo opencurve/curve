@@ -36,6 +36,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "include/curve_compiler_specific.h"
+
 // The FALLTHROUGH_INTENDED macro can be used to annotate implicit fall-through
 // between switch labels. The real definition should be provided externally.
 // This one is a fallback version for unsupported compilers.

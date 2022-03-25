@@ -80,6 +80,8 @@ using ::curve::mds::topology::TopologyStatImpl;
 using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::topology::Zone;
 using ::curve::mds::topology::ZoneIdType;
+using ::curve::mds::topology::Server;
+using ::curve::mds::topology::CopySetKey;
 
 using ::curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using ::curve::mds::heartbeat::ChunkServerHeartbeatResponse;

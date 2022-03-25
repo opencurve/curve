@@ -24,13 +24,14 @@
 #define SRC_FS_WRAP_POSIX_H_
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/vfs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
-#include <dirent.h>
 #include <linux/fs.h>
+#include <dirent.h>
 #include <string>
 
 namespace curve {
@@ -59,6 +60,7 @@ class PosixWrapper {
                            const void *buf,
                            size_t count,
                            off_t offset);
+    virtual int fdatasync(int fd);
     virtual int fstat(int fd, struct stat *buf);
     virtual int fallocate(int fd, int mode, off_t offset, off_t len);
     virtual int fsync(int fd);

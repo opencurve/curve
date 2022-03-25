@@ -144,6 +144,7 @@ class CopysetNodeTest : public ::testing::Test {
         defaultOptions_.chunkFilePool =
             std::make_shared<FilePool>(fs);
         defaultOptions_.trash = std::make_shared<Trash>();
+        defaultOptions_.enableOdsyncWhenOpenChunkFile = true;
     }
 
     void TearDown() {
@@ -194,6 +195,7 @@ TEST_F(CopysetNodeTest, error_test) {
         EXPECT_CALL(*mockfs, List(_, _)).Times(1).WillOnce(Return(-1));
 
         copysetNode.on_snapshot_save(&writer, &closure);
+        copysetNode.WaitSnapshotDone();
         LOG(INFO) << closure.status().error_cstr();
     }
 
@@ -220,6 +222,7 @@ TEST_F(CopysetNodeTest, error_test) {
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(-1));
 
         copysetNode.on_snapshot_save(&writer, &closure);
+        copysetNode.WaitSnapshotDone();
         LOG(INFO) << closure.status().error_cstr();
     }
     // on_snapshot_save: success
@@ -254,6 +257,63 @@ TEST_F(CopysetNodeTest, error_test) {
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
 
         copysetNode.on_snapshot_save(&writer, &closure);
+        copysetNode.WaitSnapshotDone();
+    }
+
+    // on_snapshot_save: success, enableOdsyncWhenOpenChunkFile_ = false
+    {
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
+        Configuration conf;
+        std::vector<std::string> files;
+        files.push_back("test-1.txt");
+        files.push_back("test-2.txt");
+
+        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        std::string jsonStr(json);
+
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        defaultOptions_.enableOdsyncWhenOpenChunkFile = false;
+        defaultOptions_.syncTimerIntervalMs = 1000;
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
+        FakeClosure closure;
+        FakeSnapshotWriter writer;
+        std::shared_ptr<MockLocalFileSystem>
+            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile>
+            epochFile(new ConfEpochFile(mockfs));;
+
+        copysetNode.SetLocalFileSystem(mockfs);
+        copysetNode.SetConfEpochFile(std::move(epochFile));
+        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
+        EXPECT_CALL(*mockfs, Write(_, Matcher<const char*>(_), _, _)).Times(1)
+            .WillOnce(Return(jsonStr.size()));
+        EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
+        EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
+        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
+
+        copysetNode.on_snapshot_save(&writer, &closure);
+        copysetNode.WaitSnapshotDone();
+    }
+    // ShipToSync & handle sync time out
+    {
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
+        Configuration conf;
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+
+        defaultOptions_.enableOdsyncWhenOpenChunkFile = false;
+        defaultOptions_.syncTimerIntervalMs = 1000;
+        ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
+
+        ChunkID id1 = 100;
+        ChunkID id2 = 200;
+        ChunkID id3 = 100;
+        copysetNode.ShipToSync(id1);
+        copysetNode.ShipToSync(id2);
+        copysetNode.ShipToSync(id3);
+        copysetNode.HandleSyncTimerOut();
     }
 
     // on_snapshot_load: Dir not exist, File not exist, data init success

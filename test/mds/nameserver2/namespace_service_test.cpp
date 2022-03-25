@@ -1989,6 +1989,8 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
     std::string testFileName = "/test_filename";
     std::string testClientIP = "127.0.0.1";
     uint32_t testClientPort = 1234;
+    std::string testClientIP2 = "127.0.0.1";
+    uint32_t testClientPort2 = 1235;
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
@@ -2006,6 +2008,8 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
 
     fileRecordManager_->UpdateFileRecord(testFileName, "0.0.6", testClientIP,
                                          testClientPort);
+    fileRecordManager_->UpdateFileRecord(testFileName, "1.0.0", testClientIP2,
+                                         testClientPort2);
 
     CurveFSService_Stub stub(&channel);
 
@@ -2019,9 +2023,12 @@ TEST_F(NameSpaceServiceTest, FindFileMountPointTest) {
     stub.FindFileMountPoint(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(2, response.clientinfo_size());
 
-        ASSERT_EQ(response.clientinfo().ip(), testClientIP);
-        ASSERT_EQ(response.clientinfo().port(), testClientPort);
+        ASSERT_EQ(response.clientinfo(0).ip(), testClientIP);
+        ASSERT_EQ(response.clientinfo(0).port(), testClientPort);
+        ASSERT_EQ(response.clientinfo(1).ip(), testClientIP2);
+        ASSERT_EQ(response.clientinfo(1).port(), testClientPort2);
     } else {
         LOG(INFO) << cntl.ErrorText();
         ASSERT_TRUE(false);

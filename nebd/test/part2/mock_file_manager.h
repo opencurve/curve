@@ -39,7 +39,7 @@ class MockFileManager : public NebdFileManager {
 
     MOCK_METHOD0(Fini, int());
     MOCK_METHOD0(Run, int());
-    MOCK_METHOD1(Open, int(const std::string&));
+    MOCK_METHOD2(Open, int(const std::string&, const OpenFlags*));
     MOCK_METHOD2(Close, int(int, bool));
     MOCK_METHOD2(Extend, int(int, int64_t));
     MOCK_METHOD2(GetInfo, int(int, NebdFileInfo*));

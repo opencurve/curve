@@ -25,33 +25,6 @@
 
 namespace curve {
 namespace mds {
-TEST(TestNameserverCacheMetrics, testall) {
-    NameserverCacheMetrics cacheMetrics;
-
-    // 1. 新增数据项
-    cacheMetrics.UpdateAddToCacheCount();
-    ASSERT_EQ(1, cacheMetrics.cacheCount.get_value());
-
-    cacheMetrics.UpdateAddToCacheBytes(1000);
-    ASSERT_EQ(1000, cacheMetrics.cacheBytes.get_value());
-
-    // 2. 移除数据项
-    cacheMetrics.UpdateRemoveFromCacheCount();
-    ASSERT_EQ(0, cacheMetrics.cacheCount.get_value());
-
-    cacheMetrics.UpdateRemoveFromCacheBytes(200);
-    ASSERT_EQ(800, cacheMetrics.cacheBytes.get_value());
-
-    // 3. cache命中
-    ASSERT_EQ(0, cacheMetrics.cacheHit.get_value());
-    cacheMetrics.OnCacheHit();
-    ASSERT_EQ(1, cacheMetrics.cacheHit.get_value());
-
-    // 4. cache未命中
-    ASSERT_EQ(0, cacheMetrics.cacheMiss.get_value());
-    cacheMetrics.OnCacheMiss();
-    ASSERT_EQ(1, cacheMetrics.cacheMiss.get_value());
-}
 
 TEST(SegmentDiscardMetricTest, TestCommon) {
     const uint64_t segmentSize = 128ull * 1024 * 1024;

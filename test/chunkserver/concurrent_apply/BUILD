@@ -14,13 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
 cc_test(
     name = "concurrent_apply_test",
     srcs = [
         "concurrent_apply_test.cpp",
     ],
-    includes = ([]),
-    copts = ["-std=c++11"],
+    copts = CURVE_TEST_COPTS,
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",

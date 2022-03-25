@@ -131,11 +131,11 @@ class PeerCluster {
 
  public:
     /* 返回集群当前的配置 */
-    const Configuration CopysetConf() const;
+    Configuration CopysetConf() const;
 
-    const LogicPoolID GetLogicPoolId() const {return logicPoolID_;}
+    LogicPoolID GetLogicPoolId() const {return logicPoolID_;}
 
-    const CopysetID GetCopysetId() const {return copysetID_;}
+    CopysetID GetCopysetId() const {return copysetID_;}
 
     void SetWorkingCopyset(CopysetID copysetID) {copysetID_ = copysetID;}
 

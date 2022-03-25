@@ -14,18 +14,23 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
     name = "nebd_common",
-    srcs = glob([
-        "*.h",
-        "*.cpp",
-        ]
+    srcs = glob(
+        [
+            "*.h",
+            "*.cpp",
+        ],
     ),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:glog",
-        "//external:butil",
         "//external:bthread",
+        "//external:butil",
         "//external:bvar",
+        "//external:glog",
+        "//src/common:macros",
     ],
 )

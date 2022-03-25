@@ -127,7 +127,7 @@ void Throttle::UpdateIfNotEqual(
 
     LOG(INFO) << "Update " << ThrottleTypeToName(type) << " to " << newParams;
     ResetThrottleParams(type, newParams.limit, newParams.burst,
-                        newParams.burstLength);
+                        newParams.burstSeconds);
 }
 
 inline bool Throttle::IsWriteThrottle(Type type) const {

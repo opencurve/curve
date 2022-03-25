@@ -30,7 +30,6 @@
 #include "src/common/configuration.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/cli.h"
-#include "src/chunkserver/uri_paser.h"
 
 #include "test/client/fake/fakeMDS.h"
 

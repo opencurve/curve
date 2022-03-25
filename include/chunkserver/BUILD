@@ -14,16 +14,14 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
     name = "include-chunkserver",
     srcs = ["chunkserver_common.h"],
-    linkopts = ([
-        "-pthread",
-        "-std=c++11",
-    ]),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
-        "//external:gflags",
     ],
 )

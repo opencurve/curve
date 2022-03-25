@@ -14,11 +14,7 @@
 #  limitations under the License.
 #
 
-load(
-    "//:copts.bzl",
-    "GCC_FLAGS",
-    "GCC_TEST_FLAGS"
-    )
+load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
         name = "snapshot_server_main_test",
@@ -33,7 +29,7 @@ cc_test(
                 "//test/integration/cluster_common:integration_cluster_common",
                 "//src/snapshotcloneserver:snapshot_server_lib",
                 ],
-                copts = GCC_TEST_FLAGS
+                copts = CURVE_TEST_COPTS
         )
 
 cc_test(
@@ -49,7 +45,7 @@ cc_test(
                 "//test/integration/cluster_common:integration_cluster_common",
                 "//src/snapshotcloneserver:snapshot_server_lib",
                 ],
-                copts = GCC_TEST_FLAGS
+                copts = CURVE_TEST_COPTS
         )
 
 
@@ -66,7 +62,7 @@ cc_test(
                 "//test/integration/cluster_common:integration_cluster_common",
                 "//src/snapshotcloneserver:snapshot_server_lib",
                 ],
-                copts = GCC_TEST_FLAGS
+                copts = CURVE_TEST_COPTS
         )
 
 cc_test(
@@ -82,7 +78,7 @@ cc_test(
                 "//test/integration/cluster_common:integration_cluster_common",
                 "//src/snapshotcloneserver:snapshot_server_lib",
                 ],
-                copts = GCC_TEST_FLAGS
+                copts = CURVE_TEST_COPTS
         )
 
 cc_test(
@@ -106,7 +102,7 @@ cc_test(
                 "//test/integration/cluster_common:integration_cluster_common",
                 "//src/snapshotcloneserver:snapshot_server_lib",
                 ],
-        copts = GCC_TEST_FLAGS,
+        copts = CURVE_TEST_COPTS,
         defines = ["UNIT_TEST", "FIU_ENABLE"],
         linkopts = ["-lfiu"],
         )

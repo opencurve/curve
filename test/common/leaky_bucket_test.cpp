@@ -24,8 +24,8 @@
 
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <thread>
+#include <chrono> // NOLINT
+#include <thread> // NOLINT
 
 namespace curve {
 namespace common {
@@ -79,7 +79,7 @@ TEST(LeakyBucketTest, TestExceedLimit) {
 TEST(LeakyBucketTest, TestBurst) {
     uint64_t limit = 1000;
     uint64_t burst = 2000;
-    uint64_t burstLength = 5;
+    uint64_t burstLength = 10;
 
     LeakyBucket throttle;
     throttle.SetLimit(limit, burst, burstLength);

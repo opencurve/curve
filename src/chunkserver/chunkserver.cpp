@@ -37,7 +37,7 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
-#include "src/chunkserver/uri_paser.h"
+#include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "src/chunkserver/raftsnapshot/curve_file_service.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
@@ -49,6 +49,7 @@ using ::curve::fs::LocalFileSystemOption;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
+using ::curve::common::UriParser;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
@@ -578,6 +579,16 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->finishLoadMargin));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_loadmargin_interval_ms",
         &copysetNodeOptions->checkLoadMarginIntervalMs));
+
+    LOG_IF(FATAL, !conf->GetBoolValue(
+        "copyset.enable_odsync_when_open_chunkfile",
+        &copysetNodeOptions->enableOdsyncWhenOpenChunkFile));
+    if (!copysetNodeOptions->enableOdsyncWhenOpenChunkFile) {
+        LOG_IF(FATAL, !conf->GetUInt32Value("copyset.synctimer_interval_ms",
+            &copysetNodeOptions->syncTimerIntervalMs));
+        LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_syncing_interval_ms",
+            &copysetNodeOptions->checkSyncingIntervalMs));
+    }
 }
 
 void ChunkServer::InitCopyerOptions(
@@ -885,7 +896,7 @@ int ChunkServer::ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem> &fs,
     }
 
     #define METAFILE_MAX_SIZE  4096
-    uint32_t size;
+    int size;
     char json[METAFILE_MAX_SIZE] = {0};
 
     size = fs->Read(fd, json, 0, METAFILE_MAX_SIZE);

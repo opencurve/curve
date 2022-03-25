@@ -154,7 +154,8 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
       snapshot_(nullptr),
       chunkFilePool_(chunkFilePool),
       lfs_(lfs),
-      metric_(options.metric) {
+      metric_(options.metric),
+      enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
     CHECK(lfs_ != nullptr) << "Create chunk file failed";
     metaPage_.sn = options.sn;
@@ -199,12 +200,12 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     if (createFile
         && !lfs_->FileExists(chunkFilePath)
         && metaPage_.sn > 0) {
-        char buf[pageSize_];  // NOLINT
-        memset(buf, 0, sizeof(buf));
+        std::unique_ptr<char[]> buf(new char[pageSize_]);
+        memset(buf.get(), 0, pageSize_);
         metaPage_.version = FORMAT_VERSION_V2;
-        metaPage_.encode(buf);
+        metaPage_.encode(buf.get());
 
-        int rc = chunkFilePool_->GetFile(chunkFilePath, buf, true);
+        int rc = chunkFilePool_->GetFile(chunkFilePath, buf.get(), true);
         // When creating files concurrently, the previous thread may have been
         // created successfully, then -EEXIST will be returned here. At this
         // point, you can continue to open the generated file
@@ -216,7 +217,12 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
             return CSErrorCode::InternalError;
         }
     }
-    int rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME|O_DSYNC);
+    int rc = -1;
+    if (enableOdsyncWhenOpenChunkFile_) {
+        rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME|O_DSYNC);
+    } else {
+        rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME);
+    }
     if (rc < 0) {
         LOG(ERROR) << "Error occured when opening file."
                    << " filepath = " << chunkFilePath;
@@ -410,6 +416,17 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                    << ",request sn: " << sn
                    << ",chunk sn: " << metaPage_.sn;
         return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSChunkFile::Sync() {
+    WriteLockGuard writeGuard(rwLock_);
+    int rc = SyncData();
+    if (rc < 0) {
+        LOG(ERROR) << "Sync data failed, "
+                   << "ChunkID:" << chunkId_;
+        return CSErrorCode::InternalError;
     }
     return CSErrorCode::Success;
 }
@@ -862,10 +879,10 @@ bool CSChunkFile::needCow(SequenceNum sn) {
 }
 
 CSErrorCode CSChunkFile::updateMetaPage(ChunkFileMetaPage* metaPage) {
-    char buf[pageSize_];  // NOLINT
-    memset(buf, 0, sizeof(buf));
-    metaPage->encode(buf);
-    int rc = writeMetaPage(buf);
+    std::unique_ptr<char[]> buf(new char[pageSize_]);
+    memset(buf.get(), 0, pageSize_);
+    metaPage->encode(buf.get());
+    int rc = writeMetaPage(buf.get());
     if (rc < 0) {
         LOG(ERROR) << "Update metapage failed."
                    << "ChunkID: " << chunkId_
@@ -876,15 +893,15 @@ CSErrorCode CSChunkFile::updateMetaPage(ChunkFileMetaPage* metaPage) {
 }
 
 CSErrorCode CSChunkFile::loadMetaPage() {
-    char buf[pageSize_];  // NOLINT
-    memset(buf, 0, sizeof(buf));
-    int rc = readMetaPage(buf);
+    std::unique_ptr<char[]> buf(new char[pageSize_]);
+    memset(buf.get(), 0, pageSize_);
+    int rc = readMetaPage(buf.get());
     if (rc < 0) {
         LOG(ERROR) << "Error occured when reading metaPage_."
                    << " filepath = " << path();
         return CSErrorCode::InternalError;
     }
-    return metaPage_.decode(buf);
+    return metaPage_.decode(buf.get());
 }
 
 CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {

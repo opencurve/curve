@@ -85,6 +85,8 @@ int LeaderElection::ObserveLeader() {
     // 退出当前进程
     LOG(INFO) << "mds is existing due to the error of leader observation";
     raise(SIGTERM);
+
+    return -1;
 }
 }  // namespace election
 }  // namespace curve

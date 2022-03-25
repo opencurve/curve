@@ -150,3 +150,7 @@ Files: thirdparties/aws/*
        common.bzl
 Copyright: Copyright 2019 The TensorFlow Authors
 License: Apache 2.0 (see LICENSE_APACHE)
+
+Files: tools/ci/filterbr.py
+       tools/ci/gen-coverage.py
+License: GPL 3.0 (see LICENSE_GPLv3)

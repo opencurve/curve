@@ -14,17 +14,21 @@
 #  limitations under the License.
 #
 
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+
 cc_library(
-    name="idgenerator",
-    hdrs=glob(["*.h"]),
-    srcs=glob(["*.cpp"]),
+    name = "nameserver_idgenerator",
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-            "//external:glog",
-            "//external:gflags",
-            "//src/common:curve_common",
-            "//src/mds/common:mds_common",
-            "//src/kvstorageclient:kvstorage_client",
-            "//src/mds/nameserver2/helper:helper",
+        "//external:gflags",
+        "//external:glog",
+        "//src/common:curve_common",
+        "//src/idgenerator",
+        "//src/kvstorageclient:kvstorage_client",
+        "//src/mds/common:mds_common",
+        "//src/mds/nameserver2/helper",
     ],
 )

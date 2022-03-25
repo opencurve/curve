@@ -1,15 +1,5 @@
 #!/bin/bash
 
-### BEGIN INIT INFO
-# Provides:          curve-nbd
-# Required-Start:    $local_fs $remote_fs $network nebd-daemon
-# Required-Stop:     $local_fs $remote_fs $network
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: curve-nbd auto map service
-# Description:       curve-nbd auto map service and associated helpers
-### END INIT INFO
-
 # default confpath
 # file format is:dealflag \t device \t image \t mapoptions \t mountpoint(option)
 # +	/dev/nbd0	cbd:pool//curvefile_test_   defaults	/test
@@ -81,8 +71,7 @@ function convert_map_opts() {
 function map() {
     if [ ! -f ${confPath}.bak ]
     then
-        echo "ERROR: not found configuration file, confPath is ${confPath}.bak!"
-        exit
+        exit 0
     fi
 
     cat ${confPath}.bak | grep -v '#' | while read line

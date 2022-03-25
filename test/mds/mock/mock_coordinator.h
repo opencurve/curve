@@ -30,6 +30,10 @@
 
 namespace curve {
 namespace mds {
+using ::curve::mds::topology::ChunkServerIdType;
+using ::curve::mds::topology::PoolIdType;
+using ::curve::mds::topology::CopySetKey;
+
 class MockCoordinator : public ::curve::mds::schedule::Coordinator {
  public:
     MockCoordinator() {}

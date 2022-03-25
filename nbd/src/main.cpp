@@ -36,6 +36,7 @@
 #include "nbd/src/argparse.h"
 #include "nbd/src/define.h"
 #include "nbd/src/util.h"
+#include "src/common/macros.h"
 
 namespace curve {
 namespace nbd {
@@ -46,9 +47,7 @@ std::shared_ptr<NBDConfig> nbdConfig;
 static std::string Version() {
     static const std::string version =
 #ifdef CURVEVERSION
-#define STR(val) #val
-#define XSTR(val) STR(val)
-        std::string(XSTR(CURVEVERSION));
+        std::string(STRINGIFY(CURVEVERSION));
 #else
         std::string("unknown");
 #endif
@@ -89,6 +88,8 @@ static void Usage() {
         << "  --try-netlink           Use the nbd netlink interface\n"
         << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
         << "  --nebd-conf             LibNebd config file\n"
+        << "  --no-exclusive          Map image non exclusive\n"
+        << "\n"
         << "Unmap options:\n"
         << "  -f, --force                 Force unmap even if the device is mounted\n"              // NOLINT
         << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
@@ -103,7 +104,8 @@ static int AddRecord(int flag) {
     std::string record;
     int fd = open(CURVETAB_PATH, O_WRONLY | O_APPEND);
     if (fd < 0) {
-        std::cerr << "curve-nbd: open curvetab file failed.";
+        std::cerr << "curve-nbd: open curvetab file failed, error: "
+                  << strerror(errno);
         return -EINVAL;
     }
     if (1 == flag) {
@@ -112,7 +114,8 @@ static int AddRecord(int flag) {
     } else if (-1 == flag) {
         record = "-\t" + nbdConfig->devpath + "\n";
     }
-    write(fd, record.c_str(), record.size());
+    auto nr = ::write(fd, record.c_str(), record.size());
+    (void)nr;
     close(fd);
     return 0;
 }
@@ -150,7 +153,8 @@ static int NBDConnect() {
 
     // in child
     setsid();
-    chdir("/");
+    auto nr = chdir("/");
+    (void)nr;
     umask(0);
 
     // set signal handler
@@ -160,14 +164,18 @@ static int NBDConnect() {
     int ret = nbdTool->Connect(nbdConfig.get());
     int connectionRes = -1;
     if (ret < 0) {
-        ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        auto nr =
+            ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        (void)nr;
     } else {
         ret = AddRecord(1);
         if (0 != ret) {
             return ret;
         }
         connectionRes = 0;
-        ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        auto nr =
+            ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
+        (void)nr;
         nbdTool->RunServerUntilQuit();
     }
 
