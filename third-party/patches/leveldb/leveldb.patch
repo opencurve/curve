@@ -1,0 +1,15 @@
+--- build_detect_platform	2017-03-02 08:08:02.000000000 +0800
++++ build_detect_platform	2022-03-24 15:21:24.568300470 +0800
+@@ -217,9 +217,9 @@
+     $CXX $CXXFLAGS -x c++ - -o $CXXOUTPUT -ltcmalloc 2>/dev/null  <<EOF
+       int main() {}
+ EOF
+-    if [ "$?" = 0 ]; then
+-        PLATFORM_LIBS="$PLATFORM_LIBS -ltcmalloc"
+-    fi
++#    if [ "$?" = 0 ]; then
++#        PLATFORM_LIBS="$PLATFORM_LIBS -ltcmalloc"
++#    fi
+ 
+     rm -f $CXXOUTPUT 2>/dev/null
+ 
