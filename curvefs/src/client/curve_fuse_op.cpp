@@ -449,3 +449,9 @@ void FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpFsync(req, ino, datasync, fi);
     FuseReplyErrByErrCode(req, ret);
 }
+
+void FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
+           struct fuse_file_info *fi) {
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpFlush(req, ino, fi);
+    FuseReplyErrByErrCode(req, ret);
+}

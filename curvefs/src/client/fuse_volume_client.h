@@ -76,7 +76,6 @@ class FuseVolumeClient : public FuseClient {
             struct fuse_file_info *fi,
             char *buffer,
             size_t *rSize) override;
-
     CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, struct fuse_file_info *fi,
         fuse_entry_param *e) override;
@@ -86,6 +85,9 @@ class FuseVolumeClient : public FuseClient {
         fuse_entry_param *e) override;
 
     CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
+                              struct fuse_file_info *fi) override;
+
+    CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                               struct fuse_file_info *fi) override;
 
  private:

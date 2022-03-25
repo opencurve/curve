@@ -49,7 +49,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     NameLockGuard lock(nameLock_, std::to_string(inodeid));
     bool ok = iCache_->Get(inodeid, &out);
     if (ok) {
-        // if enableCto, we need and is unopen, we need reload from
+        // if enableCto and file is unopen, we need reload from
         // metaserver
         if (curvefs::client::common::FLAGS_enableCto && !out->IsOpen()) {
             VLOG(6) << "InodeCacheManagerImpl, GetInode: enableCto and inode: "
