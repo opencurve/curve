@@ -37,7 +37,9 @@ ExternalProject_Add(glog
 	PREFIX ${ExtProj_DIR}/glog
 	GIT_REPOSITORY "https://github.com/google/glog"                                  
     	GIT_TAG "4cc89c9e2b452db579397887c37f302fb28f6ca1"                        
-	PATCH_COMMAND patch -R -p1 < ${CMAKE_SOURCE_DIR}/thirdparties/glog/glog.patch
+	PATCH_COMMAND git reset --hard
+	COMMAND git clean -d -f
+	COMMAND patch -p1 < ${CMAKE_SOURCE_DIR}/thirdparties/glog/glog.patch
 	CMAKE_ARGS -DCMAKE_PREFIX_PATH=${ExtProj_DIR}/local -DCMAKE_INSTALL_PREFIX=${ExtProj_DIR}/local
 )
 
@@ -46,7 +48,9 @@ ExternalProject_Add(brpc
 	PREFIX ${ExtProj_DIR}/brpc
     	GIT_REPOSITORY "https://github.com/apache/incubator-brpc"
 	GIT_TAG "1b9e00641cbec1c8803da6a1f7f555398c954cb0"
-	PATCH_COMMAND patch -R -p1 < ${CMAKE_SOURCE_DIR}/thirdparties/brpc/brpc.patch
+	PATCH_COMMAND git reset --hard
+	COMMAND git clean -d -f
+	COMMAND patch -p1 < ${CMAKE_SOURCE_DIR}/thirdparties/brpc/brpc.patch
 	CMAKE_ARGS -DCMAKE_PREFIX_PATH=${ExtProj_DIR}/local -DCMAKE_INSTALL_INCLUDEDIR=${ExtProj_DIR}/local/include/brpc
 		-DCMAKE_INSTALL_LIBDIR=${ExtProj_DIR}/local/lib
 ) 
