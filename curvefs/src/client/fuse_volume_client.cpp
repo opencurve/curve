@@ -296,6 +296,12 @@ CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR FuseVolumeClient::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
+                                            struct fuse_file_info *fi) {
+    // Todo: flush data and note cto
+    return CURVEFS_ERROR::OK;
+}
+
 void FuseVolumeClient::FlushData() {
     // TODO(xuchaojie) : flush volume data
 }

@@ -49,6 +49,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .release    = FuseOpRelease,
     .fsync      = FuseOpFsync,
     .releasedir = FuseOpReleaseDir,
+    .flush      = FuseOpFlush,
 };
 
 int main(int argc, char *argv[]) {

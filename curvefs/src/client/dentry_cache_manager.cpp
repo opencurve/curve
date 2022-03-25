@@ -32,14 +32,24 @@ using ::curvefs::metaserver::MetaStatusCode_Name;
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 
 using curve::common::WriteLockGuard;
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
 void DentryCacheManagerImpl::InsertOrReplaceCache(const Dentry &dentry) {
     std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
-    NameLockGuard lock(nameLock_, key);
-    dCache_->Put(key, dentry);
+    if (!curvefs::client::common::FLAGS_enableCto) {
+        NameLockGuard lock(nameLock_, key);
+        dCache_->Put(key, dentry);
+    }
 }
 
 void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
@@ -68,7 +78,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
 
-    dCache_->Put(key, *out);
+    if (!curvefs::client::common::FLAGS_enableCto) {
+        dCache_->Put(key, *out);
+    }
     return CURVEFS_ERROR::OK;
 }
 
@@ -85,7 +97,9 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
 
-    dCache_->Put(key, dentry);
+    if (!curvefs::client::common::FLAGS_enableCto) {
+        dCache_->Put(key, dentry);
+    }
     return CURVEFS_ERROR::OK;
 }
 
