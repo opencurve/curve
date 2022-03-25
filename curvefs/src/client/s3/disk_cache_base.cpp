@@ -107,7 +107,7 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
             continue;
         std::string fileName = cacheDirent->d_name;
         cachedObj->emplace(fileName);
-        VLOG(3) << "LoadAllCacheFile obj, name = " << fileName;
+        VLOG(9) << "LoadAllCacheFile obj, name = " << fileName;
     }
 
     int rc = posixWrapper_->closedir(cacheDir);

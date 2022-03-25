@@ -29,6 +29,14 @@
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 
 using ::testing::Return;
 using ::testing::_;
@@ -63,6 +71,7 @@ class TestDentryCacheManager : public ::testing::Test {
 };
 
 TEST_F(TestDentryCacheManager, GetDentry) {
+    curvefs::client::common::FLAGS_enableCto = false;
     uint64_t parent = 99;
     uint64_t inodeid = 100;
     const std::string name = "test";
@@ -91,9 +100,22 @@ TEST_F(TestDentryCacheManager, GetDentry) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
+
+    curvefs::client::common::FLAGS_enableCto = true;
+    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name))
+        .WillOnce(Return(MetaStatusCode::OK));
+    dCacheManager_->DeleteDentry(parent, name);
+    EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
+        .WillOnce(
+            DoAll(SetArgPointee<3>(dentryExp), Return(MetaStatusCode::OK)));
+    ret = dCacheManager_->GetDentry(parent, name, &out);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
 }
 
 TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
+    curvefs::client::common::FLAGS_enableCto = false;
     uint64_t parent = 99;
     uint64_t inodeid = 100;
     const std::string name = "test";
@@ -115,6 +137,23 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
     ret = dCacheManager_->CreateDentry(dentryExp);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
+    ret = dCacheManager_->GetDentry(parent, name, &out);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
+
+    curvefs::client::common::FLAGS_enableCto = true;
+    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name))
+        .WillOnce(Return(MetaStatusCode::OK));
+    dCacheManager_->DeleteDentry(parent, name);
+    EXPECT_CALL(*metaClient_, CreateDentry(_))
+        .WillOnce(Return(MetaStatusCode::OK));
+    EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
+        .WillOnce(
+            DoAll(SetArgPointee<3>(dentryExp), Return(MetaStatusCode::OK)));
+
+    ret = dCacheManager_->CreateDentry(dentryExp);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ret = dCacheManager_->GetDentry(parent, name, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_TRUE(

@@ -38,7 +38,7 @@ TEST(FsCacheManagerTest, test_read_lru_cache_size) {
     uint64_t dataCacheByte = 4ull * 1024 * 1024;      // 4MiB
     uint64_t maxReadCacheByte = 16ull * 1024 * 1024;  // 16MiB
     uint64_t maxWriteCacheByte = maxReadCacheByte;
-    char *buf = new char[smallDataCacheByte];
+    char *buf = new char[dataCacheByte];
     S3ClientAdaptorOption option;
     option.blockSize = 1 * 1024 * 1024;
     option.chunkSize = 4 * 1024 * 1024;
