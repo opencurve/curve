@@ -19,6 +19,7 @@ ExternalProject_Add(gtest
 	PREFIX ${ExtProj_DIR}/gtest
 	GIT_REPOSITORY "https://github.com/google/googletest"
 	GIT_TAG "release-1.8.0"
+	GIT_PROGRESS 1
 	CMAKE_ARGS -DCMAKE_PREFIX_PATH=${ExtProj_DIR}/local -DCMAKE_INSTALL_PREFIX=${ExtProj_DIR}/local
 )
 
@@ -45,6 +46,7 @@ ExternalProject_Add(glog
 	PREFIX ${ExtProj_DIR}/glog
 	GIT_REPOSITORY "https://github.com/google/glog"
     	GIT_TAG "4cc89c9e2b452db579397887c37f302fb28f6ca1"
+	GIT_PROGRESS 1
 	PATCH_COMMAND git reset --hard
 	COMMAND git clean -d -f
 	COMMAND patch -p1 < ${CMAKE_SOURCE_DIR}/thirdparties/glog/glog.patch
@@ -56,6 +58,7 @@ ExternalProject_Add(brpc
 	PREFIX ${ExtProj_DIR}/brpc
     	GIT_REPOSITORY "https://github.com/apache/incubator-brpc"
 	GIT_TAG "1b9e00641cbec1c8803da6a1f7f555398c954cb0"
+	GIT_PROGRESS 1
 	PATCH_COMMAND git reset --hard
 	COMMAND git clean -d -f
 	COMMAND patch -p1 < ${CMAKE_SOURCE_DIR}/thirdparties/brpc/brpc.patch
@@ -72,6 +75,7 @@ ExternalProject_Add(jsoncpp
 	PREFIX ${ExtProj_DIR}/jsoncpp
     	GIT_REPOSITORY "https://github.com/open-source-parsers/jsoncpp.git"
 	GIT_TAG "1.8.4"
+	GIT_PROGRESS 1
 	CMAKE_ARGS -DCMAKE_PREFIX_PATH=${ExtProj_DIR}/local -DCMAKE_INSTALL_PREFIX=${ExtProj_DIR}/local
 )
 
