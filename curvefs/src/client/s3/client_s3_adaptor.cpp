@@ -100,6 +100,7 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
             }
         }
     }
+
     return CURVEFS_ERROR::OK;
 }
 

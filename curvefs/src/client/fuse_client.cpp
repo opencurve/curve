@@ -1288,7 +1288,7 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << ino;
+                   << ", ino: " << ino;
         return ret;
     }
 
@@ -1297,10 +1297,11 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     ret = inodeWrapper->Release();
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager release inode fail, ret = " << ret
-                   << ", inodeid = " << ino;
+                   << ", ino: " << ino;
         return ret;
     }
 
+    LOG(INFO) << "FuseOpRelease, ino: " << ino << " success";
     return ret;
 }
 
