@@ -86,6 +86,11 @@ size_t Counter::Size(const std::string& name) {
     return container->size();
 }
 
+void Counter::Clear(const std::string& name) {
+    auto container = GetContainer(name);
+    container->clear();
+}
+
 std::string EncodeNumber(size_t num) {
     char buffer[sizeof(size_t)];
     std::memcpy(buffer, reinterpret_cast<char*>(&num), sizeof(size_t));

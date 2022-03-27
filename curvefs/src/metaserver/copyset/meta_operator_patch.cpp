@@ -89,12 +89,13 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
 
 void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
     std::unique_ptr<GetOrModifyS3ChunkInfoOperator> selfGuard(this);
+    GetOrModifyS3ChunkInfoRequest request;
     GetOrModifyS3ChunkInfoResponse response;
     std::shared_ptr<Iterator> iterator;
+    request = *static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_);
+    request.set_returns3chunkinfomap(false);
     auto status = node_->GetMetaStore()->GetOrModifyS3ChunkInfo(
-        static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_),
-        &response,
-        &iterator);
+        &request, &response, &iterator);
     node_->GetMetric()->OnOperatorComplete(
         OperatorType::GetOrModifyS3ChunkInfo,
         TimeUtility::GetTimeofDayUs() - startTimeUs,

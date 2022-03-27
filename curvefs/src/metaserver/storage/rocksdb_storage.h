@@ -26,6 +26,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <utility>
 #include <unordered_map>
 
 #include "rocksdb/db.h"
@@ -63,6 +64,8 @@ class RocksDBStorageTest;
 
 class RocksDBOptions {
  public:
+    RocksDBOptions() {}
+
     explicit RocksDBOptions(StorageOptions options);
 
     ROCKSDB_NAMESPACE::Options DBOptions();
@@ -113,6 +116,11 @@ class RocksDBStorageComparator : public rocksdb::Comparator {
 
 class RocksDBStorage : public KVStorage, public StorageTransaction {
  public:
+    using KeyPair = std::pair<std::string, std::string>;
+
+ public:
+    RocksDBStorage() {}
+
     explicit RocksDBStorage(StorageOptions options);
 
     RocksDBStorage(const RocksDBStorage& storage, Transaction* txn);
@@ -191,6 +199,18 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     std::string ToUserKey(const std::string& ikey);
 
+    bool FindKey(std::string name, std::string key);
+
+    void InsertKey(std::string name, std::string key);
+
+    void EraseKey(std::string name, std::string key);
+
+    size_t TableSize(std::string name);
+
+    void ClearTable(std::string name);
+
+    void CommitKeys();
+
     Status Get(const std::string& name,
                const std::string& key,
                std::string* value,
@@ -219,6 +239,7 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     friend class RocksDBStorageTest;
 
  private:
+    RWLock rwLock_;  // lock for Counter
     bool inited_;
     StorageOptions options_;
     RocksDBOptions rocksdbOptions_;
@@ -227,8 +248,11 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     std::vector<ColumnFamilyHandle*> handles_;
     std::shared_ptr<Counter> counter_;
 
+    // for transaction
     bool InTransaction_;
     Transaction* txn_;
+    std::vector<KeyPair> pending4set_;
+    std::vector<KeyPair> pending4del_;
 };
 
 inline Status RocksDBStorage::HGet(const std::string& name,

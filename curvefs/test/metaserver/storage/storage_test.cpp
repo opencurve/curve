@@ -28,7 +28,7 @@
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
 #include "curvefs/src/metaserver/storage/memory_storage.h"
-// #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -719,6 +719,96 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
 
     ASSERT_EQ(kvStorage->HSize("partition:1"), 1);
     ASSERT_EQ(kvStorage->SSize("partition:1"), 1);
+}
+
+void TestTransaction(std::shared_ptr<KVStorage> kvStorage) {
+    Status s;
+    size_t size;
+    std::string value;
+    std::shared_ptr<Iterator> iterator;
+    std::shared_ptr<StorageTransaction> txn;
+
+    // CASE 1: not in transaction
+    txn = std::make_shared<RocksDBStorage>();
+    s = txn->Commit();
+    ASSERT_TRUE(s.IsNotSupported());
+
+    s = txn->Rollback();
+    ASSERT_TRUE(s.IsNotSupported());
+
+    // CASE 2: commit transaction
+    txn = kvStorage->BeginTransaction();
+    s = txn->HSet("partition:1", "key1", "value1");
+    ASSERT_TRUE(s.ok());
+    s = txn->HSet("partition:1", "key2", "value2");
+    ASSERT_TRUE(s.ok());
+
+    // keys are not found before transaction commit
+    s = kvStorage->HGet("partition:1", "key1", &value);
+    ASSERT_TRUE(s.IsNotFound());
+    s = kvStorage->HGet("partition:1", "key2", &value);
+    ASSERT_TRUE(s.IsNotFound());
+
+    s = txn->Commit();
+    ASSERT_TRUE(s.ok());
+
+    // get keys success after transaction commit
+    s = kvStorage->HGet("partition:1", "key1", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, "value1");
+    s = kvStorage->HGet("partition:1", "key2", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, "value2");
+
+    s = kvStorage->HClear("partition:1");
+    ASSERT_TRUE(s.ok());
+
+    // CASE 3: rollback transaction
+    txn = kvStorage->BeginTransaction();
+    s = txn->HSet("partition:1", "key1", "value1");
+    ASSERT_TRUE(s.ok());
+    s = txn->HSet("partition:1", "key2", "value2");
+    ASSERT_TRUE(s.ok());
+
+    s = txn->Rollback();
+    ASSERT_TRUE(s.ok());
+
+    // keys are not found after transaction rollback
+    s = kvStorage->HGet("partition:1", "key1", &value);
+    ASSERT_TRUE(s.IsNotFound());
+    s = kvStorage->HGet("partition:1", "key2", &value);
+    ASSERT_TRUE(s.IsNotFound());
+
+    s = kvStorage->HClear("partition:1");
+    ASSERT_TRUE(s.ok());
+
+    // CASE 4: transaction for delete
+    s = kvStorage->HSet("partition:1", "key1", "value1");
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->HSet("partition:1", "key2", "value2");
+    ASSERT_TRUE(s.ok());
+
+    txn = kvStorage->BeginTransaction();
+    s = txn->HDel("partition:1", "key1");
+    ASSERT_TRUE(s.ok());
+    s = txn->HDel("partition:1", "key2");
+    ASSERT_TRUE(s.ok());
+
+    s = kvStorage->HGet("partition:1", "key1", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, "value1");
+    s = kvStorage->HGet("partition:1", "key2", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, "value2");
+
+    // commit transaction
+    s = txn->Commit();
+    ASSERT_TRUE(s.ok());
+
+    s = kvStorage->HGet("partition:1", "key1", &value);
+    ASSERT_TRUE(s.IsNotFound());
+    s = kvStorage->HGet("partition:1", "key2", &value);
+    ASSERT_TRUE(s.IsNotFound());
 }
 
 }  // namespace storage

@@ -216,6 +216,7 @@ TEST_F(RocksDBStorageTest, SGetAllTest) { TestSGetAll(kvStorage_); }
 TEST_F(RocksDBStorageTest, SSizeTest) { TestSSize(kvStorage_); }
 TEST_F(RocksDBStorageTest, SClearTest) { TestSClear(kvStorage_); }
 TEST_F(RocksDBStorageTest, SMixOperator) { TestMixOperator(kvStorage_); }
+TEST_F(RocksDBStorageTest, Transaction) { TestTransaction(kvStorage_); }
 
 }  // namespace storage
 }  // namespace metaserver

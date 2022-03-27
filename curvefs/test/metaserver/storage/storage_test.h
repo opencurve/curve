@@ -48,6 +48,7 @@ void TestSGetAll(std::shared_ptr<KVStorage> kvStorage);
 void TestSSize(std::shared_ptr<KVStorage> kvStorage);
 void TestSClear(std::shared_ptr<KVStorage> kvStorage);
 void TestMixOperator(std::shared_ptr<KVStorage> kvStorage);
+void TestTransaction(std::shared_ptr<KVStorage> kvStorage);
 
 }  // namespace storage
 }  // namespace metaserver

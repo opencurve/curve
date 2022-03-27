@@ -159,27 +159,48 @@ TEST_F(StorageFstreamTest, MiscTest) {
     ASSERT_EQ(Type2Str(ENTRY_TYPE::DENTRY), "d");
     ASSERT_EQ(Type2Str(ENTRY_TYPE::PARTITION), "p");
     ASSERT_EQ(Type2Str(ENTRY_TYPE::PENDING_TX), "t");
+    ASSERT_EQ(Type2Str(ENTRY_TYPE::S3_CHUNK_INFO_LIST), "s");
     ASSERT_EQ(Type2Str(ENTRY_TYPE::UNKNOWN), "u");
 
     ASSERT_EQ(Str2Type("i"), ENTRY_TYPE::INODE);
     ASSERT_EQ(Str2Type("d"), ENTRY_TYPE::DENTRY);
     ASSERT_EQ(Str2Type("p"), ENTRY_TYPE::PARTITION);
     ASSERT_EQ(Str2Type("t"), ENTRY_TYPE::PENDING_TX);
+    ASSERT_EQ(Str2Type("s"), ENTRY_TYPE::S3_CHUNK_INFO_LIST);
     ASSERT_EQ(Str2Type("u"), ENTRY_TYPE::UNKNOWN);
     ASSERT_EQ(Str2Type("x"), ENTRY_TYPE::UNKNOWN);
     ASSERT_EQ(Str2Type("y"), ENTRY_TYPE::UNKNOWN);
+
+    auto ret = Extract("i:-1");
+    ASSERT_EQ(ret.first, ENTRY_TYPE::INODE);
+    ASSERT_EQ(ret.second, 0);
 
     // CASE 2: open file failed when save
     ASSERT_FALSE(SaveToFile("/__not_found__/dumpfile", nullptr, false));
 
     // CASE 3: open file failed when load
-    auto callback = [&](ENTRY_TYPE type,
-                        uint32_t partitionId,
-                        const std::string& key,
-                        const std::string& value) {
-        return true;
-    };
-    ASSERT_FALSE(LoadFromFile<decltype(callback)>("__not_found__", callback));
+    {
+        auto callback = [&](ENTRY_TYPE type,
+                            uint32_t partitionId,
+                            const std::string& key,
+                            const std::string& value) {
+            return true;
+        };
+        bool succ = LoadFromFile<decltype(callback)>("__not_found__", callback);
+        ASSERT_FALSE(succ);
+    }
+
+    // CASE 4: invoke failed
+    {
+        auto callback = [&](ENTRY_TYPE type,
+                            uint32_t partitionId,
+                            const std::string& key,
+                            const std::string& value) {
+            return false;
+        };
+        bool succ = LoadFromFile<decltype(callback)>(pathname_, callback);
+        ASSERT_FALSE(succ);
+    }
 }
 
 }  // namespace storage

@@ -30,6 +30,8 @@ namespace metaserver {
 namespace storage {
 
 struct StorageOptions {
+    StorageOptions() {}
+
     std::string type;
 
     uint64_t maxMemoryQuotaBytes;

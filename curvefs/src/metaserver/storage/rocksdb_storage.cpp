@@ -35,12 +35,7 @@ namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-
-
-inline void Counter::Clear(const std::string& name) {
-    auto container = GetContainer(name);
-    container->clear();
-}
+using KeyPair = RocksDBStorage::KeyPair;
 
 const std::string RocksDBOptions::kOrderedColumnFamilyName_ =  // NOLINT
     "ordered_column_familiy";
@@ -114,7 +109,8 @@ RocksDBStorage::RocksDBStorage(StorageOptions options)
     : inited_(false),
       options_(options),
       rocksdbOptions_(RocksDBOptions(options)),
-      counter_(std::make_shared<Counter>()) {}
+      counter_(std::make_shared<Counter>()),
+      InTransaction_(false) {}
 
 RocksDBStorage::RocksDBStorage(const RocksDBStorage& storage,
                                ROCKSDB_NAMESPACE::Transaction* txn)
@@ -237,6 +233,41 @@ std::string RocksDBStorage::ToUserKey(const std::string& ikey) {
     return ikey.substr(length + 1);  // trim prefix "name:"
 }
 
+inline bool RocksDBStorage::FindKey(std::string name, std::string key) {
+    ReadLockGuard readLockGuard(rwLock_);
+    return counter_->Find(name, key);
+}
+
+inline void RocksDBStorage::InsertKey(std::string name, std::string key) {
+    WriteLockGuard writeLockGuard(rwLock_);
+    counter_->Insert(name, key);
+}
+
+inline void RocksDBStorage::EraseKey(std::string name, std::string key) {
+    WriteLockGuard writeLockGuard(rwLock_);
+    counter_->Erase(name, key);
+}
+
+inline size_t RocksDBStorage::TableSize(std::string name) {
+    ReadLockGuard readLockGuard(rwLock_);
+    return counter_->Size(name);
+}
+
+inline void RocksDBStorage::ClearTable(std::string name) {
+    WriteLockGuard writeLockGuard(rwLock_);
+    counter_->Clear(name);
+}
+
+inline void RocksDBStorage::CommitKeys() {
+    WriteLockGuard writeLockGuard(rwLock_);
+    for (const auto& pair : pending4set_) {
+        counter_->Insert(pair.first, pair.second);
+    }
+    for (const auto& pair : pending4del_) {
+        counter_->Erase(pair.first, pair.second);
+    }
+}
+
 Status RocksDBStorage::Get(const std::string& name,
                            const std::string& key,
                            std::string* value,
@@ -247,12 +278,14 @@ Status RocksDBStorage::Get(const std::string& name,
 
     std::string iname = ToInternalName(name, ordered);
     std::string ikey = ToInternalKey(iname, key);
-    if (!counter_->Find(iname, ikey)) {
+    if (!FindKey(iname, ikey)) {
         return Status::NotFound();
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
-    ROCKSDB_NAMESPACE::Status s = db_->Get(ReadOptions(), handle, ikey, value);
+    ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
+        txn_->Get(ReadOptions(), handle, ikey, value) :
+        db_->Get(ReadOptions(), handle, ikey, value);
     return ToStorageStatus(s);
 }
 
@@ -267,9 +300,15 @@ Status RocksDBStorage::Set(const std::string& name,
     auto handle = GetColumnFamilyHandle(ordered);
     std::string iname = ToInternalName(name, ordered);
     std::string ikey = ToInternalKey(iname, key);
-    ROCKSDB_NAMESPACE::Status s = db_->Put(WriteOptions(), handle, ikey, value);
+    ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
+        txn_->Put(handle, ikey, value) :
+        db_->Put(WriteOptions(), handle, ikey, value);
     if (s.ok()) {
-        counter_->Insert(iname, ikey);
+        if (InTransaction_) {
+            pending4set_.push_back(KeyPair(iname, ikey));
+        } else {
+            InsertKey(iname, ikey);
+        }
     }
     return ToStorageStatus(s);
 }
@@ -288,9 +327,15 @@ Status RocksDBStorage::Del(const std::string& name,
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
-    ROCKSDB_NAMESPACE::Status s = db_->Delete(WriteOptions(), handle, ikey);
+    ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
+        txn_->Delete(handle, ikey) :
+        db_->Delete(WriteOptions(), handle, ikey);
     if (s.ok()) {
-        counter_->Erase(iname, ikey);
+        if (InTransaction_) {
+            pending4del_.push_back(KeyPair(iname, ikey));
+        } else {
+            EraseKey(iname, ikey);
+        }
     }
     return ToStorageStatus(s);
 }
@@ -310,14 +355,14 @@ std::shared_ptr<Iterator> RocksDBStorage::GetAll(const std::string& name,
     int status = inited_ ? 0 : -1;
     std::string iname = ToInternalName(name, ordered);
     std::string ikey = ToInternalKey(iname, "");
-    size_t size = counter_->Size(iname);
+    size_t size = TableSize(iname);
     return std::make_shared<RocksDBStorageIterator>(
         this, ikey, size, status, ordered);
 }
 
 size_t RocksDBStorage::Size(const std::string& name, bool ordered) {
     std::string iname = ToInternalName(name, ordered);
-    return counter_->Size(iname);
+    return TableSize(iname);
 }
 
 Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
@@ -333,7 +378,7 @@ Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     ROCKSDB_NAMESPACE::Status s = db_->DeleteRange(
         WriteOptions(), handle, beginKey, endKey);
     if (s.ok()) {
-        counter_->Clear(iname);
+        ClearTable(iname);
     }
     return ToStorageStatus(s);
 }
@@ -351,13 +396,20 @@ Status RocksDBStorage::Commit() {
     if (!InTransaction_) {
         return Status::NotSupported();
     }
-    return ToStorageStatus(txn_->Commit());
+
+    Status s = ToStorageStatus(txn_->Commit());
+    if (s.ok()) {
+        CommitKeys();
+    }
+    return s;
 }
 
 Status RocksDBStorage::Rollback()  {
-    if (InTransaction_) {
+    if (!InTransaction_) {
         return Status::NotSupported();
     }
+    pending4set_.clear();
+    pending4del_.clear();
     return ToStorageStatus(txn_->Rollback());
 }
 
