@@ -38,6 +38,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
+#include "curvefs/src/common/rpc_stream.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "curvefs/src/tools/curvefs_tool_metric.h"
 #include "src/common/configuration.h"
@@ -45,9 +47,15 @@
 DECLARE_string(confPath);
 DECLARE_uint32(rpcTimeoutMs);
 DECLARE_uint32(rpcRetryTimes);
+DECLARE_uint32(rpcStreamIdleTimeoutMs);
 
 namespace curvefs {
 namespace tools {
+
+using ::curvefs::common::StreamClient;
+using ::curvefs::common::StreamConnection;
+using ::curvefs::common::StreamOptions;
+using ::curvefs::common::StreamStatus;
 
 class CurvefsTool {
  public:
@@ -120,13 +128,15 @@ class CurvefsToolRpc : public CurvefsTool {
              const std::shared_ptr<ResponseT>& response,
              const std::shared_ptr<ServiceT>& service_stub,
              const std::function<void(ControllerT*, RequestT*, ResponseT*)>&
-                 service_stub_func) {
+                 service_stub_func,
+             const std::shared_ptr<StreamClient>& streamClient) {
         channel_ = channel;
         controller_ = controller;
         requestQueue_ = requestQueue;
         response_ = response;
         service_stub_ = service_stub;
         service_stub_func_ = service_stub_func;
+        streamClient_ = streamClient;
         InitHostsAddr();
         return 0;
     }
@@ -136,6 +146,7 @@ class CurvefsToolRpc : public CurvefsTool {
         controller_ = std::make_shared<ControllerT>();
         response_ = std::make_shared<ResponseT>();
         service_stub_ = std::make_shared<ServiceT>(channel_.get());
+        streamClient_ = std::make_shared<StreamClient>();
 
         // add need update FlagInfos
         AddUpdateFlags();
@@ -196,11 +207,27 @@ class CurvefsToolRpc : public CurvefsTool {
      * as long as one succeeds, it returns true and ends sending
      */
     virtual bool SendRequestToServices() {
-        uint32_t failHostNumner = 0;
+        uint32_t failHostNumber = 0;
+        bool ret = false;
         for (const std::string& host : hostsAddr_) {
             SetController();
-            if (channel_->Init(host.c_str(), nullptr) != 0) {
-                std::cerr << "fail init channel to host: " << host << std::endl;
+            brpc::ChannelOptions channelOpt;
+            if (isStreaming_) {
+                // set stream rpc client
+                channelOpt.connection_group = "streaming";
+                StreamOptions streamOpt(FLAGS_rpcStreamIdleTimeoutMs);
+                connection_ = streamClient_->Connect(
+                    controller_.get(), receiveCallback_, streamOpt);
+                if (nullptr == connection_ || nullptr == receiveCallback_) {
+                    errorOutput_ << "Stream connect " << host << " failed\n";
+                    ++failHostNumber;
+                    continue;
+                }
+            }
+            if (channel_->Init(host.c_str(), &channelOpt) != 0) {
+                errorOutput_ << "fail init channel to host: " << host
+                             << std::endl;
+                ++failHostNumber;
                 continue;
             }
             // if service_stub_func_ does not assign a value
@@ -208,20 +235,32 @@ class CurvefsToolRpc : public CurvefsTool {
             service_stub_func_(controller_.get(), &requestQueue_.front(),
                                response_.get());
             if (controller_->Failed()) {
-                ++failHostNumner;
+                ++failHostNumber;
+            }
+            if (isStreaming_) {
+                auto status = connection_->WaitAllDataReceived();
+                if (status != StreamStatus::STREAM_OK) {
+                    errorOutput_ << "Receive stream data from " << host
+                                 << " failed , status=" << status << std::endl;
+                }
             }
             if (AfterSendRequestToHost(host) == true) {
                 controller_->Reset();
-                return true;
+                ret = true;
+                break;
             }
             controller_->Reset();
+            if (isStreaming_ && connection_ != nullptr) {
+                streamClient_->Close(connection_);
+                connection_ = nullptr;
+            }
             SetController();
         }
-        if (hostsAddr_.size() != failHostNumner) {
+        if (hostsAddr_.size() != failHostNumber) {
             errorOutput_.str("");
         }
-        // send request to all host failed
-        return false;
+
+        return ret;
     }
 
     virtual void SetController() {
@@ -288,6 +327,10 @@ class CurvefsToolRpc : public CurvefsTool {
         }
     }
 
+    void SetStreamingRpc(bool isStreaming) {
+        isStreaming_ = isStreaming;
+    }
+
  protected:
     /**
      * @brief save the host who will be sended request
@@ -317,7 +360,8 @@ class CurvefsToolRpc : public CurvefsTool {
      * it is core function of this class
      * make sure uint test cover SendRequestToServices
      */
-    std::function<void(ControllerT*, RequestT*, ResponseT*)> service_stub_func_;
+    std::function<void(ControllerT*, RequestT*, ResponseT*)>
+        service_stub_func_ = nullptr;
     /**
      * @brief save the functor which defined in curvefs_tool_define.h
      *
@@ -326,6 +370,21 @@ class CurvefsToolRpc : public CurvefsTool {
     std::vector<std::function<void(curve::common::Configuration*,
                                    google::CommandLineFlagInfo*)>>
         updateFlagsFunc_;
+    /**
+     * @brief whether to use stream rpc api
+     */
+    bool isStreaming_ = false;
+    /**
+     * @brief rpc streaming client for too large data
+     */
+    std::shared_ptr<StreamClient> streamClient_;
+    /**
+     * @brief rpc stream client callback function for processing received data
+     *
+     */
+    std::function<bool(butil::IOBuf* buffer)> receiveCallback_ = nullptr;
+
+    std::shared_ptr<StreamConnection> connection_;
 };
 
 class CurvefsToolMetric : public CurvefsTool {

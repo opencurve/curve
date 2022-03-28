@@ -60,6 +60,7 @@ DEFINE_bool(enableSumInDir, false, "statistic info in xattr");
 DEFINE_uint64(capacity, (uint64_t)100 * 1024 * 1024 * 1024,
               "capacity of fs, default 100G");
 DEFINE_string(user, "anonymous", "user of request");
+DEFINE_string(inodeId, "1,2,3", "inodes id");
 
 // list-topology
 DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");
@@ -77,6 +78,8 @@ DEFINE_uint64(volumeBlockGroupSize,
 DEFINE_string(volumeBitmapLocation,
               "AtStart",
               "volume space bitmap location, support |AtStart| and |AtEnd|");
+
+DEFINE_uint32(rpcStreamIdleTimeoutMs, 10000, "rpc stream idle timeout");
 
 namespace curvefs {
 
@@ -218,10 +221,14 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
                   &FLAGS_s3_chunksize);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
-    SetEnableSumInDir =
-        std::bind(&SetFlagInfo<bool>, std::placeholders::_1,
-                  std::placeholders::_2, "enableSumInDir",
-                  &FLAGS_enableSumInDir);
+    SetEnableSumInDir = std::bind(&SetFlagInfo<bool>, std::placeholders::_1,
+                                  std::placeholders::_2, "enableSumInDir",
+                                  &FLAGS_enableSumInDir);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetRpcStreamIdleTimeoutMs = std::bind(
+        &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
+        "rpcStreamIdleTimeoutMs", &FLAGS_rpcStreamIdleTimeoutMs);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =
@@ -254,6 +261,10 @@ std::function<bool(google::CommandLineFlagInfo*)> CheckPartitionIdDefault =
 std::function<bool(google::CommandLineFlagInfo*)> CheckJsonPathDefault =
     std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
               "jsonPath");
+
+std::function<bool(google::CommandLineFlagInfo*)> CheckInodeIdDefault =
+    std::bind(&CheckFlagInfoDefault<fLS::clstring>, std::placeholders::_1,
+              "inodeId");
 
 /* translate to string */
 

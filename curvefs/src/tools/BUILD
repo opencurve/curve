@@ -66,11 +66,13 @@ cc_library(
         "//curvefs/proto:space_cc_proto",
         "//curvefs/src/mds/common:fs_mds_common",
         "//curvefs/src/mds/topology:curvefs_deal_peerid",
+        "//curvefs/src/common:curvefs_common",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
         "//external:json",
         "//src/common:curve_common",
         "//src/mds/topology",
+        "@com_google_absl//absl/cleanup",
     ],
 )
