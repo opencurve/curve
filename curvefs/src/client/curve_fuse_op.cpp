@@ -294,11 +294,7 @@ void FuseOpRead(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
         return;
     }
 
-    struct fuse_bufvec bufvec;
-    bufvec.count = 1;
-    bufvec.off = 0;
-    bufvec.idx = 0;
-    bufvec.buf[0].size = rSize;
+    struct fuse_bufvec bufvec = FUSE_BUFVEC_INIT(rSize);
     bufvec.buf[0].mem = buffer.get();
 
     fuse_reply_data(req, &bufvec, FUSE_BUF_SPLICE_MOVE);
