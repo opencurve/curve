@@ -33,6 +33,7 @@
 #include "curvefs/src/tools/list/curvefs_topology_list.h"
 #include "curvefs/src/tools/query/curvefs_copyset_query.h"
 #include "curvefs/src/tools/query/curvefs_fs_query.h"
+#include "curvefs/src/tools/query/curvefs_inode_query.h"
 #include "curvefs/src/tools/query/curvefs_metaserver_query.h"
 #include "curvefs/src/tools/query/curvefs_partition_query.h"
 #include "curvefs/src/tools/status/curvefs_copyset_status.h"
@@ -43,6 +44,7 @@
 #include "curvefs/src/tools/umount/curvefs_umount_fs_tool.h"
 #include "curvefs/src/tools/usage/curvefs_metadata_usage_tool.h"
 #include "curvefs/src/tools/version/curvefs_version_tool.h"
+#include "curvefs/src/tools/list/curvefs_partition_list.h"
 
 namespace curvefs {
 namespace tools {
@@ -99,6 +101,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     RegisterCurvefsTool(std::string(kTopologyListCmd),
                         CurvefsToolCreator<list::TopologyListTool>::Create);
 
+    // list-partition
+    RegisterCurvefsTool(std::string(kPartitionListCmd),
+                        CurvefsToolCreator<list::PartitionListTool>::Create);
+
     // query-copyset
     RegisterCurvefsTool(std::string(kCopysetQueryCmd),
                         CurvefsToolCreator<query::CopysetQueryTool>::Create);
@@ -114,6 +120,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // query-fs
     RegisterCurvefsTool(std::string(kFsQueryCmd),
                         CurvefsToolCreator<query::FsQueryTool>::Create);
+
+    // query-inode
+    RegisterCurvefsTool(std::string(kInodeQueryCmd),
+                        CurvefsToolCreator<query::InodeQueryTool>::Create);
 
     // delete-fs
     RegisterCurvefsTool(std::string(kDeleteFsCmd),

@@ -74,12 +74,16 @@ const char kPartitionQueryCmd[] = "query-partition";
 const char kMetaserverQueryCmd[] = "query-metaserver";
 // fs-query
 const char kFsQueryCmd[] = "query-fs";
+// Inode-query
+const char kInodeQueryCmd[] = "query-inode";
 // fsinfo-list
 const char kFsInfoListCmd[] = "list-fs";
 // list-fs-copysetid
 const char kCopysetInfoListCmd[] = "list-copysetInfo";
 // list-topology
 const char kTopologyListCmd[] = "list-topology";
+// list-partition
+const char kPartitionListCmd[] = "list-partition";
 // no-invoke Used for commands that are not directly invoked
 const char kNoInvokeCmd[] = "no-invoke";
 
@@ -99,6 +103,7 @@ const char kHelpStr[] =
     "list-fs:           list all fs in cluster\n"
     "list-copysetInfo:  list all copysetInfo in cluster\n"
     "list-topology:     list cluster's topology\n"
+    "list-topology:     list partition by fsId\n"
     "create-topology:   create cluster topology based on topo.json\n"
     "create-fs:         create fs\n"
     "umount-fs:         umount curvefs from local and cluster\n"
@@ -109,6 +114,7 @@ const char kHelpStr[] =
     "query-partition:   query copyset in partition by partitionId\n"
     "query-metaserver:  query metaserver by metaserverId or metaserverName\n"
     "query-fs:          query fs by fsId or fsName\n"
+    "query-inode:       query inode\n"
     "You can specify the config path by -confPath to avoid typing too many "
     "options\n";  // NOLINT
 
@@ -260,6 +266,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetEnableSumInDir;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRpcStreamIdleTimeoutMs;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>
@@ -280,6 +289,8 @@ extern std::function<bool(google::CommandLineFlagInfo*)>
     CheckPartitionIdDefault;
 
 extern std::function<bool(google::CommandLineFlagInfo*)> CheckJsonPathDefault;
+
+extern std::function<bool(google::CommandLineFlagInfo*)> CheckInodeIdDefault;
 
 /* translate to string */
 std::string StrVec2Str(const std::vector<std::string>&);

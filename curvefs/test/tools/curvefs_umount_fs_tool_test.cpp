@@ -164,7 +164,7 @@ TEST_F(UmountfsToolTest, test_umount_tool_init) {
         channel, controller, requestQueue, response, service_stub,
         std::bind(&curvefs::mds::MdsService_Stub::UmountFs, service_stub.get(),
                   std::placeholders::_1, std::placeholders::_2,
-                  std::placeholders::_3, nullptr));
+                  std::placeholders::_3, nullptr), nullptr);
 
     int ret = ut_.RunCommand();
     ASSERT_EQ(ret, 0);
