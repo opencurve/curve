@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2021 NetEase Inc.
+#  Copyright (c) 2022 NetEase Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,21 +14,26 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
-cc_library(
-    name = "common",
-    srcs = glob(["*.cpp"]),
-    hdrs = glob(["*.h"]),
-    copts = CURVE_DEFAULT_COPTS,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:brpc",
+load("//:copts.bzl", "CURVE_TEST_COPTS")
+
+cc_test(
+   name = "lease_test",
+   srcs = glob([
+       "*.cpp",
+       "*.h"],
+   ),
+   copts = CURVE_TEST_COPTS,
+   deps = [
+        "//external:gtest",
         "//external:gflags",
         "//external:glog",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//src/common:curve_s3_adapter",
-        "//curvefs/proto:curvefs_common_cc_proto",
-    ],
+        "//external:brpc",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//curvefs/src/client/lease:curvefs_lease",
+        "//curvefs/test/client/rpcclient:rpcclient_test_mock",
+        "//curvefs/proto:mds_cc_proto",
+   ],
+   visibility = ["//visibility:public"],
 )

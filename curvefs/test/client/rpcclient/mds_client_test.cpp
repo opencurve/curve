@@ -98,6 +98,12 @@ void ListPartitionRpcFailed(uint32_t fsID, ListPartitionResponse *response,
     cntl->SetFailed(112, "Not connected to");
 }
 
+void RefreshSessionRpcFailed(const std::vector<PartitionTxId> &txIds,
+                             RefreshSessionResponse *response,
+                             brpc::Controller *cntl, brpc::Channel *channel) {
+    cntl->SetFailed(112, "Not connected to");
+}
+
 bool ComparePartition(PartitionInfo first, PartitionInfo second) {
     return first.fsid() == second.fsid() && first.poolid() == second.poolid() &&
            first.copysetid() == second.copysetid() &&
@@ -613,6 +619,53 @@ TEST_F(MdsClientImplTest, GetCopysetOfPartition) {
     EXPECT_CALL(mockmdsbasecli_, GetCopysetOfPartitions(_, _, _, _))
         .WillRepeatedly(Invoke(GetCopysetOfPartitionsRpcFailed));
     ASSERT_FALSE(mdsclient_.GetCopysetOfPartitions(partitionIDList, &out));
+}
+
+TEST_F(MdsClientImplTest, RefreshSession) {
+    // prame in
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(2);
+    std::vector<PartitionTxId> txIds({tmp});
+
+    // out
+    std::vector<PartitionTxId> out;
+
+    RefreshSessionResponse response;
+
+    {
+        LOG(INFO) << "### case1: refresh session ok, no need update ###";
+        response.set_statuscode(FSStatusCode::OK);
+        EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
+            .WillOnce(SetArgPointee<1>(response));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out));
+        ASSERT_TRUE(out.empty());
+    }
+
+    {
+        LOG(INFO) << "### case2: refresh session ok, need update ###";
+        response.set_statuscode(FSStatusCode::OK);
+        *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
+        EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
+            .WillOnce(SetArgPointee<1>(response));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out));
+        ASSERT_EQ(1, out.size());
+        ASSERT_TRUE(
+            google::protobuf::util::MessageDifferencer::Equals(out[0], tmp))
+            << "out:\n"
+            << out[0].ShortDebugString() << "tmp:\n"
+            << tmp.ShortDebugString();
+    }
+
+    {
+        LOG(INFO) << "### case3: rpc failed ###";
+        brpc::Controller cntl;
+        cntl.SetFailed(ECONNRESET, "error connect reset");
+        EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
+            .WillRepeatedly(Invoke(RefreshSessionRpcFailed));
+        ASSERT_EQ(FSStatusCode::RPC_ERROR,
+                  mdsclient_.RefreshSession(txIds, &out));
+    }
 }
 
 }  // namespace rpcclient

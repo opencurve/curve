@@ -125,6 +125,10 @@ class TopologyManager {
     virtual void ListPartitionOfFs(FsIdType fsId,
                                    std::list<PartitionInfo>* list);
 
+    virtual void
+    GetLatestPartitionsTxId(const std::vector<PartitionTxId> &txIds,
+                            std::vector<PartitionTxId> *needUpdate);
+
     virtual TopoStatusCode UpdatePartitionStatus(PartitionIdType partitionId,
                                                  PartitionStatus status);
 

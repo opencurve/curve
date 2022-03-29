@@ -86,6 +86,10 @@ class MockMdsClient : public MdsClient {
     MOCK_METHOD2(ListPartition,
                  bool(uint32_t fsID,
                       std::vector<PartitionInfo>* partitionInfos));
+
+    MOCK_METHOD2(RefreshSession,
+                 FSStatusCode(const std::vector<PartitionTxId> &txIds,
+                              std::vector<PartitionTxId> *latestTxIdList));
 };
 }  // namespace rpcclient
 }  // namespace client

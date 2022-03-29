@@ -16,6 +16,7 @@
 
 syntax="proto2";
 import "curvefs/proto/common.proto";
+import "curvefs/proto/topology.proto";
 package curvefs.mds;
 option cc_generic_services = true;
 
@@ -156,6 +157,15 @@ message ListClusterFsInfoResponse {
     repeated FsInfo fsInfo = 1;
 }
 
+message RefreshSessionRequest {
+    repeated topology.PartitionTxId txIds = 1;
+}
+
+message RefreshSessionResponse {
+    required FSStatusCode statusCode = 1;
+    repeated topology.PartitionTxId latestTxIdList = 2;
+}
+
 service MdsService {
     // fs interface
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
@@ -167,4 +177,7 @@ service MdsService {
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
     rpc ListClusterFsInfo (ListClusterFsInfoRequest) returns (ListClusterFsInfoResponse);
+
+    // client lease
+    rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
 }

@@ -55,6 +55,12 @@ struct LeaseRefreshResult {
     FInfo_t finfo;
 };
 
+class LeaseExecutorBase {
+ public:
+    virtual ~LeaseExecutorBase() = default;
+    virtual bool RefreshLease() { return true; }
+};
+
 /**
  * 每个vdisk对应的fileinstance都会与mds保持心跳
  * 心跳通过LeaseExecutor实现，LeaseExecutor定期
@@ -62,7 +68,7 @@ struct LeaseRefreshResult {
  * 然后检查版本信息是否变更，如果变更就需要通知iomanager
  * 更新版本。如果续约失败，就需要将用户新发下来的io直接错误返回
  */
-class LeaseExecutor {
+class LeaseExecutor : public LeaseExecutorBase {
  public:
     /**
      * 构造函数
@@ -107,7 +113,7 @@ class LeaseExecutor {
      * @brief 续约任务执行者
      * @return 是否继续执行refresh session任务
      */
-    bool RefreshLease();
+    bool RefreshLease() override;
 
     /**
      * @brief 测试使用，重置refresh session task
@@ -165,7 +171,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
  public:
     using Task = std::function<bool(void)>;
 
-    RefreshSessionTask(LeaseExecutor* leaseExecutor,
+    RefreshSessionTask(LeaseExecutorBase* leaseExecutor,
                        uint64_t intervalUs)
         : leaseExecutor_(leaseExecutor),
           refreshIntervalUs_(intervalUs),
@@ -238,7 +244,7 @@ class RefreshSessionTask : public brpc::PeriodicTask {
     }
 
  private:
-    LeaseExecutor* leaseExecutor_;
+    LeaseExecutorBase* leaseExecutor_;
     uint64_t refreshIntervalUs_;
 
     bool stopped_;

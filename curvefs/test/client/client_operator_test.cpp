@@ -28,7 +28,7 @@
 #include "curvefs/test/client/mock_dentry_cache_mamager.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
-#include "curvefs/test/client/mock_mds_client.h"
+#include "curvefs/test/client/rpcclient/mock_mds_client.h"
 
 namespace curvefs {
 namespace client {

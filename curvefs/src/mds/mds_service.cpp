@@ -257,5 +257,16 @@ void MdsServiceImpl::ListClusterFsInfo(
     return;
 }
 
+void MdsServiceImpl::RefreshSession(
+    ::google::protobuf::RpcController *controller,
+    const ::curvefs::mds::RefreshSessionRequest *request,
+    ::curvefs::mds::RefreshSessionResponse *response,
+    ::google::protobuf::Closure *done) {
+    brpc::ClosureGuard guard(done);
+    fsManager_->RefreshSession(request->txids(),
+                               response->mutable_latesttxidlist());
+    response->set_statuscode(FSStatusCode::OK);
+}
+
 }  // namespace mds
 }  // namespace curvefs

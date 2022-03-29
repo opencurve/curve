@@ -220,6 +220,9 @@ TEST_F(MetaCacheTest, SetTxId) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
     CopysetGroupID groupId(1, 1);
+    std::vector<PartitionTxId> out;
+    metaCache_.GetAllTxIds(&out);
+    ASSERT_EQ(0, out.size());
 
     // metaCache_.UpdatePartitionInfo(fsId, pInfoList_);
     // metaCache_.UpdateCopysetInfo(groupId, metaServerList_);
@@ -246,6 +249,10 @@ TEST_F(MetaCacheTest, SetTxId) {
     succ = metaCache_.GetTxId(fsId, inodeId, &partitionId, &txId);
     ASSERT_EQ(partitionId, expect.partitionID);
     ASSERT_EQ(txId, 123);
+
+    // CASE 3: GetAllTxIds
+    metaCache_.GetAllTxIds(&out);
+    ASSERT_EQ(1, out.size());
 }
 
 TEST_F(MetaCacheTest, test_SelectTarget) {

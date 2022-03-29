@@ -47,6 +47,8 @@
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/client/common/common.h"
+#include "curvefs/src/client/client_operator.h"
+#include "curvefs/src/client/lease/lease_excutor.h"
 
 #define DirectIOAlignemnt 512
 
@@ -272,6 +274,8 @@ class FuseClient {
 
     // dentry cache manager
     std::shared_ptr<DentryCacheManager> dentryManager_;
+
+    std::shared_ptr<LeaseExecutor> leaseExecutor_;
 
     // dir buffer
     std::shared_ptr<DirBuffer> dirBuf_;

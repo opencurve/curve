@@ -81,6 +81,9 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     metaCache->Init(option.metaCacheOpt, cli2Client, mdsClient_);
     auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
 
+    leaseExecutor_ =
+        std::make_shared<LeaseExecutor>(option.leaseOpt, metaCache, mdsClient_);
+
     uint32_t listenPort = 0;
     if (!curve::common::StartBrpcDummyserver(option.dummyServerStartPort,
                                              PORT_LIMIT, &listenPort)) {
@@ -106,8 +109,17 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
+
     ret3 =
         dentryManager_->Init(option.dCacheLruSize, option.enableDCacheMetrics);
+    if (ret3 != CURVEFS_ERROR::OK) {
+        return ret3;
+    }
+
+    if (!leaseExecutor_->Start()) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
     return ret3;
 }
 

@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <algorithm>
 #include <iterator>
 #include <vector>
 #include <map>
@@ -44,6 +45,17 @@ void MetaCache::GetTxId(uint32_t partitionId, uint64_t *txId) {
     auto iter = partitionTxId_.find(partitionId);
     if (iter != partitionTxId_.end()) {
         *txId = iter->second;
+    }
+}
+
+void MetaCache::GetAllTxIds(std::vector<PartitionTxId> *txIds) {
+    ReadLockGuard r(txIdLock_);
+    auto iter = partitionTxId_.begin();
+    for (; iter != partitionTxId_.end(); iter++) {
+        PartitionTxId tmp;
+        tmp.set_partitionid(iter->first);
+        tmp.set_txid(iter->second);
+        txIds->push_back(std::move(tmp));
     }
 }
 
@@ -363,6 +375,12 @@ void MetaCache::DoAddPartitionAndCopyset(
 
     // add copysetInfo
     copysetInfoMap_.insert(copysetMap.begin(), copysetMap.end());
+
+    // add partitionIxid
+    std::for_each(partitionInfos.begin(), partitionInfos.end(),
+                  [&](const PartitionInfo &item) {
+                      SetTxId(item.partitionid(), item.txid());
+                  });
 }
 
 bool MetaCache::UpdateCopysetInfoFromMDS(
