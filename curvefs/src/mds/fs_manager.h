@@ -48,12 +48,13 @@
 namespace curvefs {
 namespace mds {
 
-using ::curvefs::mds::topology::TopologyManager;
-using ::curvefs::mds::topology::Topology;
-using ::curve::common::Thread;
-using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Atomic;
+using ::curve::common::InterruptibleSleeper;
 using ::curve::common::S3Adapter;
+using ::curve::common::Thread;
+using ::curvefs::mds::topology::PartitionTxId;
+using ::curvefs::mds::topology::Topology;
+using ::curvefs::mds::topology::TopologyManager;
 
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
@@ -176,6 +177,11 @@ class FsManager {
 
     void GetAllFsInfo(::google::protobuf::RepeatedPtrField<
                       ::curvefs::mds::FsInfo>* fsInfoVec);
+
+    void RefreshSession(
+        const google::protobuf::RepeatedPtrField<
+            curvefs::mds::topology::PartitionTxId> &txIds,
+        google::protobuf::RepeatedPtrField<PartitionTxId> *needUpdate);
 
  private:
     // return 0: ExactlySame; 1: uncomplete, -1: neither

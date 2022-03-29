@@ -361,73 +361,38 @@ TEST_F(BaseClientTest, test_GetCopysetOfPartition) {
         << response.ShortDebugString();
 }
 
-// TEST_F(BaseClientTest, test_AllocExtents) {
-//     uint32_t fsId = 1;
-//     ExtentAllocInfo info;
-//     info.lOffset = 0;
-//     info.len = 1024;
-//     info.leftHintAvailable = true;
-//     info.pOffsetLeft = 0;
-//     info.rightHintAvailable = true;
-//     info.pOffsetRight = 0;
-//     curvefs::space::AllocateSpaceResponse resp;
-//     brpc::Controller cntl;
-//     cntl.set_timeout_ms(1000);
-//     brpc::Channel ch;
-//     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+TEST_F(BaseClientTest, test_RefreshSession) {
+    // prepare in param
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(2);
+    std::vector<PartitionTxId> txIds({tmp});
 
-//     curvefs::space::AllocateSpaceResponse response;
-//     auto extent = response.add_extents();
-//     extent->set_offset(0);
-//     extent->set_length(1024);
-//     response.set_status(curvefs::space::SpaceStatusCode::SPACE_OK);
-//     EXPECT_CALL(mockSpaceAllocService_, AllocateSpace(_, _, _, _))
-//         .WillOnce(DoAll(
-//             SetArgPointee<2>(response),
-//             Invoke(RpcService<AllocateSpaceRequest,
-//             AllocateSpaceResponse>)));
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(1000);
+    brpc::Channel ch;
+    ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+    RefreshSessionResponse resp;
 
-//     spacebasecli_.AllocExtents(fsId, info,
-//     curvefs::space::AllocateType::NONE,
-//                                &resp, &cntl, &ch);
-//     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
-//     ASSERT_TRUE(
-//         google::protobuf::util::MessageDifferencer::Equals(resp, response))
-//         << "resp:\n"
-//         << resp.ShortDebugString() << "response:\n"
-//         << response.ShortDebugString();
-// }
+    // prepare out param
+    RefreshSessionResponse response;
+    response.set_statuscode(curvefs::mds::FSStatusCode::OK);
+    *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
 
-// TEST_F(BaseClientTest, test_DeAllocExtents) {
-//     uint32_t fsId = 1;
-//     Extent extent;
-//     extent.set_offset(0);
-//     extent.set_length(1024);
-//     std::list<Extent> allocatedExtents;
-//     allocatedExtents.push_back(extent);
-//     curvefs::space::DeallocateSpaceResponse resp;
-//     brpc::Controller cntl;
-//     cntl.set_timeout_ms(1000);
-//     brpc::Channel ch;
-//     ASSERT_EQ(0, ch.Init(addr_.c_str(), nullptr));
+    EXPECT_CALL(mockMdsService_, RefreshSession(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(response),
+            Invoke(RpcService<RefreshSessionRequest, RefreshSessionResponse>)));
 
-//     curvefs::space::DeallocateSpaceResponse response;
-//     response.set_status(curvefs::space::SpaceStatusCode::SPACE_OK);
-//     EXPECT_CALL(mockSpaceAllocService_, DeallocateSpace(_, _, _, _))
-//         .WillOnce(DoAll(
-//             SetArgPointee<2>(response),
-//             Invoke(
-//                 RpcService<DeallocateSpaceRequest,
-//                 DeallocateSpaceResponse>)));
+    mdsbasecli_.RefreshSession(txIds, &resp, &cntl, &ch);
+    ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
+    ASSERT_TRUE(
+        google::protobuf::util::MessageDifferencer::Equals(resp, response))
+        << "resp:\n"
+        << resp.ShortDebugString() << "response:\n"
+        << response.ShortDebugString();
+}
 
-//     spacebasecli_.DeAllocExtents(fsId, allocatedExtents, &resp, &cntl, &ch);
-//     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
-//     ASSERT_TRUE(
-//         google::protobuf::util::MessageDifferencer::Equals(resp, response))
-//         << "resp:\n"
-//         << resp.ShortDebugString() << "response:\n"
-//         << response.ShortDebugString();
-// }
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

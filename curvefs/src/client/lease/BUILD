@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2021 NetEase Inc.
+#  Copyright (c) 2022 NetEase Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,18 +17,18 @@
 load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
-    name = "common",
+    name = "curvefs_lease",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
+        "//curvefs/proto:mds_cc_proto",
+        "//curvefs/src/client/rpcclient:rpcclient",
+        "//curvefs/src/client/common:common",
+        "//src/client:curve_client",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//src/common:curve_s3_adapter",
-        "//curvefs/proto:curvefs_common_cc_proto",
     ],
 )

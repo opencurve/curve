@@ -46,7 +46,7 @@ cc_proto_library(
 proto_library(
     name = "mds_proto",
     srcs = ["mds.proto"],
-    deps = [":curvefs_common_proto"],
+    deps = [":curvefs_common_proto",":curvefs_topology_proto"],
 )
 
 cc_proto_library(

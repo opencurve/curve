@@ -67,6 +67,12 @@ struct ExcutorOpt {
     uint32_t batchLimit = 100;
 };
 
+struct LeaseOpt {
+    uint32_t refreshTimesPerLease = 5;
+    // default = 20s
+    uint32_t leaseTimeUs = 20000000;
+};
+
 struct SpaceAllocServerOption {
     std::string spaceaddr;
     uint64_t rpcTimeoutMs;
@@ -144,6 +150,7 @@ struct FuseClientOption {
     S3Option s3Opt;
     ExtentManagerOption extentManagerOpt;
     VolumeOption volumeOpt;
+    LeaseOpt leaseOpt;
 
     double attrTimeOut;
     double entryTimeOut;
@@ -167,6 +174,8 @@ void S3Info2FsS3Option(const curvefs::common::S3Info& s3,
                        S3InfoOption* fsS3Opt);
 
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt);
+
+void InitLeaseOpt(Configuration *conf, LeaseOpt *leaseOpt);
 
 }  // namespace common
 }  // namespace client

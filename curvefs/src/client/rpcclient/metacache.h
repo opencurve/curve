@@ -120,6 +120,8 @@ class MetaCache {
     virtual bool GetTxId(uint32_t fsId, uint64_t inodeId, uint32_t *partitionId,
                          uint64_t *txId);
 
+    virtual void GetAllTxIds(std::vector<PartitionTxId> *txIds);
+
     virtual bool GetTarget(uint32_t fsID, uint64_t inodeID,
                            CopysetTarget *target, uint64_t *applyIndex,
                            bool refresh = false);

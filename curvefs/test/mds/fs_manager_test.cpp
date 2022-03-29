@@ -669,5 +669,35 @@ TEST_F(FSManagerTest, backgroud_thread_deletefs_test) {
     ASSERT_EQ(ret, FSStatusCode::NOT_FOUND);
 }
 
+TEST_F(FSManagerTest, test_efreshSession) {
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+
+    {
+        LOG(INFO) << "### case1: partition txid need update ###";
+        RefreshSessionRequest request;
+        RefreshSessionResponse response;
+        std::vector<PartitionTxId> txidlist({std::move(tmp)});
+        *request.mutable_txids() = {txidlist.begin(), txidlist.end()};
+        EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
+            .WillOnce(SetArgPointee<1>(txidlist));
+        fsManager_->RefreshSession(request.txids(),
+                                   response.mutable_latesttxidlist());
+        ASSERT_EQ(1, response.latesttxidlist_size());
+    }
+    {
+        LOG(INFO) << "### case2: partition txid do not need update ###";
+        RefreshSessionResponse response;
+        RefreshSessionRequest request;
+        std::vector<PartitionTxId> txidlist;
+        EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
+            .WillOnce(SetArgPointee<1>(txidlist));
+        fsManager_->RefreshSession(request.txids(),
+                                   response.mutable_latesttxidlist());
+        ASSERT_EQ(0, response.latesttxidlist_size());
+    }
+}
+
 }  // namespace mds
 }  // namespace curvefs

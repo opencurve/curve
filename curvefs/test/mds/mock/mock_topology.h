@@ -423,6 +423,10 @@ class MockTopologyManager : public TopologyManager {
     MOCK_METHOD3(CreateCopysetNodeOnMetaServer,
                  bool(PoolIdType poolId, CopySetIdType copysetId,
                       MetaServerIdType metaServerId));
+
+    MOCK_METHOD2(GetLatestPartitionsTxId,
+                 void(const std::vector<PartitionTxId> &txIds,
+                      std::vector<PartitionTxId> *needUpdate));
 };
 
 }  // namespace topology

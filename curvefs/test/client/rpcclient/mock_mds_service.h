@@ -48,6 +48,12 @@ class MockMdsService : public curvefs::mds::MdsService {
                       const ::curvefs::mds::GetFsInfoRequest *request,
                       ::curvefs::mds::GetFsInfoResponse *response,
                       ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(RefreshSession,
+                 void(::google::protobuf::RpcController *controller,
+                      const ::curvefs::mds::RefreshSessionRequest *request,
+                      ::curvefs::mds::RefreshSessionResponse *response,
+                      ::google::protobuf::Closure *done));
 };
 }  // namespace rpcclient
 }  // namespace client
