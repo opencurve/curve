@@ -82,6 +82,11 @@ class MdsServiceImpl : public MdsService {
         ::curvefs::mds::ListClusterFsInfoResponse* response,
         ::google::protobuf::Closure* done);
 
+    void RefreshSession(::google::protobuf::RpcController *controller,
+                        const ::curvefs::mds::RefreshSessionRequest *request,
+                        ::curvefs::mds::RefreshSessionResponse *response,
+                        ::google::protobuf::Closure *done);
+
  private:
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;

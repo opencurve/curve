@@ -183,9 +183,9 @@ MdsClientImpl::CommitTx(const std::vector<PartitionTxId> &txIds) {
     return static_cast<TopoStatusCode>(rc);
 }
 
-template<typename T>
+template <typename T>
 void GetEndPoint(const T &info, butil::EndPoint *internal,
-    butil::EndPoint *external) {
+                 butil::EndPoint *external) {
     const std::string &internalIp = info.internalip();
     const std::string &externalIp = [&info]() {
         if (info.has_externalip()) {
@@ -433,6 +433,37 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
 
         return ret;
     };
+    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
+FSStatusCode
+MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
+                              std::vector<PartitionTxId> *latestTxIdList) {
+    auto task = RPCTask {
+        RefreshSessionResponse response;
+        mdsbasecli_->RefreshSession(txIds, &response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "RefreshSession fail, errcode = "
+                         << cntl->ErrorCode()
+                         << ", error content: " << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        FSStatusCode ret = response.statuscode();
+        if (ret != FSStatusCode::OK) {
+            LOG(WARNING) << "RefreshSession fail, errcode = " << ret
+                         << ", errmsg = " << FSStatusCode_Name(ret);
+        } else if (response.latesttxidlist_size() > 0) {
+            *latestTxIdList = {response.latesttxidlist().begin(),
+                               response.latesttxidlist().end()};
+            LOG(INFO) << "RefreshSession need update partition txid list: "
+                      << response.DebugString();
+        }
+
+        return ret;
+    };
+
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 

@@ -563,5 +563,14 @@ void FsManager::GetAllFsInfo(
     return;
 }
 
+void FsManager::RefreshSession(
+    const google::protobuf::RepeatedPtrField<PartitionTxId> &txIds,
+    google::protobuf::RepeatedPtrField<PartitionTxId> *needUpdate) {
+    std::vector<PartitionTxId> out;
+    std::vector<PartitionTxId> in = {txIds.begin(), txIds.end()};
+    topoManager_->GetLatestPartitionsTxId(in, &out);
+    *needUpdate = {out.begin(), out.end()};
+}
+
 }  // namespace mds
 }  // namespace curvefs

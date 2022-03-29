@@ -25,6 +25,7 @@
 #include <brpc/server.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <google/protobuf/util/message_differencer.h>
 
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
@@ -45,6 +46,7 @@ using ::testing::Invoke;
 
 using curvefs::mds::MetaserverClient;
 using curvefs::metaserver::MockMetaserverService;
+using google::protobuf::util::MessageDifferencer;
 
 class TestTopologyManager : public ::testing::Test {
  protected:
@@ -168,12 +170,53 @@ class TestTopologyManager : public ::testing::Test {
 
     void PrepareAddPartition(FsIdType fsId, PoolIdType poolId,
                              CopySetIdType csId, PartitionIdType pId,
-                             uint64_t idStart, uint64_t idEnd) {
+                             uint64_t idStart, uint64_t idEnd,
+                             uint64_t txId = 0) {
         Partition partition(fsId, poolId, csId, pId, idStart, idEnd);
+        partition.SetTxId(txId);
         EXPECT_CALL(*storage_, StoragePartition(_)).WillOnce(Return(true));
         int ret = topology_->AddPartition(partition);
         ASSERT_EQ(TopoStatusCode::TOPO_OK, ret)
             << "should have PrepareAddPartition()";
+    }
+
+    void PrepareTopo() {
+        FsIdType fsId = 0x01;
+        PoolIdType poolId = 0x11;
+        CopySetIdType copysetId = 0x51;
+        PartitionIdType pId1 = 0x61;
+        PartitionIdType pId2 = 0x62;
+        PartitionIdType pId3 = 0x63;
+
+        Pool::RedundanceAndPlaceMentPolicy policy;
+        policy.replicaNum = 3;
+        policy.copysetNum = 0;
+        policy.zoneNum = 3;
+        PrepareAddPool(poolId, "pool1", policy);
+        PrepareAddZone(0x21, "zone1", poolId);
+        PrepareAddZone(0x22, "zone2", poolId);
+        PrepareAddZone(0x23, "zone3", poolId);
+        PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                         0x11);
+        PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                         0x11);
+        PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                         0x11);
+        PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777,
+                             "ip2", 8888);
+        PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7778,
+                             "ip2", 8888);
+        PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7779,
+                             "ip2", 8888);
+
+        std::set<MetaServerIdType> replicas;
+        replicas.insert(0x41);
+        replicas.insert(0x42);
+        replicas.insert(0x43);
+        PrepareAddCopySet(copysetId, poolId, replicas);
+        PrepareAddPartition(fsId, poolId, copysetId, pId1, 1, 100, 2);
+        PrepareAddPartition(fsId, poolId, copysetId, pId2, 1, 100, 2);
+        PrepareAddPartition(fsId + 1, poolId, copysetId, pId3, 1, 100, 2);
     }
 
  protected:
@@ -2368,6 +2411,34 @@ TEST_F(TestTopologyManager, test_ListPartition_Success) {
     serviceManager_->ListPartition(&request, &response);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
     ASSERT_EQ(2, response.partitioninfolist().size());
+}
+
+TEST_F(TestTopologyManager, test_GetLatestPartitionsTxId) {
+    PrepareTopo();
+    PartitionIdType pId1 = 0x61;
+
+    {
+        LOG(INFO) << "### case1: partition need update ###";
+        PartitionTxId tmp;
+        tmp.set_partitionid(pId1);
+        tmp.set_txid(1);
+        std::vector<PartitionTxId> partitionList({tmp});
+        std::vector<PartitionTxId> out;
+        serviceManager_->GetLatestPartitionsTxId(partitionList, &out);
+        ASSERT_EQ(1, out.size());
+        ASSERT_EQ(pId1, out[0].partitionid());
+        ASSERT_EQ(2, out[0].txid());
+    }
+    {
+        LOG(INFO) << "### case2: partition no need update ###";
+        PartitionTxId tmp;
+        tmp.set_partitionid(pId1);
+        tmp.set_txid(2);
+        std::vector<PartitionTxId> partitionList({tmp});
+        std::vector<PartitionTxId> out;
+        serviceManager_->GetLatestPartitionsTxId(partitionList, &out);
+        ASSERT_TRUE(out.empty());
+    }
 }
 
 TEST_F(TestTopologyManager, test_ListPartitionOfFs_Success) {

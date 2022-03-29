@@ -25,6 +25,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
+#include <vector>
 #include "curvefs/src/client/rpcclient/metacache.h"
 
 namespace curvefs {
@@ -40,6 +41,10 @@ class MockMetaCache : public MetaCache {
 
     MOCK_METHOD3(SelectTarget, bool(uint32_t fsID, CopysetTarget *target,
                                     uint64_t *applyIndex));
+
+    MOCK_METHOD1(GetAllTxIds, void(std::vector<PartitionTxId> *txIds));
+
+    MOCK_METHOD2(SetTxId, void(uint32_t partitionId, uint64_t txId));
 
     MOCK_METHOD2(UpdateApplyIndex,
                  void(const CopysetGroupID &groupID, uint64_t applyIndex));

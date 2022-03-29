@@ -28,7 +28,7 @@
 
 #include "curvefs/test/client/mock_client_s3.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
-#include "curvefs/test/client/mock_mds_client.h"
+#include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/client/mock_metaserver_service.h"
 #include "curvefs/test/client/mock_spacealloc_service.h"
 #include "src/common/curve_define.h"

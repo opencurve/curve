@@ -83,6 +83,11 @@ class MockMDSBaseClient : public MDSBaseClient {
     MOCK_METHOD4(ListPartition,
                  void(uint32_t fsID, ListPartitionResponse *response,
                       brpc::Controller *cntl, brpc::Channel *channel));
+
+    MOCK_METHOD4(RefreshSession,
+                 void(const std::vector<PartitionTxId> &txIds,
+                      RefreshSessionResponse *response, brpc::Controller *cntl,
+                      brpc::Channel *channel));
 };
 }  // namespace rpcclient
 }  // namespace client

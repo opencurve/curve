@@ -76,6 +76,8 @@ using curvefs::mds::GetFsInfoRequest;
 using curvefs::mds::GetFsInfoResponse;
 using curvefs::mds::MountFsRequest;
 using curvefs::mds::MountFsResponse;
+using curvefs::mds::RefreshSessionRequest;
+using curvefs::mds::RefreshSessionResponse;
 using curvefs::mds::UmountFsRequest;
 using curvefs::mds::UmountFsResponse;
 
@@ -173,6 +175,10 @@ class MDSBaseClient {
     virtual void AllocS3ChunkId(uint32_t fsId,
                                 AllocateS3ChunkResponse* response,
                                 brpc::Controller* cntl, brpc::Channel* channel);
+
+    virtual void RefreshSession(const std::vector<PartitionTxId> &txIds,
+                                RefreshSessionResponse *response,
+                                brpc::Controller *cntl, brpc::Channel *channel);
 };
 
 }  // namespace rpcclient
