@@ -21,7 +21,6 @@
  */
 
 #include "curvefs/src/client/rpcclient/base_client.h"
-
 #include "curvefs/src/client/common/extent.h"
 
 namespace curvefs {
@@ -147,6 +146,16 @@ void MDSBaseClient::AllocS3ChunkId(uint32_t fsId,
 
     curvefs::mds::MdsService_Stub stub(channel);
     stub.AllocateS3Chunk(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::RefreshSession(const std::vector<PartitionTxId> &txIds,
+                                   RefreshSessionResponse *response,
+                                   brpc::Controller *cntl,
+                                   brpc::Channel *channel) {
+    RefreshSessionRequest request;
+    *request.mutable_txids() = {txIds.begin(), txIds.end()};
+    curvefs::mds::MdsService_Stub stub(channel);
+    stub.RefreshSession(cntl, &request, response, nullptr);
 }
 }  // namespace rpcclient
 }  // namespace client

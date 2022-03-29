@@ -174,6 +174,12 @@ void InitExtentManagerOption(Configuration *conf,
                               &extentManagerOpt->preAllocSize);
 }
 
+void InitLeaseOpt(Configuration *conf, LeaseOpt *leaseOpt) {
+    conf->GetValueFatalIfFail("mds.leaseTimesUs", &leaseOpt->leaseTimeUs);
+    conf->GetValueFatalIfFail("mds.refreshTimesPerLease",
+                              &leaseOpt->refreshTimesPerLease);
+}
+
 void SetBrpcOpt(Configuration *conf) {
     curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
     dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
@@ -191,6 +197,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitS3Option(conf, &clientOption->s3Opt);
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);
     InitVolumeOption(conf, &clientOption->volumeOpt);
+    InitLeaseOpt(conf, &clientOption->leaseOpt);
 
     conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
                               &clientOption->attrTimeOut);

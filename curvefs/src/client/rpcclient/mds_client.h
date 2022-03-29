@@ -99,6 +99,10 @@ class MdsClient {
     virtual bool ListPartition(uint32_t fsID,
                                std::vector<PartitionInfo> *partitionInfos) = 0;
     virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) = 0;
+
+    virtual FSStatusCode
+    RefreshSession(const std::vector<PartitionTxId> &txIds,
+                   std::vector<PartitionTxId> *latestTxIdList) = 0;
 };
 
 class MdsClientImpl : public MdsClient {
@@ -141,6 +145,10 @@ class MdsClientImpl : public MdsClient {
                        std::vector<PartitionInfo> *partitionInfos) override;
 
     FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) override;
+
+    FSStatusCode
+    RefreshSession(const std::vector<PartitionTxId> &txIds,
+                   std::vector<PartitionTxId> *latestTxIdList) override;
 
  private:
     FSStatusCode ReturnError(int retcode);

@@ -947,6 +947,22 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
     }
 }
 
+void TopologyManager::GetLatestPartitionsTxId(
+    const std::vector<PartitionTxId> &txIds,
+    std::vector<PartitionTxId> *needUpdate) {
+
+    for (auto iter = txIds.begin(); iter != txIds.end(); iter++) {
+        Partition out;
+        topology_ ->GetPartition(iter->partitionid(), &out);
+        if (out.GetTxId() != iter->txid()) {
+            PartitionTxId tmp;
+            tmp.set_partitionid(iter->partitionid());
+            tmp.set_txid(out.GetTxId());
+            needUpdate->push_back(std::move(tmp));
+        }
+    }
+}
+
 void TopologyManager::ListPartitionOfFs(FsIdType fsId,
                                         std::list<PartitionInfo>* list) {
     for (auto &partition : topology_->GetPartitionOfFs(fsId)) {

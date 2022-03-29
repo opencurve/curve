@@ -34,44 +34,47 @@
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "test/common/mock_s3_adapter.h"
 
+using ::curve::common::MockS3Adapter;
+using ::curvefs::common::S3Info;
+using ::curvefs::common::Volume;
+using ::curvefs::mds::RefreshSessionRequest;
+using ::curvefs::mds::RefreshSessionResponse;
+using ::curvefs::mds::topology::CreatePartitionRequest;
+using ::curvefs::mds::topology::CreatePartitionResponse;
+using ::curvefs::mds::topology::DefaultIdGenerator;
+using ::curvefs::mds::topology::DefaultTokenGenerator;
+using ::curvefs::mds::topology::MockEtcdClient;
+using ::curvefs::mds::topology::MockIdGenerator;
+using ::curvefs::mds::topology::MockStorage;
+using ::curvefs::mds::topology::MockTokenGenerator;
+using ::curvefs::mds::topology::MockTopology;
+using ::curvefs::mds::topology::MockTopologyManager;
+using ::curvefs::mds::topology::TopologyIdGenerator;
+using ::curvefs::mds::topology::TopologyImpl;
+using ::curvefs::mds::topology::TopologyManager;
+using ::curvefs::mds::topology::TopologyStorageCodec;
+using ::curvefs::mds::topology::TopologyStorageEtcd;
+using ::curvefs::mds::topology::TopologyTokenGenerator;
+using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::metaserver::FakeMetaserverImpl;
+using ::curvefs::metaserver::copyset::GetLeaderResponse2;
+using ::curvefs::metaserver::copyset::MockCliService2;
+using ::curvefs::space::FakeSpaceImpl;
+using ::curvefs::space::InitSpaceResponse;
+using ::curvefs::space::SpaceStatusCode;
+
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
 using ::testing::Invoke;
+using ::testing::Matcher;
 using ::testing::Mock;
 using ::testing::Return;
 using ::testing::ReturnArg;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::Matcher;
-using ::curvefs::common::S3Info;
-using ::curvefs::common::Volume;
-using ::curvefs::metaserver::FakeMetaserverImpl;
-using ::curvefs::space::FakeSpaceImpl;
-using ::curvefs::space::InitSpaceResponse;
-using ::curvefs::space::SpaceStatusCode;
-using ::curvefs::mds::topology::TopologyManager;
-using ::curvefs::mds::topology::MockTopologyManager;
-using ::curvefs::mds::topology::MockTopology;
-using ::curvefs::mds::topology::MockIdGenerator;
-using ::curvefs::mds::topology::MockTokenGenerator;
-using ::curvefs::mds::topology::MockStorage;
-using ::curvefs::mds::topology::TopologyIdGenerator;
-using ::curvefs::mds::topology::DefaultIdGenerator;
-using ::curvefs::mds::topology::TopologyTokenGenerator;
-using ::curvefs::mds::topology::DefaultTokenGenerator;
-using ::curvefs::mds::topology::MockEtcdClient;
-using ::curvefs::mds::topology::MockTopologyManager;
-using ::curvefs::mds::topology::TopologyStorageCodec;
-using ::curvefs::mds::topology::TopologyStorageEtcd;
-using ::curvefs::mds::topology::TopologyImpl;
-using ::curvefs::mds::topology::CreatePartitionRequest;
-using ::curvefs::mds::topology::CreatePartitionResponse;
-using ::curvefs::mds::topology::TopoStatusCode;
-using ::curvefs::metaserver::copyset::MockCliService2;
-using ::curvefs::metaserver::copyset::GetLeaderResponse2;
-using ::curve::common::MockS3Adapter;
+
 
 namespace curvefs {
 namespace mds {
@@ -641,6 +644,29 @@ TEST_F(MdsServiceTest, test1) {
     stub.DeleteFs(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::OK);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // test refresh session
+    cntl.Reset();
+    RefreshSessionRequest refreshSessionRequest;
+    RefreshSessionResponse refreshSessionResponse;
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+    std::vector<PartitionTxId> partitionList({std::move(tmp)});
+    *refreshSessionRequest.mutable_txids() = {partitionList.begin(),
+                                              partitionList.end()};
+
+    EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
+        .WillOnce(SetArgPointee<1>(partitionList));
+    stub.RefreshSession(&cntl, &refreshSessionRequest, &refreshSessionResponse,
+                        NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(refreshSessionResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_EQ(1, refreshSessionResponse.latesttxidlist_size());
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);

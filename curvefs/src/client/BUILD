@@ -55,6 +55,7 @@ cc_library(
         "//curvefs/proto:space_cc_proto",
         "//curvefs/src/client/rpcclient",
         "//curvefs/src/common:curvefs_common",
+        "//curvefs/src/client/lease:curvefs_lease",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
