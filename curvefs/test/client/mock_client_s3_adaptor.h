@@ -35,12 +35,28 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
  public:
     MockS3ClientAdaptor() {}
     ~MockS3ClientAdaptor() {}
-
+/*
+    MOCK_METHOD5(Init,
+                 CURVEFS_ERROR(const S3ClientAdaptorOption &option,
+                               std::shared_ptr<S3Client> client,
+                               std::shared_ptr<InodeCacheManager> inodeManager,
+                               std::shared_ptr<MdsClient> mdsClient,
+                               std::shared_ptr<DiskCacheManagerImpl>
+                                   diskcacheManagerImpl));
     MOCK_METHOD4(Init,
                  CURVEFS_ERROR(const S3ClientAdaptorOption& option,
-                               S3Client* client,
+                               std::shared_ptr<S3Client> client,
                                std::shared_ptr<InodeCacheManager> inodeManager,
-                               std::shared_ptr<MdsClient> mdsClient));
+                               std::shared_ptr<MdsClient> mdsClient));*/
+    MOCK_METHOD7(Init,
+                 CURVEFS_ERROR(const S3ClientAdaptorOption &option,
+                               std::shared_ptr<S3Client> client,
+                               std::shared_ptr<InodeCacheManager> inodeManager,
+                               std::shared_ptr<MdsClient> mdsClient,
+                               std::shared_ptr<FsCacheManager> fsCacheManager,
+                               std::shared_ptr<DiskCacheManagerImpl>
+                                   diskCacheManagerImpl,
+                               bool startBackGround));
 
     MOCK_METHOD4(Write, int(uint64_t inodeId, uint64_t offset, uint64_t length,
                             const char* buf));

@@ -57,8 +57,12 @@ cc_binary(
     srcs = glob([
         "main.cpp",
         "client_s3_adaptor_test.cpp",
-        "client_s3_adaptor_test2.cpp",
+        "fs_cache_manager_test.cpp",
+        "file_cache_manager_test.cpp",
+        "chunk_cache_manager_test.cpp",
+        "data_cache_test.cpp",
         "client_s3_test.cpp",
+        "client_s3_adaptor_Integration.cpp",
         "*.h",
     ]),
     copts = CURVE_TEST_COPTS,
@@ -83,9 +87,13 @@ cc_test(
        "*.c",
        "*.h"],
        exclude = [ "block_device_client_test.cpp",
+                   "client_s3_test.cpp",
                    "client_s3_adaptor_test.cpp",
-                   "client_s3_adaptor_test2.cpp",
-                   "client_s3_test.cpp" ]
+                   "fs_cache_manager_test.cpp",
+                   "file_cache_manager_test.cpp",
+                   "chunk_cache_manager_test.cpp",
+                   "data_cache_test.cpp",
+                   "client_s3_adaptor_Integration.cpp"]
    ),
    copts = CURVE_TEST_COPTS + ["-I/usr/local/include/fuse3"],
    deps = [
@@ -103,17 +111,3 @@ cc_test(
    visibility = ["//visibility:public"],
 )
 
-cc_test(
-    name = "curvefs_fs_cache_manager_test",
-    srcs = [
-        "fs_cache_manager_test.cpp",
-    ] + glob([
-        "*.h",
-    ]),
-    deps = [
-        "//curvefs/src/client:fuse_client_lib",
-        "//external:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-    copts = CURVE_TEST_COPTS,
-)

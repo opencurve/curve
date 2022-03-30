@@ -76,21 +76,6 @@ class MockDiskCacheManagerImpl : public DiskCacheManagerImpl {
     MOCK_METHOD1(ClearReadCache, int(const std::list<std::string> &files));
 };
 
-class MockFsCacheManager : public FsCacheManager {
- public:
-    MockFsCacheManager() : FsCacheManager() {}
-    ~MockFsCacheManager() {}
-
-    MOCK_METHOD1(FindFileCacheManager, FileCacheManagerPtr(uint64_t inodeId));
-};
-
-class MockFileCacheManager : public FileCacheManager {
- public:
-    MockFileCacheManager() : FileCacheManager() {}
-    ~MockFileCacheManager() {}
-    MOCK_METHOD2(Flush, CURVEFS_ERROR(bool force, bool toS3));
-};
-
 }  // namespace client
 }  // namespace curvefs
 

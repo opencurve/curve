@@ -32,11 +32,14 @@
 namespace curvefs {
 
 namespace client {
-
 CURVEFS_ERROR
-S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
-                          std::shared_ptr<InodeCacheManager> inodeManager,
-                          std::shared_ptr<MdsClient> mdsClient) {
+S3ClientAdaptorImpl::Init(
+    const S3ClientAdaptorOption &option, std::shared_ptr<S3Client> client,
+    std::shared_ptr<InodeCacheManager> inodeManager,
+    std::shared_ptr<MdsClient> mdsClient,
+    std::shared_ptr<FsCacheManager> fsCacheManager,
+    std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
+    bool startBackGround) {
     pendingReq_ = 0;
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
@@ -57,34 +60,10 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
     client_ = client;
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;
-    fsCacheManager_ = std::make_shared<FsCacheManager>(
-        this, option.readCacheMaxByte, option.writeCacheMaxByte);
-    waitIntervalSec_.Init(option.intervalSec * 1000);
-    LOG(INFO) << "S3ClientAdaptorImpl Init. block size:" << blockSize_
-              << ", chunk size: " << chunkSize_
-              << ", prefetchBlocks: " << prefetchBlocks_
-              << ", prefetchExecQueueNum: " << prefetchExecQueueNum_
-              << ", intervalSec: " << option.intervalSec
-              << ", flushIntervalSec: " << option.flushIntervalSec
-              << ", writeCacheMaxByte: " << option.writeCacheMaxByte
-              << ", readCacheMaxByte: " << option.readCacheMaxByte
-              << ", nearfullRatio: " << option.nearfullRatio
-              << ", baseSleepUs: " << option.baseSleepUs;
-    toStop_.store(false, std::memory_order_release);
-    bgFlushThread_ = Thread(&S3ClientAdaptorImpl::BackGroundFlush, this);
-
+    fsCacheManager_ = fsCacheManager;
+    diskCacheManagerImpl_ = diskCacheManagerImpl;
     if (HasDiskCache()) {
-        std::shared_ptr<PosixWrapper> wrapper =
-            std::make_shared<PosixWrapper>();
-        std::shared_ptr<DiskCacheRead> diskCacheRead =
-            std::make_shared<DiskCacheRead>();
-        std::shared_ptr<DiskCacheWrite> diskCacheWrite =
-            std::make_shared<DiskCacheWrite>();
-        std::shared_ptr<DiskCacheManager> diskCacheManager =
-            std::make_shared<DiskCacheManager>(wrapper, diskCacheWrite,
-                                               diskCacheRead);
-        diskCacheManagerImpl_ =
-            std::make_shared<DiskCacheManagerImpl>(diskCacheManager, client);
+        diskCacheManagerImpl_ = diskCacheManagerImpl;
         if (diskCacheManagerImpl_->Init(option) < 0) {
             LOG(ERROR) << "Init disk cache failed";
             return CURVEFS_ERROR::INTERNAL;
@@ -100,7 +79,21 @@ S3ClientAdaptorImpl::Init(const S3ClientAdaptorOption &option, S3Client *client,
             }
         }
     }
+    if (startBackGround) {
+        toStop_.store(false, std::memory_order_release);
+        bgFlushThread_ = Thread(&S3ClientAdaptorImpl::BackGroundFlush, this);
+    }
 
+    LOG(INFO) << "S3ClientAdaptorImpl Init. block size:" << blockSize_
+              << ", chunk size: " << chunkSize_
+              << ", prefetchBlocks: " << prefetchBlocks_
+              << ", prefetchExecQueueNum: " << prefetchExecQueueNum_
+              << ", intervalSec: " << option.intervalSec
+              << ", flushIntervalSec: " << option.flushIntervalSec
+              << ", writeCacheMaxByte: " << option.writeCacheMaxByte
+              << ", readCacheMaxByte: " << option.readCacheMaxByte
+              << ", nearfullRatio: " << option.nearfullRatio
+              << ", baseSleepUs: " << option.baseSleepUs;
     return CURVEFS_ERROR::OK;
 }
 
@@ -117,9 +110,11 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
         VLOG(6) << "pendingReq_ is: " << pendingReq_;
         uint64_t pendingReq = pendingReq_.load(std::memory_order_seq_cst);
         fsCacheManager_->DataCacheByteInc(length);
-        if ((fsCacheManager_->GetDataCacheSize() + pendingReq * fuseMaxSize_) >=
-            fsCacheManager_->GetDataCacheMaxSize()) {
-            LOG(INFO) << "write cache is full, wait flush";
+        uint64_t size = fsCacheManager_->GetDataCacheSize();
+        uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
+        if ((size + pendingReq * fuseMaxSize_) >= maxSize) {
+            LOG(INFO) << "write cache is full, wait flush. size:" << size
+                      << ", maxSize:" << maxSize;
             fsCacheManager_->WaitFlush();
         }
     }
