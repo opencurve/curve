@@ -22,6 +22,7 @@
 
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 
+// #include <glog/logging.h>
 #include <utility>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
@@ -580,9 +581,10 @@ class AsyncPrefetchCallback {
 
         int ret = s3Client_->GetDiskCacheManager()->WriteReadDirect(
             context->key, context->buf, context->len);
-        LOG_IF(ERROR, ret < 0)
-            << "write read directly failed, key: " << context->key;
-
+        if (ret < 0) {
+            LOG_EVERY_SECOND(INFO) <<
+              "write read directly failed, key: " << context->key;
+        }
         {
             curve::common::LockGuard lg(fileCache->downloadMtx_);
             fileCache->downloadingObj_.erase(context->key);
