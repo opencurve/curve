@@ -35,22 +35,19 @@ namespace curve {
 namespace chunkserver {
 
 using curve::chunkserver::CHUNK_OP_TYPE;
+using curve::chunkserver::concurrent::ConcurrentApplyOption;
 
 const char PEER_STRING[] = "127.0.0.1:8200:0";
 
 class FakeConcurrentApplyModule : public ConcurrentApplyModule {
  public:
     bool Init(int concurrentsize, int queuedepth) {
-        return true;
-    }
+        ConcurrentApplyOption opt;
+        opt.wconcurrentsize = opt.rconcurrentsize = concurrentsize;
+        opt.wqueuedepth = opt.rqueuedepth = queuedepth;
 
-    template<class F, class... Args>
-    bool Push(uint64_t key, F&& f, Args&&... args) {
-        return true;
+        return ConcurrentApplyModule::Init(opt);
     }
-
-    void Flush() {}
-    void Stop() {}
 };
 
 class OpRequestTest : public testing::Test {
@@ -60,6 +57,7 @@ class OpRequestTest : public testing::Test {
         datastore_ = std::make_shared<MockDataStore>();
         cloneMgr_ = std::make_shared<MockCloneManager>();
         concurrentApplyModule_ = std::make_shared<FakeConcurrentApplyModule>();
+        ASSERT_TRUE(concurrentApplyModule_->Init(10, 10));
         FakeCopysetNode();
         FakeCloneManager();
     }
@@ -130,7 +128,8 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         ASSERT_EQ(0, opReq->Encode(request, &cntl->request_attachment(), &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0,
+                                          PeerId("127.0.0.1:8200:0"));
         auto req1 = dynamic_cast<CreateCloneChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -357,7 +356,8 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         ASSERT_EQ(0, opReq->Encode(request, &input, &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0,
+                                          PeerId("127.0.0.1:8200:0"));
         auto req1 = dynamic_cast<PasteChunkInternalRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -572,7 +572,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_EQ(0, opReq->Encode(request, &cntl->request_attachment(), &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0,
+                                          PeerId("127.0.0.1:8200:0"));
         auto req1 = dynamic_cast<ReadChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -637,6 +638,13 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         task.done->Run();
         ASSERT_TRUE(closure->isDone_);
     }
+
+    CSChunkInfo info;
+    info.isClone = true;
+    info.pageSize = PAGE_SIZE;
+    info.chunkSize = CHUNK_SIZE;
+    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+
     /**
      * 测试Process
      * 用例： node_->IsLeaderTerm() == true,
@@ -655,21 +663,32 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
+        info.isClone = false;
+        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
+            .WillOnce(
+                DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
+
+        char chunkData[length];  // NOLINT
+        memset(chunkData, 'a', length);
+        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+            .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
+                            Return(CSErrorCode::Success)));
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
+
         opReq->Process();
 
-        // 验证结果
-        ASSERT_FALSE(closure->isDone_);
-        ASSERT_FALSE(response->has_appliedindex());
-        ASSERT_FALSE(closure->response_->has_status());
+        int retry = 10;
+        while (retry-- > 0) {
+            if (closure->isDone_) {
+                break;
+            }
 
-        closure->Run();
+            ::sleep(1);
+        }
+
         ASSERT_TRUE(closure->isDone_);
     }
-    CSChunkInfo info;
-    info.isClone = true;
-    info.pageSize = PAGE_SIZE;
-    info.chunkSize = CHUNK_SIZE;
-    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+
     /**
      * 测试OnApply
      * 用例：请求的 chunk 不是 clone chunk
@@ -682,17 +701,15 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 设置预期
         info.isClone = false;
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(info),
-                            Return(CSErrorCode::Success)));
+            .WillOnce(
+                DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
         // 读chunk文件
         char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
-                                                chunkData + length),
+            .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -700,12 +717,14 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
         ASSERT_TRUE(response->has_status());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  response->status());
-        ASSERT_EQ(memcmp(chunkData,
-                         cntl->response_attachment().to_string().c_str(),  //NOLINT
-                         length), 0);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response->status());
+        ASSERT_EQ(
+            memcmp(chunkData,
+                   cntl->response_attachment().to_string().c_str(),  // NOLINT
+                   length),
+            0);
     }
+
     /**
      * 测试OnApply
      * 用例：请求的chunk是 clone chunk，请求区域的bitmap都为1
@@ -719,17 +738,15 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         info.isClone = true;
         info.bitmap->Set();
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(info),
-                            Return(CSErrorCode::Success)));
+            .WillOnce(
+                DoAll(SetArgPointee<1>(info), Return(CSErrorCode::Success)));
         // 读chunk文件
         char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
-                                                chunkData + length),
+            .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
-            .Times(1);
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
         opReq->OnApply(3, closure);
 
@@ -740,9 +757,13 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
         ASSERT_EQ(memcmp(chunkData,
-                         closure->cntl_->response_attachment().to_string().c_str(),  //NOLINT
-                         length), 0);
+                         closure->cntl_->response_attachment()
+                             .to_string()
+                             .c_str(),  // NOLINT
+                         length),
+                  0);
     }
+
     /**
      * 测试OnApply
      * 用例：请求的chunk是 clone chunk，请求区域的bitmap存在bit为0
@@ -1011,7 +1032,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         ASSERT_EQ(0, opReq->Encode(request, &cntl->request_attachment(), &log));
 
         butil::IOBuf data;
-        auto req = ChunkOpRequest::Decode(log, request, &data, 0, PeerId("0"));
+        auto req = ChunkOpRequest::Decode(log, request, &data, 0,
+                                          PeerId("127.0.0.1:8200:0"));
         auto req1 = dynamic_cast<ReadChunkRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
@@ -1046,6 +1068,13 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
                   closure->response_->status());
         // ASSERT_STREQ(closure->response_->redirect().c_str(), PEER_STRING);
     }
+
+    CSChunkInfo info;
+    info.isClone = true;
+    info.pageSize = PAGE_SIZE;
+    info.chunkSize = CHUNK_SIZE;
+    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+
     /**
      * 测试Process
      * 用例： node_->IsLeaderTerm() == true,
@@ -1058,6 +1087,16 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
 
         request->set_appliedindex(LAST_INDEX + 1);
 
+        info.isClone = false;
+        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info),
+                            Return(CSErrorCode::Success)));
+        // 不读chunk文件
+        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+            .Times(0);
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(1);
+
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
@@ -1066,14 +1105,18 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
 
         opReq->Process();
 
-        // 验证结果
-        ASSERT_FALSE(closure->isDone_);
-        ASSERT_FALSE(response->has_appliedindex());
-        ASSERT_FALSE(closure->response_->has_status());
+        int retry = 10;
+        while (retry-- > 0) {
+            if (closure->isDone_) {
+                break;
+            }
 
-        closure->Run();
+            ::sleep(1);
+        }
+
         ASSERT_TRUE(closure->isDone_);
     }
+
     /**
      * 测试Process
      * 用例： node_->IsLeaderTerm() == true,
@@ -1086,6 +1129,16 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
 
         request->set_appliedindex(3);
 
+        info.isClone = false;
+        EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info),
+                            Return(CSErrorCode::Success)));
+        // 不读chunk文件
+        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+            .Times(0);
+        EXPECT_CALL(*node_, UpdateAppliedIndex(_))
+            .Times(1);
+
         // 设置预期
         EXPECT_CALL(*node_, IsLeaderTerm())
             .WillRepeatedly(Return(true));
@@ -1094,19 +1147,18 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
 
         opReq->Process();
 
-        // 验证结果
-        ASSERT_FALSE(closure->isDone_);
-        ASSERT_FALSE(response->has_appliedindex());
-        ASSERT_FALSE(closure->response_->has_status());
+        int retry = 10;
+        while (retry-- > 0) {
+            if (closure->isDone_) {
+                break;
+            }
 
-        closure->Run();
+            ::sleep(1);
+        }
+
         ASSERT_TRUE(closure->isDone_);
     }
-    CSChunkInfo info;
-    info.isClone = true;
-    info.pageSize = PAGE_SIZE;
-    info.chunkSize = CHUNK_SIZE;
-    info.bitmap = std::make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+
     /**
      * 测试OnApply
      * 用例：请求的 chunk 不是 clone chunk
