@@ -88,7 +88,7 @@ class LeakyBucket {
         /**
          * @brief initial bucket, prevent the rate exceed
          */
-        void BucketInitial(bool burst = false);
+        void BucketInitial(bool permitBurst = false);
 
         /**
          * @brief Add tokens to current bucket

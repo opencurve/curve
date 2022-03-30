@@ -337,27 +337,27 @@ void DiskCacheManager::TrimCache() {
         SetDiskFsUsedRatio();
         if (IsDiskCacheFull()) {
             VLOG(3) << "disk cache full, begin trim.";
-            std::string cacheReadFullDir;
-            std::string cacheWriteFullDir;
+            std::string cacheReadFullDir, cacheWriteFullDir,
+              cacheReadFile, cacheWriteFile;
             cacheReadFullDir = GetCacheReadFullDir();
             cacheWriteFullDir = GetCacheWriteFullDir();
-
+            std::string cacheKey, cacheKeyBfo, cacheKeyDel;
+            if (!cachedObjName_->GetBack(&cacheKey)) {
+                VLOG(3) << "remove disk file error"
+                        << ", cachedObjName is empty.";
+                continue;
+            }
             while (!IsDiskCacheSafe()) {
-                std::string cacheReadFile, cacheWriteFile;
-                if (cachedObjName_->Size() == 0) {
-                    VLOG(3) << "remove disk file error"
-                            << ", cachedObjName is empty.";
+                cacheKeyDel = cacheKey;
+                if (!cachedObjName_->GetBefore(cacheKey, &cacheKeyBfo)) {
+                    VLOG(3) << "obj is empty";
                     break;
                 }
-                std::string cacheKey;
-                cachedObjName_->GetBack(&cacheKey);
-                if (cacheKey.empty()) {
-                    VLOG(3) << "cachekey is empty";
-                    break;
-                }
-                VLOG(9) << "obj will be removed: " << cacheKey;
-                cacheReadFile = cacheReadFullDir + "/" + cacheKey;
-                cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
+                cacheKey = cacheKeyBfo;
+
+                VLOG(3) << "obj will be removed: " << cacheKeyDel;
+                cacheReadFile = cacheReadFullDir + "/" + cacheKeyDel;
+                cacheWriteFile = cacheWriteFullDir + "/" + cacheKeyDel;
                 struct stat statFile;
                 int ret;
                 ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
@@ -369,15 +369,15 @@ void DiskCacheManager::TrimCache() {
                 if (ret == 0) {
                     VLOG(3) << "do not remove this disk file"
                             << ", file has not been uploaded to S3."
-                            << ", file is: " << cacheKey;
-                    break;
+                            << ", file is: " << cacheKeyDel;
+                    continue;
                 }
-                cachedObjName_->Remove(cacheKey);
+                cachedObjName_->Remove(cacheKeyDel);
                 struct stat statReadFile;
                 ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
                 if (ret != 0) {
                     VLOG(3) << "stat disk file error"
-                            << ", file is: " << cacheKey;
+                            << ", file is: " << cacheKeyDel;
                     continue;
                 }
                 // if remove disk file before delete cache,
@@ -387,11 +387,11 @@ void DiskCacheManager::TrimCache() {
                 ret = posixWrapper_->remove(toDelFile);
                 if (ret < 0) {
                     LOG(ERROR)
-                        << "remove disk file error, file is: " << cacheKey;
+                        << "remove disk file error, file is: " << cacheKeyDel;
                     continue;
                 }
                 DecDiskUsedBytes(statReadFile.st_size);
-                VLOG(3) << "remove disk file success, file is: " << cacheKey;
+                VLOG(3) << "remove disk file success, file is: " << cacheKeyDel;
             }
             VLOG(3) << "trim over.";
         }

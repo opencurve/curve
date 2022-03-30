@@ -85,8 +85,8 @@ double LeakyBucket::Bucket::Add(double tokens) {
     }
 }
 
-void LeakyBucket::Bucket::BucketInitial(bool burst) {
-    if (burst) {
+void LeakyBucket::Bucket::BucketInitial(bool permitBurst) {
+    if (permitBurst) {
         if (std::fabs(burstLevel) < 0.1) {
             burstBucketEmptyTimes++;
             if (burstBucketEmptyTimes >= FLAGS_bucketEmptyTimes) {
