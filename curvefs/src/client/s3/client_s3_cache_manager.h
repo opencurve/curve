@@ -111,9 +111,9 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
         }
     }
 
-    void Write(uint64_t chunkPos, uint64_t len, const char *data,
+    virtual void Write(uint64_t chunkPos, uint64_t len, const char *data,
                const std::vector<DataCachePtr> &mergeDataCacheVer);
-    void Truncate(uint64_t size);
+    virtual void Truncate(uint64_t size);
     uint64_t GetChunkPos() { return chunkPos_; }
     uint64_t GetLen() { return len_; }
     PageData *GetPageData(uint64_t blockIndex, uint64_t pageIndex) {
@@ -138,7 +138,8 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
 
     uint64_t GetActualLen() { return actualLen_; }
 
-    CURVEFS_ERROR Flush(uint64_t inodeId, bool force, bool toS3 = false);
+    virtual CURVEFS_ERROR Flush(uint64_t inodeId, bool force,
+                                bool toS3 = false);
     void Release();
     bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
     void SetDelete() { return delete_.store(true, std::memory_order_release); }
@@ -210,21 +211,22 @@ class ChunkCacheManager
         : index_(index), s3ClientAdaptor_(s3ClientAdaptor) {}
     virtual ~ChunkCacheManager() = default;
 
-    void WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
+    virtual void WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                                       uint32_t chunkPos, uint32_t len,
                                       const char *data);
-    void AddReadDataCache(DataCachePtr dataCache);
-    DataCachePtr
+    virtual void AddReadDataCache(DataCachePtr dataCache);
+    virtual DataCachePtr
     FindWriteableDataCache(uint64_t pos, uint64_t len,
                            std::vector<DataCachePtr> *mergeDataCacheVer,
                            uint64_t inodeId);
-    void ReadByWriteCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
-                          uint64_t dataBufOffset,
-                          std::vector<ReadRequest> *requests);
-    void ReadByReadCache(uint64_t chunkPos, uint64_t readLen, char *dataBuf,
-                         uint64_t dataBufOffset,
-                         std::vector<ReadRequest> *requests);
-    CURVEFS_ERROR Flush(uint64_t inodeId, bool force, bool toS3 = false);
+    virtual void ReadByWriteCache(uint64_t chunkPos, uint64_t readLen,
+                                  char *dataBuf, uint64_t dataBufOffset,
+                                  std::vector<ReadRequest> *requests);
+    virtual void ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
+                                 char *dataBuf, uint64_t dataBufOffset,
+                                 std::vector<ReadRequest> *requests);
+    virtual CURVEFS_ERROR Flush(uint64_t inodeId, bool force,
+                                bool toS3 = false);
     uint64_t GetIndex() { return index_; }
     bool IsEmpty() {
         ReadLockGuard writeCacheLock(rwLockChunk_);
@@ -232,10 +234,19 @@ class ChunkCacheManager
     }
 
     virtual void ReleaseReadDataCache(uint64_t key);
-    void ReleaseCache();
+    virtual void ReleaseCache();
     void TruncateCache(uint64_t chunkPos);
     void UpdateWriteCacheMap(uint64_t oldChunkPos, DataCache *dataCache);
-
+    // for unit test
+    void AddWriteDataCacheForTest(DataCachePtr dataCache);
+    void ReleaseCacheForTest() {
+        {
+            WriteLockGuard writeLockGuard(rwLockWrite_);
+            dataWCacheMap_.clear();
+        }
+        WriteLockGuard writeLockGuard(rwLockRead_);
+        dataRCacheMap_.clear();
+    }
  public:
     RWLock rwLockChunk_;  //  for read write chunk
     RWLock rwLockWrite_;  //  for dataWCacheMap_
@@ -264,13 +275,21 @@ class FileCacheManager {
     FileCacheManager() {}
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
     void ReleaseCache();
-    void TruncateCache(uint64_t offset, uint64_t fileSize);
+    virtual void TruncateCache(uint64_t offset, uint64_t fileSize);
     virtual CURVEFS_ERROR Flush(bool force, bool toS3 = false);
-    int Write(uint64_t offset, uint64_t length, const char *dataBuf);
-    int Read(uint64_t inodeId, uint64_t offset, uint64_t length, char *dataBuf);
+    virtual int Write(uint64_t offset, uint64_t length, const char *dataBuf);
+    virtual int Read(uint64_t inodeId, uint64_t offset, uint64_t length,
+                     char *dataBuf);
     bool IsEmpty() { return chunkCacheMap_.empty(); }
-
     uint64_t GetInodeId() const { return inode_; }
+    void SetChunkCacheManagerForTest(uint64_t index,
+                                     ChunkCacheManagerPtr chunkCacheManager) {
+        WriteLockGuard writeLockGuard(rwLock_);
+
+        auto ret = chunkCacheMap_.emplace(index, chunkCacheManager);
+        assert(ret.second);
+        (void)ret;
+    }
 
  private:
     void WriteChunk(uint64_t index, uint64_t chunkPos, uint64_t writeLen,
@@ -319,7 +338,7 @@ class FsCacheManager {
           s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false) {}
     FsCacheManager() {}
     virtual FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
-    FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
+    virtual FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
                                                      uint64_t inodeId);
     void ReleaseFileCacheManager(uint64_t inodeId);
 
@@ -333,11 +352,11 @@ class FsCacheManager {
         return wDataCacheNum_.load(std::memory_order_relaxed);
     }
 
-    uint64_t GetDataCacheSize() {
+    virtual uint64_t GetDataCacheSize() {
         return wDataCacheByte_.load(std::memory_order_relaxed);
     }
 
-    uint64_t GetDataCacheMaxSize() {
+    virtual uint64_t GetDataCacheMaxSize() {
         return writeCacheMaxByte_;
     }
 
@@ -388,7 +407,7 @@ class FsCacheManager {
                writeCacheMaxByte_;
     }
 
-    uint64_t MemCacheRatio() {
+    virtual uint64_t MemCacheRatio() {
         return 100 * wDataCacheByte_.load(std::memory_order_relaxed) /
                writeCacheMaxByte_;
     }
@@ -396,6 +415,15 @@ class FsCacheManager {
     uint64_t GetLruByte() {
         std::lock_guard<std::mutex> lk(lruMtx_);
         return lruByte_;
+    }
+
+    void SetFileCacheManagerForTest(uint64_t inodeId,
+                                    FileCacheManagerPtr fileCacheManager) {
+        WriteLockGuard writeLockGuard(rwLock_);
+
+        auto ret = fileCacheManagerMap_.emplace(inodeId, fileCacheManager);
+        assert(ret.second);
+        (void)ret;
     }
 
  private:

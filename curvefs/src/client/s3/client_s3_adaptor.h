@@ -65,10 +65,13 @@ class S3ClientAdaptor {
      * @brief Initailize s3 client
      * @param[in] options the options for s3 client
      */
-    virtual CURVEFS_ERROR Init(const S3ClientAdaptorOption& option,
-                               S3Client* client,
-                               std::shared_ptr<InodeCacheManager> inodeManager,
-                               std::shared_ptr<MdsClient> mdsClient) = 0;
+    virtual CURVEFS_ERROR
+    Init(const S3ClientAdaptorOption &option, std::shared_ptr<S3Client> client,
+         std::shared_ptr<InodeCacheManager> inodeManager,
+         std::shared_ptr<MdsClient> mdsClient,
+         std::shared_ptr<FsCacheManager> fsCacheManager,
+         std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
+         bool startBackGround = false) = 0;
     /**
      * @brief write data to s3
      * @param[in] options the options for s3 client
@@ -94,14 +97,20 @@ class S3ClientAdaptor {
 class S3ClientAdaptorImpl : public S3ClientAdaptor {
  public:
     S3ClientAdaptorImpl() {}
-    virtual ~S3ClientAdaptorImpl() {}
+    virtual ~S3ClientAdaptorImpl() {
+        LOG(INFO) << "delete S3ClientAdaptorImpl";
+    }
     /**
      * @brief Initailize s3 client
      * @param[in] options the options for s3 client
      */
-    CURVEFS_ERROR Init(const S3ClientAdaptorOption& option, S3Client* client,
-                       std::shared_ptr<InodeCacheManager> inodeManager,
-                       std::shared_ptr<MdsClient> mdsClient);
+    CURVEFS_ERROR
+    Init(const S3ClientAdaptorOption &option, std::shared_ptr<S3Client> client,
+         std::shared_ptr<InodeCacheManager> inodeManager,
+         std::shared_ptr<MdsClient> mdsClient,
+         std::shared_ptr<FsCacheManager> fsCacheManager,
+         std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
+         bool startBackGround = false);
     /**
      * @brief write data to s3
      * @param[in] options the options for s3 client
@@ -125,7 +134,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
         return fsCacheManager_;
     }
     uint32_t GetFlushInterval() { return flushIntervalSec_; }
-    S3Client *GetS3Client() { return client_; }
+    std::shared_ptr<S3Client> GetS3Client() { return client_; }
     uint32_t GetPrefetchBlocks() {
         return prefetchBlocks_;
     }
@@ -173,18 +182,6 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     }
     void InitMetrics(const std::string &fsName);
     void CollectMetrics(InterfaceMetric *interface, int count, uint64_t start);
-
-    // for test
-    void InitForTest(
-        std::shared_ptr<DiskCacheManagerImpl> diskcacheManagerImpl,
-        std::shared_ptr<FsCacheManager> fsCacheManager,
-        std::shared_ptr<InodeCacheManager> inodeManager) {
-        diskCacheManagerImpl_ = diskcacheManagerImpl;
-        fsCacheManager_ = fsCacheManager;
-        inodeManager_ = inodeManager;
-        chunkSize_ = 4 * 1024 * 1024;
-    }
-
     void SetDiskCache(DiskCacheType type) {
        diskCacheType_ = type;
     }
@@ -213,7 +210,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<S3Metric> s3Metric_;
 
  private:
-    S3Client* client_;
+    std::shared_ptr<S3Client> client_;
     uint64_t blockSize_;
     uint64_t chunkSize_;
     uint32_t fuseMaxSize_;

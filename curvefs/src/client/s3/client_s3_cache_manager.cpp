@@ -1451,6 +1451,15 @@ void ChunkCacheManager::UpdateWriteCacheMap(uint64_t oldChunkPos,
     (void)ret;
 }
 
+void ChunkCacheManager::AddWriteDataCacheForTest(DataCachePtr dataCache) {
+    WriteLockGuard writeLockGuard(rwLockWrite_);
+
+    dataWCacheMap_.emplace(dataCache->GetChunkPos(), dataCache);
+    s3ClientAdaptor_->GetFsCacheManager()->DataCacheNumInc();
+    s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(
+        dataCache->GetActualLen());
+}
+
 DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                      ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
                      uint64_t len, const char *data)
@@ -1832,6 +1841,7 @@ void DataCache::Write(uint64_t chunkPos, uint64_t len, const char *data,
 void DataCache::Truncate(uint64_t size) {
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     uint32_t pageSize = s3ClientAdaptor_->GetPageSize();
+    assert(size <= len_);
 
     curve::common::LockGuard lg(mtx_);
     uint64_t truncatePos = chunkPos_ + size;

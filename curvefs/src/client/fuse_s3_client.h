@@ -27,7 +27,7 @@
 #include <memory>
 
 #include "curvefs/src/client/fuse_client.h"
-
+#include "curvefs/src/client/s3/client_s3_cache_manager.h"
 namespace curvefs {
 namespace client {
 
@@ -35,8 +35,7 @@ class FuseS3Client : public FuseClient {
  public:
     FuseS3Client()
       : FuseClient(),
-        s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()),
-        s3Client_(nullptr) {}
+        s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {}
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,
         const std::shared_ptr<MetaServerClient> &metaClient,
@@ -45,8 +44,7 @@ class FuseS3Client : public FuseClient {
         const std::shared_ptr<S3ClientAdaptor> &s3Adaptor)
         : FuseClient(mdsClient, metaClient,
             inodeManager, dentryManager),
-          s3Adaptor_(s3Adaptor),
-          s3Client_(nullptr) {}
+          s3Adaptor_(s3Adaptor) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
@@ -85,9 +83,6 @@ class FuseS3Client : public FuseClient {
  private:
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
-
-    // s3 client
-    std::shared_ptr<S3ClientImpl> s3Client_;
 };
 
 
