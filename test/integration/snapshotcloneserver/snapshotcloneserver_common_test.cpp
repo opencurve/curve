@@ -54,6 +54,8 @@ const char* kChunkServerIpPort3 = "127.0.0.1:10006";
 const char* kSnapshotCloneServerIpPort = "127.0.0.1:10007";
 const int kMdsDummyPort = 10008;
 
+static const char* dummy = "hello, world";
+
 const char* kSnapshotCloneServerDummyServerPort = "12000";
 const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock3";
 
