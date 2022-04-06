@@ -61,6 +61,7 @@ S3ClientAdaptorImpl::Init(
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;
     fsCacheManager_ = fsCacheManager;
+    waitIntervalSec_.Init(option.intervalSec * 1000);
     diskCacheManagerImpl_ = diskCacheManagerImpl;
     if (HasDiskCache()) {
         diskCacheManagerImpl_ = diskCacheManagerImpl;
