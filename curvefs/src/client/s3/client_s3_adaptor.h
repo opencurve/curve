@@ -221,7 +221,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::mutex mtx_;
     std::mutex ioMtx_;
     std::condition_variable cond_;
-    curve::common::WaitInterval waitIntervalSec_;
+    curve::common::WaitInterval waitInterval_;
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;

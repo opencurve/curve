@@ -61,6 +61,7 @@ S3ClientAdaptorImpl::Init(
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;
     fsCacheManager_ = fsCacheManager;
+    waitInterval_.Init(option.intervalSec * 1000);
     diskCacheManagerImpl_ = diskCacheManagerImpl;
     if (HasDiskCache()) {
         diskCacheManagerImpl_ = diskCacheManagerImpl;
@@ -275,7 +276,7 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
             fsCacheManager_->FsSync(true);
 
         } else {
-            waitIntervalSec_.WaitForNextExcution();
+            waitInterval_.WaitForNextExcution();
             VLOG(6) << "BackGroundFlush, write cache num is:"
                     << fsCacheManager_->GetDataCacheNum()
                     << "cache ratio is: " << fsCacheManager_->MemCacheRatio();
@@ -288,7 +289,7 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
 
 int S3ClientAdaptorImpl::Stop() {
     LOG(INFO) << "start Stopping S3ClientAdaptor.";
-    waitIntervalSec_.StopWait();
+    waitInterval_.StopWait();
     toStop_.store(true, std::memory_order_release);
     FsSyncSignal();
     bgFlushThread_.join();
