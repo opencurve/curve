@@ -49,6 +49,7 @@ int SendRequest(const std::string &url, Json::Value *jsonObj) {
     channel_.CallMethod(NULL, &cntl, NULL, NULL, NULL);
     if (cntl.Failed()) {
         LOG(ERROR) << cntl.ErrorText();
+		return -1;
     }
 
     std::stringstream ss;
