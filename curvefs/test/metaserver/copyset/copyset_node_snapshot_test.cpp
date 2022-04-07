@@ -329,7 +329,7 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     EXPECT_EQ(0, node->on_snapshot_load(&reader));
     EXPECT_EQ(100, node->LatestLoadSnapshotIndex());
 
-    // load snapshot doesn't change configuration and epoch
+    // load snapshot doesn't change epoch
     std::vector<Peer> peers;
     node->ListPeers(&peers);
     EXPECT_EQ(3, peers.size());
@@ -343,7 +343,7 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     node->on_configuration_committed(conf, meta.last_included_index());
     peers.clear();
     node->ListPeers(&peers);
-    EXPECT_EQ(3, peers.size());
+    EXPECT_EQ(1, peers.size());
     EXPECT_EQ(epochBefore, node->GetConfEpoch());
     node->SetMetaStore(nullptr);
 }
