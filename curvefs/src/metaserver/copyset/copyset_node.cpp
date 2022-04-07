@@ -414,11 +414,15 @@ void CopysetNode::on_configuration_committed(const braft::Configuration& conf,
                                              int64_t index) {
     braft::Configuration oldconf;
 
-    // load snapshot also call this function, but it shouldn't increase epoch
-    if (index != latestLoadSnapshotIndex_) {
+    {
         std::lock_guard<Mutex> lk(confMtx_);
         oldconf = absl::exchange(conf_, conf);
-        epoch_.fetch_add(1, std::memory_order_acq_rel);
+
+        // load snapshot also call this function, but it shouldn't increase
+        // epoch
+        if (index != latestLoadSnapshotIndex_) {
+            epoch_.fetch_add(1, std::memory_order_acq_rel);
+        }
     }
 
     LOG(INFO) << "Copyset: " << name_
