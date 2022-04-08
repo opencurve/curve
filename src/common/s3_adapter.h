@@ -85,6 +85,7 @@ struct S3AdapterOption {
     uint64_t bpsTotalMB;
     uint64_t bpsReadMB;
     uint64_t bpsWriteMB;
+    bool useVirtualAddressing;
 };
 
 struct S3InfoOption {
