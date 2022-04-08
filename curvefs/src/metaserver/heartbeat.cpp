@@ -300,6 +300,10 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
 void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse &response) {
     VLOG(3) << "Received heartbeat response, statusCode = "
             << response.statuscode();
+
+    for (auto& conf : response.needupdatecopysets()) {
+        VLOG(3) << "need update copyset: " << conf.ShortDebugString();
+    }
 }
 
 int Heartbeat::SendHeartbeat(const HeartbeatRequest &request,

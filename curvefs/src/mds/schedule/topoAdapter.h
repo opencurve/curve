@@ -115,7 +115,10 @@ struct MetaServerInfo {
  public:
     MetaServerInfo() : startUpTime(0) {}
     MetaServerInfo(const PeerInfo &info, OnlineState state,
-                   const MetaServerSpace &space);
+                   const MetaServerSpace &space, uint32_t copysetNum = 0,
+                   uint32_t leaderNum = 0) : info(info), state(state),
+                   space(space), copysetNum(copysetNum), leaderNum(leaderNum),
+                   startUpTime(0) {}
 
     bool IsOnline() const;
     bool IsOffline() const;
@@ -128,6 +131,8 @@ struct MetaServerInfo {
     uint64_t startUpTime;
     PeerInfo info;
     OnlineState state;
+    uint32_t copysetNum;
+    uint32_t leaderNum;
     mutable MetaServerSpace space;
 };
 

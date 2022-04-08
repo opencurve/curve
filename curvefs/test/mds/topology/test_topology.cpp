@@ -123,9 +123,11 @@ class TestTopology : public ::testing::Test {
 
     void PrepareAddCopySet(CopySetIdType copysetId,
         PoolIdType poolId,
-        const std::set<MetaServerIdType> &members) {
+        const std::set<MetaServerIdType> &members,
+        MetaServerIdType leader = UNINITIALIZE_ID) {
         CopySetInfo cs(poolId, copysetId);
         cs.SetCopySetMembers(members);
+        cs.SetLeader(leader);
         EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
         int ret = topology_->AddCopySet(cs);
         ASSERT_EQ(TopoStatusCode::TOPO_OK, ret)
@@ -1661,6 +1663,65 @@ TEST_F(TestTopology, GetAvailableCopyset_success) {
     ASSERT_EQ(num3, 2);
 }
 
+TEST_F(TestTopology, GetCopysetNumInMetaserver_test) {
+    PoolIdType poolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    MetaServerIdType msId1 = 0x41;
+    MetaServerIdType msId2 = 0x42;
+    MetaServerIdType msId3 = 0x43;
+    MetaServerIdType msId4 = 0x44;
+    CopySetIdType csId1 = 0x51;
+    CopySetIdType csId2 = 0x52;
+    CopySetIdType csId3 = 0x53;
+
+    PrepareAddPool(poolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId);
+    PrepareAddMetaServer(msId1);
+    PrepareAddCopySet(csId1, poolId, {msId1, msId2, msId3});
+    PrepareAddCopySet(csId2, poolId, {msId1, msId3});
+    PrepareAddCopySet(csId3, poolId, {msId1, msId2});
+
+    uint32_t copysetNum = topology_->GetCopysetNumInMetaserver(msId1);
+    ASSERT_EQ(copysetNum, 3);
+    copysetNum = topology_->GetCopysetNumInMetaserver(msId2);
+    ASSERT_EQ(copysetNum, 2);
+    copysetNum = topology_->GetCopysetNumInMetaserver(msId3);
+    ASSERT_EQ(copysetNum, 2);
+    copysetNum = topology_->GetCopysetNumInMetaserver(msId4);
+    ASSERT_EQ(copysetNum, 0);
+}
+
+TEST_F(TestTopology, GetLeaderNumInMetaserver_test) {
+    PoolIdType poolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    MetaServerIdType msId1 = 0x41;
+    MetaServerIdType msId2 = 0x42;
+    MetaServerIdType msId3 = 0x43;
+    MetaServerIdType msId4 = 0x44;
+    CopySetIdType csId1 = 0x51;
+    CopySetIdType csId2 = 0x52;
+    CopySetIdType csId3 = 0x53;
+
+    PrepareAddPool(poolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId);
+    PrepareAddMetaServer(msId1);
+    PrepareAddCopySet(csId1, poolId, {msId1, msId2, msId3}, msId1);
+    PrepareAddCopySet(csId2, poolId, {msId1, msId2}, msId2);
+    PrepareAddCopySet(csId3, poolId, {msId1, msId2, msId3}, msId1);
+
+    uint32_t leaderNum = topology_->GetLeaderNumInMetaserver(msId1);
+    ASSERT_EQ(leaderNum, 2);
+    leaderNum = topology_->GetLeaderNumInMetaserver(msId2);
+    ASSERT_EQ(leaderNum, 1);
+    leaderNum = topology_->GetLeaderNumInMetaserver(msId3);
+    ASSERT_EQ(leaderNum, 0);
+    leaderNum = topology_->GetLeaderNumInMetaserver(msId4);
+    ASSERT_EQ(leaderNum, 0);
+}
 
 TEST_F(TestTopology, AddCopySet_success) {
     PoolIdType poolId = 0x11;
@@ -2176,6 +2237,7 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
     PrepareAddZone(0x24, "zone4", poolId2);
     PrepareAddZone(0x25, "zone5", poolId2);
     PrepareAddZone(0x26, "zone6", poolId2);
+    PrepareAddZone(0x27, "zone7", poolId2);
     PrepareAddServer(
         0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, poolId1);
     PrepareAddServer(
@@ -2188,6 +2250,8 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
         0x35, "server5", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x25, poolId2);
     PrepareAddServer(
         0x36, "server6", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x26, poolId2);
+    PrepareAddServer(
+        0x37, "server7", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x27, poolId2);
     PrepareAddMetaServer(0x41, "metaserver1", "token1", 0x31,
                         "127.0.0.1", 8200, "127.0.0.1", 8200);
     PrepareAddMetaServer(0x42, "metaserver2", "token2", 0x32,
@@ -2200,13 +2264,15 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
                         "127.0.0.1", 8200, "127.0.0.1", 8200);
     PrepareAddMetaServer(0x46, "metaserver6", "token6", 0x36,
                         "127.0.0.1", 8200, "127.0.0.1", 8200);
-
+    PrepareAddMetaServer(0x47, "metaserver7", "token7", 0x37,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x44);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x45);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x46);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x47);
 
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x41);
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x42);
@@ -2214,11 +2280,12 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x44);
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x45);
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x46);
+    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x47);
 
     std::list<CopysetCreateInfo> copysetList;
     auto ret = topology_->GenInitialCopysetAddrBatch(10, &copysetList);
     ASSERT_EQ(ret, TopoStatusCode::TOPO_OK);
-    ASSERT_EQ(10, copysetList.size());
+    ASSERT_EQ(20, copysetList.size());
     int pool1Count = 0;
     int pool2Count = 0;
     for (const auto& it : copysetList) {
@@ -2232,8 +2299,8 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
         }
     }
 
-    ASSERT_EQ(pool1Count, 5);
-    ASSERT_EQ(pool2Count, 5);
+    ASSERT_EQ(pool1Count, 10);
+    ASSERT_EQ(pool2Count, 10);
 }
 
 TEST_F(TestTopology, GenCopysetAddrByResourceUsage_success) {

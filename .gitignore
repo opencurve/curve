@@ -73,6 +73,9 @@ bazel-testlogs
 *.log
 runlog/
 
+# history
+.gdb_history
+
 .clang-format
 !curve-snapshotcloneserver-nginx/app/lib
 !nebd/nebd-package/usr/bin
@@ -108,6 +111,8 @@ curvefs/BUILD_MODE
 
 .BUILD_MODE
 __not_found__
+
+# thirdparties
 thirdparties/rocksdb/lib/
 thirdparties/rocksdb/include/
 thirdparties/rocksdb/rocksdb/

@@ -74,7 +74,7 @@ class Scheduler {
     /**
      * @brief time interval of generating operations
      */
-    virtual int64_t GetRunningInterval();
+    virtual int64_t GetRunningInterval() const;
 
  public:
     /**
@@ -138,7 +138,7 @@ class RecoverScheduler : public Scheduler {
      *
      * @return time interval
      */
-    int64_t GetRunningInterval() override;
+    int64_t GetRunningInterval() const override;
 
  private:
     /**
@@ -182,7 +182,7 @@ class CopySetScheduler : public Scheduler {
      *
      * @return time interval
      */
-    int64_t GetRunningInterval() override;
+    int64_t GetRunningInterval() const override;
 
  private:
     /**
@@ -220,6 +220,69 @@ class CopySetScheduler : public Scheduler {
 
     uint32_t balanceRatioPercent_;
 };
+
+class LeaderScheduler : public Scheduler {
+ public:
+    LeaderScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController)
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.leaderSchedulerIntervalSec;
+        metaserverCoolingTimeSec_ = opt.metaserverCoolingTimeSec;
+    }
+
+    /**
+     * @brief Schedule Generate operators according to the status of the cluster
+     *
+     * @return number of operators generated
+     */
+    int Schedule() override;
+
+    /**
+     * @brief Get running interval of LeaderScheduler
+     *
+     * @return time interval
+     */
+    int64_t GetRunningInterval() const override;
+
+    // for test
+    bool GetRapidLeaderSchedulerFlag();
+    void SetRapidLeaderSchedulerFlag(bool flag);
+
+ private:
+    int LeaderSchedulerForPool(PoolIdType poolId);
+
+    bool TransferLeaderOut(MetaServerIdType source, uint16_t replicaNum,
+        PoolIdType poolId, Operator *op, CopySetInfo *selectedCopySet);
+
+    bool TransferLeaderIn(MetaServerIdType target, uint16_t replicaNum,
+        PoolIdType poolId, Operator *op, CopySetInfo *selectedCopySet);
+
+    bool CopySetHealthy(const CopySetInfo &csInfo);
+
+    /**
+     * @brief CoolingTimeExpired Check whether current-time - aliveTime is
+     *                           larger than metaserverCoolingTimeSec_
+     *
+     * @brief aliveTime The running time of the metaserver
+     *
+     * @return false if current-time - aliveTime <= metaserverCoolingTimeSec_
+     *         true if not
+     */
+    bool CoolingTimeExpired(uint64_t aliveTime);
+
+ private:
+    int64_t runInterval_;
+
+    // the minimum time that a metaserver can become a target
+    // leader after it started
+    uint32_t metaserverCoolingTimeSec_;
+
+    // retry times of method transferLeaderout
+    const int maxRetryTransferLeader = 10;
+};
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

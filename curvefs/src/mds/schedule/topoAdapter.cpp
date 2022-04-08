@@ -88,14 +88,6 @@ std::string CopySetInfo::CopySetInfoStr() const {
     return res;
 }
 
-MetaServerInfo::MetaServerInfo(const PeerInfo &info, OnlineState state,
-                               const MetaServerSpace &space) {
-    this->info = info;
-    this->state = state;
-    this->space = space;
-    this->startUpTime = 0;
-}
-
 bool MetaServerInfo::IsOnline() const { return state == OnlineState::ONLINE; }
 
 bool MetaServerInfo::IsOffline() const { return state == OnlineState::OFFLINE; }
@@ -312,7 +304,7 @@ bool TopoAdapterImpl::MetaServerFromTopoToSchedule(
         out->info = PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
                              origin.GetInternalIp(), origin.GetInternalPort()};
     } else {
-        LOG(ERROR) << "can not get server:" << origin.GetId()
+        LOG(ERROR) << "can not get server:" << origin.GetServerId()
                    << ", ip:" << origin.GetInternalIp()
                    << ", port:" << origin.GetInternalPort() << " from topology";
 
@@ -322,6 +314,8 @@ bool TopoAdapterImpl::MetaServerFromTopoToSchedule(
     out->startUpTime = origin.GetStartUpTime();
     out->state = origin.GetOnlineState();
     out->space = origin.GetMetaServerSpace();
+    out->leaderNum = topo_->GetLeaderNumInMetaserver(origin.GetId());
+    out->copysetNum =  topo_->GetCopysetNumInMetaserver(origin.GetId());
     return true;
 }
 

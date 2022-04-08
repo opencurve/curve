@@ -227,27 +227,26 @@ TEST_F(TestTopoAdapterImpl, test_metaserverInfo) {
         // 1. test GetMetaServerInfo fail
         EXPECT_CALL(*mockTopo_, GetMetaServer(_, _)).WillOnce(Return(false));
         ASSERT_FALSE(topoAdapter_->GetMetaServerInfo(1, &info));
-
-        EXPECT_CALL(*mockTopo_, GetMetaServer(_, _))
-            .WillOnce(
-                DoAll(SetArgPointee<1>(testTopoMetaServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
-        ASSERT_TRUE(topoAdapter_->GetMetaServerInfo(1, &info));
-        ASSERT_EQ(1, info.info.id);
-        ASSERT_EQ(testTopoMetaServer[0].GetOnlineState(), info.state);
     }
     {
+        uint32_t leaderNum = 3;
+        uint32_t copysetNum = 4;
         // 2. test GetMetaServerInfo success
         EXPECT_CALL(*mockTopo_, GetMetaServer(_, _))
             .WillOnce(
                 DoAll(SetArgPointee<1>(testTopoMetaServer[0]), Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetLeaderNumInMetaserver(_))
+            .WillOnce(Return(leaderNum));
+        EXPECT_CALL(*mockTopo_, GetCopysetNumInMetaserver(_))
+            .WillOnce(Return(copysetNum));
         ASSERT_TRUE(topoAdapter_->GetMetaServerInfo(1, &info));
         ASSERT_EQ(1, info.info.id);
         ASSERT_EQ(testTopoMetaServer[0].GetOnlineState(), info.state);
         ASSERT_EQ(testTopoMetaServer[0].GetStartUpTime(), info.startUpTime);
+        ASSERT_EQ(info.copysetNum, copysetNum);
+        ASSERT_EQ(info.leaderNum, leaderNum);
     }
     {
         // 3. test GetMetaServerInfos fail
@@ -265,10 +264,17 @@ TEST_F(TestTopoAdapterImpl, test_metaserverInfo) {
                 DoAll(SetArgPointee<1>(testTopoMetaServer[0]), Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
-
+        uint32_t leaderNum = 3;
+        uint32_t copysetNum = 4;
+        EXPECT_CALL(*mockTopo_, GetLeaderNumInMetaserver(_))
+            .WillOnce(Return(leaderNum));
+        EXPECT_CALL(*mockTopo_, GetCopysetNumInMetaserver(_))
+            .WillOnce(Return(copysetNum));
         auto res = topoAdapter_->GetMetaServerInfos();
         ASSERT_EQ(1, res[0].info.id);
         ASSERT_EQ(testTopoMetaServer[0].GetOnlineState(), res[0].state);
+        ASSERT_EQ(res[0].copysetNum, copysetNum);
+        ASSERT_EQ(res[0].leaderNum, leaderNum);
     }
 }
 
@@ -465,7 +471,7 @@ TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
         ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 50);
     }
 
-    // memoryCopySetMinRequireByte is 0, calc disk usage, but diskThreshold is 0
+    // diskThreshold is 0
     {
         uint64_t diskThreshold = 0;
         uint64_t diskUsed = 10;
@@ -478,10 +484,10 @@ TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
                               memoryCopySetMinRequire);
         MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
                           space);
-        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 25);
     }
 
-    // memoryCopySetMinRequireByte is not 0, calc memory usage
+    // diskThreshold and memoryThreshold not 0
     {
         uint64_t diskThreshold = 20;
         uint64_t diskUsed = 10;
@@ -494,10 +500,10 @@ TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
                               memoryCopySetMinRequire);
         MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
                           space);
-        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 25);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 50);
     }
 
-    // memory RequireByte is not 0, calc memory usage, but threshold is 0
+    // memory  threshold is 0
     {
         uint64_t diskThreshold = 20;
         uint64_t diskUsed = 10;
@@ -510,7 +516,7 @@ TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
                               memoryCopySetMinRequire);
         MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
                           space);
-        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 50);
     }
 }
 

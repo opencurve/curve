@@ -33,7 +33,7 @@ namespace schedule {
 // for test use, need a default implementation
 int Scheduler::Schedule() { return 0; }
 
-int64_t Scheduler::GetRunningInterval() { return 0; }
+int64_t Scheduler::GetRunningInterval() const { return 0; }
 
 /**
  * process for SelectBestPlacementMetaServer process description:
