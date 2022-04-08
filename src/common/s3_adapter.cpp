@@ -69,41 +69,11 @@ Aws::String GetObjectRequestRange(uint64_t offset, uint64_t len) {
 }  // namespace
 
 void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt) {
-    LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
-    LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
+    InitS3AdaptorOptionExceptS3InfoOption(conf, s3Opt);
     LOG_IF(FATAL, !conf->GetStringValue("s3.endpoint", &s3Opt->s3Address));
     LOG_IF(FATAL, !conf->GetStringValue("s3.ak", &s3Opt->ak));
     LOG_IF(FATAL, !conf->GetStringValue("s3.sk", &s3Opt->sk));
     LOG_IF(FATAL, !conf->GetStringValue("s3.bucket_name", &s3Opt->bucketName));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
-    LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
-    LOG_IF(FATAL,
-           !conf->GetIntValue("s3.max_connections", &s3Opt->maxConnections));
-    LOG_IF(FATAL,
-           !conf->GetIntValue("s3.connect_timeout", &s3Opt->connectTimeout));
-    LOG_IF(FATAL,
-           !conf->GetIntValue("s3.request_timeout", &s3Opt->requestTimeout));
-    LOG_IF(FATAL,
-           !conf->GetIntValue("s3.async_thread_num", &s3Opt->asyncThreadNum));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsTotalLimit",
-                                        &s3Opt->iopsTotalLimit));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsReadLimit",
-                                        &s3Opt->iopsReadLimit));
-    LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsWriteLimit",
-                                        &s3Opt->iopsWriteLimit));
-    LOG_IF(FATAL,
-           !conf->GetUInt64Value("s3.throttle.bpsTotalMB", &s3Opt->bpsTotalMB));
-    LOG_IF(FATAL,
-           !conf->GetUInt64Value("s3.throttle.bpsReadMB", &s3Opt->bpsReadMB));
-    LOG_IF(FATAL,
-           !conf->GetUInt64Value("s3.throttle.bpsWriteMB", &s3Opt->bpsWriteMB));
-
-    if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
-                              &s3Opt->maxAsyncRequestInflightBytes)) {
-        LOG(WARNING)
-            << "Not found s3.max_async_request_inflight_bytes in conf ";
-        s3Opt->maxAsyncRequestInflightBytes = 0;
-    }
 }
 
 void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
@@ -132,6 +102,8 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
         &s3Opt->bpsReadMB));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.bpsWriteMB",
         &s3Opt->bpsWriteMB));
+    LOG_IF(FATAL, !conf->GetBoolValue("s3.useVirtualAddressing",
+        &s3Opt->useVirtualAddressing));
 
     if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
                               &s3Opt->maxAsyncRequestInflightBytes)) {
@@ -191,7 +163,7 @@ void S3Adapter::Init(const S3AdapterOption &option) {
             Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
             *clientCfg_,
             Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
-            false);
+            option.useVirtualAddressing);
 
     ReadWriteThrottleParams params;
     params.iopsTotal.limit = option.iopsTotalLimit;
