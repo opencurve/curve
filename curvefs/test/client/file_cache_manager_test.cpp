@@ -126,9 +126,9 @@ TEST_F(FileCacheManagerTest, test_flush_fail) {
 TEST_F(FileCacheManagerTest, test_new_write) {
     uint64_t offset = 0;
     uint64_t len = 5 * 1024 * 1024;
-    char buf[len] = {0};
-
+    char buf[len];
     memset(buf, 'a', len);
+
     EXPECT_CALL(*mockChunkCacheManager_, FindWriteableDataCache(_, _, _, _))
         .WillOnce(Return(nullptr))
         .WillOnce(Return(nullptr));
@@ -143,7 +143,8 @@ TEST_F(FileCacheManagerTest, test_new_write) {
 TEST_F(FileCacheManagerTest, test_old_write) {
     uint64_t offset = 0;
     uint64_t len = 1024;
-    char buf[len] = {0};
+    char buf[len];
+    memset(buf, '0', len);
 
     auto dataCache = std::make_shared<MockDataCache>(s3ClientAdaptor_, nullptr,
                                                      offset, 0, nullptr);
@@ -160,7 +161,8 @@ TEST_F(FileCacheManagerTest, test_read_cache) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t len = 5 * 1024 * 1024;
-    char buf[len] = {0};
+    char buf[len];
+    memset(buf, '0', len);
     ReadRequest request;
     std::vector<ReadRequest> requests;
     std::vector<ReadRequest> emptyRequests;
@@ -181,7 +183,8 @@ TEST_F(FileCacheManagerTest, test_read_getinode_fail) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t len = 1024;
-    char buf[len] = {0};
+    char buf[len];
+    memset(buf, '0', len);
 
     ReadRequest request;
     std::vector<ReadRequest> requests;

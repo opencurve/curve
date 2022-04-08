@@ -53,3 +53,9 @@ TEST_F(VersionToolTest, print_help) {
 }  // namespace version
 }  // namespace tools
 }  // namespace curvefs
+
+int main(int argc, char** argv) {
+    testing::InitGoogleTest(&argc, argv);
+    google::ParseCommandLineFlags(&argc, &argv, false);
+    return RUN_ALL_TESTS();
+}

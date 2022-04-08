@@ -34,3 +34,4 @@ RUN echo "deb http://mirrors.163.com/debian/ buster main non-free contrib\n" \
     && mkdir -p /root/.cache/bazelisk/downloads/bazelbuild/bazel-4.2.2-linux-x86_64/bin \
     && mv bazel-4.2.2-linux-x86_64 /root/.cache/bazelisk/downloads/bazelbuild/bazel-4.2.2-linux-x86_64/bin/bazel \
     && chmod +x /root/.cache/bazelisk/downloads/bazelbuild/bazel-4.2.2-linux-x86_64/bin/bazel /usr/bin/bazel /usr/bin/bazelisk
+COPY etcd /usr/bin/

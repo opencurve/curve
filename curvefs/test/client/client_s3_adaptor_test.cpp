@@ -110,7 +110,7 @@ TEST_F(ClientS3AdaptorTest, write_success) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t length = 1024;
-    char buf[length] = {0};
+    char buf[length];
     memset(buf, 'a', length);
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*mockFsCacheManager_, FindOrCreateFileCacheManager(_, _))
@@ -128,7 +128,7 @@ TEST_F(ClientS3AdaptorTest, read_success) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t length = 1024;
-    char buf[length] = {0};
+    char buf[length];
     memset(buf, 'a', length);
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*mockFsCacheManager_, FindOrCreateFileCacheManager(_, _))
@@ -141,7 +141,7 @@ TEST_F(ClientS3AdaptorTest, read_fail) {
     uint64_t inodeId = 1;
     uint64_t offset = 0;
     uint64_t length = 1024;
-    char buf[length] = {0};
+    char buf[length];
     memset(buf, 'a', length);
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*mockFsCacheManager_, FindOrCreateFileCacheManager(_, _))
