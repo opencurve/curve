@@ -269,6 +269,9 @@ class MockTopology : public TopologyImpl {
     MOCK_CONST_METHOD2(GetCopySet, bool(CopySetKey key, CopySetInfo *out));
     MOCK_CONST_METHOD2(GetCopysetOfPartition,
                        bool(PartitionIdType id, CopySetInfo *out));
+    MOCK_CONST_METHOD1(GetCopysetNumInMetaserver,
+                       uint32_t(MetaServerIdType id));
+    MOCK_CONST_METHOD1(GetLeaderNumInMetaserver, uint32_t(MetaServerIdType id));
     MOCK_CONST_METHOD1(GetAvailableCopyset, bool(CopySetInfo *out));
     MOCK_CONST_METHOD0(GetAvailableCopysetNum, int());
     MOCK_CONST_METHOD0(GetAvailableCopysetList, std::list<CopySetKey>());

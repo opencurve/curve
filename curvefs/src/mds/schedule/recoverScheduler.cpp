@@ -125,7 +125,7 @@ int RecoverScheduler::Schedule() {
     return oneRoundGenOp;
 }
 
-int64_t RecoverScheduler::GetRunningInterval() { return runInterval_; }
+int64_t RecoverScheduler::GetRunningInterval() const { return runInterval_; }
 
 bool RecoverScheduler::FixOfflinePeer(const CopySetInfo &info,
                                       MetaServerIdType offlinePeer,

@@ -31,18 +31,21 @@ namespace schedule {
 enum class SchedulerType {
     RecoverSchedulerType,
     CopysetSchedulerType,
+    LeaderSchedulerType,
 };
 
 struct ScheduleOption {
- public:
     // recover switch
     bool enableRecoverScheduler;
     // copyset scheduler switch
     bool enableCopysetScheduler;
+    // copyset leader schedule switch
+    bool enableLeaderScheduler;
 
     // xxxSchedulerIntervalSec: time interval of calculation for xxx scheduling
     uint32_t recoverSchedulerIntervalSec;
     uint32_t copysetSchedulerIntervalSec;
+    uint32_t leaderSchedulerIntervalSec;
 
     // number of copyset that can operate configuration changing at the same time on single metaserver //NOLINT
     uint32_t operatorConcurrent;

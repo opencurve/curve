@@ -71,12 +71,15 @@ class CoordinatorTest : public ::testing::Test {
     std::shared_ptr<ScheduleMetrics> metric_;
     std::shared_ptr<MockTopoAdapter> topoAdapter_;
     std::shared_ptr<Coordinator> coordinator_;
-    // ScheduleOption scheduleOption;
 };
 
-ScheduleOption GetScheduleOption() {
+ScheduleOption GetFalseScheduleOption() {
     ScheduleOption scheduleOption;
+    scheduleOption.enableCopysetScheduler = false;
+    scheduleOption.enableLeaderScheduler = false;
     scheduleOption.enableRecoverScheduler = false;
+    scheduleOption.copysetSchedulerIntervalSec = 0;
+    scheduleOption.leaderSchedulerIntervalSec = 0;
     scheduleOption.recoverSchedulerIntervalSec = 0;
     scheduleOption.operatorConcurrent = 2;
     scheduleOption.transferLeaderTimeLimitSec = 1;
@@ -86,14 +89,24 @@ ScheduleOption GetScheduleOption() {
     return scheduleOption;
 }
 
-TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
+ScheduleOption GetTrueScheduleOption() {
     ScheduleOption scheduleOption;
+    scheduleOption.enableCopysetScheduler = true;
+    scheduleOption.enableLeaderScheduler = true;
     scheduleOption.enableRecoverScheduler = true;
+    scheduleOption.copysetSchedulerIntervalSec = 10;
+    scheduleOption.leaderSchedulerIntervalSec = 10;
     scheduleOption.recoverSchedulerIntervalSec = 10;
     scheduleOption.operatorConcurrent = 2;
     scheduleOption.transferLeaderTimeLimitSec = 1;
     scheduleOption.addPeerTimeLimitSec = 1;
     scheduleOption.removePeerTimeLimitSec = 1;
+
+    return scheduleOption;
+}
+
+TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
+    ScheduleOption scheduleOption = GetTrueScheduleOption();
     coordinator_->InitScheduler(scheduleOption, metric_);
 
     ::curvefs::mds::topology::CopySetInfo testCopySetInfo(1, 1);
@@ -229,13 +242,7 @@ TEST_F(CoordinatorTest, test_AddPeer_CopySetHeartbeat) {
 }
 
 TEST_F(CoordinatorTest, test_ChangePeer_CopySetHeartbeat) {
-    ScheduleOption scheduleOption;
-    scheduleOption.enableRecoverScheduler = true;
-    scheduleOption.recoverSchedulerIntervalSec = 10;
-    scheduleOption.operatorConcurrent = 2;
-    scheduleOption.transferLeaderTimeLimitSec = 1;
-    scheduleOption.addPeerTimeLimitSec = 1;
-    scheduleOption.removePeerTimeLimitSec = 1;
+    ScheduleOption scheduleOption = GetTrueScheduleOption();
     coordinator_->InitScheduler(scheduleOption, metric_);
 
     ::curvefs::mds::topology::CopySetInfo testCopySetInfo(1, 1);
@@ -442,13 +449,10 @@ TEST_F(CoordinatorTest, test_MetaserverGoingToAdd) {
 }
 
 TEST_F(CoordinatorTest, test_SchedulerSwitch) {
-    ScheduleOption scheduleOption;
-    scheduleOption.enableRecoverScheduler = true;
+    ScheduleOption scheduleOption =  GetTrueScheduleOption();
+    scheduleOption.copysetSchedulerIntervalSec = 0;
+    scheduleOption.leaderSchedulerIntervalSec = 0;
     scheduleOption.recoverSchedulerIntervalSec = 0;
-    scheduleOption.operatorConcurrent = 2;
-    scheduleOption.transferLeaderTimeLimitSec = 1;
-    scheduleOption.addPeerTimeLimitSec = 1;
-    scheduleOption.removePeerTimeLimitSec = 1;
     coordinator_->InitScheduler(scheduleOption, metric_);
 
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos()).Times(0);
@@ -458,6 +462,7 @@ TEST_F(CoordinatorTest, test_SchedulerSwitch) {
     // 设置flag都为false
     gflags::SetCommandLineOption("enableCopySetScheduler", "false");
     gflags::SetCommandLineOption("enableRecoverScheduler", "false");
+    gflags::SetCommandLineOption("enableLeaderScheduler", "false");
 
     coordinator_->Run();
     ::sleep(1);
@@ -474,7 +479,7 @@ TEST_F(CoordinatorTest, test_QueryMetaServerRecoverStatus) {
     metaserver4: online
     */
     // 获取option
-    ScheduleOption scheduleOption = GetScheduleOption();
+    ScheduleOption scheduleOption = GetFalseScheduleOption();
     coordinator_->InitScheduler(scheduleOption, metric_);
 
     // 构造metaserver

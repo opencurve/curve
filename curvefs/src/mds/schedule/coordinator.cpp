@@ -43,7 +43,8 @@ DEFINE_bool(enableRecoverScheduler, true, "switch of recover scheduler");
 DEFINE_validator(enableRecoverScheduler, &pass_bool);
 DEFINE_bool(enableCopySetScheduler, true, "switch of copyset scheduler");
 DEFINE_validator(enableCopySetScheduler, &pass_bool);
-
+DEFINE_bool(enableLeaderScheduler, true, "switch of leader scheduler");
+DEFINE_validator(enableLeaderScheduler, &pass_bool);
 
 Coordinator::Coordinator(const std::shared_ptr<TopoAdapter> &topo) {
     this->topo_ = topo;
@@ -68,6 +69,12 @@ void Coordinator::InitScheduler(const ScheduleOption &conf,
         schedulerController_[SchedulerType::CopysetSchedulerType] =
             std::make_shared<CopySetScheduler>(conf, topo_, opController_);
         LOG(INFO) << "init copyset scheduler ok!";
+    }
+
+    if (conf.enableLeaderScheduler) {
+        schedulerController_[SchedulerType::LeaderSchedulerType] =
+            std::make_shared<LeaderScheduler>(conf, topo_, opController_);
+        LOG(INFO) << "init leader scheduler ok!";
     }
 }
 
@@ -289,6 +296,8 @@ bool Coordinator::ScheduleNeedRun(SchedulerType type) {
             return FLAGS_enableRecoverScheduler;
         case SchedulerType::CopysetSchedulerType:
             return FLAGS_enableCopySetScheduler;
+        case SchedulerType::LeaderSchedulerType:
+            return FLAGS_enableLeaderScheduler;
         default:
             return false;
     }
@@ -300,6 +309,8 @@ std::string Coordinator::ScheduleName(SchedulerType type) {
             return "RecoverScheduler";
         case SchedulerType::CopysetSchedulerType:
             return "CopySetScheduler";
+        case SchedulerType::LeaderSchedulerType:
+            return "LeaderScheduler";
         default:
             return "Unknown";
     }

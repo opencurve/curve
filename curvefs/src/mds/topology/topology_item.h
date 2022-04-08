@@ -27,6 +27,7 @@
 #include <set>
 #include <string>
 #include <utility>
+#include <algorithm>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/topology.pb.h"
@@ -272,19 +273,17 @@ class MetaServerSpace {
     }
 
     double GetResourceUseRatioPercent() {
-        if (memoryCopySetMinRequireByte_ == 0) {
-            if (diskThresholdByte_ != 0) {
-                return 100.0 * diskUsedByte_ / diskThresholdByte_;
-            } else {
-                return 0;
-            }
-        } else {
-            if (memoryThresholdByte_ != 0) {
-                return 100.0 * memoryUsedByte_ / memoryThresholdByte_;
-            } else {
-                return 0;
-            }
+        double diskUseRatio = 0;
+        if (diskThresholdByte_ != 0) {
+            diskUseRatio = 100.0 * diskUsedByte_ / diskThresholdByte_;
         }
+
+        double memUseRatio = 0;
+        if (memoryThresholdByte_ != 0) {
+            memUseRatio = 100.0 * memoryUsedByte_ / memoryThresholdByte_;
+        }
+
+        return std::max(memUseRatio, diskUseRatio);
     }
 
     bool IsMetaserverResourceAvailable() {

@@ -36,8 +36,6 @@ struct TopologyOption {
     uint64_t maxPartitionNumberInCopyset;
     // id number in each partition
     uint64_t idNumberInPartition;
-    // policy of pool choosing
-    int choosePoolPolicy;
     // initial create copyset number
     uint32_t initialCopysetNumber;
     // min available copyset num
@@ -53,7 +51,6 @@ struct TopologyOption {
         : topologyUpdateToRepoSec(0),
           maxPartitionNumberInCopyset(256),
           idNumberInPartition(16777216),
-          choosePoolPolicy(0),
           initialCopysetNumber(10),
           minAvailableCopysetNum(10),
           createPartitionNumber(3),
