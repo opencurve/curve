@@ -77,6 +77,10 @@ class MetaserverClientTest : public ::testing::Test {
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
 
+        options_.metaserverAddr = addr_;
+        options_.rpcRetryIntervalUs = 1000;
+        options_.rpcRetryTimes = 0;
+        options_.rpcTimeoutMs = 500;
         return;
     }
 
@@ -92,6 +96,7 @@ class MetaserverClientTest : public ::testing::Test {
     MockCopysetService mockCopysetService_;
     brpc::Server server_;
     std::string addr_;
+    MetaserverOptions options_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -107,10 +112,7 @@ void RpcService(google::protobuf::RpcController *cntl_base,
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -140,10 +142,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeSuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeExist) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -173,10 +172,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeExist) {
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeGetLeaderFail) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 1000;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -198,10 +194,8 @@ TEST_F(MetaserverClientTest, CreateRootInodeGetLeaderFail) {
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeRpcFail) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryTimes = 2;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 2;
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -227,10 +221,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeRpcFail) {
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeFail) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -260,10 +251,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeFail) {
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -299,10 +287,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeRetrySuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t poolId = 0;
     uint32_t copysetId = 0;
@@ -338,10 +323,7 @@ TEST_F(MetaserverClientTest, CreateRootInodeRefreshLeaderSuccess) {
 }
 
 TEST_F(MetaserverClientTest, DeleteInodeSuccess) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t inodeId = 0;
 
@@ -355,10 +337,7 @@ TEST_F(MetaserverClientTest, DeleteInodeSuccess) {
 }
 
 TEST_F(MetaserverClientTest, DeleteInodeFail) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     uint32_t fsId = 0;
     uint32_t inodeId = 0;
 
@@ -373,10 +352,7 @@ TEST_F(MetaserverClientTest, DeleteInodeFail) {
 }
 
 TEST_F(MetaserverClientTest, GetLeaderSuccess) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
 
     std::set<std::string> addr;
     addr.emplace("127.0.0.1:6704");
@@ -401,11 +377,8 @@ TEST_F(MetaserverClientTest, GetLeaderSuccess) {
 }
 
 TEST_F(MetaserverClientTest, GetLeaderRetrySuccess) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    options.rpcRetryTimes = 1;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 1;
+    MetaserverClient client(options_);
 
     std::set<std::string> addr;
     addr.emplace("127.0.0.1:6704");
@@ -430,10 +403,7 @@ TEST_F(MetaserverClientTest, GetLeaderRetrySuccess) {
 }
 
 TEST_F(MetaserverClientTest, GetLeaderNoResponseFail) {
-    MetaserverOptions options;
-    options.rpcTimeoutMs = 500;
-    options.metaserverAddr = addr_;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
 
     std::set<std::string> addr;
     addr.emplace("127.0.0.1:6704");
@@ -455,10 +425,7 @@ TEST_F(MetaserverClientTest, GetLeaderNoResponseFail) {
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionSuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -480,10 +447,7 @@ TEST_F(MetaserverClientTest, CreatePartitionSuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionGetLeaderFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -499,10 +463,7 @@ TEST_F(MetaserverClientTest, CreatePartitionGetLeaderFailed) {
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -524,11 +485,8 @@ TEST_F(MetaserverClientTest, CreatePartitionFailed) {
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionRetrySuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryTimes = 3;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 3;
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -556,11 +514,8 @@ TEST_F(MetaserverClientTest, CreatePartitionRetrySuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreatePartitionRefreshLeaderSuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryTimes = 3;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 3;
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -588,10 +543,7 @@ TEST_F(MetaserverClientTest, CreatePartitionRefreshLeaderSuccess) {
 }
 
 TEST_F(MetaserverClientTest, DeletePartitionSuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -645,10 +597,7 @@ TEST_F(MetaserverClientTest, DeletePartitionSuccess) {
 }
 
 TEST_F(MetaserverClientTest, DeletePartitionGetLeaderFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -664,10 +613,7 @@ TEST_F(MetaserverClientTest, DeletePartitionGetLeaderFailed) {
 }
 
 TEST_F(MetaserverClientTest, DeletePartitionFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -689,11 +635,8 @@ TEST_F(MetaserverClientTest, DeletePartitionFailed) {
 }
 
 TEST_F(MetaserverClientTest, DeletePartitionRetrySuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryTimes = 3;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 3;
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -721,11 +664,8 @@ TEST_F(MetaserverClientTest, DeletePartitionRetrySuccess) {
 }
 
 TEST_F(MetaserverClientTest, DeletePartitionRefreshLeaderSuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryTimes = 3;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 3;
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace(addr_);
 
@@ -753,10 +693,7 @@ TEST_F(MetaserverClientTest, DeletePartitionRefreshLeaderSuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetSuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace("127.0.0.1:6704");
 
@@ -770,10 +707,7 @@ TEST_F(MetaserverClientTest, CreateCopySetSuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetRpcFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace("127.0.0.1:6705");
 
@@ -781,11 +715,9 @@ TEST_F(MetaserverClientTest, CreateCopySetRpcFailed) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetRpcFailed2) {
-    MetaserverOptions options;
-    options.rpcRetryTimes = 1;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryIntervalUs = 5000;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 1;
+    options_.rpcRetryIntervalUs = 5000;
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace("127.0.0.1:6705");
 
@@ -793,10 +725,7 @@ TEST_F(MetaserverClientTest, CreateCopySetRpcFailed2) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::set<std::string> addrs;
     addrs.emplace("127.0.0.1:6704");
 
@@ -811,10 +740,7 @@ TEST_F(MetaserverClientTest, CreateCopySetFailed) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverSuccess) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::string addr = "127.0.0.1:6704";
 
     CreateCopysetResponse response;
@@ -828,10 +754,7 @@ TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverSuccess) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverRpcFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::string addr = "127.0.0.1:6705";
 
     ASSERT_EQ(client.CreateCopySetOnOneMetaserver(1, 2, addr),
@@ -839,12 +762,8 @@ TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverRpcFailed) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverRpcFailed2) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcRetryTimes = 1;
-    options.rpcTimeoutMs = 500;
-    options.rpcRetryIntervalUs = 1000;
-    MetaserverClient client(options);
+    options_.rpcRetryTimes = 1;
+    MetaserverClient client(options_);
     std::string addr = "127.0.0.1:6705";
 
     ASSERT_EQ(client.CreateCopySetOnOneMetaserver(1, 2, addr),
@@ -852,10 +771,7 @@ TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverRpcFailed2) {
 }
 
 TEST_F(MetaserverClientTest, CreateCopySetOnOneMetaserverSetFailed) {
-    MetaserverOptions options;
-    options.metaserverAddr = addr_;
-    options.rpcTimeoutMs = 500;
-    MetaserverClient client(options);
+    MetaserverClient client(options_);
     std::string addr = "127.0.0.1:6704";
 
     CreateCopysetResponse response;
