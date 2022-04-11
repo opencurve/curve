@@ -146,6 +146,11 @@ def checksum_data():
         md5 = "".join(rs[1]).split(" ")[0]
         check_list.append(md5)
     logger.info("check file md5 is %s"%check_list)
+    if check_list != config.md5_check:
+        ori_cmd = "sudo hexdump /home/nbs/failover/test1.0.0 > /home/nbs/failover/test1.hex1"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        ori_cmd = "sudo hexdump /home/nbs/failover/test1/test1.0.0 > /home/nbs/failover/test1.hex2"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert check_list == config.md5_check,"md5 check fail,begin is %s,end is %s"%(config.md5_check,check_list)
 
 def checksum_cto_data(mountfs=""):
