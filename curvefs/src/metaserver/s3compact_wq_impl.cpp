@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <deque>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -33,8 +34,8 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "curvefs/src/common/s3util.h"
-#include "curvefs/src/metaserver/copyset/meta_operator.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
+#include "curvefs/src/metaserver/copyset/meta_operator.h"
 
 using curve::common::Configuration;
 using curve::common::InitS3AdaptorOptionExceptS3InfoOption;
@@ -139,112 +140,77 @@ void S3CompactWorkQueueImpl::DeleteObjs(const std::vector<std::string>& objs,
 
 std::list<struct S3CompactWorkQueueImpl::Node>
 S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
-                                       uint64_t inodeLen) {
-    std::list<struct S3CompactWorkQueueImpl::Node> validList;
-    std::function<void(struct Node)> addToValidList;
-    // always add newer s3chunkinfo to list
-    // [begin, end]
-    addToValidList = [&](struct Node newNode) {
-        // maybe truncated smaller
-        if (newNode.end >= inodeLen) newNode.end = inodeLen - 1;
-        for (auto it = validList.begin(); it != validList.end();) {
-            // merge from list head to tail
-            // try merge B to existing A
-            // data from B is newer than A
-            uint64_t nodeBegin = it->begin;
-            uint64_t nodeEnd = it->end;
-            if (newNode.end < nodeBegin) {
-                // A,B no overlap, B is left A, just add to list
-                validList.emplace(it, newNode);
-                return;
-            } else if (newNode.begin > nodeEnd) {
-                // A,B no overlap, B is right of A
-                // skip current node to next node
-                ++it;
-            } else if (newNode.begin <= nodeBegin && newNode.end >= nodeEnd) {
-                // B contains A, 1 part or split to 2 part
-                *it = newNode;
-                it->end = nodeEnd;
-                if (newNode.end > nodeEnd) {
-                    auto n = newNode;
-                    n.begin = nodeEnd + 1;
-                    addToValidList(std::move(n));
-                }
-                return;
-            } else if (newNode.begin >= nodeBegin && newNode.end <= nodeEnd) {
-                // A contains B, 1 part or split to 2or3 part
-                // begin == nodeBegin && end == nodeEnd has already
-                // processed in previous elseif
-                auto n = *it;
-                if (newNode.end < nodeEnd) {
-                    it->begin = newNode.end + 1;
-                    auto front = validList.emplace(it, newNode);
-                    if (nodeBegin < newNode.begin) {
-                        n.end = newNode.begin - 1;
-                        validList.emplace(front, n);
-                    }
+                                       uint64_t inodeLen, uint64_t index,
+                                       uint64_t chunkSize) {
+    std::list<std::pair<uint64_t, uint64_t>> freeList;  // [begin, end]
+    freeList.emplace_back(chunkSize * index,
+                          std::min(chunkSize * (index + 1) - 1,
+                                   inodeLen - 1));  // start with full chunk
+    std::map<uint64_t, std::pair<uint64_t, uint64_t>>
+        used;  // begin -> pair(end, i)
+    auto fill = [&](uint64_t i) {
+        const auto& info = s3chunkinfolist.s3chunks(i);
+        VLOG(9) << "chunkid: " << info.chunkid() << ", offset:" << info.offset()
+                << ", len:" << info.len()
+                << ", compaction:" << info.compaction()
+                << ", zero: " << info.zero();
+        const uint64_t begin = info.offset();
+        const uint64_t end = info.offset() + info.len() - 1;
+        for (auto it = freeList.begin(); it != freeList.end();) {
+            auto n = std::next(it);
+            // overlap means we can take this free
+            auto b = it->first;
+            auto e = it->second;
+            if (begin <= b) {
+                if (end < b) {
+                    return;
+                } else if (end >= b && end < e) {
+                    // free [it->begin, it->end] -> [end+1, it->end]
+                    // used [it->begin, end]
+                    *it = std::make_pair(end + 1, e);
+                    used[b] = std::make_pair(end, i);
                 } else {
-                    *it = newNode;
-                    it->end = nodeEnd;
-                    if (nodeBegin < newNode.begin) {
-                        n.end = newNode.begin - 1;
-                        validList.emplace(it, n);
-                    }
+                    // free [it->begin, it->end] -> erase
+                    // used [it->begin, it->end]
+                    freeList.erase(it);
+                    used[b] = std::make_pair(e, i);
                 }
-                return;
-            } else if (newNode.end > nodeEnd && newNode.begin > nodeBegin &&
-                       newNode.begin <= nodeEnd) {
-                // A,B overlap, B right A split to 3 part
-                auto n1 = *it;
-                *it = newNode;
-                it->end = nodeEnd;
-                n1.end = newNode.begin - 1;
-                validList.emplace(it, n1);
-                auto n2 = newNode;
-                n2.begin = nodeEnd + 1;
-                addToValidList(std::move(n2));
-                return;
-            } else if (newNode.begin < nodeBegin && newNode.end < nodeEnd &&
-                       newNode.end >= nodeBegin) {
-                // A,B overlap, B left A, split to 2 part
-                it->begin = newNode.end + 1;
-                validList.emplace(it, newNode);
-                return;
+            } else if (begin > b && begin <= e) {
+                if (end < e) {
+                    // free [it-begin, it->end]
+                    // -> [it->begin, begin-1], [end+1, it->end]
+                    // used [begin, end]
+                    *it = std::make_pair(end + 1, e);
+                    freeList.insert(it, std::make_pair(b, begin - 1));
+                    used[begin] = std::make_pair(end, i);
+                } else {
+                    // free [it->begin, it->end] -> [it->begin, begin-1]
+                    // used [begin, it->end]
+                    *it = std::make_pair(b, begin - 1);
+                    used[begin] = std::make_pair(e, i);
+                }
+            } else {
+                // begin > it->end
+                // do nothing
             }
+            it = n;
         }
-        validList.emplace_back(newNode);
     };
 
     VLOG(9) << "s3compact: list s3chunkinfo list";
-    for (auto i = 0; i < s3chunkinfolist.s3chunks_size(); i++) {
-        auto chunkinfo = s3chunkinfolist.s3chunks(i);
-        // print s3chunkinfolist
-        struct Node n {
-            chunkinfo.offset(), chunkinfo.offset() + chunkinfo.len() - 1,
-                chunkinfo.chunkid(), chunkinfo.compaction(), chunkinfo.offset(),
-                chunkinfo.len(), chunkinfo.zero()
-        };
-        VLOG(9) << "chunkid: " << chunkinfo.chunkid()
-                << ", offset:" << chunkinfo.offset()
-                << ", len:" << chunkinfo.len()
-                << ", compaction:" << chunkinfo.compaction()
-                << ", zero: " << chunkinfo.zero();
-        addToValidList(std::move(n));
+    for (auto i = s3chunkinfolist.s3chunks_size() - 1; i >= 0; i--) {
+        if (freeList.empty()) break;
+        fill(i);
     }
 
-    // merge same chunkid continuous nodes
-    for (auto curr = validList.begin();;) {
-        auto next = std::next(curr);
-        if (next == validList.end()) break;
-        if (curr->end == next->begin - 1) {
-            if (curr->chunkid == next->chunkid &&
-                curr->compaction == next->compaction) {
-                next->begin = curr->begin;
-                validList.erase(curr);
-            }
-        }
-        curr = next;
+    std::list<struct S3CompactWorkQueueImpl::Node> validList;
+    for (const auto& v : used) {
+        const auto& info = s3chunkinfolist.s3chunks(v.second.second);
+        validList.emplace_back(v.first, v.second.first, info.chunkid(),
+                               info.compaction(), info.offset(), info.len(),
+                               info.zero());
     }
+
     return validList;
 }
 
@@ -556,8 +522,8 @@ void S3CompactWorkQueueImpl::CompactChunk(
     VLOG(6) << "s3compact: begin to compact index " << index;
     const auto& s3chunkinfolist = inode.s3chunkinfomap().at(index);
     // 1.1 build valid list
-    std::list<struct S3CompactWorkQueueImpl::Node> validList(
-        BuildValidList(s3chunkinfolist, inode.length()));
+    std::list<struct S3CompactWorkQueueImpl::Node> validList(BuildValidList(
+        s3chunkinfolist, inode.length(), index, compactCtx.chunkSize));
     VLOG(6) << "s3compact: finish build valid list";
     VLOG(9) << "s3compact: show valid list";
     for (const auto& node : validList) {
@@ -672,14 +638,7 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
     VLOG(6) << "s3compact: begin to compact fsId:" << fsId
             << ", inodeId:" << inodeId;
     for (const auto& index : needCompact) {
-        // sort s3chunks to make small chunkid -> big chunkid
-        // bigger chunkid means newer data
-        auto s3chunkVec =
-            inode.mutable_s3chunkinfomap()->at(index).mutable_s3chunks();
-        std::sort(s3chunkVec->begin(), s3chunkVec->end(),
-                  [](const S3ChunkInfo& a, const S3ChunkInfo& b) {
-                      return a.chunkid() < b.chunkid();
-                  });
+        // s3chunklist order: from small chunkid to big chunkid
         CompactChunk(compactCtx, index, inode, &objsAddedMap, &s3ChunkInfoAdd,
                      &s3ChunkInfoRemove);
     }

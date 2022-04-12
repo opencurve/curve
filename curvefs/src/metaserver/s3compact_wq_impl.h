@@ -182,7 +182,8 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     void DeleteObjs(const std::vector<std::string>& objsAdded,
                     S3Adapter* s3adapter);
     std::list<struct Node> BuildValidList(
-        const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen);
+        const S3ChunkInfoList& s3chunkinfolist, uint64_t inodeLen,
+        uint64_t index, uint64_t chunkSize);
     void GenS3ReadRequests(const struct S3CompactCtx& ctx,
                            const std::list<struct Node>& validList,
                            std::vector<struct S3Request>* reqs,
