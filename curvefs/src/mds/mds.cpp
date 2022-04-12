@@ -133,6 +133,14 @@ void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
 void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
     conf_->GetValueFatalIfFail("mds.fsmanager.backEndThreadRunInterSec",
                                &fsManagerOption->backEndThreadRunInterSec);
+
+    LOG_IF(ERROR,
+           conf_->GetUInt32Value("mds.fsmanager.reloadSpaceConcurrency",
+                                 &fsManagerOption->spaceReloadConcurrency))
+        << "Get `mds.fsmanager.reloadSpaceConcurrency` from conf error, use "
+           "default value: "
+        << fsManagerOption->spaceReloadConcurrency;
+
     ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(
         conf_.get(), &fsManagerOption->s3AdapterOption);
 }
