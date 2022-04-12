@@ -103,6 +103,85 @@ struct MetaServerClientMetric {
           createPartition(prefix, "createPartition") {}
 };
 
+struct InflightGuard {
+    explicit InflightGuard(bvar::Adder<int64_t>* inflight)
+    : inflight_(inflight) {
+        (*inflight_) << 1;
+    }
+
+    ~InflightGuard() {
+        (*inflight_) << -1;
+    }
+
+    bvar::Adder<int64_t>* inflight_;
+};
+struct OpMetric {
+    bvar::Adder<uint64_t> ecount;
+    bvar::LatencyRecorder latency;
+    bvar::Adder<int64_t> inflightOpNum;
+
+    explicit OpMetric(const std::string& prefix, const std::string& name)
+        : latency(prefix, name + "_lat"),
+          inflightOpNum(prefix, name + "_inflight_num"),
+          ecount(prefix, name + "_error_num") {}
+};
+
+struct ClientOpMetric {
+    std::string prefix;
+
+    OpMetric opLookup;
+    OpMetric opOpen;
+    OpMetric opCreate;
+    OpMetric opMkNod;
+    OpMetric opMkDir;
+    OpMetric opLink;
+    OpMetric opUnlink;
+    OpMetric opRmDir;
+    OpMetric opOpenDir;
+    OpMetric opReleaseDir;
+    OpMetric opReadDir;
+    OpMetric opRename;
+    OpMetric opGetAttr;
+    OpMetric opSetAttr;
+    OpMetric opGetXattr;
+    OpMetric opListXattr;
+    OpMetric opSymlink;
+    OpMetric opReadLink;
+    OpMetric opRelease;
+    OpMetric opFsync;
+    OpMetric opFlush;
+    OpMetric opRead;
+    OpMetric opWrite;
+
+
+    explicit ClientOpMetric(const std::string &prefix_ = "")
+        : prefix(!prefix_.empty() ? prefix_
+                                  : "curvefs_client"),
+          opLookup(prefix, "opLookup"),
+          opOpen(prefix, "opOpen"),
+          opCreate(prefix, "opCreate"),
+          opMkNod(prefix, "opMkNod"),
+          opMkDir(prefix, "opMkDir"),
+          opLink(prefix, "opLink"),
+          opUnlink(prefix, "opUnlink"),
+          opRmDir(prefix, "opRmDir"),
+          opOpenDir(prefix, "opOpenDir"),
+          opReleaseDir(prefix, "opReleaseDir"),
+          opReadDir(prefix, "opReadDir"),
+          opRename(prefix, "opRename"),
+          opGetAttr(prefix, "opGetAttr"),
+          opSetAttr(prefix, "opSetAttr"),
+          opGetXattr(prefix, "opGetXattr"),
+          opListXattr(prefix, "opListXattr"),
+          opSymlink(prefix, "opSymlink"),
+          opReadLink(prefix, "opReadLink"),
+          opRelease(prefix, "opRelease"),
+          opFsync(prefix, "opFsync"),
+          opFlush(prefix, "opFlush"),
+          opRead(prefix, "opRead"),
+          opWrite(prefix, "opWrite") {}
+};
+
 struct FSMetric {
     const std::string prefix = "curvefs_client";
 
