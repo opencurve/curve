@@ -25,12 +25,12 @@
 
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/s3compact_wq_impl.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node_manager.h"
 #include "curvefs/test/metaserver/mock_s3_adapter.h"
 #include "curvefs/test/metaserver/mock_s3compactwq_impl.h"
 #include "curvefs/test/metaserver/mock_s3infocache.h"
-#include "curvefs/src/metaserver/storage/storage.h"
-#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
 
 using ::curvefs::metaserver::copyset::CopysetNode;
@@ -47,9 +47,9 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
 using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 namespace curvefs {
 namespace metaserver {
@@ -80,8 +80,8 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
-        inodeStorage_ = std::make_shared<InodeStorage>(
-            kvStorage_, "partition:1");
+        inodeStorage_ =
+            std::make_shared<InodeStorage>(kvStorage_, "partition:1");
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
         impl_ = std::make_shared<S3CompactWorkQueueImpl>(
@@ -258,6 +258,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_DeleteObjs) {
 TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     std::list<struct S3CompactWorkQueueImpl::Node> validList;
     uint64_t inodeLen = 100;
+    uint64_t chunkSize = 64 * 1024 * 1024;
     S3ChunkInfo tmpl;
     tmpl.set_compaction(0);
     tmpl.set_zero(false);
@@ -271,7 +272,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c1.set_offset(0);
     c1.set_len(1);
     *l.add_s3chunks() = c1;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 1);
     auto first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
@@ -282,7 +283,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c1.set_offset(0);
     c1.set_len(200);  // bigger than inodeLen
     *l.add_s3chunks() = c1;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 1);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
@@ -302,7 +303,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c3.set_offset(0);
     c3.set_len(2);
     *l.add_s3chunks() = c3;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 1);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
@@ -318,7 +319,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c3.set_offset(0);
     c3.set_len(2);
     *l.add_s3chunks() = c3;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 1);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
@@ -338,7 +339,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c5.set_offset(1);
     c5.set_len(1);
     *l.add_s3chunks() = c5;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 3);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
@@ -366,7 +367,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c7.set_offset(1);
     c7.set_len(1);
     *l.add_s3chunks() = c7;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
@@ -390,7 +391,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c9.set_offset(0);
     c9.set_len(1);
     *l.add_s3chunks() = c9;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
@@ -414,7 +415,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c11.set_offset(1);
     c11.set_len(2);
     *l.add_s3chunks() = c11;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 0);
@@ -438,7 +439,7 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     c13.set_offset(0);
     c13.set_len(2);
     *l.add_s3chunks() = c13;
-    validList = impl_->BuildValidList(l, inodeLen);
+    validList = impl_->BuildValidList(l, inodeLen, 0, chunkSize);
     ASSERT_EQ(validList.size(), 2);
     first = validList.begin();
     ASSERT_EQ(first->chunkid, 1);
