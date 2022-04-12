@@ -65,7 +65,7 @@ using ::curvefs::mds::topology::TopologyManager;
 
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
-    uint32_t spaceReloadConcurrency;
+    uint32_t spaceReloadConcurrency = 10;
     curve::common::S3AdapterOption s3AdapterOption;
 };
 
