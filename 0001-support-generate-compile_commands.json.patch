@@ -1,0 +1,414 @@
+From 04701122f73b683f08c8f6243f66a65ad99095b7 Mon Sep 17 00:00:00 2001
+From: Hanqing Wu <wuhanqing@hotmail.com>
+Date: Wed, 13 Apr 2022 10:40:15 +0800
+Subject: [PATCH] support generate compile_commands.json
+
+---
+ .gitignore                                    |  5 +
+ WORKSPACE                                     | 27 +++--
+ external/bazel/gflags.BUILD                   | 34 -------
+ external/bazel/glog.BUILD                     | 98 -------------------
+ external/bazel/gtest.BUILD                    | 30 ------
+ external/bazel/leveldb.BUILD                  | 98 -------------------
+ .../bazel => thirdparties}/etcdclient.BUILD   |  0
+ {external/bazel => thirdparties}/gmock.BUILD  |  0
+ .../bazel => thirdparties}/jsoncpp.BUILD      |  0
+ .../bazel => thirdparties}/rocksdb.BUILD      |  0
+ 10 files changed, 25 insertions(+), 267 deletions(-)
+ delete mode 100644 external/bazel/gflags.BUILD
+ delete mode 100644 external/bazel/glog.BUILD
+ delete mode 100644 external/bazel/gtest.BUILD
+ delete mode 100644 external/bazel/leveldb.BUILD
+ rename {external/bazel => thirdparties}/etcdclient.BUILD (100%)
+ rename {external/bazel => thirdparties}/gmock.BUILD (100%)
+ rename {external/bazel => thirdparties}/jsoncpp.BUILD (100%)
+ rename {external/bazel => thirdparties}/rocksdb.BUILD (100%)
+
+diff --git a/.gitignore b/.gitignore
+index 8bde1112..d8b02915 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -109,3 +109,8 @@ __not_found__
+ thirdparties/rocksdb/lib/
+ thirdparties/rocksdb/include/
+ thirdparties/rocksdb/rocksdb/
++
++/external
++/bazel-*
++/compile_commands.json
++/.cache/
+diff --git a/WORKSPACE b/WORKSPACE
+index eb1d8a5f..625aada6 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -16,8 +16,7 @@
+ 
+ workspace(name = "curve")
+ 
+-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+-load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
++load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+ 
+ # skylib
+@@ -78,7 +77,7 @@ bind(
+ #import the  gtest files.
+ new_git_repository(
+     name = "com_google_googletest",
+-    build_file = "bazel/gmock.BUILD",
++    build_file = "//:thirdparties/gmock.BUILD",
+     remote = "https://github.com/google/googletest",
+     tag = "release-1.8.0",
+ )
+@@ -117,7 +116,7 @@ bind(
+ 
+ http_archive(
+     name = "com_github_google_leveldb",
+-    build_file = "bazel/leveldb.BUILD",
++    build_file = "@com_github_apache_brpc//:leveldb.BUILD",
+     strip_prefix = "leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6",
+     urls = ["https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
+ )
+@@ -158,7 +157,7 @@ bind(
+ # jsoncpp
+ new_git_repository(
+     name = "jsoncpp",
+-    build_file = "bazel/jsoncpp.BUILD",
++    build_file = "//:thirdparties/jsoncpp.BUILD",
+     remote = "https://github.com/open-source-parsers/jsoncpp.git",
+     tag = "1.8.4",
+ )
+@@ -170,7 +169,7 @@ bind(
+ 
+ new_local_repository(
+     name = "etcdclient",
+-    build_file = "external/bazel/etcdclient.BUILD",
++    build_file = "//:thirdparties/etcdclient.BUILD",
+     path = "thirdparties/etcdclient",
+ )
+ 
+@@ -233,6 +232,20 @@ http_archive(
+ # RocksDB
+ new_local_repository(
+     name = "rocksdb",
+-    build_file = "external/bazel/rocksdb.BUILD",
++    build_file = "//:thirdparties/rocksdb.BUILD",
+     path = "thirdparties/rocksdb",
+ )
++
++# Hedron's Compile Commands Extractor for Bazel
++# https://github.com/hedronvision/bazel-compile-commands-extractor
++http_archive(
++    name = "hedron_compile_commands",
++
++    # Replace the commit hash in both places (below) with the latest, rather than using the stale one here. 
++    # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" in the README).
++    url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/af9af15f7bc16fc3e407e2231abfcb62907d258f.tar.gz",
++    strip_prefix = "bazel-compile-commands-extractor-af9af15f7bc16fc3e407e2231abfcb62907d258f",
++    # When you first run this tool, it'll recommend a sha256 hash to put here with a message like: "DEBUG: Rule 'hedron_compile_commands' indicated that a canonical reproducible form can be obtained by modifying arguments sha256 = ..." 
++)
++load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
++hedron_compile_commands_setup()
+diff --git a/external/bazel/gflags.BUILD b/external/bazel/gflags.BUILD
+deleted file mode 100644
+index de6d2d02..00000000
+--- a/external/bazel/gflags.BUILD
++++ /dev/null
+@@ -1,34 +0,0 @@
+-#
+-#  Copyright (c) 2020 NetEase Inc.
+-#
+-#  Licensed under the Apache License, Version 2.0 (the "License");
+-#  you may not use this file except in compliance with the License.
+-#  You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-#  Unless required by applicable law or agreed to in writing, software
+-#  distributed under the License is distributed on an "AS IS" BASIS,
+-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-#  See the License for the specific language governing permissions and
+-#  limitations under the License.
+-#
+-
+-# Bazel (http://bazel.io/) BUILD file for gflags.
+-#
+-# See INSTALL.md for instructions for adding gflags to a Bazel workspace.
+-
+-licenses(["notice"])
+-
+-exports_files(["src/gflags_completions.sh", "COPYING.txt"])
+-
+-config_setting(
+-    name = "x64_windows",
+-    values = {"cpu": "x64_windows"},
+-)
+-
+-load(":bazel/gflags.bzl", "gflags_sources", "gflags_library")
+-
+-(hdrs, srcs) = gflags_sources(namespace=["gflags", "google"])
+-gflags_library(hdrs=hdrs, srcs=srcs, threads=0)
+-gflags_library(hdrs=hdrs, srcs=srcs, threads=1)
+diff --git a/external/bazel/glog.BUILD b/external/bazel/glog.BUILD
+deleted file mode 100644
+index 77d88ea7..00000000
+--- a/external/bazel/glog.BUILD
++++ /dev/null
+@@ -1,98 +0,0 @@
+-#
+-#  Copyright (c) 2020 NetEase Inc.
+-#
+-#  Licensed under the Apache License, Version 2.0 (the "License");
+-#  you may not use this file except in compliance with the License.
+-#  You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-#  Unless required by applicable law or agreed to in writing, software
+-#  distributed under the License is distributed on an "AS IS" BASIS,
+-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-#  See the License for the specific language governing permissions and
+-#  limitations under the License.
+-#
+-
+-cc_library(
+-    name = "glog",
+-    srcs = [
+-        "config.h",
+-        "src/base/commandlineflags.h",
+-        "src/base/googleinit.h",
+-        "src/base/mutex.h",
+-        "src/demangle.cc",
+-        "src/demangle.h",
+-        "src/logging.cc",
+-        "src/raw_logging.cc",
+-        "src/signalhandler.cc",
+-        "src/symbolize.cc",
+-        "src/symbolize.h",
+-        "src/utilities.cc",
+-        "src/utilities.h",
+-        "src/vlog_is_on.cc",
+-    ] + glob(["src/stacktrace*.h"]),
+-    hdrs = [
+-        "src/glog/log_severity.h",
+-        "src/glog/logging.h",
+-        "src/glog/raw_logging.h",
+-        "src/glog/stl_logging.h",
+-        "src/glog/vlog_is_on.h",
+-    ],
+-    copts = [
+-        "-Wno-sign-compare",
+-        "-U_XOPEN_SOURCE",
+-    ],
+-    includes = ["./src"],
+-    linkopts = ["-lpthread"] + select({
+-        ":libunwind": ["-lunwind"],
+-        "//conditions:default": [],
+-    }),
+-    visibility = ["//visibility:public"],
+-    deps = [
+-        "@com_github_gflags_gflags//:gflags",
+-    ],
+-)
+-
+-config_setting(
+-    name = "libunwind",
+-    values = {
+-        "define": "libunwind=true",
+-    },
+-)
+-
+-genrule(
+-    name = "run_configure",
+-    srcs = [
+-        "README",
+-        "Makefile.in",
+-        "config.guess",
+-        "config.sub",
+-        "install-sh",
+-        "ltmain.sh",
+-        "missing",
+-        "libglog.pc.in",
+-        "src/config.h.in",
+-        "src/glog/logging.h.in",
+-        "src/glog/raw_logging.h.in",
+-        "src/glog/stl_logging.h.in",
+-        "src/glog/vlog_is_on.h.in",
+-    ],
+-    outs = [
+-        "config.h",
+-        "src/glog/logging.h",
+-        "src/glog/raw_logging.h",
+-        "src/glog/stl_logging.h",
+-        "src/glog/vlog_is_on.h",
+-    ],
+-    tools = [
+-        "configure",
+-    ],
+-    cmd = "$(location :configure)" +
+-          "&& cp -v src/config.h $(location config.h) " +
+-          "&& cp -v src/glog/logging.h $(location src/glog/logging.h) " +
+-          "&& cp -v src/glog/raw_logging.h $(location src/glog/raw_logging.h) " +
+-          "&& cp -v src/glog/stl_logging.h $(location src/glog/stl_logging.h) " +
+-          "&& cp -v src/glog/vlog_is_on.h $(location src/glog/vlog_is_on.h) "
+-    ,
+-)
+diff --git a/external/bazel/gtest.BUILD b/external/bazel/gtest.BUILD
+deleted file mode 100644
+index f88075d5..00000000
+--- a/external/bazel/gtest.BUILD
++++ /dev/null
+@@ -1,30 +0,0 @@
+-#
+-#  Copyright (c) 2020 NetEase Inc.
+-#
+-#  Licensed under the Apache License, Version 2.0 (the "License");
+-#  you may not use this file except in compliance with the License.
+-#  You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-#  Unless required by applicable law or agreed to in writing, software
+-#  distributed under the License is distributed on an "AS IS" BASIS,
+-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-#  See the License for the specific language governing permissions and
+-#  limitations under the License.
+-#
+-
+-cc_library(
+-    name = "main",
+-    srcs = glob(
+-        ["src/*.cc"],
+-        exclude = ["src/gtest-all.cc"]
+-    ),
+-    hdrs = glob([
+-        "include/**/*.h",
+-        "src/*.h"
+-    ]),
+-    copts = ["-Iexternal/gtest/include"],
+-    linkopts = ["-pthread"],
+-    visibility = ["//visibility:public"],
+-)
+diff --git a/external/bazel/leveldb.BUILD b/external/bazel/leveldb.BUILD
+deleted file mode 100644
+index 9b0f56f5..00000000
+--- a/external/bazel/leveldb.BUILD
++++ /dev/null
+@@ -1,98 +0,0 @@
+-#
+-#  Copyright (c) 2020 NetEase Inc.
+-#
+-#  Licensed under the Apache License, Version 2.0 (the "License");
+-#  you may not use this file except in compliance with the License.
+-#  You may obtain a copy of the License at
+-#
+-#      http://www.apache.org/licenses/LICENSE-2.0
+-#
+-#  Unless required by applicable law or agreed to in writing, software
+-#  distributed under the License is distributed on an "AS IS" BASIS,
+-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-#  See the License for the specific language governing permissions and
+-#  limitations under the License.
+-#
+-
+-package(default_visibility = ["//visibility:public"])
+-
+-
+-config_setting(
+-    name = "darwin",
+-    values = {"cpu": "darwin"},
+-    visibility = ["//visibility:public"],
+-)
+-
+-SOURCES = ["db/builder.cc",
+-         "db/c.cc",
+-         "db/dbformat.cc",
+-         "db/db_impl.cc",
+-         "db/db_iter.cc",
+-         "db/dumpfile.cc",
+-         "db/filename.cc",
+-         "db/log_reader.cc",
+-         "db/log_writer.cc",
+-         "db/memtable.cc",
+-         "db/repair.cc",
+-         "db/table_cache.cc",
+-         "db/version_edit.cc",
+-         "db/version_set.cc",
+-         "db/write_batch.cc",
+-         "table/block_builder.cc",
+-         "table/block.cc",
+-         "table/filter_block.cc",
+-         "table/format.cc",
+-         "table/iterator.cc",
+-         "table/merger.cc",
+-         "table/table_builder.cc",
+-         "table/table.cc",
+-         "table/two_level_iterator.cc",
+-         "util/arena.cc",
+-         "util/bloom.cc",
+-         "util/cache.cc",
+-         "util/coding.cc",
+-         "util/comparator.cc",
+-         "util/crc32c.cc",
+-         "util/env.cc",
+-         "util/env_posix.cc",
+-         "util/filter_policy.cc",
+-         "util/hash.cc",
+-         "util/histogram.cc",
+-         "util/logging.cc",
+-         "util/options.cc",
+-         "util/status.cc",
+-         "port/port_posix.cc",
+-         "port/port_posix_sse.cc",
+-         "helpers/memenv/memenv.cc",
+-    ]
+-
+-cc_library(
+-    name = "leveldb",
+-    srcs = SOURCES,
+-    hdrs = glob([ 
+-        "helpers/memenv/*.h",
+-        "util/*.h",
+-        "port/*.h",
+-        "port/win/*.h",
+-        "table/*.h",
+-        "db/*.h",
+-        "include/leveldb/*.h"
+-    ],
+-    exclude = [
+-            "**/*test.*",
+-    ]),
+-    includes = [
+-        "include/",
+-    ],
+-    copts = [
+-        "-fno-builtin-memcmp",
+-        "-DLEVELDB_PLATFORM_POSIX=1",
+-        "-DLEVELDB_ATOMIC_PRESENT",
+-    ],
+-    defines = [
+-        "LEVELDB_PLATFORM_POSIX",
+-    ] + select({
+-        ":darwin": ["OS_MACOSX"],
+-        "//conditions:default": [],
+-    }),
+-)
+diff --git a/external/bazel/etcdclient.BUILD b/thirdparties/etcdclient.BUILD
+similarity index 100%
+rename from external/bazel/etcdclient.BUILD
+rename to thirdparties/etcdclient.BUILD
+diff --git a/external/bazel/gmock.BUILD b/thirdparties/gmock.BUILD
+similarity index 100%
+rename from external/bazel/gmock.BUILD
+rename to thirdparties/gmock.BUILD
+diff --git a/external/bazel/jsoncpp.BUILD b/thirdparties/jsoncpp.BUILD
+similarity index 100%
+rename from external/bazel/jsoncpp.BUILD
+rename to thirdparties/jsoncpp.BUILD
+diff --git a/external/bazel/rocksdb.BUILD b/thirdparties/rocksdb.BUILD
+similarity index 100%
+rename from external/bazel/rocksdb.BUILD
+rename to thirdparties/rocksdb.BUILD
+-- 
+2.34.0
+
