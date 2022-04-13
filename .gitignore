@@ -109,3 +109,8 @@ __not_found__
 thirdparties/rocksdb/lib/
 thirdparties/rocksdb/include/
 thirdparties/rocksdb/rocksdb/
+
+/external
+/bazel-*
+/compile_commands.json
+/.cache/

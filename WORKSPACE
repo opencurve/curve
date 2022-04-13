@@ -16,8 +16,7 @@
 
 workspace(name = "curve")
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository", "new_git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # skylib
@@ -78,7 +77,7 @@ bind(
 #import the  gtest files.
 new_git_repository(
     name = "com_google_googletest",
-    build_file = "bazel/gmock.BUILD",
+    build_file = "//:thirdparties/gmock.BUILD",
     remote = "https://github.com/google/googletest",
     tag = "release-1.8.0",
 )
@@ -117,7 +116,7 @@ bind(
 
 http_archive(
     name = "com_github_google_leveldb",
-    build_file = "bazel/leveldb.BUILD",
+    build_file = "@com_github_apache_brpc//:leveldb.BUILD",
     strip_prefix = "leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6",
     urls = ["https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
 )
@@ -158,7 +157,7 @@ bind(
 # jsoncpp
 new_git_repository(
     name = "jsoncpp",
-    build_file = "bazel/jsoncpp.BUILD",
+    build_file = "//:thirdparties/jsoncpp.BUILD",
     remote = "https://github.com/open-source-parsers/jsoncpp.git",
     tag = "1.8.4",
 )
@@ -170,7 +169,7 @@ bind(
 
 new_local_repository(
     name = "etcdclient",
-    build_file = "external/bazel/etcdclient.BUILD",
+    build_file = "//:thirdparties/etcdclient.BUILD",
     path = "thirdparties/etcdclient",
 )
 
@@ -233,6 +232,20 @@ http_archive(
 # RocksDB
 new_local_repository(
     name = "rocksdb",
-    build_file = "external/bazel/rocksdb.BUILD",
+    build_file = "//:thirdparties/rocksdb.BUILD",
     path = "thirdparties/rocksdb",
 )
+
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+http_archive(
+    name = "hedron_compile_commands",
+
+    # Replace the commit hash in both places (below) with the latest, rather than using the stale one here. 
+    # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" in the README).
+    url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/af9af15f7bc16fc3e407e2231abfcb62907d258f.tar.gz",
+    strip_prefix = "bazel-compile-commands-extractor-af9af15f7bc16fc3e407e2231abfcb62907d258f",
+    # When you first run this tool, it'll recommend a sha256 hash to put here with a message like: "DEBUG: Rule 'hedron_compile_commands' indicated that a canonical reproducible form can be obtained by modifying arguments sha256 = ..." 
+)
+load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
+hedron_compile_commands_setup()
