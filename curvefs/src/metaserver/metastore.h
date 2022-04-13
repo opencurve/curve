@@ -54,6 +54,8 @@ using curvefs::metaserver::DeleteDentryResponse;
 // inode
 using curvefs::metaserver::GetInodeRequest;
 using curvefs::metaserver::GetInodeResponse;
+using curvefs::metaserver::BatchGetInodeRequest;
+using curvefs::metaserver::BatchGetInodeResponse;
 using curvefs::metaserver::BatchGetInodeAttrRequest;
 using curvefs::metaserver::BatchGetInodeAttrResponse;
 using curvefs::metaserver::BatchGetXAttrRequest;
@@ -127,6 +129,10 @@ class MetaStore {
     virtual MetaStatusCode GetInode(const GetInodeRequest* request,
                                     GetInodeResponse* response) = 0;
 
+    virtual MetaStatusCode BatchGetInode(
+                                    const BatchGetInodeRequest* request,
+                                    BatchGetInodeResponse* response) = 0;
+
     virtual MetaStatusCode BatchGetInodeAttr(
                                     const BatchGetInodeAttrRequest* request,
                                     BatchGetInodeAttrResponse* response) = 0;
@@ -196,6 +202,9 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode GetInode(const GetInodeRequest* request,
                             GetInodeResponse* response) override;
 
+    MetaStatusCode BatchGetInode(const BatchGetInodeRequest* request,
+                                BatchGetInodeResponse* response) override;
+
     MetaStatusCode BatchGetInodeAttr(const BatchGetInodeAttrRequest* request,
                                 BatchGetInodeAttrResponse* response) override;
 
@@ -218,6 +227,8 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode SendS3ChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) override;
+
+    std::shared_ptr<Partition> GetPartitionUnLock(uint32_t partitionId);
 
  private:
     void PrepareStreamBuffer(butil::IOBuf* buffer,

@@ -88,7 +88,10 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
                               &opts->minRetryTimesForceTimeoutBackoff);
     conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
-    conf->GetValueFatalIfFail("excutorOpt.batchLimit", &opts->batchLimit);
+    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
+                              &opts->batchInodeAttrLimit);
+    conf->GetValueFatalIfFail("excutorOpt.batchInodeLimit",
+                              &opts->batchInodeLimit);
 }
 
 void InitBlockDeviceOption(Configuration *conf,

@@ -310,6 +310,30 @@ void TaskExecutorDone::Run() {
     }
 }
 
+void BatchGetInodeTaskExecutorDone::Run() {
+    std::unique_ptr<TaskExecutorDone> self_guard(this);
+    auto done = GetMetaServerClientDone();
+    auto code = GetRetCode();
+    auto excutor = GetTaskExcutor();
+    brpc::ClosureGuard done_guard(done);
+
+    bool needRetry = true;
+    needRetry = excutor->OnReturn(code);
+    if (needRetry) {
+        excutor->PreProcessBeforeRetry(code);
+        code = excutor->DoRPCTaskInner(this);
+        if (code < 0) {
+            done->SetMetaStatusCode(ConvertToMetaStatusCode(code));
+            return;
+        }
+        self_guard.release();
+        done_guard.release();
+    } else {
+        done->SetMetaStatusCode(ConvertToMetaStatusCode(code));
+        done->SetInodes(GetInodes());
+    }
+}
+
 bool CreateInodeExcutor::GetTarget() {
     if (!metaCache_->SelectTarget(task_->fsID, &task_->target,
                                   &task_->applyIndex)) {

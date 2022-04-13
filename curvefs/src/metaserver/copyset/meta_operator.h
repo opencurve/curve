@@ -262,6 +262,27 @@ class GetInodeOperator : public MetaOperator {
     OperatorType GetOperatorType() const override;
 };
 
+class BatchGetInodeOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+
+    bool CanBypassPropose() const override;
+
+    OperatorType GetOperatorType() const override;
+};
+
 class BatchGetInodeAttrOperator : public MetaOperator {
  public:
     using MetaOperator::MetaOperator;

@@ -38,6 +38,7 @@ using ::curvefs::metaserver::copyset::ListDentryOperator;
 using ::curvefs::metaserver::copyset::CreateDentryOperator;
 using ::curvefs::metaserver::copyset::DeleteDentryOperator;
 using ::curvefs::metaserver::copyset::GetInodeOperator;
+using ::curvefs::metaserver::copyset::BatchGetInodeOperator;
 using ::curvefs::metaserver::copyset::BatchGetInodeAttrOperator;
 using ::curvefs::metaserver::copyset::BatchGetXAttrOperator;
 using ::curvefs::metaserver::copyset::CreateInodeOperator;
@@ -161,6 +162,18 @@ void MetaServerServiceImpl::BatchGetInodeAttr(
                                                  done,
                                                  request->poolid(),
                                                  request->copysetid());
+}
+
+void MetaServerServiceImpl::BatchGetInode(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::metaserver::BatchGetInodeRequest* request,
+    ::curvefs::metaserver::BatchGetInodeResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<BatchGetInodeOperator>(controller, request, response,
+                                             done,
+                                             request->poolid(),
+                                             request->copysetid());
 }
 
 void MetaServerServiceImpl::BatchGetXAttr(

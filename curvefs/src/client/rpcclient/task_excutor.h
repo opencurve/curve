@@ -45,6 +45,8 @@ using ::curvefs::client::common::MetaserverID;
 using ::curvefs::client::common::MetaServerOpType;
 using ::curvefs::common::PartitionInfo;
 using ::curvefs::metaserver::MetaStatusCode;
+using ::google::protobuf::RepeatedPtrField;
+using ::curvefs::metaserver::Inode;
 
 namespace curvefs {
 namespace client {
@@ -172,8 +174,17 @@ class MetaServerClientDone : public google::protobuf::Closure {
         return code_;
     }
 
+    void SetInodes(const RepeatedPtrField<Inode>& inodes) {
+        inodes_ = inodes;
+    }
+
+    const RepeatedPtrField<Inode>& GetInodes() const {
+        return inodes_;
+    }
+
  private:
     MetaStatusCode code_;
+    RepeatedPtrField<Inode> inodes_;
 };
 
 class TaskExecutorDone : public google::protobuf::Closure {
@@ -198,6 +209,10 @@ class TaskExecutorDone : public google::protobuf::Closure {
         return excutor_;
     }
 
+    MetaServerClientDone* GetMetaServerClientDone() {
+        return done_;
+    }
+
  private:
     friend class TaskExecutor;
 
@@ -205,6 +220,26 @@ class TaskExecutorDone : public google::protobuf::Closure {
     std::shared_ptr<TaskExecutor> excutor_;
     MetaServerClientDone *done_;
     int code_;
+};
+
+class BatchGetInodeTaskExecutorDone : public TaskExecutorDone {
+ public:
+    BatchGetInodeTaskExecutorDone(const std::shared_ptr<TaskExecutor> excutor,
+        MetaServerClientDone *done) : TaskExecutorDone(excutor, done) {}
+    virtual ~BatchGetInodeTaskExecutorDone() {}
+
+    void Run() override;
+
+    void SetInodes(const RepeatedPtrField<Inode>& inodes) {
+        inodes_ = inodes;
+    }
+
+    const RepeatedPtrField<Inode>& GetInodes() const {
+        return inodes_;
+    }
+
+ private:
+    RepeatedPtrField<Inode> inodes_;
 };
 
 class CreateInodeExcutor : public TaskExecutor {

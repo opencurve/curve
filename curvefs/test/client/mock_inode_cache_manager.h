@@ -44,6 +44,11 @@ class MockInodeCacheManager : public InodeCacheManager {
     MOCK_METHOD2(GetInode, CURVEFS_ERROR(
         uint64_t inodeid, std::shared_ptr<InodeWrapper> &out));     // NOLINT
 
+    MOCK_METHOD1(BatchGetInode, CURVEFS_ERROR(std::set<uint64_t> *inodeIds));
+
+    MOCK_METHOD1(BatchGetInodeAsync,
+        CURVEFS_ERROR(std::set<uint64_t> *inodeIds));
+
     MOCK_METHOD2(BatchGetInodeAttr, CURVEFS_ERROR(
         std::set<uint64_t> *inodeIds, std::list<InodeAttr> *attrs));
 
@@ -54,6 +59,8 @@ class MockInodeCacheManager : public InodeCacheManager {
         std::shared_ptr<InodeWrapper> &out));     // NOLINT
 
     MOCK_METHOD1(DeleteInode, CURVEFS_ERROR(uint64_t inodeid));
+
+    MOCK_METHOD1(AddInode, void(const Inode& inode));
 
     MOCK_METHOD1(ClearInodeCache, void(uint64_t inodeid));
 

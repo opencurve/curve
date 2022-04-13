@@ -62,6 +62,10 @@ class MetaServerServiceImpl : public MetaServerService {
                   const ::curvefs::metaserver::GetInodeRequest* request,
                   ::curvefs::metaserver::GetInodeResponse* response,
                   ::google::protobuf::Closure* done) override;
+    void BatchGetInode(::google::protobuf::RpcController* controller,
+                const ::curvefs::metaserver::BatchGetInodeRequest* request,
+                ::curvefs::metaserver::BatchGetInodeResponse* response,
+                ::google::protobuf::Closure* done) override;
     void BatchGetInodeAttr(::google::protobuf::RpcController* controller,
                 const ::curvefs::metaserver::BatchGetInodeAttrRequest* request,
                 ::curvefs::metaserver::BatchGetInodeAttrResponse* response,

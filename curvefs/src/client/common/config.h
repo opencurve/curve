@@ -65,7 +65,8 @@ struct ExcutorOpt {
     uint64_t maxRetrySleepIntervalUS = 64ull * 1000 * 1000;
     uint64_t minRetryTimesForceTimeoutBackoff = 5;
     uint64_t maxRetryTimesBeforeConsiderSuspend = 20;
-    uint32_t batchLimit = 100;
+    uint32_t batchInodeAttrLimit = 10000;
+    uint32_t batchInodeLimit = 100;
 };
 
 struct LeaseOpt {
