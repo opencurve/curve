@@ -20,6 +20,8 @@
  * Author: xuchaojie
  */
 
+#include <gmock/gmock-actions.h>
+#include <gmock/gmock-spec-builders.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -100,6 +102,7 @@ class TestFuseVolumeClient : public ::testing::Test {
 
         client_->Init(fuseClientOption_);
         PrepareFsInfo();
+        curvefs::client::common::FLAGS_enableCto = true;
     }
 
     virtual void TearDown() {
@@ -357,6 +360,31 @@ TEST_F(TestFuseVolumeClient, FuseOpOpen) {
     ASSERT_TRUE(inodeWrapper->IsOpen());
 }
 
+TEST_F(TestFuseVolumeClient, FuseOpOpenNoCto) {
+    curvefs::client::common::FLAGS_enableCto = false;
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    struct fuse_file_info fi;
+    fi.flags = 0;
+
+    Inode inode;
+    inode.set_fsid(fsId);
+    inode.set_inodeid(ino);
+    inode.set_length(4096);
+    inode.set_type(FsFileType::TYPE_FILE);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
+    CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    ASSERT_TRUE(inodeWrapper->IsDirty());
+    ASSERT_TRUE(inodeWrapper->IsOpen());
+}
+
 TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
@@ -374,7 +402,6 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
@@ -423,7 +450,6 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
                         Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
     EXPECT_CALL(*metaClient_, UpdateInode(_, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
@@ -1503,6 +1529,27 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     EXPECT_CALL(*metaClient_, UpdateInode(_, InodeOpenStatusChange::CLOSE))
         .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpRelease(req, ino, &fi));
+}
+
+TEST_F(TestFuseVolumeClient, FuseOpReleaseNCto) {
+    curvefs::client::common::FLAGS_enableCto = false;
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
+
+    Inode inode;
+    inode.set_fsid(fsId);
+    inode.set_inodeid(ino);
+
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    inodeWrapper->SetOpenCount(1);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpRelease(req, ino, &fi));
+    ASSERT_TRUE(inodeWrapper->IsDirty());
 }
 
 class TestFuseS3Client : public ::testing::Test {

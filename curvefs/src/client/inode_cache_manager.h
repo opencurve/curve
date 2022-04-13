@@ -29,6 +29,7 @@
 #include <map>
 #include <set>
 #include <list>
+#include <vector>
 
 #include "src/common/lru_cache.h"
 
@@ -50,6 +51,7 @@ namespace client {
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 using rpcclient::InodeParam;
+using rpcclient::MetaServerClientDone;
 
 class InodeCacheManager {
  public:
@@ -63,8 +65,12 @@ class InodeCacheManager {
 
     virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) = 0;
 
-    virtual CURVEFS_ERROR GetInode(uint64_t inodeid,
+    virtual CURVEFS_ERROR GetInode(uint64_t inodeId,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
+
+    virtual CURVEFS_ERROR BatchGetInode(std::set<uint64_t> *inodeIds) = 0;
+
+    virtual CURVEFS_ERROR BatchGetInodeAsync(std::set<uint64_t> *inodeIds) = 0;
 
     virtual CURVEFS_ERROR BatchGetInodeAttr(
         std::set<uint64_t> *inodeIds,
@@ -76,9 +82,11 @@ class InodeCacheManager {
     virtual CURVEFS_ERROR CreateInode(const InodeParam &param,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
-    virtual CURVEFS_ERROR DeleteInode(uint64_t inodeid) = 0;
+    virtual CURVEFS_ERROR DeleteInode(uint64_t inodeId) = 0;
 
-    virtual void ClearInodeCache(uint64_t inodeid) = 0;
+    virtual void AddInode(const Inode& inode) = 0;
+
+    virtual void ClearInodeCache(uint64_t inodeId) = 0;
 
     virtual void ShipToFlush(
         const std::shared_ptr<InodeWrapper> &inodeWrapper) = 0;
@@ -91,7 +99,8 @@ class InodeCacheManager {
     uint32_t fsId_;
 };
 
-class InodeCacheManagerImpl : public InodeCacheManager {
+class InodeCacheManagerImpl : public InodeCacheManager,
+    public std::enable_shared_from_this<InodeCacheManagerImpl> {
  public:
     InodeCacheManagerImpl()
       : metaClient_(std::make_shared<MetaServerClientImpl>()),
@@ -114,8 +123,12 @@ class InodeCacheManagerImpl : public InodeCacheManager {
         return CURVEFS_ERROR::OK;
     }
 
-    CURVEFS_ERROR GetInode(uint64_t inodeid,
-        std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
+    CURVEFS_ERROR GetInode(uint64_t inodeId,
+        std::shared_ptr<InodeWrapper> &out) override;
+
+    CURVEFS_ERROR BatchGetInode(std::set<uint64_t> *inodeIds) override;
+
+    CURVEFS_ERROR BatchGetInodeAsync(std::set<uint64_t> *inodeIds) override;
 
     CURVEFS_ERROR BatchGetInodeAttr(std::set<uint64_t> *inodeIds,
         std::list<InodeAttr> *attrs) override;
@@ -124,11 +137,13 @@ class InodeCacheManagerImpl : public InodeCacheManager {
         std::list<XAttr> *xattrs) override;
 
     CURVEFS_ERROR CreateInode(const InodeParam &param,
-        std::shared_ptr<InodeWrapper> &out) override;    // NOLINT
+        std::shared_ptr<InodeWrapper> &out) override;
 
-    CURVEFS_ERROR DeleteInode(uint64_t inodeid) override;
+    CURVEFS_ERROR DeleteInode(uint64_t inodeId) override;
 
-    void ClearInodeCache(uint64_t inodeid) override;
+    void AddInode(const Inode& inode) override;
+
+    void ClearInodeCache(uint64_t inodeId) override;
 
     void ShipToFlush(
         const std::shared_ptr<InodeWrapper> &inodeWrapper) override;
@@ -148,6 +163,32 @@ class InodeCacheManagerImpl : public InodeCacheManager {
     curve::common::GenericNameLock<Mutex> nameLock_;
 };
 
+class BatchGetInodeAsyncDone : public MetaServerClientDone {
+ public:
+    BatchGetInodeAsyncDone(
+        const std::shared_ptr<InodeCacheManager> &inodeCacheManager):
+        inodeCacheManager_(inodeCacheManager) {}
+    ~BatchGetInodeAsyncDone() {}
+
+    void Run() override {
+        std::unique_ptr<BatchGetInodeAsyncDone> self_guard(this);
+        MetaStatusCode ret = GetStatusCode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(ERROR) << "BatchGetInodeAsync failed, "
+                       << "MetaStatusCode: " << ret
+                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret);
+        } else {
+            auto inodes = GetInodes();
+            VLOG(6) << "update inodeCache size = " << inodes.size();
+            for (const auto &it : inodes) {
+                inodeCacheManager_ -> AddInode(it);
+            }
+        }
+    };
+
+ private:
+    std::shared_ptr<InodeCacheManager> inodeCacheManager_;
+};
 
 }  // namespace client
 }  // namespace curvefs

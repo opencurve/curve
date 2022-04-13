@@ -47,6 +47,9 @@ class OperatorApplyMetric {
     void OnOperatorComplete(OperatorType type, uint64_t latencyUs,
                             bool success = true);
 
+    void OnOperatorCompleteFromLog(OperatorType type, uint64_t latencyUs,
+                            bool success = true);
+
     OperatorApplyMetric(const OperatorApplyMetric&) = delete;
     OperatorApplyMetric& operator=(const OperatorApplyMetric&) = delete;
 
@@ -72,6 +75,7 @@ class OperatorApplyMetric {
         static_cast<uint32_t>(OperatorType::OperatorTypeMax);
 
     std::array<std::unique_ptr<OpMetric>, kTotalOperatorNum> opMetrics_;
+    std::array<std::unique_ptr<OpMetric>, kTotalOperatorNum> opMetricsFromLog_;
 };
 
 // Metric for statictic raft snapshot latency/error count/...

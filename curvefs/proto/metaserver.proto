@@ -92,6 +92,7 @@ message ListDentryRequest {
     optional string last = 7;     // the name of last entry
     optional uint32 count = 8;    // the number of entry required
     optional bool onlyDir = 9;
+    optional uint64 appliedIndex = 10;
 }
 
 message ListDentryResponse {
@@ -363,6 +364,22 @@ message InodeAttr {
     optional uint32 openmpcount = 18;
 }
 
+message BatchGetInodeRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    repeated uint64 inodeId = 5;
+    optional uint64 appliedIndex = 6;
+}
+
+message BatchGetInodeResponse {
+    required MetaStatusCode statusCode = 1;
+    repeated Inode inode = 2;
+    optional uint64 appliedIndex = 3;
+}
+
+
 message BatchGetInodeAttrRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -416,6 +433,7 @@ service MetaServerService {
                                             (CreateRootInodeResponse);
     rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
     rpc BatchGetInodeAttr(BatchGetInodeAttrRequest) returns (BatchGetInodeAttrResponse);
+    rpc BatchGetInode(BatchGetInodeRequest) returns (BatchGetInodeResponse);
     rpc BatchGetXAttr(BatchGetXAttrRequest) returns (BatchGetXAttrResponse);
 
     // partition interface

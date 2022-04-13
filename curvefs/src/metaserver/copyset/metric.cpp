@@ -31,10 +31,14 @@ namespace copyset {
 OperatorApplyMetric::OperatorApplyMetric(PoolId poolId, CopysetId copysetId) {
     std::string prefix = "op_apply_pool_" + std::to_string(poolId) +
                          "_copyset_" + std::to_string(copysetId);
+    std::string fromLogPrefix = "op_apply_from_log_pool_" +
+        std::to_string(poolId) + "_copyset_" + std::to_string(copysetId);
 
     for (uint32_t i = 0; i < kTotalOperatorNum; ++i) {
         opMetrics_[i] = absl::make_unique<OpMetric>(
             prefix + OperatorTypeName(static_cast<OperatorType>(i)));
+        opMetricsFromLog_[i] = absl::make_unique<OpMetric>(
+            fromLogPrefix + OperatorTypeName(static_cast<OperatorType>(i)));
     }
 }
 
@@ -46,6 +50,18 @@ void OperatorApplyMetric::OnOperatorComplete(OperatorType type,
             opMetrics_[index]->latRecorder << latencyUs;
         } else {
             opMetrics_[index]->errorCount << 1;
+        }
+    }
+}
+
+void OperatorApplyMetric::OnOperatorCompleteFromLog(OperatorType type,
+                                             uint64_t latencyUs, bool success) {
+    auto index = static_cast<uint32_t>(type);
+    if (index < kTotalOperatorNum) {
+        if (success) {
+            opMetricsFromLog_[index]->latRecorder << latencyUs;
+        } else {
+            opMetricsFromLog_[index]->errorCount << 1;
         }
     }
 }

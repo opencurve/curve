@@ -69,6 +69,7 @@ struct MetaServerClientMetric {
 
     // inode
     InterfaceMetric getInode;
+    InterfaceMetric batchGetInode;
     InterfaceMetric batchGetInodeAttr;
     InterfaceMetric batchGetXattr;
     InterfaceMetric createInode;
@@ -92,6 +93,7 @@ struct MetaServerClientMetric {
           createDentry(prefix, "createDentry"),
           deleteDentry(prefix, "deleteDentry"),
           getInode(prefix, "getInode"),
+          batchGetInode(prefix, "batchGetInode"),
           batchGetInodeAttr(prefix, "batchGetInodeAttr"),
           batchGetXattr(prefix, "batchGetXattr"),
           createInode(prefix, "createInode"),

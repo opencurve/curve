@@ -50,6 +50,7 @@ enum class MetaServerOpType {
     DeleteDentry,
     PrepareRenameTx,
     GetInode,
+    BatchGetInode,
     BatchGetInodeAttr,
     BatchGetXAttr,
     UpdateInode,

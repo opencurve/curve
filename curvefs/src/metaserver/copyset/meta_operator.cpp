@@ -110,8 +110,20 @@ bool GetInodeOperator::CanBypassPropose() const {
            node_->GetAppliedIndex() >= req->appliedindex();
 }
 
+bool ListDentryOperator::CanBypassPropose() const {
+    auto* req = static_cast<const ListDentryRequest*>(request_);
+    return req->has_appliedindex() &&
+           node_->GetAppliedIndex() >= req->appliedindex();
+}
+
 bool BatchGetInodeAttrOperator::CanBypassPropose() const {
     auto* req = static_cast<const BatchGetInodeAttrRequest*>(request_);
+    return req->has_appliedindex() &&
+           node_->GetAppliedIndex() >= req->appliedindex();
+}
+
+bool BatchGetInodeOperator::CanBypassPropose() const {
+    auto* req = static_cast<const BatchGetInodeRequest*>(request_);
     return req->has_appliedindex() &&
            node_->GetAppliedIndex() >= req->appliedindex();
 }
@@ -155,6 +167,7 @@ OPERATOR_ON_APPLY(ListDentry);
 OPERATOR_ON_APPLY(CreateDentry);
 OPERATOR_ON_APPLY(DeleteDentry);
 OPERATOR_ON_APPLY(GetInode);
+OPERATOR_ON_APPLY(BatchGetInode);
 OPERATOR_ON_APPLY(BatchGetInodeAttr);
 OPERATOR_ON_APPLY(BatchGetXAttr);
 OPERATOR_ON_APPLY(CreateInode);
@@ -224,7 +237,7 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
         TYPE##Response response;                                             \
         auto status = node_->GetMetaStore()->TYPE(                           \
             static_cast<const TYPE##Request*>(request_), &response);         \
-        node_->GetMetric()->OnOperatorComplete(                              \
+        node_->GetMetric()->OnOperatorCompleteFromLog(                       \
             OperatorType::TYPE, TimeUtility::GetTimeofDayUs() - startTimeUs, \
             status == MetaStatusCode::OK);                                   \
     }
@@ -265,6 +278,7 @@ void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(GetDentry);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(ListDentry);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(GetInode);
+READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetInode);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetInodeAttr);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetXAttr);
 
@@ -281,6 +295,7 @@ OPERATOR_REDIRECT(ListDentry);
 OPERATOR_REDIRECT(CreateDentry);
 OPERATOR_REDIRECT(DeleteDentry);
 OPERATOR_REDIRECT(GetInode);
+OPERATOR_REDIRECT(BatchGetInode);
 OPERATOR_REDIRECT(BatchGetInodeAttr);
 OPERATOR_REDIRECT(BatchGetXAttr);
 OPERATOR_REDIRECT(CreateInode);
@@ -304,6 +319,7 @@ OPERATOR_ON_FAILED(ListDentry);
 OPERATOR_ON_FAILED(CreateDentry);
 OPERATOR_ON_FAILED(DeleteDentry);
 OPERATOR_ON_FAILED(GetInode);
+OPERATOR_ON_FAILED(BatchGetInode);
 OPERATOR_ON_FAILED(BatchGetInodeAttr);
 OPERATOR_ON_FAILED(BatchGetXAttr);
 OPERATOR_ON_FAILED(CreateInode);
@@ -327,6 +343,7 @@ OPERATOR_HASH_CODE(ListDentry);
 OPERATOR_HASH_CODE(CreateDentry);
 OPERATOR_HASH_CODE(DeleteDentry);
 OPERATOR_HASH_CODE(GetInode);
+OPERATOR_HASH_CODE(BatchGetInode);
 OPERATOR_HASH_CODE(BatchGetInodeAttr);
 OPERATOR_HASH_CODE(BatchGetXAttr);
 OPERATOR_HASH_CODE(CreateInode);
@@ -360,6 +377,7 @@ OPERATOR_TYPE(ListDentry);
 OPERATOR_TYPE(CreateDentry);
 OPERATOR_TYPE(DeleteDentry);
 OPERATOR_TYPE(GetInode);
+OPERATOR_TYPE(BatchGetInode);
 OPERATOR_TYPE(BatchGetInodeAttr);
 OPERATOR_TYPE(BatchGetXAttr);
 OPERATOR_TYPE(CreateInode);

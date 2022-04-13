@@ -36,6 +36,8 @@ using curvefs::metaserver::GetOrModifyS3ChunkInfoRequest;
 using curvefs::metaserver::GetOrModifyS3ChunkInfoResponse;
 using curvefs::metaserver::BatchGetInodeAttrRequest;
 using curvefs::metaserver::BatchGetInodeAttrResponse;
+using curvefs::metaserver::BatchGetInodeRequest;
+using curvefs::metaserver::BatchGetInodeResponse;
 using curvefs::metaserver::BatchGetXAttrRequest;
 using curvefs::metaserver::BatchGetXAttrResponse;
 
@@ -50,6 +52,7 @@ using PrepareRenameTxExcutor = TaskExecutor;
 using DeleteInodeExcutor = TaskExecutor;
 using UpdateInodeExcutor = TaskExecutor;
 using GetInodeExcutor = TaskExecutor;
+using BatchGetInodeExcutor = TaskExecutor;
 using BatchGetInodeAttrExcutor = TaskExecutor;
 using BatchGetXAttrExcutor = TaskExecutor;
 using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
@@ -109,6 +112,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                Dentry *out) {
     auto task = RPCTask {
         metaserverClientMetric_->getDentry.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->getDentry.latency);
         GetDentryResponse response;
         GetDentryRequest request;
         request.set_poolid(poolID);
@@ -118,6 +122,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         request.set_parentinodeid(inodeid);
         request.set_name(name);
         request.set_txid(txId);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetDentry(cntl, &request, &response, nullptr);
@@ -169,7 +175,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                                 std::list<Dentry> *dentryList) {
     auto task = RPCTask {
         metaserverClientMetric_->listDentry.qps.count << 1;
-
+        LatencyUpdater updater(&metaserverClientMetric_->listDentry.latency);
         ListDentryRequest request;
         ListDentryResponse response;
         request.set_poolid(poolID);
@@ -181,6 +187,9 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         request.set_last(last);
         request.set_count(count);
         request.set_onlydir(onlyDir);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID,
+                                        copysetID)));
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.ListDentry(cntl, &request, &response, nullptr);
@@ -233,6 +242,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTask {
         metaserverClientMetric_->createDentry.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->createDentry.latency);
         CreateDentryResponse response;
         CreateDentryRequest request;
         request.set_poolid(poolID);
@@ -300,6 +310,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   const std::string &name) {
     auto task = RPCTask {
         metaserverClientMetric_->deleteDentry.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->deleteDentry.latency);
         DeleteDentryResponse response;
         DeleteDentryRequest request;
         request.set_poolid(poolID);
@@ -354,7 +365,8 @@ MetaStatusCode
 MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
         metaserverClientMetric_->prepareRenameTx.qps.count << 1;
-
+        LatencyUpdater updater(
+            &metaserverClientMetric_->prepareRenameTx.latency);
         PrepareRenameTxRequest request;
         PrepareRenameTxResponse response;
         request.set_poolid(poolID);
@@ -405,6 +417,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
                                               Inode *out) {
     auto task = RPCTask {
         metaserverClientMetric_->getInode.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->getInode.latency);
         GetInodeRequest request;
         GetInodeResponse response;
         request.set_poolid(poolID);
@@ -412,6 +425,8 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeid);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetInode(cntl, &request, &response, nullptr);
@@ -456,14 +471,13 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-bool GroupInodeIdByPartition(
+bool MetaServerClientImpl::GroupInodeIdByPartition(
     uint32_t fsId,
-    std::shared_ptr<MetaCache> metaCache,
     std::set<uint64_t> *inodeIds,
     std::unordered_map<uint32_t, std::list<uint64_t>> *inodeGroups) {
     for (const auto &it : *inodeIds) {
         uint32_t pId = 0;
-        if (metaCache->GetPartitionIdByInodeId(fsId, it, &pId)) {
+        if (metaCache_->GetPartitionIdByInodeId(fsId, it, &pId)) {
             auto iter = inodeGroups->find(pId);
             if (iter == inodeGroups->end()) {
                 inodeGroups->emplace(pId, std::list<uint64_t>({it}));
@@ -479,13 +493,208 @@ bool GroupInodeIdByPartition(
     return true;
 }
 
+MetaStatusCode MetaServerClientImpl::BatchGetInode(uint32_t fsId,
+    std::set<uint64_t> *inodeIds, std::list<Inode> *inodes) {
+    uint32_t limit = opt_.batchLimit;
+    // group inodeid by partition
+    std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
+    if (!GroupInodeIdByPartition(fsId, inodeIds, &inodeGroups)) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+    for (const auto &it : inodeGroups) {
+        auto iter = it.second.begin();
+        while (iter != it.second.end()) {
+            uint64_t inodeId = *iter;
+            auto task = RPCTask {
+                metaserverClientMetric_->batchGetInode.qps.count << 1;
+                LatencyUpdater updater(
+                    &metaserverClientMetric_->batchGetInode.latency);
+                BatchGetInodeRequest request;
+                BatchGetInodeResponse response;
+                request.set_poolid(poolID);
+                request.set_copysetid(copysetID);
+                request.set_partitionid(partitionID);
+                request.set_fsid(fsId);
+                request.set_appliedindex(
+                    metaCache_->GetApplyIndex(CopysetGroupID(poolID,
+                                              copysetID)));
+                uint32_t batchLimit = limit;
+                while (iter != it.second.end() && batchLimit > 0) {
+                    request.add_inodeid(*iter);
+                    iter++;
+                    batchLimit--;
+                }
+                curvefs::metaserver::MetaServerService_Stub stub(channel);
+                stub.BatchGetInode(cntl, &request, &response, nullptr);
+
+                if (cntl->Failed()) {
+                    metaserverClientMetric_->batchGetInode.eps.count << 1;
+                    LOG(WARNING) << "BatchGetInode Failed, errorcode = "
+                                 << cntl->ErrorCode()
+                                 << ", error content:" << cntl->ErrorText()
+                                 << ", log id = " << cntl->log_id();
+                    return -cntl->ErrorCode();
+                }
+
+                MetaStatusCode ret = response.statuscode();
+                if (ret != MetaStatusCode::OK) {
+                    LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
+                        << "BatchGetInode failed, errcode = " << ret
+                        << ", errmsg = " << MetaStatusCode_Name(ret);
+                } else if (response.inode_size() > 0 &&
+                           response.has_appliedindex()) {
+                    auto retInode = response.inode();
+                    for_each(retInode.begin(), retInode.end(),
+                        [&](Inode &a) { inodes->push_back(a); });
+                    metaCache_->UpdateApplyIndex(
+                        CopysetGroupID(poolID, copysetID),
+                        response.appliedindex());
+                } else {
+                    LOG(WARNING) << "BatchGetInode ok, but"
+                                 << " applyIndex or attr not set in response: "
+                                 << response.DebugString();
+                    return -1;
+                }
+                return ret;
+            };
+            auto taskCtx = std::make_shared<TaskContext>(
+                MetaServerOpType::BatchGetInode, task, fsId, inodeId);
+            BatchGetInodeExcutor excutor(
+                opt_, metaCache_, channelManager_, taskCtx);
+            auto ret = ConvertToMetaStatusCode(excutor.DoRPCTask());
+            if (ret != MetaStatusCode::OK) {
+                inodes->clear();
+                return ret;
+            }
+        }
+    }
+    return MetaStatusCode::OK;
+}
+
+class BatchGetInodeRpcDone : public MetaServerClientRpcDoneBase {
+ public:
+    BatchGetInodeRpcDone(TaskExecutorDone *done,
+        const std::shared_ptr<MetaServerClientMetric> &metaserverClientMetric):
+        MetaServerClientRpcDoneBase(done, metaserverClientMetric) {
+            batchDone_ = dynamic_cast<BatchGetInodeTaskExecutorDone*>(done);
+        }
+    virtual ~BatchGetInodeRpcDone() {}
+    void Run() override;
+    BatchGetInodeResponse response;
+
+ protected:
+    BatchGetInodeTaskExecutorDone* batchDone_;
+};
+
+void BatchGetInodeRpcDone::Run() {
+    std::unique_ptr<BatchGetInodeRpcDone> self_guard(this);
+    brpc::ClosureGuard done_guard(batchDone_);
+    auto taskCtx = batchDone_->GetTaskExcutor()->GetTaskCxt();
+    auto& cntl = taskCtx->cntl_;
+    auto metaCache = batchDone_->GetTaskExcutor()->GetMetaCache();
+    if (cntl.Failed()) {
+        metaserverClientMetric_->batchGetInode.eps.count << 1;
+        LOG(WARNING) << "batchGetInode Failed, errorcode = "
+                     << cntl.ErrorCode()
+                     << ", error content: " << cntl.ErrorText()
+                     << ", log id: " << cntl.log_id();
+         batchDone_->SetRetCode(-cntl.ErrorCode());
+        return;
+    }
+
+    MetaStatusCode ret = response.statuscode();
+    if (ret != MetaStatusCode::OK) {
+        LOG(WARNING) << "batchGetInode failed"
+                     << ", errcode = " << ret
+                     << ", errmsg = " << MetaStatusCode_Name(ret);
+    } else if (response.has_appliedindex()) {
+        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
+                                    response.appliedindex());
+    } else {
+        LOG(WARNING) << "batchGetInode ok, but applyIndex not set in response:"
+                     << response.DebugString();
+        batchDone_->SetRetCode(-1);
+        return;
+    }
+
+    VLOG(6) << "batchGetInode done, "
+            << "response: " << response.DebugString();
+    batchDone_->SetRetCode(ret);
+    batchDone_->SetInodes(response.inode());
+    return;
+}
+
+bool MetaServerClientImpl::SplitRequestInodes(
+    uint32_t fsId,
+    std::set<uint64_t> *inodeIds,
+    std::vector<std::list<uint64_t>> *inodeGroups) {
+    std::unordered_map<uint32_t, std::list<uint64_t>> groups;
+    bool ret = GroupInodeIdByPartition(fsId, inodeIds, &groups);
+    if (ret) {
+        for (const auto &it : groups) {
+            auto iter = it.second.begin();
+            while (iter != it.second.end()) {
+                std::list<uint64_t> tmp;
+                uint32_t batchLimit = opt_.batchLimit;
+                while (iter != it.second.end() && batchLimit > 0) {
+                    tmp.emplace_back(*iter);
+                    iter++;
+                    batchLimit--;
+                }
+                inodeGroups->emplace_back(std::move(tmp));
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+MetaStatusCode MetaServerClientImpl::BatchGetInodeAsync(uint32_t fsId,
+    const std::list<uint64_t> &inodeIds, MetaServerClientDone *done) {
+    if (inodeIds.empty()) {
+        return MetaStatusCode::OK;
+    }
+
+    auto task = AsyncRPCTask {
+        metaserverClientMetric_->batchGetInode.qps.count << 1;
+        LatencyUpdater updater(
+            &metaserverClientMetric_->batchGetInode.latency);
+        BatchGetInodeRequest request;
+        BatchGetInodeResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID,
+                                        copysetID)));
+       for (const auto& it : inodeIds) {
+            request.add_inodeid(it);
+        }
+        auto *rpcDone = new BatchGetInodeRpcDone(taskExecutorDone,
+            metaserverClientMetric_);
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.BatchGetInode(cntl, &request, &rpcDone->response, rpcDone);
+        return MetaStatusCode::OK;
+    };
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::BatchGetInode, task, fsId, *inodeIds.begin());
+    auto excutor = std::make_shared<BatchGetInodeExcutor>(opt_,
+        metaCache_, channelManager_, taskCtx);
+    TaskExecutorDone *taskDone = new BatchGetInodeTaskExecutorDone(
+        excutor, done);
+    excutor->DoAsyncRPCTask(taskDone);
+    return MetaStatusCode::OK;
+}
+
+
 MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
     std::set<uint64_t> *inodeIds,
     std::list<InodeAttr> *attr) {
     uint32_t limit = opt_.batchLimit;
     // group inodeid by partition
     std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
-    if (!GroupInodeIdByPartition(fsId, metaCache_, inodeIds, &inodeGroups)) {
+    if (!GroupInodeIdByPartition(fsId, inodeIds, &inodeGroups)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -496,6 +705,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
             uint64_t inodeId = *iter;
             auto task = RPCTask {
                 metaserverClientMetric_->batchGetInodeAttr.qps.count << 1;
+                LatencyUpdater updater(
+                    &metaserverClientMetric_->batchGetInodeAttr.latency);
                 BatchGetInodeAttrRequest request;
                 BatchGetInodeAttrResponse response;
                 request.set_poolid(poolID);
@@ -564,7 +775,7 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
     uint32_t limit = opt_.batchLimit;
     // group inodeid by partition
     std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
-    if (!GroupInodeIdByPartition(fsId, metaCache_, inodeIds, &inodeGroups)) {
+    if (!GroupInodeIdByPartition(fsId, inodeIds, &inodeGroups)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -575,6 +786,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
             uint64_t inodeId = *iter;
             auto task = RPCTask {
                 metaserverClientMetric_->batchGetXattr.qps.count << 1;
+                LatencyUpdater updater(
+                    &metaserverClientMetric_->batchGetXattr.latency);
                 BatchGetXAttrRequest request;
                 BatchGetXAttrResponse response;
                 request.set_poolid(poolID);
@@ -642,6 +855,8 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
                                   InodeOpenStatusChange statusChange) {
     auto task = RPCTask {
         metaserverClientMetric_->updateInode.qps.count << 1;
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->updateInode.latency);
         UpdateInodeResponse response;
         UpdateInodeRequest request;
         request.set_poolid(poolID);
@@ -758,7 +973,6 @@ void MetaServerClientImpl::UpdateInodeAsync(
     InodeOpenStatusChange statusChange) {
     auto task = AsyncRPCTask {
         metaserverClientMetric_->updateInode.qps.count << 1;
-
         UpdateInodeRequest request;
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
@@ -882,7 +1096,8 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
             uint64_t, S3ChunkInfoList> *out) {
     auto task = RPCTask {
         metaserverClientMetric_->appendS3ChunkInfo.qps.count << 1;
-
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->appendS3ChunkInfo.latency);
         GetOrModifyS3ChunkInfoRequest request;
         GetOrModifyS3ChunkInfoResponse response;
         request.set_poolid(poolID);
@@ -1060,6 +1275,8 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                                                  Inode *out) {
     auto task = RPCTask {
         metaserverClientMetric_->createInode.qps.count << 1;
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->createInode.latency);
         CreateInodeResponse response;
         CreateInodeRequest request;
         request.set_poolid(poolID);
@@ -1123,6 +1340,8 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
                                                  uint64_t inodeid) {
     auto task = RPCTask {
         metaserverClientMetric_->deleteInode.qps.count << 1;
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->deleteInode.latency);
         DeleteInodeResponse response;
         DeleteInodeRequest request;
         request.set_poolid(poolID);

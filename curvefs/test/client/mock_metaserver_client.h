@@ -75,6 +75,14 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(GetInode, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, Inode *out));
 
+    MOCK_METHOD3(BatchGetInode, MetaStatusCode(
+        uint32_t fsId, std::set<uint64_t> *inodeIds,
+        std::list<Inode> *inodes));
+
+    MOCK_METHOD3(BatchGetInodeAsync, MetaStatusCode(
+        uint32_t fsId, const std::list<uint64_t> &inodeIds,
+        MetaServerClientDone *done));
+
     MOCK_METHOD3(BatchGetInodeAttr, MetaStatusCode(
         uint32_t fsId, std::set<uint64_t> *inodeIds,
         std::list<InodeAttr> *attr));
@@ -112,6 +120,10 @@ class MockMetaServerClient : public MetaServerClient {
             const InodeParam &param, Inode *out));
 
     MOCK_METHOD2(DeleteInode, MetaStatusCode(uint32_t fsId, uint64_t inodeid));
+
+    MOCK_METHOD3(SplitRequestInodes, bool(uint32_t fsId,
+        std::set<uint64_t> *inodeIds,
+        std::vector<std::list<uint64_t>> *inodeGroups));
 };
 
 }  // namespace rpcclient

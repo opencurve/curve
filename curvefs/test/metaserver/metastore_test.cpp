@@ -1254,6 +1254,79 @@ TEST_F(MetastoreTest, testBatchGetInodeAttr) {
     }
 }
 
+TEST_F(MetastoreTest, testBatchGetInode) {
+    MetaStoreImpl metastore(nullptr, kvStorage_);
+
+    // create partition1
+    CreatePartitionRequest createPartitionRequest;
+    CreatePartitionResponse createPartitionResponse;
+    PartitionInfo partitionInfo1;
+    partitionInfo1.set_fsid(1);
+    partitionInfo1.set_poolid(2);
+    partitionInfo1.set_copysetid(3);
+    partitionInfo1.set_partitionid(1);
+    partitionInfo1.set_start(100);
+    partitionInfo1.set_end(1000);
+    createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
+    MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
+                                                   &createPartitionResponse);
+    ASSERT_EQ(ret, MetaStatusCode::OK);
+    ASSERT_EQ(createPartitionResponse.statuscode(), ret);
+
+    // CreateInde
+    CreateInodeRequest createRequest;
+    CreateInodeResponse createResponse;
+
+    uint32_t poolId = 2;
+    uint32_t copysetId = 3;
+    uint32_t partitionId = 1;
+    uint32_t fsId = 1;
+    uint64_t length = 2;
+    uint32_t uid = 100;
+    uint32_t gid = 200;
+    uint32_t mode = 777;
+    FsFileType type = FsFileType::TYPE_DIRECTORY;
+
+    createRequest.set_poolid(poolId);
+    createRequest.set_copysetid(copysetId);
+    createRequest.set_partitionid(partitionId);
+    createRequest.set_fsid(fsId);
+    createRequest.set_length(length);
+    createRequest.set_uid(uid);
+    createRequest.set_gid(gid);
+    createRequest.set_mode(mode);
+    createRequest.set_type(type);
+
+    ret = metastore.CreateInode(&createRequest, &createResponse);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t inodeId1 = createResponse.inode().inodeid();
+
+    createRequest.set_length(3);
+    ret = metastore.CreateInode(&createRequest, &createResponse);
+    ASSERT_EQ(createResponse.statuscode(), MetaStatusCode::OK);
+    uint64_t inodeId2 = createResponse.inode().inodeid();
+
+    BatchGetInodeRequest batchRequest;
+    BatchGetInodeResponse batchResponse;
+    batchRequest.set_poolid(poolId);
+    batchRequest.set_copysetid(copysetId);
+    batchRequest.set_partitionid(partitionId);
+    batchRequest.set_fsid(fsId);
+    batchRequest.add_inodeid(inodeId1);
+    batchRequest.add_inodeid(inodeId2);
+
+    ret = metastore.BatchGetInode(&batchRequest, &batchResponse);
+    ASSERT_EQ(batchResponse.statuscode(), MetaStatusCode::OK);
+    ASSERT_EQ(batchResponse.inode_size(), 2);
+    if (batchResponse.inode(0).inodeid() == inodeId1) {
+        ASSERT_EQ(batchResponse.inode(0).length(), 2);
+        ASSERT_EQ(batchResponse.inode(1).length(), 3);
+    } else {
+        ASSERT_EQ(batchResponse.inode(0).length(), 3);
+        ASSERT_EQ(batchResponse.inode(1).length(), 2);
+    }
+}
+
 TEST_F(MetastoreTest, testBatchGetXAttr) {
     MetaStoreImpl metastore(nullptr, kvStorage_);
 

@@ -28,6 +28,14 @@ using ::curvefs::metaserver::MetaStatusCode_Name;
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
@@ -375,28 +383,46 @@ CURVEFS_ERROR InodeWrapper::DecreaseNLink() {
 
 CURVEFS_ERROR InodeWrapper::Open() {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (0 == openCount_) {
-        ret = UpdateInodeStatus(InodeOpenStatusChange::OPEN);
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
+    if (curvefs::client::common::FLAGS_enableCto) {
+        if (0 == openCount_) {
+            ret = UpdateInodeStatus(InodeOpenStatusChange::OPEN);
+            if (ret != CURVEFS_ERROR::OK) {
+                return ret;
+            }
         }
+        openCount_++;
+    } else {
+        if (0 == openCount_) {
+            inode_.set_openmpcount(inode_.openmpcount() + 1);
+        }
+        openCount_++;
+        dirty_ = true;
     }
-    openCount_++;
-    return CURVEFS_ERROR::OK;
+
+    return ret;
 }
 
 bool InodeWrapper::IsOpen() { return openCount_ > 0; }
 
 CURVEFS_ERROR InodeWrapper::Release() {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (1 == openCount_) {
-        ret = UpdateInodeStatus(InodeOpenStatusChange::CLOSE);
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
+    if (curvefs::client::common::FLAGS_enableCto) {
+        if (1 == openCount_) {
+            ret = UpdateInodeStatus(InodeOpenStatusChange::CLOSE);
+            if (ret != CURVEFS_ERROR::OK) {
+                return ret;
+            }
         }
+        openCount_--;
+    } else {
+        if (1 == openCount_) {
+            inode_.set_openmpcount(inode_.openmpcount() - 1);
+        }
+        openCount_--;
+        dirty_ = true;
     }
-    openCount_--;
-    return CURVEFS_ERROR::OK;
+
+    return ret;
 }
 
 CURVEFS_ERROR

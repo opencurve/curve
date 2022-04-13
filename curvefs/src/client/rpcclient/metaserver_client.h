@@ -29,6 +29,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
@@ -37,8 +38,10 @@
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "curvefs/src/common/metric_utils.h"
 
 using ::curvefs::client::metric::MetaServerClientMetric;
+using ::curvefs::common::LatencyUpdater;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
@@ -87,8 +90,14 @@ class MetaServerClient {
     virtual MetaStatusCode
     PrepareRenameTx(const std::vector<Dentry> &dentrys) = 0;
 
-    virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
+    virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId,
                                     Inode *out) = 0;
+
+    virtual MetaStatusCode BatchGetInode(uint32_t fsId,
+        std::set<uint64_t> *inodeIds, std::list<Inode> *inodes) = 0;
+
+    virtual MetaStatusCode BatchGetInodeAsync(uint32_t fsId,
+        const std::list<uint64_t> &inodeIds, MetaServerClientDone *done) = 0;
 
     virtual MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         std::set<uint64_t> *inodeIds,
@@ -127,6 +136,10 @@ class MetaServerClient {
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
 
     virtual MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) = 0;
+
+    virtual bool SplitRequestInodes(uint32_t fsId,
+        std::set<uint64_t> *inodeIds,
+        std::vector<std::list<uint64_t>> *inodeGroups) = 0;
 };
 
 class MetaServerClientImpl : public MetaServerClient {
@@ -162,6 +175,13 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out) override;
+
+    MetaStatusCode BatchGetInode(uint32_t fsId,
+        std::set<uint64_t> *inodeIds, std::list<Inode> *inodes) override;
+
+    MetaStatusCode BatchGetInodeAsync(uint32_t fsId,
+        const std::list<uint64_t> &inodeIds,
+        MetaServerClientDone *done) override;
 
     MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         std::set<uint64_t> *inodeIds,
@@ -199,6 +219,15 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
+
+    bool SplitRequestInodes(uint32_t fsId,
+        std::set<uint64_t> *inodeIds,
+        std::vector<std::list<uint64_t>> *inodeGroups) override;
+
+ private:
+    bool GroupInodeIdByPartition(uint32_t fsId,
+        std::set<uint64_t> *inodeIds,
+        std::unordered_map<uint32_t, std::list<uint64_t>> *inodeGroups);
 
  private:
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,

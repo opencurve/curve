@@ -155,6 +155,11 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
         }
     } while (perceed);
 
+    for (const auto &it : *dentryList) {
+        std::string key = GetDentryCacheKey(it.parentinodeid(), it.name());
+        dCache_->Put(key, it);
+    }
+
     return CURVEFS_ERROR::OK;
 }
 

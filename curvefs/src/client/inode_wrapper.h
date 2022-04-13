@@ -102,10 +102,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return inode_.symlink();
     }
 
-    bool Dirty() const {
-        return dirty_;
-    }
-
     void SetLength(uint64_t len) {
         inode_.set_length(len);
         dirty_ = true;
@@ -312,7 +308,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         dirty_ = true;
     }
 
-    bool isDirty() const {
+    bool IsDirty() const {
         return dirty_;
     }
 
