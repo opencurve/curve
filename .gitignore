@@ -112,3 +112,8 @@ thirdparties/rocksdb/lib/
 thirdparties/rocksdb/include/
 thirdparties/rocksdb/rocksdb/
 thirdparties/rocksdb/*.tar.gz
+
+/external
+/bazel-*
+/compile_commands.json
+/.cache/
