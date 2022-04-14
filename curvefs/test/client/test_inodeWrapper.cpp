@@ -172,6 +172,68 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret2);
 }
 
+static void AddOneExtent(InodeWrapper* wrap) {
+    auto extentcache = wrap->GetMutableExtentCache();
+    PExtent pext;
+    extentcache->Merge(0, pext);
+}
+
+MATCHER(HasVolumeExtentMap, "") {
+    return !arg.volumeextentmap().empty();
+}
+
+TEST_F(TestInodeWrapper, TestAllUpdateInodeMustHasVolumeExtentMap) {
+    inodeWrapper_->SetType(FsFileType::TYPE_VOLUME);
+
+    // Sync
+    {
+        AddOneExtent(inodeWrapper_.get());
+        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
+            .Times(1);
+        inodeWrapper_->Sync();
+    }
+
+    // Open and Release
+    {
+        AddOneExtent(inodeWrapper_.get());
+        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
+            .Times(2);
+        inodeWrapper_->Open();
+        inodeWrapper_->Release();
+    }
+
+    // UpdateParent
+    {
+        AddOneExtent(inodeWrapper_.get());
+        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
+            .Times(1);
+        inodeWrapper_->UpdateParentLocked(1, 2);
+    }
+
+    // SyncAttr
+    {
+        AddOneExtent(inodeWrapper_.get());
+        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
+            .Times(1);
+        inodeWrapper_->SyncAttr();
+    }
+
+    // Link
+    {
+        AddOneExtent(inodeWrapper_.get());
+        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
+            .Times(1);
+        inodeWrapper_->LinkLocked(2);
+    }
+
+    // UnLink
+    {
+        AddOneExtent(inodeWrapper_.get());
+        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
+            .Times(1);
+        inodeWrapper_->UnLinkLocked(2);
+    }
+}
 
 }  // namespace client
 }  // namespace curvefs

@@ -373,6 +373,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void BuildExtentCache();
 
+    // TODO(wuhanqing): separate `volumeextentmap` from `Inode`
+    void AddVolumeExtentMapToInode();
+
  private:
     Inode inode_;
     uint32_t openCount_;
