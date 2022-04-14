@@ -75,9 +75,6 @@ bool MetaCache::GetTxId(uint32_t fsId, uint64_t inodeId, uint32_t *partitionId,
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
                           CopysetTarget *target, uint64_t *applyIndex,
                           bool refresh) {
-    VLOG(3) << "Get target, fsid: " << fsID << ", inode id " << inodeID
-            << ", target: " << *target;
-
     // list infos from mds
     if (!ListPartitions(fsID)) {
         LOG(ERROR) << "get target for {fsid:" << fsID
