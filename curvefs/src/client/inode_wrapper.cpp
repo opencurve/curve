@@ -21,6 +21,7 @@
  */
 
 #include "curvefs/src/client/inode_wrapper.h"
+#include <sstream>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
@@ -144,9 +145,7 @@ CURVEFS_ERROR InodeWrapper::SyncFullInode() {
         return CURVEFS_ERROR::OK;
     }
 
-    auto tmp = extentCache_.ToInodePb();
-    inode_.mutable_volumeextentmap()->swap(tmp);
-    VLOG(9) << "Update inode: " << inode_.ShortDebugString();
+    AddVolumeExtentMapToInode();
     auto ret = metaClient_->UpdateInode(inode_);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "update inode failed, error: " << MetaStatusCode_Name(ret)
@@ -161,6 +160,7 @@ CURVEFS_ERROR InodeWrapper::SyncFullInode() {
 CURVEFS_ERROR InodeWrapper::SyncAttr() {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
     if (dirty_) {
+        AddVolumeExtentMapToInode();
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
 
         if (ret != MetaStatusCode::OK) {
@@ -170,6 +170,7 @@ CURVEFS_ERROR InodeWrapper::SyncAttr() {
                        << ", inodeid: " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
+
         dirty_ = false;
     }
     return CURVEFS_ERROR::OK;
@@ -258,6 +259,7 @@ CURVEFS_ERROR InodeWrapper::LinkLocked(uint64_t parent) {
     if (inode_.type() != FsFileType::TYPE_DIRECTORY && parent != 0) {
         inode_.add_parent(parent);
     }
+    AddVolumeExtentMapToInode();
     MetaStatusCode ret = metaClient_->UpdateInode(inode_);
     if (ret != MetaStatusCode::OK) {
         inode_.set_nlink(old);
@@ -329,10 +331,7 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
         //                      2. write "hello, world"
         //                      3. unlink this file
         //                      4. pread from 0 to 13, expected "hello, world"
-        auto extents = extentCache_.ToInodePb();
-        if (!extents.empty()) {
-            inode_.mutable_volumeextentmap()->swap(extents);
-        }
+        AddVolumeExtentMapToInode();
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
         VLOG(6) << "UnLinkInode, inodeid = " << inode_.inodeid()
                 << ", nlink = " << inode_.nlink();
@@ -401,6 +400,7 @@ CURVEFS_ERROR InodeWrapper::Release() {
 
 CURVEFS_ERROR
 InodeWrapper::UpdateInodeStatus(InodeOpenStatusChange statusChange) {
+    AddVolumeExtentMapToInode();
     MetaStatusCode ret = metaClient_->UpdateInode(inode_, statusChange);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = " << ret
@@ -424,6 +424,7 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
     }
     inode_.add_parent(newParent);
 
+    AddVolumeExtentMapToInode();
     MetaStatusCode ret = metaClient_->UpdateInode(inode_);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = " << ret
@@ -435,13 +436,47 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
     return CURVEFS_ERROR::OK;
 }
 
+static std::ostream &operator<<(
+    std::ostream &os,
+    const google::protobuf::Map<uint64_t, curvefs::metaserver::VolumeExtentList>
+        &exts) {
+    if (exts.empty()) {
+        os << "[empty]";
+        return os;
+    }
+
+    for (const auto &range : exts) {
+        for (const auto &ext : range.second.volumeextents()) {
+            os << ext.ShortDebugString();
+        }
+    }
+
+    return os;
+}
+
 void InodeWrapper::BuildExtentCache() {
     if (inode_.type() != FsFileType::TYPE_VOLUME) {
         return;
     }
 
-    VLOG(9) << "Build extent for inode: " << inode_.ShortDebugString();
+    VLOG(9) << "Build extent for inode: " << inode_.ShortDebugString()
+            << ", extents: " << inode_.volumeextentmap().size();
     extentCache_.Build(inode_.volumeextentmap());
+}
+
+void InodeWrapper::AddVolumeExtentMapToInode() {
+    if (inode_.type() != FsFileType::TYPE_VOLUME) {
+        return;
+    }
+
+    auto tmp = extentCache_.ToInodePb();
+    if (tmp.empty()) {
+        return;
+    }
+
+    VLOG(9) << "Volume extent map, ino: " << inode_.inodeid()
+            << ", extents: " << tmp;
+    inode_.mutable_volumeextentmap()->swap(tmp);
 }
 
 }  // namespace client
