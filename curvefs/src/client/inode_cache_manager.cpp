@@ -86,6 +86,8 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     std::shared_ptr<InodeWrapper> eliminatedOne;
     bool eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
     if (eliminated) {
+        VLOG(3) << "GetInode eliminate one inode, ino: "
+                << eliminatedOne->GetInodeId();
         eliminatedOne->FlushAsync();
     }
     return CURVEFS_ERROR::OK;
