@@ -20,7 +20,9 @@ cc_library(
     name = "fs_metaserver_common",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
-    copts = CURVE_DEFAULT_COPTS,
+    copts = CURVE_DEFAULT_COPTS + [
+        "-Wswitch-enum",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//src/common/concurrent:curve_concurrent",

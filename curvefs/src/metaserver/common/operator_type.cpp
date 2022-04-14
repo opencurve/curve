@@ -22,6 +22,10 @@
 
 #include "curvefs/src/metaserver/common/operator_type.h"
 
+#include <glog/logging.h>
+
+#include "include/curve_compiler_specific.h"
+
 namespace curvefs {
 namespace metaserver {
 
@@ -55,8 +59,15 @@ const char* OperatorTypeName(OperatorType type) {
             return "DeletePartition";
         case OperatorType::PrepareRenameTx:
             return "PrepareRenameTx";
+        case OperatorType::GetOrModifyS3ChunkInfo:
+            return "GetOrModifyS3ChunkInfo";
+        // Add new case before `OperatorType::OperatorTypeMax`
+        case OperatorType::OperatorTypeMax:
+            FALLTHROUGH_INTENDED;
         default:
-            return "Unknown";
+            CHECK(false) << "Unexpected, did you forget add corresponding name "
+                            "after add a new operator type?";
+            return "Unexpected";
     }
 }
 
