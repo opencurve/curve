@@ -30,5 +30,7 @@ do
     tmpl $dsv "conf/$file" "$prefix/conf/$file"
 done
 
+cp ../conf/client.conf "$prefix/conf/curvebs-client.conf"
+
 docker pull opencurvedocker/curve-base:$2
 docker build -t "$1" "$(pwd)/docker/$2"
