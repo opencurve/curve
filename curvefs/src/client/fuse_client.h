@@ -202,7 +202,19 @@ class FuseClient {
         return CURVEFS_ERROR::OK;
     }
 
-    void SetFsInfo(std::shared_ptr<FsInfo> fsInfo) {
+    virtual CURVEFS_ERROR FuseOpStatFs(fuse_req_t req, fuse_ino_t ino,
+                                       struct statvfs* stbuf) {
+        // TODO(chengyi01,wuhanqing): implement in s3 and volume client
+        LOG(ERROR) << "statfs start";
+        stbuf->f_bsize = fsInfo_->blocksize();
+        const uint64_t BASE = 10995116UL;
+        stbuf->f_blocks = 10 * BASE / stbuf->f_bsize;
+        stbuf->f_bavail = stbuf->f_bfree = stbuf->f_blocks -1;
+        stbuf->f_fsid = fsInfo_->fsid();
+        return CURVEFS_ERROR::OK;
+    }
+
+    void SetFsInfo(const std::shared_ptr<FsInfo>& fsInfo) {
         fsInfo_ = fsInfo;
         init_ = true;
     }
