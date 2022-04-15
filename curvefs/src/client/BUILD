@@ -63,5 +63,6 @@ cc_library(
         "//src/client:curve_client",
         "//src/common:curve_common",
         "//src/common:curve_s3_adapter",
+        "@com_google_absl//absl/memory",
     ],
 )
