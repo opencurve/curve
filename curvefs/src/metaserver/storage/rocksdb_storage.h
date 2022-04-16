@@ -360,11 +360,7 @@ class RocksDBStorageIterator : public Iterator {
         return true;
     }
 
-    void SeekToFirst() {
-        auto handler = storage_->GetColumnFamilyHandle(ordered_);
-        iter_ = storage_->db_->NewIterator(readOptions_, handler);
-        iter_->Seek(prefix_);
-    }
+    void SeekToFirst();
 
     void Next() {
         iter_->Next();

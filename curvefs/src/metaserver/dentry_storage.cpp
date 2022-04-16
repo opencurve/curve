@@ -27,6 +27,10 @@
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 
+static bvar::LatencyRecorder g_dentry_store_list_latency1("dentry_list1");
+static bvar::LatencyRecorder g_dentry_store_list_latency2("dentry_list2");
+static bvar::LatencyRecorder g_dentry_store_list_latency3("dentry_list3");
+static bvar::LatencyRecorder g_dentry_store_list_latency4("dentry_list4");
 namespace curvefs {
 namespace metaserver {
 
@@ -245,11 +249,23 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
         temp->clear();
     };
 
+    butil::Timer timer;
+    timer.start();
     Dentry current;
     BTree temp;
     std::string exclude = dentry.name();
     uint64_t maxTxId = dentry.txid();
-    for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+    timer.stop();
+    g_dentry_store_list_latency4 << timer.u_elapsed();
+
+    timer.start();
+    iter->SeekToFirst();
+    timer.stop();
+    g_dentry_store_list_latency1 << timer.u_elapsed();
+
+    for (; iter->Valid(); ) {
+        butil::Timer timer1;
+        timer1.start();
         std::string key = iter->Key();
         std::string value = iter->Value();
         if (!StringStartWith(key, prefix)) {
@@ -269,6 +285,13 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
                 temp.emplace(current);
             }
         }
+        timer1.stop();
+        g_dentry_store_list_latency2 << timer1.u_elapsed();
+
+        timer1.start();
+        iter->Next();
+        timer1.stop();
+        g_dentry_store_list_latency3 << timer1.u_elapsed();
     }
 
     push(&temp);

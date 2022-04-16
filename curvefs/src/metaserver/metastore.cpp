@@ -32,6 +32,8 @@
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 
+static bvar::LatencyRecorder g_metastore_list_latency1("metastore_list1");
+static bvar::LatencyRecorder g_metastore_list_latency2("metastore_list2");
 namespace curvefs {
 namespace metaserver {
 
@@ -256,6 +258,8 @@ MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
 
 MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
                                          ListDentryResponse* response) {
+    butil::Timer timer;
+    timer.start();
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->dirinodeid();
     auto txId = request->txid();
@@ -279,6 +283,9 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
     if (request->has_onlydir()) {
         onlyDir = request->onlydir();
     }
+    timer.stop();
+    g_metastore_list_latency1 << timer.u_elapsed();
+    timer.start();
 
     std::vector<Dentry> dentrys;
     auto rc = partition->ListDentry(dentry, &dentrys, request->count(),
@@ -287,6 +294,8 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
     if (rc == MetaStatusCode::OK && !dentrys.empty()) {
         *response->mutable_dentrys() = {dentrys.begin(), dentrys.end()};
     }
+    timer.stop();
+    g_metastore_list_latency2 << timer.u_elapsed();
     return rc;
 }
 

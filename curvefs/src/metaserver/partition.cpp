@@ -28,7 +28,8 @@
 
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
-
+static bvar::LatencyRecorder g_partition_list_latency1("partition_list1");
+static bvar::LatencyRecorder g_partition_list_latency2("partition_list2");
 namespace curvefs {
 namespace metaserver {
 
@@ -112,6 +113,8 @@ MetaStatusCode Partition::ListDentry(const Dentry& dentry,
                                      std::vector<Dentry>* dentrys,
                                      uint32_t limit,
                                      bool onlyDir) {
+    butil::Timer timer;
+    timer.start();
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -119,8 +122,13 @@ MetaStatusCode Partition::ListDentry(const Dentry& dentry,
     if (GetStatus() == PartitionStatus::DELETING) {
         return MetaStatusCode::PARTITION_DELETING;
     }
-
-    return dentryManager_->ListDentry(dentry, dentrys, limit, onlyDir);
+    timer.stop();
+    g_partition_list_latency1 << timer.u_elapsed();
+    timer.start();
+    auto ret = dentryManager_->ListDentry(dentry, dentrys, limit, onlyDir);
+    timer.stop();
+    g_partition_list_latency2 << timer.u_elapsed();
+    return ret;
 }
 
 void Partition::ClearDentry() {

@@ -31,6 +31,10 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
+static bvar::LatencyRecorder g_rocksdb_store_list_latency1("seek_first1");
+static bvar::LatencyRecorder g_rocksdb_store_list_latency2("seek_first2");
+static bvar::LatencyRecorder g_rocksdb_store_list_latency3("seek_first3");
+
 namespace curvefs {
 namespace metaserver {
 namespace storage {
@@ -440,6 +444,24 @@ bool RocksDBStorage::GetStatistics(StorageStatistics* statistics) {
     statistics->diskUsageBytes = total - available;
 
     return true;
+}
+
+void RocksDBStorageIterator::SeekToFirst() {
+    butil::Timer timer;
+    timer.start();
+    auto handler = storage_->GetColumnFamilyHandle(ordered_);
+    timer.stop();
+    g_rocksdb_store_list_latency1 << timer.u_elapsed();
+
+    timer.start();
+    iter_ = storage_->db_->NewIterator(readOptions_, handler);
+    timer.stop();
+    g_rocksdb_store_list_latency2 << timer.u_elapsed();
+
+    timer.start();
+    iter_->Seek(prefix_);
+    timer.stop();
+    g_rocksdb_store_list_latency3 << timer.u_elapsed();
 }
 
 }  // namespace storage

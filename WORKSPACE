@@ -34,7 +34,7 @@ bazel_skylib_workspace()
 
 git_repository(
     name = "com_github_baidu_braft",
-    remote = "https://github.com/baidu/braft",
+    remote = "https://gitee.com/baidu/braft",
     commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
 )
 
@@ -53,7 +53,7 @@ http_archive(
     build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
     sha256 = "c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1",
     strip_prefix = "zlib-1.2.11",
-    urls = ["https://zlib.net/zlib-1.2.11.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/zlib-1.2.11.tar.gz"],
 )
 
 bind(
@@ -67,7 +67,7 @@ http_archive(
     patch_args = ["-p1"],
     patches = ["//:thirdparties/protobuf/protobuf.patch"],
     sha256 = "9510dd2afc29e7245e9e884336f848c8a6600a14ae726adb6befdb4f786f0be2",
-    urls = ["https://github.com/google/protobuf/archive/v3.6.1.3.zip"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/protobuf-3.6.1.3.zip"],
 )
 
 bind(
@@ -79,7 +79,7 @@ bind(
 new_git_repository(
     name = "com_google_googletest",
     build_file = "bazel/gmock.BUILD",
-    remote = "https://github.com/google/googletest",
+    remote = "https://gitee.com/mirrors/googletest",
     tag = "release-1.8.0",
 )
 
@@ -92,7 +92,7 @@ bind(
 # brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
 git_repository(
     name = "com_github_google_glog",
-    remote = "https://github.com/google/glog",
+    remote = "https://gitee.com/mirrors/glog",
     commit = "4cc89c9e2b452db579397887c37f302fb28f6ca1",
     patch_args = ["-p1"],
     patches = ["//:thirdparties/glog/glog.patch"],
@@ -107,7 +107,7 @@ bind(
 http_archive(
     name = "com_github_gflags_gflags",
     strip_prefix = "gflags-2.2.2",
-    urls = ["https://github.com/gflags/gflags/archive/v2.2.2.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/gflags-2.2.2.tar.gz"],
 )
 
 bind(
@@ -119,7 +119,7 @@ http_archive(
     name = "com_github_google_leveldb",
     build_file = "bazel/leveldb.BUILD",
     strip_prefix = "leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6",
-    urls = ["https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
 )
 
 bind(
@@ -129,7 +129,7 @@ bind(
 
 git_repository(
     name = "com_github_apache_brpc",
-    remote = "https://github.com/apache/incubator-brpc",
+    remote = "https://gitee.com/baidu/BRPC",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
     patches = ["//:thirdparties/brpc/brpc.patch"],
     patch_args = ["-p1"],
@@ -159,7 +159,7 @@ bind(
 new_git_repository(
     name = "jsoncpp",
     build_file = "bazel/jsoncpp.BUILD",
-    remote = "https://github.com/open-source-parsers/jsoncpp.git",
+    remote = "https://gitee.com/mirrors/jsoncpp",
     tag = "1.8.4",
 )
 
@@ -176,7 +176,7 @@ new_local_repository(
 
 http_archive(
     name = "aws",
-    urls = ["https://github.com/aws/aws-sdk-cpp/archive/1.7.340.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/aws-sdk-cpp-1.7.340.tar.gz"],
     sha256 = "2e82517045efb55409cff1408c12829d9e8aea22c1e2888529cb769b7473b0bf",
     strip_prefix = "aws-sdk-cpp-1.7.340",
     build_file = "//:thirdparties/aws/aws.BUILD",
@@ -184,7 +184,7 @@ http_archive(
 
 http_archive(
     name = "aws_c_common",
-    urls = ["https://github.com/awslabs/aws-c-common/archive/v0.4.29.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/aws-c-common-0.4.29.tar.gz"],
     sha256 = "01c2a58553a37b3aa5914d9e0bf7bf14507ff4937bc5872a678892ca20fcae1f",
     strip_prefix = "aws-c-common-0.4.29",
     build_file = "//:thirdparties/aws/aws-c-common.BUILD",
@@ -192,7 +192,7 @@ http_archive(
 
 http_archive(
     name = "aws_c_event_stream",
-    urls = ["https://github.com/awslabs/aws-c-event-stream/archive/v0.1.4.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/aws-c-event-stream-0.1.4.tar.gz"],
     sha256 = "31d880d1c868d3f3df1e1f4b45e56ac73724a4dc3449d04d47fc0746f6f077b6",
     strip_prefix = "aws-c-event-stream-0.1.4",
     build_file = "//:thirdparties/aws/aws-c-event-stream.BUILD",
@@ -200,7 +200,7 @@ http_archive(
 
 http_archive(
     name = "aws_checksums",
-    urls = ["https://github.com/awslabs/aws-checksums/archive/v0.1.5.tar.gz"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/aws-checksums-0.1.5.tar.gz"],
     sha256 = "6e6bed6f75cf54006b6bafb01b3b96df19605572131a2260fddaf0e87949ced0",
     strip_prefix = "aws-checksums-0.1.5",
     build_file = "//:thirdparties/aws/aws-checksums.BUILD",
@@ -217,7 +217,7 @@ http_archive(
 # abseil-cpp
 http_archive(
   name = "com_google_absl",
-  urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20210324.2.tar.gz"],
+  urls = ["https://curve-build.nos-eastchina1.126.net/abseil-cpp-20210324.2.tar.gz"],
   strip_prefix = "abseil-cpp-20210324.2",
   sha256 = "59b862f50e710277f8ede96f083a5bb8d7c9595376146838b9580be90374ee1f",
 )
@@ -227,7 +227,7 @@ http_archive(
     name = "platforms",
     sha256 = "b601beaf841244de5c5a50d2b2eddd34839788000fa1be4260ce6603ca0d8eb7",
     strip_prefix = "platforms-98939346da932eef0b54cf808622f5bb0928f00b",
-    urls = ["https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf808622f5bb0928f00b.zip"],
+    urls = ["https://curve-build.nos-eastchina1.126.net/platforms-98939346da932eef0b54cf808622f5bb0928f00b.zip"],
 )
 
 # RocksDB
