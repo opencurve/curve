@@ -76,7 +76,7 @@ void MdsStatusTool::AfterGetMetric(const std::string hostAddr,
                                    const std::string& subUri,
                                    const std::string& value,
                                    const MetricStatusCode& statusCode) {
-    auto mainAddr = hostAddr;
+    auto mainAddr = dummy2MainAddr_[hostAddr];
     if (statusCode == MetricStatusCode::kOK) {
         onlineHosts_.insert(mainAddr);
         if (subUri == statusSubUri_) {
@@ -88,7 +88,6 @@ void MdsStatusTool::AfterGetMetric(const std::string hostAddr,
                     standbyHost_.insert(mainAddr);
                 } else if (keyValue == hostLeaderValue_) {
                     // leader host
-                    mainAddr = dummy2MainAddr_[hostAddr];
                     leaderHosts_.insert(mainAddr);
                 } else {
                     // error host

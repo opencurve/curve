@@ -159,9 +159,10 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
-    int retVal = AddHostPortToMountPointStr(mountPointStr, &mountpoint_);
+    std::string mountPointWithHost;
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
     if (retVal < 0) {
-        LOG(ERROR) << "AddHostPortToMountPointStr failed, ret = " << retVal;
+        LOG(ERROR) << "AddHostNameToMountPointStr failed, ret = " << retVal;
         return CURVEFS_ERROR::INTERNAL;
     }
 
@@ -207,7 +208,7 @@ void FuseClient::FuseOpDestroy(void *userdata) {
         (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
 
     std::string mountPointWithHost;
-    int retVal = AddHostPortToMountPointStr(mountPointStr, &mountPointWithHost);
+    int retVal = AddHostNameToMountPointStr(mountPointStr, &mountPointWithHost);
     if (retVal < 0) {
         return;
     }

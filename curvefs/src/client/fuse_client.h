@@ -234,7 +234,7 @@ class FuseClient {
         const std::shared_ptr<InodeWrapper> &inodeWrapper_,
         fuse_entry_param *param);
 
-    int AddHostPortToMountPointStr(const std::string& mountPointStr,
+    int AddHostNameToMountPointStr(const std::string& mountPointStr,
                                    std::string* out) {
         char hostname[kMaxHostNameLength];
         int ret = gethostname(hostname, kMaxHostNameLength);
@@ -242,11 +242,7 @@ class FuseClient {
             LOG(ERROR) << "GetHostName failed, ret = " << ret;
             return ret;
         }
-        *out =
-            std::string(hostname) + ":" +
-            std::to_string(
-                curve::client::ClientDummyServerInfo::GetInstance().GetPort()) +
-            ":" + mountPointStr;
+        *out = std::string(hostname) + ":" + mountPointStr;
         return 0;
     }
 
