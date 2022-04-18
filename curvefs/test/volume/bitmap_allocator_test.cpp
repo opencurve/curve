@@ -230,6 +230,10 @@ TEST_F(BitmapAllocatorTest, TestMarkUsedRandom) {
         auto off = rand_r(&seed) * 4096 % opt_.sizePerBit;
         auto len = rand_r(&seed) * 4096 % opt_.sizePerBit;
 
+        if (len == 0) {
+            len = 4096;
+        }
+
         if (off + len > opt_.sizePerBit) {
             len = opt_.sizePerBit - off;
         }
