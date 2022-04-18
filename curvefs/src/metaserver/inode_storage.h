@@ -45,12 +45,14 @@ using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageTransaction;
+using ::curvefs::metaserver::storage::Hash;
 
 namespace curvefs {
 namespace metaserver {
 
 using ::curvefs::metaserver::storage::Key4Inode;
 using ::curvefs::metaserver::storage::Converter;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 enum TABLE_TYPE : unsigned char {
     kTypeInode = 1,
@@ -107,15 +109,16 @@ class InodeStorage {
      */
     MetaStatusCode Update(const Inode& inode);
 
-    MetaStatusCode AppendS3ChunkInfoList(uint32_t fsId,
-                                         uint64_t inodeId,
-                                         uint64_t chunkIndex,
-                                         const S3ChunkInfoList& list2add,
-                                         bool compaction);
+    MetaStatusCode ModifyInodeS3ChunkInfoList(uint32_t fsId,
+                                              uint64_t inodeId,
+                                              uint64_t chunkIndex,
+                                              const S3ChunkInfoList& list2add,
+                                              const S3ChunkInfoList& list2del);
 
     MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           Inode* inode);
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
 
     std::shared_ptr<Iterator> GetInodeS3ChunkInfoList(uint32_t fsId,
                                                       uint64_t inodeId);
@@ -138,17 +141,43 @@ class InodeStorage {
         uint64_t chunkIndex,
         const S3ChunkInfoList& list2add);
 
-    MetaStatusCode RemoveS3ChunkInfoList(
+    MetaStatusCode DelS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
         uint32_t fsId,
         uint64_t inodeId,
         uint64_t chunkIndex,
-        uint64_t minChunkId);
+        const S3ChunkInfoList& list2del);
+
+    bool SplitS3ChunkInfoList(const std::string& value,
+                              uint64_t delFirstChunkId,
+                              S3ChunkInfoList* list2add);
 
     std::string RealTablename(TABLE_TYPE type, std::string tablename) {
         std::ostringstream oss;
         oss << type << ":" << tablename;
         return oss.str();
+    }
+
+    size_t InodeS3MetaSizeKey(uint32_t fsId, uint64_t inodeId) {
+        std::ostringstream oss;
+        oss << fsId << ":" << inodeId;
+        return Hash(oss.str());
+    }
+
+    bool UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
+                               uint64_t size4add, uint64_t size4del) {
+        size_t key = InodeS3MetaSizeKey(fsId, inodeId);
+        uint64_t size = inodeS3MetaSize_[key] + size4add;
+        if (size < size4del) {
+            return false;
+        }
+        inodeS3MetaSize_[key] = size - size4del;
+        return true;
+    }
+
+    uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
+        size_t key = InodeS3MetaSizeKey(fsId, inodeId);
+        return inodeS3MetaSize_[key];
     }
 
     bool FindKey(const std::string& key) {
@@ -170,6 +199,8 @@ class InodeStorage {
     std::string table4s3chunkinfo_;
     std::shared_ptr<Converter> conv_;
     std::unordered_set<std::string> keySet_;
+    // key: Hash(inode), value: the number of inode's chunkinfo size
+    std::unordered_map<size_t, uint64_t> inodeS3MetaSize_;
 };
 
 }  // namespace metaserver

@@ -627,8 +627,9 @@ TEST_F(S3CompactWorkQueueImplTest, test_CompactChunks) {
         ref->set_size(5);
         ref->set_zero(false);
     }
-    auto rc = inodeStorage_->AppendS3ChunkInfoList(
-        inode1.fsid(), inode1.inodeid(), 0, l0, false);
+    S3ChunkInfoList dummy;
+    auto rc = inodeStorage_->ModifyInodeS3ChunkInfoList(
+        inode1.fsid(), inode1.inodeid(), 0, l0, dummy);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(inodeStorage_->Update(inode1), MetaStatusCode::OK);
     mockImpl_->CompactChunks(t);

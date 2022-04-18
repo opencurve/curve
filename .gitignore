@@ -123,3 +123,4 @@ docker/*/curvebs
 
 curvefs/docker/curvefs
 curvefs/docker/*/curvefs
+storage_*

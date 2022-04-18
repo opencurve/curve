@@ -262,20 +262,30 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     uint32_t fsId,
     uint64_t inodeId,
-    const S3ChunkInfoMap& list2add,
-    std::shared_ptr<Iterator>* iterator,
+    const S3ChunkInfoMap& map2add,
+    const S3ChunkInfoMap& map2del,
     bool returnS3ChunkInfoMap,
-    bool compaction) {
+    std::shared_ptr<Iterator>* iterator) {
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
-    }
-
-    if (GetStatus() == PartitionStatus::DELETING) {
+    } else if (GetStatus() == PartitionStatus::DELETING) {
         return MetaStatusCode::PARTITION_DELETING;
     }
 
     return inodeManager_->GetOrModifyS3ChunkInfo(
-        fsId, inodeId, list2add, iterator, returnS3ChunkInfoMap, compaction);
+        fsId, inodeId, map2add, map2del, returnS3ChunkInfoMap, iterator);
+}
+
+MetaStatusCode Partition::PaddingInodeS3ChunkInfo(int32_t fsId,
+                                                  uint64_t inodeId,
+                                                  S3ChunkInfoMap* m,
+                                                  uint64_t limit) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    } else if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+    return inodeManager_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
 }
 
 MetaStatusCode Partition::InsertInode(const Inode& inode) {

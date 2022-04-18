@@ -58,6 +58,7 @@ class MetastoreTest : public ::testing::Test {
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.s3MetaLimitSizeInsideInode = 100;
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
@@ -186,6 +187,24 @@ class MetastoreTest : public ::testing::Test {
             info->set_zero(false);
         }
         return list;
+    }
+
+    void CHECK_ITERATOR_S3CHUNKINFOLIST(
+        std::shared_ptr<Iterator> iterator,
+        const std::vector<uint64_t> chunkIndexs,
+        const std::vector<S3ChunkInfoList> lists) {
+        size_t size = 0;
+        Key4S3ChunkInfoList key;
+        S3ChunkInfoList list4get;
+        ASSERT_EQ(iterator->Status(), 0);
+        for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+            ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
+            ASSERT_TRUE(conv_->ParseFromString(iterator->Value(), &list4get));
+            ASSERT_EQ(key.chunkIndex, chunkIndexs[size]);
+            ASSERT_TRUE(EqualS3ChunkInfoList(list4get, lists[size]));
+            size++;
+        }
+        ASSERT_EQ(size, chunkIndexs.size());
     }
 
     class OnSnapshotSaveDoneImpl : public OnSnapshotSaveDoneClosure {
@@ -1397,6 +1416,7 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
 
     // CASE 1: partition not found -> failed
     {
+        LOG(INFO) << "CASE 1: partition not found -> failed";
         GetOrModifyS3ChunkInfoRequest request;
         GetOrModifyS3ChunkInfoResponse response;
         request.set_partitionid(100);
@@ -1409,18 +1429,95 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
 
     // CASE 2: GetOrModifyS3ChunkInfo success
     {
+        LOG(INFO) << "CASE 2: GetOrModifyS3ChunkInfo success";
+        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyS3ChunkInfoResponse response;
         std::vector<uint64_t> chunkIndexs{ 1, 2 };
-        std::vector<S3ChunkInfoList> list2add{
+        std::vector<S3ChunkInfoList> lists2add{
             GenS3ChunkInfoList(100, 200),
             GenS3ChunkInfoList(300, 400),
         };
 
-        GetOrModifyS3ChunkInfoRequest request;
-        GetOrModifyS3ChunkInfoResponse response;
         request.set_partitionid(partitionId);
         request.set_fsid(fsId);
         request.set_inodeid(inodeId);
         request.set_returns3chunkinfomap(true);
+        for (size_t i = 0; i < chunkIndexs.size(); i++) {
+            request.mutable_s3chunkinfoadd()->insert(
+                { chunkIndexs[i], lists2add[i] });
+        }
+
+        std::shared_ptr<Iterator> iterator;
+        MetaStatusCode rc = metastore.GetOrModifyS3ChunkInfo(
+            &request, &response, &iterator);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        ASSERT_EQ(response.statuscode(), rc);
+
+        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator, chunkIndexs, lists2add);
+    }
+}
+
+TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
+    MetaStoreImpl metastore(nullptr, kvStorage_);
+    uint32_t poolId = 1;
+    uint32_t copysetId = 1;
+    uint32_t partitionId = 1;
+    uint32_t fsId = 1;
+    uint64_t inodeId = 1;
+
+    // init: create partition
+    {
+        CreatePartitionRequest request;
+        CreatePartitionResponse response;
+
+        PartitionInfo partitionInfo;
+        partitionInfo.set_poolid(poolId);
+        partitionInfo.set_copysetid(copysetId);
+        partitionInfo.set_partitionid(partitionId);
+        partitionInfo.set_fsid(fsId);
+        partitionInfo.set_start(1);
+        partitionInfo.set_end(100);
+        request.mutable_partition()->CopyFrom(partitionInfo);
+        MetaStatusCode rc = metastore.CreatePartition(&request, &response);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        ASSERT_EQ(response.statuscode(), rc);
+    }
+
+    // step1: create inode
+    {
+        CreateInodeRequest request;
+        CreateInodeResponse response;
+
+        request.set_poolid(poolId);
+        request.set_copysetid(copysetId);
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_length(1);
+        request.set_uid(1);
+        request.set_gid(1);
+        request.set_mode(777);
+        request.set_type(FsFileType::TYPE_FILE);
+
+        auto rc = metastore.CreateInode(&request, &response);
+        ASSERT_EQ(response.statuscode(), MetaStatusCode::OK);
+        inodeId = response.inode().inodeid();
+    }
+
+    // step2: append s3chunkinfo within limit
+    {
+        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyS3ChunkInfoResponse response;
+
+        std::vector<uint64_t> chunkIndexs{ 1, 2 };
+        std::vector<S3ChunkInfoList> list2add{
+            GenS3ChunkInfoList(100, 149),
+            GenS3ChunkInfoList(200, 249),
+        };
+
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_returns3chunkinfomap(false);
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
             request.mutable_s3chunkinfoadd()->insert(
                 { chunkIndexs[i], list2add[i] });
@@ -1432,20 +1529,93 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
             &request, &response, &iterator);
         ASSERT_EQ(rc, MetaStatusCode::OK);
         ASSERT_EQ(response.statuscode(), rc);
+    }
 
-        size_t size = 0;
-        Key4S3ChunkInfoList key;
-        S3ChunkInfoList list4get;
-        for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-            LOG(INFO) << "check chunkIndex(" << size << ")"
-                      << ", key=" << iterator->Key();
-            ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
-            ASSERT_TRUE(conv_->ParseFromString(iterator->Value(), &list4get));
-            ASSERT_EQ(key.chunkIndex, chunkIndexs[size]);
-            ASSERT_TRUE(EqualS3ChunkInfoList(list2add[size], list4get));
-            size++;
+    // step3: get inode with support streaming
+    {
+        GetInodeRequest request;
+        GetInodeResponse response;
+
+        request.set_poolid(poolId);
+        request.set_copysetid(copysetId);
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_supportstreaming(true);
+
+        auto rc = metastore.GetInode(&request, &response);
+        ASSERT_EQ(response.statuscode(), MetaStatusCode::OK);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        auto inode = response.mutable_inode();
+        ASSERT_EQ(response.streaming(), false);
+        ASSERT_EQ(inode->mutable_s3chunkinfomap()->size(), 2);
+    }
+
+    // step4: append s3chunkinfo exceed limit
+    {
+        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyS3ChunkInfoResponse response;
+
+        std::vector<uint64_t> chunkIndexs{ 3 };
+        std::vector<S3ChunkInfoList> list2add{
+            GenS3ChunkInfoList(1, 1),
+        };
+
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_returns3chunkinfomap(false);
+        for (size_t i = 0; i < chunkIndexs.size(); i++) {
+            request.mutable_s3chunkinfoadd()->insert(
+                { chunkIndexs[i], list2add[i] });
         }
-        ASSERT_EQ(size, 2);
+
+        // ModifyS3ChunkInfo()
+        std::shared_ptr<Iterator> iterator;
+        MetaStatusCode rc = metastore.GetOrModifyS3ChunkInfo(
+            &request, &response, &iterator);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        ASSERT_EQ(response.statuscode(), rc);
+    }
+
+    // step5: get inode with support straming
+    {
+        GetInodeRequest request;
+        GetInodeResponse response;
+
+        request.set_poolid(poolId);
+        request.set_copysetid(copysetId);
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_supportstreaming(true);
+
+        auto rc = metastore.GetInode(&request, &response);
+        ASSERT_EQ(response.statuscode(), MetaStatusCode::OK);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        auto inode = response.mutable_inode();
+        ASSERT_EQ(response.streaming(), true);
+        ASSERT_EQ(inode->mutable_s3chunkinfomap()->size(), 0);
+    }
+
+    // step6: get inode without unsupport streaming
+    {
+        GetInodeRequest request;
+        GetInodeResponse response;
+
+        request.set_poolid(poolId);
+        request.set_copysetid(copysetId);
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_supportstreaming(false);
+
+        auto rc = metastore.GetInode(&request, &response);
+        ASSERT_EQ(response.statuscode(), MetaStatusCode::OK);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        auto inode = response.mutable_inode();
+        ASSERT_EQ(response.streaming(), false);
+        ASSERT_EQ(inode->mutable_s3chunkinfomap()->size(), 3);
     }
 }
 

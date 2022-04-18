@@ -33,6 +33,7 @@
 #include "rocksdb/slice.h"
 #include "rocksdb/table.h"
 #include "rocksdb/options.h"
+#include "rocksdb/filter_policy.h"
 #include "rocksdb/slice_transform.h"
 #include "rocksdb/utilities/transaction.h"
 #include "rocksdb/utilities/transaction_db.h"
@@ -56,7 +57,8 @@ using ROCKSDB_NAMESPACE::BlockBasedTableOptions;
 using ROCKSDB_NAMESPACE::Transaction;
 using ROCKSDB_NAMESPACE::TransactionDB;
 using ROCKSDB_NAMESPACE::NewLRUCache;
-using ROCKSDB_NAMESPACE::NewFixedPrefixTransform;
+using ROCKSDB_NAMESPACE::NewBloomFilterPolicy;
+using ROCKSDB_NAMESPACE::NewCappedPrefixTransform;
 using ROCKSDB_NAMESPACE::NewBlockBasedTableFactory;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
 
@@ -132,6 +134,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     STORAGE_TYPE Type() override;
 
     bool GetStatistics(StorageStatistics* Statistics) override;
+
+    StorageOptions GetStorageOptions() override;
 
     // unordered
     Status HGet(const std::string& name,
@@ -335,13 +339,21 @@ class RocksDBStorageIterator : public Iterator {
           ordered_(ordered) {
         if (status_ == 0) {
             readOptions_ = storage_->ReadOptions();
-            readOptions_.snapshot = storage_->db_->GetSnapshot();
+            if (storage_->InTransaction_) {
+                readOptions_.snapshot = storage_->txn_->GetSnapshot();
+            } else {
+                readOptions_.snapshot = storage_->db_->GetSnapshot();
+            }
         }
     }
 
     ~RocksDBStorageIterator() {
         if (status_ == 0) {
-            storage_->db_->ReleaseSnapshot(readOptions_.snapshot);
+            if (storage_->InTransaction_) {
+                storage_->txn_->ClearSnapshot();
+            } else {
+                storage_->db_->ReleaseSnapshot(readOptions_.snapshot);
+            }
         }
     }
 
@@ -362,7 +374,11 @@ class RocksDBStorageIterator : public Iterator {
 
     void SeekToFirst() {
         auto handler = storage_->GetColumnFamilyHandle(ordered_);
-        iter_ = storage_->db_->NewIterator(readOptions_, handler);
+        if (storage_->InTransaction_) {
+            iter_ = storage_->txn_->GetIterator(readOptions_, handler);
+        } else {
+            iter_ = storage_->db_->NewIterator(readOptions_, handler);
+        }
         iter_->Seek(prefix_);
     }
 
