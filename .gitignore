@@ -97,18 +97,9 @@ curvefs/BUILD_MODE
 *.pyc
 .facts/
 *retry
-# monitor
-curvefs/monitor/prometheus/target.json
 
-curvefs/docker/*/curvefs
+curvefs/docker/curvefs
 curvefs/docker/base/*
 !curvefs/docker/base/Dockerfile
 !curvefs/docker/base/Makefile
 curvefs/BUILD_MODE
-
-.BUILD_MODE
-__not_found__
-thirdparties/rocksdb/lib/
-thirdparties/rocksdb/include/
-thirdparties/rocksdb/rocksdb/
-thirdparties/rocksdb/*.tar.gz
