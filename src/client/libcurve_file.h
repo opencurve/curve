@@ -32,10 +32,8 @@
 
 #include "include/client/libcurve.h"
 #include "src/client/client_common.h"
-#include "src/client/config_info.h"
 #include "src/client/file_instance.h"
 #include "src/common/concurrent/rw_lock.h"
-#include "src/common/uuid.h"
 
 // TODO(tongguangxun) :添加关键函数trace功能
 namespace curve {
@@ -43,19 +41,6 @@ namespace client {
 
 using curve::common::BthreadRWLock;
 
-class LoggerGuard {
- public:
-    explicit LoggerGuard(const std::string& confpath) {
-        InitInternal(confpath);
-    }
-
-    ~LoggerGuard() { google::ShutdownGoogleLogging(); }
-
- private:
-    static void InitInternal(const std::string& confpath);
-};
-
-// FileClient是vdisk的管理类，一个QEMU对应多个vdisk
 class FileClient {
  public:
     FileClient();
