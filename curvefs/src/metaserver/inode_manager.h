@@ -75,13 +75,19 @@ class InodeManager {
     MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId,
                                           uint64_t inodeId,
                                           const S3ChunkInfoMap& map2add,
-                                          std::shared_ptr<Iterator>* iterator,
+                                          const S3ChunkInfoMap& map2del,
                                           bool returnS3ChunkInfoMap,
-                                          bool compaction);
+                                          std::shared_ptr<Iterator>* iterator);
 
     MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           Inode* inode);
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
+
+    // only for compaction
+    MetaStatusCode GetInodeWithPaddingS3ChunkInfo(uint32_t fsId,
+                                                  uint64_t inodeId,
+                                                  Inode *inode);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
         uint64_t inodeId, bool isCreate);

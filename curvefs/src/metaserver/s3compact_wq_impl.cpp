@@ -423,7 +423,7 @@ bool S3CompactWorkQueueImpl::CompactPrecheck(
     }
 
     // inode exist?
-    MetaStatusCode ret = task.inodeManager->GetInode(
+    MetaStatusCode ret = task.inodeManager->GetInodeWithPaddingS3ChunkInfo(
         task.inodeKey.fsId, task.inodeKey.inodeId, inode);
     if (ret != MetaStatusCode::OK) {
         LOG(WARNING) << "s3compact: GetInode fail, inodeKey = "
@@ -438,22 +438,9 @@ bool S3CompactWorkQueueImpl::CompactPrecheck(
         return false;
     }
 
-    // pandding s3chunkinfomap for inode
-    {
-        auto inodeKey = task.inodeKey;
-        auto inodeManager = task.inodeManager;
-        MetaStatusCode rc = inodeManager->PaddingInodeS3ChunkInfo(
-            inodeKey.fsId, inodeKey.inodeId, inode);
-        if (rc != MetaStatusCode::OK) {
-            LOG(ERROR) << "Padding inode s3chunkinfo failed, "
-                       << "retCode = " << MetaStatusCode_Name(ret);
-            return false;
-        }
-
-        if (inode->s3chunkinfomap().size() == 0) {
-            VLOG(6) << "Inode s3chunkinfo is empty";
-            return false;
-        }
+    if (inode->s3chunkinfomap().size() == 0) {
+        VLOG(6) << "Inode s3chunkinfo is empty";
+        return false;
     }
 
     // need compact?

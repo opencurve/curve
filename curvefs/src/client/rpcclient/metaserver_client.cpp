@@ -412,6 +412,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeid);
+        request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetInode(cntl, &request, &response, nullptr);
@@ -892,6 +893,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         request.set_inodeid(inodeId);
         request.set_returns3chunkinfomap(returnS3ChunkInfoMap);
         *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
+        request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
 

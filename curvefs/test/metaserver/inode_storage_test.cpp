@@ -456,16 +456,42 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
         ASSERT_EQ(rc, MetaStatusCode::OK);
     }
 
-    // step3: padding inode s3chunkinfo
-    ASSERT_EQ(inode.mutable_s3chunkinfomap()->size(), 0);
+    // CASE 1: padding inode s3chunkinfo success
+    {
+        ASSERT_EQ(inode.mutable_s3chunkinfomap()->size(), 0);
 
-    MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(fsId, inodeId, &inode);
-    ASSERT_EQ(rc, MetaStatusCode::OK);
-    auto m = inode.s3chunkinfomap();
-    ASSERT_EQ(m.size(), 3);
-    ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
-    ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
-    ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
+            fsId, inodeId, inode.mutable_s3chunkinfomap());
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        auto m = inode.s3chunkinfomap();
+        ASSERT_EQ(m.size(), 3);
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+    }
+
+    // CASE 2: padding inode s3chunkinfo within limit
+    {
+        Inode out;
+        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
+            fsId, inodeId, out.mutable_s3chunkinfomap(), 53);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        auto m = out.s3chunkinfomap();
+        ASSERT_EQ(m.size(), 3);
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+    }
+
+    // CASE 3: padding inode s3chunkinfo exceed limit
+    {
+        Inode out;
+        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
+            fsId, inodeId, out.mutable_s3chunkinfomap(), 52);
+        ASSERT_EQ(rc, MetaStatusCode::INODE_S3_META_TOO_LARGE);
+        auto m = out.s3chunkinfomap();
+        ASSERT_EQ(m.size(), 0);
+    }
 }
 
 TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {

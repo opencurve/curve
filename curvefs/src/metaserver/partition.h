@@ -92,10 +92,15 @@ class Partition {
 
     MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId,
                                           uint64_t inodeId,
-                                          const S3ChunkInfoMap& list2add,
-                                          std::shared_ptr<Iterator>* iterator,
+                                          const S3ChunkInfoMap& map2add,
+                                          const S3ChunkInfoMap& map2del,
                                           bool returnS3ChunkInfoMap,
-                                          bool compaction);
+                                          std::shared_ptr<Iterator>* iterator);
+
+    MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
+                                           uint64_t inodeId,
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
 
     MetaStatusCode InsertInode(const Inode& inode);
 

@@ -33,6 +33,7 @@
 #include "rocksdb/slice.h"
 #include "rocksdb/table.h"
 #include "rocksdb/options.h"
+#include "rocksdb/filter_policy.h"
 #include "rocksdb/slice_transform.h"
 #include "rocksdb/utilities/transaction.h"
 #include "rocksdb/utilities/transaction_db.h"
@@ -56,7 +57,8 @@ using ROCKSDB_NAMESPACE::BlockBasedTableOptions;
 using ROCKSDB_NAMESPACE::Transaction;
 using ROCKSDB_NAMESPACE::TransactionDB;
 using ROCKSDB_NAMESPACE::NewLRUCache;
-using ROCKSDB_NAMESPACE::NewFixedPrefixTransform;
+using ROCKSDB_NAMESPACE::NewBloomFilterPolicy;
+using ROCKSDB_NAMESPACE::NewCappedPrefixTransform;
 using ROCKSDB_NAMESPACE::NewBlockBasedTableFactory;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
 
@@ -132,6 +134,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     STORAGE_TYPE Type() override;
 
     bool GetStatistics(StorageStatistics* Statistics) override;
+
+    StorageOptions GetStorageOptions() override;
 
     // unordered
     Status HGet(const std::string& name,

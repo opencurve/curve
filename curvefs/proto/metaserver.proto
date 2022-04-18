@@ -46,6 +46,7 @@ enum MetaStatusCode {
     PARSE_FROM_STRING_FAILED = 23;
     STORAGE_INTERNAL_ERROR = 24;
     RPC_STREAM_ERROR = 25;
+    INODE_S3_META_TOO_LARGE = 26;
 }
 
 // dentry interface
@@ -147,6 +148,7 @@ message GetInodeRequest {
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
     optional uint64 appliedIndex = 6;
+    optional bool supportStreaming = 7;  // for backward compatibility
 }
 
 enum FsFileType {
@@ -205,6 +207,7 @@ message Inode {
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
     map<string, string> xattr = 21;
     repeated uint64 parent = 22;
+    optional bool streaming = 23;
 }
 
 message GetInodeResponse {
@@ -334,6 +337,7 @@ message GetOrModifyS3ChunkInfoRequest {
     required bool returnS3ChunkInfoMap = 8;
     optional bool fromS3Compaction = 9;
     // todo: we only need a bit flag to indicate a lot of bool
+    optional bool supportStreaming = 10;  // for backward compatibility
 }
 
 message GetOrModifyS3ChunkInfoResponse {

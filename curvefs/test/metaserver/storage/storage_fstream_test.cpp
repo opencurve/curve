@@ -180,9 +180,29 @@ TEST_F(StorageFstreamTest, MiscTest) {
     ASSERT_EQ(Str2Type("x"), ENTRY_TYPE::UNKNOWN);
     ASSERT_EQ(Str2Type("y"), ENTRY_TYPE::UNKNOWN);
 
-    auto ret = Extract("i:-1");
-    ASSERT_EQ(ret.first, ENTRY_TYPE::INODE);
-    ASSERT_EQ(ret.second, 0);
+    {
+        auto ret = Extract("d:100");
+        ASSERT_EQ(ret.first, ENTRY_TYPE::DENTRY);
+        ASSERT_EQ(ret.second, 100);
+
+        ret = Extract("i:-1");
+        ASSERT_EQ(ret.first, ENTRY_TYPE::INODE);
+        ASSERT_EQ(ret.second, 0);
+
+        ret = Extract("");
+        ASSERT_EQ(ret.first, ENTRY_TYPE::UNKNOWN);
+        ASSERT_EQ(ret.second, 0);
+    }
+
+    {
+        auto ret = UserKey("t3:");
+        ASSERT_EQ(ret.first, "t3");
+        ASSERT_EQ(ret.second, "");
+
+        ret = UserKey("i100:000");
+        ASSERT_EQ(ret.first, "i100");
+        ASSERT_EQ(ret.second, "000");
+    }
 
     // CASE 2: open file failed when save
     ASSERT_FALSE(SaveToFile("/__not_found__/dumpfile", nullptr, false));

@@ -321,6 +321,10 @@ bool MemoryStorage::GetStatistics(StorageStatistics* statistics) {
     return true;
 }
 
+StorageOptions MemoryStorage::GetStorageOptions() {
+    return options_;
+}
+
 }  // namespace storage
 }  // namespace metaserver
 }  // namespace curvefs

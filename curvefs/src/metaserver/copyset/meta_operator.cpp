@@ -176,7 +176,6 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
     MetaStatusCode rc;
     auto request = static_cast<const GetOrModifyS3ChunkInfoRequest*>(request_);
     auto response = static_cast<GetOrModifyS3ChunkInfoResponse*>(response_);
-    bool streaming = request->returns3chunkinfomap();
     auto metastore = node_->GetMetaStore();
     std::shared_ptr<StreamConnection> connection;
     std::shared_ptr<Iterator> iterator;
@@ -199,7 +198,9 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
         }
 
         brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_);
-        if (rc != MetaStatusCode::OK || !streaming) {
+        if (rc != MetaStatusCode::OK ||
+            !request->returns3chunkinfomap() ||
+            !request->supportstreaming()) {
             return;
         }
 
