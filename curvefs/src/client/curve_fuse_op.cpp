@@ -451,13 +451,3 @@ void FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpFlush(req, ino, fi);
     FuseReplyErrByErrCode(req, ret);
 }
-
-void FuseOpStatFs(fuse_req_t req, fuse_ino_t ino) {
-    struct statvfs stbuf;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpStatFs(req, ino, &stbuf);
-    if (ret != CURVEFS_ERROR::OK) {
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-    fuse_reply_statfs(req, &stbuf);
-}
