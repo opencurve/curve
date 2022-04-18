@@ -32,7 +32,6 @@
 #include <unordered_set>
 
 #include "include/client/libcurve.h"
-#include "src/common/net_common.h"
 #include "src/common/throttle.h"
 
 namespace curve {
