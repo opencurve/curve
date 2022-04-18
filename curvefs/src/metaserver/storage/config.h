@@ -53,6 +53,9 @@ struct StorageOptions {
     uint64_t orderedMaxWriteBufferNumber;
 
     uint64_t blockCacheCapacity;
+
+    // misc config item
+    uint64_t s3MetaLimitSizeInsideInode;
 };
 
 }  // namespace storage

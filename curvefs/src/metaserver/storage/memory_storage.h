@@ -97,6 +97,8 @@ class MemoryStorage : public KVStorage, public StorageTransaction {
 
     bool GetStatistics(StorageStatistics* Statistics) override;
 
+    StorageOptions GetStorageOptions() override;
+
     Status HGet(const std::string& name,
                 const std::string& key,
                 ValueType* value) override;

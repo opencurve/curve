@@ -61,7 +61,11 @@ class InodeManager {
     MetaStatusCode CreateInode(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
     MetaStatusCode CreateRootInode(const InodeParam &param);
-    MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode *inode);
+
+    MetaStatusCode GetInode(uint32_t fsId,
+                            uint64_t inodeId,
+                            Inode *inode,
+                            bool paddingS3ChunkInfo = false);
 
     MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,
                                 InodeAttr *attr);
@@ -75,13 +79,14 @@ class InodeManager {
     MetaStatusCode GetOrModifyS3ChunkInfo(uint32_t fsId,
                                           uint64_t inodeId,
                                           const S3ChunkInfoMap& map2add,
-                                          std::shared_ptr<Iterator>* iterator,
+                                          const S3ChunkInfoMap& map2del,
                                           bool returnS3ChunkInfoMap,
-                                          bool compaction);
+                                          std::shared_ptr<Iterator>* iterator);
 
     MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           Inode* inode);
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
         uint64_t inodeId, bool isCreate);
