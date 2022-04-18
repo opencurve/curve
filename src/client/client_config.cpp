@@ -41,7 +41,9 @@ namespace client {
 
 extern uint32_t kMinIOAlignment;
 
-int ClientConfig::Init(const char* configpath) {
+static constexpr int kDefaultDummyServerPort = 9000;
+
+int ClientConfig::Init(const std::string& configpath) {
     conf_.SetConfigPath(configpath);
 
     LOG(INFO) << "Init config from " << configpath;
@@ -299,8 +301,9 @@ int ClientConfig::Init(const char* configpath) {
     return 0;
 }
 
-uint16_t ClientConfig::GetDummyserverStartPort() {
-    return conf_.GetIntValue("global.metricDummyServerStartPort", 9000);
+int ClientConfig::GetDummyserverStartPort() {
+    return conf_.GetIntValue("global.metricDummyServerStartPort",
+                             kDefaultDummyServerPort);
 }
 
 }   // namespace client
