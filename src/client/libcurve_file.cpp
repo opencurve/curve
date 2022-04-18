@@ -43,10 +43,7 @@
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
-#include "src/common/string_util.h"
 #include "src/common/fast_align.h"
-
-#define PORT_LIMIT  65535
 
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
@@ -65,8 +62,31 @@ using curve::common::WriteLockGuard;
 
 uint32_t kMinIOAlignment = 512;
 
-static const int PROCESS_NAME_MAX = 32;
-static char g_processname[PROCESS_NAME_MAX];
+namespace {
+
+constexpr int kDummyServerPortLimit = 65535;
+constexpr int kProcessNameMax = 32;
+char g_processname[kProcessNameMax];
+
+class LoggerGuard {
+ private:
+    friend void InitLogging(const std::string& confPath);
+
+    explicit LoggerGuard(const std::string& confpath) {
+        InitInternal(confpath);
+    }
+
+    ~LoggerGuard() {
+        if (needShutdown_) {
+            google::ShutdownGoogleLogging();
+        }
+    }
+
+    void InitInternal(const std::string& confpath);
+
+ private:
+    bool needShutdown_ = false;
+};
 
 void LoggerGuard::InitInternal(const std::string& confPath) {
     curve::common::Configuration conf;
@@ -76,6 +96,14 @@ void LoggerGuard::InitInternal(const std::string& confPath) {
     if (!rc) {
         LOG(ERROR) << "Load config failed, config path = " << confPath
                    << ", not init glog";
+        return;
+    }
+
+    bool enable = true;
+    LOG_IF(WARNING, !conf.GetBoolValue("global.logging.enable", &enable))
+        << "config no `global.logging.enable`, enable logging by default";
+
+    if (!enable) {
         return;
     }
 
@@ -95,11 +123,14 @@ void LoggerGuard::InitInternal(const std::string& confPath) {
     snprintf(g_processname, sizeof(g_processname),
             "%s", processName.c_str());
     google::InitGoogleLogging(g_processname);
+    needShutdown_ = true;
 }
 
 void InitLogging(const std::string& confPath) {
     static LoggerGuard guard(confPath);
 }
+
+}  // namespace
 
 FileClient::FileClient()
     : rwlock_(),
@@ -121,14 +152,13 @@ int FileClient::Init(const std::string& configpath) {
         return 0;
     }
 
-    curve::client::InitLogging(configpath);
+    InitLogging(configpath);
     curve::common::ExposeCurveVersion();
 
-    if (-1 == clientconfig_.Init(configpath.c_str())) {
+    if (-1 == clientconfig_.Init(configpath)) {
         LOG(ERROR) << "config init failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
-
 
     auto tmpMdsClient = std::make_shared<MDSClient>();
 
@@ -153,6 +183,7 @@ int FileClient::Init(const std::string& configpath) {
 
     mdsClient_ = std::move(tmpMdsClient);
     inited_ = true;
+    LOG(INFO) << "Init file client success";
     return LIBCURVE_ERROR::OK;
 }
 
@@ -367,7 +398,6 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx,
 }
 
 int FileClient::AioDiscard(int fd, CurveAioContext* aioctx) {
-    int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
     auto iter = fileserviceMap_.find(fd);
     if (CURVE_UNLIKELY(iter == fileserviceMap_.end())) {
@@ -626,9 +656,9 @@ bool FileClient::StartDummyServer() {
     // FIXME(wuhanqing): if curve-fuse and curve-client both want to start
     //                   dummy server, curve-fuse mount will fail
     static std::once_flag flag;
-    uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
+    int dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
     std::call_once(flag, [&]() {
-        while (dummyServerStartPort < PORT_LIMIT) {
+        while (dummyServerStartPort < kDummyServerPortLimit) {
             int ret = brpc::StartDummyServerAt(dummyServerStartPort);
             if (ret >= 0) {
                 LOG(INFO) << "Start dummy server success, listen port = "
@@ -640,7 +670,7 @@ bool FileClient::StartDummyServer() {
         }
     });
 
-    if (dummyServerStartPort >= PORT_LIMIT) {
+    if (dummyServerStartPort >= kDummyServerPortLimit) {
         LOG(ERROR) << "Start dummy server failed!";
         return false;
     }

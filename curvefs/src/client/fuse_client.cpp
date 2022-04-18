@@ -35,7 +35,7 @@
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
-#include "src/common/timeutility.h"
+#include "src/common/net_common.h"
 #include "src/common/dummyserver.h"
 #include "src/client/client_common.h"
 #include "src/common/string_util.h"
