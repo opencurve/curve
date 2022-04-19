@@ -48,6 +48,8 @@
 static bvar::LatencyRecorder g_oprequest_propose_latency("oprequest_propose");
 static bvar::LatencyRecorder g_concurrent_apply_wait_latency(
     "concurrent_apply_wait");
+static bvar::LatencyRecorder g_concurrent_apply_from_log_wait_latency(
+    "concurrent_apply_from_log_wait");
 
 namespace curvefs {
 namespace metaserver {
@@ -253,7 +255,7 @@ void CopysetNode::on_apply(braft::Iterator& iter) {
                           TimeUtility::GetTimeofDayUs());
             applyQueue_->Push(hashcode, std::move(task));
             timer.stop();
-            g_concurrent_apply_wait_latency << timer.u_elapsed();
+            g_concurrent_apply_from_log_wait_latency << timer.u_elapsed();
         }
     }
 }

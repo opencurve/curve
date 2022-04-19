@@ -198,6 +198,8 @@ class ListDentryOperator : public MetaOperator {
 
     void OnFailed(MetaStatusCode code) override;
 
+    bool CanBypassPropose() const override;
+
     OperatorType GetOperatorType() const override;
 };
 

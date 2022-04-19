@@ -92,6 +92,7 @@ message ListDentryRequest {
     optional string last = 7;     // the name of last entry
     optional uint32 count = 8;    // the number of entry required
     optional bool onlyDir = 9;
+    optional uint64 appliedIndex = 10;
 }
 
 message ListDentryResponse {
