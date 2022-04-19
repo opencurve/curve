@@ -52,13 +52,14 @@ class FsMountMetric {
     struct MountPoint {
         bool valid;
         std::string hostname;
+        std::string port;
         std::string mountdir;
     };
 
     MountPoint ParseMountPoint(const std::string& mountpoint) const;
 
     // mountpoint metric key
-    // format is fs_mount_${fsname}_${host}_${mountdir}
+    // format is fs_mount_${fsname}_${host}_${port}_${mountdir}
     std::string Key(const MountPoint& mp);
 
  private:
