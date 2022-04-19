@@ -227,6 +227,9 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
     case CURVEFS_ERROR::OUT_OF_RANGE:
         fuse_reply_err(req, ERANGE);
         break;
+    case CURVEFS_ERROR::NODATA:
+        fuse_reply_err(req, ENODATA);
+        break;
     default:
         fuse_reply_err(req, EIO);
         break;
@@ -263,20 +266,17 @@ void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     size_t size) {
     InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opGetXattr.latency);
-    std::unique_ptr<char[]> buf(new char[MAXXATTRLENGTH]);
-    std::memset(buf.get(), 0, MAXXATTRLENGTH);
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
-                                                         buf.get(), size);
-    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NODATA) {
-        g_clientOpMetric->opGetXattr.ecount << 1;
-        FuseReplyErrByErrCode(req, ret);
-        return;
-    }
-
+    char buf[MAXXATTRLENGTH] = {0};
     if (size == 0) {
-        fuse_reply_xattr(req, strlen(buf.get()));
+        fuse_reply_xattr(req, MAXXATTRLENGTH);
     } else {
-        fuse_reply_buf(req, buf.get(), strlen(buf.get()));
+        CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
+                                                             buf, size);
+        if (ret != CURVEFS_ERROR::OK) {
+            FuseReplyErrByErrCode(req, ret);
+            return;
+        }
+        fuse_reply_buf(req, buf, strlen(buf));
     }
 }
 

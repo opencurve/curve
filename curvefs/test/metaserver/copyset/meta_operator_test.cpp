@@ -342,47 +342,47 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
-            "op_apply_pool_100_copyset_100_create_dentry_total_error",
+            "op_apply_from_log_pool_100_copyset_100_create_dentry_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
-            "op_apply_pool_100_copyset_100_delete_dentry_total_error",
+            "op_apply_from_log_pool_100_copyset_100_delete_dentry_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
-            "op_apply_pool_100_copyset_100_create_inode_total_error",
+            "op_apply_from_log_pool_100_copyset_100_create_inode_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
-            "op_apply_pool_100_copyset_100_update_inode_total_error",
+            "op_apply_from_log_pool_100_copyset_100_update_inode_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
             "/vars | grep "
-            "op_apply_pool_100_copyset_100_delete_inode_total_error",
+            "op_apply_from_log_pool_100_copyset_100_delete_inode_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-            "/vars | grep "
-            "op_apply_pool_100_copyset_100_create_root_inode_total_error",
+        "/vars | grep "
+        "op_apply_from_log_pool_100_copyset_100_create_root_inode_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-            "/vars | grep "
-            "op_apply_pool_100_copyset_100_create_partition_total_error",
+        "/vars | grep "
+        "op_apply_from_log_pool_100_copyset_100_create_partition_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-            "/vars | grep "
-            "op_apply_pool_100_copyset_100_delete_partition_total_error",
+        "/vars | grep "
+        "op_apply_from_log_pool_100_copyset_100_delete_partition_total_error",
         1));
     EXPECT_TRUE(CheckMetric(
         "curl -s 0.0.0.0:" + std::to_string(kDummyServerPort) +
-            "/vars | grep "
-            "op_apply_pool_100_copyset_100_prepare_rename_tx_total_error",
+        "/vars | grep "
+        "op_apply_from_log_pool_100_copyset_100_prepare_rename_tx_total_error",
         1));
 }
 

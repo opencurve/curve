@@ -29,6 +29,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "src/common/string_util.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "curvefs/src/common/metric_utils.h"
 
 using ::curve::common::StringToUl;
 using ::curve::common::StringToUll;
@@ -54,6 +55,7 @@ using BatchGetInodeAttrExcutor = TaskExecutor;
 using BatchGetXAttrExcutor = TaskExecutor;
 using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
 
+using ::curvefs::common::LatencyUpdater;
 using ::curvefs::common::StreamOptions;
 using ::curvefs::common::StreamConnection;
 using ::curvefs::metaserver::S3ChunkInfo;
@@ -109,6 +111,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
                                                Dentry *out) {
     auto task = RPCTask {
         metaserverClientMetric_->getDentry.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->getDentry.latency);
         GetDentryResponse response;
         GetDentryRequest request;
         request.set_poolid(poolID);
@@ -118,6 +121,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         request.set_parentinodeid(inodeid);
         request.set_name(name);
         request.set_txid(txId);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetDentry(cntl, &request, &response, nullptr);
@@ -169,7 +174,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                                                 std::list<Dentry> *dentryList) {
     auto task = RPCTask {
         metaserverClientMetric_->listDentry.qps.count << 1;
-
+        LatencyUpdater updater(&metaserverClientMetric_->listDentry.latency);
         ListDentryRequest request;
         ListDentryResponse response;
         request.set_poolid(poolID);
@@ -181,6 +186,8 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         request.set_last(last);
         request.set_count(count);
         request.set_onlydir(onlyDir);
+        request.set_appliedindex(metaCache_->GetApplyIndex(
+            CopysetGroupID(poolID, copysetID)));
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.ListDentry(cntl, &request, &response, nullptr);
@@ -233,6 +240,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
     auto task = RPCTask {
         metaserverClientMetric_->createDentry.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->createDentry.latency);
         CreateDentryResponse response;
         CreateDentryRequest request;
         request.set_poolid(poolID);
@@ -300,6 +308,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   const std::string &name) {
     auto task = RPCTask {
         metaserverClientMetric_->deleteDentry.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->deleteDentry.latency);
         DeleteDentryResponse response;
         DeleteDentryRequest request;
         request.set_poolid(poolID);
@@ -354,7 +363,8 @@ MetaStatusCode
 MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto task = RPCTask {
         metaserverClientMetric_->prepareRenameTx.qps.count << 1;
-
+        LatencyUpdater updater(
+            &metaserverClientMetric_->prepareRenameTx.latency);
         PrepareRenameTxRequest request;
         PrepareRenameTxResponse response;
         request.set_poolid(poolID);
@@ -405,6 +415,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
                                               Inode *out) {
     auto task = RPCTask {
         metaserverClientMetric_->getInode.qps.count << 1;
+        LatencyUpdater updater(&metaserverClientMetric_->getInode.latency);
         GetInodeRequest request;
         GetInodeResponse response;
         request.set_poolid(poolID);
@@ -412,6 +423,8 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeid);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetInode(cntl, &request, &response, nullptr);
@@ -496,6 +509,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
             uint64_t inodeId = *iter;
             auto task = RPCTask {
                 metaserverClientMetric_->batchGetInodeAttr.qps.count << 1;
+                LatencyUpdater updater(
+                    &metaserverClientMetric_->batchGetInodeAttr.latency);
                 BatchGetInodeAttrRequest request;
                 BatchGetInodeAttrResponse response;
                 request.set_poolid(poolID);
@@ -575,6 +590,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
             uint64_t inodeId = *iter;
             auto task = RPCTask {
                 metaserverClientMetric_->batchGetXattr.qps.count << 1;
+                LatencyUpdater updater(
+                    &metaserverClientMetric_->batchGetXattr.latency);
                 BatchGetXAttrRequest request;
                 BatchGetXAttrResponse response;
                 request.set_poolid(poolID);
@@ -642,6 +659,8 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
                                   InodeOpenStatusChange statusChange) {
     auto task = RPCTask {
         metaserverClientMetric_->updateInode.qps.count << 1;
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->updateInode.latency);
         UpdateInodeResponse response;
         UpdateInodeRequest request;
         request.set_poolid(poolID);
@@ -882,7 +901,8 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
             uint64_t, S3ChunkInfoList> *out) {
     auto task = RPCTask {
         metaserverClientMetric_->appendS3ChunkInfo.qps.count << 1;
-
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->appendS3ChunkInfo.latency);
         GetOrModifyS3ChunkInfoRequest request;
         GetOrModifyS3ChunkInfoResponse response;
         request.set_poolid(poolID);
@@ -1079,6 +1099,8 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
         if (cntl->Failed()) {
             metaserverClientMetric_->createInode.eps.count << 1;
+            LatencyUpdater updater(
+                    &metaserverClientMetric_->createInode.latency);
             LOG(WARNING) << "CreateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -1123,6 +1145,8 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
                                                  uint64_t inodeid) {
     auto task = RPCTask {
         metaserverClientMetric_->deleteInode.qps.count << 1;
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->deleteInode.latency);
         DeleteInodeResponse response;
         DeleteInodeRequest request;
         request.set_poolid(poolID);

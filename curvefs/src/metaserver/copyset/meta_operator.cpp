@@ -110,6 +110,12 @@ bool GetInodeOperator::CanBypassPropose() const {
            node_->GetAppliedIndex() >= req->appliedindex();
 }
 
+bool ListDentryOperator::CanBypassPropose() const {
+    auto* req = static_cast<const ListDentryRequest*>(request_);
+    return req->has_appliedindex() &&
+           node_->GetAppliedIndex() >= req->appliedindex();
+}
+
 bool BatchGetInodeAttrOperator::CanBypassPropose() const {
     auto* req = static_cast<const BatchGetInodeAttrRequest*>(request_);
     return req->has_appliedindex() &&
@@ -224,7 +230,7 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
         TYPE##Response response;                                             \
         auto status = node_->GetMetaStore()->TYPE(                           \
             static_cast<const TYPE##Request*>(request_), &response);         \
-        node_->GetMetric()->OnOperatorComplete(                              \
+        node_->GetMetric()->OnOperatorCompleteFromLog(                       \
             OperatorType::TYPE, TimeUtility::GetTimeofDayUs() - startTimeUs, \
             status == MetaStatusCode::OK);                                   \
     }
@@ -250,7 +256,7 @@ void GetOrModifyS3ChunkInfoOperator::OnApplyFromLog(uint64_t startTimeUs) {
     request.set_returns3chunkinfomap(false);
     auto status = node_->GetMetaStore()->GetOrModifyS3ChunkInfo(
         &request, &response, &iterator);
-    node_->GetMetric()->OnOperatorComplete(
+    node_->GetMetric()->OnOperatorCompleteFromLog(
         OperatorType::GetOrModifyS3ChunkInfo,
         TimeUtility::GetTimeofDayUs() - startTimeUs,
         status == MetaStatusCode::OK);

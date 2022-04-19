@@ -320,7 +320,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                 return ret;
             }
 
-            if (enableSumInDir_) {
+            if (enableSumInDir_ && length != 0) {
                 // update parent summary info
                 XAttr xattr;
                 xattr.mutable_xattrinfos()->insert({XATTRFBYTES,

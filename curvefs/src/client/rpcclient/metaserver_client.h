@@ -29,6 +29,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
