@@ -317,7 +317,7 @@ def destroy_curvefs():
             shell_operator.ssh_exec(ssh, cmd)
         cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm stop"
         ret = shell_operator.run_exec(cmd)
-        cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm clean"
+        cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm clean --only='data,container'"
         ret = shell_operator.run_exec(cmd)
     except Exception:
         logger.error("destroy curvefs fail.")
