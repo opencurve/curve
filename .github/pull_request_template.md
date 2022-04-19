@@ -2,7 +2,7 @@
 
 ### What problem does this PR solve?
 
-Issue Number: close #xxx <!-- REMOVE this line if no issue to close -->
+Issue Number: #xxx <!-- replace xxx with issue number -->
 
 Problem Summary:
 
@@ -12,7 +12,7 @@ What's Changed:
 
 How it Works:
 
-Side effects(Breaking backward compatibility? Performance regression?): 
+Side effects(Breaking backward compatibility? Performance regression?):
 
 ### Check List
 
