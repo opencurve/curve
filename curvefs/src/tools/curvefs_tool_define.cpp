@@ -33,7 +33,7 @@ DEFINE_bool(example, false, "print the example of usage");
 DEFINE_string(confPath, "/etc/curvefs/tools.conf", "config file path of tools");
 DEFINE_string(fsName, "curvefs", "fs name");
 DEFINE_string(fsId, "1,2,3", "fs id");
-DEFINE_string(mountpoint, "127.0.0.1:/mnt/curvefs-umount-test",
+DEFINE_string(mountpoint, "127.0.0.1:9000:/mnt/curvefs-umount-test",
               "curvefs mount in local path");
 DEFINE_uint32(rpcRetryTimes, 0, "rpc retry times");
 DEFINE_uint32(rpcTimeoutMs, 10000u, "rpc time out");

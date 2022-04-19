@@ -47,10 +47,11 @@ void FsMountMetric::OnMount(const std::string& mp) {
         auto* metric = new bvar::Status<std::string>();
         metric->expose(key);
 
-        // value format is: {"host": "1.2.3.4", "dir": "/tmp"}
-        metric->set_value("{\"host\": \"%s\", \"dir\": \"%s\"}",
-                          mountpoint.hostname.c_str(),
-                          mountpoint.mountdir.c_str());
+        // value format is: {"host": "1.2.3.4", "port": "1234", "dir": "/tmp"}
+        metric->set_value(
+            "{\"host\": \"%s\", \"port\": \"%s\", \"dir\": \"%s\"}",
+            mountpoint.hostname.c_str(), mountpoint.port.c_str(),
+            mountpoint.mountdir.c_str());
 
         mps_.emplace(std::move(key), metric);
     }
@@ -73,7 +74,8 @@ void FsMountMetric::OnUnMount(const std::string& mp) {
 }
 
 std::string FsMountMetric::Key(const MountPoint& mp) {
-    return "fs_mount_" + fsname_ + "_" + mp.hostname + "_" + mp.mountdir;
+    return "fs_mount_" + fsname_ + "_" + mp.hostname + "_" + mp.port + "_" +
+           mp.mountdir;
 }
 
 FsMountMetric::MountPoint FsMountMetric::ParseMountPoint(
@@ -83,12 +85,13 @@ FsMountMetric::MountPoint FsMountMetric::ParseMountPoint(
     std::vector<std::string> items;
     curve::common::SplitString(mountpoint, ":", &items);
 
-    if (items.size() != 2) {
+    if (items.size() != 3) {
         LOG(ERROR) << "Parse mountpoint '" << mountpoint << "' failed";
         mp.valid = false;
     } else {
         mp.hostname = std::move(items[0]);
-        mp.mountdir = std::move(items[1]);
+        mp.port = std::move(items[1]);
+        mp.mountdir = std::move(items[2]);
         mp.valid = true;
     }
 
