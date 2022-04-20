@@ -110,16 +110,31 @@ void S3CompactWorkQueueImpl::ThreadFunc() {
 }
 
 std::vector<uint64_t> S3CompactWorkQueueImpl::GetNeedCompact(
-    const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3chunkinfoMap) {
+    const ::google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3chunkinfoMap,
+    uint64_t inodeLen, uint64_t chunkSize) {
     std::vector<uint64_t> needCompact;
     for (const auto& item : s3chunkinfoMap) {
         if (needCompact.size() >= opts_.maxChunksPerCompact) {
             VLOG(9) << "s3compact: reach max chunks to compact per time";
             break;
         }
+        if (item.first * chunkSize > inodeLen - 1) {
+            // we need delete this chunk
+            needCompact.push_back(item.first);
+            continue;
+        }
         if (static_cast<uint64_t>(item.second.s3chunks_size()) >
             opts_.fragmentThreshold) {
             needCompact.push_back(item.first);
+        } else {
+            const auto& l = item.second;
+            for (int i = 0; i < l.s3chunks_size(); i++) {
+                if (l.s3chunks(i).offset() + l.s3chunks(i).len() > inodeLen) {
+                    // part of chunk is useless, we need to delete them
+                    needCompact.push_back(item.first);
+                    break;
+                }
+            }
         }
     }
     return needCompact;
@@ -142,6 +157,11 @@ std::list<struct S3CompactWorkQueueImpl::Node>
 S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
                                        uint64_t inodeLen, uint64_t index,
                                        uint64_t chunkSize) {
+    std::list<struct S3CompactWorkQueueImpl::Node> validList;
+    if (chunkSize * index > inodeLen - 1) {
+        // inode may be truncated smaller
+        return validList;
+    }
     std::list<std::pair<uint64_t, uint64_t>> freeList;  // [begin, end]
     freeList.emplace_back(chunkSize * index,
                           std::min(chunkSize * (index + 1) - 1,
@@ -203,7 +223,6 @@ S3CompactWorkQueueImpl::BuildValidList(const S3ChunkInfoList& s3chunkinfolist,
         fill(i);
     }
 
-    std::list<struct S3CompactWorkQueueImpl::Node> validList;
     for (const auto& v : used) {
         const auto& info = s3chunkinfolist.s3chunks(v.second.second);
         validList.emplace_back(v.first, v.second.first, info.chunkid(),
@@ -413,9 +432,8 @@ int S3CompactWorkQueueImpl::WriteFullChunk(
     return 0;
 }
 
-bool S3CompactWorkQueueImpl::CompactPrecheck(
-    const struct S3CompactTask& task, Inode* inode,
-    std::vector<uint64_t>* needCompact) {
+bool S3CompactWorkQueueImpl::CompactPrecheck(const struct S3CompactTask& task,
+                                             Inode* inode) {
     // am i copysetnode leader?
     if (!task.copysetNodeWrapper->IsLeaderTerm()) {
         VLOG(6) << "s3compact: i am not the leader, finish";
@@ -454,13 +472,6 @@ bool S3CompactWorkQueueImpl::CompactPrecheck(
             VLOG(6) << "Inode s3chunkinfo is empty";
             return false;
         }
-    }
-
-    // need compact?
-    *needCompact = GetNeedCompact(inode->s3chunkinfomap());
-    if (needCompact->empty()) {
-        VLOG(6) << "s3compact: no need to compact " << inode->inodeid();
-        return false;
     }
 
     // pass
@@ -531,6 +542,11 @@ void S3CompactWorkQueueImpl::CompactChunk(
                 << "], chunkid:" << node.chunkid
                 << ", chunkoff:" << node.chunkoff
                 << ", chunklen:" << node.chunklen << ", zero:" << node.zero;
+    }
+    if (validList.empty()) {
+        // chunk is not valid, just delete this chunk
+        s3ChunkInfoRemove->insert({index, s3chunkinfolist});
+        return;
     }
     // 1.2  first read full chunk
     struct S3NewChunkInfo newChunkInfo;
@@ -612,8 +628,7 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
             << " , inodeId: " << task.inodeKey.inodeId;
 
     Inode inode;
-    std::vector<uint64_t> needCompact;
-    if (!CompactPrecheck(task, &inode, &needCompact)) return;
+    if (!CompactPrecheck(task, &inode)) return;
     uint64_t fsId = inode.fsid();
     uint64_t inodeId = inode.inodeid();
 
@@ -625,6 +640,13 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
     S3Adapter* s3adapter = SetupS3Adapter(task.inodeKey.fsId, &s3adapterIndex,
                                           &blockSize, &chunkSize);
     if (s3adapter == nullptr) return;
+    // need compact?
+    std::vector<uint64_t> needCompact =
+        GetNeedCompact(inode.s3chunkinfomap(), inode.length(), chunkSize);
+    if (needCompact.empty()) {
+        VLOG(6) << "s3compact: no need to compact " << inode.inodeid();
+        return;
+    }
 
     // 1. read full chunk & write new objs, each chunk one by one
     struct S3CompactCtx compactCtx {
@@ -642,7 +664,7 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
         CompactChunk(compactCtx, index, inode, &objsAddedMap, &s3ChunkInfoAdd,
                      &s3ChunkInfoRemove);
     }
-    if (s3ChunkInfoAdd.empty()) {
+    if (s3ChunkInfoAdd.empty() && s3ChunkInfoRemove.empty()) {
         VLOG(6) << "s3compact: do nothing to metadata";
         s3adapterManager_->ReleaseS3Adapter(s3adapterIndex);
         return;
@@ -654,6 +676,11 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
         VLOG(6) << "s3compact: invalid copysetNode";
         s3adapterManager_->ReleaseS3Adapter(s3adapterIndex);
         return;
+    }
+    std::vector<int> s3ChunkInfoRemoveIndex;
+    s3ChunkInfoRemoveIndex.reserve(s3ChunkInfoRemove.size());
+    for (const auto& element : s3ChunkInfoRemove) {
+        s3ChunkInfoRemoveIndex.push_back(element.first);
     }
     auto ret =
         UpdateInode(task.copysetNodeWrapper->Get(), compactCtx.pinfo, inodeId,
@@ -672,8 +699,8 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
 
     // 3. delete old objs
     VLOG(6) << "s3compact: start delete old objs";
-    for (const auto& item : objsAddedMap) {
-        const auto& l = inode.s3chunkinfomap().at(item.first);
+    for (const auto& index : s3ChunkInfoRemoveIndex) {
+        const auto& l = inode.s3chunkinfomap().at(index);
         DeleteObjsOfS3ChunkInfoList(compactCtx, l);
     }
     VLOG(6) << "s3compact: finish delete objs";
