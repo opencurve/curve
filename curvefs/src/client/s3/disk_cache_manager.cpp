@@ -292,7 +292,7 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
         return;
     }
     usedBytes_.fetch_add(usedBytes, std::memory_order_seq_cst);
-    VLOG(3) << "cache disk used size is: " << result;
+    VLOG(9) << "cache disk used size is: " << result;
     return;
 }
 
@@ -393,7 +393,6 @@ void DiskCacheManager::TrimCache() {
                 DecDiskUsedBytes(statReadFile.st_size);
                 VLOG(6) << "remove disk file success, file is: " << cacheKey;
             }
-            VLOG(6) << "trim over.";
     }
     LOG(INFO) << "trim function end.";
 }
