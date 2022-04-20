@@ -128,6 +128,8 @@ struct S3Metric {
     InterfaceMetric adaptorWriteDiskCache;
     InterfaceMetric adaptorReadS3;
     InterfaceMetric adaptorReadDiskCache;
+    bvar::LatencyRecorder readSize;
+    bvar::LatencyRecorder writeSize;
 
     explicit S3Metric(const std::string &name = "")
         : fsName(!name.empty() ? name
@@ -137,7 +139,9 @@ struct S3Metric {
           adaptorWriteS3(prefix, fsName + "_adaptor_write_s3"),
           adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
           adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
-          adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache") {}
+          adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache"),
+          readSize(prefix, fsName + "_adaptor_read_size"),
+          writeSize(prefix, fsName + "_adaptor_write_size") {}
 };
 
 struct DiskCacheMetric {
