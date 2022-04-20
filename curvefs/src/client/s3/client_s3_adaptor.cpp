@@ -145,6 +145,7 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     fsCacheManager_->DataCacheByteDec(length);
     if (s3Metric_.get() != nullptr) {
         CollectMetrics(&s3Metric_->adaptorWrite, ret, start);
+        s3Metric_->writeSize << length;
     }
     VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret
             << ", pendingReq_ is: " << pendingReq_;
@@ -166,6 +167,7 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     }
     if (s3Metric_.get() != nullptr) {
         CollectMetrics(&s3Metric_->adaptorRead, ret, start);
+        s3Metric_->readSize << length;
     }
     VLOG(6) << "read end offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
