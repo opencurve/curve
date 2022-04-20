@@ -22,8 +22,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
-  "iteration": 1649851130043,
+  "id": 1,
+  "iteration": 1650444383434,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -83,8 +83,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_memory_resident{instance=~\"$instance\"}",
@@ -94,8 +93,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_memory_virtual{instance=~\"$instance\"}",
@@ -106,8 +104,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_memory_shared{instance=~\"$instance\"}",
@@ -193,8 +190,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_cpu_usage{instance=~\"$instance\"}",
@@ -204,8 +200,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_cpu_usage_system{instance=~\"$instance\"}",
@@ -216,8 +211,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_cpu_usage_user{instance=~\"$instance\"}",
@@ -277,6 +271,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -314,8 +314,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*read_qps.*\"}",
@@ -398,8 +397,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*write_qps.*\"}",
@@ -445,6 +443,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -482,8 +486,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*read_bps.*\"}",
@@ -509,7 +512,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "binBps",
           "logBase": 1,
           "show": true
         },
@@ -529,6 +532,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -566,8 +575,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*write_bps.*\"}",
@@ -593,7 +601,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "binBps",
           "logBase": 1,
           "show": true
         },
@@ -613,6 +621,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -650,8 +664,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*read_eps.*\"}",
@@ -734,8 +747,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*write_eps.*\"}",
@@ -781,6 +793,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -818,8 +836,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*read_rps.*\"}",
@@ -845,7 +862,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "reqps",
           "logBase": 1,
           "show": true
         },
@@ -865,6 +882,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -902,8 +925,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*write_rps.*\"}",
@@ -929,7 +951,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "reqps",
           "logBase": 1,
           "show": true
         },
@@ -949,6 +971,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -986,8 +1014,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*read.*latency.*\"}",
@@ -1013,7 +1040,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "ms",
           "logBase": 1,
           "show": true
         },
@@ -1033,6 +1060,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1070,8 +1103,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs.*[[fs:regex]].*write.*latency.*\"}",
@@ -1097,7 +1129,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "ms",
           "logBase": 1,
           "show": true
         },
@@ -1130,6 +1162,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1167,8 +1205,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_mds_client.*bps.*\"}",
@@ -1194,7 +1231,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "binBps",
           "logBase": 1,
           "show": true
         },
@@ -1251,8 +1288,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_mds_client.*eps.*\"}",
@@ -1335,8 +1371,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_mds_client.*qps.*\"}",
@@ -1382,6 +1417,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1419,8 +1460,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_mds_client.*rps.*\"}",
@@ -1446,7 +1486,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "reqps",
           "logBase": 1,
           "show": true
         },
@@ -1466,6 +1506,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1503,8 +1549,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_mds_client.*latency.*\"}",
@@ -1530,7 +1575,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "ms",
           "logBase": 1,
           "show": true
         },
@@ -1563,6 +1608,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1600,8 +1651,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_metaserver_client.*bps.*\"}",
@@ -1627,7 +1677,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "binBps",
           "logBase": 1,
           "show": true
         },
@@ -1684,8 +1734,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_metaserver_client.*eps.*\"}",
@@ -1768,8 +1817,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_metaserver_client.*qps.*\"}",
@@ -1815,6 +1863,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1852,8 +1906,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_metaserver_client.*rps.*\"}",
@@ -1879,7 +1932,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "reqps",
           "logBase": 1,
           "show": true
         },
@@ -1899,6 +1952,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1936,8 +1995,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"curvefs_metaserver_client.*latency.*\"}",
@@ -1963,7 +2021,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "short",
+          "format": "ms",
           "logBase": 1,
           "show": true
         },
@@ -2041,6 +2099,6 @@
   "timezone": "",
   "title": "client",
   "uid": "QPevOxsnk",
-  "version": 45,
+  "version": 1,
   "weekStart": ""
 }

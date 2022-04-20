@@ -22,8 +22,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
-  "iteration": 1649851101054,
+  "id": 3,
+  "iteration": 1650444327667,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -83,8 +83,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_memory_resident{instance=~\"$instance\"}",
@@ -94,8 +93,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_memory_virtual{instance=~\"$instance\"}",
@@ -106,8 +104,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_memory_shared{instance=~\"$instance\"}",
@@ -193,8 +190,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_cpu_usage{instance=~\"$instance\"}",
@@ -204,8 +200,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_cpu_usage_system{instance=~\"$instance\"}",
@@ -216,8 +211,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "process_cpu_usage_user{instance=~\"$instance\"}",
@@ -277,6 +271,12 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -314,8 +314,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\".*latency.*\",job=\"metaserver\"}",
@@ -341,7 +340,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:12821",
-          "format": "short",
+          "format": "ms",
           "logBase": 1,
           "show": true
         },
@@ -365,8 +364,8 @@
       {
         "current": {
           "selected": false,
-          "text": "10.219.192.50:6800",
-          "value": "10.219.192.50:6800"
+          "text": "All",
+          "value": "$__all"
         },
         "definition": "{__name__=~\"bthread_count\", job=\"metaserver\"}",
         "hide": 0,
@@ -418,6 +417,6 @@
   "timezone": "",
   "title": "metaserver",
   "uid": "t-YkFxy7z",
-  "version": 9,
+  "version": 1,
   "weekStart": ""
 }
