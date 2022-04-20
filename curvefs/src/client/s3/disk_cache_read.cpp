@@ -93,7 +93,8 @@ int DiskCacheRead::LinkWriteToRead(const std::string fileName,
         return -1;
     }
     ret = posixWrapper_->link(fullWritePath.c_str(), fullReadPath.c_str());
-    if (ret < 0) {
+    if (ret < 0 &&
+      errno != EEXIST ) {
         LOG(ERROR) << "link error. ret = " << ret << ", errno = " << errno
                    << ", write path = " << fullWritePath
                    << ", read path = " << fullReadPath;
