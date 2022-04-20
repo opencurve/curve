@@ -80,8 +80,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "tJLDJxsnz"
+                "type": "prometheus"
               },
               "exemplar": true,
               "expr": "process_memory_resident{instance=~\"$instance\"}",
@@ -91,8 +90,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "tJLDJxsnz"
+                "type": "prometheus"
               },
               "exemplar": true,
               "expr": "process_memory_virtual{instance=~\"$instance\"}",
@@ -103,8 +101,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "tJLDJxsnz"
+                "type": "prometheus"
               },
               "exemplar": true,
               "expr": "process_memory_shared{instance=~\"$instance\"}",
@@ -190,8 +187,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "tJLDJxsnz"
+                "type": "prometheus"
               },
               "exemplar": true,
               "expr": "process_cpu_usage{instance=~\"$instance\"}",
@@ -201,8 +197,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "tJLDJxsnz"
+                "type": "prometheus"
               },
               "exemplar": true,
               "expr": "process_cpu_usage_system{instance=~\"$instance\"}",
@@ -213,8 +208,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "tJLDJxsnz"
+                "type": "prometheus"
               },
               "exemplar": true,
               "expr": "process_cpu_usage_user{instance=~\"$instance\"}",
@@ -322,8 +316,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "tJLDJxsnz"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "{__name__=~\"topology_metric_metaserver_id_[[metaserver:regex]].*\",job=\"mds\"}",
@@ -438,6 +431,6 @@
   "timezone": "",
   "title": "mds",
   "uid": "dsgsdfg",
-  "version": 16,
+  "version": 1,
   "weekStart": ""
 }
