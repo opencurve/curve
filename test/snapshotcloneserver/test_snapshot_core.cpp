@@ -458,6 +458,10 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
 
+    // pending task
+    SnapshotInfo info3("uuid3", user, fileName, "snap3");
+    snapInfos.push_back(info3);
+
     EXPECT_CALL(*metaStore_, GetSnapshotList(fileName, _))
         .Times(2)
         .WillRepeatedly(DoAll(
@@ -2364,6 +2368,7 @@ TEST_F(TestSnapshotCoreImpl,
 
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo info2(uuid2, user, fileName, desc2);
+    info2.SetSeqNum(seqNum + 1);
     info2.SetStatus(Status::done);
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
@@ -2426,6 +2431,7 @@ TEST_F(TestSnapshotCoreImpl,
 
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo info2(uuid2, user, fileName, desc2);
+    info2.SetSeqNum(seqNum + 1);
     info2.SetStatus(Status::done);
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
@@ -2479,6 +2485,7 @@ TEST_F(TestSnapshotCoreImpl,
 
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo info2(uuid2, user, fileName, desc2);
+    info2.SetSeqNum(seqNum + 1);
     info2.SetStatus(Status::done);
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
@@ -2541,6 +2548,7 @@ TEST_F(TestSnapshotCoreImpl,
 
     std::vector<SnapshotInfo> snapInfos;
     SnapshotInfo info2(uuid2, user, fileName, desc2);
+    info2.SetSeqNum(seqNum + 1);
     info2.SetStatus(Status::done);
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
