@@ -221,18 +221,34 @@ TEST_F(S3CompactWorkQueueImplTest, test_GetNeedCompact) {
     for (int i = 0; i < 10; i++) {
         auto ref = l1.add_s3chunks();
         ref->set_chunkid(i);
+        ref->set_offset(i);
+        ref->set_len(1);
     }
-    s3chunkinfoMap.insert({1, l1});
-    ASSERT_TRUE(impl_->GetNeedCompact(s3chunkinfoMap).empty());
+    s3chunkinfoMap.insert({0, l1});
+    ASSERT_TRUE(impl_->GetNeedCompact(s3chunkinfoMap, 10, 64).empty());
+    // truncate smaller, part of chunk useless
+    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 9, 64).size(), 1);
 
     // need compact
     S3ChunkInfoList l2;
     for (int i = 0; i < 30; i++) {
         auto ref = l2.add_s3chunks();
         ref->set_chunkid(i);
+        ref->set_offset(i + 64);
+        ref->set_len(1);
     }
-    s3chunkinfoMap.insert({2, l2});
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap).size(), 1);
+    s3chunkinfoMap.insert({1, l2});
+    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 + 30, 64).size(), 1);
+
+    // truncate smaller, full chunk useless
+    S3ChunkInfoList l3;
+    auto ref = l2.add_s3chunks();
+    ref->set_chunkid(0);
+    ref->set_offset(64 * 2);
+    ref->set_len(1);
+    s3chunkinfoMap.insert({2, l3});
+    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 2 + 1, 64).size(), 1);
+    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 2, 64).size(), 2);
 
     // too much need compact, control size
     for (int j = 3; j < 20; j++) {
@@ -240,10 +256,12 @@ TEST_F(S3CompactWorkQueueImplTest, test_GetNeedCompact) {
         for (int i = 0; i < 30; i++) {
             auto ref = l.add_s3chunks();
             ref->set_chunkid(i);
+            ref->set_offset(i + 64 * j);
+            ref->set_len(1);
         }
         s3chunkinfoMap.insert({j, l});
     }
-    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap).size(),
+    ASSERT_EQ(impl_->GetNeedCompact(s3chunkinfoMap, 64 * 19 + 30, 64).size(),
               opts_.maxChunksPerCompact);
 }
 
@@ -449,6 +467,17 @@ TEST_F(S3CompactWorkQueueImplTest, test_BuildValidList) {
     ASSERT_EQ(next->chunkid, 0);
     ASSERT_EQ(next->begin, 2);
     ASSERT_EQ(next->end, 2);
+
+    std::cerr << "truncated smaller, chunk is not valid" << std::endl;
+    l.Clear();
+    auto c14(tmpl);
+    c14.set_chunkid(0);
+    c14.set_offset(chunkSize * 1);
+    c14.set_len(1);
+    *l.add_s3chunks() = c14;
+    inodeLen = chunkSize;
+    validList = impl_->BuildValidList(l, inodeLen, 1, chunkSize);
+    ASSERT_TRUE(validList.empty());
 }
 
 TEST_F(S3CompactWorkQueueImplTest, test_ReadFullChunk) {
