@@ -1117,7 +1117,8 @@ int SnapshotCoreImpl::BuildSnapshotMap(const std::string &fileName,
     std::vector<SnapshotInfo> snapInfos;
     int ret = metaStore_->GetSnapshotList(fileName, &snapInfos);
     for (auto &snap : snapInfos) {
-        if (snap.GetSeqNum() != seqNum) {
+        if (snap.GetSeqNum() != seqNum &&
+            snap.GetSeqNum() != kUnInitializeSeqNum) {
             ChunkIndexDataName name(snap.GetFileName(), snap.GetSeqNum());
             ChunkIndexData indexData;
             ret = dataStore_->GetChunkIndexData(name, &indexData);
