@@ -47,6 +47,8 @@ DECLARE_uint64(s3_chunksize);
 DECLARE_uint32(rpcTimeoutMs);
 DECLARE_uint32(rpcRetryTimes);
 DECLARE_bool(enableSumInDir);
+DECLARE_uint64(capacity);
+DECLARE_string(user);
 
 namespace curvefs {
 namespace tools {
@@ -59,7 +61,9 @@ using ::curvefs::common::BitmapLocation_Parse;
 void CreateFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsName=" << FLAGS_fsName
-              << " [-blockSize=" << FLAGS_blockSize
+              << " [-user=" << FLAGS_user
+              << "] [-capacity=" << FLAGS_capacity
+              << "] [-blockSize=" << FLAGS_blockSize
               << "] [-enableSumInDir=" << FLAGS_enableSumInDir
               << "] [-fsType=volume -volumeSize=" << FLAGS_volumeSize
               << " -volumeBlockGroupSize=" << FLAGS_volumeBlockGroupSize
@@ -171,6 +175,9 @@ int CreateFsTool::Init() {
                   << kFsTypeVolume << "." << std::endl;
         ret = -1;
     }
+
+    request.set_owner(FLAGS_user);
+    request.set_capacity(FLAGS_capacity);
 
     AddRequest(request);
 

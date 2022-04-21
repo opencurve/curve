@@ -57,6 +57,9 @@ DEFINE_string(s3_bucket_name, "bucketname", "s3 bucket name");
 DEFINE_uint64(s3_blocksize, 1048576, "s3 block size");
 DEFINE_uint64(s3_chunksize, 4194304, "s3 chunk size");
 DEFINE_bool(enableSumInDir, false, "statistic info in xattr");
+DEFINE_uint64(capacity, (uint64_t)100 * 1024 * 1024 * 1024,
+              "capacity of fs, default 100G");
+DEFINE_string(user, "anonymous", "user of request");
 
 // list-topology
 DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");

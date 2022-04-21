@@ -95,19 +95,13 @@ class FsManager {
     /**
      * @brief create fs, the fs name can not repeat
      *
-     * @param fsName the fs name, can't be repeated
-     * @param fsType s3 fs or volume s3
-     * @param blockSize space alloc must align this blockSize
-     * @param enableSumInDir whather record summary info in xattr
-     * @param detail more detailed info about s3 or volume
-     * @param fsInfo the fs created
+     * @param CreateFsRequest request
      * @return FSStatusCode If success return OK; if fsName exist, return
      * FS_EXIST;
      *         else return error code
      */
-    FSStatusCode CreateFs(const std::string& fsName, FSType fsType,
-                          uint64_t blockSize, bool enableSumInDir,
-                          const FsDetail& detail, FsInfo* fsInfo);
+    FSStatusCode CreateFs(const ::curvefs::mds::CreateFsRequest* request,
+                          FsInfo* fsInfo);
 
     /**
      * @brief delete fs, fs must unmount first

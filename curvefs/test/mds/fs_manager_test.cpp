@@ -201,12 +201,20 @@ TEST_F(FSManagerTest, test1) {
     FsDetail detail;
     detail.set_allocated_volume(new Volume(volume));
 
+    CreateFsRequest req;
+    req.set_fsname(fsName1);
+    req.set_blocksize(blockSize);
+    req.set_fstype(FSType::TYPE_VOLUME);
+    req.set_allocated_fsdetail(new FsDetail(detail));
+    req.set_enablesumindir(enableSumInDir);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100*1024*1024*1024);
+
     // create volume fs create partition fail
     EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
         .WillOnce(Return(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL));
 
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
-                               enableSumInDir, detail, &volumeFsInfo1);
+    ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::CREATE_PARTITION_ERROR);
 
     // create volume fs create root inode fail
@@ -231,8 +239,7 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
-                               enableSumInDir, detail, &volumeFsInfo1);
+    ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create volume fs ok
@@ -253,8 +260,7 @@ TEST_F(FSManagerTest, test1) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
-                               enableSumInDir, detail, &volumeFsInfo1);
+    ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(volumeFsInfo1.fsid(), 2);
     ASSERT_EQ(volumeFsInfo1.fsname(), fsName1);
@@ -267,8 +273,7 @@ TEST_F(FSManagerTest, test1) {
 
     // create volume fs exist
     FsInfo volumeFsInfo2;
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
-                               enableSumInDir, detail, &volumeFsInfo1);
+    ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
 
     // create s3 test
@@ -281,7 +286,6 @@ TEST_F(FSManagerTest, test1) {
     s3Info.set_bucketname("bucketname");
     s3Info.set_blocksize(4096);
     s3Info.set_chunksize(4096);
-    uint64_t fsSize = std::numeric_limits<uint64_t>::max();
     CreateRootInodeResponse response2;
     FsDetail detail2;
     detail2.set_allocated_s3info(new S3Info(s3Info));
@@ -305,8 +309,9 @@ TEST_F(FSManagerTest, test1) {
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
     EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
-    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
-                               enableSumInDir, detail2, &s3FsInfo);
+    req.set_fsname(fsName2);
+    req.set_allocated_fsdetail(new FsDetail(detail2));
+    ret = fsManager_->CreateFs(&req, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 
     // create s3 fs ok
@@ -328,14 +333,13 @@ TEST_F(FSManagerTest, test1) {
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
     EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
-    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
-                               enableSumInDir, detail2, &s3FsInfo);
+    ret = fsManager_->CreateFs(&req, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(s3FsInfo.fsid(), 4);
     ASSERT_EQ(s3FsInfo.fsname(), fsName2);
     ASSERT_EQ(s3FsInfo.status(), FsStatus::INITED);
     ASSERT_EQ(s3FsInfo.rootinodeid(), ROOTINODEID);
-    ASSERT_EQ(s3FsInfo.capacity(), fsSize);
+    ASSERT_EQ(s3FsInfo.capacity(), (uint64_t)100 * 1024 * 1024 * 1024);
     ASSERT_EQ(s3FsInfo.blocksize(), blockSize);
     ASSERT_EQ(s3FsInfo.mountnum(), 0);
     ASSERT_EQ(s3FsInfo.fstype(), FSType::TYPE_S3);
@@ -344,8 +348,8 @@ TEST_F(FSManagerTest, test1) {
     std::string fsName3 = "fs3";
     EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(false));
 
-    ret = fsManager_->CreateFs(fsName3, FSType::TYPE_S3, blockSize,
-                               enableSumInDir, detail2, &s3FsInfo);
+    req.set_fsname(fsName3);
+    ret = fsManager_->CreateFs(&req, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::S3_INFO_ERROR);
 
     // TEST GetFsInfo
@@ -475,6 +479,15 @@ TEST_F(FSManagerTest, background_thread_deletefs_test) {
     FsDetail detail;
     detail.set_allocated_volume(new Volume(volume));
 
+    CreateFsRequest req;
+    req.set_fsname(fsName1);
+    req.set_blocksize(blockSize);
+    req.set_fstype(FSType::TYPE_VOLUME);
+    req.set_allocated_fsdetail(new FsDetail(detail));
+    req.set_enablesumindir(enableSumInDir);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100*1024*1024*1024);
+
     // create volume fs ok
     std::set<std::string> addrs;
     addrs.emplace(addr);
@@ -498,8 +511,8 @@ TEST_F(FSManagerTest, background_thread_deletefs_test) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
 
-    ret = fsManager_->CreateFs(fsName1, FSType::TYPE_VOLUME, blockSize,
-                               enableSumInDir, detail, &volumeFsInfo1);
+    req.set_fsname(fsName1);
+    ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(volumeFsInfo1.fsid(), 0);
     ASSERT_EQ(volumeFsInfo1.fsname(), fsName1);
@@ -520,7 +533,6 @@ TEST_F(FSManagerTest, background_thread_deletefs_test) {
     s3Info.set_bucketname("bucketname");
     s3Info.set_blocksize(4096);
     s3Info.set_chunksize(4096);
-    uint64_t fsSize = std::numeric_limits<uint64_t>::max();
     CreateRootInodeResponse response2;
     FsDetail detail2;
     detail2.set_allocated_s3info(new S3Info(s3Info));
@@ -544,14 +556,16 @@ TEST_F(FSManagerTest, background_thread_deletefs_test) {
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
     EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
-    ret = fsManager_->CreateFs(fsName2, FSType::TYPE_S3, blockSize,
-                               enableSumInDir, detail2, &s3FsInfo);
+    req.set_fsname(fsName2);
+    req.set_fstype(FSType::TYPE_S3);
+    req.set_allocated_fsdetail(new FsDetail(detail2));
+    ret = fsManager_->CreateFs(&req, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_EQ(s3FsInfo.fsid(), 1);
     ASSERT_EQ(s3FsInfo.fsname(), fsName2);
     ASSERT_EQ(s3FsInfo.status(), FsStatus::INITED);
     ASSERT_EQ(s3FsInfo.rootinodeid(), ROOTINODEID);
-    ASSERT_EQ(s3FsInfo.capacity(), fsSize);
+    ASSERT_EQ(s3FsInfo.capacity(), (uint64_t)100 * 1024 * 1024 * 1024);
     ASSERT_EQ(s3FsInfo.blocksize(), blockSize);
     ASSERT_EQ(s3FsInfo.mountnum(), 0);
     ASSERT_EQ(s3FsInfo.fstype(), FSType::TYPE_S3);

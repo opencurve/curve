@@ -169,6 +169,15 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticalToPreviousOne) {
     s3Info->set_blocksize(4 * 1024);
     s3Info->set_chunksize(16 * 1024 * 1024);
 
+    CreateFsRequest req;
+    req.set_fsname(fsname);
+    req.set_blocksize(blocksize);
+    req.set_fstype(type);
+    req.set_allocated_fsdetail(new FsDetail(detail));
+    req.set_enablesumindir(false);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+
     // fsstatus is not NEW
     {
         FsInfo fsinfo;
@@ -185,10 +194,7 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticalToPreviousOne) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(wrapper), Return(FSStatusCode::OK)));
 
-        EXPECT_EQ(
-            FSStatusCode::FS_EXIST,
-            fsManager_->CreateFs(fsname, type, blocksize, enableSumInDir,
-            detail, nullptr));
+        EXPECT_EQ(FSStatusCode::FS_EXIST, fsManager_->CreateFs(&req, nullptr));
     }
 
     // fstype is different
@@ -208,10 +214,7 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticalToPreviousOne) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(wrapper), Return(FSStatusCode::OK)));
 
-        EXPECT_EQ(
-            FSStatusCode::FS_EXIST,
-            fsManager_->CreateFs(fsname, type, blocksize, enableSumInDir,
-            detail, nullptr));
+        EXPECT_EQ(FSStatusCode::FS_EXIST, fsManager_->CreateFs(&req, nullptr));
     }
 
     // fsdetail is different
@@ -223,7 +226,7 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticalToPreviousOne) {
         fsinfo.set_fstype(FSType::TYPE_S3);
 
         auto s3Info2 = *s3Info;
-        s3Info->set_bucketname("different");
+        s3Info2.set_bucketname("different");
         fsinfo.mutable_detail()->set_allocated_s3info(
             new curvefs::common::S3Info(s3Info2));
 
@@ -236,10 +239,7 @@ TEST_F(FsManagerTest2, CreateFoundConflictFsNameAndNotIdenticalToPreviousOne) {
             .WillOnce(
                 DoAll(SetArgPointee<1>(wrapper), Return(FSStatusCode::OK)));
 
-        EXPECT_EQ(
-            FSStatusCode::FS_EXIST,
-            fsManager_->CreateFs(fsname, type, blocksize, enableSumInDir,
-            detail, nullptr));
+        EXPECT_EQ(FSStatusCode::FS_EXIST, fsManager_->CreateFs(&req, nullptr));
     }
 }
 
@@ -312,9 +312,16 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
         .WillOnce(Return(FSStatusCode::OK));
     EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
+    CreateFsRequest req;
+    req.set_fsname(fsname);
+    req.set_blocksize(blocksize);
+    req.set_fstype(type);
+    req.set_allocated_fsdetail(new FsDetail(detail));
+    req.set_enablesumindir(false);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
     FsInfo resultInfo;
-    EXPECT_EQ(FSStatusCode::OK, fsManager_->CreateFs(fsname, type, blocksize,
-                                        enableSumInDir, detail, &resultInfo));
+    EXPECT_EQ(FSStatusCode::OK, fsManager_->CreateFs(&req, &resultInfo));
 
     EXPECT_EQ(FsStatus::INITED, resultInfo.status());
 }
