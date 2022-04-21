@@ -39,12 +39,13 @@
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeOpenStatusChange;
-using ::curvefs::metaserver::VolumeExtentList;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::metaserver::S3ChunkInfo;
 
 namespace curvefs {
 namespace client {
+
+using ::curvefs::metaserver::VolumeExtentList;
 
 enum InodeStatus {
     Normal = 0,
@@ -64,26 +65,20 @@ void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
 class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
     InodeWrapper(const Inode &inode,
-        const std::shared_ptr<MetaServerClient> &metaClient)
-      : inode_(inode),
-        status_(InodeStatus::Normal),
-        metaClient_(metaClient),
-        openCount_(0),
-        dirty_(false) {
-        BuildExtentCache();
-        }
+                 const std::shared_ptr<MetaServerClient> &metaClient)
+        : inode_(inode),
+          status_(InodeStatus::Normal),
+          metaClient_(metaClient),
+          openCount_(0),
+          dirty_(false) {}
 
     InodeWrapper(Inode &&inode,
-        const std::shared_ptr<MetaServerClient> &metaClient)
-      : inode_(std::move(inode)),
-        status_(InodeStatus::Normal),
-        metaClient_(metaClient),
-        openCount_(0),
-        dirty_(false) {
-        BuildExtentCache();
-        }
-
-    ~InodeWrapper() {}
+                 const std::shared_ptr<MetaServerClient> &metaClient)
+        : inode_(std::move(inode)),
+          status_(InodeStatus::Normal),
+          metaClient_(metaClient),
+          openCount_(0),
+          dirty_(false) {}
 
     uint64_t GetInodeId() const {
         return inode_.inodeid();
@@ -149,7 +144,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     void GetInodeAttrLocked(struct stat *attr) {
         curve::common::UniqueLock lg(mtx_);
         GetInodeAttrUnLocked(attr);
-        return;
     }
 
     void GetInodeAttrUnLocked(struct stat *attr) {
@@ -180,7 +174,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
         VLOG(6) << "GetInodeAttr attr =  " << *attr
                 << ", inodeid = " << inode_.inodeid();
-        return;
     }
 
     void GetInodeAttrLocked(InodeAttr *attr) {
@@ -254,41 +247,11 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR DecreaseNLink();
 
-    CURVEFS_ERROR Sync() {
-        VLOG(9) << "sync inode: " << inode_.ShortDebugString();
-
-        switch (inode_.type()) {
-            case FsFileType::TYPE_S3: {
-                auto ret = SyncAttr();
-                if (ret != CURVEFS_ERROR::OK) {
-                    return ret;
-                }
-
-                return SyncS3ChunkInfo();
-            }
-
-            case FsFileType::TYPE_FILE: {
-                return SyncFullInode();
-            }
-
-            default:
-                return CURVEFS_ERROR::INVALIDPARAM;
-        }
-    }
-
-    CURVEFS_ERROR SyncFullInode();
+    CURVEFS_ERROR Sync();
 
     CURVEFS_ERROR SyncAttr();
 
-    CURVEFS_ERROR SyncS3ChunkInfo();
-
-    void FlushAsync() {
-        FlushAttrAsync();
-
-        if (inode_.type() == FsFileType::TYPE_S3) {
-            FlushS3ChunkInfoAsync();
-        }
-    }
+    void FlushAsync();
 
     void FlushAttrAsync();
 
@@ -308,6 +271,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     bool IsDirty() const {
         return dirty_;
+    }
+
+    void ClearDirtyForTesting() {
+        dirty_ = false;
     }
 
     void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
@@ -355,17 +322,21 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     ExtentCache* GetMutableExtentCache() {
         curve::common::UniqueLock lk(mtx_);
-        dirty_ = true;
         return &extentCache_;
     }
+
+    CURVEFS_ERROR RefreshVolumeExtent();
 
  private:
     CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
-    void BuildExtentCache();
+    CURVEFS_ERROR SyncS3ChunkInfo();
 
-    // TODO(wuhanqing): separate `volumeextentmap` from `Inode`
-    void AddVolumeExtentMapToInode();
+ private:
+    friend class UpdateVolumeExtentClosure;
+
+    CURVEFS_ERROR FlushVolumeExtent();
+    void FlushVolumeExtentAsync();
 
  private:
     Inode inode_;

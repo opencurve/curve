@@ -31,7 +31,9 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/volume/default_volume_storage.h"
+#include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/src/volume/common.h"
 #include "curvefs/src/volume/option.h"
 
@@ -82,8 +84,9 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpInit(void *userdata,
         return ret;
     }
 
-    const auto &volName = fsInfo_->detail().volume().volumename();
-    const auto &user = fsInfo_->detail().volume().user();
+    const auto &vol = fsInfo_->detail().volume();
+    const auto &volName = vol.volumename();
+    const auto &user = vol.user();
     auto ret2 = blockDeviceClient_->Open(volName, user);
     if (!ret2) {
         LOG(ERROR) << "BlockDeviceClientImpl open failed, ret = " << ret
@@ -112,6 +115,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpInit(void *userdata,
 
     storage_ = absl::make_unique<DefaultVolumeStorage>(
         spaceManager_.get(), blockDeviceClient_.get(), inodeManager_.get());
+
+    ExtentCacheOption extentOpt;
+    extentOpt.blockSize = vol.blocksize();
+    extentOpt.sliceSize = vol.slicesize();
+
+    ExtentCache::SetOption(extentOpt);
 
     return CURVEFS_ERROR::OK;
 }

@@ -238,7 +238,7 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
             }
         }
 
-        for (int i = 0; i < channels_.size(); ++i) {
+        for (size_t i = 0; i < channels_.size(); ++i) {
             curve::chunkserver::CliService2_Stub stub(channels_[i].get());
             curve::chunkserver::GetLeaderRequest2 request;
             request.set_logicpoolid(logicPoolId);

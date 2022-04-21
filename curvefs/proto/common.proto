@@ -39,7 +39,7 @@ message Volume {
     optional string password = 5;
     required uint64 blockGroupSize = 6;
     required BitmapLocation bitmapLocation = 7;
-
+    required uint64 sliceSize = 8;
     // TODO(all): maybe we need curvebs cluster's mds ip and port in here
 }
 

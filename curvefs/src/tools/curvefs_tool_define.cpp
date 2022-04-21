@@ -79,6 +79,9 @@ DEFINE_string(volumeBitmapLocation,
               "AtStart",
               "volume space bitmap location, support |AtStart| and |AtEnd|");
 
+static constexpr uint64_t kGiB = 1ULL * 1024 * 1024 * 1024;
+DEFINE_uint64(volumeSliceSize, 1 * kGiB, "volume extents slice size");
+
 DEFINE_uint32(rpcStreamIdleTimeoutMs, 10000, "rpc stream idle timeout");
 
 namespace curvefs {

@@ -24,22 +24,30 @@
 #define CURVEFS_SRC_METASERVER_STORAGE_CONVERTER_H_
 
 
+#include <google/protobuf/message.h>
 #include <string>
+#include <type_traits>
 
 #include "curvefs/src/metaserver/storage/common.h"
 
 namespace curvefs {
 namespace metaserver {
+
+class MetaStoreFStream;
+
 namespace storage {
 
 enum KEY_TYPE : unsigned char {
     kTypeInode = 1,
     kTypeS3ChunkInfo = 2,
     kTypeDentry = 3,
+    kTypeVolumeExtent = 4,
 };
 
 class StorageKey {
  public:
+    virtual ~StorageKey() = default;
+
     virtual std::string SerializeToString() const = 0;
     virtual bool ParseFromString(const std::string& value) = 0;
 };
@@ -51,6 +59,9 @@ class StorageKey {
  *   Prefix4ChunkIndexS3ChunkInfoList : kTypeS3ChunkInfo:fsId:inodeId:chunkIndex:  // NOLINT
  *   Prefix4InodeS3ChunkInfoList      : kTypeS3ChunkInfo:fsId:inodeId:
  *   Prefix4AllS3ChunkInfoList        : kTypeS3ChunkInfo:
+ *   Key4VolumeExtentSlice            : kTypeExtent:fsId:InodeId:SliceOffset
+ *   Prefix4InodeVolumeExtent         : kTypeExtent:fsId:InodeId:
+ *   Prefix4AllVolumeExtent           : kTypeExtent:
  */
 
 class Key4Inode : public StorageKey {
@@ -163,6 +174,51 @@ class Prefix4AllS3ChunkInfoList : public StorageKey {
     static const KEY_TYPE keyType_ = kTypeS3ChunkInfo;
 };
 
+class Key4VolumeExtentSlice : public StorageKey {
+ public:
+    Key4VolumeExtentSlice() = default;
+
+    Key4VolumeExtentSlice(uint32_t fsId, uint64_t inodeId, uint64_t offset);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    friend class curvefs::metaserver::MetaStoreFStream;
+
+    uint32_t fsId_;
+    uint64_t inodeId_;
+    uint64_t offset_;
+
+    static constexpr KEY_TYPE keyType_ = kTypeVolumeExtent;
+};
+
+class Prefix4InodeVolumeExtent : public StorageKey {
+ public:
+    Prefix4InodeVolumeExtent(uint32_t fsId, uint64_t inodeId);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    uint32_t fsId_;
+    uint64_t inodeId_;
+
+    static constexpr KEY_TYPE keyType_ = kTypeVolumeExtent;
+};
+
+class Prefix4AllVolumeExtent : public StorageKey {
+ public:
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    static constexpr KEY_TYPE keyType_ = kTypeVolumeExtent;
+};
+
 // converter
 class Converter {
  public:
@@ -176,8 +232,11 @@ class Converter {
                            std::string* value);
 
     // for key&value
-    template <typename Message>
-    bool ParseFromString(const std::string& value, Message* entry) {
+    template <typename Entry,
+              typename = typename std::enable_if<
+                  std::is_base_of<google::protobuf::Message, Entry>::value ||
+                  std::is_base_of<StorageKey, Entry>::value>::type>
+    bool ParseFromString(const std::string& value, Entry* entry) {
         return entry->ParseFromString(value);
     }
 };

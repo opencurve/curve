@@ -28,6 +28,7 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "curvefs/src/metaserver/copyset/operator_type.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 
 namespace curvefs {
@@ -461,6 +462,48 @@ class PrepareRenameTxOperator : public MetaOperator {
     using MetaOperator::MetaOperator;
 
     void OnApply(int64_t index, google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+
+    OperatorType GetOperatorType() const override;
+};
+
+class GetVolumeExtentOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index,
+                 google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+
+    bool CanBypassPropose() const override;
+
+    OperatorType GetOperatorType() const override;
+};
+
+class UpdateVolumeExtentOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index,
+                 google::protobuf::Closure* done,
                  uint64_t startTimeUs) override;
 
     void OnApplyFromLog(uint64_t startTimeUs) override;

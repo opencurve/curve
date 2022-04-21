@@ -65,7 +65,12 @@ TEST(ExtentCacheMarkWrittenTest, Case1_NonOverlap) {
 
         cache.Merge(test.second.first, pext);
 
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
+
         cache.MarkWritten(test.first.first, test.first.second);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_TRUE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -117,8 +122,12 @@ TEST(ExtentCacheMarkWrittenTest, Case2_Overlap) {
         pext.UnWritten = unwritten;
 
         cache.Merge(test.second.first, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         cache.MarkWritten(test.first.first, test.first.second);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -146,8 +155,12 @@ TEST(ExtentCacheMarkWrittenTest, Case3_Overlap) {
         pext.UnWritten = true;
 
         cache.Merge(0, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         cache.MarkWritten(0, 3 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -179,8 +192,12 @@ TEST(ExtentCacheMarkWrittenTest, Case3_Overlap) {
         pext.UnWritten = true;
 
         cache.Merge(0, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         cache.MarkWritten(1 * kMiB, 3 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -212,8 +229,12 @@ TEST(ExtentCacheMarkWrittenTest, Case3_Overlap) {
         pext.UnWritten = true;
 
         cache.Merge(0, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         cache.MarkWritten(1 * kMiB, 2 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -256,8 +277,12 @@ TEST(ExtentCacheMarkWrittenTest, Case4_Overlap) {
         pext.UnWritten = true;
 
         cache.Merge(8 * kMiB, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         cache.MarkWritten(0, 10 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -290,8 +315,12 @@ TEST(ExtentCacheMarkWrittenTest, Case4_Overlap) {
         pext.UnWritten = true;
 
         cache.Merge(0 * kMiB, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         cache.MarkWritten(4 * kMiB, 10 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -336,9 +365,13 @@ TEST(ExtentCacheMarkWrittenTest, Case5_Mergeable) {
         pext.UnWritten = true;
 
         cache.Merge(12 * kMiB, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         // mark written 10MiB ~ 14MiB
         cache.MarkWritten(10 * kMiB, 4 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -385,9 +418,13 @@ TEST(ExtentCacheMarkWrittenTest, Case5_Mergeable) {
         pext.UnWritten = true;
 
         cache.Merge(12 * kMiB, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         // mark written 8MiB ~ 16MiB
         cache.MarkWritten(8 * kMiB, 8 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -426,9 +463,13 @@ TEST(ExtentCacheMarkWrittenTest, Case5_NotMerge) {
         pext.UnWritten = true;
 
         cache.Merge(12 * kMiB, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         // mark written 10MiB ~ 14MiB
         cache.MarkWritten(10 * kMiB, 4 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -481,9 +522,13 @@ TEST(ExtentCacheMarkWrittenTest, Case5_NotMerge) {
         pext.UnWritten = true;
 
         cache.Merge(12 * kMiB, pext);
+        auto dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         // mark written 8MiB ~ 16MiB
         cache.MarkWritten(8 * kMiB, 8 * kMiB);
+        dirties = cache.GetDirtyExtents();
+        ASSERT_FALSE(dirties.slices().empty());
 
         auto extents = cache.GetExtentsForTesting();
         ASSERT_EQ(1, extents.size());
@@ -541,6 +586,8 @@ TEST(ExtentCacheMarkWrittenTest, Case6_Mergeable) {
     pext.UnWritten = true;
 
     cache.Merge(20 * kMiB, pext);
+    auto dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     // mark written 8MiB ~ 12MiB
     cache.MarkWritten(8 * kMiB, 4 * kMiB);
@@ -550,6 +597,8 @@ TEST(ExtentCacheMarkWrittenTest, Case6_Mergeable) {
 
     // mark written 8MiB ~ 24MiB
     cache.MarkWritten(8 * kMiB, 16 * kMiB);
+    dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     auto extents = cache.GetExtentsForTesting();
     ASSERT_EQ(1, extents.size());
@@ -602,6 +651,8 @@ TEST(ExtentCacheMarkWrittenTest, Case7) {
     pext.UnWritten = true;
 
     cache.Merge(20 * kMiB, pext);
+    auto dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     // mark written 8MiB ~ 12MiB
     cache.MarkWritten(8 * kMiB, 4 * kMiB);
@@ -611,6 +662,8 @@ TEST(ExtentCacheMarkWrittenTest, Case7) {
 
     // mark written 8MiB ~ 20MiB
     cache.MarkWritten(8 * kMiB, 12 * kMiB);
+    dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     auto extents = cache.GetExtentsForTesting();
     ASSERT_EQ(1, extents.size());
@@ -643,9 +696,13 @@ TEST(ExtentCacheMarkWrittenTest, Case3_Overlap_Unaligned1) {
     pext.UnWritten = true;
 
     cache.Merge(0, pext);
+    auto dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     // only first 6 bytes are written
     cache.MarkWritten(0, 6);
+    dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     auto extents = cache.GetExtentsForTesting();
     ASSERT_EQ(1, extents.size());
@@ -672,9 +729,13 @@ TEST(ExtentCacheMarkWrittenTest, Case3_Overlap_Unaligned2) {
     pext.UnWritten = true;
 
     cache.Merge(0, pext);
+    auto dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     // only first 6 bytes are written
     cache.MarkWritten(6, 12);
+    dirties = cache.GetDirtyExtents();
+    ASSERT_FALSE(dirties.slices().empty());
 
     auto extents = cache.GetExtentsForTesting();
     ASSERT_EQ(1, extents.size());

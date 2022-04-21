@@ -74,6 +74,10 @@ class MetaStoreFStream {
                                   const std::string& key,
                                   const std::string& value);
 
+    bool LoadVolumeExtentList(uint32_t partitionId,
+                              const std::string& key,
+                              const std::string& value);
+
     std::shared_ptr<Iterator> NewPartitionIterator();
 
     std::shared_ptr<Iterator> NewInodeIterator(
@@ -87,6 +91,8 @@ class MetaStoreFStream {
 
     std::shared_ptr<Iterator> NewInodeS3ChunkInfoListIterator(
         std::shared_ptr<Partition> partition);
+
+    std::shared_ptr<Iterator> NewVolumeExtentListIterator(Partition* partition);
 
  private:
     std::shared_ptr<Partition> GetPartition(uint32_t partitionId);

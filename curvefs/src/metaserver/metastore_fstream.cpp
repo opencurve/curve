@@ -20,13 +20,16 @@
  * Author: Jingli Chen (Wine93)
  */
 
+#include <memory>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/metastore_fstream.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/storage_fstream.h"
 
 namespace curvefs {
@@ -46,6 +49,8 @@ using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
 using ChildrenType = ::curvefs::metaserver::storage::MergeIterator::ChildrenType;  // NOLINT
 using DumpFileClosure = ::curvefs::metaserver::storage::DumpFileClosure;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+
+using ::curvefs::metaserver::storage::Key4VolumeExtentSlice;
 
 MetaStoreFStream::MetaStoreFStream(PartitionMap* partitionMap,
                                    std::shared_ptr<KVStorage> kvStorage)
@@ -184,6 +189,39 @@ bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
     return true;
 }
 
+bool MetaStoreFStream::LoadVolumeExtentList(uint32_t partitionId,
+                                            const std::string& key,
+                                            const std::string& value) {
+    auto partition = GetPartition(partitionId);
+    if (!partition) {
+        LOG(ERROR) << "Partition not found, partitionId: " << partitionId;
+        return false;
+    }
+
+    Key4VolumeExtentSlice sliceKey;
+    VolumeExtentSlice slice;
+
+    if (!sliceKey.ParseFromString(key)) {
+        LOG(ERROR) << "Fail to decode Key4VolumeExtentSlice, key: `" << key
+                   << "`";
+        return false;
+    }
+
+    if (!conv_->ParseFromString(value, &slice)) {
+        LOG(ERROR) << "Decode VolumeExtentSlice failed";
+        return false;
+    }
+
+    auto st = partition->UpdateVolumeExtentSlice(sliceKey.fsId_,
+                                                 sliceKey.inodeId_, slice);
+
+    LOG_IF(ERROR, st != MetaStatusCode::OK)
+        << "LoadVolumeExtentList update extent failed, error: "
+        << MetaStatusCode_Name(st);
+
+    return st == MetaStatusCode::OK;
+}
+
 std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
     std::string value;
     auto container = std::make_shared<ContainerType>();
@@ -255,24 +293,37 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewInodeS3ChunkInfoListIterator(
         ENTRY_TYPE::S3_CHUNK_INFO_LIST, partitionId, iterator);
 }
 
+std::shared_ptr<Iterator> MetaStoreFStream::NewVolumeExtentListIterator(
+    Partition* partition) {
+    auto partitionId = partition->GetPartitionId();
+    auto iterator = partition->GetAllVolumeExtentList();
+    if (iterator->Status() != 0) {
+        return nullptr;
+    }
+
+    return std::make_shared<IteratorWrapper>(ENTRY_TYPE::VOLUME_EXTENT,
+                                             partitionId, std::move(iterator));
+}
+
 bool MetaStoreFStream::Load(const std::string& pathname) {
     auto callback = [&](ENTRY_TYPE entryType,
-                        uint32_t paritionId,
+                        uint32_t partitionId,
                         const std::string& key,
                         const std::string& value) -> bool {
         switch (entryType) {
             case ENTRY_TYPE::PARTITION:
-                return LoadPartition(paritionId, key, value);
+                return LoadPartition(partitionId, key, value);
             case ENTRY_TYPE::INODE:
-                return LoadInode(paritionId, key, value);
+                return LoadInode(partitionId, key, value);
             case ENTRY_TYPE::DENTRY:
-                return LoadDentry(paritionId, key, value);
+                return LoadDentry(partitionId, key, value);
             case ENTRY_TYPE::PENDING_TX:
-                return LoadPendingTx(paritionId, key, value);
+                return LoadPendingTx(partitionId, key, value);
             case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
-                return LoadInodeS3ChunkInfoList(paritionId, key, value);
+                return LoadInodeS3ChunkInfoList(partitionId, key, value);
+            case ENTRY_TYPE::VOLUME_EXTENT:
+                return LoadVolumeExtentList(partitionId, key, value);
             case ENTRY_TYPE::UNKNOWN:
-            default:
                 break;
         }
 
@@ -290,7 +341,7 @@ bool MetaStoreFStream::Save(const std::string& path,
     auto iterator = NewPartitionIterator();  // partition
     children.push_back(iterator);
     for (const auto& item : *partitionMap_) {
-        auto partition = item.second;
+        auto& partition = item.second;
 
         iterator = NewInodeIterator(partition);  // inode
         children.push_back(iterator);
@@ -303,6 +354,8 @@ bool MetaStoreFStream::Save(const std::string& path,
 
         iterator = NewInodeS3ChunkInfoListIterator(partition);  // s3chunkinfo
         children.push_back(iterator);
+
+        children.push_back(NewVolumeExtentListIterator(partition.get()));
     }
 
     for (const auto& child : children) {

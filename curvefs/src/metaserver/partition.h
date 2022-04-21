@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <vector>
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/metaserver/dentry_manager.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
@@ -102,11 +103,24 @@ class Partition {
                                            S3ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
+    MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      const VolumeExtentList& extents);
+
+    MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           const VolumeExtentSlice& slice);
+
+    MetaStatusCode GetVolumeExtent(uint32_t fsId,
+                                   uint64_t inodeId,
+                                   const std::vector<uint64_t>& slices,
+                                   VolumeExtentList* extents);
+
     MetaStatusCode InsertInode(const Inode& inode);
 
     bool GetInodeIdList(std::list<uint64_t>* InodeIdList);
 
-    // if patition has no inode or no dentry, it is deletable
+    // if partition has no inode or no dentry, it is deletable
     bool IsDeletable();
 
     // check if fsid matchs and inode range belongs to this partition
@@ -115,7 +129,7 @@ class Partition {
     // check if fsid match this partition
     bool IsInodeBelongs(uint32_t fsId);
 
-    uint32_t GetPartitionId();
+    uint32_t GetPartitionId() const;
 
     uint32_t GetPoolId() { return partitionInfo_.poolid(); }
 
@@ -150,6 +164,8 @@ class Partition {
     std::shared_ptr<Iterator> GetAllDentry();
 
     std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
+
+    std::shared_ptr<Iterator> GetAllVolumeExtentList();
 
     bool Clear();
 

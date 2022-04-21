@@ -86,6 +86,14 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD2(SendS3ChunkInfoByStream, MetaStatusCode(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator));
+
+    MOCK_METHOD2(GetVolumeExtent,
+                 MetaStatusCode(const GetVolumeExtentRequest*,
+                                GetVolumeExtentResponse*));
+
+    MOCK_METHOD2(UpdateVolumeExtent,
+                 MetaStatusCode(const UpdateVolumeExtentRequest*,
+                                UpdateVolumeExtentResponse*));
 };
 
 }  // namespace mock

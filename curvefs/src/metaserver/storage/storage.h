@@ -49,6 +49,8 @@ struct StorageStatistics {
 // The interface inspired by redis, see also https://redis.io/commands
 class BaseStorage {
  public:
+    virtual ~BaseStorage() = default;
+
     // "H" is the prefix of unordered storage
     virtual Status HGet(const std::string& name,
                         const std::string& key,

@@ -169,6 +169,7 @@ TEST_F(StorageFstreamTest, MiscTest) {
     ASSERT_EQ(Type2Str(ENTRY_TYPE::PARTITION), "p");
     ASSERT_EQ(Type2Str(ENTRY_TYPE::PENDING_TX), "t");
     ASSERT_EQ(Type2Str(ENTRY_TYPE::S3_CHUNK_INFO_LIST), "s");
+    ASSERT_EQ(Type2Str(ENTRY_TYPE::VOLUME_EXTENT), "v");
     ASSERT_EQ(Type2Str(ENTRY_TYPE::UNKNOWN), "u");
 
     ASSERT_EQ(Str2Type("i"), ENTRY_TYPE::INODE);
@@ -176,6 +177,7 @@ TEST_F(StorageFstreamTest, MiscTest) {
     ASSERT_EQ(Str2Type("p"), ENTRY_TYPE::PARTITION);
     ASSERT_EQ(Str2Type("t"), ENTRY_TYPE::PENDING_TX);
     ASSERT_EQ(Str2Type("s"), ENTRY_TYPE::S3_CHUNK_INFO_LIST);
+    ASSERT_EQ(Str2Type("v"), ENTRY_TYPE::VOLUME_EXTENT);
     ASSERT_EQ(Str2Type("u"), ENTRY_TYPE::UNKNOWN);
     ASSERT_EQ(Str2Type("x"), ENTRY_TYPE::UNKNOWN);
     ASSERT_EQ(Str2Type("y"), ENTRY_TYPE::UNKNOWN);

@@ -123,7 +123,7 @@ TEST_F(PrepareWriteRequestTest, Case3_UnalignedWrite) {
 // 64 ~ 4096
 TEST_F(PrepareWriteRequestTest, Case3_UnalignedWrite2) {
     ExtentCacheOption opt;
-    opt.preallocSize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
     ExtentCache::SetOption(opt);
 
     off_t offset = 64;

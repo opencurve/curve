@@ -69,7 +69,7 @@ bool RaftLogCodec::Encode(OperatorType type,
 
     // 2. append request length
     // serialize will fail when request's size larger than INT_MAX, check this
-    // manullay because `request->ByteSize()`'s behaviour is affected by NDEBUG
+    // manually because `request->ByteSize()`'s behaviour is affected by NDEBUG
     const uint64_t requestSize = request->ByteSizeLong();
     if (CURVE_UNLIKELY(requestSize > INT_MAX)) {
         LOG(ERROR) << "Request's size is too large, type: "
@@ -126,10 +126,10 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
                 node, type, meta);
         case OperatorType::BatchGetInodeAttr:
             return ParseFromRaftLog<BatchGetInodeAttrOperator,
-                BatchGetInodeAttrRequest>(node, type, meta);
+                                    BatchGetInodeAttrRequest>(node, type, meta);
         case OperatorType::BatchGetXAttr:
             return ParseFromRaftLog<BatchGetXAttrOperator,
-                BatchGetXAttrRequest>(node, type, meta);
+                                    BatchGetInodeAttrRequest>(node, type, meta);
         case OperatorType::CreateInode:
             return ParseFromRaftLog<CreateInodeOperator, CreateInodeRequest>(
                 node, type, meta);
@@ -155,10 +155,24 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
             return ParseFromRaftLog<GetOrModifyS3ChunkInfoOperator,
                                     GetOrModifyS3ChunkInfoRequest>(
                                         node, type, meta);
-        default:
-            LOG(ERROR) << "unexpected type: " << static_cast<uint32_t>(type);
-            return nullptr;
+        case OperatorType::GetVolumeExtent:
+            return ParseFromRaftLog<GetVolumeExtentOperator,
+                                    GetVolumeExtentRequest>(node, type, meta);
+        case OperatorType::UpdateVolumeExtent:
+            return ParseFromRaftLog<UpdateVolumeExtentOperator,
+                                    UpdateVolumeExtentRequest>(node, type,
+                                                               meta);
+        // Add new case before `OperatorType::OperatorTypeMax`
+        case OperatorType::OperatorTypeMax:
+            break;
     }
+
+    // DO NOT make it as a default case in switch statement
+    // otherwise compiler WILL NOT warning on unhandled enumeration value
+    // see GCC warning options `-Wswitch` for more information
+    // https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Warning-Options.html#Warning-Options
+    LOG(ERROR) << "unexpected type: " << static_cast<uint32_t>(type);
+    return nullptr;
 }
 
 }  // namespace copyset

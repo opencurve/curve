@@ -27,6 +27,8 @@
 
 #include <map>
 #include <utility>
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/error_code.h"
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::MetaStatusCode_Name;
@@ -73,16 +75,23 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
         return MetaStatusCodeToCurvefsErrCode(ret2);
     }
 
+    auto type = inode.type();
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
 
     // NOTE: if the s3chunkinfo inside inode is too large,
     // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
     // by streaming and padding its into inode.
-    if (streaming) {
+    if (type == FsFileType::TYPE_S3 && streaming) {
         CURVEFS_ERROR rc = out->RefreshS3ChunkInfo();
         if (rc != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "RefreshS3ChunkInfo() failed, retCode = " << rc;
+            return rc;
+        }
+    } else if (type == FsFileType::TYPE_FILE) {
+        auto rc = out->RefreshVolumeExtent();
+        if (rc != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "RefreshVolumeExtent failed, error: " << rc;
             return rc;
         }
     }

@@ -22,11 +22,13 @@
 
 #include <glog/logging.h>
 
+#include <string>
 #include <vector>
 #include <limits>
 #include <iomanip>
 #include <iostream>
 
+#include "absl/strings/str_cat.h"
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 
@@ -38,6 +40,8 @@ using ::curve::common::StringToUl;
 using ::curve::common::StringToUll;
 using ::curve::common::SplitString;
 using ::curvefs::common::PartitionInfo;
+
+static const char* const kDelimiter = ":";
 
 static bool CompareType(const std::string& str, KEY_TYPE keyType) {
     uint32_t n;
@@ -196,6 +200,52 @@ bool Converter::SerializeToString(const google::protobuf::Message& entry,
         return false;
     }
     return entry.SerializeToString(value);
+}
+
+Key4VolumeExtentSlice::Key4VolumeExtentSlice(uint32_t fsId,
+                                             uint64_t inodeId,
+                                             uint64_t offset)
+    : fsId_(fsId), inodeId_(inodeId), offset_(offset) {}
+
+std::string Key4VolumeExtentSlice::SerializeToString() const {
+    return absl::StrCat(keyType_, kDelimiter, fsId_, kDelimiter, inodeId_,
+                        kDelimiter, offset_);
+}
+
+bool Key4VolumeExtentSlice::ParseFromString(const std::string& value) {
+    // TODO(wuhanqing): reduce unnecessary creation of temporary strings,
+    //                  but, currently, `absl::from_chars` only support floating
+    //                  point
+    std::vector<std::string> items;
+    SplitString(value, kDelimiter, &items);
+    return items.size() == 4 && CompareType(items[0], keyType_) &&
+           StringToUl(items[1], &fsId_) && StringToUll(items[2], &inodeId_) &&
+           StringToUll(items[3], &offset_);
+}
+
+Prefix4InodeVolumeExtent::Prefix4InodeVolumeExtent(uint32_t fsId,
+                                                   uint64_t inodeId)
+    : fsId_(fsId), inodeId_(inodeId) {}
+
+std::string Prefix4InodeVolumeExtent::SerializeToString() const {
+    return absl::StrCat(keyType_, kDelimiter, fsId_, kDelimiter, inodeId_);
+}
+
+bool Prefix4InodeVolumeExtent::ParseFromString(const std::string &value) {
+    std::vector<std::string> items;
+    SplitString(value, kDelimiter, &items);
+    return items.size() == 3 && CompareType(items[0], keyType_) &&
+           StringToUl(items[1], &fsId_) && StringToUll(items[2], &inodeId_);
+}
+
+std::string Prefix4AllVolumeExtent::SerializeToString() const {
+    return absl::StrCat(keyType_, kDelimiter);
+}
+
+bool Prefix4AllVolumeExtent::ParseFromString(const std::string &value) {
+    std::vector<std::string> items;
+    SplitString(value, kDelimiter, &items);
+    return items.size() == 1 && CompareType(items[0], keyType_);
 }
 
 }  // namespace storage

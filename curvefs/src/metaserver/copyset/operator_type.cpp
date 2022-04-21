@@ -20,10 +20,13 @@
  * Author: wuhanqing
  */
 
-#include "curvefs/src/metaserver/common/operator_type.h"
+#include "curvefs/src/metaserver/copyset/operator_type.h"
+
+#include <glog/logging.h>
 
 namespace curvefs {
 namespace metaserver {
+namespace copyset {
 
 const char* OperatorTypeName(OperatorType type) {
     switch (type) {
@@ -55,10 +58,24 @@ const char* OperatorTypeName(OperatorType type) {
             return "DeletePartition";
         case OperatorType::PrepareRenameTx:
             return "PrepareRenameTx";
-        default:
-            return "Unknown";
+        case OperatorType::GetOrModifyS3ChunkInfo:
+            return "GetOrModifyS3ChunkInfo";
+        case OperatorType::GetVolumeExtent:
+            return "GetVolumeExtent";
+        case OperatorType::UpdateVolumeExtent:
+            return "UpdateVolumeExtent";
+        // Add new case before `OperatorType::OperatorTypeMax`
+        case OperatorType::OperatorTypeMax:
+            break;
     }
+
+    // DO NOT make it as a default case in switch statement
+    // otherwise compiler WILL NOT warning on unhandled enumeration value
+    CHECK(false) << "Unexpected, did you forget add corresponding name "
+                    "after add a new operator type?";
+    return "Unexpected";
 }
 
+}  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs

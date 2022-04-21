@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,41 +16,25 @@
 
 /*
  * Project: curve
- * Date: Fri Sep  3 17:30:00 CST 2021
+ * Date: Thursday Apr 28 14:59:52 CST 2022
  * Author: wuhanqing
  */
 
-#ifndef CURVEFS_SRC_METASERVER_COMMON_OPERATOR_TYPE_H_
-#define CURVEFS_SRC_METASERVER_COMMON_OPERATOR_TYPE_H_
+#ifndef CURVEFS_SRC_METASERVER_STREAMING_UTILS_H_
+#define CURVEFS_SRC_METASERVER_STREAMING_UTILS_H_
 
-#include <cstdint>
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/common/rpc_stream.h"
 
 namespace curvefs {
 namespace metaserver {
 
-enum class OperatorType : uint32_t {
-    GetDentry,
-    ListDentry,
-    CreateDentry,
-    DeleteDentry,
-    GetInode,
-    BatchGetInodeAttr,
-    BatchGetXAttr,
-    CreateInode,
-    UpdateInode,
-    DeleteInode,
-    CreateRootInode,
-    CreatePartition,
-    DeletePartition,
-    PrepareRenameTx,
-    GetOrModifyS3ChunkInfo,
-    /** Add new operator before `OperatorTypeMax` **/
-    OperatorTypeMax,
-};
+using ::curvefs::common::StreamConnection;
 
-const char* OperatorTypeName(OperatorType type);
+MetaStatusCode StreamingSendVolumeExtent(StreamConnection* connection,
+                                         const VolumeExtentList& extents);
 
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_COMMON_OPERATOR_TYPE_H_
+#endif  // CURVEFS_SRC_METASERVER_STREAMING_UTILS_H_

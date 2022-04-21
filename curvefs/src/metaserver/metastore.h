@@ -149,6 +149,14 @@ class MetaStore {
     virtual MetaStatusCode SendS3ChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) = 0;
+
+    virtual MetaStatusCode GetVolumeExtent(
+        const GetVolumeExtentRequest* request,
+        GetVolumeExtentResponse* response) = 0;
+
+    virtual MetaStatusCode UpdateVolumeExtent(
+        const UpdateVolumeExtentRequest* request,
+        UpdateVolumeExtentResponse* response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -219,6 +227,13 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode SendS3ChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) override;
+
+    MetaStatusCode GetVolumeExtent(const GetVolumeExtentRequest* request,
+                                   GetVolumeExtentResponse* response) override;
+
+    MetaStatusCode UpdateVolumeExtent(
+        const UpdateVolumeExtentRequest* request,
+        UpdateVolumeExtentResponse* response) override;
 
  private:
     void PrepareStreamBuffer(butil::IOBuf* buffer,

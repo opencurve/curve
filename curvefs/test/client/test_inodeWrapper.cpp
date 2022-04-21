@@ -22,10 +22,15 @@
  * Author: xuchaojie
  */
 
+#include <gmock/gmock-more-actions.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/rpcclient/task_excutor.h"
+#include "curvefs/src/client/volume/extent.h"
+#include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_wrapper.h"
 
@@ -40,6 +45,8 @@ using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
+using ::testing::Invoke;
+using ::curvefs::client::rpcclient::MetaServerClientDone;
 
 using rpcclient::MockMetaServerClient;
 
@@ -172,67 +179,40 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret2);
 }
 
-static void AddOneExtent(InodeWrapper* wrap) {
-    auto extentcache = wrap->GetMutableExtentCache();
-    PExtent pext;
-    extentcache->Merge(0, pext);
-}
+TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
+    ExtentCache::SetOption({});
 
-MATCHER(HasVolumeExtentMap, "") {
-    return !arg.volumeextentmap().empty();
-}
-
-TEST_F(TestInodeWrapper, TestAllUpdateInodeMustHasVolumeExtentMap) {
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
+    inodeWrapper_->ClearDirtyForTesting();
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+        .Times(0);
+    EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
+        .Times(0);
 
-    // Sync
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->Sync();
-    }
+    ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
+}
 
-    // Open and Release
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(2);
-        inodeWrapper_->Open();
-        inodeWrapper_->Release();
-    }
+TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
+    ExtentCache::SetOption({});
 
-    // UpdateParent
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->UpdateParentLocked(1, 2);
-    }
+    inodeWrapper_->SetType(FsFileType::TYPE_FILE);
+    inodeWrapper_->ClearDirtyForTesting();
+    auto* extentCache = inodeWrapper_->GetMutableExtentCache();
+    PExtent pext;
+    pext.len = 4096;
+    pext.pOffset = 0;
+    pext.UnWritten = true;
+    extentCache->Merge(0, pext);
+    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+        .Times(0);
+    EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
+        .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
+                            MetaServerClientDone* done) {
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }));
 
-    // SyncAttr
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->SyncAttr();
-    }
-
-    // Link
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->LinkLocked(2);
-    }
-
-    // UnLink
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->UnLinkLocked(2);
-    }
+    ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
 }
 
 }  // namespace client

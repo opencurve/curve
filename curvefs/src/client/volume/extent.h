@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_CLIENT_VOLUME_EXTENT_H_
 #define CURVEFS_SRC_CLIENT_VOLUME_EXTENT_H_
 
+#include <cstddef>
 #include <cstdint>
 
 namespace curvefs {
@@ -49,6 +50,16 @@ struct PExtent {
 
     PExtent(uint64_t len, uint64_t poffset, bool unwritten)
         : len(len), pOffset(poffset), UnWritten(unwritten) {}
+};
+
+struct AllocPart {
+    ExtentAllocInfo allocInfo;
+    // allocate space is aligned to block size
+    // but user's write are not, so we need 'padding' and 'writelength' to
+    // indicate actual user's write request's on allocated space
+    size_t padding = 0;
+    size_t writelength = 0;
+    const char* data = nullptr;
 };
 
 }  // namespace client

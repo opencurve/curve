@@ -56,6 +56,7 @@ using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 enum TABLE_TYPE : unsigned char {
     kTypeInode = 1,
     kTypeS3ChunkInfo = 2,
+    kTypeVolumeExtent = 3,
 };
 
 class InodeStorage {
@@ -126,6 +127,21 @@ class InodeStorage {
 
     std::shared_ptr<Iterator> GetAllInode();
 
+    std::shared_ptr<Iterator> GetAllVolumeExtentList();
+
+    MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           const VolumeExtentSlice& slice);
+
+    MetaStatusCode GetAllVolumeExtent(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      VolumeExtentList* extents);
+
+    MetaStatusCode GetVolumeExtentByOffset(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           uint64_t offset,
+                                           VolumeExtentSlice* slice);
+
     size_t Size();
 
     MetaStatusCode Clear();
@@ -147,7 +163,8 @@ class InodeStorage {
         uint64_t chunkIndex,
         const S3ChunkInfoList* list2del);
 
-    std::string RealTablename(TABLE_TYPE type, std::string tablename) {
+    static std::string RealTablename(TABLE_TYPE type,
+                                     const std::string& tablename) {
         std::ostringstream oss;
         oss << type << ":" << tablename;
         return oss.str();
@@ -192,7 +209,8 @@ class InodeStorage {
     std::shared_ptr<KVStorage> kvStorage_;
     std::string table4inode_;
     std::string table4s3chunkinfo_;
-    std::shared_ptr<Converter> conv_;
+    std::string table4volumeextent_;
+    Converter conv_;
     std::unordered_set<std::string> keySet_;
     // key: Hash(inode), value: the number of inode's chunkinfo size
     std::unordered_map<std::string, uint64_t> inodeS3MetaSize_;
