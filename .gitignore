@@ -117,3 +117,9 @@ thirdparties/rocksdb/*.tar.gz
 /bazel-*
 /compile_commands.json
 /.cache/
+
+docker/curvebs
+docker/*/curvebs
+
+curvefs/docker/curvefs
+curvefs/docker/*/curvefs
