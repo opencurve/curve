@@ -5,6 +5,7 @@
 ############################  GLOBAL VARIABLES
 
 g_list=0
+g_depend=0
 g_target=""
 g_release=0
 g_build_rocksdb=0
@@ -84,7 +85,7 @@ _EOC_
 }
 
 get_options() {
-    local args=`getopt -o lorh --long list,only:,os:,release:,build_rocksdb: -n "$0" -- "$@"`
+    local args=`getopt -o ldorh --long list,dep:,only:,os:,release:,build_rocksdb: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
@@ -92,6 +93,10 @@ get_options() {
             -l|--list)
                 g_list=1
                 shift 1
+                ;;
+            -d|--dep)
+                g_depend=$2
+                shift 2
                 ;;
             -o|--only)
                 g_target=$2
@@ -136,6 +141,10 @@ get_target() {
 }
 
 build_target() {
+    if [ -z "$g_target" ]; then
+        exit 0
+    fi
+
     local targets
     declare -A pass
     if [ $g_release -eq 1 ]; then
@@ -190,11 +199,13 @@ main() {
 
     if [ "$g_list" -eq 1 ]; then
         list_target
-    elif [ "$g_target" == "" ]; then
+    elif [[ "$g_target" == "" && "$g_depend" -ne 1 ]]; then
         usage
         exit 1
     else
-        build_requirements
+        if [ "$g_depend" -eq 1 ]; then
+            build_requirements
+        fi
         build_target
     fi
 }
