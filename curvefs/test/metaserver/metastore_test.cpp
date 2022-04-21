@@ -24,6 +24,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <condition_variable>  // NOLINT
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/common/rpc_stream.h"
@@ -541,12 +542,10 @@ TEST_F(MetastoreTest, test_inode) {
     updateRequest3.set_partitionid(partitionId);
     updateRequest3.set_fsid(fsId);
     updateRequest3.set_inodeid(createResponse.inode().inodeid());
-    VolumeExtentList volumeExtentList;
-    updateRequest3.mutable_volumeextentmap()->insert({0, volumeExtentList});
     S3ChunkInfoList s3ChunkInfoList;
     updateRequest3.mutable_s3chunkinfomap()->insert({0, s3ChunkInfoList});
     ret = metastore.UpdateInode(&updateRequest3, &updateResponse3);
-    ASSERT_EQ(updateResponse3.statuscode(), MetaStatusCode::PARAM_ERROR);
+    ASSERT_EQ(updateResponse3.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(updateResponse3.statuscode(), ret);
 
     // DELETE INODE
@@ -1649,6 +1648,19 @@ TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
         ASSERT_EQ(response.streaming(), false);
         ASSERT_EQ(inode->mutable_s3chunkinfomap()->size(), 3);
     }
+}
+
+TEST_F(MetastoreTest, TestUpdateVolumeExtent_PartitionNotFound) {
+    MetaStoreImpl metastore(nullptr, kvStorage_);
+
+    UpdateVolumeExtentRequest request;
+    UpdateVolumeExtentResponse response;
+
+    request.set_partitionid(100);
+
+    auto st = metastore.UpdateVolumeExtent(&request, &response);
+    ASSERT_EQ(st, MetaStatusCode::PARTITION_NOT_FOUND);
+    ASSERT_EQ(MetaStatusCode::PARTITION_NOT_FOUND, response.statuscode());
 }
 
 }  // namespace metaserver

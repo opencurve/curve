@@ -23,6 +23,7 @@
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
 
 #include <brpc/closure_guard.h>
+#include <brpc/controller.h>
 
 #include <algorithm>
 #include <memory>
@@ -33,6 +34,7 @@
 #include "curvefs/src/metaserver/copyset/meta_operator_closure.h"
 #include "curvefs/src/metaserver/copyset/raft_log_codec.h"
 #include "curvefs/src/metaserver/metastore.h"
+#include "curvefs/src/metaserver/streaming_utils.h"
 #include "src/common/timeutility.h"
 
 namespace curvefs {
@@ -134,6 +136,12 @@ bool GetDentryOperator::CanBypassPropose() const {
            node_->GetAppliedIndex() >= req->appliedindex();
 }
 
+bool GetVolumeExtentOperator::CanBypassPropose() const {
+    const auto* req = static_cast<const GetVolumeExtentRequest*>(request_);
+    return req->has_appliedindex() &&
+           node_->GetAppliedIndex() >= req->appliedindex();
+}
+
 #define OPERATOR_ON_APPLY(TYPE)                                        \
     void TYPE##Operator::OnApply(int64_t index,                        \
                                  google::protobuf::Closure* done,      \
@@ -170,6 +178,7 @@ OPERATOR_ON_APPLY(CreateRootInode);
 OPERATOR_ON_APPLY(CreatePartition);
 OPERATOR_ON_APPLY(DeletePartition);
 OPERATOR_ON_APPLY(PrepareRenameTx);
+OPERATOR_ON_APPLY(UpdateVolumeExtent);;
 
 #undef OPERATOR_ON_APPLY
 
@@ -229,6 +238,54 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
     }
 }
 
+void GetVolumeExtentOperator::OnApply(int64_t index,
+                                      google::protobuf::Closure* done,
+                                      uint64_t startTimeUs) {
+    brpc::ClosureGuard doneGuard(done);
+    const auto* request = static_cast<const GetVolumeExtentRequest*>(request_);
+    auto* response = static_cast<GetVolumeExtentResponse*>(response_);
+    auto* metaStore = node_->GetMetaStore();
+
+    auto st = metaStore->GetVolumeExtent(request, response);
+    node_->GetMetric()->OnOperatorComplete(
+        OperatorType::GetVolumeExtent,
+        TimeUtility::GetTimeofDayUs() - startTimeUs, st == MetaStatusCode::OK);
+
+    if (st != MetaStatusCode::OK) {
+        return;
+    }
+
+    response->set_appliedindex(index);
+    if (!request->streaming()) {
+        return;
+    }
+
+    // in streaming mode, swap slices out and send them by streaming
+    VolumeExtentList extents;
+    response->mutable_slices()->Swap(&extents);
+    response->clear_slices();
+
+    // accept client's streaming request
+    auto* cntl = static_cast<brpc::Controller*>(cntl_);
+    auto streamingServer = metaStore->GetStreamServer();
+    auto connection = streamingServer->Accept(cntl);
+    if (connection == nullptr) {
+        LOG(ERROR) << "Accept streaming connection failed";
+        response->set_statuscode(MetaStatusCode::RPC_STREAM_ERROR);
+        return;
+    }
+
+    // run done
+    done->Run();
+    doneGuard.release();
+
+    // send volume extent
+    st = StreamingSendVolumeExtent(connection.get(), extents);
+    if (st != MetaStatusCode::OK) {
+        LOG(ERROR) << "Send volume extents by stream failed";
+    }
+}
+
 #define OPERATOR_ON_APPLY_FROM_LOG(TYPE)                                     \
     void TYPE##Operator::OnApplyFromLog(uint64_t startTimeUs) {              \
         std::unique_ptr<TYPE##Operator> selfGuard(this);                     \
@@ -249,6 +306,7 @@ OPERATOR_ON_APPLY_FROM_LOG(CreateRootInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreatePartition);
 OPERATOR_ON_APPLY_FROM_LOG(DeletePartition);
 OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
+OPERATOR_ON_APPLY_FROM_LOG(UpdateVolumeExtent);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
 
@@ -278,6 +336,7 @@ READONLY_OPERATOR_ON_APPLY_FROM_LOG(ListDentry);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(GetInode);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetInodeAttr);
 READONLY_OPERATOR_ON_APPLY_FROM_LOG(BatchGetXAttr);
+READONLY_OPERATOR_ON_APPLY_FROM_LOG(GetVolumeExtent);
 
 #undef READONLY_OPERATOR_ON_APPLY_FROM_LOG
 
@@ -302,6 +361,8 @@ OPERATOR_REDIRECT(CreateRootInode);
 OPERATOR_REDIRECT(CreatePartition);
 OPERATOR_REDIRECT(DeletePartition);
 OPERATOR_REDIRECT(PrepareRenameTx);
+OPERATOR_REDIRECT(GetVolumeExtent);
+OPERATOR_REDIRECT(UpdateVolumeExtent);
 
 #undef OPERATOR_REDIRECT
 
@@ -325,6 +386,8 @@ OPERATOR_ON_FAILED(CreateRootInode);
 OPERATOR_ON_FAILED(CreatePartition);
 OPERATOR_ON_FAILED(DeletePartition);
 OPERATOR_ON_FAILED(PrepareRenameTx);
+OPERATOR_ON_FAILED(GetVolumeExtent);
+OPERATOR_ON_FAILED(UpdateVolumeExtent);
 
 #undef OPERATOR_ON_FAILED
 
@@ -347,6 +410,8 @@ OPERATOR_HASH_CODE(DeleteInode);
 OPERATOR_HASH_CODE(CreateRootInode);
 OPERATOR_HASH_CODE(PrepareRenameTx);
 OPERATOR_HASH_CODE(DeletePartition);
+OPERATOR_HASH_CODE(GetVolumeExtent);
+OPERATOR_HASH_CODE(UpdateVolumeExtent);
 
 #undef OPERATOR_HASH_CODE
 
@@ -381,6 +446,8 @@ OPERATOR_TYPE(CreateRootInode);
 OPERATOR_TYPE(PrepareRenameTx);
 OPERATOR_TYPE(CreatePartition);
 OPERATOR_TYPE(DeletePartition);
+OPERATOR_TYPE(GetVolumeExtent);
+OPERATOR_TYPE(UpdateVolumeExtent);
 
 #undef OPERATOR_TYPE
 

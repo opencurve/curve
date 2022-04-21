@@ -53,6 +53,7 @@ cc_test(
             "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
             "//curvefs/src/metaserver:metaserver_s3_lib",
             "//curvefs/test/metaserver:metaserver_storage_test_utils",
+            "//curvefs/test/metaserver/mock:metaserver_test_mock",
     ],
 )
 

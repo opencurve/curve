@@ -224,6 +224,7 @@ TEST_F(MdsServiceTest, test1) {
     volume.set_user("user1");
     volume.set_blockgroupsize(128ull * 1024 * 1024);
     volume.set_bitmaplocation(common::BitmapLocation::AtStart);
+    volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
 
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);

@@ -30,6 +30,7 @@
 #include <memory>
 #include <list>
 #include <string>
+#include <utility>
 
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/common.pb.h"
@@ -62,11 +63,18 @@ class TaskContext {
         brpc::Controller *cntl, TaskExecutorDone *done)>;
 
     TaskContext() = default;
-    TaskContext(MetaServerOpType type, RpcFunc func, uint32_t fsid = 0,
-                uint64_t inodeid = 0, bool streaming = false,
+    TaskContext(MetaServerOpType type,
+                RpcFunc func,
+                uint32_t fsid = 0,
+                uint64_t inodeid = 0,
+                bool streaming = false,
                 bool refreshTxId = false)
-        : optype(type), rpctask(func), fsID(fsid), inodeID(inodeid),
-          streaming(streaming), refreshTxId(refreshTxId) {}
+        : optype(type),
+          rpctask(std::move(func)),
+          fsID(fsid),
+          inodeID(inodeid),
+          streaming(streaming),
+          refreshTxId(refreshTxId) {}
 
     std::string TaskContextStr() {
         std::ostringstream oss;
@@ -104,12 +112,15 @@ class TaskContext {
 class TaskExecutor {
  public:
     TaskExecutor() {}
-    TaskExecutor(const ExcutorOpt &opt,
+    TaskExecutor(
+        const ExcutorOpt &opt,
         const std::shared_ptr<MetaCache> &metaCache,
         const std::shared_ptr<ChannelManager<MetaserverID>> &channelManager,
-        const std::shared_ptr<TaskContext> &task)
-        : metaCache_(metaCache), channelManager_(channelManager),
-        task_(task), opt_(opt) {
+        std::shared_ptr<TaskContext> task)
+        : metaCache_(metaCache),
+          channelManager_(channelManager),
+          task_(std::move(task)),
+          opt_(opt) {
         SetRetryParam();
     }
 
@@ -172,7 +183,7 @@ class MetaServerClientDone : public google::protobuf::Closure {
         code_ = code;
     }
 
-    MetaStatusCode GetStatusCode() {
+    MetaStatusCode GetStatusCode() const {
         return code_;
     }
 
@@ -182,11 +193,11 @@ class MetaServerClientDone : public google::protobuf::Closure {
 
 class TaskExecutorDone : public google::protobuf::Closure {
  public:
-    TaskExecutorDone(const std::shared_ptr<TaskExecutor> excutor,
-        MetaServerClientDone *done) :
-        excutor_(excutor),
-        done_(done) {}
-    virtual ~TaskExecutorDone() {}
+    TaskExecutorDone(const std::shared_ptr<TaskExecutor> &excutor,
+                     MetaServerClientDone *done)
+        : excutor_(excutor), done_(done) {}
+
+    ~TaskExecutorDone() override = default;
 
     void Run() override;
 

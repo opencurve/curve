@@ -23,18 +23,19 @@
 #include <gtest/gtest.h>
 
 #include "curvefs/src/client/volume/extent_cache.h"
+#include "curvefs/src/client/volume/extent_slice.h"
 #include "curvefs/test/client/volume/common.h"
 
 namespace curvefs {
 namespace client {
 
-TEST(ExtentCacheToInodePbTest, EmptyTest) {
+TEST(ExtentCacheGetDirtyExtentTest, EmptyTest) {
     ExtentCache cache;
-    auto pb = cache.ToInodePb();
-    ASSERT_TRUE(pb.empty());
+    auto pb = cache.GetDirtyExtents();
+    ASSERT_TRUE(pb.slices().empty());
 }
 
-TEST(ExtentCacheToInodePbTest, Case1) {
+TEST(ExtentCacheGetDirtyExtentTest, Case1) {
     for (auto written : {true, false}) {
         ExtentCache cache;
 
@@ -45,15 +46,14 @@ TEST(ExtentCacheToInodePbTest, Case1) {
 
         cache.Merge(4 * kMiB, pext);
 
-        auto pb = cache.ToInodePb();
-        ASSERT_EQ(1, pb.size());
+        auto pb = cache.GetDirtyExtents();
+        ASSERT_EQ(1, pb.slices().size());
 
-        ASSERT_TRUE(pb.count(0));
+        const auto& slice = pb.slices(0);
 
-        const auto& range = pb[0];
-        ASSERT_EQ(1, range.volumeextents_size());
+        ASSERT_EQ(1, slice.extents().size());
 
-        auto& first = range.volumeextents(0);
+        const auto& first = slice.extents(0);
         ASSERT_EQ(1 * kMiB, first.length());
         ASSERT_EQ(2 * kMiB, first.volumeoffset());
         ASSERT_EQ(4 * kMiB, first.fsoffset());
@@ -61,10 +61,11 @@ TEST(ExtentCacheToInodePbTest, Case1) {
     }
 }
 
+
 // |----|----|----|----|
 //  ^^^^      ^^^^
 // written   written
-TEST(ExtentCacheToInodePbTest, Case2) {
+TEST(ExtentCacheGetDirtyExtentTest, Case2) {
     ExtentCache cache;
 
     PExtent pext;
@@ -91,18 +92,17 @@ TEST(ExtentCacheToInodePbTest, Case2) {
     cache.MarkWritten(0 * kMiB, 4 * kMiB);
     cache.MarkWritten(8 * kMiB, 4 * kMiB);
 
-    auto pb = cache.ToInodePb();
-    ASSERT_EQ(1, pb.size());
+    auto pb = cache.GetDirtyExtents();
+    ASSERT_EQ(1, pb.slices().size());
 
-    ASSERT_TRUE(pb.count(0));
+    const auto& slice = pb.slices(0);
 
-    const auto& range = pb[0];
-    ASSERT_EQ(4, range.volumeextents_size());
+    ASSERT_EQ(4, slice.extents_size());
 
-    auto& first = range.volumeextents(0);
-    auto& second = range.volumeextents(1);
-    auto& third = range.volumeextents(2);
-    auto& fourth = range.volumeextents(3);
+    auto& first = slice.extents(0);
+    auto& second = slice.extents(1);
+    auto& third = slice.extents(2);
+    auto& fourth = slice.extents(3);
 
     ASSERT_EQ(4 * kMiB, first.length());
     ASSERT_EQ(0 * kMiB, first.volumeoffset());
@@ -128,7 +128,7 @@ TEST(ExtentCacheToInodePbTest, Case2) {
 // |----|----|----|----|
 //       ^^^^ ^^^^
 //        written
-TEST(ExtentCacheToInodePbTest, Case3) {
+TEST(ExtentCacheGetDirtyExtentTest, Case3) {
     ExtentCache cache;
 
     PExtent pext;
@@ -154,17 +154,15 @@ TEST(ExtentCacheToInodePbTest, Case3) {
 
     cache.MarkWritten(4 * kMiB, 8 * kMiB);
 
-    auto pb = cache.ToInodePb();
-    ASSERT_EQ(1, pb.size());
+    auto pb = cache.GetDirtyExtents();
+    ASSERT_EQ(1, pb.slices().size());
 
-    ASSERT_TRUE(pb.count(0));
+    const auto& slice = pb.slices(0);
+    ASSERT_EQ(3, slice.extents_size());
 
-    const auto& range = pb[0];
-    ASSERT_EQ(3, range.volumeextents_size());
-
-    auto& first = range.volumeextents(0);
-    auto& second = range.volumeextents(1);
-    auto& third = range.volumeextents(2);
+    auto& first = slice.extents(0);
+    auto& second = slice.extents(1);
+    auto& third = slice.extents(2);
 
     ASSERT_EQ(4 * kMiB, first.length());
     ASSERT_EQ(0 * kMiB, first.volumeoffset());
@@ -185,7 +183,7 @@ TEST(ExtentCacheToInodePbTest, Case3) {
 // |----|----|----|----|
 //  ^^^^           ^^^^
 // written        written
-TEST(ExtentCacheToInodePbTest, Case4) {
+TEST(ExtentCacheGetDirtyExtentTest, Case4) {
     ExtentCache cache;
 
     PExtent pext;
@@ -212,17 +210,15 @@ TEST(ExtentCacheToInodePbTest, Case4) {
     cache.MarkWritten(0 * kMiB, 4 * kMiB);
     cache.MarkWritten(12 * kMiB, 4 * kMiB);
 
-    auto pb = cache.ToInodePb();
-    ASSERT_EQ(1, pb.size());
+    auto pb = cache.GetDirtyExtents();
+    ASSERT_EQ(1, pb.slices().size());
 
-    ASSERT_TRUE(pb.count(0));
+    const auto& slice = pb.slices(0);
+    ASSERT_EQ(3, slice.extents_size());
 
-    const auto& range = pb[0];
-    ASSERT_EQ(3, range.volumeextents_size());
-
-    auto& first = range.volumeextents(0);
-    auto& second = range.volumeextents(1);
-    auto& third = range.volumeextents(2);
+    auto& first = slice.extents(0);
+    auto& second = slice.extents(1);
+    auto& third = slice.extents(2);
 
     ASSERT_EQ(4 * kMiB, first.length());
     ASSERT_EQ(0 * kMiB, first.volumeoffset());

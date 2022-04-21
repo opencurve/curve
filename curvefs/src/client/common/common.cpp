@@ -64,6 +64,12 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
     case MetaServerOpType::GetOrModifyS3ChunkInfo:
         os << "GetOrModifyS3ChunkInfo";
         break;
+    case MetaServerOpType::GetVolumeExtent:
+        os << "GetVolumeExtent";
+        break;
+    case MetaServerOpType::UpdateVolumeExtent:
+        os << "UpdateVolumeExtent";
+        break;
     default:
         os << "Unknow opType";
     }

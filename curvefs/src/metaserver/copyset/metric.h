@@ -29,8 +29,8 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/common/operator_type.h"
 #include "curvefs/src/metaserver/common/types.h"
+#include "curvefs/src/metaserver/copyset/operator_type.h"
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "include/curve_compiler_specific.h"
 #include "src/common/timeutility.h"

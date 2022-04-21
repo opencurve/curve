@@ -160,8 +160,6 @@ class TestFuseVolumeClient : public ::testing::Test {
 };
 
 TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
-    LOG(INFO) << "Entering " << __PRETTY_FUNCTION__;
-
     MountOption mOpts;
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
@@ -173,6 +171,10 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     FsInfo fsInfoExp;
     fsInfoExp.set_fsid(200);
     fsInfoExp.set_fsname(fsName);
+
+    auto* vol = fsInfoExp.mutable_detail()->mutable_volume();
+    vol->set_blocksize(4096);
+    vol->set_slicesize(1ULL * 1024 * 1024 * 1024);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
 

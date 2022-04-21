@@ -32,6 +32,7 @@ namespace curvefs {
 namespace volume {
 
 using ::testing::_;
+using ::testing::Invoke;
 using ::testing::Return;
 
 static constexpr uint32_t kBlockSize = 4 * kKiB;
@@ -59,8 +60,8 @@ class BlockGroupBitmapUpdaterTest : public ::testing::Test {
 };
 
 TEST_F(BlockGroupBitmapUpdaterTest, SyncTest_NoDirty) {
-    EXPECT_CALL(*mockBlockDev_, Write(_, _, _)).
-        Times(0);
+    EXPECT_CALL(*mockBlockDev_, Write(_, _, _))
+        .Times(0);
 
     ASSERT_TRUE(updater_->Sync());
 }
@@ -71,7 +72,8 @@ TEST_F(BlockGroupBitmapUpdaterTest, SyncTest_Dirty) {
     updater_->Update({start, end}, BlockGroupBitmapUpdater::Set);
 
     EXPECT_CALL(*mockBlockDev_, Write(_, _, _))
-        .WillOnce(Return(true));
+        .WillOnce(
+            Invoke([](const char*, off_t, size_t length) { return length; }));
 
     ASSERT_TRUE(updater_->Sync());
 }
@@ -86,7 +88,8 @@ TEST_F(BlockGroupBitmapUpdaterTest, SyncTest_OnlySyncOnce) {
     updater_->Update({start2, end2}, BlockGroupBitmapUpdater::Clear);
 
     EXPECT_CALL(*mockBlockDev_, Write(_, _, _))
-        .WillOnce(Return(true));
+        .WillOnce(
+            Invoke([](const char*, off_t, size_t length) { return length; }));
 
     ASSERT_TRUE(updater_->Sync());
 }
@@ -97,7 +100,7 @@ TEST_F(BlockGroupBitmapUpdaterTest, SyncTest_WriteFailed) {
     updater_->Update({start, end}, BlockGroupBitmapUpdater::Set);
 
     EXPECT_CALL(*mockBlockDev_, Write(_, _, _))
-        .WillOnce(Return(false));
+        .WillOnce(Return(-1));
 
     ASSERT_FALSE(updater_->Sync());
 }

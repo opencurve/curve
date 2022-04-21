@@ -104,6 +104,7 @@ curvefs/BUILD_MODE
 curvefs/monitor/prometheus/target.json
 
 curvefs/docker/*/curvefs
+curvefs/docker/curvefs
 curvefs/docker/base/*
 !curvefs/docker/base/Dockerfile
 !curvefs/docker/base/Makefile

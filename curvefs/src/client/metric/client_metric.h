@@ -85,6 +85,10 @@ struct MetaServerClientMetric {
     // partition
     InterfaceMetric createPartition;
 
+    // volume extent
+    InterfaceMetric updateVolumeExtent;
+    InterfaceMetric getVolumeExtent;
+
     explicit MetaServerClientMetric(const std::string &prefix_ = "")
         : prefix(!prefix_.empty() ? prefix_
                                   : "curvefs_metaserver_client_" +
@@ -102,7 +106,9 @@ struct MetaServerClientMetric {
           createRootInode(prefix, "createRootInode"),
           appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
-          createPartition(prefix, "createPartition") {}
+          createPartition(prefix, "createPartition"),
+          updateVolumeExtent(prefix, "updateVolumeExtent"),
+          getVolumeExtent(prefix, "getVolumeExtent") {}
 };
 
 struct InflightGuard {

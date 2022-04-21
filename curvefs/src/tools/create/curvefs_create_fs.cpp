@@ -20,6 +20,7 @@
  */
 
 #include "curvefs/src/tools/create/curvefs_create_fs.h"
+#include <iostream>
 
 #include <functional>
 #include <unordered_map>
@@ -41,6 +42,7 @@ DECLARE_string(volumeUser);
 DECLARE_string(volumePassword);
 DECLARE_uint64(volumeBlockGroupSize);
 DECLARE_string(volumeBitmapLocation);
+DECLARE_uint64(volumeSliceSize);
 DECLARE_string(s3_ak);
 DECLARE_string(s3_sk);
 DECLARE_string(s3_endpoint);
@@ -169,6 +171,12 @@ int CreateFsTool::Init() {
             return -1;
         }
 
+        if (!is_aligned(FLAGS_volumeSliceSize, FLAGS_volumeBlockGroupSize)) {
+            std::cerr << "volume slice size should align with "
+                         "FLAGS_volumeBlockGroupSize";
+            return -1;
+        }
+
         BitmapLocation location;
         if (!BitmapLocation_Parse(FLAGS_volumeBitmapLocation, &location)) {
             std::cerr << "Parse volumeBitmapLocation error, only support "
@@ -186,6 +194,7 @@ int CreateFsTool::Init() {
         volume->set_password(FLAGS_volumePassword);
         volume->set_blockgroupsize(FLAGS_volumeBlockGroupSize);
         volume->set_bitmaplocation(location);
+        volume->set_slicesize(FLAGS_volumeSliceSize);
         request.mutable_fsdetail()->set_allocated_volume(volume);
         return 0;
     };

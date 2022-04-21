@@ -20,15 +20,28 @@
  * @Author: chenwei
  */
 
+#include <gmock/gmock-generated-matchers.h>
+#include <gmock/gmock-spec-builders.h>
 #include <gmock/gmock.h>
+#include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <memory>
+#include <ostream>
+#include <random>
+#include <string>
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/common/define.h"
 
+#include "curvefs/src/metaserver/storage/config.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
+#include "curvefs/src/metaserver/storage/status.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "curvefs/test/metaserver/mock/mock_kv_storage.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -709,6 +722,164 @@ TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {
         size++;
     }
     ASSERT_EQ(size, 2);
+}
+
+TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
+    using storage::Status;
+
+    const std::vector<std::pair<MetaStatusCode, Status>> cases{
+        {                    MetaStatusCode::OK,            Status::OK()},
+        {MetaStatusCode::STORAGE_INTERNAL_ERROR, Status::InternalError()}
+    };
+
+    for (const auto& test : cases) {
+        const std::string tablename = "hello";
+        auto kvStorage = std::make_shared<storage::MockKVStorage>();
+        InodeStorage storage(kvStorage, tablename);
+
+        uint32_t fsId = 1;
+        uint64_t inodeId = 1;
+        VolumeExtentSlice slice;
+        slice.set_offset(1ULL * 1024 * 1024 * 1024);
+
+        const std::string expectTableName = "3:" + tablename;
+        const std::string expectKey = "4:1:1:" + std::to_string(slice.offset());
+        EXPECT_CALL(*kvStorage, SSet(expectTableName, expectKey, _))
+            .WillOnce(Return(test.second));
+
+        ASSERT_EQ(test.first,
+                  storage.UpdateVolumeExtentSlice(fsId, inodeId, slice));
+    }
+}
+
+static void RandomSetExtent(VolumeExtent* ext) {
+    std::random_device rd;
+
+    ext->set_fsoffset(rd());
+    ext->set_volumeoffset(rd());
+    ext->set_length(rd());
+    ext->set_isused(rd() & 1);
+}
+
+static bool PrepareGetAllVolumeExtentTest(InodeStorage* storage,
+                                          uint32_t fsId,
+                                          uint64_t inodeId,
+                                          std::vector<VolumeExtentSlice>* out) {
+    VolumeExtentSlice slice1;
+    slice1.set_offset(0);
+
+    RandomSetExtent(slice1.add_extents());
+    RandomSetExtent(slice1.add_extents());
+
+    auto st = storage->UpdateVolumeExtentSlice(fsId, inodeId, slice1);
+    if (st != MetaStatusCode::OK) {
+        return false;
+    }
+
+    VolumeExtentSlice slice2;
+    slice2.set_offset(16ULL * 1024 * 1024);
+
+    RandomSetExtent(slice2.add_extents());
+    RandomSetExtent(slice2.add_extents());
+
+    st = storage->UpdateVolumeExtentSlice(fsId, inodeId, slice2);
+    if (st != MetaStatusCode::OK) {
+        return false;
+    }
+
+    out->push_back(slice1);
+    out->push_back(slice2);
+    return true;
+}
+
+static bool operator==(const VolumeExtentList& list,
+                       const std::vector<VolumeExtentSlice>& slices) {
+    std::vector<VolumeExtentSlice> clist(list.slices().begin(),
+                                         list.slices().end());
+
+    auto copy = slices;
+    std::sort(copy.begin(), copy.end(),
+              [](const VolumeExtentSlice& s1, const VolumeExtentSlice& s2) {
+                  return s1.offset() < s2.offset();
+              });
+
+    return true;
+}
+
+static bool operator==(const VolumeExtentSlice& s1,
+                       const VolumeExtentSlice& s2) {
+    return google::protobuf::util::MessageDifferencer::Equals(s1, s2);
+}
+
+TEST_F(InodeStorageTest, TestGetAllVolumeExtent) {
+    StorageOptions opts;
+    opts.compression = false;
+
+    std::shared_ptr<KVStorage> memStore =
+        std::make_shared<storage::MemoryStorage>(opts);
+    std::shared_ptr<KVStorage> kvStore = kvStorage_;
+
+    for (auto& store : {memStore, kvStore}) {
+        InodeStorage storage(memStore, "TestGetAllVolumeExtent");
+        const uint32_t fsId = 1;
+        const uint64_t inodeId = 2;
+
+        std::vector<VolumeExtentSlice> slices;
+        ASSERT_TRUE(
+            PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId, &slices));
+
+        VolumeExtentList list;
+        ASSERT_EQ(MetaStatusCode::OK,
+                  storage.GetAllVolumeExtent(fsId, inodeId, &list));
+        ASSERT_EQ(2, list.slices().size());
+        ASSERT_EQ(list, slices);
+    }
+}
+
+static std::string ToString(storage::STORAGE_TYPE type) {
+    switch (type) {
+        case storage::STORAGE_TYPE::MEMORY_STORAGE:
+            return "memory";
+        case storage::STORAGE_TYPE::ROCKSDB_STORAGE:
+            return "rocksdb";
+    }
+
+    return "unknown";
+}
+
+TEST_F(InodeStorageTest, TestGetVolumeExtentByOffset) {
+    StorageOptions opts;
+    opts.compression = false;
+
+    std::shared_ptr<KVStorage> memStore =
+        std::make_shared<storage::MemoryStorage>(opts);
+    std::shared_ptr<KVStorage> kvStore = kvStorage_;
+
+    for (auto& store : {kvStorage_, memStore}) {
+        InodeStorage storage(store, "TestGetVolumeExtentByOffset");
+        const uint32_t fsId = 1;
+        const uint64_t inodeId = 2;
+
+        std::vector<VolumeExtentSlice> slices;
+        ASSERT_TRUE(
+            PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId, &slices))
+            << ToString(store->Type());
+
+        VolumeExtentSlice slice;
+        auto st = storage.GetVolumeExtentByOffset(fsId, inodeId,
+                                                  slices[0].offset(), &slice);
+        ASSERT_EQ(st, MetaStatusCode::OK);
+        ASSERT_EQ(slice, slices[0]);
+
+        st = storage.GetVolumeExtentByOffset(fsId, inodeId, slices[1].offset(),
+                                             &slice);
+        ASSERT_EQ(st, MetaStatusCode::OK);
+        ASSERT_EQ(slice, slices[1]);
+
+        st = storage.GetVolumeExtentByOffset(
+            fsId, inodeId, slices[1].offset() + slices[1].offset(), &slice);
+        ASSERT_EQ(st, MetaStatusCode::NOT_FOUND);
+    }
 }
 
 }  // namespace metaserver

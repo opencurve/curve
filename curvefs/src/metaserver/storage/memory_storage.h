@@ -35,6 +35,7 @@
 #include "curvefs/src/metaserver/storage/common.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/value_wrapper.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -45,32 +46,8 @@ using ::curve::common::StringStartWith;
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::metaserver::VolumeExtentSlice;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
-
-#define RETURN_IF_CONVERT_VALUE_SUCCESS(TYPE)            \
-do {                                                     \
-    const TYPE* ptr = dynamic_cast<const TYPE*>(&value); \
-    if (ptr != nullptr) {                                \
-        value_ = std::make_shared<TYPE>(*ptr);           \
-        return;                                          \
-    }                                                    \
-} while (0)
-
-class ValueWrapper {
- public:
-    explicit ValueWrapper(const ValueType& value) {
-        RETURN_IF_CONVERT_VALUE_SUCCESS(Dentry);
-        RETURN_IF_CONVERT_VALUE_SUCCESS(Inode);
-        RETURN_IF_CONVERT_VALUE_SUCCESS(S3ChunkInfoList);
-    }
-
-    std::shared_ptr<ValueType> Message() const {
-        return value_;
-    }
-
- private:
-    std::shared_ptr<ValueType> value_;
-};
 
 class MemoryStorage : public KVStorage, public StorageTransaction {
  public:
@@ -238,6 +215,10 @@ class UnorderedContainerIterator : public MemoryStorageIterator<ContainerType> {
         return svalue;
     }
 
+    ValueType* RawValue() override {
+        return this->current_->second.Message().get();
+    }
+
     bool ParseFromValue(ValueType* value) override {
         auto message = this->current_->second.Message();
         value->CopyFrom(*message);
@@ -283,6 +264,10 @@ class OrderedContainerIterator : public MemoryStorageIterator<ContainerType> {
             this->status_ = -1;
         }
         return svalue;
+    }
+
+    ValueType* RawValue() override {
+        return this->current_->second.Message().get();
     }
 
     bool ParseFromValue(ValueType* value) override {

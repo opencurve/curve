@@ -46,16 +46,18 @@ enum class ENTRY_TYPE {
     PARTITION,
     PENDING_TX,
     S3_CHUNK_INFO_LIST,
+    VOLUME_EXTENT,
     UNKNOWN,
 };
 
 using Pair = std::pair<ENTRY_TYPE, std::string>;
-static std::vector<Pair> pairs{
+static const std::vector<Pair> pairs{
     Pair(ENTRY_TYPE::INODE, "i"),
     Pair(ENTRY_TYPE::DENTRY, "d"),
     Pair(ENTRY_TYPE::PARTITION, "p"),
     Pair(ENTRY_TYPE::PENDING_TX, "t"),
     Pair(ENTRY_TYPE::S3_CHUNK_INFO_LIST, "s"),
+    Pair(ENTRY_TYPE::VOLUME_EXTENT, "v"),
     Pair(ENTRY_TYPE::UNKNOWN, "u"),
 };
 
@@ -189,6 +191,7 @@ static bool LoadFromFile(const std::string& pathname,
             CASE_TYPE_CALLBACK(PARTITION);
             CASE_TYPE_CALLBACK(PENDING_TX);
             CASE_TYPE_CALLBACK(S3_CHUNK_INFO_LIST);
+            CASE_TYPE_CALLBACK(VOLUME_EXTENT);
             default:
                 LOG(ERROR) << "Unknown entry type, key = " << key;
                 return false;
@@ -207,7 +210,7 @@ class IteratorWrapper : public Iterator {
                     std::shared_ptr<Iterator> iterator)
         : entryType_(entryType),
           partitionId_(partitionId),
-          iterator_(iterator) {}
+          iterator_(std::move(iterator)) {}
 
     uint64_t Size() override {
         return iterator_->Size();

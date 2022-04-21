@@ -168,8 +168,13 @@ message VolumeExtent {
     required bool isused = 4;
 }
 
+message VolumeExtentSlice {
+    required uint64 offset = 1;
+    repeated VolumeExtent extents = 2;
+}
+
 message VolumeExtentList {
-    repeated VolumeExtent volumeExtents = 1;
+    repeated VolumeExtentSlice slices = 1;
 }
 
 message S3ChunkInfo {
@@ -203,7 +208,7 @@ message Inode {
     required FsFileType type = 14;
     optional string symlink = 15;   // TYPE_SYM_LINK only
     optional uint64 rdev = 16;
-    map<uint64, VolumeExtentList> volumeExtentMap = 17;  // TYPE_FILE only, key is file's offset
+    // field 17 is left for compatibility
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
@@ -276,7 +281,7 @@ message UpdateInodeRequest {
     optional uint32 uid = 13;
     optional uint32 gid = 14;
     optional uint32 mode = 15;
-    map<uint64, VolumeExtentList> volumeExtentMap = 16;
+    // field 16 is left for compatibility
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
     optional InodeOpenStatusChange inodeOpenstatusChange = 19;
@@ -405,6 +410,40 @@ message BatchGetXAttrResponse {
     optional uint64 appliedIndex = 3;
 }
 
+message GetVolumeExtentRequest {
+    // TODO(all): maybe we should pack common fields in different requests
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
+    optional uint64 appliedIndex = 6;
+    optional bool streaming = 7 [ default = false ];
+    // empty offsets means get all extent slices
+    // otherwise, get specified extent slices
+    repeated uint64 sliceoffsets = 8;
+}
+
+message GetVolumeExtentResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+    optional VolumeExtentList slices = 3; 
+}
+
+message UpdateVolumeExtentRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint64 inodeId = 5;
+    required VolumeExtentList extents = 6;
+}
+
+message UpdateVolumeExtentResponse {
+    required MetaStatusCode statusCode = 1;
+    optional uint64 appliedIndex = 2;
+}
+
 service MetaServerService {
     // dentry interface
     rpc GetDentry(GetDentryRequest) returns (GetDentryResponse);
@@ -427,4 +466,8 @@ service MetaServerService {
     // partition interface
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
     rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
+
+    // volume extent interface
+    rpc GetVolumeExtent(GetVolumeExtentRequest) returns (GetVolumeExtentResponse);
+    rpc UpdateVolumeExtent(UpdateVolumeExtentRequest) returns (UpdateVolumeExtentResponse);
 }

@@ -27,6 +27,8 @@ cc_library(
         ["copyset/*.cpp"],
     ) + glob(
         ["storage/*.cpp"],
+    ) + glob(
+        ["streaming/*.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
@@ -34,6 +36,8 @@ cc_library(
         ["copyset/*.h"],
     ) + glob(
         ["storage/*.h"],
+    ) + glob(
+        ["streaming/*.h"],
     ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],

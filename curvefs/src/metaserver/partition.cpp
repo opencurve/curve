@@ -25,7 +25,9 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <memory>
 
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 
@@ -343,7 +345,9 @@ bool Partition::IsInodeBelongs(uint32_t fsId) {
     return true;
 }
 
-uint32_t Partition::GetPartitionId() { return partitionInfo_.partitionid(); }
+uint32_t Partition::GetPartitionId() const {
+    return partitionInfo_.partitionid();
+}
 
 PartitionInfo Partition::GetPartitionInfo() { return partitionInfo_; }
 
@@ -357,6 +361,10 @@ std::shared_ptr<Iterator> Partition::GetAllDentry() {
 
 std::shared_ptr<Iterator> Partition::GetAllS3ChunkInfoList() {
     return inodeStorage_->GetAllS3ChunkInfoList();
+}
+
+std::shared_ptr<Iterator> Partition::GetAllVolumeExtentList() {
+    return inodeStorage_->GetAllVolumeExtentList();
 }
 
 bool Partition::Clear() {
@@ -398,6 +406,39 @@ std::string Partition::GetDentryTablename() {
     std::ostringstream oss;
     oss << "partition:" << GetPartitionId() << ":dentry";
     return oss.str();
+}
+
+#define PRECHECK(fsId, inodeId)                            \
+    do {                                                   \
+        if (!IsInodeBelongs((fsId), (inodeId))) {          \
+            return MetaStatusCode::PARTITION_ID_MISSMATCH; \
+        }                                                  \
+        if (GetStatus() == PartitionStatus::DELETING) {    \
+            return MetaStatusCode::PARTITION_DELETING;     \
+        }                                                  \
+    } while (0)
+
+MetaStatusCode Partition::UpdateVolumeExtent(uint32_t fsId,
+                                             uint64_t inodeId,
+                                             const VolumeExtentList& extents) {
+    PRECHECK(fsId, inodeId);
+    return inodeManager_->UpdateVolumeExtent(fsId, inodeId, extents);
+}
+
+MetaStatusCode Partition::UpdateVolumeExtentSlice(
+    uint32_t fsId,
+    uint64_t inodeId,
+    const VolumeExtentSlice& slice) {
+    PRECHECK(fsId, inodeId);
+    return inodeManager_->UpdateVolumeExtentSlice(fsId, inodeId, slice);
+}
+
+MetaStatusCode Partition::GetVolumeExtent(uint32_t fsId,
+                                          uint64_t inodeId,
+                                          const std::vector<uint64_t>& slices,
+                                          VolumeExtentList* extents) {
+    PRECHECK(fsId, inodeId);
+    return inodeManager_->GetVolumeExtent(fsId, inodeId, slices, extents);
 }
 
 }  // namespace metaserver

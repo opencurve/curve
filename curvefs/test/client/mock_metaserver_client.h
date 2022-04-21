@@ -116,6 +116,15 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD3(SplitRequestInodes, bool(uint32_t fsId,
         const std::set<uint64_t> &inodeIds,
         std::vector<std::vector<uint64_t>> *inodeGroups));
+
+    MOCK_METHOD4(AsyncUpdateVolumeExtent,
+                 void(uint32_t,
+                      uint64_t,
+                      const VolumeExtentList &,
+                      MetaServerClientDone *));
+
+    MOCK_METHOD4(GetVolumeExtent,
+                 MetaStatusCode(uint32_t, uint64_t, bool, VolumeExtentList *));
 };
 
 }  // namespace rpcclient

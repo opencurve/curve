@@ -69,7 +69,7 @@ inline void SplitString(const std::string& full,
     }
 }
 
-inline bool StringToUl(const std::string &value, uint32_t *out) {
+inline bool StringToUl(const std::string &value, uint32_t *out) noexcept {
     try {
         *out = std::stoul(value);
         return true;
@@ -84,7 +84,7 @@ inline bool StringToUl(const std::string &value, uint32_t *out) {
     }
 }
 
-inline bool StringToUll(const std::string &value, uint64_t *out) {
+inline bool StringToUll(const std::string &value, uint64_t *out) noexcept {
     try {
         *out = std::stoull(value);
         return true;
@@ -99,7 +99,7 @@ inline bool StringToUll(const std::string &value, uint64_t *out) {
     }
 }
 
-inline bool StringToInt(const std::string &value, int32_t *out) {
+inline bool StringToInt(const std::string &value, int32_t *out) noexcept {
     try {
         *out = std::stoi(value);
         return true;

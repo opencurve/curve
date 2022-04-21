@@ -26,6 +26,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <vector>
 #include <list>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
@@ -95,6 +96,21 @@ class InodeManager {
 
     bool GetInodeIdList(std::list<uint64_t>* inodeIdList);
 
+    // Update one or more volume extent slice
+    MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      const VolumeExtentList &extents);
+
+    // Update only one volume extent slice
+    MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           const VolumeExtentSlice &slice);
+
+    MetaStatusCode GetVolumeExtent(uint32_t fsId,
+                                   uint64_t inodeId,
+                                   const std::vector<uint64_t> &slices,
+                                   VolumeExtentList *extents);
+
  private:
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
@@ -103,9 +119,14 @@ class InodeManager {
                            uint64_t inodeId,
                            S3ChunkInfoMap added);
 
-    std::string GetInodeLockName(uint32_t fsId, uint64_t inodeId) {
+    static std::string GetInodeLockName(uint32_t fsId, uint64_t inodeId) {
         return std::to_string(fsId) + "_" + std::to_string(inodeId);
     }
+
+    MetaStatusCode UpdateVolumeExtentSliceLocked(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const VolumeExtentSlice &slice);
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;

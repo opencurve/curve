@@ -49,6 +49,8 @@ using ::curvefs::metaserver::copyset::UpdateInodeS3VersionOperator;
 using ::curvefs::metaserver::copyset::CreatePartitionOperator;
 using ::curvefs::metaserver::copyset::DeletePartitionOperator;
 using ::curvefs::metaserver::copyset::PrepareRenameTxOperator;
+using ::curvefs::metaserver::copyset::GetVolumeExtentOperator;
+using ::curvefs::metaserver::copyset::UpdateVolumeExtentOperator;
 
 namespace {
 
@@ -259,6 +261,28 @@ void MetaServerServiceImpl::PrepareRenameTx(
     helper.operator()<PrepareRenameTxOperator>(controller, request, response,
                                                done, request->poolid(),
                                                request->copysetid());
+}
+
+void MetaServerServiceImpl::GetVolumeExtent(
+    ::google::protobuf::RpcController* controller,
+    const GetVolumeExtentRequest* request,
+    GetVolumeExtentResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<GetVolumeExtentOperator>(controller, request, response,
+                                               done, request->poolid(),
+                                               request->copysetid());
+}
+
+void MetaServerServiceImpl::UpdateVolumeExtent(
+    ::google::protobuf::RpcController* controller,
+    const UpdateVolumeExtentRequest* request,
+    UpdateVolumeExtentResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<UpdateVolumeExtentOperator>(controller, request, response,
+                                                  done, request->poolid(),
+                                                  request->copysetid());
 }
 
 }  // namespace metaserver
