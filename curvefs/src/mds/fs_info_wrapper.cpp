@@ -69,31 +69,5 @@ std::vector<std::string> FsInfoWrapper::MountPoints() const {
     return {fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end()};
 }
 
-FsInfoWrapper GenerateFsInfoWrapper(const std::string& fsName, uint64_t fsId,
-                                    uint64_t blocksize, uint64_t rootinodeid,
-                                    const FsDetail& detail,
-                                    bool enableSumInDir) {
-    FsInfo fsInfo;
-    fsInfo.set_fsname(fsName);
-    fsInfo.set_fsid(fsId);
-    fsInfo.set_status(FsStatus::NEW);
-    fsInfo.set_rootinodeid(rootinodeid);
-    fsInfo.set_blocksize(blocksize);
-    fsInfo.set_mountnum(0);
-    fsInfo.set_enablesumindir(enableSumInDir);
-
-    if (detail.has_s3info()) {
-        fsInfo.set_fstype(FSType::TYPE_S3);
-        fsInfo.set_capacity(std::numeric_limits<uint64_t>::max());
-    } else {
-        fsInfo.set_fstype(FSType::TYPE_VOLUME);
-        fsInfo.set_capacity(detail.volume().volumesize());
-    }
-
-    fsInfo.set_allocated_detail(new FsDetail(detail));
-
-    return FsInfoWrapper{std::move(fsInfo)};
-}
-
 }  // namespace mds
 }  // namespace curvefs

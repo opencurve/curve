@@ -169,9 +169,14 @@ void FsManager::BackEndFunc() {
     }
 }
 
-FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
-                                 uint64_t blockSize, bool enableSumInDir,
-                                 const FsDetail& detail, FsInfo* fsInfo) {
+FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
+                                 FsInfo* fsInfo) {
+    const auto& fsName = request->fsname();
+    const auto& blockSize = request->blocksize();
+    const auto& fsType = request->fstype();
+    const auto& enableSumInDir = request->enablesumindir();
+    const auto& detail = request->fsdetail();
+
     NameLockGuard lock(nameLock_, fsName);
     FsInfoWrapper wrapper;
     bool skipCreateNewFs = false;
@@ -225,8 +230,7 @@ FSStatusCode FsManager::CreateFs(const std::string& fsName, FSType fsType,
             return FSStatusCode::INTERNAL_ERROR;
         }
 
-        wrapper = GenerateFsInfoWrapper(fsName, fsId, blockSize, GetRootId(),
-                                        detail, enableSumInDir);
+        wrapper = FsInfoWrapper(request, fsId, GetRootId());
 
         FSStatusCode ret = fsStorage_->Insert(wrapper);
         if (ret != FSStatusCode::OK) {

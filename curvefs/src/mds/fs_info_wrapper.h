@@ -24,6 +24,7 @@
 #ifndef CURVEFS_SRC_MDS_FS_INFO_WRAPPER_H_
 #define CURVEFS_SRC_MDS_FS_INFO_WRAPPER_H_
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -55,6 +56,32 @@ class FsInfoWrapper {
         Swap(other);
     }
 
+    FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request, uint64_t fsId,
+                  uint64_t rootInodeId) {
+        FsInfo fsInfo;
+        fsInfo.set_fsname(request->fsname());
+        fsInfo.set_fsid(fsId);
+        fsInfo.set_status(FsStatus::NEW);
+        fsInfo.set_rootinodeid(rootInodeId);
+        fsInfo.set_blocksize(request->blocksize());
+        fsInfo.set_mountnum(0);
+        fsInfo.set_enablesumindir(request->enablesumindir());
+
+        const auto& detail = request->fsdetail();
+        fsInfo.set_allocated_detail(new FsDetail(detail));
+        if (detail.has_s3info()) {
+            fsInfo.set_fstype(FSType::TYPE_S3);
+            fsInfo.set_capacity(request->capacity());
+        } else {
+            fsInfo.set_fstype(FSType::TYPE_VOLUME);
+            fsInfo.set_capacity(
+                std::min(detail.volume().volumesize(), request->capacity()));
+        }
+
+        fsInfo.set_owner(request->owner());
+        fsInfo_ = std::move(fsInfo);
+    }
+
     FsInfoWrapper& operator=(FsInfoWrapper other) {
         Swap(other);
         return *this;
@@ -70,6 +97,14 @@ class FsInfoWrapper {
 
     void SetFsName(const std::string& name) {
         fsInfo_.set_fsname(name);
+    }
+
+    void SetCapacity(uint64_t capacity) {
+        fsInfo_.set_capacity(capacity);
+    }
+
+    void SetOwner(const std::string& owner) {
+        fsInfo_.set_owner(owner);
     }
 
     FSType GetFsType() const {
@@ -90,6 +125,14 @@ class FsInfoWrapper {
 
     uint64_t GetBlockSize() const {
         return fsInfo_.blocksize();
+    }
+
+    uint64_t GetCapacity() const {
+        return fsInfo_.capacity();
+    }
+
+    std::string GetOwner() const {
+        return fsInfo_.owner();
     }
 
     bool IsMountPointEmpty() const {
@@ -123,11 +166,6 @@ class FsInfoWrapper {
  private:
     FsInfo fsInfo_;
 };
-
-FsInfoWrapper GenerateFsInfoWrapper(const std::string& fsName, uint64_t fsId,
-                                    uint64_t blocksize, uint64_t rootinodeid,
-                                    const FsDetail& detail,
-                                    bool enableSumInDir = false);
 
 }  // namespace mds
 }  // namespace curvefs

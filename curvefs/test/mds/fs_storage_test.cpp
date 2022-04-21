@@ -58,8 +58,15 @@ TEST_F(FSStorageTest, test1) {
 
     FsDetail detail;
     detail.set_allocated_volume(new common::Volume(volume));
-    FsInfoWrapper fs1 = GenerateFsInfoWrapper(
-        "name1", fsId, blockSize, INSERT_ROOT_INODE_ERROR, detail);
+    CreateFsRequest req;
+    req.set_fsname("name1");
+    req.set_blocksize(blockSize);
+    req.set_fstype(FSType::TYPE_VOLUME);
+    req.set_allocated_fsdetail(new FsDetail(detail));
+    req.set_enablesumindir(false);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+    FsInfoWrapper fs1 = FsInfoWrapper(&req, fsId, INSERT_ROOT_INODE_ERROR);
     // test insert
     ASSERT_EQ(FSStatusCode::OK, storage.Insert(fs1));
     ASSERT_EQ(FSStatusCode::FS_EXIST, storage.Insert(fs1));
@@ -85,14 +92,14 @@ TEST_F(FSStorageTest, test1) {
     ASSERT_EQ(FSStatusCode::OK, storage.Update(fs1));
     ASSERT_EQ(FSStatusCode::OK, storage.Get(fs1.GetFsId(), &fs2));
     ASSERT_EQ(fs2.GetStatus(), FsStatus::INITED);
-    FsInfoWrapper fs3 =
-        GenerateFsInfoWrapper("name3", fsId, blockSize, rootInodeId, detail);
+    req.set_fsname("name3");
+    FsInfoWrapper fs3 = FsInfoWrapper(&req, fsId, rootInodeId);
 
     LOG(INFO) << "NAME " << fs3.GetFsName();
     ASSERT_EQ(FSStatusCode::NOT_FOUND, storage.Update(fs3));
 
-    FsInfoWrapper fs4 = GenerateFsInfoWrapper("name1", fsId + 1, blockSize,
-                                              rootInodeId, detail);
+    req.set_fsname("name1");
+    FsInfoWrapper fs4 = FsInfoWrapper(&req, fsId + 1, rootInodeId);
     ASSERT_EQ(FSStatusCode::FS_ID_MISMATCH, storage.Update(fs4));
 
     // test rename

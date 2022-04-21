@@ -82,6 +82,7 @@ message FsInfo {
     required common.FSType fsType = 9;
     required FsDetail detail = 10;
     required bool enableSumInDir = 11;
+    required string owner = 12;
 }
 
 message GetFsInfoResponse {
@@ -95,6 +96,8 @@ message CreateFsRequest {
     required common.FSType fsType = 3;
     required FsDetail fsDetail = 4;
     required bool enableSumInDir = 5;
+    required string owner = 6;
+    required uint64 capacity = 7;
 }
 
 message CreateFsResponse {

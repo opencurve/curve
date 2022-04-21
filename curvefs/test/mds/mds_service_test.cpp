@@ -203,6 +203,8 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.set_enablesumindir(false);
     createRequest.mutable_fsdetail();
+    createRequest.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+    createRequest.set_owner("test");
 
     FsInfo fsinfo1;
     stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
