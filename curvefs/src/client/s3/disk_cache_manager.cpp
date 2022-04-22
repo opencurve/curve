@@ -271,7 +271,7 @@ int64_t DiskCacheManager::SetDiskFsUsedRatio() {
     int64_t usedBytes = totalBytes - freeBytes;
     int64_t usedPercent = 100 * usedBytes / (usedBytes + availableBytes) + 1;
 
-    VLOG(3) << "cache disk usage = " << usedPercent;
+    VLOG(9) << "cache disk usage = " << usedPercent;
 
     diskFsUsedRatio_.store(usedPercent, std::memory_order_seq_cst);
     return usedPercent;
