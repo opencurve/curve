@@ -155,7 +155,6 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
     }
 
     auto iter = tmp.begin();
-    VLOG(3) << "FsSync force: " << force;
     for (; iter != tmp.end(); iter++) {
         ret = iter->second->Flush(force);
         if (ret == CURVEFS_ERROR::OK) {
