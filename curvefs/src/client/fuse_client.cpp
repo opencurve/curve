@@ -1115,8 +1115,8 @@ CURVEFS_ERROR FuseClient::FastCalAllLayerSumInfo(Inode *inode) {
 CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, void* value,
                                          size_t size) {
-    LOG(INFO) << "FuseOpGetXattr, ino: " << ino
-              << ", name: " << name << ", size = " << size;
+    VLOG(6) << "FuseOpGetXattr, ino: " << ino
+            << ", name: " << name << ", size = " << size;
     std::shared_ptr<InodeWrapper> inodeWrapper;
     CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
