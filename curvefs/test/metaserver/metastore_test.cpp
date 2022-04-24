@@ -1468,6 +1468,66 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
         std::vector<S3ChunkInfoList> lists2add{
             GenS3ChunkInfoList(100, 200),
             GenS3ChunkInfoList(300, 400),
+
+        CHECK_ITERATOR_S3CHUNKINFOLIST(iterator, chunkIndexs, lists2add);
+    }
+}
+
+TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
+    MetaStoreImpl metastore(nullptr, kvStorage_);
+    uint32_t poolId = 1;
+    uint32_t copysetId = 1;
+    uint32_t partitionId = 1;
+    uint32_t fsId = 1;
+    uint64_t inodeId = 1;
+
+    // init: create partition
+    {
+        CreatePartitionRequest request;
+        CreatePartitionResponse response;
+
+        PartitionInfo partitionInfo;
+        partitionInfo.set_poolid(poolId);
+        partitionInfo.set_copysetid(copysetId);
+        partitionInfo.set_partitionid(partitionId);
+        partitionInfo.set_fsid(fsId);
+        partitionInfo.set_start(1);
+        partitionInfo.set_end(100);
+        request.mutable_partition()->CopyFrom(partitionInfo);
+        MetaStatusCode rc = metastore.CreatePartition(&request, &response);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        ASSERT_EQ(response.statuscode(), rc);
+    }
+
+    // step1: create inode
+    {
+        CreateInodeRequest request;
+        CreateInodeResponse response;
+
+        request.set_poolid(poolId);
+        request.set_copysetid(copysetId);
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_length(1);
+        request.set_uid(1);
+        request.set_gid(1);
+        request.set_mode(777);
+        request.set_type(FsFileType::TYPE_FILE);
+
+        auto rc = metastore.CreateInode(&request, &response);
+        ASSERT_EQ(response.statuscode(), MetaStatusCode::OK);
+        inodeId = response.inode().inodeid();
+    }
+
+    // step2: append s3chunkinfo within limit
+    {
+        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyS3ChunkInfoResponse response;
+
+        std::vector<uint64_t> chunkIndexs{ 1, 2 };
+        std::vector<S3ChunkInfoList> list2add{
+            GenS3ChunkInfoList(100, 149),
+            GenS3ChunkInfoList(200, 249),
         };
 
         request.set_partitionid(partitionId);

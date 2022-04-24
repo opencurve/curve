@@ -45,6 +45,7 @@ using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageTransaction;
+using ::curvefs::metaserver::storage::Hash;
 
 namespace curvefs {
 namespace metaserver {
@@ -108,11 +109,11 @@ class InodeStorage {
      */
     MetaStatusCode Update(const Inode& inode);
 
-    MetaStatusCode AppendS3ChunkInfoList(uint32_t fsId,
-                                         uint64_t inodeId,
-                                         uint64_t chunkIndex,
-                                         const S3ChunkInfoList& list2add,
-                                         bool compaction);
+    MetaStatusCode ModifyInodeS3ChunkInfoList(uint32_t fsId,
+                                              uint64_t inodeId,
+                                              uint64_t chunkIndex,
+                                              const S3ChunkInfoList& list2add,
+                                              const S3ChunkInfoList& list2del);
 
     MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
@@ -140,13 +141,16 @@ class InodeStorage {
         uint64_t chunkIndex,
         const S3ChunkInfoList& list2add);
 
-    MetaStatusCode RemoveS3ChunkInfoList(
+    MetaStatusCode DelS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
         uint32_t fsId,
         uint64_t inodeId,
         uint64_t chunkIndex,
-        uint64_t minChunkId,
-        uint64_t* size4del);
+        const S3ChunkInfoList& list2del);
+
+    bool SplitS3ChunkInfoList(const std::string& value,
+                              uint64_t delFirstChunkId,
+                              S3ChunkInfoList* list2add);
 
     std::string RealTablename(TABLE_TYPE type, std::string tablename) {
         std::ostringstream oss;

@@ -77,6 +77,7 @@ using ::curvefs::metaserver::copyset::OnSnapshotSaveDoneClosure;
 using ::curvefs::metaserver::storage::Iterator;
 using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamConnection;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 class MetaStore {
  public:

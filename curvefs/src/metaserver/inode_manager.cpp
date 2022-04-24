@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <list>
+#include <unordered_map>
 
 #include "curvefs/src/common/define.h"
 #include "src/common/timeutility.h"
@@ -130,21 +131,27 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId,
     return;
 }
 
-MetaStatusCode InodeManager::GetInode(uint32_t fsId, uint64_t inodeId,
-                                      Inode *inode) {
+MetaStatusCode InodeManager::GetInode(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      Inode *inode,
+                                      bool paddingS3ChunkInfo) {
     VLOG(1) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
-    MetaStatusCode ret = inodeStorage_->Get(Key4Inode(fsId, inodeId), inode);
-    if (ret != MetaStatusCode::OK) {
+    MetaStatusCode rc = inodeStorage_->Get(Key4Inode(fsId, inodeId), inode);
+    if (rc == MetaStatusCode::OK && paddingS3ChunkInfo) {
+        rc = PaddingInodeS3ChunkInfo(fsId, inodeId,
+                                     inode->mutable_s3chunkinfomap());
+    }
+
+    if (rc != MetaStatusCode::OK) {
         LOG(ERROR) << "GetInode fail, fsId = " << fsId
                    << ", inodeId = " << inodeId
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
+                   << ", retCode = " << MetaStatusCode_Name(rc);
+        return rc;
     }
 
     VLOG(1) << "GetInode success, fsId = " << fsId << ", inodeId = " << inodeId
             << ", " << inode->ShortDebugString();
-
     return MetaStatusCode::OK;
 }
 
@@ -308,23 +315,44 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
 MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
     const S3ChunkInfoMap& map2add,
-    std::shared_ptr<Iterator>* iterator,
+    const S3ChunkInfoMap& map2del,
     bool returnS3ChunkInfoMap,
-    bool compaction) {
+    std::shared_ptr<Iterator>* iterator) {
     VLOG(1) << "GetOrModifyS3ChunkInfo, fsId: " << fsId
             << ", inodeId: " << inodeId;
 
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
 
-    if (!map2add.empty()) {
-        for (const auto& item : map2add) {
-            uint64_t chunkIndex = item.first;
-            auto list2add = item.second;
-            MetaStatusCode rc = inodeStorage_->AppendS3ChunkInfoList(
-                fsId, inodeId, chunkIndex, list2add, compaction);
-            if (rc != MetaStatusCode::OK) {
-                return rc;
-            }
+    std::unordered_map<uint64_t, bool> deleted;
+    for (const auto& item : map2add) {
+        uint64_t chunkIndex = item.first;
+        auto list2add = item.second;
+        S3ChunkInfoList list2del;
+        auto iter = map2del.find(chunkIndex);
+        if (iter != map2del.end()) {
+            list2del = iter->second;
+        }
+
+        MetaStatusCode rc = inodeStorage_->ModifyInodeS3ChunkInfoList(
+            fsId, inodeId, chunkIndex, list2add, list2del);
+        if (rc != MetaStatusCode::OK) {
+            return rc;
+        }
+        deleted[chunkIndex] = true;
+    }
+
+    for (const auto& item : map2del) {
+        uint64_t chunkIndex = item.first;
+        if (deleted[chunkIndex]) {
+            continue;
+        }
+
+        auto list2del = item.second;
+        S3ChunkInfoList dummy;
+        MetaStatusCode rc = inodeStorage_->ModifyInodeS3ChunkInfoList(
+            fsId, inodeId, chunkIndex, dummy, list2del);
+        if (rc != MetaStatusCode::OK) {
+            return rc;
         }
     }
 
