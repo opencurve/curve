@@ -397,13 +397,29 @@ MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
         return status;
     }
 
-    MetaStatusCode status =
-        partition->GetInode(fsId, inodeId, response->mutable_inode());
-    if (status != MetaStatusCode::OK) {
+    Inode* inode = response->mutable_inode();
+    MetaStatusCode rc = partition->GetInode(fsId, inodeId, inode);
+    // NOTE: the following two cases we should padding inode's s3chunkinfo:
+    // (1): for RPC requests which unsupport streaming
+    // (2): inode's s3chunkinfo is small enough
+    if (rc == MetaStatusCode::OK) {
+        uint64_t limit = 0;
+        if (request->supportstreaming()) {
+            limit = kvStorage_->GetStorageOptions().s3MetaLimitSizeInsideInode;
+        }
+        rc = partition->PaddingInodeS3ChunkInfo(
+            fsId, inodeId, inode->mutable_s3chunkinfomap(), limit);
+        if (rc == MetaStatusCode::INODE_S3_META_TOO_LARGE) {
+            response->set_streaming(true);
+            rc = MetaStatusCode::OK;
+        }
+    }
+
+    if (rc != MetaStatusCode::OK) {
         response->clear_inode();
     }
-    response->set_statuscode(status);
-    return status;
+    response->set_statuscode(rc);
+    return rc;
 }
 
 MetaStatusCode MetaStoreImpl::BatchGetInodeAttr(

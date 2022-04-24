@@ -412,7 +412,7 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
 }
 
 MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
-                                              Inode *out) {
+                                              Inode *out, bool* streaming) {
     auto task = RPCTask {
         metaserverClientMetric_->getInode.qps.count << 1;
         LatencyUpdater updater(&metaserverClientMetric_->getInode.latency);
@@ -425,6 +425,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         request.set_inodeid(inodeid);
         request.set_appliedindex(
             metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
+        request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetInode(cntl, &request, &response, nullptr);
@@ -454,6 +455,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
             return -1;
         }
 
+        *streaming = response.has_streaming() ? response.streaming() : false;
         auto &s3chunkinfoMap = response.inode().s3chunkinfomap();
         for (auto &item : s3chunkinfoMap) {
             VLOG(9) << "inodeInfo, inodeId:" << inodeid
@@ -912,6 +914,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         request.set_inodeid(inodeId);
         request.set_returns3chunkinfomap(returnS3ChunkInfoMap);
         *(request.mutable_s3chunkinfoadd()) = s3ChunkInfos;
+        request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
 
