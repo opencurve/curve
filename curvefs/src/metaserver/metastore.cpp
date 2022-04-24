@@ -525,13 +525,20 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
     auto partition = GetPartition(request->partitionid());
     if (nullptr == partition) {
         rc = MetaStatusCode::PARTITION_NOT_FOUND;
-    } else {
-        rc = partition->GetOrModifyS3ChunkInfo(request->fsid(),
-                                               request->inodeid(),
-                                               request->s3chunkinfoadd(),
-                                               iterator,
-                                               request->returns3chunkinfomap(),
-                                               request->froms3compaction());
+        response->set_statuscode(rc);
+        return rc;
+    }
+
+    uint32_t fsId = request->fsid();
+    uint64_t inodeId = request->inodeid();
+    rc = partition->GetOrModifyS3ChunkInfo(fsId, inodeId,
+                                           request->s3chunkinfoadd(),
+                                           request->s3chunkinforemove(),
+                                           request->returns3chunkinfomap(),
+                                           iterator);
+    if (rc == MetaStatusCode::OK && !request->supportstreaming()) {
+        rc = partition->PaddingInodeS3ChunkInfo(
+            fsId, inodeId, response->mutable_s3chunkinfomap(), 0);
     }
 
     if (rc == MetaStatusCode::OK && !request->supportstreaming()) {

@@ -180,37 +180,46 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     uint32_t fsId,
     uint64_t inodeId,
     uint64_t chunkIndex,
-    const S3ChunkInfoList& list2add) {
-    // key
-    size_t size = list2add.s3chunks_size();
-    uint64_t firstChunkId = list2add.s3chunks(0).chunkid();
-    uint64_t lastChunkId = list2add.s3chunks(size - 1).chunkid();
+    const S3ChunkInfoList* list2add) {
+    if (nullptr == list2add || list2add->s3chunks_size() == 0) {
+        return MetaStatusCode::OK;
+    }
+
+    size_t size = list2add->s3chunks_size();
+    uint64_t firstChunkId = list2add->s3chunks(0).chunkid();
+    uint64_t lastChunkId = list2add->s3chunks(size - 1).chunkid();
     Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
                             firstChunkId, lastChunkId, size);
     std::string skey = conv_->SerializeToString(key);
 
-    Status s = txn->SSet(table4s3chunkinfo_, skey, list2add);
+    Status s = txn->SSet(table4s3chunkinfo_, skey, *list2add);
     return s.ok() ? MetaStatusCode::OK :
                     MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
-// NOTE: s3chunkinfo which its chunkid equal or
-// less then min chunkid should be removed
-MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
-                                                   uint32_t fsId,
-                                                   uint64_t inodeId,
-                                                   uint64_t chunkIndex,
-                                                   uint64_t minChunkId,
-                                                   uint64_t* size4del) {
+MetaStatusCode InodeStorage::DelS3ChunkInfoList(
+    Transaction txn,
+    uint32_t fsId,
+    uint64_t inodeId,
+    uint64_t chunkIndex,
+    const S3ChunkInfoList* list2del) {
+    if (nullptr == list2del || list2del->s3chunks_size() == 0) {
+        return MetaStatusCode::OK;
+    }
+
+    size_t size = list2del->s3chunks_size();
+    uint64_t delFirstChunkId = list2del->s3chunks(0).chunkid();
+    uint64_t delLastChunkId = list2del->s3chunks(size - 1).chunkid();
+
+    // prefix
     Prefix4ChunkIndexS3ChunkInfoList prefix(fsId, inodeId, chunkIndex);
     std::string sprefix = conv_->SerializeToString(prefix);
     auto iterator = txn->SSeek(table4s3chunkinfo_, sprefix);
     if (iterator->Status() != 0) {
+        LOG(ERROR) << "Get iterator failed, prefix=" << sprefix;
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    *size4del = 0;
-    uint64_t lastChunkId;
     Key4S3ChunkInfoList key;
     std::vector<std::string> key2del;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
@@ -219,61 +228,70 @@ MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
             break;
         } else if (!conv_->ParseFromString(skey, &key)) {
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
-        } else if (key.firstChunkId >= minChunkId) {
-            break;
         }
 
-        // firstChunkId < minChunkId
-        key2del.push_back(skey);
-        *size4del += key.size;
+        // current list range:    [  ]
+        // delete list range :  [      ]
+        if (delFirstChunkId <= key.firstChunkId &&
+            delLastChunkId >= key.lastChunkId) {
+            key2del.push_back(skey);
+        // current list range:       [  ]
+        // delete list range :  [  ]
+        } else if (delLastChunkId < key.firstChunkId) {
+            continue;
+        } else {
+            LOG(ERROR) << "wrong delete list range (" << delFirstChunkId
+                       << "," << delLastChunkId << "), skey=" << skey;
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
     }
 
     for (const auto& skey : key2del) {
         if (!txn->SDel(table4s3chunkinfo_, skey).ok()) {
+            LOG(ERROR) << "Delete key failed, skey=" << skey;
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
     }
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeStorage::AppendS3ChunkInfoList(
+MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
     uint32_t fsId,
     uint64_t inodeId,
     uint64_t chunkIndex,
-    const S3ChunkInfoList& list2add,
-    bool compaction) {
+    const S3ChunkInfoList* list2add,
+    const S3ChunkInfoList* list2del) {
     WriteLockGuard writeLockGuard(rwLock_);
-    size_t size = list2add.s3chunks_size();
-    if (size == 0) {
-        return MetaStatusCode::OK;
-    }
-
     auto txn = kvStorage_->BeginTransaction();
     if (nullptr == txn) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    MetaStatusCode rc;
-    uint64_t size4add = list2add.s3chunks_size();
-    uint64_t size4del = 0;
-    rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
-    if (rc == MetaStatusCode::OK && compaction) {
-        uint64_t minChunkId = list2add.s3chunks(0).chunkid();
-        rc = RemoveS3ChunkInfoList(txn, fsId, inodeId, chunkIndex,
-                                   minChunkId, &size4del);
+    auto rc = DelS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2del);
+    if (rc == MetaStatusCode::OK) {
+        rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
     }
 
     if (rc != MetaStatusCode::OK) {
-        txn->Rollback();
+        if (!txn->Rollback().ok()) {
+            LOG(ERROR) << "Rollback transaction failed";
+            rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        }
     } else if (!txn->Commit().ok()) {
+        LOG(ERROR) << "Commit transaction failed";
         rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    if (rc == MetaStatusCode::OK &&
-        !UpdateInodeS3MetaSize(fsId, inodeId, size4add, size4del)) {
-        rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
-        LOG(ERROR) << "UpdateInodeS3MetaSize() failed, size4add=" << size4add
-                   << ", size4del=" << size4del;
+    if (rc != MetaStatusCode::OK) {
+        return rc;
+    }
+
+    // rc == MetaStatusCode::OK
+    uint64_t size4add = (nullptr == list2add) ? 0 : list2add->s3chunks_size();
+    uint64_t size4del = (nullptr == list2del) ? 0 : list2del->s3chunks_size();
+    if (!UpdateInodeS3MetaSize(fsId, inodeId, size4add, size4del)) {
+        LOG(ERROR) << "Update inode s3meta size failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
     return rc;
 }
