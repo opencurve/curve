@@ -72,8 +72,8 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD1(PrepareRenameTx,
                  MetaStatusCode(const std::vector<Dentry>& dentrys));
 
-    MOCK_METHOD3(GetInode, MetaStatusCode(
-            uint32_t fsId, uint64_t inodeid, Inode *out));
+    MOCK_METHOD4(GetInode, MetaStatusCode(
+            uint32_t fsId, uint64_t inodeid, Inode *out, bool* streaming));
 
     MOCK_METHOD3(BatchGetInodeAttr, MetaStatusCode(
         uint32_t fsId, std::set<uint64_t> *inodeIds,

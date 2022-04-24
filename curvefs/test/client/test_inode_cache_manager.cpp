@@ -83,7 +83,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
     inode.set_fsid(fsId_);
     inode.set_length(fileLength);
 
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
 
@@ -109,7 +109,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
 
     curvefs::client::common::FLAGS_enableCto = true;
     inodeWrapper->SetOpenCount(0);
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
@@ -118,7 +118,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
     ASSERT_EQ(fileLength, out.length());
 
     inodeWrapper->SetOpenCount(1);
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _))
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);

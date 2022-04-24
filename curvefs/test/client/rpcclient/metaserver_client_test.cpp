@@ -627,6 +627,8 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     out.set_rdev(0);
     out.set_symlink("test9");
 
+    bool streaming;
+
     curvefs::metaserver::GetInodeResponse response;
 
     // test0: rpc error
@@ -637,7 +639,8 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
 
-    MetaStatusCode status = metaserverCli_.GetInode(fsid, inodeid, &out);
+    MetaStatusCode status = metaserverCli_.GetInode(
+        fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: get inode ok
@@ -652,7 +655,7 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
                   Invoke(SetRpcService<GetInodeRequest, GetInodeResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    status = metaserverCli_.GetInode(fsid, inodeid, &out);
+    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test2: get inode with not found error
@@ -661,7 +664,7 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetInodeRequest, GetInodeResponse>)));
-    status = metaserverCli_.GetInode(fsid, inodeid, &out);
+    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
 
     // test3: test response do not have applyindex
@@ -672,20 +675,20 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<GetInodeRequest, GetInodeResponse>)));
 
-    status = metaserverCli_.GetInode(fsid, inodeid, &out);
+    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test4: test response do not have inode
     response.set_appliedindex(10);
     response.clear_inode();
-    status = metaserverCli_.GetInode(fsid, inodeid, &out);
+    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test5: do not have both dentrys and appliedindex
     response.clear_inode();
     response.clear_appliedindex();
 
-    status = metaserverCli_.GetInode(fsid, inodeid, &out);
+    status = metaserverCli_.GetInode(fsid, inodeid, &out, &streaming);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 

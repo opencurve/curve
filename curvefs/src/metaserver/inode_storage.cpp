@@ -41,6 +41,8 @@ using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4AllInode;
 using Transaction = std::shared_ptr<StorageTransaction>;
 
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+
 InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
                            const std::string& tablename)
     : kvStorage_(kvStorage),
@@ -184,7 +186,7 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     uint64_t firstChunkId = list2add.s3chunks(0).chunkid();
     uint64_t lastChunkId = list2add.s3chunks(size - 1).chunkid();
     Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
-                            firstChunkId, lastChunkId);
+                            firstChunkId, lastChunkId, size);
     std::string skey = conv_->SerializeToString(key);
 
     Status s = txn->SSet(table4s3chunkinfo_, skey, list2add);
@@ -198,7 +200,8 @@ MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
                                                    uint32_t fsId,
                                                    uint64_t inodeId,
                                                    uint64_t chunkIndex,
-                                                   uint64_t minChunkId) {
+                                                   uint64_t minChunkId,
+                                                   uint64_t* size4del) {
     Prefix4ChunkIndexS3ChunkInfoList prefix(fsId, inodeId, chunkIndex);
     std::string sprefix = conv_->SerializeToString(prefix);
     auto iterator = txn->SSeek(table4s3chunkinfo_, sprefix);
@@ -206,6 +209,7 @@ MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
+    *size4del = 0;
     uint64_t lastChunkId;
     Key4S3ChunkInfoList key;
     std::vector<std::string> key2del;
@@ -221,6 +225,7 @@ MetaStatusCode InodeStorage::RemoveS3ChunkInfoList(Transaction txn,
 
         // firstChunkId < minChunkId
         key2del.push_back(skey);
+        *size4del += key.size;
     }
 
     for (const auto& skey : key2del) {
@@ -249,10 +254,13 @@ MetaStatusCode InodeStorage::AppendS3ChunkInfoList(
     }
 
     MetaStatusCode rc;
+    uint64_t size4add = list2add.s3chunks_size();
+    uint64_t size4del = 0;
     rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
     if (rc == MetaStatusCode::OK && compaction) {
         uint64_t minChunkId = list2add.s3chunks(0).chunkid();
-        rc = RemoveS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, minChunkId);
+        rc = RemoveS3ChunkInfoList(txn, fsId, inodeId, chunkIndex,
+                                   minChunkId, &size4del);
     }
 
     if (rc != MetaStatusCode::OK) {
@@ -260,13 +268,25 @@ MetaStatusCode InodeStorage::AppendS3ChunkInfoList(
     } else if (!txn->Commit().ok()) {
         rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
+
+    if (rc == MetaStatusCode::OK &&
+        !UpdateInodeS3MetaSize(fsId, inodeId, size4add, size4del)) {
+        rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+        LOG(ERROR) << "UpdateInodeS3MetaSize() failed, size4add=" << size4add
+                   << ", size4del=" << size4del;
+    }
     return rc;
 }
 
 MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
                                                      uint64_t inodeId,
-                                                     Inode* inode) {
+                                                     S3ChunkInfoMap* m,
+                                                     uint64_t limit) {
     ReadLockGuard readLockGuard(rwLock_);
+    if (limit != 0 && GetInodeS3MetaSize(fsId, inodeId) > limit) {
+        return MetaStatusCode::INODE_S3_META_TOO_LARGE;
+    }
+
     auto iterator = GetInodeS3ChunkInfoList(fsId, inodeId);
     if (iterator->Status() != 0) {
         LOG(ERROR) << "Get inode s3chunkinfo failed";
@@ -282,7 +302,6 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
 
     Key4S3ChunkInfoList key;
     S3ChunkInfoList list;
-    auto m = inode->mutable_s3chunkinfomap();
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         std::string skey = iterator->Key();
         std::string svalue = iterator->Value();

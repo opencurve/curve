@@ -278,6 +278,18 @@ MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
         fsId, inodeId, list2add, iterator, returnS3ChunkInfoMap, compaction);
 }
 
+MetaStatusCode Partition::PaddingInodeS3ChunkInfo(int32_t fsId,
+                                                  uint64_t inodeId,
+                                                  S3ChunkInfoMap* m,
+                                                  uint64_t limit) {
+    if (!IsInodeBelongs(fsId, inodeId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    } else if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+    return inodeManager_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
+}
+
 MetaStatusCode Partition::InsertInode(const Inode& inode) {
     if (!IsInodeBelongs(inode.fsid(), inode.inodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
