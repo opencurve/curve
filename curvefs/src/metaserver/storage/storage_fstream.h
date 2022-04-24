@@ -92,11 +92,17 @@ static std::pair<std::string, std::string> UserKey(const std::string& ikey) {
     if (items.size() >= 2) {
         prefix = items[0];
         ukey = ikey.substr(prefix.size() + 1);
+    } else if (items.size() == 1) {  // e.g: t3:
+        prefix = items[0];
     }
     return std::make_pair(prefix, ukey);
 }
 
 static std::pair<ENTRY_TYPE, uint32_t> Extract(const std::string& prefix) {
+    if (prefix.size() == 0) {
+        return std::make_pair(ENTRY_TYPE::UNKNOWN, 0);
+    }
+
     std::vector<std::string> items{
         prefix.substr(0, 1),  // eg: i
         prefix.substr(1),  // eg: 100
