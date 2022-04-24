@@ -90,18 +90,21 @@ Key4S3ChunkInfoList::Key4S3ChunkInfoList()
       inodeId(0),
       chunkIndex(0),
       firstChunkId(0),
-      lastChunkId(0) {}
+      lastChunkId(0),
+      size(0) {}
 
 Key4S3ChunkInfoList::Key4S3ChunkInfoList(uint32_t fsId,
                                          uint64_t inodeId,
                                          uint64_t chunkIndex,
                                          uint64_t firstChunkId,
-                                         uint64_t lastChunkId)
+                                         uint64_t lastChunkId,
+                                         uint64_t size)
     : fsId(fsId),
       inodeId(inodeId),
       chunkIndex(chunkIndex),
       firstChunkId(firstChunkId),
-      lastChunkId(lastChunkId) {}
+      lastChunkId(lastChunkId),
+      size(size) {}
 
 std::string Key4S3ChunkInfoList::SerializeToString() const {
     std::ostringstream oss;
@@ -109,18 +112,20 @@ std::string Key4S3ChunkInfoList::SerializeToString() const {
         << inodeId << ":" << chunkIndex << ":"
         << std::setw(kMaxUint64Length_) << std::setfill('0') << firstChunkId
         << ":"
-        << std::setw(kMaxUint64Length_) << std::setfill('0') << lastChunkId;
+        << std::setw(kMaxUint64Length_) << std::setfill('0') << lastChunkId
+        << ":" << size;
     return oss.str();
 }
 
 bool Key4S3ChunkInfoList::ParseFromString(const std::string& value) {
     std::vector<std::string> items;
     SplitString(value, ":", &items);
-    return items.size() == 6 && CompareType(items[0], keyType_) &&
+    return items.size() == 7 && CompareType(items[0], keyType_) &&
         StringToUl(items[1], &fsId) && StringToUll(items[2], &inodeId) &&
         StringToUll(items[3], &chunkIndex) &&
         StringToUll(items[4], &firstChunkId) &&
-        StringToUll(items[5], &lastChunkId);
+        StringToUll(items[5], &lastChunkId) &&
+        StringToUll(items[6], &size);
 }
 
 Prefix4ChunkIndexS3ChunkInfoList::Prefix4ChunkIndexS3ChunkInfoList()

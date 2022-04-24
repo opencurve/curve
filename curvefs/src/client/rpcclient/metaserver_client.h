@@ -88,7 +88,7 @@ class MetaServerClient {
     PrepareRenameTx(const std::vector<Dentry> &dentrys) = 0;
 
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
-                                    Inode *out) = 0;
+                                    Inode *out, bool* streaming) = 0;
 
     virtual MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         std::set<uint64_t> *inodeIds,
@@ -161,7 +161,7 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode PrepareRenameTx(const std::vector<Dentry> &dentrys) override;
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
-                            Inode *out) override;
+                            Inode *out, bool* streaming) override;
 
     MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         std::set<uint64_t> *inodeIds,

@@ -34,7 +34,6 @@
 
 using ::curve::common::NameLock;
 using ::curvefs::metaserver::S3ChunkInfoList;
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace metaserver {
@@ -81,7 +80,8 @@ class InodeManager {
 
     MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           Inode* inode);
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
         uint64_t inodeId, bool isCreate);

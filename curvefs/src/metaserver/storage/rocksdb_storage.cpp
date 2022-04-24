@@ -282,7 +282,7 @@ Status RocksDBStorage::Get(const std::string& name,
 
     std::string iname = ToInternalName(name, ordered);
     std::string ikey = ToInternalKey(iname, key);
-    if (!FindKey(iname, ikey)) {
+    if (!InTransaction_ && !FindKey(iname, ikey)) {
         return Status::NotFound();
     }
 
@@ -333,7 +333,7 @@ Status RocksDBStorage::Del(const std::string& name,
 
     std::string iname = ToInternalName(name, ordered);
     std::string ikey = ToInternalKey(iname, key);
-    if (!counter_->Find(iname, ikey)) {
+    if (!InTransaction_ && !counter_->Find(iname, ikey)) {
         return Status::NotFound();
     }
 
@@ -441,6 +441,10 @@ bool RocksDBStorage::GetStatistics(StorageStatistics* statistics) {
     statistics->diskUsageBytes = total - available;
 
     return true;
+}
+
+StorageOptions RocksDBStorage::GetStorageOptions() const {
+    return options_;
 }
 
 }  // namespace storage
