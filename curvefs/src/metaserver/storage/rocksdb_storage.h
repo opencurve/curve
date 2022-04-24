@@ -223,6 +223,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     void CommitKeys();
 
+    void RollbackKeys();
+
     Status Get(const std::string& name,
                const std::string& key,
                ValueType* value,
@@ -238,8 +240,11 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
                bool ordered);
 
     std::shared_ptr<Iterator> Seek(const std::string& name,
-                                    const std::string& prefix);
+                                   const std::string& prefix);
 
+    // TODO(@Wine93): We do not support transactions for the
+    // below 3 methods, maybe we should return Status::NotSupported
+    // when user invoke it in transaction.
     std::shared_ptr<Iterator> GetAll(const std::string& name, bool ordered);
 
     size_t Size(const std::string& name, bool ordered);
