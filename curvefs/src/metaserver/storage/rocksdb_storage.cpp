@@ -298,6 +298,13 @@ inline void RocksDBStorage::CommitKeys() {
     for (const auto& pair : pending4del_) {
         counter_->Erase(pair.first, pair.second);
     }
+    pending4set_.clear();
+    pending4del_.clear();
+}
+
+inline void RocksDBStorage::RollbackKeys() {
+    pending4set_.clear();
+    pending4del_.clear();
 }
 
 Status RocksDBStorage::Get(const std::string& name,
@@ -407,6 +414,8 @@ size_t RocksDBStorage::Size(const std::string& name, bool ordered) {
 Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     if (!inited_) {
         return Status::DBClosed();
+    } else if (InTransaction_) {
+        return Status::NotSupported();
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
@@ -428,6 +437,8 @@ std::shared_ptr<StorageTransaction> RocksDBStorage::BeginTransaction() {
     if (nullptr == txn) {
         return nullptr;
     }
+    pending4set_.clear();
+    pending4del_.clear();
     return std::make_shared<RocksDBStorage>(*this, txn);
 }
 
@@ -436,23 +447,30 @@ Status RocksDBStorage::Commit() {
         return Status::NotSupported();
     }
 
-    Status s = ToStorageStatus(txn_->Commit());
-    if (s.ok()) {
+    ROCKSDB_NAMESPACE::Status s = txn_->Commit();
+    if (!s.ok()) {
+        LOG(ERROR) << "RocksDBStorage commit transaction failed"
+                   << ", status=" << s.ToString();
+    } else {
         CommitKeys();
     }
     delete txn_;
-    return s;
+    return ToStorageStatus(s);
 }
 
 Status RocksDBStorage::Rollback()  {
     if (!InTransaction_ || nullptr == txn_) {
         return Status::NotSupported();
     }
-    pending4set_.clear();
-    pending4del_.clear();
-    Status s = ToStorageStatus(txn_->Commit());
+    ROCKSDB_NAMESPACE::Status s = txn_->Rollback();
+    if (!s.ok()) {
+        LOG(ERROR) << "RocksDBStorage rollback transaction failed"
+                   << ", status=" << s.ToString();
+    } else {
+        RollbackKeys();
+    }
     delete txn_;
-    return s;
+    return ToStorageStatus(s);
 }
 
 bool RocksDBStorage::GetStatistics(StorageStatistics* statistics) {
