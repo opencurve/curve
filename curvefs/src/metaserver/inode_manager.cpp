@@ -343,10 +343,11 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
 
 MetaStatusCode InodeManager::PaddingInodeS3ChunkInfo(int32_t fsId,
                                                      uint64_t inodeId,
-                                                     Inode* inode) {
+                                                     S3ChunkInfoMap* m,
+                                                     uint64_t limit) {
     VLOG(1) << "PaddingInodeS3ChunkInfo, fsId: " << fsId
             << ", inodeId: " << inodeId;
-    return inodeStorage_->PaddingInodeS3ChunkInfo(fsId, inodeId, inode);
+    return inodeStorage_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
 }
 
 MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(

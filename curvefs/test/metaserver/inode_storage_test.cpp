@@ -155,9 +155,8 @@ class InodeStorageTest : public ::testing::Test {
         Key4S3ChunkInfoList key;
         S3ChunkInfoList list4get;
         for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-            LOG(INFO) << "checking chunkIndex(" << size << "), key="
-                      << iterator->Key();
             ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
+            LOG(INFO) << "key" << size << "=" << iterator->Key();
             ASSERT_TRUE(iterator->ParseFromValue(&list4get));
             ASSERT_EQ(key.chunkIndex, chunkIndexs[size]);
             ASSERT_TRUE(EqualS3ChunkInfoList(list4get, lists[size]));
@@ -435,6 +434,7 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
     InodeStorage storage(kvStorage_, tablename_);
+    S3ChunkInfoList list2del;
 
     // step1: insert inode
     Inode inode = GenInode(fsId, inodeId);
@@ -442,7 +442,7 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
 
     // step2: append s3chunkinfo
     std::vector<uint64_t> chunkIndexs{ 1, 3, 2, 1, 2 };
-    std::vector<S3ChunkInfoList> lists{
+    std::vector<S3ChunkInfoList> lists2add{
         GenS3ChunkInfoList(100, 109),
         GenS3ChunkInfoList(300, 310),
         GenS3ChunkInfoList(200, 209),
@@ -450,22 +450,54 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
         GenS3ChunkInfoList(210, 220),
     };
 
-    for (size_t size = 0; size < chunkIndexs.size(); size++) {
+    for (size_t i = 0; i < chunkIndexs.size(); i++) {
         MetaStatusCode rc = storage.AppendS3ChunkInfoList(
-            fsId, inodeId, chunkIndexs[size], lists[size], false);
+            fsId, inodeId, chunkIndexs[i], lists2add[i], false);
         ASSERT_EQ(rc, MetaStatusCode::OK);
     }
-
-    // step3: padding inode s3chunkinfo
     ASSERT_EQ(inode.mutable_s3chunkinfomap()->size(), 0);
 
-    MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(fsId, inodeId, &inode);
-    ASSERT_EQ(rc, MetaStatusCode::OK);
-    auto m = inode.s3chunkinfomap();
-    ASSERT_EQ(m.size(), 3);
-    ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
-    ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
-    ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+    // CASE 1: padding inode s3chunkinfo success
+    {
+        LOG(INFO) << "CASE 1: padding inode s3chunkinfo success";
+        Inode out;
+        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
+            fsId, inodeId, out.mutable_s3chunkinfomap());
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+
+        auto m = out.s3chunkinfomap();
+        ASSERT_EQ(m.size(), 3);
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+    }
+
+    // CASE 2: padding inode s3chunkinfo within limit
+    {
+        LOG(INFO) << "CASE 2: padding inode s3chunkinfo within limit";
+        Inode out;
+        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
+            fsId, inodeId, out.mutable_s3chunkinfomap(), 53);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+
+        auto m = out.s3chunkinfomap();
+        ASSERT_EQ(m.size(), 3);
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[1], GenS3ChunkInfoList(100, 120)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[2], GenS3ChunkInfoList(200, 220)));
+        ASSERT_TRUE(EqualS3ChunkInfoList(m[3], GenS3ChunkInfoList(300, 310)));
+    }
+
+    // CASE 3: padding inode s3chunkinfo exceed limit
+    {
+        LOG(INFO) << "CASE 3: padding inode s3chunkinfo exceed limit";
+        Inode out;
+        MetaStatusCode rc = storage.PaddingInodeS3ChunkInfo(
+            fsId, inodeId, out.mutable_s3chunkinfomap(), 52);
+        ASSERT_EQ(rc, MetaStatusCode::INODE_S3_META_TOO_LARGE);
+
+        auto m = out.s3chunkinfomap();
+        ASSERT_EQ(m.size(), 0);
+    }
 }
 
 TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {

@@ -94,7 +94,8 @@ class Key4S3ChunkInfoList : public StorageKey {
                         uint64_t inodeId,
                         uint64_t chunkIndex,
                         uint64_t firstChunkId,
-                        uint64_t lastChunkId);
+                        uint64_t lastChunkId,
+                        uint64_t size);
 
     std::string SerializeToString() const override;
 
@@ -109,6 +110,7 @@ class Key4S3ChunkInfoList : public StorageKey {
      uint64_t chunkIndex;
      uint64_t firstChunkId;
      uint64_t lastChunkId;
+     uint64_t size;
 };
 
 class Prefix4ChunkIndexS3ChunkInfoList : public StorageKey {

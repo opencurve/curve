@@ -461,7 +461,7 @@ bool S3CompactWorkQueueImpl::CompactPrecheck(const struct S3CompactTask& task,
         auto inodeKey = task.inodeKey;
         auto inodeManager = task.inodeManager;
         MetaStatusCode rc = inodeManager->PaddingInodeS3ChunkInfo(
-            inodeKey.fsId, inodeKey.inodeId, inode);
+            inodeKey.fsId, inodeKey.inodeId, inode->mutable_s3chunkinfomap());
         if (rc != MetaStatusCode::OK) {
             LOG(ERROR) << "Padding inode s3chunkinfo failed, "
                        << "retCode = " << MetaStatusCode_Name(ret);
