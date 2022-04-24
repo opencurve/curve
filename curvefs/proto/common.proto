@@ -21,6 +21,7 @@ option cc_generic_services = true;
 enum FSType {
     TYPE_VOLUME = 1;
     TYPE_S3 = 2;
+    TYPE_HYBRID = 3;
 }
 
 // bitmap location for each block group

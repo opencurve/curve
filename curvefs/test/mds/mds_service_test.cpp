@@ -323,6 +323,18 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    // TODO(huyao): create hybrid fs
+    cntl.Reset();
+    createRequest.set_fsname("hybrid");
+    createRequest.set_fstype(FSType::TYPE_HYBRID);
+    stub.CreateFs(&cntl, &createRequest, &createResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(createResponse.statuscode(), FSStatusCode::UNKNOWN_ERROR);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
     // test MountFs
     cntl.Reset();
     std::string mountPoint = "host1:/a/b/c";

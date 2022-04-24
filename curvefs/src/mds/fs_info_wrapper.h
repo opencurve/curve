@@ -69,13 +69,23 @@ class FsInfoWrapper {
 
         const auto& detail = request->fsdetail();
         fsInfo.set_allocated_detail(new FsDetail(detail));
-        if (detail.has_s3info()) {
-            fsInfo.set_fstype(FSType::TYPE_S3);
-            fsInfo.set_capacity(request->capacity());
-        } else {
-            fsInfo.set_fstype(FSType::TYPE_VOLUME);
-            fsInfo.set_capacity(
-                std::min(detail.volume().volumesize(), request->capacity()));
+
+        switch (request->fstype()) {
+            case FSType::TYPE_S3:
+                fsInfo.set_fstype(FSType::TYPE_S3);
+                fsInfo.set_capacity(request->capacity());
+                break;
+            case FSType::TYPE_VOLUME:
+                fsInfo.set_fstype(FSType::TYPE_VOLUME);
+                fsInfo.set_capacity(std::min(detail.volume().volumesize(),
+                                             request->capacity()));
+                break;
+            case FSType::TYPE_HYBRID:
+                fsInfo.set_fstype(FSType::TYPE_HYBRID);
+                // TODO(huyao): set capacity for hybrid fs
+                fsInfo.set_capacity(std::min(detail.volume().volumesize(),
+                                             request->capacity()));
+                break;
         }
 
         fsInfo.set_owner(request->owner());
