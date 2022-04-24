@@ -170,11 +170,12 @@ bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
         return false;
     }
 
-    std::shared_ptr<Iterator> iterator;
     S3ChunkInfoMap map2add;
+    S3ChunkInfoMap map2del;
+    std::shared_ptr<Iterator> iterator;
     map2add.insert({key4list.chunkIndex, list});
     MetaStatusCode rc = partition->GetOrModifyS3ChunkInfo(
-        key4list.fsId, key4list.inodeId, map2add, &iterator, false, false);
+        key4list.fsId, key4list.inodeId, map2add, map2del, false, &iterator);
     if (rc != MetaStatusCode::OK) {
         LOG(ERROR) << "GetOrModifyS3ChunkInfo failed, retCode = "
                    << MetaStatusCode_Name(rc);
