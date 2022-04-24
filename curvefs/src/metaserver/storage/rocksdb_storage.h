@@ -133,6 +133,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     bool GetStatistics(StorageStatistics* Statistics) override;
 
+    StorageOptions GetStorageOptions() const override;
+
     // unordered
     Status HGet(const std::string& name,
                 const std::string& key,
@@ -335,13 +337,21 @@ class RocksDBStorageIterator : public Iterator {
           ordered_(ordered) {
         if (status_ == 0) {
             readOptions_ = storage_->ReadOptions();
-            readOptions_.snapshot = storage_->db_->GetSnapshot();
+            if (storage_->InTransaction_) {
+                readOptions_.snapshot = storage_->txn_->GetSnapshot();
+            } else {
+                readOptions_.snapshot = storage_->db_->GetSnapshot();
+            }
         }
     }
 
     ~RocksDBStorageIterator() {
         if (status_ == 0) {
-            storage_->db_->ReleaseSnapshot(readOptions_.snapshot);
+            if (storage_->InTransaction_) {
+                storage_->txn_->ClearSnapshot();
+            } else {
+                storage_->db_->ReleaseSnapshot(readOptions_.snapshot);
+            }
         }
     }
 
@@ -362,7 +372,11 @@ class RocksDBStorageIterator : public Iterator {
 
     void SeekToFirst() {
         auto handler = storage_->GetColumnFamilyHandle(ordered_);
-        iter_ = storage_->db_->NewIterator(readOptions_, handler);
+        if (storage_->InTransaction_) {
+            iter_ = storage_->txn_->GetIterator(readOptions_, handler);
+        } else {
+            iter_ = storage_->db_->NewIterator(readOptions_, handler);
+        }
         iter_->Seek(prefix_);
     }
 

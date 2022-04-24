@@ -51,6 +51,7 @@ namespace metaserver {
 
 using ::curvefs::metaserver::storage::Key4Inode;
 using ::curvefs::metaserver::storage::Converter;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 enum TABLE_TYPE : unsigned char {
     kTypeInode = 1,
@@ -115,7 +116,8 @@ class InodeStorage {
 
     MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
                                            uint64_t inodeId,
-                                           Inode* inode);
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
 
     std::shared_ptr<Iterator> GetInodeS3ChunkInfoList(uint32_t fsId,
                                                       uint64_t inodeId);
@@ -143,12 +145,35 @@ class InodeStorage {
         uint32_t fsId,
         uint64_t inodeId,
         uint64_t chunkIndex,
-        uint64_t minChunkId);
+        uint64_t minChunkId,
+        uint64_t* size4del);
 
     std::string RealTablename(TABLE_TYPE type, std::string tablename) {
         std::ostringstream oss;
         oss << type << ":" << tablename;
         return oss.str();
+    }
+
+    static std::string InodeS3MetaSizeKey(uint32_t fsId, uint64_t inodeId) {
+        std::ostringstream oss;
+        oss << fsId << ":" << inodeId;
+        return oss.str();
+    }
+
+    bool UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
+                               uint64_t size4add, uint64_t size4del) {
+        std::string key = InodeS3MetaSizeKey(fsId, inodeId);
+        uint64_t size = inodeS3MetaSize_[key] + size4add;
+        if (size < size4del) {
+            return false;
+        }
+        inodeS3MetaSize_[key] = size - size4del;
+        return true;
+    }
+
+    uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
+        std::string key = InodeS3MetaSizeKey(fsId, inodeId);
+        return inodeS3MetaSize_[key];
     }
 
     bool FindKey(const std::string& key) {
@@ -170,6 +195,8 @@ class InodeStorage {
     std::string table4s3chunkinfo_;
     std::shared_ptr<Converter> conv_;
     std::unordered_set<std::string> keySet_;
+    // key: Hash(inode), value: the number of inode's chunkinfo size
+    std::unordered_map<std::string, uint64_t> inodeS3MetaSize_;
 };
 
 }  // namespace metaserver

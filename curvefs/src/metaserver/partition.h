@@ -97,6 +97,11 @@ class Partition {
                                           bool returnS3ChunkInfoMap,
                                           bool compaction);
 
+    MetaStatusCode PaddingInodeS3ChunkInfo(int32_t fsId,
+                                           uint64_t inodeId,
+                                           S3ChunkInfoMap* m,
+                                           uint64_t limit = 0);
+
     MetaStatusCode InsertInode(const Inode& inode);
 
     bool GetInodeIdList(std::list<uint64_t>* InodeIdList);
