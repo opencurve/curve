@@ -311,6 +311,7 @@ TEST_F(FSManagerTest, test1) {
 
     req.set_fsname(fsName2);
     req.set_allocated_fsdetail(new FsDetail(detail2));
+    req.set_fstype(FSType::TYPE_S3);
     ret = fsManager_->CreateFs(&req, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
 

@@ -142,6 +142,7 @@ const char kEtcdFollowerValue[] = "StateFollower";
 /* fs type */
 const char kFsTypeS3[] = "s3";
 const char kFsTypeVolume[] = "volume";
+const char kFsTypeHybrid[] = "hybrid";
 
 /* json type */
 const char kJsonTypeBuild[] = "build";

@@ -64,10 +64,8 @@ enum FsStatus {
 }
 
 message FsDetail {
-    oneof FsDetailOneOf {
-        common.Volume volume = 1;
-        common.S3Info s3Info = 2;
-    }
+    optional common.Volume volume = 1;
+    optional common.S3Info s3Info = 2;
 }
 
 message FsInfo {

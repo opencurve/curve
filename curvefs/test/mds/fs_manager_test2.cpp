@@ -326,5 +326,85 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
     EXPECT_EQ(FsStatus::INITED, resultInfo.status());
 }
 
+// TODO(huyao): create hybrid fs
+TEST_F(FsManagerTest2, createHybridFs) {
+    std::string fsname = "hello";
+    FSType type = FSType::TYPE_HYBRID;
+    uint64_t blocksize = 4 * 1024;
+    bool enableSumInDir = false;
+    FsDetail detail;
+    auto* s3Info = detail.mutable_s3info();
+    s3Info->set_ak("hello");
+    s3Info->set_sk("world");
+    s3Info->set_endpoint("hello.world.com");
+    s3Info->set_bucketname("hello");
+    s3Info->set_blocksize(4 * 1024);
+    s3Info->set_chunksize(16 * 1024 * 1024);
+
+    FsInfo fsinfo;
+    fsinfo.set_status(FsStatus::NEW);
+    fsinfo.set_fsname(fsname);
+    fsinfo.set_blocksize(4 * 1024);
+    fsinfo.set_fstype(FSType::TYPE_HYBRID);
+
+    auto s3Info2 = *s3Info;
+    fsinfo.mutable_detail()->set_allocated_s3info(
+        new curvefs::common::S3Info(s3Info2));
+
+    FsInfoWrapper wrapper(fsinfo);
+
+    EXPECT_CALL(*storage_, Exist(Matcher<const std::string&>(_)))
+        .WillOnce(Return(true));
+
+    EXPECT_CALL(*storage_, Get(Matcher<const std::string&>(_), _))
+        .Times(2)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<1>(wrapper), Return(FSStatusCode::OK)));
+
+    EXPECT_CALL(*storage_, NextFsId()).Times(0);
+
+    EXPECT_CALL(*storage_, Insert(_)).Times(0);
+
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
+    std::set<std::string> addrs;
+    addrs.emplace(kFsManagerTest2ServerAddress);
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(addrs), Return(TopoStatusCode::TOPO_OK)));
+    GetLeaderResponse2 getLeaderResponse;
+    getLeaderResponse.mutable_leader()->set_address("0.0.0.0:22000:0");
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(getLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+
+    EXPECT_CALL(*metaserverService_, CreateRootInode(_, _, _, _))
+        .WillOnce(Invoke(
+            [](::google::protobuf::RpcController* controller,
+               const ::curvefs::metaserver::CreateRootInodeRequest* request,
+               ::curvefs::metaserver::CreateRootInodeResponse* response,
+               ::google::protobuf::Closure* done) {
+                response->set_statuscode(metaserver::MetaStatusCode::OK);
+                done->Run();
+            }));
+
+    EXPECT_CALL(*storage_, Update(_)).WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
+
+    CreateFsRequest req;
+    req.set_fsname(fsname);
+    req.set_blocksize(blocksize);
+    req.set_fstype(type);
+    req.set_allocated_fsdetail(new FsDetail(detail));
+    req.set_enablesumindir(false);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+    FsInfo resultInfo;
+    EXPECT_EQ(FSStatusCode::OK, fsManager_->CreateFs(&req, &resultInfo));
+
+    EXPECT_EQ(FsStatus::INITED, resultInfo.status());
+}
+
 }  // namespace mds
 }  // namespace curvefs

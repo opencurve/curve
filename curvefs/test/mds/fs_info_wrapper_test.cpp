@@ -34,7 +34,7 @@ using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
 using ::google::protobuf::util::MessageDifferencer;
 
-TEST(FsInfoWrapperTest, CommonTest) {
+TEST(FsInfoWrapperTest, volumeTest) {
     FsInfo fsinfo;
 
     fsinfo.set_fsid(1);
@@ -45,6 +45,40 @@ TEST(FsInfoWrapperTest, CommonTest) {
     fsinfo.set_blocksize(4096);
     fsinfo.set_mountnum(0);
     fsinfo.set_fstype(mds::FSType::TYPE_VOLUME);
+
+    FsInfoWrapper wrapper(fsinfo);
+
+    EXPECT_TRUE(MessageDifferencer::Equals(wrapper.ProtoFsInfo(), fsinfo));
+}
+
+TEST(FsInfoWrapperTest, s3Test) {
+    FsInfo fsinfo;
+
+    fsinfo.set_fsid(2);
+    fsinfo.set_fsname("hello");
+    fsinfo.set_status(mds::FsStatus::INITED);
+    fsinfo.set_rootinodeid(1);
+    fsinfo.set_capacity(8192);
+    fsinfo.set_blocksize(4096);
+    fsinfo.set_mountnum(0);
+    fsinfo.set_fstype(mds::FSType::TYPE_S3);
+
+    FsInfoWrapper wrapper(fsinfo);
+
+    EXPECT_TRUE(MessageDifferencer::Equals(wrapper.ProtoFsInfo(), fsinfo));
+}
+
+TEST(FsInfoWrapperTest, hybridTest) {
+    FsInfo fsinfo;
+
+    fsinfo.set_fsid(3);
+    fsinfo.set_fsname("hello");
+    fsinfo.set_status(mds::FsStatus::INITED);
+    fsinfo.set_rootinodeid(1);
+    fsinfo.set_capacity(8192);
+    fsinfo.set_blocksize(4096);
+    fsinfo.set_mountnum(0);
+    fsinfo.set_fstype(mds::FSType::TYPE_HYBRID);
 
     FsInfoWrapper wrapper(fsinfo);
 

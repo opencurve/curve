@@ -36,76 +36,119 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     uint64_t blockSize = request->blocksize();
     FSType type = request->fstype();
     bool enableSumInDir = request->enablesumindir();
-    if (type == ::curvefs::common::FSType::TYPE_VOLUME) {
+
+    // set response statuscode default value is ok
+    response->set_statuscode(FSStatusCode::OK);
+
+    // create volume fs
+    auto createVolumeFs =
+        [&]() {
+            if (!request->fsdetail().has_volume()) {
+                response->set_statuscode(FSStatusCode::PARAM_ERROR);
+                LOG(ERROR)
+                    << "CreateFs request, type is volume, but has no volume"
+                    << ", fsName = " << fsName;
+                return;
+            }
+            const auto& volume = request->fsdetail().volume();
+            LOG(INFO) << "CreateFs request, fsName = " << fsName
+                      << ", blockSize = " << blockSize
+                      << ", volume.volumeName = " << volume.volumename()
+                      << ", enableSumInDir = " << enableSumInDir
+                      << ", owner = " << request->owner()
+                      << ", capacity = " << request->capacity();
+
+            FSStatusCode status =
+                fsManager_->CreateFs(request, response->mutable_fsinfo());
+
+            if (status != FSStatusCode::OK) {
+                response->clear_fsinfo();
+                response->set_statuscode(status);
+                LOG(ERROR) << "CreateFs fail, fsName = " << fsName
+                           << ", blockSize = " << blockSize
+                           << ", volume.volumeName = " << volume.volumename()
+                           << ", enableSumInDir = " << enableSumInDir
+                           << ", owner = " << request->owner()
+                           << ", capacity = " << request->capacity()
+                           << ", errCode = " << FSStatusCode_Name(status);
+                return;
+            }
+        };
+
+    // create s3 fs
+    auto createS3Fs =
+        [&]() {
+            if (!request->fsdetail().has_s3info()) {
+                response->set_statuscode(FSStatusCode::PARAM_ERROR);
+                LOG(ERROR) << "CreateFs request, type is s3, but has no s3info"
+                           << ", fsName = " << fsName;
+                return;
+            }
+            const auto& s3Info = request->fsdetail().s3info();
+            LOG(INFO) << "CreateFs request, fsName = " << fsName
+                      << ", blockSize = " << blockSize
+                      << ", s3Info.bucketname = " << s3Info.bucketname()
+                      << ", enableSumInDir = " << enableSumInDir
+                      << ", owner = " << request->owner()
+                      << ", capacity = " << request->capacity();
+
+            FSStatusCode status =
+                fsManager_->CreateFs(request, response->mutable_fsinfo());
+
+            if (status != FSStatusCode::OK) {
+                response->clear_fsinfo();
+                response->set_statuscode(status);
+                LOG(ERROR) << "CreateFs fail, fsName = " << fsName
+                           << ", blockSize = " << blockSize
+                           << ", s3Info.bucketname = " << s3Info.bucketname()
+                           << ", enableSumInDir = " << enableSumInDir
+                           << ", owner = " << request->owner()
+                           << ", capacity = " << request->capacity()
+                           << ", errCode = " << FSStatusCode_Name(status);
+                return;
+            }
+        };
+
+    auto createHybridFs = [&]() {
+        // not support now
         if (!request->fsdetail().has_volume()) {
             response->set_statuscode(FSStatusCode::PARAM_ERROR);
-            LOG(ERROR) << "CreateFs request, type is volume, but has no volume"
+            LOG(ERROR) << "CreateFs request, type is hybrid, but has no volume"
                        << ", fsName = " << fsName;
             return;
         }
-        const auto& volume = request->fsdetail().volume();
-        LOG(INFO) << "CreateFs request, fsName = " << fsName
-                  << ", blockSize = " << blockSize
-                  << ", volume.volumeName = " << volume.volumename()
-                  << ", enableSumInDir = " << enableSumInDir
-                  << ", owner = " << request->owner()
-                  << ", capacity = " << request->capacity();
-
-        FSStatusCode status =
-            fsManager_->CreateFs(request, response->mutable_fsinfo());
-
-        if (status != FSStatusCode::OK) {
-            response->clear_fsinfo();
-            response->set_statuscode(status);
-            LOG(ERROR) << "CreateFs fail, fsName = " << fsName
-                       << ", blockSize = " << blockSize
-                       << ", volume.volumeName = " << volume.volumename()
-                       << ", enableSumInDir = " << enableSumInDir
-                       << ", errCode = " << FSStatusCode_Name(status)
-                       << ", owner = " << request->owner()
-                       << ", capacity = " << request->capacity();
-            return;
-        }
-    } else if (type == FSType::TYPE_S3) {
         if (!request->fsdetail().has_s3info()) {
             response->set_statuscode(FSStatusCode::PARAM_ERROR);
-            LOG(ERROR) << "CreateFs request, type is s3, but has no s3info"
+            LOG(ERROR) << "CreateFs request, type is hybrid, but has no s3info"
                        << ", fsName = " << fsName;
             return;
         }
-        const auto& s3Info = request->fsdetail().s3info();
-        LOG(INFO) << "CreateFs request, fsName = " << fsName
-                  << ", blockSize = " << blockSize
-                  << ", s3Info.bucketname = " << s3Info.bucketname()
-                  << ", enableSumInDir = " << enableSumInDir
-                  << ", owner = " << request->owner()
-                  << ", capacity = " << request->capacity();
+        response->set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+    };
 
-        FSStatusCode status =
-            fsManager_->CreateFs(request, response->mutable_fsinfo());
-
-        if (status != FSStatusCode::OK) {
-            response->clear_fsinfo();
-            response->set_statuscode(status);
-            LOG(ERROR) << "CreateFs fail, fsName = " << fsName
-                       << ", blockSize = " << blockSize
-                       << ", s3Info.bucketname = " << s3Info.bucketname()
-                       << ", enableSumInDir = " << enableSumInDir
-                       << ", owner = " << request->owner()
-                       << ", capacity = " << request->capacity()
-                       << ", errCode = " << FSStatusCode_Name(status);
-            return;
-        }
-    } else {
-        response->set_statuscode(FSStatusCode::PARAM_ERROR);
-        LOG(ERROR) << "CreateFs fail, fs type is invalid"
-                   << ", fsName = " << fsName << ", blockSize = " << blockSize
-                   << ", fsType = " << type << ", errCode = "
-                   << FSStatusCode_Name(FSStatusCode::PARAM_ERROR);
-        return;
+    switch (type) {
+        case ::curvefs::common::FSType::TYPE_VOLUME:
+            createVolumeFs();
+            break;
+        case ::curvefs::common::FSType::TYPE_S3:
+            createS3Fs();
+            break;
+        case ::curvefs::common::FSType::TYPE_HYBRID:
+            createHybridFs();
+            break;
+        default:
+            response->set_statuscode(FSStatusCode::PARAM_ERROR);
+            LOG(ERROR) << "CreateFs fail, fs type is invalid"
+                       << ", fsName = " << fsName
+                       << ", blockSize = " << blockSize << ", fsType = " << type
+                       << ", errCode = "
+                       << FSStatusCode_Name(FSStatusCode::PARAM_ERROR);
+            break;
     }
 
-    response->set_statuscode(FSStatusCode::OK);
+    if (response->statuscode() != FSStatusCode::OK) {
+        return;
+    }
     LOG(INFO) << "CreateFs success, fsName = " << fsName
               << ", blockSize = " << blockSize
               << ", owner = " << request->owner()
