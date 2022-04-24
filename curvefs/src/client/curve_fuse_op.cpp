@@ -283,15 +283,17 @@ void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opGetXattr.latency);
     char buf[MAXXATTRLENGTH] = {0};
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
+                                                         buf, size);
+    if (ret != CURVEFS_ERROR::OK) {
+        g_clientOpMetric->opGetXattr.ecount << 1;
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+
     if (size == 0) {
-        fuse_reply_xattr(req, MAXXATTRLENGTH);
+        fuse_reply_xattr(req, strlen(buf));
     } else {
-        CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
-                                                             buf, size);
-        if (ret != CURVEFS_ERROR::OK) {
-            FuseReplyErrByErrCode(req, ret);
-            return;
-        }
         fuse_reply_buf(req, buf, strlen(buf));
     }
 }
