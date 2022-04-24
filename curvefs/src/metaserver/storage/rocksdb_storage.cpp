@@ -51,7 +51,7 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     dbOptions_.max_background_compactions = 4;
     dbOptions_.bytes_per_sync = 1048576;
     dbOptions_.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
-    dbOptions_.prefix_extractor.reset(NewFixedPrefixTransform(3));
+    dbOptions_.prefix_extractor.reset(NewCappedPrefixTransform(3));
 
     // table options
     std::shared_ptr<ROCKSDB_NAMESPACE::Cache> cache =
@@ -61,6 +61,7 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     tableOptions.block_size = 16 * 1024;  // 16MB
     tableOptions.cache_index_and_filter_blocks = true;
     tableOptions.pin_l0_filter_and_index_blocks_in_cache = true;
+    tableOptions.filter_policy.reset(NewBloomFilterPolicy(10, true));
     dbOptions_.table_factory.reset(NewBlockBasedTableFactory(tableOptions));
 
     // column failmy options
@@ -351,7 +352,7 @@ Status RocksDBStorage::Del(const std::string& name,
 }
 
 std::shared_ptr<Iterator> RocksDBStorage::Seek(const std::string& name,
-                                                const std::string& prefix) {
+                                               const std::string& prefix) {
     size_t size = 0;
     int status = inited_ ? 0 : -1;
     std::string iname = ToInternalName(name, true);
