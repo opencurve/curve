@@ -110,6 +110,8 @@ class KVStorage : public BaseStorage {
 
     virtual bool GetStatistics(StorageStatistics* Statistics) = 0;
 
+    virtual StorageOptions GetStorageOptions() const = 0;
+
     virtual std::shared_ptr<StorageTransaction> BeginTransaction() = 0;
 };
 

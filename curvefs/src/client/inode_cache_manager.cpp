@@ -61,8 +61,10 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     }
 
     Inode inode;
+    bool streaming;
 
-    MetaStatusCode ret2 = metaClient_->GetInode(fsId_, inodeid, &inode);
+    MetaStatusCode ret2 = metaClient_->GetInode(
+        fsId_, inodeid, &inode, &streaming);
     if (ret2 != MetaStatusCode::OK) {
         LOG_IF(ERROR, ret2 != MetaStatusCode::NOT_FOUND)
             << "metaClient_ GetInode failed, MetaStatusCode = " << ret2
@@ -74,13 +76,15 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeid,
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
 
-    // NOTE: now the s3chunkinfo in inode is empty for
-    // we had store it with alone, so we should invoke
-    // RefreshS3ChunkInfo() to padding inode's s3chunkinfo.
-    CURVEFS_ERROR rc = out->RefreshS3ChunkInfo();
-    if (rc != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "RefreshS3ChunkInfo() failed, retCode = " << rc;
-        return rc;
+    // NOTE: if the s3chunkinfo inside inode is too large,
+    // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
+    // by streaming and padding its into inode.
+    if (streaming) {
+        CURVEFS_ERROR rc = out->RefreshS3ChunkInfo();
+        if (rc != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "RefreshS3ChunkInfo() failed, retCode = " << rc;
+            return rc;
+        }
     }
 
     std::shared_ptr<InodeWrapper> eliminatedOne;
