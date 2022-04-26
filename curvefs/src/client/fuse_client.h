@@ -48,6 +48,7 @@
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/lease/lease_excutor.h"
+#include "curvefs/src/client/xattr_manager.h"
 
 #define DirectIOAlignment 512
 
@@ -269,25 +270,12 @@ class FuseClient {
         return 0;
     }
 
-    CURVEFS_ERROR UpdateParentInodeXattr(uint64_t parentId,
-        const XAttr &xattr, bool direction);
-
  private:
     virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
 
     virtual void FlushInodeLoop();
 
     virtual void FlushData() = 0;
-
-    CURVEFS_ERROR CalOneLayerSumInfo(Inode *inode);
-
-    CURVEFS_ERROR CalAllLayerSumInfo(Inode *inode);
-
-    CURVEFS_ERROR FastCalAllLayerSumInfo(Inode *inode);
-
-    CURVEFS_ERROR UpdateParentXattrAfterRename(fuse_ino_t parent,
-        fuse_ino_t newparent, const char *newname,
-        RenameOperator* renameOp);
 
  protected:
     // mds client
@@ -301,6 +289,9 @@ class FuseClient {
 
     // dentry cache manager
     std::shared_ptr<DentryCacheManager> dentryManager_;
+
+    // xattr manager
+    std::shared_ptr<XattrManager> xattrManager_;
 
     std::shared_ptr<LeaseExecutor> leaseExecutor_;
 
