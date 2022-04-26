@@ -680,6 +680,9 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
         request.set_nlink(inode.nlink());
         request.set_inodeopenstatuschange(statusChange);
         *(request.mutable_parent()) = inode.parent();
+        if (inode.xattr_size() > 0) {
+            *(request.mutable_xattr()) = inode.xattr();
+        }
 
         if (!inode.volumeextentmap().empty()) {
             auto *exts = request.mutable_volumeextentmap();
@@ -796,42 +799,13 @@ void MetaServerClientImpl::UpdateInodeAsync(
         request.set_nlink(inode.nlink());
         request.set_inodeopenstatuschange(statusChange);
         *(request.mutable_parent()) = inode.parent();
+        if (inode.xattr_size() > 0) {
+            *(request.mutable_xattr()) = inode.xattr();
+        }
 
         if (!inode.volumeextentmap().empty()) {
             auto *exts = request.mutable_volumeextentmap();
             *exts = inode.volumeextentmap();
-        }
-
-        auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone,
-            metaserverClientMetric_);
-
-        curvefs::metaserver::MetaServerService_Stub stub(channel);
-        stub.UpdateInode(cntl, &request, &rpcDone->response, rpcDone);
-        return MetaStatusCode::OK;
-    };
-
-    auto taskCtx = std::make_shared<TaskContext>(
-        MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
-    auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
-        metaCache_, channelManager_, taskCtx);
-    TaskExecutorDone *taskDone = new TaskExecutorDone(
-        excutor, done);
-    excutor->DoAsyncRPCTask(taskDone);
-}
-
-void MetaServerClientImpl::UpdateXattrAsync(const Inode &inode,
-    MetaServerClientDone *done) {
-    auto task = AsyncRPCTask {
-        metaserverClientMetric_->updateInode.qps.count << 1;
-
-        UpdateInodeRequest request;
-        request.set_poolid(poolID);
-        request.set_copysetid(copysetID);
-        request.set_partitionid(partitionID);
-        request.set_inodeid(inode.inodeid());
-        request.set_fsid(inode.fsid());
-        if (inode.xattr_size() > 0) {
-            *(request.mutable_xattr()) = inode.xattr();
         }
 
         auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone,

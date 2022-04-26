@@ -292,8 +292,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void FlushAttrAsync();
 
-    void FlushXattrAsync();
-
     void FlushS3ChunkInfoAsync();
 
     CURVEFS_ERROR RefreshS3ChunkInfo();
@@ -330,14 +328,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void ReleaseSyncingInode() const {
         syncingInodeMtx_.unlock();
-    }
-
-    void LockSyncingXattr() const {
-        syncingXattrMtx_.lock();
-    }
-
-    void ReleaseSyncingXattr() const {
-        syncingXattrMtx_.unlock();
     }
 
     curve::common::UniqueLock GetSyncingInodeUniqueLock() {
@@ -384,7 +374,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     mutable ::curve::common::Mutex mtx_;
 
     mutable ::curve::common::Mutex syncingInodeMtx_;
-    mutable ::curve::common::Mutex syncingXattrMtx_;
     mutable ::curve::common::Mutex syncingS3ChunkInfoMtx_;
 
     mutable ::curve::common::Mutex syncingVolumeExtentsMtx_;

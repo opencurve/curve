@@ -108,9 +108,6 @@ class MetaServerClient {
                                   InodeOpenStatusChange statusChange =
                                       InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual void UpdateXattrAsync(const Inode &inode,
-        MetaServerClientDone *done) = 0;
-
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
         const google::protobuf::Map<
@@ -179,9 +176,6 @@ class MetaServerClientImpl : public MetaServerClient {
     void UpdateInodeAsync(const Inode &inode, MetaServerClientDone *done,
                           InodeOpenStatusChange statusChange =
                               InodeOpenStatusChange::NOCHANGE) override;
-
-    void UpdateXattrAsync(const Inode &inode,
-        MetaServerClientDone *done) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
