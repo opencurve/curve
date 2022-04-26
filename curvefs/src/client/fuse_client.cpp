@@ -1437,7 +1437,7 @@ void FuseClient::FlushAll() {
 
 CURVEFS_ERROR FuseClient::UpdateParentInodeXattr(uint64_t parentId,
     const XAttr &xattr, bool direction) {
-    VLOG(1) << "UpdateParentInodeXattr inodeId = " << parentId
+    VLOG(9) << "UpdateParentInodeXattr inodeId = " << parentId
             << ", direction = " << direction
             << ", \nxattr = " << xattr.DebugString();
     std::shared_ptr<InodeWrapper> pInodeWrapper;
@@ -1459,7 +1459,7 @@ CURVEFS_ERROR FuseClient::UpdateParentInodeXattr(uint64_t parentId,
             }
         }
     }
-    pInodeWrapper->FlushXattrAsync();
+    inodeManager_->ShipToFlush(pInodeWrapper);
     return CURVEFS_ERROR::OK;
 }
 
