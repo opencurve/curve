@@ -183,7 +183,7 @@ MATCHER(HasVolumeExtentMap, "") {
 }
 
 TEST_F(TestInodeWrapper, TestAllUpdateInodeMustHasVolumeExtentMap) {
-    inodeWrapper_->SetType(FsFileType::TYPE_VOLUME);
+    inodeWrapper_->SetType(FsFileType::TYPE_FILE);
 
     // Sync
     {

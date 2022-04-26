@@ -197,7 +197,7 @@ void InodeWrapper::FlushAttrAsync() {
     if (dirty_) {
         LockSyncingInode();
 
-        if (inode_.type() == FsFileType::TYPE_VOLUME) {
+        if (inode_.type() == FsFileType::TYPE_FILE) {
             auto tmp = extentCache_.ToInodePb();
             inode_.mutable_volumeextentmap()->swap(tmp);
         }
@@ -455,7 +455,7 @@ static std::ostream &operator<<(
 }
 
 void InodeWrapper::BuildExtentCache() {
-    if (inode_.type() != FsFileType::TYPE_VOLUME) {
+    if (inode_.type() != FsFileType::TYPE_FILE) {
         return;
     }
 
@@ -465,7 +465,7 @@ void InodeWrapper::BuildExtentCache() {
 }
 
 void InodeWrapper::AddVolumeExtentMapToInode() {
-    if (inode_.type() != FsFileType::TYPE_VOLUME) {
+    if (inode_.type() != FsFileType::TYPE_FILE) {
         return;
     }
 

@@ -76,7 +76,7 @@ TEST_F(DefaultVolumeStorageTest, WriteAndReadTest_InodeNotFound) {
 
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadError) {
     Inode inode;
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
 
     VolumeExtentList exts;
     auto* ext = exts.add_volumeextents();
@@ -109,7 +109,7 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadError) {
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadSuccess) {
     Inode inode;
     VolumeExtentList exts;
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
 
     auto* ext = exts.add_volumeextents();
     ext->set_fsoffset(0);
@@ -144,7 +144,7 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadSuccess) {
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadHoleSuccess) {
     Inode inode;
     VolumeExtentList exts;
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
 
     auto* ext = exts.add_volumeextents();
     ext->set_fsoffset(0);
@@ -184,7 +184,7 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadHoleSuccess) {
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_PrepareError) {
     Inode inode;
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaServerCli_);
 
@@ -207,7 +207,7 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_PrepareError) {
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
     Inode inode;
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaServerCli_);
 
@@ -241,7 +241,7 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
     Inode inode;
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaServerCli_);
 

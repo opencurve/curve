@@ -1166,7 +1166,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
     Inode inode;
     inode.set_inodeid(ino);
     inode.set_length(0);
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
@@ -1212,7 +1212,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
     Inode inode;
     inode.set_inodeid(ino);
     inode.set_length(0);
-    inode.set_type(FsFileType::TYPE_VOLUME);
+    inode.set_type(FsFileType::TYPE_FILE);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
