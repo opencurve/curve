@@ -153,11 +153,10 @@ message GetInodeRequest {
 }
 
 enum FsFileType {
-    TYPE_DIRECTORY = 1;   // 1 << 0
-    TYPE_FILE = 2;        // 1 << 1
-    TYPE_SYM_LINK = 4;    // 1 << 2
-    TYPE_S3 = 18;         // (1 << 4) | TYPE_FILE
-    TYPE_VOLUME = 34;     // (1 << 5) | TYPE_FILE
+    TYPE_DIRECTORY = 1;
+    TYPE_FILE = 2;
+    TYPE_SYM_LINK = 3;
+    TYPE_S3 = 4;
 };
 
 message VolumeExtent {
