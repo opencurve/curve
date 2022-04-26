@@ -19,11 +19,7 @@ assignees: ''
 **Versions (各种版本)**
 OS:
 Compiler:
-curve-mds:
-curve-chunkserver:
-curve-snapshotcloneserver:
-curve-sdk:
-nebd:
-curve-nbd:
+branch:
+commit id:
 
 **Additional context/screenshots (更多上下文/截图)**
