@@ -267,7 +267,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
                 return SyncS3ChunkInfo();
             }
 
-            case FsFileType::TYPE_VOLUME: {
+            case FsFileType::TYPE_FILE: {
                 return SyncFullInode();
             }
 

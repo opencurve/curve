@@ -224,7 +224,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
               << ", name: " << name
               << ", mode: " << mode;
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_VOLUME, 0, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -236,7 +236,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                             dev_t rdev, fuse_entry_param *e) {
     VLOG(3) << "FuseOpMkNod, parent: " << parent << ", name: " << name
             << ", mode: " << mode << ", rdev: " << rdev;
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_VOLUME, rdev, e);
+    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
