@@ -87,9 +87,11 @@ class TestFuseVolumeClient : public ::testing::Test {
         preAllocSize_ = 65536;
         bigFileSize_ = 1048576;
         listDentryLimit_ = 100;
+        listDentryThreads_ = 2;
         fuseClientOption_.extentManagerOpt.preAllocSize = preAllocSize_;
         fuseClientOption_.volumeOpt.bigFileSize = bigFileSize_;
         fuseClientOption_.listDentryLimit = listDentryLimit_;
+        fuseClientOption_.listDentryThreads = listDentryThreads_;
         fuseClientOption_.maxNameLength = 20u;
 
         spaceManager_ = new MockSpaceManager();
@@ -149,6 +151,7 @@ class TestFuseVolumeClient : public ::testing::Test {
     uint64_t preAllocSize_;
     uint64_t bigFileSize_;
     uint32_t listDentryLimit_;
+    uint32_t listDentryThreads_;
     FuseClientOption fuseClientOption_;
 
     static const uint32_t DELETE = DentryFlag::DELETE_MARK_FLAG;
@@ -1517,6 +1520,7 @@ class TestFuseS3Client : public ::testing::Test {
         fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
         fuseClientOption_.dummyServerStartPort = 5000;
         fuseClientOption_.maxNameLength = 20u;
+        fuseClientOption_.listDentryThreads = 2;
         auto fsInfo = std::make_shared<FsInfo>();
         fsInfo->set_fsid(fsId);
         fsInfo->set_fsname("s3fs");
@@ -1853,7 +1857,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     attr.set_type(FsFileType::TYPE_FILE);
     attrs.emplace_back(attr);
 
-    std::list<InodeAttr> attrs1 = attrs;
+    std::list<InodeAttr> attrs1;
     InodeAttr attr1;
     attr1.set_inodeid(inodeId3);
     attr1.set_length(200);
@@ -1879,6 +1883,8 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist1), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
+        .WillOnce(
+            DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs1), Return(CURVEFS_ERROR::OK)));
 
@@ -1972,7 +1978,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ret = client_->FuseOpGetXattr(
         req, ino, rname, static_cast<void*>(value), size);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // BatchGetInodeAttr failed
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
@@ -1980,9 +1986,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
         .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
     ret = client_->FuseOpGetXattr(
@@ -2194,7 +2198,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ret = client_->FuseOpGetXattr(
         req, ino, rname, static_cast<void*>(value), size);
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // BatchGetInodeAttr failed
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
@@ -2203,7 +2207,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
+        .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
@@ -2219,6 +2223,8 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
         .WillOnce(
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(
@@ -2237,6 +2243,8 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
         .WillOnce(
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(
@@ -2255,6 +2263,8 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
         .WillOnce(
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillRepeatedly(
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(

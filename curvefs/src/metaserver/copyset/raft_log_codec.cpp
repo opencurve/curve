@@ -124,6 +124,12 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
         case OperatorType::GetInode:
             return ParseFromRaftLog<GetInodeOperator, GetInodeRequest>(
                 node, type, meta);
+        case OperatorType::BatchGetInodeAttr:
+            return ParseFromRaftLog<BatchGetInodeAttrOperator,
+                BatchGetInodeAttrRequest>(node, type, meta);
+        case OperatorType::BatchGetXAttr:
+            return ParseFromRaftLog<BatchGetXAttrOperator,
+                BatchGetXAttrRequest>(node, type, meta);
         case OperatorType::CreateInode:
             return ParseFromRaftLog<CreateInodeOperator, CreateInodeRequest>(
                 node, type, meta);

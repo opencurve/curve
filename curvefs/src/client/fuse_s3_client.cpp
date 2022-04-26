@@ -152,7 +152,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(changeSize)});
         for (const auto &it : inode->parent()) {
-            auto tret = UpdateParentInodeXattr(it, xattr, true);
+            auto tret = xattrManager_->UpdateParentInodeXattr(it, xattr, true);
             if (tret != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "UpdateParentInodeXattr failed,"
                            << " inodeId = " << it
