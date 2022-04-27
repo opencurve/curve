@@ -183,6 +183,8 @@ struct FuseClientOption {
     bool enableDCacheMetrics;
 
     uint32_t dummyServerStartPort;
+
+    bool enableFuseSplice = false;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
