@@ -55,6 +55,11 @@ DECLARE_int32(v);
 namespace {
 
 void EnableSplice(struct fuse_conn_info* conn) {
+    if (!g_fuseClientOption->enableFuseSplice) {
+        LOG(INFO) << "Fuse splice is disabled";
+        return;
+    }
+
     if (conn->capable & FUSE_CAP_SPLICE_MOVE) {
         conn->want |= FUSE_CAP_SPLICE_MOVE;
         LOG(INFO) << "FUSE_CAP_SPLICE_MOVE enabled";
