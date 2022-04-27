@@ -221,6 +221,11 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("client.dummyserver.startport",
                               &clientOption->dummyServerStartPort);
 
+    LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
+                                       &clientOption->enableFuseSplice))
+        << "Not found `fuseClient.enableSplice` in conf, use default value `"
+        << std::boolalpha << clientOption->enableFuseSplice << '`';
+
     SetBrpcOpt(conf);
 }
 
