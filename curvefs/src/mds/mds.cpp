@@ -299,7 +299,7 @@ void MDS::StartCompaginLeader() {
 
     InitLeaderElection(electionOption);
 
-    while (0 != leaderElection_->CampaginLeader()) {
+    while (0 != leaderElection_->CampaignLeader()) {
         LOG(INFO) << leaderElection_->GetLeaderName()
                   << " compagin for leader again";
     }
