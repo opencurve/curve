@@ -62,7 +62,7 @@ static void HandleSignal(int signum) {
         return;
     }
 
-    dout << "Got signal " << sys_siglist[signum] << "\n"
+    dout << "Got signal " << strsignal(signum) << "\n"
               << ", disconnect now" << std::endl;
 
     ret = nbdTool->Disconnect(nbdConfig.get());
