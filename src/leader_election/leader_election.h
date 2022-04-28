@@ -61,11 +61,11 @@ class LeaderElection {
     }
 
     /**
-     * @brief CampaginLeader 竞选leader
+     * @brief CampaignLeader 竞选leader
      *
      * @return 0表示竞选成功 -1表示竞选失败
      */
-    int CampaginLeader();
+    int CampaignLeader();
 
     /**
      * @brief StartObserverLeader 启动leader节点监测线程

@@ -222,7 +222,7 @@ void SnapShotCloneServer::StartCompaginLeader(void) {
     leaderElection_ = std::make_shared<LeaderElection>(option);
 
     // compagin leader and observe self then return
-    while (0 != leaderElection_->CampaginLeader()) {
+    while (0 != leaderElection_->CampaignLeader()) {
         LOG(INFO) << option.leaderUniqueName
                   << " campaign for leader again";
     }
