@@ -73,7 +73,8 @@ class BlockGroupBitmapUpdater {
     bool Sync();
 
  private:
-    std::mutex lock_;
+    std::mutex bitmapMtx_;
+    std::mutex syncMtx_;
     bool dirty_;
     Bitmap bitmap_;
     uint32_t blockSize_;

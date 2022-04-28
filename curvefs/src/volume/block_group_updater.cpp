@@ -24,13 +24,17 @@
 
 #include <glog/logging.h>
 
+#include <memory>
+#include <mutex>
+
+#include "absl/memory/memory.h"
 #include "curvefs/src/volume/block_device_client.h"
 
 namespace curvefs {
 namespace volume {
 
 void BlockGroupBitmapUpdater::Update(const Extent& ext, Op op) {
-    std::lock_guard<std::mutex> lk(lock_);
+    std::lock_guard<std::mutex> lk(bitmapMtx_);
 
     uint64_t startOffset = ext.offset - groupOffset_;
     uint64_t endOffset = ext.offset + ext.len - groupOffset_;
@@ -47,21 +51,32 @@ void BlockGroupBitmapUpdater::Update(const Extent& ext, Op op) {
 }
 
 bool BlockGroupBitmapUpdater::Sync() {
-    std::lock_guard<std::mutex> lk(lock_);
+    std::unique_ptr<char[]> bitmap;
+    std::lock_guard<std::mutex> lk(syncMtx_);
 
-    if (!dirty_) {
-        return true;
+    {
+        std::lock_guard<std::mutex> lk(bitmapMtx_);
+
+        if (!dirty_) {
+            return true;
+        }
+
+        bitmap = absl::make_unique<char[]>(bitmapRange_.length);
+        mempcpy(bitmap.get(), bitmap_.GetBitmap(), bitmapRange_.length);
+        dirty_ = false;
     }
 
-    bool ret = blockDev_->Write(bitmap_.GetBitmap(), bitmapRange_.offset,
+    auto ret = blockDev_->Write(bitmap.get(), bitmapRange_.offset,
                                 bitmapRange_.length);
 
-    LOG_IF(ERROR, !ret) << "Sync block group bitmap failed, err: " << ret
-                        << ", block group offset: " << groupOffset_;
+    if (ret < 0 || static_cast<size_t>(ret) != bitmapRange_.length) {
+        LOG(ERROR) << "Sync block group bitmap failed, err: " << ret
+                   << ", block group offset: " << groupOffset_;
+        return false;
+    }
 
-    dirty_ = !ret;
-
-    return ret;
+    dirty_ = false;
+    return true;
 }
 
 }  // namespace volume
