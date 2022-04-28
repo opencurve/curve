@@ -37,9 +37,8 @@ struct MountOption {
     const char* mountPoint;
     const char* fsName;
     const char* fsType;
-    const char* volume;
-    const char* user;
     const char* conf;
+    const char* mdsAddr;
 };
 
 static const struct fuse_opt mount_opts[] = {
@@ -49,14 +48,11 @@ static const struct fuse_opt mount_opts[] = {
     { "fstype=%s",
       offsetof(struct MountOption, fsType), 0},
 
-    { "volume=%s",
-      offsetof(struct MountOption, volume), 0},
-
-    { "user=%s",
-      offsetof(struct MountOption, user), 0},
-
     { "conf=%s",
       offsetof(struct MountOption, conf), 0},
+
+    { "mdsaddr=%s",
+      offsetof(struct MountOption, mdsAddr), 0},
 
     FUSE_OPT_END
 };

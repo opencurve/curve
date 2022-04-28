@@ -162,14 +162,10 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     MountOption mOpts;
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
-    mOpts.volume = "xxx";
     mOpts.fsName = "xxx";
-    mOpts.user = "test";
     mOpts.fsType = "curve";
 
-    std::string volName = mOpts.volume;
-    std::string user = mOpts.user;
-    std::string fsName = mOpts.volume;
+    std::string fsName = mOpts.fsName;
 
     FsInfo fsInfoExp;
     fsInfoExp.set_fsid(200);
@@ -194,11 +190,10 @@ TEST_F(TestFuseVolumeClient, FuseOpDestroy) {
     MountOption mOpts;
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
-    mOpts.volume = "xxx";
     mOpts.fsName = "xxx";
     mOpts.fsType = "curve";
 
-    std::string fsName = mOpts.volume;
+    std::string fsName = mOpts.fsName;
 
     EXPECT_CALL(*mdsClient_, UmountFs(fsName, _))
         .WillOnce(Return(FSStatusCode::OK));
@@ -1561,7 +1556,6 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.fsName = "s3fs";
     mOpts.mountPoint = "host1:/test";
-    mOpts.user = "test";
     mOpts.fsType = "s3";
 
     std::string fsName = mOpts.fsName;
@@ -1587,7 +1581,6 @@ TEST_F(TestFuseS3Client, FuseOpDestroy) {
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.fsName = "s3fs";
     mOpts.mountPoint = "host1:/test";
-    mOpts.user = "test";
     mOpts.fsType = "s3";
 
     std::string fsName = mOpts.fsName;

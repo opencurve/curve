@@ -145,7 +145,7 @@ int InitGlog(const char *confPath, const char *argv0) {
 }
 
 int InitFuseClient(const char *confPath, const char* fsName,
-    const char *fsType) {
+    const char *fsType, const char *mdsAddr) {
     g_clientOpMetric = new ClientOpMetric();
 
     Configuration conf;
@@ -154,6 +154,8 @@ int InitFuseClient(const char *confPath, const char* fsName,
         LOG(ERROR) << "LoadConfig failed, confPath = " << confPath;
         return -1;
     }
+    if (mdsAddr)
+        conf.SetStringValue("mdsOpt.rpcRetryOpt.addrs", mdsAddr);
 
     conf.PrintConfig();
 
@@ -199,8 +201,10 @@ int InitFuseClient(const char *confPath, const char* fsName,
 }
 
 void UnInitFuseClient() {
-    g_ClientInstance->Fini();
-    g_ClientInstance->UnInit();
+    if (g_ClientInstance) {
+        g_ClientInstance->Fini();
+        g_ClientInstance->UnInit();
+    }
     delete g_ClientInstance;
     delete g_fuseClientOption;
     delete g_clientOpMetric;

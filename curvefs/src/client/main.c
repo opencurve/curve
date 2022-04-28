@@ -54,21 +54,38 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     .statfs     = FuseOpStatFs,
 };
 
+void print_option_help(const char* o, const char* msg) {
+    printf("    -o %-20s%s\n", o, msg);
+}
+
+void extra_options_help() {
+    printf("\nExtra options:\n");
+    print_option_help("fsname", "[required] name of filesystem to be mounted");
+    print_option_help(
+        "fstype", "[required] type of filesystem to be mounted (s3/volume)");
+    print_option_help("conf", "[required] path of config file");
+    print_option_help("mdsAddr", "mdsAddr of curvefs cluster");
+}
+
 int main(int argc, char *argv[]) {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
     struct fuse_session *se;
     struct fuse_cmdline_opts opts;
     struct fuse_loop_config config;
-    struct MountOption mOpts = { .mountPoint = 0,
-                               .volume = 0 };
+    struct MountOption mOpts = {0};
     int ret = -1;
 
     if (fuse_parse_cmdline(&args, &opts) != 0)
         return 1;
     if (opts.show_help) {
-        printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
+        printf(
+            "usage: %s -o conf=/etc/curvefs/client.conf -o fsname=testfs \\\n"
+            "       -o fstype=s3 [-o mdsaddr=1.1.1.1] [OPTIONS] <mountpoint>\n",
+            argv[0]);
+        printf("Fuse Options:\n");
         fuse_cmdline_help();
         fuse_lowlevel_help();
+        extra_options_help();
         ret = 0;
         goto err_out1;
     } else if (opts.show_version) {
@@ -79,8 +96,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.mountpoint == NULL) {
-        printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
-        printf("       %s --help\n", argv[0]);
+        printf("required option is missing: mountpoint\n");
         ret = 1;
         goto err_out1;
     }
@@ -90,20 +106,21 @@ int main(int argc, char *argv[]) {
 
     mOpts.mountPoint = opts.mountpoint;
 
-    if (mOpts.conf == NULL) {
-        printf("usage: %s -o volume=xxx conf=xxx [options] <mountpoint>\n\n", argv[0]);  // NOLINT
-        printf("       %s --help\n", argv[0]);
+    if (mOpts.conf == NULL || mOpts.fsName == NULL || mOpts.fsType == NULL) {
+        printf(
+            "one of required options is missing. conf, fsname, fstype are "
+            "required.\n");
         ret = 1;
         goto err_out1;
     }
 
-    printf("Mount %s on volume %s ... \n", mOpts.mountPoint, mOpts.volume);
+    printf("Begin to mount fs %s to %s\n", mOpts.fsName, mOpts.mountPoint);
 
     if (InitGlog(mOpts.conf, argv[0]) < 0) {
         printf("Init glog failed, confpath = %s\n", mOpts.conf);
     }
 
-    ret = InitFuseClient(mOpts.conf, mOpts.fsName, mOpts.fsType);
+    ret = InitFuseClient(mOpts.conf, mOpts.fsName, mOpts.fsType, mOpts.mdsAddr);
     if (ret < 0) {
         printf("init fuse client fail, conf =%s\n", mOpts.conf);
         goto err_out2;

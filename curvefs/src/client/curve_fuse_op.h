@@ -40,7 +40,7 @@ extern "C" {
 int InitGlog(const char *confPath, const char *argv0);
 
 int InitFuseClient(const char *confPath, const char *fsName,
-        const char* fsType);
+        const char* fsType, const char* mdsAddr);
 
 void UnInitFuseClient();
 
