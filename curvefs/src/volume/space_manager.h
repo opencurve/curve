@@ -90,7 +90,7 @@ class SpaceManagerImpl final : public SpaceManager {
     bool UpdateBitmap(const std::vector<Extent>& exts);
 
  private:
-    bool AllocateBlockGroup();
+    bool AllocateBlockGroup(uint64_t hint);
 
     bool AcquireBlockGroup(uint64_t blockGroupOffset);
 
