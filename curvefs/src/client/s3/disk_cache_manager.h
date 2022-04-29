@@ -69,8 +69,11 @@ class DiskCacheManager {
     /**
      * @brief add obj to cachedObjName
      * @param[in] name obj name
+     * @param[in] cacheWriteExist whether the obj is
+     *                            exist in cache write
      */
-    void AddCache(const std::string name);
+    void AddCache(const std::string name,
+      bool cacheWriteExist = true);
 
     int CreateDir();
     std::string GetCacheReadFullDir();

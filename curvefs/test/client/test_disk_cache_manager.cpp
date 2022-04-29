@@ -194,12 +194,12 @@ TEST_F(TestDiskCacheManager, IsCached) {
     bool ret = diskCacheManager_->IsCached(fileName);
     ASSERT_EQ(false, ret);
 
-    diskCacheManager_->AddCache(fileName);
+    diskCacheManager_->AddCache(fileName, false);
     diskCacheManager_->AddCache(fileName2);
     ret = diskCacheManager_->IsCached(fileName2);
     ASSERT_EQ(true, ret);
 
-    diskCacheManager_->AddCache(fileName);
+    diskCacheManager_->AddCache(fileName, false);
     diskCacheManager_->AddCache(fileName2);
     ret = diskCacheManager_->IsCached(fileName);
     ASSERT_EQ(true, ret);

@@ -155,8 +155,9 @@ int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
     return cacheRead_->ClearReadCache(files);
 }
 
-void DiskCacheManager::AddCache(const std::string name) {
-    cachedObjName_->Put(name, true);
+void DiskCacheManager::AddCache(const std::string name,
+  bool cacheWriteExist) {
+    cachedObjName_->Put(name, cacheWriteExist);
     VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
@@ -349,7 +350,7 @@ void DiskCacheManager::TrimCache() {
         SetDiskFsUsedRatio();
             while (!IsDiskCacheSafe()) {
                 if (!cachedObjName_->GetLast(false, &cacheKey)) {
-                    VLOG(3) << "obj is empty";
+                    VLOG(9) << "obj is empty";
                     break;
                 }
 
