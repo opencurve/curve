@@ -89,8 +89,9 @@ class MockDataCache : public DataCache {
     MOCK_METHOD4(Write,
                  void(uint64_t chunkPos, uint64_t len, const char *data,
                       const std::vector<DataCachePtr> &mergeDataCacheVer));
-    MOCK_METHOD3(Flush, CURVEFS_ERROR(uint64_t inodeId, bool force, bool toS3));
+    MOCK_METHOD2(Flush, CURVEFS_ERROR(uint64_t inodeId, bool toS3));
     MOCK_METHOD1(Truncate, void(uint64_t size));
+    MOCK_METHOD1(CanFlush, bool(bool force));
 };
 
 }  // namespace client

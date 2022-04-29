@@ -95,6 +95,11 @@ struct PageData {
 };
 using PageDataMap = std::map<uint64_t, PageData *>;
 
+enum DataCacheStatus {
+    Dirty = 1,
+    Flush = 2,
+};
+
 class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
@@ -138,12 +143,13 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
 
     uint64_t GetActualLen() { return actualLen_; }
 
-    virtual CURVEFS_ERROR Flush(uint64_t inodeId, bool force,
-                                bool toS3 = false);
+    virtual CURVEFS_ERROR Flush(uint64_t inodeId, bool toS3 = false);
     void Release();
-    bool IsDirty() { return dirty_.load(std::memory_order_acquire); }
-    void SetDelete() { return delete_.store(true, std::memory_order_release); }
-
+    bool IsDirty() {
+        return status_.load(std::memory_order_acquire) ==
+               DataCacheStatus::Dirty;
+    }
+    virtual bool CanFlush(bool force);
     bool InReadCache() const {
         return inReadCache_.load(std::memory_order_acquire);
     }
@@ -179,8 +185,7 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
     uint64_t actualLen_;  // after alignment the actual len
     curve::common::Mutex mtx_;
     uint64_t createTime_;
-    std::atomic<bool> dirty_;
-    std::atomic<bool> delete_;
+    std::atomic<int> status_;
     std::atomic<bool> inReadCache_;
     std::map<uint64_t, PageDataMap> dataMap_;  // first is block index
 };
@@ -208,9 +213,12 @@ class ChunkCacheManager
     : public std::enable_shared_from_this<ChunkCacheManager> {
  public:
     ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl *s3ClientAdaptor)
-        : index_(index), s3ClientAdaptor_(s3ClientAdaptor) {}
+        : index_(index), s3ClientAdaptor_(s3ClientAdaptor),
+          flushingDataCache_(nullptr) {}
     virtual ~ChunkCacheManager() = default;
-
+    void ReadChunk(uint64_t index, uint64_t chunkPos, uint64_t readLen,
+                   char *dataBuf, uint64_t dataBufOffset,
+                   std::vector<ReadRequest> *requests);
     virtual void WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                                       uint32_t chunkPos, uint32_t len,
                                       const char *data);
@@ -225,6 +233,9 @@ class ChunkCacheManager
     virtual void ReadByReadCache(uint64_t chunkPos, uint64_t readLen,
                                  char *dataBuf, uint64_t dataBufOffset,
                                  std::vector<ReadRequest> *requests);
+    virtual void ReadByFlushData(uint64_t chunkPos, uint64_t readLen,
+                                 char *dataBuf, uint64_t dataBufOffset,
+                                 std::vector<ReadRequest> *requests);
     virtual CURVEFS_ERROR Flush(uint64_t inodeId, bool force,
                                 bool toS3 = false);
     uint64_t GetIndex() { return index_; }
@@ -232,7 +243,6 @@ class ChunkCacheManager
         ReadLockGuard writeCacheLock(rwLockChunk_);
         return (dataWCacheMap_.empty() && dataRCacheMap_.empty());
     }
-
     virtual void ReleaseReadDataCache(uint64_t key);
     virtual void ReleaseCache();
     void TruncateCache(uint64_t chunkPos);
@@ -255,7 +265,9 @@ class ChunkCacheManager
     void ReleaseWriteDataCache(const DataCachePtr &dataCache);
     void TruncateWriteCache(uint64_t chunkPos);
     void TruncateReadCache(uint64_t chunkPos);
-
+    bool IsFlushDataEmpty() {
+        return flushingDataCache_ == nullptr;
+    }
  private:
     uint64_t index_;
     std::map<uint64_t, DataCachePtr> dataWCacheMap_;  // first is pos in chunk
@@ -265,6 +277,8 @@ class ChunkCacheManager
     RWLock rwLockRead_;  //  for read cache
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     curve::common::Mutex flushMtx_;
+    DataCachePtr flushingDataCache_;
+    curve::common::Mutex flushingDataCacheMtx_;
 };
 
 class FileCacheManager {
@@ -294,9 +308,6 @@ class FileCacheManager {
  private:
     void WriteChunk(uint64_t index, uint64_t chunkPos, uint64_t writeLen,
                     const char *dataBuf);
-    void ReadChunk(uint64_t index, uint64_t chunkPos, uint64_t readLen,
-                   char *dataBuf, uint64_t dataBufOffset,
-                   std::vector<ReadRequest> *requests);
     void GenerateS3Request(ReadRequest request,
                            const S3ChunkInfoList &s3ChunkInfoList,
                            char *dataBuf, std::vector<S3ReadRequest> *requests,

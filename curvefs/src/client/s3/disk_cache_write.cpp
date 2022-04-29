@@ -283,7 +283,6 @@ int DiskCacheWrite::AsyncUploadFunc() {
         }
         toUpload.clear();
         if (GetUploadFile("", &toUpload) <= 0) {
-            VLOG(9) << "no need to upload";
             continue;
         }
         VLOG(6) << "async upload file size = " << toUpload.size();
