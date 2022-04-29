@@ -134,7 +134,7 @@ int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
         return ret;
     }
     // add cache.
-    diskCacheManager_->AddCache(fileName);
+    diskCacheManager_->AddCache(fileName, false);
     return ret;
 }
 
