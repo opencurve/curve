@@ -999,13 +999,12 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
             flushTasks.emplace_back(context);
         }
         pendingReq.fetch_add(flushTasks.size(), std::memory_order_seq_cst);
-        for (auto iter = flushTasks.begin();
-          iter != flushTasks.end(); ++iter) {
-            s3ClientAdaptor_->Enqueue(*iter);
-        }
-
         if (pendingReq.load(std::memory_order_seq_cst)) {
             VLOG(6) << "wait for pendingReq";
+            for (auto iter = flushTasks.begin();
+              iter != flushTasks.end(); ++iter) {
+                s3ClientAdaptor_->Enqueue(*iter);
+            }
             cond.Wait();
         }
         VLOG(6) << "file cache flush over";
