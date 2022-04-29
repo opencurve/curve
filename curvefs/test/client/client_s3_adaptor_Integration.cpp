@@ -2878,9 +2878,9 @@ TEST_F(ClientS3IntegrationTest, test_fssync_success_and_fail) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                        Return(CURVEFS_ERROR::INTERNAL)))
+                        Return(CURVEFS_ERROR::NOTEXIST)))
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
-                        Return(CURVEFS_ERROR::INTERNAL)));
+                        Return(CURVEFS_ERROR::NOTEXIST)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
         .WillRepeatedly(
             Invoke([&](const std::shared_ptr<PutObjectAsyncContext> &context) {
@@ -2906,13 +2906,13 @@ TEST_F(ClientS3IntegrationTest, test_fssync_success_and_fail) {
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
     ret = s3ClientAdaptor_->FsSync();
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     s3ClientAdaptor_->Write(inode.inodeid(), offset, len, buf);
     inode.set_length(offset + len);
 
     ret = s3ClientAdaptor_->FsSync();
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     //  cleanup
     delete buf;

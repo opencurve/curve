@@ -312,15 +312,24 @@ TEST_F(ChunkCacheManagerTest, test_flush) {
     char *buf = new char[len];
     auto dataCache = std::make_shared<MockDataCache>(
         s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
-    EXPECT_CALL(*dataCache, Flush(_, _, _))
+    EXPECT_CALL(*dataCache, Flush(_, _))
         .WillOnce(Return(CURVEFS_ERROR::OK))
-        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+    EXPECT_CALL(*dataCache, CanFlush(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+
     chunkCacheManager_->AddWriteDataCacheForTest(dataCache);
 
     ASSERT_EQ(CURVEFS_ERROR::OK,
               chunkCacheManager_->Flush(inodeId, true, true));
     chunkCacheManager_->AddWriteDataCacheForTest(dataCache);
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+              chunkCacheManager_->Flush(inodeId, true, true));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK,
               chunkCacheManager_->Flush(inodeId, true, true));
     chunkCacheManager_->ReleaseCacheForTest();
 
