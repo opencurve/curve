@@ -61,7 +61,7 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     // column failmy options
     comparator_ = std::make_shared<RocksDBStorageComparator>();
     auto cfOptions = ColumnFamilyOptions();
-    cfOptions.comparator = comparator_.get();
+    //cfOptions.comparator = comparator_.get();
     cfOptions.enable_blob_files = true;
     cfOptions.level_compaction_dynamic_level_bytes = true;
     cfOptions.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
