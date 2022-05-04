@@ -58,7 +58,7 @@ using ROCKSDB_NAMESPACE::Transaction;
 using ROCKSDB_NAMESPACE::TransactionDB;
 using ROCKSDB_NAMESPACE::NewLRUCache;
 using ROCKSDB_NAMESPACE::NewBloomFilterPolicy;
-using ROCKSDB_NAMESPACE::NewCappedPrefixTransform;
+using ROCKSDB_NAMESPACE::NewFixedPrefixTransform;
 using ROCKSDB_NAMESPACE::NewBlockBasedTableFactory;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
 
@@ -86,12 +86,17 @@ class RocksDBOptions {
     std::vector<ColumnFamilyDescriptor> columnFamilies_;
 
     static const std::string kOrderedColumnFamilyName_;
+
+    std::shared_ptr<rocksdb::Comparator> comparator_;
 };
 
 class RocksDBStorageComparator : public rocksdb::Comparator {
  public:
+    // if slice1 < slice2, return -1
+    // if slice1 > slice2, return 1
+    // if slice1 == slice2, return 0
     int Compare(const rocksdb::Slice& slice1,
-                const rocksdb::Slice& slice2) const {
+                const rocksdb::Slice& slice2) const override {
         std::string key1 = std::string(slice1.data(), slice1.size());
         std::string key2 = std::string(slice2.data(), slice2.size());
         size_t num1 = BinrayString2Number(key1);
@@ -111,9 +116,12 @@ class RocksDBStorageComparator : public rocksdb::Comparator {
     }
 
     // Ignore the following methods for now
-    const char* Name() const { return "RocksDBStorageComparator"; }
-    void FindShortestSeparator(std::string*, const rocksdb::Slice&) const {}
-    void FindShortSuccessor(std::string*) const {}
+    const char* Name() const override { return "RocksDBStorageComparator"; }
+
+    void FindShortestSeparator(std::string*,
+                               const rocksdb::Slice&) const override {}
+
+    void FindShortSuccessor(std::string*) const override {}
 };
 
 class RocksDBStorage : public KVStorage, public StorageTransaction {
@@ -336,7 +344,8 @@ class RocksDBStorageIterator : public Iterator {
           size_(size),
           status_(status),
           prefixChecking_(true),
-          ordered_(ordered) {
+          ordered_(ordered),
+          iter_(nullptr) {
         if (status_ == 0) {
             readOptions_ = storage_->ReadOptions();
             if (storage_->InTransaction_) {
@@ -375,9 +384,9 @@ class RocksDBStorageIterator : public Iterator {
     void SeekToFirst() {
         auto handler = storage_->GetColumnFamilyHandle(ordered_);
         if (storage_->InTransaction_) {
-            iter_ = storage_->txn_->GetIterator(readOptions_, handler);
+            iter_.reset(storage_->txn_->GetIterator(readOptions_, handler));
         } else {
-            iter_ = storage_->db_->NewIterator(readOptions_, handler);
+            iter_.reset(storage_->db_->NewIterator(readOptions_, handler));
         }
         iter_->Seek(prefix_);
     }
@@ -420,7 +429,7 @@ class RocksDBStorageIterator : public Iterator {
     int status_;
     bool ordered_;
     bool prefixChecking_;
-    rocksdb::Iterator* iter_;
+    std::unique_ptr<rocksdb::Iterator> iter_;
     RocksDBStorage* storage_;
     rocksdb::ReadOptions readOptions_;
 };

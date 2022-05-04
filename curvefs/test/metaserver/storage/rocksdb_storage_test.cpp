@@ -54,9 +54,17 @@ class RocksDBStorageTest : public testing::Test {
         std::string ret;
         ASSERT_TRUE(ExecShell("mkdir -p " + dirname_, &ret));
 
+        options_.maxMemoryQuotaBytes = 32212254720;
+        options_.maxDiskQuotaBytes = 2199023255552;
         options_.dataDir = dbpath_;
-        options_.maxMemoryQuotaBytes = 1024;
-        options_.maxDiskQuotaBytes = 1024;
+        options_.compression = false;
+        options_.unorderedWriteBufferSize = 134217728;
+        options_.unorderedMaxWriteBufferNumber = 5;
+        options_.orderedWriteBufferSize = 134217728;
+        options_.orderedMaxWriteBufferNumber = 15;
+        options_.blockCacheCapacity = 134217728;
+        options_.memtablePrefixBloomSizeRatio = 0.1;
+
         kvStorage_ = std::make_shared<RocksDBStorage>(options_);
         ASSERT_TRUE(kvStorage_->Open());
     }
