@@ -42,39 +42,43 @@ const std::string RocksDBOptions::kOrderedColumnFamilyName_ =  // NOLINT
 
 RocksDBOptions::RocksDBOptions(StorageOptions options) {
     // db options
-    RocksDBStorageComparator cmp;
-    dbOptions_.comparator = &cmp;
     dbOptions_.create_if_missing = true;
     dbOptions_.create_missing_column_families = true;
-    dbOptions_.enable_blob_files = true;
     dbOptions_.max_background_flushes = 2;
     dbOptions_.max_background_compactions = 4;
     dbOptions_.bytes_per_sync = 1048576;
-    dbOptions_.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
-    dbOptions_.prefix_extractor.reset(NewCappedPrefixTransform(3));
 
     // table options
     std::shared_ptr<ROCKSDB_NAMESPACE::Cache> cache =
         NewLRUCache(options.blockCacheCapacity);
     BlockBasedTableOptions tableOptions;
     tableOptions.block_cache = cache;
-    tableOptions.block_size = 16 * 1024;  // 16MB
+    tableOptions.block_size = 16 * 1024;  // 16KB
     tableOptions.cache_index_and_filter_blocks = true;
     tableOptions.pin_l0_filter_and_index_blocks_in_cache = true;
-    tableOptions.filter_policy.reset(NewBloomFilterPolicy(10, true));
-    dbOptions_.table_factory.reset(NewBlockBasedTableFactory(tableOptions));
+    tableOptions.filter_policy.reset(NewBloomFilterPolicy(10, false));
 
     // column failmy options
-    auto unorderedCFOptions = ColumnFamilyOptions();
-    auto orderedCFOptions = ColumnFamilyOptions();
+    comparator_ = std::make_shared<RocksDBStorageComparator>();
+    auto cfOptions = ColumnFamilyOptions();
+    cfOptions.comparator = comparator_.get();
+    cfOptions.enable_blob_files = true;
+    cfOptions.level_compaction_dynamic_level_bytes = true;
+    cfOptions.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
+    cfOptions.prefix_extractor.reset(NewCappedPrefixTransform(3));
+    cfOptions.memtable_prefix_bloom_size_ratio =
+        options.memtablePrefixBloomSizeRatio;
+    cfOptions.table_factory.reset(NewBlockBasedTableFactory(tableOptions));
+
+    auto unorderedCFOptions = cfOptions;
     unorderedCFOptions.write_buffer_size = options.unorderedWriteBufferSize;
     unorderedCFOptions.max_write_buffer_number =
         options.unorderedMaxWriteBufferNumber;
-    unorderedCFOptions.level_compaction_dynamic_level_bytes = true;
+
+    auto orderedCFOptions = cfOptions;
     orderedCFOptions.write_buffer_size = options.orderedWriteBufferSize;
     orderedCFOptions.max_write_buffer_number =
         options.orderedMaxWriteBufferNumber;
-    orderedCFOptions.level_compaction_dynamic_level_bytes = true;
 
     columnFamilies_.push_back(ColumnFamilyDescriptor(
         ROCKSDB_NAMESPACE::kDefaultColumnFamilyName, unorderedCFOptions));
@@ -382,8 +386,8 @@ Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
-    std::string iname = ToInternalName(name, ordered);
-    std::string beginKey = ToInternalKey(iname, "");  // "name:"
+    std::string iname = ToInternalName(name, ordered);  // "1:name"
+    std::string beginKey = ToInternalKey(iname, "");  // "Hash(iname):"
     size_t beginNum = BinrayString2Number(beginKey);
     std::string endKey = FormatInternalKey(beginNum + 1, "");
     ROCKSDB_NAMESPACE::Status s = db_->DeleteRange(
@@ -404,24 +408,28 @@ std::shared_ptr<StorageTransaction> RocksDBStorage::BeginTransaction() {
 }
 
 Status RocksDBStorage::Commit() {
-    if (!InTransaction_) {
+    if (!InTransaction_ || nullptr == txn_) {
         return Status::NotSupported();
     }
+
 
     Status s = ToStorageStatus(txn_->Commit());
     if (s.ok()) {
         CommitKeys();
     }
+    delete txn_;
     return s;
 }
 
 Status RocksDBStorage::Rollback()  {
-    if (!InTransaction_) {
+    if (!InTransaction_ || nullptr == txn_) {
         return Status::NotSupported();
     }
     pending4set_.clear();
     pending4del_.clear();
-    return ToStorageStatus(txn_->Rollback());
+    Status s = ToStorageStatus(txn_->Commit());
+    delete txn_;
+    return s;
 }
 
 bool RocksDBStorage::GetStatistics(StorageStatistics* statistics) {
