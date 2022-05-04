@@ -56,6 +56,8 @@ std::string Number2BinaryString(size_t num) {
 
 size_t BinrayString2Number(const std::string& str) {
     if (str.size() < sizeof(size_t)) {
+        LOG(ERROR) << "The length of binray string must equal or greater than "
+                   << sizeof(size_t) << ", but now is " << str.size();
         return 0;
     }
     return *reinterpret_cast<const size_t*>(str.c_str());

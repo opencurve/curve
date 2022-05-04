@@ -42,39 +42,66 @@ const std::string RocksDBOptions::kOrderedColumnFamilyName_ =  // NOLINT
 
 RocksDBOptions::RocksDBOptions(StorageOptions options) {
     // db options
-    RocksDBStorageComparator cmp;
-    dbOptions_.comparator = &cmp;
+    // the database will be created if it is missing
     dbOptions_.create_if_missing = true;
+    // missing column families will be automatically created
     dbOptions_.create_missing_column_families = true;
-    dbOptions_.enable_blob_files = true;
+    // maximum number of concurrent background memtable flush jobs,
+    // submitted by default to the HIGH priority thread pool
     dbOptions_.max_background_flushes = 2;
+    // maximum number of concurrent background compaction jobs,
+    // submitted to the default LOW priority thread pool.
     dbOptions_.max_background_compactions = 4;
+    // allows OS to incrementally sync files to disk while they are being
+    // written, asynchronously, in the background.
     dbOptions_.bytes_per_sync = 1048576;
-    dbOptions_.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
-    dbOptions_.prefix_extractor.reset(NewCappedPrefixTransform(3));
 
     // table options
     std::shared_ptr<ROCKSDB_NAMESPACE::Cache> cache =
         NewLRUCache(options.blockCacheCapacity);
     BlockBasedTableOptions tableOptions;
+    tableOptions.block_size = 16 * 1024;  // 16KB
+    // default: an 8MB internal cache
     tableOptions.block_cache = cache;
-    tableOptions.block_size = 16 * 1024;  // 16MB
+    // whether to put index/filter blocks in the block cache
     tableOptions.cache_index_and_filter_blocks = true;
+    // only evicted from cache when the table reader is freed
     tableOptions.pin_l0_filter_and_index_blocks_in_cache = true;
-    tableOptions.filter_policy.reset(NewBloomFilterPolicy(10, true));
-    dbOptions_.table_factory.reset(NewBlockBasedTableFactory(tableOptions));
+    // reset bloom filter
+    tableOptions.filter_policy.reset(NewBloomFilterPolicy(10, false));
 
     // column failmy options
-    auto unorderedCFOptions = ColumnFamilyOptions();
-    auto orderedCFOptions = ColumnFamilyOptions();
+    comparator_ = std::make_shared<RocksDBStorageComparator>();
+    ColumnFamilyOptions cfOptions = ColumnFamilyOptions();
+    // user-defined key comparator
+    cfOptions.comparator = comparator_.get();
+    // large values (blobs) are written to separate blob files, and
+    // only pointers to them are stored in SST files
+    cfOptions.enable_blob_files = true;
+    // RocksDB will pick target size of each level dynamically
+    cfOptions.level_compaction_dynamic_level_bytes = true;
+    cfOptions.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
+    // use the specified function to determine the prefixes for keys
+    cfOptions.prefix_extractor.reset(NewFixedPrefixTransform(sizeof(size_t)));
+    // The size in bytes of the filter for memtable is
+    // write_buffer_size * memtable_prefix_bloom_size_ratio
+    cfOptions.memtable_prefix_bloom_size_ratio =
+        options.memtablePrefixBloomSizeRatio;
+    // reset table options for column failmy
+    cfOptions.table_factory.reset(NewBlockBasedTableFactory(tableOptions));
+
+    ColumnFamilyOptions unorderedCFOptions = cfOptions;
+    // amount of data to build up in memory (backed by an unsorted log
+    // on disk) before converting to a sorted on-disk file.
     unorderedCFOptions.write_buffer_size = options.unorderedWriteBufferSize;
+    // the maximum number of write buffers that are built up in memory.
     unorderedCFOptions.max_write_buffer_number =
         options.unorderedMaxWriteBufferNumber;
-    unorderedCFOptions.level_compaction_dynamic_level_bytes = true;
+
+    ColumnFamilyOptions orderedCFOptions = cfOptions;
     orderedCFOptions.write_buffer_size = options.orderedWriteBufferSize;
     orderedCFOptions.max_write_buffer_number =
         options.orderedMaxWriteBufferNumber;
-    orderedCFOptions.level_compaction_dynamic_level_bytes = true;
 
     columnFamilies_.push_back(ColumnFamilyDescriptor(
         ROCKSDB_NAMESPACE::kDefaultColumnFamilyName, unorderedCFOptions));
@@ -210,6 +237,7 @@ Status RocksDBStorage::ToStorageStatus(const ROCKSDB_NAMESPACE::Status& s) {
     return Status::InternalError();
 }
 
+// "ordered:name"
 std::string RocksDBStorage::ToInternalName(const std::string& name,
                                            bool ordered) {
     std::ostringstream oss;
@@ -225,7 +253,7 @@ std::string RocksDBStorage::FormatInternalKey(size_t num4name,
 }
 
 // NOTE: we will convert name to number for compare prefix
-// eg: iname:key
+// eg: Hash(iname):key
 std::string RocksDBStorage::ToInternalKey(const std::string& iname,
                                           const std::string& key) {
     size_t num4name = Hash(iname);
@@ -382,8 +410,8 @@ Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
-    std::string iname = ToInternalName(name, ordered);
-    std::string beginKey = ToInternalKey(iname, "");  // "name:"
+    std::string iname = ToInternalName(name, ordered);  // "1:name"
+    std::string beginKey = ToInternalKey(iname, "");  // "Hash(iname):"
     size_t beginNum = BinrayString2Number(beginKey);
     std::string endKey = FormatInternalKey(beginNum + 1, "");
     ROCKSDB_NAMESPACE::Status s = db_->DeleteRange(
@@ -404,7 +432,7 @@ std::shared_ptr<StorageTransaction> RocksDBStorage::BeginTransaction() {
 }
 
 Status RocksDBStorage::Commit() {
-    if (!InTransaction_) {
+    if (!InTransaction_ || nullptr == txn_) {
         return Status::NotSupported();
     }
 
@@ -412,16 +440,19 @@ Status RocksDBStorage::Commit() {
     if (s.ok()) {
         CommitKeys();
     }
+    delete txn_;
     return s;
 }
 
 Status RocksDBStorage::Rollback()  {
-    if (!InTransaction_) {
+    if (!InTransaction_ || nullptr == txn_) {
         return Status::NotSupported();
     }
     pending4set_.clear();
     pending4del_.clear();
-    return ToStorageStatus(txn_->Rollback());
+    Status s = ToStorageStatus(txn_->Commit());
+    delete txn_;
+    return s;
 }
 
 bool RocksDBStorage::GetStatistics(StorageStatistics* statistics) {

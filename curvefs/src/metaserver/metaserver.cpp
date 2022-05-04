@@ -500,6 +500,9 @@ void Metaserver::InitStorage() {
     LOG_IF(FATAL, !conf_->GetUInt64Value(
         "storage.rocksdb.block_cache_capacity",
         &storageOptions_.blockCacheCapacity));
+    LOG_IF(FATAL, !conf_->GetDoubleValue(
+        "storage.rocksdb.memtable_prefix_bloom_size_ratio",
+        &storageOptions_.memtablePrefixBloomSizeRatio));
     LOG_IF(FATAL, !conf_->GetUInt64Value(
         "storage.s3_meta_inside_inode.limit_size",
         &storageOptions_.s3MetaLimitSizeInsideInode));
