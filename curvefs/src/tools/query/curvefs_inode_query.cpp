@@ -65,11 +65,11 @@ int InodeQueryTool::Init() {
     }
     for (size_t i = 0; i < fsIds.size(); ++i) {
         InodeBase tmp;
-        uint64_t tmpFsId;
+        uint64_t tmpFsId = 0;
         curve::common::StringToUll(fsIds[i], &tmpFsId);
         tmp.set_fsid(tmpFsId);
 
-        uint64_t tmpInodeId;
+        uint64_t tmpInodeId = 0;
         curve::common::StringToUll(inodeIds[i], &tmpInodeId);
         tmp.set_inodeid(tmpInodeId);
 
