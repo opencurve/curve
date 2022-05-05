@@ -108,6 +108,7 @@ cc_library(
         "//external:bvar",
         "//external:gflags",
         "//external:protobuf",
+        "//include/client:include_client",
     ],
 )
 
