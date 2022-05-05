@@ -378,6 +378,8 @@ then
 fi
 cp ./bazel-bin/src/client/libcurve.so build/curve/curve-sdk/lib/
 cp include/client/libcurve.h build/curve/curve-sdk/include
+cp include/client/libcbd.h build/curve/curve-sdk/include
+cp include/client/libcurve_define.h build/curve/curve-sdk/include
 if [ $? -ne 0 ]
 then
     exit

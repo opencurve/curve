@@ -74,6 +74,7 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client",
         "//src/common:curve_common",
+        "//include/client:include_client",
     ],
 )
 

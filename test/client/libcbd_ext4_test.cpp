@@ -29,7 +29,7 @@
 
 #define CBD_BACKEND_FAKE
 
-#include "src/client/libcbd.h"
+#include "include/client/libcbd.h"
 #include "include/client/libcurve.h"
 
 void LibcbdExt4TestCallback(CurveAioContext* context) {
