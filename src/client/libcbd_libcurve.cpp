@@ -21,7 +21,7 @@
  *          2018/10/10  Wenyu Zhou   Initial version
  */
 
-#include "src/client/libcbd.h"
+#include "include/client/libcbd.h"
 #include "src/client/config_info.h"
 #include "include/client/libcurve.h"
 

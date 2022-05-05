@@ -140,6 +140,7 @@ then
 fi
 echo "bazel version : ${bazel_version}"
 
+
 # check gcc version, gcc version must >= 4.8.5
 gcc_version_major=`gcc -dumpversion | awk -F'.' '{print $1}'`
 gcc_version_minor=`gcc -dumpversion | awk -F'.' '{print $2}'`
@@ -448,6 +449,8 @@ then
 fi
 cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
 cp include/client/libcurve.h build/curve-sdk/usr/include
+cp include/client/libcbd.h build/curve-sdk/usr/include
+cp include/client/libcurve_define.h build/curve-sdk/usr/include
 if [ $? -ne 0 ]
 then
     exit
