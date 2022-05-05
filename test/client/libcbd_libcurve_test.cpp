@@ -30,7 +30,7 @@
 
 // #define CBD_BACKEND_FAKE
 
-#include "src/client/libcbd.h"
+#include "include/client/libcbd.h"
 
 #include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"

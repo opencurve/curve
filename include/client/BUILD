@@ -16,7 +16,7 @@
 
 cc_library(
     name = "include_client",
-    srcs = ["libcurve.h"],
+    srcs = glob(["*.h"]),
     linkopts = ([
         "-pthread",
         "-std=c++11",
