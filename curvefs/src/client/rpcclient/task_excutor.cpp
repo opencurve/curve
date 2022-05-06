@@ -21,6 +21,7 @@
  * Author: lixiaocui
  */
 
+#include <butil/fast_rand.h>
 #include <algorithm>
 #include <utility>
 
@@ -255,7 +256,7 @@ uint64_t TaskExecutor::OverLoadBackOff() {
     uint64_t nextsleeptime = opt_.retryIntervalUS * (1 << curpowTime);
 
     // -10% ~ 10% jitter
-    uint64_t random_time = std::rand() % (nextsleeptime / 5 + 1);
+    uint64_t random_time = butil::fast_rand() % (nextsleeptime / 5 + 1);
     random_time -= nextsleeptime / 10;
     nextsleeptime += random_time;
 
