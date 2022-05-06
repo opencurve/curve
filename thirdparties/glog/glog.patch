@@ -53,7 +53,7 @@ index 4a1bc6c..cb2f77a 100644
          strip_include_prefix = 'src',
          copts = [
 diff --git a/src/glog/logging.h.in b/src/glog/logging.h.in
-index 9968b96..f491f9b 100644
+index 9968b96..3939a81 100644
 --- a/src/glog/logging.h.in
 +++ b/src/glog/logging.h.in
 @@ -33,6 +33,23 @@
@@ -96,8 +96,18 @@ index 9968b96..f491f9b 100644
  #ifdef MUST_UNDEF_GFLAGS_DECLARE_MACROS
  #undef MUST_UNDEF_GFLAGS_DECLARE_MACROS
  #undef DECLARE_VARIABLE
+@@ -1559,6 +1585,9 @@ class GOOGLE_GLOG_DLL_DECL Logger {
+   // Flush any buffered messages
+   virtual void Flush() = 0;
+ 
++  // Action when switch to child process
++  virtual void Switch2Child() {}
++
+   // Get the current LOG file size.
+   // The returned value is approximate since some
+   // logged data may not have been flushed to disk yet.
 diff --git a/src/logging.cc b/src/logging.cc
-index 0c86cf6..601bdda 100644
+index 0c86cf6..7b20b1c 100644
 --- a/src/logging.cc
 +++ b/src/logging.cc
 @@ -27,6 +27,39 @@
@@ -205,7 +215,38 @@ index 0c86cf6..601bdda 100644
  base::Logger::~Logger() {
  }
  
-@@ -498,9 +566,13 @@ class LogDestination {
+@@ -413,10 +481,12 @@ class LogFileObject : public base::Logger {
+   // Normal flushing routine
+   virtual void Flush();
+ 
++  void Switch2Child();
++
+   // It is the actual file length for the system loggers,
+   // i.e., INFO, ERROR, etc.
+   virtual uint32 LogSize() {
+-    MutexLock l(&lock_);
++    MutexLock l(&locks_[current_]);
+     return file_length_;
+   }
+ 
+@@ -428,7 +498,7 @@ class LogFileObject : public base::Logger {
+  private:
+   static const uint32 kRolloverAttemptFrequency = 0x20;
+ 
+-  Mutex lock_;
++  Mutex locks_[2];
+   bool base_filename_selected_;
+   string base_filename_;
+   string symlink_basename_;
+@@ -440,6 +510,7 @@ class LogFileObject : public base::Logger {
+   uint32 file_length_;
+   unsigned int rollover_attempt_;
+   int64 next_flush_time_;         // cycle count at which to flush log
++  int current_;
+ 
+   // Actually create a logfile using the value of base_filename_ and the
+   // supplied argument time_pid_string
+@@ -498,9 +569,13 @@ class LogDestination {
  			      size_t len);
    // Take a log message of a particular severity and log it to a file
    // iff the base filename is not "" (which means "don't log to me")
@@ -221,7 +262,7 @@ index 0c86cf6..601bdda 100644
    // Take a log message of a particular severity and log it to the file
    // for that severity and also for all files with severity less than
    // this severity.
-@@ -537,7 +609,7 @@ class LogDestination {
+@@ -537,7 +612,7 @@ class LogDestination {
  
    // Protects the vector sinks_,
    // but not the LogSink objects its elements reference.
@@ -230,7 +271,7 @@ index 0c86cf6..601bdda 100644
  
    // Disallow
    LogDestination(const LogDestination&);
-@@ -551,7 +623,7 @@ string LogDestination::addresses_;
+@@ -551,7 +626,7 @@ string LogDestination::addresses_;
  string LogDestination::hostname_;
  
  vector<LogSink*>* LogDestination::sinks_ = NULL;
@@ -239,7 +280,7 @@ index 0c86cf6..601bdda 100644
  bool LogDestination::terminal_supports_color_ = TerminalSupportsColor();
  
  /* static */
-@@ -587,7 +659,7 @@ inline void LogDestination::FlushLogFilesUnsafe(int min_severity) {
+@@ -587,7 +662,7 @@ inline void LogDestination::FlushLogFilesUnsafe(int min_severity) {
  inline void LogDestination::FlushLogFiles(int min_severity) {
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // all this stuff.
@@ -248,7 +289,7 @@ index 0c86cf6..601bdda 100644
    for (int i = min_severity; i < NUM_SEVERITIES; i++) {
      LogDestination* log = log_destination(i);
      if (log != NULL) {
-@@ -601,7 +673,7 @@ inline void LogDestination::SetLogDestination(LogSeverity severity,
+@@ -601,7 +676,7 @@ inline void LogDestination::SetLogDestination(LogSeverity severity,
    assert(severity >= 0 && severity < NUM_SEVERITIES);
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // all this stuff.
@@ -257,7 +298,7 @@ index 0c86cf6..601bdda 100644
    log_destination(severity)->fileobject_.SetBasename(base_filename);
  }
  
-@@ -609,14 +681,14 @@ inline void LogDestination::SetLogSymlink(LogSeverity severity,
+@@ -609,14 +684,14 @@ inline void LogDestination::SetLogSymlink(LogSeverity severity,
                                            const char* symlink_basename) {
    CHECK_GE(severity, 0);
    CHECK_LT(severity, NUM_SEVERITIES);
@@ -274,7 +315,7 @@ index 0c86cf6..601bdda 100644
    if (!sinks_)  sinks_ = new vector<LogSink*>;
    sinks_->push_back(destination);
  }
-@@ -624,7 +696,7 @@ inline void LogDestination::AddLogSink(LogSink *destination) {
+@@ -624,7 +699,7 @@ inline void LogDestination::AddLogSink(LogSink *destination) {
  inline void LogDestination::RemoveLogSink(LogSink *destination) {
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // all this stuff.
@@ -283,7 +324,7 @@ index 0c86cf6..601bdda 100644
    // This doesn't keep the sinks in order, but who cares?
    if (sinks_) {
      for (int i = sinks_->size() - 1; i >= 0; i--) {
-@@ -640,7 +712,7 @@ inline void LogDestination::RemoveLogSink(LogSink *destination) {
+@@ -640,7 +715,7 @@ inline void LogDestination::RemoveLogSink(LogSink *destination) {
  inline void LogDestination::SetLogFilenameExtension(const char* ext) {
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // all this stuff.
@@ -292,7 +333,7 @@ index 0c86cf6..601bdda 100644
    for ( int severity = 0; severity < NUM_SEVERITIES; ++severity ) {
      log_destination(severity)->fileobject_.SetExtension(ext);
    }
-@@ -650,7 +722,7 @@ inline void LogDestination::SetStderrLogging(LogSeverity min_severity) {
+@@ -650,7 +725,7 @@ inline void LogDestination::SetStderrLogging(LogSeverity min_severity) {
    assert(min_severity >= 0 && min_severity < NUM_SEVERITIES);
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // all this stuff.
@@ -301,7 +342,7 @@ index 0c86cf6..601bdda 100644
    FLAGS_stderrthreshold = min_severity;
  }
  
-@@ -668,7 +740,7 @@ inline void LogDestination::SetEmailLogging(LogSeverity min_severity,
+@@ -668,7 +743,7 @@ inline void LogDestination::SetEmailLogging(LogSeverity min_severity,
    assert(min_severity >= 0 && min_severity < NUM_SEVERITIES);
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // all this stuff.
@@ -310,7 +351,7 @@ index 0c86cf6..601bdda 100644
    LogDestination::email_logging_severity_ = min_severity;
    LogDestination::addresses_ = addresses;
  }
-@@ -754,12 +826,13 @@ inline void LogDestination::MaybeLogToEmail(LogSeverity severity,
+@@ -754,12 +829,13 @@ inline void LogDestination::MaybeLogToEmail(LogSeverity severity,
  }
  
  
@@ -328,7 +369,7 @@ index 0c86cf6..601bdda 100644
    destination->logger_->Write(should_flush, timestamp, message, len);
  }
  
-@@ -771,8 +844,13 @@ inline void LogDestination::LogToAllLogfiles(LogSeverity severity,
+@@ -771,8 +847,13 @@ inline void LogDestination::LogToAllLogfiles(LogSeverity severity,
    if ( FLAGS_logtostderr ) {           // global flag: never log to file
      ColoredWriteToStderr(severity, message, len);
    } else {
@@ -344,7 +385,7 @@ index 0c86cf6..601bdda 100644
    }
  }
  
-@@ -783,7 +861,7 @@ inline void LogDestination::LogToSinks(LogSeverity severity,
+@@ -783,7 +864,7 @@ inline void LogDestination::LogToSinks(LogSeverity severity,
                                         const struct ::tm* tm_time,
                                         const char* message,
                                         size_t message_len) {
@@ -353,7 +394,7 @@ index 0c86cf6..601bdda 100644
    if (sinks_) {
      for (int i = sinks_->size() - 1; i >= 0; i--) {
        (*sinks_)[i]->send(severity, full_filename, base_filename,
-@@ -793,7 +871,7 @@ inline void LogDestination::LogToSinks(LogSeverity severity,
+@@ -793,7 +874,7 @@ inline void LogDestination::LogToSinks(LogSeverity severity,
  }
  
  inline void LogDestination::WaitForSinks(LogMessage::LogMessageData* data) {
@@ -362,7 +403,7 @@ index 0c86cf6..601bdda 100644
    if (sinks_) {
      for (int i = sinks_->size() - 1; i >= 0; i--) {
        (*sinks_)[i]->WaitTillSent();
-@@ -822,7 +900,7 @@ void LogDestination::DeleteLogDestinations() {
+@@ -822,7 +903,7 @@ void LogDestination::DeleteLogDestinations() {
      delete log_destinations_[severity];
      log_destinations_[severity] = NULL;
    }
@@ -371,7 +412,70 @@ index 0c86cf6..601bdda 100644
    delete sinks_;
    sinks_ = NULL;
  }
-@@ -906,7 +984,7 @@ bool LogFileObject::CreateLogfile(const string& time_pid_string) {
+@@ -841,13 +922,14 @@ LogFileObject::LogFileObject(LogSeverity severity,
+     dropped_mem_length_(0),
+     file_length_(0),
+     rollover_attempt_(kRolloverAttemptFrequency-1),
+-    next_flush_time_(0) {
++    next_flush_time_(0),
++    current_(0) {
+   assert(severity >= 0);
+   assert(severity < NUM_SEVERITIES);
+ }
+ 
+ LogFileObject::~LogFileObject() {
+-  MutexLock l(&lock_);
++  MutexLock l(&locks_[current_]);
+   if (file_ != NULL) {
+     fclose(file_);
+     file_ = NULL;
+@@ -855,7 +937,7 @@ LogFileObject::~LogFileObject() {
+ }
+ 
+ void LogFileObject::SetBasename(const char* basename) {
+-  MutexLock l(&lock_);
++  MutexLock l(&locks_[current_]);
+   base_filename_selected_ = true;
+   if (base_filename_ != basename) {
+     // Get rid of old log file since we are changing names
+@@ -869,7 +951,7 @@ void LogFileObject::SetBasename(const char* basename) {
+ }
+ 
+ void LogFileObject::SetExtension(const char* ext) {
+-  MutexLock l(&lock_);
++  MutexLock l(&locks_[current_]);
+   if (filename_extension_ != ext) {
+     // Get rid of old log file since we are changing names
+     if (file_ != NULL) {
+@@ -882,15 +964,25 @@ void LogFileObject::SetExtension(const char* ext) {
+ }
+ 
+ void LogFileObject::SetSymlinkBasename(const char* symlink_basename) {
+-  MutexLock l(&lock_);
++  MutexLock l(&locks_[current_]);
+   symlink_basename_ = symlink_basename;
+ }
+ 
+ void LogFileObject::Flush() {
+-  MutexLock l(&lock_);
++  MutexLock l(&locks_[current_]);
+   FlushUnlocked();
+ }
+ 
++// it's only invoked once after switch to child process
++void LogFileObject::Switch2Child() {
++    current_ = 1;
++    bytes_since_flush_ = 0;
++    dropped_mem_length_ = 0;
++    file_length_ = 0;
++    rollover_attempt_ = kRolloverAttemptFrequency - 1;
++    next_flush_time_ = 0;
++}
++
+ void LogFileObject::FlushUnlocked(){
+   if (file_ != NULL) {
+     fflush(file_);
+@@ -906,7 +998,7 @@ bool LogFileObject::CreateLogfile(const string& time_pid_string) {
    string string_filename = base_filename_+filename_extension_+
                             time_pid_string;
    const char* filename = string_filename.c_str();
@@ -380,7 +484,16 @@ index 0c86cf6..601bdda 100644
    if (fd == -1) return false;
  #ifdef HAVE_FCNTL
    // Mark the file close-on-exec. We don't really care if this fails
-@@ -1015,9 +1093,9 @@ void LogFileObject::Write(bool force_flush,
+@@ -965,7 +1057,7 @@ void LogFileObject::Write(bool force_flush,
+                           time_t timestamp,
+                           const char* message,
+                           int message_len) {
+-  MutexLock l(&lock_);
++  MutexLock l(&locks_[current_]);
+ 
+   // We don't log if the base_name_ is "" (which means "don't write")
+   if (base_filename_selected_ && base_filename_.empty()) {
+@@ -1015,9 +1107,9 @@ void LogFileObject::Write(bool force_flush,
      } else {
        // If no base filename for logs of this severity has been set, use a
        // default base filename of
@@ -392,7 +505,7 @@ index 0c86cf6..601bdda 100644
        // 19990817 is a date (1999 August 17), 150000 is a time (15:00:00),
        // and 4354 is the pid of the logging process.  The date & time reflect
        // when the file was created for output.
-@@ -1026,18 +1104,8 @@ void LogFileObject::Write(bool force_flush,
+@@ -1026,18 +1118,8 @@ void LogFileObject::Write(bool force_flush,
        // "/tmp", and "."
        string stripped_filename(
            glog_internal_namespace_::ProgramInvocationShortName());
@@ -413,7 +526,7 @@ index 0c86cf6..601bdda 100644
                            +LogSeverityNames[severity_]+'.';
        // We're going to (potentially) try to put logs in several different dirs
        const vector<string> & log_dirs = GetLoggingDirectories();
-@@ -1142,7 +1210,7 @@ void LogFileObject::Write(bool force_flush,
+@@ -1142,7 +1224,7 @@ void LogFileObject::Write(bool force_flush,
  // the data from the first call, we allocate two sets of space.  One
  // for exclusive use by the first thread, and one for shared use by
  // all other threads.
@@ -422,7 +535,7 @@ index 0c86cf6..601bdda 100644
  static CrashReason crash_reason;
  static bool fatal_msg_exclusive = true;
  static LogMessage::LogMessageData fatal_msg_data_exclusive;
-@@ -1244,7 +1312,7 @@ void LogMessage::Init(const char* file,
+@@ -1244,7 +1326,7 @@ void LogMessage::Init(const char* file,
  #endif // defined(GLOG_THREAD_LOCAL_STORAGE)
      data_->first_fatal_ = false;
    } else {
@@ -431,7 +544,7 @@ index 0c86cf6..601bdda 100644
      if (fatal_msg_exclusive) {
        fatal_msg_exclusive = false;
        data_ = &fatal_msg_data_exclusive;
-@@ -1274,18 +1342,15 @@ void LogMessage::Init(const char* file,
+@@ -1274,18 +1356,15 @@ void LogMessage::Init(const char* file,
    data_->has_been_flushed_ = false;
  
    // If specified, prepend a prefix to each line.  For example:
@@ -455,7 +568,7 @@ index 0c86cf6..601bdda 100644
               << ' '
               << setfill(' ') << setw(5)
               << static_cast<unsigned int>(GetTID()) << setfill('0')
-@@ -1358,9 +1423,21 @@ void LogMessage::Flush() {
+@@ -1358,9 +1437,21 @@ void LogMessage::Flush() {
    // Prevent any subtle race conditions by wrapping a mutex lock around
    // the actual logging action per se.
    {
@@ -480,7 +593,7 @@ index 0c86cf6..601bdda 100644
    }
    LogDestination::WaitForSinks(data_);
  
-@@ -1405,7 +1482,7 @@ void ReprintFatalMessage() {
+@@ -1405,7 +1496,7 @@ void ReprintFatalMessage() {
  void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
    static bool already_warned_before_initgoogle = false;
  
@@ -489,7 +602,7 @@ index 0c86cf6..601bdda 100644
  
    RAW_DCHECK(data_->num_chars_to_log_ > 0 &&
               data_->message_text_[data_->num_chars_to_log_-1] == '\n', "");
-@@ -1472,9 +1549,13 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
+@@ -1472,9 +1563,13 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
      }
  
      if (!FLAGS_logtostderr) {
@@ -506,7 +619,7 @@ index 0c86cf6..601bdda 100644
        }
      }
  
-@@ -1483,7 +1564,7 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
+@@ -1483,7 +1578,7 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
      // can use the logging facility. Alternately, we could add
      // an entire unsafe logging interface to bypass locking
      // for signal handlers but this seems simpler.
@@ -515,7 +628,7 @@ index 0c86cf6..601bdda 100644
      LogDestination::WaitForSinks(data_);
  
      const char* message = "*** Check failure stack trace: ***\n";
-@@ -1605,18 +1686,18 @@ void LogMessage::SendToSyslogAndLog() {
+@@ -1605,18 +1700,18 @@ void LogMessage::SendToSyslogAndLog() {
  }
  
  base::Logger* base::GetLogger(LogSeverity severity) {
@@ -537,7 +650,7 @@ index 0c86cf6..601bdda 100644
    return num_messages_[severity];
  }
  
-@@ -1682,14 +1763,11 @@ string LogSink::ToString(LogSeverity severity, const char* file, int line,
+@@ -1682,14 +1777,11 @@ string LogSink::ToString(LogSeverity severity, const char* file, int line,
    // so subclasses of LogSink can be updated at the same time.
    int usecs = 0;
  
@@ -555,7 +668,7 @@ index 0c86cf6..601bdda 100644
           << ' '
           << setfill(' ') << setw(5) << GetTID() << setfill('0')
           << ' '
-@@ -1728,7 +1806,7 @@ namespace internal {
+@@ -1728,7 +1820,7 @@ namespace internal {
  
  bool GetExitOnDFatal();
  bool GetExitOnDFatal() {
@@ -564,7 +677,7 @@ index 0c86cf6..601bdda 100644
    return exit_on_dfatal;
  }
  
-@@ -1744,7 +1822,7 @@ bool GetExitOnDFatal() {
+@@ -1744,7 +1836,7 @@ bool GetExitOnDFatal() {
  // these differences are acceptable.
  void SetExitOnDFatal(bool value);
  void SetExitOnDFatal(bool value) {
@@ -573,7 +686,7 @@ index 0c86cf6..601bdda 100644
    exit_on_dfatal = value;
  }
  
-@@ -2163,15 +2241,111 @@ void MakeCheckOpValueString(std::ostream* os, const unsigned char& v) {
+@@ -2163,15 +2255,111 @@ void MakeCheckOpValueString(std::ostream* os, const unsigned char& v) {
    }
  }
  
@@ -687,10 +800,10 @@ index 0c86cf6..601bdda 100644
  _END_GOOGLE_NAMESPACE_
 diff --git a/src/logging_async.cc b/src/logging_async.cc
 new file mode 100644
-index 0000000..8d68ebe
+index 0000000..65b1f4c
 --- /dev/null
 +++ b/src/logging_async.cc
-@@ -0,0 +1,206 @@
+@@ -0,0 +1,204 @@
 +/*
 + *  Copyright (c) 2020 NetEase Inc.
 + *
@@ -736,9 +849,6 @@ index 0000000..8d68ebe
 +      maxBufferSize_(maxBufferSize),
 +      appThreadsBlockedCount_(0),
 +      flushCount_(0),
-+      wakeFluchCV_(),
-+      freeBufferCV_(),
-+      flushCompleteCV_(),
 +      activeBuffer_(new Buffer()),
 +      flushBuffer_(new Buffer()),
 +      running_(false),
@@ -770,6 +880,7 @@ index 0000000..8d68ebe
 +        flushBuffer_.reset(new Buffer());
 +        running_ = false;
 +        current_ = 1;
++        logger_->Switch2Child();
 +
 +        if (start) {
 +            Start();
@@ -799,7 +910,7 @@ index 0000000..8d68ebe
 +            // 设置为false
 +            running_ = false;
 +
-+            wakeFluchCV_.notify_one();
++            wakeFluchCVs_[current_].notify_one();
 +        }
 +        loggerThreads_[current_].join();
 +    }
@@ -822,11 +933,11 @@ index 0000000..8d68ebe
 +        while (IsBufferFull(*activeBuffer_)) {
 +            // 记录前台线程被阻塞的次数，测试使用
 +            ++appThreadsBlockedCount_;
-+            freeBufferCV_.wait(ulk);
++            freeBufferCVs_[current_].wait(ulk);
 +        }
 +
 +        activeBuffer_->Add(force_flush, timestamp, message, len);
-+        wakeFluchCV_.notify_one();
++        wakeFluchCVs_[current_].notify_one();
 +    }
 +
 +    // glog在打印FATAL日志时, 会依次FATAL->INFO写入多个日志文件，然后abort
@@ -851,7 +962,7 @@ index 0000000..8d68ebe
 +            // running_ == false
 +            //    AsyncLogger已经停止，但是aciveBuffer中仍然可能有未写入文件的日志
 +            if (!activeBuffer_->NeedsWriteOrFlush() && running_) {
-+                wakeFluchCV_.wait_for(
++                wakeFluchCVs_[current_].wait_for(
 +                    ulk, std::chrono::seconds(FLAGS_logbufsecs));
 +            }
 +
@@ -860,7 +971,7 @@ index 0000000..8d68ebe
 +
 +            // flushBuffer满, 前台线程在阻塞过程中, 调用notify_all唤醒
 +            if (IsBufferFull(*flushBuffer_)) {
-+                freeBufferCV_.notify_all();
++                freeBufferCVs_[current_].notify_all();
 +            }
 +        }
 +
@@ -876,7 +987,7 @@ index 0000000..8d68ebe
 +
 +        ++flushCount_;
 +        flushBuffer_->Clear();
-+        flushCompleteCV_.notify_all();
++        flushCompleteCVs_[current_].notify_all();
 +    }
 +}
 +
@@ -891,15 +1002,15 @@ index 0000000..8d68ebe
 +    // flush 两次, 确保两个buffer都进行了flush
 +    while (flushCount_ < expectFlushCount && running_) {
 +        activeBuffer_->flush = true;
-+        wakeFluchCV_.notify_one();
-+        flushCompleteCV_.wait(ulk);
++        wakeFluchCVs_[current_].notify_one();
++        flushCompleteCVs_[current_].wait(ulk);
 +    }
 +}
 +
 +}   // namespace google
 diff --git a/src/logging_async.h b/src/logging_async.h
 new file mode 100644
-index 0000000..8021c83
+index 0000000..4d3050d
 --- /dev/null
 +++ b/src/logging_async.h
 @@ -0,0 +1,155 @@
@@ -1034,13 +1145,13 @@ index 0000000..8021c83
 +    mutable std::mutex mutexs_[2];
 +
 +    // 用于唤醒后台写日志线程
-+    std::condition_variable wakeFluchCV_;
++    std::condition_variable wakeFluchCVs_[2];
 +
 +    // 用于唤醒前台线程
-+    std::condition_variable freeBufferCV_;
++    std::condition_variable freeBufferCVs_[2];
 +
 +    // 用于同步Flush过程
-+    std::condition_variable flushCompleteCV_;
++    std::condition_variable flushCompleteCVs_[2];
 +
 +    // 前台线程将日志保存到active buffer中
 +    std::unique_ptr<Buffer> activeBuffer_;
