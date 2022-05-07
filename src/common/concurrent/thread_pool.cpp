@@ -49,7 +49,7 @@ void ThreadPool::Start() {
     if (!starting_.exchange(true, std::memory_order_acq_rel)) {
         threads_.reserve(numThreads_);
         for (int i = 0; i < numThreads_; ++i) {
-            threads_.emplace_back(new std::thread(threadFunc_));
+            threads_.emplace_back(std::make_unique<std::thread>(threadFunc_));
         }
     }
 }
