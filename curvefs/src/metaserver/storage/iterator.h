@@ -28,7 +28,6 @@
 #include <memory>
 
 #include "curvefs/src/metaserver/storage/common.h"
-#include "curvefs/src/metaserver/storage/value_wrapper.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -51,7 +50,7 @@ class Iterator {
 
     virtual std::string Value() = 0;
 
-    virtual ValueType* RawValue() { return nullptr; }
+    virtual const ValueType* RawValue() const { return nullptr; }
 
     virtual int Status() = 0;
 

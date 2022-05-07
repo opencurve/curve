@@ -215,8 +215,8 @@ class UnorderedContainerIterator : public MemoryStorageIterator<ContainerType> {
         return svalue;
     }
 
-    ValueType* RawValue() override {
-        return this->current_->second.Message().get();
+    const ValueType* RawValue() const override {
+        return this->current_->second.Message();
     }
 
     bool ParseFromValue(ValueType* value) override {
@@ -266,8 +266,8 @@ class OrderedContainerIterator : public MemoryStorageIterator<ContainerType> {
         return svalue;
     }
 
-    ValueType* RawValue() override {
-        return this->current_->second.Message().get();
+    const ValueType* RawValue() const override {
+        return this->current_->second.Message();
     }
 
     bool ParseFromValue(ValueType* value) override {
