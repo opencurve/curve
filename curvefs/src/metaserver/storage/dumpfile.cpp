@@ -565,7 +565,7 @@ std::string DumpFileIterator::Value() {
     return iter_.second;
 }
 
-bool DumpFileIterator::ParseFromValue(ValueType* value) {
+bool DumpFileIterator::ParseFromValue(ValueType* /*value*/) {
     return true;
 }
 

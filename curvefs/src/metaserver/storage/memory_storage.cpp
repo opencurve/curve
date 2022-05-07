@@ -107,18 +107,13 @@ do {                                             \
     return Status::OK();                         \
 } while (0)
 
-
-#define SET(TYPE, NAME, KEY, VALUE)                   \
-do {                                                  \
-    auto container = GET_CONTAINER(TYPE, NAME);       \
-    auto valueWrapper = ValueWrapper(VALUE);          \
-    auto ret = container->emplace(KEY, valueWrapper); \
-    if (!ret.second) {                                \
-        ret.first->second = valueWrapper;             \
-    }                                                 \
-    return Status::OK();                              \
-} while (0)
-
+#define SET(TYPE, NAME, KEY, VALUE)                 \
+    do {                                            \
+        auto container = GET_CONTAINER(TYPE, NAME); \
+        auto valueWrapper = ValueWrapper(VALUE);    \
+        (*container)[KEY].Swap(valueWrapper);       \
+        return Status::OK();                        \
+    } while (0)
 
 #define SET_SERALIZED(TYPE, NAME, KEY, VALUE)   \
 do {                                            \

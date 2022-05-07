@@ -25,6 +25,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <utility>
 
 #include "curvefs/src/metaserver/storage/common.h"
 
@@ -34,15 +35,26 @@ namespace storage {
 
 class ValueWrapper {
  public:
+    ValueWrapper() = default;
+
     explicit ValueWrapper(const ValueType& value) {
         value_.reset(value.New());
         value_->CopyFrom(value);
     }
 
-    std::shared_ptr<ValueType> Message() const { return value_; }
+    void Swap(ValueWrapper& other) noexcept {
+        using std::swap;
+        swap(value_, other.value_);
+    }
+
+    const ValueType* Message() const { return value_.get(); }
+
+    friend void swap(ValueWrapper& lhs, ValueWrapper& rhs) noexcept {
+        return lhs.Swap(rhs);
+    }
 
  private:
-    std::shared_ptr<ValueType> value_;
+    std::unique_ptr<ValueType> value_;
 };
 
 }  // namespace storage
