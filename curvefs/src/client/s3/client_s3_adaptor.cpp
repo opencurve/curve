@@ -123,8 +123,8 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
         uint64_t size = fsCacheManager_->GetDataCacheSize();
         uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
         if ((size + pendingReq * fuseMaxSize_) >= maxSize) {
-            LOG(INFO) << "write cache is full, wait flush. size:" << size
-                      << ", maxSize:" << maxSize;
+            VLOG(6) << "write cache is full, wait flush. size: " << size
+                    << ", maxSize:" << maxSize;
             // offer to do flush
             waitIntervalSec_.StopWait();
             fsCacheManager_->WaitFlush();
@@ -142,8 +142,8 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
         if (needSleep) {
             uint32_t exponent = pow(2, (exceedRatio) / 10);
             bthread_usleep(throttleBaseSleepUs_ * exceedRatio * exponent);
-            LOG(INFO) << "write cache is nearfull and use ratio is: "
-                      << memCacheRatio << ", exponent is: " << exponent;
+            VLOG(6) << "write cache nearfull and use ratio is: "
+                    << memCacheRatio << ", exponent is: " << exponent;
         }
     }
     int ret = fileCacheManager->Write(offset, length, buf);
