@@ -56,7 +56,7 @@ const std::vector<Throttle::Type> kDefaultEnabledThrottleTypes = {
     Throttle::Type::BPS_READ,   Throttle::Type::BPS_WRITE};
 
 Throttle::Throttle() : throttleParams_(), throttles_() {
-    for (auto type : kDefaultEnabledThrottleTypes) {
+    for (auto& type : kDefaultEnabledThrottleTypes) {
         throttles_.emplace_back(
             type, false,
             new common::LeakyBucket(ThrottleTypeToName(type)));
