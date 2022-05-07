@@ -94,7 +94,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
     VLOG(9) << "write name = " << name << ", length = " << length;
     // if cache disk is full
     if (diskCacheManager_->IsDiskCacheFull()) {
-        VLOG(3) << "write disk file fail, disk full.";
+        VLOG(6) << "write disk file fail, disk full.";
         return -1;
     }
     // write to cache disk
@@ -125,7 +125,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
 int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
                                           const char *buf, uint64_t length) {
     if (diskCacheManager_->IsDiskCacheFull()) {
-        VLOG(3) << "write disk file fail, disk full.";
+        VLOG(6) << "write disk file fail, disk full.";
         return -1;
     }
     int ret = diskCacheManager_->WriteReadDirect(fileName, buf, length);
