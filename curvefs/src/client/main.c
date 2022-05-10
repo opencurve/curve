@@ -116,6 +116,19 @@ int main(int argc, char *argv[]) {
 
     printf("Begin to mount fs %s to %s\n", mOpts.fsName, mOpts.mountPoint);
 
+    se = fuse_session_new(&args, &curve_ll_oper,
+                  sizeof(curve_ll_oper), &mOpts);
+    if (se == NULL)
+        goto err_out1;
+
+    if (fuse_set_signal_handlers(se) != 0)
+        goto err_out2;
+
+    if (fuse_session_mount(se, opts.mountpoint) != 0)
+        goto err_out3;
+
+    fuse_daemonize(opts.foreground);
+
     if (InitGlog(mOpts.conf, argv[0]) < 0) {
         printf("Init glog failed, confpath = %s\n", mOpts.conf);
     }
@@ -123,21 +136,8 @@ int main(int argc, char *argv[]) {
     ret = InitFuseClient(mOpts.conf, mOpts.fsName, mOpts.fsType, mOpts.mdsAddr);
     if (ret < 0) {
         printf("init fuse client fail, conf =%s\n", mOpts.conf);
-        goto err_out2;
-    }
-
-    se = fuse_session_new(&args, &curve_ll_oper,
-                  sizeof(curve_ll_oper), &mOpts);
-    if (se == NULL)
-        goto err_out2;
-
-    if (fuse_set_signal_handlers(se) != 0)
-        goto err_out3;
-
-    if (fuse_session_mount(se, opts.mountpoint) != 0)
         goto err_out4;
-
-    fuse_daemonize(opts.foreground);
+    }
 
     printf("fuse start loop, singlethread = %d, max_idle_threads = %d\n",
         opts.singlethread, opts.max_idle_threads);
@@ -151,14 +151,14 @@ int main(int argc, char *argv[]) {
         ret = fuse_session_loop_mt(se, &config);
     }
 
-    fuse_session_unmount(se);
 err_out4:
-    fuse_remove_signal_handlers(se);
+    fuse_session_unmount(se);
 err_out3:
-    fuse_session_destroy(se);
+    fuse_remove_signal_handlers(se);
 err_out2:
-    UnInitFuseClient();
+    fuse_session_destroy(se);
 err_out1:
+    UnInitFuseClient();
     free(opts.mountpoint);
     fuse_opt_free_args(&args);
 
