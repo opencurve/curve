@@ -19,6 +19,7 @@ import "curvefs/proto/heartbeat.proto";
 import "curvefs/proto/common.proto";
 package curvefs.mds.topology;
 option cc_generic_services = true;
+option go_package = "curvefs/proto/topology";
 
 enum TopoStatusCode {
     TOPO_OK = 0;

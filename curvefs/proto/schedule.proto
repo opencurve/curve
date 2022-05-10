@@ -18,6 +18,7 @@ syntax="proto2";
 package curvefs.mds.schedule;
 
 option cc_generic_services = true;
+option go_package = "curvefs/proto/schedule";
 
 enum ScheduleStatusCode {
     Success = 0;

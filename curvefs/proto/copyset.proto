@@ -18,6 +18,7 @@ syntax="proto2";
 import "curvefs/proto/common.proto";
 package curvefs.metaserver.copyset;
 option cc_generic_services = true;
+option go_package = "curvefs/proto/copyset";
 
 message ConfEpoch {
     required uint32 poolId      = 1;

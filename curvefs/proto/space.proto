@@ -18,6 +18,7 @@ syntax="proto2";
 package curvefs.mds.space;
 import "curvefs/proto/common.proto";
 option cc_generic_services=true;
+option go_package = "curvefs/proto/space";
 
 enum SpaceErrCode {
     SpaceOk = 0;
