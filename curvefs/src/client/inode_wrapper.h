@@ -315,6 +315,11 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         AppendS3ChunkInfoToMap(chunkIndex, info, &s3ChunkInfoAdd_);
         AppendS3ChunkInfoToMap(chunkIndex, info,
             inode_.mutable_s3chunkinfomap());
+        VLOG(8) << "AppendS3ChunkInfoToMap chunkIndex: " << chunkIndex
+                << "s3chunkInfo { chunkId: " << info.chunkid()
+                << ", compaction: " << info.compaction()
+                << ", offset: " << info.offset() << ", len: " << info.len()
+                << ", zero: " << info.zero() << ", ino: " << inode_.inodeid();
     }
 
     void MarkInodeError() {

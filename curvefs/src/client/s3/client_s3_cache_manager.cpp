@@ -2140,7 +2140,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool force, bool toS3) {
             cond.Wait();
         }
         delete[] data;
-        VLOG(9) << "update inode start, chunkId:" << chunkId
+        VLOG(8) << "update inode start, chunkId:" << chunkId
                 << ",offset:" << offset << ",len:" << writeOffset
                 << ",inodeId:" << inodeId << ",chunkIndex:" << chunkIndex;
         {
