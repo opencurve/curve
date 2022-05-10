@@ -54,6 +54,8 @@ struct StorageOptions {
 
     uint64_t blockCacheCapacity;
 
+    double memtablePrefixBloomSizeRatio;
+
     // misc config item
     uint64_t s3MetaLimitSizeInsideInode;
 };

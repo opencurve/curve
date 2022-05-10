@@ -256,7 +256,7 @@ int CopySetScheduler::CopySetScheduleForPool(PoolIdType poolId) {
     return genOpCount;
 }
 
-int64_t CopySetScheduler::GetRunningInterval() { return runInterval_; }
+int64_t CopySetScheduler::GetRunningInterval() const { return runInterval_; }
 
 }  // namespace schedule
 }  // namespace mds

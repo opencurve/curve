@@ -71,7 +71,7 @@ int PartitionListTool::Init() {
 
     curvefs::mds::topology::ListPartitionRequest request;
     for (const auto& i : fsIds) {
-        uint32_t fsId;
+        uint32_t fsId = 0;
         curve::common::StringToUl(i, &fsId);
         request.set_fsid(fsId);
         AddRequest(request);

@@ -89,8 +89,6 @@ void MDS::InitTopologyOption(TopologyOption* topologyOption) {
                                &topologyOption->maxPartitionNumberInCopyset);
     conf_->GetValueFatalIfFail("mds.topology.IdNumberInPartition",
                                &topologyOption->idNumberInPartition);
-    conf_->GetValueFatalIfFail("mds.topology.ChoosePoolPolicy",
-                               &topologyOption->choosePoolPolicy);
     conf_->GetValueFatalIfFail("mds.topology.InitialCopysetNumber",
                                &topologyOption->initialCopysetNumber);
     conf_->GetValueFatalIfFail("mds.topology.MinAvailableCopysetNum",
@@ -108,6 +106,8 @@ void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
                                &scheduleOption->enableRecoverScheduler);
     conf_->GetValueFatalIfFail("mds.enable.copyset.scheduler",
                                &scheduleOption->enableCopysetScheduler);
+    conf_->GetValueFatalIfFail("mds.enable.leader.scheduler",
+                               &scheduleOption->enableLeaderScheduler);
     conf_->GetValueFatalIfFail("mds.copyset.scheduler.balanceRatioPercent",
                                &scheduleOption->balanceRatioPercent);
 
@@ -115,6 +115,8 @@ void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
                                &scheduleOption->recoverSchedulerIntervalSec);
     conf_->GetValueFatalIfFail("mds.copyset.scheduler.intervalSec",
                                &scheduleOption->copysetSchedulerIntervalSec);
+    conf_->GetValueFatalIfFail("mds.leader.scheduler.intervalSec",
+                               &scheduleOption->leaderSchedulerIntervalSec);
 
     conf_->GetValueFatalIfFail("mds.schduler.operator.concurrent",
                                &scheduleOption->operatorConcurrent);
@@ -299,7 +301,7 @@ void MDS::StartCompaginLeader() {
 
     InitLeaderElection(electionOption);
 
-    while (0 != leaderElection_->CampaginLeader()) {
+    while (0 != leaderElection_->CampaignLeader()) {
         LOG(INFO) << leaderElection_->GetLeaderName()
                   << " compagin for leader again";
     }

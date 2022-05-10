@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <butil/fast_rand.h>
 #include <algorithm>
 #include <iterator>
 #include <vector>
@@ -492,7 +493,7 @@ bool MetaCache::SelectPartition(CopysetTarget *target) {
         target->txId = newPartitions[0].txid();
     } else {
         // random select a partition
-        int index = rand() % candidate.size();  // NOLINT
+        const auto index = butil::fast_rand() % candidate.size();
         auto iter = candidate.begin();
         std::advance(iter, index);
         target->groupID =

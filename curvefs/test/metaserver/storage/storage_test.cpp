@@ -290,7 +290,7 @@ void TestHClear(std::shared_ptr<KVStorage> kvStorage) {
     s = kvStorage->HGet("partition:1", "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    // CASE 2: iterator after clear
+    // CASE 2: get all after clear table
     iterator = kvStorage->HGetAll("partition:1");
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
@@ -300,7 +300,7 @@ void TestHClear(std::shared_ptr<KVStorage> kvStorage) {
     ASSERT_EQ(size, 0);
     ASSERT_EQ(iterator->Size(), 0);
 
-    // CASE 3: invoke set after clear
+    // CASE 3: set key-value after clear table
     s = kvStorage->HSet("partition:1", "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
     s = kvStorage->HGet("partition:1", "key1", &value);
@@ -315,6 +315,45 @@ void TestHClear(std::shared_ptr<KVStorage> kvStorage) {
     }
     ASSERT_EQ(size, 1);
     ASSERT_EQ(iterator->Size(), 1);
+
+    s = kvStorage->HClear("partition:1");
+    ASSERT_TRUE(s.ok());
+
+    // CASE 4: clear different table
+    std::string tablename1 = "partition:1";
+    std::string tablename2 = "partition:2";
+    std::string tablename3 = "partition:3";
+
+    s = kvStorage->HSet(tablename1, "key1", Value("value1"));
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->HSet(tablename2, "key1", Value("value1"));
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->HSet(tablename3, "key1", Value("value1"));
+    ASSERT_TRUE(s.ok());
+
+    // clear table1
+    s = kvStorage->HClear(tablename1);
+    ASSERT_TRUE(s.ok());
+
+    ASSERT_EQ(kvStorage->HSize(tablename1), 0);
+    ASSERT_EQ(kvStorage->HSize(tablename2), 1);
+    ASSERT_EQ(kvStorage->HSize(tablename3), 1);
+
+    // clear table2
+    s = kvStorage->HClear(tablename2);
+    ASSERT_TRUE(s.ok());
+
+    ASSERT_EQ(kvStorage->HSize(tablename1), 0);
+    ASSERT_EQ(kvStorage->HSize(tablename2), 0);
+    ASSERT_EQ(kvStorage->HSize(tablename3), 1);
+
+    // clear table3
+    s = kvStorage->HClear(tablename3);
+    ASSERT_TRUE(s.ok());
+
+    ASSERT_EQ(kvStorage->HSize(tablename1), 0);
+    ASSERT_EQ(kvStorage->HSize(tablename2), 0);
+    ASSERT_EQ(kvStorage->HSize(tablename3), 0);
 }
 
 void TestSGet(std::shared_ptr<KVStorage> kvStorage) {
@@ -645,7 +684,7 @@ void TestSClear(std::shared_ptr<KVStorage> kvStorage) {
     s = kvStorage->SGet("partition:1", "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    // CASE 2: iterator after clear
+    // CASE 2: get all after clear table
     iterator = kvStorage->SGetAll("partition:1");
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
@@ -655,7 +694,7 @@ void TestSClear(std::shared_ptr<KVStorage> kvStorage) {
     ASSERT_EQ(size, 0);
     ASSERT_EQ(iterator->Size(), 0);
 
-    // CASE 3: invoke set after clear
+    // CASE 3: set key-value after clear table
     s = kvStorage->SSet("partition:1", "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
     s = kvStorage->SGet("partition:1", "key1", &value);
@@ -670,6 +709,42 @@ void TestSClear(std::shared_ptr<KVStorage> kvStorage) {
     }
     ASSERT_EQ(size, 1);
     ASSERT_EQ(iterator->Size(), 1);
+
+    // CASE 4: clear different table
+    std::string tablename1 = "partition:1";
+    std::string tablename2 = "partition:2";
+    std::string tablename3 = "partition:3";
+
+    s = kvStorage->SSet(tablename1, "key1", Value("value1"));
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->SSet(tablename2, "key1", Value("value1"));
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->SSet(tablename3, "key1", Value("value1"));
+    ASSERT_TRUE(s.ok());
+
+    // clear table1
+    s = kvStorage->SClear(tablename1);
+    ASSERT_TRUE(s.ok());
+
+    ASSERT_EQ(kvStorage->SSize(tablename1), 0);
+    ASSERT_EQ(kvStorage->SSize(tablename2), 1);
+    ASSERT_EQ(kvStorage->SSize(tablename3), 1);
+
+    // clear table2
+    s = kvStorage->SClear(tablename2);
+    ASSERT_TRUE(s.ok());
+
+    ASSERT_EQ(kvStorage->SSize(tablename1), 0);
+    ASSERT_EQ(kvStorage->SSize(tablename2), 0);
+    ASSERT_EQ(kvStorage->SSize(tablename3), 1);
+
+    // clear table3
+    s = kvStorage->SClear(tablename3);
+    ASSERT_TRUE(s.ok());
+
+    ASSERT_EQ(kvStorage->SSize(tablename1), 0);
+    ASSERT_EQ(kvStorage->SSize(tablename2), 0);
+    ASSERT_EQ(kvStorage->SSize(tablename3), 0);
 }
 
 void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {

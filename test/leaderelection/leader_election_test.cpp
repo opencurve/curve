@@ -62,7 +62,7 @@ TEST(TestLeaderElection, test_leader_election) {
         _))
         .WillOnce(DoAll(SetArgPointee<4>(1),
         Return(EtcdErrCode::EtcdCampaignLeaderSuccess)));
-    ASSERT_EQ(0, leaderElection->CampaginLeader());
+    ASSERT_EQ(0, leaderElection->CampaignLeader());
 
     EXPECT_CALL(*client, CampaignLeader(
         realPrefix,
@@ -71,7 +71,7 @@ TEST(TestLeaderElection, test_leader_election) {
         opts.electionTimeoutMs,
         _))
         .WillOnce(Return(EtcdErrCode::EtcdCampaignInternalErr));
-    ASSERT_EQ(-1, leaderElection->CampaginLeader());
+    ASSERT_EQ(-1, leaderElection->CampaignLeader());
 
     EXPECT_CALL(*client, LeaderResign(1, 1000 * opts.sessionInterSec))
         .WillOnce(Return(EtcdErrCode::EtcdLeaderResiginSuccess));

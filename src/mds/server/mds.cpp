@@ -108,7 +108,7 @@ void MDS::StartCompaginLeader() {
     leaderElectionOp.etcdCli = etcdClient_;
     leaderElectionOp.campaginPrefix = "";
     InitLeaderElection(leaderElectionOp);
-    while (0 != leaderElection_->CampaginLeader()) {
+    while (0 != leaderElection_->CampaignLeader()) {
         LOG(INFO) << leaderElection_->GetLeaderName()
                   << " campaign for leader again";
     }

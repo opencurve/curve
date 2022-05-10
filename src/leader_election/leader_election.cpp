@@ -31,7 +31,7 @@ using ::curve::common::Thread;
 
 namespace curve {
 namespace election {
-int LeaderElection::CampaginLeader() {
+int LeaderElection::CampaignLeader() {
     LOG(INFO) << opt_.leaderUniqueName << " start campaign leader prefix: "
         << realPrefix_;
 

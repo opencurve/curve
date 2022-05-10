@@ -115,7 +115,12 @@ function main() {
     prepare
     create_directory
     [[ $(command -v crontab) ]] && cron
-    exec $g_binary $g_start_args
+    if [ $g_role == "etcd" ]; then
+        exec $g_binary $g_start_args >>$g_prefix/logs/etcd.log 2>&1
+    else
+        exec $g_binary $g_start_args
+    fi
+
 }
 
 ############################  MAIN()

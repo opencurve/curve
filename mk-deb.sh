@@ -129,16 +129,17 @@ function build_curvefs_python() {
 bazel_version=`bazel version | grep "Build label" | awk '{print $3}'`
 if [ -z ${bazel_version} ]
 then
-    echo "please install bazel 0.17.2 first"
+    echo "please install bazel 4.2.2 first"
     exit
 fi
-if [ ${bazel_version} != "0.17.2" ]
+if [ ${bazel_version} != "4.2.2" ]
 then
-    echo "bazel version must 0.17.2"
+    echo "bazel version must 4.2.2"
     echo "now version is ${bazel_version}"
     exit
 fi
 echo "bazel version : ${bazel_version}"
+
 
 # check gcc version, gcc version must >= 4.8.5
 gcc_version_major=`gcc -dumpversion | awk -F'.' '{print $1}'`
@@ -448,6 +449,8 @@ then
 fi
 cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
 cp include/client/libcurve.h build/curve-sdk/usr/include
+cp include/client/libcbd.h build/curve-sdk/usr/include
+cp include/client/libcurve_define.h build/curve-sdk/usr/include
 if [ $? -ne 0 ]
 then
     exit

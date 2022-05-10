@@ -21,8 +21,10 @@
  *          2018/10/10  Wenyu Zhou   Initial version
  */
 
-#ifndef SRC_CLIENT_LIBCBD_H_
-#define SRC_CLIENT_LIBCBD_H_
+#ifndef INCLUDE_CLIENT_LIBCBD_H_
+#define INCLUDE_CLIENT_LIBCBD_H_
+
+#include "libcurve_define.h"  // NOLINT
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,7 +52,6 @@ extern "C" {
 
 typedef int CurveFd;
 
-struct CurveAioContext;
 typedef struct CurveOptions {
     bool    inited;
     char*   conf;
@@ -119,4 +120,4 @@ int cbd_libcurve_resize(const char* filename, int64_t size);
 }  // extern "C"
 #endif
 
-#endif  // SRC_CLIENT_LIBCBD_H_
+#endif  // INCLUDE_CLIENT_LIBCBD_H_

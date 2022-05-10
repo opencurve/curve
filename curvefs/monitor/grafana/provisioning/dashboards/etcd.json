@@ -107,8 +107,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "WADmvby7z"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "max(etcd_server_has_leader)",
@@ -183,8 +182,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "WADmvby7z"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "max(etcd_server_leader_changes_seen_total)",
@@ -259,8 +257,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "WADmvby7z"
+            "type": "prometheus"
           },
           "exemplar": true,
           "expr": "max(etcd_server_leader_changes_seen_total)",
@@ -281,8 +278,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "fill": 1,
       "fillGradient": 0,
@@ -386,8 +382,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -478,8 +473,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "description": "Abnormally high snapshot duration (snapshot_save_total_duration_seconds) indicates disk issues and might cause the cluster to be unstable.",
       "fill": 1,
@@ -578,8 +572,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "fill": 1,
       "fillGradient": 0,
@@ -832,8 +825,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -921,8 +913,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -1456,8 +1447,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -1554,8 +1544,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -1656,8 +1645,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -1745,8 +1733,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "editable": true,
       "error": false,
@@ -1834,8 +1821,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
-        "type": "prometheus",
-        "uid": "WADmvby7z"
+        "type": "prometheus"
       },
       "fill": 1,
       "fillGradient": 0,
@@ -2357,8 +2343,7 @@
           "value": "$__all"
         },
         "datasource": {
-          "type": "prometheus",
-          "uid": "WADmvby7z"
+          "type": "prometheus"
         },
         "definition": "etcd_server_has_leader",
         "hide": 0,
@@ -2414,6 +2399,6 @@
   "timezone": "",
   "title": "etcd",
   "uid": "EuLA2DVZz",
-  "version": 5,
+  "version": 1,
   "weekStart": ""
 }
