@@ -19,6 +19,7 @@ import "curvefs/proto/common.proto";
 import "curvefs/proto/topology.proto";
 package curvefs.mds;
 option cc_generic_services = true;
+option go_package = "curvefs/proto/mds";
 
 enum FSStatusCode {
     OK = 0;

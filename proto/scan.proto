@@ -18,6 +18,7 @@ syntax = "proto2";
 package curve.chunkserver;
 
 option cc_generic_services = true;
+option go_package = "proto/scan";
 
 message ScanMap {
     required uint32 logicalPoolId = 1;

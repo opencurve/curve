@@ -19,6 +19,7 @@ package curve.chunkserver;
 
 option cc_generic_services = true;
 
+
 // Qos 参数
 message QosRequestParas {
     optional uint32 clientId = 1;

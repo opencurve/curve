@@ -17,6 +17,7 @@
 syntax="proto2";
 package curvefs.common;
 option cc_generic_services = true;
+option go_package = "curvefs/proto/common";
 
 enum FSType {
     TYPE_VOLUME = 1;

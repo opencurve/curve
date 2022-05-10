@@ -26,6 +26,7 @@ import "proto/scan.proto";
 package curve.mds.heartbeat;
 
 option cc_generic_services = true;
+option go_package = "proto/heartbeat";
 
 message CopySetInfo {
     required uint32 logicalPoolId = 1;

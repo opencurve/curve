@@ -129,3 +129,7 @@ docker/*/curvebs
 curvefs/docker/curvefs
 curvefs/docker/*/curvefs
 storage_*
+
+tools-v2/sbin/*
+tools-v2/proto/*
+tools-v2/*/*.test

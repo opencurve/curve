@@ -19,6 +19,7 @@ syntax="proto2";
 package curve.common;
 
 option cc_generic_services = true;
+option go_package = "proto/common";
 
 // 1. braft场景: id不使用，address为braft里面的PeerId，格式为{ip}:{port}:{index}
 // 2. curve-raft场景：id是peer id，address为{ip}:{port}
