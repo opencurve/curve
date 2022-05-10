@@ -853,7 +853,7 @@ TopoStatusCode TopologyManager::CreateCopyset(
         return TopoStatusCode::TOPO_CREATE_COPYSET_ON_METASERVER_FAIL;
     }
 
-    // add copyset record to topogy
+    // add copyset record to topology
     CopySetInfo copysetInfo(copyset.poolId, copyset.copysetId);
     copysetInfo.SetCopySetMembers(copyset.metaServerIds);
     auto ret = topology_->AddCopySet(copysetInfo);
@@ -866,6 +866,7 @@ TopoStatusCode TopologyManager::CreateCopyset(
         return ret;
     }
 
+    ClearCopysetCreating(copyset.poolId, copyset.copysetId);
     return TopoStatusCode::TOPO_OK;
 }
 

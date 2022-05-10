@@ -1822,6 +1822,7 @@ TEST_F(TestTopologyManager,
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
+    ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
 
 TEST_F(TestTopologyManager,
@@ -1965,6 +1966,7 @@ TEST_F(TestTopologyManager,
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
+    ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
 
 TEST_F(TestTopologyManager,
@@ -2097,6 +2099,7 @@ TEST_F(TestTopologyManager,
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
+    ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
 
 TEST_F(TestTopologyManager,
@@ -2182,6 +2185,7 @@ TEST_F(TestTopologyManager,
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
+    ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
 
 TEST_F(TestTopologyManager, test_CommitTx_Success) {
