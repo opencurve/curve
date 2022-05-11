@@ -247,6 +247,7 @@ FSStatusCode MetaserverClient::CreatePartition(
     partition->set_end(idEnd);
     partition->set_txid(0);
     partition->set_status(PartitionStatus::READWRITE);
+    LOG(INFO) << "CreatePartition request: " << request.ShortDebugString();
 
     auto fp = &MetaServerService_Stub::CreatePartition;
     LeaderCtx ctx;

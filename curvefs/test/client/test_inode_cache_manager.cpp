@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <cstdint>
 
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_cache_manager.h"
@@ -122,6 +123,56 @@ TEST_F(TestInodeCacheManager, GetInode) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+}
+
+TEST_F(TestInodeCacheManager, GetInodeAttr) {
+    uint64_t inodeId = 100;
+    uint64_t parentId = 99;
+    uint64_t fileLength = 100;
+
+    std::list<InodeAttr> attrs;
+    InodeAttr attr;
+    attr.set_inodeid(inodeId);
+    attr.set_fsid(fsId_);
+    attr.set_length(fileLength);
+    attr.add_parent(parentId);
+    attr.set_type(FsFileType::TYPE_FILE);
+    attrs.emplace_back(attr);
+
+    // 1. get from metaserver
+    InodeAttr out;
+    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, _, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
+        .WillOnce(DoAll(SetArgPointee<2>(attrs), Return(MetaStatusCode::OK)));
+
+    CURVEFS_ERROR ret = iCacheManager_->GetInodeAttr(inodeId, &out, parentId);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+
+    ret = iCacheManager_->GetInodeAttr(inodeId, &out, parentId);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeId, out.inodeid());
+    ASSERT_EQ(fsId_, out.fsid());
+    ASSERT_EQ(fileLength, out.length());
+
+    // 2. create inode and get attr from icache
+    InodeParam param;
+    param.fsId = fsId_;
+    param.type = FsFileType::TYPE_FILE;
+    Inode inode;
+    inode.set_inodeid(inodeId + 1);
+    inode.set_fsid(fsId_ + 1);
+    inode.set_type(FsFileType::TYPE_FILE);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    EXPECT_CALL(*metaClient_, CreateInode(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(MetaStatusCode::OK)));
+    ret = iCacheManager_->CreateInode(param, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out, parentId);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeId + 1, out.inodeid());
+    ASSERT_EQ(fsId_ + 1, out.fsid());
+    ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
 }
 
 TEST_F(TestInodeCacheManager, CreateAndGetInode) {

@@ -173,7 +173,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::GetDentry,
                                                  task, fsId, inodeid, false,
                                                  opt_.enableRenameParallel);
-    GetDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    GetDentryExcutor excutor(opt_, metaCache_, channelManager_,
+                             std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -243,7 +244,8 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::ListDentry,
                                                  task, fsId, inodeid, false,
                                                  opt_.enableRenameParallel);
-    ListDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    ListDentryExcutor excutor(opt_, metaCache_, channelManager_,
+                              std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -309,7 +311,8 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         // TODO(@lixiaocui): may be taskContext need diffrent according to
         // different operatrion
         dentry.parentinodeid(), false, opt_.enableRenameParallel);
-    CreateDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    CreateDentryExcutor excutor(opt_, metaCache_, channelManager_,
+                                std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -366,7 +369,8 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::DeleteDentry,
                                                  task, fsId, inodeid, false,
                                                  opt_.enableRenameParallel);
-    DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_,
+                                std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -418,7 +422,8 @@ MetaServerClientImpl::PrepareRenameTx(const std::vector<Dentry> &dentrys) {
     auto inodeId = dentrys[0].parentinodeid();
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::PrepareRenameTx, task, fsId, inodeId);
-    PrepareRenameTxExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    PrepareRenameTxExcutor excutor(opt_, metaCache_, channelManager_,
+                                   std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -477,7 +482,8 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::GetInode,
                                                  task, fsId, inodeid);
-    GetInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    GetInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                            std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -517,7 +523,7 @@ bool MetaServerClientImpl::SplitRequestInodes(
         auto iter = it.second.begin();
         while (iter != it.second.end()) {
             std::vector<uint64_t> tmp;
-            uint32_t batchLimit = opt_.batchLimit;
+            uint32_t batchLimit = opt_.batchInodeAttrLimit;
             while (iter != it.second.end() && batchLimit > 0) {
                 tmp.emplace_back(*iter);
                 iter++;
@@ -529,6 +535,53 @@ bool MetaServerClientImpl::SplitRequestInodes(
     return true;
 }
 
+class BatchGetInodeAttrRpcDone : public MetaServerClientRpcDoneBase {
+ public:
+    using MetaServerClientRpcDoneBase::MetaServerClientRpcDoneBase;
+
+    void Run() override;
+    BatchGetInodeAttrResponse response;
+};
+
+void BatchGetInodeAttrRpcDone::Run() {
+    std::unique_ptr<BatchGetInodeAttrRpcDone> self_guard(this);
+    brpc::ClosureGuard done_guard(done_);
+    auto taskCtx = done_->GetTaskExcutor()->GetTaskCxt();
+    auto& cntl = taskCtx->cntl_;
+    auto metaCache = done_->GetTaskExcutor()->GetMetaCache();
+    if (cntl.Failed()) {
+        metric_->batchGetInodeAttr.eps.count << 1;
+        LOG(WARNING) << "batchGetInodeAttr Failed, errorcode = "
+                     << cntl.ErrorCode()
+                     << ", error content: " << cntl.ErrorText()
+                     << ", log id: " << cntl.log_id();
+         done_->SetRetCode(-cntl.ErrorCode());
+        return;
+    }
+
+    MetaStatusCode ret = response.statuscode();
+    if (ret != MetaStatusCode::OK) {
+        LOG(WARNING) << "batchGetInodeAttr failed"
+                     << ", errcode = " << ret
+                     << ", errmsg = " << MetaStatusCode_Name(ret);
+    } else if (response.has_appliedindex()) {
+        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
+                                    response.appliedindex());
+    } else {
+        LOG(WARNING) << "batchGetInodeAttr ok,"
+                     << " but applyIndex not set in response:"
+                     << response.DebugString();
+        done_->SetRetCode(-1);
+        return;
+    }
+
+    VLOG(6) << "batchGetInodeAttr done, "
+            << "response: " << response.DebugString();
+    done_->SetRetCode(ret);
+    dynamic_cast<BatchGetInodeAttrTaskExecutorDone*>(done_)
+        ->SetInodeAttrs(response.attr());
+    return;
+}
 
 MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
     const std::set<uint64_t> &inodeIds,
@@ -564,9 +617,9 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
             if (cntl->Failed()) {
                 metric_.batchGetInodeAttr.eps.count << 1;
                 LOG(WARNING) << "BatchGetInodeAttr Failed, errorcode = "
-                                << cntl->ErrorCode()
-                                << ", error content:" << cntl->ErrorText()
-                                << ", log id = " << cntl->log_id();
+                             << cntl->ErrorCode()
+                             << ", error content:" << cntl->ErrorText()
+                             << ", log id = " << cntl->log_id();
                 return -cntl->ErrorCode();
             }
 
@@ -585,8 +638,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
                     response.appliedindex());
             } else {
                 LOG(WARNING) << "BatchGetInodeAttr ok, but"
-                                << " applyIndex or attr not set in response: "
-                                << response.DebugString();
+                             << " applyIndex or attr not set in response: "
+                             << response.DebugString();
                 return -1;
             }
             return ret;
@@ -594,13 +647,47 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
         auto taskCtx = std::make_shared<TaskContext>(
             MetaServerOpType::BatchGetInodeAttr, task, fsId, inodeId);
         BatchGetInodeAttrExcutor excutor(
-            opt_, metaCache_, channelManager_, taskCtx);
+            opt_, metaCache_, channelManager_, std::move(taskCtx));
         auto ret = ConvertToMetaStatusCode(excutor.DoRPCTask());
         if (ret != MetaStatusCode::OK) {
             attr->clear();
             return ret;
         }
     }
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode MetaServerClientImpl::BatchGetInodeAttrAsync(uint32_t fsId,
+    const std::vector<uint64_t> &inodeIds, MetaServerClientDone *done) {
+    if (inodeIds.empty()) {
+        done->Run();
+        return MetaStatusCode::OK;
+    }
+
+    auto task = AsyncRPCTask {
+        metric_.batchGetInodeAttr.qps.count << 1;
+        LatencyUpdater updater(&metric_.batchGetInodeAttr.latency);
+        BatchGetInodeAttrRequest request;
+        BatchGetInodeAttrResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        request.set_appliedindex(applyIndex);
+        *request.mutable_inodeid() = { inodeIds.begin(), inodeIds.end() };
+        auto *rpcDone = new BatchGetInodeAttrRpcDone(taskExecutorDone,
+                                                     &metric_);
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.BatchGetInodeAttr(cntl, &request, &rpcDone->response, rpcDone);
+        return MetaStatusCode::OK;
+    };
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::BatchGetInodeAttr, task, fsId, *inodeIds.begin());
+    auto excutor = std::make_shared<BatchGetInodeAttrExcutor>(opt_,
+        metaCache_, channelManager_, std::move(taskCtx));
+    TaskExecutorDone *taskDone = new BatchGetInodeAttrTaskExecutorDone(
+        excutor, done);
+    excutor->DoAsyncRPCTask(taskDone);
     return MetaStatusCode::OK;
 }
 
@@ -669,7 +756,7 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
         auto taskCtx = std::make_shared<TaskContext>(
             MetaServerOpType::BatchGetInodeAttr, task, fsId, inodeId);
         BatchGetInodeAttrExcutor excutor(
-            opt_, metaCache_, channelManager_, taskCtx);
+            opt_, metaCache_, channelManager_, std::move(taskCtx));
         auto ret = ConvertToMetaStatusCode(excutor.DoRPCTask());
         if (ret != MetaStatusCode::OK) {
             xattr->clear();
@@ -740,7 +827,8 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
 
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
-    UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                               std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -828,7 +916,7 @@ void MetaServerClientImpl::UpdateInodeAsync(
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
     auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
-        metaCache_, channelManager_, taskCtx);
+        metaCache_, channelManager_, std::move(taskCtx));
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
     excutor->DoAsyncRPCTask(taskDone);
@@ -967,7 +1055,7 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
         MetaServerOpType::GetOrModifyS3ChunkInfo,
         task, fsId, inodeId, streaming);
     GetOrModifyS3ChunkInfoExcutor excutor(
-        opt_, metaCache_, channelManager_, taskCtx);
+        opt_, metaCache_, channelManager_, std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -1052,7 +1140,7 @@ void MetaServerClientImpl::GetOrModifyS3ChunkInfoAsync(
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::GetOrModifyS3ChunkInfo, task, fsId, inodeId);
     auto excutor = std::make_shared<GetOrModifyS3ChunkInfoExcutor>(opt_,
-        metaCache_, channelManager_, taskCtx);
+        metaCache_, channelManager_, std::move(taskCtx));
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
     excutor->DoAsyncRPCTask(taskDone);
@@ -1062,6 +1150,7 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                                                  Inode *out) {
     auto task = RPCTask {
         metric_.createInode.qps.count << 1;
+        LatencyUpdater updater(&metric_.createInode.latency);
         CreateInodeResponse response;
         CreateInodeRequest request;
         request.set_poolid(poolID);
@@ -1081,8 +1170,6 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
         if (cntl->Failed()) {
             metric_.createInode.eps.count << 1;
-            LatencyUpdater updater(
-                    &metric_.createInode.latency);
             LOG(WARNING) << "CreateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -1119,7 +1206,8 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::CreateInode,
                                                  task, param.fsId, 0);
-    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                               std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
@@ -1170,7 +1258,8 @@ MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::DeleteInode,
                                                  task, fsId, inodeid);
-    DeleteInodeExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
+    DeleteInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                               std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 

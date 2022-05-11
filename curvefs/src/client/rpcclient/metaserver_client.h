@@ -95,6 +95,9 @@ class MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr) = 0;
 
+    virtual MetaStatusCode BatchGetInodeAttrAsync(uint32_t fsId,
+        const std::vector<uint64_t> &inodeIds, MetaServerClientDone *done) = 0;
+
     virtual MetaStatusCode BatchGetXAttr(uint32_t fsId,
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) = 0;
@@ -176,6 +179,10 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr) override;
+
+    MetaStatusCode BatchGetInodeAttrAsync(uint32_t fsId,
+        const std::vector<uint64_t> &inodeIds,
+        MetaServerClientDone *done) override;
 
     MetaStatusCode BatchGetXAttr(uint32_t fsId,
         const std::set<uint64_t> &inodeIds,

@@ -160,10 +160,11 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
                                            struct fuse_file_info* fi);
 
-    virtual CURVEFS_ERROR FuseOpReadDir(fuse_req_t req, fuse_ino_t ino,
-                                        size_t size, off_t off,
-                                        struct fuse_file_info* fi,
-                                        char** buffer, size_t* rSize);
+    virtual CURVEFS_ERROR FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
+                                            size_t size, off_t off,
+                                            struct fuse_file_info* fi,
+                                            char** buffer, size_t* rSize,
+                                            bool cacheDir);
 
     virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req, fuse_ino_t parent,
                                        const char* name, fuse_ino_t newparent,
@@ -251,10 +252,6 @@ class FuseClient {
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, bool idDir);
-
-    void GetDentryParamFromInode(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper_,
-        fuse_entry_param *param);
 
     int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];

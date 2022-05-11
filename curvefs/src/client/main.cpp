@@ -47,7 +47,11 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     release : FuseOpRelease,
     fsync : FuseOpFsync,
     opendir : FuseOpOpenDir,
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdir : 0,
+    #else
     readdir : FuseOpReadDir,
+    #endif
     releasedir : FuseOpReleaseDir,
     fsyncdir : 0,
     statfs : FuseOpStatFs,
@@ -72,7 +76,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     fallocate : 0,
     #endif
     #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
-    readdirplus : 0,
+    readdirplus : FuseOpReadDirPlus,
     #endif
     #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 4)
     copy_file_range : 0,

@@ -372,6 +372,8 @@ message InodeAttr {
     optional uint64 rdev = 16;
     optional uint32 dtime = 17;
     optional uint32 openmpcount = 18;
+    map<string, string> xattr = 19;
+    repeated uint64 parent = 20;
 }
 
 message BatchGetInodeAttrRequest {

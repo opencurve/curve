@@ -79,6 +79,10 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr));
 
+    MOCK_METHOD3(BatchGetInodeAttrAsync, MetaStatusCode(
+        uint32_t fsId, const std::vector<uint64_t> &inodeIds,
+        MetaServerClientDone *done));
+
     MOCK_METHOD3(BatchGetXAttr, MetaStatusCode(
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr));

@@ -24,10 +24,13 @@
 #ifndef CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
 #define CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <list>
 #include <unordered_map>
+#include <map>
+#include <utility>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
@@ -44,6 +47,8 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+
+static const char* kDentryKeyDelimiter = ":";
 
 class DentryCacheManager {
  public:
@@ -75,8 +80,6 @@ class DentryCacheManager {
  protected:
     uint32_t fsId_;
 };
-
-static const char* kDentryKeyDelimiter = ":";
 
 class DentryCacheManagerImpl : public DentryCacheManager {
  public:
