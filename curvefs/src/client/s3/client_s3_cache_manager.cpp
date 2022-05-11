@@ -309,8 +309,10 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
     }
 
     {
-        unsigned int maxRetry = 3;  // hardcode, fixme
-        unsigned int retry = 0;
+        uint32_t maxIntervalMs =
+            s3ClientAdaptor_->GetMaxReadRetryIntervalMs();  // hardcode, fixme
+        uint32_t retryIntervalMs = s3ClientAdaptor_->GetReadRetryIntervalMs();
+        uint32_t retry = 0;
         std::shared_ptr<InodeWrapper> inodeWrapper;
         auto inodeManager = s3ClientAdaptor_->GetInodeCacheManager();
         CURVEFS_ERROR r = inodeManager->GetInode(inodeId, inodeWrapper);
@@ -319,7 +321,7 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
             return -1;
         }
         std::vector<S3ReadResponse> responses;
-        while (retry < maxRetry) {
+        while (1) {
             std::vector<S3ReadRequest> totalS3Requests;
             auto iter = totalRequests.begin();
             uint64_t fileLen;
@@ -374,19 +376,34 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
             if (ret < 0) {
                 retry++;
                 responses.clear();
-                if (ret != -2 || retry == maxRetry) {
+                if (ret != -2) {
                     LOG(ERROR) << "read from s3 failed. ret:" << ret;
                     return ret;
                 } else {
-                    // ret -2 refs s3obj not exist
-                    // clear inodecache && get again
-                    LOG(INFO) << "inode cache maybe steal, try to get latest";
-                    ::curve::common::UniqueLock lgGuard =
-                        inodeWrapper->GetUniqueLock();
-                    auto r = inodeWrapper->RefreshS3ChunkInfo();
-                    if (r != CURVEFS_ERROR::OK) {
-                        LOG(WARNING) << "refresh inode fail, ret:" << ret;
-                        return -1;
+                    // ret -2 refs s3obj not exist, first It may be that
+                    // the metaserver compaction update inode is not
+                    // synchronized to the client;so clear inodecache && get
+                    // again;If it returns -2 multiple times, it may be that the
+                    // data of a client has not been flushed back to s3, and you
+                    // only need to keep retrying.
+                    if (1 == retry) {
+                        LOG(INFO)
+                            << "inode cache maybe stale, try to get latest";
+                                   curve::common::UniqueLock lgGuard =
+                            inodeWrapper->GetUniqueLock();
+                        auto r = inodeWrapper->RefreshS3ChunkInfo();
+                        if (r != CURVEFS_ERROR::OK) {
+                            LOG(WARNING) << "refresh inode fail, ret:" << ret;
+                            return -1;
+                        }
+                    }
+                    if (retry * retryIntervalMs < maxIntervalMs) {
+                        LOG(WARNING) << "read retry num:" << retry;
+                        bthread_usleep(retryIntervalMs * retry * 1000);
+                    } else {
+                        LOG(WARNING) << "retry is reach max interval ms:"
+                                     << maxIntervalMs;
+                        bthread_usleep(maxIntervalMs * 1000);
                     }
                 }
             } else {
