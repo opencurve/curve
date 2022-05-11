@@ -683,7 +683,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDir) {
     dentry.set_inodeid(2);
     dentryList.push_back(dentry);
 
-    EXPECT_CALL(*dentryManager_, ListDentry(ino, _, listDentryLimit_, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(ino, _, listDentryLimit_, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dentryList), Return(CURVEFS_ERROR::OK)));
 
@@ -725,7 +725,7 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenAndFuseOpReadDirFailed) {
     dentry.set_inodeid(2);
     dentryList.push_back(dentry);
 
-    EXPECT_CALL(*dentryManager_, ListDentry(ino, _, listDentryLimit_, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(ino, _, listDentryLimit_, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(dentryList),
                         Return(CURVEFS_ERROR::INTERNAL)));
 
@@ -986,7 +986,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwriteDir) {
     // step3: list directory
     auto dentrys = std::list<Dentry>();
     dentrys.push_back(Dentry());
-    EXPECT_CALL(*dentryManager_, ListDentry(oldInodeId, _, 1, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(oldInodeId, _, 1, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(dentrys), Return(CURVEFS_ERROR::OK)));
 
     auto rc = client_->FuseOpRename(req, parent, name.c_str(), newparent,
@@ -1877,7 +1877,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -1896,7 +1896,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
@@ -1974,7 +1974,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ret = client_->FuseOpGetXattr(
         req, ino, rname, static_cast<void*>(value), size);
@@ -1984,7 +1984,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
@@ -1997,7 +1997,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
@@ -2015,7 +2015,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
@@ -2033,7 +2033,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
@@ -2051,7 +2051,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
@@ -2110,7 +2110,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -2194,7 +2194,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ret = client_->FuseOpGetXattr(
         req, ino, rname, static_cast<void*>(value), size);
@@ -2204,7 +2204,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
@@ -2221,7 +2221,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
@@ -2241,7 +2241,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
@@ -2261,7 +2261,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
+    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(

@@ -42,10 +42,16 @@ class MockInodeCacheManager : public InodeCacheManager {
         uint64_t cacheSize, bool enableCacheMetrics));
 
     MOCK_METHOD2(GetInode, CURVEFS_ERROR(
-        uint64_t inodeid, std::shared_ptr<InodeWrapper> &out));     // NOLINT
+        uint64_t inodeId, std::shared_ptr<InodeWrapper> &out));     // NOLINT
+
+    MOCK_METHOD3(GetInodeAttr, CURVEFS_ERROR(
+        uint64_t inodeId, InodeAttr *out, uint64_t parentId));
 
     MOCK_METHOD2(BatchGetInodeAttr, CURVEFS_ERROR(
         std::set<uint64_t> *inodeIds, std::list<InodeAttr> *attrs));
+
+    MOCK_METHOD2(BatchGetInodeAttrAsync,
+        CURVEFS_ERROR(uint64_t parentId, std::set<uint64_t> *inodeIds));
 
     MOCK_METHOD2(BatchGetXAttr, CURVEFS_ERROR(
         std::set<uint64_t> *inodeIds, std::list<XAttr> *xattrs));
@@ -55,6 +61,9 @@ class MockInodeCacheManager : public InodeCacheManager {
 
     MOCK_METHOD1(DeleteInode, CURVEFS_ERROR(uint64_t inodeid));
 
+    MOCK_METHOD2(AddInodeAttrs, void(uint64_t parentId,
+        const RepeatedPtrField<InodeAttr>& inodeAttrs));
+
     MOCK_METHOD1(ClearInodeCache, void(uint64_t inodeid));
 
     MOCK_METHOD1(ShipToFlush, void(
@@ -63,6 +72,12 @@ class MockInodeCacheManager : public InodeCacheManager {
     MOCK_METHOD0(FlushAll, void());
 
     MOCK_METHOD0(FlushInodeOnce, void());
+
+    MOCK_METHOD1(ReleaseCache, void(uint64_t parentId));
+
+    MOCK_METHOD2(LockAsync, void(uint64_t parent, uint32_t rpcTimes));
+
+    MOCK_METHOD1(UnlockAsync, void(uint64_t parent));
 };
 
 }  // namespace client

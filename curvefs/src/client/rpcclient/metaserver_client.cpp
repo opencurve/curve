@@ -474,14 +474,13 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-bool GroupInodeIdByPartition(
+bool MetaServerClientImpl::GroupInodeIdByPartition(
     uint32_t fsId,
-    std::shared_ptr<MetaCache> metaCache,
     std::set<uint64_t> *inodeIds,
     std::unordered_map<uint32_t, std::list<uint64_t>> *inodeGroups) {
     for (const auto &it : *inodeIds) {
         uint32_t pId = 0;
-        if (metaCache->GetPartitionIdByInodeId(fsId, it, &pId)) {
+        if (metaCache_->GetPartitionIdByInodeId(fsId, it, &pId)) {
             auto iter = inodeGroups->find(pId);
             if (iter == inodeGroups->end()) {
                 inodeGroups->emplace(pId, std::list<uint64_t>({it}));
@@ -497,13 +496,92 @@ bool GroupInodeIdByPartition(
     return true;
 }
 
+class BatchGetInodeAttrRpcDone : public MetaServerClientRpcDoneBase {
+ public:
+    BatchGetInodeAttrRpcDone(TaskExecutorDone *done,
+        const std::shared_ptr<MetaServerClientMetric> &metaserverClientMetric):
+        MetaServerClientRpcDoneBase(done, metaserverClientMetric) {
+            batchDone_ = dynamic_cast<BatchGetInodeAttrTaskExecutorDone*>(done);
+        }
+    virtual ~BatchGetInodeAttrRpcDone() {}
+    void Run() override;
+    BatchGetInodeAttrResponse response;
+
+ protected:
+    BatchGetInodeAttrTaskExecutorDone* batchDone_;
+};
+
+void BatchGetInodeAttrRpcDone::Run() {
+    std::unique_ptr<BatchGetInodeAttrRpcDone> self_guard(this);
+    brpc::ClosureGuard done_guard(batchDone_);
+    auto taskCtx = batchDone_->GetTaskExcutor()->GetTaskCxt();
+    auto& cntl = taskCtx->cntl_;
+    auto metaCache = batchDone_->GetTaskExcutor()->GetMetaCache();
+    if (cntl.Failed()) {
+        metaserverClientMetric_->batchGetInodeAttr.eps.count << 1;
+        LOG(WARNING) << "batchGetInodeAttr Failed, errorcode = "
+                     << cntl.ErrorCode()
+                     << ", error content: " << cntl.ErrorText()
+                     << ", log id: " << cntl.log_id();
+         batchDone_->SetRetCode(-cntl.ErrorCode());
+        return;
+    }
+
+    MetaStatusCode ret = response.statuscode();
+    if (ret != MetaStatusCode::OK) {
+        LOG(WARNING) << "batchGetInodeAttr failed"
+                     << ", errcode = " << ret
+                     << ", errmsg = " << MetaStatusCode_Name(ret);
+    } else if (response.has_appliedindex()) {
+        metaCache->UpdateApplyIndex(taskCtx->target.groupID,
+                                    response.appliedindex());
+    } else {
+        LOG(WARNING) << "batchGetInodeAttr ok,"
+                     << " but applyIndex not set in response:"
+                     << response.DebugString();
+        batchDone_->SetRetCode(-1);
+        return;
+    }
+
+    VLOG(6) << "batchGetInodeAttr done, "
+            << "response: " << response.DebugString();
+    batchDone_->SetRetCode(ret);
+    batchDone_->SetInodeAttrs(response.attr());
+    return;
+}
+
+bool MetaServerClientImpl::SplitRequestInodes(
+    uint32_t fsId,
+    std::set<uint64_t> *inodeIds,
+    std::vector<std::list<uint64_t>> *inodeGroups) {
+    std::unordered_map<uint32_t, std::list<uint64_t>> groups;
+    bool ret = GroupInodeIdByPartition(fsId, inodeIds, &groups);
+    if (ret) {
+        for (const auto &it : groups) {
+            auto iter = it.second.begin();
+            while (iter != it.second.end()) {
+                std::list<uint64_t> tmp;
+                uint32_t batchLimit = opt_.batchInodeAttrLimit;
+                while (iter != it.second.end() && batchLimit > 0) {
+                    tmp.emplace_back(*iter);
+                    iter++;
+                    batchLimit--;
+                }
+                inodeGroups->emplace_back(std::move(tmp));
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
     std::set<uint64_t> *inodeIds,
     std::list<InodeAttr> *attr) {
-    uint32_t limit = opt_.batchLimit;
+    uint32_t limit = opt_.batchInodeAttrLimit;
     // group inodeid by partition
     std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
-    if (!GroupInodeIdByPartition(fsId, metaCache_, inodeIds, &inodeGroups)) {
+    if (!GroupInodeIdByPartition(fsId, inodeIds, &inodeGroups)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -578,13 +656,51 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
     return MetaStatusCode::OK;
 }
 
+MetaStatusCode MetaServerClientImpl::BatchGetInodeAttrAsync(uint32_t fsId,
+    const std::list<uint64_t> &inodeIds, MetaServerClientDone *done) {
+    if (inodeIds.empty()) {
+        return MetaStatusCode::OK;
+    }
+
+    auto task = AsyncRPCTask {
+        metaserverClientMetric_->batchGetInodeAttr.qps.count << 1;
+        LatencyUpdater updater(
+            &metaserverClientMetric_->batchGetInodeAttr.latency);
+        BatchGetInodeAttrRequest request;
+        BatchGetInodeAttrResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        request.set_appliedindex(
+            metaCache_->GetApplyIndex(CopysetGroupID(poolID,
+                                        copysetID)));
+       for (const auto& it : inodeIds) {
+            request.add_inodeid(it);
+        }
+        auto *rpcDone = new BatchGetInodeAttrRpcDone(taskExecutorDone,
+            metaserverClientMetric_);
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.BatchGetInodeAttr(cntl, &request, &rpcDone->response, rpcDone);
+        return MetaStatusCode::OK;
+    };
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::BatchGetInodeAttr, task, fsId, *inodeIds.begin());
+    auto excutor = std::make_shared<BatchGetInodeAttrExcutor>(opt_,
+        metaCache_, channelManager_, taskCtx);
+    TaskExecutorDone *taskDone = new BatchGetInodeAttrTaskExecutorDone(
+        excutor, done);
+    excutor->DoAsyncRPCTask(taskDone);
+    return MetaStatusCode::OK;
+}
+
 MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
     std::set<uint64_t> *inodeIds,
     std::list<XAttr> *xattr) {
-    uint32_t limit = opt_.batchLimit;
+    uint32_t limit = opt_.batchInodeAttrLimit;
     // group inodeid by partition
     std::unordered_map<uint32_t, std::list<uint64_t>> inodeGroups;
-    if (!GroupInodeIdByPartition(fsId, metaCache_, inodeIds, &inodeGroups)) {
+    if (!GroupInodeIdByPartition(fsId, inodeIds, &inodeGroups)) {
         return MetaStatusCode::NOT_FOUND;
     }
 
@@ -785,7 +901,6 @@ void MetaServerClientImpl::UpdateInodeAsync(
     InodeOpenStatusChange statusChange) {
     auto task = AsyncRPCTask {
         metaserverClientMetric_->updateInode.qps.count << 1;
-
         UpdateInodeRequest request;
         request.set_poolid(poolID);
         request.set_copysetid(copysetID);
@@ -1060,6 +1175,8 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
                                                  Inode *out) {
     auto task = RPCTask {
         metaserverClientMetric_->createInode.qps.count << 1;
+        LatencyUpdater updater(
+                    &metaserverClientMetric_->createInode.latency);
         CreateInodeResponse response;
         CreateInodeRequest request;
         request.set_poolid(poolID);
@@ -1079,8 +1196,6 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
         if (cntl->Failed()) {
             metaserverClientMetric_->createInode.eps.count << 1;
-            LatencyUpdater updater(
-                    &metaserverClientMetric_->createInode.latency);
             LOG(WARNING) << "CreateInode Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()

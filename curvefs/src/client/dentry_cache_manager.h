@@ -24,10 +24,13 @@
 #ifndef CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
 #define CURVEFS_SRC_CLIENT_DENTRY_CACHE_MANAGER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <list>
 #include <unordered_map>
+#include <map>
+#include <utility>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
@@ -44,6 +47,69 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+
+static const char* kDentryKeyDelimiter = ":";
+
+class IterDentryCache {
+ public:
+    IterDentryCache() {}
+    ~IterDentryCache() {}
+
+    bool Get(uint64_t parentId, const std::string &name, Dentry *out) {
+        curve::common::LockGuard lg(dIterCacheMutex_);
+        auto iter = dIterCache_.find(parentId);
+        if (iter != dIterCache_.end()) {
+            auto it = iter->second.find(GetDentryCacheKey(parentId, name));
+            if (it != iter->second.end()) {
+                *out = it->second;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void Set(uint64_t parentId, const std::list<Dentry> &dentryList) {
+        curve::common::LockGuard lg(dIterCacheMutex_);
+        VLOG(1) << "iter dentry cache set size = " << dentryList.size();
+        std::map<std::string, Dentry> dmap;
+        for (const auto &it : dentryList) {
+            dmap.emplace(GetDentryCacheKey(parentId, it.name()), it);
+        }
+        dIterCache_[parentId] = std::move(dmap);
+    }
+
+    void Release(uint64_t parentId) {
+        curve::common::LockGuard lg(dIterCacheMutex_);
+        auto size = dIterCache_.size();
+        auto iter = dIterCache_.find(parentId);
+        if (iter != dIterCache_.end()) {
+            dIterCache_.erase(iter);
+        }
+        VLOG(1) << "iter dentry cache release, before = "
+                << size << ", after = " << dIterCache_.size();
+    }
+
+    void ReleaseOne(uint64_t parentId, const std::string &name) {
+        curve::common::LockGuard lg(dIterCacheMutex_);
+        auto iter = dIterCache_.find(parentId);
+        if (iter != dIterCache_.end()) {
+            auto it = iter->second.find(GetDentryCacheKey(parentId, name));
+            if (it != iter->second.end()) {
+                iter->second.erase(it);
+            }
+        }
+    }
+
+ private:
+    std::string GetDentryCacheKey(uint64_t parentId, const std::string &name) {
+        return std::to_string(parentId) + kDentryKeyDelimiter + name;
+    }
+
+ private:
+    // <parentId, <dkey, dentry>>
+    std::map<uint64_t, std::map<std::string, Dentry>> dIterCache_;
+    curve::common::Mutex dIterCacheMutex_;
+};
 
 class DentryCacheManager {
  public:
@@ -70,24 +136,26 @@ class DentryCacheManager {
 
     virtual CURVEFS_ERROR ListDentry(uint64_t parent,
         std::list<Dentry> *dentryList, uint32_t limit,
-        bool onlyDir = false) = 0;
+        bool onlyDir = false, bool needCache = false) = 0;
+
+    virtual void ReleaseCache(uint64_t parentId) = 0;
 
  protected:
     uint32_t fsId_;
 };
 
-static const char* kDentryKeyDelimiter = ":";
-
 class DentryCacheManagerImpl : public DentryCacheManager {
  public:
     DentryCacheManagerImpl()
       : metaClient_(std::make_shared<MetaServerClientImpl>()),
-        dCache_(nullptr) {}
+        dCache_(nullptr),
+        dIterCache_(nullptr) {}
 
     explicit DentryCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
       : metaClient_(metaClient),
-        dCache_(nullptr) {}
+        dCache_(nullptr),
+        dIterCache_(nullptr) {}
 
     CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) override {
         if (enableCacheMetrics) {
@@ -98,6 +166,7 @@ class DentryCacheManagerImpl : public DentryCacheManager {
             dCache_ = std::make_shared<
                 LRUCache<std::string, Dentry>>(cacheSize);
         }
+        dIterCache_ =  std::make_shared<IterDentryCache>();
         return CURVEFS_ERROR::OK;
     }
 
@@ -115,17 +184,21 @@ class DentryCacheManagerImpl : public DentryCacheManager {
 
     CURVEFS_ERROR ListDentry(uint64_t parent,
         std::list<Dentry> *dentryList, uint32_t limit,
-        bool dirOnly = false) override;
+        bool dirOnly = false, bool needCache = false) override;
 
     std::string GetDentryCacheKey(uint64_t parent, const std::string &name) {
         return std::to_string(parent) + kDentryKeyDelimiter + name;
     }
+
+    void ReleaseCache(uint64_t parentId) override;
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
     // key is parentId + name
     std::shared_ptr<LRUCache<std::string, Dentry>> dCache_;
     curve::common::GenericNameLock<Mutex> nameLock_;
+
+    std::shared_ptr<IterDentryCache> dIterCache_;
 };
 
 }  // namespace client

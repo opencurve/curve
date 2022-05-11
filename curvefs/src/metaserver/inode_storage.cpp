@@ -111,6 +111,7 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     attr->set_mode(inode.mode());
     attr->set_nlink(inode.nlink());
     attr->set_type(inode.type());
+    *(attr->mutable_parent()) = inode.parent();
     if (inode.has_symlink()) {
         attr->set_symlink(inode.symlink());
     }
@@ -122,6 +123,9 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     }
     if (inode.has_openmpcount()) {
         attr->set_openmpcount(inode.openmpcount());
+    }
+    if (inode.xattr_size() > 0) {
+        *(attr->mutable_xattr()) = inode.xattr();
     }
     return MetaStatusCode::OK;
 }

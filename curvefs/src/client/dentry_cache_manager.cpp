@@ -57,6 +57,7 @@ void DentryCacheManagerImpl::DeleteCache(uint64_t parentId,
     std::string key = GetDentryCacheKey(parentId, name);
     NameLockGuard lock(nameLock_, key);
     dCache_->Remove(key);
+    dIterCache_->ReleaseOne(parentId, name);
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
@@ -66,9 +67,16 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
     NameLockGuard lock(nameLock_, key);
     bool ok = dCache_->Get(key, out);
     if (ok) {
+        VLOG(3) << "hit dCache_";
         return CURVEFS_ERROR::OK;
     }
 
+    if (dIterCache_->Get(parent, name, out)) {
+        VLOG(3) << "hit dIterCache_";
+        return CURVEFS_ERROR::OK;
+    }
+
+    VLOG(3) << "not hit get form metaserver";
     MetaStatusCode ret = metaClient_->GetDentry(fsId_, parent, name, out);
     if (ret != MetaStatusCode::OK) {
         LOG_IF(ERROR, ret != MetaStatusCode::NOT_FOUND)
@@ -108,6 +116,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
     std::string key = GetDentryCacheKey(parent, name);
     NameLockGuard lock(nameLock_, key);
     dCache_->Remove(key);
+    dIterCache_->ReleaseOne(parent, name);
 
     MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
@@ -122,7 +131,8 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
 CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                                                  std::list<Dentry> *dentryList,
                                                  uint32_t limit,
-                                                 bool onlyDir) {
+                                                 bool onlyDir,
+                                                 bool needCache) {
     bool perceed = true;
     MetaStatusCode ret = MetaStatusCode::OK;
     dentryList->clear();
@@ -155,7 +165,15 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
         }
     } while (perceed);
 
+    if (needCache) {
+        dIterCache_->Set(parent, *dentryList);
+    }
+
     return CURVEFS_ERROR::OK;
+}
+
+void DentryCacheManagerImpl::ReleaseCache(uint64_t parentId) {
+    dIterCache_->Release(parentId);
 }
 
 }  // namespace client

@@ -251,7 +251,10 @@ class FuseClient {
                              const char* name, bool idDir);
 
     void GetDentryParamFromInode(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper_,
+        const std::shared_ptr<InodeWrapper> &inodeWrapper,
+        fuse_entry_param *param);
+
+    void GetDentryParamFromInode(const InodeAttr &inodeAttr,
         fuse_entry_param *param);
 
     int AddHostPortToMountPointStr(const std::string& mountPointStr,

@@ -88,7 +88,8 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
                               &opts->minRetryTimesForceTimeoutBackoff);
     conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
-    conf->GetValueFatalIfFail("excutorOpt.batchLimit", &opts->batchLimit);
+    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
+                              &opts->batchInodeAttrLimit);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &opts->enableRenameParallel);
 }

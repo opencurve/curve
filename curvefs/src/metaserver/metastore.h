@@ -220,6 +220,8 @@ class MetaStoreImpl : public MetaStore {
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) override;
 
+    std::shared_ptr<Partition> GetPartitionUnLock(uint32_t partitionId);
+
  private:
     void PrepareStreamBuffer(butil::IOBuf* buffer,
                              uint64_t chunkIndex,

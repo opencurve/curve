@@ -142,6 +142,7 @@ struct ClientOpMetric {
     OpMetric opOpenDir;
     OpMetric opReleaseDir;
     OpMetric opReadDir;
+    OpMetric opReadDirPlus;
     OpMetric opRename;
     OpMetric opGetAttr;
     OpMetric opSetAttr;
@@ -170,6 +171,7 @@ struct ClientOpMetric {
           opOpenDir(prefix, "opOpenDir"),
           opReleaseDir(prefix, "opReleaseDir"),
           opReadDir(prefix, "opReadDir"),
+          opReadDirPlus(prefix, "opReadDirPlus"),
           opRename(prefix, "opRename"),
           opGetAttr(prefix, "opGetAttr"),
           opSetAttr(prefix, "opSetAttr"),

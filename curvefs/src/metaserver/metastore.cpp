@@ -60,7 +60,8 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
         if (it->second->GetStatus() == PartitionStatus::DELETING) {
             uint32_t partitionId = it->second->GetPartitionId();
             std::shared_ptr<PartitionCleaner> partitionCleaner =
-                std::make_shared<PartitionCleaner>(GetPartition(partitionId));
+                std::make_shared<PartitionCleaner>(
+                    GetPartitionUnLock(partitionId));
             PartitionCleanManager::GetInstance().Add(
                 partitionId, partitionCleaner, copysetNode_);
         }
@@ -154,7 +155,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
                   << ", partitionId = " << partitionId;
         it->second->ClearDentry();
         std::shared_ptr<PartitionCleaner> partitionCleaner =
-            std::make_shared<PartitionCleaner>(GetPartition(partitionId));
+            std::make_shared<PartitionCleaner>(GetPartitionUnLock(partitionId));
         PartitionCleanManager::GetInstance().Add(partitionId, partitionCleaner,
                                                  copysetNode_);
         it->second->SetStatus(PartitionStatus::DELETING);
@@ -189,7 +190,6 @@ std::shared_ptr<StreamServer> MetaStoreImpl::GetStreamServer() {
 // dentry
 MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
                                            CreateDentryResponse* response) {
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -207,7 +207,6 @@ MetaStatusCode MetaStoreImpl::GetDentry(const GetDentryRequest* request,
     uint64_t parentInodeId = request->parentinodeid();
     std::string name = request->name();
     auto txId = request->txid();
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -236,7 +235,6 @@ MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
     uint64_t parentInodeId = request->parentinodeid();
     std::string name = request->name();
     auto txId = request->txid();
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -261,7 +259,6 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
     uint32_t fsId = request->fsid();
     uint64_t parentInodeId = request->dirinodeid();
     auto txId = request->txid();
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -295,7 +292,6 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
 
 MetaStatusCode MetaStoreImpl::PrepareRenameTx(
     const PrepareRenameTxRequest* request, PrepareRenameTxResponse* response) {
-    ReadLockGuard readLockGuard(rwLock_);
     MetaStatusCode rc;
     auto partitionId = request->partitionid();
     auto partition = GetPartition(partitionId);
@@ -337,13 +333,13 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
         }
     }
 
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
         response->set_statuscode(status);
         return status;
     }
+
     MetaStatusCode status =
         partition->CreateInode(param, response->mutable_inode());
     response->set_statuscode(status);
@@ -365,7 +361,6 @@ MetaStatusCode MetaStoreImpl::CreateRootInode(
     param.rdev = 0;
     param.parent = 0;
 
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -389,7 +384,6 @@ MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
 
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -425,7 +419,6 @@ MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
 MetaStatusCode MetaStoreImpl::BatchGetInodeAttr(
     const BatchGetInodeAttrRequest* request,
     BatchGetInodeAttrResponse* response) {
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -451,7 +444,6 @@ MetaStatusCode MetaStoreImpl::BatchGetInodeAttr(
 MetaStatusCode MetaStoreImpl::BatchGetXAttr(
     const BatchGetXAttrRequest* request,
     BatchGetXAttrResponse* response) {
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -479,7 +471,6 @@ MetaStatusCode MetaStoreImpl::DeleteInode(const DeleteInodeRequest* request,
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
 
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -503,7 +494,6 @@ MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
         return MetaStatusCode::PARAM_ERROR;
     }
 
-    ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -521,7 +511,6 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
     GetOrModifyS3ChunkInfoResponse* response,
     std::shared_ptr<Iterator>* iterator) {
     MetaStatusCode rc;
-    ReadLockGuard readLockGuard(rwLock_);
     auto partition = GetPartition(request->partitionid());
     if (nullptr == partition) {
         rc = MetaStatusCode::PARTITION_NOT_FOUND;
@@ -589,6 +578,12 @@ MetaStatusCode MetaStoreImpl::SendS3ChunkInfoByStream(
 }
 
 std::shared_ptr<Partition> MetaStoreImpl::GetPartition(uint32_t partitionId) {
+    ReadLockGuard readLockGuard(rwLock_);
+    return GetPartitionUnLock(partitionId);
+}
+
+std::shared_ptr<Partition> MetaStoreImpl::GetPartitionUnLock(
+    uint32_t partitionId) {
     auto it = partitionMap_.find(partitionId);
     if (it != partitionMap_.end()) {
         return it->second;

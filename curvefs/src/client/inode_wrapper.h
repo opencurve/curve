@@ -220,15 +220,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         *(xattr->mutable_xattrinfos()) = inode_.xattr();
     }
 
-    bool GetXattrUnLocked(const char *name, std::string *value) {
-        auto it = inode_.xattr().find(name);
-        if (it != inode_.xattr().end()) {
-            *value = it->second;
-            return true;
-        }
-        return false;
-    }
-
     void UpdateInode(const Inode &inode) {
         inode_ = inode;
         dirty_ = true;
