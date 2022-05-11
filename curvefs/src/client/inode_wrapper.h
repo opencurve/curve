@@ -141,43 +141,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return &inode_;
     }
 
-    void GetInodeAttrLocked(struct stat *attr) {
-        curve::common::UniqueLock lg(mtx_);
-        GetInodeAttrUnLocked(attr);
-    }
-
-    void GetInodeAttrUnLocked(struct stat *attr) {
-        memset(attr, 0, sizeof(*attr));
-        attr->st_ino = inode_.inodeid();
-        attr->st_mode = inode_.mode();
-        attr->st_nlink = inode_.nlink();
-        attr->st_uid = inode_.uid();
-        attr->st_gid = inode_.gid();
-        attr->st_size = inode_.length();
-        attr->st_rdev = inode_.rdev();
-        attr->st_atim.tv_sec = inode_.atime();
-        attr->st_atim.tv_nsec = inode_.atime_ns();
-        attr->st_mtim.tv_sec = inode_.mtime();
-        attr->st_mtim.tv_nsec = inode_.mtime_ns();
-        attr->st_ctim.tv_sec = inode_.ctime();
-        attr->st_ctim.tv_nsec = inode_.ctime_ns();
-        attr->st_blksize = kOptimalIOBlockSize;
-
-        switch (inode_.type()) {
-            case metaserver::TYPE_S3:
-                attr->st_blocks = (inode_.length() + 511) / 512;
-                break;
-            default:
-                attr->st_blocks = 0;
-                break;
-        }
-
-        VLOG(6) << "GetInodeAttr attr =  " << *attr
-                << ", inodeid = " << inode_.inodeid();
-    }
-
-    void GetInodeAttrLocked(InodeAttr *attr) {
-        curve::common::UniqueLock lg(mtx_);
+    void GetInodeAttrUnlocked(InodeAttr *attr) {
         attr->set_inodeid(inode_.inodeid());
         attr->set_fsid(inode_.fsid());
         attr->set_length(inode_.length());
@@ -192,6 +156,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         attr->set_mode(inode_.mode());
         attr->set_nlink(inode_.nlink());
         attr->set_type(inode_.type());
+        *(attr->mutable_parent()) = inode_.parent();
         if (inode_.has_symlink()) {
             attr->set_symlink(inode_.symlink());
         }
@@ -204,6 +169,14 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         if (inode_.has_openmpcount()) {
             attr->set_openmpcount(inode_.openmpcount());
         }
+        if (inode_.xattr_size() > 0) {
+            *(attr->mutable_xattr()) = inode_.xattr();
+        }
+    }
+
+    void GetInodeAttrLocked(InodeAttr *attr) {
+        curve::common::UniqueLock lg(mtx_);
+        GetInodeAttrUnlocked(attr);
     }
 
     void GetXattrLocked(XAttr *xattr) {
@@ -211,15 +184,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         xattr->set_fsid(inode_.fsid());
         xattr->set_inodeid(inode_.inodeid());
         *(xattr->mutable_xattrinfos()) = inode_.xattr();
-    }
-
-    bool GetXattrUnLocked(const char *name, std::string *value) {
-        auto it = inode_.xattr().find(name);
-        if (it != inode_.xattr().end()) {
-            *value = it->second;
-            return true;
-        }
-        return false;
     }
 
     void UpdateInode(const Inode &inode) {

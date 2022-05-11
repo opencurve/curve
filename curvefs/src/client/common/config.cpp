@@ -98,7 +98,8 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
                               &opts->minRetryTimesForceTimeoutBackoff);
     conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
-    conf->GetValueFatalIfFail("excutorOpt.batchLimit", &opts->batchLimit);
+    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
+                              &opts->batchInodeAttrLimit);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &opts->enableRenameParallel);
 }
@@ -259,6 +260,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
+    conf->GetValueFatalIfFail("fuseClient.disableXattr",
+                              &clientOption->disableXattr);
 
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))

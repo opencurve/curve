@@ -74,13 +74,13 @@ class XattrManager {
         isStop_.store(true);
     }
 
-    CURVEFS_ERROR CalOneLayerSumInfo(Inode *inode);
+    CURVEFS_ERROR CalOneLayerSumInfo(InodeAttr *attr);
 
-    CURVEFS_ERROR CalAllLayerSumInfo(Inode *inode);
+    CURVEFS_ERROR CalAllLayerSumInfo(InodeAttr *attr);
 
-    CURVEFS_ERROR FastCalOneLayerSumInfo(Inode *inode);
+    CURVEFS_ERROR FastCalOneLayerSumInfo(InodeAttr *attr);
 
-    CURVEFS_ERROR FastCalAllLayerSumInfo(Inode *inode);
+    CURVEFS_ERROR FastCalAllLayerSumInfo(InodeAttr *attr);
 
     CURVEFS_ERROR UpdateParentInodeXattr(uint64_t parentId,
         const XAttr &xattr, bool direction);
@@ -111,7 +111,7 @@ class XattrManager {
     void ConcurrentGetInodeXattr(
         std::stack<uint64_t> *iStack,
         std::mutex *stackMutex,
-        Inode *inode,
+        InodeAttr *attr,
         std::mutex *inodeMutex,
         Atomic<uint32_t> *inflightNum,
         Atomic<bool> *ret);

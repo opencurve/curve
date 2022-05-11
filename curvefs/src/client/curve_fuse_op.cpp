@@ -315,13 +315,29 @@ void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
 }
 
 void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                   struct fuse_file_info *fi) {
+                       struct fuse_file_info *fi) {
     InflightGuard guard(&g_clientOpMetric->opReadDir.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opReadDir.latency);
     char *buffer = nullptr;
     size_t rSize = 0;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDir(req, ino, size, off, fi,
-                                                        &buffer, &rSize);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDirPlus(req, ino,
+        size, off, fi, &buffer, &rSize, false);
+    if (ret != CURVEFS_ERROR::OK) {
+        g_clientOpMetric->opReadDir.ecount << 1;
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+    fuse_reply_buf(req, buffer, rSize);
+}
+
+void FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                       struct fuse_file_info *fi) {
+    InflightGuard guard(&g_clientOpMetric->opReadDir.inflightOpNum);
+    LatencyUpdater updater(&g_clientOpMetric->opReadDir.latency);
+    char *buffer = nullptr;
+    size_t rSize = 0;
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDirPlus(req, ino,
+        size, off, fi, &buffer, &rSize, true);
     if (ret != CURVEFS_ERROR::OK) {
         g_clientOpMetric->opReadDir.ecount << 1;
         FuseReplyErrByErrCode(req, ret);
