@@ -58,6 +58,8 @@ S3ClientAdaptorImpl::Init(
     throttleBaseSleepUs_ = option.baseSleepUs;
     flushIntervalSec_ = option.flushIntervalSec;
     chunkFlushThreads_ = option.chunkFlushThreads;
+    maxReadRetryIntervalMs_ = option.maxReadRetryIntervalMs;
+    readRetryIntervalMs_ = option.readRetryIntervalMs;
     client_ = client;
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;

@@ -197,6 +197,14 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
        diskCacheType_ = type;
     }
 
+    uint32_t GetMaxReadRetryIntervalMs() const {
+        return maxReadRetryIntervalMs_;
+    }
+
+    uint32_t GetReadRetryIntervalMs() const {
+        return readRetryIntervalMs_;
+    }
+
  private:
     void BackGroundFlush();
 
@@ -234,6 +242,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t chunkFlushThreads_;
     uint32_t memCacheNearfullRatio_;
     uint32_t throttleBaseSleepUs_;
+    uint32_t maxReadRetryIntervalMs_;
+    uint32_t readRetryIntervalMs_;
     Thread bgFlushThread_;
     std::atomic<bool> toStop_;
     std::mutex mtx_;

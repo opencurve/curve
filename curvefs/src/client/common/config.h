@@ -129,6 +129,8 @@ struct S3ClientAdaptorOption {
     uint64_t readCacheMaxByte;
     uint32_t nearfullRatio;
     uint32_t baseSleepUs;
+    uint32_t maxReadRetryIntervalMs;
+    uint32_t readRetryIntervalMs;
     DiskCacheOption diskCacheOpt;
 };
 
