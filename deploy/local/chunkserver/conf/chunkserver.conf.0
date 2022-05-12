@@ -47,6 +47,8 @@ chunkserver.meta_uri=local://./0/chunkserver.dat
 chunkserver.disk_type=nvme
 chunkserver.snapshot_throttle_throughput_bytes=41943040
 chunkserver.snapshot_throttle_check_cycles=4
+# 限制inflight io数量，一般是5000
+chunkserver.max_inflight_requests=5000
 
 #
 # Testing purpose settings
@@ -70,7 +72,6 @@ copyset.raft_log_uri=local://./0/copysets
 copyset.raft_meta_uri=local://./0/copysets
 copyset.raft_snapshot_uri=local://./0/copysets
 copyset.recycler_uri=local://./0/recycler
-copyset.max_inflight_requests=5000
 copyset.load_concurrency=5
 copyset.check_retrytimes=3
 copyset.finishload_margin=2000
