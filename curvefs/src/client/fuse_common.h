@@ -34,11 +34,11 @@ extern "C" {
 #endif
 
 struct MountOption {
-    const char* mountPoint;
-    const char* fsName;
-    const char* fsType;
-    const char* conf;
-    const char* mdsAddr;
+    char* mountPoint;
+    char* fsName;
+    char* fsType;
+    char* conf;
+    char* mdsAddr;
 };
 
 static const struct fuse_opt mount_opts[] = {
@@ -50,9 +50,6 @@ static const struct fuse_opt mount_opts[] = {
 
     { "conf=%s",
       offsetof(struct MountOption, conf), 0},
-
-    { "mdsaddr=%s",
-      offsetof(struct MountOption, mdsAddr), 0},
 
     FUSE_OPT_END
 };
