@@ -21,37 +21,65 @@
  * Author: xuchaojie
  */
 
+#include <unordered_map>
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_common.h"
 
 static const struct fuse_lowlevel_ops curve_ll_oper = {
-    .init       = FuseOpInit,
-    .destroy    = FuseOpDestroy,
-    .lookup     = FuseOpLookup,
-    .rename     = FuseOpRename,
-    .write      = FuseOpWrite,
-    .read       = FuseOpRead,
-    .open       = FuseOpOpen,
-    .create     = FuseOpCreate,
-    .mknod      = FuseOpMkNod,
-    .mkdir      = FuseOpMkDir,
-    .unlink     = FuseOpUnlink,
-    .rmdir      = FuseOpRmDir,
-    .opendir    = FuseOpOpenDir,
-    .readdir    = FuseOpReadDir,
-    .getattr    = FuseOpGetAttr,
-    .setattr    = FuseOpSetAttr,
-    .getxattr   = FuseOpGetXattr,
-    .listxattr  = FuseOpListXattr,
-    .symlink    = FuseOpSymlink,
-    .link       = FuseOpLink,
-    .readlink   = FuseOpReadLink,
-    .release    = FuseOpRelease,
-    .fsync      = FuseOpFsync,
-    .releasedir = FuseOpReleaseDir,
-    .flush      = FuseOpFlush,
-    .bmap       = FuseOpBmap,
-    .statfs     = FuseOpStatFs,
+    init : FuseOpInit,
+    destroy : FuseOpDestroy,
+    lookup : FuseOpLookup,
+    forget : 0,
+    getattr : FuseOpGetAttr,
+    setattr : FuseOpSetAttr,
+    readlink : FuseOpReadLink,
+    mknod : FuseOpMkNod,
+    mkdir : FuseOpMkDir,
+    unlink : FuseOpUnlink,
+    rmdir : FuseOpRmDir,
+    symlink : FuseOpSymlink,
+    rename : FuseOpRename,
+    link : FuseOpLink,
+    open : FuseOpOpen,
+    read : FuseOpRead,
+    write : FuseOpWrite,
+    flush : FuseOpFlush,
+    release : FuseOpRelease,
+    fsync : FuseOpFsync,
+    opendir : FuseOpOpenDir,
+    readdir : FuseOpReadDir,
+    releasedir : FuseOpReleaseDir,
+    fsyncdir : 0,
+    statfs : FuseOpStatFs,
+    setxattr : 0,
+    getxattr : FuseOpGetXattr,
+    listxattr : FuseOpListXattr,
+    removexattr : 0,
+    access : 0,
+    create : FuseOpCreate,
+    getlk : 0,
+    setlk : 0,
+    bmap : FuseOpBmap,
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(2, 8)
+    ioctl : 0,
+    poll : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(2, 9)
+    write_buf : 0,
+    retrieve_reply : 0,
+    forget_multi : 0,
+    flock : 0,
+    fallocate : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdirplus : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 4)
+    copy_file_range : 0,
+    #endif
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 8)
+    lseek : 0
+    #endif
 };
 
 void print_option_help(const char* o, const char* msg) {
@@ -64,15 +92,67 @@ void extra_options_help() {
     print_option_help(
         "fstype", "[required] type of filesystem to be mounted (s3/volume)");
     print_option_help("conf", "[required] path of config file");
-    print_option_help("mdsAddr", "mdsAddr of curvefs cluster");
+    printf("    --mdsAddr              mdsAddr of curvefs cluster\n");
+}
+
+std::string match_any_pattern(
+    const std::unordered_map<std::string, char**>& patterns, const char* src) {
+    int src_len = strlen(src);
+    for (const auto& pair : patterns) {
+        const auto& pattern = pair.first;
+        if (pattern.length() < src_len &&
+            strncmp(pattern.c_str(), src, pattern.length()) == 0) {
+            return pattern;
+        }
+    }
+    return {};
+}
+
+void parse_option(int argc, char** argv, int* parsed_argc_p, char** parsed_argv,
+                  struct MountOption* opts) {
+    // add support for parsing option value with comma(,)
+    std::unordered_map<std::string, char**> patterns = {
+        {"--mdsaddr=", &opts->mdsAddr}};
+    for (int i = 0, j = 0; j < argc; j++) {
+        std::string p = match_any_pattern(patterns, argv[j]);
+        int p_len = p.length();
+        int src_len = strlen(argv[j]);
+        if (p_len) {
+            if (*patterns[p]) {
+                free(*patterns[p]);
+            }
+            *patterns[p] = reinterpret_cast<char*>(
+                malloc(sizeof(char) * (src_len - p_len + 1)));
+            memcpy(*patterns[p], argv[j] + p_len, src_len - p_len);
+            (*patterns[p])[src_len - p_len] = '\0';
+            *parsed_argc_p = *parsed_argc_p - 1;
+        } else {
+            parsed_argv[i] =
+                reinterpret_cast<char*>(malloc(sizeof(char) * (src_len + 1)));
+            memcpy(parsed_argv[i], argv[j], src_len);
+            parsed_argv[i][src_len] = '\0';
+            i++;
+        }
+    }
+}
+
+void free_parsed_argv(char** parsed_argv, int alloc_size) {
+    for (int i = 0; i < alloc_size; i++) {
+        free(parsed_argv[i]);
+    }
+    free(parsed_argv);
 }
 
 int main(int argc, char *argv[]) {
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+    struct MountOption mOpts = {0};
+    int parsed_argc = argc;
+    char** parsed_argv = reinterpret_cast<char**>(malloc(sizeof(char*) * argc));
+    parse_option(argc, argv, &parsed_argc, parsed_argv, &mOpts);
+
+    struct fuse_args args = FUSE_ARGS_INIT(parsed_argc, parsed_argv);
     struct fuse_session *se;
     struct fuse_cmdline_opts opts;
     struct fuse_loop_config config;
-    struct MountOption mOpts = {0};
     int ret = -1;
 
     if (fuse_parse_cmdline(&args, &opts) != 0)
@@ -80,7 +160,8 @@ int main(int argc, char *argv[]) {
     if (opts.show_help) {
         printf(
             "usage: %s -o conf=/etc/curvefs/client.conf -o fsname=testfs \\\n"
-            "       -o fstype=s3 [-o mdsaddr=1.1.1.1] [OPTIONS] <mountpoint>\n",
+            "       -o fstype=s3 [--mdsaddr=1.1.1.1:1234,2.2.2.2:1234] \\\n"
+            "       [OPTIONS] <mountpoint>\n",
             argv[0]);
         printf("Fuse Options:\n");
         fuse_cmdline_help();
@@ -160,6 +241,7 @@ err_out2:
 err_out1:
     UnInitFuseClient();
     free(opts.mountpoint);
+    free_parsed_argv(parsed_argv, argc);
     fuse_opt_free_args(&args);
 
     return ret ? 1 : 0;
