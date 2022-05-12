@@ -53,6 +53,7 @@ chunkserver.snapshot_throttle_throughput_bytes={{ chunkserver_snapshot_throttle_
 # 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
 # 不是20MB的带宽
 chunkserver.snapshot_throttle_check_cycles={{ chunkserver_snapshot_throttle_check_cycles }}
+chunkserver.max_inflight_requests={{ chunkserver_max_inflight_requests }}
 
 #
 # Testing purpose settings
@@ -90,7 +91,6 @@ copyset.raft_meta_uri={{ chunkserver_copyset_raft_meta_uri }}
 copyset.raft_snapshot_uri={{ chunkserver_copyset_raft_snapshot_uri }}
 # copyset回收目录
 copyset.recycler_uri={{ chunkserver_copyset_recycler_uri }}
-copyset.max_inflight_requests={{ chunkserver_copyset_max_inflight_requests }}
 # chunkserver启动时，copyset并发加载的阈值,为0则表示不做限制
 copyset.load_concurrency={{ chunkserver_copyset_load_concurrency }}
 # 检查copyset是否加载完成出现异常时的最大重试次数

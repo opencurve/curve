@@ -309,7 +309,7 @@ int ChunkServer::Run(int argc, char** argv) {
     // inflight throttle
     int maxInflight;
     LOG_IF(FATAL,
-           !conf.GetIntValue("copyset.max_inflight_requests",
+           !conf.GetIntValue("chunkserver.max_inflight_requests",
                              &maxInflight));
     std::shared_ptr<InflightThrottle> inflightThrottle
         = std::make_shared<InflightThrottle>(maxInflight);

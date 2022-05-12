@@ -105,6 +105,7 @@ chunkserver_heartbeat_timeout: 5000
 chunkserver_stor_uri: local://./0/
 chunkserver_meta_uri: local://./0/chunkserver.dat
 chunkserver_disk_type: nvme
+chunkserver_max_inflight_requests: 5000
 chunkserver_snapshot_throttle_throughput_bytes: 20971520
 chunkserver_snapshot_throttle_check_cycles: 4
 chunkserver_test_create_testcopyset: false
@@ -122,7 +123,6 @@ chunkserver_copyset_raft_log_uri: curve://./0/copysets
 chunkserver_copyset_raft_meta_uri: local://./0/copysets
 chunkserver_copyset_raft_snapshot_uri: curve://./0/copysets
 chunkserver_copyset_recycler_uri: local://./0/recycler
-chunkserver_copyset_max_inflight_requests: 5000
 chunkserver_copyset_load_concurrency: 10
 chunkserver_copyset_check_retrytimes: 3
 chunkserver_copyset_finishload_margin: 2000
