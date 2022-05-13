@@ -13,25 +13,23 @@
 方法一：从docker hub镜像库中拉取docker镜像（推荐方式）
 
 ```bash
-docker pull opencurve/curvebuild:centos8
+docker pull opencurvedocker/curve-base:build-debian9
 ```
 
 方法二：手动构建docker镜像
 
-使用工程目录下的Dockerfile进行构建，命令如下：
+使用工程目录下的 docker/debian9/compile/Dockerfile 进行构建，命令如下：
 
 ```bash
-docker build -t opencurve/curvebuild:centos8 .
+docker build -t opencurvedocker/curve-base:build-debian9 .
 ```
 
 注意：上述操作不建议在CURVE工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
 
-
-
 ### 在docker镜像中编译
 
 ```bash
-docker run -it opencurve/curvebuild:centos8 /bin/bash
+docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
 cd <workspace>
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 # （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
@@ -46,25 +44,14 @@ CURVE编译依赖的包括：
 
 | 依赖 | 版本 |
 |:-- |:-- |
-| bazel | 0.17.2 |
+| bazel | 4.2.2 |
 | gcc   | 支持c++11的兼容版本 |
 
 CURVE的其他依赖项，均由bazel去管理，不可单独安装。
 
 ### 安装依赖
 
-#### Ubuntu/LinuxMint/WSL
-
-```
-sudo apt-get install -y bazel git g++ make
-```
-
-
-#### Fedora/CentOS
-
-```
-sudo yum install bazel git gcc-c++ make
-```
+编译相关的软件依赖可以参考 [dockerfile](../../docker/debian9/compile/Dockerfile) 中的安装步骤。
 
 ### 一键编译和打包
 

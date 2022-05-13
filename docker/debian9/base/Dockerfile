@@ -24,7 +24,11 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
         lsof \
         nginx \
         less \
-        more
+        zlib1g-dev \
+        libsnappy-dev \
+        liblz4-dev \
+    && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
+    && tar -xzvf curve-base.tar.gz
 
 COPY fusermount3 /usr/local/bin
 COPY libetcdclient.so /usr/lib/
