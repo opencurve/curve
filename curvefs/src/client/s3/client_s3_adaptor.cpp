@@ -302,7 +302,9 @@ int S3ClientAdaptorImpl::Stop() {
     waitInterval_.StopWait();
     toStop_.store(true, std::memory_order_release);
     FsSyncSignal();
-    bgFlushThread_.join();
+    if (bgFlushThread_.joinable()) {
+        bgFlushThread_.join();
+    }
     if (HasDiskCache()) {
         for (auto &q : downloadTaskQueues_) {
             bthread::execution_queue_stop(q);
