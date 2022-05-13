@@ -124,8 +124,8 @@ struct ChunkOptions {
 
 class CSChunkFile {
  public:
-    CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
-                std::shared_ptr<FilePool> chunkFilePool,
+    CSChunkFile(std::shared_ptr<LocalFileSystem>& lfs,
+                std::shared_ptr<FilePool>& chunkFilePool,
                 const ChunkOptions& options);
     virtual ~CSChunkFile();
 
@@ -302,28 +302,28 @@ class CSChunkFile {
      */
     CSErrorCode flush();
 
-    inline string path() {
+    string path() {
         return baseDir_ + "/" +
                     FileNameOperator::GenerateChunkFileName(chunkId_);
     }
 
-    inline uint32_t fileSize() {
+    uint32_t fileSize() {
         return pageSize_ + size_;
     }
 
-    inline int readMetaPage(char* buf) {
+    int readMetaPage(char* buf) {
         return lfs_->Read(fd_, buf, 0, pageSize_);
     }
 
-    inline int writeMetaPage(const char* buf) {
+    int writeMetaPage(const char* buf) {
         return lfs_->Write(fd_, buf, 0, pageSize_);
     }
 
-    inline int readData(char* buf, off_t offset, size_t length) {
+    int readData(char* buf, off_t offset, size_t length) {
         return lfs_->Read(fd_, buf, offset + pageSize_, length);
     }
 
-    inline int writeData(const char* buf, off_t offset, size_t length) {
+    int writeData(const char* buf, off_t offset, size_t length) {
         int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
         if (rc < 0) {
             return rc;
@@ -343,7 +343,7 @@ class CSChunkFile {
         return rc;
     }
 
-    inline int writeData(const butil::IOBuf& buf, off_t offset, size_t length) {
+    int writeData(const butil::IOBuf& buf, off_t offset, size_t length) {
         int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
         if (rc < 0) {
             return rc;
@@ -363,11 +363,11 @@ class CSChunkFile {
         return rc;
     }
 
-    inline int SyncData() {
+    int SyncData() {
         return lfs_->Sync(fd_);
     }
 
-    inline bool CheckOffsetAndLength(off_t offset, size_t len, size_t align) {
+    bool CheckOffsetAndLength(off_t offset, size_t len, size_t align) {
         // Check if offset+len is out of bounds
         if (offset + len > size_) {
             return false;

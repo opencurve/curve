@@ -142,8 +142,8 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     return CSErrorCode::Success;
 }
 
-CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
-                         std::shared_ptr<FilePool> chunkFilePool,
+CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem>& lfs,
+                         std::shared_ptr<FilePool>& chunkFilePool,
                          const ChunkOptions& options)
     : fd_(-1),
       size_(options.chunkSize),
