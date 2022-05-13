@@ -103,7 +103,7 @@ const char kHelpStr[] =
     "list-fs:           list all fs in cluster\n"
     "list-copysetInfo:  list all copysetInfo in cluster\n"
     "list-topology:     list cluster's topology\n"
-    "list-partition:     list partition by fsId\n"
+    "list-partition:    list partition by fsId\n"
     "create-topology:   create cluster topology based on topo.json\n"
     "create-fs:         create fs\n"
     "umount-fs:         umount curvefs from local and cluster\n"

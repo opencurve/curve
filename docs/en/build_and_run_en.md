@@ -13,7 +13,7 @@
 Method 1: Pull the docker image from the docker hub image library (recommended)
 
 ```bash
-$ docker pull opencurve/curvebuild:centos8
+docker pull opencurvedocker/curve-base:build-debian9
 ```
 
 Method 2: Build docker image manually
@@ -21,16 +21,15 @@ Method 2: Build docker image manually
 Use the Dockerfile in the project directory to build. The command is as follows:
 
 ```bash
-$ docker build -t opencurve/curvebuild:centos8.
+docker build -t opencurvedocker/curve-base:build-debian9.
 ```
 
 Note: The above operations are not recommended to be performed in the CURVE project directory, otherwise the files in the current directory will be copied to the docker image when building the image. It is recommended to copy the Dockerfile to the newly created clean directory to build the docker image.
 
-
 ### Compile in docker image
 
 ```bash
-$ docker run -it opencurve/curvebuild:centos8 /bin/bash
+docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
 $ cd <workspace>
 $ git clone https://github.com/opencurve/curve.git
 $ bash mk-tar.sh
@@ -51,18 +50,7 @@ Other dependencies of CURVE are managed by bazel and do not need to be installed
 
 ### Installation dependency
 
-#### Ubuntu/LinuxMint/WSL
-
-```
-$ sudo apt-get install -y bazel git g++ make
-```
-
-
-#### Fedora/CentOS
-
-```
-$ sudo yum install bazel git gcc-c++ make
-```
+For dependencies, you can refer to the installation steps in [dockerfile](../../docker/debian9/compile/Dockerfile).
 
 ### One-click compilation and packaging
 

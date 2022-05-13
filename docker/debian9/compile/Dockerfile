@@ -15,6 +15,12 @@ RUN apt-get clean \
         libfiu-dev \
         openjdk-8-jdk \
         sudo \
+        python-dev \
+        python-setuptools \
+        python-wheel \
+        python3-dev \
+        python3-setuptools \
+        python3-wheel \
     && wget https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 \
     && mv bazelisk-linux-amd64 /usr/bin/bazelisk \
     && ln -s /usr/bin/bazelisk /usr/bin/bazel \
