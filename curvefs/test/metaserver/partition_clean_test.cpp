@@ -80,7 +80,7 @@ class PartitionCleanManagerTest : public testing::Test {
     std::shared_ptr<KVStorage> kvStorage_;
 };
 
-TEST_F(PartitionCleanManagerTest, test1) {
+TEST_F(PartitionCleanManagerTest, DISABLED_test1) {
     ASSERT_TRUE(true);
     PartitionCleanManager* manager = &PartitionCleanManager::GetInstance();
 
