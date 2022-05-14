@@ -76,33 +76,6 @@ struct FilePoolOptions {
         ::memset(metaPath, 0, 256);
         ::memset(filePoolDir, 0, 256);
     }
-
-    FilePoolOptions& operator=(const FilePoolOptions& other) {
-        getFileFromPool = other.getFileFromPool;
-        needClean = other.needClean;
-        bytesPerWrite = other.bytesPerWrite;
-        iops4clean = other.iops4clean;
-        metaFileSize = other.metaFileSize;
-        fileSize = other.fileSize;
-        retryTimes = other.retryTimes;
-        metaPageSize = other.metaPageSize;
-        ::memcpy(metaPath, other.metaPath, 256);
-        ::memcpy(filePoolDir, other.filePoolDir, 256);
-        return *this;
-    }
-
-    FilePoolOptions(const FilePoolOptions& other) {
-        getFileFromPool = other.getFileFromPool;
-        needClean = other.needClean;
-        bytesPerWrite = other.bytesPerWrite;
-        iops4clean = other.iops4clean;
-        metaFileSize = other.metaFileSize;
-        fileSize = other.fileSize;
-        retryTimes = other.retryTimes;
-        metaPageSize = other.metaPageSize;
-        ::memcpy(metaPath, other.metaPath, 256);
-        ::memcpy(filePoolDir, other.filePoolDir, 256);
-    }
 };
 
 typedef struct FilePoolState {
