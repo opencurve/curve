@@ -113,9 +113,11 @@ class FSManagerTest : public ::testing::Test {
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
-        fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
+        fsManager_ = std::make_shared<FsManager>(fsStorage_,
+                                                 spaceClient_,
                                                  metaserverClient_,
                                                  topoManager_, s3Adapter_,
+                                                 nullptr,
                                                  fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
 

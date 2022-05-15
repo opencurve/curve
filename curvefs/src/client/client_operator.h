@@ -39,6 +39,7 @@ using rpcclient::MdsClient;
 class RenameOperator {
  public:
     RenameOperator(uint32_t fsId,
+                   const std::string& fsName,
                    uint64_t parentId,
                    std::string name,
                    uint64_t newParentId,
@@ -46,7 +47,8 @@ class RenameOperator {
                    std::shared_ptr<DentryCacheManager> dentryManager,
                    std::shared_ptr<InodeCacheManager> inodeManager,
                    std::shared_ptr<MetaServerClient> metaClient,
-                   std::shared_ptr<MdsClient> mdsClient);
+                   std::shared_ptr<MdsClient> mdsClient,
+                   bool enableParallel);
 
     CURVEFS_ERROR GetTxId();
     CURVEFS_ERROR Precheck();
@@ -61,6 +63,8 @@ class RenameOperator {
     std::string DebugString();
 
     CURVEFS_ERROR CheckOverwrite();
+
+    CURVEFS_ERROR GetLatestTxIdWithLock();
 
     CURVEFS_ERROR GetTxId(uint32_t fsId,
                           uint64_t inodeId,
@@ -77,6 +81,7 @@ class RenameOperator {
 
  private:
     uint32_t fsId_;
+    std::string fsName_;
     uint64_t parentId_;
     std::string name_;
     uint64_t newParentId_;
@@ -96,6 +101,11 @@ class RenameOperator {
     std::shared_ptr<InodeCacheManager> inodeManager_;
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<MdsClient> mdsClient_;
+
+    // whether support execute rename with parallel
+    bool enableParallel_;
+    std::string uuid_;
+    uint64_t sequence_;
 };
 
 }  // namespace client

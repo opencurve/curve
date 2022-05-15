@@ -106,13 +106,16 @@ class MdsServiceTest : public ::testing::Test {
         topoManager_ = std::make_shared<MockTopologyManager>(
                             std::make_shared<TopologyImpl>(idGenerator_,
                             tokenGenerator_, topoStorage_), metaserverClient_);
+
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
-        fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceClient_,
-                                            metaserverClient_, topoManager_,
-                                            s3Adapter_, fsManagerOption);
+
+        fsManager_ = std::make_shared<FsManager>(
+            fsStorage_, spaceClient_, metaserverClient_, topoManager_,
+            s3Adapter_, nullptr, fsManagerOption);
+
         ASSERT_TRUE(fsManager_->Init());
         return;
     }

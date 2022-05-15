@@ -87,6 +87,16 @@ class MdsServiceImpl : public MdsService {
                         ::curvefs::mds::RefreshSessionResponse *response,
                         ::google::protobuf::Closure *done);
 
+    void GetLatestTxId(::google::protobuf::RpcController* controller,
+                       const GetLatestTxIdRequest* request,
+                       GetLatestTxIdResponse* response,
+                       ::google::protobuf::Closure* done);
+
+    void CommitTx(::google::protobuf::RpcController* controller,
+                  const CommitTxRequest* request,
+                  CommitTxResponse* response,
+                  ::google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<FsManager> fsManager_;
     std::shared_ptr<ChunkIdAllocator> chunkIdAllocator_;

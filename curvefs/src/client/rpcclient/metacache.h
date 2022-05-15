@@ -147,6 +147,8 @@ class MetaCache {
     virtual bool GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
                                          PartitionID *pid);
 
+    bool RefreshTxId();
+
  private:
     void GetTxId(uint32_t partitionId, uint64_t *txId);
 

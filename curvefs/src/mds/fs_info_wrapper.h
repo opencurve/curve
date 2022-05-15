@@ -120,6 +120,22 @@ class FsInfoWrapper {
         return fsInfo_.enablesumindir();
     }
 
+    uint64_t IncreaseFsTxSequence(const std::string& owner) {
+        if (!fsInfo_.has_txowner() || fsInfo_.txowner() != owner) {
+            uint64_t txSequence = 0;
+            if (fsInfo_.has_txsequence()) {
+                txSequence = fsInfo_.txsequence();
+            }
+            fsInfo_.set_txsequence(txSequence + 1);
+            fsInfo_.set_txowner(owner);
+        }
+        return fsInfo_.txsequence();
+    }
+
+    uint64_t GetFsTxSequence() {
+        return fsInfo_.has_txsequence() ? fsInfo_.txsequence() : 0;
+    }
+
  private:
     FsInfo fsInfo_;
 };

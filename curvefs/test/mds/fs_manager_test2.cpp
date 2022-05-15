@@ -118,9 +118,10 @@ class FsManagerTest2 : public testing::Test {
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
-        fsManager_ = std::make_shared<FsManager>(storage_, spaceClient_,
-                                            metaServerClient_, topoManager_,
-                                            s3Adapter_, fsManagerOption);
+
+        fsManager_ = std::make_shared<FsManager>(
+            storage_, spaceClient_, metaServerClient_, topoManager_,
+            s3Adapter_, nullptr, fsManagerOption);
 
         spaceService_ = std::make_shared<MockSpaceService>();
         metaserverService_ = std::make_shared<MockMetaserverService>();

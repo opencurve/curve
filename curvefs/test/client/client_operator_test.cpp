@@ -41,6 +41,7 @@ class ClientOperatorTest : public ::testing::Test {
  protected:
     ClientOperatorTest() {
         fsId_ = 1;
+        fsname_ = "/test";
         parentId_ = 10;
         name_ = "A";
         newParentId_ = 20;
@@ -49,12 +50,14 @@ class ClientOperatorTest : public ::testing::Test {
         inodeManager_ = std::make_shared<MockInodeCacheManager>();
         metaClient_ = std::make_shared<MockMetaServerClient>();
         mdsClient_ = std::make_shared<MockMdsClient>();
-        renameOp_ = std::make_shared<RenameOperator>(fsId_, parentId_, name_,
+        renameOp_ = std::make_shared<RenameOperator>(fsId_, fsname_,
+                                                     parentId_, name_,
                                                      newParentId_, newname_,
                                                      dentryManager_,
                                                      inodeManager_,
                                                      metaClient_,
-                                                     mdsClient_);
+                                                     mdsClient_,
+                                                     false);
     }
 
     ~ClientOperatorTest() {}
@@ -65,6 +68,7 @@ class ClientOperatorTest : public ::testing::Test {
 
  protected:
     uint32_t fsId_;
+    std::string fsname_;
     uint64_t parentId_;
     std::string name_;
     uint64_t newParentId_;
@@ -173,14 +177,14 @@ TEST_F(ClientOperatorTest, PrepareTx) {
 TEST_F(ClientOperatorTest, CommitTx) {
     // CASE 1: CommitTx fail
     EXPECT_CALL(*mdsClient_, CommitTx(_))
-        .WillOnce(Return(TopoStatusCode::TOPO_INTERNAL_ERROR));
+        .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
 
     auto rc = renameOp_->CommitTx();
     ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
 
     // CASE 2: CommitTx success
     EXPECT_CALL(*mdsClient_, CommitTx(_))
-        .WillOnce(Return(TopoStatusCode::TOPO_OK));
+        .WillOnce(Return(FSStatusCode::OK));
 
     rc = renameOp_->CommitTx();
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);

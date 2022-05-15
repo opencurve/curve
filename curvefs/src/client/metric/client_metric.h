@@ -43,6 +43,7 @@ struct MDSClientMetric {
     InterfaceMetric getFsInfo;
     InterfaceMetric allocateS3Chunk;
 
+    InterfaceMetric getLatestTxId;
     InterfaceMetric commitTx;
 
     InterfaceMetric getMetaserverInfo;
@@ -54,6 +55,7 @@ struct MDSClientMetric {
           mountFs(prefix, "mountFs"), umountFs(prefix, "unmountFs"),
           getFsInfo(prefix, "getFsInfo"),
           allocateS3Chunk(prefix, "allocateS3Chunk"),
+          getLatestTxId(prefix, "getLatestTxId"),
           commitTx(prefix, "commitTx"),
           getMetaserverInfo(prefix, "getMetaserverInfo") {}
 };

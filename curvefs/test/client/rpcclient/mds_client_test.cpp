@@ -323,42 +323,196 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
 }
 
 TEST_F(MdsClientImplTest, CommitTx) {
-    curvefs::mds::topology::CommitTxResponse response;
+    curvefs::mds::CommitTxResponse response;
 
     // CASE 1: CommitTx success
-    response.set_statuscode(TopoStatusCode::TOPO_OK);
+    response.set_statuscode(FSStatusCode::OK);
     EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
         .WillOnce(SetArgPointee<1>(response));
 
     auto txIds = std::vector<PartitionTxId>();
     auto rc = mdsclient_.CommitTx(txIds);
-    ASSERT_EQ(rc, TopoStatusCode::TOPO_OK);
+    ASSERT_EQ(rc, FSStatusCode::OK);
 
     // CASE 2: CommitTx fail
-    response.set_statuscode(TopoStatusCode::TOPO_INTERNAL_ERROR);
+    response.set_statuscode(FSStatusCode::UNKNOWN_ERROR);
     EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
         .WillOnce(SetArgPointee<1>(response));
 
     rc = mdsclient_.CommitTx(txIds);
-    ASSERT_EQ(rc, TopoStatusCode::TOPO_INTERNAL_ERROR);
+    ASSERT_EQ(rc, FSStatusCode::UNKNOWN_ERROR);
 
     // CASE 3: RPC error, retry until success
     int count = 0;
     EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
         .Times(6)
         .WillRepeatedly(
-            Invoke([&](const std::vector<PartitionTxId> &txIds,
-                       CommitTxResponse *response, brpc::Controller *cntl,
+            Invoke([&](const CommitTxRequest& request,
+                       CommitTxResponse *response,
+                       brpc::Controller *cntl,
                        brpc::Channel *channel) {
                 if (++count <= 5) {
                     cntl->SetFailed(112, "Not connected to");
                 } else {
-                    response->set_statuscode(TopoStatusCode::TOPO_OK);
+                    response->set_statuscode(FSStatusCode::OK);
                 }
             }));
 
     rc = mdsclient_.CommitTx(txIds);
-    ASSERT_EQ(rc, TopoStatusCode::TOPO_OK);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+}
+
+TEST_F(MdsClientImplTest, CommitTxWithLock) {
+    std::vector<PartitionTxId> txIds;
+    std::string fsName = "/test";
+    std::string uuid = "uuid";
+    uint64_t txSequence = 100;
+
+    // CASE 1: CommitTx success
+    CommitTxResponse response;
+    response.set_statuscode(FSStatusCode::OK);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    auto rc = mdsclient_.CommitTxWithLock(
+        txIds, fsName, uuid, txSequence);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+
+    // CASE 2: CommitTx fail
+    response.set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    rc = mdsclient_.CommitTxWithLock(
+        txIds, fsName, uuid, txSequence);
+    ASSERT_EQ(rc, FSStatusCode::UNKNOWN_ERROR);
+
+    // CASE 3: RPC error or acquire dlock fail/timeout, retry until success
+    int count = 0;
+    EXPECT_CALL(mockmdsbasecli_, CommitTx(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([&](const CommitTxRequest& request,
+                       CommitTxResponse* response,
+                       brpc::Controller *cntl,
+                       brpc::Channel *channel) {
+                ASSERT_EQ(request.lock(), true);
+                ASSERT_EQ(request.fsname(), fsName);
+                ASSERT_EQ(request.uuid(), uuid);
+                ASSERT_EQ(request.txsequence(), txSequence);
+                ++count;
+                if (count == 1) {
+                    response->set_statuscode(FSStatusCode::LOCK_TIMEOUT);
+                } else if (count == 2) {
+                    response->set_statuscode(FSStatusCode::LOCK_FAILED);
+                } else if (count <= 5) {
+                    cntl->SetFailed(112, "Not connected to");
+                } else {
+                    response->set_statuscode(FSStatusCode::OK);
+                }
+            }));
+
+    rc = mdsclient_.CommitTxWithLock(
+        txIds, fsName, uuid, txSequence);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+}
+
+TEST_F(MdsClientImplTest, GetLatestTxId) {
+    std::vector<PartitionTxId> txIds;
+
+    // CASE 1: GetLatestTxId success
+    GetLatestTxIdResponse response;
+    response.set_statuscode(FSStatusCode::OK);
+    EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    auto rc = mdsclient_.GetLatestTxId(&txIds);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+
+    // CASE 2: GetLatestTxId fail
+    response.set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    rc = mdsclient_.GetLatestTxId(&txIds);
+    ASSERT_EQ(rc, FSStatusCode::UNKNOWN_ERROR);
+
+    // CASE 3: RPC error, retry until success
+    int count = 0;
+    EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([&](const GetLatestTxIdRequest& request,
+                       GetLatestTxIdResponse* response,
+                       brpc::Controller *cntl,
+                       brpc::Channel *channel) {
+                if (++count <= 5) {
+                    cntl->SetFailed(112, "Not connected to");
+                } else {
+                    response->set_statuscode(FSStatusCode::OK);
+                }
+            }));
+
+    rc = mdsclient_.GetLatestTxId(&txIds);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+}
+
+TEST_F(MdsClientImplTest, GetLatestTxIdWithLock) {
+    std::vector<PartitionTxId> txIds;
+    uint32_t fsId;
+    std::string fsName = "/test";
+    std::string uuid = "uuid";
+    uint64_t sequence;
+
+    // CASE 1: GetLatestTxId success
+    GetLatestTxIdResponse response;
+    response.set_statuscode(FSStatusCode::OK);
+    EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    auto rc = mdsclient_.GetLatestTxIdWithLock(
+        fsId, fsName, uuid, &txIds, &sequence);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+
+    // CASE 2: GetLatestTxId fail
+    response.set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+
+    rc = mdsclient_.GetLatestTxIdWithLock(
+        fsId, fsName, uuid, &txIds, &sequence);
+    ASSERT_EQ(rc, FSStatusCode::UNKNOWN_ERROR);
+
+    // CASE 3: RPC error or acquire dlock fail/timeout, retry until success
+    int count = 0;
+    EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(
+            Invoke([&](const GetLatestTxIdRequest& request,
+                       GetLatestTxIdResponse* response,
+                       brpc::Controller *cntl,
+                       brpc::Channel *channel) {
+                ASSERT_EQ(request.lock(), true);
+                ASSERT_EQ(request.fsid(), fsId);
+                ASSERT_EQ(request.fsname(), fsName);
+                ASSERT_EQ(request.uuid(), uuid);
+                ++count;
+                if (count == 1) {
+                    response->set_statuscode(FSStatusCode::LOCK_TIMEOUT);
+                } else if (count == 2) {
+                    response->set_statuscode(FSStatusCode::LOCK_FAILED);
+                } else if (count <= 5) {
+                    cntl->SetFailed(112, "Not connected to");
+                } else {
+                    response->set_statuscode(FSStatusCode::OK);
+                    response->set_txsequence(100);
+                }
+            }));
+
+    rc = mdsclient_.GetLatestTxIdWithLock(
+        fsId, fsName, uuid, &txIds, &sequence);
+    ASSERT_EQ(rc, FSStatusCode::OK);
+    ASSERT_EQ(sequence, 100);
 }
 
 TEST_F(MdsClientImplTest, test_GetMetaServerInfo) {

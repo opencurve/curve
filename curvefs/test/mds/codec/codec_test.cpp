@@ -50,6 +50,8 @@ TEST(CodecTest, TestEncodeProtobufMessage) {
     fsinfo.set_mountnum(0);
     fsinfo.set_fstype(FSType::TYPE_VOLUME);
     fsinfo.set_enablesumindir(false);
+    fsinfo.set_txsequence(0);
+    fsinfo.set_txowner("owner");
 
     Volume volume;
     volume.set_volumesize(8192);
@@ -79,6 +81,8 @@ TEST(CodecTest, TestDecodeProtobufMessage) {
     fsinfo.set_mountnum(0);
     fsinfo.set_fstype(FSType::TYPE_VOLUME);
     fsinfo.set_enablesumindir(false);
+    fsinfo.set_txsequence(0);
+    fsinfo.set_txowner("owner");
 
     Volume volume;
     volume.set_volumesize(8192);

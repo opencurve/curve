@@ -156,33 +156,6 @@ FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-TopoStatusCode
-MdsClientImpl::CommitTx(const std::vector<PartitionTxId> &txIds) {
-    auto task = RPCTask {
-        mdsClientMetric_.commitTx.qps.count << 1;
-        CommitTxResponse response;
-        mdsbasecli_->CommitTx(txIds, &response, cntl, channel);
-
-        if (cntl->Failed()) {
-            mdsClientMetric_.commitTx.eps.count << 1;
-            LOG(WARNING) << "CommitTx failed, errorCode = " << cntl->ErrorCode()
-                         << ", errorText =" << cntl->ErrorText()
-                         << ", logId = " << cntl->log_id();
-            return -cntl->ErrorCode();
-        }
-
-        auto rc = response.statuscode();
-        if (rc != TopoStatusCode::TOPO_OK) {
-            LOG(WARNING) << "CommitTx: retCode = " << rc
-                         << ", message = " << TopoStatusCode_Name(rc);
-        }
-        return rc;
-    };
-    // NOTE: retry until success
-    auto rc = rpcexcutor_.DoRPCTask(task, 0);
-    return static_cast<TopoStatusCode>(rc);
-}
-
 template <typename T>
 void GetEndPoint(const T &info, butil::EndPoint *internal,
                  butil::EndPoint *external) {
@@ -465,6 +438,119 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
     };
 
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
+FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
+                                          GetLatestTxIdResponse* response) {
+    auto task = RPCTask {
+        mdsClientMetric_.getLatestTxId.qps.count << 1;
+        mdsbasecli_->GetLatestTxId(request, response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING) << "GetLatestTxId fail, errCode = "
+                         << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        FSStatusCode rc = response->statuscode();
+        if (rc == FSStatusCode::LOCK_FAILED) {
+            LOG(WARNING) << "GetLatestTxId fail for acquire dlock failed";
+            return -rc;
+        } else if (rc == FSStatusCode::LOCK_TIMEOUT) {
+            LOG(WARNING) << "GetLatestTxId fail for acquire dlock timeout";
+            return -rc;
+        } else if (rc != FSStatusCode::OK) {
+            LOG(WARNING) << "GetLatestTxId fail, errcode = " << rc
+                         << ", errmsg = " << FSStatusCode_Name(rc);
+        }
+        return rc;
+    };
+
+    // for rpc error or get lock failed/timeout, we will retry until success
+    return ReturnError(rpcexcutor_.DoRPCTask(task, 0));
+}
+
+FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
+    auto task = RPCTask {
+        mdsClientMetric_.commitTx.qps.count << 1;
+        CommitTxResponse response;
+        mdsbasecli_->CommitTx(request, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            mdsClientMetric_.commitTx.eps.count << 1;
+            LOG(WARNING) << "CommitTx failed, errorCode = " << cntl->ErrorCode()
+                         << ", errorText =" << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        FSStatusCode rc = response.statuscode();
+        if (rc == FSStatusCode::LOCK_FAILED) {
+            LOG(WARNING) << "CommitTx fail for acquire dlock failed";
+            return -rc;
+        } else if (rc == FSStatusCode::LOCK_TIMEOUT) {
+            LOG(WARNING) << "CommitTx fail for acquire dlock timeout";
+            return -rc;
+        } else if (rc != FSStatusCode::OK) {
+            LOG(WARNING) << "CommitTx: retCode = " << rc
+                         << ", message = " << FSStatusCode_Name(rc);
+        }
+        return rc;
+    };
+    // for rpc error or get lock failed/timeout, we will retry until success
+    return ReturnError(rpcexcutor_.DoRPCTask(task, 0));
+}
+
+FSStatusCode MdsClientImpl::GetLatestTxId(std::vector<PartitionTxId>* txIds) {
+    GetLatestTxIdRequest request;
+    GetLatestTxIdResponse response;
+    FSStatusCode rc = GetLatestTxId(request, &response);
+    if (rc == FSStatusCode::OK) {
+        *txIds = { response.txids().begin(), response.txids().end() };
+    }
+    return rc;
+}
+
+FSStatusCode MdsClientImpl::GetLatestTxIdWithLock(
+    uint32_t fsId,
+    const std::string& fsName,
+    const std::string& uuid,
+    std::vector<PartitionTxId>* txIds,
+    uint64_t* txSequence) {
+    GetLatestTxIdRequest request;
+    GetLatestTxIdResponse response;
+    request.set_lock(true);
+    request.set_fsid(fsId);
+    request.set_fsname(fsName);
+    request.set_uuid(uuid);
+    FSStatusCode rc = GetLatestTxId(request, &response);
+    if (rc == FSStatusCode::OK) {
+        *txIds = { response.txids().begin(), response.txids().end() };
+        *txSequence = response.txsequence();
+    }
+    return rc;
+}
+
+FSStatusCode MdsClientImpl::CommitTx(
+    const std::vector<PartitionTxId>& txIds) {
+    CommitTxRequest request;
+    *request.mutable_partitiontxids() = { txIds.begin(), txIds.end() };
+    return CommitTx(request);
+}
+
+FSStatusCode MdsClientImpl::CommitTxWithLock(
+    const std::vector<PartitionTxId>& txIds,
+    const std::string& fsName,
+    const std::string& uuid,
+    uint64_t sequence)  {
+    CommitTxRequest request;
+    request.set_lock(true);
+    request.set_fsname(fsName);
+    request.set_uuid(uuid);
+    request.set_txsequence(sequence);
+    *request.mutable_partitiontxids() = { txIds.begin(), txIds.end() };
+    return CommitTx(request);
 }
 
 FSStatusCode MdsClientImpl::ReturnError(int retcode) {

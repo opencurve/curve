@@ -638,8 +638,10 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
         return CURVEFS_ERROR::NAMETOOLONG;
     }
     auto renameOp =
-        RenameOperator(fsInfo_->fsid(), parent, name, newparent, newname,
-                       dentryManager_, inodeManager_, metaClient_, mdsClient_);
+        RenameOperator(fsInfo_->fsid(), fsInfo_->fsname(),
+                       parent, name, newparent, newname,
+                       dentryManager_, inodeManager_, metaClient_, mdsClient_,
+                       option_.enableMultiMountPointRename);
 
     curve::common::LockGuard lg(renameMutex_);
     CURVEFS_ERROR rc = CURVEFS_ERROR::OK;

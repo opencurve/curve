@@ -66,15 +66,6 @@ void MDSBaseClient::GetFsInfo(uint32_t fsId, GetFsInfoResponse* response,
     stub.GetFsInfo(cntl, &request, response, nullptr);
 }
 
-void MDSBaseClient::CommitTx(const std::vector<PartitionTxId>& txIds,
-                             CommitTxResponse* response, brpc::Controller* cntl,
-                             brpc::Channel* channel) {
-    CommitTxRequest request;
-    *request.mutable_partitiontxids() = {txIds.begin(), txIds.end()};
-    curvefs::mds::topology::TopologyService_Stub stub(channel);
-    stub.CommitTx(cntl, &request, response, nullptr);
-}
-
 void MDSBaseClient::GetMetaServerInfo(uint32_t port, std::string ip,
                                       GetMetaServerInfoResponse* response,
                                       brpc::Controller* cntl,
@@ -157,6 +148,23 @@ void MDSBaseClient::RefreshSession(const std::vector<PartitionTxId> &txIds,
     curvefs::mds::MdsService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
 }
+
+void MDSBaseClient::GetLatestTxId(const GetLatestTxIdRequest& request,
+                                  GetLatestTxIdResponse* response,
+                                  brpc::Controller* cntl,
+                                  brpc::Channel* channel) {
+    curvefs::mds::MdsService_Stub stub(channel);
+    stub.GetLatestTxId(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::CommitTx(const CommitTxRequest& request,
+                             CommitTxResponse* response,
+                             brpc::Controller* cntl,
+                             brpc::Channel* channel) {
+    curvefs::mds::MdsService_Stub stub(channel);
+    stub.CommitTx(cntl, &request, response, nullptr);
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

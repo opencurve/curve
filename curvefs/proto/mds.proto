@@ -49,6 +49,9 @@ enum FSStatusCode {
     PARTITION_EXIST = 25;
     DELETE_PARTITION_ERROR = 26;
     S3_INFO_ERROR = 27;
+    LOCK_FAILED = 28;
+    LOCK_TIMEOUT = 29;
+    COMMIT_TX_SEQUENCE_MISMATCH = 30;
 }
 
 // fs interface
@@ -82,6 +85,8 @@ message FsInfo {
     required common.FSType fsType = 9;
     required FsDetail detail = 10;
     required bool enableSumInDir = 11;
+    optional uint64 txSequence = 12;
+    optional string txOwner = 13;
 }
 
 message GetFsInfoResponse {
@@ -166,6 +171,36 @@ message RefreshSessionResponse {
     repeated topology.PartitionTxId latestTxIdList = 2;
 }
 
+message DLockValue {
+    required string owner = 1;
+    required uint64 expireTime = 2;
+}
+
+message GetLatestTxIdRequest {
+    optional bool lock = 1;
+    optional uint32 fsId = 2;
+    optional string fsName = 3;
+    optional string uuid = 4;
+}
+
+message GetLatestTxIdResponse {
+    required FSStatusCode statusCode = 1;
+    repeated topology.PartitionTxId txIds = 2;
+    optional uint64 txSequence = 3;
+}
+
+message CommitTxRequest {
+    repeated topology.PartitionTxId partitionTxIds = 1;
+    optional bool lock = 2;
+    optional string fsName = 3;
+    optional string uuid = 4;
+    optional uint64 txSequence = 5;
+}
+
+message CommitTxResponse {
+    required FSStatusCode statusCode = 1;
+}
+
 service MdsService {
     // fs interface
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
@@ -177,6 +212,9 @@ service MdsService {
     rpc DeleteFs(DeleteFsRequest) returns (DeleteFsResponse);
     rpc AllocateS3Chunk(AllocateS3ChunkRequest) returns (AllocateS3ChunkResponse);
     rpc ListClusterFsInfo (ListClusterFsInfoRequest) returns (ListClusterFsInfoResponse);
+
+    rpc GetLatestTxId(GetLatestTxIdRequest) returns (GetLatestTxIdResponse);
+    rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);
 
     // client lease
     rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);

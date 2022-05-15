@@ -87,6 +87,8 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
     conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
     conf->GetValueFatalIfFail("excutorOpt.batchLimit", &opts->batchLimit);
+    conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
+                              &opts->enableRenameParallel);
 }
 
 void InitSpaceServerOption(Configuration *conf,
@@ -224,6 +226,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
     conf->GetValueFatalIfFail("client.dummyserver.startport",
                               &clientOption->dummyServerStartPort);
+    conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
+                              &clientOption->enableMultiMountPointRename);
 
     SetBrpcOpt(conf);
 }

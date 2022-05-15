@@ -40,6 +40,7 @@
 #include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
+#include "curvefs/src/mds/dlock/dlock.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "src/common/interruptible_sleeper.h"
@@ -56,6 +57,8 @@ using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::topology::TopologyManager;
 
+using ::curvefs::mds::dlock::DLock;
+
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
     curve::common::S3AdapterOption s3AdapterOption;
@@ -63,17 +66,20 @@ struct FsManagerOption {
 
 class FsManager {
  public:
-    FsManager(std::shared_ptr<FsStorage> fsStorage,
+    FsManager(const std::shared_ptr<FsStorage>& fsStorage,
               std::shared_ptr<SpaceClient> spaceClient,
-              std::shared_ptr<MetaserverClient> metaserverClient,
-              std::shared_ptr<TopologyManager> topoManager,
-              std::shared_ptr<S3Adapter> s3Adapter,
+              const std::shared_ptr<MetaserverClient>& metaserverClient,
+              const std::shared_ptr<TopologyManager>& topoManager,
+              const std::shared_ptr<S3Adapter>& s3Adapter,
+              const std::shared_ptr<DLock>& dlock,
               const FsManagerOption& option)
+
         : fsStorage_(fsStorage),
           spaceClient_(spaceClient),
           metaserverClient_(metaserverClient),
           topoManager_(topoManager),
           s3Adapter_(s3Adapter),
+          dlock_(dlock),
           nameLock_(),
           s3AdapterOption_(option.s3AdapterOption) {
         isStop_ = true;
@@ -183,8 +189,14 @@ class FsManager {
             curvefs::mds::topology::PartitionTxId> &txIds,
         google::protobuf::RepeatedPtrField<PartitionTxId> *needUpdate);
 
+    void GetLatestTxId(const GetLatestTxIdRequest* request,
+                       GetLatestTxIdResponse* response);
+
+    void CommitTx(const CommitTxRequest* request,
+                  CommitTxResponse* response);
+
  private:
-    // return 0: ExactlySame; 1: uncomplete, -1: neither
+     // return 0: ExactlySame; 1: uncomplete, -1: neither
     int IsExactlySameOrCreateUnComplete(const std::string& fsName,
                                         FSType fsType, uint64_t blocksize,
                                         const FsDetail& detail);
@@ -197,6 +209,16 @@ class FsManager {
     // set partition status to DELETING in topology
     bool SetPartitionToDeleting(const PartitionInfo& partition);
 
+    void GetLatestTxId(const uint32_t fsId,
+                       std::vector<PartitionTxId>* txIds);
+
+    FSStatusCode IncreaseFsTxSequence(const std::string& fsName,
+                                      const std::string& owner,
+                                      uint64_t* sequence);
+
+    FSStatusCode GetFsTxSequence(const std::string& fsName,
+                                 uint64_t* sequence);
+
  private:
     uint64_t GetRootId();
 
@@ -207,6 +229,7 @@ class FsManager {
     curve::common::GenericNameLock<Mutex> nameLock_;
     std::shared_ptr<TopologyManager> topoManager_;
     std::shared_ptr<S3Adapter> s3Adapter_;
+    std::shared_ptr<DLock> dlock_;
 
     // Manage fs backgroud delete threads
     Thread backEndThread_;

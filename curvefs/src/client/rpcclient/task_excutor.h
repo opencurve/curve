@@ -63,13 +63,14 @@ class TaskContext {
 
     TaskContext() = default;
     TaskContext(MetaServerOpType type, RpcFunc func, uint32_t fsid = 0,
-                uint32_t inodeid = 0)
-        : optype(type), rpctask(func), fsID(fsid), inodeID(inodeid) {}
+                uint32_t inodeid = 0, bool refreshTxId = false)
+        : optype(type), rpctask(func), fsID(fsid), inodeID(inodeid),
+          refreshTxId(refreshTxId) {}
 
     std::string TaskContextStr() {
         std::ostringstream oss;
         oss << "{" << optype << ",fsid=" << fsID << ",inodeid=" << inodeID
-            << "}";
+            << ",refreshTxId=" << refreshTxId << "}";
         return oss.str();
     }
 
@@ -88,6 +89,8 @@ class TaskContext {
     uint64_t retryTimes = 0;
     bool suspend = false;
     bool retryDirectly = false;
+
+    bool refreshTxId = false;
 
     brpc::Controller cntl_;
 };

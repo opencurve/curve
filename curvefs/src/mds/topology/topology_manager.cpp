@@ -804,18 +804,22 @@ TopoStatusCode TopologyManager::CreateCopyset() {
     return TopoStatusCode::TOPO_OK;
 }
 
+TopoStatusCode TopologyManager::CommitTxId(
+    const std::vector<PartitionTxId>& txIds) {
+    if (txIds.size() == 0) {
+        return TopoStatusCode::TOPO_OK;
+    }
+    return topology_->UpdatePartitionTxIds(txIds);
+}
+
 void TopologyManager::CommitTx(const CommitTxRequest *request,
                                CommitTxResponse *response) {
-    if (request->partitiontxids_size() == 0) {
-        response->set_statuscode(TopoStatusCode::TOPO_OK);
-        return;
-    }
-
-    std::vector<PartitionTxId> partitionTxIds;
+    std::vector<PartitionTxId> txIds;
     for (int i = 0; i < request->partitiontxids_size(); i++) {
-        partitionTxIds.emplace_back(request->partitiontxids(i));
+        txIds.emplace_back(request->partitiontxids(i));
     }
-    response->set_statuscode(topology_->UpdatePartitionTxIds(partitionTxIds));
+    TopoStatusCode rc = CommitTxId(txIds);
+    response->set_statuscode(rc);
 }
 
 void TopologyManager::GetMetaServerListInCopysets(
