@@ -63,14 +63,16 @@ class TaskContext {
 
     TaskContext() = default;
     TaskContext(MetaServerOpType type, RpcFunc func, uint32_t fsid = 0,
-                uint32_t inodeid = 0, bool streaming = false)
+                uint32_t inodeid = 0, bool streaming = false,
+                bool refreshTxId = false)
         : optype(type), rpctask(func), fsID(fsid), inodeID(inodeid),
-          streaming(streaming) {}
+          streaming(streaming), refreshTxId(refreshTxId) {}
 
     std::string TaskContextStr() {
         std::ostringstream oss;
         oss << "{" << optype << ",fsid=" << fsID << ",inodeid=" << inodeID
-            << ",streaming=" << streaming << "}";
+            << ",streaming=" << streaming
+            << ",refreshTxId=" << refreshTxId << "}";
         return oss.str();
     }
 
@@ -92,6 +94,8 @@ class TaskContext {
 
     // whether need stream
     bool streaming = false;
+
+    bool refreshTxId = false;
 
     brpc::Controller cntl_;
 };

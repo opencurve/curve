@@ -62,6 +62,10 @@ const char PARTITIONKEYEND[] = "fs_1009";
 
 constexpr uint32_t TOPOLOGY_PREFIX_LENGTH = 7;
 
+const char DLOCK_KEY_PREFIX[] = "dlock_01";
+
+constexpr uint32_t DLOCK_PREFIX_LENGTH = 8;
+
 }  // namespace mds
 }  // namespace curvefs
 

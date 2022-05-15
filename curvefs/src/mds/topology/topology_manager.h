@@ -112,6 +112,8 @@ class TopologyManager {
     virtual TopoStatusCode CreatePartitionsAndGetMinPartition(
         FsIdType fsId, PartitionInfo *partition);
 
+    virtual TopoStatusCode CommitTxId(const std::vector<PartitionTxId>& txIds);
+
     virtual void CommitTx(const CommitTxRequest *request,
                           CommitTxResponse *response);
 

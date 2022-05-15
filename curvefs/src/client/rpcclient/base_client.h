@@ -75,6 +75,10 @@ using curvefs::mds::GetFsInfoRequest;
 using curvefs::mds::GetFsInfoResponse;
 using curvefs::mds::MountFsRequest;
 using curvefs::mds::MountFsResponse;
+using curvefs::mds::GetLatestTxIdRequest;
+using curvefs::mds::GetLatestTxIdResponse;
+using curvefs::mds::CommitTxRequest;
+using curvefs::mds::CommitTxResponse;
 using curvefs::mds::RefreshSessionRequest;
 using curvefs::mds::RefreshSessionResponse;
 using curvefs::mds::UmountFsRequest;
@@ -83,8 +87,6 @@ using curvefs::mds::UmountFsResponse;
 using ::curve::client::CopysetID;
 using ::curve::client::LogicPoolID;
 
-using curvefs::mds::topology::CommitTxRequest;
-using curvefs::mds::topology::CommitTxResponse;
 using curvefs::mds::topology::Copyset;
 using curvefs::mds::topology::CreatePartitionRequest;
 using curvefs::mds::topology::CreatePartitionResponse;
@@ -146,10 +148,6 @@ class MDSBaseClient {
     virtual void GetFsInfo(uint32_t fsId, GetFsInfoResponse* response,
                            brpc::Controller* cntl, brpc::Channel* channel);
 
-    virtual void CommitTx(const std::vector<PartitionTxId>& txIds,
-                          CommitTxResponse* response, brpc::Controller* cntl,
-                          brpc::Channel* channel);
-
     virtual void GetMetaServerInfo(uint32_t port, std::string ip,
                                    GetMetaServerInfoResponse* response,
                                    brpc::Controller* cntl,
@@ -180,6 +178,16 @@ class MDSBaseClient {
     virtual void RefreshSession(const std::vector<PartitionTxId> &txIds,
                                 RefreshSessionResponse *response,
                                 brpc::Controller *cntl, brpc::Channel *channel);
+
+    virtual void GetLatestTxId(const GetLatestTxIdRequest& request,
+                               GetLatestTxIdResponse* response,
+                               brpc::Controller* cntl,
+                               brpc::Channel* channel);
+
+    virtual void CommitTx(const CommitTxRequest& request,
+                          CommitTxResponse* response,
+                          brpc::Controller* cntl,
+                          brpc::Channel* channel);
 
     virtual void AllocateVolumeBlockGroup(uint32_t fsId,
                                           uint32_t count,

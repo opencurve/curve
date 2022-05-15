@@ -22,11 +22,13 @@
 
 #include <list>
 
+#include "src/common/uuid.h"
 #include "curvefs/src/client/client_operator.h"
 
 namespace curvefs {
 namespace client {
 
+using ::curve::common::UUIDGenerator;
 using ::curvefs::metaserver::DentryFlag;
 using ::curvefs::mds::topology::PartitionTxId;
 
@@ -35,6 +37,7 @@ using ::curvefs::mds::topology::PartitionTxId;
                << ", DebugString = " << DebugString();
 
 RenameOperator::RenameOperator(uint32_t fsId,
+                               const std::string& fsName,
                                uint64_t parentId,
                                std::string name,
                                uint64_t newParentId,
@@ -42,8 +45,10 @@ RenameOperator::RenameOperator(uint32_t fsId,
                                std::shared_ptr<DentryCacheManager> dentryManager,  // NOLINT
                                std::shared_ptr<InodeCacheManager> inodeManager,
                                std::shared_ptr<MetaServerClient> metaClient,
-                               std::shared_ptr<MdsClient> mdsClient)
+                               std::shared_ptr<MdsClient> mdsClient,
+                               bool enableParallel)
     : fsId_(fsId),
+      fsName_(fsName),
       parentId_(parentId),
       name_(name),
       newParentId_(newParentId),
@@ -57,11 +62,15 @@ RenameOperator::RenameOperator(uint32_t fsId,
       dentryManager_(dentryManager),
       inodeManager_(inodeManager),
       metaClient_(metaClient),
-      mdsClient_(mdsClient) {}
+      mdsClient_(mdsClient),
+      enableParallel_(enableParallel),
+      uuid_(),
+      sequence_(0) {}
 
 std::string RenameOperator::DebugString() {
     std::ostringstream os;
     os << "( fsId = " << fsId_
+       << ", fsName = " << fsName_
        << ", parentId = " << parentId_ << ", name = " << name_
        << ", newParentId = " << newParentId_ << ", newname = " << newname_
        << ", srcPartitionId = " << srcPartitionId_
@@ -72,7 +81,9 @@ std::string RenameOperator::DebugString() {
        << ", dstDentry = [" << dstDentry_.ShortDebugString() << "]"
        << ", prepare dentry = [" << dentry_.ShortDebugString() << "]"
        << ", prepare new dentry = [" << newDentry_.ShortDebugString() << "]"
-       << " )";
+       << ", enableParallel = " << enableParallel_
+       << ", uuid = " << uuid_
+       << ", sequence = " << sequence_ << ")";
     return os.str();
 }
 
@@ -87,12 +98,32 @@ CURVEFS_ERROR RenameOperator::GetTxId(uint32_t fsId,
     return MetaStatusCodeToCurvefsErrCode(rc);
 }
 
-void RenameOperator::SetTxId(uint32_t partitionId, uint64_t txId) {
-    metaClient_->SetTxId(partitionId, txId);
+CURVEFS_ERROR RenameOperator::GetLatestTxIdWithLock() {
+    std::vector<PartitionTxId> txIds;
+    uuid_ = UUIDGenerator().GenerateUUID();
+    auto rc = mdsClient_->GetLatestTxIdWithLock(
+        fsId_, fsName_, uuid_, &txIds, &sequence_);
+    if (rc != FSStatusCode::OK) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    for (const auto& item : txIds) {
+        SetTxId(item.partitionid(), item.txid());
+    }
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR RenameOperator::GetTxId() {
-    auto rc = GetTxId(fsId_, parentId_, &srcPartitionId_, &srcTxId_);
+    CURVEFS_ERROR rc;
+    if (enableParallel_) {
+        rc = GetLatestTxIdWithLock();
+        if (rc != CURVEFS_ERROR::OK) {
+            LOG_ERROR("GetLatestTxIdWithLock", rc);
+            return rc;
+        }
+    }
+
+    rc = GetTxId(fsId_, parentId_, &srcPartitionId_, &srcTxId_);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("GetTxId", rc);
         return rc;
@@ -104,6 +135,10 @@ CURVEFS_ERROR RenameOperator::GetTxId() {
     }
 
     return rc;
+}
+
+void RenameOperator::SetTxId(uint32_t partitionId, uint64_t txId) {
+    metaClient_->SetTxId(partitionId, txId);
 }
 
 // TODO(Wine93): we should improve the check for whether a directory is empty
@@ -175,6 +210,7 @@ CURVEFS_ERROR RenameOperator::PrepareRenameTx(
 CURVEFS_ERROR RenameOperator::PrepareTx() {
     dentry_ = Dentry(srcDentry_);
     dentry_.set_txid(srcTxId_ + 1);
+    dentry_.set_txsequence(sequence_);
     dentry_.set_flag(dentry_.flag() |
                      DentryFlag::DELETE_MARK_FLAG |
                      DentryFlag::TRANSACTION_PREPARE_FLAG);
@@ -183,6 +219,7 @@ CURVEFS_ERROR RenameOperator::PrepareTx() {
     newDentry_.set_parentinodeid(newParentId_);
     newDentry_.set_name(newname_);
     newDentry_.set_txid(dstTxId_ + 1);
+    newDentry_.set_txsequence(sequence_);
     newDentry_.set_flag(newDentry_.flag() |
                         DentryFlag::TRANSACTION_PREPARE_FLAG);
 
@@ -219,8 +256,13 @@ CURVEFS_ERROR RenameOperator::CommitTx() {
         txIds.push_back(partitionTxId);
     }
 
-    auto rc = mdsClient_->CommitTx(txIds);
-    if (rc != TopoStatusCode::TOPO_OK) {
+    FSStatusCode rc;
+    if (enableParallel_) {
+        rc = mdsClient_->CommitTxWithLock(txIds, fsName_, uuid_, sequence_);
+    } else {
+        rc = mdsClient_->CommitTx(txIds);
+    }
+    if (rc != FSStatusCode::OK) {
         LOG_ERROR("CommitTx", rc);
         return CURVEFS_ERROR::INTERNAL;
     }

@@ -41,7 +41,10 @@ do { \
 
 RenameTx::RenameTx(const std::vector<Dentry>& dentrys,
                    std::shared_ptr<DentryStorage> storage)
-    : txId_(dentrys[0].txid()) , dentrys_(dentrys), storage_(storage) {}
+    : txId_(dentrys[0].txid()) ,
+      txSequence_(dentrys[0].txsequence()),
+      dentrys_(dentrys),
+      storage_(storage) {}
 
 bool RenameTx::Prepare() {
     FOR_EACH_DENTRY(PREPARE);
@@ -60,6 +63,10 @@ bool RenameTx::Rollback() {
 
 uint64_t RenameTx::GetTxId() {
     return txId_;
+}
+
+uint64_t RenameTx::GetTxSequence() {
+    return txSequence_;
 }
 
 std::vector<Dentry>* RenameTx::GetDentrys() {
@@ -89,7 +96,8 @@ MetaStatusCode TxManager::PreCheck(const std::vector<Dentry>& dentrys) {
         return MetaStatusCode::PARAM_ERROR;
     } else if (size == 2) {
          if (dentrys[0].fsid() != dentrys[1].fsid() ||
-             dentrys[0].txid() != dentrys[1].txid()) {
+             dentrys[0].txid() != dentrys[1].txid() ||
+             dentrys[0].txsequence() != dentrys[1].txsequence()) {
             return MetaStatusCode::PARAM_ERROR;
         }
     }
@@ -107,7 +115,14 @@ MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys) {
     RenameTx pendingTx;
     if (FindPendingTx(&pendingTx)) {
         auto txId = dentrys[0].txid();
-        if (!HandlePendingTx(txId, &pendingTx)) {
+        auto txSequence = dentrys[0].txsequence();
+        if (txSequence != 0 && txSequence <= pendingTx.GetTxSequence()) {
+            LOG(ERROR) << "HandlePendingTx failed, current transaction is stale"
+                       << ", we will discard it. current tx sequence = "
+                       << txSequence << ", pending tx sequence = "
+                       << pendingTx.GetTxSequence();
+            return MetaStatusCode::HANDLE_PENDING_TX_FAILED;
+        } else if (!HandlePendingTx(txId, &pendingTx)) {
             LOG(ERROR) << "HandlePendingTx failed, pendingTx: " << pendingTx;
             return MetaStatusCode::HANDLE_PENDING_TX_FAILED;
         }

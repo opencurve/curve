@@ -48,6 +48,8 @@ class RenameTx {
 
     uint64_t GetTxId();
 
+    uint64_t GetTxSequence();
+
     std::vector<Dentry>* GetDentrys();
 
     bool operator==(const RenameTx& rhs);
@@ -56,6 +58,9 @@ class RenameTx {
 
  private:
     uint64_t txId_;
+
+    // for prevent the stale transaction
+    uint64_t txSequence_;
 
     std::vector<Dentry> dentrys_;
 

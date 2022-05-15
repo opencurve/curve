@@ -39,6 +39,7 @@
 #include "curvefs/src/mds/topology/topology_service.h"
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
 #include "curvefs/src/mds/space/manager.h"
+#include "curvefs/src/mds/dlock/dlock.h"
 #include "src/common/configuration.h"
 #include "src/kvstorageclient/etcd_client.h"
 #include "src/leader_election/leader_election.h"
@@ -76,6 +77,7 @@ using ::curve::kvstorage::KVStorageClient;
 // TODO(split InitEtcdConf): split this InitEtcdConf to a single module
 
 using ::curvefs::mds::space::SpaceManager;
+using ::curvefs::mds::dlock::DLockOptions;
 
 struct MDSOptions {
     int dummyPort;
@@ -86,6 +88,8 @@ struct MDSOptions {
     TopologyOption topologyOptions;
     HeartbeatOption heartbeatOption;
     ScheduleOption scheduleOption;
+
+    DLockOptions dLockOptions;
 };
 
 class MDS {
@@ -117,6 +121,8 @@ class MDS {
 
     void InitHeartbeatOption(HeartbeatOption* heartbeatOption);
     void InitScheduleOption(ScheduleOption* scheduleOption);
+
+    void InitDLockOptions(DLockOptions* dLockOptions);
 
  private:
     void InitMetaServerOption(MetaserverOptions* metaserverOption);
