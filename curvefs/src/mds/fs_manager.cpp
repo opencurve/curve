@@ -28,6 +28,7 @@
 
 #include <limits>
 #include <list>
+#include <utility>
 
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
@@ -37,9 +38,10 @@ namespace curvefs {
 namespace mds {
 
 using ::curvefs::common::FSType;
-using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
-using curvefs::mds::topology::TopoStatusCode;
 using ::curvefs::mds::space::Reloader;
+using ::curvefs::mds::dlock::LOCK_STATUS;
+using ::curvefs::mds::topology::TopoStatusCode;
+using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
 bool FsManager::Init() {
     LOG_IF(FATAL, !fsStorage_->Init()) << "fsStorage Init fail";
@@ -617,6 +619,174 @@ FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {
     }
 
     return FSStatusCode::OK;
+}
+
+void FsManager::GetLatestTxId(const uint32_t fsId,
+                              std::vector<PartitionTxId>* txIds) {
+    std::list<PartitionInfo> list;
+    topoManager_->ListPartitionOfFs(fsId, &list);
+    for (const auto& item : list) {
+        PartitionTxId partitionTxId;
+        partitionTxId.set_partitionid(item.partitionid());
+        partitionTxId.set_txid(item.txid());
+        txIds->push_back(std::move(partitionTxId));
+    }
+}
+
+FSStatusCode FsManager::IncreaseFsTxSequence(const std::string& fsName,
+                                             const std::string& owner,
+                                             uint64_t* sequence) {
+    FsInfoWrapper wrapper;
+    FSStatusCode rc = fsStorage_->Get(fsName, &wrapper);
+    if (rc != FSStatusCode::OK) {
+        LOG(WARNING) << "Increase fs transaction sequence fail, fsName="
+                     << fsName << ", retCode=" << FSStatusCode_Name(rc);
+        return rc;
+    }
+
+    *sequence = wrapper.IncreaseFsTxSequence(owner);
+    rc = fsStorage_->Update(wrapper);
+    if (rc != FSStatusCode::OK) {
+        LOG(WARNING) << "Increase fs transaction sequence fail, fsName="
+                     << fsName << ", retCode=" << FSStatusCode_Name(rc);
+        return rc;
+    }
+
+    return rc;
+}
+
+FSStatusCode FsManager::GetFsTxSequence(const std::string& fsName,
+                                        uint64_t* sequence) {
+    FsInfoWrapper wrapper;
+    FSStatusCode rc = fsStorage_->Get(fsName, &wrapper);
+    if (rc != FSStatusCode::OK) {
+        LOG(WARNING) << "Get fs transaction sequence fail, fsName="
+                     << fsName << ", retCode=" << FSStatusCode_Name(rc);
+        return rc;
+    }
+
+    *sequence = wrapper.GetFsTxSequence();
+    return rc;
+}
+
+void FsManager::GetLatestTxId(const GetLatestTxIdRequest* request,
+                              GetLatestTxIdResponse* response) {
+    std::vector<PartitionTxId> txIds;
+    uint32_t fsId = request->fsid();
+    if (!request->lock()) {
+        GetLatestTxId(fsId, &txIds);
+        response->set_statuscode(FSStatusCode::OK);
+        *response->mutable_txids() = { txIds.begin(), txIds.end() };
+        return;
+    }
+
+    // lock for multi-mount rename
+    FSStatusCode rc;
+    std::string fsName = request->fsname();
+    std::string uuid = request->uuid();
+    LOCK_STATUS status = dlock_->Lock(fsName, uuid);
+    if (status != LOCK_STATUS::OK) {
+        rc = (status == LOCK_STATUS::TIMEOUT) ? FSStatusCode::LOCK_TIMEOUT
+                                              : FSStatusCode::LOCK_FAILED;
+        response->set_statuscode(rc);
+        LOG(WARNING) << "DLock lock failed, fsName=" << fsName
+                     << ", uuid=" << uuid << ", retCode="
+                     << FSStatusCode_Name(rc);
+        return;
+    }
+
+    // status = LOCK_STATUS::OK
+    NameLockGuard lock(nameLock_, fsName);
+    if (!dlock_->CheckOwner(fsName, uuid)) {  // double check
+        LOG(WARNING) << "DLock lock failed for owner transfer"
+                     << ", fsName=" << fsName << ", owner=" << uuid;
+        response->set_statuscode(FSStatusCode::LOCK_FAILED);
+        return;
+    }
+
+    uint64_t txSequence;
+    rc = IncreaseFsTxSequence(fsName, uuid, &txSequence);
+    if (rc == FSStatusCode::OK) {
+        GetLatestTxId(fsId, &txIds);
+        *response->mutable_txids() = { txIds.begin(), txIds.end() };
+        response->set_txsequence(txSequence);
+        LOG(INFO) << "Acquire dlock success, fsName=" << fsName
+                  << ", uuid=" << uuid << ", txSequence=" << txSequence;
+    } else {
+        LOG(ERROR) << "Increase fs txSequence failed";
+    }
+    response->set_statuscode(rc);
+}
+
+void FsManager::CommitTx(const CommitTxRequest* request,
+                         CommitTxResponse* response) {
+    std::vector<PartitionTxId> txIds = {
+        request->partitiontxids().begin(),
+        request->partitiontxids().end(),
+    };
+    if (!request->lock()) {
+        if (topoManager_->CommitTxId(txIds) == TopoStatusCode::TOPO_OK) {
+            response->set_statuscode(FSStatusCode::OK);
+        } else {
+            LOG(ERROR) << "Commit txid failed";
+            response->set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+        }
+        return;
+    }
+
+    // lock for multi-mountpoints
+    FSStatusCode rc;
+    std::string fsName = request->fsname();
+    std::string uuid = request->uuid();
+    LOCK_STATUS status = dlock_->Lock(fsName, uuid);
+    if (status != LOCK_STATUS::OK) {
+        rc = (status == LOCK_STATUS::TIMEOUT) ? FSStatusCode::LOCK_TIMEOUT
+                                              : FSStatusCode::LOCK_FAILED;
+        LOG(WARNING) << "DLock lock failed, fsName=" << fsName
+                     << ", uuid=" << uuid << ", retCode="
+                     << FSStatusCode_Name(rc);
+        response->set_statuscode(rc);
+        return;
+    }
+
+    // status = LOCK_STATUS::OK
+    {
+        NameLockGuard lock(nameLock_, fsName);
+        if (!dlock_->CheckOwner(fsName, uuid)) {  // double check
+            LOG(WARNING) << "DLock lock failed for owner transfer"
+                         << ", fsName=" << fsName << ", owner=" << uuid;
+            response->set_statuscode(FSStatusCode::LOCK_FAILED);
+            return;
+        }
+
+        // txSequence mismatch
+        uint64_t txSequence;
+        rc = GetFsTxSequence(fsName, &txSequence);
+        if (rc != FSStatusCode::OK) {
+            LOG(ERROR) << "Get fs tx sequence failed";
+            response->set_statuscode(rc);
+            return;
+        } else if (txSequence != request->txsequence()) {
+            LOG(ERROR) << "Commit tx with txSequence mismatch, fsName="
+                       << fsName << ", uuid=" << uuid << ", current txSequence="
+                       << txSequence << ", commit txSequence="
+                       << request->txsequence();
+            response->set_statuscode(FSStatusCode::COMMIT_TX_SEQUENCE_MISMATCH);
+            return;
+        }
+
+        // commit txId
+        if (topoManager_->CommitTxId(txIds) == TopoStatusCode::TOPO_OK) {
+            response->set_statuscode(FSStatusCode::OK);
+        } else {
+            LOG(ERROR) << "Commit txid failed";
+            response->set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+        }
+    }
+
+    // we can ignore the UnLock result for the
+    // lock can releaseed automaticlly by timeout
+    dlock_->UnLock(fsName, uuid);
 }
 
 }  // namespace mds

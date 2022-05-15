@@ -75,6 +75,7 @@ message Dentry {
     required uint64 txId = 5;
     optional uint32 flag = 6;
     optional FsFileType type = 7;
+    optional uint64 txSequence = 8;
 }
 
 message GetDentryResponse {

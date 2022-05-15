@@ -63,8 +63,24 @@ class MockMdsClient : public MdsClient {
     MOCK_METHOD2(AllocS3ChunkId,
                  FSStatusCode(uint32_t fsId, uint64_t* chunkId));
 
+    MOCK_METHOD1(GetLatestTxId,
+                 FSStatusCode(std::vector<PartitionTxId>* txIds));
+
+    MOCK_METHOD5(GetLatestTxIdWithLock,
+                 FSStatusCode(uint32_t fsId,
+                              const std::string& fsname,
+                              const std::string& uuid,
+                              std::vector<PartitionTxId>* txIds,
+                              uint64_t* sequence));
+
     MOCK_METHOD1(CommitTx,
-                 TopoStatusCode(const std::vector<PartitionTxId>& txIds));
+                 FSStatusCode(const std::vector<PartitionTxId>& txIds));
+
+    MOCK_METHOD4(CommitTxWithLock,
+                 FSStatusCode(const std::vector<PartitionTxId>& txIds,
+                              const std::string& fsname,
+                              const std::string& uuid,
+                              uint64_t sequence));
 
     MOCK_METHOD2(GetMetaServerInfo,
                  bool(const PeerAddr& addr,

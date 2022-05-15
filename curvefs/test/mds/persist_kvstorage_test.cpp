@@ -59,6 +59,8 @@ class PersistKVStorageTest : public ::testing::Test {
         hello.set_fstype(FSType::TYPE_VOLUME);
         hello.set_enablesumindir(false);
         hello.set_owner("test");
+        hello.set_txsequence(0);
+        hello.set_txowner("owner");
 
         common::Volume volume;
         volume.set_blocksize(4096);
@@ -83,6 +85,8 @@ class PersistKVStorageTest : public ::testing::Test {
         world.set_fstype(FSType::TYPE_S3);
         world.set_enablesumindir(false);
         world.set_owner("test");
+        world.set_txsequence(0);
+        world.set_txowner("owner");
 
         common::S3Info s3info;
         s3info.set_ak("ak");

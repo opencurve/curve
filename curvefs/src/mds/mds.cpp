@@ -69,6 +69,7 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     InitMetaServerOption(&options_.metaserverOptions);
     InitTopologyOption(&options_.topologyOptions);
     InitScheduleOption(&options_.scheduleOption);
+    InitDLockOptions(&options_.dLockOptions);
 }
 
 void MDS::InitMetaServerOption(MetaserverOptions* metaserverOption) {
@@ -132,6 +133,14 @@ void MDS::InitScheduleOption(ScheduleOption* scheduleOption) {
                                &scheduleOption->metaserverCoolingTimeSec);
 }
 
+void MDS::InitDLockOptions(DLockOptions* dLockOptions) {
+    conf_->GetValueFatalIfFail("dlock.ttl_ms", &dLockOptions->ttlMs);
+    conf_->GetValueFatalIfFail("dlock.try_timeout_ms",
+                               &dLockOptions->tryTimeoutMs);
+    conf_->GetValueFatalIfFail("dlock.try_interval_ms",
+                               &dLockOptions->tryIntervalMs);
+}
+
 void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
     conf_->GetValueFatalIfFail("mds.fsmanager.backEndThreadRunInterSec",
                                &fsManagerOption->backEndThreadRunInterSec);
@@ -156,6 +165,7 @@ void MDS::Init() {
     spaceManager_ = std::make_shared<SpaceManagerImpl>(etcdClient_);
     metaserverClient_ =
         std::make_shared<MetaserverClient>(options_.metaserverOptions);
+    auto dlock = std::make_shared<DLock>(options_.dLockOptions, etcdClient_);
 
     // init topology
     InitTopology(options_.topologyOptions);
@@ -169,7 +179,7 @@ void MDS::Init() {
     s3Adapter_ = std::make_shared<S3Adapter>();
     fsManager_ = std::make_shared<FsManager>(
         fsStorage_, spaceManager_, metaserverClient_, topologyManager_,
-        s3Adapter_, fsManagerOption);
+        s3Adapter_, dlock, fsManagerOption);
     LOG_IF(FATAL, !fsManager_->Init()) << "fsManager Init fail";
 
     chunkIdAllocator_ = std::make_shared<ChunkIdAllocatorImpl>(etcdClient_);

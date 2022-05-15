@@ -162,7 +162,8 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::GetDentry,
-                                                 task, fsId, inodeid);
+                                                 task, fsId, inodeid, false,
+                                                 opt_.enableRenameParallel);
     GetDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
@@ -232,7 +233,8 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::ListDentry,
-                                                 task, fsId, inodeid);
+                                                 task, fsId, inodeid, false,
+                                                 opt_.enableRenameParallel);
     ListDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
@@ -298,7 +300,7 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         MetaServerOpType::CreateDentry, task, dentry.fsid(),
         // TODO(@lixiaocui): may be taskContext need diffrent according to
         // different operatrion
-        dentry.parentinodeid());
+        dentry.parentinodeid(), false, opt_.enableRenameParallel);
     CreateDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
@@ -354,7 +356,8 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::DeleteDentry,
-                                                 task, fsId, inodeid);
+                                                 task, fsId, inodeid, false,
+                                                 opt_.enableRenameParallel);
     DeleteDentryExcutor excutor(opt_, metaCache_, channelManager_, taskCtx);
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }

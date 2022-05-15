@@ -41,12 +41,29 @@ void MetaCache::SetTxId(uint32_t partitionId, uint64_t txId) {
     partitionTxId_[partitionId] = txId;
 }
 
+// partitionTxId_: cache for partition's txid
 void MetaCache::GetTxId(uint32_t partitionId, uint64_t *txId) {
     ReadLockGuard r(txIdLock_);
     auto iter = partitionTxId_.find(partitionId);
     if (iter != partitionTxId_.end()) {
         *txId = iter->second;
     }
+}
+
+bool MetaCache::GetTxId(uint32_t fsId,
+                        uint64_t inodeId,
+                        uint32_t *partitionId,
+                        uint64_t *txId) {
+    for (const auto &partition : partitionInfos_) {
+        if (fsId == partition.fsid() &&
+            inodeId >= partition.start() && inodeId <= partition.end()) {
+            *partitionId = partition.partitionid();
+            *txId = partition.txid();
+            GetTxId(*partitionId, txId);
+            return true;
+        }
+    }
+    return false;
 }
 
 void MetaCache::GetAllTxIds(std::vector<PartitionTxId> *txIds) {
@@ -60,17 +77,18 @@ void MetaCache::GetAllTxIds(std::vector<PartitionTxId> *txIds) {
     }
 }
 
-bool MetaCache::GetTxId(uint32_t fsId, uint64_t inodeId, uint32_t *partitionId,
-                        uint64_t *txId) {
-    for (const auto &partition : partitionInfos_) {
-        if (inodeId >= partition.start() && inodeId <= partition.end()) {
-            *partitionId = partition.partitionid();
-            *txId = partition.txid();
-            GetTxId(*partitionId, txId);
-            return true;
-        }
+bool MetaCache::RefreshTxId() {
+    std::vector<PartitionTxId> txIds;
+    FSStatusCode rc = mdsClient_->GetLatestTxId(&txIds);
+    if (rc != FSStatusCode::OK) {
+        LOG(ERROR) << "Get latest txid failed, retCode=" << rc;
+        return false;
     }
-    return false;
+
+    for (const auto& item : txIds) {
+        SetTxId(item.partitionid(), item.txid());
+    }
+    return true;
 }
 
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,

@@ -276,5 +276,22 @@ void MdsServiceImpl::RefreshSession(
     response->set_statuscode(FSStatusCode::OK);
 }
 
+void MdsServiceImpl::GetLatestTxId(
+    ::google::protobuf::RpcController* controller,
+    const GetLatestTxIdRequest* request,
+    GetLatestTxIdResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard guard(done);
+    fsManager_->GetLatestTxId(request, response);
+}
+
+void MdsServiceImpl::CommitTx(::google::protobuf::RpcController* controller,
+                              const CommitTxRequest* request,
+                              CommitTxResponse* response,
+                              ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard guard(done);
+    fsManager_->CommitTx(request, response);
+}
+
 }  // namespace mds
 }  // namespace curvefs

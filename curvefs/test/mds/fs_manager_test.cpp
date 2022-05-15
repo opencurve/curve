@@ -109,6 +109,7 @@ class FSManagerTest : public ::testing::Test {
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceManager_,
                                                  metaserverClient_,
                                                  topoManager_, s3Adapter_,
+                                                 nullptr,
                                                  fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
 
