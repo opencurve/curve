@@ -801,9 +801,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
                 txIds[0].txid() == srcTxId + 1 &&
                 txIds[1].partitionid() == dstPartitionId &&
                 txIds[1].txid() == dstTxId + 1) {
-                return TopoStatusCode::TOPO_OK;
+                return FSStatusCode::OK;
             }
-            return TopoStatusCode::TOPO_INTERNAL_ERROR;
+            return FSStatusCode::UNKNOWN_ERROR;
         }));
 
     // step6: unlink source parent inode
@@ -892,9 +892,9 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
         .WillOnce(Invoke([&](const std::vector<PartitionTxId> &txIds) {
             if (txIds.size() == 1 && txIds[0].partitionid() == partitionId &&
                 txIds[0].txid() == txId + 1) {
-                return TopoStatusCode::TOPO_OK;
+                return FSStatusCode::OK;
             }
-            return TopoStatusCode::TOPO_INTERNAL_ERROR;
+            return FSStatusCode::UNKNOWN_ERROR;
         }));
 
     // step5: unlink source parent inode
@@ -1043,7 +1043,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
     // step4: commit tx
     EXPECT_CALL(*mdsClient_, CommitTx(_))
         .Times(times)
-        .WillRepeatedly(Return(TopoStatusCode::TOPO_OK));
+        .WillRepeatedly(Return(FSStatusCode::OK));
 
     // step5: unlink source directory
     Inode srcParentInode;

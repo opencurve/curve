@@ -58,6 +58,10 @@ namespace curvefs {
 namespace client {
 namespace rpcclient {
 
+using curvefs::mds::GetLatestTxIdRequest;
+using curvefs::mds::GetLatestTxIdResponse;
+using curvefs::mds::CommitTxRequest;
+using curvefs::mds::CommitTxResponse;
 class MdsClient {
  public:
     MdsClient() {}
@@ -77,9 +81,6 @@ class MdsClient {
                                    FsInfo *fsInfo) = 0;
 
     virtual FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) = 0;
-
-    virtual TopoStatusCode
-    CommitTx(const std::vector<PartitionTxId> &txIds) = 0;
 
     virtual bool
     GetMetaServerInfo(const PeerAddr &addr,
@@ -105,6 +106,24 @@ class MdsClient {
     virtual FSStatusCode
     RefreshSession(const std::vector<PartitionTxId> &txIds,
                    std::vector<PartitionTxId> *latestTxIdList) = 0;
+
+    virtual FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) = 0;
+
+    virtual FSStatusCode
+    GetLatestTxIdWithLock(uint32_t fsId,
+                          const std::string& fsName,
+                          const std::string& uuid,
+                          std::vector<PartitionTxId>* txIds,
+                          uint64_t* sequence) = 0;
+
+    virtual FSStatusCode
+    CommitTx(const std::vector<PartitionTxId>& txIds) = 0;
+
+    virtual FSStatusCode
+    CommitTxWithLock(const std::vector<PartitionTxId>& txIds,
+                     const std::string& fsName,
+                     const std::string& uuid,
+                     uint64_t sequence) = 0;
 
     // allocate block group
     virtual SpaceErrCode AllocateVolumeBlockGroup(
@@ -145,8 +164,6 @@ class MdsClientImpl : public MdsClient {
 
     FSStatusCode GetFsInfo(uint32_t fsId, FsInfo *fsInfo) override;
 
-    TopoStatusCode CommitTx(const std::vector<PartitionTxId> &txIds) override;
-
     bool
     GetMetaServerInfo(const PeerAddr &addr,
                       CopysetPeerInfo<MetaserverID> *metaserverInfo) override;
@@ -172,6 +189,23 @@ class MdsClientImpl : public MdsClient {
     RefreshSession(const std::vector<PartitionTxId> &txIds,
                    std::vector<PartitionTxId> *latestTxIdList) override;
 
+    FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) override;
+
+    FSStatusCode
+    GetLatestTxIdWithLock(uint32_t fsId,
+                          const std::string& fsName,
+                          const std::string& uuid,
+                          std::vector<PartitionTxId>* txIds,
+                          uint64_t* sequence) override;
+
+    FSStatusCode CommitTx(const std::vector<PartitionTxId>& txIds) override;
+
+    FSStatusCode
+    CommitTxWithLock(const std::vector<PartitionTxId>& txIds,
+                     const std::string& fsName,
+                     const std::string& uuid,
+                     uint64_t sequence) override;
+
     // allocate block group
     SpaceErrCode AllocateVolumeBlockGroup(
         uint32_t fsId,
@@ -195,6 +229,11 @@ class MdsClientImpl : public MdsClient {
 
  private:
     FSStatusCode ReturnError(int retcode);
+
+    FSStatusCode GetLatestTxId(const GetLatestTxIdRequest& request,
+                               GetLatestTxIdResponse* response);
+
+    FSStatusCode CommitTx(const CommitTxRequest& request);
 
  private:
     MDSBaseClient *mdsbasecli_;

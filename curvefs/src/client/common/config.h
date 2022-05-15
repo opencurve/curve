@@ -66,6 +66,7 @@ struct ExcutorOpt {
     uint64_t minRetryTimesForceTimeoutBackoff = 5;
     uint64_t maxRetryTimesBeforeConsiderSuspend = 20;
     uint32_t batchLimit = 100;
+    bool enableRenameParallel = false;
 };
 
 struct LeaseOpt {
@@ -183,6 +184,8 @@ struct FuseClientOption {
     bool enableDCacheMetrics;
 
     uint32_t dummyServerStartPort;
+
+    bool enableMultiMountPointRename = false;
 
     bool enableFuseSplice = false;
 };

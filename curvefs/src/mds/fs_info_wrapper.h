@@ -66,6 +66,8 @@ class FsInfoWrapper {
         fsInfo.set_blocksize(request->blocksize());
         fsInfo.set_mountnum(0);
         fsInfo.set_enablesumindir(request->enablesumindir());
+        fsInfo.set_txsequence(0);
+        fsInfo.set_txowner("");
 
         const auto& detail = request->fsdetail();
         fsInfo.set_allocated_detail(new FsDetail(detail));
@@ -161,6 +163,18 @@ class FsInfoWrapper {
 
     bool GetEnableSumInDir() const {
         return fsInfo_.enablesumindir();
+    }
+
+    uint64_t IncreaseFsTxSequence(const std::string& owner) {
+        if (fsInfo_.txowner() != owner) {
+            fsInfo_.set_txsequence(fsInfo_.txsequence() + 1);
+            fsInfo_.set_txowner(owner);
+        }
+        return fsInfo_.txsequence();
+    }
+
+    uint64_t GetFsTxSequence() {
+        return fsInfo_.txsequence();
     }
 
  private:
