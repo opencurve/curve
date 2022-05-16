@@ -184,6 +184,19 @@ struct ClientOpMetric {
           opWrite(prefix, "opWrite") {}
 };
 
+struct S3MultiManagerMetric {
+    const std::string prefix;
+    bvar::Adder<int64_t> fileManagerNum;
+    bvar::Adder<int64_t> chunkCacheNum;
+
+    explicit S3MultiManagerMetric(
+        const std::string &prefix_ = "curvefs_client_manager")
+        : prefix(prefix_) {
+        fileManagerNum.expose_as(prefix, "file_manager_num");
+        chunkCacheNum.expose_as(prefix, "chunk_cache_num");
+    }
+};
+
 struct FSMetric {
     const std::string prefix = "curvefs_client";
 
