@@ -22,16 +22,21 @@
 
 #include "curvefs/src/mds/topology/topology_metric.h"
 
+#include <algorithm>
 #include <list>
 #include <memory>
 #include <set>
+#include <unordered_map>
+#include <utility>
 
 namespace curvefs {
 namespace mds {
 namespace topology {
 
+using FsMetricPtr = std::unique_ptr<FsMetric>;
 std::map<PoolIdType, PoolMetricPtr> gPoolMetrics;
 std::map<MetaServerIdType, MetaServerMetricPtr> gMetaServerMetrics;
+std::map<FsIdType, FsMetricPtr> gFsMetrics;
 
 void TopologyMetricService::UpdateTopologyMetrics() {
     // process metaserver
@@ -61,6 +66,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
+    std::unordered_map<FsIdType, uint64_t> fsId2InodeNum;
     // process pool
     std::vector<PoolIdType> pools = topo_->GetPoolInCluster();
     for (auto pid : pools) {
@@ -83,6 +89,14 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         for (auto pit = partitions.begin(); pit != partitions.end(); ++pit) {
             totalInodeNum += pit->GetInodeNum();
             totalDentryNum += pit->GetDentryNum();
+            // update fs2inodeNum
+            auto fsId = pit->GetFsId();
+            auto it = fsId2InodeNum.find(fsId);
+            if (it == fsId2InodeNum.end()) {
+                fsId2InodeNum.emplace(fsId, pit->GetInodeNum());
+            } else {
+                it->second += pit->GetInodeNum();
+            }
         }
         it->second->inodeNum.set_value(totalInodeNum);
         it->second->dentryNum.set_value(totalDentryNum);
@@ -132,6 +146,26 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         it->second->diskUsed.set_value(totalDiskUsed);
         it->second->memoryThreshold.set_value(totalMemoryThreshold);
         it->second->memoryUsed.set_value(totalMemoryUsed);
+    }
+
+    // set fs InodeNum metric
+    for (const auto &fsId2InodeNumPair : fsId2InodeNum) {
+        auto it = gFsMetrics.find(fsId2InodeNumPair.first);
+        if (it == gFsMetrics.end()) {
+            FsMetricPtr cptr(new FsMetric(fsId2InodeNumPair.first));
+            it = gFsMetrics.emplace(fsId2InodeNumPair.first, std::move(cptr))
+                     .first;
+        }
+        it->second->inodeNum_.set_value(fsId2InodeNumPair.second);
+    }
+
+    // remove fs InodeNum metrics that no longer exist
+    for (auto it = gFsMetrics.begin(); it != gFsMetrics.end();) {
+        if (fsId2InodeNum.find(it->first) == fsId2InodeNum.end()) {
+            it = gFsMetrics.erase(it);
+        } else {
+            ++it;
+        }
     }
 
     // remove pool metrics that no longer exist
