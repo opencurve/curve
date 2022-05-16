@@ -214,14 +214,16 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     return MetaStatusCode::OK;
 }
 
-MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
-    VLOG(9) << "UpdateInode, " << request.ShortDebugString();
+MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
+                                         Inode* old, int* deletedNum) {
+    *deletedNum = 0;
+    VLOG(9) << "update inode open status, fsid: " << request.fsid()
+            << ", inodeid: " << request.inodeid();
     NameLockGuard lg(inodeLock_, GetInodeLockName(
             request.fsid(), request.inodeid()));
 
-    Inode old;
     MetaStatusCode ret = inodeStorage_->Get(
-        Key4Inode(request.fsid(), request.inodeid()), &old);
+        Key4Inode(request.fsid(), request.inodeid()), old);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "GetInode fail, " << request.ShortDebugString()
                    << ", ret: " << MetaStatusCode_Name(ret);
@@ -233,7 +235,7 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
 
 #define UPDATE_INODE(param)                  \
     if (request.has_##param()) {            \
-        old.set_##param(request.param()); \
+        old->set_##param(request.param()); \
         needUpdate = true; \
     }
 
@@ -249,24 +251,24 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     UPDATE_INODE(mode)
 
     if (request.parent_size() > 0) {
-        *(old.mutable_parent()) = request.parent();
+        *(old->mutable_parent()) = request.parent();
         needUpdate = true;
     }
 
     if (request.has_nlink()) {
-        if (old.nlink() != 0 && request.nlink() == 0) {
+        if (old->nlink() != 0 && request.nlink() == 0) {
             uint32_t now = TimeUtility::GetTimeofDaySec();
-            old.set_dtime(now);
+            old->set_dtime(now);
             needAddTrash = true;
         }
-        old.set_nlink(request.nlink());
+        old->set_nlink(request.nlink());
         needUpdate = true;
     }
 
     if (!request.xattr().empty()) {
         VLOG(6) << "update inode has xattr, fsid: " << request.fsid()
                 << ", inodeid: " << request.inodeid();
-        *(old.mutable_xattr()) = request.xattr();
+        *(old->mutable_xattr()) = request.xattr();
         needUpdate = true;
     }
 
@@ -276,11 +278,11 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     // 2. client exits unexpectedly: openmpcount will not be updated forerver.
     // if inode is in delete status, operation of DeleteIndoe will be performed
     // incorrectly.
-    if (request.has_inodeopenstatuschange() && old.has_openmpcount() &&
+    if (request.has_inodeopenstatuschange() && old->has_openmpcount() &&
         InodeOpenStatusChange::NOCHANGE != request.inodeopenstatuschange()) {
         VLOG(9) << "update inode open status, fsid: " << request.fsid()
                 << ", inodeid: " << request.inodeid();
-        int32_t oldcount = old.openmpcount();
+        int32_t oldcount = old->openmpcount();
         int32_t newcount =
             request.inodeopenstatuschange() == InodeOpenStatusChange::OPEN
                 ? oldcount + 1
@@ -289,13 +291,13 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
             LOG(ERROR) << "open mount point for inode: " << request.inodeid()
                        << " is " << newcount;
         } else {
-            old.set_openmpcount(newcount);
+            old->set_openmpcount(newcount);
             needUpdate = true;
         }
     }
 
     if (needUpdate) {
-        ret = inodeStorage_->Update(old);
+        ret = inodeStorage_->Update(*old);
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "UpdateInode fail, " << request.ShortDebugString()
                        << ", ret: " << MetaStatusCode_Name(ret);
@@ -304,7 +306,8 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     }
 
     if (needAddTrash) {
-        trash_->Add(old.fsid(), old.inodeid(), old.dtime());
+        trash_->Add(old->fsid(), old->inodeid(), old->dtime());
+        ++(*deletedNum);
     }
 
     VLOG(9) << "UpdateInode success, " << request.ShortDebugString();

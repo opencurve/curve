@@ -236,10 +236,14 @@ TEST_F(InodeManagerTest, test1) {
 
     // UPDATE
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode1);
-    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::NOT_FOUND);
+    Inode inode;
+    int32_t deletedNum = 0;
+    ASSERT_EQ(manager->UpdateInode(request, &inode, &deletedNum),
+              MetaStatusCode::NOT_FOUND);
     temp2.set_atime(100);
     UpdateInodeRequest request2 = MakeUpdateInodeRequestFromInode(temp2);
-    ASSERT_EQ(manager->UpdateInode(request2), MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request2, &inode, &deletedNum),
+              MetaStatusCode::OK);
     Inode temp5;
     ASSERT_EQ(manager->GetInode(fsId, inode2.inodeid(), &temp5),
               MetaStatusCode::OK);
@@ -395,28 +399,34 @@ TEST_F(InodeManagerTest, UpdateInode) {
               manager->CreateInode(ino, param_, &inode));
 
     // 1. test add openmpcount
+    Inode old;
+    int32_t deletedNum = 0;
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode);
     request.set_inodeopenstatuschange(InodeOpenStatusChange::OPEN);
-    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->UpdateInode(request, &old, &deletedNum));
     Inode updateOne;
     ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
     ASSERT_EQ(1, updateOne.openmpcount());
 
     // 2. test openmpcount nochange
     request.set_inodeopenstatuschange(InodeOpenStatusChange::NOCHANGE);
-    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->UpdateInode(request, &old, &deletedNum));
     ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
     ASSERT_EQ(1, updateOne.openmpcount());
 
     // 3. test sub openmpcount
     request.set_inodeopenstatuschange(InodeOpenStatusChange::CLOSE);
-    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->UpdateInode(request, &old, &deletedNum));
     ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
     ASSERT_EQ(0, updateOne.openmpcount());
 
     // 4. test update fail
     request.set_inodeopenstatuschange(InodeOpenStatusChange::CLOSE);
-    ASSERT_EQ(MetaStatusCode::OK, manager->UpdateInode(request));
+    ASSERT_EQ(MetaStatusCode::OK,
+              manager->UpdateInode(request, &old, &deletedNum));
     ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
     ASSERT_EQ(0, updateOne.openmpcount());
 }
@@ -481,7 +491,10 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
     inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
-    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::OK);
+    Inode inode;
+    int32_t deletedNum = 0;
+    ASSERT_EQ(manager->UpdateInode(request, &inode, &deletedNum),
+              MetaStatusCode::OK);
 
     // GET
     XAttr xattr1;

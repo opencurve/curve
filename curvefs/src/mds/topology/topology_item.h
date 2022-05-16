@@ -26,10 +26,12 @@
 #include <list>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <algorithm>
 
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 #include "src/common/concurrent/concurrent.h"
@@ -39,6 +41,9 @@ using curvefs::common::PartitionStatus;
 namespace curvefs {
 namespace mds {
 namespace topology {
+
+using FileType = metaserver::FsFileType;
+using ProtoFileType2InodeNumMap = ::google::protobuf::Map<int32_t, int64_t>;
 
 /**
  * @brief cluster information, so far we only use clusterId
@@ -625,6 +630,7 @@ struct PartitionStatistic {
     common::PartitionStatus status;
     uint64_t inodeNum;
     uint64_t dentryNum;
+    std::unordered_map<FileType, uint64_t> fileType2InodeNum;
 };
 
 class Partition {
@@ -639,7 +645,9 @@ class Partition {
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(UNINITIALIZE_COUNT),
-          dentryNum_(UNINITIALIZE_COUNT) {}
+          dentryNum_(UNINITIALIZE_COUNT) {
+        InitFileType2InodeNum();
+    }
 
     Partition(FsIdType fsId, PoolIdType poolId, CopySetIdType copySetId,
               PartitionIdType partitionId, uint64_t idStart, uint64_t idEnd)
@@ -652,7 +660,9 @@ class Partition {
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(UNINITIALIZE_COUNT),
-          dentryNum_(UNINITIALIZE_COUNT) {}
+          dentryNum_(UNINITIALIZE_COUNT) {
+        InitFileType2InodeNum();
+    }
 
     Partition(const Partition &v)
         : fsId_(v.fsId_),
@@ -664,7 +674,8 @@ class Partition {
           txId_(v.txId_),
           status_(v.status_),
           inodeNum_(v.inodeNum_),
-          dentryNum_(v.dentryNum_) {}
+          dentryNum_(v.dentryNum_),
+          fileType2InodeNum_(v.fileType2InodeNum_) {}
 
     Partition &operator=(const Partition &v) {
         if (&v == this) {
@@ -680,6 +691,7 @@ class Partition {
         status_ = v.status_;
         inodeNum_ = v.inodeNum_;
         dentryNum_ = v.dentryNum_;
+        fileType2InodeNum_ = v.fileType2InodeNum_;
         return *this;
     }
 
@@ -694,6 +706,10 @@ class Partition {
         status_ = v.status();
         inodeNum_ = v.has_inodenum() ? v.inodenum() : UNINITIALIZE_COUNT;
         dentryNum_ = v.has_dentrynum() ? v.dentrynum() : UNINITIALIZE_COUNT;
+        for (auto const& i : v.filetype2inodenum()) {
+            fileType2InodeNum_.emplace(static_cast<FileType>(i.first),
+                                       i.second);
+        }
     }
 
     explicit operator common::PartitionInfo() const {
@@ -707,6 +723,10 @@ class Partition {
         partition.set_status(status_);
         partition.set_inodenum(inodeNum_);
         partition.set_dentrynum(dentryNum_);
+        auto partitionFileType2InodeNum = partition.mutable_filetype2inodenum();
+        for (auto const& i : fileType2InodeNum_) {
+            (*partitionFileType2InodeNum)[i.first] = i.second;
+        }
         return partition;
     }
 
@@ -760,6 +780,22 @@ class Partition {
 
     common::PartitionInfo ToPartitionInfo();
 
+    std::unordered_map<FileType, uint64_t> GetFileType2InodeNum() const {
+        return fileType2InodeNum_;
+    }
+
+    void SetFileType2InodeNum(
+        const std::unordered_map<FileType, uint64_t>& map) {
+        fileType2InodeNum_ = map;
+    }
+
+    void InitFileType2InodeNum() {
+        for (int i = metaserver::FsFileType_MIN;
+             i <= metaserver::FsFileType_MAX; ++i) {
+            fileType2InodeNum_.emplace(static_cast<FileType>(i), 0);
+        }
+    }
+
  private:
     FsIdType fsId_;
     PoolIdType poolId_;
@@ -771,6 +807,7 @@ class Partition {
     common::PartitionStatus status_;
     uint64_t inodeNum_;
     uint64_t dentryNum_;
+    std::unordered_map<FileType, uint64_t> fileType2InodeNum_;
     mutable ::curve::common::RWLock mutex_;
 };
 
