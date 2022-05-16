@@ -187,6 +187,18 @@ class TopologyMetricService {
     TopologyOption option_;
 };
 
+struct FsMetric {
+ public:
+    const std::string kTopologyFsMetricPrefix = "topology_Fs_id_";
+    // inode number
+
+    bvar::Status<uint64_t> inodeNum_;
+
+    explicit FsMetric(FsIdType fsId)
+        : inodeNum_(kTopologyFsMetricPrefix,
+                    std::to_string(fsId) + "_inode_num", 0) {}
+};
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs
