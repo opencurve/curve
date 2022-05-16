@@ -55,9 +55,8 @@ MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
     [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
         brpc::Controller *cntl) -> int
 
-FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
-                                    const std::string &mountPt,
-                                    FsInfo *fsInfo) {
+FSStatusCode MdsClientImpl::MountFs(const std::string& fsName,
+                                    const Mountpoint& mountPt, FsInfo* fsInfo) {
     auto task = RPCTask {
         mdsClientMetric_.mountFs.qps.count << 1;
         MountFsResponse response;
@@ -73,7 +72,8 @@ FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
         FSStatusCode ret = response.statuscode();
         if (ret != FSStatusCode::OK) {
             LOG(WARNING) << "MountFs: fsname = " << fsName
-                         << ", mountPt = " << mountPt << ", errcode = " << ret
+                         << ", mountPt = " << mountPt.ShortDebugString()
+                         << ", errcode = " << ret
                          << ", errmsg = " << FSStatusCode_Name(ret);
         } else if (response.has_fsinfo()) {
             fsInfo->CopyFrom(response.fsinfo());
@@ -83,8 +83,8 @@ FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::UmountFs(const std::string &fsName,
-                                     const std::string &mountPt) {
+FSStatusCode MdsClientImpl::UmountFs(const std::string& fsName,
+                                     const Mountpoint& mountPt) {
     auto task = RPCTask {
         mdsClientMetric_.umountFs.qps.count << 1;
         UmountFsResponse response;
@@ -99,7 +99,8 @@ FSStatusCode MdsClientImpl::UmountFs(const std::string &fsName,
 
         FSStatusCode ret = response.statuscode();
         LOG_IF(WARNING, ret != FSStatusCode::OK)
-            << "UmountFs: fsname = " << fsName << ", mountPt = " << mountPt
+            << "UmountFs: fsname = " << fsName
+            << ", mountPt = " << mountPt.ShortDebugString()
             << ", errcode = " << ret << ", errmsg = " << FSStatusCode_Name(ret);
         return ret;
     };

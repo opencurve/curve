@@ -45,10 +45,10 @@ def runCurvefsToolCommand(command):
     try:
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=5)
     except subprocess.TimeoutExpired as e:
-        return -1, str(output)
+        return -1, output
     except subprocess.CalledProcessError as e:
-        return 0, str(e.output)
-    return 0, str(output)
+        return 0, e.output
+    return 0, output
     
 
 def loadServer():
@@ -69,10 +69,10 @@ def loadClient():
     ret, output = runCurvefsToolCommand(["list-fs"])
     clients = []
     if ret == 0 :
-        for line in output.split('\\n'):
-            if line.startswith("mountpoints:"):
-                targets = re.findall(HOSTNAME_PORT_REGEX, line)
-                clients.extend(targets)
+        data = json.loads(output)
+        for fsinfo in data["fsInfo"]:
+            for mountpoint in fsinfo["mountpoints"]:
+                clients.append(mountpoint["hostname"] + ":" + str(mountpoint["port"]))
     label = lablesValue(None, "client")
     return unitValue(label, clients)
 
@@ -80,7 +80,7 @@ def loadType(hostType):
     ret, output = runCurvefsToolCommand(["status-%s"%hostType])
     targets = []
     if ret == 0:
-        targets = re.findall(IP_PORT_REGEX, output)
+        targets = re.findall(IP_PORT_REGEX, str(output))
     labels = lablesValue(None, hostType)
     return unitValue(labels, targets)
 

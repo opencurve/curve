@@ -39,6 +39,7 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::curvefs::mds::space::MockSpaceService;
+using mds::Mountpoint;
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -83,7 +84,10 @@ class BaseClientTest : public testing::Test {
 
 TEST_F(BaseClientTest, test_MountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     MountFsResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -107,7 +111,10 @@ TEST_F(BaseClientTest, test_MountFs) {
 
 TEST_F(BaseClientTest, test_UmountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     UmountFsResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);

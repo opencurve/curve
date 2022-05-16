@@ -73,6 +73,8 @@ using curvefs::common::is_aligned;
 
 const uint32_t kMaxHostNameLength = 255u;
 
+using mds::Mountpoint;
+
 class FuseClient {
  public:
     FuseClient()
@@ -254,19 +256,16 @@ class FuseClient {
         const std::shared_ptr<InodeWrapper> &inodeWrapper_,
         fuse_entry_param *param);
 
-    int AddHostPortToMountPointStr(const std::string& mountPointStr,
-                                   std::string* out) {
+    int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];
         int ret = gethostname(hostname, kMaxHostNameLength);
         if (ret < 0) {
             LOG(ERROR) << "GetHostName failed, ret = " << ret;
             return ret;
         }
-        *out =
-            std::string(hostname) + ":" +
-            std::to_string(
-                curve::client::ClientDummyServerInfo::GetInstance().GetPort()) +
-            ":" + mountPointStr;
+        out->set_hostname(hostname);
+        out->set_port(
+            curve::client::ClientDummyServerInfo::GetInstance().GetPort());
         return 0;
     }
 
@@ -311,7 +310,7 @@ class FuseClient {
 
     std::shared_ptr<FSMetric> fsMetric_;
 
-    std::string mountpoint_;
+    Mountpoint mountpoint_;
 
  private:
     MDSBaseClient* mdsBase_;

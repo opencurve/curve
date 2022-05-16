@@ -26,6 +26,9 @@
 
 namespace curvefs {
 namespace mds {
+
+using mds::Mountpoint;
+
 void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
                               const ::curvefs::mds::CreateFsRequest* request,
                               ::curvefs::mds::CreateFsResponse* response,
@@ -163,23 +166,23 @@ void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     std::string fsName = request->fsname();
-    std::string mount = request->mountpoint();
+    const Mountpoint& mount = request->mountpoint();
     LOG(INFO) << "MountFs request, fsName = " << fsName
-              << ", mountPoint = " << mount;
+              << ", mountPoint = " << mount.ShortDebugString();
     FSStatusCode status =
         fsManager_->MountFs(fsName, mount, response->mutable_fsinfo());
     if (status != FSStatusCode::OK) {
         response->clear_fsinfo();
         response->set_statuscode(status);
         LOG(ERROR) << "MountFs fail, fsName = " << fsName
-                   << ", mountPoint = " << mount
+                   << ", mountPoint = " << mount.ShortDebugString()
                    << ", errCode = " << FSStatusCode_Name(status);
         return;
     }
 
     response->set_statuscode(FSStatusCode::OK);
     LOG(INFO) << "MountFs success, fsName = " << fsName
-              << ", mountPoint = " << mount
+              << ", mountPoint = " << mount.ShortDebugString()
               << ", mps: " << response->mutable_fsinfo()->mountpoints_size();
     return;
 }
@@ -191,20 +194,20 @@ void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
     std::string fsName = request->fsname();
-    std::string mount = request->mountpoint();
+    const Mountpoint& mount = request->mountpoint();
     LOG(INFO) << "UmountFs request, " << request->ShortDebugString();
     FSStatusCode status = fsManager_->UmountFs(fsName, mount);
     if (status != FSStatusCode::OK) {
         response->set_statuscode(status);
         LOG(ERROR) << "UmountFs fail, fsName = " << fsName
-                   << ", mountPoint = " << mount
+                   << ", mountPoint = " << mount.ShortDebugString()
                    << ", errCode = " << FSStatusCode_Name(status);
         return;
     }
 
     response->set_statuscode(FSStatusCode::OK);
     LOG(INFO) << "UmountFs success, fsName = " << fsName
-              << ", mountPoint = " << mount;
+              << ", mountPoint = " << mount.ShortDebugString();
     return;
 }
 

@@ -62,6 +62,8 @@ using curvefs::mds::GetLatestTxIdRequest;
 using curvefs::mds::GetLatestTxIdResponse;
 using curvefs::mds::CommitTxRequest;
 using curvefs::mds::CommitTxResponse;
+using curvefs::mds::Mountpoint;
+
 class MdsClient {
  public:
     MdsClient() {}
@@ -70,12 +72,11 @@ class MdsClient {
     virtual FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                               MDSBaseClient *baseclient) = 0;
 
-    virtual FSStatusCode MountFs(const std::string &fsName,
-                                 const std::string &mountPt,
-                                 FsInfo *fsInfo) = 0;
+    virtual FSStatusCode MountFs(const std::string& fsName,
+                                 const Mountpoint& mountPt, FsInfo* fsInfo) = 0;
 
     virtual FSStatusCode UmountFs(const std::string &fsName,
-                                  const std::string &mountPt) = 0;
+                                  const Mountpoint &mountPt) = 0;
 
     virtual FSStatusCode GetFsInfo(const std::string &fsName,
                                    FsInfo *fsInfo) = 0;
@@ -154,11 +155,11 @@ class MdsClientImpl : public MdsClient {
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                       MDSBaseClient *baseclient) override;
 
-    FSStatusCode MountFs(const std::string &fsName, const std::string &mountPt,
-                         FsInfo *fsInfo) override;
+    FSStatusCode MountFs(const std::string& fsName, const Mountpoint& mountPt,
+                         FsInfo* fsInfo) override;
 
-    FSStatusCode UmountFs(const std::string &fsName,
-                          const std::string &mountPt) override;
+    FSStatusCode UmountFs(const std::string& fsName,
+                          const Mountpoint& mountPt) override;
 
     FSStatusCode GetFsInfo(const std::string &fsName, FsInfo *fsInfo) override;
 

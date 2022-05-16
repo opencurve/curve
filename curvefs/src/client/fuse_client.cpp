@@ -164,19 +164,25 @@ void FuseClient::FlushInodeLoop() {
 
 CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                                      struct fuse_conn_info *conn) {
-    struct MountOption *mOpts = (struct MountOption *)userdata;
-    std::string mountPointStr =
-        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
+    struct MountOption* mOpts = (struct MountOption*)userdata;
+    // set path
+    mountpoint_.set_path((mOpts->mountPoint == nullptr) ? ""
+                                                       : mOpts->mountPoint);
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
-    int retVal = AddHostPortToMountPointStr(mountPointStr, &mountpoint_);
+    int retVal = SetHostPortInMountPoint(&mountpoint_);
     if (retVal < 0) {
-        LOG(ERROR) << "AddHostPortToMountPointStr failed, ret = " << retVal;
+        LOG(ERROR) << "Set Host and Port in MountPoint failed, ret = "
+                   << retVal;
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    auto find = std::find(fsInfo_->mountpoints().begin(),
-                          fsInfo_->mountpoints().end(), mountpoint_);
+    auto find = std::find_if(fsInfo_->mountpoints().begin(),
+                             fsInfo_->mountpoints().end(),
+                             [this](const Mountpoint& mp) {
+                                 return mp.path() == mountpoint_.path() &&
+                                        mp.hostname() == mountpoint_.hostname();
+                             });
     if (find != fsInfo_->mountpoints().end()) {
         LOG(ERROR) << "MountFs found mountPoint exist";
         return CURVEFS_ERROR::MOUNT_POINT_EXIST;
@@ -188,14 +194,15 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                    << ", FSStatusCode_Name = "
                    << FSStatusCode_Name(ret)
                    << ", fsName = " << fsName
-                   << ", mountPoint = " << mountpoint_;
+                   << ", mountPoint = " << mountpoint_.ShortDebugString();
         return CURVEFS_ERROR::MOUNT_FAILED;
     }
 
     inodeManager_->SetFsId(fsInfo_->fsid());
     dentryManager_->SetFsId(fsInfo_->fsid());
     enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
-    LOG(INFO) << "Mount " << fsName << " on " << mountpoint_ << " success!"
+    LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
+              << " success!"
               << " enableSumInDir = " << enableSumInDir_;
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
@@ -215,28 +222,27 @@ void FuseClient::FuseOpDestroy(void *userdata) {
 
     struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-    std::string mountPointStr =
-        (mOpts->mountPoint == nullptr) ? "" : mOpts->mountPoint;
 
-    std::string mountPointWithHost;
-    int retVal = AddHostPortToMountPointStr(mountPointStr, &mountPointWithHost);
+    Mountpoint mountPoint;
+    mountPoint.set_path((mOpts->mountPoint == nullptr) ? ""
+                                                       : mOpts->mountPoint);
+    int retVal = SetHostPortInMountPoint(&mountPoint);
     if (retVal < 0) {
         return;
     }
-    LOG(INFO) << "Umount " << fsName << " on " << mountPointWithHost
+    LOG(INFO) << "Umount " << fsName << " on " << mountPoint.ShortDebugString()
               << " start";
 
-    FSStatusCode ret = mdsClient_->UmountFs(fsName, mountPointWithHost);
+    FSStatusCode ret = mdsClient_->UmountFs(fsName, mountPoint);
     if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_NOT_EXIST) {
         LOG(ERROR) << "UmountFs failed, FSStatusCode = " << ret
-                   << ", FSStatusCode_Name = "
-                   << FSStatusCode_Name(ret)
+                   << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
                    << ", fsName = " << fsName
-                   << ", mountPoint = " << mountPointWithHost;
+                   << ", mountPoint = " << mountPoint.ShortDebugString();
         return;
     }
 
-    LOG(INFO) << "Umount " << fsName << " on " << mountPointWithHost
+    LOG(INFO) << "Umount " << fsName << " on " << mountPoint.ShortDebugString()
               << " success!";
     return;
 }

@@ -72,6 +72,12 @@ message FsDetail {
     optional common.S3Info s3Info = 2;
 }
 
+message Mountpoint {
+    required string hostname = 1;
+    required uint32 port = 2;
+    required string path = 3;
+}
+
 message FsInfo {
     required uint32 fsId = 1;
     required string fsName = 2;
@@ -80,7 +86,7 @@ message FsInfo {
     required uint64 capacity = 5;
     required uint64 blockSize = 6;
     required uint32 mountNum = 7;
-    repeated string mountpoints = 8;
+    repeated Mountpoint mountpoints = 8;
     required common.FSType fsType = 9;
     required FsDetail detail = 10;
     required bool enableSumInDir = 11;
@@ -111,7 +117,7 @@ message CreateFsResponse {
 
 message MountFsRequest {
     required string fsName = 1;
-    required string mountpoint = 2;
+    required Mountpoint mountpoint = 2;
 }
 
 message MountFsResponse {
@@ -121,7 +127,7 @@ message MountFsResponse {
 
 message UmountFsRequest {
     required string fsName = 1;
-    required string mountpoint = 2;
+    required Mountpoint mountpoint = 2;
 }
 
 message UmountFsResponse {

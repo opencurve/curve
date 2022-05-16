@@ -43,13 +43,13 @@ using ::testing::SetArgPointee;
 
 using ::curvefs::mds::topology::TopoStatusCode;
 
-void MountFsRpcFailed(const std::string &fsName, const std::string &mountPt,
+void MountFsRpcFailed(const std::string &fsName, const Mountpoint &mountPt,
                       MountFsResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
 }
 
-void UmountFsRpcFailed(const std::string &fsName, const std::string &mountPt,
+void UmountFsRpcFailed(const std::string &fsName, const Mountpoint &mountPt,
                        UmountFsResponse *response, brpc::Controller *cntl,
                        brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
@@ -151,7 +151,10 @@ class MdsClientImplTest : public testing::Test {
 
 TEST_F(MdsClientImplTest, test_MountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     FsInfo out;
 
     curvefs::mds::MountFsResponse response;
@@ -171,7 +174,11 @@ TEST_F(MdsClientImplTest, test_MountFs) {
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
     fsinfo->set_mountnum(1);
-    fsinfo->add_mountpoints("0.0.0.0:/data");
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("0.0.0.0");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/data");
+    *fsinfo->add_mountpoints() = mountPoint;
     response.set_allocated_fsinfo(fsinfo);
 
     // 1. mount ok
@@ -202,7 +209,10 @@ TEST_F(MdsClientImplTest, test_MountFs) {
 
 TEST_F(MdsClientImplTest, test_UmountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     curvefs::mds::UmountFsResponse response;
 
     // 1. umount ok
@@ -246,7 +256,11 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsname) {
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
     fsinfo->set_mountnum(1);
-    fsinfo->add_mountpoints("0.0.0.0:/data");
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("0.0.0.0");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/data");
+    *fsinfo->add_mountpoints() = mountPoint;
     response.set_allocated_fsinfo(fsinfo);
 
     // 1. get fsinfo ok
@@ -295,7 +309,11 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
     fsinfo->set_mountnum(1);
-    fsinfo->add_mountpoints("0.0.0.0:/data");
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("0.0.0.0");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/data");
+    *fsinfo->add_mountpoints() = mountPoint;
     response.set_allocated_fsinfo(fsinfo);
 
     // 1. get file info ok

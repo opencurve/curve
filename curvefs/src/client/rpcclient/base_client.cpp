@@ -28,24 +28,25 @@ namespace rpcclient {
 
 using ::curvefs::mds::space::SpaceService_Stub;
 
+
 void MDSBaseClient::MountFs(const std::string& fsName,
-                            const std::string& mountPt,
+                            const Mountpoint& mountPt,
                             MountFsResponse* response, brpc::Controller* cntl,
                             brpc::Channel* channel) {
     MountFsRequest request;
     request.set_fsname(fsName);
-    request.set_mountpoint(mountPt);
+    request.set_allocated_mountpoint(new Mountpoint(mountPt));
     curvefs::mds::MdsService_Stub stub(channel);
     stub.MountFs(cntl, &request, response, nullptr);
 }
 
 void MDSBaseClient::UmountFs(const std::string& fsName,
-                             const std::string& mountPt,
+                             const Mountpoint& mountPt,
                              UmountFsResponse* response, brpc::Controller* cntl,
                              brpc::Channel* channel) {
     UmountFsRequest request;
     request.set_fsname(fsName);
-    request.set_mountpoint(mountPt);
+    request.set_allocated_mountpoint(new Mountpoint(mountPt));
     curvefs::mds::MdsService_Stub stub(channel);
     stub.UmountFs(cntl, &request, response, nullptr);
 }

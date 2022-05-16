@@ -22,12 +22,17 @@
 
 #include "curvefs/src/tools/list/curvefs_fsinfo_list.h"
 
+#include <google/protobuf/util/json_util.h>
+
 DECLARE_string(mdsAddr);
 DECLARE_uint32(rpcTimeoutMs);
 
 namespace curvefs {
 namespace tools {
 namespace list {
+
+using ::google::protobuf::util::MessageToJsonString;
+using ::google::protobuf::util::JsonPrintOptions;
 
 void FsInfoListTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
@@ -72,9 +77,13 @@ bool FsInfoListTool::AfterSendRequestToHost(const std::string& host) {
             std::cout << "no fs in cluster." << std::endl;
         }
 
-        for (auto const& i : response_->fsinfo()) {
-            std::cout << i.DebugString() << std::endl;
-        }
+        std::string output;
+        JsonPrintOptions option;
+        option.add_whitespace = true;
+        option.always_print_primitive_fields = true;
+        option.preserve_proto_field_names = true;
+        MessageToJsonString(*response_, &output, option);
+        std::cout << output << std::endl;
 
         ret = true;
     }

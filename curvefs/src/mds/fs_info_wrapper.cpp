@@ -23,6 +23,8 @@
 
 #include "curvefs/src/mds/fs_info_wrapper.h"
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <algorithm>
 #include <limits>
 
@@ -33,13 +35,18 @@ namespace mds {
 
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
+using google::protobuf::util::MessageDifferencer;
 
-bool FsInfoWrapper::IsMountPointExist(const std::string& mp) const {
-    return std::find(fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end(),
-                     mp) != fsInfo_.mountpoints().end();
+bool FsInfoWrapper::IsMountPointExist(const Mountpoint& mp) const {
+    return std::find_if(fsInfo_.mountpoints().begin(),
+                        fsInfo_.mountpoints().end(),
+                        [mp](const Mountpoint& mountPoint) {
+                            return mp.path() == mountPoint.path() &&
+                                   mp.hostname() == mountPoint.hostname();
+                        }) != fsInfo_.mountpoints().end();
 }
 
-void FsInfoWrapper::AddMountPoint(const std::string& mp) {
+void FsInfoWrapper::AddMountPoint(const Mountpoint& mp) {
     // TODO(wuhanqing): sort after add ?
     auto* p = fsInfo_.add_mountpoints();
     *p = mp;
@@ -47,9 +54,12 @@ void FsInfoWrapper::AddMountPoint(const std::string& mp) {
     fsInfo_.set_mountnum(fsInfo_.mountnum() + 1);
 }
 
-FSStatusCode FsInfoWrapper::DeleteMountPoint(const std::string& mp) {
-    auto iter = std::find(fsInfo_.mountpoints().begin(),
-                          fsInfo_.mountpoints().end(), mp);
+FSStatusCode FsInfoWrapper::DeleteMountPoint(const Mountpoint& mp) {
+    auto iter =
+        std::find_if(fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end(),
+                     [mp](const Mountpoint& mountPoint) {
+                         return MessageDifferencer::Equals(mp, mountPoint);
+                     });
 
     bool found = iter != fsInfo_.mountpoints().end();
     if (found) {
@@ -61,7 +71,7 @@ FSStatusCode FsInfoWrapper::DeleteMountPoint(const std::string& mp) {
     return FSStatusCode::MOUNT_POINT_NOT_EXIST;
 }
 
-std::vector<std::string> FsInfoWrapper::MountPoints() const {
+std::vector<Mountpoint> FsInfoWrapper::MountPoints() const {
     if (fsInfo_.mountpoints_size() == 0) {
         return {};
     }
