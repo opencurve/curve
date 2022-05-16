@@ -25,7 +25,7 @@
 namespace curvefs {
 namespace mds {
 
-void FsMetric::OnMount(const std::string& fsname, const std::string& mp) {
+void FsMetric::OnMount(const std::string& fsname, const Mountpoint& mp) {
     std::lock_guard<Mutex> lock(mtx_);
 
     auto iter = metrics_.find(fsname);
@@ -37,7 +37,7 @@ void FsMetric::OnMount(const std::string& fsname, const std::string& mp) {
     iter->second->OnMount(mp);
 }
 
-void FsMetric::OnUnMount(const std::string& fsname, const std::string& mp) {
+void FsMetric::OnUnMount(const std::string& fsname, const Mountpoint& mp) {
     std::lock_guard<Mutex> lock(mtx_);
 
     auto iter = metrics_.find(fsname);

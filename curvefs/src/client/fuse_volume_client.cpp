@@ -93,7 +93,9 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpInit(void *userdata,
 
     SpaceManagerOption option;
     option.blockGroupManagerOption.fsId = fsInfo_->fsid();
-    option.blockGroupManagerOption.owner = mountpoint_;
+    option.blockGroupManagerOption.owner = mountpoint_.hostname() + ":" +
+                                           std::to_string(mountpoint_.port()) +
+                                           ":" + mountpoint_.path();
     option.blockGroupManagerOption.blockGroupAllocateOnce =
         volOpts_.allocatorOption.blockGroupOption.allocateOnce;
     option.blockGroupManagerOption.blockGroupSize =

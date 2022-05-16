@@ -151,13 +151,13 @@ class FsInfoWrapper {
         return fsInfo_.mountpoints_size() == 0;
     }
 
-    bool IsMountPointExist(const std::string& mp) const;
+    bool IsMountPointExist(const Mountpoint& mp) const;
 
-    void AddMountPoint(const std::string& mp);
+    void AddMountPoint(const Mountpoint& mp);
 
-    FSStatusCode DeleteMountPoint(const std::string& mp);
+    FSStatusCode DeleteMountPoint(const Mountpoint& mp);
 
-    std::vector<std::string> MountPoints() const;
+    std::vector<Mountpoint> MountPoints() const;
 
     void Swap(FsInfoWrapper& other) {
         fsInfo_.Swap(&other.fsInfo_);

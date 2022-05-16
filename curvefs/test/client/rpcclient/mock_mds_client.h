@@ -50,10 +50,10 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD3(MountFs,
                  FSStatusCode(const std::string& fsName,
-                              const std::string& mountPt, FsInfo* fsInfo));
+                              const Mountpoint& mountPt, FsInfo* fsInfo));
 
     MOCK_METHOD2(UmountFs, FSStatusCode(const std::string& fsName,
-                                        const std::string& mountPt));
+                                        const Mountpoint& mountPt));
 
     MOCK_METHOD2(GetFsInfo,
                  FSStatusCode(const std::string& fsName, FsInfo* fsInfo));

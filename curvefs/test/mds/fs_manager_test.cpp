@@ -385,7 +385,10 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::PARAM_ERROR);
 
     // TEST MountFs
-    std::string mountPoint = "host:/a/b/c";
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("host");
+    mountPoint.set_port(90000);
+    mountPoint.set_path("/a/b/c");
     FsInfo fsInfo3;
 
     // mount volumefs initspace fail
@@ -400,7 +403,8 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareVolumeFs(volumeFsInfo1, fsInfo3));
-    ASSERT_EQ(fsInfo3.mountpoints(0), mountPoint);
+    ASSERT_EQ(MessageDifferencer::Equals(fsInfo3.mountpoints(0), mountPoint),
+              true);
 
     // mount volumefs mountpoint exist
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
@@ -411,7 +415,8 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareS3Fs(s3FsInfo, fsInfo4));
-    ASSERT_EQ(fsInfo4.mountpoints(0), mountPoint);
+    ASSERT_EQ(MessageDifferencer::Equals(fsInfo4.mountpoints(0), mountPoint),
+              true);
 
     // mount s3 fs mount point exist
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);

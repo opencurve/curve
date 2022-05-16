@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 
 #include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -33,13 +34,8 @@
 namespace curvefs {
 namespace mds {
 
-void FsMountMetric::OnMount(const std::string& mp) {
-    MountPoint mountpoint = ParseMountPoint(mp);
-    if (!mountpoint.valid) {
-        return;
-    }
-
-    std::string key = Key(mountpoint);
+void FsMountMetric::OnMount(const Mountpoint& mp) {
+    std::string key = Key(mp);
 
     {
         std::lock_guard<Mutex> lock(mtx_);
@@ -49,9 +45,8 @@ void FsMountMetric::OnMount(const std::string& mp) {
 
         // value format is: {"host": "1.2.3.4", "port": "1234", "dir": "/tmp"}
         metric->set_value(
-            "{\"host\": \"%s\", \"port\": \"%s\", \"dir\": \"%s\"}",
-            mountpoint.hostname.c_str(), mountpoint.port.c_str(),
-            mountpoint.mountdir.c_str());
+            "{\"host\": \"%s\", \"port\": \"%d\", \"dir\": \"%s\"}",
+            mp.hostname().c_str(), mp.port(), mp.path().c_str());
 
         mps_.emplace(std::move(key), metric);
     }
@@ -59,43 +54,18 @@ void FsMountMetric::OnMount(const std::string& mp) {
     count_ << 1;
 }
 
-void FsMountMetric::OnUnMount(const std::string& mp) {
-    MountPoint mountPoint = ParseMountPoint(mp);
-    if (!mountPoint.valid) {
-        return;
-    }
-
+void FsMountMetric::OnUnMount(const Mountpoint& mp) {
     {
         std::lock_guard<Mutex> lock(mtx_);
-        mps_.erase(Key(mountPoint));
+        mps_.erase(Key(mp));
     }
 
     count_ << -1;
 }
 
-std::string FsMountMetric::Key(const MountPoint& mp) {
-    return "fs_mount_" + fsname_ + "_" + mp.hostname + "_" + mp.port + "_" +
-           mp.mountdir;
-}
-
-FsMountMetric::MountPoint FsMountMetric::ParseMountPoint(
-    const std::string& mountpoint) const {
-    MountPoint mp;
-
-    std::vector<std::string> items;
-    curve::common::SplitString(mountpoint, ":", &items);
-
-    if (items.size() != 3) {
-        LOG(ERROR) << "Parse mountpoint '" << mountpoint << "' failed";
-        mp.valid = false;
-    } else {
-        mp.hostname = std::move(items[0]);
-        mp.port = std::move(items[1]);
-        mp.mountdir = std::move(items[2]);
-        mp.valid = true;
-    }
-
-    return mp;
+std::string FsMountMetric::Key(const Mountpoint& mp) {
+    return "fs_mount_" + fsname_ + "_" + mp.hostname() + "_" +
+           std::to_string(mp.port()) + "_" + mp.path();
 }
 
 }  // namespace mds

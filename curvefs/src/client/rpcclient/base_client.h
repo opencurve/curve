@@ -108,6 +108,8 @@ using ::curvefs::mds::space::AcquireBlockGroupResponse;
 using ::curvefs::mds::space::ReleaseBlockGroupRequest;
 using ::curvefs::mds::space::ReleaseBlockGroupResponse;
 
+using mds::Mountpoint;
+
 struct InodeParam {
     uint64_t fsId;
     uint64_t length;
@@ -133,11 +135,11 @@ class MDSBaseClient {
  public:
     virtual ~MDSBaseClient() = default;
 
-    virtual void MountFs(const std::string& fsName, const std::string& mountPt,
+    virtual void MountFs(const std::string& fsName, const Mountpoint& mountPt,
                          MountFsResponse* response, brpc::Controller* cntl,
                          brpc::Channel* channel);
 
-    virtual void UmountFs(const std::string& fsName, const std::string& mountPt,
+    virtual void UmountFs(const std::string& fsName, const Mountpoint& mountPt,
                           UmountFsResponse* response, brpc::Controller* cntl,
                           brpc::Channel* channel);
 

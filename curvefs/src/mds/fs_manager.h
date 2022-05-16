@@ -65,6 +65,7 @@ using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::topology::TopologyManager;
 
 using ::curvefs::mds::dlock::DLock;
+using ::curvefs::mds::Mountpoint;
 
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
@@ -133,7 +134,7 @@ class FsManager {
      *         else return error code
      */
     FSStatusCode MountFs(const std::string& fsName,
-                         const std::string& mountpoint, FsInfo* fsInfo);
+                         const Mountpoint& mountpoint, FsInfo* fsInfo);
 
     /**
      * @brief Umount fs, it will decrease mountNum.
@@ -146,7 +147,7 @@ class FsManager {
      *         else return error code
      */
     FSStatusCode UmountFs(const std::string& fsName,
-                          const std::string& mountpoint);
+                          const Mountpoint& mountpoint);
 
     /**
      * @brief get fs info by fsname

@@ -27,6 +27,7 @@
 #include "curvefs/src/mds/codec/codec.h"
 #include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
+#include "curvefs/proto/mds.pb.h"
 
 namespace curvefs {
 namespace mds {
@@ -427,12 +428,16 @@ TEST_F(PersistKVStorageTest, TestUpdate) {
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
 
-        wrapper.AddMountPoint("1.2.3.4:/tmp");
+        Mountpoint mountpoint;
+        mountpoint.set_hostname("1.2.3.4");
+        mountpoint.set_path("/tmp");
+        mountpoint.set_port(9000);
+        wrapper.AddMountPoint(mountpoint);
         EXPECT_EQ(FSStatusCode::STORAGE_ERROR, storage.Update(wrapper));
 
         FsInfoWrapper wrapper2;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper2));
-        EXPECT_FALSE(wrapper2.IsMountPointExist("1.2.3.4:/tmp"));
+        EXPECT_FALSE(wrapper2.IsMountPointExist(mountpoint));
     }
 
     // storage ok
@@ -452,12 +457,16 @@ TEST_F(PersistKVStorageTest, TestUpdate) {
         FsInfoWrapper wrapper;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper));
 
-        wrapper.AddMountPoint("1.2.3.4:/tmp");
+        Mountpoint mountpoint;
+        mountpoint.set_hostname("1.2.3.4");
+        mountpoint.set_path("/tmp");
+        mountpoint.set_port(9000);
+        wrapper.AddMountPoint(mountpoint);
         EXPECT_EQ(FSStatusCode::OK, storage.Update(wrapper));
 
         FsInfoWrapper wrapper2;
         EXPECT_EQ(FSStatusCode::OK, storage.Get("hello", &wrapper2));
-        EXPECT_TRUE(wrapper2.IsMountPointExist("1.2.3.4:/tmp"));
+        EXPECT_TRUE(wrapper2.IsMountPointExist(mountpoint));
     }
 }
 

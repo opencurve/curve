@@ -335,7 +335,8 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
     if (!wrapper.IsMountPointEmpty()) {
         LOG(WARNING) << "DeleteFs fail, mount point exist, fsName = " << fsName;
         for (auto& it : wrapper.MountPoints()) {
-            LOG(WARNING) << "mountpoint [" << it << "] exist";
+            LOG(WARNING) << "mountpoint [" << it.ShortDebugString()
+                         << "] exist";
         }
         return FSStatusCode::FS_BUSY;
     }
@@ -373,7 +374,7 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
 }
 
 FSStatusCode FsManager::MountFs(const std::string& fsName,
-                                const std::string& mountpoint, FsInfo* fsInfo) {
+                                const Mountpoint& mountpoint, FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);
 
     // 1. query fs
@@ -406,7 +407,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     // 3. if mount point exist, return MOUNT_POINT_EXIST
     if (wrapper.IsMountPointExist(mountpoint)) {
         LOG(WARNING) << "MountFs fail, mount point exist, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint;
+                     << ", mountpoint = " << mountpoint.ShortDebugString();
         return FSStatusCode::MOUNT_POINT_EXIST;
     }
 
@@ -417,7 +418,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
         auto ret = spaceManager_->AddVolume(tempFsInfo);
         if (ret != space::SpaceOk) {
             LOG(ERROR) << "MountFs fail, init space fail, fsName = " << fsName
-                       << ", mountpoint = " << mountpoint
+                       << ", mountpoint = " << mountpoint.ShortDebugString()
                        << ", errCode = " << FSStatusCode_Name(INIT_SPACE_ERROR);
             return INIT_SPACE_ERROR;
         }
@@ -429,7 +430,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     ret = fsStorage_->Update(wrapper);
     if (ret != FSStatusCode::OK) {
         LOG(WARNING) << "MountFs fail, update fs fail, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
@@ -443,7 +444,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
 }
 
 FSStatusCode FsManager::UmountFs(const std::string& fsName,
-                                 const std::string& mountpoint) {
+                                 const Mountpoint& mountpoint) {
     NameLockGuard lock(nameLock_, fsName);
 
     // 1. query fs
@@ -459,7 +460,8 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     if (!wrapper.IsMountPointExist(mountpoint)) {
         ret = FSStatusCode::MOUNT_POINT_NOT_EXIST;
         LOG(WARNING) << "UmountFs fail, mount point not exist, fsName = "
-                     << fsName << ", mountpoint = " << mountpoint
+                     << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
@@ -467,7 +469,8 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     ret = wrapper.DeleteMountPoint(mountpoint);
     if (ret != FSStatusCode::OK) {
         LOG(WARNING) << "UmountFs fail, delete mount point fail, fsName = "
-                     << fsName << ", mountpoint = " << mountpoint
+                     << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
@@ -478,7 +481,8 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
         auto ret = spaceManager_->RemoveVolume(wrapper.GetFsId());
         if (ret != space::SpaceOk) {
             LOG(ERROR) << "UmountFs fail, uninit space fail, fsName = "
-                       << fsName << ", mountpoint = " << mountpoint
+                       << fsName
+                       << ", mountpoint = " << mountpoint.ShortDebugString()
                        << ", errCode = "
                        << FSStatusCode_Name(UNINIT_SPACE_ERROR);
             return UNINIT_SPACE_ERROR;
@@ -490,7 +494,7 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     ret = fsStorage_->Update(wrapper);
     if (ret != FSStatusCode::OK) {
         LOG(WARNING) << "UmountFs fail, update fs fail, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }

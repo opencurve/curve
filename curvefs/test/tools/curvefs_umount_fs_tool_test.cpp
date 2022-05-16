@@ -48,6 +48,7 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
+using mds::Mountpoint;
 
 class UmountfsToolTest : public testing::Test {
  protected:
@@ -146,7 +147,11 @@ TEST_F(UmountfsToolTest, test_umount_tool_init) {
         std::make_shared<brpc::Controller>();
     curvefs::mds::UmountFsRequest request;
     request.set_fsname("123");
-    request.set_mountpoint(FLAGS_mountpoint);
+    auto *mp = new Mountpoint();
+    mp->set_hostname("0.0.0.0");
+    mp->set_port(9000);
+    mp->set_path("/data");
+    request.set_allocated_mountpoint(mp);
     std::queue<curvefs::mds::UmountFsRequest> requestQueue;
     requestQueue.push(request);
     std::shared_ptr<curvefs::mds::UmountFsResponse> response =
