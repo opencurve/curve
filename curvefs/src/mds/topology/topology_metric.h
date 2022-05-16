@@ -28,9 +28,11 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/mds/topology/topology.h"
 #include "src/common/interruptible_sleeper.h"
@@ -40,6 +42,12 @@ using ::curve::common::InterruptibleSleeper;
 namespace curvefs {
 namespace mds {
 namespace topology {
+
+using ::curvefs::metaserver::FsFileType;
+using ::curvefs::metaserver::FsFileType_IsValid;
+using ::curvefs::metaserver::FsFileType_MAX;
+using ::curvefs::metaserver::FsFileType_MIN;
+using ::curvefs::metaserver::FsFileType_Name;
 
 struct MetaServerMetric {
     const std::string kTopologyMetaServerMetricPrefix =
@@ -193,10 +201,26 @@ struct FsMetric {
     // inode number
 
     bvar::Status<uint64_t> inodeNum_;
+    using statusPtr = std::shared_ptr<bvar::Status<uint64_t>>;
+    std::unordered_map<FsFileType, statusPtr> fileType2InodeNum_;
 
     explicit FsMetric(FsIdType fsId)
         : inodeNum_(kTopologyFsMetricPrefix,
-                    std::to_string(fsId) + "_inode_num", 0) {}
+                    std::to_string(fsId) + "_inode_num", 0) {
+        for (int i = FsFileType_MIN; i <= FsFileType_MAX; ++i) {
+            if (FsFileType_IsValid(i)) {
+                auto inodeNumTmpPtr = std::make_shared<bvar::Status<uint64_t>>(
+                    kTopologyFsMetricPrefix,
+                    std::to_string(fsId) + "_" +
+                        FsFileType_Name(static_cast<FsFileType>(i)) +
+                        "_inode_num",
+                    0);
+
+                fileType2InodeNum_.emplace(static_cast<FsFileType>(i),
+                                           std::move(inodeNumTmpPtr));
+            }
+        }
+    }
 };
 
 }  // namespace topology

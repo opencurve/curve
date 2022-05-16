@@ -74,7 +74,8 @@ class InodeManager {
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode UpdateInode(const UpdateInodeRequest &request);
+    MetaStatusCode UpdateInode(const UpdateInodeRequest& request, Inode* old,
+                               int* deletedNum);
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId,

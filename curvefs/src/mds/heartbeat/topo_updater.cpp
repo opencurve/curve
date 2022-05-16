@@ -257,6 +257,7 @@ void TopoUpdater::UpdatePartitionTopo(
             statistic.status = it.GetStatus();
             statistic.inodeNum = it.GetInodeNum();
             statistic.dentryNum = it.GetDentryNum();
+            statistic.fileType2InodeNum = it.GetFileType2InodeNum();
             topo_->UpdatePartitionStatistic(it.GetPartitionId(), statistic);
         }
     }

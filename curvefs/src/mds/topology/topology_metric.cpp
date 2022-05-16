@@ -67,6 +67,8 @@ void TopologyMetricService::UpdateTopologyMetrics() {
     }
 
     std::unordered_map<FsIdType, uint64_t> fsId2InodeNum;
+    std::unordered_map<FsIdType, std::unordered_map<FileType, uint64_t>>
+        fsId2FileType2InodeNum;
     // process pool
     std::vector<PoolIdType> pools = topo_->GetPoolInCluster();
     for (auto pid : pools) {
@@ -91,11 +93,31 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             totalDentryNum += pit->GetDentryNum();
             // update fs2inodeNum
             auto fsId = pit->GetFsId();
-            auto it = fsId2InodeNum.find(fsId);
-            if (it == fsId2InodeNum.end()) {
+            auto itFsid2InodeNum = fsId2InodeNum.find(fsId);
+            if (itFsid2InodeNum == fsId2InodeNum.end()) {
                 fsId2InodeNum.emplace(fsId, pit->GetInodeNum());
             } else {
-                it->second += pit->GetInodeNum();
+                itFsid2InodeNum->second += pit->GetInodeNum();
+            }
+            // update fs2fileType2inodeNum
+            auto fileType2InodeNum = pit->GetFileType2InodeNum();
+            auto itFsId2FileType2InodeNum = fsId2FileType2InodeNum.find(fsId);
+            if (itFsId2FileType2InodeNum == fsId2FileType2InodeNum.end()) {
+                fsId2FileType2InodeNum.emplace(
+                    fsId, std::move(fileType2InodeNum));
+            } else {
+                for (auto const& fileType2Inode : fileType2InodeNum) {
+                    auto itFileType2InodeNum =
+                        itFsId2FileType2InodeNum->second.find(
+                            fileType2Inode.first);
+                    if (itFileType2InodeNum ==
+                        itFsId2FileType2InodeNum->second.end()) {
+                        itFsId2FileType2InodeNum->second.emplace(
+                            fileType2Inode);
+                    } else {
+                        itFileType2InodeNum->second += fileType2Inode.second;
+                    }
+                }
             }
         }
         it->second->inodeNum.set_value(totalInodeNum);
@@ -165,6 +187,27 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             it = gFsMetrics.erase(it);
         } else {
             ++it;
+        }
+    }
+
+    // set fsId2FileType2InodeNum metric
+    for (auto const& fsId2FileType2InodeNumPair : fsId2FileType2InodeNum) {
+        auto it = gFsMetrics.find(fsId2FileType2InodeNumPair.first);
+        if (it == gFsMetrics.end()) {
+            FsMetricPtr cptr(new FsMetric(fsId2FileType2InodeNumPair.first));
+            it = gFsMetrics
+                     .emplace(fsId2FileType2InodeNumPair.first, std::move(cptr))
+                     .first;
+        }
+        // set according to fstype
+        for (auto const& fileType2InodeNumPair :
+             fsId2FileType2InodeNumPair.second) {
+            auto it2 = it->second->fileType2InodeNum_.find(
+                fileType2InodeNumPair.first);  //  find file type
+            if (it2 != it->second->fileType2InodeNum_.end()) {
+                // support fs file type
+                it2->second->set_value(fileType2InodeNumPair.second);
+            }
         }
     }
 
