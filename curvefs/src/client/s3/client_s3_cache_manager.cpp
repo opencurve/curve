@@ -22,11 +22,12 @@
 
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 
-// #include <glog/logging.h>
+#include <bvar/bvar.h>
 #include <utility>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
+#include "curvefs/src/client/metric/client_metric.h"
 
 namespace curvefs {
 namespace client {
@@ -35,6 +36,10 @@ DECLARE_bool(enableCto);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
+
+using ::curvefs::client::metric::S3MultiManagerMetric;
+static S3MultiManagerMetric *g_s3MultiManagerMetric =
+    new S3MultiManagerMetric();
 
 namespace curvefs {
 namespace client {
@@ -62,6 +67,7 @@ FsCacheManager::FindOrCreateFileCacheManager(uint64_t fsId, uint64_t inodeId) {
     FileCacheManagerPtr fileCacheManager =
         std::make_shared<FileCacheManager>(fsId, inodeId, s3ClientAdaptor_);
     auto ret = fileCacheManagerMap_.emplace(inodeId, fileCacheManager);
+    g_s3MultiManagerMetric->fileManagerNum << 1;
     assert(ret.second);
     (void)ret;
     return fileCacheManager;
@@ -79,6 +85,7 @@ void FsCacheManager::ReleaseFileCacheManager(uint64_t inodeId) {
     }
 
     fileCacheManagerMap_.erase(iter);
+    g_s3MultiManagerMetric->fileManagerNum << -1;
     return;
 }
 
@@ -167,6 +174,7 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
                 VLOG(9) << "Release FileCacheManager, inode id: "
                         << iter1->second->GetInodeId();
                 fileCacheManagerMap_.erase(iter1);
+                g_s3MultiManagerMetric->fileManagerNum << -1;
             }
         } else {
             LOG(ERROR) << "fs fssync error, ret: " << ret;
@@ -191,6 +199,7 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
                     VLOG(9) << "Release FileCacheManager, inode id: "
                             << iter1->second->GetInodeId();
                     fileCacheManagerMap_.erase(iter1);
+                    g_s3MultiManagerMetric->fileManagerNum << -1;
                 }
             }
         }
@@ -257,6 +266,7 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
     ChunkCacheManagerPtr chunkCacheManager =
         std::make_shared<ChunkCacheManager>(index, s3ClientAdaptor_);
     auto ret = chunkCacheMap_.emplace(index, chunkCacheManager);
+    g_s3MultiManagerMetric->chunkCacheNum << 1;
     assert(ret.second);
     (void)ret;
     return chunkCacheManager;
@@ -898,11 +908,13 @@ void FileCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
 void FileCacheManager::ReleaseCache() {
     WriteLockGuard writeLockGuard(rwLock_);
 
+    uint64_t chunNum = chunkCacheMap_.size();
     for (auto& chunk : chunkCacheMap_) {
         chunk.second->ReleaseCache();
     }
 
     chunkCacheMap_.clear();
+    g_s3MultiManagerMetric->chunkCacheNum << -1 * chunNum;
     return;
 }
 
@@ -980,6 +992,7 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
                     VLOG(9) << "erase iter: " << iter1->first
                             << ", inode: " << context->inode;
                     chunkCacheMap_.erase(iter1);
+                    g_s3MultiManagerMetric->chunkCacheNum << -1;
                 }
             }
             if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
