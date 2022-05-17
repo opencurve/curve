@@ -96,6 +96,7 @@ fs_etcd = ["10.182.2.34","10.182.2.35","10.182.2.36"]
 md5_check = []
 fs_md5check_thread = ""
 fs_mount_thread = ""
+fs_use_curvebs = False
 thrash_fs_mount = True
 thrash_fs_mdtest = True
 thrash_mount_host = "pubbeta2-nova48-3"

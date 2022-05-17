@@ -370,13 +370,23 @@ def mount_test_dir(mountpoint="",mountfile=""):
         ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
         if mountpoint == "":
             for mountpoint in config.fs_mount_dir:
-                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
+                if config.fs_use_curvebs:
+                    cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-bs-%s.yaml \
+                             --fstype volume"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
+                else:    
+                    cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml\
+                            "%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
                 rs = shell_operator.ssh_exec(ssh, cmd)
                 assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
         else:
             if mountfile == "":
                 mountfile = mountpoint
-            cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml"%(mountpoint,config.fs_mount_path,mountfile,mountfile)
+            if config.fs_use_curvebs:
+                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-bs-%s.yaml \
+                        --fstype volume"%(mountpoint,config.fs_mount_path,mountfile,mountfile)
+            else:
+                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml\
+                        "%(mountpoint,config.fs_mount_path,mountfile,mountfile)
             rs = shell_operator.ssh_exec(ssh, cmd)
             assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
     except Exception:
