@@ -115,6 +115,10 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         }
     }
 
+    if (inodeIds->empty()) {
+        return CURVEFS_ERROR::OK;
+    }
+
     MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, inodeIds, attr);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr failed, MetaStatusCode = "
@@ -140,6 +144,10 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
         } else {
             ++iter;
         }
+    }
+
+    if (inodeIds->empty()) {
+        return CURVEFS_ERROR::OK;
     }
 
     MetaStatusCode ret = metaClient_->BatchGetXAttr(fsId_, inodeIds, xattr);
