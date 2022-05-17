@@ -40,7 +40,7 @@ class DentryManager {
     DentryManager(std::shared_ptr<DentryStorage> dentryStorage,
                   std::shared_ptr<TxManager> txManger);
 
-    MetaStatusCode CreateDentry(const Dentry& dentry);
+    MetaStatusCode CreateDentry(const Dentry& dentry, bool isLoadding = false);
 
     MetaStatusCode DeleteDentry(const Dentry& dentry);
 
