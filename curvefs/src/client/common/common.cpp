@@ -40,8 +40,17 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
     case MetaServerOpType::DeleteDentry:
         os << "DeleteDentry";
         break;
+    case MetaServerOpType::PrepareRenameTx:
+        os << "PrepareRenameTx";
+        break;
     case MetaServerOpType::GetInode:
         os << "GetInode";
+        break;
+    case MetaServerOpType::BatchGetInodeAttr:
+        os << "BatchGetInodeAttr";
+        break;
+    case MetaServerOpType::BatchGetXAttr:
+        os << "BatchGetXAttr";
         break;
     case MetaServerOpType::UpdateInode:
         os << "UpdateInode";
