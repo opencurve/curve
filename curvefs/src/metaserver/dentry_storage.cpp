@@ -152,18 +152,20 @@ MetaStatusCode DentryStorage::Find(const Dentry& in,
     return rc;
 }
 
-MetaStatusCode DentryStorage::Insert(const Dentry& dentry) {
+MetaStatusCode DentryStorage::Insert(const Dentry& dentry, bool isLoadding) {
     WriteLockGuard w(rwLock_);
 
-    Dentry out;
-    MetaStatusCode rc = Find(dentry, &out, true);
-    if (rc == MetaStatusCode::OK) {
-        if (IsSameDentry(out, dentry)) {
-            return MetaStatusCode::IDEMPOTENCE_OK;
+    if (!isLoadding) {
+        Dentry out;
+        MetaStatusCode rc = Find(dentry, &out, true);
+        if (rc == MetaStatusCode::OK) {
+            if (IsSameDentry(out, dentry)) {
+                return MetaStatusCode::IDEMPOTENCE_OK;
+            }
+            return MetaStatusCode::DENTRY_EXIST;
+        } else if (rc != MetaStatusCode::NOT_FOUND) {
+            return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
-        return MetaStatusCode::DENTRY_EXIST;
-    } else if (rc != MetaStatusCode::NOT_FOUND) {
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     // MetaStatusCode::NOT_FOUND
