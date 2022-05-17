@@ -69,7 +69,7 @@ MetaStatusCode Partition::CreateDentry(const Dentry& dentry, bool isLoadding) {
     if (GetStatus() == PartitionStatus::DELETING) {
         return MetaStatusCode::PARTITION_DELETING;
     }
-    MetaStatusCode ret = dentryManager_->CreateDentry(dentry);
+    MetaStatusCode ret = dentryManager_->CreateDentry(dentry, isLoadding);
     if (MetaStatusCode::OK == ret) {
         if (!isLoadding) {
             return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(

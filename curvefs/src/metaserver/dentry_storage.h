@@ -65,7 +65,7 @@ class DentryStorage {
     DentryStorage(std::shared_ptr<KVStorage> kvStorage,
                   const std::string& tablename);
 
-    MetaStatusCode Insert(const Dentry& dentry);
+    MetaStatusCode Insert(const Dentry& dentry, bool isLoadding = false);
 
     MetaStatusCode Delete(const Dentry& dentry);
 
