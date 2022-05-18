@@ -371,32 +371,6 @@ class FsCacheManager {
         return writeCacheMaxByte_;
     }
 
-    void DataCacheNumInc() {
-        VLOG(9) << "DataCacheNumInc() v: 1,wDataCacheNum:"
-                << wDataCacheNum_.load(std::memory_order_relaxed);
-        wDataCacheNum_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    void DataCacheNumFetchSub(uint64_t v) {
-        VLOG(9) << "DataCacheNumFetchSub() v:" << v << ",wDataCacheNum_:"
-                << wDataCacheNum_.load(std::memory_order_relaxed);
-        assert(wDataCacheNum_.load(std::memory_order_relaxed) >= v);
-        wDataCacheNum_.fetch_sub(v, std::memory_order_relaxed);
-    }
-
-    void DataCacheByteInc(uint64_t v) {
-        VLOG(9) << "DataCacheByteInc() v:" << v << ",wDataCacheByte:"
-                << wDataCacheByte_.load(std::memory_order_relaxed);
-        wDataCacheByte_.fetch_add(v, std::memory_order_relaxed);
-    }
-
-    void DataCacheByteDec(uint64_t v) {
-        VLOG(9) << "DataCacheByteDec() v:" << v << ",wDataCacheByte:"
-                << wDataCacheByte_.load(std::memory_order_relaxed);
-        assert(wDataCacheByte_.load(std::memory_order_relaxed) >= v);
-        wDataCacheByte_.fetch_sub(v, std::memory_order_relaxed);
-    }
-
     void WaitFlush() {
         std::unique_lock<std::mutex> lk(mutex_);
         isWaiting_ = true;
@@ -436,6 +410,10 @@ class FsCacheManager {
         assert(ret.second);
         (void)ret;
     }
+    void DataCacheNumInc();
+    void DataCacheNumFetchSub(uint64_t v);
+    void DataCacheByteInc(uint64_t v);
+    void DataCacheByteDec(uint64_t v);
 
  private:
     class ReadCacheReleaseExecutor {

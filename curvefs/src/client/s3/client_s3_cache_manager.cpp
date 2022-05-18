@@ -44,6 +44,36 @@ static S3MultiManagerMetric *g_s3MultiManagerMetric =
 namespace curvefs {
 namespace client {
 
+void FsCacheManager::DataCacheNumInc() {
+        g_s3MultiManagerMetric->writeDataCacheNum << 1;
+        VLOG(9) << "DataCacheNumInc() v: 1,wDataCacheNum:"
+                << wDataCacheNum_.load(std::memory_order_relaxed);
+        wDataCacheNum_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+void FsCacheManager::DataCacheNumFetchSub(uint64_t v) {
+    g_s3MultiManagerMetric->writeDataCacheNum << -1 * v;
+    VLOG(9) << "DataCacheNumFetchSub() v:" << v << ",wDataCacheNum_:"
+            << wDataCacheNum_.load(std::memory_order_relaxed);
+    assert(wDataCacheNum_.load(std::memory_order_relaxed) >= v);
+    wDataCacheNum_.fetch_sub(v, std::memory_order_relaxed);
+}
+
+void FsCacheManager::DataCacheByteInc(uint64_t v) {
+    g_s3MultiManagerMetric->writeDataCacheByte << v;
+    VLOG(9) << "DataCacheByteInc() v:" << v << ",wDataCacheByte:"
+            << wDataCacheByte_.load(std::memory_order_relaxed);
+    wDataCacheByte_.fetch_add(v, std::memory_order_relaxed);
+}
+
+void FsCacheManager::DataCacheByteDec(uint64_t v) {
+    g_s3MultiManagerMetric->writeDataCacheByte << -1 * v;
+    VLOG(9) << "DataCacheByteDec() v:" << v << ",wDataCacheByte:"
+            << wDataCacheByte_.load(std::memory_order_relaxed);
+    assert(wDataCacheByte_.load(std::memory_order_relaxed) >= v);
+    wDataCacheByte_.fetch_sub(v, std::memory_order_relaxed);
+}
+
 FileCacheManagerPtr FsCacheManager::FindFileCacheManager(uint64_t inodeId) {
     ReadLockGuard readLockGuard(rwLock_);
 
@@ -165,7 +195,28 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
     for (; iter != tmp.end(); iter++) {
         ret = iter->second->Flush(force);
         if (ret == CURVEFS_ERROR::OK) {
-            continue;
+            WriteLockGuard writeLockGuard(rwLock_);
+            auto iter1 = fileCacheManagerMap_.find(iter->first);
+            if (iter1 == fileCacheManagerMap_.end()) {
+                VLOG(1) << "FsSync, chunk cache for inodeid: " << iter->first
+                        << " is removed";
+                continue;
+            } else {
+                VLOG(9) << "FileCacheManagerPtr count:"
+                        << iter1->second.use_count()
+                        << ", inodeId:" << iter1->first;
+                // tmp and fileCacheManagerMap_ has this FileCacheManagerPtr, so
+                // count is 2 if count more than 2, this mean someone thread has
+                // this FileCacheManagerPtr
+                // TODO(@huyao) https://github.com/opencurve/curve/issues/1473
+                if ((iter1->second->IsEmpty()) &&
+                    (iter1->second.use_count() <= 2)) {
+                    VLOG(9) << "Release FileCacheManager, inode id: "
+                            << iter1->second->GetInodeId();
+                    fileCacheManagerMap_.erase(iter1);
+                    g_s3MultiManagerMetric->fileManagerNum << -1;
+                }
+            }
         } else if (ret == CURVEFS_ERROR::NOTEXIST) {
             iter->second->ReleaseCache();
             WriteLockGuard writeLockGuard(rwLock_);
@@ -179,29 +230,6 @@ CURVEFS_ERROR FsCacheManager::FsSync(bool force) {
         } else {
             LOG(ERROR) << "fs fssync error, ret: " << ret;
             return ret;
-        }
-
-        {
-            WriteLockGuard writeLockGuard(rwLock_);
-            auto iter1 = fileCacheManagerMap_.find(iter->first);
-            if (iter1 == fileCacheManagerMap_.end()) {
-                VLOG(1) << "FsSync, chunk cache for inodeid: " << iter->first
-                        << " is removed";
-                continue;
-            } else {
-                VLOG(9) << "FileCacheManagerPtr count:"
-                        << iter1->second.use_count();
-                // tmp and fileCacheManagerMap_ has this FileCacheManagerPtr, so
-                // count is 2 if count more than 2, this mean someone thread has
-                // this FileCacheManagerPtr
-                if ((iter1->second->IsEmpty()) &&
-                    (2 == iter1->second.use_count())) {
-                    VLOG(9) << "Release FileCacheManager, inode id: "
-                            << iter1->second->GetInodeId();
-                    fileCacheManagerMap_.erase(iter1);
-                    g_s3MultiManagerMetric->fileManagerNum << -1;
-                }
-            }
         }
     }
 
@@ -266,7 +294,7 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
     ChunkCacheManagerPtr chunkCacheManager =
         std::make_shared<ChunkCacheManager>(index, s3ClientAdaptor_);
     auto ret = chunkCacheMap_.emplace(index, chunkCacheManager);
-    g_s3MultiManagerMetric->chunkCacheNum << 1;
+    g_s3MultiManagerMetric->chunkManagerNum << 1;
     assert(ret.second);
     (void)ret;
     return chunkCacheManager;
@@ -914,7 +942,7 @@ void FileCacheManager::ReleaseCache() {
     }
 
     chunkCacheMap_.clear();
-    g_s3MultiManagerMetric->chunkCacheNum << -1 * chunNum;
+    g_s3MultiManagerMetric->chunkManagerNum << -1 * chunNum;
     return;
 }
 
@@ -983,16 +1011,18 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
                     return;
                 }
                 VLOG(6) << "ChunkCacheManagerPtr count:"
-                        << context->chunkCacheManptr.use_count();
-                // tmp and chunkCacheMap_ has this ChunkCacheManagerPtr,
-                // so count is 2 if count more than 2,
+                        << context->chunkCacheManptr.use_count()
+                        << ",inode:" << inode_
+                        << ", index:" << context->chunkCacheManptr->GetIndex();
+                // tmp、chunkCacheMap_ and context->chunkCacheManptr has this
+                // ChunkCacheManagerPtr, so count is 3 if count more than 3,
                 // this mean someone thread has this ChunkCacheManagerPtr
                 if (iter1->second->IsEmpty() &&
-                  (2 == iter1->second.use_count())) {
+                  (iter1->second.use_count() <= 3)) {
                     VLOG(9) << "erase iter: " << iter1->first
                             << ", inode: " << context->inode;
                     chunkCacheMap_.erase(iter1);
-                    g_s3MultiManagerMetric->chunkCacheNum << -1;
+                    g_s3MultiManagerMetric->chunkManagerNum << -1;
                 }
             }
             if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
@@ -1002,7 +1032,7 @@ CURVEFS_ERROR FileCacheManager::Flush(bool force, bool toS3) {
         };
         std::vector<std::shared_ptr<FlushChunkCacheContext>> flushTasks;
         auto iter = tmp.begin();
-        VLOG(6) << "flush size is: " << tmp.size();
+        VLOG(6) << "flush size is: " << tmp.size() << ",inodeId:" << inode_;
         for (; iter != tmp.end(); iter++) {
             auto context = std::make_shared<FlushChunkCacheContext>();
             context->inode = inode_;
@@ -1420,7 +1450,6 @@ void ChunkCacheManager::WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
         LOG(ERROR) << "dataCache emplace failed.";
         return;
     }
-
     s3ClientAdaptor_->FsSyncSignalAndDataCacheInc();
     s3ClientAdaptor_->GetFsCacheManager()->DataCacheByteInc(
         dataCache->GetActualLen());
@@ -1451,6 +1480,9 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
         auto iter = dataRCacheMap_.find(key);
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter)) {
+            g_s3MultiManagerMetric->readDataCacheNum << -1;
+            g_s3MultiManagerMetric->readDataCacheByte
+                << -1 * (*dcpIter)->GetActualLen();
             dataRCacheMap_.erase(iter);
         }
     }
@@ -1458,6 +1490,9 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
     bool ret =
         s3ClientAdaptor_->GetFsCacheManager()->Set(dataCache, &outIter);
     if (ret) {
+        g_s3MultiManagerMetric->readDataCacheNum << 1;
+        g_s3MultiManagerMetric->readDataCacheByte
+            << dataCache->GetActualLen();
         dataRCacheMap_.emplace(chunkPos, outIter);
     }
 }
@@ -1469,7 +1504,9 @@ void ChunkCacheManager::ReleaseReadDataCache(uint64_t key) {
     if (iter == dataRCacheMap_.end()) {
         return;
     }
-
+    g_s3MultiManagerMetric->readDataCacheNum << -1;
+    g_s3MultiManagerMetric->readDataCacheByte
+                << -1 * (*(iter->second))->GetActualLen();
     dataRCacheMap_.erase(iter);
     return;
 }
@@ -1490,6 +1527,9 @@ void ChunkCacheManager::ReleaseCache() {
     auto iter = dataRCacheMap_.begin();
     for (; iter != dataRCacheMap_.end(); iter++) {
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(iter->second)) {
+            g_s3MultiManagerMetric->readDataCacheNum << -1;
+            g_s3MultiManagerMetric->readDataCacheByte
+                << -1 * (*(iter->second))->GetActualLen();
             dataRCacheMap_.erase(iter);
         }
     }
@@ -1535,6 +1575,9 @@ void ChunkCacheManager::TruncateReadCache(uint64_t chunkPos) {
         uint64_t dcActualLen = (*rIter->second)->GetActualLen();
         if ((dcChunkPos + dcLen) > chunkPos) {
             if (s3ClientAdaptor_->GetFsCacheManager()->Delete(rIter->second)) {
+                g_s3MultiManagerMetric->readDataCacheNum << -1;
+                g_s3MultiManagerMetric->readDataCacheByte
+                    << -1 * dcActualLen;
                 dataRCacheMap_.erase(next(rIter).base());
             }
         } else {
