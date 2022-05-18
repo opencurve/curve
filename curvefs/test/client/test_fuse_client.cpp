@@ -1922,36 +1922,25 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
 
     // out
     uint32_t fsId = 1;
-    uint64_t inodeId1 = 2;
-    uint64_t inodeId2 = 3;
-    std::string name1 = "file1";
-    std::string name2 = "file2";
+    uint64_t inodeId = 2;
+    std::string name1 = "file";
     uint64_t txId = 1;
 
-    std::list<Dentry> emptyDlist;
     std::list<Dentry> dlist;
     Dentry dentry;
     dentry.set_fsid(fsId);
-    dentry.set_inodeid(inodeId1);
+    dentry.set_inodeid(inodeId);
     dentry.set_parentinodeid(ino);
     dentry.set_name(name1);
     dentry.set_txid(txId);
-    dentry.set_type(FsFileType::TYPE_DIRECTORY);
-    dlist.emplace_back(dentry);
-    dentry.set_inodeid(inodeId2);
-    dentry.set_name(name2);
     dentry.set_type(FsFileType::TYPE_FILE);
     dlist.emplace_back(dentry);
 
     std::list<InodeAttr> attrs;
     InodeAttr attr;
     attr.set_fsid(fsId);
-    attr.set_inodeid(inodeId1);
+    attr.set_inodeid(inodeId);
     attr.set_length(100);
-    attr.set_type(FsFileType::TYPE_DIRECTORY);
-    attrs.emplace_back(attr);
-    attr.set_inodeid(inodeId2);
-    attr.set_length(200);
     attr.set_type(FsFileType::TYPE_FILE);
     attrs.emplace_back(attr);
 
@@ -2141,15 +2130,15 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
 
     // out
     uint32_t fsId = 1;
-    uint64_t inodeId1 = 2;
-    std::string name1 = "file1";
+    uint64_t inodeId = 2;
+    std::string name1 = "file";
     uint64_t txId = 1;
 
     std::list<Dentry> emptyDlist;
     std::list<Dentry> dlist;
     Dentry dentry;
     dentry.set_fsid(fsId);
-    dentry.set_inodeid(inodeId1);
+    dentry.set_inodeid(inodeId);
     dentry.set_parentinodeid(ino);
     dentry.set_name(name1);
     dentry.set_txid(txId);
@@ -2159,7 +2148,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     std::list<XAttr> xattrs;
     XAttr xattr;
     xattr.set_fsid(fsId);
-    xattr.set_inodeid(inodeId1);
+    xattr.set_inodeid(inodeId);
     xattr.mutable_xattrinfos()->insert({XATTRFILES, "2"});
     xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "2"});
     xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "4"});
