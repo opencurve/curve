@@ -18,10 +18,16 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "curvefs_common",
-    srcs = glob(["*.cpp"]),
+    srcs = glob(
+        ["*.cpp"],
+        exclude = ["dynamic_vlog.cpp"],
+    ),
     hdrs = glob(
         ["*.h"],
-        exclude = ["metric_utils.h"],
+        exclude = [
+            "metric_utils.h",
+            "dynamic_vlog.h",
+        ],
     ),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
@@ -35,12 +41,29 @@ cc_library(
 cc_library(
     name = "metric_utils",
     hdrs = [
-        "metric_utils.h"
+        "metric_utils.h",
     ],
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "//external:bvar",
         "//external:butil",
-    ]
+        "//external:bvar",
+    ],
+)
+
+cc_library(
+    name = "dynamic_vlog",
+    srcs = [
+        "dynamic_vlog.cpp",
+    ],
+    hdrs = [
+        "dynamic_vlog.h",
+    ],
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+    ],
 )

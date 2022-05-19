@@ -209,27 +209,37 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
     braft::GroupId groupId = ToGroupId(poolId, copysetId);
     std::shared_ptr<CopysetNode> copysetNode;
 
-    WriteLockGuard lock(lock_);
-    if (copysets_.count(groupId) != 0) {
-        LOG(WARNING) << "Copyset node already exists: "
-                     << ToGroupIdString(poolId, copysetId);
-        return false;
+    {
+        WriteLockGuard lock(lock_);
+        if (copysets_.count(groupId) != 0) {
+            LOG(WARNING) << "Copyset node already exists: "
+                         << ToGroupIdString(poolId, copysetId);
+            return false;
+        }
+
+        copysetNode =
+            std::make_shared<CopysetNode>(poolId, copysetId, conf, this);
+        if (!copysetNode->Init(options_)) {
+            LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
+                       << "init failed";
+            return false;
+        }
+
+        copysets_.emplace(groupId, copysetNode);
     }
 
-    copysetNode = std::make_shared<CopysetNode>(poolId, copysetId, conf, this);
-    if (!copysetNode->Init(options_)) {
-        LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
-                   << "init failed";
-        return false;
-    }
-
+    // node start maybe time-consuming
     if (!copysetNode->Start()) {
+        // checkLoadFinish equals to false when reloading copysets after a
+        // restart, in this case we should not automaticaly remove copyset's
+        // data
+        const bool removeData = checkLoadFinish;
+        DeleteCopysetNodeInternal(poolId, copysetId, removeData);
         LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
                    << " start failed";
         return false;
     }
 
-    copysets_.emplace(groupId, std::move(copysetNode));
     LOG(INFO) << "Create copyset success "
               << ToGroupIdString(poolId, copysetId);
     return true;
@@ -244,7 +254,6 @@ void CopysetNodeManager::GetAllCopysets(
     }
 }
 
-// TODO(wuhanqing): disgingush internal server and external server
 void CopysetNodeManager::AddService(brpc::Server* server,
                                     const butil::EndPoint& listenAddr) {
     braft::add_service(server, listenAddr);

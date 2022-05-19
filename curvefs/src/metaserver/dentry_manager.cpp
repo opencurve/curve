@@ -36,7 +36,7 @@ DentryManager::DentryManager(std::shared_ptr<DentryStorage> dentryStorage,
 
 void DentryManager::Log4Dentry(const std::string& request,
                                const Dentry& dentry) {
-    VLOG(1) << "Receive " <<  request << " request, dentry = ("
+    VLOG(9) << "Receive " <<  request << " request, dentry = ("
             << dentry.ShortDebugString() << ")";
 }
 
@@ -50,7 +50,7 @@ void DentryManager::Log4Code(const std::string& request, MetaStatusCode rc) {
             << ", retCode = " << MetaStatusCode_Name(rc);
 
     if (succ) {
-        VLOG(1) << message.str();
+        VLOG(6) << message.str();
     } else {
         LOG(ERROR) << message.str();
     }

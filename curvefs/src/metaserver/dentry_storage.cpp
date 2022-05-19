@@ -241,7 +241,7 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
             count++;
             auto iter = temp->rbegin();
             dentrys->push_back(*iter);
-            VLOG(1) << "ListDentry, dentry = ("
+            VLOG(9) << "ListDentry, dentry = ("
                     << iter->ShortDebugString() << ")";
         }
         temp->clear();

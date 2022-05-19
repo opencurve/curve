@@ -50,7 +50,9 @@ MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode* node,
 bool MetaStoreImpl::Load(const std::string& pathname) {
     // Load from raft snap file to memory
     WriteLockGuard writeLockGuard(rwLock_);
-    MetaStoreFStream fstream(&partitionMap_, kvStorage_);
+    MetaStoreFStream fstream(&partitionMap_, kvStorage_,
+                             copysetNode_->GetPoolId(),
+                             copysetNode_->GetCopysetId());
     auto succ = fstream.Load(pathname);
     if (!succ) {
         partitionMap_.clear();
@@ -75,7 +77,9 @@ void MetaStoreImpl::SaveBackground(const std::string& path,
                                    DumpFileClosure* child,
                                    OnSnapshotSaveDoneClosure* done) {
     LOG(INFO) << "Save metadata to file background.";
-    MetaStoreFStream fstream(&partitionMap_, kvStorage_);
+    MetaStoreFStream fstream(&partitionMap_, kvStorage_,
+                             copysetNode_->GetPoolId(),
+                             copysetNode_->GetCopysetId());
     bool succ = fstream.Save(path, child);
     LOG(INFO) << "Save metadata to file " << (succ ? "success" : "fail");
 
