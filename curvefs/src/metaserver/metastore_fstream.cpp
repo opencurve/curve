@@ -31,6 +31,7 @@
 #include "curvefs/src/metaserver/metastore_fstream.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/storage_fstream.h"
+#include "curvefs/src/metaserver/copyset/utils.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -53,10 +54,14 @@ using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 using ::curvefs::metaserver::storage::Key4VolumeExtentSlice;
 
 MetaStoreFStream::MetaStoreFStream(PartitionMap* partitionMap,
-                                   std::shared_ptr<KVStorage> kvStorage)
+                                   std::shared_ptr<KVStorage> kvStorage,
+                                   PoolId poolId,
+                                   CopysetId copysetId)
     : partitionMap_(partitionMap),
-      kvStorage_(kvStorage),
-      conv_(std::make_shared<Converter>()) {}
+      kvStorage_(std::move(kvStorage)),
+      conv_(std::make_shared<Converter>()),
+      poolId_(poolId),
+      copysetId_(copysetId) {}
 
 std::shared_ptr<Partition> MetaStoreFStream::GetPartition(
     uint32_t partitionId) {
@@ -306,22 +311,35 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewVolumeExtentListIterator(
 }
 
 bool MetaStoreFStream::Load(const std::string& pathname) {
+    uint64_t totalPartition = 0;
+    uint64_t totalInode = 0;
+    uint64_t totalDentry = 0;
+    uint64_t totalS3ChunkInfoList = 0;
+    uint64_t totalVolumeExtent = 0;
+    uint64_t totalPendingTx = 0;
+
     auto callback = [&](ENTRY_TYPE entryType,
                         uint32_t partitionId,
                         const std::string& key,
                         const std::string& value) -> bool {
         switch (entryType) {
             case ENTRY_TYPE::PARTITION:
+                ++totalPartition;
                 return LoadPartition(partitionId, key, value);
             case ENTRY_TYPE::INODE:
+                ++totalInode;
                 return LoadInode(partitionId, key, value);
             case ENTRY_TYPE::DENTRY:
+                ++totalDentry;
                 return LoadDentry(partitionId, key, value);
             case ENTRY_TYPE::PENDING_TX:
+                ++totalPendingTx;
                 return LoadPendingTx(partitionId, key, value);
             case ENTRY_TYPE::S3_CHUNK_INFO_LIST:
+                ++totalS3ChunkInfoList;
                 return LoadInodeS3ChunkInfoList(partitionId, key, value);
             case ENTRY_TYPE::VOLUME_EXTENT:
+                ++totalVolumeExtent;
                 return LoadVolumeExtentList(partitionId, key, value);
             case ENTRY_TYPE::UNKNOWN:
                 break;
@@ -331,7 +349,26 @@ bool MetaStoreFStream::Load(const std::string& pathname) {
         return false;
     };
 
-    return LoadFromFile(pathname, callback);
+    auto ret = LoadFromFile(pathname, callback);
+
+    std::ostringstream oss;
+    oss << "total partition: " << totalPartition
+        << ", total inode: " << totalInode << ", total dentry: " << totalDentry
+        << ", total s3chunkinfolist: " << totalS3ChunkInfoList
+        << ", total volumeextent: " << totalVolumeExtent
+        << ", total pendingtx: " << totalPendingTx;
+
+    if (ret) {
+        LOG(INFO) << "Metastore "
+                  << copyset::ToGroupIdString(poolId_, copysetId_)
+                  << " load from " << pathname << " succeeded, " << oss.str();
+    } else {
+        LOG(ERROR) << "Metastore "
+                   << copyset::ToGroupIdString(poolId_, copysetId_)
+                   << " load from " << pathname << " failed, " << oss.str();
+    }
+
+    return ret;
 }
 
 bool MetaStoreFStream::Save(const std::string& path,

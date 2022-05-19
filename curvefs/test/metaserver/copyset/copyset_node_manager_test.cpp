@@ -171,6 +171,26 @@ TEST_F(CopysetNodeManagerTest, CreateCopysetTest_Common) {
     EXPECT_EQ(kCopysetId, nodes[0]->GetCopysetId());
 }
 
+TEST_F(CopysetNodeManagerTest, CreateCopysetTest_InitRaftNodeFailed) {
+    // it's tricky, raft node will check ip != IP_ANY
+    options_.ip = "0.0.0.0";
+    EXPECT_TRUE(nodeManager_->Init(options_));
+    EXPECT_TRUE(nodeManager_->Start());
+
+    braft::Configuration conf;
+    EXPECT_EQ(0, conf.parse_from(kInitConf));
+
+    brpc::Server server;
+    butil::ip_t ip;
+    EXPECT_EQ(0, butil::str2ip("127.0.0.1", &ip));
+    EXPECT_NO_FATAL_FAILURE(
+        nodeManager_->AddService(&server, butil::EndPoint(ip, kPort)));
+
+    EXPECT_FALSE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
+
+    EXPECT_EQ(nullptr, nodeManager_->GetCopysetNode(kPoolId, kCopysetId));
+}
+
 TEST_F(CopysetNodeManagerTest, DeleteCopysetNodeTest_CopysetNodeNotExists) {
     EXPECT_TRUE(nodeManager_->Init(options_));
     EXPECT_FALSE(nodeManager_->DeleteCopysetNode(kPoolId, kCopysetId));

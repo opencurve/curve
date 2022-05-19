@@ -146,28 +146,27 @@ static bool SaveToFile(const std::string& pathname,
 }
 
 template<typename Callback>
-static bool InvokeCallback(ENTRY_TYPE entryType,
+inline bool InvokeCallback(ENTRY_TYPE entryType,
                            uint32_t partitionId,
                            const std::string& key,
                            const std::string& value,
-                           Callback callback) {
-    if (!callback(entryType, partitionId, key, value)) {  // NOLINT
+                           Callback&& callback) {
+    if (!std::forward<Callback>(callback)(entryType, partitionId, key, value)) {
         LOG(ERROR) << "Invoke callback for entry failed.";
         return false;
     }
     return true;
 }
 
-#define CASE_TYPE_CALLBACK(TYPE) \
-case ENTRY_TYPE::TYPE: \
-    if (!InvokeCallback<Callback>( \
-        entryType, partitionId, key, value, callback)) { \
-        return false; \
-    } \
-    break
+#define CASE_TYPE_CALLBACK(TYPE)                                             \
+    case ENTRY_TYPE::TYPE:                                                   \
+        if (!InvokeCallback(entryType, partitionId, key, value, callback)) { \
+            return false;                                                    \
+        }                                                                    \
+        break
 
 template<typename Callback>
-static bool LoadFromFile(const std::string& pathname,
+inline bool LoadFromFile(const std::string& pathname,
                          Callback callback) {
     auto dumpfile = DumpFile(pathname);
     if (dumpfile.Open() != DUMPFILE_ERROR::OK) {

@@ -30,6 +30,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
 #include "curvefs/src/metaserver/storage/dumpfile.h"
+#include "curvefs/src/metaserver/common/types.h"
 
 #ifndef CURVEFS_SRC_METASERVER_METASTORE_FSTREAM_H_
 #define CURVEFS_SRC_METASERVER_METASTORE_FSTREAM_H_
@@ -46,7 +47,9 @@ using PartitionMap = std::map<uint32_t, std::shared_ptr<Partition>>;
 class MetaStoreFStream {
  public:
     MetaStoreFStream(PartitionMap* partitionMap,
-                     std::shared_ptr<KVStorage> kvStorage);
+                     std::shared_ptr<KVStorage> kvStorage,
+                     PoolId poolId,
+                     CopysetId copysetId);
 
     bool Load(const std::string& pathname);
 
@@ -101,6 +104,9 @@ class MetaStoreFStream {
     PartitionMap* partitionMap_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<Converter> conv_;
+
+    PoolId poolId_ = 0;
+    CopysetId copysetId_ = 0;
 };
 
 }  // namespace metaserver

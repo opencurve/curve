@@ -42,7 +42,7 @@ namespace metaserver {
 MetaStatusCode InodeManager::CreateInode(uint64_t inodeId,
                                          const InodeParam &param,
                                          Inode *newInode) {
-    VLOG(1) << "CreateInode, fsId = " << param.fsId
+    VLOG(6) << "CreateInode, fsId = " << param.fsId
             << ", length = " << param.length
             << ", uid = " << param.uid << ", gid = " << param.gid
             << ", mode = " << param.mode
@@ -70,12 +70,12 @@ MetaStatusCode InodeManager::CreateInode(uint64_t inodeId,
     }
 
     newInode->CopyFrom(inode);
-    VLOG(1) << "CreateInode success, inode = " << inode.ShortDebugString();
+    VLOG(9) << "CreateInode success, inode = " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
 MetaStatusCode InodeManager::CreateRootInode(const InodeParam &param) {
-    VLOG(1) << "CreateRootInode, fsId = " << param.fsId
+    VLOG(6) << "CreateRootInode, fsId = " << param.fsId
             << ", uid = " << param.uid
             << ", gid = " << param.gid
             << ", mode = " << param.mode;
@@ -94,7 +94,7 @@ MetaStatusCode InodeManager::CreateRootInode(const InodeParam &param) {
         return ret;
     }
 
-    VLOG(1) << "CreateRootInode success, inode: " << inode.ShortDebugString();
+    VLOG(9) << "CreateRootInode success, inode: " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
@@ -138,7 +138,7 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId,
                                       uint64_t inodeId,
                                       Inode *inode,
                                       bool paddingS3ChunkInfo) {
-    VLOG(1) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
+    VLOG(6) << "GetInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     MetaStatusCode rc = inodeStorage_->Get(Key4Inode(fsId, inodeId), inode);
     if (rc == MetaStatusCode::OK && paddingS3ChunkInfo) {
@@ -153,14 +153,14 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId,
         return rc;
     }
 
-    VLOG(1) << "GetInode success, fsId = " << fsId << ", inodeId = " << inodeId
+    VLOG(9) << "GetInode success, fsId = " << fsId << ", inodeId = " << inodeId
             << ", " << inode->ShortDebugString();
     return MetaStatusCode::OK;
 }
 
 MetaStatusCode InodeManager::GetInodeAttr(uint32_t fsId, uint64_t inodeId,
                                           InodeAttr *attr) {
-    VLOG(1) << "GetInodeAttr, fsId = " << fsId << ", inodeId = " << inodeId;
+    VLOG(6) << "GetInodeAttr, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     MetaStatusCode ret = inodeStorage_->GetAttr(Key4Inode(fsId, inodeId), attr);
     if (ret != MetaStatusCode::OK) {
@@ -170,7 +170,7 @@ MetaStatusCode InodeManager::GetInodeAttr(uint32_t fsId, uint64_t inodeId,
         return ret;
     }
 
-    VLOG(1) << "GetInodeAttr success, fsId = " << fsId
+    VLOG(9) << "GetInodeAttr success, fsId = " << fsId
             << ", inodeId = " << inodeId
             << ", " << attr->ShortDebugString();
 
@@ -179,7 +179,7 @@ MetaStatusCode InodeManager::GetInodeAttr(uint32_t fsId, uint64_t inodeId,
 
 MetaStatusCode InodeManager::GetXAttr(uint32_t fsId, uint64_t inodeId,
                                       XAttr *xattr) {
-    VLOG(1) << "GetXAttr, fsId = " << fsId << ", inodeId = " << inodeId;
+    VLOG(6) << "GetXAttr, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     xattr->set_inodeid(inodeId);
     xattr->set_fsid(fsId);
@@ -192,14 +192,14 @@ MetaStatusCode InodeManager::GetXAttr(uint32_t fsId, uint64_t inodeId,
         return ret;
     }
 
-    VLOG(1) << "GetXAttr success, fsId = " << fsId << ", inodeId = " << inodeId
+    VLOG(9) << "GetXAttr success, fsId = " << fsId << ", inodeId = " << inodeId
             << ", " << xattr->ShortDebugString();
 
     return MetaStatusCode::OK;
 }
 
 MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
-    VLOG(1) << "DeleteInode, fsId = " << fsId << ", inodeId = " << inodeId;
+    VLOG(6) << "DeleteInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     MetaStatusCode ret = inodeStorage_->Delete(Key4Inode(fsId, inodeId));
     if (ret != MetaStatusCode::OK) {
@@ -209,13 +209,13 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
         return ret;
     }
 
-    VLOG(1) << "DeleteInode success, fsId = " << fsId
+    VLOG(6) << "DeleteInode success, fsId = " << fsId
             << ", inodeId = " << inodeId;
     return MetaStatusCode::OK;
 }
 
 MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
-    VLOG(1) << "UpdateInode, " << request.ShortDebugString();
+    VLOG(9) << "UpdateInode, " << request.ShortDebugString();
     NameLockGuard lg(inodeLock_, GetInodeLockName(
             request.fsid(), request.inodeid()));
 
@@ -264,7 +264,8 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     }
 
     if (!request.xattr().empty()) {
-        VLOG(1) << "update inode has xattr";
+        VLOG(6) << "update inode has xattr, fsid: " << request.fsid()
+                << ", inodeid: " << request.inodeid();
         *(old.mutable_xattr()) = request.xattr();
         needUpdate = true;
     }
@@ -277,7 +278,8 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
     // incorrectly.
     if (request.has_inodeopenstatuschange() && old.has_openmpcount() &&
         InodeOpenStatusChange::NOCHANGE != request.inodeopenstatuschange()) {
-        VLOG(1) << "update inode open status";
+        VLOG(9) << "update inode open status, fsid: " << request.fsid()
+                << ", inodeid: " << request.inodeid();
         int32_t oldcount = old.openmpcount();
         int32_t newcount =
             request.inodeopenstatuschange() == InodeOpenStatusChange::OPEN
@@ -305,7 +307,7 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest &request) {
         trash_->Add(old.fsid(), old.inodeid(), old.dtime());
     }
 
-    VLOG(1) << "UpdateInode success, " << request.ShortDebugString();
+    VLOG(9) << "UpdateInode success, " << request.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
@@ -315,7 +317,7 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
     const S3ChunkInfoMap& map2del,
     bool returnS3ChunkInfoMap,
     std::shared_ptr<Iterator>* iterator4InodeS3Meta) {
-    VLOG(1) << "GetOrModifyS3ChunkInfo, fsId: " << fsId
+    VLOG(6) << "GetOrModifyS3ChunkInfo, fsId: " << fsId
             << ", inodeId: " << inodeId;
 
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
@@ -369,7 +371,7 @@ MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
         }
     }
 
-    VLOG(1) << "GetOrModifyS3ChunkInfo success, fsId: " << fsId
+    VLOG(6) << "GetOrModifyS3ChunkInfo success, fsId: " << fsId
             << ", inodeId: " << inodeId;
     return MetaStatusCode::OK;
 }
@@ -378,14 +380,14 @@ MetaStatusCode InodeManager::PaddingInodeS3ChunkInfo(int32_t fsId,
                                                      uint64_t inodeId,
                                                      S3ChunkInfoMap* m,
                                                      uint64_t limit) {
-    VLOG(1) << "PaddingInodeS3ChunkInfo, fsId: " << fsId
+    VLOG(6) << "PaddingInodeS3ChunkInfo, fsId: " << fsId
             << ", inodeId: " << inodeId;
     return inodeStorage_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
 }
 
 MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
     uint32_t fsId, uint64_t inodeId, bool isCreate) {
-    VLOG(1) << "UpdateInodeWhenCreateOrRemoveSubNode, fsId = " << fsId
+    VLOG(6) << "UpdateInodeWhenCreateOrRemoveSubNode, fsId = " << fsId
             << ", inodeId = " << inodeId
             << ", isCreate = " << isCreate;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
@@ -423,13 +425,13 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
         return ret;
     }
 
-    VLOG(1) << "UpdateInodeWhenCreateOrRemoveSubNode success, "
+    VLOG(9) << "UpdateInodeWhenCreateOrRemoveSubNode success, "
             << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
 MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
-    VLOG(1) << "InsertInode, " << inode.ShortDebugString();
+    VLOG(6) << "InsertInode, " << inode.ShortDebugString();
 
     // 2. insert inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
@@ -461,7 +463,7 @@ MetaStatusCode InodeManager::UpdateVolumeExtentSlice(
     uint32_t fsId,
     uint64_t inodeId,
     const VolumeExtentSlice &slice) {
-    VLOG(1) << "UpdateInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId
+    VLOG(6) << "UpdateInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId
             << ", slice offset: " << slice.offset();
     NameLockGuard guard(inodeLock_, GetInodeLockName(fsId, inodeId));
     return UpdateVolumeExtentSliceLocked(fsId, inodeId, slice);
@@ -471,7 +473,7 @@ MetaStatusCode InodeManager::UpdateVolumeExtent(
     uint32_t fsId,
     uint64_t inodeId,
     const VolumeExtentList &extents) {
-    VLOG(1) << "UpdateInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId;
+    VLOG(6) << "UpdateInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId;
     NameLockGuard guard(inodeLock_, GetInodeLockName(fsId, inodeId));
 
     MetaStatusCode st = MetaStatusCode::UNKNOWN_ERROR;
@@ -493,7 +495,7 @@ MetaStatusCode InodeManager::GetVolumeExtent(
     uint64_t inodeId,
     const std::vector<uint64_t> &slices,
     VolumeExtentList *extents) {
-    VLOG(1) << "GetInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId;
+    VLOG(6) << "GetInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId;
 
     if (slices.empty()) {
         return inodeStorage_->GetAllVolumeExtent(fsId, inodeId, extents);

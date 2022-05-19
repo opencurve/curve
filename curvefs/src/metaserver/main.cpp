@@ -27,6 +27,7 @@
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/metaserver/metaserver.h"
 #include "src/common/configuration.h"
+#include "curvefs/src/common/dynamic_vlog.h"
 
 DEFINE_string(confPath, "curvefs/conf/metaserver.conf", "metaserver confPath");
 DEFINE_string(ip, "127.0.0.1", "metasetver listen ip");
@@ -43,7 +44,9 @@ DEFINE_string(raftSnapshotUri, "local://mnt/data/copysets",
 DECLARE_int32(v);
 
 using ::curve::common::Configuration;
+using ::curvefs::common::FLAGS_vlog_level;
 
+namespace {
 void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("ip", &info) && !info.is_default) {
@@ -85,6 +88,7 @@ void LoadConfigFromCmdline(Configuration *conf) {
         conf->SetIntValue("metaserver.loglevel", FLAGS_v);
     }
 }
+}  // namespace
 
 int main(int argc, char **argv) {
     // config initialization
@@ -98,8 +102,9 @@ int main(int argc, char **argv) {
     conf->SetConfigPath(confPath);
     LOG_IF(FATAL, !conf->LoadConfig())
         << "load metaserver configuration fail, conf path = " << confPath;
-    LoadConfigFromCmdline(conf.get());
     conf->GetValueFatalIfFail("metaserver.loglevel", &FLAGS_v);
+    LoadConfigFromCmdline(conf.get());
+    FLAGS_vlog_level = FLAGS_v;
 
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
