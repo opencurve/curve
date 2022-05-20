@@ -176,7 +176,7 @@ class MetaCache {
     bool SelectPartition(CopysetTarget *target);
 
     // get info from partitionMap or copysetMap
-    bool GetCopysetIDwithInodeID(uint32_t inodeID, CopysetGroupID *groupID,
+    bool GetCopysetIDwithInodeID(uint64_t inodeID, CopysetGroupID *groupID,
                                  PartitionID *patitionID, uint64_t *txId);
 
     bool GetCopysetInfowithCopySetID(const CopysetGroupID &groupID,
