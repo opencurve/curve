@@ -1154,7 +1154,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
                               SetArgPointee<3>(applyIndex), Return(true)));
 
     MetaStatusCode status = metaserverCli_.BatchGetInodeAttr(
-        fsid, &inodeIds, &attr);
+        fsid, inodeIds, &attr);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: batchGetInodeAttr ok
@@ -1176,7 +1176,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
                   BatchGetInodeAttrResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    status = metaserverCli_.BatchGetInodeAttr(fsid, &inodeIds, &attr);
+    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
     ASSERT_EQ(MetaStatusCode::OK, status);
     ASSERT_EQ(attr.size(), 2);
     ASSERT_THAT(attr.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
@@ -1192,7 +1192,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<BatchGetInodeAttrRequest,
                   BatchGetInodeAttrResponse>)));
-    status = metaserverCli_.BatchGetInodeAttr(fsid, &inodeIds, &attr);
+    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
 
     // test3: test response do not have applyindex
@@ -1208,7 +1208,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
                   Invoke(SetRpcService<BatchGetInodeAttrRequest,
                   BatchGetInodeAttrResponse>)));
 
-    status = metaserverCli_.BatchGetInodeAttr(fsid, &inodeIds, &attr);
+    status = metaserverCli_.BatchGetInodeAttr(fsid, inodeIds, &attr);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
@@ -1256,7 +1256,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
                               SetArgPointee<3>(applyIndex), Return(true)));
 
     MetaStatusCode status = metaserverCli_.BatchGetXAttr(
-        fsid, &inodeIds, &xattr);
+        fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: batchGetXAttr ok
@@ -1278,7 +1278,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
                   BatchGetXAttrResponse>)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    status = metaserverCli_.BatchGetXAttr(fsid, &inodeIds, &xattr);
+    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::OK, status);
     ASSERT_EQ(xattr.size(), 2);
     ASSERT_THAT(xattr.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
@@ -1294,7 +1294,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
             DoAll(SetArgPointee<2>(response),
                   Invoke(SetRpcService<BatchGetXAttrRequest,
                   BatchGetXAttrResponse>)));
-    status = metaserverCli_.BatchGetXAttr(fsid, &inodeIds, &xattr);
+    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::NOT_FOUND, status);
 
     // test3: test response do not have applyindex
@@ -1310,7 +1310,7 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
                   Invoke(SetRpcService<BatchGetXAttrRequest,
                   BatchGetXAttrResponse>)));
 
-    status = metaserverCli_.BatchGetXAttr(fsid, &inodeIds, &xattr);
+    status = metaserverCli_.BatchGetXAttr(fsid, inodeIds, &xattr);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
