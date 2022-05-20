@@ -504,7 +504,7 @@ bool MetaCache::SelectPartition(CopysetTarget *target) {
     return true;
 }
 
-bool MetaCache::GetCopysetIDwithInodeID(uint32_t inodeID,
+bool MetaCache::GetCopysetIDwithInodeID(uint64_t inodeID,
                                         CopysetGroupID *groupID,
                                         PartitionID *partitionID,
                                         uint64_t *txId) {
