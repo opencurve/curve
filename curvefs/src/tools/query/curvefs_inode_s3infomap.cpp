@@ -103,11 +103,11 @@ int InodeS3InfoMapTool::Init() {
 
     for (size_t i = 0; i < poolsId.size(); ++i) {
         curvefs::metaserver::GetOrModifyS3ChunkInfoRequest request;
-        request.set_poolid(std::stoi(poolsId[i]));
-        request.set_copysetid(std::stoi(copysetsId[i]));
-        request.set_partitionid(std::stoi(partitionId[i]));
-        request.set_fsid(std::stoi(fsId[i]));
-        request.set_inodeid(std::stoi(inodeId[i]));
+        request.set_poolid(std:: stoul((poolsId[i])));
+        request.set_copysetid(std:: stoul((copysetsId[i])));
+        request.set_partitionid(std:: stoul((partitionId[i])));
+        request.set_fsid(std:: stoul((fsId[i])));
+        request.set_inodeid(std:: stoull((inodeId[i])));
         request.set_returns3chunkinfomap(true);
         SetStreamingRpc(true);
         request.set_supportstreaming(isStreaming_);
