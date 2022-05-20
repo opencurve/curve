@@ -682,7 +682,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadDir(fuse_req_t req, fuse_ino_t ino,
 
         // prefetch all attr of inodes in the dir
         if (!FLAGS_enableCto) {
-            LOG(INFO) << "batch get inode size = " << inodeIds.size();
+            VLOG(1) << "batch get inode size = " << inodeIds.size();
             auto rt = inodeManager_->BatchGetInodeAttrAsync(ino, &inodeIds);
             if (rt != CURVEFS_ERROR::OK) {
                 LOG(WARNING) << "BatchGetInodeAttr failed when FuseOpReadDir"

@@ -92,14 +92,14 @@ class MetaServerClient {
                                     Inode *out, bool* streaming) = 0;
 
     virtual MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr) = 0;
 
     virtual MetaStatusCode BatchGetInodeAttrAsync(uint32_t fsId,
         const std::list<uint64_t> &inodeIds, MetaServerClientDone *done) = 0;
 
     virtual MetaStatusCode BatchGetXAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) = 0;
 
     virtual MetaStatusCode UpdateInode(const Inode &inode,
@@ -130,7 +130,7 @@ class MetaServerClient {
     virtual MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) = 0;
 
     virtual bool SplitRequestInodes(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::vector<std::list<uint64_t>> *inodeGroups) = 0;
 };
 
@@ -169,7 +169,7 @@ class MetaServerClientImpl : public MetaServerClient {
                             Inode *out, bool* streaming) override;
 
     MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr) override;
 
     MetaStatusCode BatchGetInodeAttrAsync(uint32_t fsId,
@@ -177,7 +177,7 @@ class MetaServerClientImpl : public MetaServerClient {
         MetaServerClientDone *done) override;
 
     MetaStatusCode BatchGetXAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) override;
 
     MetaStatusCode UpdateInode(const Inode &inode,
@@ -207,13 +207,8 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
 
     bool SplitRequestInodes(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::vector<std::list<uint64_t>> *inodeGroups) override;
-
- private:
-    bool GroupInodeIdByPartition(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
-        std::unordered_map<uint32_t, std::list<uint64_t>> *inodeGroups);
 
  private:
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,

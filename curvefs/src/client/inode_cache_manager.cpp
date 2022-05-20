@@ -139,7 +139,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
     std::list<InodeAttr> attrs;
     inodeIds.emplace(inodeId);
     MetaStatusCode ret = metaClient_->BatchGetInodeAttr(
-        fsId_, &inodeIds, &attrs);
+        fsId_, inodeIds, &attrs);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr failed"
                    << ", inodeId = " << inodeId
@@ -185,7 +185,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         return CURVEFS_ERROR::OK;
     }
 
-    MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, inodeIds, attr);
+    MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, *inodeIds, attr);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr failed, MetaStatusCode = "
                    << ret << ", MetaStatusCode_Name = "
@@ -213,13 +213,13 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
 
     // split inodeIds by partitionId and batch limit
     std::vector<std::list<uint64_t>> inodeGroups;
-    if (!metaClient_->SplitRequestInodes(fsId_, inodeIds, &inodeGroups)) {
+    if (!metaClient_->SplitRequestInodes(fsId_, *inodeIds, &inodeGroups)) {
         return CURVEFS_ERROR::NOTEXIST;
     }
 
     LockAsync(parentId, inodeGroups.size());
     for (const auto& it : inodeGroups) {
-        LOG(INFO) << "BatchGetInodeAttrAsync Send >>>>>>";
+        VLOG(1) << "BatchGetInodeAttrAsync Send >>>>>>";
         auto* done = new BatchGetInodeAttrAsyncDone(shared_from_this(),
                                                     parentId);
         MetaStatusCode ret = metaClient_->BatchGetInodeAttrAsync(fsId_, it,
@@ -256,7 +256,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
         return CURVEFS_ERROR::OK;
     }
 
-    MetaStatusCode ret = metaClient_->BatchGetXAttr(fsId_, inodeIds, xattr);
+    MetaStatusCode ret = metaClient_->BatchGetXAttr(fsId_, *inodeIds, xattr);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetXAttr failed, MetaStatusCode = "
                    << ret << ", MetaStatusCode_Name = "
