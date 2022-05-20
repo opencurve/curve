@@ -234,7 +234,7 @@ TEST_F(TestInodeCacheManager, BatchGetInodeAttr) {
     attr.set_inodeid(inodeId2);
     attrs.emplace_back(attr);
 
-    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, &inodeIds, _))
+    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, inodeIds, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(attrs),
                 Return(MetaStatusCode::OK)));
@@ -274,7 +274,7 @@ TEST_F(TestInodeCacheManager, BatchGetXAttr) {
     xattr.mutable_xattrinfos()->find(XATTRFBYTES)->second = "200";
     xattrs.emplace_back(xattr);
 
-    EXPECT_CALL(*metaClient_, BatchGetXAttr(fsId_, &inodeIds, _))
+    EXPECT_CALL(*metaClient_, BatchGetXAttr(fsId_, inodeIds, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(xattrs),
                 Return(MetaStatusCode::OK)));
