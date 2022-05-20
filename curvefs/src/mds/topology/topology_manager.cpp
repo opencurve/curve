@@ -693,7 +693,8 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
                 info->set_partitionid(partitionId);
                 info->set_start(idStart);
                 info->set_end(idEnd);
-                info->set_status(PartitionStatus::READONLY);
+                info->set_txid(0);
+                info->set_status(PartitionStatus::READWRITE);
             } else {
                 // TODO(wanghai): delete partition on metaserver
                 LOG(ERROR) << "Add partition failed after create partition."
