@@ -63,7 +63,7 @@ class TaskContext {
 
     TaskContext() = default;
     TaskContext(MetaServerOpType type, RpcFunc func, uint32_t fsid = 0,
-                uint32_t inodeid = 0, bool streaming = false,
+                uint64_t inodeid = 0, bool streaming = false,
                 bool refreshTxId = false)
         : optype(type), rpctask(func), fsID(fsid), inodeID(inodeid),
           streaming(streaming), refreshTxId(refreshTxId) {}
