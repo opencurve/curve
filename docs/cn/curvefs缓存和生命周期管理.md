@@ -393,7 +393,7 @@ class MdsServiceImpl : public MdsService {
 - 根据inodeId获取到inode，通过inode获取到LCFileInfo。然后每个inode遍历LCRuleManager的lcAction_。这里分2个步骤：
   - 对于不同lcAction调用check函数，确认LCFileInfo的expirationsec是否达到过期时间，同时确认当前无client open该文件，修改InodeManager的inodeLcStatusMap_状态。
   - 对于check返回true的情况，直接enqueue到线程池队列中。
-- 线程池会执行LCAction::process函数，已chunk为粒度读取curveBS，然后写入到s3上，更新s3info，删除volume元数据（目前没提供回收和删除接口）。
+- 线程池会执行LCAction::process函数，以chunk为粒度读取curveBS，然后写入到s3上，更新s3info，删除volume元数据（目前没提供回收和删除接口）。
 - 后台转换和前台修改inode需要进行互斥：
   - 后台转换前会在check函数确认该文件没有被打开过，并标记该inode正在进行后台转换。
   - 前台open请求需要确认当前有无进行后台转换，如果有则设置一个stop标识，后台发现当前转换被设置未stop，则进行回退。
