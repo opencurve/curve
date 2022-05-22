@@ -70,7 +70,7 @@ Metaserver高可用基于 raft 实现，2N+1 个副本允许 N 个副本异常�
 `fs-data cluster`存放文件的实际数据，可以是支持S3标准协议的对象存储集群，也可以是CurveBS，后续根据场景需求，我们还会对接更多的集群。
 
 ### 对接 CurveBS
-一个文件系统对应 CurveBS 上的一个卷`volume`, 但这里的块设备只用于存储文件的数据。文文件系统中的一个文件，地址空间和卷中 `chunk` 的对应关系如下图：
+一个文件系统对应 CurveBS 上的一个卷`volume`, 但这里的块设备只用于存储文件的数据。文件系统中的一个文件，地址空间和卷中 `chunk` 的对应关系如下图：
 
 <img src="../images/curvefs_data_curvebs.png" alt="curvefs_data_curvebs.png" width="700">
 
