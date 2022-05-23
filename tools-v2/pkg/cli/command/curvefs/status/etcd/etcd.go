@@ -27,7 +27,9 @@ import (
 	"fmt"
 
 	"github.com/liushuochen/gotable"
+	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -142,6 +144,11 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	count := 0
 	for res := range results {
+		if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
+			err := cmderror.ErrEtcdOffline()
+			err.Format(res.Addr)
+			errs = append(errs, err)
+		}
 		for _, row := range eCmd.rows {
 			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["addr"] == res.Addr {
 				if res.Key == "status" {
@@ -174,4 +181,28 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 func (eCmd *EtcdCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&eCmd.FinalCurveCmd, eCmd)
+}
+
+func NewStatusEtcdCommand() *EtcdCommand {
+	etcdCmd := &EtcdCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "etcd",
+			Short: "get the etcd status of curvefs",
+		},
+	}
+	basecmd.NewFinalCurveCli(&etcdCmd.FinalCurveCmd, etcdCmd)
+	return etcdCmd
+}
+
+func GetEtcdStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+	etcdCmd := NewStatusEtcdCommand()
+	etcdCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, etcdCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
+	})
+	etcdCmd.Cmd.SilenceUsage = true
+	etcdCmd.Cmd.Execute()
+	return &etcdCmd.Result, etcdCmd.Table, etcdCmd.Error
 }

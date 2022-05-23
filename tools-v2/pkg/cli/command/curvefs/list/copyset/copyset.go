@@ -172,8 +172,6 @@ func (cCmd *CopysetCommand) updateTable() {
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
 }
-<<<<<<< HEAD
-=======
 
 func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse, *cmderror.CmdError) {
 	listCopyset := NewListCopysetCommand()
@@ -190,4 +188,3 @@ func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse,
 	}
 	return listCopyset.response, cmderror.ErrSuccess()
 }
->>>>>>> curve/tool: fs status copyset
