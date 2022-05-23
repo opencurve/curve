@@ -27,6 +27,7 @@ import (
 	"fmt"
 
 	"github.com/liushuochen/gotable"
+	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -144,7 +145,9 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 					row[res.Key] = res.Value
 				}
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
-				errs = append(errs, res.Err)
+				offline := cmderror.ErrMetaserverOffline()
+				offline.Format(res.Addr)
+				errs = append(errs, offline)
 			}
 		}
 		count++
@@ -172,3 +175,28 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 func (mCmd *MetaserverCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
 }
+
+func NewStatusMetaserverCommand() *MetaserverCommand {
+	mdsCmd := &MetaserverCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "metaserver",
+			Short: "get metaserver status of curvefs",
+		},
+	}
+	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
+	return mdsCmd
+}
+
+func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+	metaserverCmd := NewStatusMetaserverCommand()
+	metaserverCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, metaserverCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
+	})
+	metaserverCmd.Cmd.SilenceUsage = true
+	metaserverCmd.Cmd.Execute()
+	return &metaserverCmd.Result, metaserverCmd.Table, metaserverCmd.Error
+}
+

@@ -27,7 +27,9 @@ import (
 	"fmt"
 
 	"github.com/liushuochen/gotable"
+	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -143,7 +145,9 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["dummyAddr"] == res.Addr {
 				row[res.Key] = res.Value
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
-				errs = append(errs, res.Err)
+				offErr := cmderror.ErrMdsOffline()
+				offErr.Format(res.Addr)
+				errs = append(errs, offErr)
 			}
 		}
 		count++
@@ -168,4 +172,26 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 func (mCmd *MdsCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
+}
+
+func NewStatusMdsCommand() *MdsCommand {
+	mdsCmd := &MdsCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "mds",
+			Short: "get the inode usage of curvefs",
+		},
+	}
+	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
+	return mdsCmd
+}
+
+func GetMdsStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+	mdsCmd := NewStatusMdsCommand()
+	mdsCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	mdsCmd.Cmd.SilenceUsage = true
+	mdsCmd.Cmd.Execute()
+	return &mdsCmd.Result, mdsCmd.Table, mdsCmd.Error
 }

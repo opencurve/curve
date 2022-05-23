@@ -26,7 +26,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	checkCopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check/copyset"
 	listCopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/copyset"
@@ -89,4 +91,28 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
+}
+
+func NewStatusCopysetCommand() *CopysetCommand {
+	copysetCmd := &CopysetCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "etcd",
+			Short: "get the etcd status of curvefs",
+		},
+	}
+	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
+	return copysetCmd
+}
+
+func GetCopysetStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+	copysetCmd := NewStatusCopysetCommand()
+	copysetCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, copysetCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
+	})
+	copysetCmd.Cmd.SilenceUsage = true
+	copysetCmd.Cmd.Execute()
+	return &copysetCmd.Result, copysetCmd.Table, copysetCmd.Error
 }

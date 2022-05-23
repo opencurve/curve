@@ -53,6 +53,10 @@ var (
 	AllError []*CmdError
 )
 
+func init() {
+	AllError = make([]*CmdError, 0)
+}
+
 func (ce *CmdError) ToError() error {
 	return fmt.Errorf(ce.Message)
 }
@@ -181,12 +185,14 @@ func MergeCmdError(err []*CmdError) CmdError {
 	ret.Code = CODE_UNKNOWN
 	ret.Message = ""
 	for _, e := range err {
-		if e.Code < ret.Code {
+		if e.Code == CODE_SUCCESS {
+			continue
+		} else if e.Code < ret.Code {
 			ret.Code = e.Code
 		}
-		ret.Message = ret.Message + "\n" + e.Message
+		ret.Message = e.Message + "\n" + ret.Message
 	}
-	ret.Message = ret.Message + "\n"
+	ret.Message = ret.Message[:len(ret.Message)-1]
 	return ret
 }
 
@@ -260,7 +266,16 @@ var (
 	ErrCheckCopyset = func() *CmdError {
 		return NewInternalCmdError(22, "check copyset failed! the error is: %s")
 	}
-	
+	ErrEtcdOffline = func() *CmdError {
+		return NewInternalCmdError(23, "etcd[%s] is offline!")
+	}
+	ErrMdsOffline = func() *CmdError {
+		return NewInternalCmdError(24, "mds[%s] is offline!")
+	}
+	ErrMetaserverOffline = func() *CmdError {
+		return NewInternalCmdError(25, "metaserver[%s] is offline!")
+	}
+
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
@@ -334,16 +349,16 @@ var (
 		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
 	}
-	ErrCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS) *CmdError {
+	ErrCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
 		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
-			message = "copyset %s not exist"
+			message = fmt.Sprintf("not exist in %s", addr)
 		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
-			message = "success"
+			message = "ok"
 		default:
-			message = fmt.Sprintf("copyset op status has error, op status is %s", statusCode.String())
+			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
 		}
 		return NewRpcReultCmdError(code, message)
 	}
