@@ -92,6 +92,9 @@ const (
 	CURVEFS_DEFAULT_DETAIL       = false
 	CURVEFS_INODEID              = "inodeid"
 	VIPER_CURVEFS_INODEID        = "curvefs.inodeid"
+	CURVEFS_CLUSTERMAP           = "clustermap"
+	VIPER_CURVEFS_CLUSTERMAP     = "curvefs.clustermap"
+	CURVEFS_DEFAULT_CLUSTERMAP   = "topo_example.json"
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
 	VIPER_CURVEFS_S3_AK           = "curvefs.s3.ak"
@@ -161,6 +164,7 @@ var (
 		CURVEFS_POOLID:         VIPER_CURVEFS_POOLID,
 		CURVEFS_DETAIL:         VIPER_CURVEFS_DETAIL,
 		CURVEFS_INODEID:        VIPER_CURVEFS_INODEID,
+		CURVEFS_CLUSTERMAP:     VIPER_CURVEFS_CLUSTERMAP,
 		// S3
 		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
 		CURVEFS_S3_SK:         VIPER_CURVEFS_S3_SK,
@@ -180,10 +184,11 @@ var (
 	}
 
 	FLAG2DEFAULT = map[string]interface{}{
-		RPCTIMEOUT:       DEFAULT_RPCTIMEOUT,
-		RPCRETRYTIMES:    DEFAULT_RPCRETRYTIMES,
-		CURVEFS_SUMINDIR: CURVEFS_DEFAULT_SUMINDIR,
-		CURVEFS_DETAIL:   CURVEFS_DEFAULT_DETAIL,
+		RPCTIMEOUT:         DEFAULT_RPCTIMEOUT,
+		RPCRETRYTIMES:      DEFAULT_RPCRETRYTIMES,
+		CURVEFS_SUMINDIR:   CURVEFS_DEFAULT_SUMINDIR,
+		CURVEFS_DETAIL:     CURVEFS_DEFAULT_DETAIL,
+		CURVEFS_CLUSTERMAP: CURVEFS_DEFAULT_CLUSTERMAP,
 		// S3
 		CURVEFS_S3_AK:         CURVEFS_DEFAULT_S3_AK,
 		CURVEFS_S3_SK:         CURVEFS_DEFAULT_S3_SK,
@@ -486,6 +491,26 @@ func GetFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	return value
 }
 
+func GetFlagDuration(cmd *cobra.Command, flagName string) time.Duration {
+	var value time.Duration
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetDuration(flagName)
+	} else {
+		value = viper.GetDuration(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetFlagInt32(cmd *cobra.Command, flagName string) int32 {
+	var value int32
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetInt32(flagName)
+	} else {
+		value = viper.GetInt32(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
 func GetFsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetAddrSlice(cmd, CURVEFS_MDSADDR)
 }
@@ -760,4 +785,9 @@ func AddInodeIdRequiredFlag(cmd *cobra.Command) {
 // fsid [required]
 func AddFsIdRequiredFlag(cmd *cobra.Command) {
 	AddUint32RequiredFlag(cmd, CURVEFS_FSID, "fsid")
+}
+
+// cluserMap [required]
+func AddClusterMapRequiredFlag(cmd *cobra.Command) {
+	AddStringRequiredFlag(cmd, CURVEFS_CLUSTERMAP, "clusterMap")
 }

@@ -25,6 +25,7 @@ package create
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create/fs"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create/topology"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,7 @@ var _ basecmd.MidCurveCmdFunc = (*CreateCommand)(nil) // check interface
 func (createCmd *CreateCommand) AddSubCommands() {
 	createCmd.Cmd.AddCommand(
 		fs.NewFsCommand(),
+		topology.NewTopologyCommand(),
 	)
 }
 

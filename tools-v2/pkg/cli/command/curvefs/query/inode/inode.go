@@ -71,25 +71,9 @@ func (qiRpc *QueryInodeRpc) Stub_Func(ctx context.Context) (interface{}, error) 
 	return qiRpc.metaserverClient.GetInode(ctx, qiRpc.Request)
 }
 
-// type GetS3ChunkInfoMapRpc struct {
-// 	Info             *basecmd.Rpc
-// 	Request          *metaserver.GetOrModifyS3ChunkInfoRequest
-// 	metaserverClient metaserver.MetaServerServiceClient
-// }
-// var _ basecmd.RpcFunc = (*GetS3ChunkInfoMapRpc)(nil) // check interface
-
-// func (gcRpc *GetS3ChunkInfoMapRpc) NewRpcClient(cc grpc.ClientConnInterface) {
-// 	gcRpc.metaserverClient = metaserver.NewMetaServerServiceClient(cc)
-// }
-
-// func (gcRpc *GetS3ChunkInfoMapRpc) Stub_Func(ctx context.Context) (interface{}, error) {
-// 	return gcRpc.metaserverClient.GetOrModifyS3ChunkInfo(ctx, gcRpc.Request)
-// }
-
 type InodeCommand struct {
 	basecmd.FinalCurveCmd
 	QIRpc *QueryInodeRpc
-	// GCRpc *GetS3ChunkInfoMapRpc
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*InodeCommand)(nil) // check interface
@@ -139,31 +123,18 @@ func (iCmd *InodeCommand) Init(cmd *cobra.Command, args []string) error {
 	poolId := partitionInfo.GetPoolId()
 	copyetId := partitionInfo.GetCopysetId()
 	partitionId := partitionInfo.GetPartitionId()
+	supportStream := false
 	inodeRequest := &metaserver.GetInodeRequest{
-		PoolId:      &poolId,
-		CopysetId:   &copyetId,
-		PartitionId: &partitionId,
-		FsId:        &fsId,
-		InodeId:     &inodeId,
+		PoolId:           &poolId,
+		CopysetId:        &copyetId,
+		PartitionId:      &partitionId,
+		FsId:             &fsId,
+		InodeId:          &inodeId,
+		SupportStreaming: &supportStream,
 	}
 	iCmd.QIRpc = &QueryInodeRpc{
 		Request: inodeRequest,
 	}
-	// returnS3infomap := true
-	// supportStream := true
-	// s3infoMapRequest := &metaserver.GetOrModifyS3ChunkInfoRequest{
-	// 	PoolId: 	&poolId,
-	// 	CopysetId: &copyetId,
-	// 	PartitionId: &partitionId,
-	// 	FsId: &fsId,
-	// 	InodeId: &inodeId,
-	// 	ReturnS3ChunkInfoMap: &returnS3infomap,
-	// 	SupportStreaming: &supportStream,
-	// }
-	// iCmd.GCRpc = &GetS3ChunkInfoMapRpc{
-	// 	Request: s3infoMapRequest,
-	// }
-
 	// get addrs
 	config.AddCopysetidSliceRequiredFlag(iCmd.Cmd)
 	config.AddPoolidSliceRequiredFlag(iCmd.Cmd)
@@ -189,7 +160,6 @@ func (iCmd *InodeCommand) Init(cmd *cobra.Command, args []string) error {
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	iCmd.QIRpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetInode")
-	// iCmd.GCRpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetOrModifyS3ChunkInfo")
 
 	return nil
 }
@@ -200,7 +170,6 @@ func (iCmd *InodeCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	inodeResult, err := basecmd.GetRpcResponse(iCmd.QIRpc.Info, iCmd.QIRpc)
-	// s3infoMap, err := basecmd.GetRpcResponse(iCmd.GCRpc.Info, iCmd.GCRpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf("get inode failed: %s", err.Message)
 	}
