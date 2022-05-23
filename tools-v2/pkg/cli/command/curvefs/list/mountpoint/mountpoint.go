@@ -29,12 +29,17 @@ import (
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	mds "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
 	"github.com/spf13/cobra"
+)
+
+const (
+	mountpointExample = `$ curve fs list mountpoint`
 )
 
 type MountpointCommand struct {
@@ -47,8 +52,9 @@ var _ basecmd.FinalCurveCmdFunc = (*MountpointCommand)(nil) // check interface
 func NewMountpointCommand() *cobra.Command {
 	mpCmd := &MountpointCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "mountpoint",
-			Short: "list all mountpoint of the curvefs",
+			Use:     "mountpoint",
+			Short:   "list all mountpoint of the curvefs",
+			Example: mountpointExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&mpCmd.FinalCurveCmd, mpCmd)
@@ -69,7 +75,7 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	mpCmd.Error = fsInfoErr
 
-	table, err := gotable.Create("fs id", "fs name", "mount point")
+	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT)
 	if err != nil {
 		return err
 	}
@@ -103,17 +109,17 @@ func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
 	for _, fsInfo := range fssInfo {
 		if len(fsInfo.GetMountpoints()) == 0 {
 			row := make(map[string]string)
-			row["fs id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
-			row["fs name"] = fsInfo.GetFsName()
-			row["mount point"] = ""
+			row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+			row[cobrautil.ROW_FS_NAME] = fsInfo.GetFsName()
+			row[cobrautil.ROW_MOUNTPOINT] = ""
 			rows = append(rows, row)
 		}
 		for _, mountpoint := range fsInfo.GetMountpoints() {
 			row := make(map[string]string)
-			row["fs id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
-			row["fs name"] = fsInfo.GetFsName()
+			row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+			row[cobrautil.ROW_FS_NAME] = fsInfo.GetFsName()
 			mountpointStr := fmt.Sprintf("%s:%d:%s", mountpoint.GetHostname(), mountpoint.GetPort(), mountpoint.GetPath())
-			row["mount point"] = mountpointStr
+			row[cobrautil.ROW_MOUNTPOINT] = mountpointStr
 			rows = append(rows, row)
 		}
 	}

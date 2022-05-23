@@ -25,18 +25,15 @@ package topology
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 )
-
-const (
-	TYPE_POOL = "pool"
-)
-
 
 type Pool struct {
 	Name         string `json:"name"`
@@ -103,7 +100,7 @@ func (lpRpc *ListPoolRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 func (tCmd *TopologyCommand) listPool() (*topology.ListPoolResponse, *cmderror.CmdError) {
 	tCmd.listPoolRpc = &ListPoolRpc{}
 	tCmd.listPoolRpc.Request = &topology.ListPoolRequest{}
-	tCmd. listPoolRpc.Info = basecmd.NewRpc(tCmd.addrs, tCmd.timeout, tCmd.retryTimes, "ListPool")
+	tCmd.listPoolRpc.Info = basecmd.NewRpc(tCmd.addrs, tCmd.timeout, tCmd.retryTimes, "ListPool")
 	result, err := basecmd.GetRpcResponse(tCmd.listPoolRpc.Info, tCmd.listPoolRpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return nil, err
@@ -137,10 +134,10 @@ func (tCmd *TopologyCommand) scanPools() *cmderror.CmdError {
 			}
 			tCmd.deletePool = append(tCmd.deletePool, request)
 			row := make(map[string]string)
-			row[ROW_NAME] = poolInfo.GetPoolName()
-			row[ROW_TYPE] = TYPE_POOL
-			row[ROW_OPERATION] = ROW_VALUE_DEL
-			row[ROW_PARENT] = ""
+			row[cobrautil.ROW_NAME] = poolInfo.GetPoolName()
+			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_POOL
+			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
+			row[cobrautil.ROW_PARENT] = ""
 			tCmd.Table.AddRow(row)
 		}
 	}
@@ -163,10 +160,10 @@ func (tCmd *TopologyCommand) scanPools() *cmderror.CmdError {
 			}
 			tCmd.createPool = append(tCmd.createPool, request)
 			row := make(map[string]string)
-			row[ROW_NAME] = pool.Name
-			row[ROW_TYPE] = TYPE_POOL
-			row[ROW_OPERATION] = ROW_VALUE_ADD
-			row[ROW_PARENT] = ""
+			row[cobrautil.ROW_NAME] = pool.Name
+			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_POOL
+			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
+			row[cobrautil.ROW_PARENT] = ""
 			tCmd.Table.AddRow(row)
 		}
 	}
@@ -185,7 +182,7 @@ func (tCmd *TopologyCommand) removePools() *cmderror.CmdError {
 		}
 		response := result.(*topology.DeletePoolResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrDeleteTopology(response.GetStatusCode(), TYPE_POOL)
+			return cmderror.ErrDeleteTopology(response.GetStatusCode(), cobrautil.TYPE_POOL, fmt.Sprintf("%d", delReuest.GetPoolID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -202,7 +199,7 @@ func (tCmd *TopologyCommand) createPools() *cmderror.CmdError {
 		}
 		response := result.(*topology.CreatePoolResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrCreateTopology(response.GetStatusCode(), TYPE_POOL)
+			return cmderror.ErrCreateTopology(response.GetStatusCode(), cobrautil.TYPE_POOL, crtReuest.GetPoolName())
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -220,8 +217,7 @@ func (tCmd *TopologyCommand) checkPool(poolName string) *cmderror.CmdError {
 	if indexPool == -1 && indexCluster == -1 {
 		err := cmderror.ErrCheckPoolTopology()
 		err.Format(poolName)
+		return err
 	}
 	return cmderror.ErrSuccess()
 }
-
-

@@ -46,13 +46,10 @@ func FinalCmdOutputJson(finalCmd *basecmd.FinalCurveCmd) error {
 
 func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
 	funcs basecmd.FinalCurveCmdFunc) error {
-	if len(finalCmd.Table.Row) > 0 {
-		fmt.Println(finalCmd.Table)
-	}
+	fmt.Println(finalCmd.Table)
 	if finalCmd.Error.Code != cmderror.CODE_SUCCESS {
 		// result error
 		// do not show how to use the command
-		finalCmd.Cmd.SilenceUsage = true
 		return errors.New(finalCmd.Error.Message)
 	}
 	return nil
@@ -100,5 +97,5 @@ func MarshalProtoJson(message proto.Message) (interface{}, error) {
 }
 
 func SetFinalCmdNoOutput(finalCmd *basecmd.FinalCurveCmd) {
-	finalCmd.Cmd.SetArgs([]string{"--format", "noout"})
+	finalCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 }

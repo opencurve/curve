@@ -43,6 +43,10 @@ import (
 )
 
 const (
+	inodeExample = `$ curve fs query inode --fsid 1 --inodeid 1`
+)
+
+const (
 	ROW_FS_ID               = "fs id"
 	ROW_INODE_ID            = "inode id"
 	ROW_LENGTH              = "length"
@@ -81,8 +85,9 @@ var _ basecmd.FinalCurveCmdFunc = (*InodeCommand)(nil) // check interface
 func NewInodeCommand() *cobra.Command {
 	inodeCmd := &InodeCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "inode",
-			Short: "query the inode of fs",
+			Use:     "inode",
+			Short:   "query the inode of fs",
+			Example: inodeExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&inodeCmd.FinalCurveCmd, inodeCmd)
@@ -104,10 +109,21 @@ func (iCmd *InodeCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	iCmd.Table = table
 
+	return nil
+}
+
+func (iCmd *InodeCommand) Print(cmd *cobra.Command, args []string) error {
+	return output.FinalCmdOutput(&iCmd.FinalCurveCmd, iCmd)
+}
+
+func (iCmd *InodeCommand) Prepare() error {
 	fsId := config.GetFlagUint32(iCmd.Cmd, config.CURVEFS_FSID)
 	inodeId := config.GetFlagUint64(iCmd.Cmd, config.CURVEFS_INODEID)
 
-	fsId2PartitionList := partition.GetFsPartition(iCmd.Cmd)
+	fsId2PartitionList, errGet := partition.GetFsPartition(iCmd.Cmd)
+	if errGet.TypeCode() != cmderror.CODE_SUCCESS {
+		return errGet.ToError()
+	}
 	partitionInfoList := (*fsId2PartitionList)[fsId]
 	if partitionInfoList == nil {
 		return fmt.Errorf("inode[%d] is not found in fs[%d]", inodeId, fsId)
@@ -160,15 +176,15 @@ func (iCmd *InodeCommand) Init(cmd *cobra.Command, args []string) error {
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	iCmd.QIRpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetInode")
-
 	return nil
 }
 
-func (iCmd *InodeCommand) Print(cmd *cobra.Command, args []string) error {
-	return output.FinalCmdOutput(&iCmd.FinalCurveCmd, iCmd)
-}
-
 func (iCmd *InodeCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	preErr := iCmd.Prepare()
+	if preErr != nil {
+		return preErr
+	}
+
 	inodeResult, err := basecmd.GetRpcResponse(iCmd.QIRpc.Info, iCmd.QIRpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf("get inode failed: %s", err.Message)

@@ -38,6 +38,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	fsExample = `$ curvefs fs delete --fsname test1`
+)
+
 type DeleteFsRpc struct {
 	Info      *basecmd.Rpc
 	Request   *mds.DeleteFsRequest
@@ -64,8 +68,9 @@ func (dfRpc *DeleteFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "fs",
-			Short: "delete a fs from curvefs",
+			Use:     "fs",
+			Short:   "delete a fs from curvefs",
+			Example: fsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
@@ -86,13 +91,13 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create("fs name", "result")
+	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT)
 	if err != nil {
 		return err
 	}
 	fCmd.Table = table
 
-	fsName := viper.GetString(config.VIPER_CURVEFS_FSNAME)
+	fsName := config.GetFlagString(fCmd.Cmd, config.CURVEFS_FSNAME)
 
 	request := &mds.DeleteFsRequest{
 		FsName: &fsName,
@@ -114,21 +119,20 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	fsName := fCmd.Rpc.Request.GetFsName()
 	if !viper.GetBool(config.VIPER_CURVEFS_NOCONFIRM) && !cobrautil.AskConfirmation(fmt.Sprintf("Are you sure to delete fs %s?", fsName), fsName) {
-		fCmd.Cmd.SilenceUsage = true
 		return fmt.Errorf("abort delete fs")
 	}
 
 	result, err := basecmd.GetRpcResponse(fCmd.Rpc.Info, fCmd.Rpc)
-	var errs []*cmderror.CmdError
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		errs = append(errs, err)
+		return fmt.Errorf(err.Message)
 	}
 	response := result.(*mds.DeleteFsResponse)
-
+	var errs []*cmderror.CmdError
 	errDel := cmderror.ErrDeleteFs(int(response.GetStatusCode()))
+	errs = append(errs, errDel)
 	row := map[string]string{
-		"fs name": fCmd.Rpc.Request.GetFsName(),
-		"result":  errDel.Message,
+		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
+		cobrautil.ROW_RESULT:  errDel.Message,
 	}
 	fCmd.Table.AddRow(row)
 

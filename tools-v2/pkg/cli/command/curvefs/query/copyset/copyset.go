@@ -42,6 +42,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	copysetExample = `$ curve fs query copyset --copysetid 1,2 --poolid 1,1
+$ curve fs query copyset --copysetid 1,2 --poolid 1,1 --detail`
+)
+
 type QueryCopysetRpc struct {
 	Info           *basecmd.Rpc
 	Request        *topology.GetCopysetsInfoRequest
@@ -70,8 +75,9 @@ func (qcRpc *QueryCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error
 func NewCopysetCommand() *cobra.Command {
 	copysetCmd := &CopysetCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "copyset",
-			Short: "query copysets in curvefs",
+			Use:     "copyset",
+			Short:   "query copysets in curvefs",
+			Example: copysetExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
@@ -118,7 +124,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if len(poolids) != len(copysetids) {
 		return fmt.Errorf("%s and %s is must be in one-to-one correspondence", config.CURVEFS_POOLID, config.CURVEFS_COPYSETID)
 	}
-	table, err := gotable.Create("copyset key", "leader peer", "epoch")
+	table, err := gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_EPOCH)
 	if err != nil {
 		return err
 	}
@@ -141,9 +147,11 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		getRequest.CopysetKeys = append(getRequest.CopysetKeys, &copysetKey)
 
 		row := make(map[string]string)
-		row["copyset key"] = fmt.Sprintf("%d", key)
-		row["leader peer"] = "DNE"
-		row["epoch"] = "DNE"
+		row[cobrautil.ROW_COPYSET_KEY] = fmt.Sprintf("%d", key)
+		row[cobrautil.ROW_POOL_ID] = fmt.Sprintf("%d", poolid)
+		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", copysetid)
+		row[cobrautil.ROW_LEADER_PEER] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_EPOCH] = cobrautil.ROW_VALUE_DNE
 
 		cCmd.Rows = append(cCmd.Rows, row)
 		cCmd.key2Copyset[key] = nil
@@ -164,14 +172,16 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 	result, err := basecmd.GetRpcResponse(cCmd.Rpc.Info, cCmd.Rpc)
 	var errs []*cmderror.CmdError
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		errs = append(errs, err)
+		return fmt.Errorf(err.Message)
 	} else {
 		response := result.(*topology.GetCopysetsInfoResponse)
 		copysetValues := response.GetCopysetValues()
+		allNotFound := true
 		for _, copysetValue := range copysetValues {
 			var copysetKey uint64
 			var copysetInfo *heartbeat.CopySetInfo
 			if copysetValue.GetStatusCode() != topology.TopoStatusCode_TOPO_COPYSET_NOT_FOUND {
+				allNotFound = false
 				copysetInfo = copysetValue.GetCopysetInfo()
 				poolid := copysetInfo.GetPoolId()
 				copysetid := copysetInfo.GetCopysetId()
@@ -183,9 +193,11 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 				}
 			}
 			if copysetValue.GetStatusCode() == topology.TopoStatusCode_TOPO_OK {
-				row := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool { return row["copyset key"] == fmt.Sprintf("%d", copysetKey) })
-				cCmd.Rows[row]["leader peer"] = copysetInfo.GetLeaderPeer().String()
-				cCmd.Rows[row]["epoch"] = fmt.Sprintf("%d", copysetInfo.GetEpoch())
+				row := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
+					return row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)
+				})
+				cCmd.Rows[row][cobrautil.ROW_LEADER_PEER] = copysetInfo.GetLeaderPeer().String()
+				cCmd.Rows[row][cobrautil.ROW_EPOCH] = fmt.Sprintf("%d", copysetInfo.GetEpoch())
 			} else {
 				err := cmderror.ErrGetCopysetsInfo(int(copysetValue.GetStatusCode()))
 				errs = append(errs, err)
@@ -193,7 +205,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		}
 
 		detail := config.GetFlagBool(cCmd.Cmd, config.CURVEFS_DETAIL)
-		if detail {
+		if !allNotFound && detail {
 			statusErr := cCmd.UpdateCopysetsStatus(copysetValues)
 			errs = append(errs, statusErr...)
 		}
@@ -206,17 +218,17 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 }
 
 func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue) []*cmderror.CmdError {
-	cCmd.Table.AddColumn("peer addr")
-	cCmd.Table.AddColumn("status")
-	cCmd.Table.AddColumn("state")
-	cCmd.Table.AddColumn("term")
-	cCmd.Table.AddColumn("readonly")
+	cCmd.Table.AddColumn(cobrautil.ROW_PEER_ADDR)
+	cCmd.Table.AddColumn(cobrautil.ROW_STATUS)
+	cCmd.Table.AddColumn(cobrautil.ROW_STATE)
+	cCmd.Table.AddColumn(cobrautil.ROW_TERM)
+	cCmd.Table.AddColumn(cobrautil.ROW_READONLY)
 	for _, row := range cCmd.Rows {
-		row["peer addr"] = "DNE"
-		row["status"] = "DNE"
-		row["state"] = "DNE"
-		row["term"] = "DNE"
-		row["readonly"] = "DNE"
+		row[cobrautil.ROW_PEER_ADDR] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
 	}
 
 	addr2Request := make(map[string]*copyset.CopysetsStatusRequest)
@@ -241,7 +253,9 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 				addr2Request[addr].Copysets = append(addr2Request[addr].Copysets, copsetStatRequest)
 
 				copysetKey := cobrautil.GetCopysetKey(uint64(poolid), uint64(copysetid))
-				rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool { return row["copyset key"] == fmt.Sprintf("%d", copysetKey) })
+				rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
+					return row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)
+				})
 				if rowIndex == -1 {
 					errIndex := cmderror.ErrCopysetKey()
 					errIndex.Format(copysetKey, addr)
@@ -249,19 +263,21 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 					continue
 				}
 				row := cCmd.Rows[rowIndex]
-				if row["peer addr"] != "DNE" {
+				if row[cobrautil.ROW_PEER_ADDR] != cobrautil.ROW_VALUE_DNE {
 					rowNew := make(map[string]string)
-					rowNew["copyset key"] = row["copyset key"]
-					rowNew["leader peer"] = row["leader peer"]
-					rowNew["epoch"] = row["epoch"]
-					rowNew["peer addr"] = addr
-					rowNew["status"] = "DNE"
-					rowNew["state"] = "DNE"
-					rowNew["term"] = "DNE"
-					rowNew["readonly"] = "DNE"
+					rowNew[cobrautil.ROW_COPYSET_KEY] = row[cobrautil.ROW_COPYSET_KEY]
+					rowNew[cobrautil.ROW_COPYSET_ID] = row[cobrautil.ROW_COPYSET_ID]
+					rowNew[cobrautil.ROW_POOL_ID] = row[cobrautil.ROW_POOL_ID]
+					rowNew[cobrautil.ROW_LEADER_PEER] = row[cobrautil.ROW_LEADER_PEER]
+					rowNew[cobrautil.ROW_EPOCH] = row[cobrautil.ROW_EPOCH]
+					rowNew[cobrautil.ROW_PEER_ADDR] = addr
+					rowNew[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
+					rowNew[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
+					rowNew[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
+					rowNew[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
 					cCmd.Rows = append(cCmd.Rows, rowNew)
 				} else {
-					row["peer addr"] = addr
+					row[cobrautil.ROW_PEER_ADDR] = addr
 				}
 			}
 		}
@@ -293,9 +309,9 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 			copysetInfoStatus.Peer2Status[result.Addr] = status
 
 			rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
-				peerAddr := row["peer addr"]
+				peerAddr := row[cobrautil.ROW_PEER_ADDR]
 				addr := result.Addr
-				return (row["copyset key"] == fmt.Sprintf("%d", copysetKey)) && (peerAddr == addr)
+				return (row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)) && (peerAddr == addr)
 			})
 
 			if rowIndex == -1 {
@@ -306,17 +322,17 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 			}
 
 			row := cCmd.Rows[rowIndex]
-			row["status"] = status.GetStatus().String()
+			row[cobrautil.ROW_STATUS] = status.GetStatus().String()
 			if status.GetStatus() != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
-				row["state"] = "DNE"
-				row["term"] = "DNE"
-				row["readonly"] = "DNE"
+				row[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
+				row[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
+				row[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
 				continue
 			}
 			copysetStatus := status.GetCopysetStatus()
-			row["state"] = fmt.Sprintf("%d", copysetStatus.GetState())
-			row["term"] = fmt.Sprintf("%d", copysetStatus.GetTerm())
-			row["readonly"] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
+			row[cobrautil.ROW_STATE] = fmt.Sprintf("%d", copysetStatus.GetState())
+			row[cobrautil.ROW_TERM] = fmt.Sprintf("%d", copysetStatus.GetTerm())
+			row[cobrautil.ROW_READONLY] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
 		}
 	}
 	return ret
@@ -333,8 +349,8 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
-	queryCopyset.Cmd.SilenceUsage = true
+	cobrautil.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	queryCopyset.Cmd.SilenceErrors = true
 	err := queryCopyset.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrQueryCopyset()
@@ -350,8 +366,8 @@ func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfo
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
-	queryCopyset.Cmd.SilenceUsage = true
+	cobrautil.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	queryCopyset.Cmd.SilenceErrors = true
 	err := queryCopyset.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrQueryCopyset()

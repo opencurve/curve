@@ -31,6 +31,7 @@ import (
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -38,6 +39,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+)
+
+const (
+	topologyExample = `$ curve fs list topology`
 )
 
 type ListTopologyRpc struct {
@@ -69,8 +74,9 @@ func (lRpc *ListTopologyRpc) Stub_Func(ctx context.Context) (interface{}, error)
 func NewTopologyCommand() *cobra.Command {
 	topologyCmd := &TopologyCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "topology",
-			Short: "list the topology of the curvefs",
+			Use:     "topology",
+			Short:   "list the topology of the curvefs",
+			Example: topologyExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&topologyCmd.FinalCurveCmd, topologyCmd)
@@ -79,7 +85,8 @@ func NewTopologyCommand() *cobra.Command {
 
 func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
 	listTopo := NewListTopologyCommand()
-	listTopo.Cmd.SetArgs([]string{"--format", "noout"})
+	listTopo.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	listTopo.Cmd.SilenceErrors = true
 	err := listTopo.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrGetMetaserverAddr()
@@ -91,7 +98,7 @@ func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
 
 func GetTopology() (*topology.ListTopologyResponse, *cmderror.CmdError) {
 	listTopo := NewListTopologyCommand()
-	listTopo.Cmd.SetArgs([]string{"--format", "noout"})
+	listTopo.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	err := listTopo.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrGetMetaserverAddr()
@@ -125,7 +132,7 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	tCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
 
-	table, err := gotable.Create("id", "type", "name", "child type", "child list")
+	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST)
 	if err != nil {
 		return err
 	}
@@ -171,11 +178,11 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	for _, pool := range pools {
 		row := make(map[string]string)
 		id := strconv.FormatUint(uint64(pool.GetPoolID()), 10)
-		row["id"] = id
-		row["type"] = "pool"
-		row["name"] = pool.GetPoolName()
-		row["child type"] = "zone"
-		row["child list"] = ""
+		row[cobrautil.ROW_ID] = id
+		row[cobrautil.ROW_TYPE] = "pool"
+		row[cobrautil.ROW_NAME] = pool.GetPoolName()
+		row[cobrautil.ROW_CHILD_TYPE] = "zone"
+		row[cobrautil.ROW_CHILD_LIST] = ""
 		rows = append(rows, row)
 	}
 	poolRows := rows
@@ -185,18 +192,18 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	for _, zone := range zones {
 		row := make(map[string]string)
 		id := strconv.FormatUint(uint64(zone.GetZoneID()), 10)
-		row["id"] = id
-		row["type"] = "zone"
-		row["name"] = zone.GetZoneName()
-		row["child type"] = "server"
-		row["child list"] = ""
+		row[cobrautil.ROW_ID] = id
+		row[cobrautil.ROW_TYPE] = "zone"
+		row[cobrautil.ROW_NAME] = zone.GetZoneName()
+		row[cobrautil.ROW_CHILD_TYPE] = "server"
+		row[cobrautil.ROW_CHILD_LIST] = ""
 		rows = append(rows, row)
 		zoneRows = append(zoneRows, row)
 		// update pools child list
 		zonePoolId := strconv.FormatUint(uint64(zone.GetPoolID()), 10)
 		for _, pool := range poolRows {
-			if pool["id"] == zonePoolId {
-				pool["child list"] = pool["child list"] + zone.GetZoneName() + " "
+			if pool[cobrautil.ROW_ID] == zonePoolId {
+				pool[cobrautil.ROW_CHILD_LIST] = pool[cobrautil.ROW_CHILD_LIST] + zone.GetZoneName() + " "
 			}
 		}
 	}
@@ -206,18 +213,18 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	for _, server := range servers {
 		row := make(map[string]string)
 		id := strconv.FormatUint(uint64(server.GetServerID()), 10)
-		row["id"] = id
-		row["type"] = "server"
-		row["name"] = server.GetHostName()
-		row["child type"] = "metaserver"
-		row["child list"] = ""
+		row[cobrautil.ROW_ID] = id
+		row[cobrautil.ROW_TYPE] = "server"
+		row[cobrautil.ROW_NAME] = server.GetHostName()
+		row[cobrautil.ROW_CHILD_TYPE] = "metaserver"
+		row[cobrautil.ROW_CHILD_LIST] = ""
 		rows = append(rows, row)
 		serverRows = append(serverRows, row)
 		// update pools child list
 		serverZoneId := strconv.FormatUint(uint64(server.GetZoneID()), 10)
 		for _, zone := range zoneRows {
-			if zone["id"] == serverZoneId {
-				zone["child list"] = zone["child list"] + server.GetHostName() + " "
+			if zone[cobrautil.ROW_ID] == serverZoneId {
+				zone[cobrautil.ROW_CHILD_LIST] = zone[cobrautil.ROW_CHILD_LIST] + server.GetHostName() + " "
 			}
 		}
 	}
@@ -226,17 +233,17 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	for _, metaserver := range metaservers {
 		row := make(map[string]string)
 		id := strconv.FormatUint(uint64(metaserver.GetMetaServerID()), 10)
-		row["id"] = id
-		row["type"] = "metaserver"
-		row["name"] = metaserver.GetHostname()
-		row["child type"] = ""
-		row["child list"] = ""
+		row[cobrautil.ROW_ID] = id
+		row[cobrautil.ROW_TYPE] = "metaserver"
+		row[cobrautil.ROW_NAME] = metaserver.GetHostname()
+		row[cobrautil.ROW_CHILD_TYPE] = ""
+		row[cobrautil.ROW_CHILD_LIST] = ""
 		rows = append(rows, row)
 		// update server child list
 		metaserverServerId := strconv.FormatUint(uint64(metaserver.GetServerId()), 10)
 		for _, server := range serverRows {
-			if server["id"] == metaserverServerId {
-				server["child list"] = server["child list"] + fmt.Sprintf("%s.%d ", metaserver.GetHostname(), metaserver.GetMetaServerID())
+			if server[cobrautil.ROW_ID] == metaserverServerId {
+				server[cobrautil.ROW_CHILD_LIST] = server[cobrautil.ROW_CHILD_LIST] + fmt.Sprintf("%s.%d ", metaserver.GetHostname(), metaserver.GetMetaServerID())
 			}
 		}
 	}

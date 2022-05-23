@@ -491,6 +491,16 @@ func GetFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	return value
 }
 
+func GetFlagStringSliceDefaultAll(cmd *cobra.Command, flagName string) []string {
+	var value []string
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetStringSlice(flagName)
+	} else {
+		value = []string{"*"}
+	}
+	return value
+}
+
 func GetFlagDuration(cmd *cobra.Command, flagName string) time.Duration {
 	var value time.Duration
 	if cmd.Flag(flagName).Changed {

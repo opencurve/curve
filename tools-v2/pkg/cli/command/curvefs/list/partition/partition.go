@@ -41,6 +41,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	partitionExample = `$ curve fs list partition
+$ curve fs list partition --fsid=1,2,3`
+)
+
 type ListPartitionRpc struct {
 	Info           *basecmd.Rpc
 	Request        *topology.ListPartitionRequest
@@ -69,8 +74,9 @@ func (lpRp *ListPartitionRpc) Stub_Func(ctx context.Context) (interface{}, error
 func NewPartitionCommand() *cobra.Command {
 	pCmd := &PartitionCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "partition",
-			Short: "list partition in curvefs by fsid",
+			Use:     "partition",
+			Short:   "list partition in curvefs by fsid",
+			Example: partitionExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&pCmd.FinalCurveCmd, pCmd)
@@ -90,12 +96,12 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create("partition id", "fs id", "pool id", "copyset id", "start", "end", "status")
+	table, err := gotable.Create(cobrautil.ROW_PARTITION_ID, cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_START, cobrautil.ROW_END, cobrautil.ROW_STATUS)
 	if err != nil {
 		return err
 	}
 	pCmd.Table = table
-	fsIds := config.GetFlagStringSlice(pCmd.Cmd, config.CURVEFS_FSID)
+	fsIds := config.GetFlagStringSliceDefaultAll(pCmd.Cmd, config.CURVEFS_FSID)
 	if fsIds[0] == "*" {
 		var getFsIdErr *cmderror.CmdError
 		fsIds, getFsIdErr = fs.GetFsIds(pCmd.Cmd)
@@ -122,13 +128,13 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 		pCmd.fsId2Rows[id32] = make([]map[string]string, 1)
 		pCmd.fsId2Rows[id32][0] = make(map[string]string)
-		pCmd.fsId2Rows[id32][0]["fs id"] = fsId
-		pCmd.fsId2Rows[id32][0]["pool id"] = "DNE"
-		pCmd.fsId2Rows[id32][0]["copyset id"] = "DNE"
-		pCmd.fsId2Rows[id32][0]["partition id"] = "DNE"
-		pCmd.fsId2Rows[id32][0]["start"] = "DNE"
-		pCmd.fsId2Rows[id32][0]["end"] = "DNE"
-		pCmd.fsId2Rows[id32][0]["status"] = "DNE"
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_FS_ID] = fsId
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_POOL_ID] = cobrautil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_COPYSET_ID] = cobrautil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_PARTITION_ID] = cobrautil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_START] = cobrautil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_END] = cobrautil.ROW_VALUE_DNE
+		pCmd.fsId2Rows[id32][0][cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
 		pCmd.fsId2PartitionList[id32] = make([]*common.PartitionInfo, 0)
 	}
 
@@ -146,10 +152,13 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		infos = append(infos, rpc.Info)
 		funcs = append(funcs, rpc)
 	}
-	results, err := basecmd.GetRpcListResponse(infos, funcs)
-	var errs []*cmderror.CmdError
+
+	results, errs := basecmd.GetRpcListResponse(infos, funcs)
+	if len(errs) == len(infos) {
+		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+		return mergeErr.ToError()
+	}
 	var resList []interface{}
-	errs = append(errs, err)
 	for _, result := range results {
 		response := result.(*topology.ListPartitionResponse)
 		res, err := output.MarshalProtoJson(response)
@@ -166,18 +175,18 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 			rows := pCmd.fsId2Rows[fsId]
 			pCmd.fsId2PartitionList[fsId] = append(pCmd.fsId2PartitionList[fsId], partition)
 			var row map[string]string
-			if len(rows) == 1 && rows[0]["pool id"] == "DNE" {
+			if len(rows) == 1 && rows[0][cobrautil.ROW_POOL_ID] == "" {
 				row = rows[0]
 			} else {
 				row = make(map[string]string)
-				row["fs id"] = strconv.FormatUint(uint64(fsId), 10)
+				row[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
 			}
-			row["pool id"] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
-			row["copyset id"] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
-			row["partition id"] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
-			row["start"] = strconv.FormatUint(uint64(partition.GetStart()), 10)
-			row["end"] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
-			row["status"] = partition.GetStatus().String()
+			row[cobrautil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
+			row[cobrautil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
+			row[cobrautil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
+			row[cobrautil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
+			row[cobrautil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
+			row[cobrautil.ROW_STATUS] = partition.GetStatus().String()
 		}
 	}
 
@@ -211,16 +220,21 @@ func NewListPartitionCommand() *PartitionCommand {
 	return pCmd
 }
 
-func GetFsPartition(caller *cobra.Command) *map[uint32][]*common.PartitionInfo {
+func GetFsPartition(caller *cobra.Command) (*map[uint32][]*common.PartitionInfo, *cmderror.CmdError) {
 	listPartionCmd := NewListPartitionCommand()
 	listPartionCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, listPartionCmd.Cmd, []string{
+	cobrautil.AlignFlagsValue(caller, listPartionCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 		config.CURVEFS_FSID,
 	})
-	listPartionCmd.Cmd.SilenceUsage = true
-	listPartionCmd.Cmd.Execute()
-	return &listPartionCmd.fsId2PartitionList
+	listPartionCmd.Cmd.SilenceErrors = true
+	err := listPartionCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrGetFsPartition()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+	return &listPartionCmd.fsId2PartitionList, cmderror.ErrSuccess()
 }

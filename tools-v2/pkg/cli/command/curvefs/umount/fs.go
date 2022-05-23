@@ -31,6 +31,7 @@ import (
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -65,11 +66,16 @@ func (ufRp *UmountFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 	return ufRp.mdsClient.UmountFs(ctx, ufRp.Request)
 }
 
+const (
+	fsExample = `$ curvefs fs umount fs -fsname fsname -mountpoint hostname:port:path`
+)
+
 func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "fs",
-			Short: "umount fs from the curvefs cluster",
+			Use:     "fs",
+			Short:   "umount fs from the curvefs cluster",
+			Example: fsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
@@ -97,7 +103,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	fCmd.mountpoint = viper.GetString(config.VIPER_CURVEFS_MOUNTPOINT)
 	mountpointSlice := strings.Split(fCmd.mountpoint, ":")
 	if len(mountpointSlice) != 3 {
-		return fmt.Errorf("invalid mountpoint: %s", fCmd.mountpoint)
+		return fmt.Errorf("invalid mountpoint: %s, should be like: hostname:port:path", fCmd.mountpoint)
 	}
 	port, err := strconv.ParseUint(mountpointSlice[1], 10, 32)
 	if err != nil {
@@ -113,7 +119,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
 
-	table, err := gotable.Create("fs name", "mountpoint", "result")
+	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT, cobrautil.ROW_RESULT)
 	if err != nil {
 		return err
 	}
@@ -151,8 +157,8 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdError {
 	rows := make([]map[string]string, 1)
 	rows[0] = make(map[string]string)
-	rows[0]["fs name"] = fCmd.fsName
-	rows[0]["mountpoint"] = fCmd.mountpoint
+	rows[0][cobrautil.ROW_FS_NAME] = fCmd.fsName
+	rows[0][cobrautil.ROW_MOUNTPOINT] = fCmd.mountpoint
 	err := cmderror.ErrUmountFs(int(info.GetStatusCode()))
 
 	fCmd.Table.AddRows(rows)

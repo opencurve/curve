@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -39,19 +40,17 @@ import (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
+	health cobrautil.ClUSTER_HEALTH_STATUS
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
 
+const (
+	copysetExample = `$ curve fs status copyset`
+)
+
 func NewCopysetCommand() *cobra.Command {
-	cCmd := &CopysetCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "copyset",
-			Short: "status all copyset of the curvefs",
-		},
-	}
-	basecmd.NewFinalCurveCli(&cCmd.FinalCurveCmd, cCmd)
-	return cCmd.Cmd
+	return NewStatusCopysetCommand().Cmd
 }
 
 func (cCmd *CopysetCommand) AddFlags() {
@@ -61,8 +60,10 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
+	cCmd.health = cobrautil.HEALTH_ERROR
 	response, err := listCopyset.GetCopysetsInfos(cCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
+		cCmd.Error = err
 		return fmt.Errorf(err.Message)
 	}
 	var copysetIdVec []string
@@ -72,12 +73,21 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		copysetIdVec = append(copysetIdVec, fmt.Sprintf("%d", info.GetCopysetId()))
 		poolIdVec = append(poolIdVec, fmt.Sprintf("%d", info.GetPoolId()))
 	}
+	if len(copysetIdVec) == 0 {
+		var err error
+		cCmd.Table, err = gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_STATUS, cobrautil.ROW_EXPLAIN)
+		cCmd.Error = cmderror.ErrSuccess()
+		cCmd.Result = "No copyset found"
+		cCmd.health = cobrautil.HEALTH_OK
+		return err
+	}
 	copysetIds := strings.Join(copysetIdVec, ",")
 	poolIds := strings.Join(poolIdVec, ",")
-	result, table, errCheck := checkCopyset.GetCopysetsStatus(cCmd.Cmd, copysetIds, poolIds)
+	result, table, errCheck, health := checkCopyset.GetCopysetsStatus(cCmd.Cmd, copysetIds, poolIds)
 	cCmd.Result = result
 	cCmd.Table = table
 	cCmd.Error = errCheck
+	cCmd.health = health
 	return nil
 }
 
@@ -96,23 +106,24 @@ func (cCmd *CopysetCommand) ResultPlainOutput() error {
 func NewStatusCopysetCommand() *CopysetCommand {
 	copysetCmd := &CopysetCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "etcd",
-			Short: "get the etcd status of curvefs",
+			Use:     "copyset",
+			Short:   "status all copyset of the curvefs",
+			Example: copysetExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
 	return copysetCmd
 }
 
-func GetCopysetStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+func GetCopysetStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	copysetCmd := NewStatusCopysetCommand()
 	copysetCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, copysetCmd.Cmd, []string{
+	cobrautil.AlignFlagsValue(caller, copysetCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
-	copysetCmd.Cmd.SilenceUsage = true
+	copysetCmd.Cmd.SilenceErrors = true
 	copysetCmd.Cmd.Execute()
-	return &copysetCmd.Result, copysetCmd.Table, copysetCmd.Error
+	return &copysetCmd.Result, copysetCmd.Table, copysetCmd.Error, copysetCmd.health
 }

@@ -35,12 +35,18 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
+)
+
+const (
+	mdsExample = `$ curve fs status mds`
 )
 
 type MdsCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []basecmd.Metric
 	rows    []map[string]string
+	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -53,8 +59,9 @@ var _ basecmd.FinalCurveCmdFunc = (*MdsCommand)(nil) // check interface
 func NewMdsCommand() *cobra.Command {
 	mdsCmd := &MdsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "mds",
-			Short: "get the inode usage of curvefs",
+			Use:     "mds",
+			Short:   "get the inode usage of curvefs",
+			Example: mdsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
@@ -68,7 +75,8 @@ func (mCmd *MdsCommand) AddFlags() {
 }
 
 func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
-	table, err := gotable.Create("addr", "dummyAddr", "version", "status")
+	mCmd.health = cobrautil.HEALTH_ERROR
+	table, err := gotable.Create(cobrautil.ROW_ADDR, cobrautil.ROW_DUMMY_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -98,10 +106,10 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 
 	for i := range mainAddrs {
 		row := make(map[string]string)
-		row["addr"] = mainAddrs[i]
-		row["dummyAddr"] = dummyAddrs[i]
-		row["status"] = "offline"
-		row["version"] = "unknown"
+		row[cobrautil.ROW_ADDR] = mainAddrs[i]
+		row[cobrautil.ROW_DUMMY_ADDR] = dummyAddrs[i]
+		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
+		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
 		mCmd.rows = append(mCmd.rows, row)
 	}
 
@@ -140,14 +148,17 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	count := 0
 	var errs []*cmderror.CmdError
+	var recordAddrs []string
 	for res := range results {
 		for _, row := range mCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["dummyAddr"] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_DUMMY_ADDR] == res.Addr {
 				row[res.Key] = res.Value
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
-				offErr := cmderror.ErrMdsOffline()
-				offErr.Format(res.Addr)
-				errs = append(errs, offErr)
+				index := slices.Index(recordAddrs, res.Addr)
+				if index == -1 {
+					errs = append(errs, res.Err)
+					recordAddrs = append(recordAddrs, res.Addr)
+				}
 			}
 		}
 		count++
@@ -155,7 +166,13 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
-	mCmd.Error= cmderror.MostImportantCmdError(errs)
+	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
+		mCmd.health = cobrautil.HEALTH_WARN
+	} else if len(errs) == 0 {
+		mCmd.health = cobrautil.HEALTH_OK
+	}
+	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+	mCmd.Error = &mergeErr
 	mCmd.Table.AddRows(mCmd.rows)
 	jsonResult, err := mCmd.Table.JSON(0)
 	if err != nil {
@@ -177,21 +194,22 @@ func (mCmd *MdsCommand) ResultPlainOutput() error {
 func NewStatusMdsCommand() *MdsCommand {
 	mdsCmd := &MdsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "mds",
-			Short: "get the inode usage of curvefs",
+			Use:     "mds",
+			Short:   "get the inode usage of curvefs",
+			Example: mdsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
 	return mdsCmd
 }
 
-func GetMdsStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+func GetMdsStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	mdsCmd := NewStatusMdsCommand()
 	mdsCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
-	mdsCmd.Cmd.SilenceUsage = true
+	cobrautil.AlignFlagsValue(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	mdsCmd.Cmd.SilenceErrors = true
 	mdsCmd.Cmd.Execute()
-	return &mdsCmd.Result, mdsCmd.Table, mdsCmd.Error
+	return &mdsCmd.Result, mdsCmd.Table, mdsCmd.Error, mdsCmd.health
 }

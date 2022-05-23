@@ -29,6 +29,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -62,11 +63,16 @@ func (mRpc *MetadataRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 	return mRpc.topologyClient.StatMetadataUsage(ctx, mRpc.Request)
 }
 
+const (
+	metadataExample = `$ curvefs fs usage metadata`
+)
+
 func NewMetadataCommand() *cobra.Command {
 	fsCmd := &MetadataCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "metadata",
-			Short: "get the usage of metadata in curvefs",
+			Use:     "metadata",
+			Short:   "get the usage of metadata in curvefs",
+			Example: metadataExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
@@ -91,7 +97,7 @@ func (mCmd *MetadataCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	mCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "StatMetadataUsage")
 
-	table, err := gotable.Create("metaserverAddr", "total", "used", "left")
+	table, err := gotable.Create(cobrautil.ROW_METASERVER_ADDR, cobrautil.ROW_TOTAL, cobrautil.ROW_USED, cobrautil.ROW_LEFT)
 	if err != nil {
 		return err
 	}
@@ -130,10 +136,10 @@ func (mCmd *MetadataCommand) updateTable() {
 	rows := make([]map[string]string, 0)
 	for _, md := range mCmd.response.GetMetadataUsages() {
 		row := make(map[string]string)
-		row["metaserverAddr"] = md.GetMetaserverAddr()
-		row["total"] = humanize.IBytes(md.GetTotal())
-		row["used"] = humanize.IBytes(md.GetUsed())
-		row["left"] = humanize.IBytes(md.GetTotal() - md.GetUsed())
+		row[cobrautil.ROW_METASERVER_ADDR] = md.GetMetaserverAddr()
+		row[cobrautil.ROW_TOTAL] = humanize.IBytes(md.GetTotal())
+		row[cobrautil.ROW_USED] = humanize.IBytes(md.GetUsed())
+		row[cobrautil.ROW_LEFT] = humanize.IBytes(md.GetTotal() - md.GetUsed())
 		rows = append(rows, row)
 	}
 	mCmd.Table.AddRows(rows)

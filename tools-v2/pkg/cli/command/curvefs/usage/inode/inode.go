@@ -56,11 +56,17 @@ type Result struct {
 
 var _ basecmd.FinalCurveCmdFunc = (*InodeNumCommand)(nil) // check interface
 
+const (
+	inodeExample = `$ curvefs fs usage inode
+$ curvefs fs usage inode --fsid 1,2,3`
+)
+
 func NewInodeNumCommand() *cobra.Command {
 	inodeNumCmd := &InodeNumCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "inode",
-			Short: "get the inode usage of curvefs",
+			Use:     "inode",
+			Short:   "get the inode usage of curvefs",
+			Example: inodeExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&inodeNumCmd.FinalCurveCmd, inodeNumCmd)
@@ -81,7 +87,7 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 
 	iCmd.FsId2Filetype2Metric = make(map[string]map[string]basecmd.Metric)
 
-	fsIds := viper.GetStringSlice(config.VIPER_CURVEFS_FSID)
+	fsIds := config.GetFlagStringSliceDefaultAll(iCmd.Cmd, config.CURVEFS_FSID)
 	if len(fsIds) == 0 {
 		fsIds = []string{"*"}
 	}
@@ -90,6 +96,9 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		if err != nil && fsId != "*" {
 			return fmt.Errorf("invalid fsId: %s", fsId)
 		}
+		if fsId == "*" {
+			fsId = ""
+		}
 		subUri := fmt.Sprintf("/vars/"+PREFIX+"_%s*"+SUFFIX, fsId)
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 		metric := *basecmd.NewMetric(addrs, subUri, timeout)
@@ -97,7 +106,7 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		filetype2Metric["inode_num"] = metric
 		iCmd.FsId2Filetype2Metric[fsId] = filetype2Metric
 	}
-	table, err := gotable.Create("fsId", "filetype", "num")
+	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_TYPE, cobrautil.ROW_NUM)
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -154,9 +163,9 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					filetype = filetype[0 : len(filetype)-1]
 					if errNum == nil && errId == nil {
 						row := make(map[string]string)
-						row["fsId"] = strconv.FormatUint(uint64(id), 10)
-						row["filetype"] = filetype
-						row["num"] = strconv.FormatInt(num, 10)
+						row[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(id), 10)
+						row[cobrautil.ROW_FS_TYPE] = filetype
+						row[cobrautil.ROW_NUM] = strconv.FormatInt(num, 10)
 						rows = append(rows, row)
 					} else {
 						toErr := cmderror.ErrDataNoExpected()
@@ -165,6 +174,8 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					}
 				}
 			}
+		} else {
+			errs = append(errs, res.Error)
 		}
 		count++
 		if count >= size {
@@ -172,6 +183,9 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 		}
 	}
 	iCmd.Error = cmderror.MostImportantCmdError(errs)
+
+	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+	iCmd.Error = &mergeErr
 
 	if len(rows) > 0 {
 		// query some data
@@ -187,7 +201,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 		}
 		iCmd.Result = m
 	}
-	return nil
+	return mergeErr.ToError()
 }
 
 func (iCmd *InodeNumCommand) ResultPlainOutput() error {

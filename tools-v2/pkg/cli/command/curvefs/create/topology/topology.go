@@ -40,12 +40,7 @@ import (
 )
 
 const (
-	ROW_OPERATION = "operation"
-	ROW_VALUE_ADD = "add"
-	ROW_VALUE_DEL = "del"
-	ROW_TYPE      = "Type"
-	ROW_NAME      = "Name"
-	ROW_PARENT	  = "parent"
+	topologyExample = `$ curve fs create topology --clustermap /path/to/clustermap.json`
 )
 
 type Topology struct {
@@ -89,8 +84,9 @@ var _ basecmd.FinalCurveCmdFunc = (*TopologyCommand)(nil) // check interface
 func NewTopologyCommand() *cobra.Command {
 	topologyCmd := &TopologyCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "topology",
-			Short: "create curvefs topology",
+			Use:     "topology",
+			Short:   "create curvefs topology",
+			Example: topologyExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&topologyCmd.FinalCurveCmd, topologyCmd)
@@ -121,25 +117,32 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	defer jsonFile.Close()
 	byteValue, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		return err
+		jsonFileErr := cmderror.ErrReadFile()
+		jsonFileErr.Format(filePath, err.Error())
+		return jsonFileErr.ToError()
 	}
 	err = json.Unmarshal(byteValue, &tCmd.topology)
 	if err != nil {
-		return err
+		jsonFileErr := cmderror.ErrReadFile()
+		jsonFileErr.Format(filePath, err.Error())
+		return jsonFileErr.ToError()
 	}
 
 	updateZoneErr := tCmd.updateZone()
 	if updateZoneErr.TypeCode() != cmderror.CODE_SUCCESS {
-		return fmt.Errorf(updateZoneErr.Message)
+		return updateZoneErr.ToError()
 	}
 
-	table, err := gotable.Create(ROW_NAME, ROW_TYPE, ROW_OPERATION, ROW_PARENT)
+	table, err := gotable.Create(cobrautil.ROW_NAME, cobrautil.ROW_TYPE, cobrautil.ROW_OPERATION, cobrautil.ROW_PARENT)
 	if err != nil {
 		return err
 	}
 	tCmd.Table = table
 
-	tCmd.scanCluster()
+	scanErr := tCmd.scanCluster()
+	if scanErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return scanErr.ToError()
+	}
 
 	return nil
 }

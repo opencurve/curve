@@ -40,6 +40,13 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	fsExample = `$ curve fs create fs --fsname test1
+$ curve fs create fs --fsname test1 --fstype s3 --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.buckname test1 --s3.blocksize 4mib --s3.chunksize 4mib
+$ curve fs create fs --fsname test1 --fstype volume --volume.bitmaplocation AtStart --volume.blockgroupsize 128mib --volume.blocksize 4kib --volume.name volume --volume.password password --volume.size 1mib --volume.slicesize 1mib --volume.user user
+$ curve fs create fs --fsname test1 --fstype hybrid  --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.buckname test1 --s3.blocksize 4mib --s3.chunksize 4mib  --volume.bitmaplocation AtStart --volume.blockgroupsize 128mib --volume.blocksize 4kib --volume.name volume --volume.password password --volume.size 1mib --volume.slicesize 1mib --volume.user user`
+)
+
 type CreateFsRpc struct {
 	Info      *basecmd.Rpc
 	Request   *mds.CreateFsRequest
@@ -66,8 +73,9 @@ var _ basecmd.FinalCurveCmdFunc = (*FsCommand)(nil) // check interface
 func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "fs",
-			Short: "create a fs in curvefs",
+			Use:     "fs",
+			Short:   "create a fs in curvefs",
+			Example: fsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
@@ -108,7 +116,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create("fs name", "result")
+	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT)
 	if err != nil {
 		return err
 	}
@@ -125,7 +133,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	fsTypeStr := config.GetFlagString(cmd, config.CURVEFS_FSTYPE)
 	fsType, errFstype := cobrautil.TranslateFsType(fsTypeStr)
 	if errFstype.TypeCode() != cmderror.CODE_SUCCESS {
-		return fmt.Errorf(errFstype.Message)
+		return errFstype.ToError()
 	}
 
 	var fsDetail mds.FsDetail
@@ -297,25 +305,25 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response := result.(*mds.CreateFsResponse)
 	errCreate := cmderror.ErrCreateFs(int(response.GetStatusCode()))
 	row := map[string]string{
-		"fs name" : fCmd.Rpc.Request.GetFsName(),
-		"result" : errCreate.Message,
+		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
+		cobrautil.ROW_RESULT: errCreate.Message,
 	}
 	if response.GetStatusCode() == mds.FSStatusCode_OK {
 		fsInfo := response.GetFsInfo()
-		fCmd.Table.AddColumn("id")
-		row["id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
-		fCmd.Table.AddColumn("status")
-		row["status"] = fsInfo.GetStatus().String()
-		fCmd.Table.AddColumn("capacity")
-		row["capacity"] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-		fCmd.Table.AddColumn("blocksize")
-		row["blocksize"] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-		fCmd.Table.AddColumn("fsType")
-		row["fsType"] = fsInfo.GetFsType().String()
-		fCmd.Table.AddColumn("sumInDir")
-		row["sumInDir"] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-		fCmd.Table.AddColumn("owner")
-		row["owner"] = fsInfo.GetOwner()
+		fCmd.Table.AddColumn(cobrautil.ROW_ID)
+		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+		fCmd.Table.AddColumn(cobrautil.ROW_STATUS)
+		row[cobrautil.ROW_STATUS] = fsInfo.GetStatus().String()
+		fCmd.Table.AddColumn(cobrautil.ROW_CAPACITY)
+		row[cobrautil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
+		fCmd.Table.AddColumn(cobrautil.ROW_BLOCKSIZE)
+		row[cobrautil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
+		fCmd.Table.AddColumn(cobrautil.ROW_FS_TYPE)
+		row[cobrautil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
+		fCmd.Table.AddColumn(cobrautil.ROW_SUM_IN_DIR)
+		row[cobrautil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
+		fCmd.Table.AddColumn(cobrautil.ROW_OWNER)
+		row[cobrautil.ROW_OWNER] = fsInfo.GetOwner()
 	}
 
 	fCmd.Table.AddRow(row)
@@ -330,7 +338,6 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	fCmd.Result = res
 	fCmd.Error = cmderror.MostImportantCmdError(errs)
-	
 	return nil
 }
 
