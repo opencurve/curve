@@ -251,13 +251,16 @@ var (
 	ErrOfflineCopysetPeer = func() *CmdError {
 		return NewInternalCmdError(19, "peer [%s] is offline!")
 	}
-	ErrOpCopysetPeer = func() *CmdError {
-		return NewInternalCmdError(20, "op status: %s")
-	}
 	ErrStateCopysetPeer = func() *CmdError {
 		return NewInternalCmdError(20, "state in peer[%s]: %s")
 	}
-
+	ErrListCopyset = func() *CmdError {
+		return NewInternalCmdError(21, "list copyset failed! the error is: %s")
+	}
+	ErrCheckCopyset = func() *CmdError {
+		return NewInternalCmdError(22, "check copyset failed! the error is: %s")
+	}
+	
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
@@ -331,7 +334,7 @@ var (
 		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
 	}
-	ErrCopysetOpSatus = func(statusCode copyset.COPYSET_OP_STATUS) *CmdError {
+	ErrCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
