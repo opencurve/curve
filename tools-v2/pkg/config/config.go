@@ -45,17 +45,21 @@ const (
 	VIPER_GLOBALE_RPCRETRYTIMES = "global.rpcRetryTimes"
 
 	// curvefs
-	CURVEFS_MDSADDR            = "mdsaddr"
-	VIPER_CURVEFS_MDSADDR      = "curvefs.mdsAddr"
-	CURVEFS_MDSDUMMYADDR       = "mdsdummyaddr"
-	VIPER_CURVEFS_MDSDUMMYADDR = "curvefs.mdsDummyAddr"
-	CURVEFS_ETCDADDR           = "etcdaddr"
-	VIPER_CURVEFS_ETCDADDR     = "curvefs.etcdAddr"
-	CURVEFS_FSID               = "fsid"
-	VIPER_CURVEFS_FSID         = "curvefs.fsId"
-	CURVEFS_FSNAME             = "fsname"
-	VIPER_CURVEFS_FSNAME       = "curvefs.fsName"
-	VIPER_CURVEFS_MOUNTPOINT   = "curvefs.mountpoint"
+	CURVEFS_MDSADDR              = "mdsaddr"
+	VIPER_CURVEFS_MDSADDR        = "curvefs.mdsAddr"
+	CURVEFS_MDSDUMMYADDR         = "mdsdummyaddr"
+	VIPER_CURVEFS_MDSDUMMYADDR   = "curvefs.mdsDummyAddr"
+	CURVEFS_ETCDADDR             = "etcdaddr"
+	VIPER_CURVEFS_ETCDADDR       = "curvefs.etcdAddr"
+	CURVEFS_METASERVERADDR       = "metaserveraddr"
+	VIPER_CURVEFS_METASERVERADDR = "curvefs.metaserverAddr"
+	CURVEFS_METASERVERID         = "metaserverid"
+	VIPER_CURVEFS_METASERVERID   = "curvefs.metaserverId"
+	CURVEFS_FSID                 = "fsid"
+	VIPER_CURVEFS_FSID           = "curvefs.fsId"
+	CURVEFS_FSNAME               = "fsname"
+	VIPER_CURVEFS_FSNAME         = "curvefs.fsName"
+	VIPER_CURVEFS_MOUNTPOINT     = "curvefs.mountpoint"
 )
 
 var (
@@ -199,6 +203,24 @@ func AddEtcdAddrFlag(cmd *cobra.Command) {
 
 func GetFsEtcdAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetAddrSlice(cmd, CURVEFS_ETCDADDR)
+}
+
+// metaserver addr
+func AddMetaserverAddrOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSlice(CURVEFS_METASERVERADDR, nil, "metaserver address, should be like 127.0.0.1:9700,127.0.0.1:9701,127.0.0.1:9702")
+	err := viper.BindPFlag(VIPER_CURVEFS_METASERVERADDR, cmd.Flags().Lookup(CURVEFS_METASERVERADDR))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// metaserver id
+func AddMetaserverIdOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSlice(CURVEFS_METASERVERID, nil, "metaserver id, should be like 1,2,3")
+	err := viper.BindPFlag(VIPER_CURVEFS_METASERVERID, cmd.Flags().Lookup(CURVEFS_METASERVERID))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
 }
 
 // fs id [required]

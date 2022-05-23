@@ -129,6 +129,7 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
+	tCmd.Error = errCmd
 	topologyResponse := response.(*topology.ListTopologyResponse)
 	res, err := output.MarshalProtoJson(topologyResponse)
 	if err != nil {
