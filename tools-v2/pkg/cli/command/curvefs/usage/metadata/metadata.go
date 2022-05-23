@@ -85,6 +85,7 @@ func (mCmd *MetadataCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
+	mCmd.Rpc = &MetadataRpc{}
 	mCmd.Rpc.Request = &topology.StatMetadataUsageRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)

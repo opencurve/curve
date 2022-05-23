@@ -63,7 +63,7 @@ func (mpCmd *MountpointCommand) AddFlags() {
 
 func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	var fsInfoErr *cmderror.CmdError
-	mpCmd.fsInfo, fsInfoErr = fs.GetClusterFsInfo()
+	mpCmd.fsInfo, fsInfoErr = fs.GetClusterFsInfo(mpCmd.Cmd)
 	if fsInfoErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(fsInfoErr.Message)
 	}

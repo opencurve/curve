@@ -28,6 +28,8 @@ import (
 	"github.com/docker/cli/cli/command"
 	"github.com/moby/term"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -86,7 +88,7 @@ Run '{{.CommandPath}} COMMAND --help' for more information on a command.
 func subCommands(cmd *cobra.Command) []*cobra.Command {
 	cmds := []*cobra.Command{}
 	for _, subCmd := range cmd.Commands() {
-		if subCmd.IsAvailableCommand()  {
+		if subCmd.IsAvailableCommand() {
 			cmds = append(cmds, subCmd)
 		}
 	}
@@ -125,4 +127,21 @@ func SetUsageTemplate(cmd *cobra.Command) {
 	cobra.AddTemplateFunc("hasSubCommands", hasSubCommands)
 	cobra.AddTemplateFunc("wrappedFlagUsages", wrappedFlagUsages)
 	cmd.SetUsageTemplate(usageTemplate)
+}
+
+// Align the flag (changed) in the caller with the callee
+func AlignFlags(caller *cobra.Command, callee *cobra.Command, flagNames []string) {
+	callee.Flags().VisitAll(func(flag *pflag.Flag) {
+		index := slices.IndexFunc(flagNames, func(i string) bool {
+			return flag.Name == i
+		})
+		if index == -1 {
+			return
+		}
+		callerFlag := caller.Flag(flag.Name)
+		if callerFlag != nil && callerFlag.Changed {
+			flag.Value = callerFlag.Value
+			flag.Changed = callerFlag.Changed
+		}
+	})
 }

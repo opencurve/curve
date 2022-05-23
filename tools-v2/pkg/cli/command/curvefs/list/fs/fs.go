@@ -152,7 +152,7 @@ func (fCmd *FsCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
 }
 
-func GetClusterFsInfo() (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
+func GetClusterFsInfo(caller *cobra.Command) (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 	listFs := NewListFsCommand()
 	listFs.Cmd.SetArgs([]string{"--format", "noout"})
 	listFs.Cmd.SilenceUsage = true
@@ -165,8 +165,8 @@ func GetClusterFsInfo() (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 	return listFs.response, cmderror.ErrSuccess()
 }
 
-func GetFsIds() ([]string, *cmderror.CmdError) {
-	fsInfo, err := GetClusterFsInfo()
+func GetFsIds(caller *cobra.Command) ([]string, *cmderror.CmdError) {
+	fsInfo, err := GetClusterFsInfo(caller)
 	var ids []string
 	if err.TypeCode() == cmderror.CODE_SUCCESS {
 		for _, fsInfo := range fsInfo.GetFsInfo() {

@@ -24,6 +24,7 @@ package curvefs
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/delete"
 	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
@@ -49,6 +50,7 @@ func (fsCmd *CurveFsCommand) AddSubCommands() {
 		query.NewQueryCommand(),
 		delete.NewDeleteCommand(),
 		create.NewCreateCommand(),
+		check.NewCheckCommand(),
 	)
 }
 

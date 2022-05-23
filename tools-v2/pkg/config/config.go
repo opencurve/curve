@@ -38,11 +38,16 @@ var (
 )
 
 const (
+	FORMATE = "format"
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
 	VIPER_GLOBALE_HTTPTIMEOUT   = "global.httpTimeout"
+	RPCTIMEOUT                  = "rpctimeout"
 	VIPER_GLOBALE_RPCTIMEOUT    = "global.rpcTimeout"
+	DEFAULT_RPCTIMEOUT          = 10000 * time.Millisecond
+	RPCRETRYTIMES               = "rpcretrytimes"
 	VIPER_GLOBALE_RPCRETRYTIMES = "global.rpcRetryTimes"
+	DEFAULT_RPCRETRYTIMES       = 1
 
 	// curvefs
 	CURVEFS_MDSADDR              = "mdsaddr"
@@ -133,6 +138,8 @@ const (
 
 var (
 	FLAG2VIPER = map[string]string{
+		RPCTIMEOUT:             VIPER_GLOBALE_RPCTIMEOUT,
+		RPCRETRYTIMES:          VIPER_GLOBALE_RPCRETRYTIMES,
 		CURVEFS_MDSADDR:        VIPER_CURVEFS_MDSADDR,
 		CURVEFS_MDSDUMMYADDR:   VIPER_CURVEFS_MDSDUMMYADDR,
 		CURVEFS_ETCDADDR:       VIPER_CURVEFS_ETCDADDR,
@@ -170,6 +177,8 @@ var (
 	}
 
 	FLAG2DEFAULT = map[string]interface{}{
+		RPCTIMEOUT:       DEFAULT_RPCTIMEOUT,
+		RPCRETRYTIMES:    DEFAULT_RPCRETRYTIMES,
 		CURVEFS_SUMINDIR: CURVEFS_DEFAULT_SUMINDIR,
 		CURVEFS_DETAIL:   CURVEFS_DEFAULT_DETAIL,
 		// S3
@@ -273,6 +282,30 @@ func AddBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
+func AddDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Duration(name, defaultValue.(time.Duration), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddInt32OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Int32(name, int32(defaultValue.(int)), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 // global
 // format
 const (
@@ -298,22 +331,14 @@ func AddHttpTimeoutFlag(cmd *cobra.Command) {
 	}
 }
 
-// rpc time out
+// rpc time out [option]
 func AddRpcTimeoutFlag(cmd *cobra.Command) {
-	cmd.Flags().Duration("rpctimeout", 10000*time.Millisecond, "rpc timeout")
-	err := viper.BindPFlag("global.rpcTimeout", cmd.Flags().Lookup("rpctimeout"))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
+	AddDurationOptionFlag(cmd, RPCTIMEOUT, "rpc timeout")
 }
 
 // rpc retry times
 func AddRpcRetryTimesFlag(cmd *cobra.Command) {
-	cmd.Flags().Int32("rpcretrtytimes", 1, "rpc retry times")
-	err := viper.BindPFlag("global.rpcRetryTimes", cmd.Flags().Lookup("rpcretrtytimes"))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
+	AddInt32OptionFlag(cmd, RPCRETRYTIMES, "rpc retry times")
 }
 
 // channel size
