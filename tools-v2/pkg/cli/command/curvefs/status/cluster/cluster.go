@@ -27,6 +27,7 @@ import (
 
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/etcd"
@@ -47,17 +48,23 @@ const (
 type ClusterCommand struct {
 	basecmd.FinalCurveCmd
 	type2Table map[string]*table.Table
-	type2Func   map[string]func(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError)
+	type2Func  map[string]func(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS)
 	serverList []string
+	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*ClusterCommand)(nil) // check interface
+
+const (
+	clusterExample = `$ curve fs status cluster`
+)
 
 func NewClusterCommand() *cobra.Command {
 	cCmd := &ClusterCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:   "cluster",
 			Short: "get status of the curvefs",
+			Example: clusterExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&cCmd.FinalCurveCmd, cCmd)
@@ -71,7 +78,7 @@ func (cCmd *ClusterCommand) AddFlags() {
 }
 
 func (cCmd *ClusterCommand) Init(cmd *cobra.Command, args []string) error {
-	cCmd.type2Func = map[string]func(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError){
+	cCmd.type2Func = map[string]func(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS){
 		TYPE_ETCD:        etcd.GetEtcdStatus,
 		TYPE_MDS:         mds.GetMdsStatus,
 		TYPE_MEATASERVER: metaserver.GetMetaserverStatus,
@@ -90,13 +97,15 @@ func (cCmd *ClusterCommand) RunCommand(cmd *cobra.Command, args []string) error 
 	var errs []*cmderror.CmdError
 	results := make(map[string]interface{})
 	for key, function := range cCmd.type2Func {
-		result, table, err := function(cmd)
+		result, table, err, health := function(cmd)
 		cCmd.type2Table[key] = table
 		results[key] = *result
 		errs = append(errs, err)
+		cCmd.health = cobrautil.CompareHealth(cCmd.health, health)
 	}
-	finalErr := cmderror.MergeCmdError(errs)
+	finalErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	cCmd.Error = &finalErr
+	results["health"] = cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)]
 	cCmd.Result = results
 	return nil
 }
@@ -104,7 +113,12 @@ func (cCmd *ClusterCommand) RunCommand(cmd *cobra.Command, args []string) error 
 func (cCmd *ClusterCommand) ResultPlainOutput() error {
 	for _, server := range cCmd.serverList {
 		fmt.Printf("%s:\n", server)
-		fmt.Println(cCmd.type2Table[server])
+		if cCmd.type2Table[server] != nil && len(cCmd.type2Table[server].Row) > 0 {
+			fmt.Println(cCmd.type2Table[server])
+		} else {
+			fmt.Printf("No found %s\n\n", server)
+		}
 	}
-	return nil
+	fmt.Println("Cluster health is: ", cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)])
+	return cCmd.Error.ToError()
 }

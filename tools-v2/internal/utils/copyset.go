@@ -145,3 +145,14 @@ func CheckCopySetHealth(copysetIS *CopysetInfoStatus) (COPYSET_HEALTH_STATUS, []
 		return COPYSET_ERROR, errs
 	}
 }
+
+func GetCopysetKey(poolid uint64, copysetid uint64) uint64 {
+	return (poolid << 32) | copysetid
+}
+
+// return poolid, copysetid
+func CopysetKey2PoolidCopysetid(copysetKey uint64) (uint32, uint32) {
+	poolid := copysetKey >> 32
+	copysetid := copysetKey & (1<<32 - 1)
+	return uint32(copysetid), uint32(poolid)
+}

@@ -49,17 +49,19 @@ const (
 // Error Use to indicate whether the command is wrong
 // and the reason for the execution error
 type FinalCurveCmd struct {
-	Use     string            `json:"-"`
-	Short   string            `json:"-"`
-	Long    string			`json:"-"`
-	Example string            `json:"-"`
+	Use     string             `json:"-"`
+	Short   string             `json:"-"`
+	Long    string             `json:"-"`
+	Example string             `json:"-"`
 	Error   *cmderror.CmdError `json:"error"`
-	Result  interface{}       `json:"result"`
-	Table   *table.Table      `json:"-"`
-	Cmd     *cobra.Command    `json:"-"`
+	Result  interface{}        `json:"result"`
+	Table   *table.Table       `json:"-"`
+	Cmd     *cobra.Command     `json:"-"`
 }
 
 // FinalCurveCmdFunc is the function type for final command
+// If there is flag[required] related code should not be placed in init,
+// the check for it is placed between PreRun and Run
 type FinalCurveCmdFunc interface {
 	Init(cmd *cobra.Command, args []string) error
 	RunCommand(cmd *cobra.Command, args []string) error
@@ -85,16 +87,26 @@ type MidCurveCmdFunc interface {
 
 func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Command {
 	cli.Cmd = &cobra.Command{
-		Use:          cli.Use,
-		Short:        cli.Short,
-		Long:         cli.Long,
-		PreRunE:      funcs.Init,
-		RunE:         funcs.RunCommand,
-		PostRunE:     funcs.Print,
-		SilenceUsage: false,
+		Use:     cli.Use,
+		Short:   cli.Short,
+		Long:    cli.Long,
+		Example: cli.Example,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := funcs.Init(cmd, args)
+			if err != nil {
+				return err
+			}
+			err = funcs.RunCommand(cmd, args)
+			if err != nil {
+				return err
+			}
+			return funcs.Print(cmd, args)
+		},
+		SilenceUsage: true,
 	}
 	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
+	cobrautil.SetFlagErrorFunc(cli.Cmd)
 	return cli.Cmd
 }
 
@@ -157,8 +169,8 @@ func QueryMetric(m Metric) (string, *cmderror.CmdError) {
 			break
 		}
 	}
-	retErr := cmderror.MostImportantCmdError(vecErrs)
-	return retStr, retErr
+	retErr := cmderror.MergeCmdError(vecErrs)
+	return retStr, &retErr
 }
 
 func GetMetricValue(metricRet string) (string, *cmderror.CmdError) {
@@ -258,9 +270,8 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 			rpcFunc.NewRpcClient(conn)
 			res, err := rpcFunc.Stub_Func(context.Background())
 			if err != nil {
-				// fmt.Println(err)
 				errRpc := cmderror.ErrRpcCall()
-				errRpc.Format(addr, rpc.RpcFuncName, err.Error())
+				errRpc.Format(rpc.RpcFuncName, err.Error())
 				errs <- errRpc
 			} else {
 				response <- res
@@ -277,7 +288,6 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 			vecErrs = append(vecErrs, err)
 		} else {
 			ret = <-response
-			vecErrs = append(vecErrs, cmderror.ErrSuccess())
 			break
 		}
 		count++
@@ -286,16 +296,19 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 			break
 		}
 	}
-	retErr := cmderror.MostImportantCmdError(vecErrs)
-	return ret, retErr
+	if len(vecErrs) >= len(rpc.Addrs) {
+		retErr := cmderror.MergeCmdError(vecErrs)
+		return ret, &retErr
+	}
+	return ret, cmderror.ErrSuccess()
 }
 
 type RpcResult struct {
 	Response interface{}
-	Error *cmderror.CmdError
+	Error    *cmderror.CmdError
 }
 
-func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, *cmderror.CmdError) {
+func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, []*cmderror.CmdError) {
 	chanSize := len(rpcList)
 	if chanSize > config.MaxChannelSize() {
 		chanSize = config.MaxChannelSize()
@@ -307,7 +320,7 @@ func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, *cmde
 		go func(rpc *Rpc, rpcFunc RpcFunc) {
 			res, err := GetRpcResponse(rpc, rpcFunc)
 			results <- RpcResult{res, err}
-		} (rpcList[i], rpcFunc[i])
+		}(rpcList[i], rpcFunc[i])
 	}
 
 	count := 0
@@ -327,6 +340,6 @@ func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, *cmde
 			break
 		}
 	}
-	retErr := cmderror.MergeCmdError(vecErrs)
-	return retRes, &retErr
+
+	return retRes, vecErrs
 }

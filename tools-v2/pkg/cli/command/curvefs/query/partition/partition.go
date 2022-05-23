@@ -29,6 +29,7 @@ import (
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -36,6 +37,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+)
+
+const (
+	partitionExample = `$ curve fs query partition --partitionid 1,2,3`
 )
 
 type QueryPartitionRpc struct {
@@ -64,8 +69,9 @@ func (qpRpc *QueryPartitionRpc) Stub_Func(ctx context.Context) (interface{}, err
 func NewPartitionCommand() *cobra.Command {
 	partitionCmd := &PartitionCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "partition",
-			Short: "query the copyset of partition",
+			Use:     "partition",
+			Short:   "query the copyset of partition",
+			Example: partitionExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&partitionCmd.FinalCurveCmd, partitionCmd)
@@ -85,7 +91,7 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create("id", "pool id", "copyset id", "peer id", "peer address")
+	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_PEER_ID, cobrautil.ROW_PEER_ADDR)
 	if err != nil {
 		return err
 	}
@@ -123,7 +129,7 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 	result, err := basecmd.GetRpcResponse(pCmd.Rpc.Info, pCmd.Rpc)
 	var errs []*cmderror.CmdError
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		errs = append(errs, err)
+		return fmt.Errorf(err.Message)
 	}
 	response := result.(*topology.GetCopysetOfPartitionResponse)
 	errStatus := cmderror.ErrGetCopysetOfPartition(int(response.GetStatusCode()))
@@ -141,11 +147,11 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 	for k, v := range copysetMap {
 		for _, peer := range v.GetPeers() {
 			row := make(map[string]string)
-			row["id"] = strconv.Itoa(int(k))
-			row["pool id"] = strconv.Itoa(int(v.GetPoolId()))
-			row["copyset id"] = strconv.Itoa(int(v.GetCopysetId()))
-			row["peer id"] = strconv.Itoa(int(peer.GetId()))
-			row["peer address"] = peer.GetAddress()
+			row[cobrautil.ROW_ID] = strconv.Itoa(int(k))
+			row[cobrautil.ROW_POOL_ID] = strconv.Itoa(int(v.GetPoolId()))
+			row[cobrautil.ROW_COPYSET_ID] = strconv.Itoa(int(v.GetCopysetId()))
+			row[cobrautil.ROW_PEER_ID] = strconv.Itoa(int(peer.GetId()))
+			row[cobrautil.ROW_PEER_ADDR] = peer.GetAddress()
 			rows = append(rows, row)
 		}
 	}

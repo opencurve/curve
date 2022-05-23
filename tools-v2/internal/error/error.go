@@ -58,6 +58,9 @@ func init() {
 }
 
 func (ce *CmdError) ToError() error {
+	if ce.Code == CODE_SUCCESS {
+		return nil
+	}
 	return fmt.Errorf(ce.Message)
 }
 
@@ -177,6 +180,33 @@ func MostImportantCmdError(err []*CmdError) *CmdError {
 }
 
 // keep the most important wrong id, all wrong message will be kept
+// if all success return success
+func MergeCmdErrorExceptSuccess(err []*CmdError) CmdError {
+	if len(err) == 0 {
+		return *NewSucessCmdError()
+	}
+	var ret CmdError
+	ret.Code = CODE_UNKNOWN
+	ret.Message = ""
+	countSuccess := 0
+	for _, e := range err {
+		if e.Code == CODE_SUCCESS {
+			countSuccess++
+			continue
+		} else if e.Code < ret.Code {
+			ret.Code = e.Code
+		}
+		ret.Message = e.Message + "\n" + ret.Message
+	}
+	if countSuccess == len(err) {
+		return *NewSucessCmdError()
+	}
+	ret.Message = ret.Message[:len(ret.Message)-1]
+	return ret
+}
+
+// keep the most important wrong id, all wrong message will be kept
+// if have one success return success
 func MergeCmdError(err []*CmdError) CmdError {
 	if len(err) == 0 {
 		return *NewSucessCmdError()
@@ -186,7 +216,7 @@ func MergeCmdError(err []*CmdError) CmdError {
 	ret.Message = ""
 	for _, e := range err {
 		if e.Code == CODE_SUCCESS {
-			continue
+			return *e
 		} else if e.Code < ret.Code {
 			ret.Code = e.Code
 		}
@@ -222,7 +252,7 @@ var (
 		return NewInternalCmdError(7, "get metaserver addr failed, the error is: %s")
 	}
 	ErrGetClusterFsInfo = func() *CmdError {
-		return NewInternalCmdError(8, "get cluster fs info failed, the error is: %s")
+		return NewInternalCmdError(8, "get cluster fs info failed, the error is: \n%s")
 	}
 	ErrGetAddr = func() *CmdError {
 		return NewInternalCmdError(9, "invalid %s addr is: %s")
@@ -278,6 +308,12 @@ var (
 	ErrCheckPoolTopology = func() *CmdError {
 		return NewInternalCmdError(26, "pool[%s] is not in cluster nor in json file")
 	}
+	ErrReadFile = func() *CmdError {
+		return NewInternalCmdError(27, "read file[%s] failed! the error is: %s")
+	}
+	ErrGetFsPartition = func() *CmdError {
+		return NewInternalCmdError(28, "get fs partition failed! the error is: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -292,7 +328,7 @@ var (
 
 	// rpc error
 	ErrRpcCall = func() *CmdError {
-		return NewRpcReultCmdError(1, "rpc call is fail, the addr is: %s, the func is %s, the error is: %s")
+		return NewRpcReultCmdError(1, "rpc[%s] is fail, the error is: %s")
 	}
 	ErrUmountFs = func(statusCode int) *CmdError {
 		var message string
@@ -313,6 +349,9 @@ var (
 	}
 	ErrGetFsInfo = func(statusCode int) *CmdError {
 		return NewRpcReultCmdError(statusCode, "get fs info failed: status code is %s")
+	}
+	ErrGetMetaserverInfo = func(statusCode int) *CmdError {
+		return NewRpcReultCmdError(statusCode, "get metaserver info failed: status code is %s")
 	}
 	ErrGetCopysetOfPartition = func(statusCode int) *CmdError {
 		code := topology.TopoStatusCode(statusCode)
@@ -352,7 +391,7 @@ var (
 		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
 	}
-	ErrCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
+	ErrCopysetOpSatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
@@ -398,25 +437,38 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrDeleteTopology = func(statusCode topology.TopoStatusCode, topoType string) *CmdError {
+	ErrDeleteTopology = func(statusCode topology.TopoStatusCode, topoType string, name string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
 		case topology.TopoStatusCode_TOPO_OK:
 			message = "ok"
 		default:
-			message = fmt.Sprintf("delete %s err: %s", topoType, statusCode.String())
+			message = fmt.Sprintf("delete %s[%s] err: %s", topoType, name,statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrCreateTopology = func(statusCode topology.TopoStatusCode, topoType string) *CmdError {
+	ErrCreateTopology = func(statusCode topology.TopoStatusCode, topoType string, name string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
 		case topology.TopoStatusCode_TOPO_OK:
 			message = "ok"
 		default:
-			message = fmt.Sprintf("create %s err: %s", topoType, statusCode.String())
+			message = fmt.Sprintf("create %s[%s] err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
+			message = fmt.Sprintf("not exist in %s", addr)
+		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
 		}
 		return NewRpcReultCmdError(code, message)
 	}

@@ -42,6 +42,7 @@ type MetaserverCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []basecmd.Metric
 	rows    []map[string]string
+	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -49,13 +50,18 @@ const (
 	VERSION_SUBURI = "/vars/curve_version"
 )
 
+const (
+	metaserverExample = `$ curve fs status metaserver`
+)
+
 var _ basecmd.FinalCurveCmdFunc = (*MetaserverCommand)(nil) // check interface
 
 func NewMetaserverCommand() *cobra.Command {
 	mdsCmd := &MetaserverCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "metaserver",
-			Short: "get metaserver status of curvefs",
+			Use:     "metaserver",
+			Short:   "get metaserver status of curvefs",
+			Example: metaserverExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
@@ -69,12 +75,14 @@ func (mCmd *MetaserverCommand) AddFlags() {
 }
 
 func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
+	mCmd.health = cobrautil.HEALTH_ERROR
 	externalAddrs, internalAddrs, errMetaserver := topology.GetMetaserverAddrs()
 	if errMetaserver.TypeCode() != cmderror.CODE_SUCCESS {
+		mCmd.Error = errMetaserver
 		return fmt.Errorf(errMetaserver.Message)
 	}
 
-	table, err := gotable.Create("externalAddr", "internalAddr", "version", "status")
+	table, err := gotable.Create(cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -95,10 +103,10 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 
 		// set rows
 		row := make(map[string]string)
-		row["externalAddr"] = addr
-		row["internalAddr"] = internalAddrs[i]
-		row["status"] = "offline"
-		row["version"] = "unknown"
+		row[cobrautil.ROW_EXTERNAL_ADDR] = addr
+		row[cobrautil.ROW_INTERNAL_ADDR] = internalAddrs[i]
+		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
+		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
 		mCmd.rows = append(mCmd.rows, row)
 	}
 	return nil
@@ -138,16 +146,14 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	var errs []*cmderror.CmdError
 	for res := range results {
 		for _, row := range mCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["externalAddr"] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_EXTERNAL_ADDR] == res.Addr {
 				if res.Key == "status" {
 					row[res.Key] = "online"
 				} else {
 					row[res.Key] = res.Value
 				}
 			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
-				offline := cmderror.ErrMetaserverOffline()
-				offline.Format(res.Addr)
-				errs = append(errs, offline)
+				errs = append(errs, res.Err)
 			}
 		}
 		count++
@@ -156,7 +162,14 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		}
 	}
 
-	mCmd.Error = cmderror.MostImportantCmdError(errs)
+	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+	mCmd.Error = &mergeErr
+
+	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
+		mCmd.health = cobrautil.HEALTH_WARN
+	} else if len(errs) == 0 {
+		mCmd.health = cobrautil.HEALTH_OK
+	}
 
 	mCmd.Table.AddRows(mCmd.rows)
 	jsonResult, err := mCmd.Table.JSON(0)
@@ -187,16 +200,15 @@ func NewStatusMetaserverCommand() *MetaserverCommand {
 	return mdsCmd
 }
 
-func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	metaserverCmd := NewStatusMetaserverCommand()
 	metaserverCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, metaserverCmd.Cmd, []string{
+	cobrautil.AlignFlagsValue(caller, metaserverCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
-	metaserverCmd.Cmd.SilenceUsage = true
+	metaserverCmd.Cmd.SilenceErrors = true
 	metaserverCmd.Cmd.Execute()
-	return &metaserverCmd.Result, metaserverCmd.Table, metaserverCmd.Error
+	return &metaserverCmd.Result, metaserverCmd.Table, metaserverCmd.Error, metaserverCmd.health
 }
-

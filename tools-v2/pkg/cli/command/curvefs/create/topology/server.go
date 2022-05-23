@@ -24,8 +24,10 @@ package topology
 
 import (
 	"context"
+	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"golang.org/x/exp/slices"
@@ -41,10 +43,6 @@ type Server struct {
 	ZoneName     string `json:"zone"`
 	PoolName     string `json:"pool"`
 }
-
-const (
-	TYPE_SERVER = "server"
-)
 
 type DeleteServerRpc struct {
 	Info           *basecmd.Rpc
@@ -137,10 +135,10 @@ func (tCmd *TopologyCommand) scanServers() *cmderror.CmdError {
 			}
 			tCmd.deleteServer = append(tCmd.deleteServer, request)
 			row := make(map[string]string)
-			row[ROW_NAME] = serverInfo.GetHostName()
-			row[ROW_TYPE] = TYPE_SERVER
-			row[ROW_OPERATION] = ROW_VALUE_DEL
-			row[ROW_PARENT] = serverInfo.GetZoneName()
+			row[cobrautil.ROW_NAME] = serverInfo.GetHostName()
+			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_SERVER
+			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
+			row[cobrautil.ROW_PARENT] = serverInfo.GetZoneName()
 			tCmd.Table.AddRow(row)
 		}
 	}
@@ -162,10 +160,10 @@ func (tCmd *TopologyCommand) scanServers() *cmderror.CmdError {
 			}
 			tCmd.createServer = append(tCmd.createServer, request)
 			row := make(map[string]string)
-			row[ROW_NAME] = server.Name
-			row[ROW_TYPE] = TYPE_SERVER
-			row[ROW_OPERATION] = ROW_VALUE_ADD
-			row[ROW_PARENT] = server.ZoneName
+			row[cobrautil.ROW_NAME] = server.Name
+			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_SERVER
+			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
+			row[cobrautil.ROW_PARENT] = server.ZoneName
 			tCmd.Table.AddRow(row)
 		}
 	}
@@ -184,7 +182,7 @@ func (tCmd *TopologyCommand) removeServers() *cmderror.CmdError {
 		}
 		response := result.(*topology.DeleteServerResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrDeleteTopology(response.GetStatusCode(), TYPE_SERVER)
+			return cmderror.ErrDeleteTopology(response.GetStatusCode(), cobrautil.TYPE_SERVER, fmt.Sprintf("%d", delReuest.GetServerID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -201,7 +199,7 @@ func (tCmd *TopologyCommand) createServers() *cmderror.CmdError {
 		}
 		response := result.(*topology.ServerRegistResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrCreateTopology(response.GetStatusCode(), TYPE_SERVER)
+			return cmderror.ErrCreateTopology(response.GetStatusCode(), cobrautil.TYPE_SERVER, crtReuest.GetHostName())
 		}
 	}
 	return cmderror.ErrSuccess()

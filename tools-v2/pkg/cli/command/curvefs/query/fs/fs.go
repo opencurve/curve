@@ -29,6 +29,7 @@ import (
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -36,6 +37,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+)
+
+const (
+	fsExample = `$ curve fs query fs --fsid 1,2,3
+$ curve fs query fs --fsname test1,test2,test3`
 )
 
 type QueryFsRpc struct {
@@ -65,9 +71,10 @@ func (qfRp *QueryFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "fs",
-			Short: "query fs in curvefs by fsname or fsid",
-			Long:  "when both fsname and fsid exist, query only by fsid",
+			Use:     "fs",
+			Short:   "query fs in curvefs by fsname or fsid",
+			Long:    "when both fsname and fsid exist, query only by fsid",
+			Example: fsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
@@ -90,6 +97,9 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 
 	var fsIds []string
 	var fsNames []string
+	if !fCmd.Cmd.Flag(config.CURVEFS_FSNAME).Changed && !fCmd.Cmd.Flag(config.CURVEFS_FSID).Changed {
+		return fmt.Errorf("fsname or fsid is required")
+	}
 	if fCmd.Cmd.Flag(config.CURVEFS_FSNAME).Changed && !fCmd.Cmd.Flag(config.CURVEFS_FSID).Changed {
 		// fsname is set, but fsid is not set
 		fsNames, _ = fCmd.Cmd.Flags().GetStringSlice(config.CURVEFS_FSNAME)
@@ -101,7 +111,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fsname or fsid is required")
 	}
 
-	table, err := gotable.Create("id", "name", "status", "capacity", "blockSize", "fsType", "sumInDir", "owner", "mountNum")
+	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM)
 	if err != nil {
 		return err
 	}
@@ -121,15 +131,15 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetFsInfo")
 		fCmd.Rpc = append(fCmd.Rpc, rpc)
 		row := make(map[string]string)
-		row["name"] = fsNames[i]
-		row["id"] = "DNE"
-		row["status"] = "DNE"
-		row["capacity"] = "DNE"
-		row["blockSize"] = "DNE"
-		row["fsType"] = "DNE"
-		row["sumInDir"] = "DNE"
-		row["owner"] = "DNE"
-		row["mountNum"] = "DNE"
+		row[cobrautil.ROW_NAME] = fsNames[i]
+		row[cobrautil.ROW_ID] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_CAPACITY] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_BLOCKSIZE] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_FS_TYPE] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_SUM_IN_DIR] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_OWNER] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_MOUNT_NUM] = cobrautil.ROW_VALUE_DNE
 		fCmd.Rows = append(fCmd.Rows, row)
 	}
 
@@ -148,15 +158,15 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetFsInfo")
 		fCmd.Rpc = append(fCmd.Rpc, rpc)
 		row := make(map[string]string)
-		row["id"] = fsIds[i]
-		row["name"] = "DNE"
-		row["status"] = "DNE"
-		row["capacity"] = "DNE"
-		row["blockSize"] = "DNE"
-		row["fsType"] = "DNE"
-		row["sumInDir"] = "DNE"
-		row["owner"] = "DNE"
-		row["mountNum"] = "DNE"
+		row[cobrautil.ROW_ID] = fsIds[i]
+		row[cobrautil.ROW_NAME] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_CAPACITY] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_BLOCKSIZE] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_FS_TYPE] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_SUM_IN_DIR] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_OWNER] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_MOUNT_NUM] = cobrautil.ROW_VALUE_DNE
 		fCmd.Rows = append(fCmd.Rows, row)
 	}
 
@@ -175,10 +185,10 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		funcs = append(funcs, rpc)
 	}
 
-	results, err := basecmd.GetRpcListResponse(infos, funcs)
-	var errs []*cmderror.CmdError
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		errs = append(errs, err)
+	results, errs := basecmd.GetRpcListResponse(infos, funcs)
+	if len(errs) == len(infos) {
+		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+		return mergeErr.ToError()
 	}
 	var resList []interface{}
 	for _, result := range results {
@@ -200,16 +210,16 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		fsInfo := response.GetFsInfo()
 		for _, row := range fCmd.Rows {
 			id := strconv.FormatUint(uint64(fsInfo.GetFsId()), 10)
-			if row["id"] == id || row["name"] == fsInfo.GetFsName() {
-				row["id"] = id
-				row["name"] = fsInfo.GetFsName()
-				row["status"] = fsInfo.GetStatus().String()
-				row["capacity"] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-				row["blockSize"] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-				row["fsType"] = fsInfo.GetFsType().String()
-				row["sumInDir"] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-				row["owner"] = fsInfo.GetOwner()
-				row["mountNum"] = fmt.Sprintf("%d", fsInfo.GetMountNum())
+			if row[cobrautil.ROW_ID] == id || row[cobrautil.ROW_NAME] == fsInfo.GetFsName() {
+				row[cobrautil.ROW_ID] = id
+				row[cobrautil.ROW_NAME] = fsInfo.GetFsName()
+				row[cobrautil.ROW_STATUS] = fsInfo.GetStatus().String()
+				row[cobrautil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
+				row[cobrautil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
+				row[cobrautil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
+				row[cobrautil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
+				row[cobrautil.ROW_OWNER] = fsInfo.GetOwner()
+				row[cobrautil.ROW_MOUNT_NUM] = fmt.Sprintf("%d", fsInfo.GetMountNum())
 			}
 		}
 	}

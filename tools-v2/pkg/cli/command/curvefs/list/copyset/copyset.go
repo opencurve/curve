@@ -39,13 +39,10 @@ import (
 )
 
 const (
-	ROW_KEY         = "key"
-	ROW_COPYSET_ID  = "copyset id"
-	ROW_POOL_ID     = "pool id"
-	ROW_EPOCH       = "epoch"
-	ROW_LEADER_PEER = "leader peer"
-	ROW_PEER_NUMBER = "peer number"
+	copysetExample = `$ curve fs list copyset`
 )
+
+const ()
 
 type ListCopysetRpc struct {
 	Info           *basecmd.Rpc
@@ -74,8 +71,9 @@ func (cRpc *ListCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) 
 func NewCopysetCommand() *cobra.Command {
 	copysetCmd := &CopysetCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "copyset",
-			Short: "list all copyset info of the curvefs",
+			Use:     "copyset",
+			Short:   "list all copyset info of the curvefs",
+			Example: copysetExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
@@ -110,7 +108,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	cCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListCopysetInfo")
 
-	table, err := gotable.Create(ROW_KEY, ROW_COPYSET_ID, ROW_POOL_ID, ROW_EPOCH, ROW_LEADER_PEER, ROW_PEER_NUMBER)
+	table, err := gotable.Create(cobrautil.ROW_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_EPOCH, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_PEER_NUMBER)
 	if err != nil {
 		return err
 	}
@@ -125,7 +123,7 @@ func (cCmd *CopysetCommand) Print(cmd *cobra.Command, args []string) error {
 func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response, errCmd := basecmd.GetRpcResponse(cCmd.Rpc.Info, cCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
-		return fmt.Errorf(errCmd.Message)
+		return errCmd.ToError()
 	}
 	cCmd.response = response.(*topology.ListCopysetInfoResponse)
 	res, err := output.MarshalProtoJson(cCmd.response)
@@ -147,22 +145,22 @@ func (cCmd *CopysetCommand) updateTable() {
 		code := copyset.GetStatusCode()
 		row := make(map[string]string)
 		key := cobrautil.GetCopysetKey(uint64(info.GetPoolId()), uint64(info.GetCopysetId()))
-		row[ROW_KEY] = fmt.Sprintf("%d", key)
-		row[ROW_COPYSET_ID] = fmt.Sprintf("%d", info.GetCopysetId())
-		row[ROW_POOL_ID] = fmt.Sprintf("%d", info.GetPoolId())
-		row[ROW_EPOCH] = fmt.Sprintf("%d", info.GetEpoch())
+		row[cobrautil.ROW_KEY] = fmt.Sprintf("%d", key)
+		row[cobrautil.ROW_COPYSET_ID] = fmt.Sprintf("%d", info.GetCopysetId())
+		row[cobrautil.ROW_POOL_ID] = fmt.Sprintf("%d", info.GetPoolId())
+		row[cobrautil.ROW_EPOCH] = fmt.Sprintf("%d", info.GetEpoch())
 		if code != topology.TopoStatusCode_TOPO_OK && info.GetLeaderPeer() == nil {
-			row[ROW_LEADER_PEER] = ""
-			row[ROW_PEER_NUMBER] = fmt.Sprintf("%d", len(info.GetPeers()))
+			row[cobrautil.ROW_LEADER_PEER] = ""
+			row[cobrautil.ROW_PEER_NUMBER] = fmt.Sprintf("%d", len(info.GetPeers()))
 		} else {
-			row[ROW_LEADER_PEER] = info.GetLeaderPeer().String()
+			row[cobrautil.ROW_LEADER_PEER] = info.GetLeaderPeer().String()
 			peerNum := 0
 			for _, peer := range info.GetPeers() {
 				if peer != nil {
 					peerNum++
 				}
 			}
-			row[ROW_PEER_NUMBER] = fmt.Sprintf("%d", peerNum)
+			row[cobrautil.ROW_PEER_NUMBER] = fmt.Sprintf("%d", peerNum)
 		}
 		rows = append(rows, row)
 	}
@@ -178,8 +176,8 @@ func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse,
 	listCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
-	listCopyset.Cmd.SilenceUsage = true
+	cobrautil.AlignFlagsValue(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	listCopyset.Cmd.SilenceErrors = true
 	err := listCopyset.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrListCopyset()

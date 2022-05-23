@@ -35,12 +35,14 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 )
 
 type EtcdCommand struct {
 	basecmd.FinalCurveCmd
 	metrics []basecmd.Metric
 	rows    []map[string]string
+	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
 
 const (
@@ -59,15 +61,12 @@ var (
 
 var _ basecmd.FinalCurveCmdFunc = (*EtcdCommand)(nil) // check interface
 
+const (
+	etcdExample = `$ curve fs status etcd`
+)
+
 func NewEtcdCommand() *cobra.Command {
-	etcdCmd := &EtcdCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "etcd",
-			Short: "get the etcd status of curvefs",
-		},
-	}
-	basecmd.NewFinalCurveCli(&etcdCmd.FinalCurveCmd, etcdCmd)
-	return etcdCmd.Cmd
+	return NewStatusEtcdCommand().Cmd
 }
 
 func (eCmd *EtcdCommand) AddFlags() {
@@ -76,7 +75,8 @@ func (eCmd *EtcdCommand) AddFlags() {
 }
 
 func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
-	table, err := gotable.Create("addr", "version", "status")
+	eCmd.health = cobrautil.HEALTH_ERROR
+	table, err := gotable.Create(cobrautil.ROW_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -98,9 +98,9 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 
 		// set rows
 		row := make(map[string]string)
-		row["addr"] = addr
-		row["status"] = "offline"
-		row["version"] = "unknown"
+		row[cobrautil.ROW_ADDR] = addr
+		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_OFFLINE
+		row[cobrautil.ROW_VERSION] = cobrautil.ROW_VALUE_UNKNOWN
 		eCmd.rows = append(eCmd.rows, row)
 	}
 
@@ -143,14 +143,17 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	count := 0
+	var recordAddrs []string
 	for res := range results {
 		if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
-			err := cmderror.ErrEtcdOffline()
-			err.Format(res.Addr)
-			errs = append(errs, err)
+			index := slices.Index(recordAddrs, res.Addr)
+			if index == -1 {
+				errs = append(errs, res.Err)
+				recordAddrs = append(recordAddrs, res.Addr)
+			}
 		}
 		for _, row := range eCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["addr"] == res.Addr {
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row[cobrautil.ROW_ADDR] == res.Addr {
 				if res.Key == "status" {
 					row[res.Key] = EtcdStatusMap[res.Value]
 				} else {
@@ -163,7 +166,14 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
-	eCmd.Error = cmderror.MostImportantCmdError(errs)
+	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+	eCmd.Error = &mergeErr
+
+	if len(errs) > 0 && len(errs) < len(eCmd.rows) {
+		eCmd.health = cobrautil.HEALTH_WARN
+	} else if len(errs) == 0 {
+		eCmd.health = cobrautil.HEALTH_OK
+	}
 
 	eCmd.Table.AddRows(eCmd.rows)
 	jsonResult, err := eCmd.Table.JSON(0)
@@ -186,23 +196,24 @@ func (eCmd *EtcdCommand) ResultPlainOutput() error {
 func NewStatusEtcdCommand() *EtcdCommand {
 	etcdCmd := &EtcdCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "etcd",
-			Short: "get the etcd status of curvefs",
+			Use:     "etcd",
+			Short:   "get the etcd status of curvefs",
+			Example: etcdExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&etcdCmd.FinalCurveCmd, etcdCmd)
 	return etcdCmd
 }
 
-func GetEtcdStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError) {
+func GetEtcdStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	etcdCmd := NewStatusEtcdCommand()
 	etcdCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlags(caller, etcdCmd.Cmd, []string{
+	cobrautil.AlignFlagsValue(caller, etcdCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
-	etcdCmd.Cmd.SilenceUsage = true
+	etcdCmd.Cmd.SilenceErrors = true
 	etcdCmd.Cmd.Execute()
-	return &etcdCmd.Result, etcdCmd.Table, etcdCmd.Error
+	return &etcdCmd.Result, etcdCmd.Table, etcdCmd.Error, etcdCmd.health
 }

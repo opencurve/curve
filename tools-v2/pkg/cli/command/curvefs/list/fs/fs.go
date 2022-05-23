@@ -30,6 +30,7 @@ import (
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -37,6 +38,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+)
+
+const (
+	fsExample = `$ curve fs list fs`
 )
 
 type ListFsRpc struct {
@@ -66,8 +71,9 @@ func (fRpc *ListFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "fs",
-			Short: "list all fs info of the curvefs",
+			Use:     "fs",
+			Short:   "list all fs info of the curvefs",
+			Example: fsExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
@@ -100,7 +106,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
 
-	table, err := gotable.Create("id", "name", "status", "capacity", "blockSize", "fsType", "sumInDir", "owner", "mountNum")
+	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM)
 	if err != nil {
 		return err
 	}
@@ -134,15 +140,15 @@ func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
 	rows := make([]map[string]string, 0)
 	for _, fsInfo := range fssInfo {
 		row := make(map[string]string)
-		row["id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
-		row["name"] = fsInfo.GetFsName()
-		row["status"] = fsInfo.GetStatus().String()
-		row["capacity"] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-		row["blockSize"] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-		row["fsType"] = fsInfo.GetFsType().String()
-		row["sumInDir"] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-		row["owner"] = fsInfo.GetOwner()
-		row["mountNum"] = fmt.Sprintf("%d", fsInfo.GetMountNum())
+		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
+		row[cobrautil.ROW_NAME] = fsInfo.GetFsName()
+		row[cobrautil.ROW_STATUS] = fsInfo.GetStatus().String()
+		row[cobrautil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
+		row[cobrautil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
+		row[cobrautil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
+		row[cobrautil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
+		row[cobrautil.ROW_OWNER] = fsInfo.GetOwner()
+		row[cobrautil.ROW_MOUNT_NUM] = fmt.Sprintf("%d", fsInfo.GetMountNum())
 		rows = append(rows, row)
 	}
 	table.AddRows(rows)
@@ -154,8 +160,8 @@ func (fCmd *FsCommand) ResultPlainOutput() error {
 
 func GetClusterFsInfo(caller *cobra.Command) (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 	listFs := NewListFsCommand()
-	listFs.Cmd.SetArgs([]string{"--format", "noout"})
-	listFs.Cmd.SilenceUsage = true
+	listFs.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	listFs.Cmd.SilenceErrors = true
 	err := listFs.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrGetClusterFsInfo()

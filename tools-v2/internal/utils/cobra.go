@@ -112,7 +112,6 @@ func SetFlagErrorFunc(cmd *cobra.Command) {
 		if err == nil {
 			return nil
 		}
-
 		return fmt.Errorf("%s\nSee '%s --help'", err, cmd.CommandPath())
 	})
 }
@@ -130,7 +129,7 @@ func SetUsageTemplate(cmd *cobra.Command) {
 }
 
 // Align the flag (changed) in the caller with the callee
-func AlignFlags(caller *cobra.Command, callee *cobra.Command, flagNames []string) {
+func AlignFlagsValue(caller *cobra.Command, callee *cobra.Command, flagNames []string) {
 	callee.Flags().VisitAll(func(flag *pflag.Flag) {
 		index := slices.IndexFunc(flagNames, func(i string) bool {
 			return flag.Name == i
@@ -146,7 +145,6 @@ func AlignFlags(caller *cobra.Command, callee *cobra.Command, flagNames []string
 			} else {
 				flag.Value.Set(callerFlag.Value.String())
 				flag.Changed = callerFlag.Changed
-
 			}
 		}
 	})

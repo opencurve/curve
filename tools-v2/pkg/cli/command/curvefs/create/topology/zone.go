@@ -24,16 +24,14 @@ package topology
 
 import (
 	"context"
+	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
-)
-
-const (
-	TYPE_ZONE = "zone"
 )
 
 type Zone struct {
@@ -122,7 +120,7 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 	compare := func(zone Zone, zoneInfo *topology.ZoneInfo) bool {
 		return zone.Name == zoneInfo.GetZoneName() && zone.PoolName == zoneInfo.GetPoolName()
 	}
-	for _, zoneInfo := range tCmd.clusterZonesInfo  {
+	for _, zoneInfo := range tCmd.clusterZonesInfo {
 		index := slices.IndexFunc(tCmd.topology.Zones, func(zone Zone) bool {
 			return compare(zone, zoneInfo)
 		})
@@ -133,17 +131,17 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 			}
 			tCmd.deleteZone = append(tCmd.deleteZone, request)
 			row := make(map[string]string)
-			row[ROW_NAME] = zoneInfo.GetZoneName()
-			row[ROW_TYPE] = TYPE_ZONE
-			row[ROW_OPERATION] = ROW_VALUE_DEL
-			row[ROW_PARENT] = zoneInfo.GetPoolName()
+			row[cobrautil.ROW_NAME] = zoneInfo.GetZoneName()
+			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_ZONE
+			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
+			row[cobrautil.ROW_PARENT] = zoneInfo.GetPoolName()
 			tCmd.Table.AddRow(row)
 		}
 	}
 
 	// update create zone
 	for _, zone := range tCmd.topology.Zones {
-		index := slices.IndexFunc(tCmd.clusterZonesInfo , func(zoneInfo *topology.ZoneInfo) bool {
+		index := slices.IndexFunc(tCmd.clusterZonesInfo, func(zoneInfo *topology.ZoneInfo) bool {
 			return compare(zone, zoneInfo)
 		})
 		if index == -1 {
@@ -153,10 +151,10 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 			}
 			tCmd.createZone = append(tCmd.createZone, request)
 			row := make(map[string]string)
-			row[ROW_NAME] = zone.Name
-			row[ROW_TYPE] = TYPE_ZONE
-			row[ROW_OPERATION] = ROW_VALUE_ADD
-			row[ROW_PARENT] = zone.PoolName
+			row[cobrautil.ROW_NAME] = zone.Name
+			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_ZONE
+			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
+			row[cobrautil.ROW_PARENT] = zone.PoolName
 			tCmd.Table.AddRow(row)
 		}
 	}
@@ -175,7 +173,7 @@ func (tCmd *TopologyCommand) removeZones() *cmderror.CmdError {
 		}
 		response := result.(*topology.DeleteZoneResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrDeleteTopology(response.GetStatusCode(), TYPE_ZONE)
+			return cmderror.ErrDeleteTopology(response.GetStatusCode(), cobrautil.TYPE_ZONE, fmt.Sprintf("%d", delReuest.GetZoneID()))
 		}
 	}
 	return cmderror.ErrSuccess()
@@ -192,7 +190,7 @@ func (tCmd *TopologyCommand) createZones() *cmderror.CmdError {
 		}
 		response := result.(*topology.CreateZoneResponse)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
-			return cmderror.ErrCreateTopology(response.GetStatusCode(), TYPE_ZONE)
+			return cmderror.ErrCreateTopology(response.GetStatusCode(), cobrautil.TYPE_ZONE, crtReuest.GetZoneName())
 		}
 	}
 	return cmderror.ErrSuccess()

@@ -30,6 +30,7 @@ import (
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -37,6 +38,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
+)
+
+const (
+	metaserverExample = `$ curve fs query metaserver --metaserverid=1,2,3
+$ curve fs query metaserver --metaserveraddr=127.0.0.1:9700,127.0.0.1:9701,127.0.0.1:9702`
 )
 
 type QueryMetaserverRpc struct {
@@ -66,9 +72,10 @@ func (qmRpc *QueryMetaserverRpc) Stub_Func(ctx context.Context) (interface{}, er
 func NewMetaserverCommand() *cobra.Command {
 	metaserverCmd := &MetaserverCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "metaserver",
-			Short: "query metaserver in curvefs by metaserverid or metaserveraddr",
-			Long:  "when both metaserverid and metaserveraddr exist, query only by metaserverid",
+			Use:     "metaserver",
+			Short:   "query metaserver in curvefs by metaserverid or metaserveraddr",
+			Long:    "when both metaserverid and metaserveraddr exist, query only by metaserverid",
+			Example: metaserverExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&metaserverCmd.FinalCurveCmd, metaserverCmd)
@@ -102,7 +109,7 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s or %s is required", config.CURVEFS_METASERVERADDR, config.CURVEFS_METASERVERID)
 	}
 
-	table, err := gotable.Create("id", "host name", "internal addr", "external addr", "online state")
+	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_ONLINE_STATE)
 	if err != nil {
 		return err
 	}
@@ -132,8 +139,11 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetMetaServerInfo")
 		mCmd.Rpc = append(mCmd.Rpc, rpc)
 		row := make(map[string]string)
-		row["id"] = ""
-		row["external addr"] = metaserverAddrs[i]
+		row[cobrautil.ROW_ID] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_HOSTNAME] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_INTERNAL_ADDR] = cobrautil.ROW_VALUE_DNE
+		row[cobrautil.ROW_EXTERNAL_ADDR] = metaserverAddrs[i]
+		row[cobrautil.ROW_ONLINE_STATE] = cobrautil.ROW_VALUE_DNE
 		mCmd.Rows = append(mCmd.Rows, row)
 	}
 
@@ -152,8 +162,8 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetMetaServerInfo")
 		mCmd.Rpc = append(mCmd.Rpc, rpc)
 		row := make(map[string]string)
-		row["id"] = metaserverIds[i]
-		row["external addr"] = ""
+		row[cobrautil.ROW_ID] = metaserverIds[i]
+		row[cobrautil.ROW_EXTERNAL_ADDR] = ""
 		mCmd.Rows = append(mCmd.Rows, row)
 	}
 
@@ -172,10 +182,10 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		funcs = append(funcs, rpc)
 	}
 
-	results, err := basecmd.GetRpcListResponse(infos, funcs)
-	var errs []*cmderror.CmdError
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		errs = append(errs, err)
+	results, errs := basecmd.GetRpcListResponse(infos, funcs)
+	if len(errs) == len(infos) {
+		mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+		return mergeErr.ToError()
 	}
 	var resList []interface{}
 	for _, result := range results {
@@ -189,7 +199,7 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		resList = append(resList, res)
 		if response.GetStatusCode() != topology.TopoStatusCode_TOPO_OK {
 			code := response.GetStatusCode()
-			err := cmderror.ErrGetFsInfo(int(code))
+			err := cmderror.ErrGetMetaserverInfo(int(code))
 			err.Format(topology.TopoStatusCode_name[int32(response.GetStatusCode())])
 			errs = append(errs, err)
 			continue
@@ -198,13 +208,13 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		for _, row := range mCmd.Rows {
 			id := strconv.FormatUint(uint64(metaserverInfo.GetMetaServerID()), 10)
 			externalAddr := fmt.Sprintf("%s:%d", metaserverInfo.GetExternalIp(), metaserverInfo.GetExternalPort())
-			if row["id"] == id || row["external addr"] == externalAddr {
-				row["id"] = id
-				row["host name"] = metaserverInfo.GetHostname()
+			if row[cobrautil.ROW_ID] == id || row[cobrautil.ROW_EXTERNAL_ADDR] == externalAddr {
+				row[cobrautil.ROW_ID] = id
+				row[cobrautil.ROW_HOSTNAME] = metaserverInfo.GetHostname()
 				internalAddr := fmt.Sprintf("%s:%d", metaserverInfo.GetInternalIp(), metaserverInfo.GetInternalPort())
-				row["internal addr"] = internalAddr
-				row["external addr"] = externalAddr
-				row["online state"] = metaserverInfo.GetOnlineState().String()
+				row[cobrautil.ROW_INTERNAL_ADDR] = internalAddr
+				row[cobrautil.ROW_EXTERNAL_ADDR] = externalAddr
+				row[cobrautil.ROW_ONLINE_STATE] = metaserverInfo.GetOnlineState().String()
 			}
 		}
 	}
