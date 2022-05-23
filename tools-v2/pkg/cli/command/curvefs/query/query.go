@@ -24,6 +24,7 @@ package query
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/metaserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/partition"
@@ -41,6 +42,7 @@ func (queryCmd *QueryCommand) AddSubCommands() {
 		fs.NewFsCommand(),
 		metaserver.NewMetaserverCommand(),
 		partition.NewPartitionCommand(),
+		copyset.NewCopysetCommand(),
 	)
 }
 

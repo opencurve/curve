@@ -49,3 +49,16 @@ func TranslateBitmapLocation(bitmapLocation string) (common.BitmapLocation, *cmd
 	}
 	return common.BitmapLocation(value), &retErr
 }
+
+func GetCopysetKey(poolid uint64, copysetid uint64) uint64 {
+	return (poolid << 32) | copysetid
+}
+
+func SplitPeerToAddr(peer string) (string, *cmderror.CmdError) {
+	items := strings.Split(peer, ":")
+	if len(items) != 3 {
+		err := cmderror.ErrSplitPeer()
+		return "", err
+	}
+	return items[0] + ":" + items[1], cmderror.ErrSuccess()
+}
