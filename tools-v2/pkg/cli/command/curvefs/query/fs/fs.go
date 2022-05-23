@@ -146,7 +146,6 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc := &QueryFsRpc{
 			Request: request,
 		}
-
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetFsInfo")
 		fCmd.Rpc = append(fCmd.Rpc, rpc)
 		row := make(map[string]string)

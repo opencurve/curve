@@ -26,6 +26,7 @@ import (
 	"fmt"
 
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
+	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 )
 
 // It is considered here that the importance of the error is related to the
@@ -253,5 +254,10 @@ var (
 	}
 	ErrGetFsInfo = func(statusCode int) *CmdError {
 		return NewRpcReultCmdError(statusCode, "get fs info failed: status code is %s")
+	}
+	ErrGetCopysetOfPartition = func(statusCode int) *CmdError {
+		code := topology.TopoStatusCode(statusCode)
+		message := fmt.Sprintf("get copyset of partition failed: status code is %s", code.String())
+		return NewRpcReultCmdError(statusCode, message)
 	}
 )
