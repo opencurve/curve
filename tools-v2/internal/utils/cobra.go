@@ -64,7 +64,7 @@ Commands:
 
 {{- if .HasAvailableFlags}}
 
-Options:
+Flags:
 {{ wrappedFlagUsages . | trimRightSpace}}
 
 {{- end}}
@@ -86,7 +86,7 @@ Run '{{.CommandPath}} COMMAND --help' for more information on a command.
 func subCommands(cmd *cobra.Command) []*cobra.Command {
 	cmds := []*cobra.Command{}
 	for _, subCmd := range cmd.Commands() {
-		if subCmd.IsAvailableCommand() && !subCmd.HasSubCommands() {
+		if subCmd.IsAvailableCommand()  {
 			cmds = append(cmds, subCmd)
 		}
 	}
