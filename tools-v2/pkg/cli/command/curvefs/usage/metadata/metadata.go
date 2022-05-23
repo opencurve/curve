@@ -48,7 +48,7 @@ var _ basecmd.RpcFunc = (*MetadataRpc)(nil) // check interface
 
 type MetadataCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      MetadataRpc
+	Rpc      *MetadataRpc
 	response *topology.StatMetadataUsageResponse
 }
 
@@ -103,7 +103,7 @@ func (mCmd *MetadataCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (mCmd *MetadataCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	response, errCmd := basecmd.GetRpcResponse(mCmd.Rpc.Info, &mCmd.Rpc)
+	response, errCmd := basecmd.GetRpcResponse(mCmd.Rpc.Info, mCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
@@ -130,9 +130,9 @@ func (mCmd *MetadataCommand) updateTable() {
 	for _, md := range mCmd.response.GetMetadataUsages() {
 		row := make(map[string]string)
 		row["metaserverAddr"] = md.GetMetaserverAddr()
-		row["total"] = humanize.Bytes(md.GetTotal())
-		row["used"] = humanize.Bytes(md.GetUsed())
-		row["left"] = humanize.Bytes(md.GetTotal() - md.GetUsed())
+		row["total"] = humanize.IBytes(md.GetTotal())
+		row["used"] = humanize.IBytes(md.GetUsed())
+		row["left"] = humanize.IBytes(md.GetTotal() - md.GetUsed())
 		rows = append(rows, row)
 	}
 	mCmd.Table.AddRows(rows)

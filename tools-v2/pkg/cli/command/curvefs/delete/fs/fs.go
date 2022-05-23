@@ -72,16 +72,16 @@ func NewFsCommand() *cobra.Command {
 	return fsCmd.Cmd
 }
 
-func (pCmd *FsCommand) AddFlags() {
-	config.AddRpcRetryTimesFlag(pCmd.Cmd)
-	config.AddRpcTimeoutFlag(pCmd.Cmd)
-	config.AddFsMdsAddrFlag(pCmd.Cmd)
-	config.AddFsNameRequiredFlag(pCmd.Cmd)
-	config.AddNoConfirmOptionFlag(pCmd.Cmd)
+func (fCmd *FsCommand) AddFlags() {
+	config.AddRpcRetryTimesFlag(fCmd.Cmd)
+	config.AddRpcTimeoutFlag(fCmd.Cmd)
+	config.AddFsMdsAddrFlag(fCmd.Cmd)
+	config.AddFsNameRequiredFlag(fCmd.Cmd)
+	config.AddNoConfirmOptionFlag(fCmd.Cmd)
 }
 
-func (pCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
-	addrs, addrErr := config.GetFsMdsAddrSlice(pCmd.Cmd)
+func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
+	addrs, addrErr := config.GetFsMdsAddrSlice(fCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
@@ -90,35 +90,35 @@ func (pCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	pCmd.Table = table
+	fCmd.Table = table
 
 	fsName := viper.GetString(config.VIPER_CURVEFS_FSNAME)
 
 	request := &mds.DeleteFsRequest{
 		FsName: &fsName,
 	}
-	pCmd.Rpc = &DeleteFsRpc{
+	fCmd.Rpc = &DeleteFsRpc{
 		Request: request,
 	}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	pCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "DeleteFs")
+	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "DeleteFs")
 
 	return nil
 }
 
-func (pCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
-	return output.FinalCmdOutput(&pCmd.FinalCurveCmd, pCmd)
+func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
+	return output.FinalCmdOutput(&fCmd.FinalCurveCmd, fCmd)
 }
 
-func (pCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	fsName := pCmd.Rpc.Request.GetFsName()
-	if !viper.GetBool(config.VIPER_CURVEFS_NOCONFIRM) && !cobrautil.AskConfirmation("After deleting fs, the data cannot be retrieved!!", fsName) {
-		pCmd.Cmd.SilenceUsage = true
+func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	fsName := fCmd.Rpc.Request.GetFsName()
+	if !viper.GetBool(config.VIPER_CURVEFS_NOCONFIRM) && !cobrautil.AskConfirmation(fmt.Sprintf("Are you sure to delete fs %s?", fsName), fsName) {
+		fCmd.Cmd.SilenceUsage = true
 		return fmt.Errorf("abort delete fs")
 	}
 
-	result, err := basecmd.GetRpcResponse(pCmd.Rpc.Info, pCmd.Rpc)
+	result, err := basecmd.GetRpcResponse(fCmd.Rpc.Info, fCmd.Rpc)
 	var errs []*cmderror.CmdError
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		errs = append(errs, err)
@@ -127,10 +127,10 @@ func (pCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	errDel := cmderror.ErrDeleteFs(int(response.GetStatusCode()))
 	row := map[string]string{
-		"fs name" : pCmd.Rpc.Request.GetFsName(),
+		"fs name" : fCmd.Rpc.Request.GetFsName(),
 		"result" : errDel.Message,
 	}
-	pCmd.Table.AddRow(row)
+	fCmd.Table.AddRow(row)
 
 	res, errTranslate := output.MarshalProtoJson(response)
 	if errTranslate != nil {
@@ -139,12 +139,12 @@ func (pCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		errs = append(errs, errMar)
 	}
 
-	pCmd.Result = res
-	pCmd.Error = cmderror.MostImportantCmdError(errs)
+	fCmd.Result = res
+	fCmd.Error = cmderror.MostImportantCmdError(errs)
 
 	return nil
 }
 
-func (pCmd *FsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd, pCmd)
+func (fCmd *FsCommand) ResultPlainOutput() error {
+	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
 }

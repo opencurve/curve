@@ -79,7 +79,7 @@ func (fCmd *FsCommand) AddFlags() {
 	config.AddRpcTimeoutFlag(fCmd.Cmd)
 	config.AddFsMdsAddrFlag(fCmd.Cmd)
 	config.AddFsNameSliceOptionFlag(fCmd.Cmd)
-	config.AddFsIdOptionFlag(fCmd.Cmd)
+	config.AddFsIdSliceOptionFlag(fCmd.Cmd)
 }
 
 func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
@@ -90,9 +90,9 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 
 	var fsIds []string
 	var fsNames []string
-	if viper.IsSet(config.VIPER_CURVEFS_FSNAME) && !viper.IsSet(config.VIPER_CURVEFS_FSID) {
+	if fCmd.Cmd.Flag(config.CURVEFS_FSNAME).Changed && !fCmd.Cmd.Flag(config.CURVEFS_FSID).Changed {
 		// fsname is set, but fsid is not set
-		fsNames = viper.GetStringSlice(config.VIPER_CURVEFS_FSNAME)
+		fsNames, _ = fCmd.Cmd.Flags().GetStringSlice(config.CURVEFS_FSNAME)
 	} else {
 		fsIds = viper.GetStringSlice(config.VIPER_CURVEFS_FSID)
 	}
@@ -118,7 +118,6 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc := &QueryFsRpc{
 			Request: request,
 		}
-
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetFsInfo")
 		fCmd.Rpc = append(fCmd.Rpc, rpc)
 		row := make(map[string]string)
