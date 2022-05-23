@@ -127,8 +127,8 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	errDel := cmderror.ErrDeleteFs(int(response.GetStatusCode()))
 	row := map[string]string{
-		"fs name" : fCmd.Rpc.Request.GetFsName(),
-		"result" : errDel.Message,
+		"fs name": fCmd.Rpc.Request.GetFsName(),
+		"result":  errDel.Message,
 	}
 	fCmd.Table.AddRow(row)
 

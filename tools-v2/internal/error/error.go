@@ -231,6 +231,15 @@ var (
 	ErrParseBytes = func() *CmdError {
 		return NewInternalCmdError(14, "invalid %s: %s")
 	}
+	ErrSplitPeer = func() *CmdError {
+		return NewInternalCmdError(15, "split peer %s failed!")
+	}
+	ErrMarshalJson = func() *CmdError {
+		return NewInternalCmdError(16, "marshal %s to json error, the error is: %s")
+	}
+	ErrCopysetKey = func() *CmdError {
+		return NewInternalCmdError(17, "copyset key %d not found!")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -298,6 +307,11 @@ var (
 		default:
 			message = fmt.Sprintf("delete fs failed!, error is %s", code.String())
 		}
+		return NewRpcReultCmdError(statusCode, message)
+	}
+	ErrGetCopysetsInfo = func(statusCode int) *CmdError {
+		code := topology.TopoStatusCode(statusCode)
+		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
 	}
 )

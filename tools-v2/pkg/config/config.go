@@ -78,6 +78,13 @@ const (
 	CURVEFS_DEFAULT_SUMINDIR     = false
 	CURVEFS_FSTYPE               = "fstype"
 	VIPER_CURVEFS_FSTYPE         = "curvefs.fstype"
+	CURVEFS_COPYSETID            = "copysetid"
+	VIPER_CURVEFS_COPYSETID      = "curvefs.copysetid"
+	CURVEFS_POOLID               = "poolid"
+	VIPER_CURVEFS_POOLID         = "curvefs.poolid"
+	CURVEFS_DETAIL               = "detail"
+	VIPER_CURVEFS_DETAIL         = "curvefs.detail"
+	CURVEFS_DEFAULT_DETAIL       = false
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
 	VIPER_CURVEFS_S3_AK           = "curvefs.s3.ak"
@@ -92,7 +99,7 @@ const (
 	VIPER_CURVEFS_S3_BUCKETNAME   = "curvefs.s3.bucketname"
 	CURVEFS_DEFAULT_S3_BUCKETNAME = "bucketname"
 	CURVEFS_S3_BLOCKSIZE          = "s3.blocksize"
-	VIPER_CURVEFS_S3_BLOCKSIZE     = "curvefs.s3.blocksize"
+	VIPER_CURVEFS_S3_BLOCKSIZE    = "curvefs.s3.blocksize"
 	CURVEFS_DEFAULT_S3_BLOCKSIZE  = "4 mib"
 	CURVEFS_S3_CHUNKSIZE          = "s3.chunksize"
 	VIPER_CURVEFS_S3CHUNKSIZE     = "curvefs.s3.chunksize"
@@ -141,6 +148,9 @@ var (
 		CURVEFS_BLOCKSIZE:      VIPER_CURVEFS_BLOCKSIZE,
 		CURVEFS_SUMINDIR:       VIPER_CURVEFS_SUMINDIR,
 		CURVEFS_FSTYPE:         VIPER_CURVEFS_FSTYPE,
+		CURVEFS_COPYSETID:      VIPER_CURVEFS_COPYSETID,
+		CURVEFS_POOLID:         VIPER_CURVEFS_POOLID,
+		CURVEFS_DETAIL:         VIPER_CURVEFS_DETAIL,
 		// S3
 		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
 		CURVEFS_S3_SK:         VIPER_CURVEFS_S3_SK,
@@ -161,6 +171,7 @@ var (
 
 	FLAG2DEFAULT = map[string]interface{}{
 		CURVEFS_SUMINDIR: CURVEFS_DEFAULT_SUMINDIR,
+		CURVEFS_DETAIL:   CURVEFS_DEFAULT_DETAIL,
 		// S3
 		CURVEFS_S3_AK:         CURVEFS_DEFAULT_S3_AK,
 		CURVEFS_S3_SK:         CURVEFS_DEFAULT_S3_SK,
@@ -201,7 +212,23 @@ func InitConfig() {
 }
 
 func AddStringOptionFlag(cmd *cobra.Command, name string, usage string) {
-	cmd.Flags().String(name, FLAG2DEFAULT[name].(string), usage)
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = ""
+	}
+	cmd.Flags().String(name, defaultValue.(string), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddStringSliceOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = []string{}
+	}
+	cmd.Flags().StringSlice(name, defaultValue.([]string), usage)
 	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -209,8 +236,37 @@ func AddStringOptionFlag(cmd *cobra.Command, name string, usage string) {
 }
 
 func AddStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
-	cmd.Flags().String(name, FLAG2DEFAULT[name].(string), usage+color.Red.Sprint("[required]"))
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = ""
+	}
+	cmd.Flags().String(name, defaultValue.(string), usage+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddStringSliceRequiredFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = []string{}
+	}
+	cmd.Flags().StringSlice(name, defaultValue.([]string), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = false
+	}
+	cmd.Flags().Bool(name, defaultValue.(bool), usage)
 	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -332,6 +388,16 @@ func GetFlagUint64(cmd *cobra.Command, flagName string) uint64 {
 	return value
 }
 
+func GetFlagStringSlice(cmd *cobra.Command, flagName string) []string {
+	var value []string
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetStringSlice(flagName)
+	} else {
+		value = viper.GetStringSlice(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
 func GetFsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetAddrSlice(cmd, CURVEFS_MDSADDR)
 }
@@ -408,7 +474,7 @@ func AddFsIdSliceOptionFlag(cmd *cobra.Command) {
 	}
 }
 
-// partition id
+// partition id [required]
 func AddPartitionIdRequiredFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSlice(CURVEFS_PARTITIONID, nil, "partition Id, should be like 1,2,3"+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(CURVEFS_PARTITIONID)
@@ -422,15 +488,6 @@ func AddPartitionIdRequiredFlag(cmd *cobra.Command) {
 func AddFsNameRequiredFlag(cmd *cobra.Command) {
 	cmd.Flags().String(CURVEFS_FSNAME, "", "fs name"+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(CURVEFS_FSNAME)
-	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-}
-
-// fs name
-func AddFsNameOptionFlag(cmd *cobra.Command) {
-	cmd.Flags().String(CURVEFS_FSNAME, "", "fs name")
 	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -465,10 +522,20 @@ func AddNoConfirmOptionFlag(cmd *cobra.Command) {
 	}
 }
 
+/* option */
 // User [option]
 func AddUserOptionFlag(cmd *cobra.Command) {
 	cmd.Flags().String(CURVEFS_USER, "anonymous", "user of request")
 	err := viper.BindPFlag(VIPER_CURVEFS_USER, cmd.Flags().Lookup(CURVEFS_USER))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// fs name [option]
+func AddFsNameOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS_FSNAME, "", "fs name")
+	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -578,4 +645,21 @@ func AddVolumeBitmaplocationOptionFlag(cmd *cobra.Command) {
 // volume.slicesize [option]
 func AddVolumeSlicesizeOptionFlag(cmd *cobra.Command) {
 	AddStringOptionFlag(cmd, CURVEFS_VOLUME_SLICESIZE, "volume extents slice size")
+}
+
+// volume.slicesize [option]
+func AddDetailOptionFlag(cmd *cobra.Command) {
+	AddBoolOptionFlag(cmd, CURVEFS_DETAIL, "show more infomation")
+}
+
+/* required */
+
+// copysetid [required]
+func AddCopysetidSliceRequiredFlag(cmd *cobra.Command) {
+	AddStringSliceRequiredFlag(cmd, CURVEFS_COPYSETID, "copysetid")
+}
+
+// poolid [required]
+func AddPoolidSliceRequiredFlag(cmd *cobra.Command) {
+	AddStringSliceRequiredFlag(cmd, CURVEFS_POOLID, "poolid")
 }
