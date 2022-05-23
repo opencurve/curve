@@ -43,6 +43,29 @@ TEST(WaitIntervalTest, test) {
     ASSERT_EQ(5, count);
 }
 
+TEST(IntervalTest, signalTest) {
+    WaitInterval waitInterval;
+    waitInterval.Init(1000);
+
+    uint64_t start = TimeUtility::GetTimeofDayMs();
+    bool isSignal = true;
+    int count = 0;
+    while (true) {
+        waitInterval.WaitForNextExcution();
+        if (isSignal) {
+           sleep(1);
+           waitInterval.StopWait();
+           isSignal = false;
+        }
+        if (++count > 10) {
+            break;
+        }
+    }
+    uint64_t end = TimeUtility::GetTimeofDayMs();
+    uint64_t dur = end - start;
+    ASSERT_GT(dur, 5000);
+}
+
 }  // namespace common
 }  // namespace curve
 

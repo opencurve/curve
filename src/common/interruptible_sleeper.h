@@ -57,6 +57,11 @@ class InterruptibleSleeper {
         cv.notify_all();
     }
 
+    void init() {
+        UniqueLock lock(m);
+        terminate = false;
+    }
+
  private:
     ConditionVariable cv;
     Mutex m;
