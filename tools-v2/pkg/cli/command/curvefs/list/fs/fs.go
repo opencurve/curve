@@ -125,6 +125,7 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	mapRes := res.(map[string]interface{})
 	fCmd.Result = mapRes
 	updateTable(fCmd.Table, fCmd.response)
+	fCmd.Error = cmderror.ErrSuccess()
 	return nil
 }
 

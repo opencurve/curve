@@ -112,6 +112,7 @@ func (eCmd *EtcdCommand) Print(cmd *cobra.Command, args []string) error {
 func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	results := make(chan basecmd.MetricResult, config.MaxChannelSize())
 	size := 0
+	var errs []*cmderror.CmdError
 	for _, metric := range eCmd.metrics {
 		size++
 		go func(m basecmd.Metric) {
@@ -128,6 +129,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			var value string
 			if err.TypeCode() == cmderror.CODE_SUCCESS {
 				value, err = basecmd.GetKeyValueFromJsonMetric(result, metricKey)
+				errs = append(errs, err)
 			}
 			results <- basecmd.MetricResult{
 				Addr:  m.Addrs[0],
@@ -154,6 +156,8 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
+	eCmd.Error = cmderror.MostImportantCmdError(errs)
+
 	eCmd.Table.AddRows(eCmd.rows)
 	jsonResult, err := eCmd.Table.JSON(0)
 	if err != nil {

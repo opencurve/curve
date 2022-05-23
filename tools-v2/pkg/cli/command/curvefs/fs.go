@@ -25,6 +25,7 @@ package curvefs
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query"
 	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status"
 	umount "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/umount"
 	usage "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage"
@@ -43,6 +44,7 @@ func (fsCmd *CurveFsCommand) AddSubCommands() {
 		list.NewListCommand(),
 		status.NewStatusCommand(),
 		umount.NewUmountCommand(),
+		query.NewQueryCommand(),
 	)
 }
 

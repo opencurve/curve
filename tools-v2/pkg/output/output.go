@@ -50,6 +50,9 @@ func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
 		fmt.Println(finalCmd.Table)
 	}
 	if finalCmd.Error.Code != cmderror.CODE_SUCCESS {
+		// result error
+		// do not show how to use the command
+		finalCmd.Cmd.SilenceUsage = true
 		return errors.New(finalCmd.Error.Message)
 	}
 	return nil
@@ -58,7 +61,6 @@ func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
 func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
 	funcs basecmd.FinalCurveCmdFunc) error {
 	format := finalCmd.Cmd.Flag("format").Value.String()
-	finalCmd.Error = cmderror.MostImportantCmdError(cmderror.AllError)
 	var err error
 	switch format {
 	case config.FORMAT_JSON:

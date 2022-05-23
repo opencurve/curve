@@ -137,10 +137,13 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	count := 0
+	var errs []*cmderror.CmdError
 	for res := range results {
 		for _, row := range mCmd.rows {
 			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["dummyAddr"] == res.Addr {
 				row[res.Key] = res.Value
+			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
+				errs = append(errs, res.Err)
 			}
 		}
 		count++
@@ -148,6 +151,7 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
+	mCmd.Error= cmderror.MostImportantCmdError(errs)
 	mCmd.Table.AddRows(mCmd.rows)
 	jsonResult, err := mCmd.Table.JSON(0)
 	if err != nil {

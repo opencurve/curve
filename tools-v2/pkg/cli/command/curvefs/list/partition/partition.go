@@ -49,7 +49,7 @@ var _ basecmd.RpcFunc = (*ListPartitionRpc)(nil) // check interface
 
 type PartitionCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      []*ListPartitionRpc
+	Rpc       []*ListPartitionRpc
 	fsId2Rows map[uint32][]map[string]string
 }
 
@@ -78,7 +78,7 @@ func (pCmd *PartitionCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(pCmd.Cmd)
 	config.AddRpcTimeoutFlag(pCmd.Cmd)
 	config.AddFsMdsAddrFlag(pCmd.Cmd)
-	config.AddFsIdOptionFlag(pCmd.Cmd)
+	config.AddFsIdOptionDefaultAllFlag(pCmd.Cmd)
 }
 
 func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
@@ -92,7 +92,7 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	pCmd.Table = table
-	fsIds := viper.GetStringSlice(config.VIPER_CURVEFS_FSID)
+	fsIds, _ := pCmd.Cmd.Flags().GetStringSlice(config.CURVEFS_FSID)
 	if fsIds[0] == "*" {
 		var getFsIdErr *cmderror.CmdError
 		fsIds, getFsIdErr = fs.GetFsIds()
@@ -141,10 +141,11 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		infos = append(infos, rpc.Info)
 		funcs = append(funcs, rpc)
 	}
-	
-	results, _ := basecmd.GetRpcListResponse(infos, funcs)
+
+	results, err := basecmd.GetRpcListResponse(infos, funcs)
 	var errs []*cmderror.CmdError
 	var resList []interface{}
+	errs = append(errs, err)
 	for _, result := range results {
 		response := result.(*topology.ListPartitionResponse)
 		res, err := output.MarshalProtoJson(response)
@@ -154,7 +155,7 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 			errs = append(errs, errMar)
 		}
 		resList = append(resList, res)
-		
+
 		// update fsId2Rows
 		partitionList := response.GetPartitionInfoList()
 		for _, partition := range partitionList {

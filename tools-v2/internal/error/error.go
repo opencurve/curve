@@ -22,7 +22,11 @@
 
 package cmderror
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
+)
 
 // It is considered here that the importance of the error is related to the
 // code, and the smaller the code, the more important the error is.
@@ -57,6 +61,9 @@ func NewSucessCmdError() *CmdError {
 }
 
 func NewInternalCmdError(code int, message string) *CmdError {
+	if code == 0 {
+		return NewSucessCmdError()
+	}
 	ret := &CmdError{
 		Code:    CODE_INTERNAL + code,
 		Message: message,
@@ -67,6 +74,9 @@ func NewInternalCmdError(code int, message string) *CmdError {
 }
 
 func NewRpcError(code int, message string) *CmdError {
+	if code == 0 {
+		return NewSucessCmdError()
+	}
 	ret := &CmdError{
 		Code:    CODE_RPC + code,
 		Message: message,
@@ -76,6 +86,9 @@ func NewRpcError(code int, message string) *CmdError {
 }
 
 func NewRpcReultCmdError(code int, message string) *CmdError {
+	if code == 0 {
+		return NewSucessCmdError()
+	}
 	ret := &CmdError{
 		Code:    CODE_RPC_RESULT + code,
 		Message: message,
@@ -85,6 +98,9 @@ func NewRpcReultCmdError(code int, message string) *CmdError {
 }
 
 func NewHttpError(code int, message string) *CmdError {
+	if code == 0 {
+		return NewSucessCmdError()
+	}
 	ret := &CmdError{
 		Code:    CODE_HTTP + code,
 		Message: message,
@@ -94,6 +110,9 @@ func NewHttpError(code int, message string) *CmdError {
 }
 
 func NewHttpResultCmdError(code int, message string) *CmdError {
+	if code == 0 {
+		return NewSucessCmdError()
+	}
 	ret := &CmdError{
 		Code:    CODE_HTTP_RESULT + code,
 		Message: message,
@@ -136,10 +155,7 @@ func (e *CmdError) Format(args ...interface{}) {
 // the more important the error is.
 func MostImportantCmdError(err []*CmdError) *CmdError {
 	if len(err) == 0 {
-		return &CmdError{
-			Code:    CODE_UNKNOWN,
-			Message: "unknown error",
-		}
+		return NewSucessCmdError()
 	}
 	ret := err[0]
 	for _, e := range err {
@@ -153,10 +169,7 @@ func MostImportantCmdError(err []*CmdError) *CmdError {
 // keep the most important wrong id, all wrong message will be kept
 func MergeCmdError(err []*CmdError) CmdError {
 	if len(err) == 0 {
-		return CmdError{
-			Code:    CODE_UNKNOWN,
-			Message: "unknown error",
-		}
+		return *NewSucessCmdError()
 	}
 	var ret CmdError
 	ret.Code = CODE_UNKNOWN
@@ -199,9 +212,6 @@ var (
 	ErrGetClusterFsInfo = func() *CmdError {
 		return NewInternalCmdError(8, "get cluster fs info failed, the error is: %s")
 	}
-	ErrUmountFs = func(statusCode int, message string) *CmdError {
-		return NewInternalCmdError(statusCode, message)
-	}
 	ErrGetAddr = func() *CmdError {
 		return NewInternalCmdError(9, "invalid %s addr is: %s")
 	}
@@ -223,5 +233,25 @@ var (
 	// rpc error
 	ErrRpcCall = func() *CmdError {
 		return NewRpcReultCmdError(1, "rpc call is fail, the addr is: %s, the func is %s, the error is: %s")
+	}
+	ErrUmountFs = func(statusCode int) *CmdError {
+		var message string
+		code := mds.FSStatusCode(statusCode)
+		switch code {
+		case mds.FSStatusCode_OK:
+			message = "success"
+		case mds.FSStatusCode_MOUNT_POINT_NOT_EXIST:
+			message = "mountpoint not exist"
+		case mds.FSStatusCode_NOT_FOUND:
+			message = "fs not found"
+		case mds.FSStatusCode_FS_BUSY:
+			message = "mountpoint is busy"
+		default:
+			message = fmt.Sprintf("umount from fs failed!, error is %s", code.String())
+		}
+		return NewRpcReultCmdError(statusCode, message)
+	}
+	ErrGetFsInfo = func(statusCode int) *CmdError {
+		return NewRpcReultCmdError(statusCode, "get fs info failed: status code is %s")
 	}
 )
