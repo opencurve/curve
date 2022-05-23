@@ -24,15 +24,13 @@ package inode
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobraUtil "github.com/opencurve/curve/tools-v2/internal/utils"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -52,10 +50,10 @@ type InodeNumCommand struct {
 }
 
 type Result struct {
-	Result   string
-	Error    cmderror.CmdError
-	Hosts    []string
-	SubUri   string
+	Result string
+	Error  cmderror.CmdError
+	Hosts  []string
+	SubUri string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*InodeNumCommand)(nil) // check interface
@@ -74,14 +72,14 @@ func NewInodeNumCommand() *cobra.Command {
 func (iCmd *InodeNumCommand) AddFlags() {
 	config.AddFsMdsAddrFlag(iCmd.Cmd)
 	config.AddFsIdOptionFlag(iCmd.Cmd)
-	config.AddHttpTimeoutMsFlag(iCmd.Cmd)
+	config.AddHttpTimeoutFlag(iCmd.Cmd)
 }
 
 func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
-	hosts := viper.GetString("curvefs.mdsAddr")
-	iCmd.Addrs = strings.Split(hosts, ",")
+	addrs := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
+	iCmd.Addrs = strings.Split(addrs, ",")
 	for _, addr := range iCmd.Addrs {
-		if !cobraUtil.IsValidAddr(addr) {
+		if !cobrautil.IsValidAddr(addr) {
 			return fmt.Errorf("invalid addr: %s", addr)
 		}
 	}
@@ -95,7 +93,7 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("invalid fsId: %s", fsId)
 		}
 		subUri := fmt.Sprintf("/vars/"+PREFIX+"_%s*"+SUFFIX, fsId)
-		timeout := time.Millisecond * time.Duration(viper.GetInt("global.httpTimeoutMs"))
+		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 		metric := *basecmd.NewMetric(iCmd.Addrs, subUri, timeout)
 		filetype2Metric := make(map[string]basecmd.Metric)
 		filetype2Metric["inode_num"] = metric
@@ -122,10 +120,10 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 			go func(m basecmd.Metric, filetype string, id string) {
 				result, err := basecmd.QueryMetric(m)
 				results <- Result{
-					Result:   result,
-					Error:    err,
-					Hosts:    m.Addrs,
-					SubUri:   m.SubUri,
+					Result: result,
+					Error:  err,
+					Hosts:  m.Addrs,
+					SubUri: m.SubUri,
 				}
 			}(metric, filetype, fsId)
 		}
@@ -139,7 +137,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 				if data == "" {
 					continue
 				}
-				data = cobraUtil.RmWitespaceStr(data)
+				data = cobrautil.RmWitespaceStr(data)
 				resMap := strings.Split(data, ":")
 				preMap := strings.Split(resMap[0], "_")
 				if len(resMap) != 2 && len(preMap) < 4 {
@@ -155,7 +153,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					if filetype == "" {
 						filetype = "inode_num_"
 					}
-					filetype = filetype[0:len(filetype)-1]
+					filetype = filetype[0 : len(filetype)-1]
 					if errNum == nil && errId == nil {
 						row := make(map[string]string)
 						row["fsId"] = strconv.FormatUint(uint64(id), 10)
@@ -195,11 +193,5 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 }
 
 func (iCmd *InodeNumCommand) ResultPlainOutput() error {
-	if len(iCmd.Table.Row) > 0 {
-		fmt.Println(iCmd.Table)
-	}
-	if iCmd.Error.Code != cmderror.CODE_SUCCESS {
-		return errors.New(iCmd.Error.Message)
-	}
-	return nil
+	return output.FinalCmdOutputPlain(&iCmd.FinalCurveCmd, iCmd)
 }

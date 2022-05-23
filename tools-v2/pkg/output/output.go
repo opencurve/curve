@@ -24,12 +24,15 @@ package output
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/spf13/viper"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -46,6 +49,17 @@ func FinalCmdOutputJson(finalCmd *basecmd.FinalCurveCmd) error {
 	return nil
 }
 
+func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
+	funcs basecmd.FinalCurveCmdFunc) error {
+	if len(finalCmd.Table.Row) > 0 {
+		fmt.Println(finalCmd.Table)
+	}
+	if finalCmd.Error.Code != cmderror.CODE_SUCCESS {
+		return errors.New(finalCmd.Error.Message)
+	}
+	return nil
+}
+
 func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
 	funcs basecmd.FinalCurveCmdFunc) error {
 	format := viper.GetString("format")
@@ -56,13 +70,30 @@ func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
 		err = FinalCmdOutputJson(finalCmd)
 	case FORMAT_PLAIN:
 		err = funcs.ResultPlainOutput()
-		if viper.GetBool(config.VIPER_GLOBALE_SHOWERROR) {
-			for _, output := range finalCmd.AllError {
-				fmt.Printf("%+v\n", output)
-			}
-		}
 	default:
 		err = nil
 	}
+	if viper.GetBool(config.VIPER_GLOBALE_SHOWERROR) {
+		for _, output := range finalCmd.AllError {
+			fmt.Printf("%+v\n", output)
+		}
+	}
 	return err
+}
+
+func MarshalProtoJson(message proto.Message) (interface{}, error) {
+	m := protojson.MarshalOptions{
+		Multiline: true,
+		Indent:    "  ",
+	}
+	jsonByte, err := m.Marshal(message)
+	if err != nil {
+		return nil, err
+	}
+	var ret interface{}
+	err = json.Unmarshal(jsonByte, &ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
 }

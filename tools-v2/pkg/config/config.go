@@ -23,6 +23,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"github.com/gookit/color"
 	"github.com/spf13/cobra"
@@ -53,9 +54,25 @@ func InitConfig() {
 	}
 }
 
-func AddHttpTimeoutMsFlag(cmd *cobra.Command) {
-	cmd.Flags().String("httptimeoutms", "", "http timeout in milliseconds")
-	err := viper.BindPFlag("global.httpTimeoutMs", cmd.Flags().Lookup("httptimeoutms"))
+func AddHttpTimeoutFlag(cmd *cobra.Command) {
+	cmd.Flags().Duration("httptimeout", 500*time.Millisecond, "http timeout")
+	err := viper.BindPFlag("global.httpTimeout", cmd.Flags().Lookup("httptimeout"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddRpcTimeoutFlag(cmd *cobra.Command) {
+	cmd.Flags().Duration("rpctimeout", 10000*time.Millisecond, "rpc timeout")
+	err := viper.BindPFlag("global.rpcTimeout", cmd.Flags().Lookup("rpctimeout"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddRpcRetryTimesFlag(cmd *cobra.Command) {
+	cmd.Flags().Int32("rpcretrtytimes", 1, "rpc retry times")
+	err := viper.BindPFlag("global.rpcRetryTimes", cmd.Flags().Lookup("rpcretrtytimes"))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -89,7 +106,7 @@ func AddFsMdsDummyAddrFlag(cmd *cobra.Command) {
 
 // command line flag
 func AddFsIdFlag(cmd *cobra.Command) {
-	cmd.Flags().String("fsid", "", "fs Id, should be like 1,2,3 " + color.Red.Sprint("[required]"))
+	cmd.Flags().String("fsid", "", "fs Id, should be like 1,2,3 "+color.Red.Sprint("[required]"))
 	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -111,5 +128,12 @@ func AddFsIdOptionFlag(cmd *cobra.Command) {
 }
 
 const (
-	VIPER_GLOBALE_SHOWERROR = "global.showError"
+	// global
+	VIPER_GLOBALE_SHOWERROR     = "global.showError"
+	VIPER_GLOBALE_HTTPTIMEOUT   = "global.httpTimeout"
+	VIPER_GLOBALE_RPCTIMEOUT    = "global.rpcTimeout"
+	VIPER_GLOBALE_RPCRETRYTIMES = "global.rpcRetryTimes"
+
+	// curvefs
+	VIPER_CURVEFS_MDSADDR = "curvefs.mdsAddr"
 )

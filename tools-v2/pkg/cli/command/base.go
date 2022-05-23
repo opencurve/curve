@@ -23,9 +23,9 @@
 package basecmd
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/liushuochen/gotable/table"
@@ -33,6 +33,8 @@ import (
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -97,7 +99,6 @@ func NewMidCurveCli(cli *MidCurveCmd, add MidCurveCmdFunc) *cobra.Command {
 		Use:   cli.Use,
 		Short: cli.Short,
 		Args:  cobrautil.NoArgs,
-		RunE:  cobrautil.ShowHelp(os.Stderr),
 	}
 	add.AddSubCommands()
 	return cli.Cmd
@@ -109,9 +110,9 @@ type Metric struct {
 	timeout time.Duration
 }
 
-func NewMetric(hosts []string, subUri string, timeout time.Duration) *Metric {
+func NewMetric(addrs []string, subUri string, timeout time.Duration) *Metric {
 	return &Metric{
-		Addrs:   hosts,
+		Addrs:   addrs,
 		SubUri:  subUri,
 		timeout: timeout,
 	}
@@ -181,4 +182,76 @@ func httpGet(url string, timeout time.Duration, response chan string, errs chan 
 		response <- string(body)
 		errs <- cmderror.ErrSuccess
 	}
+}
+
+type Rpc struct {
+	Addrs         []string
+	RpcTimeout    time.Duration
+	RpcRetryTimes int32
+	RpcFuncName   string
+}
+
+func NewRpc(addrs []string, timeout time.Duration, retryTimes int32, funcName string) *Rpc {
+	return &Rpc{
+		Addrs:         addrs,
+		RpcTimeout:    timeout,
+		RpcRetryTimes: retryTimes,
+		RpcFuncName:   funcName,
+	}
+}
+
+type RpcFunc interface {
+	NewRpcClient(cc grpc.ClientConnInterface)
+	Stub_Func(ctx context.Context) (interface{}, error)
+}
+
+func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []cmderror.CmdError) {
+	size := len(rpc.Addrs)
+	if size > config.MaxChannelSize() {
+		size = config.MaxChannelSize()
+	}
+	errs := make(chan cmderror.CmdError, size)
+	response := make(chan interface{}, 1)
+	for _, addr := range rpc.Addrs {
+		go func(addr string) {
+			ctx, cancel := context.WithTimeout(context.Background(), rpc.RpcTimeout)
+			defer cancel()
+			conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				errDial := cmderror.ErrRpcDial
+				errDial.Format(addr, err.Error())
+				errs <- errDial
+			}
+			rpcFunc.NewRpcClient(conn)
+			res, err := rpcFunc.Stub_Func(context.Background())
+			if err != nil {
+				// fmt.Println(err)
+				errRpc := cmderror.ErrRpcCall
+				errRpc.Format(addr, rpc.RpcFuncName, err.Error())
+				errs <- errRpc
+			} else {
+				response <- res
+				errs <- cmderror.ErrSuccess
+			}
+		}(addr)
+	}
+
+	var ret interface{}
+	var vecErrs []cmderror.CmdError
+	count := 0
+	for err := range errs {
+		if err.Code != cmderror.CODE_SUCCESS {
+			vecErrs = append(vecErrs, err)
+		} else {
+			ret = <-response
+			vecErrs = append(vecErrs, cmderror.ErrSuccess)
+			break
+		}
+		count++
+		if count >= len(rpc.Addrs) {
+			// all host failed
+			break
+		}
+	}
+	return ret, vecErrs
 }
