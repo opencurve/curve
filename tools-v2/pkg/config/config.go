@@ -63,6 +63,8 @@ const (
 	VIPER_CURVEFS_MOUNTPOINT     = "curvefs.mountpoint"
 	CURVEFS_PARTITIONID          = "partitionid"
 	VIPER_CURVEFS_PARTITIONID    = "curvefs.partitionid"
+	CURVEFS_NOCONFIRM            = "noconfirm"
+	VIPER_CURVEFS_NOCONFIRM      = "curvefs.noconfirm"
 )
 
 var (
@@ -271,7 +273,7 @@ func AddPartitionIdRequiredFlag(cmd *cobra.Command) {
 }
 
 // fs name [required]
-func AddFsNameFlag(cmd *cobra.Command) {
+func AddFsNameRequiredFlag(cmd *cobra.Command) {
 	cmd.Flags().String(CURVEFS_FSNAME, "", "fs name"+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(CURVEFS_FSNAME)
 	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
@@ -300,9 +302,18 @@ func AddFsNameSliceOptionFlag(cmd *cobra.Command) {
 
 // mountpoint [required]
 func AddMountpointFlag(cmd *cobra.Command) {
-	cmd.Flags().String("mountpoint", "", "umount fs mountpoint"+color.Red.Sprint("[required]"))
-	cmd.MarkFlagRequired("mountpoint")
-	err := viper.BindPFlag("curvefs.mountpoint", cmd.Flags().Lookup("mountpoint"))
+	cmd.Flags().String(CURVEFS_MOUNTPOINT, "", "umount fs mountpoint"+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(CURVEFS_MOUNTPOINT)
+	err := viper.BindPFlag(VIPER_CURVEFS_MOUNTPOINT, cmd.Flags().Lookup("mountpoint"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// noconfirm
+func AddNoConfirmOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool(CURVEFS_NOCONFIRM, false, "do not confirm the command")
+	err := viper.BindPFlag(VIPER_CURVEFS_NOCONFIRM, cmd.Flags().Lookup(CURVEFS_NOCONFIRM))
 	if err != nil {
 		cobra.CheckErr(err)
 	}

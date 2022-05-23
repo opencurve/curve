@@ -23,7 +23,13 @@
 package cobrautil
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"regexp"
+	"strings"
+
+	"github.com/gookit/color"
 )
 
 const (
@@ -46,4 +52,29 @@ func RmWitespaceStr(str string) string {
 
 	reg := regexp.MustCompile(`\s+`)
 	return reg.ReplaceAllString(str, "")
+}
+
+func prompt(prompt string) string {
+	if prompt != "" {
+		prompt += " "
+	}
+	fmt.Print(color.Yellow.Sprintf("WARNING:"), prompt)
+
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSuffix(input, "\n")
+}
+
+func AskConfirmation(promptStr string, confirm string) bool {
+	promptStr = promptStr + fmt.Sprintf("\ninput [%s] to confirm:", confirm)
+	ans := prompt(promptStr)
+	switch strings.TrimSpace(ans) {
+	case confirm:
+		return true
+	default:
+		return false
+	}
 }

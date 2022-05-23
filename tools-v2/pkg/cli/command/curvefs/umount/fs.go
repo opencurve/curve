@@ -80,7 +80,7 @@ func (fCmd *FsCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(fCmd.Cmd)
 	config.AddRpcTimeoutFlag(fCmd.Cmd)
 	config.AddFsMdsAddrFlag(fCmd.Cmd)
-	config.AddFsNameFlag(fCmd.Cmd)
+	config.AddFsNameRequiredFlag(fCmd.Cmd)
 	config.AddMountpointFlag(fCmd.Cmd)
 }
 
