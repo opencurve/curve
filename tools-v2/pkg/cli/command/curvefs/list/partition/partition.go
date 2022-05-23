@@ -141,7 +141,6 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		infos = append(infos, rpc.Info)
 		funcs = append(funcs, rpc)
 	}
-
 	results, err := basecmd.GetRpcListResponse(infos, funcs)
 	var errs []*cmderror.CmdError
 	var resList []interface{}

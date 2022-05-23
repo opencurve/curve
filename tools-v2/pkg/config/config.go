@@ -59,14 +59,23 @@ const (
 	VIPER_CURVEFS_FSID           = "curvefs.fsId"
 	CURVEFS_FSNAME               = "fsname"
 	VIPER_CURVEFS_FSNAME         = "curvefs.fsName"
+	CURVEFS_MOUNTPOINT           = "mountpoint"
 	VIPER_CURVEFS_MOUNTPOINT     = "curvefs.mountpoint"
+	CURVEFS_PARTITIONID          = "partitionid"
+	VIPER_CURVEFS_PARTITIONID    = "curvefs.partitionid"
 )
 
 var (
 	FLAG2VIPER = map[string]string{
-		CURVEFS_MDSADDR:      VIPER_CURVEFS_MDSADDR,
-		CURVEFS_MDSDUMMYADDR: VIPER_CURVEFS_MDSDUMMYADDR,
-		CURVEFS_ETCDADDR:     VIPER_CURVEFS_ETCDADDR,
+		CURVEFS_MDSADDR:        VIPER_CURVEFS_MDSADDR,
+		CURVEFS_MDSDUMMYADDR:   VIPER_CURVEFS_MDSDUMMYADDR,
+		CURVEFS_ETCDADDR:       VIPER_CURVEFS_ETCDADDR,
+		CURVEFS_METASERVERADDR: VIPER_CURVEFS_METASERVERADDR,
+		CURVEFS_METASERVERID:   VIPER_CURVEFS_METASERVERID,
+		CURVEFS_FSID:           VIPER_CURVEFS_FSID,
+		CURVEFS_FSNAME:         VIPER_CURVEFS_FSNAME,
+		CURVEFS_MOUNTPOINT:     VIPER_CURVEFS_MOUNTPOINT,
+		CURVEFS_PARTITIONID:    VIPER_CURVEFS_PARTITIONID,
 	}
 )
 
@@ -242,9 +251,20 @@ func AddFsIdOptionDefaultAllFlag(cmd *cobra.Command) {
 	}
 }
 
+// fs id
 func AddFsIdOptionFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSlice(CURVEFS_FSID, nil, "fs Id, should be like 1,2,3")
 	err := viper.BindPFlag(VIPER_CURVEFS_FSID, cmd.Flags().Lookup(CURVEFS_FSID))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// partition id
+func AddPartitionIdRequiredFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSlice(CURVEFS_PARTITIONID, nil, "partition Id, should be like 1,2,3"+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(CURVEFS_PARTITIONID)
+	err := viper.BindPFlag(FLAG2VIPER[CURVEFS_PARTITIONID], cmd.Flags().Lookup(CURVEFS_PARTITIONID))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
