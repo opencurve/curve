@@ -284,7 +284,7 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 
 			copysetInfoStatus := cCmd.key2Copyset[copysetKey]
 			var status *copyset.CopysetStatusResponse
-			if copysetsStatus != nil  {
+			if copysetsStatus != nil {
 				status = copysetsStatus[i]
 			}
 			if copysetInfoStatus.Peer2Status == nil {
@@ -331,6 +331,23 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 	queryCopyset := NewQueryCopysetCommand()
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	queryCopyset.Cmd.SilenceUsage = true
+	err := queryCopyset.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrQueryCopyset()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+
+	return &queryCopyset.key2Copyset, cmderror.ErrSuccess()
+}
+
+func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfoStatus, *cmderror.CmdError) {
+	queryCopyset := NewQueryCopysetCommand()
+	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
 	cobrautil.AlignFlags(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
