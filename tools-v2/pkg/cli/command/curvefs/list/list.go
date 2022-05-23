@@ -24,6 +24,7 @@ package list
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/mountpoint"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/partition"
@@ -43,6 +44,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		fs.NewFsCommand(),
 		mountpoint.NewMountpointCommand(),
 		partition.NewPartitionCommand(),
+		copyset.NewCopysetCommand(),
 	)
 }
 
