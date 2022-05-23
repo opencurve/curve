@@ -25,6 +25,7 @@ package cmderror
 import (
 	"fmt"
 
+	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 )
@@ -51,6 +52,10 @@ type CmdError struct {
 var (
 	AllError []*CmdError
 )
+
+func (ce *CmdError) ToError() error {
+	return fmt.Errorf(ce.Message)
+}
 
 func NewSucessCmdError() *CmdError {
 	ret := &CmdError{
@@ -238,7 +243,19 @@ var (
 		return NewInternalCmdError(16, "marshal %s to json error, the error is: %s")
 	}
 	ErrCopysetKey = func() *CmdError {
-		return NewInternalCmdError(17, "copyset key %d not found!")
+		return NewInternalCmdError(17, "copyset key [%d] not found in %s!")
+	}
+	ErrQueryCopyset = func() *CmdError {
+		return NewInternalCmdError(18, "query copyset failed! the error is: %s")
+	}
+	ErrOfflineCopysetPeer = func() *CmdError {
+		return NewInternalCmdError(19, "peer [%s] is offline!")
+	}
+	ErrOpCopysetPeer = func() *CmdError {
+		return NewInternalCmdError(20, "op status: %s")
+	}
+	ErrStateCopysetPeer = func() *CmdError {
+		return NewInternalCmdError(20, "state in peer[%s]: %s")
 	}
 
 	// http error
@@ -313,5 +330,18 @@ var (
 		code := topology.TopoStatusCode(statusCode)
 		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
+	}
+	ErrCopysetOpSatus = func(statusCode copyset.COPYSET_OP_STATUS) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
+			message = "copyset %s not exist"
+		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
+			message = "success"
+		default:
+			message = fmt.Sprintf("copyset op status has error, op status is %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
 	}
 )

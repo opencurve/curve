@@ -95,7 +95,7 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 	fsIds, _ := pCmd.Cmd.Flags().GetStringSlice(config.CURVEFS_FSID)
 	if fsIds[0] == "*" {
 		var getFsIdErr *cmderror.CmdError
-		fsIds, getFsIdErr = fs.GetFsIds()
+		fsIds, getFsIdErr = fs.GetFsIds(pCmd.Cmd)
 		if getFsIdErr.TypeCode() != cmderror.CODE_SUCCESS {
 			return fmt.Errorf(getFsIdErr.Message)
 		}
@@ -154,7 +154,6 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 			errs = append(errs, errMar)
 		}
 		resList = append(resList, res)
-
 		// update fsId2Rows
 		partitionList := response.GetPartitionInfoList()
 		for _, partition := range partitionList {
