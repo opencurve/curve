@@ -25,6 +25,7 @@ package query
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/fs"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query/metaserver"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,7 @@ var _ basecmd.MidCurveCmdFunc = (*QueryCommand)(nil) // check interface
 func (queryCmd *QueryCommand) AddSubCommands() {
 	queryCmd.Cmd.AddCommand(
 		fs.NewFsCommand(),
+		metaserver.NewMetaserverCommand(),
 	)
 }
 

@@ -109,6 +109,8 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	fCmd.Table = table
 
 	fCmd.Rows = make([]map[string]string, 0)
+	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
+	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	for i := range fsNames {
 		request := &mds.GetFsInfoRequest{
 			FsName: &fsNames[i],
@@ -116,8 +118,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc := &QueryFsRpc{
 			Request: request,
 		}
-		timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
-		retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
+
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetFsInfo")
 		fCmd.Rpc = append(fCmd.Rpc, rpc)
 		row := make(map[string]string)
@@ -145,8 +146,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc := &QueryFsRpc{
 			Request: request,
 		}
-		timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
-		retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
+
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "GetFsInfo")
 		fCmd.Rpc = append(fCmd.Rpc, rpc)
 		row := make(map[string]string)
