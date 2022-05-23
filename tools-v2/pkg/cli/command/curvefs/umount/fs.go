@@ -153,22 +153,10 @@ func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdErro
 	rows[0] = make(map[string]string)
 	rows[0]["fs name"] = fCmd.fsName
 	rows[0]["mountpoint"] = fCmd.mountpoint
-	switch *info.StatusCode {
-	case mds.FSStatusCode_OK:
-		rows[0]["result"] = "success"
-	case mds.FSStatusCode_MOUNT_POINT_NOT_EXIST:
-		rows[0]["result"] = "mountpoint not exist"
-	case mds.FSStatusCode_NOT_FOUND:
-		rows[0]["result"] = "fs not found"
-	case mds.FSStatusCode_FS_BUSY:
-		rows[0]["result"] = "mountpoint is busy"
-	default:
-		rows[0]["result"] = fmt.Sprintf("umount from fs failed!, error is %s", info.StatusCode.String())
-	}
-	retCode := info.GetStatusCode()
+	err := cmderror.ErrUmountFs(int(info.GetStatusCode()))
 
 	fCmd.Table.AddRows(rows)
-	return cmderror.ErrUmountFs(int(retCode), rows[0]["result"])
+	return err
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {

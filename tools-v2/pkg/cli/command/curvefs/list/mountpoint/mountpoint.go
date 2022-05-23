@@ -67,6 +67,7 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	if fsInfoErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(fsInfoErr.Message)
 	}
+	mpCmd.Error = fsInfoErr
 
 	table, err := gotable.Create("fs id", "fs name", "mount point")
 	if err != nil {
@@ -85,12 +86,12 @@ func (mpCmd *MountpointCommand) RunCommand(cmd *cobra.Command, args []string) er
 
 	jsonResult, err := mpCmd.Table.JSON(0)
 	if err != nil {
-		cobra.CheckErr(err)
+		return err
 	}
 	var m interface{}
 	err = json.Unmarshal([]byte(jsonResult), &m)
 	if err != nil {
-		cobra.CheckErr(err)
+		return err
 	}
 	mpCmd.Result = m
 	return nil

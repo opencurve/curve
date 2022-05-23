@@ -51,6 +51,7 @@ const (
 type FinalCurveCmd struct {
 	Use     string            `json:"-"`
 	Short   string            `json:"-"`
+	Long    string			`json:"-"`
 	Example string            `json:"-"`
 	Error   *cmderror.CmdError `json:"error"`
 	Result  interface{}       `json:"result"`
@@ -86,6 +87,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 	cli.Cmd = &cobra.Command{
 		Use:          cli.Use,
 		Short:        cli.Short,
+		Long:         cli.Long,
 		PreRunE:      funcs.Init,
 		RunE:         funcs.RunCommand,
 		PostRunE:     funcs.Print,

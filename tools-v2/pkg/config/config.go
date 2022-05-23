@@ -51,7 +51,9 @@ const (
 	VIPER_CURVEFS_MDSDUMMYADDR = "curvefs.mdsDummyAddr"
 	CURVEFS_ETCDADDR           = "etcdaddr"
 	VIPER_CURVEFS_ETCDADDR     = "curvefs.etcdAddr"
+	CURVEFS_FSID               = "fsid"
 	VIPER_CURVEFS_FSID         = "curvefs.fsId"
+	CURVEFS_FSNAME             = "fsname"
 	VIPER_CURVEFS_FSNAME       = "curvefs.fsName"
 	VIPER_CURVEFS_MOUNTPOINT   = "curvefs.mountpoint"
 )
@@ -201,18 +203,26 @@ func GetFsEtcdAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 
 // fs id [required]
 func AddFsIdFlag(cmd *cobra.Command) {
-	cmd.Flags().StringSlice("fsid", nil, "fs Id, should be like 1 2 3 "+color.Red.Sprint("[required]"))
-	cmd.MarkFlagRequired("fsid")
-	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
+	cmd.Flags().StringSlice(CURVEFS_FSID, nil, "fs Id, should be like 1,2,3 "+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(CURVEFS_FSID)
+	err := viper.BindPFlag(VIPER_CURVEFS_FSID, cmd.Flags().Lookup(CURVEFS_FSID))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
 }
 
 // fs id
+func AddFsIdOptionDefaultAllFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSlice(CURVEFS_FSID, []string{"*"}, "fs Id, should be like 1,2,3 not set means all fs")
+	err := viper.BindPFlag(VIPER_CURVEFS_FSID, cmd.Flags().Lookup(CURVEFS_FSID))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 func AddFsIdOptionFlag(cmd *cobra.Command) {
-	cmd.Flags().StringSlice("fsid", []string{"*"}, "fs Id, should be like 1 2 3, not set means all fs")
-	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
+	cmd.Flags().StringSlice(CURVEFS_FSID, nil, "fs Id, should be like 1,2,3")
+	err := viper.BindPFlag(VIPER_CURVEFS_FSID, cmd.Flags().Lookup(CURVEFS_FSID))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -220,9 +230,27 @@ func AddFsIdOptionFlag(cmd *cobra.Command) {
 
 // fs name [required]
 func AddFsNameFlag(cmd *cobra.Command) {
-	cmd.Flags().String("fsname", "", "fs name"+color.Red.Sprint("[required]"))
-	cmd.MarkFlagRequired("fsname")
-	err := viper.BindPFlag("curvefs.fsName", cmd.Flags().Lookup("fsname"))
+	cmd.Flags().String(CURVEFS_FSNAME, "", "fs name"+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(CURVEFS_FSNAME)
+	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// fs name
+func AddFsNameOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS_FSNAME, "", "fs name")
+	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// fs name
+func AddFsNameSliceOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSlice(CURVEFS_FSNAME, nil, "fs name")
+	err := viper.BindPFlag(VIPER_CURVEFS_FSNAME, cmd.Flags().Lookup(CURVEFS_FSNAME))
 	if err != nil {
 		cobra.CheckErr(err)
 	}

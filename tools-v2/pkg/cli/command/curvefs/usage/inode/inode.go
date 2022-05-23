@@ -69,7 +69,7 @@ func NewInodeNumCommand() *cobra.Command {
 
 func (iCmd *InodeNumCommand) AddFlags() {
 	config.AddFsMdsAddrFlag(iCmd.Cmd)
-	config.AddFsIdOptionFlag(iCmd.Cmd)
+	config.AddFsIdOptionDefaultAllFlag(iCmd.Cmd)
 	config.AddHttpTimeoutFlag(iCmd.Cmd)
 }
 
@@ -127,6 +127,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	}
 	count := 0
 	rows := make([]map[string]string, 0)
+	var errs []*cmderror.CmdError
 	for res := range results {
 		datas := strings.Split(res.Result, "\n")
 		if res.Error.Code == cmderror.CODE_SUCCESS {
@@ -140,6 +141,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 				if len(resMap) != 2 && len(preMap) < 4 {
 					splitErr := cmderror.ErrDataNoExpected()
 					splitErr.Format(data, "the length of the data does not meet the requirements")
+					errs = append(errs, splitErr)
 				} else {
 					num, errNum := strconv.ParseInt(resMap[1], 10, 64)
 					id, errId := strconv.ParseUint(preMap[3], 10, 32)
@@ -159,6 +161,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					} else {
 						toErr := cmderror.ErrDataNoExpected()
 						toErr.Format(data)
+						errs = append(errs, toErr)
 					}
 				}
 			}
@@ -168,6 +171,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 			break
 		}
 	}
+	iCmd.Error = cmderror.MostImportantCmdError(errs)
 
 	if len(rows) > 0 {
 		// query some data

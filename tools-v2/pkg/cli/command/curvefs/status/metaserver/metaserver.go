@@ -134,6 +134,7 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	}
 
 	count := 0
+	var errs []*cmderror.CmdError
 	for res := range results {
 		for _, row := range mCmd.rows {
 			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["externalAddr"] == res.Addr {
@@ -142,6 +143,8 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 				} else {
 					row[res.Key] = res.Value
 				}
+			} else if res.Err.TypeCode() != cmderror.CODE_SUCCESS {
+				errs = append(errs, res.Err)
 			}
 		}
 		count++
@@ -149,6 +152,8 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 			break
 		}
 	}
+
+	mCmd.Error = cmderror.MostImportantCmdError(errs)
 
 	mCmd.Table.AddRows(mCmd.rows)
 	jsonResult, err := mCmd.Table.JSON(0)

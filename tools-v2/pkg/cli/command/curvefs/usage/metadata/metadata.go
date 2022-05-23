@@ -107,6 +107,7 @@ func (mCmd *MetadataCommand) RunCommand(cmd *cobra.Command, args []string) error
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
+	mCmd.Error = errCmd
 	mCmd.response = response.(*topology.StatMetadataUsageResponse)
 	res, err := output.MarshalProtoJson(mCmd.response)
 	if err != nil {
