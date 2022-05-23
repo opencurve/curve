@@ -29,10 +29,12 @@ import (
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
+	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/common"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -49,8 +51,9 @@ var _ basecmd.RpcFunc = (*ListPartitionRpc)(nil) // check interface
 
 type PartitionCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc       []*ListPartitionRpc
-	fsId2Rows map[uint32][]map[string]string
+	Rpc                []*ListPartitionRpc
+	fsId2Rows          map[uint32][]map[string]string
+	fsId2PartitionList map[uint32][]*common.PartitionInfo
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*PartitionCommand)(nil) // check interface
@@ -92,7 +95,7 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	pCmd.Table = table
-	fsIds, _ := pCmd.Cmd.Flags().GetStringSlice(config.CURVEFS_FSID)
+	fsIds := config.GetFlagStringSlice(pCmd.Cmd, config.CURVEFS_FSID)
 	if fsIds[0] == "*" {
 		var getFsIdErr *cmderror.CmdError
 		fsIds, getFsIdErr = fs.GetFsIds(pCmd.Cmd)
@@ -101,6 +104,7 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 	}
 	pCmd.fsId2Rows = make(map[uint32][]map[string]string)
+	pCmd.fsId2PartitionList = make(map[uint32][]*common.PartitionInfo)
 	for _, fsId := range fsIds {
 		id, err := strconv.ParseUint(fsId, 10, 32)
 		if err != nil {
@@ -125,6 +129,7 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		pCmd.fsId2Rows[id32][0]["start"] = "DNE"
 		pCmd.fsId2Rows[id32][0]["end"] = "DNE"
 		pCmd.fsId2Rows[id32][0]["status"] = "DNE"
+		pCmd.fsId2PartitionList[id32] = make([]*common.PartitionInfo, 0)
 	}
 
 	return nil
@@ -159,6 +164,7 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		for _, partition := range partitionList {
 			fsId := partition.GetFsId()
 			rows := pCmd.fsId2Rows[fsId]
+			pCmd.fsId2PartitionList[fsId] = append(pCmd.fsId2PartitionList[fsId], partition)
 			var row map[string]string
 			if len(rows) == 1 && rows[0]["pool id"] == "DNE" {
 				row = rows[0]
@@ -192,4 +198,29 @@ func (pCmd *PartitionCommand) updateTable() {
 			pCmd.Table.AddRow(row)
 		}
 	}
+}
+
+func NewListPartitionCommand() *PartitionCommand {
+	pCmd := &PartitionCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "partition",
+			Short: "list partition in curvefs by fsid",
+		},
+	}
+	basecmd.NewFinalCurveCli(&pCmd.FinalCurveCmd, pCmd)
+	return pCmd
+}
+
+func GetFsPartition(caller *cobra.Command) *map[uint32][]*common.PartitionInfo {
+	listPartionCmd := NewListPartitionCommand()
+	listPartionCmd.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, listPartionCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
+		config.CURVEFS_FSID,
+	})
+	listPartionCmd.Cmd.SilenceUsage = true
+	listPartionCmd.Cmd.Execute()
+	return &listPartionCmd.fsId2PartitionList
 }

@@ -47,7 +47,7 @@ const (
 	DEFAULT_RPCTIMEOUT          = 10000 * time.Millisecond
 	RPCRETRYTIMES               = "rpcretrytimes"
 	VIPER_GLOBALE_RPCRETRYTIMES = "global.rpcRetryTimes"
-	DEFAULT_RPCRETRYTIMES       = 1
+	DEFAULT_RPCRETRYTIMES       = int32(1)
 
 	// curvefs
 	CURVEFS_MDSADDR              = "mdsaddr"
@@ -90,6 +90,8 @@ const (
 	CURVEFS_DETAIL               = "detail"
 	VIPER_CURVEFS_DETAIL         = "curvefs.detail"
 	CURVEFS_DEFAULT_DETAIL       = false
+	CURVEFS_INODEID              = "inodeid"
+	VIPER_CURVEFS_INODEID        = "curvefs.inodeid"
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
 	VIPER_CURVEFS_S3_AK           = "curvefs.s3.ak"
@@ -158,6 +160,7 @@ var (
 		CURVEFS_COPYSETID:      VIPER_CURVEFS_COPYSETID,
 		CURVEFS_POOLID:         VIPER_CURVEFS_POOLID,
 		CURVEFS_DETAIL:         VIPER_CURVEFS_DETAIL,
+		CURVEFS_INODEID:        VIPER_CURVEFS_INODEID,
 		// S3
 		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
 		CURVEFS_S3_SK:         VIPER_CURVEFS_S3_SK,
@@ -270,6 +273,32 @@ func AddStringSliceRequiredFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
+func AddUint64RequiredFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = uint64(0)
+	}
+	cmd.Flags().Uint64(name, defaultValue.(uint64), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = uint32(0)
+	}
+	cmd.Flags().Uint32(name, defaultValue.(uint32), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 func AddBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
 	defaultValue := FLAG2DEFAULT[name]
 	if defaultValue == nil {
@@ -299,7 +328,31 @@ func AddInt32OptionFlag(cmd *cobra.Command, name string, usage string) {
 	if defaultValue == nil {
 		defaultValue = 0
 	}
-	cmd.Flags().Int32(name, int32(defaultValue.(int)), usage)
+	cmd.Flags().Int32(name, defaultValue.(int32), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddUint64OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Uint64(name, defaultValue.(uint64), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddUint32OptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = 0
+	}
+	cmd.Flags().Uint32(name, defaultValue.(uint32), usage)
 	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -409,6 +462,16 @@ func GetFlagUint64(cmd *cobra.Command, flagName string) uint64 {
 		value, _ = cmd.Flags().GetUint64(flagName)
 	} else {
 		value = viper.GetUint64(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetFlagUint32(cmd *cobra.Command, flagName string) uint32 {
+	var value uint32
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetUint32(flagName)
+	} else {
+		value = viper.GetUint32(FLAG2VIPER[flagName])
 	}
 	return value
 }
@@ -687,4 +750,14 @@ func AddCopysetidSliceRequiredFlag(cmd *cobra.Command) {
 // poolid [required]
 func AddPoolidSliceRequiredFlag(cmd *cobra.Command) {
 	AddStringSliceRequiredFlag(cmd, CURVEFS_POOLID, "poolid")
+}
+
+// inodeid [required]
+func AddInodeIdRequiredFlag(cmd *cobra.Command) {
+	AddUint64RequiredFlag(cmd, CURVEFS_INODEID, "inodeid")
+}
+
+// fsid [required]
+func AddFsIdRequiredFlag(cmd *cobra.Command) {
+	AddUint32RequiredFlag(cmd, CURVEFS_FSID, "fsid")
 }

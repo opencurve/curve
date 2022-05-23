@@ -140,8 +140,14 @@ func AlignFlags(caller *cobra.Command, callee *cobra.Command, flagNames []string
 		}
 		callerFlag := caller.Flag(flag.Name)
 		if callerFlag != nil && callerFlag.Changed {
-			flag.Value = callerFlag.Value
-			flag.Changed = callerFlag.Changed
+			if flag.Value.Type() == callerFlag.Value.Type() {
+				flag.Value = callerFlag.Value
+				flag.Changed = callerFlag.Changed
+			} else {
+				flag.Value.Set(callerFlag.Value.String())
+				flag.Changed = callerFlag.Changed
+
+			}
 		}
 	})
 }

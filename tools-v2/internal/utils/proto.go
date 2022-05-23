@@ -62,3 +62,8 @@ func SplitPeerToAddr(peer string) (string, *cmderror.CmdError) {
 	}
 	return items[0] + ":" + items[1], cmderror.ErrSuccess()
 }
+
+func PeertoAddr(peer *common.Peer) (string, *cmderror.CmdError) {
+	address := peer.GetAddress()
+	return SplitPeerToAddr(address)
+}
