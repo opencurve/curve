@@ -43,7 +43,7 @@ void WaitInterval::WaitForNextExcution() {
     rest = (rest < 0) ? 0 : rest;
 
     sleeper_.wait_for(std::chrono::milliseconds(rest));
-
+    sleeper_.init();
     lastSend_ = TimeUtility::GetTimeofDayMs();
 }
 
