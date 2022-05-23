@@ -48,7 +48,7 @@ var _ basecmd.RpcFunc = (*QueryPartitionRpc)(nil) // check interface
 
 type PartitionCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc  *QueryPartitionRpc
+	Rpc *QueryPartitionRpc
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*PartitionCommand)(nil) // check interface
@@ -127,7 +127,6 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 	}
 	response := result.(*topology.GetCopysetOfPartitionResponse)
 	errStatus := cmderror.ErrGetCopysetOfPartition(int(response.GetStatusCode()))
-	errStatus.Format()
 	errs = append(errs, errStatus)
 
 	res, errTranslate := output.MarshalProtoJson(response)

@@ -260,4 +260,17 @@ var (
 		message := fmt.Sprintf("get copyset of partition failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
 	}
+	ErrDeleteFs = func(statusCode int) *CmdError {
+		var message string
+		code := mds.FSStatusCode(statusCode)
+		switch code {
+		case mds.FSStatusCode_OK:
+			message = "success"
+		case mds.FSStatusCode_NOT_FOUND:
+			message = "fs not found!"
+		default:
+			message = fmt.Sprintf("delete fs failed!, error is %s", code.String())
+		}
+		return NewRpcReultCmdError(statusCode, message)
+	}
 )

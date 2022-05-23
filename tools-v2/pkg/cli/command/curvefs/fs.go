@@ -24,6 +24,7 @@ package curvefs
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/delete"
 	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query"
 	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status"
@@ -45,6 +46,7 @@ func (fsCmd *CurveFsCommand) AddSubCommands() {
 		status.NewStatusCommand(),
 		umount.NewUmountCommand(),
 		query.NewQueryCommand(),
+		delete.NewDeleteCommand(),
 	)
 }
 
