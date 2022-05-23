@@ -22,8 +22,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
-  "iteration": 1650444327667,
+  "id": 2,
+  "iteration": 1652948952982,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -86,7 +86,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "process_memory_resident{instance=~\"$instance\"}",
+          "expr": "process_memory_resident{instance=~\"$instance\", hostname=~\"$hostname\"}",
           "interval": "",
           "legendFormat": "process_memory_resident {{hostname}}",
           "refId": "process_memory_resident"
@@ -96,7 +96,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "process_memory_virtual{instance=~\"$instance\"}",
+          "expr": "process_memory_virtual{instance=~\"$instance\", hostname=~\"$hostname\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "process_memory_virtual {{hostname}}",
@@ -107,7 +107,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "process_memory_shared{instance=~\"$instance\"}",
+          "expr": "process_memory_shared{instance=~\"$instance\", hostname=~\"$hostname\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "process_memory_shared {{hostname}}",
@@ -193,7 +193,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "process_cpu_usage{instance=~\"$instance\"}",
+          "expr": "process_cpu_usage{instance=~\"$instance\", hostname=~\"$hostname\"}",
           "interval": "",
           "legendFormat": "process_cpu_usage {{hostname}}",
           "refId": "process_cpu_usage"
@@ -203,7 +203,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "process_cpu_usage_system{instance=~\"$instance\"}",
+          "expr": "process_cpu_usage_system{instance=~\"$instance\", hostname=~\"$hostname\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "process_cpu_usage_system {{hostname}}",
@@ -214,7 +214,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "process_cpu_usage_user{instance=~\"$instance\"}",
+          "expr": "process_cpu_usage_user{instance=~\"$instance\", hostname=~\"$hostname\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "process_cpu_usage_user {{hostname}}",
@@ -273,7 +273,7 @@
       "dashes": false,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "µs"
         },
         "overrides": []
       },
@@ -317,7 +317,7 @@
             "type": "prometheus"
           },
           "exemplar": true,
-          "expr": "{__name__=~\".*latency.*\",job=\"metaserver\"}",
+          "expr": "{__name__=~\".*latency.*\",job=\"metaserver\", instance=~\"$instance\", hostname=~\"$hostname\"}",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -340,7 +340,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:12821",
-          "format": "ms",
+          "format": "µs",
           "logBase": 1,
           "show": true
         },

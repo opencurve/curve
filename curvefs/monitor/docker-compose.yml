@@ -21,7 +21,7 @@ version: '2.0'
 services:
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:2.28.1
     volumes:
       - ./prometheus/:/etc/prometheus/:rw
       - ./prometheus/data:/prometheus:rw
@@ -36,7 +36,7 @@ services:
     network_mode: host
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:8.0.6
     depends_on:
       - prometheus
     network_mode: host

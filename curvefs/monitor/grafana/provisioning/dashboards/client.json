@@ -23,7 +23,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1650444383434,
+  "iteration": 1652948633676,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -973,7 +973,7 @@
       "dashes": false,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "µs"
         },
         "overrides": []
       },
@@ -1040,7 +1040,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "ms",
+          "format": "µs",
           "logBase": 1,
           "show": true
         },
@@ -1062,7 +1062,7 @@
       "dashes": false,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "µs"
         },
         "overrides": []
       },
@@ -1129,7 +1129,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "ms",
+          "format": "µs",
           "logBase": 1,
           "show": true
         },
@@ -1508,7 +1508,7 @@
       "dashes": false,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "µs"
         },
         "overrides": []
       },
@@ -1575,7 +1575,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "ms",
+          "format": "µs",
           "logBase": 1,
           "show": true
         },
@@ -1954,7 +1954,7 @@
       "dashes": false,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "µs"
         },
         "overrides": []
       },
@@ -2021,7 +2021,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:212",
-          "format": "ms",
+          "format": "µs",
           "logBase": 1,
           "show": true
         },
