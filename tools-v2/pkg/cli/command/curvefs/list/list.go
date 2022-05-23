@@ -24,6 +24,8 @@ package list
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/mountpoint"
 	topology "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/topology"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +37,11 @@ type ListCommand struct {
 var _ basecmd.MidCurveCmdFunc = (*ListCommand)(nil) // check interface
 
 func (listCmd *ListCommand) AddSubCommands() {
-	listCmd.Cmd.AddCommand(topology.NewTopologyCommand())
+	listCmd.Cmd.AddCommand(
+		topology.NewTopologyCommand(),
+		fs.NewFsCommand(),
+		mountpoint.NewMountpointCommand(),
+	)
 }
 
 func NewListCommand() *cobra.Command {

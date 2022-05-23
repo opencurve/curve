@@ -28,13 +28,13 @@ import (
 	"strings"
 
 	"github.com/liushuochen/gotable"
+	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	mds "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
-	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -50,7 +50,8 @@ var _ basecmd.RpcFunc = (*ListFsRpc)(nil) // check interface
 
 type FsCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc ListFsRpc
+	Rpc      ListFsRpc
+	response *mds.ListClusterFsInfoResponse
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*FsCommand)(nil) // check interface
@@ -74,6 +75,15 @@ func NewFsCommand() *cobra.Command {
 	return fsCmd.Cmd
 }
 
+func NewListFsCommand() *FsCommand {
+	listFsCmd := &FsCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{},
+	}
+
+	basecmd.NewFinalCurveCli(&listFsCmd.FinalCurveCmd, listFsCmd)
+	return listFsCmd
+}
+
 func (fCmd *FsCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(fCmd.Cmd)
 	config.AddRpcTimeoutFlag(fCmd.Cmd)
@@ -85,15 +95,15 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	addrs := strings.Split(hosts, ",")
 	for _, addr := range addrs {
 		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid addr: %s", addr)
+			return fmt.Errorf("invalid mds addr: %s", addr)
 		}
 	}
 	fCmd.Rpc.Request = &mds.ListClusterFsInfoRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
+	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
 
-	table, err := gotable.Create("id", "type", "name", "child type", "child list")
+	table, err := gotable.Create("id", "name", "status", "capacity", "blockSize", "fsType", "sumInDir", "owner", "mountNum")
 	if err != nil {
 		return err
 	}
@@ -107,21 +117,52 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response, errs := basecmd.GetRpcResponse(fCmd.Rpc.Info, &fCmd.Rpc)
-	errCmd := cmderror.MostImportanfCmdError(errs)
+	errCmd := cmderror.MostImportantCmdError(errs)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
-	topologyResponse := response.(*topology.ListTopologyResponse)
-	res, err := output.MarshalProtoJson(topologyResponse)
+	fCmd.response = response.(*mds.ListClusterFsInfoResponse)
+	res, err := output.MarshalProtoJson(fCmd.response)
 	if err != nil {
 		return err
 	}
 	mapRes := res.(map[string]interface{})
 	fCmd.Result = mapRes
-
+	updateTable(fCmd.Table, fCmd.response)
 	return nil
+}
+
+func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
+	fssInfo := info.GetFsInfo()
+	rows := make([]map[string]string, 0)
+	for _, fsInfo := range fssInfo {
+		row := make(map[string]string)
+		row["id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
+		row["name"] = fsInfo.GetFsName()
+		row["status"] = fsInfo.GetStatus().String()
+		row["capacity"] = fmt.Sprintf("%d", fsInfo.GetCapacity())
+		row["blockSize"] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
+		row["fsType"] = fsInfo.GetFsType().String()
+		row["sumInDir"] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
+		row["owner"] = fsInfo.GetOwner()
+		row["mountNum"] = fmt.Sprintf("%d", fsInfo.GetMountNum())
+		rows = append(rows, row)
+	}
+	table.AddRows(rows)
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
+}
+
+func GetClusterFsInfo() (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
+	listFs := NewListFsCommand()
+	listFs.Cmd.SetArgs([]string{"--format", "noout"})
+	err := listFs.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrGetClusterFsInfo()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+	return listFs.response, cmderror.ErrSuccess()
 }

@@ -150,7 +150,6 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 				} else {
 					row[res.Key] = res.Value
 				}
-			
 			}
 		}
 		count++

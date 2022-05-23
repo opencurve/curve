@@ -50,10 +50,10 @@ type InodeNumCommand struct {
 }
 
 type Result struct {
-	Result string
-	Error  *cmderror.CmdError
-	Hosts  []string
-	SubUri string
+	Result   string
+	Error    *cmderror.CmdError
+	Hosts    []string
+	SubUri   string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*InodeNumCommand)(nil) // check interface
@@ -120,10 +120,10 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 			go func(m basecmd.Metric, filetype string, id string) {
 				result, err := basecmd.QueryMetric(m)
 				results <- Result{
-					Result: result,
-					Error:  err,
-					Hosts:  m.Addrs,
-					SubUri: m.SubUri,
+					Result:   result,
+					Error:    err,
+					Hosts:    m.Addrs,
+					SubUri:   m.SubUri,
 				}
 			}(metric, filetype, fsId)
 		}
@@ -152,7 +152,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					if filetype == "" {
 						filetype = "inode_num_"
 					}
-					filetype = filetype[0 : len(filetype)-1]
+					filetype = filetype[0:len(filetype)-1]
 					if errNum == nil && errId == nil {
 						row := make(map[string]string)
 						row["fsId"] = strconv.FormatUint(uint64(id), 10)

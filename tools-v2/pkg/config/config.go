@@ -54,6 +54,7 @@ func InitConfig() {
 	}
 }
 
+// global
 // format
 const (
 	FORMAT_JSON  = "json"
