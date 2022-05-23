@@ -24,34 +24,76 @@ package output
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/config"
+	"github.com/spf13/viper"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
-type CurveCliOutput struct {
-	Error  cmderror.CmdError `json:"error"`
-	Result string            `json:"result"`
-}
+const (
+	FORMAT_JSON  = "json"
+	FORMAT_PLAIN = "plain"
+)
 
-func FinalCmdOutputJsonString(finalCmd *basecmd.FinalCurveCmd) (string, error) {
-	output, err := json.MarshalIndent(CurveCliOutput{
-		Error:  finalCmd.Error,
-		Result: finalCmd.Result,
-	}, "", "	")
+func FinalCmdOutputJson(finalCmd *basecmd.FinalCurveCmd) error {
+	output, err := json.MarshalIndent(finalCmd, "", "  ")
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(output), nil
+	fmt.Println(string(output))
+	return nil
 }
 
-func FinalCmdOutputPlainString(finalCmd *basecmd.FinalCurveCmd,
-	funcs basecmd.FinalCurveCmdFunc) (string, error) {
-	ret, err := funcs.ResultPlainString()
-
-	if err != nil && finalCmd.Error.Code != 0 {
-		return ret, fmt.Errorf("%d\n%s", finalCmd.Error.Code, finalCmd.Error.Message)
+func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
+	funcs basecmd.FinalCurveCmdFunc) error {
+	if len(finalCmd.Table.Row) > 0 {
+		fmt.Println(finalCmd.Table)
 	}
-	return ret, err
+	if finalCmd.Error.Code != cmderror.CODE_SUCCESS {
+		return errors.New(finalCmd.Error.Message)
+	}
+	return nil
+}
+
+func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
+	funcs basecmd.FinalCurveCmdFunc) error {
+	format := viper.GetString("format")
+	finalCmd.Error = cmderror.MostImportantCmdError(finalCmd.AllError)
+	var err error
+	switch format {
+	case FORMAT_JSON:
+		err = FinalCmdOutputJson(finalCmd)
+	case FORMAT_PLAIN:
+		err = funcs.ResultPlainOutput()
+	default:
+		err = nil
+	}
+	if viper.GetBool(config.VIPER_GLOBALE_SHOWERROR) {
+		for _, output := range finalCmd.AllError {
+			fmt.Printf("%+v\n", output)
+		}
+	}
+	return err
+}
+
+func MarshalProtoJson(message proto.Message) (interface{}, error) {
+	m := protojson.MarshalOptions{
+		Multiline: true,
+		Indent:          "  ",
+	}
+	jsonByte, err := m.Marshal(message)
+	if err != nil {
+		return nil, err
+	}
+	var ret interface{}
+	err = json.Unmarshal(jsonByte, &ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
 }

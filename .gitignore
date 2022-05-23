@@ -134,3 +134,4 @@ storage_*
 tools-v2/sbin/*
 tools-v2/proto/*
 tools-v2/*/*.test
+tools-v2/__debug_bin

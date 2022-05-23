@@ -16,38 +16,34 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-05-10
+ * Created Date: 2022-05-25
  * Author: chengyi (Cyber-SiKu)
  */
 
-package curvefs
+package query
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
-	usage "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage"
+	inode "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage/inode"
 	"github.com/spf13/cobra"
 )
 
-type CurveFsCommand struct {
+type UsageCommand struct {
 	basecmd.MidCurveCmd
 }
 
-var _ basecmd.MidCurveCmdFunc = (*CurveFsCommand)(nil) // check interface
+var _ basecmd.MidCurveCmdFunc = (*UsageCommand)(nil) // check interface
 
-func (fsCmd *CurveFsCommand) AddSubCommands() {
-	fsCmd.Cmd.AddCommand(
-		usage.NewUsageCommand(), 
-		list.NewListCommand(),
-	)
+func (usageCmd *UsageCommand) AddSubCommands() {
+	usageCmd.Cmd.AddCommand(inode.NewInodeNumCommand())
 }
 
-func NewCurveFsCommand() *cobra.Command {
-	fsCmd := &CurveFsCommand{
+func NewUsageCommand() *cobra.Command {
+	usageCmd := &UsageCommand{
 		basecmd.MidCurveCmd{
-			Use:   "fs",
-			Short: "Manage curvefs cluster",
+			Use:   "usage",
+			Short: "get the usage info of curvefs",
 		},
 	}
-	return basecmd.NewMidCurveCli(&fsCmd.MidCurveCmd, fsCmd)
+	return basecmd.NewMidCurveCli(&usageCmd.MidCurveCmd, usageCmd)
 }
