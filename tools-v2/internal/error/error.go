@@ -205,6 +205,9 @@ var (
 	ErrGetAddr = func() *CmdError {
 		return NewInternalCmdError(9, "invalid %s addr is: %s")
 	}
+	ErrMarShalProtoJson = func() *CmdError {
+		return NewInternalCmdError(10, "marshal proto to json error, the error is: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

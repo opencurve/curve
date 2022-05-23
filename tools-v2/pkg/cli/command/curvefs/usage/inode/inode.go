@@ -82,6 +82,9 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 	iCmd.FsId2Filetype2Metric = make(map[string]map[string]basecmd.Metric)
 
 	fsIds := viper.GetStringSlice(config.VIPER_CURVEFS_FSID)
+	if len(fsIds) == 0 {
+		fsIds = []string{"*"}
+	}
 	for _, fsId := range fsIds {
 		_, err := strconv.ParseUint(fsId, 10, 32)
 		if err != nil && fsId != "*" {

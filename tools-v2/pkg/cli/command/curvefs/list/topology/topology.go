@@ -41,7 +41,7 @@ import (
 )
 
 type ListTopologyRpc struct {
-	Info           basecmd.Rpc
+	Info           *basecmd.Rpc
 	Request        *topology.ListTopologyRequest
 	topologyClient topology.TopologyServiceClient
 }
@@ -110,7 +110,7 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	tCmd.Rpc.Request = &topology.ListTopologyRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	tCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
+	tCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
 
 	table, err := gotable.Create("id", "type", "name", "child type", "child list")
 	if err != nil {
@@ -125,8 +125,7 @@ func (tCmd *TopologyCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	response, errs := basecmd.GetRpcResponse(tCmd.Rpc.Info, &tCmd.Rpc)
-	errCmd := cmderror.MostImportantCmdError(errs)
+	response, errCmd := basecmd.GetRpcResponse(tCmd.Rpc.Info, &tCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
@@ -138,7 +137,7 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	mapRes := res.(map[string]interface{})
 	tCmd.Result = mapRes
 	updateTable(tCmd.Table, topologyResponse)
-	errs = updateJsonPoolInfoRedundanceAndPlaceMentPolicy(&mapRes, topologyResponse)
+	errs := updateJsonPoolInfoRedundanceAndPlaceMentPolicy(&mapRes, topologyResponse)
 	if len(errs) > 0 {
 		return fmt.Errorf(cmderror.MostImportantCmdError(errs).Message)
 	}

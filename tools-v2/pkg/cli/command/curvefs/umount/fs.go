@@ -41,7 +41,7 @@ import (
 )
 
 type UmountFsRpc struct {
-	Info      basecmd.Rpc
+	Info      *basecmd.Rpc
 	Request   *mds.UmountFsRequest
 	mdsClient mds.MdsServiceClient
 }
@@ -111,7 +111,7 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
+	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
 
 	table, err := gotable.Create("fs name", "mountpoint", "result")
 	if err != nil {
@@ -127,8 +127,7 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	response, errs := basecmd.GetRpcResponse(fCmd.Rpc.Info, &fCmd.Rpc)
-	errCmd := cmderror.MostImportantCmdError(errs)
+	response, errCmd := basecmd.GetRpcResponse(fCmd.Rpc.Info, &fCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}

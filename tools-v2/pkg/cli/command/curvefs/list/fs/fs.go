@@ -25,6 +25,7 @@ package fs
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
@@ -39,7 +40,7 @@ import (
 )
 
 type ListFsRpc struct {
-	Info      basecmd.Rpc
+	Info      *basecmd.Rpc
 	Request   *mds.ListClusterFsInfoRequest
 	mdsClient mds.MdsServiceClient
 }
@@ -48,7 +49,7 @@ var _ basecmd.RpcFunc = (*ListFsRpc)(nil) // check interface
 
 type FsCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      ListFsRpc
+	Rpc      *ListFsRpc
 	response *mds.ListClusterFsInfoResponse
 }
 
@@ -93,10 +94,11 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
+	fCmd.Rpc = &ListFsRpc{}
 	fCmd.Rpc.Request = &mds.ListClusterFsInfoRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
+	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
 
 	table, err := gotable.Create("id", "name", "status", "capacity", "blockSize", "fsType", "sumInDir", "owner", "mountNum")
 	if err != nil {
@@ -111,8 +113,7 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	response, errs := basecmd.GetRpcResponse(fCmd.Rpc.Info, &fCmd.Rpc)
-	errCmd := cmderror.MostImportantCmdError(errs)
+	response, errCmd := basecmd.GetRpcResponse(fCmd.Rpc.Info, fCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
@@ -153,6 +154,7 @@ func (fCmd *FsCommand) ResultPlainOutput() error {
 func GetClusterFsInfo() (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 	listFs := NewListFsCommand()
 	listFs.Cmd.SetArgs([]string{"--format", "noout"})
+	listFs.Cmd.SilenceUsage = true
 	err := listFs.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrGetClusterFsInfo()
@@ -160,4 +162,16 @@ func GetClusterFsInfo() (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 		return nil, retErr
 	}
 	return listFs.response, cmderror.ErrSuccess()
+}
+
+func GetFsIds() ([]string, *cmderror.CmdError) {
+	fsInfo, err := GetClusterFsInfo()
+	var ids []string
+	if err.TypeCode() == cmderror.CODE_SUCCESS {
+		for _, fsInfo := range fsInfo.GetFsInfo() {
+			id := strconv.FormatUint(uint64(fsInfo.GetFsId()), 10)
+			ids = append(ids, id)
+		}
+	}
+	return ids, err
 }
