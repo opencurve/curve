@@ -16,38 +16,34 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-05-10
+ * Created Date: 2022-05-30
  * Author: chengyi (Cyber-SiKu)
  */
 
-package curvefs
+package list
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
-	usage "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage"
+	topology "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/topology"
 	"github.com/spf13/cobra"
 )
 
-type CurveFsCommand struct {
+type ListCommand struct {
 	basecmd.MidCurveCmd
 }
 
-var _ basecmd.MidCurveCmdFunc = (*CurveFsCommand)(nil) // check interface
+var _ basecmd.MidCurveCmdFunc = (*ListCommand)(nil) // check interface
 
-func (fsCmd *CurveFsCommand) AddSubCommands() {
-	fsCmd.Cmd.AddCommand(
-		usage.NewUsageCommand(),
-		list.NewListCommand(),
-	)
+func (listCmd *ListCommand) AddSubCommands() {
+	listCmd.Cmd.AddCommand(topology.NewTopologyCommand())
 }
 
-func NewCurveFsCommand() *cobra.Command {
-	fsCmd := &CurveFsCommand{
+func NewListCommand() *cobra.Command {
+	listCmd := &ListCommand{
 		basecmd.MidCurveCmd{
-			Use:   "fs",
-			Short: "Manage curvefs cluster",
+			Use:   "list",
+			Short: "list resources in the curvefs",
 		},
 	}
-	return basecmd.NewMidCurveCli(&fsCmd.MidCurveCmd, fsCmd)
+	return basecmd.NewMidCurveCli(&listCmd.MidCurveCmd, listCmd)
 }

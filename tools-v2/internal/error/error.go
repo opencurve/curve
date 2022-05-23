@@ -156,14 +156,22 @@ func MergeCmdError(err []CmdError) CmdError {
 }
 
 var (
-	ErrSuccess              = NewSucessCmdError()
+	ErrSuccess = NewSucessCmdError()
+
+	// internal error
 	ErrHttpCreateGetRequest = NewInternalCmdError(1, "create http get request failed, the error is: %s")
 	ErrDataNoExpected       = NewInternalCmdError(2, "data: %s is not as expected, the error is: %s")
-	ErrHttpClient           = NewInternalCmdError(2, "http client gets error: %s")
+	ErrHttpClient           = NewInternalCmdError(3, "http client gets error: %s")
+	ErrRpcDial              = NewInternalCmdError(4, "dial to rpc server %s failed, the error is: %s")
+	ErrUnmarshalJson        = NewInternalCmdError(5, "unmarshal json error, the json is %s, the error is %s")
+
+	// http error
 	ErrHttpUnreadableResult = NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
 	ErrHttpResultNoExpected = NewHttpResultCmdError(2, "http response is not expected, the hosts is: %s, the suburi is: %s, the result is: %s")
-
-	ErrHttpStatus = func (statusCode int) CmdError {
+	ErrHttpStatus           = func(statusCode int) CmdError {
 		return NewHttpError(statusCode, "the url is: %s, http status code is: %d")
 	}
+
+	// rpc error
+	ErrRpcCall = NewRpcReultCmdError(1, "rpc call is fail, the addr is: %s, the func is %s, the error is: %s")
 )

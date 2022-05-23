@@ -9,6 +9,7 @@ protoc --go_out=proto --proto_path=.. \
 ### curvefs/proto/heartbeat.proto 
 protoc --go_out=proto --proto_path=.. \
     --go_opt=Mproto/common.proto=github.com/opencurve/curve/tools-v2/proto/proto/common \
+    --go_opt=Mproto/scan.proto=github.com/opencurve/curve/tools-v2/proto/proto/scan \
     ../proto/heartbeat.proto
 
 ## curvefs
@@ -36,7 +37,7 @@ protoc --go_out=proto --proto_path=.. \
 protoc --go_out=proto --proto_path=.. \
     --go_opt=Mcurvefs/proto/common.proto=github.com/opencurve/curve/tools-v2/proto/curvefs/proto/common \
     --go_opt=Mcurvefs/proto/topology.proto=github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology \
-    ../curvefs/proto/metaserver.proto
+    ../curvefs/proto/mds.proto
 
 ### curvefs/proto/metaserver.proto 
 protoc --go_out=proto --proto_path=.. \

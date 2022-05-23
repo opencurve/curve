@@ -1,7 +1,7 @@
 global:
-  httpTimeoutMs: 5000
-  rpcTimeoutMs: 5
-  rpcRetryTimes: 3
+  httpTimeout: 500ms
+  rpcTimeout: 500ms
+  rpcRetryTimes: 1
   maxChannelSize: 4
   showError: false
 
