@@ -186,10 +186,6 @@ void GetOrModifyS3ChunkInfoOperator::OnApply(int64_t index,
     std::shared_ptr<StreamConnection> connection;
     std::shared_ptr<Iterator> iterator;
     auto streamServer = metastore->GetStreamServer();
-
-    VLOG(0) << "Apply GetOrModifyS3ChunkInfo, request: "
-            << request->ShortDebugString();
-
     {
         brpc::ClosureGuard doneGuard(done);
 
