@@ -275,6 +275,9 @@ var (
 	ErrMetaserverOffline = func() *CmdError {
 		return NewInternalCmdError(25, "metaserver[%s] is offline!")
 	}
+	ErrCheckPoolTopology = func() *CmdError {
+		return NewInternalCmdError(26, "pool[%s] is not in cluster nor in json file")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -359,6 +362,61 @@ var (
 			message = "ok"
 		default:
 			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListPool = func(statusCode topology.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("list topology err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListZone = func(statusCode topology.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("list Zone err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListServer = func(statusCode topology.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("list Server err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrDeleteTopology = func(statusCode topology.TopoStatusCode, topoType string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("delete %s err: %s", topoType, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrCreateTopology = func(statusCode topology.TopoStatusCode, topoType string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("create %s err: %s", topoType, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}

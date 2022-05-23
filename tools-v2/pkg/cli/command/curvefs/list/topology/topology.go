@@ -44,6 +44,7 @@ type ListTopologyRpc struct {
 	Info           *basecmd.Rpc
 	Request        *topology.ListTopologyRequest
 	topologyClient topology.TopologyServiceClient
+	Response       *topology.ListTopologyResponse
 }
 
 var _ basecmd.RpcFunc = (*ListTopologyRpc)(nil) // check interface
@@ -86,6 +87,18 @@ func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
 		return nil, nil, retErr
 	}
 	return listTopo.externalAddr, listTopo.internalAddr, cmderror.ErrSuccess()
+}
+
+func GetTopology() (*topology.ListTopologyResponse, *cmderror.CmdError) {
+	listTopo := NewListTopologyCommand()
+	listTopo.Cmd.SetArgs([]string{"--format", "noout"})
+	err := listTopo.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrGetMetaserverAddr()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+	return listTopo.Rpc.Response, cmderror.ErrSuccess()
 }
 
 func NewListTopologyCommand() *TopologyCommand {
@@ -131,6 +144,7 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	}
 	tCmd.Error = errCmd
 	topologyResponse := response.(*topology.ListTopologyResponse)
+	tCmd.Rpc.Response = topologyResponse
 	res, err := output.MarshalProtoJson(topologyResponse)
 	if err != nil {
 		return err
