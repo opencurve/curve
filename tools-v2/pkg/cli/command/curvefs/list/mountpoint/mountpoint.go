@@ -100,6 +100,13 @@ func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
 	fssInfo := info.GetFsInfo()
 	rows := make([]map[string]string, 0)
 	for _, fsInfo := range fssInfo {
+		if len(fsInfo.GetMountpoints()) == 0 {
+			row := make(map[string]string)
+			row["fs id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
+			row["fs name"] = fsInfo.GetFsName()
+			row["mount point"] = ""
+			rows = append(rows, row)
+		}
 		for _, mountpoint := range fsInfo.GetMountpoints() {
 			row := make(map[string]string)
 			row["fs id"] = fmt.Sprintf("%d", fsInfo.GetFsId())

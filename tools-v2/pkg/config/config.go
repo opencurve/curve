@@ -169,7 +169,7 @@ func GetAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.CmdE
 	return addrslice, cmderror.ErrSuccess()
 }
 
-func GetFsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError)  {
+func GetFsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetAddrSlice(cmd, CURVEFS_MDSADDR)
 }
 

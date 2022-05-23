@@ -37,8 +37,8 @@ import (
 
 type MdsCommand struct {
 	basecmd.FinalCurveCmd
-	metrics    []basecmd.Metric
-	rows       []map[string]string
+	metrics []basecmd.Metric
+	rows    []map[string]string
 }
 
 const (

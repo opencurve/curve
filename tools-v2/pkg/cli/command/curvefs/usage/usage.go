@@ -25,6 +25,7 @@ package query
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	inode "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage/inode"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage/metadata"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +36,10 @@ type UsageCommand struct {
 var _ basecmd.MidCurveCmdFunc = (*UsageCommand)(nil) // check interface
 
 func (usageCmd *UsageCommand) AddSubCommands() {
-	usageCmd.Cmd.AddCommand(inode.NewInodeNumCommand())
+	usageCmd.Cmd.AddCommand(
+		inode.NewInodeNumCommand(),
+		metadata.NewMetadataCommand(),
+	)
 }
 
 func NewUsageCommand() *cobra.Command {
