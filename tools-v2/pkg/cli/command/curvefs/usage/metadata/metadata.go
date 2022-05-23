@@ -39,7 +39,7 @@ import (
 )
 
 type MetadataRpc struct {
-	Info           basecmd.Rpc
+	Info           *basecmd.Rpc
 	Request        *topology.StatMetadataUsageRequest
 	topologyClient topology.TopologyServiceClient
 }
@@ -88,7 +88,7 @@ func (mCmd *MetadataCommand) Init(cmd *cobra.Command, args []string) error {
 	mCmd.Rpc.Request = &topology.StatMetadataUsageRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	mCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "StatMetadataUsage")
+	mCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "StatMetadataUsage")
 
 	table, err := gotable.Create("metaserverAddr", "total", "used", "left")
 	if err != nil {
@@ -103,8 +103,7 @@ func (mCmd *MetadataCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (mCmd *MetadataCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	response, errs := basecmd.GetRpcResponse(mCmd.Rpc.Info, &mCmd.Rpc)
-	errCmd := cmderror.MostImportantCmdError(errs)
+	response, errCmd := basecmd.GetRpcResponse(mCmd.Rpc.Info, &mCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}

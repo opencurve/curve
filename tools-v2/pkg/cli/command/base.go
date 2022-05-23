@@ -236,7 +236,7 @@ type RpcFunc interface {
 	Stub_Func(ctx context.Context) (interface{}, error)
 }
 
-func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []*cmderror.CmdError) {
+func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError) {
 	size := len(rpc.Addrs)
 	if size > config.MaxChannelSize() {
 		size = config.MaxChannelSize()
@@ -284,5 +284,47 @@ func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []*cmderror.CmdError
 			break
 		}
 	}
-	return ret, vecErrs
+	retErr := cmderror.MostImportantCmdError(vecErrs)
+	return ret, retErr
+}
+
+type RpcResult struct {
+	Response interface{}
+	Error *cmderror.CmdError
+}
+
+func GetRpcListResponse(rpcList []*Rpc, rpcFunc []RpcFunc) ([]interface{}, *cmderror.CmdError) {
+	chanSize := len(rpcList)
+	if chanSize > config.MaxChannelSize() {
+		chanSize = config.MaxChannelSize()
+	}
+	results := make(chan RpcResult, chanSize)
+	size := 0
+	for i := range rpcList {
+		size++
+		go func(rpc *Rpc, rpcFunc RpcFunc) {
+			res, err := GetRpcResponse(rpc, rpcFunc)
+			results <- RpcResult{res, err}
+		} (rpcList[i], rpcFunc[i])
+	}
+
+	count := 0
+	var retRes []interface{}
+	var vecErrs []*cmderror.CmdError
+	for res := range results {
+		if res.Error.TypeCode() != cmderror.CODE_SUCCESS {
+			// get fail
+			vecErrs = append(vecErrs, res.Error)
+		} else {
+			retRes = append(retRes, res.Response)
+		}
+
+		count++
+		if count >= size {
+			// get all rpc response
+			break
+		}
+	}
+	retErr := cmderror.MergeCmdError(vecErrs)
+	return retRes, &retErr
 }

@@ -202,6 +202,7 @@ func GetFsEtcdAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 // fs id [required]
 func AddFsIdFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSlice("fsid", nil, "fs Id, should be like 1 2 3 "+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired("fsid")
 	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -220,6 +221,7 @@ func AddFsIdOptionFlag(cmd *cobra.Command) {
 // fs name [required]
 func AddFsNameFlag(cmd *cobra.Command) {
 	cmd.Flags().String("fsname", "", "fs name"+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired("fsname")
 	err := viper.BindPFlag("curvefs.fsName", cmd.Flags().Lookup("fsname"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -229,6 +231,7 @@ func AddFsNameFlag(cmd *cobra.Command) {
 // mountpoint [required]
 func AddMountpointFlag(cmd *cobra.Command) {
 	cmd.Flags().String("mountpoint", "", "umount fs mountpoint"+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired("mountpoint")
 	err := viper.BindPFlag("curvefs.mountpoint", cmd.Flags().Lookup("mountpoint"))
 	if err != nil {
 		cobra.CheckErr(err)
