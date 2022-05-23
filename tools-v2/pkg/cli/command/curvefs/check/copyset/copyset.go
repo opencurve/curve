@@ -24,8 +24,10 @@ package copyset
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/liushuochen/gotable"
+	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -43,7 +45,8 @@ const (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
-	key2Copyset *map[uint64]*cobrautil.CopysetInfoStatus
+	key2Copyset       *map[uint64]*cobrautil.CopysetInfoStatus
+	copysetKey2Status *map[uint64]cobrautil.COPYSET_HEALTH_STATUS
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
@@ -57,6 +60,35 @@ func NewCopysetCommand() *cobra.Command {
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
 	return copysetCmd.Cmd
+}
+
+func NewCheckCopysetCommand() *CopysetCommand {
+	copysetCmd := &CopysetCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "copyset",
+			Short: "check copysets health in curvefs",
+		},
+	}
+	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
+	return copysetCmd
+}
+
+func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string) (interface{}, *table.Table, *cmderror.CmdError) {
+	checkCopyset := NewCheckCopysetCommand()
+	checkCopyset.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.CURVEFS_COPYSETID), copysetIds,
+		fmt.Sprintf("--%s", config.CURVEFS_POOLID), poolIds,
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, checkCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	checkCopyset.Cmd.SilenceUsage = true
+	err := checkCopyset.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrCheckCopyset()
+		retErr.Format(err.Error())
+		return checkCopyset.Result, checkCopyset.Table, retErr
+	}
+	return checkCopyset.Result, checkCopyset.Table, checkCopyset.Error
 }
 
 func (cCmd *CopysetCommand) AddFlags() {
@@ -79,6 +111,8 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	cCmd.Table = table
+	copysetKey2Status := make(map[uint64]cobrautil.COPYSET_HEALTH_STATUS)
+	cCmd.copysetKey2Status = &copysetKey2Status
 	return nil
 }
 
@@ -95,21 +129,24 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		if v == nil {
 			row[ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(cobrautil.COPYSET_NOTEXIST)]
 		} else {
-			status, errs := cobrautil.CheckCopySetHealth(v)
+			status, errsCheck := cobrautil.CheckCopySetHealth(v)
 			row[ROW_STATUS] = cobrautil.CopysetHealthStatus_Str[int32(status)]
 			if status != cobrautil.COPYSET_OK {
 				explain := "|"
-				for _, e := range errs {
+				for _, e := range errsCheck {
 					explain += fmt.Sprintf("%s|", e.Message)
+					errs = append(errs, e)
 				}
 				row[ROW_EXPLAIN] = explain
-
 			}
 		}
 		rows = append(rows, row)
 	}
 	retErr := cmderror.MergeCmdError(errs)
 	cCmd.Error = &retErr
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i][ROW_COPYSETKEY] < rows[j][ROW_COPYSETKEY]
+	})
 	cCmd.Table.AddRows(rows)
 	var err error
 	cCmd.Result, err = cobrautil.TableToResult(cCmd.Table)

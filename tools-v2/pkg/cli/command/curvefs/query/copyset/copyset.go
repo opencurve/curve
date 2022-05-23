@@ -255,6 +255,10 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 					rowNew["leader peer"] = row["leader peer"]
 					rowNew["epoch"] = row["epoch"]
 					rowNew["peer addr"] = addr
+					rowNew["status"] = "DNE"
+					rowNew["state"] = "DNE"
+					rowNew["term"] = "DNE"
+					rowNew["readonly"] = "DNE"
 					cCmd.Rows = append(cCmd.Rows, rowNew)
 				} else {
 					row["peer addr"] = addr
@@ -271,9 +275,6 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 		ret = append(ret, result.Error)
 		copysets := result.Request.GetCopysets()
 		copysetsStatus := result.Status.GetStatus()
-		if copysetsStatus == nil {
-			continue
-		}
 		for i := range copysets {
 			ret = append(ret, result.Error)
 			copysetInfo := copysets[i]
@@ -282,7 +283,10 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 			copysetKey := cobrautil.GetCopysetKey(uint64(poolId), uint64(copysetId))
 
 			copysetInfoStatus := cCmd.key2Copyset[copysetKey]
-			status := copysetsStatus[i]
+			var status *copyset.CopysetStatusResponse
+			if copysetsStatus != nil  {
+				status = copysetsStatus[i]
+			}
 			if copysetInfoStatus.Peer2Status == nil {
 				copysetInfoStatus.Peer2Status = make(map[string]*copyset.CopysetStatusResponse)
 			}
@@ -313,7 +317,6 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 			row["state"] = fmt.Sprintf("%d", copysetStatus.GetState())
 			row["term"] = fmt.Sprintf("%d", copysetStatus.GetTerm())
 			row["readonly"] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
-
 		}
 	}
 	return ret
@@ -328,7 +331,7 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 	queryCopyset := NewQueryCopysetCommand()
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
-		fmt.Sprintf("--%s", config.FORMATE), config.FORMAT_NOOUT,
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
 	cobrautil.AlignFlags(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
 	queryCopyset.Cmd.SilenceUsage = true

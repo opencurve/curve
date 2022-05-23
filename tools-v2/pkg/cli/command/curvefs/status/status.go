@@ -24,6 +24,7 @@ package status
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/copyset"
 	etcd "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/etcd"
 	mds "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/mds"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/metaserver"
@@ -41,6 +42,7 @@ func (statusCmd *StatusCommand) AddSubCommands() {
 		mds.NewMdsCommand(),
 		metaserver.NewMetaserverCommand(),
 		etcd.NewEtcdCommand(),
+		copyset.NewCopysetCommand(),
 	)
 }
 

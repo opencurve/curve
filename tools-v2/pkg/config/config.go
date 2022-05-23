@@ -38,7 +38,7 @@ var (
 )
 
 const (
-	FORMATE = "format"
+	FORMAT = "format"
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
 	VIPER_GLOBALE_HTTPTIMEOUT   = "global.httpTimeout"

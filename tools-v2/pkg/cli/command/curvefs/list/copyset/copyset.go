@@ -82,6 +82,17 @@ func NewCopysetCommand() *cobra.Command {
 	return copysetCmd.Cmd
 }
 
+func NewListCopysetCommand() *CopysetCommand {
+	copysetCmd := &CopysetCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:   "copyset",
+			Short: "list all copyset info of the curvefs",
+		},
+	}
+	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
+	return copysetCmd
+}
+
 func (cCmd *CopysetCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
@@ -161,3 +172,22 @@ func (cCmd *CopysetCommand) updateTable() {
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
 }
+<<<<<<< HEAD
+=======
+
+func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse, *cmderror.CmdError) {
+	listCopyset := NewListCopysetCommand()
+	listCopyset.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
+	})
+	cobrautil.AlignFlags(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	listCopyset.Cmd.SilenceUsage = true
+	err := listCopyset.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrListCopyset()
+		retErr.Format(err)
+		return nil, retErr
+	}
+	return listCopyset.response, cmderror.ErrSuccess()
+}
+>>>>>>> curve/tool: fs status copyset

@@ -74,7 +74,9 @@ func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
 	}
 	if viper.GetBool(config.VIPER_GLOBALE_SHOWERROR) {
 		for _, output := range cmderror.AllError {
-			fmt.Printf("%+v\n", *output)
+			if output.TypeCode() != cmderror.CODE_SUCCESS {
+				fmt.Printf("%+v\n", *output)
+			}
 		}
 	}
 	return err

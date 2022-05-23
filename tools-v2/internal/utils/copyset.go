@@ -23,6 +23,8 @@
 package cobrautil
 
 import (
+	"fmt"
+
 	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
@@ -126,11 +128,12 @@ func CheckCopySetHealth(copysetIS *CopysetInfoStatus) (COPYSET_HEALTH_STATUS, []
 		if opStatus == copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS && CopysetState_Avaliable[state] {
 			avalibalePeerNum++
 		} else if opStatus != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
-			err := cmderror.ErrOpCopysetPeer()
-			err.Format(opStatus)
+			err := cmderror.ErrCopysetOpStatus(opStatus)
+			key := GetCopysetKey(uint64(copysetIS.Info.GetPoolId()), uint64(copysetIS.Info.GetCopysetId()))
+			err.Message = fmt.Sprintf("copyset[%d] ", key) + err.Message
 			errs = append(errs, err)
 		} else {
-			err := cmderror.ErrOpCopysetPeer()
+			err := cmderror.ErrStateCopysetPeer()
 			err.Format(peer.String(), CopysetState_name[state])
 			errs = append(errs, err)
 		}
