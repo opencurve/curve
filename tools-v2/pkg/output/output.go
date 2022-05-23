@@ -28,30 +28,41 @@ import (
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/config"
+	"github.com/spf13/viper"
 )
 
-type CurveCliOutput struct {
-	Error  cmderror.CmdError `json:"error"`
-	Result string            `json:"result"`
-}
+const (
+	FORMAT_JSON  = "json"
+	FORMAT_PLAIN = "plain"
+)
 
-func FinalCmdOutputJsonString(finalCmd *basecmd.FinalCurveCmd) (string, error) {
-	output, err := json.MarshalIndent(CurveCliOutput{
-		Error:  finalCmd.Error,
-		Result: finalCmd.Result,
-	}, "", "	")
+func FinalCmdOutputJson(finalCmd *basecmd.FinalCurveCmd) error {
+	output, err := json.MarshalIndent(finalCmd, "", "  ")
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(output), nil
+	fmt.Println(string(output))
+	return nil
 }
 
-func FinalCmdOutputPlainString(finalCmd *basecmd.FinalCurveCmd,
-	funcs basecmd.FinalCurveCmdFunc) (string, error) {
-	ret, err := funcs.ResultPlainString()
-
-	if err != nil && finalCmd.Error.Code != 0 {
-		return ret, fmt.Errorf("%d\n%s", finalCmd.Error.Code, finalCmd.Error.Message)
+func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
+	funcs basecmd.FinalCurveCmdFunc) error {
+	format := viper.GetString("format")
+	finalCmd.Error = cmderror.MostImportantCmdError(finalCmd.AllError)
+	var err error
+	switch format {
+	case FORMAT_JSON:
+		err = FinalCmdOutputJson(finalCmd)
+	case FORMAT_PLAIN:
+		err = funcs.ResultPlainOutput()
+		if viper.GetBool(config.VIPER_GLOBALE_SHOWERROR) {
+			for _, output := range finalCmd.AllError {
+				fmt.Printf("%+v\n", output)
+			}
+		}
+	default:
+		err = nil
 	}
-	return ret, err
+	return err
 }
