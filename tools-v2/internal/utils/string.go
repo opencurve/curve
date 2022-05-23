@@ -69,7 +69,7 @@ func prompt(prompt string) string {
 }
 
 func AskConfirmation(promptStr string, confirm string) bool {
-	promptStr = promptStr + fmt.Sprintf("\ninput [%s] to confirm:", confirm)
+	promptStr = promptStr + fmt.Sprintf(", please input [%s] to confirm:", confirm)
 	ans := prompt(promptStr)
 	switch strings.TrimSpace(ans) {
 	case confirm:

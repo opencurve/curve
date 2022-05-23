@@ -219,6 +219,18 @@ var (
 	ErrMarShalProtoJson = func() *CmdError {
 		return NewInternalCmdError(10, "marshal proto to json error, the error is: %s")
 	}
+	ErrUnknownFsType = func() *CmdError {
+		return NewInternalCmdError(11, "unknown fs type: %s")
+	}
+	ErrAligned = func() *CmdError {
+		return NewInternalCmdError(12, "%s should aligned with %s")
+	}
+	ErrUnknownBitmapLocation = func() *CmdError {
+		return NewInternalCmdError(13, "unknown bitmap location: %s")
+	}
+	ErrParseBytes = func() *CmdError {
+		return NewInternalCmdError(14, "invalid %s: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -268,6 +280,21 @@ var (
 			message = "success"
 		case mds.FSStatusCode_NOT_FOUND:
 			message = "fs not found!"
+		default:
+			message = fmt.Sprintf("delete fs failed!, error is %s", code.String())
+		}
+		return NewRpcReultCmdError(statusCode, message)
+	}
+	ErrCreateFs = func(statusCode int) *CmdError {
+		var message string
+		code := mds.FSStatusCode(statusCode)
+		switch code {
+		case mds.FSStatusCode_OK:
+			message = "success"
+		case mds.FSStatusCode_FS_EXIST:
+			message = "fs exist, but s3 info is not inconsistent"
+		case mds.FSStatusCode_S3_INFO_ERROR:
+			message = "s3 info is not available"
 		default:
 			message = fmt.Sprintf("delete fs failed!, error is %s", code.String())
 		}

@@ -65,6 +65,63 @@ const (
 	VIPER_CURVEFS_PARTITIONID    = "curvefs.partitionid"
 	CURVEFS_NOCONFIRM            = "noconfirm"
 	VIPER_CURVEFS_NOCONFIRM      = "curvefs.noconfirm"
+	CURVEFS_USER                 = "user"
+	VIPER_CURVEFS_USER           = "curvefs.user"
+	CURVEFS_CAPACITY             = "capacity"
+	VIPER_CURVEFS_CAPACITY       = "curvefs.capacity"
+	CURVEFS_DEFAULT_CAPACITY     = "100 gib"
+	CURVEFS_BLOCKSIZE            = "blocksize"
+	VIPER_CURVEFS_BLOCKSIZE      = "curvefs.blocksize"
+	CURVEFS_DEFAULT_BLOCKSIZE    = "1 mib"
+	CURVEFS_SUMINDIR             = "sumindir"
+	VIPER_CURVEFS_SUMINDIR       = "curvefs.sumindir"
+	CURVEFS_DEFAULT_SUMINDIR     = false
+	CURVEFS_FSTYPE               = "fstype"
+	VIPER_CURVEFS_FSTYPE         = "curvefs.fstype"
+	// S3
+	CURVEFS_S3_AK                 = "s3.ak"
+	VIPER_CURVEFS_S3_AK           = "curvefs.s3.ak"
+	CURVEFS_DEFAULT_S3_AK         = "ak"
+	CURVEFS_S3_SK                 = "s3.sk"
+	VIPER_CURVEFS_S3_SK           = "curvefs.s3.sk"
+	CURVEFS_DEFAULT_S3_SK         = "sk"
+	CURVEFS_S3_ENDPOINT           = "s3.endpoint"
+	VIPER_CURVEFS_S3_ENDPOINT     = "curvefs.s3.endpoint"
+	CURVEFS_DEFAULT_ENDPOINT      = "http://localhost:9000"
+	CURVEFS_S3_BUCKETNAME         = "s3.bucketname"
+	VIPER_CURVEFS_S3_BUCKETNAME   = "curvefs.s3.bucketname"
+	CURVEFS_DEFAULT_S3_BUCKETNAME = "bucketname"
+	CURVEFS_S3_BLOCKSIZE          = "s3.blocksize"
+	VIPER_CURVEFS_S3_BLOCKSIZE     = "curvefs.s3.blocksize"
+	CURVEFS_DEFAULT_S3_BLOCKSIZE  = "4 mib"
+	CURVEFS_S3_CHUNKSIZE          = "s3.chunksize"
+	VIPER_CURVEFS_S3CHUNKSIZE     = "curvefs.s3.chunksize"
+	CURVEFS_DEFAULT_S3_CHUNKSIZE  = "64 mib"
+	// Volume
+	CURVEFS_VOLUME_SIZE                   = "volume.size"
+	VIPER_CURVEFS_VOLUME_SIZE             = "curvefs.volume.size"
+	CURVEFS_DEFAULT_VOLUME_SIZE           = "1 mib"
+	CURVEFS_VOLUME_BLOCKGROUPSIZE         = "volume.blockgroupsize"
+	VIPER_CURVEFS_VOLUME_BLOCKGROUPSIZE   = "curvefs.volume.blockgroupsize"
+	CURVEFS_DEFAULT_VOLUME_BLOCKGROUPSIZE = "128 mib"
+	CURVEFS_VOLUME_BLOCKSIZE              = "volume.blocksize"
+	VIPER_CURVEFS_VOLUME_BLOCKSIZE        = "curvefs.volume.blocksize"
+	CURVEFS_DEFAULT_VOLUME_BLOCKSIZE      = "4 kib"
+	CURVEFS_VOLUME_NAME                   = "volume.name"
+	VIPER_CURVEFS_VOLUME_NAME             = "curvefs.volume.name"
+	CURVEFS_DEFAULT_VOLUME_NAME           = "volume"
+	CURVEFS_VOLUME_USER                   = "volume.user"
+	VIPER_CURVEFS_VOLUME_USER             = "curvefs.volume.user"
+	CURVEFS_DEFAULT_VOLUME_USER           = "user"
+	CURVEFS_VOLUME_PASSWORD               = "volume.password"
+	VIPER_CURVEFS_VOLUME_PASSWORD         = "curvefs.volume.password"
+	CURVEFS_DEFAULT_VOLUME_PASSWORD       = "password"
+	CURVEFS_VOLUME_BITMAPLOCATION         = "volume.bitmaplocation"
+	VIPER_CURVEFS_VOLUME_BITMAPLOCATION   = "curvefs.volume.bitmaplocation"
+	CURVEFS_DEFAULT_VOLUME_BITMAPLOCATION = "AtStart"
+	CURVEFS_VOLUME_SLICESIZE              = "volume.slicesize"
+	VIPER_CURVEFS_VOLUME_SLICESIZE        = "curvefs.volume.slicesize"
+	CURVEFS_DEFAULT_VOLUME_SLICESIZE      = "1 gib"
 )
 
 var (
@@ -78,6 +135,48 @@ var (
 		CURVEFS_FSNAME:         VIPER_CURVEFS_FSNAME,
 		CURVEFS_MOUNTPOINT:     VIPER_CURVEFS_MOUNTPOINT,
 		CURVEFS_PARTITIONID:    VIPER_CURVEFS_PARTITIONID,
+		CURVEFS_NOCONFIRM:      VIPER_CURVEFS_NOCONFIRM,
+		CURVEFS_USER:           VIPER_CURVEFS_USER,
+		CURVEFS_CAPACITY:       VIPER_CURVEFS_CAPACITY,
+		CURVEFS_BLOCKSIZE:      VIPER_CURVEFS_BLOCKSIZE,
+		CURVEFS_SUMINDIR:       VIPER_CURVEFS_SUMINDIR,
+		CURVEFS_FSTYPE:         VIPER_CURVEFS_FSTYPE,
+		// S3
+		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
+		CURVEFS_S3_SK:         VIPER_CURVEFS_S3_SK,
+		CURVEFS_S3_ENDPOINT:   VIPER_CURVEFS_S3_ENDPOINT,
+		CURVEFS_S3_BUCKETNAME: VIPER_CURVEFS_S3_BUCKETNAME,
+		CURVEFS_S3_BLOCKSIZE:  VIPER_CURVEFS_S3_BLOCKSIZE,
+		CURVEFS_S3_CHUNKSIZE:  VIPER_CURVEFS_S3CHUNKSIZE,
+		// Volume
+		CURVEFS_VOLUME_SIZE:           VIPER_CURVEFS_VOLUME_SIZE,
+		CURVEFS_VOLUME_BLOCKGROUPSIZE: VIPER_CURVEFS_VOLUME_BLOCKGROUPSIZE,
+		CURVEFS_VOLUME_BLOCKSIZE:      VIPER_CURVEFS_VOLUME_BLOCKSIZE,
+		CURVEFS_VOLUME_NAME:           VIPER_CURVEFS_VOLUME_NAME,
+		CURVEFS_VOLUME_USER:           VIPER_CURVEFS_VOLUME_USER,
+		CURVEFS_VOLUME_PASSWORD:       VIPER_CURVEFS_VOLUME_PASSWORD,
+		CURVEFS_VOLUME_BITMAPLOCATION: VIPER_CURVEFS_VOLUME_BITMAPLOCATION,
+		CURVEFS_VOLUME_SLICESIZE:      VIPER_CURVEFS_VOLUME_SLICESIZE,
+	}
+
+	FLAG2DEFAULT = map[string]interface{}{
+		CURVEFS_SUMINDIR: CURVEFS_DEFAULT_SUMINDIR,
+		// S3
+		CURVEFS_S3_AK:         CURVEFS_DEFAULT_S3_AK,
+		CURVEFS_S3_SK:         CURVEFS_DEFAULT_S3_SK,
+		CURVEFS_S3_ENDPOINT:   CURVEFS_DEFAULT_ENDPOINT,
+		CURVEFS_S3_BUCKETNAME: CURVEFS_DEFAULT_S3_BUCKETNAME,
+		CURVEFS_S3_BLOCKSIZE:  CURVEFS_DEFAULT_S3_BLOCKSIZE,
+		CURVEFS_S3_CHUNKSIZE:  CURVEFS_DEFAULT_S3_CHUNKSIZE,
+		// Volume
+		CURVEFS_VOLUME_SIZE:           CURVEFS_DEFAULT_VOLUME_SIZE,
+		CURVEFS_VOLUME_BLOCKGROUPSIZE: CURVEFS_DEFAULT_VOLUME_BLOCKGROUPSIZE,
+		CURVEFS_VOLUME_BLOCKSIZE:      CURVEFS_DEFAULT_VOLUME_BLOCKSIZE,
+		CURVEFS_VOLUME_NAME:           CURVEFS_DEFAULT_VOLUME_NAME,
+		CURVEFS_VOLUME_USER:           CURVEFS_DEFAULT_VOLUME_USER,
+		CURVEFS_VOLUME_PASSWORD:       CURVEFS_DEFAULT_VOLUME_PASSWORD,
+		CURVEFS_VOLUME_BITMAPLOCATION: CURVEFS_DEFAULT_VOLUME_BITMAPLOCATION,
+		CURVEFS_VOLUME_SLICESIZE:      CURVEFS_DEFAULT_VOLUME_SLICESIZE,
 	}
 )
 
@@ -97,6 +196,23 @@ func InitConfig() {
 	// viper.SetDefault("format", "plain")
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err == nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddStringOptionFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().String(name, FLAG2DEFAULT[name].(string), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().String(name, FLAG2DEFAULT[name].(string), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
 		cobra.CheckErr(err)
 	}
 }
@@ -186,6 +302,36 @@ func GetAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.CmdE
 	return addrslice, cmderror.ErrSuccess()
 }
 
+func GetFlagString(cmd *cobra.Command, flagName string) string {
+	var value string
+	if cmd.Flag(flagName).Changed {
+		value = cmd.Flag(flagName).Value.String()
+	} else {
+		value = viper.GetString(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetFlagBool(cmd *cobra.Command, flagName string) bool {
+	var value bool
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetBool(flagName)
+	} else {
+		value = viper.GetBool(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetFlagUint64(cmd *cobra.Command, flagName string) uint64 {
+	var value uint64
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetUint64(flagName)
+	} else {
+		value = viper.GetUint64(FLAG2VIPER[flagName])
+	}
+	return value
+}
+
 func GetFsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetAddrSlice(cmd, CURVEFS_MDSADDR)
 }
@@ -254,7 +400,7 @@ func AddFsIdOptionDefaultAllFlag(cmd *cobra.Command) {
 }
 
 // fs id
-func AddFsIdOptionFlag(cmd *cobra.Command) {
+func AddFsIdSliceOptionFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSlice(CURVEFS_FSID, nil, "fs Id, should be like 1,2,3")
 	err := viper.BindPFlag(VIPER_CURVEFS_FSID, cmd.Flags().Lookup(CURVEFS_FSID))
 	if err != nil {
@@ -317,4 +463,119 @@ func AddNoConfirmOptionFlag(cmd *cobra.Command) {
 	if err != nil {
 		cobra.CheckErr(err)
 	}
+}
+
+// User [option]
+func AddUserOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS_USER, "anonymous", "user of request")
+	err := viper.BindPFlag(VIPER_CURVEFS_USER, cmd.Flags().Lookup(CURVEFS_USER))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// Capacity [option]
+func AddCapacityOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS_CAPACITY, CURVEFS_DEFAULT_CAPACITY, "capacity of fs")
+	err := viper.BindPFlag(VIPER_CURVEFS_CAPACITY, cmd.Flags().Lookup(CURVEFS_CAPACITY))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// BlockSize [option]
+func AddBlockSizeOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS_BLOCKSIZE, CURVEFS_DEFAULT_BLOCKSIZE, "block size")
+	err := viper.BindPFlag(VIPER_CURVEFS_BLOCKSIZE, cmd.Flags().Lookup(CURVEFS_BLOCKSIZE))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// SumInDir [option]
+func AddSumInDIrOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool(CURVEFS_SUMINDIR, false, "statistic info in xattr")
+	err := viper.BindPFlag(VIPER_CURVEFS_SUMINDIR, cmd.Flags().Lookup(CURVEFS_SUMINDIR))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// Fsype [option]
+func AddFsTypeOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS_FSTYPE, "s3", "fs type, should be: s3, volume or hybrid")
+	err := viper.BindPFlag(VIPER_CURVEFS_FSTYPE, cmd.Flags().Lookup(CURVEFS_FSTYPE))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// S3.Ak [option]
+func AddS3AkOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_S3_AK, "s3 ak")
+}
+
+// S3.Sk [option]
+func AddS3SkOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_S3_SK, "s3 sk")
+}
+
+// S3.Endpoint [option]
+func AddS3EndpointOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_S3_ENDPOINT, "s3 endpoint")
+}
+
+// S3.Buckname [option]
+func AddS3BucknameOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_S3_BUCKETNAME, "s3 buckname")
+}
+
+// S3.Blocksize [option]
+func AddS3BlocksizeOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_S3_BLOCKSIZE, "s3 blocksize")
+}
+
+// S3.Chunksize [option]
+func AddS3ChunksizeOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_S3_CHUNKSIZE, "s3 chunksize")
+}
+
+// volume.size [option]
+func AddVolumeSizeOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_SIZE, "volume size")
+}
+
+// volume.blockgroupsize [option]
+func AddVolumeBlockgroupsizeOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_BLOCKGROUPSIZE, "volume block group size")
+}
+
+// volume.blocksize [option]
+func AddVolumeBlocksizeOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_BLOCKSIZE, "volume blocksize")
+}
+
+// volume.name [option]
+func AddVolumeNameOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_NAME, "volume name")
+}
+
+// volume.user [option]
+func AddVolumeUserOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_USER, "volume user")
+}
+
+// volume.password [option]
+func AddVolumePasswordOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_PASSWORD, "volume password")
+}
+
+// volume.bitmaplocation [option]
+func AddVolumeBitmaplocationOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_BITMAPLOCATION, "volume space bitmap location, support |AtStart| and |AtEnd|")
+}
+
+// volume.slicesize [option]
+func AddVolumeSlicesizeOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_VOLUME_SLICESIZE, "volume extents slice size")
 }
