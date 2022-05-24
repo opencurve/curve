@@ -71,7 +71,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     } else {
         ret = s3Adaptor_->Init(opt.s3Opt.s3ClientAdaptorOpt, s3Client,
                                inodeManager_, mdsClient_, fsCacheManager,
-                               nullptr);
+                               nullptr, true);
     }
 
     return ret;
