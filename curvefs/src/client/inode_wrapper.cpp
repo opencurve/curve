@@ -438,7 +438,7 @@ CURVEFS_ERROR InodeWrapper::Sync() {
         case FsFileType::TYPE_FILE:
             return FlushVolumeExtent();
         default:
-            return CURVEFS_ERROR::INVALIDPARAM;
+            return CURVEFS_ERROR::OK;
     }
 }
 
@@ -453,7 +453,7 @@ void InodeWrapper::FlushAsync() {
         case FsFileType::TYPE_FILE:
             return FlushVolumeExtentAsync();
         default:
-            CHECK(false) << "unexpected inode type: " << inode_.type();
+            break;
     }
 }
 
