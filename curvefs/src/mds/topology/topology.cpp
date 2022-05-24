@@ -548,7 +548,6 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
                     return TopoStatusCode::TOPO_STORGE_FAIL;
                 }
                 partitionMap_[id] = data;
-                it->second.AddPartitionNum();
                 it->second.AddPartitionId(id);
                 it->second.SetDirtyFlag(true);
                 return TopoStatusCode::TOPO_OK;
@@ -574,7 +573,7 @@ TopoStatusCode TopologyImpl::RemovePartition(PartitionIdType id) {
         CopySetKey key(it->second.GetPoolId(), it->second.GetCopySetId());
         auto ix = copySetMap_.find(key);
         if (ix != copySetMap_.end()) {
-            ix->second.ReducePartitionNum();
+            ix->second.RemovePartitionId(id);
         }
         partitionMap_.erase(it);
         return TopoStatusCode::TOPO_OK;
@@ -1065,7 +1064,6 @@ TopoStatusCode TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
         WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
         it->second.SetLeader(data.GetLeader());
         it->second.SetEpoch(data.GetEpoch());
-        it->second.SetPartitionNum(data.GetPartitionNum());
         it->second.SetCopySetMembers(data.GetCopySetMembers());
         it->second.SetDirtyFlag(true);
         if (data.HasCandidate()) {

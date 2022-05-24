@@ -176,7 +176,9 @@ class CopysetNode : public braft::StateMachine {
 
  public:
     // for heartbeat
-    std::list<PartitionInfo> GetPartitionInfoList();
+    bool GetPartitionInfoList(std::list<PartitionInfo> *partitionInfoList);
+
+    bool IsLoading() const;
 
  private:
     void InitRaftNodeOptions();
@@ -229,6 +231,8 @@ class CopysetNode : public braft::StateMachine {
     OngoingConfChange ongoingConfChange_;
 
     std::unique_ptr<OperatorApplyMetric> metric_;
+
+    std::atomic<bool> isLoading_;
 };
 
 inline void CopysetNode::Propose(const braft::Task& task) {
@@ -285,6 +289,24 @@ inline int64_t CopysetNode::LatestLoadSnapshotIndex() const {
 }
 
 inline const braft::PeerId& CopysetNode::GetPeerId() const { return peerId_; }
+
+inline bool CopysetNode::IsLoading() const {
+    return isLoading_.load(std::memory_order_acquire);
+}
+
+class CopysetLoadingGuard {
+ public:
+    explicit CopysetLoadingGuard(std::atomic_bool& flag) : flag_(flag) {
+        flag_.store(true, std::memory_order_release);
+    }
+
+    ~CopysetLoadingGuard() {
+        flag_.store(false, std::memory_order_release);
+    }
+
+ private:
+    std::atomic_bool& flag_;
+};
 
 }  // namespace copyset
 }  // namespace metaserver

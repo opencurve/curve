@@ -159,7 +159,11 @@ void HeartbeatManager::MetaServerHeartbeat(
         // if a copyset is the leader, update (e.g. epoch) topology according
         // to its info
         if (request.metaserverid() == reportCopySetInfo.GetLeader()) {
-            topoUpdater_->UpdateTopo(reportCopySetInfo, partitionList);
+            topoUpdater_->UpdateCopysetTopo(reportCopySetInfo);
+            if (!value.has_iscopysetloading() || !value.iscopysetloading()) {
+                topoUpdater_->UpdatePartitionTopo(reportCopySetInfo.GetId(),
+                                                  partitionList);
+            }
         }
     }
 }
@@ -236,8 +240,6 @@ bool HeartbeatManager::TransformHeartbeatCopySetInfoToTopologyOne(
 
     // set leader
     topoCopysetInfo.SetLeader(leader);
-
-    topoCopysetInfo.SetPartitionNum(info.partitioninfolist_size());
 
     // set info of configuration changes
     if (info.configchangeinfo().IsInitialized()) {

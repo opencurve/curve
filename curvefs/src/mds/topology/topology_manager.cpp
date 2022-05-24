@@ -946,13 +946,8 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
         info->set_end(partition.GetIdEnd());
         info->set_txid(partition.GetTxId());
         info->set_status(partition.GetStatus());
-        if (partition.GetInodeNum() != UNINITIALIZE_COUNT) {
-            info->set_inodenum(partition.GetInodeNum());
-        }
-
-        if (partition.GetDentryNum() != UNINITIALIZE_COUNT) {
-            info->set_dentrynum(partition.GetDentryNum());
-        }
+        info->set_inodenum(partition.GetInodeNum());
+        info->set_dentrynum(partition.GetDentryNum());
     }
 }
 

@@ -45,7 +45,7 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                                                  CreatePartitionResponse*));
     MOCK_METHOD2(DeletePartition, MetaStatusCode(const DeletePartitionRequest*,
                                                  DeletePartitionResponse*));
-    MOCK_METHOD0(GetPartitionInfoList, std::list<PartitionInfo>());
+    MOCK_METHOD1(GetPartitionInfoList, bool(std::list<PartitionInfo> *));
 
     MOCK_METHOD2(CreateDentry, MetaStatusCode(const CreateDentryRequest*,
                                               CreateDentryResponse*));

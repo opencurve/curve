@@ -219,7 +219,6 @@ bool CopySetInfo::SerializeToString(std::string *value) const {
     data.set_copysetid(copySetId_);
     data.set_poolid(poolId_);
     data.set_epoch(epoch_);
-    data.set_partitionnumber(partitionNum_);
     for (MetaServerIdType msId : peers_) {
         data.add_metaserverids(msId);
     }
@@ -233,7 +232,6 @@ bool CopySetInfo::ParseFromString(const std::string &value) {
     poolId_ = data.poolid();
     copySetId_ = data.copysetid();
     epoch_ = data.epoch();
-    partitionNum_ = data.partitionnumber();
     if (data.has_availflag()) {
         available_ = data.availflag();
     } else {
@@ -285,13 +283,8 @@ common::PartitionInfo Partition::ToPartitionInfo() {
     info.set_end(idEnd_);
     info.set_txid(txId_);
     info.set_status(status_);
-    if (inodeNum_ != UNINITIALIZE_COUNT) {
-        info.set_inodenum(inodeNum_);
-    }
-
-    if (dentryNum_ != UNINITIALIZE_COUNT) {
-        info.set_dentrynum(dentryNum_);
-    }
+    info.set_inodenum(inodeNum_);
+    info.set_dentrynum(dentryNum_);
     return info;
 }
 

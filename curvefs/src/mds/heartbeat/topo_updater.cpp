@@ -29,13 +29,6 @@ namespace mds {
 namespace heartbeat {
 using curvefs::mds::topology::TopoStatusCode;
 
-void TopoUpdater::UpdateTopo(
-    const ::curvefs::mds::topology::CopySetInfo& reportCopySetInfo,
-    const std::list<::curvefs::mds::topology::Partition>& partitionList) {
-    UpdateCopysetTopo(reportCopySetInfo);
-    UpdatePartitionTopo(reportCopySetInfo.GetId(), partitionList);
-}
-
 void TopoUpdater::UpdateCopysetTopo(
     const ::curvefs::mds::topology::CopySetInfo& reportCopySetInfo) {
     curvefs::mds::topology::CopySetInfo recordCopySetInfo;
@@ -96,18 +89,6 @@ void TopoUpdater::UpdateCopysetTopo(
                        << ", but epoch is same: "
                        << recordCopySetInfo.GetEpoch();
             return;
-        }
-
-        if (reportCopySetInfo.GetPartitionNum() !=
-            recordCopySetInfo.GetPartitionNum()) {
-            LOG(WARNING) << "copyset(" << reportCopySetInfo.GetPoolId() << ","
-                         << reportCopySetInfo.GetId()
-                         << "), partitionNum in topogy = "
-                         << recordCopySetInfo.GetPartitionNum()
-                         << ", partitionNum in hearbeat = "
-                         << reportCopySetInfo.GetPartitionNum()
-                         << ", need update in topo";
-            needUpdate = true;
         }
 
         // no configuration changes in heartbeat report (no candidate)

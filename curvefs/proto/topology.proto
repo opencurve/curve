@@ -100,7 +100,8 @@ message CopysetData {
     required uint32 PoolId = 2;
     required uint64 epoch = 3;
     repeated uint32 MetaServerIds = 4;
-    required uint32 PartitionNumber = 5;
+    // delete PartitionNumber, for compatibility reasons, don't use number 5
+    // required uint32 PartitionNumber = 5;
     optional bool availFlag = 6;
 }
 

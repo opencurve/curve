@@ -84,7 +84,8 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       latestLoadSnapshotIndex_(0),
       confChangeMtx_(),
       ongoingConfChange_(),
-      metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)) {}
+      metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)),
+      isLoading_(false) {}
 
 CopysetNode::~CopysetNode() {
     Stop();
@@ -351,6 +352,7 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
     LOG(INFO) << "Copyset " << name_ << " begin to load snapshot from '"
               << reader->get_path() << "'";
 
+    CopysetLoadingGuard guard(isLoading_);
     // load conf
     std::string confFile = reader->get_path() + "/" + kConfEpochFilename;
     if (options_.localFileSystem->FileExists(confFile)) {
@@ -383,7 +385,6 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
     reader->load_meta(&meta);
     auto prevIndex =
         absl::exchange(latestLoadSnapshotIndex_, meta.last_included_index());
-
     LOG(INFO) << "Copyset " << name_ << " load snapshot from '"
               << reader->get_path()
               << "' success, update load snapshot index from " << prevIndex
@@ -540,8 +541,25 @@ void CopysetNode::ListPeers(std::vector<Peer>* peers) const {
     }
 }
 
-std::list<PartitionInfo> CopysetNode::GetPartitionInfoList() {
-    return metaStore_->GetPartitionInfoList();
+// if copyset is loading, return false;
+// if copyset is not loading, and metastore returns fales, retry;
+// if copyset is not loading, and metastore returns true, return true and get
+// partition info list success.
+bool CopysetNode::GetPartitionInfoList(
+                    std::list<PartitionInfo> *partitionInfoList) {
+    uint32_t retryCount = 0;
+    while (true) {
+        if (IsLoading()) {
+            LOG(INFO) << "Copyset is loading, return empty partition list";
+            return false;
+        }
+        bool ret = metaStore_->GetPartitionInfoList(partitionInfoList);
+        if (ret) {
+            return true;
+        }
+        LOG(WARNING) << "Copyset is not loading, but GetPartitionInfoList fail,"
+                     << " retryCount = " << retryCount++;
+    }
 }
 
 void CopysetNode::OnConfChangeComplete() {

@@ -1624,6 +1624,7 @@ TEST_F(TestTopology, GetAvailableCopyset_success) {
     CopySetIdType csId = 0x51;
     CopySetIdType csId2 = 0x52;
     CopySetIdType csId3 = 0x53;
+    FsIdType fsId = 0x1;
 
     PrepareAddPool(poolId);
     PrepareAddZone(zoneId);
@@ -1641,7 +1642,10 @@ TEST_F(TestTopology, GetAvailableCopyset_success) {
     int num1 = topology_->GetAvailableCopysetNum();
     ASSERT_EQ(num1, 1);
 
-    data.SetPartitionNum(256);
+    for (int i = 0; i < 256; i++) {
+        PrepareAddPartition(fsId, poolId, csId, i, 1, 100);
+    }
+
     ASSERT_EQ(TopoStatusCode::TOPO_OK, topology_->UpdateCopySetTopo(data));
     ret = topology_->GetAvailableCopyset(&data);
     ASSERT_EQ(false, ret);
