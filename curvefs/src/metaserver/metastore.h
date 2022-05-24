@@ -96,7 +96,8 @@ class MetaStore {
         const DeletePartitionRequest* request,
         DeletePartitionResponse* response) = 0;
 
-    virtual std::list<PartitionInfo> GetPartitionInfoList() = 0;
+    virtual bool GetPartitionInfoList(
+                            std::list<PartitionInfo> *partitionInfoList) = 0;
 
     virtual std::shared_ptr<StreamServer> GetStreamServer() = 0;
 
@@ -175,7 +176,8 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode DeletePartition(const DeletePartitionRequest* request,
                                    DeletePartitionResponse* response) override;
 
-    std::list<PartitionInfo> GetPartitionInfoList() override;
+    bool GetPartitionInfoList(
+                        std::list<PartitionInfo> *partitionInfoList) override;
 
     std::shared_ptr<StreamServer> GetStreamServer() override;
 

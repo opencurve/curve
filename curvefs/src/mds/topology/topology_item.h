@@ -473,7 +473,6 @@ class CopySetInfo {
           copySetId_(UNINITIALIZE_ID),
           leader_(UNINITIALIZE_ID),
           epoch_(0),
-          partitionNum_(0),
           hasCandidate_(false),
           candidate_(UNINITIALIZE_ID),
           dirty_(false),
@@ -484,7 +483,6 @@ class CopySetInfo {
           copySetId_(id),
           leader_(UNINITIALIZE_ID),
           epoch_(0),
-          partitionNum_(0),
           hasCandidate_(false),
           candidate_(UNINITIALIZE_ID),
           dirty_(false),
@@ -496,7 +494,7 @@ class CopySetInfo {
           leader_(v.leader_),
           epoch_(v.epoch_),
           peers_(v.peers_),
-          partitionNum_(v.partitionNum_),
+          partitionIds_(v.partitionIds_),
           hasCandidate_(v.hasCandidate_),
           candidate_(v.candidate_),
           dirty_(v.dirty_),
@@ -511,7 +509,7 @@ class CopySetInfo {
         leader_ = v.leader_;
         epoch_ = v.epoch_;
         peers_ = v.peers_;
-        partitionNum_ = v.partitionNum_;
+        partitionIds_ = v.partitionIds_;
         hasCandidate_ = v.hasCandidate_;
         candidate_ = v.candidate_;
         dirty_ = v.dirty_;
@@ -551,13 +549,7 @@ class CopySetInfo {
 
     bool SetCopySetMembersByJson(const std::string &jsonStr);
 
-    uint64_t GetPartitionNum() const { return partitionNum_; }
-
-    void SetPartitionNum(u_int64_t number) { partitionNum_ = number; }
-
-    void AddPartitionNum() { partitionNum_ += 1; }
-
-    void ReducePartitionNum() { partitionNum_ -= 1; }
+    uint64_t GetPartitionNum() const { return partitionIds_.size(); }
 
     bool HasCandidate() const { return hasCandidate_; }
 
@@ -592,6 +584,8 @@ class CopySetInfo {
 
     void AddPartitionId(const PartitionIdType &id) { partitionIds_.insert(id); }
 
+    void RemovePartitionId(PartitionIdType id) { partitionIds_.erase(id); }
+
     const std::set<PartitionIdType> &GetPartitionIds() const {
         return partitionIds_;
     }
@@ -602,8 +596,6 @@ class CopySetInfo {
     MetaServerIdType leader_;
     EpochType epoch_;
     std::set<MetaServerIdType> peers_;
-    // TODO(chengyi01): replace it whith partitionIds.size()
-    uint64_t partitionNum_;
     std::set<PartitionIdType> partitionIds_;
     bool hasCandidate_;
     MetaServerIdType candidate_;
@@ -644,8 +636,8 @@ class Partition {
           idEnd_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
-          inodeNum_(UNINITIALIZE_COUNT),
-          dentryNum_(UNINITIALIZE_COUNT) {
+          inodeNum_(0),
+          dentryNum_(0) {
         InitFileType2InodeNum();
     }
 
@@ -659,8 +651,8 @@ class Partition {
           idEnd_(idEnd),
           txId_(0),
           status_(PartitionStatus::READWRITE),
-          inodeNum_(UNINITIALIZE_COUNT),
-          dentryNum_(UNINITIALIZE_COUNT) {
+          inodeNum_(0),
+          dentryNum_(0) {
         InitFileType2InodeNum();
     }
 
@@ -704,8 +696,8 @@ class Partition {
         idEnd_ = v.end();
         txId_ = v.txid();
         status_ = v.status();
-        inodeNum_ = v.has_inodenum() ? v.inodenum() : UNINITIALIZE_COUNT;
-        dentryNum_ = v.has_dentrynum() ? v.dentrynum() : UNINITIALIZE_COUNT;
+        inodeNum_ = v.has_inodenum() ? v.inodenum() : 0;
+        dentryNum_ = v.has_dentrynum() ? v.dentrynum() : 0;
         for (auto const& i : v.filetype2inodenum()) {
             fileType2InodeNum_.emplace(static_cast<FileType>(i.first),
                                        i.second);

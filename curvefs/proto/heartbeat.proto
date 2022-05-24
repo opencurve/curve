@@ -37,7 +37,8 @@ message CopySetInfo {
     required common.Peer leaderPeer = 5;
     repeated common.PartitionInfo partitionInfoList = 6;
     optional ConfigChangeInfo configChangeInfo = 7;
-    // required CopySetState state = 8;
+    optional bool isCopysetLoading = 8;
+    // required CopySetState state = 9;
 };
 
 message ConfigChangeInfo {

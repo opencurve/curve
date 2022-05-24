@@ -41,24 +41,25 @@ class TopoUpdater {
     ~TopoUpdater() {}
 
     /*
-     * @brief UpdateTopo this function will be called by leader copyset
+     * @brief UpdateCopysetTopo this function will be called by leader copyset
      *                   for updating copyset epoch, replicas relationship and
-     *                   statistical data according to reportCopySetInfo and
-     *                   partition info
+     *                   statistical data according to reportCopySetInfo
      * @param[in] reportCopySetInfo copyset info reported by metaserver
+     */
+    void UpdateCopysetTopo(
+        const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo);
+
+    /*
+     * @brief UpdatePartitionTopo this function will be called by leader copyset
+     *                   for updating partition info
      * @param[in] partitionList partition info list reported by metaserver
      */
-    void UpdateTopo(
-        const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo,
+    void UpdatePartitionTopo(
+        CopySetIdType copySetId,
         const std::list<::curvefs::mds::topology::Partition> &partitionList);
 
  public:
     // public for test
-    void UpdateCopysetTopo(
-        const ::curvefs::mds::topology::CopySetInfo &reportCopySetInfo);
-    void UpdatePartitionTopo(
-        CopySetIdType copySetId,
-        const std::list<::curvefs::mds::topology::Partition> &partitionList);
     bool CanPartitionStatusChange(PartitionStatus statusInTopo,
                                   PartitionStatus statusInHeartbeat);
 

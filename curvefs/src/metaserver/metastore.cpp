@@ -175,16 +175,26 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
     return MetaStatusCode::PARTITION_DELETING;
 }
 
-std::list<PartitionInfo> MetaStoreImpl::GetPartitionInfoList() {
-    std::list<PartitionInfo> partitionInfoList;
-    ReadLockGuard readLockGuard(rwLock_);
-    for (const auto& it : partitionMap_) {
-        PartitionInfo partitionInfo = it.second->GetPartitionInfo();
-        partitionInfo.set_inodenum(it.second->GetInodeNum());
-        partitionInfo.set_dentrynum(it.second->GetDentryNum());
-        partitionInfoList.push_back(std::move(partitionInfo));
+bool MetaStoreImpl::GetPartitionInfoList(
+                                std::list<PartitionInfo> *partitionInfoList) {
+    // when metastore is loading, it will hold the rwLock_ for a long time.
+    // and heartbeat will stuck when try to GetPartitionInfoList if use
+    // ReadLockGuard to get the rwLock_
+    int ret = rwLock_.TryRDLock();
+    if (ret == 0) {
+        for (const auto& it : partitionMap_) {
+            PartitionInfo partitionInfo = it.second->GetPartitionInfo();
+            partitionInfo.set_inodenum(it.second->GetInodeNum());
+            partitionInfo.set_dentrynum(it.second->GetDentryNum());
+            partitionInfoList->push_back(std::move(partitionInfo));
+        }
+        rwLock_.Unlock();
+        return true;
+    } else {
+        LOG(WARNING) << "metastore GetPartitionInfoList fail, it fail to get"
+                        " the rwLock_";
+        return false;
     }
-    return partitionInfoList;
 }
 
 
