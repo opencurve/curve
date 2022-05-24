@@ -31,6 +31,11 @@ namespace client {
 
 using curve::common::GetObjectAsyncContext;
 using curve::common::PutObjectAsyncContext;
+
+namespace common {
+DECLARE_bool(useFakeS3);
+}  // namespace common
+
 class S3Client {
  public:
     S3Client() {}
@@ -50,7 +55,13 @@ class S3Client {
 class S3ClientImpl : public S3Client {
  public:
     S3ClientImpl() : S3Client() {
-        s3Adapter_ = std::make_shared<curve::common::S3Adapter>();
+        if (curvefs::client::common::FLAGS_useFakeS3) {
+            s3Adapter_ = std::make_shared<curve::common::FakeS3Adapter>();
+            LOG(INFO) << "use fake S3";
+        } else {
+            s3Adapter_ = std::make_shared<curve::common::S3Adapter>();
+            LOG(INFO) << "use S3";
+        }
     }
     virtual ~S3ClientImpl() {}
     void Init(const curve::common::S3AdapterOption& option);

@@ -22,8 +22,8 @@
 #include "curvefs/src/client/s3/client_s3.h"
 
 namespace curvefs {
-
 namespace client {
+
 void S3ClientImpl::Init(const curve::common::S3AdapterOption &option) {
     s3Adapter_->Init(option);
 }
