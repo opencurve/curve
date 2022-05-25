@@ -525,8 +525,6 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
         uint64_t inodeId = *it.begin();
         auto task = RPCTask {
             metaserverClientMetric_->batchGetInodeAttr.qps.count << 1;
-            LatencyUpdater updater(
-                &metaserverClientMetric_->batchGetInodeAttr.latency);
             BatchGetInodeAttrRequest request;
             BatchGetInodeAttrResponse response;
             request.set_poolid(poolID);
@@ -603,8 +601,6 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
         uint64_t inodeId = *it.begin();
         auto task = RPCTask {
             metaserverClientMetric_->batchGetXattr.qps.count << 1;
-            LatencyUpdater updater(
-                &metaserverClientMetric_->batchGetXattr.latency);
             BatchGetXAttrRequest request;
             BatchGetXAttrResponse response;
             request.set_poolid(poolID);
