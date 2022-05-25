@@ -32,12 +32,9 @@ namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-using ::curvefs::metaserver::storage::InitStorage;
-using ::curvefs::metaserver::storage::GetStorageInstance;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::MemoryStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::StorageStatistics;
 using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
 
 class MemoryStorageTest : public testing::Test {
@@ -61,25 +58,6 @@ class MemoryStorageTest : public testing::Test {
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<KVStorage> kvStorage2_;
 };
-
-TEST_F(MemoryStorageTest, BasicTest) {
-    ASSERT_EQ(kvStorage_->Type(), STORAGE_TYPE::MEMORY_STORAGE);
-    ASSERT_TRUE(kvStorage_->Open());
-    ASSERT_TRUE(kvStorage_->Close());
-
-    options_.type = "memory";
-    InitStorage(options_);
-    ASSERT_EQ(GetStorageInstance()->Type(), STORAGE_TYPE::MEMORY_STORAGE);
-}
-
-TEST_F(MemoryStorageTest, GetStatisticsTest) {
-    StorageStatistics statistics;
-    ASSERT_TRUE(kvStorage_->GetStatistics(&statistics));
-    ASSERT_EQ(statistics.maxMemoryQuotaBytes, options_.maxMemoryQuotaBytes);
-    ASSERT_EQ(statistics.maxDiskQuotaBytes, options_.maxDiskQuotaBytes);
-    ASSERT_GT(statistics.memoryUsageBytes, 0);
-    ASSERT_GT(statistics.diskUsageBytes, 0);
-}
 
 TEST_F(MemoryStorageTest, HGetTest) { TestHGet(kvStorage_);
                                       TestHGet(kvStorage2_);}

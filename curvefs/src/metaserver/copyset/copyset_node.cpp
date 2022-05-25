@@ -57,10 +57,11 @@ namespace copyset {
 
 using ::curve::common::TimeUtility;
 using ::curve::common::UriParser;
-using ::curvefs::metaserver::storage::GetStorageInstance;
 
-const char* kConfEpochFilename = "conf.epoch";
-const char* kMetaDataFilename = "metadata";
+namespace {
+const char* const kConfEpochFilename = "conf.epoch";
+const char* const kStorageDataPath = "storage_data";
+}  // namespace
 
 CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
                          const braft::Configuration& conf,
@@ -108,6 +109,13 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
 
     copysetDataPath_ = copysetDataPath_ + "/" + groupId_;
 
+    int ret = options_.localFileSystem->Mkdir(copysetDataPath_);
+    if (ret != 0) {
+        LOG(ERROR) << "Failed to create copyset dir `" << copysetDataPath_
+                   << "`, error: " << berror();
+        return false;
+    }
+
     epochFile_ = absl::make_unique<ConfEpochFile>(options_.localFileSystem);
 
     // init apply queue
@@ -117,8 +125,15 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
         return false;
     }
 
+    options_.storageOptions.dataDir = copysetDataPath_ + "/" + kStorageDataPath;
+
     // create metastore
-    metaStore_ = absl::make_unique<MetaStoreImpl>(this, GetStorageInstance());
+    options_.storageOptions.localFileSystem = options_.localFileSystem;
+    metaStore_ = MetaStoreImpl::Create(this, options_.storageOptions);
+    if (metaStore_ == nullptr) {
+        LOG(ERROR) << "Failed to create meta store";
+        return false;
+    }
 
     InitRaftNodeOptions();
 
@@ -159,7 +174,8 @@ void CopysetNode::Stop() {
     }
 
     if (metaStore_) {
-        metaStore_->Clear();
+        LOG_IF(ERROR, metaStore_->Clear() != true)
+            << "Failed to clear metastore, copyset: " << name_;
     }
 }
 
@@ -265,6 +281,8 @@ void CopysetNode::on_shutdown() {
     LOG(INFO) << "Copyset: " << name_ << " is shutdown";
 }
 
+namespace {
+
 class OnSnapshotSaveDoneClosureImpl : public OnSnapshotSaveDoneClosure {
  public:
     OnSnapshotSaveDoneClosureImpl(CopysetNode* node,
@@ -276,10 +294,6 @@ class OnSnapshotSaveDoneClosureImpl : public OnSnapshotSaveDoneClosure {
     void Run() override {
         std::unique_ptr<OnSnapshotSaveDoneClosureImpl> selfGuard(this);
         brpc::ClosureGuard doneGuard(snapDone_);
-
-        if (ctx_->success) {
-            writer_->add_file(kMetaDataFilename);
-        }
 
         RaftSnapshotMetric::GetInstance().OnSnapshotSaveDone(ctx_);
     }
@@ -298,12 +312,18 @@ class OnSnapshotSaveDoneClosureImpl : public OnSnapshotSaveDoneClosure {
                    << MetaStatusCode_Name(code);
     }
 
+    braft::SnapshotWriter* GetSnapshotWriter() const override {
+        return writer_;
+    }
+
  private:
     CopysetNode* node_;
     braft::SnapshotWriter* writer_;
     braft::Closure* snapDone_;
     RaftSnapshotMetric::MetricContext* ctx_;
 };
+
+}  // namespace
 
 void CopysetNode::on_snapshot_save(braft::SnapshotWriter* writer,
                                    braft::Closure* done) {
@@ -333,20 +353,36 @@ void CopysetNode::on_snapshot_save(braft::SnapshotWriter* writer,
 
     writer->add_file(kConfEpochFilename);
 
-    std::string metaDataFile = writer->get_path() + "/" + kMetaDataFilename;
-
     // TODO(wuhanqing): MetaStore::Save will start a thread and do task
     // asynchronously, after task completed it will call
     // OnSnapshotSaveDoneImpl::Run
     // BUT, this manner is not so clear, maybe it better to make thing
     // asynchronous directly in here
-    metaStore_->Save(metaDataFile, new OnSnapshotSaveDoneClosureImpl(
-                                       this, writer, done, metricCtx));
+    metaStore_->Save(writer->get_path(), new OnSnapshotSaveDoneClosureImpl(
+                                             this, writer, done, metricCtx));
     doneGuard.release();
 
     // `Cancel` only available for rvalue
     std::move(cleanMetricIfFailed).Cancel();
 }
+
+namespace {
+
+class CopysetLoadingGuard {
+ public:
+    explicit CopysetLoadingGuard(std::atomic_bool& flag) : flag_(flag) {
+        flag_.store(true, std::memory_order_release);
+    }
+
+    ~CopysetLoadingGuard() {
+        flag_.store(false, std::memory_order_release);
+    }
+
+ private:
+    std::atomic_bool& flag_;
+};
+
+}  // namespace
 
 int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
     LOG(INFO) << "Copyset " << name_ << " begin to load snapshot from '"
@@ -354,7 +390,9 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
 
     CopysetLoadingGuard guard(isLoading_);
     // load conf
-    std::string confFile = reader->get_path() + "/" + kConfEpochFilename;
+    const std::string confFile = reader->get_path() + "/" + kConfEpochFilename;
+
+    // TODO(wuhanqing): remove the file exists test, it shouldn't happens
     if (options_.localFileSystem->FileExists(confFile)) {
         if (0 != LoadConfEpoch(confFile)) {
             LOG(ERROR) << "Copyset " << name_
@@ -366,19 +404,12 @@ int CopysetNode::on_snapshot_load(braft::SnapshotReader* reader) {
 
     // load metadata
     metaStore_->Clear();
-    std::string metadataFile = reader->get_path() + "/" + kMetaDataFilename;
-    if (options_.localFileSystem->FileExists(metadataFile)) {
-        if (!metaStore_->Load(metadataFile)) {
-            LOG(ERROR) << "Copyset " << name_
-                       << " load snapshot failed, metastore load return "
-                          "failed, metadata file: '"
-                       << metadataFile << "'";
-            return -1;
-        }
-    } else {
-        LOG(INFO) << "Copyset " << name_
-                  << "load snapshot not found metadata, metadata file: '"
-                  << metadataFile << "'";
+    bool succ = metaStore_->Load(reader->get_path());
+    if (!succ) {
+        LOG(ERROR) << "Copyset " << name_
+                   << " load snapshot failed, metastore load return "
+                      "failed";
+        return -1;
     }
 
     braft::SnapshotMeta meta;

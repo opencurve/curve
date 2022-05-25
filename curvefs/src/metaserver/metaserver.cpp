@@ -29,6 +29,7 @@
 #include <glog/logging.h>
 #include <braft/builtin_service_impl.h>
 #include <unistd.h>
+#include <utility>
 #include "absl/memory/memory.h"
 #include "curvefs/src/metaserver/copyset/copyset_service.h"
 #include "curvefs/src/metaserver/metaserver_service.h"
@@ -41,6 +42,10 @@
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
 #include "src/common/string_util.h"
+#include "curvefs/src/metaserver/storage/rocksdb_options.h"
+#include "src/common/uri_parser.h"
+#include "curvefs/src/metaserver/resource_statistic.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 namespace braft {
 
@@ -64,7 +69,6 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::LocalFileSystemOption;
 
 using ::curvefs::metaserver::copyset::ApplyQueueOption;
-using ::curvefs::metaserver::storage::GetStorageInstance;
 
 void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
@@ -174,7 +178,7 @@ void Metaserver::Init() {
 
     // get metaserver id and token before heartbeat
     GetMetaserverDataByLoadOrRegister();
-
+    InitResourceCollector();
     InitHeartbeat();
     InitInflightThrottle();
 
@@ -442,9 +446,6 @@ void Metaserver::Stop() {
 
     S3CompactManager::GetInstance().Stop();
 
-    LOG_IF(ERROR, !GetStorageInstance()->Close())
-        << "Failed to close storage.";
-
     LOG(INFO) << "MetaServer stopped success";
 }
 
@@ -468,45 +469,44 @@ void Metaserver::InitHeartbeat() {
     heartbeatOptions_.metaserverId = metadata_.id();
     heartbeatOptions_.metaserverToken = metadata_.token();
     heartbeatOptions_.fs = localFileSystem_;
+    heartbeatOptions_.resourceCollector = resourceCollector_.get();
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
         << "Failed to init Heartbeat manager.";
 }
 
+void Metaserver::InitResourceCollector() {
+    std::string dataRoot;
+    std::string protocol = curve::common::UriParser::ParseUri(
+        copysetNodeOptions_.dataUri, &dataRoot);
+
+    LOG_IF(FATAL, dataRoot.empty())
+        << "Unsupported data uri: " << copysetNodeOptions_.dataUri;
+
+    LOG_IF(FATAL, localFileSystem_->Mkdir(dataRoot) != 0)
+        << "Failed to create data root: " << dataRoot
+        << berror();
+
+    resourceCollector_ = absl::make_unique<ResourceCollector>(
+        copysetNodeOptions_.storageOptions.maxDiskQuotaBytes,
+        copysetNodeOptions_.storageOptions.maxMemoryQuotaBytes,
+        std::move(dataRoot));
+}
+
 void Metaserver::InitStorage() {
+    StorageOptions options;
+
     LOG_IF(FATAL, !conf_->GetStringValue("storage.type",
-                                         &storageOptions_.type));
+                                         &options.type));
     LOG_IF(FATAL,
-        storageOptions_.type != "memory" && storageOptions_.type != "rocksdb")
-        << "Invalid storage type: " << storageOptions_.type;
+        options.type != "memory" && options.type != "rocksdb")
+        << "Invalid storage type: " << options.type;
     LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_memory_quota_bytes",
-                                         &storageOptions_.maxMemoryQuotaBytes));
+                                         &options.maxMemoryQuotaBytes));
     LOG_IF(FATAL, !conf_->GetUInt64Value("storage.max_disk_quota_bytes",
-                                         &storageOptions_.maxDiskQuotaBytes));
-    LOG_IF(FATAL, !conf_->GetStringValue("storage.data_dir",
-                                         &storageOptions_.dataDir));
+                                         &options.maxDiskQuotaBytes));
     LOG_IF(FATAL, !conf_->GetBoolValue("storage.memory.compression",
-                                       &storageOptions_.compression));
-    LOG_IF(FATAL, !conf_->GetUInt64Value(
-        "storage.rocksdb.unordered_write_buffer_size",
-        &storageOptions_.unorderedWriteBufferSize));
-    LOG_IF(FATAL, !conf_->GetUInt64Value(
-        "storage.rocksdb.unordered_max_write_buffer_number",
-        &storageOptions_.unorderedMaxWriteBufferNumber));
-    LOG_IF(FATAL, !conf_->GetUInt64Value(
-        "storage.rocksdb.ordered_write_buffer_size",
-        &storageOptions_.orderedWriteBufferSize));
-    LOG_IF(FATAL, !conf_->GetUInt64Value(
-        "storage.rocksdb.ordered_max_write_buffer_number",
-        &storageOptions_.orderedMaxWriteBufferNumber));
-    LOG_IF(FATAL, !conf_->GetUInt64Value(
-        "storage.rocksdb.block_cache_capacity",
-        &storageOptions_.blockCacheCapacity));
-    LOG_IF(FATAL, !conf_->GetDoubleValue(
-        "storage.rocksdb.memtable_prefix_bloom_size_ratio",
-        &storageOptions_.memtablePrefixBloomSizeRatio));
-    LOG_IF(FATAL, !conf_->GetUInt64Value(
-        "storage.rocksdb.stats_dump_period_sec",
-        &storageOptions_.statsDumpPeriodSec));
+                                       &options.compression));
+
     conf_->GetValueFatalIfFail("storage.rocksdb.perf_level",
                                &FLAGS_rocksdb_perf_level);
     conf_->GetValueFatalIfFail("storage.rocksdb.perf_slow_us",
@@ -515,10 +515,13 @@ void Metaserver::InitStorage() {
                                &FLAGS_rocksdb_perf_sampling_ratio);
     LOG_IF(FATAL, !conf_->GetUInt64Value(
         "storage.s3_meta_inside_inode.limit_size",
-        &storageOptions_.s3MetaLimitSizeInsideInode));
+        &options.s3MetaLimitSizeInsideInode));
 
-    bool succ = ::curvefs::metaserver::storage::InitStorage(storageOptions_);
-    LOG_IF(FATAL, !succ) << "Init storage failed";
+    if (options.type == "rocksdb") {
+        storage::ParseRocksdbOptions(conf_.get());
+    }
+
+    copysetNodeOptions_.storageOptions = std::move(options);
 }
 
 void Metaserver::InitCopysetNodeManager() {

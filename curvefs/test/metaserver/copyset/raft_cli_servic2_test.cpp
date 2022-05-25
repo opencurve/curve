@@ -152,6 +152,7 @@ class RaftCliService2Test : public testing::Test {
         options.ip = ip;
         options.port = port;
         options.raftNodeOptions.election_timeout_ms = kElectionTimeoutMs;
+        options.storageOptions.type = "memory";
 
         // disable raft snapshot
         options.raftNodeOptions.snapshot_interval_s = -1;

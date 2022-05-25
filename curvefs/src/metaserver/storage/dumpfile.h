@@ -23,6 +23,7 @@
 #ifndef CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
 #define CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -74,6 +75,20 @@ enum class DUMPFILE_LOAD_STATUS {
     INVALID_CHECKSUM,
 };
 
+enum DumpFileVersion : uint8_t {
+    // Version 1 dumps all metadata into a single file
+    // including partitions/inodes/dentries/pending tx/s3 chunk info and
+    // volume extent
+    kDumpFileV1 = 1,
+    // See below dumpfile format diagram, it shows the difference between
+    // kDumpFileV1 and kDumpFileV2
+    kDumpFileV2 = 2,
+    // Version 3 only dumps partitions and pending tx into file based on
+    // kDumpFileV2 (because they're not inserted into rocksdb), other metadata
+    // is saved by rocksdb
+    kDumpFileV3 = 3,
+};
+
 std::ostream& operator<<(std::ostream& os, DUMPFILE_ERROR code);
 
 std::ostream& operator<<(std::ostream& os, DUMPFILE_LOAD_STATUS code);
@@ -98,6 +113,8 @@ class DumpFileClosure {
     std::mutex mtx_;
     std::condition_variable cond_;
 };
+
+class DumpFileIterator;
 
 /*
  * dumpfile format:
@@ -141,7 +158,7 @@ class DumpFile {
     DUMPFILE_ERROR SaveBackground(std::shared_ptr<Iterator> iter,
                                   DumpFileClosure* done = nullptr);
 
-    std::shared_ptr<Iterator> Load();
+    std::shared_ptr<DumpFileIterator> Load();
 
     DUMPFILE_LOAD_STATUS GetLoadStatus();
 
@@ -191,6 +208,9 @@ class DumpFile {
     friend class DumpFileIterator;
     friend class DumpFileTest;
 
+    // Check whether a version is valid
+    static bool CheckDumpFileVersion(uint8_t ver);
+
  private:
     std::string pathname_;
 
@@ -234,6 +254,10 @@ class DumpFileIterator : public Iterator {
 
     int Status() override;
 
+    uint8_t Version() const {
+        return version_;
+    }
+
  private:
     void End();
 
@@ -253,6 +277,8 @@ class DumpFileIterator : public Iterator {
     uint64_t startTime_;
 
     DumpFile* dumpfile_;
+
+    uint8_t version_;
 };
 
 }  // namespace storage

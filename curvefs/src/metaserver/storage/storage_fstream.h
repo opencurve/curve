@@ -118,7 +118,7 @@ static std::pair<ENTRY_TYPE, uint32_t> Extract(const std::string& prefix) {
     return std::make_pair(entryType, partitionId);
 }
 
-static bool SaveToFile(const std::string& pathname,
+inline bool SaveToFile(const std::string& pathname,
                        std::shared_ptr<MergeIterator> iterator,
                        bool background,
                        DumpFileClosure* done = nullptr) {
@@ -169,8 +169,8 @@ inline bool InvokeCallback(uint8_t version,
         }                                                    \
         break
 
-template<typename Callback>
-inline bool LoadFromFile(const std::string& pathname,
+template <typename Callback>
+inline bool LoadFromFile(const std::string& pathname, uint8_t* version,
                          Callback callback) {
     auto dumpfile = DumpFile(pathname);
     if (dumpfile.Open() != DUMPFILE_ERROR::OK) {
@@ -202,6 +202,7 @@ inline bool LoadFromFile(const std::string& pathname,
         }
     }
 
+    *version = iter->Version();
     return dumpfile.GetLoadStatus() == DUMPFILE_LOAD_STATUS::COMPLETE;
 }
 

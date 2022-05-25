@@ -66,8 +66,9 @@ do { \
 using ::curve::common::CRC32;
 
 const std::string DumpFile::kCurvefs_ = "CURVEFS";  // NOLINT
-const uint8_t DumpFile::kVersion_ = 2;
 const uint32_t DumpFile::kEOF_ = 0;
+const uint8_t DumpFile::kVersion_ = kDumpFileV3;
+
 const uint32_t DumpFile::kMaxStringLength_ = 1024 * 1024 * 1024;  // 1GB
 
 std::ostream& operator<<(std::ostream& os, DUMPFILE_ERROR code) {
@@ -118,6 +119,10 @@ std::ostream& operator<<(std::ostream& os, DUMPFILE_LOAD_STATUS code) {
     }
 
     return os;
+}
+
+bool DumpFile::CheckDumpFileVersion(uint8_t ver) {
+    return ver >= kDumpFileV1 && ver <= kVersion_;
 }
 
 DumpFile::DumpFile(const std::string& pathname)
@@ -281,7 +286,7 @@ DUMPFILE_ERROR DumpFile::LoadEntry(std::string* entry,
     }
 
     // retCode == DUMPFILE_ERROR::OK
-    if (version_ == 2 && length == kEOF_) {
+    if (version_ > kDumpFileV1 && length == kEOF_) {
         return DUMPFILE_ERROR::ENCOUNTER_EOF;
     }
     return LoadString(entry, offset, length, checkSum);
@@ -298,7 +303,7 @@ DUMPFILE_ERROR DumpFile::Save(std::shared_ptr<Iterator> iter) {
     // Step1: save magic, version, size (only v1)
     RETURN_IF_UNSUCCESS(SaveString(kCurvefs_, &offset, &checkSum));
     RETURN_IF_UNSUCCESS(SaveInt<uint8_t>(version_, &offset, &checkSum));
-    if (version_ == 1) {
+    if (version_ == kDumpFileV1) {
         RETURN_IF_UNSUCCESS(SaveInt<uint64_t>(iter->Size(),
                             &offset, &checkSum));
     }
@@ -314,8 +319,8 @@ DUMPFILE_ERROR DumpFile::Save(std::shared_ptr<Iterator> iter) {
         nPairs++;
     }
 
-    // Step3: save EOF (only v2)
-    if (version_ == 2) {
+    // Step3: save EOF (only v2 and v3)
+    if (version_ > kDumpFileV1) {
         RETURN_IF_UNSUCCESS(SaveInt<uint32_t>(kEOF_, &offset, &checkSum));
     }
 
@@ -332,7 +337,8 @@ DUMPFILE_ERROR DumpFile::Save(std::shared_ptr<Iterator> iter) {
 
     LOG(INFO) << "Save success, version = " << std::to_string(version_)
               << ", iterator size = "
-              << (version_ == 1 ? std::to_string(iter->Size()) : "unknown")
+              << (version_ == kDumpFileV1 ? std::to_string(iter->Size())
+                                          : "unknown")
               << ", number of saved entrys = " << nPairs
               << ", checksum = " << realCheckSum;
     return DUMPFILE_ERROR::OK;
@@ -478,7 +484,7 @@ DUMPFILE_ERROR DumpFile::SaveBackground(std::shared_ptr<Iterator> iter,
     return retCode;
 }
 
-std::shared_ptr<Iterator> DumpFile::Load() {
+std::shared_ptr<DumpFileIterator> DumpFile::Load() {
     return std::make_shared<DumpFileIterator>(this);
 }
 
@@ -526,16 +532,17 @@ void DumpFileIterator::SeekToFirst() {
 
     // version
     uint8_t version;
-    auto maxVersion = dumpfile_->kVersion_;
     retCode = dumpfile_->LoadInt<uint8_t>(&version, &offset_, &checkSum_);
-    EXIT_LOAD_IF_UNEXPECT(
-        retCode != DUMPFILE_ERROR::OK || version < 1 || version > maxVersion,
-        DUMPFILE_LOAD_STATUS::INVALID_VERSION);
+    EXIT_LOAD_IF_UNEXPECT(retCode != DUMPFILE_ERROR::OK ||
+                              !DumpFile::CheckDumpFileVersion(version),
+                          DUMPFILE_LOAD_STATUS::INVALID_VERSION);
     dumpfile_->version_ = version;
+
+    version_ = version;
 
     // size
     uint64_t size = 0;
-    if (dumpfile_->GetVersion() == 1) {
+    if (dumpfile_->GetVersion() == kDumpFileV1) {
         retCode = dumpfile_->LoadInt<uint64_t>(&size, &offset_, &checkSum_);
         EXIT_LOAD_IF_UNEXPECT(retCode != DUMPFILE_ERROR::OK,
                               DUMPFILE_LOAD_STATUS::INVALID_SIZE);
@@ -566,7 +573,7 @@ void DumpFileIterator::End() {
        << ", cost " << elapsed << " seconds"
        << ", version = " << std::to_string(version)
        << ", loaded size = "
-       << (version == 1 ? std::to_string(size_) : "unknown")
+       << (version == kDumpFileV1 ? std::to_string(size_) : "unknown")
        << ", number of loaded entrys = " << nPairs_
        << ", loaded checksum = " << crc4load
        << ", calculate checksum = " << crc4calc;
@@ -591,7 +598,8 @@ void DumpFileIterator::Next() {
     DUMPFILE_ERROR retCode;
     DUMPFILE_LOAD_STATUS status = DUMPFILE_LOAD_STATUS::INVALID_PAIRS;
     retCode = dumpfile_->LoadEntry(&key, &offset_, &checkSum_);
-    if (dumpfile_->version_ == 2 && retCode == DUMPFILE_ERROR::ENCOUNTER_EOF) {
+    if (dumpfile_->version_ > kDumpFileV2 &&
+        retCode == DUMPFILE_ERROR::ENCOUNTER_EOF) {
         return End();
     }
     EXIT_LOAD_IF_UNEXPECT(retCode != DUMPFILE_ERROR::OK, status);

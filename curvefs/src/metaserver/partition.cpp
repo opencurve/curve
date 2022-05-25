@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
@@ -37,19 +38,19 @@ namespace metaserver {
 
 using ::curvefs::metaserver::storage::NameGenerator;
 
-Partition::Partition(const PartitionInfo& paritionInfo,
+Partition::Partition(PartitionInfo partition,
                      std::shared_ptr<KVStorage> kvStorage) {
-    assert(paritionInfo.start() <= paritionInfo.end());
-    partitionInfo_ = paritionInfo;
+    assert(partition.start() <= partition.end());
+    partitionInfo_ = std::move(partition);
 
     uint64_t nInode = 0;
     uint64_t nDentry = 0;
-    uint32_t partitionId = paritionInfo.partitionid();
-    if (paritionInfo.has_inodenum()) {
-        nInode = paritionInfo.inodenum();
+    uint32_t partitionId = partitionInfo_.partitionid();
+    if (partitionInfo_.has_inodenum()) {
+        nInode = partitionInfo_.inodenum();
     }
-    if (paritionInfo.has_dentrynum()) {
-        nDentry = paritionInfo.dentrynum();
+    if (partitionInfo_.has_dentrynum()) {
+        nDentry = partitionInfo_.dentrynum();
     }
     auto tableName = std::make_shared<NameGenerator>(partitionId);
     inodeStorage_ = std::make_shared<InodeStorage>(
@@ -62,13 +63,13 @@ Partition::Partition(const PartitionInfo& paritionInfo,
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
     dentryManager_ =
         std::make_shared<DentryManager>(dentryStorage_, txManager_);
-    if (!paritionInfo.has_nextid()) {
+    if (!partitionInfo_.has_nextid()) {
         partitionInfo_.set_nextid(
             std::max(kMinPartitionStartId, partitionInfo_.start()));
     }
 
-    if (paritionInfo.status() != PartitionStatus::DELETING) {
-        TrashManager::GetInstance().Add(paritionInfo.partitionid(), trash_);
+    if (partitionInfo_.status() != PartitionStatus::DELETING) {
+        TrashManager::GetInstance().Add(partitionInfo_.partitionid(), trash_);
         s3compact_ = std::make_shared<S3Compact>(inodeManager_, partitionInfo_);
         S3CompactManager::GetInstance().RegisterS3Compact(s3compact_);
     }
@@ -435,6 +436,9 @@ bool Partition::Clear() {
     for (auto& it : *partitionInfo_.mutable_filetype2inodenum()) {
         it.second = 0;
     }
+
+    LOG(INFO) << "Clear partition " << partitionInfo_.partitionid()
+              << " success";
     return true;
 }
 

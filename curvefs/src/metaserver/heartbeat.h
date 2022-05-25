@@ -55,6 +55,8 @@ using curvefs::metaserver::copyset::CopysetNodeManager;
 using curvefs::common::Peer;
 using PeerId = braft::PeerId;
 
+class ResourceCollector;
+
 /**
  * heartbeat subsystem option
  */
@@ -68,6 +70,7 @@ struct HeartbeatOptions {
     uint32_t intervalSec;
     uint32_t timeout;
     CopysetNodeManager* copysetNodeManager;
+    ResourceCollector* resourceCollector;
     std::shared_ptr<LocalFileSystem> fs;
 };
 

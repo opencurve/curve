@@ -51,10 +51,10 @@ class MetaStoreFStream {
                      PoolId poolId,
                      CopysetId copysetId);
 
-    bool Load(const std::string& pathname);
+    bool Load(const std::string& pathname, uint8_t* version);
 
     bool Save(const std::string& path,
-              DumpFileClosure* done);
+              DumpFileClosure* done = nullptr);
 
  private:
     bool LoadPartition(uint32_t partitionId,

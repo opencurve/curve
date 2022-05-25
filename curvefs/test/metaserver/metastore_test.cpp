@@ -23,6 +23,7 @@
 #include "curvefs/src/metaserver/metastore.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <braft/storage.h>
 #include <condition_variable>  // NOLINT
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/process.h"
@@ -33,6 +34,8 @@
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/common/uuid.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -53,12 +56,39 @@ using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::copyset::CopysetNode;
 
+namespace {
+
+class MockSnapshotWriter : public braft::SnapshotWriter {
+ public:
+    MOCK_METHOD0(get_path, std::string());
+    MOCK_METHOD1(list_files, void(std::vector<std::string>*));
+    MOCK_METHOD1(save_meta, int(const braft::SnapshotMeta&));
+    MOCK_METHOD1(add_file, int(const std::string&));
+    MOCK_METHOD2(add_file,
+                 int(const std::string &, const google::protobuf::Message *));
+    MOCK_METHOD1(remove_file, int(const std::string&));
+};
+
+curve::common::UUIDGenerator uuid;
+std::shared_ptr<class curve::fs::Ext4FileSystemImpl> localfs =
+    curve::fs::Ext4FileSystemImpl::getInstance();
+
+}  // namespace
+
 class MetastoreTest : public ::testing::Test {
  protected:
     void SetUp() override {
         test_path_ = "./metastore_test.dat";
 
-        dataDir_ = RandomStoragePath();;
+        options_.type = "memory";
+        options_.dataDir = test_path_ + "/" + uuid.GenerateUUID();
+        options_.s3MetaLimitSizeInsideInode = 100;
+        options_.localFileSystem = localfs.get();
+
+        // create the path
+        ASSERT_EQ(0, localfs->Mkdir(options_.dataDir));
+
+        dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
         options.s3MetaLimitSizeInsideInode = 100;
@@ -71,12 +101,8 @@ class MetastoreTest : public ::testing::Test {
     }
 
     void TearDown() override {
-        std::string cmd = "rm -rf " + test_path_;
-        system(cmd.c_str());
-
-        ASSERT_TRUE(kvStorage_->Close());
-        auto output = execShell("rm -rf " + dataDir_);
-        ASSERT_EQ(output.size(), 0);
+        ASSERT_EQ(0, localfs->Delete(test_path_));
+        ASSERT_EQ(0, localfs->Delete(dataDir_));
     }
 
     std::string execShell(const std::string& cmd) {
@@ -235,6 +261,11 @@ class MetastoreTest : public ::testing::Test {
         }
         bool IsSuccess() { return ret_; }
 
+        braft::SnapshotWriter* GetSnapshotWriter() const override {
+            static MockSnapshotWriter mockWriter;
+            return &mockWriter;
+        }
+
      private:
         bool ret_;
         bool finished_ = false;
@@ -248,10 +279,13 @@ class MetastoreTest : public ::testing::Test {
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<Converter> conv_;
     std::shared_ptr<CopysetNode> copyset_;
+    StorageOptions options_;
 };
 
 TEST_F(MetastoreTest, partition) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
     PartitionInfo partitionInfo;
@@ -347,7 +381,8 @@ TEST_F(MetastoreTest, partition) {
 }
 
 TEST_F(MetastoreTest, test_inode) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -579,7 +614,8 @@ TEST_F(MetastoreTest, test_inode) {
 }
 
 TEST_F(MetastoreTest, test_dentry) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -811,7 +847,12 @@ TEST_F(MetastoreTest, test_dentry) {
 }
 
 TEST_F(MetastoreTest, persist_success) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    options_.type = "rocksdb";
+    options_.dataDir = options_.dataDir + "/rocksdb";
+
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -926,7 +967,12 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(copyset_.get(), kvStorage_);
+    StorageOptions optsNew = options_;
+    optsNew.dataDir = options_.dataDir + "_new";
+
+    MetaStoreImpl metastoreNew(copyset_.get(), optsNew);
+    ASSERT_TRUE(metastoreNew.InitStorage());
+
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load(test_path_));
 
@@ -950,7 +996,12 @@ TEST_F(MetastoreTest, persist_success) {
 }
 
 TEST_F(MetastoreTest, persist_deleting_partition_success) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    options_.type = "rocksdb";
+    options_.dataDir = options_.dataDir + "/rocksdb";
+
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -1079,7 +1130,12 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(copyset_.get(), kvStorage_);
+    StorageOptions optsNew = options_;
+    optsNew.dataDir = options_.dataDir + "_new";
+
+    MetaStoreImpl metastoreNew(copyset_.get(), optsNew);
+    ASSERT_TRUE(metastoreNew.InitStorage());
+
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load(test_path_));
 
@@ -1103,7 +1159,9 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
 }
 
 TEST_F(MetastoreTest, persist_partition_fail) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1119,7 +1177,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save(test_path_, &done));
+    ASSERT_FALSE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -1127,7 +1185,9 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 }
 
 TEST_F(MetastoreTest, persist_dentry_fail) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
 
     // create partition1
@@ -1199,7 +1259,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save(test_path_, &done));
+    ASSERT_FALSE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -1211,7 +1271,8 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
 }
 
 TEST_F(MetastoreTest, testBatchGetInodeAttr) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1284,7 +1345,8 @@ TEST_F(MetastoreTest, testBatchGetInodeAttr) {
 }
 
 TEST_F(MetastoreTest, testBatchGetXAttr) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1400,7 +1462,9 @@ TEST_F(MetastoreTest, testBatchGetXAttr) {
 }
 
 TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t poolId = 1;
     uint32_t copysetId = 1;
     uint32_t partitionId = 1;
@@ -1531,7 +1595,9 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
 }
 
 TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t poolId = 1;
     uint32_t copysetId = 1;
     uint32_t partitionId = 1;
@@ -1693,7 +1759,8 @@ TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
 }
 
 TEST_F(MetastoreTest, TestUpdateVolumeExtent_PartitionNotFound) {
-    MetaStoreImpl metastore(copyset_.get(), kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     UpdateVolumeExtentRequest request;
     UpdateVolumeExtentResponse response;

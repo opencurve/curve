@@ -60,6 +60,7 @@ cc_library(
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/utility",
+        "//external:gtest",
     ],
 )
 

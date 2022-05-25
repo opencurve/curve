@@ -27,6 +27,10 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 
+namespace braft {
+class SnapshotWriter;
+}  // namespace braft
+
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
@@ -38,6 +42,9 @@ class OnSnapshotSaveDoneClosure : public google::protobuf::Closure {
     virtual void SetSuccess() = 0;
 
     virtual void SetError(MetaStatusCode code) = 0;
+
+    // After dump/save metadata, we should add filenames to `SnapshotWriter`
+    virtual braft::SnapshotWriter* GetSnapshotWriter() const = 0;
 };
 
 }  // namespace copyset
