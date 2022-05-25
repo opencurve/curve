@@ -1487,6 +1487,37 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
         ASSERT_EQ(response.statuscode(), rc);
         ASSERT_EQ(response.mutable_s3chunkinfomap()->size(), 2);
     }
+
+    // CASE 4: GetOrModifyS3ChunkInfo success with unsupport streaming
+    // and without return s3chunkinfo
+    {
+        LOG(INFO) << "CASE 3: GetOrModifyS3ChunkInfo success"
+                  << " with unsupport streaming";
+        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyS3ChunkInfoResponse response;
+        std::vector<uint64_t> chunkIndexs{ 1, 2 };
+        std::vector<S3ChunkInfoList> lists2add{
+            GenS3ChunkInfoList(100, 200),
+            GenS3ChunkInfoList(300, 400),
+        };
+
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_supportstreaming(false);
+        request.set_returns3chunkinfomap(false);
+        for (size_t i = 0; i < chunkIndexs.size(); i++) {
+            request.mutable_s3chunkinfoadd()->insert(
+                { chunkIndexs[i], lists2add[i] });
+        }
+
+        std::shared_ptr<Iterator> iterator;
+        MetaStatusCode rc = metastore.GetOrModifyS3ChunkInfo(
+            &request, &response, &iterator);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        ASSERT_EQ(response.statuscode(), rc);
+        ASSERT_EQ(response.mutable_s3chunkinfomap()->size(), 0);
+    }
 }
 
 TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
