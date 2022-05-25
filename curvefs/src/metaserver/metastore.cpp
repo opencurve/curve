@@ -533,15 +533,11 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
                                            request->s3chunkinforemove(),
                                            request->returns3chunkinfomap(),
                                            iterator);
-    if (rc == MetaStatusCode::OK && !request->supportstreaming()) {
+    if (rc == MetaStatusCode::OK &&
+        !request->supportstreaming() &&
+        request->returns3chunkinfomap()) {
         rc = partition->PaddingInodeS3ChunkInfo(
             fsId, inodeId, response->mutable_s3chunkinfomap(), 0);
-    }
-
-    if (rc == MetaStatusCode::OK && !request->supportstreaming()) {
-        rc = partition->PaddingInodeS3ChunkInfo(
-            request->fsid(), request->inodeid(),
-            response->mutable_s3chunkinfomap(), 0);
     }
 
     response->set_statuscode(rc);
