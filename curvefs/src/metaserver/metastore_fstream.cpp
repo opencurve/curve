@@ -81,13 +81,18 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
         return false;
     }
 
-    partitionId = partitionInfo.partitionid();
-    auto partition = std::make_shared<Partition>(partitionInfo, kvStorage_);
-    partitionMap_->emplace(partitionId, partition);
-    if (!partition->Clear()) {  // it will clear all inodes and dentrys
-        LOG(ERROR) << "Clear partition failed, partitionId = " << partitionId;
-        return false;
-    }
+    LOG(INFO) << "Load partition, partition id: " << partitionId
+              << ", partition info: " << partitionInfo.ShortDebugString();
+
+    // FIXME: partitionId is always 0 in some unittest,
+    //        maybe this problem also exist in production code
+    // assert(partitionId == partitionInfo.partitionid());
+    // assert(partitionMap_->count(partitionId) == 0);
+
+    const auto pid = partitionInfo.partitionid();
+    partitionMap_->emplace(
+        pid, std::make_shared<Partition>(std::move(partitionInfo), kvStorage_));
+
     return true;
 }
 
@@ -244,6 +249,8 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
         auto partitionInfo = partition->GetPartitionInfo();
         partitionInfo.set_inodenum(partition->GetInodeNum());
         partitionInfo.set_dentrynum(partition->GetDentryNum());
+        LOG(INFO) << "Save partition, partition: " << partitionId
+                  << ", partition info: " << partitionInfo.ShortDebugString();
         if (!conv_->SerializeToString(partitionInfo, &value)) {
             return nullptr;
         }
@@ -320,7 +327,7 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewVolumeExtentListIterator(
                                              partitionId, std::move(iterator));
 }
 
-bool MetaStoreFStream::Load(const std::string& pathname) {
+bool MetaStoreFStream::Load(const std::string& pathname, uint8_t* version) {
     uint64_t totalPartition = 0;
     uint64_t totalInode = 0;
     uint64_t totalDentry = 0;
@@ -360,7 +367,7 @@ bool MetaStoreFStream::Load(const std::string& pathname) {
         return false;
     };
 
-    auto ret = LoadFromFile(pathname, callback);
+    auto ret = LoadFromFile(pathname, version, callback);
 
     std::ostringstream oss;
     oss << "total partition: " << totalPartition
@@ -386,29 +393,16 @@ bool MetaStoreFStream::Save(const std::string& path,
                             DumpFileClosure* done) {
     ChildrenType children;
 
-    auto iterator = NewPartitionIterator();  // partition
-    children.push_back(iterator);
+    children.push_back(NewPartitionIterator());
     for (const auto& item : *partitionMap_) {
-        auto& partition = item.second;
-
-        iterator = NewInodeIterator(partition);  // inode
-        children.push_back(iterator);
-
-        iterator = NewDentryIterator(partition);  // dentry
-        children.push_back(iterator);
-
-        iterator = NewPendingTxIterator(partition);  // pending tx
-        children.push_back(iterator);
-
-        iterator = NewInodeS3ChunkInfoListIterator(partition);  // s3chunkinfo
-        children.push_back(iterator);
-
-        children.push_back(NewVolumeExtentListIterator(partition.get()));
+        children.push_back(NewPendingTxIterator(item.second));
     }
 
     for (const auto& child : children) {
         if (nullptr == child) {
-            done->Runned();
+            if (done != nullptr) {
+                done->Runned();
+            }
             return false;
         }
     }

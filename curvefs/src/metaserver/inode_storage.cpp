@@ -68,7 +68,7 @@ MetaStatusCode InodeStorage::Insert(const Inode& inode) {
     Key4Inode key(inode.fsid(), inode.inodeid());
     std::string skey = conv_.SerializeToString(key);
 
-    // NOTE: HGet() is cheap, beucase the key not found in most cases,
+    // NOTE: HGet() is cheap, because the key not found in most cases,
     // so the rocksdb storage only should check bloom filter.
     Inode out;
     Status s = kvStorage_->HGet(table4Inode_, skey, &out);
@@ -97,6 +97,7 @@ MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
     } else if (s.IsNotFound()) {
         return MetaStatusCode::NOT_FOUND;
     }
+
     LOG(ERROR) << "Get inode failed, status = " << s.ToString();
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
@@ -178,6 +179,7 @@ MetaStatusCode InodeStorage::Delete(const Key4Inode& key) {
         }
         return MetaStatusCode::OK;
     }
+
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 

@@ -38,9 +38,6 @@ class TrashManager {
     TrashManager() : isStop_(true) {
         LOG(INFO) << "TrashManager";
     }
-    ~TrashManager() {
-        LOG(INFO) << "~TrashManager";
-    }
 
     static TrashManager& GetInstance() {
         static TrashManager instance_;

@@ -65,6 +65,8 @@ class CopysetServiceTest : public testing::Test {
 
         options_.trashOptions.trashUri = "local://" + kTestTrashPath;
 
+        options_.storageOptions.type = "memory";
+
         butil::EndPoint listenAddr(butil::IP_ANY, kTestPort);
 
         nodeManager_->AddService(&server_, listenAddr);

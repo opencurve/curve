@@ -21,18 +21,29 @@
  */
 #include "curvefs/src/metaserver/metastore.h"
 #include <glog/logging.h>
+#include <braft/storage.h>
+#include <memory>
 #include <thread>  // NOLINT
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "rocksdb/utilities/checkpoint.h"
+#include "rocksdb/utilities/options_util.h"
+
 #include "absl/cleanup/cleanup.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
+#include "curvefs/src/metaserver/storage/config.h"
 #include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/storage/memory_storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "src/common/concurrent/rw_lock.h"
+#include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/resource_statistic.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -43,11 +54,33 @@ using ::curvefs::metaserver::storage::DumpFileClosure;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 
+using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::MemoryStorage;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+
+namespace {
+const char* const kMetaDataFilename = "metadata";
+bvar::LatencyRecorder g_storage_checkpoint_latency("storage_checkpoint");
+}  // namespace
+
+std::unique_ptr<MetaStoreImpl> MetaStoreImpl::Create(
+    copyset::CopysetNode* node,
+    const StorageOptions& storageOptions) {
+    auto store = absl::WrapUnique(new MetaStoreImpl(node, storageOptions));
+    auto succ = store->InitStorage();
+    if (succ) {
+        return store;
+    }
+
+    LOG(ERROR) << "Failed to create MetaStore, copyset: " << node->Name();
+    return nullptr;
+}
+
 MetaStoreImpl::MetaStoreImpl(copyset::CopysetNode* node,
-                             std::shared_ptr<KVStorage> kvStorage)
+                             const StorageOptions& storageOptions)
     : copysetNode_(node),
-      kvStorage_(std::move(kvStorage)),
-      streamServer_(std::make_shared<StreamServer>()) {}
+      streamServer_(std::make_shared<StreamServer>()),
+      storageOptions_(storageOptions) {}
 
 bool MetaStoreImpl::Load(const std::string& pathname) {
     // Load from raft snap file to memory
@@ -55,7 +88,11 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
     MetaStoreFStream fstream(&partitionMap_, kvStorage_,
                              copysetNode_->GetPoolId(),
                              copysetNode_->GetCopysetId());
-    auto succ = fstream.Load(pathname);
+
+    const std::string metadata = pathname + "/" + kMetaDataFilename;
+
+    uint8_t version = 0;
+    auto succ = fstream.Load(metadata, &version);
     if (!succ) {
         partitionMap_.clear();
         LOG(ERROR) << "Load metadata failed.";
@@ -72,7 +109,18 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
         }
     }
 
-    return succ;
+    // reload from a previous version, and doesn't have storage checkpoint yet
+    if (version <= storage::kDumpFileV2) {
+        return true;
+    }
+
+    succ = kvStorage_->Recover(pathname);
+    if (!succ) {
+        LOG(ERROR) << "Failed to recover storage";
+        return false;
+    }
+
+    return true;
 }
 
 void MetaStoreImpl::SaveBackground(const std::string& path,
@@ -93,14 +141,45 @@ void MetaStoreImpl::SaveBackground(const std::string& path,
     done->Run();
 }
 
-bool MetaStoreImpl::Save(const std::string& path,
+bool MetaStoreImpl::Save(const std::string& dir,
                          OnSnapshotSaveDoneClosure* done) {
+    brpc::ClosureGuard doneGuard(done);
     WriteLockGuard writeLockGuard(rwLock_);
-    DumpFileClosure child;
-    std::thread th = std::thread(&MetaStoreImpl::SaveBackground,
-                                 this, path, &child, done);
-    child.WaitRunned();
-    th.detach();
+
+    MetaStoreFStream fstream(&partitionMap_, kvStorage_,
+                             copysetNode_->GetPoolId(),
+                             copysetNode_->GetCopysetId());
+
+    const std::string metadata = dir + "/" + kMetaDataFilename;
+    bool succ = fstream.Save(metadata);
+    if (!succ) {
+        done->SetError(MetaStatusCode::SAVE_META_FAIL);
+        return false;
+    }
+
+    // checkpoint storage
+    butil::Timer timer;
+    timer.start();
+    std::vector<std::string> files;
+    succ = kvStorage_->Checkpoint(dir, &files);
+    if (!succ) {
+        done->SetError(MetaStatusCode::SAVE_META_FAIL);
+        return false;
+    }
+
+    timer.stop();
+    g_storage_checkpoint_latency << timer.u_elapsed();
+
+    // add files to snapshot writer
+    // file is a relative path under the given directory
+    auto* writer = done->GetSnapshotWriter();
+    writer->add_file(kMetaDataFilename);
+
+    for (const auto& f : files) {
+        writer->add_file(f);
+    }
+
+    done->SetSuccess();
     return true;
 }
 
@@ -110,8 +189,14 @@ bool MetaStoreImpl::Clear() {
         TrashManager::GetInstance().Remove(it->first);
         it->second->ClearS3Compact();
         PartitionCleanManager::GetInstance().Remove(it->first);
+
+        if (!it->second->Clear()) {
+            LOG(ERROR) << "Failed to clear partition, id: " << it->first;
+            return false;
+        }
     }
     partitionMap_.clear();
+
     return true;
 }
 
@@ -640,6 +725,19 @@ MetaStatusCode MetaStoreImpl::UpdateVolumeExtent(
                                             request->extents());
     response->set_statuscode(st);
     return st;
+}
+
+bool MetaStoreImpl::InitStorage() {
+    if (storageOptions_.type == "memory") {
+        kvStorage_ = std::make_shared<MemoryStorage>(storageOptions_);
+    } else if (storageOptions_.type == "rocksdb") {
+        kvStorage_ = std::make_shared<RocksDBStorage>(storageOptions_);
+    } else {
+        LOG(ERROR) << "Unsupported storage type: " << storageOptions_.type;
+        return false;
+    }
+
+    return kvStorage_->Open();
 }
 
 }  // namespace metaserver

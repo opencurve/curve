@@ -253,7 +253,7 @@ TEST_F(DumpFileTest, TestVersion) {
     ASSERT_EQ(file2save->Save(hashIterator), DUMPFILE_ERROR::OK);
 
     // using v2 dumpfile to load data
-    auto file2load = std::make_shared<DumpFile>(pathname_);
+    auto file2load = std::make_shared<DumpFile>(pathname_, 2);
     ASSERT_EQ(file2load->GetVersion(), 2);
     ASSERT_EQ(file2load->Open(), DUMPFILE_ERROR::OK);
     CheckIterator(file2load->Load(), &hash);

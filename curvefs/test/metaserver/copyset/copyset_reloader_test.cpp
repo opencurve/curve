@@ -69,6 +69,8 @@ class CopysetReloaderTest : public testing::Test {
 
         copysetNodeOptions_.trashOptions.trashUri = kCopysetDataUri;
 
+        copysetNodeOptions_.storageOptions.type = "memory";
+
         // disable raft snapshot
         copysetNodeOptions_.raftNodeOptions.snapshot_interval_s = -1;
         copysetNodeOptions_.raftNodeOptions.catchup_margin = 50;

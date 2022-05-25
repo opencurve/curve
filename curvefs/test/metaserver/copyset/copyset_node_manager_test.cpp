@@ -64,8 +64,8 @@ class CopysetNodeManagerTest : public testing::Test {
         options_.raftNodeOptions.snapshot_uri = kCopysetUri;
         options_.loadConcurrency = 5;
         options_.trashOptions.trashUri = kTrashUri;
-
         options_.localFileSystem = fs_.get();
+        options_.storageOptions.type = "memory";
     }
 
     void TearDown() override {

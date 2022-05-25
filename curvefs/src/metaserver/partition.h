@@ -51,8 +51,7 @@ constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
 class Partition {
  public:
-    Partition(const PartitionInfo& paritionInfo,
-              std::shared_ptr<KVStorage> kvStorage);
+    Partition(PartitionInfo partition, std::shared_ptr<KVStorage> kvStorage);
 
     ~Partition() {}
 

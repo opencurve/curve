@@ -29,6 +29,7 @@
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_node_manager.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_copyset_service.h"
 #include "curvefs/test/metaserver/copyset/mock/mock_raft_node.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -40,6 +41,10 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SaveArgPointee;
 
+static std::shared_ptr<curve::fs::Ext4FileSystemImpl> localfs =
+    curve::fs::Ext4FileSystemImpl::getInstance();
+static const char* const kTestDataDir = "./CopysetNodeConfChangeTest";
+
 class CopysetNodeConfChangeTest : public testing::Test {
  protected:
     void SetUp() override {
@@ -50,9 +55,11 @@ class CopysetNodeConfChangeTest : public testing::Test {
         conf_.parse_from(
             "127.0.0.1:29960:0,127.0.0.1:29961:0,127.0.0.1:29962:0");
 
-        options_.dataUri = "local:///data/";
+        options_.dataUri = "local://" + std::string(kTestDataDir);
         options_.ip = "127.0.0.1";
         options_.port = 29960;
+        options_.localFileSystem = localfs.get();
+        options_.storageOptions.type = "memory";
 
         ON_CALL(mockNodeManager_, IsLoadFinished())
             .WillByDefault(Return(true));
@@ -63,6 +70,8 @@ class CopysetNodeConfChangeTest : public testing::Test {
             server_->Stop(0);
             server_->Join();
         }
+
+        ASSERT_EQ(0, localfs->Delete(kTestDataDir));
     }
 
     void StartMockCopysetService(butil::EndPoint listenAddr) {

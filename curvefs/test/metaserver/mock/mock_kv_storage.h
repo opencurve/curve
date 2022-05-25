@@ -28,6 +28,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs/src/metaserver/storage/status.h"
 #include "curvefs/src/metaserver/storage/storage.h"
@@ -80,11 +81,14 @@ class MockKVStorage : public KVStorage {
 
     MOCK_METHOD0(Close, bool());
 
-    MOCK_METHOD1(GetStatistics, bool(StorageStatistics*));
-
     MOCK_CONST_METHOD0(GetStorageOptions, StorageOptions());
 
     MOCK_METHOD0(BeginTransaction, std::shared_ptr<StorageTransaction>());
+
+    MOCK_METHOD2(Checkpoint,
+                 bool(const std::string&, std::vector<std::string>*));
+
+    MOCK_METHOD1(Recover, bool(const std::string&));
 };
 
 }  // namespace storage

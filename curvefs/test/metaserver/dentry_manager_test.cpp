@@ -30,6 +30,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -39,13 +40,21 @@ using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+const std::string kBaseTestDir = "./dentry_manager_test";  // NOLINT
+}  // namespace
+
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
         nameGenerator_ = std::make_shared<NameGenerator>(1);
-        dataDir_ = RandomStoragePath();;
+        testDataDir_ = kBaseTestDir + "/" + RandomStoragePath();
+        ASSERT_EQ(0, localfs->Mkdir(testDataDir_));
+
         StorageOptions options;
-        options.dataDir = dataDir_;
+        options.dataDir = testDataDir_;
+        options.type = "memory";
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         dentryStorage_ = std::make_shared<DentryStorage>(
@@ -57,8 +66,7 @@ class DentryManagerTest : public ::testing::Test {
 
     void TearDown() override {
         ASSERT_TRUE(kvStorage_->Close());
-        auto output = execShell("rm -rf " + dataDir_);
-        ASSERT_EQ(output.size(), 0);
+        ASSERT_EQ(0, localfs->Delete(kBaseTestDir));
     }
 
     std::string execShell(const std::string& cmd) {
@@ -92,8 +100,9 @@ class DentryManagerTest : public ::testing::Test {
     }
 
  protected:
-    std::string dataDir_;
     std::shared_ptr<NameGenerator> nameGenerator_;
+    std::string testDataDir_;
+    std::string tablename_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;

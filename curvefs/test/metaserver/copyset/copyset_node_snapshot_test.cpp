@@ -112,12 +112,13 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
         options_.raftNodeOptions.raft_meta_uri = "local://" + dataPath_;
         options_.raftNodeOptions.snapshot_uri = "local://" + dataPath_;
 
-        // disable raft snaphsot
+        // disable raft snapshot
         options_.raftNodeOptions.snapshot_interval_s = -1;
 
         options_.localFileSystem = mockfs_.get();
 
         options_.trashOptions.trashUri = "local://" + trashPath_;
+        options_.storageOptions.type = "memory";
 
         butil::ip_t ip;
         ASSERT_EQ(0, butil::str2ip(options_.ip.c_str(), &ip));
@@ -130,6 +131,9 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
         nodeManager_->AddService(&server_, listenAddr);
 
         ASSERT_EQ(0, server_.Start(listenAddr, nullptr));
+
+        EXPECT_CALL(*mockfs_, Mkdir(_))
+            .WillRepeatedly(Return(0));
     }
 
     void TearDown() {
@@ -254,7 +258,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_Success) {
     EXPECT_CALL(writer, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(writer, add_file(_))
-        .Times(2);
+        .Times(1);
     EXPECT_CALL(*mockfs_, Open(_, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*mockfs_, Write(_, Matcher<const char*>(_), _, _))
@@ -313,12 +317,13 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .Times(2)
-        .WillRepeatedly(Return(false));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())
         .Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_))
+        .WillOnce(Return(true));
 
     braft::SnapshotMeta meta;
     meta.set_last_included_index(100);
@@ -365,8 +370,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false))
-        .WillOnce(Return(true));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())
@@ -412,8 +416,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess1) {
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false))
-        .WillOnce(Return(true));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())
@@ -448,8 +451,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess2) {
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false))
-        .WillOnce(Return(true));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())
@@ -486,8 +488,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess3) {
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false))
-        .WillOnce(Return(true));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())

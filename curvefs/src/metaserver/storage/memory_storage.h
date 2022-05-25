@@ -27,6 +27,7 @@
 #include <memory>
 #include <utility>
 #include <unordered_map>
+#include <vector>
 
 #include "absl/container/btree_map.h"
 #include "src/common/string_util.h"
@@ -72,8 +73,6 @@ class MemoryStorage : public KVStorage, public StorageTransaction {
 
     bool Close() override;
 
-    bool GetStatistics(StorageStatistics* Statistics) override;
-
     StorageOptions GetStorageOptions() const override;
 
     Status HGet(const std::string& name,
@@ -118,6 +117,11 @@ class MemoryStorage : public KVStorage, public StorageTransaction {
     Status Commit() override;
 
     Status Rollback() override;
+
+    bool Checkpoint(const std::string& dir,
+                    std::vector<std::string>* files) override;
+
+    bool Recover(const std::string& dir) override;
 
  private:
     RWLock rwLock_;

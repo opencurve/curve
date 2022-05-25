@@ -294,20 +294,6 @@ inline bool CopysetNode::IsLoading() const {
     return isLoading_.load(std::memory_order_acquire);
 }
 
-class CopysetLoadingGuard {
- public:
-    explicit CopysetLoadingGuard(std::atomic_bool& flag) : flag_(flag) {
-        flag_.store(true, std::memory_order_release);
-    }
-
-    ~CopysetLoadingGuard() {
-        flag_.store(false, std::memory_order_release);
-    }
-
- private:
-    std::atomic_bool& flag_;
-};
-
 }  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs

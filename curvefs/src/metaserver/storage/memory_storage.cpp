@@ -295,28 +295,19 @@ Status MemoryStorage::Rollback()  {
     return Status::OK();
 }
 
-bool MemoryStorage::GetStatistics(StorageStatistics* statistics) {
-    statistics->maxMemoryQuotaBytes = options_.maxMemoryQuotaBytes;
-    statistics->maxDiskQuotaBytes = options_.maxDiskQuotaBytes;
-
-    // memory usage bytes
-    if (!GetProcMemory(&statistics->memoryUsageBytes)) {
-        return false;
-    }
-
-    // disk usage bytes
-    uint64_t total, available;
-    if (!GetFileSystemSpaces(options_.dataDir, &total, &available)) {
-        LOG(ERROR) << "Get filesystem space failed.";
-        return false;
-    }
-    statistics->diskUsageBytes = total - available;
-
-    return true;
-}
-
 StorageOptions MemoryStorage::GetStorageOptions() const {
     return options_;
+}
+
+bool MemoryStorage::Checkpoint(const std::string& dir,
+                               std::vector<std::string>* files) {
+    LOG(WARNING) << "Not supported";
+    return false;
+}
+
+bool MemoryStorage::Recover(const std::string& dir) {
+    LOG(WARNING) << "Not supported";
+    return false;
 }
 
 }  // namespace storage

@@ -23,16 +23,19 @@
 #ifndef CURVEFS_SRC_METASERVER_METASTORE_H_
 #define CURVEFS_SRC_METASERVER_METASTORE_H_
 
+#include <gtest/gtest_prod.h>
+
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
+
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/copyset/snapshot_closure.h"
-#include "curvefs/src/metaserver/partition.h"
-#include "curvefs/src/metaserver/metastore_fstream.h"
-#include "curvefs/src/metaserver/storage/iterator.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "curvefs/src/metaserver/copyset/snapshot_closure.h"
+#include "curvefs/src/metaserver/metastore_fstream.h"
+#include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -79,13 +82,15 @@ using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamConnection;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
+using ::curvefs::metaserver::storage::StorageOptions;
+
 class MetaStore {
  public:
     MetaStore() = default;
     virtual ~MetaStore() = default;
 
     virtual bool Load(const std::string& pathname) = 0;
-    virtual bool Save(const std::string& path,
+    virtual bool Save(const std::string& dir,
                       OnSnapshotSaveDoneClosure* done) = 0;
     virtual bool Clear() = 0;
     virtual MetaStatusCode CreatePartition(
@@ -162,12 +167,13 @@ class MetaStore {
 
 class MetaStoreImpl : public MetaStore {
  public:
-    MetaStoreImpl(copyset::CopysetNode* node,
-                  std::shared_ptr<KVStorage> kvStorage_);
+    static std::unique_ptr<MetaStoreImpl> Create(
+        copyset::CopysetNode* node,
+        const storage::StorageOptions& storageOptions);
 
-    bool Load(const std::string& pathname) override;
-    bool Save(const std::string& path,
-        OnSnapshotSaveDoneClosure* done) override;
+    bool Load(const std::string& checkpoint) override;
+    bool Save(const std::string& dir,
+              OnSnapshotSaveDoneClosure* done) override;
     bool Clear() override;
 
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
@@ -238,6 +244,23 @@ class MetaStoreImpl : public MetaStore {
         UpdateVolumeExtentResponse* response) override;
 
  private:
+    FRIEND_TEST(MetastoreTest, partition);
+    FRIEND_TEST(MetastoreTest, test_inode);
+    FRIEND_TEST(MetastoreTest, test_dentry);
+    FRIEND_TEST(MetastoreTest, persist_success);
+    FRIEND_TEST(MetastoreTest, DISABLED_persist_deleting_partition_success);
+    FRIEND_TEST(MetastoreTest, persist_partition_fail);
+    FRIEND_TEST(MetastoreTest, persist_dentry_fail);
+    FRIEND_TEST(MetastoreTest, testBatchGetInodeAttr);
+    FRIEND_TEST(MetastoreTest, testBatchGetXAttr);
+    FRIEND_TEST(MetastoreTest, GetOrModifyS3ChunkInfo);
+    FRIEND_TEST(MetastoreTest, GetInodeWithPaddingS3Meta);
+    FRIEND_TEST(MetastoreTest, TestUpdateVolumeExtent_PartitionNotFound);
+    FRIEND_TEST(MetastoreTest, persist_deleting_partition_success);
+
+    MetaStoreImpl(copyset::CopysetNode* node,
+                  const StorageOptions& storageOptions);
+
     void PrepareStreamBuffer(butil::IOBuf* buffer,
                              uint64_t chunkIndex,
                              const std::string& value);
@@ -245,6 +268,8 @@ class MetaStoreImpl : public MetaStore {
     void SaveBackground(const std::string& path,
                         DumpFileClosure* child,
                         OnSnapshotSaveDoneClosure* done);
+
+    bool InitStorage();
 
  private:
     RWLock rwLock_;  // protect partitionMap_
@@ -255,6 +280,8 @@ class MetaStoreImpl : public MetaStore {
     copyset::CopysetNode* copysetNode_;
 
     std::shared_ptr<StreamServer> streamServer_;
+
+    storage::StorageOptions storageOptions_;
 };
 
 }  // namespace metaserver

@@ -15,51 +15,38 @@
  */
 
 /*
- * Project: Curve
- * Date: 2022-02-14
- * Author: Jingli Chen (Wine93)
+ * Project: curve
+ * Date: Thursday Jun 09 10:34:04 CST 2022
+ * Author: wuhanqing
  */
 
-#ifndef CURVEFS_SRC_METASERVER_STORAGE_CONFIG_H_
-#define CURVEFS_SRC_METASERVER_STORAGE_CONFIG_H_
+#ifndef CURVEFS_SRC_METASERVER_STORAGE_ROCKSDB_OPTIONS_H_
+#define CURVEFS_SRC_METASERVER_STORAGE_ROCKSDB_OPTIONS_H_
 
-#include <string>
+#include <vector>
+
+#include "rocksdb/db.h"
+#include "rocksdb/options.h"
 
 namespace curve {
-namespace fs {
-class LocalFileSystem;
-}  // namespace fs
+namespace common {
+class Configuration;
+}  // namespace common
 }  // namespace curve
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-struct StorageOptions {
-    std::string type;
+// Parse rocksdb related options from conf
+void ParseRocksdbOptions(curve::common::Configuration* conf);
 
-    uint64_t maxMemoryQuotaBytes;
-
-    uint64_t maxDiskQuotaBytes;
-
-    std::string dataDir;
-
-    // only memory storage interested the below config item
-    bool compression;
-
-    // only rocksdb storage interested the below config item
-    uint64_t statsDumpPeriodSec;
-
-    size_t keyPrefixLength;
-
-    // misc config item
-    uint64_t s3MetaLimitSizeInsideInode;
-
-    curve::fs::LocalFileSystem* localFileSystem = nullptr;
-};
+void InitRocksdbOptions(
+    rocksdb::DBOptions* options,
+    std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies);
 
 }  // namespace storage
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_STORAGE_CONFIG_H_
+#endif  // CURVEFS_SRC_METASERVER_STORAGE_ROCKSDB_OPTIONS_H_

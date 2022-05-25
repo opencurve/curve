@@ -39,6 +39,7 @@
 #include "src/common/uri_parser.h"
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/resource_statistic.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -48,8 +49,6 @@ using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
 using ::curvefs::metaserver::copyset::CopysetService_Stub;
 using ::curvefs::metaserver::copyset::ToGroupIdString;
-using ::curvefs::metaserver::storage::StorageStatistics;
-using ::curvefs::metaserver::storage::GetStorageInstance;
 
 namespace {
 
@@ -221,10 +220,9 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
 bool Heartbeat::GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
                                          uint64_t ncopysets) {
     StorageStatistics statistics;
-    auto kvStorage = GetStorageInstance();
-    bool succ = kvStorage->GetStatistics(&statistics);
+    bool succ = options_.resourceCollector->GetResourceStatistic(&statistics);
     if (!succ) {
-        LOG(ERROR) << "Get storage statistics failed";
+        LOG(ERROR) << "Failed to get resource statistic";
         return false;
     }
 
@@ -236,6 +234,7 @@ bool Heartbeat::GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
         status->set_memorycopysetminrequirebyte(0);
         status->set_diskcopysetminrequirebyte(0);
     } else {
+        // TODO(all): report each copyset's resource usage
         status->set_memorycopysetminrequirebyte(
             uint64_t(statistics.memoryUsageBytes / ncopysets));
         status->set_diskcopysetminrequirebyte(

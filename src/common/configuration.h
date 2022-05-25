@@ -40,9 +40,6 @@ using ConfigMetricMap =  std::unordered_map<std::string, ConfigItemPtr>;
 
 class Configuration {
  public:
-    Configuration() {}
-    ~Configuration() {}
-
     bool LoadConfig();
     bool SaveConfig();
     void PrintConfig();
@@ -143,6 +140,34 @@ class Configuration {
     void GetValueFatalIfFail(const std::string& key, uint64_t* value);
     void GetValueFatalIfFail(const std::string& key, float* value);
     void GetValueFatalIfFail(const std::string& key, double* value);
+
+    bool GetValue(const std::string &key, int *value) {
+        return GetIntValue(key, value);
+    }
+
+    bool GetValue(const std::string &key, uint32_t *value) {
+        return GetUInt32Value(key, value);
+    }
+
+    bool GetValue(const std::string& key, int64_t* value) {
+        return GetInt64Value(key, value);
+    }
+
+    bool GetValue(const std::string& key, uint64_t* value) {
+        return GetUInt64Value(key, value);
+    }
+
+    bool GetValue(const std::string& key, double* value) {
+        return GetDoubleValue(key, value);
+    }
+
+    bool GetValue(const std::string& key, float* value) {
+        return GetFloatValue(key, value);
+    }
+
+    bool GetValue(const std::string& key, bool* value) {
+        return GetBoolValue(key, value);
+    }
 
  private:
     /**

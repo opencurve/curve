@@ -48,10 +48,6 @@ class PartitionCleanManager {
         LOG(INFO) << "PartitionCleanManager constructor.";
     }
 
-    ~PartitionCleanManager() {
-        LOG(INFO) << "~PartitionCleanManager destructor.";
-    }
-
     static PartitionCleanManager& GetInstance() {
         static PartitionCleanManager instance_;
         return instance_;

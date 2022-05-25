@@ -614,6 +614,7 @@ void S3CompactWorkQueueImpl::CompactChunks(const struct S3CompactTask& task) {
     VLOG(6) << "s3compact: try to compact, fsId: " << task.inodeKey.fsId
             << " , inodeId: " << task.inodeKey.inodeId;
 
+    // full inode including s3 info
     Inode inode;
     if (!CompactPrecheck(task, &inode)) return;
     uint64_t fsId = inode.fsid();

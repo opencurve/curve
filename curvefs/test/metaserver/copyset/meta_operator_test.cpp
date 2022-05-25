@@ -35,6 +35,7 @@
 #include "curvefs/test/metaserver/mock/mock_metastore.h"
 #include "curvefs/test/utils/protobuf_message_utils.h"
 #include "src/common/timeutility.h"
+#include "test/fs/mock_local_filesystem.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -406,6 +407,8 @@ TEST_F(MetaOperatorTest, PropostTest_IsNotLeader) {
 }
 
 TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
+    curve::fs::MockLocalFileSystem localFs;
+
     PoolId poolId = 100;
     CopysetId copysetId = 100;
     braft::Configuration conf;
@@ -413,6 +416,11 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     CopysetNode node(poolId, copysetId, conf, &mockNodeManager_);
     CopysetNodeOptions options;
     options.dataUri = "local:///mnt/data";
+    options.localFileSystem = &localFs;
+    options.storageOptions.type = "memory";
+
+    EXPECT_CALL(localFs, Mkdir(_))
+        .WillOnce(Return(0));
 
     EXPECT_TRUE(node.Init(options));
     auto* mockMetaStore = new mock::MockMetaStore();

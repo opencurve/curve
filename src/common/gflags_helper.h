@@ -24,6 +24,7 @@
 #define SRC_COMMON_GFLAGS_HELPER_H_
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include <memory>
 #include <string>
@@ -35,22 +36,36 @@ namespace common {
 
 struct GflagsLoadValueFromConfIfCmdNotSet {
     template <typename T>
-    void Load(const std::shared_ptr<Configuration>& conf,
+    bool Load(const std::shared_ptr<Configuration>& conf,
               const std::string& cmdName, const std::string& confName,
-              T* value) {
-        Load(conf.get(), cmdName, confName, value);
+              T* value, bool fatalIfMissing = true) {
+        return Load(conf.get(), cmdName, confName, value, fatalIfMissing);
     }
 
-    template <typename T>
-    void Load(Configuration* conf, const std::string& cmdName,
-              const std::string& confName, T* value) {
+    template <typename ValueT>
+    bool Load(Configuration* conf, const std::string& cmdName,
+              const std::string& confName, ValueT* value,
+              bool fatalIfMissing = true) {
         using ::google::CommandLineFlagInfo;
         using ::google::GetCommandLineFlagInfo;
 
         CommandLineFlagInfo info;
         if (GetCommandLineFlagInfo(cmdName.c_str(), &info) && info.is_default) {
-            conf->GetValueFatalIfFail(confName, value);
+            bool succ = conf->GetValue(confName, value);
+            if (!succ) {
+                if (fatalIfMissing) {
+                    CHECK(false) << "Failed to get `" << confName
+                                 << "` from file: " << conf->GetConfigPath();
+                } else {
+                    LOG(WARNING) << "Failed to get `" << confName
+                                 << "` from file: " << conf->GetConfigPath()
+                                 << ", current value: " << *value;
+                    return false;
+                }
+            }
         }
+
+        return true;
     }
 };
 
