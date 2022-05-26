@@ -186,6 +186,8 @@ class TopologyManager {
      */
     NameLock registMsMutex;
 
+    NameLock createPartitionMutex_;
+
     /**
      * @brief topology options
      */
