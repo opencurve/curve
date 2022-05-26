@@ -632,6 +632,9 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
     auto partitionInfoList = response->mutable_partitioninfolist();
     response->set_statuscode(TopoStatusCode::TOPO_OK);
 
+    // get lock and avoid multiMountpoint create concurrently
+    NameLockGuard lock(createPartitionMutex_, std::to_string(fsId));
+
     while (partitionInfoList->size() < count) {
         if (topology_->GetAvailableCopysetNum()
                             < option_.minAvailableCopysetNum) {
