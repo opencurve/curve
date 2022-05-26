@@ -154,6 +154,7 @@ class TaskExecutor {
     void OnSuccess();
     void OnReDirected();
     void OnCopysetNotExist();
+    bool OnPartitionNotExist();
     void OnPartitionAllocIDFail();
 
     // retry policy

@@ -35,6 +35,9 @@ namespace topology {
 bool ClusterInformation::SerializeToString(std::string *value) const {
     ClusterInfoData data;
     data.set_clusterid(clusterId);
+    for (const auto &it : partitionIndexs) {
+        (*(data.mutable_partitionindexs()))[it.first] = it.second;
+    }
     return data.SerializeToString(value);
 }
 
@@ -42,6 +45,9 @@ bool ClusterInformation::ParseFromString(const std::string &value) {
     ClusterInfoData data;
     bool ret = data.ParseFromString(value);
     clusterId = data.clusterid();
+    for (const auto &it : data.partitionindexs()) {
+        partitionIndexs[it.first] = it.second;
+    }
     return ret;
 }
 

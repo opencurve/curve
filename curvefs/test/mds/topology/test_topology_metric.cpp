@@ -133,6 +133,7 @@ class TestTopologyMetric : public ::testing::Test {
         partition.SetDentryNum(100);
 
         EXPECT_CALL(*storage_, StoragePartition(_)).WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(true));
         TopoStatusCode ret = topology_->AddPartition(partition);
         ASSERT_EQ(TopoStatusCode::TOPO_OK, ret)
             << "should have PrepareAddPartition()";

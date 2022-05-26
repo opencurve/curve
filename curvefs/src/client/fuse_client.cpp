@@ -274,7 +274,7 @@ void InodeAttr2ParamAttr(InodeAttr inodeAttr, struct stat *attr) {
     }
 }
 
-void GetDentryParamFromInode(
+void GetDentryParamFromInodeAttr(
     const FuseClientOption &option,
     InodeAttr inodeAttr,
     fuse_entry_param *param) {
@@ -315,7 +315,7 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    GetDentryParamFromInode(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
     return ret;
 }
 
@@ -486,7 +486,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
 
     InodeAttr attr;
     inodeWrapper->GetInodeAttrLocked(&attr);
-    GetDentryParamFromInode(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
     return ret;
 }
 
@@ -652,7 +652,7 @@ static void dirbuf_add(fuse_req_t req, struct DirBufferHead *b,
         b->size += fuse_add_direntry_plus(req, NULL, 0, dentry.name().c_str(),
                                           NULL, 0);
         b->p = static_cast<char *>(realloc(b->p, b->size));
-        GetDentryParamFromInode(option, std::move(*attr), &param);
+        GetDentryParamFromInodeAttr(option, std::move(*attr), &param);
         fuse_add_direntry_plus(req, b->p + oldsize, b->size - oldsize,
                                dentry.name().c_str(), &param, b->size);
     }
@@ -910,7 +910,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &inodeAttr);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
-                    << ", inodeid = " << ino;
+                       << ", inodeid = " << ino;
             return ret;
         }
 
@@ -935,7 +935,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                 return ret;
             }
             LOG(INFO) << "After calculate summary info:\n"
-                    << inodeAttr.DebugString();
+                      << inodeAttr.DebugString();
             auto it = inodeAttr.xattr().find(name);
             if (it != inodeAttr.xattr().end()) {
                 xValue = it->second;
@@ -1085,7 +1085,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
 
     InodeAttr attr;
     inodeWrapper->GetInodeAttrLocked(&attr);
-    GetDentryParamFromInode(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
     return ret;
 }
 
@@ -1164,7 +1164,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
 
     InodeAttr attr;
     inodeWrapper->GetInodeAttrLocked(&attr);
-    GetDentryParamFromInode(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
     return ret;
 }
 

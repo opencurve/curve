@@ -23,12 +23,14 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
 
+#include <cstdint>
 #include <list>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <algorithm>
+#include <map>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
@@ -51,10 +53,28 @@ using ProtoFileType2InodeNumMap = ::google::protobuf::Map<int32_t, int64_t>;
 struct ClusterInformation {
     // the only and unique Id of a cluster
     std::string clusterId;
+    // <fsId, partition index of this fs>
+    std::map<uint32_t, uint32_t> partitionIndexs;
 
     ClusterInformation() = default;
     explicit ClusterInformation(const std::string &clusterId)
         : clusterId(clusterId) {}
+
+    // all partition number include deleted
+    uint32_t GetPartitionIndexOfFS(uint32_t fsId) {
+        return partitionIndexs[fsId];
+    }
+
+    // for upgrade to keep compatibility
+    void UpdatePartitionIndexOfFs(uint32_t fsId, uint32_t number) {
+        if (number > partitionIndexs[fsId]) {
+            partitionIndexs[fsId] = number;
+        }
+    }
+
+    void AddPartitionIndexOfFs(uint32_t fsId) {
+        partitionIndexs[fsId]++;
+    }
 
     bool SerializeToString(std::string *value) const;
 

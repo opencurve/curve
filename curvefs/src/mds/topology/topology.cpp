@@ -20,12 +20,15 @@
  * Author: wanghai01
  */
 
-#include "curvefs/src/mds/topology/topology.h"
 #include <glog/logging.h>
+#include <cstdint>
 #include <chrono>  // NOLINT
 #include <utility>
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/common/timeutility.h"
 #include "src/common/uuid.h"
+#include "curvefs/src/mds/topology/topology.h"
 
 namespace curvefs {
 namespace mds {
@@ -534,6 +537,7 @@ bool TopologyImpl::GetMetaServer(const std::string &hostIp, uint32_t port,
 }
 
 TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
+    WriteLockGuard wlockCluster(clusterMutex_);
     ReadLockGuard rlockPool(poolMutex_);
     WriteLockGuard wlockCopyset(copySetMutex_);
     WriteLockGuard wlockPartition(partitionMutex_);
@@ -551,6 +555,14 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
 
                 // copyset partitionId only in memory
                 it->second.AddPartitionId(id);
+
+                // update fs partition number
+                clusterInfo_.AddPartitionIndexOfFs(data.GetFsId());
+                if (!storage_->StorageClusterInfo(clusterInfo_)) {
+                    LOG(ERROR) << "AddPartitionIndexOfFs failed, fsId = "
+                               << data.GetFsId();
+                    return TopoStatusCode::TOPO_STORGE_FAIL;
+                }
                 return TopoStatusCode::TOPO_OK;
             } else {
                 return TopoStatusCode::TOPO_ID_DUPLICATED;
@@ -991,6 +1003,14 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
         return TopoStatusCode::TOPO_STORGE_FAIL;
     }
     idGenerator_->initPartitionIdGenerator(maxPartitionId);
+
+    // for upgrade and keep compatibility
+    // the old version have no partitionIndex in etcd, so need update here of upgrade  // NOLINT
+    // if the fs in old cluster already delete some partitions, it is incompatible.    // NOLINT
+    if (!RefreshPartitionIndexOfFS(partitionMap_)) {
+        LOG(ERROR) << "[TopologyImpl::init],  RefreshPartitionIndexOfFS fail.";
+        return TopoStatusCode::TOPO_STORGE_FAIL;
+    }
     LOG(INFO) << "[TopologyImpl::init], LoadPartition success, "
               << "partition num = " << partitionMap_.size();
 
@@ -1205,6 +1225,7 @@ TopoStatusCode TopologyImpl::LoadClusterInfo() {
 }
 
 bool TopologyImpl::GetClusterInfo(ClusterInformation *info) {
+    ReadLockGuard rlock(clusterMutex_);
     *info = clusterInfo_;
     return true;
 }
@@ -1524,16 +1545,11 @@ TopoStatusCode TopologyImpl::GenCopysetAddrByResourceUsage(
     return TopoStatusCode::TOPO_METASERVER_NOT_FOUND;
 }
 
-uint32_t TopologyImpl::GetPartitionNumberOfFs(FsIdType fsId) {
-    ReadLockGuard rlockPartition(partitionMutex_);
-    uint32_t pNumber = 0;
-    for (const auto &it : partitionMap_) {
-        if (it.second.GetFsId() == fsId) {
-            pNumber++;
-        }
-    }
-    return pNumber;
+uint32_t TopologyImpl::GetPartitionIndexOfFS(FsIdType fsId) {
+    ReadLockGuard rlock(clusterMutex_);
+    return clusterInfo_.GetPartitionIndexOfFS(fsId);
 }
+
 std::vector<CopySetInfo> TopologyImpl::ListCopysetInfo() const {
     std::vector<CopySetInfo> ret;
     for (auto const &i : copySetMap_) {
@@ -1581,6 +1597,19 @@ std::string TopologyImpl::GetHostNameAndPortById(MetaServerIdType msId) {
 bool TopologyImpl::IsCopysetCreating(const CopySetKey &key) const {
     ReadLockGuard rlockCopySetCreating(copySetCreatingMutex_);
     return copySetCreating_.count(key) != 0;
+}
+
+bool TopologyImpl::RefreshPartitionIndexOfFS(
+    const std::unordered_map<PartitionIdType, Partition> &partitionMap) {
+    // <fsId, partitionNum>
+    std::map<uint32_t, uint32_t> tmap;
+    for (const auto &it : partitionMap) {
+        tmap[it.second.GetFsId()]++;
+    }
+    for (const auto &it : tmap) {
+        clusterInfo_.UpdatePartitionIndexOfFs(it.first, it.second);
+    }
+    return storage_->StorageClusterInfo(clusterInfo_);
 }
 
 }  // namespace topology

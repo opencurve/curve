@@ -261,7 +261,7 @@ class Topology {
     virtual TopoStatusCode GenCopysetAddrByResourceUsage(
         std::set<MetaServerIdType> *replicas, PoolIdType *poolId) = 0;
 
-    virtual uint32_t GetPartitionNumberOfFs(FsIdType fsId) = 0;
+    virtual uint32_t GetPartitionIndexOfFS(FsIdType fsId) = 0;
 
     virtual std::vector<CopySetInfo> ListCopysetInfo() const = 0;
 
@@ -487,7 +487,7 @@ class TopologyImpl : public Topology {
     TopoStatusCode GenCopysetAddrByResourceUsage(
         std::set<MetaServerIdType> *metaServers, PoolIdType *poolId) override;
 
-    uint32_t GetPartitionNumberOfFs(FsIdType fsId);
+    uint32_t GetPartitionIndexOfFS(FsIdType fsId);
 
     TopoStatusCode GetPoolIdByMetaserverId(MetaServerIdType id,
                                            PoolIdType *poolIdOut);
@@ -518,6 +518,9 @@ class TopologyImpl : public Topology {
     TopoStatusCode GenCandidateMapUnlock(PoolIdType poolId,
         std::map<ZoneIdType, std::vector<MetaServerIdType>> * candidateMap);
 
+    bool RefreshPartitionIndexOfFS(
+        const std::unordered_map<PartitionIdType, Partition> &partitionMap);
+
  private:
     std::unordered_map<PoolIdType, Pool> poolMap_;
     std::unordered_map<ZoneIdType, Zone> zoneMap_;
@@ -529,6 +532,7 @@ class TopologyImpl : public Topology {
 
     // cluster info
     ClusterInformation clusterInfo_;
+    mutable RWLock clusterMutex_;
 
     std::shared_ptr<TopologyIdGenerator> idGenerator_;
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
