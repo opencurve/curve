@@ -157,11 +157,11 @@ class MetaCache {
 
     bool RefreshTxId();
 
- private:
-    void GetTxId(uint32_t partitionId, uint64_t *txId);
-
     // list or create partitions for fs
     bool ListPartitions(uint32_t fsID);
+
+ private:
+    void GetTxId(uint32_t partitionId, uint64_t *txId);
     bool CreatePartitions(int currentNum, PatitionInfoList *newPartitions);
     bool DoListOrCreatePartitions(
         bool list, PatitionInfoList *partitionInfos,

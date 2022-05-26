@@ -139,6 +139,7 @@ class TestTopology : public ::testing::Test {
                             uint64_t idStart, uint64_t idEnd) {
         Partition partition(fsId, poolId, csId, pId, idStart, idEnd);
         EXPECT_CALL(*storage_, StoragePartition(_)).WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(true));
         int ret = topology_->AddPartition(partition);
         ASSERT_EQ(TopoStatusCode::TOPO_OK, ret)
             << "should have PrepareAddPartition()";
@@ -157,7 +158,8 @@ TEST_F(TestTopology, test_init_success) {
     EXPECT_CALL(*storage_, LoadClusterInfo(_))
         .WillOnce(DoAll(SetArgPointee<0>(infos), Return(true)));
 
-    EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .Times(2).WillRepeatedly(Return(true));
 
     std::unordered_map<PoolIdType, Pool> poolMap_;
     std::unordered_map<ZoneIdType, Zone> zoneMap_;
@@ -670,6 +672,8 @@ TEST_F(TestTopology, test_AddPartition_success) {
     Partition partition(0x01, 0x11, 0x41, 0x51, 1, 100);
 
     EXPECT_CALL(*storage_, StoragePartition(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
         .WillOnce(Return(true));
 
     int ret = topology_->AddPartition(partition);

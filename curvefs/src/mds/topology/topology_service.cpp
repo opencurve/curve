@@ -599,6 +599,36 @@ void TopologyServiceImpl::CreatePartition(
     }
 }
 
+void TopologyServiceImpl::DeletePartition(
+    ::google::protobuf::RpcController* cntl_base,
+    const DeletePartitionRequest* request,
+    DeletePartitionResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [DeletePartitionRequest] "
+              << request->DebugString();
+
+    topologyManager_->DeletePartition(request, response);
+    if (TopoStatusCode::TOPO_OK != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [DeletePartitionResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [DeletePartitionResponse] "
+                  << response->DebugString();
+    }
+}
+
+
 void TopologyServiceImpl::CommitTx(
         ::google::protobuf::RpcController* cntl_base,
         const CommitTxRequest* request,

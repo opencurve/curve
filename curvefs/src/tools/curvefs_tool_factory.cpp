@@ -45,6 +45,7 @@
 #include "curvefs/src/tools/usage/curvefs_metadata_usage_tool.h"
 #include "curvefs/src/tools/version/curvefs_version_tool.h"
 #include "curvefs/src/tools/list/curvefs_partition_list.h"
+#include "curvefs/src/tools/delete/curvefs_delete_partition_tool.h"
 
 namespace curvefs {
 namespace tools {
@@ -128,6 +129,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // delete-fs
     RegisterCurvefsTool(std::string(kDeleteFsCmd),
                         CurvefsToolCreator<delete_::DeleteFsTool>::Create);
+
+    // delete-partition
+    RegisterCurvefsTool(std::string(kPartitionDeleteCmd),
+                    CurvefsToolCreator<delete_::DeletePartitionTool>::Create);
 
     // check-copyset
     RegisterCurvefsTool(std::string(kCopysetCheckCmd),

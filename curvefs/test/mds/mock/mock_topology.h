@@ -164,6 +164,8 @@ class MockStorage : public TopologyStorage {
     MOCK_METHOD1(UpdateCopySet, bool(const CopySetInfo &data));
     MOCK_METHOD1(UpdatePartition, bool(const Partition &data));
     MOCK_METHOD1(UpdatePartitions, bool(const std::vector<Partition> &datas));
+    MOCK_METHOD2(UpdatePartitionStatus, TopoStatusCode(
+        PartitionIdType partitionId, PartitionStatus status));
 
     MOCK_METHOD1(LoadClusterInfo, bool(std::vector<ClusterInformation> *info));
     MOCK_METHOD1(StorageClusterInfo, bool(const ClusterInformation &info));
@@ -399,6 +401,9 @@ class MockTopologyManager : public TopologyManager {
 
     MOCK_METHOD2(CreatePartitions, void(const CreatePartitionRequest *request,
                                         CreatePartitionResponse *response));
+
+    MOCK_METHOD2(DeletePartition, void(const DeletePartitionRequest *request,
+                                       DeletePartitionResponse *response));
 
     MOCK_METHOD2(CreatePartitionsAndGetMinPartition,
                  TopoStatusCode(FsIdType fsId, PartitionInfo *partition));

@@ -668,12 +668,14 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
             }
         }
 
-        // calculate partition number of this fs
-        uint32_t pNumber = topology_->GetPartitionNumberOfFs(fsId);
-        uint64_t idStart = pNumber * option_.idNumberInPartition;
-        uint64_t idEnd = (pNumber + 1) * option_.idNumberInPartition - 1;
+        // calculate inodeId start and end of partition
+        uint32_t index = topology_->GetPartitionIndexOfFS(fsId);
+        uint64_t idStart = index * option_.idNumberInPartition;
+        uint64_t idEnd = (index + 1) * option_.idNumberInPartition - 1;
         PartitionIdType partitionId = topology_->AllocatePartitionId();
-        LOG(INFO) << "CreatePartiton partitionId = " << partitionId;
+        LOG(INFO) << "CreatePartiton partitionId = " << partitionId
+                  << ", start = " << idStart
+                  << ", end = " << idEnd;
         if (partitionId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
             response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
             return;
@@ -715,6 +717,54 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
             return;
         }
     }
+}
+
+void TopologyManager::DeletePartition(
+    const DeletePartitionRequest *request,
+    DeletePartitionResponse *response) {
+    uint32_t partitionId = request->partitionid();
+    Partition partition;
+    if (!topology_->GetPartition(partitionId, &partition)) {
+        LOG(WARNING) << "Get Partiton info failed, id = " << partitionId;
+        response->set_statuscode(TopoStatusCode::TOPO_OK);
+        return;
+    }
+
+    if (partition.GetStatus() == PartitionStatus::DELETING) {
+        LOG(WARNING) << "Delete partition which is deleting already, id =  "
+                     << partitionId;
+        response->set_statuscode(TopoStatusCode::TOPO_OK);
+        return;
+    }
+
+    uint32_t poolId = partition.GetPoolId();
+    uint32_t copysetId = partition.GetCopySetId();
+
+    // get copyset members
+    std::set<std::string> copysetMemberAddr;
+    auto ret = GetCopysetMembers(poolId, copysetId, &copysetMemberAddr);
+    if (ret != TopoStatusCode::TOPO_OK) {
+        LOG(ERROR) << "GetCopysetMembers failed, poolId = " << poolId
+                   << ", copysetId = " << copysetId;
+        response->set_statuscode(ret);
+        return;
+    }
+
+    auto fret = metaserverClient_->DeletePartition(poolId, copysetId,
+        partitionId, copysetMemberAddr);
+    if (fret == FSStatusCode::OK || fret == FSStatusCode::UNDER_DELETING) {
+        ret = topology_->UpdatePartitionStatus(
+            partitionId, PartitionStatus::DELETING);
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(ERROR) << "DeletePartition failed, partitionId = "
+                       << partitionId << ", ret = "
+                       << TopoStatusCode_Name(ret);
+        }
+        response->set_statuscode(ret);
+        return;
+    }
+    response->set_statuscode(
+        TopoStatusCode::TOPO_DELETE_PARTITION_ON_METASERVER_FAIL);
 }
 
 bool TopologyManager::CreateCopysetNodeOnMetaServer(
@@ -1033,7 +1083,7 @@ TopoStatusCode TopologyManager::GetCopysetMembers(
         }
     } else {
         LOG(ERROR) << "Get copyset failed."
-                   << " poolId = " << poolId << "copysetId = " << copysetId;
+                   << " poolId = " << poolId << ", copysetId = " << copysetId;
         return TopoStatusCode::TOPO_COPYSET_NOT_FOUND;
     }
     return TopoStatusCode::TOPO_OK;

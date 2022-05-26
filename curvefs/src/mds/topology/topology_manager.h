@@ -109,6 +109,9 @@ class TopologyManager {
     virtual void CreatePartitions(const CreatePartitionRequest *request,
                                   CreatePartitionResponse *response);
 
+    virtual void DeletePartition(const DeletePartitionRequest *request,
+                                 DeletePartitionResponse *response);
+
     virtual TopoStatusCode CreatePartitionsAndGetMinPartition(
         FsIdType fsId, PartitionInfo *partition);
 

@@ -83,7 +83,7 @@ bool LeaseExecutor::RefreshLease() {
     FSStatusCode ret = mdsCli_->RefreshSession(txIds, &latestTxIdList);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "LeaseExecutor refresh session fail, ret = " << ret
-                   << "errorName = " << FSStatusCode_Name(ret);
+                   << ", errorName = " << FSStatusCode_Name(ret);
         return true;
     }
 

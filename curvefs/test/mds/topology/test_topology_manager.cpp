@@ -175,6 +175,7 @@ class TestTopologyManager : public ::testing::Test {
         Partition partition(fsId, poolId, csId, pId, idStart, idEnd);
         partition.SetTxId(txId);
         EXPECT_CALL(*storage_, StoragePartition(_)).WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageClusterInfo(_)).WillOnce(Return(true));
         int ret = topology_->AddPartition(partition);
         ASSERT_EQ(TopoStatusCode::TOPO_OK, ret)
             << "should have PrepareAddPartition()";
@@ -1449,7 +1450,7 @@ TEST_F(TestTopologyManager, test_GetMetaServerListInCopySets_InternalError) {
     ASSERT_EQ(TopoStatusCode::TOPO_INTERNAL_ERROR, response.statuscode());
 }
 
-TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
+TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Success) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1483,6 +1484,8 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
 
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
 
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
@@ -1507,7 +1510,7 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess) {
 }
 
 TEST_F(TestTopologyManager,
-    test_CreatePartitionsAndGetMinPartition_Sucess) {
+    test_CreatePartitionsAndGetMinPartition_Success) {
     PoolIdType poolId = 0x11;
     CopySetIdType copysetId = 0x51;
     PartitionIdType partitionId = 0x61;
@@ -1546,6 +1549,9 @@ TEST_F(TestTopologyManager,
     EXPECT_CALL(*storage_, StoragePartition(_))
         .Times(3)
         .WillRepeatedly(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .Times(3)
+        .WillRepeatedly(Return(true));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .Times(3)
         .WillRepeatedly(Return(FSStatusCode::OK));
@@ -1555,7 +1561,7 @@ TEST_F(TestTopologyManager,
                                                                 &pInfo);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
     ASSERT_EQ(partitionId, pInfo.partitionid());
-    ASSERT_EQ(3, topology_->GetPartitionNumberOfFs(0x01));
+    ASSERT_EQ(3, topology_->GetPartitionIndexOfFS(0x01));
     ASSERT_EQ(copysetId, pInfo.copysetid());
 }
 
@@ -1592,6 +1598,9 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
         .WillOnce(Return(partitionId + 1));
 
     EXPECT_CALL(*storage_, StoragePartition(_))
+        .Times(2)
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
         .Times(2)
         .WillRepeatedly(Return(true));
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
@@ -1649,6 +1658,8 @@ TEST_F(TestTopologyManager,
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
         .WillOnce(Return(true));
 
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
@@ -1800,6 +1811,8 @@ TEST_F(TestTopologyManager,
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
 
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
@@ -1944,6 +1957,8 @@ TEST_F(TestTopologyManager,
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
 
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
@@ -2077,6 +2092,8 @@ TEST_F(TestTopologyManager,
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
 
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
@@ -2163,6 +2180,8 @@ TEST_F(TestTopologyManager,
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
 
     EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
         .WillOnce(Return(FSStatusCode::OK));
@@ -2186,6 +2205,68 @@ TEST_F(TestTopologyManager,
     ASSERT_EQ(copysetId, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
     ASSERT_FALSE(topology_->IsCopysetCreating(key));
+}
+
+TEST_F(TestTopologyManager, test_DeletePartition_Success) {
+    // 1. prepare topo
+    PoolIdType poolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+    PartitionIdType partitionId = 0x61;
+
+    PrepareAddPool(poolId);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21,
+                     0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22,
+                     0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23,
+                     0x11);
+    PrepareAddMetaServer(0x41, "ms1", "token1", 0x31, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x42, "ms2", "token2", 0x32, "127.0.0.1", 7777, "ip2",
+                         8888);
+    PrepareAddMetaServer(0x43, "ms3", "token3", 0x33, "127.0.0.1", 7777, "ip2",
+                         8888);
+
+    std::set<MetaServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, poolId, replicas);
+
+    // 2. create partition
+    EXPECT_CALL(*idGenerator_, GenPartitionId()).WillOnce(Return(partitionId));
+    EXPECT_CALL(*storage_, StoragePartition(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*mockMetaserverClient_, CreatePartition(_, _, _, _, _, _, _))
+        .WillOnce(Return(FSStatusCode::OK));
+
+    CreatePartitionRequest request;
+    CreatePartitionResponse response;
+    request.set_fsid(0x01);
+    request.set_count(1);
+    serviceManager_->CreatePartitions(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_EQ(1, response.partitioninfolist().size());
+
+    // 2. delete partition
+    DeletePartitionRequest drequest;
+    DeletePartitionResponse dresponse;
+    drequest.set_partitionid(partitionId);
+    EXPECT_CALL(*mockMetaserverClient_, DeletePartition(_, _, _, _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*storage_, UpdatePartition(_))
+        .WillOnce(Return(true));
+    serviceManager_->DeletePartition(&drequest, &dresponse);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, dresponse.statuscode());
+
+    Partition info;
+    ASSERT_TRUE(topology_->GetPartition(partitionId, &info));
+    ASSERT_EQ(PartitionStatus::DELETING, info.GetStatus());
 }
 
 TEST_F(TestTopologyManager, test_CommitTx_Success) {

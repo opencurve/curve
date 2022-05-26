@@ -311,7 +311,8 @@ FSStatusCode MetaserverClient::DeletePartition(
             case MetaStatusCode::PARTITION_NOT_FOUND:
                 return FSStatusCode::OK;
             case MetaStatusCode::PARTITION_DELETING:
-                LOG(INFO) << "DeletePartition partition deleting.";
+                LOG(INFO) << "DeletePartition partition deleting, id = "
+                          << partitionId;
                 return FSStatusCode::UNDER_DELETING;
             default:
                 LOG(ERROR) << "DeletePartition failed, request = "

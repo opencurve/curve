@@ -134,6 +134,11 @@ class TopologyServiceImpl : public TopologyService {
                          CreatePartitionResponse* response,
                          ::google::protobuf::Closure* done);
 
+    virtual void DeletePartition(::google::protobuf::RpcController* cntl_base,
+                                const DeletePartitionRequest* request,
+                                DeletePartitionResponse* response,
+                                ::google::protobuf::Closure* done);
+
     virtual void CommitTx(::google::protobuf::RpcController* cntl_base,
                   const CommitTxRequest* request,
                   CommitTxResponse* response,
