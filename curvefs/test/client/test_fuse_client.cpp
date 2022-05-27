@@ -1976,9 +1976,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _))
         .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
     ret = client_->FuseOpGetXattr(
