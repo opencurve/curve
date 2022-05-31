@@ -812,13 +812,11 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     std::string xValue;
-
     // get summary info
     if (IsSummaryInfo(name) &&
         inodeWrapper->GetType() == FsFileType::TYPE_DIRECTORY) {
-        Inode inode = inodeWrapper->GetInodeUnlocked();
+        Inode inode = inodeWrapper->GetInodeLocked();
         // not enable record summary info in dir xattr,
         // need recursive computation all files
         if (!enableSumInDir_) {
