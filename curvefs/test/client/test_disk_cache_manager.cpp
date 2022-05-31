@@ -353,6 +353,82 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     diskCacheManager_->TrimStop();
 }
 
+TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
+    S3ClientAdaptorOption option;
+    option.diskCacheOpt.maxFileNums = 5;
+    S3Client *client = nullptr;
+
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
+    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    option.diskCacheOpt.fullRatio = 0;
+    option.diskCacheOpt.safeRatio = 0;
+    option.diskCacheOpt.maxUsableSpaceBytes = 0;
+    option.diskCacheOpt.cmdTimeoutSec = 5;
+    option.diskCacheOpt.asyncLoadPeriodMs = 10;
+
+    diskCacheManager_->Init(client, option);
+    diskCacheManager_->AddCache("test");
+
+    std::string buf = "test";
+    EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+
+    int ret = diskCacheManager_->TrimRun();
+    sleep(6);
+    diskCacheManager_->TrimStop();
+}
+
+TEST_F(TestDiskCacheManager, TrimCache_exceed) {
+     S3ClientAdaptorOption option;
+    option.diskCacheOpt.maxFileNums = 5;
+    S3Client *client = nullptr;
+
+    option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
+    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    option.diskCacheOpt.fullRatio = 0;
+    option.diskCacheOpt.safeRatio = 0;
+    option.diskCacheOpt.maxUsableSpaceBytes = 0;
+    option.diskCacheOpt.cmdTimeoutSec = 5;
+    option.diskCacheOpt.asyncLoadPeriodMs = 10;
+
+    diskCacheManager_->Init(client, option);
+
+    std::string buf = "test";
+    EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
+        .WillRepeatedly(Return(buf));
+    struct statfs stat;
+    stat.f_frsize = 1;
+    stat.f_blocks = 1;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+
+    diskCacheManager_->AddCache("test00");
+    diskCacheManager_->AddCache("test01");
+    diskCacheManager_->AddCache("test02");
+    diskCacheManager_->AddCache("test03");
+    diskCacheManager_->AddCache("test04");
+    diskCacheManager_->AddCache("test05");
+    int ret = diskCacheManager_->TrimRun();
+    sleep(6);
+    diskCacheManager_->TrimStop();
+}
+
 TEST_F(TestDiskCacheManager, WriteReadDirect) {
     std::string fileName = "test";
     std::string buf = "test";

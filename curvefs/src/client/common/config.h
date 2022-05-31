@@ -97,6 +97,8 @@ struct DiskCacheOption {
     uint64_t safeRatio;
     // the max size disk cache can use
     uint64_t maxUsableSpaceBytes;
+    // the max file nums can cache
+    uint64_t maxFileNums;
     // the max time system command can run
     uint32_t cmdTimeoutSec;
     // threads for disk cache

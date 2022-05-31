@@ -129,6 +129,8 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->safeRatio);
     conf->GetValueFatalIfFail("diskCache.maxUsableSpaceBytes",
                               &diskCacheOption->maxUsableSpaceBytes);
+    conf->GetValueFatalIfFail("diskCache.maxFileNums",
+                              &diskCacheOption->maxFileNums);
     conf->GetValueFatalIfFail("diskCache.cmdTimeoutSec",
                               &diskCacheOption->cmdTimeoutSec);
     conf->GetValueFatalIfFail("diskCache.threads",
