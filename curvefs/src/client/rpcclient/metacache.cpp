@@ -94,19 +94,22 @@ bool MetaCache::RefreshTxId() {
 bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
                           CopysetTarget *target, uint64_t *applyIndex,
                           bool refresh) {
-    // list infos from mds
-    if (!ListPartitions(fsID)) {
-        LOG(ERROR) << "get target for {fsid:" << fsID
-                   << "} fail, partition list not exist";
-        return false;
-    }
-
     // get copysetID with inodeID
     if (!GetCopysetIDwithInodeID(inodeID, &target->groupID,
                                  &target->partitionID, &target->txId)) {
-        LOG(WARNING) << "{fsid:" << fsID << ", inodeid:" << inodeID
-                     << "} do not find partition";
-        return false;
+        // list infos from mds
+        if (!ListPartitions(fsID)) {
+            LOG(ERROR) << "get target for {fsid:" << fsID
+                       << "} fail, partition list not exist";
+            return false;
+        }
+
+        if (!GetCopysetIDwithInodeID(inodeID, &target->groupID,
+                                     &target->partitionID, &target->txId)) {
+            LOG(ERROR) << "{fsid:" << fsID << ", inodeid:" << inodeID
+                       << "} do not find partition";
+            return false;
+        }
     }
 
     // get target copyset leader with (poolID, copysetID)
@@ -115,18 +118,20 @@ bool MetaCache::GetTarget(uint32_t fsID, uint64_t inodeID,
 
 bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
                              uint64_t *applyIndex) {
-    // list from mds
-    if (!ListPartitions(fsID)) {
-        LOG(ERROR) << "select target for {fsid:" << fsID
-                   << "} fail,  list info from mds fail";
-        return false;
-    }
-
     // select a partition
     if (!SelectPartition(target)) {
-        LOG(ERROR) << "select target for {fsid:" << fsID
-                   << "} fail,  select paritiotn fail";
-        return false;
+        // list from mds
+        if (!ListPartitions(fsID)) {
+            LOG(ERROR) << "select target for {fsid:" << fsID
+                       << "} fail,  list info from mds fail";
+            return false;
+        }
+
+        if (!SelectPartition(target)) {
+            LOG(ERROR) << "select target for {fsid:" << fsID
+                       << "} fail,  select paritiotn fail";
+            return false;
+        }
     }
 
     // get target copyset leader with (poolID, copysetID)
@@ -244,33 +249,18 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
 }
 
 bool MetaCache::ListPartitions(uint32_t fsID) {
-    if (init_) {
-        return true;
-    }
-
     WriteLockGuard wl4PartitionMap(rwlock4Partitions_);
     WriteLockGuard wl4CopysetMap(rwlock4copysetInfoMap_);
 
-    if (init_) {
-        return true;
-    } else {
-        fsID_ = fsID;
-        LOG(INFO) << "init partition and copyset infos for {fsid:" << fsID
-                  << "}";
-    }
-
+    fsID_ = fsID;
     PatitionInfoList partitionInfos;
     std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap;
     if (!DoListOrCreatePartitions(true, &partitionInfos, &copysetMap)) {
         return false;
     }
 
-    DoAddPartitionAndCopyset(partitionInfos, copysetMap);
-
-    init_ = true;
-
-    LOG(INFO) << "init partition and copyset infos for {fsid:" << fsID
-              << "} ok";
+    DoAddOrResetPartitionAndCopyset(std::move(partitionInfos),
+                                    std::move(copysetMap), true);
     return true;
 }
 
@@ -295,7 +285,8 @@ bool MetaCache::CreatePartitions(int currentNum,
     // add partition and copyset info
     WriteLockGuard wl4PartitionMap(rwlock4Partitions_);
     WriteLockGuard wl4CopysetMap(rwlock4copysetInfoMap_);
-    DoAddPartitionAndCopyset(*newPartitions, copysetMap);
+    DoAddOrResetPartitionAndCopyset(*newPartitions,
+                                    std::move(copysetMap), false);
 
     return true;
 }
@@ -381,22 +372,31 @@ bool MetaCache::DoListOrCreatePartitions(
     return ok;
 }
 
-void MetaCache::DoAddPartitionAndCopyset(
-    const PatitionInfoList &partitionInfos,
-    const std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> &copysetMap) {
+void MetaCache::DoAddOrResetPartitionAndCopyset(
+    PatitionInfoList partitionInfos,
+    std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap,
+    bool reset) {
+    if (reset) {
+        partitionInfos_.clear();
+        copysetInfoMap_.clear();
+    }
 
-    // add partitionInfo
-    partitionInfos_.insert(partitionInfos_.end(), partitionInfos.begin(),
-                           partitionInfos.end());
-
-    // add copysetInfo
-    copysetInfoMap_.insert(copysetMap.begin(), copysetMap.end());
-
+    LOG(INFO) << "add partition and copyset infos for {fsid:" << fsID_
+              << "} ok, partition size = " << partitionInfos.size()
+              << ", copyset size = " << copysetMap.size()
+              << ", reset = " << reset;
     // add partitionIxid
     std::for_each(partitionInfos.begin(), partitionInfos.end(),
                   [&](const PartitionInfo &item) {
                       SetTxId(item.partitionid(), item.txid());
                   });
+    // add partitionInfo
+    partitionInfos_.insert(partitionInfos_.end(),
+                           std::make_move_iterator(partitionInfos.begin()),
+                           std::make_move_iterator(partitionInfos.end()));
+    // add copysetInfo
+    copysetInfoMap_.insert(std::make_move_iterator(copysetMap.begin()),
+                           std::make_move_iterator(copysetMap.end()));
 }
 
 bool MetaCache::UpdateCopysetInfoFromMDS(
@@ -528,7 +528,6 @@ bool MetaCache::GetCopysetIDwithInodeID(uint64_t inodeID,
                                         PartitionID *partitionID,
                                         uint64_t *txId) {
     ReadLockGuard rl(rwlock4Partitions_);
-
     for (auto iter = partitionInfos_.begin(); iter != partitionInfos_.end();
          ++iter) {
         if (iter->start() <= inodeID && iter->end() >= inodeID) {
@@ -539,7 +538,6 @@ bool MetaCache::GetCopysetIDwithInodeID(uint64_t inodeID,
             return true;
         }
     }
-
     return false;
 }
 
@@ -556,21 +554,32 @@ bool MetaCache::GetCopysetInfowithCopySetID(
     return true;
 }
 
-bool MetaCache::GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
-    PartitionID *pid) {
-    if (!ListPartitions(fsID)) {
-        LOG(ERROR) << "ListPartitions for {fsid:" << fsID
-                   << "} fail, partition list not exist";
-        return false;
-    }
-    ReadLockGuard rl(rwlock4Partitions_);
-    for (const auto &it : partitionInfos_) {
+bool TryGetPartitionIdByInodeId(const std::vector<PartitionInfo> &plist,
+    RWLock *lock, uint64_t inodeID, PartitionID *pid) {
+    ReadLockGuard rl(*lock);
+    for (const auto &it : plist) {
         if (it.start() <= inodeID && it.end() >= inodeID) {
             *pid = it.partitionid();
             return true;
         }
     }
     return false;
+}
+
+bool MetaCache::GetPartitionIdByInodeId(uint32_t fsID, uint64_t inodeID,
+    PartitionID *pid) {
+    if (!TryGetPartitionIdByInodeId(partitionInfos_,
+                                    &rwlock4Partitions_, inodeID, pid)) {
+        // list form mds
+        if (!ListPartitions(fsID)) {
+            LOG(ERROR) << "ListPartitions for {fsid:" << fsID
+                       << "} fail, partition list not exist";
+            return false;
+        }
+        return TryGetPartitionIdByInodeId(partitionInfos_,
+            &rwlock4Partitions_, inodeID, pid);
+    }
+    return true;
 }
 
 }  // namespace rpcclient

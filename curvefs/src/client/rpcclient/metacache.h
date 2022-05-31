@@ -158,9 +158,10 @@ class MetaCache {
     bool DoListOrCreatePartitions(
         bool list, PatitionInfoList *partitionInfos,
         std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> *copysetMap);
-    void DoAddPartitionAndCopyset(
-        const PatitionInfoList &partitionInfos,
-        const std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> &copysetMap);
+    void DoAddOrResetPartitionAndCopyset(
+        PatitionInfoList partitionInfos,
+        std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap,
+        bool reset);
 
     // retry policy
     // TODO(@lixiaocui): rpc service may be split to ServiceHelper
