@@ -166,7 +166,7 @@ ssize_t DefaultVolumeStorage::Read(uint64_t ino,
 
     // TODO(all): check whether inode is opened with 'NO_ATIME'
     auto* inode = inodeWrapper->GetMutableInodeUnlocked();
-    UpdateInodeTimestamp(inode, kAccessTime | kChangeTime);
+    UpdateInodeTimestamp(inode, kAccessTime);
     inodeCacheManager_->ShipToFlush(inodeWrapper);
 
     return len;

@@ -216,8 +216,6 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
-    newInode->set_ctime(now.tv_sec);
-    newInode->set_ctime_ns(now.tv_nsec);
     newInode->set_atime(now.tv_sec);
     newInode->set_atime_ns(now.tv_nsec);
 
