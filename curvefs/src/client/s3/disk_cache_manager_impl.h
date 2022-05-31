@@ -54,6 +54,7 @@ struct DiskCacheOption {
     std::string cacheDir;
     bool forceFlush;
     uint64_t maxUsableSpaceBytes;
+    uint64_t maxFileNums;
     uint32_t cmdTimeoutSec;
     uint32_t threads;
     uint64_t avgFlushBytes;

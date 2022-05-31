@@ -144,6 +144,11 @@ class DiskCacheManager {
      */
     void TrimCache();
 
+    /**
+     * @brief whether the cache file is exceed maxFileNums_.
+     */
+    bool IsExceedFileNums();
+
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
@@ -152,6 +157,7 @@ class DiskCacheManager {
     uint32_t fullRatio_;
     uint32_t safeRatio_;
     uint64_t maxUsableSpaceBytes_;
+    uint64_t maxFileNums_;
     // used bytes of disk cache
     std::atomic<int64_t> usedBytes_;
     // used ratio of the file system in disk cache

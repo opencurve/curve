@@ -82,6 +82,7 @@ int DiskCacheManager::Init(S3Client *client,
     safeRatio_ = option.diskCacheOpt.safeRatio;
     cacheDir_ = option.diskCacheOpt.cacheDir;
     maxUsableSpaceBytes_ = option.diskCacheOpt.maxUsableSpaceBytes;
+    maxFileNums_ = option.diskCacheOpt.maxFileNums;
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
 
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_,
@@ -125,6 +126,7 @@ int DiskCacheManager::Init(S3Client *client,
     LOG(INFO) << "DiskCacheManager init success. "
               << ", cache dir is: " << cacheDir_
               << ", maxUsableSpaceBytes is: " << maxUsableSpaceBytes_
+              << ", maxFileNums is: " << maxFileNums_
               << ", cmdTimeoutSec is: " << cmdTimeoutSec_
               << ", safeRatio is: " << safeRatio_
               << ", fullRatio is: " << fullRatio_
@@ -313,6 +315,9 @@ bool DiskCacheManager::IsDiskCacheFull() {
 }
 
 bool DiskCacheManager::IsDiskCacheSafe() {
+    if (IsExceedFileNums()) {
+        return false;
+    }
     int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
     uint64_t usedBytes = GetDiskUsedbytes();
     if ((usedBytes < (safeRatio_ * maxUsableSpaceBytes_ / 100))
@@ -325,6 +330,16 @@ bool DiskCacheManager::IsDiskCacheSafe() {
     VLOG(6) << "disk cache is not safe"
                 << ", usedBytes is: " << usedBytes
                 << ", use ratio is: " << ratio;
+    return false;
+}
+
+// TODO(wuhongsong):
+// See Also: https://github.com/opencurve/curve/issues/1534
+bool DiskCacheManager::IsExceedFileNums() {
+    uint64_t fileNums = cachedObjName_->Size();
+    if (fileNums >= maxFileNums_) {
+        return true;
+    }
     return false;
 }
 
