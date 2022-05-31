@@ -199,6 +199,7 @@ bool MetaCache::GetTargetLeader(CopysetTarget *target, uint64_t *applyindex,
     if (!refresh && !copysetInfo.LeaderMayChange()) {
         if (0 == copysetInfo.GetLeaderInfo(&target->metaServerID,
                                            &target->endPoint)) {
+            *applyindex = copysetInfo.GetAppliedIndex();
             return true;
         }
         LOG(WARNING) << "{copyset:" << target->groupID.ToString()

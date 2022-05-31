@@ -1150,8 +1150,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
     // test0: rpc error
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillRepeatedly(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
         .WillRepeatedly(
             Invoke(SetRpcService<BatchGetInodeAttrRequest,
@@ -1174,8 +1172,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
 
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillOnce(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
@@ -1192,8 +1188,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
     response.set_statuscode(MetaStatusCode::NOT_FOUND);
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillOnce(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
@@ -1207,8 +1201,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetInodeAttr) {
     response.clear_appliedindex();
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillRepeatedly(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetInodeAttr(_, _, _, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<2>(response),
@@ -1252,8 +1244,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
     // test0: rpc error
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillRepeatedly(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
         .WillRepeatedly(
             Invoke(SetRpcService<BatchGetXAttrRequest,
@@ -1276,8 +1266,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
 
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillOnce(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
@@ -1294,8 +1282,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
     response.set_statuscode(MetaStatusCode::NOT_FOUND);
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillOnce(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
         .WillOnce(
             DoAll(SetArgPointee<2>(response),
@@ -1309,8 +1295,6 @@ TEST_F(MetaServerClientImplTest, test_BatchGetXAttr) {
     response.clear_appliedindex();
     EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-    EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-        .WillRepeatedly(Return(applyIndex));
     EXPECT_CALL(mockMetaServerService_, BatchGetXAttr(_, _, _, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<2>(response),
@@ -1392,8 +1376,6 @@ TEST_F(MetaServerClientImplTest, TestGetVolumeExtent) {
 
         EXPECT_CALL(*mockMetacache_.get(), GetPartitionIdByInodeId(_, _, _))
             .WillRepeatedly(DoAll(SetArgPointee<2>(partitionID), Return(true)));
-        EXPECT_CALL(*mockMetacache_.get(), GetApplyIndex(_))
-            .WillOnce(Return(applyIndex));
 
         metaserver::GetVolumeExtentResponse response;
         response.set_statuscode(MetaStatusCode::OK);
