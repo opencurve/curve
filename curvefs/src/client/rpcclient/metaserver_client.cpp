@@ -131,8 +131,7 @@ MetaStatusCode MetaServerClientImpl::GetDentry(uint32_t fsId, uint64_t inodeid,
         request.set_parentinodeid(inodeid);
         request.set_name(name);
         request.set_txid(txId);
-        request.set_appliedindex(
-            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
+        request.set_appliedindex(applyIndex);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.GetDentry(cntl, &request, &response, nullptr);
@@ -197,8 +196,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
         request.set_last(last);
         request.set_count(count);
         request.set_onlydir(onlyDir);
-        request.set_appliedindex(metaCache_->GetApplyIndex(
-            CopysetGroupID(poolID, copysetID)));
+        request.set_appliedindex(applyIndex);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.ListDentry(cntl, &request, &response, nullptr);
@@ -436,8 +434,7 @@ MetaStatusCode MetaServerClientImpl::GetInode(uint32_t fsId, uint64_t inodeid,
         request.set_partitionid(partitionID);
         request.set_fsid(fsId);
         request.set_inodeid(inodeid);
-        request.set_appliedindex(
-            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
+        request.set_appliedindex(applyIndex);
         request.set_supportstreaming(true);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -558,9 +555,7 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
             request.set_copysetid(copysetID);
             request.set_partitionid(partitionID);
             request.set_fsid(fsId);
-            request.set_appliedindex(
-                metaCache_->GetApplyIndex(CopysetGroupID(poolID,
-                                            copysetID)));
+            request.set_appliedindex(applyIndex);
             *request.mutable_inodeid() = { it.begin(), it.end() };
 
             curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -635,9 +630,7 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
             request.set_copysetid(copysetID);
             request.set_partitionid(partitionID);
             request.set_fsid(fsId);
-            request.set_appliedindex(
-                metaCache_->GetApplyIndex(
-                    CopysetGroupID(poolID, copysetID)));
+            request.set_appliedindex(applyIndex);
             *request.mutable_inodeid() = { it.begin(), it.end() };
 
             curvefs::metaserver::MetaServerService_Stub stub(channel);
@@ -1294,8 +1287,7 @@ MetaStatusCode MetaServerClientImpl::GetVolumeExtent(
         SET_COMMON_FIELDS;
 
         request.set_streaming(streaming);
-        request.set_appliedindex(
-            metaCache_->GetApplyIndex(CopysetGroupID(poolID, copysetID)));
+        request.set_appliedindex(applyIndex);
 
         VLOG(9) << "GetVolumeExtent request, " << request.ShortDebugString();
 
