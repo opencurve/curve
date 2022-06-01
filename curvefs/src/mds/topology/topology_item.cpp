@@ -291,6 +291,8 @@ common::PartitionInfo Partition::ToPartitionInfo() {
     info.set_status(status_);
     info.set_inodenum(inodeNum_);
     info.set_dentrynum(dentryNum_);
+    info.mutable_filetype2inodenum()->insert(fileType2InodeNum_.begin(),
+                                             fileType2InodeNum_.end());
     return info;
 }
 

@@ -248,8 +248,6 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
         auto partitionId = item.first;
         auto partition = item.second;
         auto partitionInfo = partition->GetPartitionInfo();
-        partitionInfo.set_inodenum(partition->GetInodeNum());
-        partitionInfo.set_dentrynum(partition->GetDentryNum());
         LOG(INFO) << "Save partition, partition: " << partitionId
                   << ", partition info: " << partitionInfo.ShortDebugString();
         if (!conv_->SerializeToString(partitionInfo, &value)) {
