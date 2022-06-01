@@ -220,6 +220,8 @@ CURVEFS_ERROR InodeWrapper::LinkLocked() {
     uint32_t old = inode_.nlink();
     uint64_t oldCTime = inode_.ctime();
     inode_.set_nlink(old + 1);
+    LOG(INFO) << "LinkLocked, inodeid = " << inode_.inodeid()
+              << ", newnlink = " << inode_.nlink();
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
@@ -243,6 +245,8 @@ CURVEFS_ERROR InodeWrapper::IncreaseNLink() {
     curve::common::UniqueLock lg(mtx_);
     uint32_t old = inode_.nlink();
     inode_.set_nlink(old + 1);
+    LOG(INFO) << "IncreaseNLink, inodeid = " << inode_.inodeid()
+              << ", newnlink = " << inode_.nlink();
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
@@ -265,6 +269,9 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
             newnlink--;
         }
         inode_.set_nlink(newnlink);
+        LOG(INFO) << "UnLinkInode, inodeid = " << inode_.inodeid()
+                  << ", newnlink = " << inode_.nlink()
+                  << ", type = " << inode_.type();
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
         inode_.set_ctime(now.tv_sec);
@@ -272,8 +279,6 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked() {
         inode_.set_mtime(now.tv_sec);
         inode_.set_mtime_ns(now.tv_nsec);
         MetaStatusCode ret = metaClient_->UpdateInode(inode_);
-        VLOG(6) << "UnLinkInode, inodeid = " << inode_.inodeid()
-                << ", nlink = " << inode_.nlink();
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInode failed, MetaStatusCode = "
                        << ret
@@ -298,6 +303,10 @@ CURVEFS_ERROR InodeWrapper::DecreaseNLink() {
             newnlink--;
         }
         inode_.set_nlink(newnlink);
+        LOG(INFO) << "DecreaseNLink, inodeid = " << inode_.inodeid()
+                  << ", newnlink = " << inode_.nlink()
+                  << ", type = " << inode_.type();
+
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
         inode_.set_ctime(now.tv_sec);
