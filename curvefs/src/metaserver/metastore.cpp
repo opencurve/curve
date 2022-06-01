@@ -299,8 +299,6 @@ bool MetaStoreImpl::GetPartitionInfoList(
     if (ret == 0) {
         for (const auto& it : partitionMap_) {
             PartitionInfo partitionInfo = it.second->GetPartitionInfo();
-            partitionInfo.set_inodenum(it.second->GetInodeNum());
-            partitionInfo.set_dentrynum(it.second->GetDentryNum());
             partitionInfoList->push_back(std::move(partitionInfo));
         }
         rwLock_.Unlock();

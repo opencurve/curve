@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <memory>
 
 #include "curvefs/test/metaserver/test_helper.h"
 #include "curvefs/src/metaserver/inode_manager.h"
@@ -72,7 +73,9 @@ class InodeManagerTest : public ::testing::Test {
         auto inodeStorage = std::make_shared<InodeStorage>(
             kvStorage_, nameGenerator, 0);
         auto trash = std::make_shared<TrashImpl>(inodeStorage);
-        manager = std::make_shared<InodeManager>(inodeStorage, trash);
+        filetype2InodeNum_ = std::make_shared<FileType2InodeNumMap>();
+        manager = std::make_shared<InodeManager>(inodeStorage, trash,
+                                                 filetype2InodeNum_.get());
 
         param_.fsId = 1;
         param_.length = 100;
@@ -182,6 +185,7 @@ class InodeManagerTest : public ::testing::Test {
     std::shared_ptr<Converter> conv_;
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<FileType2InodeNumMap> filetype2InodeNum_;
 };
 
 TEST_F(InodeManagerTest, test1) {
@@ -245,14 +249,10 @@ TEST_F(InodeManagerTest, test1) {
 
     // UPDATE
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode1);
-    Inode inode;
-    int32_t deletedNum = 0;
-    ASSERT_EQ(manager->UpdateInode(request, &inode, &deletedNum),
-              MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::NOT_FOUND);
     temp2.set_atime(100);
     UpdateInodeRequest request2 = MakeUpdateInodeRequestFromInode(temp2);
-    ASSERT_EQ(manager->UpdateInode(request2, &inode, &deletedNum),
-              MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request2), MetaStatusCode::OK);
     Inode temp5;
     ASSERT_EQ(manager->GetInode(fsId, inode2.inodeid(), &temp5),
               MetaStatusCode::OK);
@@ -407,15 +407,13 @@ TEST_F(InodeManagerTest, UpdateInode) {
     ASSERT_EQ(MetaStatusCode::OK, manager->CreateInode(ino, param_, &inode));
 
     // test update ok
-    Inode old;
-    int32_t deletedNum = 0;
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode);
     ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request, &old, &deletedNum));
+              manager->UpdateInode(request));
 
     // test update fail
     ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request, &old, &deletedNum));
+              manager->UpdateInode(request));
 }
 
 
@@ -478,10 +476,7 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
     inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
-    Inode inode;
-    int32_t deletedNum = 0;
-    ASSERT_EQ(manager->UpdateInode(request, &inode, &deletedNum),
-              MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::OK);
 
     // GET
     XAttr xattr1;
