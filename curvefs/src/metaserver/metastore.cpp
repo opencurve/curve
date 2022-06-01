@@ -266,6 +266,7 @@ MetaStatusCode MetaStoreImpl::DeleteDentry(const DeleteDentryRequest* request,
     dentry.set_parentinodeid(parentInodeId);
     dentry.set_name(name);
     dentry.set_txid(txId);
+    dentry.set_type(request->type());
 
     auto rc = partition->DeleteDentry(dentry);
     response->set_statuscode(rc);

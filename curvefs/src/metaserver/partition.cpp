@@ -71,11 +71,18 @@ MetaStatusCode Partition::CreateDentry(const Dentry& dentry, bool isLoadding) {
     }
     MetaStatusCode ret = dentryManager_->CreateDentry(dentry, isLoadding);
     if (MetaStatusCode::OK == ret) {
-        if (!isLoadding) {
-            return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry.fsid(), dentry.parentinodeid(), true);
+        if (dentry.has_type()) {
+            if ((!isLoadding) &&
+                (dentry.type() == FsFileType::TYPE_DIRECTORY)) {
+                return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+                    dentry.fsid(), dentry.parentinodeid(), true);
+            } else {
+                return MetaStatusCode::OK;
+            }
         } else {
-            return MetaStatusCode::OK;
+            LOG(ERROR) << "CreateDentry does not have type, "
+                       << dentry.ShortDebugString();
+            return MetaStatusCode::PARAM_ERROR;
         }
     } else if (MetaStatusCode::IDEMPOTENCE_OK == ret) {
         return MetaStatusCode::OK;
@@ -91,8 +98,17 @@ MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
 
     MetaStatusCode ret = dentryManager_->DeleteDentry(dentry);
     if (MetaStatusCode::OK == ret) {
-        return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-            dentry.fsid(), dentry.parentinodeid(), false);
+        if (dentry.has_type()) {
+            if (dentry.type() == FsFileType::TYPE_DIRECTORY) {
+                return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+                    dentry.fsid(), dentry.parentinodeid(), false);
+            }
+            return ret;
+        } else {
+            LOG(ERROR) << "DeleteDentry does not have type, "
+                       << dentry.ShortDebugString();
+            return MetaStatusCode::PARAM_ERROR;
+        }
     } else {
         return ret;
     }

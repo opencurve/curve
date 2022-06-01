@@ -45,6 +45,16 @@ using ::curvefs::metaserver::S3ChunkInfo;
 namespace curvefs {
 namespace client {
 
+#define REFRESH_NLINK_IF_NEED               \
+do {                                        \
+    if (!isNlinkValid_) {                   \
+        CURVEFS_ERROR ret = RefreshNlink(); \
+        if (ret != CURVEFS_ERROR::OK) {     \
+            return ret;                     \
+        }                                   \
+    }                                       \
+} while (0)                                 \
+
 using ::curvefs::metaserver::VolumeExtentList;
 
 enum InodeStatus {
@@ -68,6 +78,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
                  const std::shared_ptr<MetaServerClient> &metaClient)
         : inode_(inode),
           status_(InodeStatus::Normal),
+          isNlinkValid_(true),
           metaClient_(metaClient),
           openCount_(0),
           dirty_(false) {}
@@ -76,6 +87,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
                  const std::shared_ptr<MetaServerClient> &metaClient)
         : inode_(std::move(inode)),
           status_(InodeStatus::Normal),
+          isNlinkValid_(true),
           metaClient_(metaClient),
           openCount_(0),
           dirty_(false) {}
@@ -141,7 +153,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return &inode_;
     }
 
-    void GetInodeAttrUnlocked(InodeAttr *attr) {
+    CURVEFS_ERROR GetInodeAttrUnlocked(InodeAttr *attr) {
+        REFRESH_NLINK_IF_NEED;
+
         attr->set_inodeid(inode_.inodeid());
         attr->set_fsid(inode_.fsid());
         attr->set_length(inode_.length());
@@ -172,6 +186,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         if (inode_.xattr_size() > 0) {
             *(attr->mutable_xattr()) = inode_.xattr();
         }
+        return CURVEFS_ERROR::OK;
     }
 
     void GetInodeAttrLocked(InodeAttr *attr) {
@@ -207,9 +222,26 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR UnLinkLocked(uint64_t parent = 0);
 
-    CURVEFS_ERROR IncreaseNLink();
+    // mark nlink invalid, need to refresh from metaserver
+    void InvalidateNlink() {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        inode_.set_ctime(now.tv_sec);
+        inode_.set_ctime_ns(now.tv_nsec);
+        inode_.set_mtime(now.tv_sec);
+        inode_.set_mtime_ns(now.tv_nsec);
+        isNlinkValid_ = false;
+    }
 
-    CURVEFS_ERROR DecreaseNLink();
+    void ResetNlinkValid() {
+        isNlinkValid_ = true;
+    }
+
+    bool IsNlinkValid() {
+        return isNlinkValid_;
+    }
+
+    CURVEFS_ERROR RefreshNlink();
 
     CURVEFS_ERROR Sync();
 
@@ -301,6 +333,8 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     Inode inode_;
     uint32_t openCount_;
     InodeStatus status_;
+
+    bool isNlinkValid_;
 
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
 
