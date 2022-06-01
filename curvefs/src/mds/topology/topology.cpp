@@ -548,8 +548,9 @@ TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
                     return TopoStatusCode::TOPO_STORGE_FAIL;
                 }
                 partitionMap_[id] = data;
+
+                // copyset partitionId only in memory
                 it->second.AddPartitionId(id);
-                it->second.SetDirtyFlag(true);
                 return TopoStatusCode::TOPO_OK;
             } else {
                 return TopoStatusCode::TOPO_ID_DUPLICATED;
@@ -573,6 +574,7 @@ TopoStatusCode TopologyImpl::RemovePartition(PartitionIdType id) {
         CopySetKey key(it->second.GetPoolId(), it->second.GetCopySetId());
         auto ix = copySetMap_.find(key);
         if (ix != copySetMap_.end()) {
+            // copyset partitionId list only in memory
             ix->second.RemovePartitionId(id);
         }
         partitionMap_.erase(it);
@@ -991,6 +993,11 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
     idGenerator_->initPartitionIdGenerator(maxPartitionId);
     LOG(INFO) << "[TopologyImpl::init], LoadPartition success, "
               << "partition num = " << partitionMap_.size();
+
+    for (const auto &it : partitionMap_) {
+        CopySetKey key(it.second.GetPoolId(), it.second.GetCopySetId());
+        copySetMap_[key].AddPartitionId(it.first);
+    }
 
     for (const auto &it : zoneMap_) {
         PoolIdType poolid = it.second.GetPoolId();

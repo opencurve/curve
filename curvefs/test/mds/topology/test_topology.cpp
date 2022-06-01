@@ -174,8 +174,8 @@ TEST_F(TestTopology, test_init_success) {
     metaServerMap_[0x41] = MetaServer(0x41, "metaserver", "token",
         0x31, "127.0.0.1", 8200, "127.0.0.1", 8080,
         OnlineState::OFFLINE);
-    copySetMap_[std::pair<PoolIdType, CopySetIdType>(0x01, 0x51)] =
-        CopySetInfo(0x01, 0x51);
+    copySetMap_[std::pair<PoolIdType, CopySetIdType>(0x11, 0x51)] =
+        CopySetInfo(0x11, 0x51);
     partitionMap_[0x61] = Partition(0x01, 0x11, 0x51, 0x61, 0, 100);
 
     EXPECT_CALL(*storage_, LoadPool(_, _)).WillOnce(
@@ -201,6 +201,9 @@ TEST_F(TestTopology, test_init_success) {
     TopologyOption option;
     int ret = topology_->Init(option);
     ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
+    std::vector<CopySetInfo> copysetList = topology_->ListCopysetInfo();
+    ASSERT_EQ(copysetList.size(), 1);
+    ASSERT_EQ(copysetList[0].GetPartitionNum(), 1);
 }
 
 TEST_F(TestTopology, test_init_loadClusterFail) {
