@@ -252,6 +252,13 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
 }
 
+CURVEFS_ERROR FuseVolumeClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
+                                             const char *name) {
+    LOG(INFO) << "FuseOpUnlink, parent: " << parent
+              << ", name: " << name;
+    return RemoveNode(req, parent, name, FsFileType::TYPE_FILE);
+}
+
 CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                             int datasync,
                                             struct fuse_file_info *fi) {

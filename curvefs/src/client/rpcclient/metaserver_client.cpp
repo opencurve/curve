@@ -318,7 +318,8 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
 
 MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
                                                   uint64_t inodeid,
-                                                  const std::string &name) {
+                                                  const std::string &name,
+                                                  FsFileType type) {
     auto task = RPCTask {
         metric_.deleteDentry.qps.count << 1;
         LatencyUpdater updater(&metric_.deleteDentry.latency);
@@ -331,6 +332,7 @@ MetaStatusCode MetaServerClientImpl::DeleteDentry(uint32_t fsId,
         request.set_parentinodeid(inodeid);
         request.set_name(name);
         request.set_txid(txId);
+        request.set_type(type);
 
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.DeleteDentry(cntl, &request, &response, nullptr);
@@ -767,34 +769,19 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
 }
 
 MetaStatusCode
-MetaServerClientImpl::UpdateInode(const Inode &inode,
-                                  InodeOpenStatusChange statusChange) {
+MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request) {
     auto task = RPCTask {
         metric_.updateInode.qps.count << 1;
         LatencyUpdater updater(&metric_.updateInode.latency);
-        UpdateInodeResponse response;
-        UpdateInodeRequest request;
-        request.set_poolid(poolID);
-        request.set_copysetid(copysetID);
-        request.set_partitionid(partitionID);
-        request.set_inodeid(inode.inodeid());
-        request.set_fsid(inode.fsid());
-        request.set_length(inode.length());
-        request.set_ctime(inode.ctime());
-        request.set_mtime(inode.mtime());
-        request.set_atime(inode.atime());
-        request.set_uid(inode.uid());
-        request.set_gid(inode.gid());
-        request.set_mode(inode.mode());
-        request.set_nlink(inode.nlink());
-        request.set_inodeopenstatuschange(statusChange);
-        *(request.mutable_parent()) = inode.parent();
-        if (inode.xattr_size() > 0) {
-            *(request.mutable_xattr()) = inode.xattr();
-        }
 
+        UpdateInodeRequest req = request;
+        req.set_poolid(poolID);
+        req.set_copysetid(copysetID);
+        req.set_partitionid(partitionID);
+
+        UpdateInodeResponse response;
         curvefs::metaserver::MetaServerService_Stub stub(channel);
-        stub.UpdateInode(cntl, &request, &response, nullptr);
+        stub.UpdateInode(cntl, &req, &response, nullptr);
 
         if (cntl->Failed()) {
             metric_.updateInode.eps.count << 1;
@@ -807,14 +794,14 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG(WARNING) << "UpdateInode:  inodeid = " << inode.DebugString()
+            LOG(WARNING) << "UpdateInode:  request: " << request.DebugString()
                          << ", errcode = " << ret
                          << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
         } else {
-            LOG(WARNING) << "UpdateInode:  inodeid = " << inode.DebugString()
+            LOG(WARNING) << "UpdateInode:  request: " << request.DebugString()
                          << "ok, but applyIndex not set in response:"
                          << response.DebugString();
             return -1;
@@ -826,10 +813,57 @@ MetaServerClientImpl::UpdateInode(const Inode &inode,
     };
 
     auto taskCtx = std::make_shared<TaskContext>(
-        MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
+        MetaServerOpType::UpdateInode, task, request.fsid(), request.inodeid());
     UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_,
                                std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+UpdateInodeRequest
+MetaServerClientImpl::BuileUpdateInodeAttrWithOutNlinkRequest(
+    const Inode &inode,
+    InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request;
+    request.set_inodeid(inode.inodeid());
+    request.set_fsid(inode.fsid());
+    request.set_length(inode.length());
+    request.set_ctime(inode.ctime());
+    request.set_mtime(inode.mtime());
+    request.set_atime(inode.atime());
+    request.set_uid(inode.uid());
+    request.set_gid(inode.gid());
+    request.set_mode(inode.mode());
+    request.set_inodeopenstatuschange(statusChange);
+    *(request.mutable_parent()) = inode.parent();
+    if (inode.xattr_size() > 0) {
+        *(request.mutable_xattr()) = inode.xattr();
+    }
+    return request;
+}
+
+UpdateInodeRequest
+MetaServerClientImpl::BuildeUpdateInodeAttrRequest(const Inode &inode,
+    InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
+        inode, statusChange);
+    request.set_nlink(inode.nlink());
+    return request;
+}
+
+MetaStatusCode
+MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
+                                     InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request =
+        BuildeUpdateInodeAttrRequest(inode, statusChange);
+    return UpdateInode(request);
+}
+
+MetaStatusCode
+MetaServerClientImpl::UpdateInodeAttrWithOutNlink(const Inode &inode,
+                                     InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
+        inode, statusChange);
+    return UpdateInode(request);
 }
 
 class UpdateInodeRpcDone : public MetaServerClientRpcDoneBase {
@@ -880,46 +914,45 @@ void UpdateInodeRpcDone::Run() {
     return;
 }
 
-void MetaServerClientImpl::UpdateInodeAsync(
-    const Inode &inode, MetaServerClientDone *done,
-    InodeOpenStatusChange statusChange) {
+void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
+                      MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         metric_.updateInode.qps.count << 1;
 
-        UpdateInodeRequest request;
-        request.set_poolid(poolID);
-        request.set_copysetid(copysetID);
-        request.set_partitionid(partitionID);
-        request.set_inodeid(inode.inodeid());
-        request.set_fsid(inode.fsid());
-        request.set_length(inode.length());
-        request.set_ctime(inode.ctime());
-        request.set_mtime(inode.mtime());
-        request.set_atime(inode.atime());
-        request.set_uid(inode.uid());
-        request.set_gid(inode.gid());
-        request.set_mode(inode.mode());
-        request.set_nlink(inode.nlink());
-        request.set_inodeopenstatuschange(statusChange);
-        *(request.mutable_parent()) = inode.parent();
-        if (inode.xattr_size() > 0) {
-            *(request.mutable_xattr()) = inode.xattr();
-        }
+        UpdateInodeRequest req = request;
+        req.set_poolid(poolID);
+        req.set_copysetid(copysetID);
+        req.set_partitionid(partitionID);
 
         auto *rpcDone = new UpdateInodeRpcDone(taskExecutorDone, &metric_);
-
         curvefs::metaserver::MetaServerService_Stub stub(channel);
-        stub.UpdateInode(cntl, &request, &rpcDone->response, rpcDone);
+        stub.UpdateInode(cntl, &req, &rpcDone->response, rpcDone);
         return MetaStatusCode::OK;
     };
 
     auto taskCtx = std::make_shared<TaskContext>(
-        MetaServerOpType::UpdateInode, task, inode.fsid(), inode.inodeid());
+        MetaServerOpType::UpdateInode, task, request.fsid(), request.inodeid());
     auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
         metaCache_, channelManager_, std::move(taskCtx));
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
     excutor->DoAsyncRPCTask(taskDone);
+}
+
+void MetaServerClientImpl::UpdateInodeAttrAsync(
+    const Inode &inode, MetaServerClientDone *done,
+    InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request =
+        BuildeUpdateInodeAttrRequest(inode, statusChange);
+    UpdateInodeAsync(request, done);
+}
+
+void MetaServerClientImpl::UpdateInodeAttrWithOutNlinkAsync(
+    const Inode &inode, MetaServerClientDone *done,
+    InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request =
+        BuileUpdateInodeAttrWithOutNlinkRequest(inode, statusChange);
+    UpdateInodeAsync(request, done);
 }
 
 bool MetaServerClientImpl::ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
@@ -1443,6 +1476,24 @@ MetaStatusCode MetaServerClientImpl::GetVolumeExtent(
     GetVolumeExtentExecutor executor(opt_, metaCache_, channelManager_,
                                      std::move(taskCtx));
     return ConvertToMetaStatusCode(executor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::GetInodeAttr(
+    uint32_t fsId, uint64_t inodeid, InodeAttr *attr) {
+    std::set<uint64_t> inodeIds;
+    inodeIds.insert(inodeid);
+    std::list<InodeAttr> attrs;
+    MetaStatusCode ret = BatchGetInodeAttr(fsId, inodeIds, &attrs);
+    if (ret != MetaStatusCode::OK) {
+        return ret;
+    }
+    if (attrs.size() != 1) {
+        LOG(ERROR) << "GetInodeAttr return attrs.size() != 1, which is "
+                   << attrs.size();
+        return MetaStatusCode::UNKNOWN_ERROR;
+    }
+    *attr = attrs.front();
+    return MetaStatusCode::OK;
 }
 
 }  // namespace rpcclient

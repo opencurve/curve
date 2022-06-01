@@ -120,7 +120,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
     dentry.set_name("/");
     dentry.set_inodeid(100);
     dentry.set_txid(0);
-
+    dentry.set_type(FsFileType::TYPE_DIRECTORY);
     ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
     ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
     ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);

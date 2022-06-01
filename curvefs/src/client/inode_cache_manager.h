@@ -136,6 +136,8 @@ class InodeCacheManager {
 
     virtual CURVEFS_ERROR DeleteInode(uint64_t inodeId) = 0;
 
+    virtual void InvalidateNlinkCache(uint64_t inodeid) = 0;
+
     virtual void AddInodeAttrs(uint64_t parentId,
         const RepeatedPtrField<InodeAttr>& inodeAttrs) = 0;
 
@@ -201,6 +203,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         std::shared_ptr<InodeWrapper> &out) override;
 
     CURVEFS_ERROR DeleteInode(uint64_t inodeId) override;
+
+    void InvalidateNlinkCache(uint64_t inodeid) override;
 
     void AddInodeAttrs(uint64_t parentId,
         const RepeatedPtrField<InodeAttr>& inodeAttrs) override;
