@@ -104,12 +104,13 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
-                                                   const std::string &name) {
+                                                   const std::string &name,
+                                                   FsFileType type) {
     std::string key = GetDentryCacheKey(parent, name);
     NameLockGuard lock(nameLock_, key);
     dCache_->Remove(key);
 
-    MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
+    MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name, type);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)

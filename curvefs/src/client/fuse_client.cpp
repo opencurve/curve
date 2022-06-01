@@ -447,18 +447,8 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    std::shared_ptr<InodeWrapper> parentInodeWrapper;
-    ret = inodeManager_->GetInode(parent, parentInodeWrapper);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << parent;
-        return ret;
-    }
-    ret = parentInodeWrapper->IncreaseNLink();
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager IncreaseNLink fail, ret = " << ret
-                   << ", inodeid = " << parent;
-        return ret;
+    if (FsFileType::TYPE_DIRECTORY == type) {
+        inodeManager_->InvalidateNlinkCache(parent);
     }
 
     VLOG(6) << "dentryManager_ CreateDentry success"
@@ -500,22 +490,15 @@ CURVEFS_ERROR FuseClient::FuseOpMkDir(fuse_req_t req, fuse_ino_t parent,
                     FsFileType::TYPE_DIRECTORY, 0, e);
 }
 
-CURVEFS_ERROR FuseClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
-                                       const char *name) {
-    LOG(INFO) << "FuseOpUnlink, parent: " << parent
-              << ", name: " << name;
-    return RemoveNode(req, parent, name, false);
-}
-
 CURVEFS_ERROR FuseClient::FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
                                       const char *name) {
     LOG(INFO) << "FuseOpRmDir, parent: " << parent
               << ", name: " << name;
-    return RemoveNode(req, parent, name, true);
+    return RemoveNode(req, parent, name, FsFileType::TYPE_DIRECTORY);
 }
 
 CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
-                                     const char *name, bool isDir) {
+                                     const char *name, FsFileType type) {
     if (strlen(name) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -529,7 +512,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
     uint64_t ino = dentry.inodeid();
 
-    if (isDir) {
+    if (FsFileType::TYPE_DIRECTORY == type) {
         std::list<Dentry> dentryList;
         auto limit = option_.listDentryLimit;
         ret = dentryManager_->ListDentry(ino, &dentryList, limit);
@@ -544,25 +527,15 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         }
     }
 
-    ret = dentryManager_->DeleteDentry(parent, name);
+    ret = dentryManager_->DeleteDentry(parent, name, type);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ DeleteDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name;
         return ret;
     }
 
-    std::shared_ptr<InodeWrapper> parentInodeWrapper;
-    ret = inodeManager_->GetInode(parent, parentInodeWrapper);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << parent;
-        return ret;
-    }
-    ret = parentInodeWrapper->DecreaseNLink();
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager DecreaseNLink fail, ret = " << ret
-                   << ", inodeid = " << parent;
-        return ret;
+    if (FsFileType::TYPE_DIRECTORY == type) {
+        inodeManager_->InvalidateNlinkCache(parent);
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -583,7 +556,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         // update parent summary info
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
-        if (isDir) {
+        if (FsFileType::TYPE_DIRECTORY == type) {
             xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
         } else {
             xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
@@ -1061,12 +1034,6 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
                    << ", inodeid = " << parent;
         return ret;
     }
-    ret = parentInodeWrapper->IncreaseNLink();
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager IncreaseNLink fail, ret = " << ret
-                   << ", inodeid = " << parent;
-        return ret;
-    }
 
     if (enableSumInDir_) {
         // update parent summary info
@@ -1136,12 +1103,6 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     ret = inodeManager_->GetInode(newparent, parentInodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << newparent;
-        return ret;
-    }
-    ret = parentInodeWrapper->IncreaseNLink();
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager IncreaseNLink fail, ret = " << ret
                    << ", inodeid = " << newparent;
         return ret;
     }

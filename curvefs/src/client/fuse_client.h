@@ -149,7 +149,7 @@ class FuseClient {
                                       fuse_entry_param* e);
 
     virtual CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
-                                       const char* name);
+                                       const char* name) = 0;
 
     virtual CURVEFS_ERROR FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
                                       const char* name);
@@ -251,7 +251,7 @@ class FuseClient {
                            fuse_entry_param* e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
-                             const char* name, bool idDir);
+                             const char* name, FsFileType type);
 
     int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];
