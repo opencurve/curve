@@ -83,13 +83,17 @@ class MetaServerClient {
     virtual MetaStatusCode CreateDentry(const Dentry &dentry) = 0;
 
     virtual MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                        const std::string &name) = 0;
+                                        const std::string &name,
+                                        FsFileType type) = 0;
 
     virtual MetaStatusCode
     PrepareRenameTx(const std::vector<Dentry> &dentrys) = 0;
 
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                                     Inode *out, bool* streaming) = 0;
+
+    virtual MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeid,
+                                        InodeAttr *attr) = 0;
 
     virtual MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         const std::set<uint64_t> &inodeIds,
@@ -102,14 +106,23 @@ class MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) = 0;
 
-    virtual MetaStatusCode UpdateInode(const Inode &inode,
-                                       InodeOpenStatusChange statusChange =
-                                           InodeOpenStatusChange::NOCHANGE) = 0;
+    virtual MetaStatusCode UpdateInodeAttr(const Inode &inode,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual void UpdateInodeAsync(const Inode &inode,
-                                  MetaServerClientDone *done,
-                                  InodeOpenStatusChange statusChange =
-                                      InodeOpenStatusChange::NOCHANGE) = 0;
+    virtual MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) = 0;
+
+    virtual void UpdateInodeAttrAsync(const Inode &inode,
+        MetaServerClientDone *done,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) = 0;
+
+    virtual void UpdateInodeAttrWithOutNlinkAsync(const Inode &inode,
+        MetaServerClientDone *done,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -169,12 +182,16 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode CreateDentry(const Dentry &dentry) override;
 
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                const std::string &name) override;
+                                const std::string &name,
+                                FsFileType type) override;
 
     MetaStatusCode PrepareRenameTx(const std::vector<Dentry> &dentrys) override;
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out, bool* streaming) override;
+
+    MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeid,
+                                InodeAttr *attr) override;
 
     MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
         const std::set<uint64_t> &inodeIds,
@@ -188,13 +205,22 @@ class MetaServerClientImpl : public MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) override;
 
-    MetaStatusCode UpdateInode(const Inode &inode,
-                               InodeOpenStatusChange statusChange =
-                                   InodeOpenStatusChange::NOCHANGE) override;
+    MetaStatusCode UpdateInodeAttr(const Inode &inode,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) override;
 
-    void UpdateInodeAsync(const Inode &inode, MetaServerClientDone *done,
+    MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) override;
+
+    void UpdateInodeAttrAsync(const Inode &inode, MetaServerClientDone *done,
                           InodeOpenStatusChange statusChange =
                               InodeOpenStatusChange::NOCHANGE) override;
+
+    void UpdateInodeAttrWithOutNlinkAsync(const Inode &inode,
+        MetaServerClientDone *done,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -229,6 +255,18 @@ class MetaServerClientImpl : public MetaServerClient {
                                    VolumeExtentList *extents) override;
 
  private:
+    MetaStatusCode UpdateInode(const UpdateInodeRequest &request);
+
+    void UpdateInodeAsync(const UpdateInodeRequest &request,
+                          MetaServerClientDone *done);
+
+    UpdateInodeRequest BuildeUpdateInodeAttrRequest(const Inode &inode,
+        InodeOpenStatusChange statusChange);
+
+    UpdateInodeRequest BuileUpdateInodeAttrWithOutNlinkRequest(
+        const Inode &inode,
+        InodeOpenStatusChange statusChange);
+
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
                                  uint64_t* chunkIndex,
                                  S3ChunkInfoList* list);

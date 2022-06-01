@@ -49,31 +49,36 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
     void UnInit() override;
+
     CURVEFS_ERROR FuseOpInit(
         void *userdata, struct fuse_conn_info *conn) override;
+
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
         struct fuse_file_info *fi, size_t *wSize) override;
 
     CURVEFS_ERROR FuseOpRead(fuse_req_t req,
-            fuse_ino_t ino, size_t size, off_t off,
-            struct fuse_file_info *fi,
-            char *buffer,
-            size_t *rSize) override;
+        fuse_ino_t ino, size_t size, off_t off,
+        struct fuse_file_info *fi,
+        char *buffer,
+        size_t *rSize) override;
 
     CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, struct fuse_file_info *fi,
         fuse_entry_param *e) override;
 
     CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-            const char *name, mode_t mode, dev_t rdev,
-            fuse_entry_param *e) override;
+        const char *name, mode_t mode, dev_t rdev,
+        fuse_entry_param *e) override;
+
+    CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
+        const char *name) override;
 
     CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
-           struct fuse_file_info *fi) override;
+        struct fuse_file_info *fi) override;
 
     CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
-                                      struct fuse_file_info *fi) override;
+        struct fuse_file_info *fi) override;
 
  private:
     CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;

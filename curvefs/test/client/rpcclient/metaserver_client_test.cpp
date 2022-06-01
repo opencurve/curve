@@ -513,7 +513,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
                         Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
 
-    MetaStatusCode status = metaserverCli_.DeleteDentry(fsid, inodeid, name);
+    MetaStatusCode status = metaserverCli_.DeleteDentry(
+        fsid, inodeid, name, FsFileType::TYPE_FILE);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test2: rpc error
@@ -524,7 +525,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
 
-    status = metaserverCli_.DeleteDentry(fsid, inodeid, name);
+    status = metaserverCli_.DeleteDentry(
+            fsid, inodeid, name, FsFileType::TYPE_FILE);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test3: delete response with unknown error
@@ -536,7 +538,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
-    status = metaserverCli_.DeleteDentry(fsid, inodeid, name);
+    status = metaserverCli_.DeleteDentry(
+            fsid, inodeid, name, FsFileType::TYPE_FILE);
     ASSERT_EQ(MetaStatusCode::UNKNOWN_ERROR, status);
 
     // test4: test response has applyindex
@@ -551,7 +554,8 @@ TEST_F(MetaServerClientImplTest, test_DeleteDentry) {
             SetArgPointee<2>(response),
             Invoke(SetRpcService<DeleteDentryRequest, DeleteDentryResponse>)));
 
-    status = metaserverCli_.DeleteDentry(fsid, inodeid, name);
+    status = metaserverCli_.DeleteDentry(
+        fsid, inodeid, name, FsFileType::TYPE_FILE);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
@@ -699,7 +703,7 @@ TEST_F(MetaServerClientImplTest, test_GetInode) {
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 
-TEST_F(MetaServerClientImplTest, test_UpdateInode) {
+TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
     // in
     curvefs::metaserver::Inode inode;
     inode.set_inodeid(1);
@@ -739,7 +743,7 @@ TEST_F(MetaServerClientImplTest, test_UpdateInode) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
 
-    MetaStatusCode status = metaserverCli_.UpdateInode(inode);
+    MetaStatusCode status = metaserverCli_.UpdateInodeAttr(inode);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: update inode ok
@@ -753,7 +757,7 @@ TEST_F(MetaServerClientImplTest, test_UpdateInode) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
-    status = metaserverCli_.UpdateInode(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode);
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test2: update inode with overload
@@ -762,7 +766,7 @@ TEST_F(MetaServerClientImplTest, test_UpdateInode) {
         .WillRepeatedly(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<UpdateInodeRequest, UpdateInodeResponse>)));
-    status = metaserverCli_.UpdateInode(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode);
     ASSERT_EQ(MetaStatusCode::OVERLOAD, status);
 
     // test3: response has no applyindex
@@ -773,13 +777,13 @@ TEST_F(MetaServerClientImplTest, test_UpdateInode) {
             SetArgPointee<2>(response),
             Invoke(SetRpcService<UpdateInodeRequest, UpdateInodeResponse>)));
 
-    status = metaserverCli_.UpdateInode(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test4: get target always fail
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(Return(false));
-    status = metaserverCli_.UpdateInode(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode);
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 

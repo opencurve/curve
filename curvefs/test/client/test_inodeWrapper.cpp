@@ -140,7 +140,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _))
@@ -165,7 +165,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(Return(MetaStatusCode::OK));
 
@@ -184,7 +184,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
 
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
     inodeWrapper_->ClearDirtyForTesting();
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .Times(0);
@@ -203,7 +203,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     pext.pOffset = 0;
     pext.UnWritten = true;
     extentCache->Merge(0, pext);
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
@@ -213,6 +213,17 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
         }));
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
+}
+
+TEST_F(TestInodeWrapper, TestRefreshNlink) {
+    google::protobuf::uint32 nlink = 10086;
+    InodeAttr attr;
+    attr. set_nlink(nlink);
+    EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
+    inodeWrapper_->RefreshNlink();
+    Inode inode = inodeWrapper_->GetInodeUnlocked();
+    ASSERT_EQ(nlink, inode.nlink());
 }
 
 }  // namespace client
