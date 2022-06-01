@@ -199,8 +199,7 @@ MetaStatusCode Partition::CreateInode(const InodeParam &param,
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    return UpdatePartitionInfoFsType2InodeNum(
-        inodeManager_->CreateInode(inodeId, param, inode), param.type, 1);
+    return inodeManager_->CreateInode(inodeId, param, inode);
 }
 
 MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
@@ -212,8 +211,7 @@ MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
         return MetaStatusCode::PARTITION_DELETING;
     }
 
-    return UpdatePartitionInfoFsType2InodeNum(
-        inodeManager_->CreateRootInode(param), param.type, 1);
+    return inodeManager_->CreateRootInode(param);
 }
 
 MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
@@ -250,8 +248,7 @@ MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     InodeAttr attr;
     GetInodeAttr(fsId, inodeId, &attr);
 
-    return UpdatePartitionInfoFsType2InodeNum(
-        inodeManager_->DeleteInode(fsId, inodeId), attr.type(), -1);
+    return inodeManager_->DeleteInode(fsId, inodeId);
 }
 
 MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
@@ -262,13 +259,8 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
     if (GetStatus() == PartitionStatus::DELETING) {
         return MetaStatusCode::PARTITION_DELETING;
     }
-    Inode inode;
-    int deletedNum = 0;
-    const MetaStatusCode& ret =
-        inodeManager_->UpdateInode(request, &inode, &deletedNum);
 
-    return UpdatePartitionInfoFsType2InodeNum(ret, inode.type(),
-                                              (-1) * deletedNum);
+    return inodeManager_->UpdateInode(request);
 }
 
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
@@ -305,8 +297,7 @@ MetaStatusCode Partition::InsertInode(const Inode& inode) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    return UpdatePartitionInfoFsType2InodeNum(inodeManager_->InsertInode(inode),
-                                              inode.type(), 1);
+    return inodeManager_->InsertInode(inode);
 }
 
 bool Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
@@ -360,7 +351,11 @@ uint32_t Partition::GetPartitionId() const {
     return partitionInfo_.partitionid();
 }
 
-PartitionInfo Partition::GetPartitionInfo() { return partitionInfo_; }
+PartitionInfo Partition::GetPartitionInfo() {
+    *partitionInfo_.mutable_filetype2inodenum() =
+        inodeManager_->GetFileType2InodeNumMap();
+    return partitionInfo_;
+}
 
 std::shared_ptr<Iterator> Partition::GetAllInode() {
     return inodeStorage_->GetAllInode();
@@ -385,10 +380,6 @@ bool Partition::Clear() {
     } else if (dentryStorage_->Clear() != MetaStatusCode::OK) {
         LOG(ERROR) << "Clear dentry storage failed";
         return false;
-    }
-    partitionInfo_.set_inodenum(0);
-    for (auto& it : *partitionInfo_.mutable_filetype2inodenum()) {
-        it.second = 0;
     }
     return true;
 }

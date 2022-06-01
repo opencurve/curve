@@ -39,6 +39,11 @@ using ::curvefs::metaserver::S3ChunkInfoList;
 namespace curvefs {
 namespace metaserver {
 
+using FileType = metaserver::FsFileType;
+using FileType2InodeNumMap =
+    ::google::protobuf::Map<::google::protobuf::int32,
+                            ::google::protobuf::uint64>;
+
 struct InodeParam {
     uint32_t fsId;
     uint64_t length;
@@ -56,7 +61,9 @@ class InodeManager {
     InodeManager(const std::shared_ptr<InodeStorage> &inodeStorage,
         const std::shared_ptr<Trash> &trash)
         : inodeStorage_(inodeStorage),
-          trash_(trash) {}
+          trash_(trash) {
+        InitFileType2InodeNum();
+    }
 
     MetaStatusCode CreateInode(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
@@ -74,8 +81,7 @@ class InodeManager {
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode UpdateInode(const UpdateInodeRequest& request, Inode* old,
-                               int* deletedNum);
+    MetaStatusCode UpdateInode(const UpdateInodeRequest& request);
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId,
@@ -112,6 +118,10 @@ class InodeManager {
                                    const std::vector<uint64_t> &slices,
                                    VolumeExtentList *extents);
 
+    FileType2InodeNumMap GetFileType2InodeNumMap() {
+        return type2InodeNum_;
+    }
+
  private:
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
@@ -129,9 +139,17 @@ class InodeManager {
         uint64_t inodeId,
         const VolumeExtentSlice &slice);
 
+    void InitFileType2InodeNum() {
+        for (int i = metaserver::FsFileType_MIN;
+             i <= metaserver::FsFileType_MAX; ++i) {
+            type2InodeNum_[static_cast<FileType>(i)] = 0;
+        }
+    }
+
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<Trash> trash_;
+    FileType2InodeNumMap type2InodeNum_;
 
     NameLock inodeLock_;
 };

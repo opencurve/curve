@@ -45,7 +45,6 @@ using curvefs::common::PartitionStatus;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::Iterator;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
-using ::curvefs::metaserver::FsFileType;
 
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
@@ -169,17 +168,6 @@ class Partition {
     std::shared_ptr<Iterator> GetAllVolumeExtentList();
 
     bool Clear();
-
-    MetaStatusCode UpdatePartitionInfoFsType2InodeNum(MetaStatusCode ret,
-                                                      const FsFileType& type,
-                                                      int32_t count) {
-        if (MetaStatusCode::OK == ret) {
-            partitionInfo_.set_inodenum(partitionInfo_.inodenum() + count);
-            (*partitionInfo_.mutable_filetype2inodenum())[type] += count;
-        }
-
-        return ret;
-    }
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
