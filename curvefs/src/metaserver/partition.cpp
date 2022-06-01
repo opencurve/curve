@@ -354,6 +354,7 @@ uint32_t Partition::GetPartitionId() const {
 PartitionInfo Partition::GetPartitionInfo() {
     *partitionInfo_.mutable_filetype2inodenum() =
         inodeManager_->GetFileType2InodeNumMap();
+    partitionInfo_.set_inodetotallength(inodeManager_->GetTotalLength());
     return partitionInfo_;
 }
 

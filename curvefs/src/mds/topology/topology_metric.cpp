@@ -84,7 +84,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             it = gPoolMetrics.emplace(pid, std::move(lptr)).first;
         }
 
-        // update partitionNum, inodeNum, dentryNum
+        // update partitionNum, inodeNum, dentryNum totalLength
         uint64_t totalInodeNum = 0;
         uint64_t totalDentryNum = 0;
         std::list<Partition> partitions = topo_->GetPartitionInfosInPool(pid);
@@ -119,6 +119,13 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                     }
                 }
             }
+            auto itFsId2Length = gFsMetrics.find(fsId);
+            if (itFsId2Length == gFsMetrics.end()) {
+                FsMetricPtr cptr(new FsMetric(fsId));
+                itFsId2Length = gFsMetrics.emplace(fsId, std::move(cptr)).first;
+            }
+            itFsId2Length->second->length_.set_value(
+                itFsId2Length->second->length_.get_value() + pit->GetLength());
         }
         it->second->inodeNum.set_value(totalInodeNum);
         it->second->dentryNum.set_value(totalDentryNum);

@@ -285,6 +285,7 @@ common::PartitionInfo Partition::ToPartitionInfo() {
     info.set_status(status_);
     info.set_inodenum(inodeNum_);
     info.set_dentrynum(dentryNum_);
+    info.set_inodetotallength(length_);
     auto const& filetype2inodenum = this->GetFileType2InodeNum();
     info.mutable_filetype2inodenum()->insert(filetype2inodenum.begin(),
                                              filetype2inodenum.end());

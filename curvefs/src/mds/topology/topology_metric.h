@@ -201,12 +201,15 @@ struct FsMetric {
     // inode number
 
     bvar::Status<uint64_t> inodeNum_;
+    bvar::Status<uint64_t> length_;
     using statusPtr = std::shared_ptr<bvar::Status<uint64_t>>;
     std::unordered_map<FsFileType, statusPtr> fileType2InodeNum_;
 
     explicit FsMetric(FsIdType fsId)
         : inodeNum_(kTopologyFsMetricPrefix,
-                    std::to_string(fsId) + "_inode_num", 0) {
+                    std::to_string(fsId) + "_inode_num", 0),
+          length_(kTopologyFsMetricPrefix, std::to_string(fsId) + "_length",
+                  0) {
         for (int i = FsFileType_MIN; i <= FsFileType_MAX; ++i) {
             if (FsFileType_IsValid(i)) {
                 auto inodeNumTmpPtr = std::make_shared<bvar::Status<uint64_t>>(

@@ -622,6 +622,7 @@ struct PartitionStatistic {
     common::PartitionStatus status;
     uint64_t inodeNum;
     uint64_t dentryNum;
+    uint64_t length;
     std::unordered_map<FileType, uint64_t> fileType2InodeNum;
 };
 
@@ -637,7 +638,8 @@ class Partition {
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(0),
-          dentryNum_(0) {
+          dentryNum_(0),
+          length_(0) {
         InitFileType2InodeNum();
     }
 
@@ -652,7 +654,8 @@ class Partition {
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(0),
-          dentryNum_(0) {
+          dentryNum_(0),
+          length_(0) {
         InitFileType2InodeNum();
     }
 
@@ -667,6 +670,7 @@ class Partition {
           status_(v.status_),
           inodeNum_(v.inodeNum_),
           dentryNum_(v.dentryNum_),
+          length_(v.length_),
           fileType2InodeNum_(v.fileType2InodeNum_) {}
 
     Partition &operator=(const Partition &v) {
@@ -683,6 +687,7 @@ class Partition {
         status_ = v.status_;
         inodeNum_ = v.inodeNum_;
         dentryNum_ = v.dentryNum_;
+        length_ = v.length_;
         fileType2InodeNum_ = v.fileType2InodeNum_;
         return *this;
     }
@@ -698,6 +703,7 @@ class Partition {
         status_ = v.status();
         inodeNum_ = v.has_inodenum() ? v.inodenum() : 0;
         dentryNum_ = v.has_dentrynum() ? v.dentrynum() : 0;
+        length_ = v.has_inodetotallength() ? v.inodetotallength() : 0;
         for (auto const& i : v.filetype2inodenum()) {
             fileType2InodeNum_.emplace(static_cast<FileType>(i.first),
                                        i.second);
@@ -715,6 +721,7 @@ class Partition {
         partition.set_status(status_);
         partition.set_inodenum(inodeNum_);
         partition.set_dentrynum(dentryNum_);
+        partition.set_inodetotallength(length_);
         auto partitionFileType2InodeNum = partition.mutable_filetype2inodenum();
         for (auto const& i : fileType2InodeNum_) {
             (*partitionFileType2InodeNum)[i.first] = i.second;
@@ -776,6 +783,14 @@ class Partition {
         return fileType2InodeNum_;
     }
 
+    void SetLength(uint64_t value) {
+        length_ = value;
+    }
+
+    uint64_t GetLength() const {
+        return length_;
+    }
+
     void SetFileType2InodeNum(
         const std::unordered_map<FileType, uint64_t>& map) {
         fileType2InodeNum_ = map;
@@ -799,6 +814,7 @@ class Partition {
     common::PartitionStatus status_;
     uint64_t inodeNum_;
     uint64_t dentryNum_;
+    uint64_t length_;
     std::unordered_map<FileType, uint64_t> fileType2InodeNum_;
     mutable ::curve::common::RWLock mutex_;
 };

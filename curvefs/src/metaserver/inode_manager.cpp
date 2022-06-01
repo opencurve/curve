@@ -71,6 +71,8 @@ MetaStatusCode InodeManager::CreateInode(uint64_t inodeId,
 
     newInode->CopyFrom(inode);
     ++type2InodeNum_[inode.type()];
+    totalLength_ +=
+        (inode.type() == FsFileType::TYPE_SYM_LINK ? 0 : inode.length());
     VLOG(9) << "CreateInode success, inode = " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
@@ -95,6 +97,7 @@ MetaStatusCode InodeManager::CreateRootInode(const InodeParam &param) {
         return ret;
     }
     ++type2InodeNum_[inode.type()];
+    totalLength_ += inode.length();
     VLOG(9) << "CreateRootInode success, inode: " << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
@@ -213,6 +216,8 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     }
 
     --type2InodeNum_[attr.type()];
+    totalLength_ -=
+        (attr.type() == FsFileType::TYPE_SYM_LINK ? 0 : attr.length());
     VLOG(6) << "DeleteInode success, fsId = " << fsId
             << ", inodeId = " << inodeId;
     return MetaStatusCode::OK;
@@ -306,11 +311,13 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
                        << ", ret: " << MetaStatusCode_Name(ret);
             return ret;
         }
+        totalLength_ += (request.length() - old.length());
     }
 
     if (needAddTrash) {
         trash_->Add(old.fsid(), old.inodeid(), old.dtime());
         --type2InodeNum_[old.type()];
+        totalLength_ -= old.length();
     }
 
     VLOG(9) << "UpdateInode success, " << request.ShortDebugString();

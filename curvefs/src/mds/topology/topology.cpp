@@ -605,6 +605,7 @@ TopoStatusCode TopologyImpl::UpdatePartitionStatistic(
         temp.SetStatus(statistic.status);
         temp.SetInodeNum(statistic.inodeNum);
         temp.SetDentryNum(statistic.dentryNum);
+        temp.SetLength(statistic.length);
         temp.SetFileType2InodeNum(statistic.fileType2InodeNum);
         if (!storage_->UpdatePartition(temp)) {
             return TopoStatusCode::TOPO_STORGE_FAIL;

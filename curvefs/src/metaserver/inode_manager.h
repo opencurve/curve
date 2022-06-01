@@ -61,7 +61,8 @@ class InodeManager {
     InodeManager(const std::shared_ptr<InodeStorage> &inodeStorage,
         const std::shared_ptr<Trash> &trash)
         : inodeStorage_(inodeStorage),
-          trash_(trash) {
+          trash_(trash),
+          totalLength_(0) {
         InitFileType2InodeNum();
     }
 
@@ -122,6 +123,10 @@ class InodeManager {
         return type2InodeNum_;
     }
 
+    uint64_t GetTotalLength() const {
+        return totalLength_;
+    }
+
  private:
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
@@ -150,6 +155,7 @@ class InodeManager {
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<Trash> trash_;
     FileType2InodeNumMap type2InodeNum_;
+    uint64_t totalLength_;
 
     NameLock inodeLock_;
 };
