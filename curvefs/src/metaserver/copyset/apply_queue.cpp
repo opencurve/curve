@@ -25,14 +25,29 @@
 #include <glog/logging.h>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
+#include "curvefs/src/common/threading.h"
+#include "curvefs/src/metaserver/copyset/copyset_node.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
+using ::curvefs::common::SetThreadName;
+
 void ApplyQueue::StartWorkers() {
     for (uint32_t i = 0; i < option_.workerCount; ++i) {
-        auto taskThread = absl::make_unique<TaskWorker>(option_.queueDepth);
+        std::string name = [this, i]() -> std::string {
+            if (option_.copysetNode == nullptr) {
+                return "apply";
+            }
+
+            return absl::StrCat("apply", ":", option_.copysetNode->GetPoolId(),
+                                "_", option_.copysetNode->GetCopysetId(), ":",
+                                i);
+        }();
+        auto taskThread =
+            absl::make_unique<TaskWorker>(option_.queueDepth, std::move(name));
         taskThread->Start();
         workers_.emplace_back(std::move(taskThread));
     }
@@ -108,6 +123,8 @@ void ApplyQueue::TaskWorker::Stop() {
 }
 
 void ApplyQueue::TaskWorker::Work() {
+    SetThreadName(workerName_.c_str());
+
     while (running.load(std::memory_order_relaxed)) {
         tasks.Pop()();
     }

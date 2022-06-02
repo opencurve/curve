@@ -55,6 +55,7 @@ cc_library(
         "//src/common:curve_common",
         "//src/fs:lfs",
         "//curvefs/src/common:dynamic_vlog",
+        "//curvefs/src/common:threading",
         "@rocksdb//:rocksdb_lib",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/container:btree",
