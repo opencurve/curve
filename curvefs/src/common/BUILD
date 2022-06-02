@@ -20,13 +20,14 @@ cc_library(
     name = "curvefs_common",
     srcs = glob(
         ["*.cpp"],
-        exclude = ["dynamic_vlog.cpp"],
+        exclude = ["dynamic_vlog.cpp", "threading.cpp"],
     ),
     hdrs = glob(
         ["*.h"],
         exclude = [
             "metric_utils.h",
             "dynamic_vlog.h",
+            "threading.h",
         ],
     ),
     copts = CURVE_DEFAULT_COPTS,
@@ -64,6 +65,21 @@ cc_library(
     deps = [
         "//external:brpc",
         "//external:gflags",
+        "//external:glog",
+    ],
+)
+
+cc_library(
+    name = "threading",
+    srcs = [
+        "threading.cpp",
+    ],
+    hdrs = [
+        "threading.h",
+    ],
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
         "//external:glog",
     ],
 )

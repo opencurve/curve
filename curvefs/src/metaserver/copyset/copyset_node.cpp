@@ -120,6 +120,7 @@ bool CopysetNode::Init(const CopysetNodeOptions& options) {
 
     // init apply queue
     applyQueue_ = absl::make_unique<ApplyQueue>();
+    options_.applyQueueOption.copysetNode = this;
     if (!applyQueue_->Start(options_.applyQueueOption)) {
         LOG(ERROR) << "Start apply queue failed";
         return false;
