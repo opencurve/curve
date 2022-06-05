@@ -22,20 +22,23 @@
 
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/storage/utils.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
 
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
+using ::curve::common::ReadLockGuard;
+using ::curve::common::WriteLockGuard;
 using ::curve::common::SplitString;
 using ::curve::common::StringStartWith;
-using ::curvefs::metaserver::storage::Hash;
 using ::curvefs::metaserver::storage::Status;
+using ::curvefs::metaserver::storage::Key4Dentry;
+using ::curvefs::metaserver::storage::Prefix4SameParentDentry;
 
 bool operator==(const Dentry& lhs, const Dentry& rhs) {
     return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) &&
@@ -49,41 +52,102 @@ bool operator<(const Dentry& lhs, const Dentry& rhs) {
            LESS4(fsid, parentinodeid, name, txid);
 }
 
-DentryStorage::DentryStorage(std::shared_ptr<KVStorage> kvStorage,
-                             const std::string& tablename)
-    : kvStorage_(kvStorage),
-      tablename_(tablename) {}
-
-inline std::string DentryStorage::DentryKey(const Dentry& dentry,
-                                            bool ignoreTxId) {
-    std::ostringstream oss;
-    std::string txId = ignoreTxId ? "" : std::to_string(dentry.txid());
-    oss << dentry.fsid() << ":" << dentry.parentinodeid() << ":"
-        << Hash(dentry.name()) << ":" << txId;
-    return oss.str();
-}
-
-inline std::string DentryStorage::SameParentKey(const Dentry& dentry) {
-    std::ostringstream oss;
-    oss << dentry.fsid() << ":" << dentry.parentinodeid() << ":";
-    return oss.str();
-}
-
-bool DentryStorage::BelongSameOne(const Dentry& lhs, const Dentry& rhs) {
-    return EQUAL(fsid) && EQUAL(parentinodeid) &&
-           EQUAL(name) && lhs.txid() <= rhs.txid();
-}
-
-bool DentryStorage::IsSameDentry(const Dentry& lhs, const Dentry& rhs) {
+static bool IsSameDentry(const Dentry& lhs, const Dentry& rhs) {
     return EQUAL(fsid) && EQUAL(parentinodeid) && EQUAL(name) &&
            EQUAL(inodeid);
 }
 
-inline bool DentryStorage::HasDeleteMarkFlag(const Dentry& dentry) {
+static bool HasDeleteMarkFlag(const Dentry& dentry) {
     return (dentry.flag() & DentryFlag::DELETE_MARK_FLAG) != 0;
 }
 
-bool DentryStorage::CompressDentry(BTree* dentrys) {
+static void FilterDentry(const DentryVec& vec, BTree* btree, uint64_t maxTxId) {
+    /*
+    for (const Dentry& dentry : vec->dentrys()) {
+        if (dentry.txid() <= maxTxId) {
+            btree->insert(dentry);
+        }
+    }
+    */
+}
+
+static void Insert2Vec(DentryVec* vec, const Dentry& dentry) {
+    vec->add_dentrys()->CopyFrom(dentry);
+}
+
+static void Delete4Vec(DentryVec* vec, const Dentry& dentry) {
+    /*
+    auto dentrys = vec->mutable_dentrys();
+    for (const auto iter = dentrys->begin(); iter != dentrys->end(); iter++) {
+        if (*iter == dentry) {
+            dentrys->erase(iter);
+            return;
+        }
+    }
+    */
+}
+
+static void MergeVec(DentryVec* dst, const DentryVec& src) {
+    /*
+    for (const auto& dentry : src->dentrys()) {
+        dst->add_dentrys()->CopyFrom(dentry);
+    }
+    */
+}
+
+DentryList::DentryList(std::vector<Dentry>* list,
+                       uint32_t limit,
+                       const std::string& exclude,
+                       uint64_t maxTxId,
+                       bool onlyDir)
+    : list_(list),
+      size_(0),
+      limit_(limit),
+      exclude_(exclude),
+      maxTxId_(maxTxId),
+      onlyDir_(onlyDir) {}
+
+void DentryList::PushBack(const DentryVec& vec) {
+    // NOTE: it's a cheap operation becacuse the size of
+    // dentryVec must less than 2
+    BTree dentrys;
+    FilterDentry(vec, &dentrys, maxTxId_);
+    auto last = dentrys.rbegin();
+    if (limit_ != 0 && size_ >= limit_) {
+        return;
+    } else if (dentrys.size() == 0 || HasDeleteMarkFlag(*last)) {
+        return;
+    } else if (onlyDir_ && last->type() != FsFileType::TYPE_DIRECTORY) {
+        return;
+    }
+
+    size_++;
+    list_->push_back(*last);
+    VLOG(9) << "ListDentry, dentry = ("
+            << last->ShortDebugString() << ")";
+}
+
+uint32_t DentryList::Size() {
+    return size_;
+}
+
+bool DentryList::IsFull() {
+    return limit_ != 0 && size_ >= limit_;
+}
+
+DentryStorage::DentryStorage(std::shared_ptr<KVStorage> kvStorage,
+                             std::shared_ptr<NameGenerator> nameGenerator,
+                             uint64_t nDentry)
+    : kvStorage_(kvStorage),
+      table4Dentry_(nameGenerator->GetDentryTableName()),
+      nDentry_(nDentry) {}
+
+std::string DentryStorage::DentryKey(const Dentry& dentry) {
+    Key4Dentry key(dentry.fsid(), dentry.parentinodeid(), dentry.name());
+    return conv_.SerializeToString(key);
+}
+
+bool DentryStorage::CompressDentry(DentryVec* vec, BTree* dentrys) {
     std::vector<Dentry> deleted;
     if (dentrys->size() == 2) {
         deleted.push_back(*dentrys->begin());
@@ -91,44 +155,38 @@ bool DentryStorage::CompressDentry(BTree* dentrys) {
     if (HasDeleteMarkFlag(*dentrys->rbegin())) {
         deleted.push_back(*dentrys->rbegin());
     }
-    for (const auto& item : deleted) {
-        Status s = kvStorage_->SDel(tablename_, DentryKey(item));
-        if (!s.ok() && !s.IsNotFound()) {
-            return false;
-        }
+    for (const auto& dentry : deleted) {
+        Delete4Vec(vec, dentry);
     }
-    return true;
+
+    Status s;
+    std::string skey = DentryKey(*dentrys->begin());
+    if (vec->dentrys_size() == 0) {  // delete directly
+        s = kvStorage_->SDel(table4Dentry_, skey);
+    } else {
+        s = kvStorage_->SSet(table4Dentry_, skey, *vec);
+    }
+
+    return s.ok();
 }
 
 // NOTE: Find() return the dentry which has the latest txid,
 // and it will clean the old txid's dentry if you specify compress to true
 MetaStatusCode DentryStorage::Find(const Dentry& in,
                                    Dentry* out,
+                                   DentryVec* vec,
                                    bool compress) {
-    uint64_t maxTxId = in.txid();
-    std::string prefix = DentryKey(in, true);
-    auto iterator = kvStorage_->SSeek(tablename_, prefix);
-    if (iterator->Status() < 0) {
+    Key4Dentry key(in.fsid(), in.parentinodeid(), in.name());
+    std::string skey = conv_.SerializeToString(key);
+    Status s = kvStorage_->SGet(table4Dentry_, skey, vec);
+    if (s.IsNotFound()) {
+        return MetaStatusCode::NOT_FOUND;
+    } else if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    // find dentry which belongs to one
-    Dentry dentry;
     BTree dentrys;
-    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-        std::string key = iterator->Key();
-        std::string value = iterator->Value();
-        if (!StringStartWith(key, prefix)) {
-            break;
-        } else if (!iterator->ParseFromValue(&dentry)) {
-            return MetaStatusCode::PARSE_FROM_STRING_FAILED;
-        }
-
-        if (dentry.txid() <= maxTxId) {
-            dentrys.emplace(dentry);
-        }
-    }
-
+    FilterDentry(*vec, &dentrys, in.txid());
     size_t size = dentrys.size();
     if (size > 2) {
         LOG(ERROR) << "There are more than 2 dentrys";
@@ -146,47 +204,84 @@ MetaStatusCode DentryStorage::Find(const Dentry& in,
         *out = *dentrys.rbegin();
     }
 
-    if (compress && !CompressDentry(&dentrys)) {
+    if (compress && !CompressDentry(vec, &dentrys)) {
         rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
     return rc;
 }
 
-MetaStatusCode DentryStorage::Insert(const Dentry& dentry, bool isLoadding) {
+MetaStatusCode DentryStorage::Insert(const Dentry& dentry) {
     WriteLockGuard w(rwLock_);
+    Dentry out;
+    DentryVec vec;
+    MetaStatusCode rc = Find(dentry, &out, &vec, true);
+    if (rc == MetaStatusCode::OK) {
+        if (IsSameDentry(out, dentry)) {
+            return MetaStatusCode::IDEMPOTENCE_OK;
+        }
+        return MetaStatusCode::DENTRY_EXIST;
+    } else if (rc != MetaStatusCode::NOT_FOUND) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
 
-    if (!isLoadding) {
-        Dentry out;
-        MetaStatusCode rc = Find(dentry, &out, true);
-        if (rc == MetaStatusCode::OK) {
-            if (IsSameDentry(out, dentry)) {
-                return MetaStatusCode::IDEMPOTENCE_OK;
-            }
-            return MetaStatusCode::DENTRY_EXIST;
-        } else if (rc != MetaStatusCode::NOT_FOUND) {
+    // rc == MetaStatusCode::NOT_FOUND
+    Key4Dentry key(dentry.fsid(), dentry.parentinodeid(), dentry.name());
+    std::string skey = key.SerializeToString();
+    Insert2Vec(&vec, dentry);
+    Status s = kvStorage_->SSet(table4Dentry_, skey, vec);
+    if (!s.ok()) {
+        LOG(ERROR) << "Insert dentry failed, status = " << s.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    nDentry_ += 1;
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode DentryStorage::Insert(const DentryVec& vec, bool merge) {
+    WriteLockGuard w(rwLock_);
+    Status s;
+    DentryVec oldVec;
+    std::string skey = DentryKey(vec.dentrys(0));
+    if (merge) {  // for old version dumpfile (v1)
+        s = kvStorage_->SGet(table4Dentry_, skey, &oldVec);
+        if (s.IsNotFound()) {
+            // do nothing
+        } else if (!s.ok()) {
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
     }
 
-    // MetaStatusCode::NOT_FOUND
-    Status s = kvStorage_->SSet(tablename_, DentryKey(dentry), dentry);
-    return s.ok() ? MetaStatusCode::OK :
-                    MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    MergeVec(&oldVec, vec);
+    s = kvStorage_->SSet(table4Dentry_, skey, oldVec);
+    if (!s.ok()) {
+        LOG(ERROR) << "Insert dentry failed, status = " << s.ToString();
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    nDentry_ += vec.dentrys_size();
+    return MetaStatusCode::OK;
 }
 
 MetaStatusCode DentryStorage::Delete(const Dentry& dentry) {
     WriteLockGuard w(rwLock_);
 
     Dentry out;
-    MetaStatusCode rc = Find(dentry, &out, true);
+    DentryVec vec;
+    MetaStatusCode rc = Find(dentry, &out, &vec, true);
     if (rc == MetaStatusCode::NOT_FOUND) {
         return MetaStatusCode::NOT_FOUND;
     } else if (rc != MetaStatusCode::OK) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    // MetaStatusCode::OK
-    Status s = kvStorage_->SDel(tablename_, DentryKey(out));
+    Status s;
+    Key4Dentry key(dentry.fsid(), dentry.parentinodeid(), dentry.name());
+    std::string skey = key.SerializeToString();
+    if (vec.dentrys_size() == 1) {
+        s = kvStorage_->SDel(table4Dentry_, skey);
+    } else {
+        // delete from vector
+        s = kvStorage_->SSet(table4Dentry_, skey, vec);
+    }
     return s.ok() ? MetaStatusCode::OK :
                     MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
@@ -195,7 +290,8 @@ MetaStatusCode DentryStorage::Get(Dentry* dentry) {
     ReadLockGuard r(rwLock_);
 
     Dentry out;
-    MetaStatusCode rc = Find(*dentry, &out, false);
+    DentryVec vec;
+    MetaStatusCode rc = Find(*dentry, &out, &vec, false);
     if (rc == MetaStatusCode::NOT_FOUND) {
         return MetaStatusCode::NOT_FOUND;
     } else if (rc != MetaStatusCode::OK) {
@@ -212,89 +308,71 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
                                    uint32_t limit,
                                    bool onlyDir) {
     ReadLockGuard r(rwLock_);
-    std::string prefix = SameParentKey(dentry);
-    std::string lkey = prefix;
-    if (dentry.name().size() > 0) {
-        size_t hash4name = Hash(dentry.name());
-        lkey = lkey + std::to_string(hash4name) + ":";
-    }
+    // 1. prepare seek lower key
+    uint32_t fsId = dentry.fsid();
+    uint64_t parentInodeId = dentry.parentinodeid();
+    std::string name = dentry.name();
+    Prefix4SameParentDentry prefix(fsId, parentInodeId);
+    std::string sprefix = prefix.SerializeToString();  // "1:1:"
+    Key4Dentry key(fsId, parentInodeId, name);
+    std::string lower = key.SerializeToString();  // "1:1:", "1:1:/a/b/c"
 
-    auto iter = kvStorage_->SSeek(tablename_, lkey);
-    if (iter->Status() < 0) {
+    // 2. iterator key/value pair one by one
+    auto iterator = kvStorage_->SSeek(table4Dentry_, lower);
+    iterator->DisablePrefixChecking();
+    if (iterator->Status() < 0) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-    iter->DisablePrefixChecking();
 
-    uint32_t count = 0;
-    auto push = [&](BTree* temp) {
-        bool select = true;
-        if (limit != 0 && count >= limit) {
-            select = false;
-        } else if (temp->size() == 0 || HasDeleteMarkFlag(*temp->rbegin())) {
-            select = false;
-        } else if (onlyDir &&
-            temp->rbegin()->type() != FsFileType::TYPE_DIRECTORY) {
-            select = false;
-        }
-
-        if (select) {
-            count++;
-            auto iter = temp->rbegin();
-            dentrys->push_back(*iter);
-            VLOG(9) << "ListDentry, dentry = ("
-                    << iter->ShortDebugString() << ")";
-        }
-        temp->clear();
-    };
-
-    Dentry current;
-    BTree temp;
-    std::string exclude = dentry.name();
-    uint64_t maxTxId = dentry.txid();
-    for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
-        std::string key = iter->Key();
-        std::string value = iter->Value();
-        if (!StringStartWith(key, prefix)) {
+    DentryVec current;
+    DentryList list(dentrys, limit, name, dentry.txid(), onlyDir);
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        std::string skey = iterator->Key();
+        std::string svalue = iterator->Value();
+        if (!StringStartWith(skey, sprefix)) {
             break;
-        } else if (!iter->ParseFromValue(&current)) {
+        } else if (!iterator->ParseFromValue(&current)) {
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
         }
 
-        if (current.name() != exclude && current.txid() <= maxTxId) {
-            if (temp.size() == 0) {
-                temp.emplace(current);
-            } else if (temp.rbegin()->name() == current.name()) {
-                // belong same dentry
-                temp.emplace(current);
-            } else {
-                push(&temp);
-                temp.emplace(current);
-            }
+        list.PushBack(current);
+        if (list.IsFull()) {
+            break;
         }
     }
 
-    push(&temp);
-    return dentrys->empty() ? MetaStatusCode::NOT_FOUND : MetaStatusCode::OK;
+    if (list.Size() == 0) {
+        return MetaStatusCode::NOT_FOUND;
+    }
+    return MetaStatusCode::OK;
 }
 
 MetaStatusCode DentryStorage::HandleTx(TX_OP_TYPE type, const Dentry& dentry) {
     WriteLockGuard w(rwLock_);
 
     Status s;
-    Dentry dummy;
-    std::string value;
-    auto rc = MetaStatusCode::OK;
+    Dentry out;
+    DentryVec vec;
+    std::string skey = DentryKey(dentry);
+    MetaStatusCode rc = MetaStatusCode::OK;
     switch (type) {
         case TX_OP_TYPE::PREPARE:
-            // For idempotence, do not judge the return value
-            s = kvStorage_->SSet(tablename_, DentryKey(dentry), dentry);
+            s = kvStorage_->SGet(table4Dentry_, skey, &vec);
+            if (!s.ok() && !s.IsNotFound()) {
+                rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+                break;
+            }
+
+            // OK || NOT_FOUND
+            Insert2Vec(&vec, dentry);
+            s = kvStorage_->SSet(table4Dentry_, skey, vec);
             if (!s.ok()) {
                 rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
             }
             break;
 
         case TX_OP_TYPE::COMMIT:
-            rc = Find(dentry, &dummy, true);
+            rc = Find(dentry, &out, &vec, true);
             if (rc == MetaStatusCode::OK ||
                 rc == MetaStatusCode::NOT_FOUND) {
                 rc = MetaStatusCode::OK;
@@ -302,8 +380,20 @@ MetaStatusCode DentryStorage::HandleTx(TX_OP_TYPE type, const Dentry& dentry) {
             break;
 
         case TX_OP_TYPE::ROLLBACK:
-            s = kvStorage_->SDel(tablename_, DentryKey(dentry));
+            s = kvStorage_->SGet(table4Dentry_, skey, &vec);
             if (!s.ok() && !s.IsNotFound()) {
+                rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
+                break;
+            }
+
+            // OK || NOT_FOUN
+            Delete4Vec(&vec, dentry);
+            if (vec.dentrys_size() == 0) {  // delete directly
+                s = kvStorage_->SDel(table4Dentry_, skey);
+            } else {
+                s = kvStorage_->SSet(table4Dentry_, skey, vec);
+            }
+            if (!s.ok()) {
                 rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
             }
             break;
@@ -316,16 +406,16 @@ MetaStatusCode DentryStorage::HandleTx(TX_OP_TYPE type, const Dentry& dentry) {
 }
 
 std::shared_ptr<Iterator> DentryStorage::GetAll() {
-    return kvStorage_->SGetAll(tablename_);
+    return kvStorage_->SGetAll(table4Dentry_);
 }
 
 size_t DentryStorage::Size() {
-    return kvStorage_->SSize(tablename_);
+    return kvStorage_->SSize(table4Dentry_);
 }
 
 MetaStatusCode DentryStorage::Clear() {
     ReadLockGuard w(rwLock_);
-    Status s = kvStorage_->SClear(tablename_);
+    Status s = kvStorage_->SClear(table4Dentry_);
     return s.ok() ? MetaStatusCode::OK : MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 

@@ -54,9 +54,7 @@ class Iterator {
 
     virtual int Status() = 0;
 
-    virtual bool ParseFromValue(ValueType* value) {
-        return true;
-    }
+    virtual bool ParseFromValue(ValueType* value) { return true; }
 
     virtual void DisablePrefixChecking() {}
 };

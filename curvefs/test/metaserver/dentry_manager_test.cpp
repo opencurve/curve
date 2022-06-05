@@ -42,14 +42,14 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        tablename_ = "partition:1";
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         dentryStorage_ = std::make_shared<DentryStorage>(
-            kvStorage_, tablename_);
+            kvStorage_, nameGenerator_, 0);
         txManager_ = std::make_shared<TxManager>(dentryStorage_);
         dentryManager_ = std::make_shared<DentryManager>(
             dentryStorage_, txManager_);
@@ -93,7 +93,7 @@ class DentryManagerTest : public ::testing::Test {
 
  protected:
     std::string dataDir_;
-    std::string tablename_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;

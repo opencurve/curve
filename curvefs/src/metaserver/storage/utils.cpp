@@ -42,26 +42,6 @@ using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::Ext4FileSystemImpl;
-using ContainerType = Counter::ContainerType;
-
-size_t Hash(const std::string& key) {
-    return std::hash<std::string>{}(key);
-}
-
-std::string Number2BinaryString(size_t num) {
-    char buffer[sizeof(size_t)];
-    std::memcpy(buffer, reinterpret_cast<char*>(&num), sizeof(size_t));
-    return std::string(buffer, sizeof(size_t));
-}
-
-size_t BinrayString2Number(const std::string& str) {
-    if (str.size() < sizeof(size_t)) {
-        LOG(ERROR) << "The length of binray string must equal or greater than "
-                   << sizeof(size_t) << ", but now is " << str.size();
-        return 0;
-    }
-    return *reinterpret_cast<const size_t*>(str.c_str());
-}
 
 bool GetFileSystemSpaces(const std::string& path,
                          uint64_t* total,
@@ -110,54 +90,6 @@ bool GetProcMemory(uint64_t* vmRSS) {
     }
 
     return false;
-}
-
-std::shared_ptr<ContainerType> Counter::GetContainer(const std::string& name) {
-    {
-        ReadLockGuard readLockGuard(rwLock_);
-        auto iter = containerDict_.find(name);
-        if (iter != containerDict_.end()) {
-            return iter->second;
-        }
-    }
-    {
-        WriteLockGuard writeLockGuard(rwLock_);
-        auto ret = containerDict_.emplace(
-            name, std::make_shared<ContainerType>());
-        return ret.first->second;
-    }
-}
-
-size_t Counter::ToInternalKey(const std::string& key) {
-    return Hash(key);
-}
-
-void Counter::Insert(const std::string& name, const std::string& key) {
-    auto container = GetContainer(name);
-    auto ikey = ToInternalKey(key);
-    container->emplace(ikey);
-}
-
-void Counter::Erase(const std::string& name, const std::string& key) {
-    auto container = GetContainer(name);
-    auto ikey = ToInternalKey(key);
-    container->erase(ikey);
-}
-
-bool Counter::Find(const std::string& name, const std::string& key) {
-    auto container = GetContainer(name);
-    auto ikey = ToInternalKey(key);
-    return container->find(ikey) != container->end();
-}
-
-size_t Counter::Size(const std::string& name) {
-    auto container = GetContainer(name);
-    return container->size();
-}
-
-void Counter::Clear(const std::string& name) {
-    auto container = GetContainer(name);
-    container->clear();
 }
 
 }  // namespace storage

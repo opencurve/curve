@@ -63,7 +63,7 @@ namespace metaserver {
 class InodeStorageTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        tablename_ = "partition:1";
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
@@ -180,13 +180,13 @@ class InodeStorageTest : public ::testing::Test {
 
  protected:
     std::string dataDir_;
-    std::string tablename_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<Converter> conv_;
 };
 
 TEST_F(InodeStorageTest, test1) {
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
     Inode inode1 = GenInode(1, 1);
     Inode inode2 = GenInode(2, 2);
     Inode inode3 = GenInode(3, 3);
@@ -230,12 +230,12 @@ TEST_F(InodeStorageTest, test1) {
 
     // GetInodeIdList
     std::list<uint64_t> inodeIdList;
-    ASSERT_TRUE(storage.GetInodeIdList(&inodeIdList));
+    ASSERT_TRUE(storage.GetAllInodeId(&inodeIdList));
     ASSERT_EQ(inodeIdList.size(), 2);
 }
 
 TEST_F(InodeStorageTest, testGetAttrNotFound) {
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -259,7 +259,7 @@ TEST_F(InodeStorageTest, testGetAttrNotFound) {
 }
 
 TEST_F(InodeStorageTest, testGetAttr) {
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -286,7 +286,7 @@ TEST_F(InodeStorageTest, testGetAttr) {
 }
 
 TEST_F(InodeStorageTest, testGetXAttr) {
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
     Inode inode;
     inode.set_fsid(1);
     inode.set_inodeid(1);
@@ -331,7 +331,7 @@ TEST_F(InodeStorageTest, testGetXAttr) {
 TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
 
     // CASE 1: get empty s3chunkinfo
     {
@@ -620,7 +620,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
     uint32_t fsId = 1;
     uint64_t inodeId = 1;
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
     S3ChunkInfoList list2del;
 
     // step1: insert inode
@@ -688,7 +688,7 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
 }
 
 TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {
-    InodeStorage storage(kvStorage_, tablename_);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
     uint64_t chunkIndex = 1;
     S3ChunkInfoList list2add = GenS3ChunkInfoList(1, 10);
 
@@ -733,16 +733,16 @@ TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
     };
 
     for (const auto& test : cases) {
-        const std::string tablename = "hello";
         auto kvStorage = std::make_shared<storage::MockKVStorage>();
-        InodeStorage storage(kvStorage, tablename);
+        InodeStorage storage(kvStorage, nameGenerator_, 0);
 
         uint32_t fsId = 1;
         uint64_t inodeId = 1;
         VolumeExtentSlice slice;
         slice.set_offset(1ULL * 1024 * 1024 * 1024);
 
-        const std::string expectTableName = "3:" + tablename;
+        const std::string expectTableName =
+            nameGenerator_->GetVolumnExtentTableName();
         const std::string expectKey = "4:1:1:" + std::to_string(slice.offset());
         EXPECT_CALL(*kvStorage, SSet(expectTableName, expectKey, _))
             .WillOnce(Return(test.second));
@@ -820,7 +820,7 @@ TEST_F(InodeStorageTest, TestGetAllVolumeExtent) {
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
     for (auto& store : {memStore, kvStore}) {
-        InodeStorage storage(memStore, "TestGetAllVolumeExtent");
+        InodeStorage storage(memStore, nameGenerator_, 0);
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
 
@@ -856,7 +856,7 @@ TEST_F(InodeStorageTest, TestGetVolumeExtentByOffset) {
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
     for (auto& store : {kvStorage_, memStore}) {
-        InodeStorage storage(store, "TestGetVolumeExtentByOffset");
+        InodeStorage storage(store, nameGenerator_, 0);
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
 

@@ -39,7 +39,6 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::StorageStatistics;
-using ::curvefs::metaserver::storage::RocksDBStorageComparator;
 using ROCKSDB_STATUS = ROCKSDB_NAMESPACE::Status;
 
 using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
@@ -155,21 +154,6 @@ TEST_F(RocksDBStorageTest, GetStatisticsTest) {
     ASSERT_GT(statistics.diskUsageBytes, 0);
 }
 
-TEST_F(RocksDBStorageTest, ComparatorTest) {
-    RocksDBStorageComparator cmp;
-    std::string str4num1 = Number2BinaryString(1);
-    std::string str4num2 = Number2BinaryString(2);
-    std::string key1 = str4num1 + ":/a";
-    std::string key2 = str4num1 + ":/b";
-
-    ASSERT_EQ(cmp.Compare(str4num1, str4num2), -1);
-    ASSERT_EQ(cmp.Compare(str4num2, str4num1), 1);
-    ASSERT_EQ(cmp.Compare(str4num2, str4num1), 1);
-    ASSERT_EQ(cmp.Compare(key1, key2), -1);
-    ASSERT_EQ(cmp.Compare(key2, key1), 1);
-    ASSERT_EQ(cmp.Compare(key1, key1), 0);
-}
-
 TEST_F(RocksDBStorageTest, MiscTest) {
     // CASE 1: storage type
     ASSERT_EQ(kvStorage_->Type(), STORAGE_TYPE::ROCKSDB_STORAGE);
@@ -205,8 +189,8 @@ TEST_F(RocksDBStorageTest, SSeekTest) { TestSSeek(kvStorage_); }
 TEST_F(RocksDBStorageTest, SGetAllTest) { TestSGetAll(kvStorage_); }
 TEST_F(RocksDBStorageTest, SSizeTest) { TestSSize(kvStorage_); }
 TEST_F(RocksDBStorageTest, SClearTest) { TestSClear(kvStorage_); }
-TEST_F(RocksDBStorageTest, SMixOperator) { TestMixOperator(kvStorage_); }
-TEST_F(RocksDBStorageTest, Transaction) { TestTransaction(kvStorage_); }
+TEST_F(RocksDBStorageTest, MixOperatorTest) { TestMixOperator(kvStorage_); }
+TEST_F(RocksDBStorageTest, TransactionTest) { TestTransaction(kvStorage_); }
 
 }  // namespace storage
 }  // namespace metaserver

@@ -35,13 +35,14 @@ namespace metaserver {
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using TX_OP_TYPE = DentryStorage::TX_OP_TYPE;
 
 class DentryStorageTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        tablename_ = "partition:1";
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
@@ -103,12 +104,12 @@ class DentryStorageTest : public ::testing::Test {
 
  protected:
     std::string dataDir_;
-    std::string tablename_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(DentryStorageTest, Insert) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
 
     Dentry dentry;
     dentry.set_fsid(1);
@@ -147,7 +148,7 @@ TEST_F(DentryStorageTest, Insert) {
 }
 
 TEST_F(DentryStorageTest, Delete) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
 
     Dentry dentry;
     dentry.set_fsid(1);
@@ -212,7 +213,7 @@ TEST_F(DentryStorageTest, Delete) {
 }
 
 TEST_F(DentryStorageTest, Get) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
     Dentry dentry;
 
     // CASE 1: dentry not found
@@ -264,7 +265,7 @@ TEST_F(DentryStorageTest, Get) {
 }
 
 TEST_F(DentryStorageTest, List) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
     std::vector<Dentry> dentrys;
     Dentry dentry;
 
@@ -438,7 +439,7 @@ TEST_F(DentryStorageTest, List) {
 }
 
 TEST_F(DentryStorageTest, HandleTx) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
     std::vector<Dentry> dentrys;
     Dentry dentry;
 

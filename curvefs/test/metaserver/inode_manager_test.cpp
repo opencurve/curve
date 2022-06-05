@@ -45,6 +45,7 @@ using ::testing::StrEq;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 
@@ -60,8 +61,9 @@ class InodeManagerTest : public ::testing::Test {
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
+        auto nameGenerator = std::make_shared<NameGenerator>(1);
         auto inodeStorage = std::make_shared<InodeStorage>(
-            kvStorage_, tablename);
+            kvStorage_, nameGenerator, 0);
         auto trash = std::make_shared<TrashImpl>(inodeStorage);
         manager = std::make_shared<InodeManager>(inodeStorage, trash);
 

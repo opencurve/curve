@@ -29,16 +29,18 @@
 #include "rocksdb/slice_transform.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-using KeyPair = RocksDBStorage::KeyPair;
-
+// RocksDBOptions
 const std::string RocksDBOptions::kOrderedColumnFamilyName_ =  // NOLINT
     "ordered_column_familiy";
+
+const std::string RocksDBStorage::kDelimiter_ = ":";  // NOLINT
 
 RocksDBOptions::RocksDBOptions(StorageOptions options) {
     // db options
@@ -48,7 +50,7 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     dbOptions_.create_missing_column_families = true;
     // maximum number of concurrent background memtable flush jobs,
     // submitted by default to the HIGH priority thread pool
-    dbOptions_.max_background_flushes = 2;
+    dbOptions_.max_background_flushes = 4;
     // maximum number of concurrent background compaction jobs,
     // submitted to the default LOW priority thread pool.
     dbOptions_.max_background_compactions = 4;
@@ -71,10 +73,7 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     tableOptions.filter_policy.reset(NewBloomFilterPolicy(10, false));
 
     // column failmy options
-    comparator_ = std::make_shared<RocksDBStorageComparator>();
     ColumnFamilyOptions cfOptions = ColumnFamilyOptions();
-    // user-defined key comparator
-    cfOptions.comparator = comparator_.get();
     // large values (blobs) are written to separate blob files, and
     // only pointers to them are stored in SST files
     cfOptions.enable_blob_files = true;
@@ -82,7 +81,8 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     cfOptions.level_compaction_dynamic_level_bytes = true;
     cfOptions.compaction_pri = ROCKSDB_NAMESPACE::kMinOverlappingRatio;
     // use the specified function to determine the prefixes for keys
-    cfOptions.prefix_extractor.reset(NewFixedPrefixTransform(sizeof(size_t)));
+    cfOptions.prefix_extractor.reset(
+        NewFixedPrefixTransform(options.keyPrefixLength));
     // The size in bytes of the filter for memtable is
     // write_buffer_size * memtable_prefix_bloom_size_ratio
     cfOptions.memtable_prefix_bloom_size_ratio =
@@ -133,15 +133,20 @@ inline ROCKSDB_NAMESPACE::WriteOptions RocksDBOptions::WriteOptions() {
     return options;
 }
 
+//  RocksDBStorage
 RocksDBStorage::RocksDBStorage()
     : InTransaction_(false) {}
 
 RocksDBStorage::RocksDBStorage(StorageOptions options)
     : inited_(false),
       options_(options),
-      rocksdbOptions_(RocksDBOptions(options)),
-      counter_(std::make_shared<Counter>()),
-      InTransaction_(false) {}
+      InTransaction_(false) {
+    // we fake a table name and invoke ToInternale() to get key prefix length
+    std::string tablename = std::string(NameGenerator::GetFixedLength(), '0');
+    std::string iname = ToInternalName(tablename, true, true);
+    options_.keyPrefixLength = iname.size();
+    rocksdbOptions_ = RocksDBOptions(options_);
+}
 
 RocksDBStorage::RocksDBStorage(const RocksDBStorage& storage,
                                ROCKSDB_NAMESPACE::Transaction* txn)
@@ -151,7 +156,6 @@ RocksDBStorage::RocksDBStorage(const RocksDBStorage& storage,
       db_(storage.db_),
       txnDB_(storage.txnDB_),
       handles_(storage.handles_),
-      counter_(storage.counter_),
       InTransaction_(true),
       txn_(txn) {}
 
@@ -237,74 +241,36 @@ Status RocksDBStorage::ToStorageStatus(const ROCKSDB_NAMESPACE::Status& s) {
     return Status::InternalError();
 }
 
-// "ordered:name"
+/* NOTE:
+ * 1. we use suffix 0/1 to determine the key range:
+ *    [ordered:name:0, ordered:name:1)
+ * 2. please gurantee the length of name is fixed for
+ *    we can determine the rocksdb's prefix key
+ */
 std::string RocksDBStorage::ToInternalName(const std::string& name,
-                                           bool ordered) {
+                                           bool ordered,
+                                           bool start) {
     std::ostringstream oss;
-    oss << ordered << ":" << name;
+    oss << ordered << kDelimiter_ << name << kDelimiter_ << (start ? "0" : "1");
     return oss.str();
 }
 
-std::string RocksDBStorage::FormatInternalKey(size_t num4name,
-                                              const std::string& key) {
+std::string RocksDBStorage::ToInternalKey(const std::string& name,
+                                          const std::string& key,
+                                          bool ordered) {
+    std::string iname = ToInternalName(name, ordered, true);
     std::ostringstream oss;
-    oss << Number2BinaryString(num4name) << ":" << key;
-    return oss.str();
+    oss << iname << kDelimiter_ << key;
+    std::string ikey = oss.str();
+    VLOG(9) << "ikey = " << ikey << " (ordered = " << ordered
+            << ", name = " << name << ", key = " << key << ")"
+            << ", size=" << ikey.size();
+    return ikey;
 }
 
-// NOTE: we will convert name to number for compare prefix
-// eg: Hash(iname):key
-std::string RocksDBStorage::ToInternalKey(const std::string& iname,
-                                          const std::string& key) {
-    size_t num4name = Hash(iname);
-    return FormatInternalKey(num4name, key);
-}
-
+// extract user key from internal key: prefix:key => key
 std::string RocksDBStorage::ToUserKey(const std::string& ikey) {
-    size_t length = sizeof(size_t);
-    return ikey.substr(length + 1);  // trim prefix "name:"
-}
-
-inline bool RocksDBStorage::FindKey(std::string name, std::string key) {
-    ReadLockGuard readLockGuard(rwLock_);
-    return counter_->Find(name, key);
-}
-
-inline void RocksDBStorage::InsertKey(std::string name, std::string key) {
-    WriteLockGuard writeLockGuard(rwLock_);
-    counter_->Insert(name, key);
-}
-
-inline void RocksDBStorage::EraseKey(std::string name, std::string key) {
-    WriteLockGuard writeLockGuard(rwLock_);
-    counter_->Erase(name, key);
-}
-
-inline size_t RocksDBStorage::TableSize(std::string name) {
-    ReadLockGuard readLockGuard(rwLock_);
-    return counter_->Size(name);
-}
-
-inline void RocksDBStorage::ClearTable(std::string name) {
-    WriteLockGuard writeLockGuard(rwLock_);
-    counter_->Clear(name);
-}
-
-inline void RocksDBStorage::CommitKeys() {
-    WriteLockGuard writeLockGuard(rwLock_);
-    for (const auto& pair : pending4set_) {
-        counter_->Insert(pair.first, pair.second);
-    }
-    for (const auto& pair : pending4del_) {
-        counter_->Erase(pair.first, pair.second);
-    }
-    pending4set_.clear();
-    pending4del_.clear();
-}
-
-inline void RocksDBStorage::RollbackKeys() {
-    pending4set_.clear();
-    pending4del_.clear();
+    return ikey.substr(options_.keyPrefixLength + kDelimiter_.size());
 }
 
 Status RocksDBStorage::Get(const std::string& name,
@@ -315,13 +281,8 @@ Status RocksDBStorage::Get(const std::string& name,
         return Status::DBClosed();
     }
 
-    std::string iname = ToInternalName(name, ordered);
-    std::string ikey = ToInternalKey(iname, key);
-    if (!InTransaction_ && !FindKey(iname, ikey)) {
-        return Status::NotFound();
-    }
-
     std::string svalue;
+    std::string ikey = ToInternalKey(name, key, ordered);
     auto handle = GetColumnFamilyHandle(ordered);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Get(ReadOptions(), handle, ikey, &svalue) :
@@ -344,18 +305,10 @@ Status RocksDBStorage::Set(const std::string& name,
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
-    std::string iname = ToInternalName(name, ordered);
-    std::string ikey = ToInternalKey(iname, key);
+    std::string ikey = ToInternalKey(name, key, ordered);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Put(handle, ikey, svalue) :
         db_->Put(WriteOptions(), handle, ikey, svalue);
-    if (s.ok()) {
-        if (InTransaction_) {
-            pending4set_.push_back(KeyPair(iname, ikey));
-        } else {
-            InsertKey(iname, ikey);
-        }
-    }
     return ToStorageStatus(s);
 }
 
@@ -366,49 +319,41 @@ Status RocksDBStorage::Del(const std::string& name,
         return Status::DBClosed();
     }
 
-    std::string iname = ToInternalName(name, ordered);
-    std::string ikey = ToInternalKey(iname, key);
-    if (!InTransaction_ && !counter_->Find(iname, ikey)) {
-        return Status::NotFound();
-    }
-
+    std::string ikey = ToInternalKey(name, key, ordered);
     auto handle = GetColumnFamilyHandle(ordered);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Delete(handle, ikey) :
         db_->Delete(WriteOptions(), handle, ikey);
-    if (s.ok()) {
-        if (InTransaction_) {
-            pending4del_.push_back(KeyPair(iname, ikey));
-        } else {
-            EraseKey(iname, ikey);
-        }
-    }
     return ToStorageStatus(s);
 }
 
 std::shared_ptr<Iterator> RocksDBStorage::Seek(const std::string& name,
                                                const std::string& prefix) {
-    size_t size = 0;
     int status = inited_ ? 0 : -1;
-    std::string iname = ToInternalName(name, true);
-    std::string ikey = ToInternalKey(iname, prefix);
+    std::string ikey = ToInternalKey(name, prefix, true);
     return std::make_shared<RocksDBStorageIterator>(
-        this, ikey, size, status, true);
+        this, ikey, 0, status, true);
 }
 
 std::shared_ptr<Iterator> RocksDBStorage::GetAll(const std::string& name,
                                                  bool ordered) {
     int status = inited_ ? 0 : -1;
-    std::string iname = ToInternalName(name, ordered);
-    std::string ikey = ToInternalKey(iname, "");
-    size_t size = TableSize(iname);
+    std::string ikey = ToInternalKey(name, "", ordered);
     return std::make_shared<RocksDBStorageIterator>(
-        this, ikey, size, status, ordered);
+        this, ikey, 0, status, ordered);
 }
 
 size_t RocksDBStorage::Size(const std::string& name, bool ordered) {
-    std::string iname = ToInternalName(name, ordered);
-    return TableSize(iname);
+    auto iterator = GetAll(name, ordered);
+    if (iterator->Status() != 0) {
+        return 0;
+    }
+
+    size_t size = 0;
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        size++;
+    }
+    return size;
 }
 
 Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
@@ -419,15 +364,12 @@ Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
-    std::string iname = ToInternalName(name, ordered);  // "1:name"
-    std::string beginKey = ToInternalKey(iname, "");  // "Hash(iname):"
-    size_t beginNum = BinrayString2Number(beginKey);
-    std::string endKey = FormatInternalKey(beginNum + 1, "");
+    std::string lower = ToInternalName(name, ordered, true);
+    std::string upper = ToInternalName(name, ordered, false);
     ROCKSDB_NAMESPACE::Status s = db_->DeleteRange(
-        WriteOptions(), handle, beginKey, endKey);
-    if (s.ok()) {
-        ClearTable(iname);
-    }
+        WriteOptions(), handle, lower, upper);
+    LOG(INFO) << "Clear(), tablename = " << name << ", ordered" << "ordered"
+              << ", lower key = " << lower << ", upper key = " << upper;
     return ToStorageStatus(s);
 }
 
@@ -437,8 +379,6 @@ std::shared_ptr<StorageTransaction> RocksDBStorage::BeginTransaction() {
     if (nullptr == txn) {
         return nullptr;
     }
-    pending4set_.clear();
-    pending4del_.clear();
     return std::make_shared<RocksDBStorage>(*this, txn);
 }
 
@@ -451,8 +391,6 @@ Status RocksDBStorage::Commit() {
     if (!s.ok()) {
         LOG(ERROR) << "RocksDBStorage commit transaction failed"
                    << ", status=" << s.ToString();
-    } else {
-        CommitKeys();
     }
     delete txn_;
     return ToStorageStatus(s);
@@ -466,8 +404,6 @@ Status RocksDBStorage::Rollback()  {
     if (!s.ok()) {
         LOG(ERROR) << "RocksDBStorage rollback transaction failed"
                    << ", status=" << s.ToString();
-    } else {
-        RollbackKeys();
     }
     delete txn_;
     return ToStorageStatus(s);

@@ -212,7 +212,7 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->CreateDentry(request->dentry(), false);
+    MetaStatusCode status = partition->CreateDentry(request->dentry());
     response->set_statuscode(status);
     return status;
 }
