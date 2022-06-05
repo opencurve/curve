@@ -50,6 +50,7 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::storage::NameGenerator;
 
 namespace curvefs {
 namespace metaserver {
@@ -80,8 +81,9 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
+        auto nameGenerator = std::make_shared<NameGenerator>(1);
         inodeStorage_ =
-            std::make_shared<InodeStorage>(kvStorage_, "partition:1");
+            std::make_shared<InodeStorage>(kvStorage_, nameGenerator, 0);
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
         inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
         impl_ = std::make_shared<S3CompactWorkQueueImpl>(

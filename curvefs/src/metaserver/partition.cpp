@@ -30,19 +30,33 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
+
+using ::curvefs::metaserver::storage::NameGenerator;
 
 Partition::Partition(const PartitionInfo& paritionInfo,
                      std::shared_ptr<KVStorage> kvStorage) {
     assert(paritionInfo.start() <= paritionInfo.end());
     partitionInfo_ = paritionInfo;
 
+    uint64_t nInode = 0;
+    uint64_t nDentry = 0;
+    uint32_t partitionId = paritionInfo.partitionid();
+    if (paritionInfo.has_inodenum()) {
+        nInode = paritionInfo.inodenum();
+    }
+    if (paritionInfo.has_dentrynum()) {
+        nDentry = paritionInfo.dentrynum();
+    }
+    auto tableName = std::make_shared<NameGenerator>(partitionId);
     inodeStorage_ = std::make_shared<InodeStorage>(
-        kvStorage, GetInodeTablename());
+        kvStorage, tableName, nInode);
     dentryStorage_ = std::make_shared<DentryStorage>(
-        kvStorage, GetDentryTablename());
+        kvStorage, tableName, nDentry);
+
     trash_ = std::make_shared<TrashImpl>(inodeStorage_);
     inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
@@ -60,8 +74,7 @@ Partition::Partition(const PartitionInfo& paritionInfo,
     }
 }
 
-// dentry
-MetaStatusCode Partition::CreateDentry(const Dentry& dentry, bool isLoadding) {
+MetaStatusCode Partition::CreateDentry(const Dentry& dentry) {
     if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
@@ -69,19 +82,31 @@ MetaStatusCode Partition::CreateDentry(const Dentry& dentry, bool isLoadding) {
     if (GetStatus() == PartitionStatus::DELETING) {
         return MetaStatusCode::PARTITION_DELETING;
     }
-    MetaStatusCode ret = dentryManager_->CreateDentry(dentry, isLoadding);
+    MetaStatusCode ret = dentryManager_->CreateDentry(dentry);
     if (MetaStatusCode::OK == ret) {
-        if (!isLoadding) {
-            return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
-                dentry.fsid(), dentry.parentinodeid(), true);
-        } else {
-            return MetaStatusCode::OK;
-        }
+        return inodeManager_->UpdateInodeWhenCreateOrRemoveSubNode(
+            dentry.fsid(), dentry.parentinodeid(), true);
     } else if (MetaStatusCode::IDEMPOTENCE_OK == ret) {
         return MetaStatusCode::OK;
     } else {
         return ret;
     }
+}
+
+MetaStatusCode Partition::LoadDentry(const DentryVec& vec, bool merge) {
+    auto dentry = vec.dentrys(0);
+    if (!IsInodeBelongs(dentry.fsid(), dentry.parentinodeid())) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    } else if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    MetaStatusCode rc = dentryManager_->CreateDentry(vec, merge);
+    if (rc == MetaStatusCode::OK ||
+        rc == MetaStatusCode::IDEMPOTENCE_OK) {
+        return MetaStatusCode::OK;
+    }
+    return rc;
 }
 
 MetaStatusCode Partition::DeleteDentry(const Dentry& dentry) {
@@ -315,11 +340,11 @@ bool Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
 
 bool Partition::IsDeletable() {
     // if patition has no inode or no dentry, it is deletable
-    if (dentryStorage_->Size() != 0) {
+    if (!dentryStorage_->Empty()) {
         return false;
     }
 
-    if (inodeStorage_->Size() != 0) {
+    if (!inodeStorage_->Empty()) {
         return false;
     }
 
@@ -360,7 +385,12 @@ uint32_t Partition::GetPartitionId() const {
     return partitionInfo_.partitionid();
 }
 
-PartitionInfo Partition::GetPartitionInfo() { return partitionInfo_; }
+PartitionInfo Partition::GetPartitionInfo() {
+    auto partitionInfo = partitionInfo_;
+    partitionInfo.set_inodenum(GetInodeNum());
+    partitionInfo.set_dentrynum(GetDentryNum());
+    return partitionInfo;
+}
 
 std::shared_ptr<Iterator> Partition::GetAllInode() {
     return inodeStorage_->GetAllInode();
@@ -387,6 +417,7 @@ bool Partition::Clear() {
         return false;
     }
     partitionInfo_.set_inodenum(0);
+    partitionInfo_.set_dentrynum(0);
     for (auto& it : *partitionInfo_.mutable_filetype2inodenum()) {
         it.second = 0;
     }
@@ -409,6 +440,10 @@ uint32_t Partition::GetInodeNum() {
 
 uint32_t Partition::GetDentryNum() {
     return static_cast<uint32_t>(dentryStorage_->Size());
+}
+
+bool Partition::EmptyInodeStorage() {
+    return inodeStorage_->Empty();
 }
 
 std::string Partition::GetInodeTablename() {

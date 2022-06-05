@@ -33,13 +33,17 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
 
-using curve::common::RWLock;
+using ::curve::common::RWLock;
 using ::curvefs::metaserver::storage::Iterator;
+using ::curvefs::metaserver::storage::NameGenerator;
+using ::curvefs::metaserver::storage::Converter;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
+using BTree = absl::btree_set<Dentry>;
 
 #define EQUAL(a) (lhs.a() == rhs.a())
 #define LESS(a) (lhs.a() < rhs.a())
@@ -51,10 +55,51 @@ bool operator==(const Dentry& lhs, const Dentry& rhs);
 
 bool operator<(const Dentry& lhs, const Dentry& rhs);
 
+class DentryVector {
+ public:
+    explicit DentryVector(DentryVec* vec);
+
+    void Insert(const Dentry& dentry);
+
+    void Delete(const Dentry& dentry);
+
+    void Merge(const DentryVec& src);
+
+    void Filter(uint64_t maxTxId, BTree* btree);
+
+    void Confirm(uint64_t* count);
+
+ private:
+    DentryVec* vec_;
+    uint64_t nPendingAdd_;
+    uint64_t nPendingDel_;
+};
+
+class DentryList {
+ public:
+    DentryList(std::vector<Dentry>* list,
+               uint32_t capacity,
+               const std::string& exclude,
+               uint64_t maxTxId,
+               bool onlyDir);
+
+    void PushBack(DentryVec* vec);
+
+    uint32_t Size();
+
+    bool IsFull();
+
+ private:
+    std::vector<Dentry>* list_;
+    uint32_t size_;
+    uint32_t limit_;
+    std::string exclude_;
+    uint64_t maxTxId_;
+    bool onlyDir_;
+};
+
 class DentryStorage {
  public:
-    using BTree = absl::btree_set<Dentry>;
-
     enum class TX_OP_TYPE {
         PREPARE,
         COMMIT,
@@ -63,9 +108,13 @@ class DentryStorage {
 
  public:
     DentryStorage(std::shared_ptr<KVStorage> kvStorage,
-                  const std::string& tablename);
+                  std::shared_ptr<NameGenerator> nameGenerator,
+                  uint64_t nDentry);
 
-    MetaStatusCode Insert(const Dentry& dentry, bool isLoadding = false);
+    MetaStatusCode Insert(const Dentry& dentry);
+
+    // only for loadding from snapshot
+    MetaStatusCode Insert(const DentryVec& vec, bool merge);
 
     MetaStatusCode Delete(const Dentry& dentry);
 
@@ -82,27 +131,26 @@ class DentryStorage {
 
     size_t Size();
 
+    bool Empty();
+
     MetaStatusCode Clear();
 
  private:
-    std::string DentryKey(const Dentry& dentry, bool ignoreTxId = false);
+    std::string DentryKey(const Dentry& entry);
 
-    std::string SameParentKey(const Dentry& dentry);
+    bool CompressDentry(DentryVec* vec, BTree* dentrys);
 
-    bool BelongSameOne(const Dentry& lhs, const Dentry& rhs);
-
-    bool IsSameDentry(const Dentry& lhs, const Dentry& rhs);
-
-    bool HasDeleteMarkFlag(const Dentry& dentry);
-
-    bool CompressDentry(BTree* dentrys);
-
-    MetaStatusCode Find(const Dentry& kDentry, Dentry* vDentry, bool compress);
+    MetaStatusCode Find(const Dentry& in,
+                        Dentry* out,
+                        DentryVec* vec,
+                        bool compress);
 
  private:
     RWLock rwLock_;
-    std::string tablename_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::string table4Dentry_;
+    uint64_t nDentry_;
+    Converter conv_;
 };
 
 }  // namespace metaserver

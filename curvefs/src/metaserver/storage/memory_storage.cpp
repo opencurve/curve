@@ -134,10 +134,9 @@ do {                                            \
 do {                                            \
     auto container = GET_CONTAINER(TYPE, NAME); \
     auto iter = container->find(KEY);           \
-    if (iter == container->end()) {             \
-        return Status::NotFound();              \
+    if (iter != container->end()) {             \
+        container->erase(iter);                 \
     }                                           \
-    container->erase(iter);                     \
     return Status::OK();                        \
 } while (0)
 

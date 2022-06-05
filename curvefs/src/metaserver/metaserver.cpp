@@ -36,6 +36,7 @@
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_perf.h"
 #include "src/common/crc32.h"
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
@@ -503,6 +504,15 @@ void Metaserver::InitStorage() {
     LOG_IF(FATAL, !conf_->GetDoubleValue(
         "storage.rocksdb.memtable_prefix_bloom_size_ratio",
         &storageOptions_.memtablePrefixBloomSizeRatio));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.stats_dump_period_sec",
+        &storageOptions_.statsDumpPeriodSec));
+    conf_->GetValueFatalIfFail("storage.rocksdb.perf_level",
+                               &FLAGS_rocksdb_perf_level);
+    conf_->GetValueFatalIfFail("storage.rocksdb.perf_slow_us",
+                               &FLAGS_rocksdb_perf_slow_us);
+    conf_->GetValueFatalIfFail("storage.rocksdb.perf_sampling_ratio",
+                               &FLAGS_rocksdb_perf_sampling_ratio);
     LOG_IF(FATAL, !conf_->GetUInt64Value(
         "storage.s3_meta_inside_inode.limit_size",
         &storageOptions_.s3MetaLimitSizeInsideInode));

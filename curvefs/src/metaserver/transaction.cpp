@@ -27,6 +27,7 @@ namespace curvefs {
 namespace metaserver {
 
 using curve::common::ReadLockGuard;
+using curve::common::WriteLockGuard;
 
 #define FOR_EACH_DENTRY(action) \
 do { \
@@ -143,7 +144,7 @@ MetaStatusCode TxManager::HandleRenameTx(const std::vector<Dentry>& dentrys) {
 }
 
 bool TxManager::InsertPendingTx(const RenameTx& tx) {
-    ReadLockGuard w(rwLock_);
+    WriteLockGuard w(rwLock_);
     if (pendingTx_ == EMPTY_TX) {
         pendingTx_ = tx;
         return true;
@@ -152,7 +153,7 @@ bool TxManager::InsertPendingTx(const RenameTx& tx) {
 }
 
 void TxManager::DeletePendingTx() {
-    ReadLockGuard w(rwLock_);
+    WriteLockGuard w(rwLock_);
     pendingTx_ = EMPTY_TX;
 }
 

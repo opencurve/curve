@@ -57,7 +57,9 @@ class Partition {
     ~Partition() {}
 
     // dentry
-    MetaStatusCode CreateDentry(const Dentry& dentry, bool isLoadding = false);
+    MetaStatusCode CreateDentry(const Dentry& dentry);
+
+    MetaStatusCode LoadDentry(const DentryVec& vec, bool merge);
 
     MetaStatusCode DeleteDentry(const Dentry& dentry);
 
@@ -147,6 +149,8 @@ class Partition {
     uint32_t GetInodeNum();
 
     uint32_t GetDentryNum();
+
+    bool EmptyInodeStorage();
 
     void SetStatus(PartitionStatus status) {
         partitionInfo_.set_status(status);

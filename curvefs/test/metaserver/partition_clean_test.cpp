@@ -106,7 +106,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
                 std::make_shared<Partition>(partitionInfo, kvStorage_);
     Dentry dentry;
     dentry.set_fsid(fsId);
-    dentry.set_parentinodeid(0);
+    dentry.set_parentinodeid(1);
 
     InodeParam param;
     param.fsId = fsId;
@@ -120,8 +120,10 @@ TEST_F(PartitionCleanManagerTest, test1) {
     dentry.set_name("/");
     dentry.set_inodeid(100);
     dentry.set_txid(0);
-    ASSERT_EQ(partition->CreateDentry(dentry, true), MetaStatusCode::OK);
+
     ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
 
     Inode inode1;
     param.type = FsFileType::TYPE_S3;
@@ -144,17 +146,17 @@ TEST_F(PartitionCleanManagerTest, test1) {
 
     EXPECT_CALL(copysetNode, Propose(_))
         .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
-                      MetaStatusCode::OK);
-            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
-                      << ", inodeId = " << ROOTINODEID + 1;
-            task.done->Run();
-        }))
-        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
             ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID),
                       MetaStatusCode::OK);
             LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
                       << ", inodeId = " << ROOTINODEID;
+            task.done->Run();
+        }))
+        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
+            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
+                      MetaStatusCode::OK);
+            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
+                      << ", inodeId = " << ROOTINODEID + 1;
             task.done->Run();
         }))
         .WillOnce(Invoke([partition](const braft::Task& task) {

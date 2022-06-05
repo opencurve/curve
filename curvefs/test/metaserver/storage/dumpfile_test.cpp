@@ -64,7 +64,8 @@ class DumpFileTest : public ::testing::Test {
     void SetUp() override {
         std::string ret;
         ASSERT_TRUE(ExecShell("mkdir -p " + dirname_, &ret));
-        dumpfile_ = std::make_shared<DumpFile>(dirname_ + "/curvefs.dump");
+        pathname_ = dirname_ + "/curvefs.dump";
+        dumpfile_ = std::make_shared<DumpFile>(pathname_);
         ASSERT_EQ(dumpfile_->Open(), DUMPFILE_ERROR::OK);
     }
 
@@ -116,6 +117,7 @@ class DumpFileTest : public ::testing::Test {
 
  protected:
     std::string dirname_;
+    std::string pathname_;
     std::shared_ptr<DumpFile> dumpfile_;
 };
 
@@ -237,6 +239,26 @@ TEST_F(DumpFileTest, MiscTest) {
     // CASE 2: some child process handler, we should gurantee invoke success
     ASSERT_TRUE(CloseSockets());
     ASSERT_TRUE(InitSignals());
+}
+
+TEST_F(DumpFileTest, TestVersion) {
+    Hash hash;
+    auto hashIterator = std::make_shared<HashIterator>(&hash);
+    GenHash(&hash, 100);
+
+    // using v1 dumpfile to save data
+    auto file2save = std::make_shared<DumpFile>(pathname_, 1);
+    ASSERT_EQ(file2save->GetVersion(), 1);
+    ASSERT_EQ(file2save->Open(), DUMPFILE_ERROR::OK);
+    ASSERT_EQ(file2save->Save(hashIterator), DUMPFILE_ERROR::OK);
+
+    // using v2 dumpfile to load data
+    auto file2load = std::make_shared<DumpFile>(pathname_);
+    ASSERT_EQ(file2load->GetVersion(), 2);
+    ASSERT_EQ(file2load->Open(), DUMPFILE_ERROR::OK);
+    CheckIterator(file2load->Load(), &hash);
+    ASSERT_EQ(file2load->GetLoadStatus(), DUMPFILE_LOAD_STATUS::COMPLETE);
+    ASSERT_EQ(file2load->GetVersion(), 1);
 }
 
 }  // namespace storage

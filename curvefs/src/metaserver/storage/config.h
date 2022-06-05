@@ -56,7 +56,10 @@ struct StorageOptions {
 
     double memtablePrefixBloomSizeRatio;
 
-    // misc config item
+    uint64_t statsDumpPeriodSec;
+
+    size_t keyPrefixLength;
+
     uint64_t s3MetaLimitSizeInsideInode;
 };
 

@@ -36,6 +36,7 @@ namespace metaserver {
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using TX_OP_TYPE = DentryStorage::TX_OP_TYPE;
 
@@ -43,14 +44,15 @@ class TransactionTest : public ::testing::Test {
  protected:
     void SetUp() override {
         dataDir_ = RandomStoragePath();;
+
         StorageOptions options;
         options.dataDir = dataDir_;
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
-        tablename_ = "partition:1";
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
         dentryStorage_ = std::make_shared<DentryStorage>(
-            kvStorage_, tablename_);
+            kvStorage_, nameGenerator_, 0);
         txManager_ = std::make_shared<TxManager>(dentryStorage_);
         dentryManager_ = std::make_shared<DentryManager>(
             dentryStorage_, txManager_);
@@ -111,7 +113,7 @@ class TransactionTest : public ::testing::Test {
     static const uint32_t FILE_FLAG = DentryFlag::TYPE_FILE_FLAG;
 
     std::string dataDir_;
-    std::string tablename_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;
@@ -202,8 +204,8 @@ TEST_F(TransactionTest, HandleTxWithCommit) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
     ASSERT_DENTRYS_EQ(dentrys, std::vector<Dentry>{
-        GenDentry(1, 0, "C", 2, 2, 0),
         GenDentry(1, 0, "B", 1, 1, 0),
+        GenDentry(1, 0, "C", 2, 2, 0),
     });
     ASSERT_EQ(dentryStorage_->Size(), 2);
 }
@@ -257,8 +259,8 @@ TEST_F(TransactionTest, HandleTxWithRollback) {
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
     ASSERT_DENTRYS_EQ(dentrys, std::vector<Dentry>{
-        GenDentry(1, 0, "C", 1, 2, 0),
         GenDentry(1, 0, "A", 0, 1, 0),
+        GenDentry(1, 0, "C", 1, 2, 0),
     });
     ASSERT_EQ(dentryStorage_->Size(), 2);
 }

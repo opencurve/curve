@@ -54,8 +54,9 @@ class TestTrash : public ::testing::Test {
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
-        tablename_ = "partition:1";
-        inodeStorage_ = std::make_shared<InodeStorage>(kvStorage_, tablename_);
+        auto nameGenerator = std::make_shared<NameGenerator>(1);
+        inodeStorage_ = std::make_shared<InodeStorage>(
+            kvStorage_, nameGenerator, 0);
         trashManager_ = std::make_shared<TrashManager>();
     }
 
@@ -102,7 +103,6 @@ class TestTrash : public ::testing::Test {
 
  protected:
     std::string dataDir_;
-    std::string tablename_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<TrashManager> trashManager_;
