@@ -27,6 +27,7 @@
 
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/memory_storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/storage_test.h"
@@ -38,6 +39,7 @@ namespace storage {
 using ::curve::common::StringStartWith;
 using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::Iterator;
+using ::curvefs::metaserver::storage::NameGenerator;
 using KeyValue = std::pair<std::string, Dentry>;
 
 Dentry Value(const std::string& name) {
@@ -50,34 +52,39 @@ Dentry Value(const std::string& name) {
     return dentry;
 }
 
+std::string TableName(uint32_t partitionId) {
+    auto ng = std::make_shared<NameGenerator>(partitionId);
+    return ng->GetDentryTableName();
+}
+
 void TestHGet(std::shared_ptr<KVStorage> kvStorage) {
     Status s;
     Dentry value;
 
     // CASE 1: not found
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: return ok
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
     // CASE 3: get different table or key
-    s = kvStorage->HGet("partition:1", "key2", &value);
+    s = kvStorage->HGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->HGet("partition:2", "key1", &value);
+    s = kvStorage->HGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 4: get complex key
-    s = kvStorage->HGet("partition:1", "1:1", &value);
+    s = kvStorage->HGet(TableName(1), "1:1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    s = kvStorage->HSet("partition:1", "1:1", Value("2:2"));
+    s = kvStorage->HSet(TableName(1), "1:1", Value("2:2"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "1:1", &value);
+    s = kvStorage->HGet(TableName(1), "1:1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("2:2"));
 }
@@ -87,41 +94,41 @@ void TestHSet(std::shared_ptr<KVStorage> kvStorage) {
     Dentry value;
 
     // CASE 1: set success
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
-    s = kvStorage->HGet("partition:2", "key1", &value);
+    s = kvStorage->HGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: set one key twice
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->HSet("partition:1", "key1", Value("value2"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value2"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value2"));
 
     // CASE 3: set empty key
-    s = kvStorage->HSet("partition:1", "", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "", &value);
+    s = kvStorage->HGet(TableName(1), "", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
     // CASE 4: set empty value
-    s = kvStorage->HSet("partition:1", "key1", Value(""));
+    s = kvStorage->HSet(TableName(1), "key1", Value(""));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value(""));
 }
@@ -130,39 +137,49 @@ void TestHDel(std::shared_ptr<KVStorage> kvStorage) {
     Status s;
     Dentry value;
 
-    // CASE 1: deleted key not exist, return "not found"
-    s = kvStorage->HDel("partition:1", "key1");
-    ASSERT_TRUE(s.IsNotFound());
+    // CASE 1: deleted key not exist, return "ok"
+    s = kvStorage->HDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
 
     // CASE 2: delete success
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->HDel("partition:1", "key1");
+    s = kvStorage->HDel(TableName(1), "key1");
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    // CASE 3: delete one key twice, return "not found"
-    s = kvStorage->HDel("partition:1", "key1");
-    ASSERT_TRUE(s.IsNotFound());
+    // CASE 3: delete one key twice, return "ok"
+    s = kvStorage->HDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
 
     // CASE 4: delete different table or different key
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->HDel("partition:2", "key1");
-    ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->HDel("partition:1", "key2");
-    ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->HDel("partition:1", "key1");
+    s = kvStorage->HDel(TableName(2), "key1");
     ASSERT_TRUE(s.ok());
+    s = kvStorage->HGet(TableName(1), "key1", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, Value("value1"));
+
+    s = kvStorage->HDel(TableName(1), "key2");
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->HGet(TableName(1), "key1", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, Value("value1"));
+
+    s = kvStorage->HDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->HGet(TableName(1), "key1", &value);
+    ASSERT_TRUE(s.IsNotFound());
 }
 
 void TestHGetAll(std::shared_ptr<KVStorage> kvStorage) {
@@ -172,7 +189,7 @@ void TestHGetAll(std::shared_ptr<KVStorage> kvStorage) {
 
     // CASE 1: empty iterator
     size = 0;
-    iterator = kvStorage->HGetAll("partition:1");
+    iterator = kvStorage->HGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
@@ -181,22 +198,22 @@ void TestHGetAll(std::shared_ptr<KVStorage> kvStorage) {
     ASSERT_EQ(iterator->Size(), 0);
 
     // CASE 2: check key and value for each iterator
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HSet("partition:1", "key2", Value("value2"));
+    s = kvStorage->HSet(TableName(1), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
     size = 0;
-    iterator = kvStorage->HGetAll("partition:1");
+    iterator = kvStorage->HGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
     }
     ASSERT_EQ(size, 2);
-    ASSERT_EQ(iterator->Size(), 2);
+    ASSERT_EQ(kvStorage->HSize(TableName(1)), 2);
 
     // CASE 3: iterator for different table
-    iterator = kvStorage->HGetAll("partition:2");
+    iterator = kvStorage->HGetAll(TableName(2));
     ASSERT_EQ(iterator->Status(), 0);
 
     size = 0;
@@ -207,14 +224,14 @@ void TestHGetAll(std::shared_ptr<KVStorage> kvStorage) {
     ASSERT_EQ(iterator->Size(), 0);
 
     // CASE 4: iterator for empty key or value
-    s = kvStorage->HSet("partition:2", "", Value("value1"));
+    s = kvStorage->HSet(TableName(2), "", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HSet("partition:2", "key2", Value(""));
+    s = kvStorage->HSet(TableName(2), "key2", Value(""));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HSet("partition:2", "", Value(""));
+    s = kvStorage->HSet(TableName(2), "", Value(""));
     ASSERT_TRUE(s.ok());
 
-    iterator = kvStorage->HGetAll("partition:2");
+    iterator = kvStorage->HGetAll(TableName(2));
     ASSERT_EQ(iterator->Status(), 0);
 
     size = 0;
@@ -222,7 +239,7 @@ void TestHGetAll(std::shared_ptr<KVStorage> kvStorage) {
         size++;
     }
     ASSERT_EQ(size, 2);
-    ASSERT_EQ(iterator->Size(), 2);
+    ASSERT_EQ(kvStorage->HSize(TableName(2)), 2);
 }
 
 void TestHSize(std::shared_ptr<KVStorage> kvStorage) {
@@ -231,43 +248,43 @@ void TestHSize(std::shared_ptr<KVStorage> kvStorage) {
     Dentry value;
 
     // CASE 1: get size for empty storage
-    size = kvStorage->HSize("partition:1");
+    size = kvStorage->HSize(TableName(1));
     ASSERT_EQ(size, 0);
 
     // CASE 2: get size success
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    size = kvStorage->HSize("partition:1");
+    size = kvStorage->HSize(TableName(1));
     ASSERT_EQ(size, 1);
 
     // CASE 3: get size for different table
-    size = kvStorage->HSize("partition:2");
+    size = kvStorage->HSize(TableName(2));
     ASSERT_EQ(size, 0);
 
     // CASE 4: get size after clear
-    s = kvStorage->HClear("partition:1");
+    s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
-    size = kvStorage->HSize("partition:1");
+    size = kvStorage->HSize(TableName(1));
     ASSERT_EQ(size, 0);
 
     // CASE 5: big size
     for (int i = 0; i < 100; i++) {
-        s = kvStorage->HSet("partition:1",
+        s = kvStorage->HSet(TableName(1),
                             "key" + std::to_string(i),
                             Value("value"));
         ASSERT_TRUE(s.ok());
     }
-    size = kvStorage->HSize("partition:1");
+    size = kvStorage->HSize(TableName(1));
     ASSERT_EQ(size, 100);
 
     // CASE 6: get size after del
-    s = kvStorage->HDel("partition:1", "key0");
+    s = kvStorage->HDel(TableName(1), "key0");
     ASSERT_TRUE(s.ok());
-    size = kvStorage->HSize("partition:1");
+    size = kvStorage->HSize(TableName(1));
     ASSERT_EQ(size, 99);
 }
 
@@ -278,51 +295,51 @@ void TestHClear(std::shared_ptr<KVStorage> kvStorage) {
     std::shared_ptr<Iterator> iterator;
 
     // CASE 1: clear table success
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->HClear("partition:1");
+    s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: get all after clear table
-    iterator = kvStorage->HGetAll("partition:1");
+    iterator = kvStorage->HGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
     }
     ASSERT_EQ(size, 0);
-    ASSERT_EQ(iterator->Size(), 0);
+    ASSERT_EQ(kvStorage->HSize(TableName(1)), 0);
 
     // CASE 3: set key-value after clear table
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    iterator = kvStorage->HGetAll("partition:1");
+    iterator = kvStorage->HGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
     }
     ASSERT_EQ(size, 1);
-    ASSERT_EQ(iterator->Size(), 1);
+    ASSERT_EQ(kvStorage->HSize(TableName(1)), 1);
 
-    s = kvStorage->HClear("partition:1");
+    s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
 
     // CASE 4: clear different table
-    std::string tablename1 = "partition:1";
-    std::string tablename2 = "partition:2";
-    std::string tablename3 = "partition:3";
+    std::string tablename1 = TableName(1);
+    std::string tablename2 = TableName(2);
+    std::string tablename3 = TableName(3);
 
     s = kvStorage->HSet(tablename1, "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
@@ -361,29 +378,29 @@ void TestSGet(std::shared_ptr<KVStorage> kvStorage) {
     Dentry value;
 
     // CASE 1: not found
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: return ok
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
     // CASE 3: get different table or key
-    s = kvStorage->SGet("partition:1", "key2", &value);
+    s = kvStorage->SGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet("partition:2", "key1", &value);
+    s = kvStorage->SGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 4: get complex key
-    s = kvStorage->SGet("partition:1", "1:1", &value);
+    s = kvStorage->SGet(TableName(1), "1:1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    s = kvStorage->SSet("partition:1", "1:1", Value("2:2"));
+    s = kvStorage->SSet(TableName(1), "1:1", Value("2:2"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "1:1", &value);
+    s = kvStorage->SGet(TableName(1), "1:1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("2:2"));
 }
@@ -393,41 +410,41 @@ void TestSSet(std::shared_ptr<KVStorage> kvStorage) {
     Dentry value;
 
     // CASE 1: set success
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
-    s = kvStorage->SGet("partition:2", "key1", &value);
+    s = kvStorage->SGet(TableName(2), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: set one key twice
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->SSet("partition:1", "key1", Value("value2"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value2"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value2"));
 
     // CASE 3: set empty key
-    s = kvStorage->SSet("partition:1", "", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "", &value);
+    s = kvStorage->SGet(TableName(1), "", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
     // CASE 4: set empty value
-    s = kvStorage->SSet("partition:1", "key1", Value(""));
+    s = kvStorage->SSet(TableName(1), "key1", Value(""));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value(""));
 }
@@ -436,39 +453,49 @@ void TestSDel(std::shared_ptr<KVStorage> kvStorage) {
     Status s;
     Dentry value;
 
-    // CASE 1: deleted key not exist, return "not found"
-    s = kvStorage->SDel("partition:1", "key1");
-    ASSERT_TRUE(s.IsNotFound());
+    // CASE 1: deleted key not exist, return "ok"
+    s = kvStorage->SDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
 
     // CASE 2: delete success
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->SDel("partition:1", "key1");
+    s = kvStorage->SDel(TableName(1), "key1");
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    // CASE 3: delete one key twice, return "not found"
-    s = kvStorage->SDel("partition:1", "key1");
-    ASSERT_TRUE(s.IsNotFound());
+    // CASE 3: delete one key twice, return "ok"
+    s = kvStorage->SDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
 
     // CASE 4: delete different table or different key
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->SDel("partition:2", "key1");
-    ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SDel("partition:1", "key2");
-    ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SDel("partition:1", "key1");
+    s = kvStorage->SDel(TableName(2), "key1");
     ASSERT_TRUE(s.ok());
+    s = kvStorage->SGet(TableName(1), "key1", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, Value("value1"));
+
+    s = kvStorage->SDel(TableName(1), "key2");
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->SGet(TableName(1), "key1", &value);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(value, Value("value1"));
+
+    s = kvStorage->SDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->SGet(TableName(1), "key1", &value);
+    ASSERT_TRUE(s.IsNotFound());
 }
 
 void TestSSeek(std::shared_ptr<KVStorage> kvStorage) {
@@ -494,13 +521,13 @@ void TestSSeek(std::shared_ptr<KVStorage> kvStorage) {
         { "3:1:/a:0", "1000:0" },
     };
     for (const auto& v : pairs) {
-        s = kvStorage->SSet("partition:1", v.first, Value(v.second));
+        s = kvStorage->SSet(TableName(1), v.first, Value(v.second));
         ASSERT_TRUE(s.ok());
     }
 
     // CASE 1: prefix with "fsId:parentInodeId:name:"
     prefix = "1:1:/b:";
-    iterator = kvStorage->SSeek("partition:1", prefix);
+    iterator = kvStorage->SSeek(TableName(1), prefix);
     ASSERT_EQ(iterator->Status(), 0);
     auto expect = std::vector<KeyValue>{
         KeyValue("1:1:/b:0", Value("101:0")),
@@ -521,7 +548,7 @@ void TestSSeek(std::shared_ptr<KVStorage> kvStorage) {
 
     // CASE 2: prefix with "fsId:parentInodeId:"
     prefix = "1:1:";
-    iterator = kvStorage->SSeek("partition:1", prefix);
+    iterator = kvStorage->SSeek(TableName(1), prefix);
     ASSERT_EQ(iterator->Status(), 0);
     expect = std::vector<KeyValue>{
         KeyValue("1:1:/a:0", Value("100:0")),
@@ -544,7 +571,7 @@ void TestSSeek(std::shared_ptr<KVStorage> kvStorage) {
 
     // CASE 3: get range with different table
     prefix = "1:1:/b:";
-    iterator = kvStorage->SSeek("partition:2", prefix);
+    iterator = kvStorage->SSeek(TableName(2), prefix);
     ASSERT_EQ(iterator->Status(), 0);
 
     size = 0;
@@ -563,22 +590,22 @@ void TestSGetAll(std::shared_ptr<KVStorage> kvStorage) {
     std::shared_ptr<Iterator> iterator;
 
     // CASE 1: empty iterator
-    iterator = kvStorage->SGetAll("partition:1");
+    iterator = kvStorage->SGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
     }
     ASSERT_EQ(size, 0);
-    ASSERT_EQ(iterator->Size(), 0);
+    ASSERT_EQ(kvStorage->SSize(TableName(1)), 0);
 
     // CASE 2: check key and value for each iterator
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet("partition:1", "key2", Value("value2"));
+    s = kvStorage->SSet(TableName(1), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
     size = 0;
-    iterator = kvStorage->SGetAll("partition:1");
+    iterator = kvStorage->SGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
@@ -587,10 +614,10 @@ void TestSGetAll(std::shared_ptr<KVStorage> kvStorage) {
         ASSERT_EQ(value, Value("value" + std::to_string(size)));
     }
     ASSERT_EQ(size, 2);
-    ASSERT_EQ(iterator->Size(), 2);
+    ASSERT_EQ(kvStorage->SSize(TableName(1)), 2);
 
     // CASE 3: iterator for different table
-    iterator = kvStorage->SGetAll("partition:2");
+    iterator = kvStorage->SGetAll(TableName(2));
     ASSERT_EQ(iterator->Status(), 0);
 
     size = 0;
@@ -598,17 +625,17 @@ void TestSGetAll(std::shared_ptr<KVStorage> kvStorage) {
         size++;
     }
     ASSERT_EQ(size, 0);
-    ASSERT_EQ(iterator->Size(), 0);
+    ASSERT_EQ(kvStorage->SSize(TableName(2)), 0);
 
     // CASE 4: iterator for empty key or value
-    s = kvStorage->SSet("partition:2", "", Value("value1"));
+    s = kvStorage->SSet(TableName(2), "", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet("partition:2", "key2", Value(""));
+    s = kvStorage->SSet(TableName(2), "key2", Value(""));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet("partition:2", "", Value(""));
+    s = kvStorage->SSet(TableName(2), "", Value(""));
     ASSERT_TRUE(s.ok());
 
-    iterator = kvStorage->SGetAll("partition:2");
+    iterator = kvStorage->SGetAll(TableName(2));
     ASSERT_EQ(iterator->Status(), 0);
 
     size = 0;
@@ -616,7 +643,7 @@ void TestSGetAll(std::shared_ptr<KVStorage> kvStorage) {
         size++;
     }
     ASSERT_EQ(size, 2);
-    ASSERT_EQ(iterator->Size(), 2);
+    ASSERT_EQ(kvStorage->SSize(TableName(2)), 2);
 }
 
 void TestSSize(std::shared_ptr<KVStorage> kvStorage) {
@@ -625,43 +652,43 @@ void TestSSize(std::shared_ptr<KVStorage> kvStorage) {
     Status s;
 
     // CASE 1: get size for empty storage
-    size = kvStorage->SSize("partition:1");
+    size = kvStorage->SSize(TableName(1));
     ASSERT_EQ(size, 0);
 
     // CASE 2: get size success
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    size = kvStorage->SSize("partition:1");
+    size = kvStorage->SSize(TableName(1));
     ASSERT_EQ(size, 1);
 
     // CASE 3: get size for different table
-    size = kvStorage->SSize("partition:2");
+    size = kvStorage->SSize(TableName(2));
     ASSERT_EQ(size, 0);
 
     // CASE 4: get size after clear
-    s = kvStorage->SClear("partition:1");
+    s = kvStorage->SClear(TableName(1));
     ASSERT_TRUE(s.ok());
-    size = kvStorage->SSize("partition:1");
+    size = kvStorage->SSize(TableName(1));
     ASSERT_EQ(size, 0);
 
     // CASE 5: big size
     for (int i = 0; i < 100; i++) {
-        s = kvStorage->SSet("partition:1",
+        s = kvStorage->SSet(TableName(1),
                             "key" + std::to_string(i),
                             Value("value"));
         ASSERT_TRUE(s.ok());
     }
-    size = kvStorage->SSize("partition:1");
+    size = kvStorage->SSize(TableName(1));
     ASSERT_EQ(size, 100);
 
     // CASE 6: get size after del
-    s = kvStorage->SDel("partition:1", "key0");
+    s = kvStorage->SDel(TableName(1), "key0");
     ASSERT_TRUE(s.ok());
-    size = kvStorage->SSize("partition:1");
+    size = kvStorage->SSize(TableName(1));
     ASSERT_EQ(size, 99);
 }
 
@@ -672,48 +699,48 @@ void TestSClear(std::shared_ptr<KVStorage> kvStorage) {
     std::shared_ptr<Iterator> iterator;
 
     // CASE 1: clear table success
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    s = kvStorage->SClear("partition:1");
+    s = kvStorage->SClear(TableName(1));
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: get all after clear table
-    iterator = kvStorage->SGetAll("partition:1");
+    iterator = kvStorage->SGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
     }
     ASSERT_EQ(size, 0);
-    ASSERT_EQ(iterator->Size(), 0);
+    ASSERT_EQ(kvStorage->SSize(TableName(1)), 0);
 
     // CASE 3: set key-value after clear table
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
-    iterator = kvStorage->SGetAll("partition:1");
+    iterator = kvStorage->SGetAll(TableName(1));
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         size++;
     }
     ASSERT_EQ(size, 1);
-    ASSERT_EQ(iterator->Size(), 1);
+    ASSERT_EQ(kvStorage->SSize(TableName(1)), 1);
 
     // CASE 4: clear different table
-    std::string tablename1 = "partition:1";
-    std::string tablename2 = "partition:2";
-    std::string tablename3 = "partition:3";
+    std::string tablename1 = TableName(1);
+    std::string tablename2 = TableName(2);
+    std::string tablename3 = TableName(3);
 
     s = kvStorage->SSet(tablename1, "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
@@ -754,37 +781,37 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
     std::shared_ptr<Iterator> iterator;
 
     // CASE 1: get
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 2: set
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 3: del
-    s = kvStorage->HDel("partition:1", "key1");
+    s = kvStorage->HDel(TableName(1), "key1");
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SDel("partition:1", "key1");
-    ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->SDel(TableName(1), "key1");
+    ASSERT_TRUE(s.ok());
+    s = kvStorage->SSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
 
     // CASE 4: range
-    iterator = kvStorage->SSeek("partition:1", "key1");
+    iterator = kvStorage->SSeek(TableName(1), "key1");
     ASSERT_EQ(iterator->Status(), 0);
     size = 0;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
@@ -796,24 +823,24 @@ void TestMixOperator(std::shared_ptr<KVStorage> kvStorage) {
     ASSERT_EQ(size, 1);
 
     // CASE 5: clear
-    s = kvStorage->HClear("partition:1");
+    s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SClear("partition:1");
+    s = kvStorage->SClear(TableName(1));
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->SGet("partition:1", "key1", &value);
+    s = kvStorage->SGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     // CASE 6: size
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet("partition:1", "key2", Value("value2"));
+    s = kvStorage->SSet(TableName(1), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
-    ASSERT_EQ(kvStorage->HSize("partition:1"), 1);
-    ASSERT_EQ(kvStorage->SSize("partition:1"), 1);
+    ASSERT_EQ(kvStorage->HSize(TableName(1)), 1);
+    ASSERT_EQ(kvStorage->SSize(TableName(1)), 1);
 }
 
 void TestTransaction(std::shared_ptr<KVStorage> kvStorage) {
@@ -833,66 +860,66 @@ void TestTransaction(std::shared_ptr<KVStorage> kvStorage) {
 
     // CASE 2: commit transaction
     txn = kvStorage->BeginTransaction();
-    s = txn->HSet("partition:1", "key1", Value("value1"));
+    s = txn->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = txn->HSet("partition:1", "key2", Value("value2"));
+    s = txn->HSet(TableName(1), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
     // keys are not found before transaction commit
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->HGet("partition:1", "key2", &value);
+    s = kvStorage->HGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.IsNotFound());
 
     s = txn->Commit();
     ASSERT_TRUE(s.ok());
 
     // get keys success after transaction commit
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
-    s = kvStorage->HGet("partition:1", "key2", &value);
+    s = kvStorage->HGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value2"));
 
-    s = kvStorage->HClear("partition:1");
+    s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
 
     // CASE 3: rollback transaction
     txn = kvStorage->BeginTransaction();
-    s = txn->HSet("partition:1", "key1", Value("value1"));
+    s = txn->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = txn->HSet("partition:1", "key2", Value("value2"));
+    s = txn->HSet(TableName(1), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
     s = txn->Rollback();
     ASSERT_TRUE(s.ok());
 
     // keys are not found after transaction rollback
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->HGet("partition:1", "key2", &value);
+    s = kvStorage->HGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.IsNotFound());
 
-    s = kvStorage->HClear("partition:1");
+    s = kvStorage->HClear(TableName(1));
     ASSERT_TRUE(s.ok());
 
     // CASE 4: transaction for delete
-    s = kvStorage->HSet("partition:1", "key1", Value("value1"));
+    s = kvStorage->HSet(TableName(1), "key1", Value("value1"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->HSet("partition:1", "key2", Value("value2"));
+    s = kvStorage->HSet(TableName(1), "key2", Value("value2"));
     ASSERT_TRUE(s.ok());
 
     txn = kvStorage->BeginTransaction();
-    s = txn->HDel("partition:1", "key1");
+    s = txn->HDel(TableName(1), "key1");
     ASSERT_TRUE(s.ok());
-    s = txn->HDel("partition:1", "key2");
+    s = txn->HDel(TableName(1), "key2");
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value1"));
-    s = kvStorage->HGet("partition:1", "key2", &value);
+    s = kvStorage->HGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(value, Value("value2"));
 
@@ -900,9 +927,9 @@ void TestTransaction(std::shared_ptr<KVStorage> kvStorage) {
     s = txn->Commit();
     ASSERT_TRUE(s.ok());
 
-    s = kvStorage->HGet("partition:1", "key1", &value);
+    s = kvStorage->HGet(TableName(1), "key1", &value);
     ASSERT_TRUE(s.IsNotFound());
-    s = kvStorage->HGet("partition:1", "key2", &value);
+    s = kvStorage->HGet(TableName(1), "key2", &value);
     ASSERT_TRUE(s.IsNotFound());
 }
 

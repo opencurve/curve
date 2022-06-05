@@ -452,7 +452,7 @@ MetaStatusCode InodeManager::InsertInode(const Inode &inode) {
 }
 
 bool InodeManager::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
-    return inodeStorage_->GetInodeIdList(inodeIdList);
+    return inodeStorage_->GetAllInodeId(inodeIdList);
 }
 
 MetaStatusCode InodeManager::UpdateVolumeExtentSliceLocked(

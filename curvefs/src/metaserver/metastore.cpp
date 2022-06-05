@@ -37,6 +37,8 @@
 namespace curvefs {
 namespace metaserver {
 
+using ::curve::common::ReadLockGuard;
+using ::curve::common::WriteLockGuard;
 using ::curvefs::metaserver::storage::DumpFileClosure;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
@@ -212,7 +214,7 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
         response->set_statuscode(status);
         return status;
     }
-    MetaStatusCode status = partition->CreateDentry(request->dentry(), false);
+    MetaStatusCode status = partition->CreateDentry(request->dentry());
     response->set_statuscode(status);
     return status;
 }

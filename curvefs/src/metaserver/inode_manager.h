@@ -132,7 +132,6 @@ class InodeManager {
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<Trash> trash_;
-
     NameLock inodeLock_;
 };
 

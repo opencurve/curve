@@ -42,14 +42,14 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        tablename_ = "partition:1";
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         dentryStorage_ = std::make_shared<DentryStorage>(
-            kvStorage_, tablename_);
+            kvStorage_, nameGenerator_, 0);
         txManager_ = std::make_shared<TxManager>(dentryStorage_);
         dentryManager_ = std::make_shared<DentryManager>(
             dentryStorage_, txManager_);
@@ -93,7 +93,7 @@ class DentryManagerTest : public ::testing::Test {
 
  protected:
     std::string dataDir_;
-    std::string tablename_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<DentryManager> dentryManager_;
@@ -111,14 +111,6 @@ TEST_F(DentryManagerTest, CreateDentry) {
     ASSERT_EQ(dentryManager_->CreateDentry(dentry2),
               MetaStatusCode::DENTRY_EXIST);
     ASSERT_EQ(dentryStorage_->Size(), 1);
-
-    // CASE 3: CreateDentry: success
-    //   1) invoke from snapshot loading
-    //   2) dentry has TRANSACTION_PREPARE_FLAG flag
-    dentry2.set_txid(1);
-    dentry2.set_flag(DentryFlag::TRANSACTION_PREPARE_FLAG);
-    ASSERT_EQ(dentryManager_->CreateDentry(dentry2), MetaStatusCode::OK);
-    ASSERT_EQ(dentryStorage_->Size(), 2);
 }
 
 TEST_F(DentryManagerTest, DeleteDentry) {
@@ -166,8 +158,8 @@ TEST_F(DentryManagerTest, ListDentry) {
     auto rc = dentryManager_->ListDentry(dentry, &dentrys, 0);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
-    ASSERT_EQ(dentrys[0].name(), "B");
-    ASSERT_EQ(dentrys[1].name(), "A");
+    ASSERT_EQ(dentrys[0].name(), "A");
+    ASSERT_EQ(dentrys[1].name(), "B");
 }
 
 TEST_F(DentryManagerTest, HandleRenameTx) {

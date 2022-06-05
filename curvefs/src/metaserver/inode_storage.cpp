@@ -20,21 +20,24 @@
  * Author: chenwei
  */
 
+#include <limits>
 #include <string>
 #include <memory>
 #include <vector>
 #include <algorithm>
 
-#include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/storage/status.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/string_util.h"
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/metaserver/storage/status.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
 
+using ::curve::common::ReadLockGuard;
+using ::curve::common::WriteLockGuard;
 using ::curve::common::StringStartWith;
 using ::curvefs::metaserver::storage::Status;
 using ::curvefs::metaserver::storage::KVStorage;
@@ -44,29 +47,41 @@ using ::curvefs::metaserver::storage::Prefix4InodeVolumeExtent;
 using ::curvefs::metaserver::storage::Prefix4ChunkIndexS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4AllInode;
-using Transaction = std::shared_ptr<StorageTransaction>;
+using ::curvefs::metaserver::storage::Key4InodeAuxInfo;
 
+using Transaction = std::shared_ptr<StorageTransaction>;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
-                           const std::string& tablename)
+                           std::shared_ptr<NameGenerator> nameGenerator,
+                           uint64_t nInode)
     : kvStorage_(std::move(kvStorage)),
-      table4inode_(RealTablename(kTypeInode, tablename)),
-      table4s3chunkinfo_(RealTablename(kTypeS3ChunkInfo, tablename)),
-      table4volumeextent_(RealTablename(kTypeVolumeExtent, tablename)),
+      table4Inode_(nameGenerator->GetInodeTableName()),
+      table4S3ChunkInfo_(nameGenerator->GetS3ChunkInfoTableName()),
+      table4VolumeExtent_(nameGenerator->GetVolumnExtentTableName()),
+      table4InodeAuxInfo_(nameGenerator->GetInodeAuxInfoTableName()),
+      nInode_(nInode),
       conv_() {}
 
 MetaStatusCode InodeStorage::Insert(const Inode& inode) {
-    WriteLockGuard writeLockGuard(rwLock_);
+    WriteLockGuard lg(rwLock_);
     Key4Inode key(inode.fsid(), inode.inodeid());
     std::string skey = conv_.SerializeToString(key);
-    if (FindKey(skey)) {
+
+    // NOTE: HGet() is cheap, beucase the key not found in most cases,
+    // so the rocksdb storage only should check bloom filter.
+    Inode out;
+    Status s = kvStorage_->HGet(table4Inode_, skey, &out);
+    if (s.ok()) {
         return MetaStatusCode::INODE_EXIST;
+    } else if (!s.IsNotFound()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    Status s = kvStorage_->HSet(table4inode_, skey, inode);
+    // key not found
+    s = kvStorage_->HSet(table4Inode_, skey, inode);
     if (s.ok()) {
-        InsertKey(skey);
+        nInode_++;
         return MetaStatusCode::OK;
     }
     LOG(ERROR) << "Insert inode failed, status = " << s.ToString();
@@ -74,31 +89,27 @@ MetaStatusCode InodeStorage::Insert(const Inode& inode) {
 }
 
 MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
-    ReadLockGuard readLockGuard(rwLock_);
+    ReadLockGuard lg(rwLock_);
     std::string skey = conv_.SerializeToString(key);
-    if (!FindKey(skey)) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
-    Status s = kvStorage_->HGet(table4inode_, skey, inode);
+    Status s = kvStorage_->HGet(table4Inode_, skey, inode);
     if (s.ok()) {
         return MetaStatusCode::OK;
+    } else if (s.IsNotFound()) {
+        return MetaStatusCode::NOT_FOUND;
     }
     LOG(ERROR) << "Get inode failed, status = " << s.ToString();
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
 MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
-    InodeAttr *attr) {
-    ReadLockGuard readLockGuard(rwLock_);
-    std::string skey = conv_.SerializeToString(key);
-    if (!FindKey(skey)) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
+                                     InodeAttr *attr) {
+    ReadLockGuard lg(rwLock_);
     Inode inode;
-    Status s = kvStorage_->HGet(table4inode_, skey, &inode);
-    if (!s.ok()) {
+    std::string skey = conv_.SerializeToString(key);
+    Status s = kvStorage_->HGet(table4Inode_, skey, &inode);
+    if (s.IsNotFound()) {
+        return MetaStatusCode::NOT_FOUND;
+    } else if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
@@ -137,15 +148,13 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
 }
 
 MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& key, XAttr *xattr) {
-    ReadLockGuard readLockGuard(rwLock_);
-    std::string skey = conv_.SerializeToString(key);
-    if (!FindKey(skey)) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
+    ReadLockGuard lg(rwLock_);
     Inode inode;
-    Status s = kvStorage_->HGet(table4inode_, skey, &inode);
-    if (!s.ok()) {
+    std::string skey = conv_.SerializeToString(key);
+    Status s = kvStorage_->HGet(table4Inode_, skey, &inode);
+    if (s.IsNotFound()) {
+        return MetaStatusCode::NOT_FOUND;
+    } else if (!s.ok()) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
@@ -156,33 +165,167 @@ MetaStatusCode InodeStorage::GetXAttr(const Key4Inode& key, XAttr *xattr) {
 }
 
 MetaStatusCode InodeStorage::Delete(const Key4Inode& key) {
-    WriteLockGuard writeLockGuard(rwLock_);
+    WriteLockGuard lg(rwLock_);
     std::string skey = conv_.SerializeToString(key);
-    if (!FindKey(skey)) {
-        return MetaStatusCode::NOT_FOUND;
-    }
-
-    Status s = kvStorage_->HDel(table4inode_, skey);
+    Status s = kvStorage_->HDel(table4Inode_, skey);
     if (s.ok()) {
-        EraseKey(skey);
+        // NOTE: for rocksdb storage, it will never check whether
+        // the key exist in delete(), so if the client delete the
+        // unexist inode in some anbormal cases, it will cause the
+        // nInode less then the real value.
+        if (nInode_ > 0) {
+            nInode_--;
+        }
         return MetaStatusCode::OK;
     }
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
 MetaStatusCode InodeStorage::Update(const Inode& inode) {
-    WriteLockGuard writeLockGuard(rwLock_);
+    WriteLockGuard lg(rwLock_);
     Key4Inode key(inode.fsid(), inode.inodeid());
     std::string skey = conv_.SerializeToString(key);
-    if (!FindKey(skey)) {
+
+    // FIXME: we need't to HGet() before HSet(), because every time
+    // we try to update inode we will get inode first in inode manager.
+    Inode out;
+    Status s = kvStorage_->HGet(table4Inode_, skey, &out);
+    if (s.IsNotFound()) {
         return MetaStatusCode::NOT_FOUND;
+    } else if (!s.ok()) {
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    Status s = kvStorage_->HSet(table4inode_, skey, inode);
+    s = kvStorage_->HSet(table4Inode_, skey, inode);
     if (s.ok()) {
         return MetaStatusCode::OK;
     }
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+std::shared_ptr<Iterator> InodeStorage::GetAllInode() {
+    ReadLockGuard lg(rwLock_);
+    std::string sprefix = conv_.SerializeToString(Prefix4AllInode());
+    return kvStorage_->HGetAll(table4Inode_);
+}
+
+bool InodeStorage::GetAllInodeId(std::list<uint64_t>* ids) {
+    ReadLockGuard lg(rwLock_);
+    auto iterator = GetAllInode();
+    if (iterator->Status() != 0) {
+        LOG(ERROR) << "failed to get iterator for all inode";
+        return false;
+    }
+
+    Key4Inode key;
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        if (!conv_.ParseFromString(iterator->Key(), &key)) {
+            return false;
+        }
+        ids->push_back(key.inodeId);
+    }
+    return true;
+}
+
+size_t InodeStorage::Size() {
+    ReadLockGuard lg(rwLock_);
+    return nInode_;
+}
+
+bool InodeStorage::Empty() {
+    ReadLockGuard lg(rwLock_);
+    auto iterator = GetAllInode();
+    if (iterator->Status() != 0) {
+        LOG(ERROR) << "failed to get iterator for all inode";
+        return false;
+    }
+
+    for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        return false;
+    }
+    return true;
+}
+
+MetaStatusCode InodeStorage::Clear() {
+    WriteLockGuard lg(rwLock_);
+    Status s = kvStorage_->HClear(table4Inode_);
+    if (!s.ok()) {
+        LOG(ERROR) << "InodeStorage clear inode table failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    nInode_ = 0;
+
+    s = kvStorage_->SClear(table4S3ChunkInfo_);
+    if (!s.ok()) {
+        LOG(ERROR) << "InodeStorage clear inode s3chunkinfo table failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    s = kvStorage_->SClear(table4VolumeExtent_);
+    if (!s.ok()) {
+        LOG(ERROR) << "InodeStorage clear inode volume extent table failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    s = kvStorage_->SClear(table4InodeAuxInfo_);
+    if (!s.ok()) {
+        LOG(ERROR) << "InodeStorage clear inode aux info table failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+
+    return MetaStatusCode::OK;
+}
+
+bool InodeStorage::UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
+                                         uint64_t size4add, uint64_t size4del) {
+    uint64_t size = 0;
+    InodeAuxInfo out;
+    Key4InodeAuxInfo key(fsId, inodeId);
+    std::string skey = key.SerializeToString();
+    Status s = kvStorage_->HGet(table4InodeAuxInfo_, skey, &out);
+    if (s.ok()) {
+        size = out.s3metasize();
+    } else if (s.IsNotFound()) {
+        size = 0;
+    } else {
+        LOG(ERROR) << "failed to get inode s3 meta size, status="
+                   << s.ToString();
+        return false;
+    }
+
+    size += size4add;
+    if (size < size4del) {
+        LOG(ERROR) << "current inode s3 meta size is " << size
+                   << ", less than " << size4del;
+        return false;
+    }
+
+    out.set_s3metasize(size - size4del);
+    s = kvStorage_->HSet(table4InodeAuxInfo_, skey, out);
+    if (!s.ok()) {
+        LOG(ERROR) << "failed to set inode s3 meta size, status="
+                   << s.ToString();
+        return false;
+    }
+    return true;
+}
+
+uint64_t InodeStorage::GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
+    InodeAuxInfo out;
+    uint64_t size = std::numeric_limits<uint64_t>::max();
+    Key4InodeAuxInfo key(fsId, inodeId);
+    std::string skey = key.SerializeToString();
+
+    Status s = kvStorage_->HGet(table4InodeAuxInfo_, skey, &out);
+    if (s.ok()) {
+        size = out.s3metasize();
+    } else if (s.IsNotFound()) {
+        size = 0;
+    } else {
+        LOG(ERROR) << "failed to get inode s3 meta size, status="
+                   << s.ToString();
+    }
+    return size;
 }
 
 MetaStatusCode InodeStorage::AddS3ChunkInfoList(
@@ -202,7 +345,7 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
                             firstChunkId, lastChunkId, size);
     std::string skey = conv_.SerializeToString(key);
 
-    Status s = txn->SSet(table4s3chunkinfo_, skey, *list2add);
+    Status s = txn->SSet(table4S3ChunkInfo_, skey, *list2add);
     return s.ok() ? MetaStatusCode::OK :
                     MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
@@ -224,7 +367,7 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
     // prefix
     Prefix4ChunkIndexS3ChunkInfoList prefix(fsId, inodeId, chunkIndex);
     std::string sprefix = conv_.SerializeToString(prefix);
-    auto iterator = txn->SSeek(table4s3chunkinfo_, sprefix);
+    auto iterator = txn->SSeek(table4S3ChunkInfo_, sprefix);
     if (iterator->Status() != 0) {
         LOG(ERROR) << "Get iterator failed, prefix=" << sprefix;
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
@@ -257,7 +400,7 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
     }
 
     for (const auto& skey : key2del) {
-        if (!txn->SDel(table4s3chunkinfo_, skey).ok()) {
+        if (!txn->SDel(table4S3ChunkInfo_, skey).ok()) {
             LOG(ERROR) << "Delete key failed, skey=" << skey;
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
@@ -271,7 +414,7 @@ MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
     uint64_t chunkIndex,
     const S3ChunkInfoList* list2add,
     const S3ChunkInfoList* list2del) {
-    WriteLockGuard writeLockGuard(rwLock_);
+    WriteLockGuard lg(rwLock_);
     auto txn = kvStorage_->BeginTransaction();
     if (nullptr == txn) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
@@ -310,7 +453,7 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
                                                      uint64_t inodeId,
                                                      S3ChunkInfoMap* m,
                                                      uint64_t limit) {
-    ReadLockGuard readLockGuard(rwLock_);
+    ReadLockGuard lg(rwLock_);
     if (limit != 0 && GetInodeS3MetaSize(fsId, inodeId) > limit) {
         return MetaStatusCode::INODE_S3_META_TOO_LARGE;
     }
@@ -353,59 +496,20 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
 
 std::shared_ptr<Iterator> InodeStorage::GetInodeS3ChunkInfoList(
     uint32_t fsId, uint64_t inodeId) {
-    ReadLockGuard readLockGuard(rwLock_);
+    ReadLockGuard lg(rwLock_);
     Prefix4InodeS3ChunkInfoList prefix(fsId, inodeId);
     std::string sprefix = conv_.SerializeToString(prefix);
-    return kvStorage_->SSeek(table4s3chunkinfo_, sprefix);
+    return kvStorage_->SSeek(table4S3ChunkInfo_, sprefix);
 }
 
 std::shared_ptr<Iterator> InodeStorage::GetAllS3ChunkInfoList() {
-    ReadLockGuard readLockGuard(rwLock_);
-    return kvStorage_->SGetAll(table4s3chunkinfo_);
+    ReadLockGuard lg(rwLock_);
+    return kvStorage_->SGetAll(table4S3ChunkInfo_);
 }
 
 std::shared_ptr<Iterator> InodeStorage::GetAllVolumeExtentList() {
     ReadLockGuard guard(rwLock_);
-    return kvStorage_->SGetAll(table4volumeextent_);
-}
-
-std::shared_ptr<Iterator> InodeStorage::GetAllInode() {
-    ReadLockGuard readLockGuard(rwLock_);
-    std::string sprefix = conv_.SerializeToString(Prefix4AllInode());
-    return kvStorage_->HGetAll(table4inode_);
-}
-
-size_t InodeStorage::Size() {
-    return kvStorage_->HSize(table4inode_);
-}
-
-MetaStatusCode InodeStorage::Clear() {
-    ReadLockGuard w(rwLock_);
-    Status s = kvStorage_->HClear(table4inode_);
-    if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage HClear() failed";
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-    s = kvStorage_->SClear(table4s3chunkinfo_);
-    if (!s.ok()) {
-        LOG(ERROR) << "InodeStorage SClear() failed";
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-
-    keySet_.clear();
-    return MetaStatusCode::OK;
-}
-
-bool InodeStorage::GetInodeIdList(std::list<uint64_t>* inodeIdList) {
-    ReadLockGuard readLockGuard(rwLock_);
-    Key4Inode key;
-    for (const auto& skey : keySet_) {
-        if (!conv_.ParseFromString(skey, &key)) {
-            return false;
-        }
-        inodeIdList->push_back(key.inodeId);
-    }
-    return true;
+    return kvStorage_->SGetAll(table4VolumeExtent_);
 }
 
 MetaStatusCode InodeStorage::UpdateVolumeExtentSlice(
@@ -416,7 +520,7 @@ MetaStatusCode InodeStorage::UpdateVolumeExtentSlice(
     auto key = conv_.SerializeToString(
         Key4VolumeExtentSlice{fsId, inodeId, slice.offset()});
 
-    auto st = kvStorage_->SSet(table4volumeextent_, key, slice);
+    auto st = kvStorage_->SSet(table4VolumeExtent_, key, slice);
 
     return st.ok() ? MetaStatusCode::OK
                    : MetaStatusCode::STORAGE_INTERNAL_ERROR;
@@ -427,7 +531,7 @@ MetaStatusCode InodeStorage::GetAllVolumeExtent(uint32_t fsId,
                                                 VolumeExtentList* extents) {
     ReadLockGuard guard(rwLock_);
     auto key = conv_.SerializeToString(Prefix4InodeVolumeExtent{fsId, inodeId});
-    auto iter = kvStorage_->SSeek(table4volumeextent_, key);
+    auto iter = kvStorage_->SSeek(table4VolumeExtent_, key);
 
     for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
         auto* slice = extents->add_slices();
@@ -455,7 +559,7 @@ MetaStatusCode InodeStorage::GetVolumeExtentByOffset(uint32_t fsId,
     auto key =
         conv_.SerializeToString(Key4VolumeExtentSlice{fsId, inodeId, offset});
 
-    auto st = kvStorage_->SGet(table4volumeextent_, key, slice);
+    auto st = kvStorage_->SGet(table4VolumeExtent_, key, slice);
 
     if (st.ok()) {
         return MetaStatusCode::OK;

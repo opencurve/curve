@@ -56,31 +56,32 @@ void DentryManager::Log4Code(const std::string& request, MetaStatusCode rc) {
     }
 }
 
-MetaStatusCode DentryManager::CreateDentry(const Dentry& dentry,
-                                           bool isLoadding) {
+MetaStatusCode DentryManager::CreateDentry(const Dentry& dentry) {
     Log4Dentry("CreateDentry", dentry);
-    MetaStatusCode rc;
-    // invoke only from snapshot loading
-    if (dentry.flag() & DentryFlag::TRANSACTION_PREPARE_FLAG) {
-        rc = dentryStorage_->HandleTx(DentryStorage::TX_OP_TYPE::PREPARE,
-                                      dentry);
-    } else {
-        rc = dentryStorage_->Insert(dentry, isLoadding);
-    }
+    MetaStatusCode rc = dentryStorage_->Insert(dentry);
     Log4Code("CreateDentry", rc);
+    return rc;
+}
+
+MetaStatusCode DentryManager::CreateDentry(const DentryVec& vec,
+                                           bool merge) {
+    VLOG(9) << "Receive CreateDentryVec request, dentryVec = ("
+            << vec.ShortDebugString() << ")";
+    MetaStatusCode rc = dentryStorage_->Insert(vec, merge);
+    Log4Code("CreateDentryVec", rc);
     return rc;
 }
 
 MetaStatusCode DentryManager::DeleteDentry(const Dentry& dentry) {
     Log4Dentry("DeleteDentry", dentry);
-    auto rc = dentryStorage_->Delete(dentry);
+    MetaStatusCode rc = dentryStorage_->Delete(dentry);
     Log4Code("DeleteDentry", rc);
     return rc;
 }
 
 MetaStatusCode DentryManager::GetDentry(Dentry* dentry) {
     Log4Dentry("GetDentry", *dentry);
-    auto rc = dentryStorage_->Get(dentry);
+    MetaStatusCode rc = dentryStorage_->Get(dentry);
     Log4Code("GetDentry", rc);
     return rc;
 }
@@ -90,7 +91,7 @@ MetaStatusCode DentryManager::ListDentry(const Dentry& dentry,
                                          uint32_t limit,
                                          bool onlyDir) {
     Log4Dentry("ListDentry", dentry);
-    auto rc = dentryStorage_->List(dentry, dentrys, limit, onlyDir);
+    MetaStatusCode rc = dentryStorage_->List(dentry, dentrys, limit, onlyDir);
     Log4Code("ListDentry", rc);
     return rc;
 }

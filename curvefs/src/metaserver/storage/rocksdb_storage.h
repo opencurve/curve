@@ -40,6 +40,7 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_perf.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
@@ -90,44 +91,9 @@ class RocksDBOptions {
     std::shared_ptr<rocksdb::Comparator> comparator_;
 };
 
-class RocksDBStorageComparator : public rocksdb::Comparator {
- public:
-    // if slice1 < slice2, return -1
-    // if slice1 > slice2, return 1
-    // if slice1 == slice2, return 0
-    int Compare(const rocksdb::Slice& slice1,
-                const rocksdb::Slice& slice2) const override {
-        std::string key1 = std::string(slice1.data(), slice1.size());
-        std::string key2 = std::string(slice2.data(), slice2.size());
-        size_t num1 = BinrayString2Number(key1);
-        size_t num2 = BinrayString2Number(key2);
-        if (num1 < num2) {
-            return -1;
-        } else if (num1 > num2) {
-            return 1;
-        }
-        // n1 == n2
-        if (key1 < key2) {
-            return -1;
-        } else if (key1 > key2) {
-            return 1;
-        }
-        return 0;
-    }
-
-    // Ignore the following methods for now
-    const char* Name() const override { return "RocksDBStorageComparator"; }
-
-    void FindShortestSeparator(std::string*,
-                               const rocksdb::Slice&) const override {}
-
-    void FindShortSuccessor(std::string*) const override {}
-};
-
+// NOTE: The HSize() and SSize() is an expensive operation for rocksdb storage,
+// you should only invoke it in test cases.
 class RocksDBStorage : public KVStorage, public StorageTransaction {
- public:
-    using KeyPair = std::pair<std::string, std::string>;
-
  public:
     RocksDBStorage();
 
@@ -203,27 +169,15 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     Status ToStorageStatus(const ROCKSDB_NAMESPACE::Status& s);
 
-    std::string ToInternalName(const std::string& name, bool ordered);
+    std::string ToInternalName(const std::string& name,
+                               bool ordered,
+                               bool start);
 
-    std::string FormatInternalKey(size_t num4name, const std::string& key);
-
-    std::string ToInternalKey(const std::string& iname, const std::string& key);
+    std::string ToInternalKey(const std::string& name,
+                              const std::string& key,
+                              bool ordered);
 
     std::string ToUserKey(const std::string& ikey);
-
-    bool FindKey(std::string name, std::string key);
-
-    void InsertKey(std::string name, std::string key);
-
-    void EraseKey(std::string name, std::string key);
-
-    size_t TableSize(std::string name);
-
-    void ClearTable(std::string name);
-
-    void CommitKeys();
-
-    void RollbackKeys();
 
     Status Get(const std::string& name,
                const std::string& key,
@@ -263,13 +217,11 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     DB* db_;
     TransactionDB* txnDB_;
     std::vector<ColumnFamilyHandle*> handles_;
-    std::shared_ptr<Counter> counter_;
+    static const std::string kDelimiter_;
 
-    // for transaction
+    // only for transaction
     bool InTransaction_;
     Transaction* txn_;
-    std::vector<KeyPair> pending4set_;
-    std::vector<KeyPair> pending4del_;
 };
 
 inline Status RocksDBStorage::HGet(const std::string& name,
@@ -351,6 +303,7 @@ class RocksDBStorageIterator : public Iterator {
           prefixChecking_(true),
           ordered_(ordered),
           iter_(nullptr) {
+        RocksDBPerfGuard guard(OP_GET_SNAPSHOT);
         if (status_ == 0) {
             readOptions_ = storage_->ReadOptions();
             if (storage_->InTransaction_) {
@@ -362,6 +315,7 @@ class RocksDBStorageIterator : public Iterator {
     }
 
     ~RocksDBStorageIterator() {
+        RocksDBPerfGuard guard(OP_CLEAR_SNAPSHOT);
         if (status_ == 0) {
             if (storage_->InTransaction_) {
                 storage_->txn_->ClearSnapshot();
@@ -388,25 +342,33 @@ class RocksDBStorageIterator : public Iterator {
 
     void SeekToFirst() {
         auto handler = storage_->GetColumnFamilyHandle(ordered_);
-        if (storage_->InTransaction_) {
-            iter_.reset(storage_->txn_->GetIterator(readOptions_, handler));
-        } else {
-            iter_.reset(storage_->db_->NewIterator(readOptions_, handler));
+        {
+            RocksDBPerfGuard guard(OP_GET_ITERATOR);
+            if (storage_->InTransaction_) {
+                iter_.reset(storage_->txn_->GetIterator(readOptions_, handler));
+            } else {
+                iter_.reset(storage_->db_->NewIterator(readOptions_, handler));
+            }
         }
+
+        RocksDBPerfGuard guard(OP_ITERATOR_SEEK_TO_FIRST);
         iter_->Seek(prefix_);
     }
 
     void Next() {
+        RocksDBPerfGuard guard(OP_ITERATOR_NEXT);
         iter_->Next();
     }
 
     std::string Key() {
+        RocksDBPerfGuard guard(OP_ITERATOR_GET_KEY);
         auto slice = iter_->key();
         auto ikey = std::string(slice.data(), slice.size());
         return storage_->ToUserKey(ikey);
     }
 
     std::string Value() {
+        RocksDBPerfGuard guard(OP_ITERATOR_GET_VALUE);
         auto slice = iter_->value();
         return std::string(slice.data(), slice.size());
     }

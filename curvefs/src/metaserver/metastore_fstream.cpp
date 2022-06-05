@@ -115,7 +115,8 @@ bool MetaStoreFStream::LoadInode(uint32_t partitionId,
     return true;
 }
 
-bool MetaStoreFStream::LoadDentry(uint32_t partitionId,
+bool MetaStoreFStream::LoadDentry(uint8_t version,
+                                  uint32_t partitionId,
                                   const std::string& key,
                                   const std::string& value) {
     auto partition = GetPartition(partitionId);
@@ -124,15 +125,22 @@ bool MetaStoreFStream::LoadDentry(uint32_t partitionId,
         return false;
     }
 
-    Dentry dentry;
-    if (!conv_->ParseFromString(value, &dentry)) {
-        LOG(ERROR) << "Decode dentry failed";
+    DentryVec vec;
+    if (version == 1) {
+        Dentry dentry;
+        if (!conv_->ParseFromString(value, &dentry)) {
+            LOG(ERROR) << "Decode dentry failed";
+            return false;
+        }
+        *vec.add_dentrys() = dentry;
+    } else if (!conv_->ParseFromString(value, &vec)) {
+        LOG(ERROR) << "Decode dentry vector failed";
         return false;
     }
 
-    MetaStatusCode rc = partition->CreateDentry(dentry, true);
+    MetaStatusCode rc = partition->LoadDentry(vec, version == 1);
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "CreateDentry failed, retCode = "
+        LOG(ERROR) << "LoadDentry failed, retCode = "
                    << MetaStatusCode_Name(rc);
         return false;
     }
@@ -234,6 +242,8 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
         auto partitionId = item.first;
         auto partition = item.second;
         auto partitionInfo = partition->GetPartitionInfo();
+        partitionInfo.set_inodenum(partition->GetInodeNum());
+        partitionInfo.set_dentrynum(partition->GetDentryNum());
         if (!conv_->SerializeToString(partitionInfo, &value)) {
             return nullptr;
         }
@@ -318,7 +328,8 @@ bool MetaStoreFStream::Load(const std::string& pathname) {
     uint64_t totalVolumeExtent = 0;
     uint64_t totalPendingTx = 0;
 
-    auto callback = [&](ENTRY_TYPE entryType,
+    auto callback = [&](uint8_t version,
+                        ENTRY_TYPE entryType,
                         uint32_t partitionId,
                         const std::string& key,
                         const std::string& value) -> bool {
@@ -331,7 +342,7 @@ bool MetaStoreFStream::Load(const std::string& pathname) {
                 return LoadInode(partitionId, key, value);
             case ENTRY_TYPE::DENTRY:
                 ++totalDentry;
-                return LoadDentry(partitionId, key, value);
+                return LoadDentry(version, partitionId, key, value);
             case ENTRY_TYPE::PENDING_TX:
                 ++totalPendingTx;
                 return LoadPendingTx(partitionId, key, value);
@@ -405,7 +416,12 @@ bool MetaStoreFStream::Save(const std::string& path,
     auto mergeIterator = std::make_shared<MergeIterator>(children);
     bool background = (kvStorage_->Type() == STORAGE_TYPE::MEMORY_STORAGE);
     bool succ = SaveToFile(path, mergeIterator, background, done);
-    LOG(INFO) << "MetaStoreFStream save " << (succ ? "success" : "fail");
+    if (succ) {
+        LOG(INFO) << "MetaStoreFStream save success";
+    } else {
+        LOG(ERROR) << "MetaStoreFStream save failed";
+    }
+
     return succ;
 }
 

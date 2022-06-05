@@ -79,6 +79,10 @@ message Dentry {
     optional uint64 txSequence = 8;
 }
 
+message DentryVec {
+    repeated Dentry dentrys = 1;
+}
+
 message GetDentryResponse {
     required MetaStatusCode statusCode = 1;
     optional Dentry dentry = 2;
@@ -333,6 +337,10 @@ message MetaServerMetadata {
     required uint32 checksum = 4;
 }
 
+message InodeAuxInfo {
+    required uint64 s3MetaSize = 1;
+}
+
 message GetOrModifyS3ChunkInfoRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -429,7 +437,7 @@ message GetVolumeExtentRequest {
 message GetVolumeExtentResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
-    optional VolumeExtentList slices = 3; 
+    optional VolumeExtentList slices = 3;
 }
 
 message UpdateVolumeExtentRequest {

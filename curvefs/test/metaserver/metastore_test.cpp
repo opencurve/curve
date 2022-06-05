@@ -574,7 +574,7 @@ TEST_F(MetastoreTest, test_inode) {
     ASSERT_EQ(deleteResponse.statuscode(), ret);
 
     ret = metastore.DeleteInode(&deleteRequest, &deleteResponse);
-    ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(deleteResponse.statuscode(), ret);
 }
 
@@ -743,8 +743,8 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.dentrys_size(), 3);
 
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry1));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry3));
 
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
@@ -756,8 +756,8 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.dentrys_size(), 2);
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry3));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
 
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
@@ -802,7 +802,6 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.dentrys_size(), 2);
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry1));
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
-    // ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry3));
 
     ret = metastore.DeleteDentry(&deleteRequest, &deleteResponse);
     ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::NOT_FOUND);

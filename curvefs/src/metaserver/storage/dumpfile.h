@@ -60,6 +60,7 @@ enum class DUMPFILE_ERROR {
     FORK_FAILED,
     WAITPID_FAILED,
     UNEXPECTED_SIGNAL,
+    ENCOUNTER_EOF,
 };
 
 enum class DUMPFILE_LOAD_STATUS {
@@ -100,12 +101,23 @@ class DumpFileClosure {
 
 /*
  * dumpfile format:
+ *
+ * v1:
  *   +---------+---------+------+-----------------+-----------+
  *   | CURVEFS | version | size | key_value_pairs | check_sum |
  *   +---------+---------+------+-----------------+-----------+
  *      CURVEFS:  "CURVEFS" (7-bytes)
  *      version:  uint8_t   (1-byte)
  *      size:     uint64_t  (8-bytes)
+ *      checksum: uint32_t  (4-bytes)
+ *
+ * v2:
+ *   +---------+---------+-----------------+-----+-----------+
+ *   | CURVEFS | version | key_value_pairs | EOF | check_sum |
+ *   +---------+---------+-----------------+-----+-----------+
+ *      CURVEFS:  "CURVEFS" (7-bytes)
+ *      version:  uint8_t   (1-byte)
+ *      EOF:      uint32_t  (4-bytes)
  *      checksum: uint32_t  (4-bytes)
  *
  * key_value_pairs format:
@@ -117,6 +129,8 @@ class DumpFileClosure {
 class DumpFile {
  public:
     explicit DumpFile(const std::string& pathname);
+
+    DumpFile(const std::string& pathname, uint8_t version);
 
     DUMPFILE_ERROR Open();
 
@@ -132,6 +146,8 @@ class DumpFile {
     DUMPFILE_LOAD_STATUS GetLoadStatus();
 
     void SetLoadStatus(DUMPFILE_LOAD_STATUS status);
+
+    uint8_t GetVersion();
 
  private:
     DUMPFILE_ERROR Write(const char* buffer, off_t offset, size_t length);
@@ -184,9 +200,13 @@ class DumpFile {
 
     DUMPFILE_LOAD_STATUS loadStatus_;
 
+    uint8_t version_;
+
     static const std::string kCurvefs_;
 
     static const uint8_t kVersion_;
+
+    static const uint32_t kEOF_;
 
     static const uint32_t kMaxStringLength_;
 };

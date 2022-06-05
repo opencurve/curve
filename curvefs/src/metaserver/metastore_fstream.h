@@ -65,7 +65,8 @@ class MetaStoreFStream {
                    const std::string& key,
                    const std::string& value);
 
-    bool LoadDentry(uint32_t partitionId,
+    bool LoadDentry(uint8_t version,
+                    uint32_t partitionId,
                     const std::string& key,
                     const std::string& value);
 

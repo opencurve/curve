@@ -29,6 +29,7 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/memory_storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/src/metaserver/storage/storage_fstream.h"
@@ -78,10 +79,16 @@ class StorageFstreamTest : public ::testing::Test {
         return succ ? value : "";
     }
 
+    std::string TableName(uint32_t partitionId) {
+        auto ng = std::make_shared<NameGenerator>(partitionId);
+        return ng->GetDentryTableName();
+    }
+
  protected:
     std::string dirname_;
     std::string pathname_;
     std::string dbpath_;
+    Converter conv_;
 };
 
 void StorageFstreamTest::TestSave(std::shared_ptr<KVStorage> kvStorage,
@@ -93,9 +100,9 @@ void StorageFstreamTest::TestSave(std::shared_ptr<KVStorage> kvStorage,
         container);
 
     Status s;
-    s = kvStorage->HSet("partition:2", "k2", Value("v2"));
+    s = kvStorage->HSet(TableName(2), "k2", Value("v2"));
     ASSERT_TRUE(s.ok());
-    s = kvStorage->SSet("partition:3", "k3", Value("v3"));
+    s = kvStorage->SSet(TableName(3), "k3", Value("v3"));
     ASSERT_TRUE(s.ok());
 
     // step2: save to file
@@ -103,9 +110,9 @@ void StorageFstreamTest::TestSave(std::shared_ptr<KVStorage> kvStorage,
         std::make_shared<IteratorWrapper>(
             ENTRY_TYPE::PARTITION, 1, patitionIterator),
         std::make_shared<IteratorWrapper>(
-            ENTRY_TYPE::INODE, 2, kvStorage->HGetAll("partition:2")),
+            ENTRY_TYPE::INODE, 2, kvStorage->HGetAll(TableName(2))),
         std::make_shared<IteratorWrapper>(
-            ENTRY_TYPE::DENTRY, 3, kvStorage->SGetAll("partition:3")),
+            ENTRY_TYPE::DENTRY, 3, kvStorage->SGetAll(TableName(3))),
     };
     auto iterator = std::make_shared<MergeIterator>(children);
     ASSERT_TRUE(SaveToFile(pathname_, iterator, background));
@@ -114,28 +121,36 @@ void StorageFstreamTest::TestSave(std::shared_ptr<KVStorage> kvStorage,
     size_t nPartition = 0;
     size_t nInode = 0;
     size_t nDentry = 0;
-    auto callback = [&](ENTRY_TYPE type,
+    uint8_t nVersion = 0;
+    std::string str4Inode, str4Dentry;
+    ASSERT_TRUE(conv_.SerializeToString(Value("v2"), &str4Inode));
+    ASSERT_TRUE(conv_.SerializeToString(Value("v3"), &str4Dentry));
+    auto callback = [&](uint8_t version,
+                        ENTRY_TYPE type,
                         uint32_t partitionId,
                         const std::string& key,
                         const std::string& value) {
+        if (version == 2) {
+            nVersion++;
+        }
+
         if (type == ENTRY_TYPE::PARTITION) {
             if (partitionId == 1 && key == "k1" && value == "v1") {
                 nPartition++;
             }
         } else if (type == ENTRY_TYPE::INODE) {
-            if (partitionId == 2 && key == "k2" &&
-                value == SerializeToString(Value("v2"))) {
+            if (partitionId == 2 && key == "k2" && value == str4Inode) {
                 nInode++;
             }
         } else if (type == ENTRY_TYPE::DENTRY) {
-            if (partitionId == 3 && key == "k3" &&
-                value == SerializeToString(Value("v3"))) {
+            if (partitionId == 3 && key == "k3" && value == str4Dentry) {
                 nDentry++;
             }
         }
         return true;
     };
     ASSERT_TRUE(LoadFromFile<decltype(callback)>(pathname_, callback));
+    ASSERT_EQ(nVersion, 3);
     ASSERT_EQ(nPartition, 1);
     ASSERT_EQ(nInode, 1);
     ASSERT_EQ(nDentry, 1);
@@ -215,7 +230,8 @@ TEST_F(StorageFstreamTest, MiscTest) {
 
     // CASE 3: open file failed when load
     {
-        auto callback = [&](ENTRY_TYPE type,
+        auto callback = [&](uint8_t version,
+                            ENTRY_TYPE type,
                             uint32_t partitionId,
                             const std::string& key,
                             const std::string& value) {
@@ -227,7 +243,8 @@ TEST_F(StorageFstreamTest, MiscTest) {
 
     // CASE 4: invoke failed
     {
-        auto callback = [&](ENTRY_TYPE type,
+        auto callback = [&](uint8_t version,
+                            ENTRY_TYPE type,
                             uint32_t partitionId,
                             const std::string& key,
                             const std::string& value) {

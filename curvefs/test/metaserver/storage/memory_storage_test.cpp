@@ -108,8 +108,8 @@ TEST_F(MemoryStorageTest, SSizeTest) { TestSSize(kvStorage_);
                                        TestSSize(kvStorage2_); }
 TEST_F(MemoryStorageTest, SClearTest) { TestSClear(kvStorage_);
                                         TestSClear(kvStorage2_); }
-TEST_F(MemoryStorageTest, SMixOperator) { TestMixOperator(kvStorage_);
-                                          TestMixOperator(kvStorage2_); }
+TEST_F(MemoryStorageTest, MixOperatorTest) { TestMixOperator(kvStorage_);
+                                             TestMixOperator(kvStorage2_); }
 
 }  // namespace storage
 }  // namespace metaserver

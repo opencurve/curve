@@ -27,6 +27,7 @@
 #include "curvefs/src/metaserver/metaserver.h"
 #include "curvefs/test/metaserver/mock_topology_service.h"
 #include "curvefs/test/metaserver/mock_heartbeat_service.h"
+#include "curvefs/test/metaserver/storage/utils.h"
 
 using ::curvefs::mds::heartbeat::HeartbeatStatusCode;
 using ::curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
@@ -36,6 +37,7 @@ using ::curvefs::mds::topology::MetaServerRegistRequest;
 using ::curvefs::mds::topology::MetaServerRegistResponse;
 using ::curvefs::mds::topology::MockTopologyService;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
@@ -54,6 +56,7 @@ class MetaserverTest : public ::testing::Test {
  protected:
     void SetUp() override {
         // run mds server
+        dataDir_ = RandomStoragePath();
         metaPath_ = "./meta.dat";
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
@@ -81,6 +84,8 @@ class MetaserverTest : public ::testing::Test {
     void TearDown() override {
         server_.Stop(0);
         server_.Join();
+        auto output = execShell("rm -rf " + dataDir_);
+        ASSERT_EQ(output.size(), 0);
         return;
     }
 
@@ -98,6 +103,7 @@ class MetaserverTest : public ::testing::Test {
         return result;
     }
 
+    std::string dataDir_;
     std::string metaserverIp_;
     std::string metaserverPort_;
     std::string metaserverExternalPort_;
@@ -130,6 +136,7 @@ TEST_F(MetaserverTest, register_to_mds_success) {
     conf->SetStringValue("global.ip", metaserverIp_);
     conf->SetStringValue("global.port", metaserverPort_);
     conf->SetStringValue("metaserver.meta_file_path", metaPath_);
+    conf->SetStringValue("storage.data_dir", dataDir_);
 
     // initialize MDS options
     metaserver.InitOptions(conf);
@@ -181,6 +188,7 @@ TEST_F(MetaserverTest, register_to_mds_enable_external_success) {
     conf->SetStringValue("global.enable_external_server", "true");
     conf->SetStringValue("global.external_port", metaserverExternalPort_);
     conf->SetStringValue("global.external_ip", metaserverIp_);
+    conf->SetStringValue("storage.data_dir", dataDir_);
 
     // initialize MDS options
     metaserver.InitOptions(conf);
@@ -230,6 +238,7 @@ TEST_F(MetaserverTest, test2) {
     conf->SetStringValue("global.ip", metaserverIp_);
     conf->SetStringValue("global.port", metaserverPort_);
     conf->SetStringValue("metaserver.meta_file_path", metaPath_);
+    conf->SetStringValue("storage.data_dir", dataDir_);
 
     // mock RegistMetaServer
     MetaServerRegistResponse response;
@@ -285,6 +294,7 @@ TEST_F(MetaserverTest, load_from_local) {
     conf->SetStringValue("global.ip", metaserverIp_);
     conf->SetStringValue("global.port", metaserverPort_);
     conf->SetStringValue("metaserver.meta_file_path", metaPath_);
+    conf->SetStringValue("storage.data_dir", dataDir_);
 
     // initialize MDS options
     metaserver.InitOptions(conf);
