@@ -85,6 +85,14 @@ struct CopysetTarget {
                partitionID != 0 && txId != 0 && metaServerID != 0 &&
                endPoint.ip != butil::IP_ANY && endPoint.port != 0;
     }
+
+    void Reset() {
+        groupID = CopysetGroupID{};
+        partitionID = 0;
+        txId = 0;
+        metaServerID = 0;
+        endPoint = butil::EndPoint{};
+    }
 };
 
 inline std::ostream &operator<<(std::ostream &os, const CopysetGroupID &g) {

@@ -254,6 +254,7 @@ void TaskExecutor::RefreshLeader() {
 
 void TaskExecutor::OnPartitionAllocIDFail() {
     metaCache_->MarkPartitionUnavailable(task_->target.partitionID);
+    task_->target.Reset();
 }
 
 uint64_t TaskExecutor::OverLoadBackOff() {
