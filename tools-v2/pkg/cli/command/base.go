@@ -55,7 +55,6 @@ type FinalCurveCmd struct {
 	Result   interface{}         `json:"result"`
 	Table    *table.Table        `json:"-"`
 	Cmd      *cobra.Command      `json:"-"`
-	AllError []cmderror.CmdError `json:"-"`
 }
 
 // FinalCurveCmdFunc is the function type for final command
@@ -91,6 +90,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 		PostRunE:     funcs.Print,
 		SilenceUsage: false,
 	}
+	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
 	return cli.Cmd
 }
@@ -111,6 +111,13 @@ type Metric struct {
 	timeout time.Duration
 }
 
+type MetricResult struct {
+	Addr  string
+	Key   string
+	Value string
+	Err   *cmderror.CmdError
+}
+
 func NewMetric(addrs []string, subUri string, timeout time.Duration) *Metric {
 	return &Metric{
 		Addrs:   addrs,
@@ -119,26 +126,26 @@ func NewMetric(addrs []string, subUri string, timeout time.Duration) *Metric {
 	}
 }
 
-func QueryMetric(m Metric) (string, cmderror.CmdError) {
+func QueryMetric(m Metric) (string, *cmderror.CmdError) {
 	response := make(chan string, 1)
 	size := len(m.Addrs)
 	if size > config.MaxChannelSize() {
 		size = config.MaxChannelSize()
 	}
-	errs := make(chan cmderror.CmdError, size)
+	errs := make(chan *cmderror.CmdError, size)
 	for _, host := range m.Addrs {
 		url := "http://" + host + m.SubUri
 		go httpGet(url, m.timeout, response, errs)
 	}
 	var retStr string
-	var vecErrs []cmderror.CmdError
+	var vecErrs []*cmderror.CmdError
 	count := 0
 	for err := range errs {
 		if err.Code != cmderror.CODE_SUCCESS {
 			vecErrs = append(vecErrs, err)
 		} else {
 			retStr = <-response
-			vecErrs = append(vecErrs, cmderror.ErrSuccess)
+			vecErrs = append(vecErrs, cmderror.ErrSuccess())
 			break
 		}
 		count++
@@ -151,22 +158,37 @@ func QueryMetric(m Metric) (string, cmderror.CmdError) {
 	return retStr, retErr
 }
 
+<<<<<<< HEAD
 func GetMetricValue(metricRet string) (string, cmderror.CmdError) {
 	kv := cobrautil.RmWitespaceStr(metricRet)
 	kvVec := strings.Split(kv, ":")
 	if len(kvVec) != 2 {
 		err := cmderror.ErrParseMetric
+=======
+func GetMetricValue(metricRet string) (string, *cmderror.CmdError) {
+	kv := cobrautil.RmWitespaceStr(metricRet)
+	kvVec := strings.Split(kv, ":")
+	if len(kvVec) != 2 {
+		err := cmderror.ErrParseMetric()
+>>>>>>> curve: fs status mds
 		err.Format(metricRet)
 		return "", err
 	}
 	kvVec[1] = strings.Replace(kvVec[1], "\"", "", -1)
+<<<<<<< HEAD
 	return kvVec[1], cmderror.ErrSuccess
 }
 
 func httpGet(url string, timeout time.Duration, response chan string, errs chan cmderror.CmdError) {
+=======
+	return kvVec[1], cmderror.ErrSuccess()
+}
+
+func httpGet(url string, timeout time.Duration, response chan string, errs chan *cmderror.CmdError) {
+>>>>>>> curve: fs status mds
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		interErr := cmderror.ErrHttpCreateGetRequest
+		interErr := cmderror.ErrHttpCreateGetRequest()
 		interErr.Format(err.Error())
 		errs <- interErr
 	}
@@ -177,7 +199,7 @@ func httpGet(url string, timeout time.Duration, response chan string, errs chan 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		interErr := cmderror.ErrHttpClient
+		interErr := cmderror.ErrHttpClient()
 		interErr.Format(err.Error())
 		errs <- interErr
 	} else if resp.StatusCode != http.StatusOK {
@@ -187,13 +209,13 @@ func httpGet(url string, timeout time.Duration, response chan string, errs chan 
 	} else {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			interErr := cmderror.ErrHttpUnreadableResult
+			interErr := cmderror.ErrHttpUnreadableResult()
 			interErr.Format(url, err.Error())
 			errs <- interErr
 		}
 		// get response
 		response <- string(body)
-		errs <- cmderror.ErrSuccess
+		errs <- cmderror.ErrSuccess()
 	}
 }
 
@@ -218,12 +240,12 @@ type RpcFunc interface {
 	Stub_Func(ctx context.Context) (interface{}, error)
 }
 
-func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []cmderror.CmdError) {
+func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []*cmderror.CmdError) {
 	size := len(rpc.Addrs)
 	if size > config.MaxChannelSize() {
 		size = config.MaxChannelSize()
 	}
-	errs := make(chan cmderror.CmdError, size)
+	errs := make(chan *cmderror.CmdError, size)
 	response := make(chan interface{}, 1)
 	for _, addr := range rpc.Addrs {
 		go func(addr string) {
@@ -231,7 +253,7 @@ func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []cmderror.CmdError)
 			defer cancel()
 			conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
-				errDial := cmderror.ErrRpcDial
+				errDial := cmderror.ErrRpcDial()
 				errDial.Format(addr, err.Error())
 				errs <- errDial
 			}
@@ -239,25 +261,25 @@ func GetRpcResponse(rpc Rpc, rpcFunc RpcFunc) (interface{}, []cmderror.CmdError)
 			res, err := rpcFunc.Stub_Func(context.Background())
 			if err != nil {
 				// fmt.Println(err)
-				errRpc := cmderror.ErrRpcCall
+				errRpc := cmderror.ErrRpcCall()
 				errRpc.Format(addr, rpc.RpcFuncName, err.Error())
 				errs <- errRpc
 			} else {
 				response <- res
-				errs <- cmderror.ErrSuccess
+				errs <- cmderror.ErrSuccess()
 			}
 		}(addr)
 	}
 
 	var ret interface{}
-	var vecErrs []cmderror.CmdError
+	var vecErrs []*cmderror.CmdError
 	count := 0
 	for err := range errs {
 		if err.Code != cmderror.CODE_SUCCESS {
 			vecErrs = append(vecErrs, err)
 		} else {
 			ret = <-response
-			vecErrs = append(vecErrs, cmderror.ErrSuccess)
+			vecErrs = append(vecErrs, cmderror.ErrSuccess())
 			break
 		}
 		count++

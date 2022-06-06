@@ -43,46 +43,63 @@ type CmdError struct {
 	Message string `json:"message"` // exit message
 }
 
-func NewSucessCmdError() CmdError {
-	return CmdError{
+var (
+	AllError []*CmdError
+)
+
+func NewSucessCmdError() *CmdError {
+	ret := &CmdError{
 		Code:    CODE_SUCCESS,
 		Message: "success",
 	}
+	AllError = append(AllError, ret)
+	return ret
 }
 
-func NewInternalCmdError(code int, message string) CmdError {
-	return CmdError{
+func NewInternalCmdError(code int, message string) *CmdError {
+	ret := &CmdError{
 		Code:    CODE_INTERNAL + code,
 		Message: message,
 	}
+
+	AllError = append(AllError, ret)
+	return ret
 }
 
-func NewRpcError(code int, message string) CmdError {
-	return CmdError{
+func NewRpcError(code int, message string) *CmdError {
+	ret := &CmdError{
 		Code:    CODE_RPC + code,
 		Message: message,
 	}
+	AllError = append(AllError, ret)
+	return ret
 }
 
-func NewRpcReultCmdError(code int, message string) CmdError {
-	return CmdError{
+func NewRpcReultCmdError(code int, message string) *CmdError {
+	ret := &CmdError{
 		Code:    CODE_RPC_RESULT + code,
 		Message: message,
 	}
+	AllError = append(AllError, ret)
+	return ret
 }
 
-func NewHttpError(code int, message string) CmdError {
-	return CmdError{
+func NewHttpError(code int, message string) *CmdError {
+	ret := &CmdError{
 		Code:    CODE_HTTP + code,
 		Message: message,
 	}
+	AllError = append(AllError, ret)
+	return ret
 }
 
-func NewHttpResultCmdError(code int, message string) CmdError {
-	return CmdError{
+func NewHttpResultCmdError(code int, message string) *CmdError {
+	ret := &CmdError{
 		Code:    CODE_HTTP_RESULT + code,
 		Message: message,
 	}
+	AllError = append(AllError, ret)
+	return ret
 }
 
 func (cmd CmdError) TypeCode() int {
@@ -117,15 +134,18 @@ func (e *CmdError) Format(args ...interface{}) {
 // The importance of the error is considered to be related to the code,
 // please use it under the condition that the smaller the code,
 // the more important the error is.
-func MostImportantCmdError(err []CmdError) CmdError {
+func MostImportantCmdError(err []*CmdError) *CmdError {
 	if len(err) == 0 {
+<<<<<<< HEAD
 		return CmdError {
+=======
+		return &CmdError{
+>>>>>>> curve: fs status mds
 			Code:    CODE_UNKNOWN,
 			Message: "unknown error",
 		}
 	}
-	var ret CmdError
-	ret.Code = CODE_UNKNOWN
+	ret := err[0]
 	for _, e := range err {
 		if e.Code < ret.Code {
 			ret = e
@@ -134,8 +154,8 @@ func MostImportantCmdError(err []CmdError) CmdError {
 	return ret
 }
 
-// keep the most important wrong id, all wrong me s sa
-func MergeCmdError(err []CmdError) CmdError {
+// keep the most important wrong id, all wrong message will be kept
+func MergeCmdError(err []*CmdError) CmdError {
 	if len(err) == 0 {
 		return CmdError{
 			Code:    CODE_UNKNOWN,
@@ -156,23 +176,53 @@ func MergeCmdError(err []CmdError) CmdError {
 }
 
 var (
-	ErrSuccess = NewSucessCmdError()
+	ErrSuccess = NewSucessCmdError
 
 	// internal error
+<<<<<<< HEAD
 	ErrHttpCreateGetRequest = NewInternalCmdError(1, "create http get request failed, the error is: %s")
 	ErrDataNoExpected       = NewInternalCmdError(2, "data: %s is not as expected, the error is: %s")
 	ErrHttpClient           = NewInternalCmdError(3, "http client gets error: %s")
 	ErrRpcDial              = NewInternalCmdError(4, "dial to rpc server %s failed, the error is: %s")
 	ErrUnmarshalJson        = NewInternalCmdError(5, "unmarshal json error, the json is %s, the error is %s")
 	ErrParseMetric          = NewInternalCmdError(6, "parse metric %s err!")
+=======
+	ErrHttpCreateGetRequest = func() *CmdError {
+		return NewInternalCmdError(1, "create http get request failed, the error is: %s")
+	}
+	ErrDataNoExpected = func() *CmdError {
+		return NewInternalCmdError(2, "data: %s is not as expected, the error is: %s")
+	}
+	ErrHttpClient = func() *CmdError {
+		return NewInternalCmdError(3, "http client gets error: %s")
+	}
+	ErrRpcDial = func() *CmdError {
+		return NewInternalCmdError(4, "dial to rpc server %s failed, the error is: %s")
+	}
+	ErrUnmarshalJson = func() *CmdError {
+		return NewInternalCmdError(5, "unmarshal json error, the json is %s, the error is %s")
+	}
+	ErrParseMetric = func() *CmdError {
+		return NewInternalCmdError(6, "parse metric %s err!")
+	}
+	ErrGetMetaserverAddr = func() *CmdError {
+		return NewInternalCmdError(7, "get metaserver addr failed, the error is: %s")
+	}
+>>>>>>> curve: fs status mds
 
 	// http error
-	ErrHttpUnreadableResult = NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
-	ErrHttpResultNoExpected = NewHttpResultCmdError(2, "http response is not expected, the hosts is: %s, the suburi is: %s, the result is: %s")
-	ErrHttpStatus           = func(statusCode int) CmdError {
+	ErrHttpUnreadableResult = func() *CmdError {
+		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
+	}
+	ErrHttpResultNoExpected = func() *CmdError {
+		return NewHttpResultCmdError(2, "http response is not expected, the hosts is: %s, the suburi is: %s, the result is: %s")
+	}
+	ErrHttpStatus = func(statusCode int) *CmdError {
 		return NewHttpError(statusCode, "the url is: %s, http status code is: %d")
 	}
 
 	// rpc error
-	ErrRpcCall = NewRpcReultCmdError(1, "rpc call is fail, the addr is: %s, the func is %s, the error is: %s")
+	ErrRpcCall = func() *CmdError {
+		return NewRpcReultCmdError(1, "rpc call is fail, the addr is: %s, the func is %s, the error is: %s")
+	}
 )

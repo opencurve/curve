@@ -25,6 +25,10 @@ package status
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	mds "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/mds"
+<<<<<<< HEAD
+=======
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/metaserver"
+>>>>>>> curve: fs status mds
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +41,10 @@ var _ basecmd.MidCurveCmdFunc = (*StatusCommand)(nil) // check interface
 func (statusCmd *StatusCommand) AddSubCommands() {
 	statusCmd.Cmd.AddCommand(
 		mds.NewMdsCommand(),
+<<<<<<< HEAD
+=======
+		metaserver.NewMetaserverCommand(),
+>>>>>>> curve: fs status mds
 	)
 }
 

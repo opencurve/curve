@@ -52,7 +52,9 @@ var _ basecmd.RpcFunc = (*ListTopologyRpc)(nil) // check interface
 
 type TopologyCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc ListTopologyRpc
+	Rpc          ListTopologyRpc
+	externalAddr []string
+	internalAddr []string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*TopologyCommand)(nil) // check interface
@@ -74,6 +76,26 @@ func NewTopologyCommand() *cobra.Command {
 	}
 	basecmd.NewFinalCurveCli(&topologyCmd.FinalCurveCmd, topologyCmd)
 	return topologyCmd.Cmd
+}
+
+func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
+	listTopo := NewListTopologyCommand()
+	listTopo.Cmd.SetArgs([]string{"--format", "noout"})
+	err := listTopo.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrGetMetaserverAddr()
+		retErr.Format(err.Error())
+		return nil, nil, retErr
+	}
+	return listTopo.externalAddr, listTopo.internalAddr, cmderror.ErrSuccess()
+}
+
+func NewListTopologyCommand() *TopologyCommand {
+	topologyCmd := &TopologyCommand{
+		FinalCurveCmd: basecmd.FinalCurveCmd{},
+	}
+	basecmd.NewFinalCurveCli(&topologyCmd.FinalCurveCmd, topologyCmd)
+	return topologyCmd
 }
 
 func (tCmd *TopologyCommand) AddFlags() {
@@ -111,9 +133,8 @@ func (tCmd *TopologyCommand) Print(cmd *cobra.Command, args []string) error {
 
 func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response, errs := basecmd.GetRpcResponse(tCmd.Rpc.Info, &tCmd.Rpc)
-	tCmd.AllError = errs
 	errCmd := cmderror.MostImportantCmdError(errs)
-	if errCmd != cmderror.ErrSuccess {
+	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
 	topologyResponse := response.(*topology.ListTopologyResponse)
@@ -125,8 +146,11 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	tCmd.Result = mapRes
 	updateTable(tCmd.Table, topologyResponse)
 	errs = updateJsonPoolInfoRedundanceAndPlaceMentPolicy(&mapRes, topologyResponse)
-	tCmd.AllError = append(tCmd.AllError, errs...)
-	tCmd.Error = cmderror.MostImportantCmdError(tCmd.AllError)
+	if len(errs) > 0 {
+		return fmt.Errorf(cmderror.MostImportantCmdError(errs).Message)
+	}
+
+	tCmd.updateMetaserverAddr(topologyResponse.GetMetaservers().MetaServerInfos)
 	return nil
 }
 
@@ -213,8 +237,18 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	table.AddRows(rows)
 }
 
-func updateJsonPoolInfoRedundanceAndPlaceMentPolicy(topologyMap *map[string]interface{}, topology *topology.ListTopologyResponse) []cmderror.CmdError {
-	var retErr []cmderror.CmdError
+func (tCmd *TopologyCommand) updateMetaserverAddr(metaservers []*topology.MetaServerInfo) {
+	for _, metaserver := range metaservers {
+		internalAddr := fmt.Sprintf("%s:%d", metaserver.GetInternalIp(), metaserver.GetInternalPort())
+		tCmd.internalAddr = append(tCmd.internalAddr, internalAddr)
+
+		externalAddr := fmt.Sprintf("%s:%d", metaserver.GetExternalIp(), metaserver.GetExternalPort())
+		tCmd.externalAddr = append(tCmd.externalAddr, externalAddr)
+	}
+}
+
+func updateJsonPoolInfoRedundanceAndPlaceMentPolicy(topologyMap *map[string]interface{}, topology *topology.ListTopologyResponse) []*cmderror.CmdError {
+	var retErr []*cmderror.CmdError
 	pools := (*topologyMap)["pools"]
 	poolsInfoMap := pools.(map[string]interface{})["PoolInfos"].([]interface{})
 	poolsInfoMapTopo := topology.GetPools().GetPoolInfos()
@@ -230,8 +264,9 @@ func updateJsonPoolInfoRedundanceAndPlaceMentPolicy(topologyMap *map[string]inte
 		var policy interface{}
 		err := json.Unmarshal(policyJson, &policy)
 		if err != nil {
-			unmarshalErr := cmderror.ErrUnmarshalJson
+			unmarshalErr := cmderror.ErrUnmarshalJson()
 			unmarshalErr.Format(policyJson, err.Error())
+			retErr = append(retErr, unmarshalErr)
 			continue
 		}
 		poolInfo["redundanceAndPlaceMentPolicy"] = policy
