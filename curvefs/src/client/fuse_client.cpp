@@ -126,10 +126,6 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         return ret3;
     }
 
-    if (!leaseExecutor_->Start()) {
-        return CURVEFS_ERROR::INTERNAL;
-    }
-
     return ret3;
 }
 
@@ -207,6 +203,13 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
               << " enableSumInDir = " << enableSumInDir_;
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
+
+    // init fsname and mountpoint
+    leaseExecutor_->SetFsName(fsName);
+    leaseExecutor_->SetMountPoint(mountpoint_);
+    if (!leaseExecutor_->Start()) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
 
     init_ = true;
 
@@ -634,7 +637,7 @@ CURVEFS_ERROR FuseClient::FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
     VLOG(1) << "FuseOpReleaseDir, ino: " << ino << ", dindex: " << dindex;
     dirBuf_->DirBufferRelease(dindex);
 
-    // release inodeAttr cache and iterDentry cache
+    // release inodeAttr cache
     inodeManager_->ReleaseCache(ino);
     return CURVEFS_ERROR::OK;
 }

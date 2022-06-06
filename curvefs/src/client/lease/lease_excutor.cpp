@@ -74,13 +74,11 @@ bool LeaseExecutor::RefreshLease() {
     // get partition txid list
     std::vector<PartitionTxId> txIds;
     metaCache_->GetAllTxIds(&txIds);
-    if (txIds.empty()) {
-        return true;
-    }
 
     // refresh from mds
     std::vector<PartitionTxId> latestTxIdList;
-    FSStatusCode ret = mdsCli_->RefreshSession(txIds, &latestTxIdList);
+    FSStatusCode ret = mdsCli_->RefreshSession(txIds, &latestTxIdList,
+                                               fsName_, mountpoint_);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "LeaseExecutor refresh session fail, ret = " << ret
                    << ", errorName = " << FSStatusCode_Name(ret);
@@ -94,5 +92,6 @@ bool LeaseExecutor::RefreshLease() {
                   });
     return true;
 }
+
 }  // namespace client
 }  // namespace curvefs

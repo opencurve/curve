@@ -172,6 +172,9 @@ message ListClusterFsInfoResponse {
 
 message RefreshSessionRequest {
     repeated topology.PartitionTxId txIds = 1;
+    // used for client timeout
+    required string fsName = 2;
+    required Mountpoint mountpoint = 3;
 }
 
 message RefreshSessionResponse {

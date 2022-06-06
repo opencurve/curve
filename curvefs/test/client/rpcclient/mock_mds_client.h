@@ -103,9 +103,11 @@ class MockMdsClient : public MdsClient {
                  bool(uint32_t fsID,
                       std::vector<PartitionInfo>* partitionInfos));
 
-    MOCK_METHOD2(RefreshSession,
+    MOCK_METHOD4(RefreshSession,
                  FSStatusCode(const std::vector<PartitionTxId> &txIds,
-                              std::vector<PartitionTxId> *latestTxIdList));
+                              std::vector<PartitionTxId> *latestTxIdList,
+                              const std::string& fsName,
+                              const Mountpoint& mountpoint));
 
     MOCK_METHOD4(AllocateVolumeBlockGroup,
                  SpaceErrCode(uint32_t,

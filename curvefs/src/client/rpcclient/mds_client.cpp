@@ -208,9 +208,8 @@ bool MdsClientImpl::GetMetaServerInfo(
             return -cntl->ErrorCode();
         }
 
-        // TODO(lixiaocui): @wanghai 这里uint32返回的是什么
-        uint32_t ret = response.statuscode();
-        if (ret != 0) {
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
             LOG(WARNING) << "GetMetaServerInfo: ip= " << ip
                          << ", port= " << port << ", errcode = " << ret;
         } else {
@@ -419,10 +418,16 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
 
 FSStatusCode
 MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
-                              std::vector<PartitionTxId> *latestTxIdList) {
+                              std::vector<PartitionTxId> *latestTxIdList,
+                              const std::string& fsName,
+                              const Mountpoint& mountpoint) {
     auto task = RPCTask {
+        RefreshSessionRequest request;
         RefreshSessionResponse response;
-        mdsbasecli_->RefreshSession(txIds, &response, cntl, channel);
+        *request.mutable_txids() = {txIds.begin(), txIds.end()};
+        request.set_fsname(fsName);
+        *request.mutable_mountpoint() = mountpoint;
+        mdsbasecli_->RefreshSession(request, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "RefreshSession fail, errcode = "
                          << cntl->ErrorCode()

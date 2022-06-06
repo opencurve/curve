@@ -53,6 +53,7 @@ using ::curvefs::mds::FSStatusCode;
 using ::curvefs::mds::space::SpaceErrCode;
 using ::curvefs::mds::topology::Copyset;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::mds::Mountpoint;
 
 namespace curvefs {
 namespace client {
@@ -106,7 +107,9 @@ class MdsClient {
 
     virtual FSStatusCode
     RefreshSession(const std::vector<PartitionTxId> &txIds,
-                   std::vector<PartitionTxId> *latestTxIdList) = 0;
+                   std::vector<PartitionTxId> *latestTxIdList,
+                   const std::string& fsName,
+                   const Mountpoint& mountpoint) = 0;
 
     virtual FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) = 0;
 
@@ -186,9 +189,10 @@ class MdsClientImpl : public MdsClient {
 
     FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) override;
 
-    FSStatusCode
-    RefreshSession(const std::vector<PartitionTxId> &txIds,
-                   std::vector<PartitionTxId> *latestTxIdList) override;
+    FSStatusCode RefreshSession(const std::vector<PartitionTxId> &txIds,
+                                std::vector<PartitionTxId> *latestTxIdList,
+                                const std::string& fsName,
+                                const Mountpoint& mountpoint) override;
 
     FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) override;
 

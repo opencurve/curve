@@ -28,6 +28,8 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <map>
+#include <utility>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
@@ -70,6 +72,7 @@ using ::curvefs::mds::Mountpoint;
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
     uint32_t spaceReloadConcurrency = 10;
+    uint32_t clientTimeoutSec = 20;
     curve::common::S3AdapterOption s3AdapterOption;
 };
 
@@ -94,6 +97,7 @@ class FsManager {
 
     bool Init();
     void Run();
+    void Stop();
     void Uninit();
     void BackEndFunc();
     void ScanFs(const FsInfoWrapper& wrapper);
@@ -184,16 +188,22 @@ class FsManager {
     void GetAllFsInfo(::google::protobuf::RepeatedPtrField<
                       ::curvefs::mds::FsInfo>* fsInfoVec);
 
-    void RefreshSession(
-        const google::protobuf::RepeatedPtrField<
-            curvefs::mds::topology::PartitionTxId> &txIds,
-        google::protobuf::RepeatedPtrField<PartitionTxId> *needUpdate);
+    void RefreshSession(const RefreshSessionRequest* request,
+                        RefreshSessionResponse* response);
 
     void GetLatestTxId(const GetLatestTxIdRequest* request,
                        GetLatestTxIdResponse* response);
 
     void CommitTx(const CommitTxRequest* request,
                   CommitTxResponse* response);
+
+    // periodically check if the mount point is alive
+    void BackEndCheckMountPoint();
+    void CheckMountPoint();
+
+    // for utest
+    bool GetClientAliveTime(const std::string& mountpoint,
+        std::pair<std::string, uint64_t>* out);
 
  private:
      // return 0: ExactlySame; 1: uncomplete, -1: neither
@@ -221,6 +231,17 @@ class FsManager {
     FSStatusCode GetFsTxSequence(const std::string& fsName,
                                  uint64_t* sequence);
 
+    void UpdateClientAliveTime(const Mountpoint& mountpoint,
+        const std::string& fsName, bool addMountPoint = true);
+
+    // add mount point to fs if client restore session
+    FSStatusCode AddMountPoint(const Mountpoint& mountpoint,
+        const std::string& fsName);
+
+    void DeleteClientAliveTime(const std::string& mountpoint);
+
+    void RebuildTimeRecorder();
+
  private:
     uint64_t GetRootId();
 
@@ -238,6 +259,13 @@ class FsManager {
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;
     FsManagerOption option_;
+
+    // deal with check mountpoint alive
+    Thread checkMountPointThread_;
+    InterruptibleSleeper checkMountPointSleeper_;
+    // <mountpoint, <fsname,last update time>>
+    std::map<std::string, std::pair<std::string, uint64_t>> mpTimeRecorder_;
+    mutable RWLock recorderMutex_;
 };
 }  // namespace mds
 }  // namespace curvefs
