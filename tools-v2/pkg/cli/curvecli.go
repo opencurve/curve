@@ -30,7 +30,6 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
-	output "github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -66,11 +65,9 @@ func newCurveCommand() *cobra.Command {
 
 	cmd.Flags().BoolP("version", "v", false, "Print curve version")
 	cmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
-	cmd.PersistentFlags().StringP("format", "f", output.FORMAT_PLAIN, "Output format (json|plain)")
 	cmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
 	config.AddShowErrorPFlag(cmd)
 	viper.BindPFlag("useViper", cmd.PersistentFlags().Lookup("viper"))
-	viper.BindPFlag("format", cmd.PersistentFlags().Lookup("format"))
 
 	addSubCommands(cmd)
 	setupRootCommand(cmd)

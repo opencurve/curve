@@ -35,11 +35,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	FORMAT_JSON  = "json"
-	FORMAT_PLAIN = "plain"
-)
-
 func FinalCmdOutputJson(finalCmd *basecmd.FinalCurveCmd) error {
 	output, err := json.MarshalIndent(finalCmd, "", "  ")
 	if err != nil {
@@ -62,20 +57,22 @@ func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
 
 func FinalCmdOutput(finalCmd *basecmd.FinalCurveCmd,
 	funcs basecmd.FinalCurveCmdFunc) error {
-	format := viper.GetString("format")
-	finalCmd.Error = cmderror.MostImportantCmdError(finalCmd.AllError)
+	format := finalCmd.Cmd.Flag("format").Value.String()
+	finalCmd.Error = *cmderror.MostImportantCmdError(cmderror.AllError)
 	var err error
 	switch format {
-	case FORMAT_JSON:
+	case config.FORMAT_JSON:
 		err = FinalCmdOutputJson(finalCmd)
-	case FORMAT_PLAIN:
+	case config.FORMAT_PLAIN:
 		err = funcs.ResultPlainOutput()
-	default:
+	case config.FORMAT_NOOUT:
 		err = nil
+	default:
+		err = fmt.Errorf("the output format %s is not recognized", format)
 	}
 	if viper.GetBool(config.VIPER_GLOBALE_SHOWERROR) {
-		for _, output := range finalCmd.AllError {
-			fmt.Printf("%+v\n", output)
+		for _, output := range cmderror.AllError {
+			fmt.Printf("%+v\n", *output)
 		}
 	}
 	return err
@@ -96,4 +93,8 @@ func MarshalProtoJson(message proto.Message) (interface{}, error) {
 		return nil, err
 	}
 	return ret, nil
+}
+
+func SetFinalCmdNoOutput(finalCmd *basecmd.FinalCurveCmd) {
+	finalCmd.Cmd.SetArgs([]string{"--format", "noout"})
 }
