@@ -384,6 +384,11 @@ TEST_F(BaseClientTest, test_RefreshSession) {
     tmp.set_partitionid(1);
     tmp.set_txid(2);
     std::vector<PartitionTxId> txIds({tmp});
+    std::string fsName = "fs1";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -392,7 +397,11 @@ TEST_F(BaseClientTest, test_RefreshSession) {
     RefreshSessionResponse resp;
 
     // prepare out param
+    RefreshSessionRequest request;
     RefreshSessionResponse response;
+    *request.mutable_txids() = {txIds.begin(), txIds.end()};
+    request.set_fsname(fsName);
+    *request.mutable_mountpoint() = mountpoint;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
 
@@ -401,7 +410,7 @@ TEST_F(BaseClientTest, test_RefreshSession) {
             SetArgPointee<2>(response),
             Invoke(RpcService<RefreshSessionRequest, RefreshSessionResponse>)));
 
-    mdsbasecli_.RefreshSession(txIds, &resp, &cntl, &ch);
+    mdsbasecli_.RefreshSession(request, &resp, &cntl, &ch);
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))

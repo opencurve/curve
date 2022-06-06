@@ -105,6 +105,7 @@ class FSManagerTest : public ::testing::Test {
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
+        fsManagerOption.clientTimeoutSec = 1;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceManager_,
                                                  metaserverClient_,
@@ -405,6 +406,32 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_TRUE(CompareVolumeFs(volumeFsInfo1, fsInfo3));
     ASSERT_EQ(MessageDifferencer::Equals(fsInfo3.mountpoints(0), mountPoint),
               true);
+    std::pair<std::string, uint64_t> tpair;
+    std::string mountpath = "host:90000:/a/b/c";
+    ASSERT_TRUE(fsManager_->GetClientAliveTime(mountpath, &tpair));
+    ASSERT_EQ(fsName1, tpair.first);
+    // test client timeout and restore session later
+    {
+        fsManager_->Run();
+        EXPECT_CALL(*spaceManager_, RemoveVolume(_))
+            .WillOnce(Return(space::SpaceOk));
+        // clientTimeoutSec in option
+        sleep(4);
+        FsInfo info;
+        ASSERT_EQ(FSStatusCode::OK, fsManager_->GetFsInfo(fsName1, &info));
+        ASSERT_EQ(0, info.mountpoints_size());
+
+        RefreshSessionRequest request;
+        RefreshSessionResponse response;
+        request.set_fsname(fsName1);
+        *request.mutable_mountpoint() = mountPoint;
+        fsManager_->RefreshSession(&request, &response);
+        ASSERT_EQ(FSStatusCode::OK, fsManager_->GetFsInfo(fsName1, &info));
+        ASSERT_EQ(1, info.mountpoints_size());
+        ASSERT_EQ(MessageDifferencer::Equals(info.mountpoints(0), mountPoint),
+            true);
+        fsManager_->Stop();
+    }
 
     // mount volumefs mountpoint exist
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
@@ -435,6 +462,7 @@ TEST_F(FSManagerTest, test1) {
         .WillOnce(Return(space::SpaceOk));
     ret = fsManager_->UmountFs(fsName1, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::OK);
+    ASSERT_FALSE(fsManager_->GetClientAliveTime(mountpath, &tpair));
 
     // umount not exist mountpoint
     ret = fsManager_->UmountFs(fsName1, mountPoint);
@@ -668,10 +696,15 @@ TEST_F(FSManagerTest, background_thread_deletefs_test) {
     ASSERT_EQ(ret, FSStatusCode::NOT_FOUND);
 }
 
-TEST_F(FSManagerTest, test_efreshSession) {
+TEST_F(FSManagerTest, test_refreshSession) {
     PartitionTxId tmp;
     tmp.set_partitionid(1);
     tmp.set_txid(1);
+    std::string fsName = "fs1";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
 
     {
         LOG(INFO) << "### case1: partition txid need update ###";
@@ -679,21 +712,20 @@ TEST_F(FSManagerTest, test_efreshSession) {
         RefreshSessionResponse response;
         std::vector<PartitionTxId> txidlist({std::move(tmp)});
         *request.mutable_txids() = {txidlist.begin(), txidlist.end()};
+        request.set_fsname(fsName);
+        *request.mutable_mountpoint() = mountpoint;
         EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
             .WillOnce(SetArgPointee<1>(txidlist));
-        fsManager_->RefreshSession(request.txids(),
-                                   response.mutable_latesttxidlist());
+        fsManager_->RefreshSession(&request, &response);
         ASSERT_EQ(1, response.latesttxidlist_size());
     }
     {
         LOG(INFO) << "### case2: partition txid do not need update ###";
         RefreshSessionResponse response;
         RefreshSessionRequest request;
-        std::vector<PartitionTxId> txidlist;
-        EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
-            .WillOnce(SetArgPointee<1>(txidlist));
-        fsManager_->RefreshSession(request.txids(),
-                                   response.mutable_latesttxidlist());
+        request.set_fsname(fsName);
+        *request.mutable_mountpoint() = mountpoint;
+        fsManager_->RefreshSession(&request, &response);
         ASSERT_EQ(0, response.latesttxidlist_size());
     }
 }

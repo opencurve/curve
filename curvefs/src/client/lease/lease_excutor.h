@@ -24,6 +24,7 @@
 #define CURVEFS_SRC_CLIENT_LEASE_LEASE_EXCUTOR_H_
 
 #include <memory>
+#include <string>
 
 #include "curvefs/src/client/rpcclient/metacache.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
@@ -35,6 +36,7 @@ using curve::client::RefreshSessionTask;
 using curvefs::client::common::LeaseOpt;
 using curvefs::client::rpcclient::MdsClient;
 using curvefs::client::rpcclient::MetaCache;
+using curvefs::mds::Mountpoint;
 
 namespace curvefs {
 namespace client {
@@ -44,6 +46,7 @@ class LeaseExecutor : public LeaseExecutorBase {
     LeaseExecutor(const LeaseOpt &opt, std::shared_ptr<MetaCache> metaCache,
                   std::shared_ptr<MdsClient> mdsCli)
         : opt_(opt), metaCache_(metaCache), mdsCli_(mdsCli) {}
+
     ~LeaseExecutor();
 
     bool Start();
@@ -55,11 +58,21 @@ class LeaseExecutor : public LeaseExecutorBase {
      */
     bool RefreshLease() override;
 
+    void SetFsName(const std::string& fsName) {
+       fsName_ = fsName;
+    }
+
+    void SetMountPoint(const Mountpoint& mp) {
+       mountpoint_ = mp;
+    }
+
  private:
     LeaseOpt opt_;
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<MdsClient> mdsCli_;
     std::unique_ptr<RefreshSessionTask> task_;
+    std::string fsName_;
+    Mountpoint mountpoint_;
 };
 
 }  // namespace client

@@ -21,6 +21,7 @@
  */
 
 #include <brpc/server.h>
+#include <gmock/gmock-more-actions.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 
@@ -40,6 +41,7 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
 
 using ::curvefs::mds::topology::TopoStatusCode;
 
@@ -99,7 +101,7 @@ void ListPartitionRpcFailed(uint32_t fsID, ListPartitionResponse *response,
     cntl->SetFailed(112, "Not connected to");
 }
 
-void RefreshSessionRpcFailed(const std::vector<PartitionTxId> &txIds,
+void RefreshSessionRpcFailed(const RefreshSessionRequest &request,
                              RefreshSessionResponse *response,
                              brpc::Controller *cntl, brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
@@ -800,6 +802,11 @@ TEST_F(MdsClientImplTest, RefreshSession) {
     tmp.set_partitionid(1);
     tmp.set_txid(2);
     std::vector<PartitionTxId> txIds({tmp});
+    std::string fsName = "fs";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
 
     // out
     std::vector<PartitionTxId> out;
@@ -811,7 +818,8 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         response.set_statuscode(FSStatusCode::OK);
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
-        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
+                                               fsName, mountpoint));
         ASSERT_TRUE(out.empty());
     }
 
@@ -821,7 +829,8 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
-        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
+                                               fsName, mountpoint));
         ASSERT_EQ(1, out.size());
         ASSERT_TRUE(
             google::protobuf::util::MessageDifferencer::Equals(out[0], tmp))
@@ -837,7 +846,7 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillRepeatedly(Invoke(RefreshSessionRpcFailed));
         ASSERT_EQ(FSStatusCode::RPC_ERROR,
-                  mdsclient_.RefreshSession(txIds, &out));
+                  mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint));
     }
 }
 

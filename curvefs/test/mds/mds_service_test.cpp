@@ -27,6 +27,7 @@
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <string>
 
 #include "curvefs/test/mds/fake_metaserver.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
@@ -618,6 +619,49 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    // test refresh session
+    cntl.Reset();
+    RefreshSessionRequest refreshSessionRequest;
+    RefreshSessionResponse refreshSessionResponse;
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+    std::vector<PartitionTxId> partitionList({std::move(tmp)});
+    std::string fsName = "fs1";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
+    *refreshSessionRequest.mutable_txids() = {partitionList.begin(),
+                                              partitionList.end()};
+    refreshSessionRequest.set_fsname(fsName);
+    *refreshSessionRequest.mutable_mountpoint() = mountpoint;
+    EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
+        .WillOnce(SetArgPointee<1>(partitionList));
+    stub.RefreshSession(&cntl, &refreshSessionRequest, &refreshSessionResponse,
+                        NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(refreshSessionResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_EQ(1, refreshSessionResponse.latesttxidlist_size());
+        std::pair<std::string, uint64_t> tpair;
+        std::string mountpath = "127.0.0.1:9000:/mnt";
+        ASSERT_TRUE(fsManager_->GetClientAliveTime(mountpath, &tpair));
+        ASSERT_EQ(fsName, tpair.first);
+        // RefreshSession will add a mountpoint to fs1
+        cntl.Reset();
+        UmountFsRequest umountRequest;
+        UmountFsResponse umountResponse;
+        umountRequest.set_fsname("fs1");
+        mountPoint.set_hostname("127.0.0.1");
+        mountPoint.set_port(9000);
+        mountPoint.set_path("/mnt");
+        umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
+        stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
     // test delete fs
     cntl.Reset();
     DeleteFsRequest deleteRequest;
@@ -672,29 +716,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.DeleteFs(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // test refresh session
-    cntl.Reset();
-    RefreshSessionRequest refreshSessionRequest;
-    RefreshSessionResponse refreshSessionResponse;
-    PartitionTxId tmp;
-    tmp.set_partitionid(1);
-    tmp.set_txid(1);
-    std::vector<PartitionTxId> partitionList({std::move(tmp)});
-    *refreshSessionRequest.mutable_txids() = {partitionList.begin(),
-                                              partitionList.end()};
-
-    EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
-        .WillOnce(SetArgPointee<1>(partitionList));
-    stub.RefreshSession(&cntl, &refreshSessionRequest, &refreshSessionResponse,
-                        NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(refreshSessionResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(1, refreshSessionResponse.latesttxidlist_size());
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);

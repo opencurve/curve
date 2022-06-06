@@ -177,7 +177,7 @@ class MDSBaseClient {
                                 AllocateS3ChunkResponse* response,
                                 brpc::Controller* cntl, brpc::Channel* channel);
 
-    virtual void RefreshSession(const std::vector<PartitionTxId> &txIds,
+    virtual void RefreshSession(const RefreshSessionRequest& request,
                                 RefreshSessionResponse *response,
                                 brpc::Controller *cntl, brpc::Channel *channel);
 

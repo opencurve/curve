@@ -141,12 +141,10 @@ void MDSBaseClient::AllocS3ChunkId(uint32_t fsId,
     stub.AllocateS3Chunk(cntl, &request, response, nullptr);
 }
 
-void MDSBaseClient::RefreshSession(const std::vector<PartitionTxId> &txIds,
+void MDSBaseClient::RefreshSession(const RefreshSessionRequest& request,
                                    RefreshSessionResponse *response,
                                    brpc::Controller *cntl,
                                    brpc::Channel *channel) {
-    RefreshSessionRequest request;
-    *request.mutable_txids() = {txIds.begin(), txIds.end()};
     curvefs::mds::MdsService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
 }

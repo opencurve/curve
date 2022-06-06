@@ -317,8 +317,7 @@ void MdsServiceImpl::RefreshSession(
     ::curvefs::mds::RefreshSessionResponse *response,
     ::google::protobuf::Closure *done) {
     brpc::ClosureGuard guard(done);
-    fsManager_->RefreshSession(request->txids(),
-                               response->mutable_latesttxidlist());
+    fsManager_->RefreshSession(request, response);
     response->set_statuscode(FSStatusCode::OK);
 }
 

@@ -85,7 +85,7 @@ TEST_F(LeaseExecutorTest, test_start_stop) {
     EXPECT_CALL(*metaCache_, GetAllTxIds(_))
         .WillOnce(SetArgPointee<0>(std::vector<PartitionTxId>{}))
         .WillRepeatedly(SetArgPointee<0>(txIds));
-    EXPECT_CALL(*mdsCli_, RefreshSession(_, _))
+    EXPECT_CALL(*mdsCli_, RefreshSession(_, _, _, _))
         .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(txIds), Return(FSStatusCode::OK)));

@@ -146,6 +146,13 @@ void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
                                &fsManagerOption->backEndThreadRunInterSec);
 
     LOG_IF(ERROR,
+           !conf_->GetUInt32Value("mds.fsmanager.client.timeoutSec",
+                                  &fsManagerOption->clientTimeoutSec))
+        << "Get `mds.fsmanager.client.timeoutSec` from conf error, use "
+           "default value: "
+        << fsManagerOption->clientTimeoutSec;
+
+    LOG_IF(ERROR,
            !conf_->GetUInt32Value("mds.fsmanager.reloadSpaceConcurrency",
                                   &fsManagerOption->spaceReloadConcurrency))
         << "Get `mds.fsmanager.reloadSpaceConcurrency` from conf error, use "

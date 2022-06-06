@@ -90,7 +90,7 @@ class MockMDSBaseClient : public MDSBaseClient {
                       brpc::Controller *cntl, brpc::Channel *channel));
 
     MOCK_METHOD4(RefreshSession,
-                 void(const std::vector<PartitionTxId> &txIds,
+                 void(const RefreshSessionRequest &request,
                       RefreshSessionResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
 
