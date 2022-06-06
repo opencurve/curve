@@ -24,6 +24,7 @@ package basecmd
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -48,13 +49,13 @@ const (
 // Error Use to indicate whether the command is wrong
 // and the reason for the execution error
 type FinalCurveCmd struct {
-	Use      string              `json:"-"`
-	Short    string              `json:"-"`
-	Example  string              `json:"-"`
-	Error    cmderror.CmdError   `json:"error"`
-	Result   interface{}         `json:"result"`
-	Table    *table.Table        `json:"-"`
-	Cmd      *cobra.Command      `json:"-"`
+	Use     string            `json:"-"`
+	Short   string            `json:"-"`
+	Example string            `json:"-"`
+	Error   cmderror.CmdError `json:"error"`
+	Result  interface{}       `json:"result"`
+	Table   *table.Table      `json:"-"`
+	Cmd     *cobra.Command    `json:"-"`
 }
 
 // FinalCurveCmdFunc is the function type for final command
@@ -158,34 +159,29 @@ func QueryMetric(m Metric) (string, *cmderror.CmdError) {
 	return retStr, retErr
 }
 
-<<<<<<< HEAD
-func GetMetricValue(metricRet string) (string, cmderror.CmdError) {
-	kv := cobrautil.RmWitespaceStr(metricRet)
-	kvVec := strings.Split(kv, ":")
-	if len(kvVec) != 2 {
-		err := cmderror.ErrParseMetric
-=======
 func GetMetricValue(metricRet string) (string, *cmderror.CmdError) {
 	kv := cobrautil.RmWitespaceStr(metricRet)
 	kvVec := strings.Split(kv, ":")
 	if len(kvVec) != 2 {
 		err := cmderror.ErrParseMetric()
->>>>>>> curve: fs status mds
 		err.Format(metricRet)
 		return "", err
 	}
 	kvVec[1] = strings.Replace(kvVec[1], "\"", "", -1)
-<<<<<<< HEAD
-	return kvVec[1], cmderror.ErrSuccess
-}
-
-func httpGet(url string, timeout time.Duration, response chan string, errs chan cmderror.CmdError) {
-=======
 	return kvVec[1], cmderror.ErrSuccess()
 }
 
+func GetKeyValueFromJsonMetric(metricRet string, key string) (string, *cmderror.CmdError) {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(metricRet), &data); err != nil {
+		err := cmderror.ErrParseMetric()
+		err.Format(metricRet)
+		return "", err
+	}
+	return data[key].(string), cmderror.ErrSuccess()
+}
+
 func httpGet(url string, timeout time.Duration, response chan string, errs chan *cmderror.CmdError) {
->>>>>>> curve: fs status mds
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		interErr := cmderror.ErrHttpCreateGetRequest()

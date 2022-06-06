@@ -60,6 +60,7 @@ const (
 	FORMAT_PLAIN = "plain"
 	FORMAT_NOOUT = "noout"
 )
+
 func AddFormatFlag(cmd *cobra.Command) {
 	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "Output format (json|plain)")
 	err := viper.BindPFlag("format", cmd.Flags().Lookup("format"))
@@ -95,11 +96,22 @@ func AddRpcRetryTimesFlag(cmd *cobra.Command) {
 	}
 }
 
-<<<<<<< HEAD
-// mds addr 
-=======
+// channel size
+func MaxChannelSize() int {
+	return viper.GetInt("global.maxChannelSize")
+}
+
+// show errors
+func AddShowErrorPFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().Bool("showerror", false, "display all errors in command")
+	err := viper.BindPFlag("global.showError", cmd.PersistentFlags().Lookup("showerror"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// curvefs
 // mds addr
->>>>>>> curve: fs status mds
 func AddFsMdsAddrFlag(cmd *cobra.Command) {
 	cmd.Flags().String("mdsaddr", "", "mds address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
 	err := viper.BindPFlag("curvefs.mdsAddr", cmd.Flags().Lookup("mdsaddr"))
@@ -117,10 +129,10 @@ func AddFsMdsDummyAddrFlag(cmd *cobra.Command) {
 	}
 }
 
-// show errors 
-func AddShowErrorPFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().Bool("showerror", false, "display all errors in command")
-	err := viper.BindPFlag("global.showError", cmd.PersistentFlags().Lookup("showerror"))
+// etcd addr
+func AddEtcdAddrFlag(cmd *cobra.Command) {
+	cmd.Flags().String("etcdaddr", "", "etcd address, should be like 127.0.0.1:8700,127.0.0.1:8701,127.0.0.1:8702")
+	err := viper.BindPFlag("curvefs.etcdAddr", cmd.Flags().Lookup("etcdaddr"))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -144,11 +156,6 @@ func AddFsIdOptionFlag(cmd *cobra.Command) {
 	}
 }
 
-// channel size
-func MaxChannelSize() int {
-	return viper.GetInt("global.maxChannelSize")
-}
-
 const (
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
@@ -159,4 +166,5 @@ const (
 	// curvefs
 	VIPER_CURVEFS_MDSADDR      = "curvefs.mdsAddr"
 	VIPER_CURVEFS_MDSDUMMYADDR = "curvefs.mdsDummyAddr"
+	VIPER_CURVEFS_ETCDADDR     = "curvefs.etcdAddr"
 )
