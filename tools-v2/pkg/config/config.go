@@ -70,6 +70,7 @@ func AddRpcTimeoutFlag(cmd *cobra.Command) {
 	}
 }
 
+// rpc retry times
 func AddRpcRetryTimesFlag(cmd *cobra.Command) {
 	cmd.Flags().Int32("rpcretrtytimes", 1, "rpc retry times")
 	err := viper.BindPFlag("global.rpcRetryTimes", cmd.Flags().Lookup("rpcretrtytimes"))
@@ -78,24 +79,16 @@ func AddRpcRetryTimesFlag(cmd *cobra.Command) {
 	}
 }
 
-// config file and command line flag are merged
+// mds addr 
 func AddFsMdsAddrFlag(cmd *cobra.Command) {
-	cmd.Flags().String("mdsaddr", "", "mds address, should be like 127.0.0.1:7700,127.0.0.1:7701,127.0.0.1:7702")
+	cmd.Flags().String("mdsaddr", "", "mds address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
 	err := viper.BindPFlag("curvefs.mdsAddr", cmd.Flags().Lookup("mdsaddr"))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
 }
 
-// config file and command line flag are merged
-func AddShowErrorPFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().Bool("showerror", false, "display all errors in command")
-	err := viper.BindPFlag("global.showError", cmd.PersistentFlags().Lookup("showerror"))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-}
-
+// mds dummy addr
 func AddFsMdsDummyAddrFlag(cmd *cobra.Command) {
 	cmd.Flags().String("mdsdummyaddr", "", "mds dummy address, should be like 127.0.0.1:7700,127.0.0.1:7701,127.0.0.1:7702")
 	err := viper.BindPFlag("curvefs.mdsdummyaddr", cmd.Flags().Lookup("mdsdummyaddr"))
@@ -104,9 +97,27 @@ func AddFsMdsDummyAddrFlag(cmd *cobra.Command) {
 	}
 }
 
-// command line flag
+// show errors 
+func AddShowErrorPFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().Bool("showerror", false, "display all errors in command")
+	err := viper.BindPFlag("global.showError", cmd.PersistentFlags().Lookup("showerror"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// fs id [required]
 func AddFsIdFlag(cmd *cobra.Command) {
 	cmd.Flags().String("fsid", "", "fs Id, should be like 1,2,3 "+color.Red.Sprint("[required]"))
+	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// fs id
+func AddFsIdOptionFlag(cmd *cobra.Command) {
+	cmd.Flags().String("fsid", "*", "fs Id, should be like 1,2,3 not set means all fs")
 	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -118,15 +129,6 @@ func MaxChannelSize() int {
 	return viper.GetInt("global.maxChannelSize")
 }
 
-// command line flag
-func AddFsIdOptionFlag(cmd *cobra.Command) {
-	cmd.Flags().String("fsid", "*", "fs Id, should be like 1,2,3 not set means all fs")
-	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-}
-
 const (
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
@@ -136,4 +138,5 @@ const (
 
 	// curvefs
 	VIPER_CURVEFS_MDSADDR = "curvefs.mdsAddr"
+	VIPER_CURVEFS_MDSDUMMYADDR = "curvefs.mdsDummyAddr"
 )
