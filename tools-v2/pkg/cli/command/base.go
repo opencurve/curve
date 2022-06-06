@@ -26,6 +26,7 @@ import (
 	"context"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/liushuochen/gotable/table"
@@ -148,6 +149,18 @@ func QueryMetric(m Metric) (string, cmderror.CmdError) {
 	}
 	retErr := cmderror.MostImportantCmdError(vecErrs)
 	return retStr, retErr
+}
+
+func GetMetricValue(metricRet string) (string, cmderror.CmdError) {
+	kv := cobrautil.RmWitespaceStr(metricRet)
+	kvVec := strings.Split(kv, ":")
+	if len(kvVec) != 2 {
+		err := cmderror.ErrParseMetric
+		err.Format(metricRet)
+		return "", err
+	}
+	kvVec[1] = strings.Replace(kvVec[1], "\"", "", -1)
+	return kvVec[1], cmderror.ErrSuccess
 }
 
 func httpGet(url string, timeout time.Duration, response chan string, errs chan cmderror.CmdError) {
