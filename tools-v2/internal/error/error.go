@@ -136,11 +136,7 @@ func (e *CmdError) Format(args ...interface{}) {
 // the more important the error is.
 func MostImportantCmdError(err []*CmdError) *CmdError {
 	if len(err) == 0 {
-<<<<<<< HEAD
-		return CmdError {
-=======
 		return &CmdError{
->>>>>>> curve: fs status mds
 			Code:    CODE_UNKNOWN,
 			Message: "unknown error",
 		}
@@ -179,14 +175,6 @@ var (
 	ErrSuccess = NewSucessCmdError
 
 	// internal error
-<<<<<<< HEAD
-	ErrHttpCreateGetRequest = NewInternalCmdError(1, "create http get request failed, the error is: %s")
-	ErrDataNoExpected       = NewInternalCmdError(2, "data: %s is not as expected, the error is: %s")
-	ErrHttpClient           = NewInternalCmdError(3, "http client gets error: %s")
-	ErrRpcDial              = NewInternalCmdError(4, "dial to rpc server %s failed, the error is: %s")
-	ErrUnmarshalJson        = NewInternalCmdError(5, "unmarshal json error, the json is %s, the error is %s")
-	ErrParseMetric          = NewInternalCmdError(6, "parse metric %s err!")
-=======
 	ErrHttpCreateGetRequest = func() *CmdError {
 		return NewInternalCmdError(1, "create http get request failed, the error is: %s")
 	}
@@ -208,7 +196,6 @@ var (
 	ErrGetMetaserverAddr = func() *CmdError {
 		return NewInternalCmdError(7, "get metaserver addr failed, the error is: %s")
 	}
->>>>>>> curve: fs status mds
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
