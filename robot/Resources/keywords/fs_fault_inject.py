@@ -454,7 +454,7 @@ def test_out_metaserver_copyset():
     logger.info("rs is %s"%rs)
     rs = rs.split('\n')
     meta_docker = random.choice(rs)
-    ori_cmd = "/home/nbs/.curveadm/bin/curveadm stop --id=%s"%meta_docker
+    ori_cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm stop --id=%s"%meta_docker
     logger.info("|------begin test out one metaserver,docker %s------|"%(meta_docker))
     try:
         rs = shell_operator.run_exec(ori_cmd)
