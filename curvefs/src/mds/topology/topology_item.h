@@ -709,6 +709,7 @@ class Partition {
         partition.set_fsid(fsId_);
         partition.set_poolid(poolId_);
         partition.set_copysetid(copySetId_);
+        partition.set_partitionid(partitionId_);
         partition.set_start(idStart_);
         partition.set_end(idEnd_);
         partition.set_txid(txId_);

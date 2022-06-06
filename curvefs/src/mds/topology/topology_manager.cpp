@@ -1099,6 +1099,7 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
                 partition->set_fsid(tmp.GetFsId());
                 partition->set_poolid(tmp.GetPoolId());
                 partition->set_copysetid(tmp.GetCopySetId());
+                partition->set_partitionid(tmp.GetPartitionId());
                 partition->set_start(tmp.GetIdStart());
                 partition->set_end(tmp.GetIdEnd());
                 partition->set_txid(tmp.GetTxId());
