@@ -84,6 +84,8 @@ func (tCmd *TopologyCommand) AddFlags() {
 
 func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	hosts := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
+	h, _ := tCmd.Cmd.Flags().GetString("mdsaddr")
+	fmt.Println("hosts:", h)
 	addrs := strings.Split(hosts, ",")
 	for _, addr := range addrs {
 		if !cobrautil.IsValidAddr(addr) {
