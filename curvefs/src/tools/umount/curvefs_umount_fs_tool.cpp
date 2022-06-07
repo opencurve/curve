@@ -79,7 +79,7 @@ int UmountFsTool::Init() {
     std::vector<std::string> mountpoint;
     curve::common::SplitString(FLAGS_mountpoint, ":", &mountpoint);
     uint32_t port = 0;
-    if (mountpoint.size() < 3 &&
+    if (mountpoint.size() < 3 ||
         !curve::common::StringToUl(mountpoint[1], &port)) {
         std::cerr << "mountpoint " << FLAGS_mountpoint << " is invalid.\n"
                   << std::endl;
