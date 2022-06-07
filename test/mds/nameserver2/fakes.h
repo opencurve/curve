@@ -97,6 +97,10 @@ class FackTopologyChunkAllocator: public TopologyChunkAllocator {
         }
         return true;
     }
+    uint64_t GetpoolUsagelimit(){
+        LOG(INFO) << "GetpoolUsagelimit: 100";
+        return 100;
+    }
 };
 
 class FakeNameServerStorage : public NameServerStorage {

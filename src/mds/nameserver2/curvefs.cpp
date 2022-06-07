@@ -38,7 +38,9 @@
 
 using curve::common::TimeUtility;
 using curve::mds::topology::LogicalPool;
+using curve::mds::topology::PhysicalPool;
 using curve::mds::topology::LogicalPoolIdType;
+using curve::mds::topology::PhysicalPoolIdType;
 using curve::mds::topology::CopySetIdType;
 
 namespace curve {
@@ -277,6 +279,49 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         }
     }
 
+        std::vector<PoolIdType> logicalPools=topology_->GetLogicalPoolInCluster();
+        logicalPools = topology_->GetLogicalPoolInCluster();
+        if (0 == logicalPools.size()) {
+            LOG(ERROR) << "[ChooseSingleLogicalPool]:"
+                   << " Does not have any available logicalPools.";
+            return StatusCode::kFileLengthNotSupported;
+        }
+
+        uint64_t MaxLeftSize=0;
+        bool EnoughFlag=false;
+        for (auto pid : logicalPools) {
+        LogicalPool lPool;
+        if (!topology_->GetLogicalPool(pid, &lPool)) {
+            continue;
+        }
+        PhysicalPool pPool;
+        if (!topology_->GetPhysicalPool(lPool.GetPhysicalPoolId(), &pPool)) {
+            continue;
+        }
+        uint64_t diskCapacity = pPool.GetDiskCapacity();
+        uint64_t poolUsagePercentLimit=chunkSegAllocator_->GetpoolUsagelimit();
+        diskCapacity = diskCapacity *poolUsagePercentLimit  / 100;
+
+        // TODO(zhaozeyu): he size of chunkfilepool should be used instead of diskCapacity * poolUsagePercentLimit_
+        int64_t alloc = 0;
+        allocStatistic_->GetAllocByLogicalPool(pid, &alloc);
+
+        alloc *= lPool.GetReplicaNum();
+
+        uint64_t diskRemainning =
+            (diskCapacity > alloc) ? diskCapacity - alloc : 0;
+        MaxLeftSize=(MaxLeftSize > diskRemainning)? MaxLeftSize:diskRemainning;
+            if(length <= diskRemainning){
+                EnoughFlag=true;
+                break;
+            }
+        }
+        if (!EnoughFlag) {
+            LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
+                       << fileName << ", length = " << length
+                       << ", MaxLeftSize= " << MaxLeftSize;
+            return StatusCode::kFileLengthNotSupported;
+        }
     auto ret = CheckStripeParam(stripeUnit, stripeCount);
     if (ret != StatusCode::kOK) {
         return ret;
@@ -1161,7 +1206,7 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         LOG(INFO) << "bigger than file length, first extentFile";
         return StatusCode::kParaError;
     }
-
+    
     auto storeRet = storage_->GetSegment(fileInfo.id(), offset, segment);
     if (storeRet == StoreStatus::OK) {
         return StatusCode::kOK;

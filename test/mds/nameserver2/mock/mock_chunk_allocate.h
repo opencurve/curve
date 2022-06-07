@@ -36,6 +36,7 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
 
     MOCK_METHOD5(AllocateChunkSegment, bool(FileType, SegmentSizeType,
       ChunkSizeType, offset_t, PageFileSegment*));
+    MOCK_METHOD0(GetpoolUsagelimit,uint64_t());
 };
 }  // namespace mds
 }  // namespace curve

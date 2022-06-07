@@ -32,6 +32,7 @@
 #include "src/common/string_util.h"
 #include "test/mds/nameserver2/fakes.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
@@ -95,7 +96,7 @@ class NameSpaceServiceTest : public ::testing::Test {
                                 std::make_shared<FackTopologyChunkAllocator>();
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
-        chunkSegmentAllocate_ =
+         chunkSegmentAllocate_ =
                 std::make_shared<ChunkSegmentAllocatorImpl>(
                         topologyChunkAllocator, chunkIdGenerator);
 
@@ -128,6 +129,7 @@ class NameSpaceServiceTest : public ::testing::Test {
         ASSERT_EQ(curveFSOptions.maxFileLength, kCurveFS.GetMaxFileLength());
         DefaultSegmentSize = kCurveFS.GetDefaultSegmentSize();
         kMiniFileLength = kCurveFS.GetMinFileLength();
+        kMaxFileLength=kCurveFS.GetMaxFileLength();
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(
@@ -236,7 +238,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
     std::shared_ptr<CleanManager> cleanManager_;
     std::shared_ptr<MockTopology> topology_;
-    std::shared_ptr<AllocStatistic> allocStatistic_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<CurveFSService_Stub> stub_;
     struct FileRecordOptions fileRecordOptions;
@@ -244,6 +246,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     struct CurveFSOption curveFSOptions;
     uint64_t DefaultSegmentSize;
     uint64_t kMiniFileLength;
+    uint64_t kMaxFileLength;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -273,6 +276,29 @@ TEST_F(NameSpaceServiceTest, test1) {
     uint64_t fileLength = kMiniFileLength;
 
     // 创建file1,owner1
+    PhysicalPool truepPool(1,"true","1");
+    truepPool.SetDiskCapacity(kMaxFileLength*2);
+    LogicalPool::RedundanceAndPlaceMentPolicy t;
+    t.pageFileRAP.replicaNum=1;
+    LogicalPool lpool;
+    lpool.SetRedundanceAndPlaceMentPolicy(t);
+    std::vector<PoolIdType> logicalPools{1,2,3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
+    EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+    uint64_t alloc=kMiniFileLength;
+    PhysicalPool out;
+    PoolIdType poolId;
+    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
     request.set_filename("/file1");
     request.set_owner("owner1");
     request.set_date(TimeUtility::GetTimeofDayUs());
@@ -1151,13 +1177,36 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     CurveFSService_Stub stub(&channel);
 
 
-    // test create file
+    // test create file     
+    PhysicalPool truepPool(1,"true","1");
+    truepPool.SetDiskCapacity(kMaxFileLength*2);
+    LogicalPool::RedundanceAndPlaceMentPolicy t;
+    t.pageFileRAP.replicaNum=1;
+    LogicalPool lpool;
+    lpool.SetRedundanceAndPlaceMentPolicy(t);
+    std::vector<PoolIdType> logicalPools{1,2,3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
+    EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+    uint64_t alloc=kMiniFileLength;
+    PhysicalPool out;
+    PoolIdType poolId;
+    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
     CreateFileRequest request;
     CreateFileResponse response;
 
     brpc::Controller cntl;
     uint64_t fileLength = kMiniFileLength;
-
+    
     request.set_filename("/file1");
     request.set_owner("owner1");
     request.set_date(TimeUtility::GetTimeofDayUs());
@@ -1404,6 +1453,29 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     CurveFSService_Stub stub(&channel);
 
     // 先创建文件/file1，目录/dir1，文件/dir1/file2
+    PhysicalPool truepPool(1,"true","1");
+    truepPool.SetDiskCapacity(kMaxFileLength*2);
+    LogicalPool::RedundanceAndPlaceMentPolicy t;
+    t.pageFileRAP.replicaNum=1;
+    LogicalPool lpool;
+    lpool.SetRedundanceAndPlaceMentPolicy(t);
+    std::vector<PoolIdType> logicalPools{1,2,3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
+    EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+    uint64_t alloc=kMiniFileLength;
+    PhysicalPool out;
+    PoolIdType poolId;
+    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
     CreateFileRequest request;
     CreateFileResponse response;
 
@@ -2103,6 +2175,29 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     CurveFSService_Stub stub(&channel);
 
     // create file /file1，dir /dir1 and file /dir1/file2
+    PhysicalPool truepPool(1,"true","1");
+    truepPool.SetDiskCapacity(kMaxFileLength*2);
+    LogicalPool::RedundanceAndPlaceMentPolicy t;
+    t.pageFileRAP.replicaNum=1;
+    LogicalPool lpool;
+    lpool.SetRedundanceAndPlaceMentPolicy(t);
+    std::vector<PoolIdType> logicalPools{1,2,3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
+    EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+    uint64_t alloc=kMiniFileLength;
+    PhysicalPool out;
+    PoolIdType poolId;
+    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
     CreateFileRequest createRequest;
     CreateFileResponse createResponse;
     brpc::Controller cntl;
@@ -2717,7 +2812,30 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
     std::string owner = "curve";
 
     // create file and allocate segment
-    {
+    {         
+        PhysicalPool truepPool(1,"true","1");
+        truepPool.SetDiskCapacity(kMaxFileLength*2);
+        LogicalPool::RedundanceAndPlaceMentPolicy t;
+        t.pageFileRAP.replicaNum=1;
+        LogicalPool lpool;
+        lpool.SetRedundanceAndPlaceMentPolicy(t);
+        std::vector<PoolIdType> logicalPools{1,2,3};
+        EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+            .Times(AtLeast(1))
+            .WillRepeatedly(Return(logicalPools));
+        EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+            .Times(AtLeast(1))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+        uint64_t alloc=kMiniFileLength;
+        PhysicalPool out;
+        PoolIdType poolId;
+        EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+            .Times(AtLeast(1))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+        EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+            .Times(1)
+            .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
         CreateFileRequest createRequest;
         CreateFileResponse createResponse;
         createRequest.set_filename(filename);

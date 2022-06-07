@@ -26,7 +26,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
-
+#include "src/mds/topology/topology_item.h"
 
 #include "test/mds/nameserver2/mock/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
@@ -90,8 +90,8 @@ class CurveFSTest: public ::testing::Test {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         fileInfo.set_owner(authOptions_.rootOwner);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            .Times(AtLeast(1))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
                 Return(StoreStatus::OK)));
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
@@ -130,7 +130,42 @@ class CurveFSTest: public ::testing::Test {
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
+
     // test parm error
+    PhysicalPool falsepPool(0,"false","0");
+    PhysicalPool truepPool(1,"true","1");
+    falsepPool.SetDiskCapacity(kMiniFileLength*2-1);
+    truepPool.SetDiskCapacity(kMaxFileLength*2);
+    LogicalPool::RedundanceAndPlaceMentPolicy t;
+    t.pageFileRAP.replicaNum=1;
+    LogicalPool lpool;
+    lpool.SetRedundanceAndPlaceMentPolicy(t);
+    std::vector<PoolIdType> logicalPools{1,2,3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
+    EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+    EXPECT_CALL(*mockChunkAllocator_,GetpoolUsagelimit())
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(100));
+    uint64_t alloc=kMiniFileLength;
+    PhysicalPool out;
+    PoolIdType poolId;
+    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        .Times(AtLeast(1))
+        .WillOnce(DoAll(SetArgPointee<1>(falsepPool),Return(true)))
+        .WillOnce(DoAll(SetArgPointee<1>(falsepPool),Return(true)))
+        .WillOnce(DoAll(SetArgPointee<1>(falsepPool),Return(true)))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
+    ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
+                    kMiniFileLength, 0, 0),
+                    StatusCode::kFileLengthNotSupported); 
     ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
                     kMiniFileLength - 1, 0, 0),
                     StatusCode::kFileLengthNotSupported);
@@ -269,7 +304,34 @@ TEST_F(CurveFSTest, testCreateFile1) {
 }
 
 TEST_F(CurveFSTest, testCreateStripeFile) {
-    {
+    {   
+        
+    PhysicalPool truepPool(1,"true","1");
+    truepPool.SetDiskCapacity(kMaxFileLength*2);
+    LogicalPool::RedundanceAndPlaceMentPolicy t;
+    t.pageFileRAP.replicaNum=1;
+    LogicalPool lpool;
+    lpool.SetRedundanceAndPlaceMentPolicy(t);
+    std::vector<PoolIdType> logicalPools{1,2,3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
+    EXPECT_CALL(*topology_,GetLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(lpool),Return(true)));
+    EXPECT_CALL(*mockChunkAllocator_,GetpoolUsagelimit())
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(100));
+    uint64_t alloc=kMiniFileLength;
+    PhysicalPool out;
+    PoolIdType poolId;
+    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(alloc),Return(true)));
+
         // test create ok
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
