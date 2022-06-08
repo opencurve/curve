@@ -51,7 +51,7 @@ type InodeNumCommand struct {
 
 type Result struct {
 	Result   string
-	Error    cmderror.CmdError
+	Error    *cmderror.CmdError
 	Hosts    []string
 	SubUri   string
 }
@@ -141,9 +141,8 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 				resMap := strings.Split(data, ":")
 				preMap := strings.Split(resMap[0], "_")
 				if len(resMap) != 2 && len(preMap) < 4 {
-					splitErr := cmderror.ErrDataNoExpected
+					splitErr := cmderror.ErrDataNoExpected()
 					splitErr.Format(data, "the length of the data does not meet the requirements")
-					iCmd.AllError = append(iCmd.AllError, splitErr)
 				} else {
 					num, errNum := strconv.ParseInt(resMap[1], 10, 64)
 					id, errId := strconv.ParseUint(preMap[3], 10, 32)
@@ -161,14 +160,12 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 						row["num"] = strconv.FormatInt(num, 10)
 						rows = append(rows, row)
 					} else {
-						toErr := cmderror.ErrDataNoExpected
+						toErr := cmderror.ErrDataNoExpected()
 						toErr.Format(data)
-						iCmd.AllError = append(iCmd.AllError, toErr)
 					}
 				}
 			}
 		}
-		iCmd.AllError = append(iCmd.AllError, res.Error)
 		count++
 		if count >= size {
 			break

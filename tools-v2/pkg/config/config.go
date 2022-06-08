@@ -54,6 +54,21 @@ func InitConfig() {
 	}
 }
 
+// format
+const (
+	FORMAT_JSON  = "json"
+	FORMAT_PLAIN = "plain"
+	FORMAT_NOOUT = "noout"
+)
+func AddFormatFlag(cmd *cobra.Command) {
+	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "Output format (json|plain)")
+	err := viper.BindPFlag("format", cmd.Flags().Lookup("format"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// http timeout
 func AddHttpTimeoutFlag(cmd *cobra.Command) {
 	cmd.Flags().Duration("httptimeout", 500*time.Millisecond, "http timeout")
 	err := viper.BindPFlag("global.httpTimeout", cmd.Flags().Lookup("httptimeout"))
@@ -62,6 +77,7 @@ func AddHttpTimeoutFlag(cmd *cobra.Command) {
 	}
 }
 
+// rpc time out
 func AddRpcTimeoutFlag(cmd *cobra.Command) {
 	cmd.Flags().Duration("rpctimeout", 10000*time.Millisecond, "rpc timeout")
 	err := viper.BindPFlag("global.rpcTimeout", cmd.Flags().Lookup("rpctimeout"))

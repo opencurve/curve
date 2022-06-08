@@ -16,109 +16,97 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-06-06
+ * Created Date: 2022-06-07
  * Author: chengyi (Cyber-SiKu)
  */
 
-package mds
+package metaserver
 
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/topology"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-type MdsCommand struct {
+type MetaserverCommand struct {
 	basecmd.FinalCurveCmd
-	mainAddrs  []string
-	dummyAddrs []string
 	metrics    []basecmd.Metric
 	rows       []map[string]string
 }
 
 const (
-	STATUS_SUBURI  = "/vars/curvefs_mds_status"
+	STATUS_SUBURI  = "/vars/pid"
 	VERSION_SUBURI = "/vars/curve_version"
 )
 
-var _ basecmd.FinalCurveCmdFunc = (*MdsCommand)(nil) // check interface
+var _ basecmd.FinalCurveCmdFunc = (*MetaserverCommand)(nil) // check interface
 
-func NewMdsCommand() *cobra.Command {
-	mdsCmd := &MdsCommand{
+func NewMetaserverCommand() *cobra.Command {
+	mdsCmd := &MetaserverCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:   "mds",
-			Short: "get the inode usage of curvefs",
+			Use:   "metaserver",
+			Short: "get metaserver status of curvefs",
 		},
 	}
 	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
 	return mdsCmd.Cmd
 }
 
-func (mCmd *MdsCommand) AddFlags() {
+func (mCmd *MetaserverCommand) AddFlags() {
 	config.AddFsMdsAddrFlag(mCmd.Cmd)
 	config.AddHttpTimeoutFlag(mCmd.Cmd)
 	config.AddFsMdsDummyAddrFlag(mCmd.Cmd)
 }
 
-func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
-	table, err := gotable.Create("addr", "dummyAddr", "version", "status")
+func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
+	metaserveraddrs, errMetaserver := topology.GetMetaserverAddrs()
+	if errMetaserver.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(errMetaserver.Message)
+	}
+
+	table, err := gotable.Create("addr", "version", "status")
 	if err != nil {
 		cobra.CheckErr(err)
 	}
 	mCmd.Table = table
 
-	// set main addr
-	addrs := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	mCmd.mainAddrs = strings.Split(addrs, ",")
-	for _, addr := range mCmd.mainAddrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid addr: %s", addr)
-		}
-	}
-
-	// set dummy addr
-	addrs = viper.GetString(config.VIPER_CURVEFS_MDSDUMMYADDR)
-	mCmd.dummyAddrs = strings.Split(addrs, ",")
-	for _, addr := range mCmd.dummyAddrs {
+	for _, addr := range metaserveraddrs {
 		if !cobrautil.IsValidAddr(addr) {
 			return fmt.Errorf("invalid dummy addr: %s", addr)
 		}
-		// Use the dummy port to access the metric service
+
+		// set metrics
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
-
 		addrs := []string{addr}
-		versionMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, *versionMetric)
-		statusMetric := basecmd.NewMetric(addrs, VERSION_SUBURI, timeout)
+		statusMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)
 		mCmd.metrics = append(mCmd.metrics, *statusMetric)
-	}
+		versionMetric := basecmd.NewMetric(addrs, VERSION_SUBURI, timeout)
+		mCmd.metrics = append(mCmd.metrics, *versionMetric)
 
-	for i := range mCmd.mainAddrs {
+		// set rows
 		row := make(map[string]string)
-		row["addr"] = mCmd.mainAddrs[i]
-		row["dummyAddr"] = mCmd.dummyAddrs[i]
+		row["addr"] = addr
 		row["status"] = "offline"
 		row["version"] = "unknown"
 		mCmd.rows = append(mCmd.rows, row)
 	}
-
 	return nil
 }
 
-func (mCmd *MdsCommand) Print(cmd *cobra.Command, args []string) error {
+func (mCmd *MetaserverCommand) Print(cmd *cobra.Command, args []string) error {
 	return output.FinalCmdOutput(&mCmd.FinalCurveCmd, mCmd)
 }
 
-func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
+func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	results := make(chan basecmd.MetricResult, config.MaxChannelSize())
 	size := 0
 	for _, metric := range mCmd.metrics {
@@ -147,8 +135,12 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	count := 0
 	for res := range results {
 		for _, row := range mCmd.rows {
-			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["dummyAddr"] == res.Addr {
-				row[res.Key] = res.Value
+			if res.Err.TypeCode() == cmderror.CODE_SUCCESS && row["addr"] == res.Addr {
+				if res.Key == "status" {
+					row[res.Key] = "online"	
+				} else {
+					row[res.Key] = res.Value
+				}
 			}
 		}
 		count++
@@ -156,6 +148,7 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
+
 	mCmd.Table.AddRows(mCmd.rows)
 	jsonResult, err := mCmd.Table.JSON(0)
 	if err != nil {
@@ -170,6 +163,6 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (mCmd *MdsCommand) ResultPlainOutput() error {
+func (mCmd *MetaserverCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
 }
