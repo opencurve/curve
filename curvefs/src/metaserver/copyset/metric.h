@@ -50,6 +50,10 @@ class OperatorApplyMetric {
     void OnOperatorCompleteFromLog(OperatorType type, uint64_t latencyUs,
                             bool success = true);
 
+    void WaitInQueueLantancy(OperatorType type, uint64_t latencyUs);
+
+    void ExecuteLantancy(OperatorType type, uint64_t latencyUs);
+
     OperatorApplyMetric(const OperatorApplyMetric&) = delete;
     OperatorApplyMetric& operator=(const OperatorApplyMetric&) = delete;
 
@@ -58,7 +62,9 @@ class OperatorApplyMetric {
         explicit OpMetric(const std::string& prefix)
             : latRecorder(prefix, "_latency"),
               errorCount(prefix, "_total_error"),
-              eps(prefix, "_eps", &errorCount, 1) {}
+              eps(prefix, "_eps", &errorCount, 1),
+              waitInQueueLatency(prefix, "_wait_in_queue_latency"),
+              executeLatency(prefix, "_execute_latency") {}
 
         // latency recorder support latency/qps/count
         bvar::LatencyRecorder latRecorder;
@@ -68,6 +74,12 @@ class OperatorApplyMetric {
 
         // error per second
         bvar::PerSecond<bvar::Adder<uint64_t>> eps;
+
+        // latency of metastore execute
+        bvar::LatencyRecorder executeLatency;
+
+        // latency of request wait in queue
+        bvar::LatencyRecorder waitInQueueLatency;
     };
 
  private:

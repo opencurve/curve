@@ -66,6 +66,21 @@ void OperatorApplyMetric::OnOperatorCompleteFromLog(OperatorType type,
     }
 }
 
+void OperatorApplyMetric::WaitInQueueLantancy(OperatorType type,
+                                             uint64_t latencyUs) {
+    auto index = static_cast<uint32_t>(type);
+    if (index < kTotalOperatorNum) {
+        opMetrics_[index]->waitInQueueLatency << latencyUs;
+    }
+}
+
+void OperatorApplyMetric::ExecuteLantancy(OperatorType type,
+                                             uint64_t latencyUs) {
+    auto index = static_cast<uint32_t>(type);
+    if (index < kTotalOperatorNum) {
+        opMetrics_[index]->executeLatency << latencyUs;
+    }
+}
 }  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs
