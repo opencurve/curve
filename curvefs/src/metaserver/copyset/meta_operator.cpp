@@ -37,6 +37,10 @@
 #include "curvefs/src/metaserver/streaming_utils.h"
 #include "src/common/timeutility.h"
 
+static bvar::LatencyRecorder g_concurrent_fast_apply_wait_latency(
+    "concurrent_fast_apply_wait");
+
+
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
@@ -100,10 +104,14 @@ bool MetaOperator::ProposeTask() {
 }
 
 void MetaOperator::FastApplyTask() {
+    butil::Timer timer;
+    timer.start();
     auto task =
         std::bind(&MetaOperator::OnApply, this, node_->GetAppliedIndex(),
                   new MetaOperatorClosure(this), TimeUtility::GetTimeofDayUs());
     node_->GetApplyQueue()->Push(HashCode(), std::move(task));
+    timer.stop();
+    g_concurrent_fast_apply_wait_latency << timer.u_elapsed();
 }
 
 bool GetInodeOperator::CanBypassPropose() const {
@@ -147,9 +155,15 @@ bool GetVolumeExtentOperator::CanBypassPropose() const {
                                  google::protobuf::Closure* done,      \
                                  uint64_t startTimeUs) {               \
         brpc::ClosureGuard doneGuard(done);                            \
+        uint64_t timeUs = TimeUtility::GetTimeofDayUs();               \
+        node_->GetMetric()->WaitInQueueLantancy(                       \
+                OperatorType::TYPE, timeUs - startTimeUs);             \
         auto status = node_->GetMetaStore()->TYPE(                     \
             static_cast<const TYPE##Request*>(request_),               \
             static_cast<TYPE##Response*>(response_));                  \
+        uint64_t executeTime = TimeUtility::GetTimeofDayUs() - timeUs; \
+        node_->GetMetric()->ExecuteLantancy(                           \
+                OperatorType::TYPE, executeTime);                      \
         if (status == MetaStatusCode::OK) {                            \
             node_->UpdateAppliedIndex(index);                          \
             static_cast<TYPE##Response*>(response_)->set_appliedindex( \
