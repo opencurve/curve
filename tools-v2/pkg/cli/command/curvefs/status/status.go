@@ -24,6 +24,7 @@ package status
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	etcd "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/etcd"
 	mds "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/mds"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status/metaserver"
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ func (statusCmd *StatusCommand) AddSubCommands() {
 	statusCmd.Cmd.AddCommand(
 		mds.NewMdsCommand(),
 		metaserver.NewMetaserverCommand(),
+		etcd.NewEtcdCommand(),
 	)
 }
 

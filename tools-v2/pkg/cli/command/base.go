@@ -24,6 +24,7 @@ package basecmd
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -168,6 +169,16 @@ func GetMetricValue(metricRet string) (string, *cmderror.CmdError) {
 	}
 	kvVec[1] = strings.Replace(kvVec[1], "\"", "", -1)
 	return kvVec[1], cmderror.ErrSuccess()
+}
+
+func GetKeyValueFromJsonMetric(metricRet string, key string) (string, *cmderror.CmdError) {
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(metricRet), &data); err != nil {
+		err := cmderror.ErrParseMetric()
+		err.Format(metricRet)
+		return "", err
+	}
+	return data[key].(string), cmderror.ErrSuccess()
 }
 
 func httpGet(url string, timeout time.Duration, response chan string, errs chan *cmderror.CmdError) {
