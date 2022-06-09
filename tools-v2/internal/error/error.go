@@ -196,6 +196,9 @@ var (
 	ErrGetMetaserverAddr = func() *CmdError {
 		return NewInternalCmdError(7, "get metaserver addr failed, the error is: %s")
 	}
+	ErrGetClusterFsInfo = func() *CmdError {
+		return NewInternalCmdError(8, "get cluster fs info failed, the error is: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
