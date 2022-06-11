@@ -27,12 +27,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -105,14 +103,9 @@ func (tCmd *TopologyCommand) AddFlags() {
 }
 
 func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
-	hosts := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	h, _ := tCmd.Cmd.Flags().GetString("mdsaddr")
-	fmt.Println("hosts:", h)
-	addrs := strings.Split(hosts, ",")
-	for _, addr := range addrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid addr: %s", addr)
-		}
+	addrs, addrErr := config.GetFsMdsAddrSlice(tCmd.Cmd)
+	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(addrErr.Message)
 	}
 	tCmd.Rpc.Request = &topology.ListTopologyRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)

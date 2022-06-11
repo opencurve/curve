@@ -45,15 +45,13 @@ const (
 
 type InodeNumCommand struct {
 	basecmd.FinalCurveCmd
-	Addrs                []string
 	FsId2Filetype2Metric map[string]map[string]basecmd.Metric
 }
 
 type Result struct {
-	Result   string
-	Error    *cmderror.CmdError
-	Hosts    []string
-	SubUri   string
+	Result string
+	Error  *cmderror.CmdError
+	SubUri string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*InodeNumCommand)(nil) // check interface
@@ -76,17 +74,14 @@ func (iCmd *InodeNumCommand) AddFlags() {
 }
 
 func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
-	addrs := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	iCmd.Addrs = strings.Split(addrs, ",")
-	for _, addr := range iCmd.Addrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid addr: %s", addr)
-		}
+	addrs, addrErr := config.GetFsMdsAddrSlice(iCmd.Cmd)
+	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(addrErr.Message)
 	}
 
 	iCmd.FsId2Filetype2Metric = make(map[string]map[string]basecmd.Metric)
 
-	fsIds := strings.Split(viper.GetString("curvefs.fsId"), ",")
+	fsIds := viper.GetStringSlice(config.VIPER_CURVEFS_FSID)
 	for _, fsId := range fsIds {
 		_, err := strconv.ParseUint(fsId, 10, 32)
 		if err != nil && fsId != "*" {
@@ -94,7 +89,7 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		subUri := fmt.Sprintf("/vars/"+PREFIX+"_%s*"+SUFFIX, fsId)
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
-		metric := *basecmd.NewMetric(iCmd.Addrs, subUri, timeout)
+		metric := *basecmd.NewMetric(addrs, subUri, timeout)
 		filetype2Metric := make(map[string]basecmd.Metric)
 		filetype2Metric["inode_num"] = metric
 		iCmd.FsId2Filetype2Metric[fsId] = filetype2Metric
@@ -120,10 +115,9 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 			go func(m basecmd.Metric, filetype string, id string) {
 				result, err := basecmd.QueryMetric(m)
 				results <- Result{
-					Result:   result,
-					Error:    err,
-					Hosts:    m.Addrs,
-					SubUri:   m.SubUri,
+					Result: result,
+					Error:  err,
+					SubUri: m.SubUri,
 				}
 			}(metric, filetype, fsId)
 		}
@@ -152,7 +146,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 					if filetype == "" {
 						filetype = "inode_num_"
 					}
-					filetype = filetype[0:len(filetype)-1]
+					filetype = filetype[0 : len(filetype)-1]
 					if errNum == nil && errId == nil {
 						row := make(map[string]string)
 						row["fsId"] = strconv.FormatUint(uint64(id), 10)

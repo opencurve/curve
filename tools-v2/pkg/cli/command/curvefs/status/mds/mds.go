@@ -25,11 +25,9 @@ package mds
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -39,8 +37,6 @@ import (
 
 type MdsCommand struct {
 	basecmd.FinalCurveCmd
-	mainAddrs  []string
-	dummyAddrs []string
 	metrics    []basecmd.Metric
 	rows       []map[string]string
 }
@@ -77,21 +73,17 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 	mCmd.Table = table
 
 	// set main addr
-	addrs := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	mCmd.mainAddrs = strings.Split(addrs, ",")
-	for _, addr := range mCmd.mainAddrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid addr: %s", addr)
-		}
+	mainAddrs, addrErr := config.GetFsMdsAddrSlice(mCmd.Cmd)
+	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(addrErr.Message)
 	}
 
 	// set dummy addr
-	addrs = viper.GetString(config.VIPER_CURVEFS_MDSDUMMYADDR)
-	mCmd.dummyAddrs = strings.Split(addrs, ",")
-	for _, addr := range mCmd.dummyAddrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid dummy addr: %s", addr)
-		}
+	dummyAddrs, addrErr := config.GetFsMdsDummyAddrSlice(mCmd.Cmd)
+	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(addrErr.Message)
+	}
+	for _, addr := range dummyAddrs {
 		// Use the dummy port to access the metric service
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 
@@ -102,10 +94,10 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 		mCmd.metrics = append(mCmd.metrics, *versionMetric)
 	}
 
-	for i := range mCmd.mainAddrs {
+	for i := range mainAddrs {
 		row := make(map[string]string)
-		row["addr"] = mCmd.mainAddrs[i]
-		row["dummyAddr"] = mCmd.dummyAddrs[i]
+		row["addr"] = mainAddrs[i]
+		row["dummyAddr"] = dummyAddrs[i]
 		row["status"] = "offline"
 		row["version"] = "unknown"
 		mCmd.rows = append(mCmd.rows, row)
