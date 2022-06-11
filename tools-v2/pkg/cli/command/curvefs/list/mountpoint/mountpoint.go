@@ -44,7 +44,6 @@ type MountpointCommand struct {
 
 var _ basecmd.FinalCurveCmdFunc = (*MountpointCommand)(nil) // check interface
 
-
 func NewMountpointCommand() *cobra.Command {
 	mpCmd := &MountpointCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
@@ -69,7 +68,7 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(fsInfoErr.Message)
 	}
 
-	table, err := gotable.Create("id", "name", "mount point")
+	table, err := gotable.Create("fs id", "fs name", "mount point")
 	if err != nil {
 		return err
 	}
@@ -103,8 +102,8 @@ func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
 	for _, fsInfo := range fssInfo {
 		for _, mountpoint := range fsInfo.GetMountpoints() {
 			row := make(map[string]string)
-			row["id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
-			row["name"] = fsInfo.GetFsName()
+			row["fs id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
+			row["fs name"] = fsInfo.GetFsName()
 			mountpointStr := fmt.Sprintf("%s:%d:%s", mountpoint.GetHostname(), mountpoint.GetPort(), mountpoint.GetPath())
 			row["mount point"] = mountpointStr
 			rows = append(rows, row)

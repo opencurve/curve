@@ -20,14 +20,16 @@
  * Author: chengyi (Cyber-SiKu)
  */
 
-package fs
+package umount
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -38,54 +40,48 @@ import (
 	"google.golang.org/grpc"
 )
 
-type ListFsRpc struct {
+type UmountFsRpc struct {
 	Info      basecmd.Rpc
-	Request   *mds.ListClusterFsInfoRequest
+	Request   *mds.UmountFsRequest
 	mdsClient mds.MdsServiceClient
 }
 
-var _ basecmd.RpcFunc = (*ListFsRpc)(nil) // check interface
+var _ basecmd.RpcFunc = (*UmountFsRpc)(nil) // check interface
 
 type FsCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      ListFsRpc
-	response *mds.ListClusterFsInfoResponse
+	Rpc        UmountFsRpc
+	fsName     string
+	mountpoint string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*FsCommand)(nil) // check interface
 
-func (fRpc *ListFsRpc) NewRpcClient(cc grpc.ClientConnInterface) {
-	fRpc.mdsClient = mds.NewMdsServiceClient(cc)
+func (ufRp *UmountFsRpc) NewRpcClient(cc grpc.ClientConnInterface) {
+	ufRp.mdsClient = mds.NewMdsServiceClient(cc)
 }
 
-func (fRpc *ListFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
-	return fRpc.mdsClient.ListClusterFsInfo(ctx, fRpc.Request)
+func (ufRp *UmountFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
+	return ufRp.mdsClient.UmountFs(ctx, ufRp.Request)
 }
 
 func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:   "fs",
-			Short: "list all fs info of the curvefs",
+			Short: "umount fs from the curvefs cluster",
 		},
 	}
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
 	return fsCmd.Cmd
 }
 
-func NewListFsCommand() *FsCommand {
-	listFsCmd := &FsCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{},
-	}
-
-	basecmd.NewFinalCurveCli(&listFsCmd.FinalCurveCmd, listFsCmd)
-	return listFsCmd
-}
-
 func (fCmd *FsCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(fCmd.Cmd)
 	config.AddRpcTimeoutFlag(fCmd.Cmd)
 	config.AddFsMdsAddrFlag(fCmd.Cmd)
+	config.AddFsNameFlag(fCmd.Cmd)
+	config.AddMountpointFlag(fCmd.Cmd)
 }
 
 func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
@@ -93,16 +89,36 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
-	fCmd.Rpc.Request = &mds.ListClusterFsInfoRequest{}
+
+	fCmd.Rpc.Request = &mds.UmountFsRequest{}
+
+	fCmd.fsName = viper.GetString(config.VIPER_CURVEFS_FSNAME)
+	fCmd.Rpc.Request.FsName = &fCmd.fsName
+	fCmd.mountpoint = viper.GetString(config.VIPER_CURVEFS_MOUNTPOINT)
+	mountpointSlice := strings.Split(fCmd.mountpoint, ":")
+	if len(mountpointSlice) != 3 {
+		return fmt.Errorf("invalid mountpoint: %s", fCmd.mountpoint)
+	}
+	port, err := strconv.ParseUint(mountpointSlice[1], 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid point: %s", mountpointSlice[1])
+	}
+	port_ := uint32(port)
+	fCmd.Rpc.Request.Mountpoint = &mds.Mountpoint{
+		Hostname: &mountpointSlice[0],
+		Port:     &port_,
+		Path:     &mountpointSlice[2],
+	}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
+	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
 
-	table, err := gotable.Create("id", "name", "status", "capacity", "blockSize", "fsType", "sumInDir", "owner", "mountNum")
+	table, err := gotable.Create("fs name", "mountpoint", "result")
 	if err != nil {
 		return err
 	}
 	fCmd.Table = table
+
 	return nil
 }
 
@@ -116,48 +132,46 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(errCmd.Message)
 	}
-	fCmd.response = response.(*mds.ListClusterFsInfoResponse)
-	res, err := output.MarshalProtoJson(fCmd.response)
+	uf := response.(*mds.UmountFsResponse)
+	fCmd.updateTable(uf)
+
+	jsonResult, err := fCmd.Table.JSON(0)
 	if err != nil {
-		return err
+		cobra.CheckErr(err)
 	}
-	mapRes := res.(map[string]interface{})
-	fCmd.Result = mapRes
-	updateTable(fCmd.Table, fCmd.response)
+	var m interface{}
+	err = json.Unmarshal([]byte(jsonResult), &m)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+	fCmd.Result = m
+
 	return nil
 }
 
-func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
-	fssInfo := info.GetFsInfo()
-	rows := make([]map[string]string, 0)
-	for _, fsInfo := range fssInfo {
-		row := make(map[string]string)
-		row["id"] = fmt.Sprintf("%d", fsInfo.GetFsId())
-		row["name"] = fsInfo.GetFsName()
-		row["status"] = fsInfo.GetStatus().String()
-		row["capacity"] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-		row["blockSize"] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-		row["fsType"] = fsInfo.GetFsType().String()
-		row["sumInDir"] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-		row["owner"] = fsInfo.GetOwner()
-		row["mountNum"] = fmt.Sprintf("%d", fsInfo.GetMountNum())
-		rows = append(rows, row)
+func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdError {
+	rows := make([]map[string]string, 1)
+	rows[0] = make(map[string]string)
+	rows[0]["fs name"] = fCmd.fsName
+	rows[0]["mountpoint"] = fCmd.mountpoint
+	switch *info.StatusCode {
+	case mds.FSStatusCode_OK:
+		rows[0]["result"] = "success"
+	case mds.FSStatusCode_MOUNT_POINT_NOT_EXIST:
+		rows[0]["result"] = "mountpoint not exist"
+	case mds.FSStatusCode_NOT_FOUND:
+		rows[0]["result"] = "fs not found"
+	case mds.FSStatusCode_FS_BUSY:
+		rows[0]["result"] = "mountpoint is busy"
+	default:
+		rows[0]["result"] = fmt.Sprintf("umount from fs failed!, error is %s", info.StatusCode.String())
 	}
-	table.AddRows(rows)
+	retCode := info.GetStatusCode()
+
+	fCmd.Table.AddRows(rows)
+	return cmderror.ErrUmountFs(int(retCode), rows[0]["result"])
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
-}
-
-func GetClusterFsInfo() (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
-	listFs := NewListFsCommand()
-	listFs.Cmd.SetArgs([]string{"--format", "noout"})
-	err := listFs.Cmd.Execute()
-	if err != nil {
-		retErr := cmderror.ErrGetClusterFsInfo()
-		retErr.Format(err.Error())
-		return nil, retErr
-	}
-	return listFs.response, cmderror.ErrSuccess()
 }

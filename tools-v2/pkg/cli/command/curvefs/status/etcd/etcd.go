@@ -25,11 +25,9 @@ package etcd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -71,6 +69,7 @@ func NewEtcdCommand() *cobra.Command {
 }
 
 func (eCmd *EtcdCommand) AddFlags() {
+	config.AddEtcdAddrFlag(eCmd.Cmd)
 	config.AddHttpTimeoutFlag(eCmd.Cmd)
 }
 
@@ -82,13 +81,11 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 	eCmd.Table = table
 
 	// set main addr
-	addrsStr := viper.GetString(config.VIPER_CURVEFS_ETCDADDR)
-	etcdAddrs := strings.Split(addrsStr, ",")
+	etcdAddrs, addrErr := config.GetFsEtcdAddrSlice(eCmd.Cmd)
+	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(addrErr.Message)
+	}
 	for _, addr := range etcdAddrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid etcd addr: %s", addr)
-		}
-
 		// set metric
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 		addrs := []string{addr}

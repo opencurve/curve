@@ -52,7 +52,7 @@ type FinalCurveCmd struct {
 	Use     string            `json:"-"`
 	Short   string            `json:"-"`
 	Example string            `json:"-"`
-	Error   cmderror.CmdError `json:"error"`
+	Error   *cmderror.CmdError `json:"error"`
 	Result  interface{}       `json:"result"`
 	Table   *table.Table      `json:"-"`
 	Cmd     *cobra.Command    `json:"-"`

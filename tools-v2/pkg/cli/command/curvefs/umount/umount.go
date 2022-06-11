@@ -16,42 +16,35 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-05-10
+ * Created Date: 2022-06-11
  * Author: chengyi (Cyber-SiKu)
  */
 
-package curvefs
+package umount
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
-	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status"
-	umount "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/umount"
-	usage "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage"
 	"github.com/spf13/cobra"
 )
 
-type CurveFsCommand struct {
+type UmountCommand struct {
 	basecmd.MidCurveCmd
 }
 
-var _ basecmd.MidCurveCmdFunc = (*CurveFsCommand)(nil) // check interface
+var _ basecmd.MidCurveCmdFunc = (*UmountCommand)(nil) // check interface
 
-func (fsCmd *CurveFsCommand) AddSubCommands() {
-	fsCmd.Cmd.AddCommand(
-		usage.NewUsageCommand(),
-		list.NewListCommand(),
-		status.NewStatusCommand(),
-		umount.NewUmountCommand(),
+func (umountCmd *UmountCommand) AddSubCommands() {
+	umountCmd.Cmd.AddCommand(
+		NewFsCommand(),
 	)
 }
 
-func NewCurveFsCommand() *cobra.Command {
-	fsCmd := &CurveFsCommand{
+func NewUmountCommand() *cobra.Command {
+	umountCmd := &UmountCommand{
 		basecmd.MidCurveCmd{
-			Use:   "fs",
-			Short: "Manage curvefs cluster",
+			Use:   "umount",
+			Short: "umount fs in the curvefs",
 		},
 	}
-	return basecmd.NewMidCurveCli(&fsCmd.MidCurveCmd, fsCmd)
+	return basecmd.NewMidCurveCli(&umountCmd.MidCurveCmd, umountCmd)
 }
