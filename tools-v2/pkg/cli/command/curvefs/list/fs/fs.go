@@ -25,12 +25,10 @@ package fs
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -91,13 +89,8 @@ func (fCmd *FsCommand) AddFlags() {
 }
 
 func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
-	hosts := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	addrs := strings.Split(hosts, ",")
-	for _, addr := range addrs {
-		if !cobrautil.IsValidAddr(addr) {
-			return fmt.Errorf("invalid mds addr: %s", addr)
-		}
-	}
+	addrs := viper.GetStringSlice(config.VIPER_CURVEFS_MDSADDR)
+
 	fCmd.Rpc.Request = &mds.ListClusterFsInfoRequest{}
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)

@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	"github.com/liushuochen/gotable/table"
@@ -104,8 +103,7 @@ func (tCmd *TopologyNumCommand) AddFlags() {
 }
 
 func (tCmd *TopologyNumCommand) Init(cmd *cobra.Command, args []string) error {
-	hosts := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	addrs := strings.Split(hosts, ",")
+	addrs := viper.GetStringSlice(config.VIPER_CURVEFS_MDSADDR)
 	for _, addr := range addrs {
 		if !cobrautil.IsValidAddr(addr) {
 			return fmt.Errorf("invalid addr: %s", addr)

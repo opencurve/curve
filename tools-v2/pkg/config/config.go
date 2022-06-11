@@ -114,7 +114,7 @@ func AddShowErrorPFlag(cmd *cobra.Command) {
 // curvefs
 // mds addr
 func AddFsMdsAddrFlag(cmd *cobra.Command) {
-	cmd.Flags().String("mdsaddr", "", "mds address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
+	cmd.Flags().StringSlice("mdsaddr", []string{}, "mds address, should be like 127.0.0.1:6700 127.0.0.1:6701 127.0.0.1:6702")
 	err := viper.BindPFlag("curvefs.mdsAddr", cmd.Flags().Lookup("mdsaddr"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -123,7 +123,7 @@ func AddFsMdsAddrFlag(cmd *cobra.Command) {
 
 // mds dummy addr
 func AddFsMdsDummyAddrFlag(cmd *cobra.Command) {
-	cmd.Flags().String("mdsdummyaddr", "", "mds dummy address, should be like 127.0.0.1:7700,127.0.0.1:7701,127.0.0.1:7702")
+	cmd.Flags().StringSlice("mdsdummyaddr", []string{}, "mds dummy address, should be like 127.0.0.1:7700 127.0.0.1:7701 127.0.0.1:7702")
 	err := viper.BindPFlag("curvefs.mdsdummyaddr", cmd.Flags().Lookup("mdsdummyaddr"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -132,7 +132,7 @@ func AddFsMdsDummyAddrFlag(cmd *cobra.Command) {
 
 // etcd addr
 func AddEtcdAddrFlag(cmd *cobra.Command) {
-	cmd.Flags().String("etcdaddr", "", "etcd address, should be like 127.0.0.1:8700,127.0.0.1:8701,127.0.0.1:8702")
+	cmd.Flags().StringSlice("etcdaddr", []string{}, "etcd address, should be like 127.0.0.1:8700 127.0.0.1:8701 127.0.0.1:8702")
 	err := viper.BindPFlag("curvefs.etcdAddr", cmd.Flags().Lookup("etcdaddr"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -141,7 +141,7 @@ func AddEtcdAddrFlag(cmd *cobra.Command) {
 
 // fs id [required]
 func AddFsIdFlag(cmd *cobra.Command) {
-	cmd.Flags().String("fsid", "", "fs Id, should be like 1,2,3 "+color.Red.Sprint("[required]"))
+	cmd.Flags().StringSlice("fsid", nil, "fs Id, should be like 1 2 3 "+color.Red.Sprint("[required]"))
 	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -150,8 +150,17 @@ func AddFsIdFlag(cmd *cobra.Command) {
 
 // fs id
 func AddFsIdOptionFlag(cmd *cobra.Command) {
-	cmd.Flags().String("fsid", "*", "fs Id, should be like 1,2,3 not set means all fs")
+	cmd.Flags().StringSlice("fsid", []string{"*"}, "fs Id, should be like 1 2 3, not set means all fs")
 	err := viper.BindPFlag("curvefs.fsId", cmd.Flags().Lookup("fsid"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+// fs name [required]
+func AddFsNameFlag(cmd *cobra.Command) {
+	cmd.Flags().String("fsname", "", "fs name"+color.Red.Sprint("[required]"))
+	err := viper.BindPFlag("curvefs.fsName", cmd.Flags().Lookup("fsname"))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -168,4 +177,5 @@ const (
 	VIPER_CURVEFS_MDSADDR      = "curvefs.mdsAddr"
 	VIPER_CURVEFS_MDSDUMMYADDR = "curvefs.mdsDummyAddr"
 	VIPER_CURVEFS_ETCDADDR     = "curvefs.etcdAddr"
+	VIPER_CURVEFS_FSID         = "curvefs.fsId"
 )
