@@ -25,7 +25,6 @@ package mds
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -39,8 +38,6 @@ import (
 
 type MdsCommand struct {
 	basecmd.FinalCurveCmd
-	mainAddrs  []string
-	dummyAddrs []string
 	metrics    []basecmd.Metric
 	rows       []map[string]string
 }
@@ -77,18 +74,16 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 	mCmd.Table = table
 
 	// set main addr
-	addrs := viper.GetString(config.VIPER_CURVEFS_MDSADDR)
-	mCmd.mainAddrs = strings.Split(addrs, ",")
-	for _, addr := range mCmd.mainAddrs {
+	mainAddrs := viper.GetStringSlice(config.VIPER_CURVEFS_MDSADDR)
+	for _, addr := range mainAddrs {
 		if !cobrautil.IsValidAddr(addr) {
 			return fmt.Errorf("invalid addr: %s", addr)
 		}
 	}
 
 	// set dummy addr
-	addrs = viper.GetString(config.VIPER_CURVEFS_MDSDUMMYADDR)
-	mCmd.dummyAddrs = strings.Split(addrs, ",")
-	for _, addr := range mCmd.dummyAddrs {
+	dummyAddrs := viper.GetStringSlice(config.VIPER_CURVEFS_MDSDUMMYADDR)
+	for _, addr := range dummyAddrs {
 		if !cobrautil.IsValidAddr(addr) {
 			return fmt.Errorf("invalid dummy addr: %s", addr)
 		}
@@ -102,10 +97,10 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 		mCmd.metrics = append(mCmd.metrics, *statusMetric)
 	}
 
-	for i := range mCmd.mainAddrs {
+	for i := range mainAddrs {
 		row := make(map[string]string)
-		row["addr"] = mCmd.mainAddrs[i]
-		row["dummyAddr"] = mCmd.dummyAddrs[i]
+		row["addr"] = mainAddrs[i]
+		row["dummyAddr"] = dummyAddrs[i]
 		row["status"] = "offline"
 		row["version"] = "unknown"
 		mCmd.rows = append(mCmd.rows, row)

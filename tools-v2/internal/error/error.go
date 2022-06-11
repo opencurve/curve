@@ -199,6 +199,9 @@ var (
 	ErrGetClusterFsInfo = func() *CmdError {
 		return NewInternalCmdError(8, "get cluster fs info failed, the error is: %s")
 	}
+	ErrUmountFs = func(statusCode int, message string) *CmdError {
+		return NewInternalCmdError(statusCode, message)
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
