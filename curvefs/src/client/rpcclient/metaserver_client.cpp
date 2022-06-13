@@ -627,8 +627,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetInodeAttr(uint32_t fsId,
 
             MetaStatusCode ret = response.statuscode();
             if (ret != MetaStatusCode::OK) {
-                LOG(ERROR) << "BatchGetInodeAttr failed, errcode = " << ret
-                           << ", errmsg = " << MetaStatusCode_Name(ret);
+                LOG(WARNING) << "BatchGetInodeAttr failed, errcode = " << ret
+                             << ", errmsg = " << MetaStatusCode_Name(ret);
             } else if (response.attr_size() > 0 &&
                         response.has_appliedindex()) {
                 auto *attrs = response.mutable_attr();
@@ -728,16 +728,16 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
             if (cntl->Failed()) {
                 metric_.batchGetXattr.eps.count << 1;
                 LOG(WARNING) << "BatchGetXAttr Failed, errorcode = "
-                                << cntl->ErrorCode()
-                                << ", error content:" << cntl->ErrorText()
-                                << ", log id = " << cntl->log_id();
+                             << cntl->ErrorCode()
+                             << ", error content:" << cntl->ErrorText()
+                             << ", log id = " << cntl->log_id();
                 return -cntl->ErrorCode();
             }
 
             MetaStatusCode ret = response.statuscode();
             if (ret != MetaStatusCode::OK) {
-                LOG(ERROR) << "BatchGetXAttr failed, errcode = " << ret
-                           << ", errmsg = " << MetaStatusCode_Name(ret);
+                LOG(WARNING) << "BatchGetXAttr failed, errcode = " << ret
+                             << ", errmsg = " << MetaStatusCode_Name(ret);
             } else if (response.xattr_size() > 0 &&
                         response.has_appliedindex()) {
                 auto *xattrs = response.mutable_xattr();
@@ -749,8 +749,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
                         response.appliedindex());
             } else {
                 LOG(WARNING) << "BatchGetXAttr ok, but"
-                                << " applyIndex or attr not set in response: "
-                                << response.DebugString();
+                             << " applyIndex or attr not set in response: "
+                             << response.DebugString();
                 return -1;
             }
             return ret;

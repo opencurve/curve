@@ -49,7 +49,6 @@ bool Configuration::LoadConfig() {
             int commentPos = line.find("#");
             std::string value = line.substr(delimiterPos + 1,
                                             commentPos - delimiterPos - 1);
-            LOG(ERROR) << "is: " << key << ", is" << value;
             SetValue(key, value);
         }
     } else {
