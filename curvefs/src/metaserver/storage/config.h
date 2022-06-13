@@ -56,6 +56,12 @@ struct StorageOptions {
 
     double memtablePrefixBloomSizeRatio;
 
+    bool perfEnable;
+
+    uint64_t perfSlowOperationUs;
+
+    double perfSamplingRatio;
+
     // misc config item
     uint64_t s3MetaLimitSizeInsideInode;
 };

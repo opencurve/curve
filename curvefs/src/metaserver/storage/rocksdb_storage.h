@@ -40,6 +40,7 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_perf.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
@@ -270,6 +271,8 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     Transaction* txn_;
     std::vector<KeyPair> pending4set_;
     std::vector<KeyPair> pending4del_;
+
+    std::shared_ptr<RocksDBPerf> perf_;
 };
 
 inline Status RocksDBStorage::HGet(const std::string& name,
@@ -351,6 +354,7 @@ class RocksDBStorageIterator : public Iterator {
           prefixChecking_(true),
           ordered_(ordered),
           iter_(nullptr) {
+        storage_->perf_->Start(OP_GET_SNAPSHOT);
         if (status_ == 0) {
             readOptions_ = storage_->ReadOptions();
             if (storage_->InTransaction_) {
@@ -359,9 +363,11 @@ class RocksDBStorageIterator : public Iterator {
                 readOptions_.snapshot = storage_->db_->GetSnapshot();
             }
         }
+        storage_->perf_->Stop();
     }
 
     ~RocksDBStorageIterator() {
+        storage_->perf_->Start(OP_CLEAR_SNAPSHOT);
         if (status_ == 0) {
             if (storage_->InTransaction_) {
                 storage_->txn_->ClearSnapshot();
@@ -369,6 +375,7 @@ class RocksDBStorageIterator : public Iterator {
                 storage_->db_->ReleaseSnapshot(readOptions_.snapshot);
             }
         }
+        storage_->perf_->Stop();
     }
 
     uint64_t Size() {
@@ -387,27 +394,38 @@ class RocksDBStorageIterator : public Iterator {
     }
 
     void SeekToFirst() {
+        storage_->perf_->Start(OP_GET_ITERATOR);
         auto handler = storage_->GetColumnFamilyHandle(ordered_);
         if (storage_->InTransaction_) {
             iter_.reset(storage_->txn_->GetIterator(readOptions_, handler));
         } else {
             iter_.reset(storage_->db_->NewIterator(readOptions_, handler));
         }
+        storage_->perf_->Stop();
+
+        storage_->perf_->Start(OP_ITERATOR_SEEK_TO_FIRST);
         iter_->Seek(prefix_);
+        storage_->perf_->Stop();
     }
 
     void Next() {
+        storage_->perf_->Start(OP_ITERATOR_NEXT);
         iter_->Next();
+        storage_->perf_->Stop();
     }
 
     std::string Key() {
+        storage_->perf_->Start(OP_ITERATOR_GET_KEY);
         auto slice = iter_->key();
+        storage_->perf_->Stop();
         auto ikey = std::string(slice.data(), slice.size());
         return storage_->ToUserKey(ikey);
     }
 
     std::string Value() {
+        storage_->perf_->Start(OP_ITERATOR_GET_VALUE);
         auto slice = iter_->value();
+        storage_->perf_->Stop();
         return std::string(slice.data(), slice.size());
     }
 

@@ -55,6 +55,8 @@ RocksDBOptions::RocksDBOptions(StorageOptions options) {
     // allows OS to incrementally sync files to disk while they are being
     // written, asynchronously, in the background.
     dbOptions_.bytes_per_sync = 1048576;
+    // collect metrics about database operations
+    dbOptions_.statistics = rocksdb::CreateDBStatistics();
 
     // table options
     std::shared_ptr<ROCKSDB_NAMESPACE::Cache> cache =
@@ -141,7 +143,8 @@ RocksDBStorage::RocksDBStorage(StorageOptions options)
       options_(options),
       rocksdbOptions_(RocksDBOptions(options)),
       counter_(std::make_shared<Counter>()),
-      InTransaction_(false) {}
+      InTransaction_(false),
+      perf_(std::make_shared<RocksDBPerf>(options)) {}
 
 RocksDBStorage::RocksDBStorage(const RocksDBStorage& storage,
                                ROCKSDB_NAMESPACE::Transaction* txn)
@@ -153,7 +156,8 @@ RocksDBStorage::RocksDBStorage(const RocksDBStorage& storage,
       handles_(storage.handles_),
       counter_(storage.counter_),
       InTransaction_(true),
-      txn_(txn) {}
+      txn_(txn),
+      perf_(storage.perf_) {}
 
 STORAGE_TYPE RocksDBStorage::Type() {
     return STORAGE_TYPE::ROCKSDB_STORAGE;
@@ -323,9 +327,11 @@ Status RocksDBStorage::Get(const std::string& name,
 
     std::string svalue;
     auto handle = GetColumnFamilyHandle(ordered);
+    perf_->Start(OP_GET);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Get(ReadOptions(), handle, ikey, &svalue) :
         db_->Get(ReadOptions(), handle, ikey, &svalue);
+    perf_->Stop();
     if (s.ok() && !value->ParseFromString(svalue)) {
         return Status::ParsedFailed();
     }
@@ -346,9 +352,11 @@ Status RocksDBStorage::Set(const std::string& name,
     auto handle = GetColumnFamilyHandle(ordered);
     std::string iname = ToInternalName(name, ordered);
     std::string ikey = ToInternalKey(iname, key);
+    perf_->Start(OP_PUT);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Put(handle, ikey, svalue) :
         db_->Put(WriteOptions(), handle, ikey, svalue);
+    perf_->Stop();
     if (s.ok()) {
         if (InTransaction_) {
             pending4set_.push_back(KeyPair(iname, ikey));
@@ -373,9 +381,11 @@ Status RocksDBStorage::Del(const std::string& name,
     }
 
     auto handle = GetColumnFamilyHandle(ordered);
+    perf_->Start(OP_DELETE);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Delete(handle, ikey) :
         db_->Delete(WriteOptions(), handle, ikey);
+    perf_->Stop();
     if (s.ok()) {
         if (InTransaction_) {
             pending4del_.push_back(KeyPair(iname, ikey));
@@ -423,8 +433,10 @@ Status RocksDBStorage::Clear(const std::string& name, bool ordered) {
     std::string beginKey = ToInternalKey(iname, "");  // "Hash(iname):"
     size_t beginNum = BinrayString2Number(beginKey);
     std::string endKey = FormatInternalKey(beginNum + 1, "");
+    perf_->Start(OP_DELETE_RANGE);
     ROCKSDB_NAMESPACE::Status s = db_->DeleteRange(
         WriteOptions(), handle, beginKey, endKey);
+    perf_->Stop();
     if (s.ok()) {
         ClearTable(iname);
     }

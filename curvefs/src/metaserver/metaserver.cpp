@@ -503,6 +503,15 @@ void Metaserver::InitStorage() {
     LOG_IF(FATAL, !conf_->GetDoubleValue(
         "storage.rocksdb.memtable_prefix_bloom_size_ratio",
         &storageOptions_.memtablePrefixBloomSizeRatio));
+    LOG_IF(FATAL, !conf_->GetBoolValue(
+        "storage.rocksdb.perf_enable",
+        &storageOptions_.perfEnable));
+    LOG_IF(FATAL, !conf_->GetUInt64Value(
+        "storage.rocksdb.perf_slow_operation_us",
+        &storageOptions_.perfSlowOperationUs));
+    LOG_IF(FATAL, !conf_->GetDoubleValue(
+        "storage.rocksdb.perf_sampling_ratio",
+        &storageOptions_.perfSamplingRatio));
     LOG_IF(FATAL, !conf_->GetUInt64Value(
         "storage.s3_meta_inside_inode.limit_size",
         &storageOptions_.s3MetaLimitSizeInsideInode));
