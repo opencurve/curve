@@ -166,6 +166,15 @@ func AddFsNameFlag(cmd *cobra.Command) {
 	}
 }
 
+// mountpoint [required]
+func AddMountpointFlag(cmd *cobra.Command) {
+	cmd.Flags().String("mountpoint", "", "umount fs mountpoint"+color.Red.Sprint("[required]"))
+	err := viper.BindPFlag("curvefs.mountpoint", cmd.Flags().Lookup("mountpoint"))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 const (
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
@@ -178,4 +187,6 @@ const (
 	VIPER_CURVEFS_MDSDUMMYADDR = "curvefs.mdsDummyAddr"
 	VIPER_CURVEFS_ETCDADDR     = "curvefs.etcdAddr"
 	VIPER_CURVEFS_FSID         = "curvefs.fsId"
+	VIPER_CURVEFS_FSNAME       = "curvefs.fsName"
+	VIPER_CURVEFS_MOUNTPOINT   = "curvefs.mountpoint"
 )

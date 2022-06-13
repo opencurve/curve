@@ -24,9 +24,14 @@ package umount
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
-	"github.com/liushuochen/gotable/table"
+	"github.com/liushuochen/gotable"
+	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -46,8 +51,9 @@ var _ basecmd.RpcFunc = (*UmountFsRpc)(nil) // check interface
 
 type FsCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc UmountFsRpc
-	response *mds.UmountFsResponse
+	Rpc        UmountFsRpc
+	fsName     string
+	mountpoint string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*FsCommand)(nil) // check interface
@@ -76,11 +82,45 @@ func (fCmd *FsCommand) AddFlags() {
 	config.AddRpcTimeoutFlag(fCmd.Cmd)
 	config.AddFsMdsAddrFlag(fCmd.Cmd)
 	config.AddFsNameFlag(fCmd.Cmd)
+	config.AddMountpointFlag(fCmd.Cmd)
 }
 
 func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
-	hosts := viper.GetStringSlice(config.VIPER_CURVEFS_MDSADDR)
-	fmt.Println(hosts)
+	addrs := viper.GetStringSlice(config.VIPER_CURVEFS_MDSADDR)
+	for _, addr := range addrs {
+		if !cobrautil.IsValidAddr(addr) {
+			return fmt.Errorf("invalid addr: %s", addr)
+		}
+	}
+	fCmd.Rpc.Request = &mds.UmountFsRequest{}
+
+	fCmd.fsName = viper.GetString(config.VIPER_CURVEFS_FSNAME)
+	fCmd.Rpc.Request.FsName = &fCmd.fsName
+	fCmd.mountpoint = viper.GetString(config.VIPER_CURVEFS_MOUNTPOINT)
+	mountpointSlice := strings.Split(fCmd.mountpoint, ":")
+	if len(mountpointSlice) != 3 {
+		return fmt.Errorf("invalid mountpoint: %s", fCmd.mountpoint)
+	}
+	port, err := strconv.ParseUint(mountpointSlice[1], 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid poit: %s", mountpointSlice[1])
+	}
+	port_ := uint32(port)
+	fCmd.Rpc.Request.Mountpoint = &mds.Mountpoint{
+		Hostname: &mountpointSlice[0],
+		Port:     &port_,
+		Path:     &mountpointSlice[2],
+	}
+	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
+	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
+	fCmd.Rpc.Info = *basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
+
+	table, err := gotable.Create("fs name", "mountpoint", "result")
+	if err != nil {
+		return err
+	}
+	fCmd.Table = table
+
 	return nil
 }
 
@@ -89,13 +129,51 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
+	response, errs := basecmd.GetRpcResponse(fCmd.Rpc.Info, &fCmd.Rpc)
+	errCmd := cmderror.MostImportantCmdError(errs)
+	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
+		return fmt.Errorf(errCmd.Message)
+	}
+	uf := response.(*mds.UmountFsResponse)
+	fCmd.updateTable(uf)
+
+	jsonResult, err := fCmd.Table.JSON(0)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+	var m interface{}
+	err = json.Unmarshal([]byte(jsonResult), &m)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+	fCmd.Result = m
+
 	return nil
 }
 
-func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
+func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdError {
+	rows := make([]map[string]string, 1)
+	rows[0] = make(map[string]string)
+	rows[0]["fs name"] = fCmd.fsName
+	rows[0]["mountpoint"] = fCmd.mountpoint
+	switch *info.StatusCode {
+	case mds.FSStatusCode_OK:
+		rows[0]["result"] = "success"
+	case mds.FSStatusCode_MOUNT_POINT_NOT_EXIST:
+		rows[0]["result"] = "mountpoint not exist"
+	case mds.FSStatusCode_NOT_FOUND:
+		rows[0]["result"] = "fs not found"
+	case mds.FSStatusCode_FS_BUSY:
+		rows[0]["result"] = "mountpoint is busy"
+	default:
+		rows[0]["result"] = fmt.Sprintf("umount from fs failed!, error is %s", info.StatusCode.String())
+	}
+	retCode := info.GetStatusCode()
+
+	fCmd.Table.AddRows(rows)
+	return cmderror.ErrUmountFs(int(retCode), rows[0]["result"])
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
 }
-
