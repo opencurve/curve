@@ -40,9 +40,9 @@ namespace metaserver {
 namespace copyset {
 
 // Metric for each copyset to statictic operators apply latency/qps/eps/...
-class OperatorApplyMetric {
+class OperatorMetric {
  public:
-    OperatorApplyMetric(PoolId poolId, CopysetId copysetId);
+    OperatorMetric(PoolId poolId, CopysetId copysetId);
 
     void OnOperatorComplete(OperatorType type, uint64_t latencyUs,
                             bool success = true);
@@ -54,8 +54,10 @@ class OperatorApplyMetric {
 
     void ExecuteLantancy(OperatorType type, uint64_t latencyUs);
 
-    OperatorApplyMetric(const OperatorApplyMetric&) = delete;
-    OperatorApplyMetric& operator=(const OperatorApplyMetric&) = delete;
+    void NewArrival(OperatorType type);
+
+    OperatorMetric(const OperatorMetric&) = delete;
+    OperatorMetric& operator=(const OperatorMetric&) = delete;
 
  private:
     struct OpMetric {
@@ -63,6 +65,8 @@ class OperatorApplyMetric {
             : latRecorder(prefix, "_latency"),
               errorCount(prefix, "_total_error"),
               eps(prefix, "_eps", &errorCount, 1),
+              rcount(prefix, "_rcount"),
+              rps(prefix, "_rps", &rcount, 1),
               waitInQueueLatency(prefix, "_wait_in_queue_latency"),
               executeLatency(prefix, "_execute_latency") {}
 
@@ -74,6 +78,10 @@ class OperatorApplyMetric {
 
         // error per second
         bvar::PerSecond<bvar::Adder<uint64_t>> eps;
+
+        // request per second
+        bvar::Adder<uint64_t> rcount;
+        bvar::PerSecond<bvar::Adder<uint64_t>> rps;
 
         // latency of metastore execute
         bvar::LatencyRecorder executeLatency;
