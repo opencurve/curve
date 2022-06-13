@@ -88,6 +88,7 @@ struct OperatorHelper {
             new MetaServiceClosure(throttle, doneGuard.release()));
         timer.stop();
         g_oprequest_in_service_before_propose_latency << timer.u_elapsed();
+        node->GetMetric()->NewArrival(op->GetOperatorType());
         op->Propose();
     }
 

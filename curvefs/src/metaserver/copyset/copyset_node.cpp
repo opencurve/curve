@@ -84,7 +84,7 @@ CopysetNode::CopysetNode(PoolId poolId, CopysetId copysetId,
       latestLoadSnapshotIndex_(0),
       confChangeMtx_(),
       ongoingConfChange_(),
-      metric_(absl::make_unique<OperatorApplyMetric>(poolId_, copysetId_)),
+      metric_(absl::make_unique<OperatorMetric>(poolId_, copysetId_)),
       isLoading_(false) {}
 
 CopysetNode::~CopysetNode() {
