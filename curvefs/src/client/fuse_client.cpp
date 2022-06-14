@@ -109,13 +109,15 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     curve::client::ClientDummyServerInfo::GetInstance().SetIP(localIp);
 
     MetaStatusCode ret2 =
-        metaClient_->Init(option.excutorOpt, metaCache, channelManager);
+        metaClient_->Init(option.excutorOpt, option.excutorInternalOpt,
+                          metaCache, channelManager);
     if (ret2 != MetaStatusCode::OK) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
     CURVEFS_ERROR ret3 =
-        inodeManager_->Init(option.iCacheLruSize, option.enableICacheMetrics);
+        inodeManager_->Init(option.iCacheLruSize, option.enableICacheMetrics,
+                            option.flushPeriodSec);
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
@@ -140,8 +142,7 @@ void FuseClient::UnInit() {
 
 CURVEFS_ERROR FuseClient::Run() {
     if (isStop_.exchange(false)) {
-        flushThread_ = Thread(&FuseClient::FlushInodeLoop, this);
-        LOG(INFO) << "Start fuse client flush thread ok.";
+        inodeManager_->Run();
         return CURVEFS_ERROR::OK;
     }
     return CURVEFS_ERROR::INTERNAL;
@@ -149,17 +150,8 @@ CURVEFS_ERROR FuseClient::Run() {
 
 void FuseClient::Fini() {
     if (!isStop_.exchange(true)) {
-        LOG(INFO) << "stop fuse client flush thread ...";
-        sleeper_.interrupt();
-        flushThread_.join();
+        inodeManager_->Stop();
         xattrManager_->Stop();
-    }
-    LOG(INFO) << "stop fuse client flush thread ok.";
-}
-
-void FuseClient::FlushInodeLoop() {
-    while (sleeper_.wait_for(std::chrono::seconds(option_.flushPeriodSec))) {
-        FlushInode();
     }
 }
 

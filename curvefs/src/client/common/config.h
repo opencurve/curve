@@ -171,6 +171,7 @@ struct FuseClientOption {
     MdsOption mdsOpt;
     MetaCacheOpt metaCacheOpt;
     ExcutorOpt excutorOpt;
+    ExcutorOpt excutorInternalOpt;
     SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;

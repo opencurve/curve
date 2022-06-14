@@ -88,7 +88,7 @@ class MetaServerClientImplTest : public testing::Test {
         opt_.maxRetryTimesBeforeConsiderSuspend = 5;
         mockMetacache_ = std::make_shared<MockMetaCache>();
         auto channelManager_ = std::make_shared<ChannelManager<MetaserverID>>();
-        metaserverCli_.Init(opt_, mockMetacache_, channelManager_);
+        metaserverCli_.Init(opt_, opt_, mockMetacache_, channelManager_);
 
         server_.AddService(&mockMetaServerService_,
                             brpc::SERVER_DOESNT_OWN_SERVICE);

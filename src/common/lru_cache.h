@@ -200,6 +200,25 @@ class LRUCache : public LRUCacheInterface<K, V> {
     */
     bool GetLast(const V value, K *key);
     /*
+     * @brief Get the last item's key and value
+     *
+     * @param[out] key
+     * @param[out] value
+     *
+     * @return false if not find the value, true if succeeded
+     */
+    bool GetLast(K *key, V *value);
+    /*
+     * @brief Get the last item's key and value
+     *
+     * @param[in] f  Determine whether the value meets the conditions
+     * @param[out] key
+     * @param[out] value
+     *
+     * @return false if not find the value, true if succeeded
+     */
+    bool GetLast(K *key, V *value, bool (*f)(const V &value));
+    /*
     * @brief Get the size of the lru
     */
     uint64_t Size() override;
@@ -318,6 +337,38 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(const V value, K *key) {
         return false;
     *key = (*it).key;
     return true;
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(K *key, V *value) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    if (ll_.empty()) {
+        return false;
+    }
+    auto it = ll_.rbegin();
+    *key = (*it).key;
+    *value = (*it).value;
+    return true;
+}
+
+template <typename K, typename V, typename KeyTraits, typename ValueTraits>
+bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(
+    K *key, V *value, bool (*f)(const V &value)) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    if (ll_.empty()) {
+        return false;
+    }
+    auto it = ll_.rbegin();
+    for (; it != ll_.rend(); it++) {
+        bool ok = f((*it).value);
+        if (ok) {
+            *key = (*it).key;
+            *value = (*it).value;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>

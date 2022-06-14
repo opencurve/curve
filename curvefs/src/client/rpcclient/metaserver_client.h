@@ -64,7 +64,8 @@ class MetaServerClient {
     virtual ~MetaServerClient() = default;
 
     virtual MetaStatusCode
-    Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+    Init(const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
+         std::shared_ptr<MetaCache> metaCache,
          std::shared_ptr<ChannelManager<MetaserverID>> channelManager) = 0;
 
     virtual MetaStatusCode GetTxId(uint32_t fsId, uint64_t inodeId,
@@ -112,7 +113,8 @@ class MetaServerClient {
 
     virtual MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
         InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) = 0;
+            InodeOpenStatusChange::NOCHANGE,
+            bool internal = false) = 0;
 
     virtual void UpdateInodeAttrAsync(const Inode &inode,
         MetaServerClientDone *done,
@@ -130,7 +132,8 @@ class MetaServerClient {
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
         bool returnS3ChunkInfoMap = false,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out = nullptr) = 0;
+            uint64_t, S3ChunkInfoList> *out = nullptr,
+            bool internal = false) = 0;
 
     virtual void GetOrModifyS3ChunkInfoAsync(
         uint32_t fsId, uint64_t inodeId,
@@ -163,7 +166,8 @@ class MetaServerClientImpl : public MetaServerClient {
         : metric_(metricPrefix) {}
 
     MetaStatusCode
-    Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+    Init(const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
+         std::shared_ptr<MetaCache> metaCache,
          std::shared_ptr<ChannelManager<MetaserverID>> channelManager) override;
 
     MetaStatusCode GetTxId(uint32_t fsId, uint64_t inodeId,
@@ -211,7 +215,8 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
         InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) override;
+            InodeOpenStatusChange::NOCHANGE,
+            bool internal = false) override;
 
     void UpdateInodeAttrAsync(const Inode &inode, MetaServerClientDone *done,
                           InodeOpenStatusChange statusChange =
@@ -228,7 +233,8 @@ class MetaServerClientImpl : public MetaServerClient {
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
         bool returnS3ChunkInfoMap = false,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out = nullptr) override;
+            uint64_t, S3ChunkInfoList> *out = nullptr,
+            bool internal = false) override;
 
     void GetOrModifyS3ChunkInfoAsync(
         uint32_t fsId, uint64_t inodeId,
@@ -255,7 +261,8 @@ class MetaServerClientImpl : public MetaServerClient {
                                    VolumeExtentList *extents) override;
 
  private:
-    MetaStatusCode UpdateInode(const UpdateInodeRequest &request);
+    MetaStatusCode UpdateInode(const UpdateInodeRequest &request,
+                               bool internal = false);
 
     void UpdateInodeAsync(const UpdateInodeRequest &request,
                           MetaServerClientDone *done);
@@ -275,6 +282,7 @@ class MetaServerClientImpl : public MetaServerClient {
 
  private:
     ExcutorOpt opt_;
+    ExcutorOpt optInternal_;
 
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;

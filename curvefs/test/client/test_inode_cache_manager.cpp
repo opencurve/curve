@@ -61,7 +61,7 @@ class TestInodeCacheManager : public ::testing::Test {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         iCacheManager_ = std::make_shared<InodeCacheManagerImpl>(metaClient_);
         iCacheManager_->SetFsId(fsId_);
-        iCacheManager_->Init(10, true);
+        iCacheManager_->Init(3, true, 1);
     }
 
     virtual void TearDown() {
@@ -343,5 +343,56 @@ TEST_F(TestInodeCacheManager, BatchGetXAttr) {
         AnyOf("100", "200"));
 }
 
+TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
+    uint64_t inodeId = 100;
+    Inode inode;
+    inode.set_inodeid(inodeId);
+    inode.set_fsid(fsId_);
+    inode.set_type(FsFileType::TYPE_S3);
+    InodeParam param;
+    param.fsId = fsId_;
+    param.type = FsFileType::TYPE_FILE;
+    std::map<uint64_t, std::shared_ptr<InodeWrapper>> inodeMap;
+
+    for (int i = 0; i < 4; i++) {
+        inode.set_inodeid(inodeId + i);
+        EXPECT_CALL(*metaClient_, CreateInode(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(MetaStatusCode::OK)));
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        iCacheManager_->CreateInode(param, inodeWrapper);
+        inodeWrapper->MarkDirty();
+        S3ChunkInfo info;
+        inodeWrapper->AppendS3ChunkInfo(1, info);
+        iCacheManager_->ShipToFlush(inodeWrapper);
+        inodeMap.emplace(inodeId + i, inodeWrapper);
+    }
+
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _))
+        .WillRepeatedly(
+            Invoke([](const Inode &inode, MetaServerClientDone *done,
+                      InodeOpenStatusChange statusChange) {
+                done->SetMetaStatusCode(MetaStatusCode::OK);
+                done->Run();
+            }));
+
+    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))
+        .WillRepeatedly(
+            Invoke([](uint32_t fsId, uint64_t inodeId,
+                      const google::protobuf::Map<uint64_t, S3ChunkInfoList>
+                          &s3ChunkInfos,
+                      MetaServerClientDone *done) {
+                done->SetMetaStatusCode(MetaStatusCode::OK);
+                done->Run();
+            }));
+    iCacheManager_->Run();
+    sleep(10);
+    ASSERT_EQ(false,  iCacheManager_->IsDirtyMapExist(100));
+    ASSERT_EQ(false,  iCacheManager_->IsDirtyMapExist(101));
+    auto iter = inodeMap.find(100);
+    ASSERT_EQ(false, iter->second->IsDirty());
+    iter = inodeMap.find(102);
+    ASSERT_EQ(false, iter->second->IsDirty());
+    iCacheManager_->Stop();
+}
 }  // namespace client
 }  // namespace curvefs

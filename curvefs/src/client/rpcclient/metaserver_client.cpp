@@ -72,9 +72,11 @@ using ::curvefs::metaserver::S3ChunkInfo;
 using ::curvefs::metaserver::MetaServerService_Stub;
 
 MetaStatusCode MetaServerClientImpl::Init(
-    const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+    const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
+    std::shared_ptr<MetaCache> metaCache,
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager) {
     opt_ = excutorOpt;
+    optInternal_ = excutorInternalOpt;
     metaCache_ = metaCache;
     channelManager_ = channelManager;
     return MetaStatusCode::OK;
@@ -769,7 +771,8 @@ MetaStatusCode MetaServerClientImpl::BatchGetXAttr(uint32_t fsId,
 }
 
 MetaStatusCode
-MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request) {
+MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request,
+                                  bool internal) {
     auto task = RPCTask {
         metric_.updateInode.qps.count << 1;
         LatencyUpdater updater(&metric_.updateInode.latency);
@@ -814,7 +817,13 @@ MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request) {
 
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::UpdateInode, task, request.fsid(), request.inodeid());
-    UpdateInodeExcutor excutor(opt_, metaCache_, channelManager_,
+    ExcutorOpt opt;
+    if (internal) {
+        opt = optInternal_;
+    } else {
+        opt = opt_;
+    }
+    UpdateInodeExcutor excutor(opt, metaCache_, channelManager_,
                                std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
@@ -860,10 +869,11 @@ MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
 
 MetaStatusCode
 MetaServerClientImpl::UpdateInodeAttrWithOutNlink(const Inode &inode,
-    InodeOpenStatusChange statusChange) {
+                                     InodeOpenStatusChange statusChange,
+                                     bool internal) {
     UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
         inode, statusChange);
-    return UpdateInode(request);
+    return UpdateInode(request, internal);
 }
 
 class UpdateInodeRpcDone : public MetaServerClientRpcDoneBase {
@@ -1000,11 +1010,9 @@ bool MetaServerClientImpl::HandleS3MetaStreamBuffer(butil::IOBuf* buffer,
 
 MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId,
-    const google::protobuf::Map<
-        uint64_t, S3ChunkInfoList> &s3ChunkInfos,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList> &s3ChunkInfos,
     bool returnS3ChunkInfoMap,
-    google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out) {
+    google::protobuf::Map<uint64_t, S3ChunkInfoList> *out, bool internal) {
     auto task = RPCTask {
         metric_.appendS3ChunkInfo.qps.count << 1;
         LatencyUpdater updater(&metric_.appendS3ChunkInfo.latency);
@@ -1087,8 +1095,14 @@ MetaStatusCode MetaServerClientImpl::GetOrModifyS3ChunkInfo(
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::GetOrModifyS3ChunkInfo,
         task, fsId, inodeId, streaming);
+    ExcutorOpt opt;
+    if (internal) {
+        opt = optInternal_;
+    } else {
+        opt = opt_;
+    }
     GetOrModifyS3ChunkInfoExcutor excutor(
-        opt_, metaCache_, channelManager_, std::move(taskCtx));
+        opt, metaCache_, channelManager_, std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
