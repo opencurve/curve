@@ -255,9 +255,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR RefreshNlink();
 
-    CURVEFS_ERROR Sync();
+    CURVEFS_ERROR Sync(bool internal = false);
 
-    CURVEFS_ERROR SyncAttr();
+    CURVEFS_ERROR SyncAttr(bool internal = false);
 
     void FlushAsync();
 
@@ -281,8 +281,17 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return dirty_;
     }
 
-    void ClearDirtyForTesting() {
+    void ClearDirty() {
         dirty_ = false;
+    }
+
+    bool S3ChunkInfoEmpty() {
+        curve::common::UniqueLock lg(mtx_);
+        return s3ChunkInfoAdd_.empty();
+    }
+
+    bool S3ChunkInfoEmptyNolock() {
+        return s3ChunkInfoAdd_.empty();
     }
 
     void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
@@ -333,7 +342,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  private:
     CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
-    CURVEFS_ERROR SyncS3ChunkInfo();
+    CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
  private:
     friend class UpdateVolumeExtentClosure;

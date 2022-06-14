@@ -125,29 +125,31 @@ class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
     std::shared_ptr<InodeWrapper> inodeWrapper_;
 };
 
-CURVEFS_ERROR InodeWrapper::SyncAttr() {
+CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
     if (dirty_) {
-        MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(inode_);
+        dirty_ = false;
+        MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
+            inode_, InodeOpenStatusChange::NOCHANGE, internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
+            dirty_ = true;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-
-        dirty_ = false;
     }
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo() {
+CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo(bool internal) {
     curve::common::UniqueLock lock = GetSyncingS3ChunkInfoUniqueLock();
     if (!s3ChunkInfoAdd_.empty()) {
         MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
-            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_);
+            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_, false, nullptr,
+            internal);
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
                        << "MetaStatusCode: " << ret
@@ -393,19 +395,19 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::Sync() {
+CURVEFS_ERROR InodeWrapper::Sync(bool internal) {
     VLOG(9) << "sync inode: " << inode_.ShortDebugString();
 
     // TODO(all): maybe we should update inode attribute and data indices
     //            in single rpc
-    auto ret = SyncAttr();
+    auto ret = SyncAttr(internal);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
 
     switch (inode_.type()) {
         case FsFileType::TYPE_S3:
-            return SyncS3ChunkInfo();
+            return SyncS3ChunkInfo(internal);
         case FsFileType::TYPE_FILE:
             return FlushVolumeExtent();
         default:

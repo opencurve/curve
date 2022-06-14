@@ -274,8 +274,6 @@ class FuseClient {
  private:
     virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
 
-    virtual void FlushInodeLoop();
-
     virtual void FlushData() = 0;
 
     CURVEFS_ERROR UpdateParentInodeMCTimeAndInvalidNlink(
@@ -321,10 +319,6 @@ class FuseClient {
     MDSBaseClient* mdsBase_;
 
     Atomic<bool> isStop_;
-
-    InterruptibleSleeper sleeper_;
-
-    Thread flushThread_;
 
     curve::common::Mutex renameMutex_;
 };

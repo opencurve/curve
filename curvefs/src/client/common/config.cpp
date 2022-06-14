@@ -83,8 +83,14 @@ void InitMetaCacheOption(Configuration *conf, MetaCacheOpt *opts) {
                               &opts->metacacheGetLeaderRPCTimeOutMS);
 }
 
-void InitExcutorOption(Configuration *conf, ExcutorOpt *opts) {
-    conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
+void InitExcutorOption(Configuration *conf, ExcutorOpt *opts, bool internal) {
+    if (internal) {
+        conf->GetValueFatalIfFail("excutorOpt.maxInternalRetry",
+                                  &opts->maxRetry);
+    } else {
+        conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
+    }
+
     conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
                               &opts->retryIntervalUS);
     conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
@@ -230,7 +236,8 @@ void SetBrpcOpt(Configuration *conf) {
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitMdsOption(conf, &clientOption->mdsOpt);
     InitMetaCacheOption(conf, &clientOption->metaCacheOpt);
-    InitExcutorOption(conf, &clientOption->excutorOpt);
+    InitExcutorOption(conf, &clientOption->excutorOpt, false);
+    InitExcutorOption(conf, &clientOption->excutorInternalOpt, true);
     InitBlockDeviceOption(conf, &clientOption->bdevOpt);
     InitS3Option(conf, &clientOption->s3Opt);
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);

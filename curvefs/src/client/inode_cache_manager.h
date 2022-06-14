@@ -40,6 +40,7 @@
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/client/inode_wrapper.h"
 #include "src/common/concurrent/name_lock.h"
 
@@ -47,6 +48,9 @@ using ::curve::common::LRUCache;
 using ::curve::common::CacheMetrics;
 using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::metaserver::XAttr;
+using ::curve::common::Atomic;
+using ::curve::common::InterruptibleSleeper;
+using ::curve::common::Thread;
 
 namespace curvefs {
 namespace client {
@@ -111,7 +115,12 @@ class InodeCacheManager {
         fsId_ = fsId;
     }
 
-    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) = 0;
+    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
+                               uint32_t flushPeriodSec) = 0;
+
+    virtual void Run() = 0;
+
+    virtual void Stop() = 0;
 
     virtual CURVEFS_ERROR GetInode(uint64_t inodeId,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
@@ -160,7 +169,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     InodeCacheManagerImpl()
       : metaClient_(std::make_shared<MetaServerClientImpl>()),
         iCache_(nullptr),
-        iAttrCache_(nullptr) {}
+        iAttrCache_(nullptr),
+        isStop_(true) {}
 
     explicit InodeCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
@@ -168,17 +178,39 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         iCache_(nullptr),
         iAttrCache_(nullptr) {}
 
-    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) override {
+    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
+                       uint32_t flushPeriodSec) override {
         if (enableCacheMetrics) {
             iCache_ = std::make_shared<
-                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(cacheSize,
+                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0,
                     std::make_shared<CacheMetrics>("icache"));
         } else {
             iCache_ = std::make_shared<
-                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(cacheSize);
+                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0);
         }
+        maxCacheSize_ = cacheSize;
+        flushPeriodSec_ = flushPeriodSec;
         iAttrCache_ = std::make_shared<InodeAttrCache>();
         return CURVEFS_ERROR::OK;
+    }
+
+    void Run() {
+        isStop_.exchange(false);
+        flushThread_ =
+            Thread(&InodeCacheManagerImpl::FlushInodeBackground, this);
+        LOG(INFO) << "Start inodeManager flush thread ok.";
+    }
+
+    void Stop() {
+        isStop_.exchange(true);
+        LOG(INFO) << "stop inodeManager flush thread ...";
+        sleeper_.interrupt();
+        flushThread_.join();
+    }
+
+    bool IsDirtyMapExist(uint64_t inodeId) {
+        curve::common::LockGuard lg(dirtyMapMutex_);
+        return dirtyMap_.count(inodeId) > 0;
     }
 
     CURVEFS_ERROR GetInode(uint64_t inodeId,
@@ -217,6 +249,10 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     void ReleaseCache(uint64_t parentId) override;
 
  private:
+    virtual void FlushInodeBackground();
+    void TrimIcache(uint64_t trimSize);
+
+ private:
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>> iCache_;
 
@@ -229,6 +265,12 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     curve::common::GenericNameLock<Mutex> nameLock_;
 
     curve::common::GenericNameLock<Mutex> asyncNameLock_;
+
+    uint64_t maxCacheSize_;
+    uint32_t flushPeriodSec_;
+    Thread flushThread_;
+    InterruptibleSleeper sleeper_;
+    Atomic<bool> isStop_;
 };
 
 class BatchGetInodeAttrAsyncDone : public BatchGetInodeAttrDone {

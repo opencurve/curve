@@ -47,6 +47,10 @@ namespace client {
 
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
+bool IsNotDirtyInode(const std::shared_ptr<InodeWrapper> &inode) {
+    return !inode->IsDirty() && inode->S3ChunkInfoEmpty();
+}
+
 CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     std::shared_ptr<InodeWrapper> &out) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
@@ -339,6 +343,40 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
 void InodeCacheManagerImpl::ReleaseCache(uint64_t parentId) {
     NameLockGuard lg(asyncNameLock_, std::to_string(parentId));
     iAttrCache_->Release(parentId);
+}
+
+void InodeCacheManagerImpl::FlushInodeBackground() {
+    LOG(INFO) << "flush thread is start.";
+    while (!isStop_.load()) {
+        FlushInodeOnce();
+        sleeper_.wait_for(std::chrono::seconds(flushPeriodSec_));
+        if (iCache_->Size() > maxCacheSize_) {
+            TrimIcache(iCache_->Size() - maxCacheSize_);
+        }
+    }
+    LOG(INFO) << "flush thread is stop.";
+}
+
+void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    uint64_t inodeId;
+    while (trimSize > 0) {
+        bool ok = iCache_->GetLast(&inodeId, &inodeWrapper, IsNotDirtyInode);
+        if (ok) {
+            NameLockGuard lock(nameLock_, std::to_string(inodeId));
+            ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+            if (!inodeWrapper->IsDirty() &&
+                inodeWrapper->S3ChunkInfoEmptyNolock()) {
+                VLOG(9) << "TrimIcache remove inode " << inodeId
+                        << " from iCache";
+                iCache_->Remove(inodeId);
+                trimSize--;
+            }
+        } else {
+            VLOG(9) << "iCache size " << iCache_->Size() << " wait inode flush";
+            break;
+        }
+    }
 }
 
 }  // namespace client

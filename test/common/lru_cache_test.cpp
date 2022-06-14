@@ -174,6 +174,43 @@ TEST(CaCheTest, TestCacheGetLast) {
     ASSERT_EQ(0, out);
 }
 
+TEST(CaCheTest, TestCacheGetLastKV) {
+    auto cache = std::make_shared<LRUCache<int, int>>(
+        std::make_shared<CacheMetrics>("LruCache"));
+
+    for (int i = 0; i < 3; i++) {
+        cache->Put(i, i);
+    }
+
+    int k, v;
+    cache->GetLast(&k, &v);
+    ASSERT_EQ(0, k);
+    ASSERT_EQ(0, v);
+    cache->Remove(0);
+    cache->GetLast(&k, &v);
+    ASSERT_EQ(1, k);
+    ASSERT_EQ(1, v);
+}
+bool TestFunction(const int& a) {
+    return a > 1;
+}
+TEST(CaCheTest, TestCacheGetLastKVWithFunction) {
+    auto cache = std::make_shared<LRUCache<int, int>>(
+        std::make_shared<CacheMetrics>("LruCache"));
+
+    for (int i = 0; i < 3; i++) {
+        cache->Put(i, i);
+    }
+
+    int k, v;
+    cache->GetLast(&k, &v, TestFunction);
+    ASSERT_EQ(2, k);
+    ASSERT_EQ(2, v);
+    cache->Remove(2);
+    bool ok = cache->GetLast(&k, &v, TestFunction);
+    ASSERT_EQ(false, ok);
+}
+
 TEST(SglCaCheTest, TestGetBefore) {
     auto cache = std::make_shared<SglLRUCache<int>>(
         std::make_shared<CacheMetrics>("LruCache"));
