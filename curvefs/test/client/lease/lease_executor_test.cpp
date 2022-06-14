@@ -90,7 +90,7 @@ TEST_F(LeaseExecutorTest, test_start_stop) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(txIds), Return(FSStatusCode::OK)));
     EXPECT_CALL(*metaCache_, SetTxId(1, 2))
-        .Times(AtLeast(opt_.refreshTimesPerLease));
+        .Times(AtLeast(1));
 
     // lease executor start
     LeaseExecutor exec(opt_, metaCache_, mdsCli_);
