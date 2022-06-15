@@ -298,15 +298,6 @@ CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeId) {
     return CURVEFS_ERROR::OK;
 }
 
-void InodeCacheManagerImpl::InvalidateNlinkCache(uint64_t inodeid) {
-    NameLockGuard lock(nameLock_, std::to_string(inodeid));
-    std::shared_ptr<InodeWrapper> inodeWrapper;
-    bool ok = iCache_->Get(inodeid, &inodeWrapper);
-    if (ok) {
-        inodeWrapper->InvalidateNlink();
-    }
-}
-
 void InodeCacheManagerImpl::AddInodeAttrs(
     uint64_t parentId, const RepeatedPtrField<InodeAttr>& inodeAttrs) {
     iAttrCache_->Set(parentId, inodeAttrs);
