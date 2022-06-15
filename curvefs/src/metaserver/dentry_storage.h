@@ -78,7 +78,7 @@ class DentryVector {
 class DentryList {
  public:
     DentryList(std::vector<Dentry>* list,
-               uint32_t capacity,
+               uint32_t limit,
                const std::string& exclude,
                uint64_t maxTxId,
                bool onlyDir);

@@ -269,7 +269,7 @@ MetaStatusCode InodeStorage::Clear() {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
-    s = kvStorage_->SClear(table4InodeAuxInfo_);
+    s = kvStorage_->HClear(table4InodeAuxInfo_);
     if (!s.ok()) {
         LOG(ERROR) << "InodeStorage clear inode aux info table failed";
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
