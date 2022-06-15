@@ -192,7 +192,7 @@ class FuseClient {
 
     virtual CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                                      fuse_ino_t newparent, const char* newname,
-                                     fuse_entry_param* e);
+                                     fuse_entry_param* e) = 0;
 
     virtual CURVEFS_ERROR FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string* linkStr);
@@ -253,6 +253,11 @@ class FuseClient {
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, FsFileType type);
 
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
+                             fuse_ino_t newparent, const char* newname,
+                             FsFileType type,
+                             fuse_entry_param* e);
+
     int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];
         int ret = gethostname(hostname, kMaxHostNameLength);
@@ -272,6 +277,9 @@ class FuseClient {
     virtual void FlushInodeLoop();
 
     virtual void FlushData() = 0;
+
+    CURVEFS_ERROR UpdateParentInodeMCTimeAndInvalidNlink(
+        fuse_ino_t parent, FsFileType type);
 
  protected:
     // mds client

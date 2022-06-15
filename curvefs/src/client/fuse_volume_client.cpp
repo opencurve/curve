@@ -252,6 +252,16 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
 }
 
+CURVEFS_ERROR FuseVolumeClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
+                                     fuse_ino_t newparent, const char *newname,
+                                     fuse_entry_param *e) {
+    LOG(INFO) << "FuseOpLink, ino: " << ino
+              << ", newparent: " << newparent
+              << ", newname: " << newname;
+    return FuseClient::FuseOpLink(
+        req, ino, newparent, newname, FsFileType::TYPE_FILE, e);
+}
+
 CURVEFS_ERROR FuseVolumeClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
                                              const char *name) {
     LOG(INFO) << "FuseOpUnlink, parent: " << parent

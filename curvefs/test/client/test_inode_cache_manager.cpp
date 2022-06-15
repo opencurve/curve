@@ -343,25 +343,5 @@ TEST_F(TestInodeCacheManager, BatchGetXAttr) {
         AnyOf("100", "200"));
 }
 
-TEST_F(TestInodeCacheManager, TestInvalidateNlinkCache) {
-    uint64_t inodeId = 100;
-    Inode inode;
-    inode.set_inodeid(inodeId);
-    inode.set_fsid(fsId_);
-
-    iCacheManager_->InvalidateNlinkCache(inodeId);
-
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
-
-    std::shared_ptr<InodeWrapper> inodeWrapper;
-    CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
-    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-
-    ASSERT_EQ(true, inodeWrapper->IsNlinkValid());
-    iCacheManager_->InvalidateNlinkCache(inodeId);
-    ASSERT_EQ(false, inodeWrapper->IsNlinkValid());
-}
-
 }  // namespace client
 }  // namespace curvefs

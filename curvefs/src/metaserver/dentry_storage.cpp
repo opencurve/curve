@@ -330,7 +330,7 @@ MetaStatusCode DentryStorage::Get(Dentry* dentry) {
     }
 
     // MetaStatusCode::OK
-    dentry->set_inodeid(out.inodeid());
+    *dentry = out;
     return MetaStatusCode::OK;
 }
 

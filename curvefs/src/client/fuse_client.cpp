@@ -386,6 +386,30 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
+CURVEFS_ERROR FuseClient::UpdateParentInodeMCTimeAndInvalidNlink(
+    fuse_ino_t parent, FsFileType type) {
+    std::shared_ptr<InodeWrapper> parentInodeWrapper;
+    auto ret = inodeManager_->GetInode(parent, parentInodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return ret;
+    }
+
+    {
+        curve::common::UniqueLock lk = parentInodeWrapper->GetUniqueLock();
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        parentInodeWrapper->SetMTime(now.tv_sec, now.tv_nsec);
+        parentInodeWrapper->SetCTime(now.tv_sec, now.tv_nsec);
+
+        if (FsFileType::TYPE_DIRECTORY == type) {
+            parentInodeWrapper->InvalidateNlink();
+        }
+    }
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
                                    const char *name, mode_t mode,
                                    FsFileType type, dev_t rdev,
@@ -447,8 +471,13 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    if (FsFileType::TYPE_DIRECTORY == type) {
-        inodeManager_->InvalidateNlinkCache(parent);
+    ret = UpdateParentInodeMCTimeAndInvalidNlink(parent, type);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+                   << ", parent: " << parent
+                   << ", name: " << name
+                   << ", type: " << type;
+        return ret;
     }
 
     VLOG(6) << "dentryManager_ CreateDentry success"
@@ -534,8 +563,13 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    if (FsFileType::TYPE_DIRECTORY == type) {
-        inodeManager_->InvalidateNlinkCache(parent);
+    ret = UpdateParentInodeMCTimeAndInvalidNlink(parent, type);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+                   << ", parent: " << parent
+                   << ", name: " << name
+                   << ", type: " << type;
+        return ret;
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -724,9 +758,12 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     RETURN_IF_UNSUCCESS(GetTxId);
     RETURN_IF_UNSUCCESS(Precheck);
     RETURN_IF_UNSUCCESS(RecordOldInodeInfo);
+    // Do not move LinkDestParentInode behind CommitTx.
+    // If so, the nlink will be lost when the machine goes down
     RETURN_IF_UNSUCCESS(LinkDestParentInode);
     RETURN_IF_UNSUCCESS(PrepareTx);
     RETURN_IF_UNSUCCESS(CommitTx);
+    // Do not check UnlinkSrcParentInode, beause rename is already success
     renameOp.UnlinkSrcParentInode();
     renameOp.UnlinkOldInode();
     renameOp.UpdateInodeParent();
@@ -981,9 +1018,6 @@ CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
                                         fuse_ino_t parent, const char *name,
                                         fuse_entry_param *e) {
-    LOG(INFO) << "FuseOpSymlink, link: " << link
-              << ", parent: " << parent
-              << ", name: " << name;
     if (strlen(name) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -1027,11 +1061,14 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         return ret;
     }
 
-    std::shared_ptr<InodeWrapper> parentInodeWrapper;
-    ret = inodeManager_->GetInode(parent, parentInodeWrapper);
+    ret = UpdateParentInodeMCTimeAndInvalidNlink(
+        parent, FsFileType::TYPE_SYM_LINK);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << parent;
+        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+                   << ", link:" << link
+                   << ", parent: " << parent
+                   << ", name: " << name
+                   << ", type: " << FsFileType::TYPE_SYM_LINK;
         return ret;
     }
 
@@ -1058,11 +1095,8 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
 
 CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                                      fuse_ino_t newparent, const char *newname,
+                                     FsFileType type,
                                      fuse_entry_param *e) {
-    LOG(INFO) << "FuseOpLink, ino: " << ino
-              << ", newparent: " << newparent
-              << ", newname: " << newname;
-
     if (strlen(newname) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
@@ -1099,11 +1133,12 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    std::shared_ptr<InodeWrapper> parentInodeWrapper;
-    ret = inodeManager_->GetInode(newparent, parentInodeWrapper);
+    ret = UpdateParentInodeMCTimeAndInvalidNlink(newparent, type);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << newparent;
+        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+                   << ", parent: " << newparent
+                   << ", name: " << newname
+                   << ", type: " << type;
         return ret;
     }
 

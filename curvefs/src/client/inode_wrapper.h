@@ -139,6 +139,24 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         dirty_ = true;
     }
 
+    void SetMTime(uint64_t mtime, uint32_t mtime_ns) {
+        inode_.set_mtime(mtime);
+        inode_.set_mtime_ns(mtime_ns);
+        dirty_ = true;
+    }
+
+    void SetCTime(uint64_t ctime, uint32_t ctime_ns) {
+        inode_.set_ctime(ctime);
+        inode_.set_ctime_ns(ctime_ns);
+        dirty_ = true;
+    }
+
+    void SetATime(uint64_t atime, uint32_t atime_ns) {
+        inode_.set_atime(atime);
+        inode_.set_atime_ns(atime_ns);
+        dirty_ = true;
+    }
+
     Inode GetInodeUnlocked() const {
         return inode_;
     }
@@ -224,12 +242,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     // mark nlink invalid, need to refresh from metaserver
     void InvalidateNlink() {
-        struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        inode_.set_ctime(now.tv_sec);
-        inode_.set_ctime_ns(now.tv_nsec);
-        inode_.set_mtime(now.tv_sec);
-        inode_.set_mtime_ns(now.tv_nsec);
         isNlinkValid_ = false;
     }
 
