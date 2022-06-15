@@ -389,7 +389,7 @@ MetaStatusCode InodeManager::PaddingInodeS3ChunkInfo(int32_t fsId,
 }
 
 MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
-    uint32_t fsId, uint64_t inodeId, bool isCreate) {
+    uint32_t fsId, uint64_t inodeId, FsFileType type, bool isCreate) {
     VLOG(6) << "UpdateInodeWhenCreateOrRemoveSubNode, fsId = " << fsId
             << ", inodeId = " << inodeId
             << ", isCreate = " << isCreate;
@@ -403,15 +403,25 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
                    << ", ret = " << MetaStatusCode_Name(ret);
         return ret;
     }
+
     uint32_t oldNlink = inode.nlink();
     if (oldNlink == 0) {
+        LOG(ERROR)
+            << "UpdateInodeWhenCreateOrRemoveSubNode already be deleted!"
+            << " fsId: " << fsId
+            << ", inodeId: " << inodeId
+            << ", type: " << type
+            << ", isCreate: " << isCreate;
         // already be deleted
         return MetaStatusCode::OK;
     }
-    if (isCreate) {
-        inode.set_nlink(++oldNlink);
-    } else {
-        inode.set_nlink(--oldNlink);
+
+    if (FsFileType::TYPE_DIRECTORY == type) {
+        if (isCreate) {
+            inode.set_nlink(++oldNlink);
+        } else {
+            inode.set_nlink(--oldNlink);
+        }
     }
 
     struct timespec now;

@@ -91,7 +91,7 @@ class InodeManager {
                                            uint64_t limit = 0);
 
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(uint32_t fsId,
-        uint64_t inodeId, bool isCreate);
+        uint64_t inodeId, FsFileType type, bool isCreate);
 
     MetaStatusCode InsertInode(const Inode &inode);
 

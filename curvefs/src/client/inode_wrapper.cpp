@@ -454,7 +454,7 @@ CURVEFS_ERROR InodeWrapper::RefreshNlink() {
         return CURVEFS_ERROR::INTERNAL;
     }
     inode_.set_nlink(attr.nlink());
-    LOG(INFO) << "RefreshNlink from metaserver, newnlink: " << attr.nlink();
+    VLOG(3) << "RefreshNlink from metaserver, newnlink: " << attr.nlink();
     ResetNlinkValid();
     return CURVEFS_ERROR::OK;
 }

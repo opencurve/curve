@@ -71,6 +71,10 @@ class FuseS3Client : public FuseClient {
         const char *name, mode_t mode, dev_t rdev,
         fuse_entry_param *e) override;
 
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
+        fuse_ino_t newparent, const char *newname,
+        fuse_entry_param *e) override;
+
     CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
         const char *name) override;
 

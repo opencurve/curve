@@ -852,7 +852,7 @@ MetaServerClientImpl::BuildeUpdateInodeAttrRequest(const Inode &inode,
 
 MetaStatusCode
 MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
-                                     InodeOpenStatusChange statusChange) {
+                                      InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request =
         BuildeUpdateInodeAttrRequest(inode, statusChange);
     return UpdateInode(request);
@@ -860,7 +860,7 @@ MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
 
 MetaStatusCode
 MetaServerClientImpl::UpdateInodeAttrWithOutNlink(const Inode &inode,
-                                     InodeOpenStatusChange statusChange) {
+    InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
         inode, statusChange);
     return UpdateInode(request);
@@ -915,7 +915,7 @@ void UpdateInodeRpcDone::Run() {
 }
 
 void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
-                      MetaServerClientDone *done) {
+    MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         metric_.updateInode.qps.count << 1;
 

@@ -56,7 +56,7 @@ class RenameOperator {
     CURVEFS_ERROR LinkDestParentInode();
     CURVEFS_ERROR PrepareTx();
     CURVEFS_ERROR CommitTx();
-    void UnlinkSrcParentInode();
+    CURVEFS_ERROR UnlinkSrcParentInode();
     void UnlinkOldInode();
     CURVEFS_ERROR UpdateInodeParent();
     void UpdateCache();
@@ -87,6 +87,8 @@ class RenameOperator {
     CURVEFS_ERROR LinkInode(uint64_t inodeId, uint64_t parent = 0);
 
     CURVEFS_ERROR UnLinkInode(uint64_t inodeId, uint64_t parent = 0);
+
+    CURVEFS_ERROR UpdateMCTime(uint64_t inodeId);
 
  private:
     uint32_t fsId_;
