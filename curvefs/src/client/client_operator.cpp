@@ -309,9 +309,7 @@ CURVEFS_ERROR RenameOperator::LinkDestParentInode() {
     // Link action is unnecessary when met one of the following 2 conditions:
     //   (1) source and destination under same directory
     //   (2) destination already exist
-    //   (3) destination is not a directory
-    if (FsFileType::TYPE_DIRECTORY != dstDentry_.type() ||
-        parentId_ == newParentId_ || oldInodeId_ != 0) {
+    if (parentId_ == newParentId_ || oldInodeId_ != 0) {
         return CURVEFS_ERROR::OK;
     }
     return LinkInode(newParentId_);
@@ -321,10 +319,7 @@ void RenameOperator::UnlinkSrcParentInode() {
     // UnLink action is unnecessary when met the following 2 conditions:
     //   (1) source and destination under same directory
     //   (2) destination not exist
-    // or
-    //    source is not a directory
-    if (FsFileType::TYPE_DIRECTORY != srcDentry_.type() ||
-        (parentId_ == newParentId_ && oldInodeId_ == 0)) {
+    if (parentId_ == newParentId_ && oldInodeId_ == 0) {
         return;
     }
     auto rc = UnLinkInode(parentId_);

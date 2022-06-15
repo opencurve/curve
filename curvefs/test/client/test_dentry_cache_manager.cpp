@@ -102,10 +102,9 @@ TEST_F(TestDentryCacheManager, GetDentry) {
         google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
 
     curvefs::client::common::FLAGS_enableCto = true;
-    EXPECT_CALL(*metaClient_, DeleteDentry(
-        fsId_, parent, name, FsFileType::TYPE_FILE))
+    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name))
         .WillOnce(Return(MetaStatusCode::OK));
-    dCacheManager_->DeleteDentry(parent, name, FsFileType::TYPE_FILE);
+    dCacheManager_->DeleteDentry(parent, name);
     EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
         .WillOnce(
             DoAll(SetArgPointee<3>(dentryExp), Return(MetaStatusCode::OK)));
@@ -144,10 +143,9 @@ TEST_F(TestDentryCacheManager, CreateAndGetDentry) {
         google::protobuf::util::MessageDifferencer::Equals(dentryExp, out));
 
     curvefs::client::common::FLAGS_enableCto = true;
-    EXPECT_CALL(*metaClient_, DeleteDentry(
-        fsId_, parent, name, FsFileType::TYPE_FILE))
+    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name))
         .WillOnce(Return(MetaStatusCode::OK));
-    dCacheManager_->DeleteDentry(parent, name, FsFileType::TYPE_FILE);
+    dCacheManager_->DeleteDentry(parent, name);
     EXPECT_CALL(*metaClient_, CreateDentry(_))
         .WillOnce(Return(MetaStatusCode::OK));
     EXPECT_CALL(*metaClient_, GetDentry(fsId_, parent, name, _))
@@ -166,16 +164,14 @@ TEST_F(TestDentryCacheManager, DeleteDentry) {
     uint64_t parent = 99;
     const std::string name = "test";
 
-    EXPECT_CALL(*metaClient_, DeleteDentry(
-        fsId_, parent, name, FsFileType::TYPE_FILE))
+    EXPECT_CALL(*metaClient_, DeleteDentry(fsId_, parent, name))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(Return(MetaStatusCode::OK));
 
-    CURVEFS_ERROR ret = dCacheManager_->DeleteDentry(
-        parent, name, FsFileType::TYPE_FILE);
+    CURVEFS_ERROR ret = dCacheManager_->DeleteDentry(parent, name);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    ret = dCacheManager_->DeleteDentry(parent, name, FsFileType::TYPE_FILE);
+    ret = dCacheManager_->DeleteDentry(parent, name);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 

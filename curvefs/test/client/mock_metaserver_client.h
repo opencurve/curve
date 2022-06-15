@@ -66,18 +66,14 @@ class MockMetaServerClient : public MetaServerClient {
 
     MOCK_METHOD1(CreateDentry, MetaStatusCode(const Dentry &dentry));
 
-    MOCK_METHOD4(DeleteDentry, MetaStatusCode(
-            uint32_t fsId, uint64_t inodeid, const std::string &name,
-            FsFileType type));
+    MOCK_METHOD3(DeleteDentry, MetaStatusCode(
+            uint32_t fsId, uint64_t inodeid, const std::string &name));
 
     MOCK_METHOD1(PrepareRenameTx,
                  MetaStatusCode(const std::vector<Dentry>& dentrys));
 
     MOCK_METHOD4(GetInode, MetaStatusCode(
             uint32_t fsId, uint64_t inodeid, Inode *out, bool* streaming));
-
-    MOCK_METHOD3(GetInodeAttr, MetaStatusCode(uint32_t fsId, uint64_t inodeid,
-                                InodeAttr *attr));
 
     MOCK_METHOD3(BatchGetInodeAttr, MetaStatusCode(
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
@@ -91,19 +87,11 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr));
 
-    MOCK_METHOD2(UpdateInodeAttr,
+    MOCK_METHOD2(UpdateInode,
                  MetaStatusCode(const Inode &inode,
                                 InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD2(UpdateInodeAttrWithOutNlink,
-                 MetaStatusCode(const Inode &inode,
-                                InodeOpenStatusChange statusChange));
-
-    MOCK_METHOD3(UpdateInodeAttrAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
-                      InodeOpenStatusChange statusChange));
-
-    MOCK_METHOD3(UpdateInodeAttrWithOutNlinkAsync,
+    MOCK_METHOD3(UpdateInodeAsync,
                  void(const Inode &inode, MetaServerClientDone *done,
                       InodeOpenStatusChange statusChange));
 

@@ -71,8 +71,7 @@ class DentryCacheManager {
     virtual CURVEFS_ERROR CreateDentry(const Dentry &dentry) = 0;
 
     virtual CURVEFS_ERROR DeleteDentry(uint64_t parent,
-        const std::string &name,
-        FsFileType type) = 0;
+        const std::string &name) = 0;
 
     virtual CURVEFS_ERROR ListDentry(uint64_t parent,
         std::list<Dentry> *dentryList, uint32_t limit,
@@ -115,8 +114,7 @@ class DentryCacheManagerImpl : public DentryCacheManager {
     CURVEFS_ERROR CreateDentry(const Dentry &dentry) override;
 
     CURVEFS_ERROR DeleteDentry(uint64_t parent,
-        const std::string &name,
-        FsFileType type) override;
+        const std::string &name) override;
 
     CURVEFS_ERROR ListDentry(uint64_t parent,
         std::list<Dentry> *dentryList, uint32_t limit,

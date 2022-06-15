@@ -63,8 +63,6 @@ class MockInodeCacheManager : public InodeCacheManager {
 
     MOCK_METHOD1(DeleteInode, CURVEFS_ERROR(uint64_t inodeid));
 
-    MOCK_METHOD1(InvalidateNlinkCache, void(uint64_t inodeid));
-
     MOCK_METHOD2(AddInodeAttrs, void(uint64_t parentId,
         const RepeatedPtrField<InodeAttr>& inodeAttrs));
 

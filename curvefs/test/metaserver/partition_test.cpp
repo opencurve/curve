@@ -260,7 +260,6 @@ TEST_F(PartitionTest, dentrynum) {
     dentry.set_parentinodeid(100);
     dentry.set_name("name");
     dentry.set_txid(0);
-    dentry.set_type(FsFileType::TYPE_DIRECTORY);
     ASSERT_EQ(partition1.CreateDentry(dentry), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 1);
 

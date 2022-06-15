@@ -648,7 +648,6 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name(name);
     dentry1.set_txid(0);
-    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
     createRequest.set_poolid(poolId);
     createRequest.set_copysetid(copysetId);
@@ -676,7 +675,6 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry2.set_parentinodeid(parentId);
     dentry2.set_name("dentry2");
     dentry2.set_txid(0);
-    dentry2.set_type(FsFileType::TYPE_DIRECTORY);
     createRequest.mutable_dentry()->CopyFrom(dentry2);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -689,7 +687,6 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry3.set_parentinodeid(parentId);
     dentry3.set_name("dentry3");
     dentry3.set_txid(0);
-    dentry3.set_type(FsFileType::TYPE_DIRECTORY);
     createRequest.mutable_dentry()->CopyFrom(dentry3);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -891,7 +888,6 @@ TEST_F(MetastoreTest, persist_success) {
     dentry1.set_parentinodeid(100);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
-    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
 
     createDentryRequest.set_poolid(poolId);
@@ -1030,7 +1026,6 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     dentry1.set_parentinodeid(100);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
-    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
 
     createDentryRequest.set_poolid(poolId);
@@ -1186,7 +1181,6 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name("dentry1");
     dentry1.set_txid(0);
-    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
     createDentryRequest.set_poolid(2);
     createDentryRequest.set_copysetid(3);

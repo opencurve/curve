@@ -250,13 +250,6 @@ CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
 }
 
-CURVEFS_ERROR FuseS3Client::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
-                                         const char *name) {
-    LOG(INFO) << "FuseOpUnlink, parent: " << parent
-              << ", name: " << name;
-    return RemoveNode(req, parent, name, FsFileType::TYPE_S3);
-}
-
 CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                         int datasync,
                                         struct fuse_file_info *fi) {
