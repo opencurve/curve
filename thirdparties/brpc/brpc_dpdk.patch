@@ -1,0 +1,515 @@
+diff --git a/example/multi_threaded_echo_c++/CMakeLists.txt b/example/multi_threaded_echo_c++/CMakeLists.txt
+index d0633351..97d15cd1 100644
+--- a/example/multi_threaded_echo_c++/CMakeLists.txt
++++ b/example/multi_threaded_echo_c++/CMakeLists.txt
+@@ -2,6 +2,62 @@ cmake_minimum_required(VERSION 2.8.10)
+ project(multi_threaded_echo_c++ C CXX)
+ 
+ option(EXAMPLE_LINK_SO "Whether examples are linked dynamically" OFF)
++option(WITH_DPDK "Whether to build with dpdk" ON)
++set(DPDK_DIR "/usr/local/dpdk" CACHE STRING "DPDK dir")
++
++if(WITH_DPDK)
++    set(BRPC_WITH_DPDK 1)
++    set(WITH_DPDK_VAL "1")
++else()
++    set(BRPC_WITH_DPDK 0)
++    set(WITH_DPDK_VAL "0")
++endif()
++
++
++if(WITH_DPDK)
++
++include_directories(
++    ${DPDK_DIR}/include
++)
++
++link_directories(
++    ${DPDK_DIR}/lib
++)
++
++set(DPDK_LIBS
++ -Wl,--disable-new-dtags
++ -Wl,--push-state
++ -Wl,--whole-archive
++ -Wl,--no-as-needed
++ -Wl,--start-group
++ rte_bus_pci
++ rte_cryptodev
++ rte_dmadev
++ rte_eal
++ rte_ethdev
++ rte_hash
++ rte_kvargs
++ rte_mbuf
++ rte_mempool
++ rte_mempool_ring
++ rte_net
++ rte_pci
++ rte_power
++ rte_rcu
++ rte_ring
++ rte_telemetry
++ rte_vhost
++ rte_meter
++ rte_timer
++ rte_stack
++ -Wl,--end-group
++ -Wl,--no-whole-archive
++ -Wl,--pop-state
++)
++
++link_libraries(${DPDK_LIBS})
++endif(WITH_DPDK)
++
+ 
+ execute_process(
+     COMMAND bash -c "find ${PROJECT_SOURCE_DIR}/../.. -type d -regex \".*output/include$\" | head -n1 | xargs dirname | tr -d '\n'"
+@@ -27,9 +83,9 @@ if (NOT THRIFTNB_LIB)
+     set(THRIFTNB_LIB "")
+ endif()
+ 
+-find_path(GPERFTOOLS_INCLUDE_DIR NAMES gperftools/heap-profiler.h)
+-find_library(GPERFTOOLS_LIBRARIES NAMES tcmalloc_and_profiler)
+-include_directories(${GPERFTOOLS_INCLUDE_DIR})
++#find_path(GPERFTOOLS_INCLUDE_DIR NAMES gperftools/heap-profiler.h)
++#find_library(GPERFTOOLS_LIBRARIES NAMES tcmalloc_and_profiler)
++#include_directories(${GPERFTOOLS_INCLUDE_DIR})
+ 
+ find_path(BRPC_INCLUDE_PATH NAMES brpc/server.h)
+ if(EXAMPLE_LINK_SO)
+@@ -67,9 +123,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+     endif()
+ endif()
+ 
+-set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -DGFLAGS_NS=${GFLAGS_NS}")
++set(CMAKE_CPP_FLAGS "${DEFINE_CLOCK_GETTIME} -mssse3 -DBRPC_WITH_DPDK=${WITH_DPDK_VAL} -DGFLAGS_NS=${GFLAGS_NS}")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CPP_FLAGS} -DNDEBUG -O2 -D__const__= -pipe -W -Wall -Wno-unused-parameter -fPIC -fno-omit-frame-pointer")
+-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
++#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBRPC_ENABLE_CPU_PROFILER")
+ 
+ if(CMAKE_VERSION VERSION_LESS "3.1.3")
+     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+@@ -129,5 +185,7 @@ endif()
+ add_executable(multi_threaded_echo_client client.cpp ${PROTO_SRC} ${PROTO_HEADER})
+ add_executable(multi_threaded_echo_server server.cpp ${PROTO_SRC} ${PROTO_HEADER})
+ 
+-target_link_libraries(multi_threaded_echo_client ${BRPC_LIB} ${DYNAMIC_LIB} ${GPERFTOOLS_LIBRARIES})
+-target_link_libraries(multi_threaded_echo_server ${BRPC_LIB} ${DYNAMIC_LIB} ${GPERFTOOLS_LIBRARIES})
++target_link_libraries(multi_threaded_echo_client ${BRPC_LIB} ${DYNAMIC_LIB})
++# ${GPERFTOOLS_LIBRARIES})
++target_link_libraries(multi_threaded_echo_server ${BRPC_LIB} ${DYNAMIC_LIB})
++# ${GPERFTOOLS_LIBRARIES})
+diff --git a/example/multi_threaded_echo_c++/server.cpp b/example/multi_threaded_echo_c++/server.cpp
+index 622f003c..52e5e9b1 100644
+--- a/example/multi_threaded_echo_c++/server.cpp
++++ b/example/multi_threaded_echo_c++/server.cpp
+@@ -19,6 +19,16 @@
+ #include <brpc/server.h>
+ #include "echo.pb.h"
+ 
++#if BRPC_WITH_DPDK
++#include <rte_eal.h>
++#include <rte_errno.h>
++#include <rte_thread.h>
++#include <rte_malloc.h>
++#endif
++
++#include <err.h>
++
++DEFINE_bool(use_dpdk_malloc, true, "use dpdk malloc");
+ DEFINE_bool(echo_attachment, true, "Echo attachment as well");
+ DEFINE_int32(port, 8002, "TCP Port of this server");
+ DEFINE_int32(idle_timeout_s, -1, "Connection will be closed if there is no "
+@@ -53,6 +63,60 @@ public:
+ 
+ DEFINE_bool(h, false, "print help information");
+ 
++#if BRPC_WITH_DPDK
++
++void
++unaffinitize_thread(void)
++{
++    rte_cpuset_t new_cpuset;
++    long num_cores, i;
++
++    CPU_ZERO(&new_cpuset);
++
++    num_cores = sysconf(_SC_NPROCESSORS_CONF);
++
++    /* Create a mask containing all CPUs */
++    for (i = 0; i < num_cores; i++) {
++         CPU_SET(i, &new_cpuset);
++    }
++    rte_thread_set_affinity(&new_cpuset);
++}
++
++void* dpdk_mem_allocate(size_t sz)
++{
++    /* rte_malloc seems fast enough, otherwise we need to use mempool */
++    return rte_malloc("iobuf", sz, 64);
++}
++                               
++void dpdk_mem_free(void* p)
++{
++    rte_free(p);
++}
++
++void dpdk_init(int argc, char **argv)
++{
++    char *eal_argv[] = {argv[0], (char *)"--in-memory", NULL};
++
++    if (rte_eal_init(2, eal_argv) == -1) {
++        errx(1, "rte_eal_init: %s", rte_strerror(rte_errno));
++    }
++
++    /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++     * Following is important. Above, we didn't specify dpdk runs on every cpu,
++     * thus dpdk will default bind our thread to first cpu, and the cpu mask
++     * is inherited by pthread_create(), causes every thread in future bind to
++     * same cpu! This causes big performance problem!
++     * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++     */
++    unaffinitize_thread();
++
++    // make iobuf use dpdk malloc & free
++    butil::iobuf::set_blockmem_allocate_and_deallocate(dpdk_mem_allocate, 
++        	dpdk_mem_free);
++}
++
++#endif
++
+ int main(int argc, char* argv[]) {
+     std::string help_str = "dummy help infomation";
+     GFLAGS_NS::SetUsageMessage(help_str);
+@@ -65,6 +129,11 @@ int main(int argc, char* argv[]) {
+         return 0;
+     }
+ 
++#if BRPC_WITH_DPDK
++    if (FLAGS_use_dpdk_malloc)
++	dpdk_init(argc, argv);
++#endif
++
+     // Generally you only need one Server.
+     brpc::Server server;
+ 
+diff --git a/src/butil/iobuf.cpp b/src/butil/iobuf.cpp
+index 2219ff8b..01538e95 100644
+--- a/src/butil/iobuf.cpp
++++ b/src/butil/iobuf.cpp
+@@ -34,9 +34,33 @@
+ #include "butil/fd_guard.h"                 // butil::fd_guard
+ #include "butil/iobuf.h"
+ 
++namespace {
++
++static __thread bool g_iobuf_is_user = false;
++
++class UserBufGuard {
++    bool old;
++    UserBufGuard(const UserBufGuard &) = delete;
++    void operator=(const UserBufGuard &) = delete;
++public:
++    UserBufGuard(bool v) {
++        old = g_iobuf_is_user;
++        g_iobuf_is_user = v;
++    }
++    ~UserBufGuard()
++    {
++        g_iobuf_is_user = old;
++    }
++};
++}
++
+ namespace butil {
+ namespace iobuf {
+ 
++bool iobuf_is_user() {
++    return g_iobuf_is_user;
++}
++
+ typedef ssize_t (*iov_function)(int fd, const struct iovec *vector,
+                                    int count, off_t offset);
+ 
+@@ -96,7 +120,7 @@ static ssize_t sys_pwritev(int fd, const struct iovec *vector,
+     return syscall(SYS_pwritev, fd, vector, count, offset);
+ }
+ 
+-inline iov_function get_preadv_func() {
++inline iov_function get_sys_preadv_func() {
+     butil::fd_guard fd(open("/dev/zero", O_RDONLY));
+     if (fd < 0) {
+         PLOG(WARNING) << "Fail to open /dev/zero";
+@@ -116,7 +140,7 @@ inline iov_function get_preadv_func() {
+     return sys_preadv;
+ }
+ 
+-inline iov_function get_pwritev_func() {
++inline iov_function get_sys_pwritev_func() {
+     butil::fd_guard fd(open("/dev/null", O_WRONLY));
+     if (fd < 0) {
+         PLOG(ERROR) << "Fail to open /dev/null";
+@@ -141,16 +165,71 @@ inline iov_function get_pwritev_func() {
+ #warning "We don't check whether the kernel supports SYS_preadv or SYS_pwritev " \
+          "when the arch is not X86_64, use user space preadv/pwritev directly"
+ 
+-inline iov_function get_preadv_func() {
++inline iov_function get_sys_preadv_func() {
+     return user_preadv;
+ }
+ 
+-inline iov_function get_pwritev_func() {
++inline iov_function get_sys_pwritev_func() {
+     return user_pwritev;
+ }
+ 
+ #endif  // ARCH_CPU_X86_64
+ 
++iov_function external_preadv;
++iov_function external_pwritev;
++iov_seq_function external_readv;
++iov_seq_function external_writev;
++
++inline iov_function get_preadv_func() {
++    static iov_function sys_preadv_func = get_sys_preadv_func();
++    if (external_preadv)
++        return external_preadv;
++    return sys_preadv_func;
++}
++
++inline iov_function get_pwritev_func() {
++    static iov_function sys_pwritev_func = get_sys_pwritev_func();
++    if (external_pwritev)
++        return external_pwritev;
++    return sys_pwritev_func;
++}
++
++inline iov_seq_function get_readv_func() {
++    if (external_readv)
++        return external_readv;
++    return readv;
++}
++
++inline iov_seq_function get_writev_func() {
++    if (external_writev)
++        return external_writev;
++    return writev;
++}
++
++int set_external_io_funcs(struct iobuf_io_funcs funcs)
++{
++    if (funcs.iof_preadv == NULL ||
++            funcs.iof_pwritev == NULL ||
++            funcs.iof_readv == NULL ||
++            funcs.iof_writev == NULL) {
++        return -1;
++    }
++
++    external_pwritev = funcs.iof_pwritev;
++    external_preadv = funcs.iof_preadv;
++    external_writev = funcs.iof_writev;
++    external_readv = funcs.iof_readv;
++    return 1;
++}
++
++void get_external_io_funcs(struct iobuf_io_funcs *funcs)
++{
++    funcs->iof_pwritev = external_pwritev;
++    funcs->iof_preadv = external_preadv;
++    funcs->iof_writev = external_writev;
++    funcs->iof_readv = external_readv;
++}
++
+ inline void* cp(void *__restrict dest, const void *__restrict src, size_t n) {
+     // memcpy in gcc 4.8 seems to be faster enough.
+     return memcpy(dest, src, n);
+@@ -166,6 +245,13 @@ void reset_blockmem_allocate_and_deallocate() {
+     blockmem_deallocate = ::free;
+ }
+ 
++void set_blockmem_allocate_and_deallocate(blockmem_allocate_t a,
++        blockmem_deallocate_t f)
++{
++    blockmem_allocate = a;
++    blockmem_deallocate = f;
++}
++
+ butil::static_atomic<size_t> g_nblock = BUTIL_STATIC_ATOMIC_INIT(0);
+ butil::static_atomic<size_t> g_blockmem = BUTIL_STATIC_ATOMIC_INIT(0);
+ butil::static_atomic<size_t> g_newbigview = BUTIL_STATIC_ATOMIC_INIT(0);
+@@ -271,6 +357,9 @@ struct IOBuf::Block {
+ 
+     bool full() const { return size >= cap; }
+     size_t left_space() const { return cap - size; }
++    bool user_buf() const {
++        return !!(flags & IOBUF_BLOCK_FLAGS_USER_DATA);
++    }
+ };
+ 
+ namespace iobuf {
+@@ -947,15 +1036,19 @@ ssize_t IOBuf::pcut_into_file_descriptor(int fd, off_t offset, size_t size_hint)
+     struct iovec vec[nref];
+     size_t nvec = 0;
+     size_t cur_len = 0;
++    bool user_buf = false;
+ 
+     do {
+         IOBuf::BlockRef const& r = _ref_at(nvec);
++        user_buf |= r.block->user_buf();
+         vec[nvec].iov_base = r.block->data + r.offset;
+         vec[nvec].iov_len = r.length;
+         ++nvec;
+         cur_len += r.length;
+     } while (nvec < nref && cur_len < size_hint);
+ 
++    UserBufGuard ug(user_buf);
++
+     ssize_t nw = 0;
+ 
+     if (offset >= 0) {
+@@ -978,15 +1071,19 @@ ssize_t IOBuf::cut_into_writer(IWriter* writer, size_t size_hint) {
+     struct iovec vec[nref];
+     size_t nvec = 0;
+     size_t cur_len = 0;
++    bool user_buf = false;
+ 
+     do {
+         IOBuf::BlockRef const& r = _ref_at(nvec);
++        user_buf |= r.block->user_buf();
+         vec[nvec].iov_base = r.block->data + r.offset;
+         vec[nvec].iov_len = r.length;
+         ++nvec;
+         cur_len += r.length;
+     } while (nvec < nref && cur_len < size_hint);
+ 
++    UserBufGuard ug(user_buf);
++
+     const ssize_t nw = writer->WriteV(vec, nvec);
+     if (nw > 0) {
+         pop_front(nw);
+@@ -1073,11 +1170,13 @@ ssize_t IOBuf::pcut_multiple_into_file_descriptor(
+     }
+     struct iovec vec[IOBUF_IOV_MAX];
+     size_t nvec = 0;
++    bool user_buf = false;
+     for (size_t i = 0; i < count; ++i) {
+         const IOBuf* p = pieces[i];
+         const size_t nref = p->_ref_num();
+         for (size_t j = 0; j < nref && nvec < IOBUF_IOV_MAX; ++j, ++nvec) {
+             IOBuf::BlockRef const& r = p->_ref_at(j);
++            user_buf |= r.block->user_buf();
+             vec[nvec].iov_base = r.block->data + r.offset;
+             vec[nvec].iov_len = r.length;
+         }
+@@ -1113,16 +1212,20 @@ ssize_t IOBuf::cut_multiple_into_writer(
+     }
+     struct iovec vec[IOBUF_IOV_MAX];
+     size_t nvec = 0;
++    bool user_buf = false;
+     for (size_t i = 0; i < count; ++i) {
+         const IOBuf* p = pieces[i];
+         const size_t nref = p->_ref_num();
+         for (size_t j = 0; j < nref && nvec < IOBUF_IOV_MAX; ++j, ++nvec) {
+             IOBuf::BlockRef const& r = p->_ref_at(j);
++            user_buf |= r.block->user_buf();
+             vec[nvec].iov_base = r.block->data + r.offset;
+             vec[nvec].iov_len = r.length;
+         }
+     }
+ 
++    UserBufGuard ug(user_buf);
++
+     const ssize_t nw = writer->WriteV(vec, nvec);
+     if (nw <= 0) {
+         return nw;
+@@ -1578,6 +1681,8 @@ ssize_t IOPortal::pappend_from_file_descriptor(
+     size_t space = 0;
+     Block* prev_p = NULL;
+     Block* p = _block;
++    bool user_buf = false;
++
+     // Prepare at most MAX_APPEND_IOVEC blocks or space of blocks >= max_count
+     do {
+         if (p == NULL) {
+@@ -1592,6 +1697,7 @@ ssize_t IOPortal::pappend_from_file_descriptor(
+                 _block = p;
+             }
+         }
++        user_buf |= p->user_buf();
+         vec[nvec].iov_base = p->data + p->size;
+         vec[nvec].iov_len = std::min(p->left_space(), max_count - space);
+         space += vec[nvec].iov_len;
+@@ -1603,6 +1709,8 @@ ssize_t IOPortal::pappend_from_file_descriptor(
+         p = p->portal_next;
+     } while (1);
+ 
++    UserBufGuard ug(user_buf);
++
+     ssize_t nr = 0;
+     if (offset < 0) {
+         nr = readv(fd, vec, nvec);
+@@ -1639,6 +1747,7 @@ ssize_t IOPortal::append_from_reader(IReader* reader, size_t max_count) {
+     size_t space = 0;
+     Block* prev_p = NULL;
+     Block* p = _block;
++    bool user_buf = false;
+     // Prepare at most MAX_APPEND_IOVEC blocks or space of blocks >= max_count
+     do {
+         if (p == NULL) {
+@@ -1653,6 +1762,7 @@ ssize_t IOPortal::append_from_reader(IReader* reader, size_t max_count) {
+                 _block = p;
+             }
+         }
++        user_buf |= p->user_buf();
+         vec[nvec].iov_base = p->data + p->size;
+         vec[nvec].iov_len = std::min(p->left_space(), max_count - space);
+         space += vec[nvec].iov_len;
+@@ -1664,6 +1774,8 @@ ssize_t IOPortal::append_from_reader(IReader* reader, size_t max_count) {
+         p = p->portal_next;
+     } while (1);
+ 
++    UserBufGuard ug(user_buf);
++
+     const ssize_t nr = reader->ReadV(vec, nvec);
+     if (nr <= 0) {  // -1 or 0
+         if (empty()) {
+diff --git a/src/butil/iobuf.h b/src/butil/iobuf.h
+index 13474367..4dce2fe3 100644
+--- a/src/butil/iobuf.h
++++ b/src/butil/iobuf.h
+@@ -671,6 +671,34 @@ private:
+     const butil::IOBuf* _buf;
+ };
+ 
++namespace iobuf {
++
++typedef void* (*blockmem_allocate_t)(size_t);
++typedef void  (*blockmem_deallocate_t)(void*);
++
++typedef ssize_t (*iov_function)(int fd, const struct iovec *vector,
++                                   int count, off_t offset);
++
++typedef ssize_t (*iov_seq_function)(int fd, const struct iovec *vector,
++                                    int count);
++
++struct iobuf_io_funcs {
++	iov_function iof_preadv;
++	iov_function iof_pwritev;
++	iov_seq_function iof_readv;
++	iov_seq_function iof_writev;
++};
++
++void set_blockmem_allocate_and_deallocate(blockmem_allocate_t,
++	blockmem_deallocate_t);
++
++int set_external_io_funcs(struct iobuf_io_funcs funcs);
++
++void get_external_io_funcs(struct iobuf_io_funcs *funcs);
++
++bool iobuf_is_user();
++
++}  // namespace iobuf
+ }  // namespace butil
+ 
+ // Specialize std::swap for IOBuf

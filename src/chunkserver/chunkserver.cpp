@@ -27,6 +27,16 @@
 #include <braft/raft_service.h>
 #include <braft/storage.h>
 
+#include <spdk/log.h>
+#include <rte_log.h>
+#include <rte_malloc.h>
+#include <pfs_spdk.h>
+#include <pfs_api.h>
+#include <pfs_trace_func.h>
+#include <pfsd.h>
+#include <pfsd_sdk.h>
+#include <pfsd_sdk_log.h>
+
 #include <memory>
 
 #include "src/chunkserver/chunkserver.h"
@@ -76,10 +86,119 @@ DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
 
 const char* kProtocalCurve = "curve";
 
+void
+glog_pfs_func(int level, const char *file, const char *func, int line,
+    const char *fmt, va_list ap) {
+    char buf[8192];
+
+    int glevel = google::GLOG_INFO;
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    switch (level) {
+    case PFS_TRACE_FATAL:
+        glevel = google::GLOG_FATAL;
+        google::LogMessage(file, line, glevel).stream() << buf;
+        abort();
+        break;
+    case PFS_TRACE_ERROR:
+        glevel = google::GLOG_ERROR;
+        break;
+    case PFS_TRACE_WARN:
+        glevel = google::GLOG_WARNING;
+        break;
+    case PFS_TRACE_INFO:
+    case PFS_TRACE_DBG:
+    case PFS_TRACE_VERB:
+    default:
+        glevel = google::GLOG_INFO;
+        break;
+    }
+    google::LogMessage(file, line, glevel).stream() << buf;
+}
+
+void
+glog_spdk_func(int level, const char *a_file, const int a_line,
+    const char *func, const char *fmt, va_list ap) {
+    char buf[8192];
+    const char *file = a_file;
+    int line = a_line;
+
+    if (file == NULL) {
+        file = "<spdk>";
+        if (a_line <= 0)
+            line = 1;
+    }
+
+    int glevel = google::GLOG_INFO;
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    switch (level) {
+    case SPDK_LOG_ERROR:
+        glevel = google::GLOG_ERROR;
+        break;
+    case SPDK_LOG_WARN:
+        glevel = google::GLOG_WARNING;
+        break;
+    case SPDK_LOG_NOTICE:
+    case SPDK_LOG_INFO:
+        glevel = google::GLOG_INFO;
+        break;
+#ifndef NDEBUG
+    case SPDK_LOG_DEBUG:
+        glevel = google::GLOG_INFO;
+        break;
+#endif
+    }
+    google::LogMessage(file, line, glevel).stream() << buf;
+}
+
+static ssize_t
+glog_dpdk_log_func(void *cookie, const char *buf, size_t size) {
+    int level = rte_log_cur_msg_loglevel();
+    int glevel = google::GLOG_INFO;
+
+    switch (level) {
+    case RTE_LOG_EMERG:
+    case RTE_LOG_ALERT:
+    case RTE_LOG_CRIT:
+    case RTE_LOG_ERR:
+        glevel = google::GLOG_ERROR;
+        break;
+    case RTE_LOG_WARNING:
+        glevel = google::GLOG_WARNING;
+        break;
+    case RTE_LOG_NOTICE:
+    case RTE_LOG_INFO:
+    default:
+        glevel = google::GLOG_INFO;
+        break;
+#ifndef NDEBUG
+    case RTE_LOG_DEBUG:
+        glevel = google::GLOG_INFO;
+        return 0;
+#endif
+    }
+    google::LogMessage("<dpdk>", 0, glevel).stream().write(buf, size);
+    if (level == RTE_LOG_EMERG)
+        abort();
+    return size;
+}
+
+void* dpdk_mem_allocate(size_t sz) {
+    /* rte_malloc seems fast enough, otherwise we need to use mempool */
+    return rte_malloc("iobuf", sz, 64);
+}
+
+void dpdk_mem_free(void* p) {
+    rte_free(p);
+}
+
 namespace curve {
 namespace chunkserver {
 
 int ChunkServer::Run(int argc, char** argv) {
+    FILE *dpdk_log_stream = NULL;
+    cookie_io_functions_t io_funcs;
+    memset(&io_funcs, 0, sizeof(io_funcs));
+
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     RegisterCurveSegmentLogStorageOrDie();
@@ -98,6 +217,15 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
+
+    io_funcs.write = glog_dpdk_log_func;
+    dpdk_log_stream = fopencookie(NULL, "w", io_funcs);
+    if (dpdk_log_stream == NULL) {
+        LOG(FATAL) << "fopencookie failed";
+    }
+    rte_openlog_stream(dpdk_log_stream);
+    spdk_log_open(glog_spdk_func);
+    pfs_set_trace_func(glog_pfs_func);
 
     // 打印参数
     conf.PrintConfig();
@@ -127,11 +255,36 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to initialize concurrentapply module!";
 
     // 初始化本地文件系统
-    std::shared_ptr<LocalFileSystem> fs(
-        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     LocalFileSystemOption lfsOption;
+    std::string fsTypeStr;
+    LOG_IF(FATAL, !conf.GetStringValue(
+        "fs.type", &fsTypeStr));
+    lfsOption.type = fs::StringToFileSystemType(fsTypeStr);
+    if (fs::FileSystemType::PFS  == lfsOption.type) {
+        LOG_IF(FATAL, !conf.GetStringValue(
+            "fs.pfs_cluster", &lfsOption.pfs_cluster));
+        LOG_IF(FATAL, !conf.GetStringValue(
+            "fs.pfs_pbd_name", &lfsOption.pfs_pbd_name));
+        LOG_IF(FATAL, !conf.GetIntValue(
+            "fs.pfs_host_id", &lfsOption.pfs_host_id));
+
+        // setup spdk
+        LOG_IF(FATAL, 0 != pfs_spdk_setup())
+            << "setup spdk failed";
+        // make iobuf use dpdk malloc & free
+
+        butil::iobuf::set_blockmem_allocate_and_deallocate(
+            dpdk_mem_allocate, dpdk_mem_free);
+        // start pfsdaemon
+        LOG_IF(FATAL, 0 != pfsd_start(true))
+            << "start pfsd failed";
+    }
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(lfsOption.type, ""));
+
     LOG_IF(FATAL, !conf.GetBoolValue(
         "fs.enable_renameat2", &lfsOption.enableRenameat2));
+
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
 
@@ -428,6 +581,11 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(ERROR, trash_->Fini() != 0)
         << "Failed to shutdown trash.";
     concurrentapply.Stop();
+
+    if (fs::FileSystemType::PFS == lfsOption.type) {
+        LOG_IF(ERROR, pfsd_stop() != 0)
+            << "Failed to stop pfsd.";
+    }
 
     google::ShutdownGoogleLogging();
     return 0;

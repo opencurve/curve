@@ -14,22 +14,29 @@
 #  limitations under the License.
 #
 
+load(
+    "//:copts.bzl",
+    "GCC_FLAGS",
+    "GCC_TEST_FLAGS",
+)
+
 cc_library(
     name = "lfs",
-    srcs = glob([
-                "*.cpp",
-                "ext4_filesystem_impl.h",
-                "ext4_util.h",
-                "wrap_posix.h"
-           ]),
-    hdrs = ["local_filesystem.h","fs_common.h"],
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
+    copts = GCC_FLAGS + ["-Iexternal/pfs"],
     linkopts = ([
+        "-L/usr/local/polarstore/pfsd/lib",
         "-std=c++11",
+        "-lpfsd"
     ]),
     deps = [
                 "//src/common:curve_common",
                 "//external:glog",
                 "//external:butil",
-            ],
+                "@pfs//:headers",
+           ],
     visibility = ["//visibility:public"],
 )
+
+

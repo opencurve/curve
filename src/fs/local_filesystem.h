@@ -44,8 +44,12 @@ namespace curve {
 namespace fs {
 
 struct LocalFileSystemOption {
+    FileSystemType type;
     bool enableRenameat2;
-    LocalFileSystemOption() : enableRenameat2(false) {}
+    std::string pfs_cluster;
+    std::string pfs_pbd_name;
+    int pfs_host_id;
+    LocalFileSystemOption() : enableRenameat2(false), pfs_host_id(2) {}
 };
 
 class LocalFileSystem {

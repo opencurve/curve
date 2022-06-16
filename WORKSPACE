@@ -103,7 +103,8 @@ git_repository(
     name = "com_github_apache_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch"],
+    patches = ["//:thirdparties/brpc/brpc.patch",
+               "//:thirdparties/brpc/brpc_dpdk.patch"],
     patch_args = ["-p1"],
 )
 
@@ -189,3 +190,41 @@ new_http_archive(
     strip_prefix = "aws-checksums-0.1.5",
     build_file = "//:thirdparties/aws/aws-checksums.BUILD",
 )
+
+new_local_repository(
+    name = "pfs",
+    path = "/usr/local/polarstore/pfsd/include",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "headers",
+    hdrs = glob(["**/*.h"])
+)
+"""
+)
+
+new_local_repository(
+    name = "dpdk",
+    path = "/usr/local/dpdk/include",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "headers",
+    hdrs = glob(["**/*.h"])
+)
+"""
+)
+
+new_local_repository(
+    name = "spdk",
+    path = "/usr/local/spdk/include",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "headers",
+    hdrs = glob(["**/*.h"])
+)
+"""
+)
+
+
