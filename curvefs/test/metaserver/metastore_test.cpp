@@ -89,10 +89,7 @@ class MetastoreTest : public ::testing::Test {
         ASSERT_EQ(0, localfs->Mkdir(options_.dataDir));
 
         dataDir_ = RandomStoragePath();
-        StorageOptions options;
-        options.dataDir = dataDir_;
-        options.s3MetaLimitSizeInsideInode = 100;
-        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        kvStorage_ = std::make_shared<RocksDBStorage>(options_);
         ASSERT_TRUE(kvStorage_->Open());
 
         conv_ = std::make_shared<Converter>();
@@ -102,7 +99,7 @@ class MetastoreTest : public ::testing::Test {
 
     void TearDown() override {
         ASSERT_EQ(0, localfs->Delete(test_path_));
-        ASSERT_EQ(0, localfs->Delete(dataDir_));
+        ASSERT_TRUE(0 == localfs->Delete(dataDir_) || errno == ENOENT);
     }
 
     std::string execShell(const std::string& cmd) {

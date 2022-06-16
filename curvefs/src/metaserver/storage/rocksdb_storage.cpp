@@ -102,6 +102,16 @@ bool RocksDBStorage::Open() {
         return true;
     }
 
+    if (cleanOpen_ && options_.localFileSystem->DirExists(options_.dataDir)) {
+        int ret = options_.localFileSystem->Delete(options_.dataDir);
+        if (ret != 0) {
+            LOG(ERROR) << "Failed to clear database directory when open from a "
+                          "clean database, dir: "
+                       << options_.dataDir << ", error: " << berror();
+            return false;
+        }
+    }
+
     ROCKSDB_NAMESPACE::Status s =
         TransactionDB::Open(dbOptions_, dbTransOptions_, options_.dataDir,
                             dbCfDescriptors_, &handles_, &txnDB_);
@@ -337,7 +347,13 @@ StorageOptions RocksDBStorage::GetStorageOptions() const {
 }
 
 void RocksDBStorage::InitDbOptions() {
-    InitRocksdbOptions(&dbOptions_, &dbCfDescriptors_);
+    // if open from a clean database, the database shouldn't exists and we
+    // should create one, otherwise, the database must be exists and we should
+    // not create it
+    const bool createIfMissing = cleanOpen_;
+    const bool errorIfExists = cleanOpen_;
+    InitRocksdbOptions(&dbOptions_, &dbCfDescriptors_, createIfMissing,
+                       errorIfExists);
 
     dbTransOptions_ = rocksdb::TransactionDBOptions();
 
@@ -415,7 +431,7 @@ bool DuplicateRocksdbCheckpoint(const std::string& from,
     rocksdb::DBOptions dbOptions;
     std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilies;
 
-    InitRocksdbOptions(&dbOptions, &columnFamilies);
+    InitRocksdbOptions(&dbOptions, &columnFamilies, /*createIfMissing*/ false);
 
     std::vector<rocksdb::ColumnFamilyHandle*> cfHandles;
 
@@ -463,6 +479,8 @@ bool RocksDBStorage::Recover(const std::string& dir) {
         return false;
     }
 
+    cleanOpen_ = false;
+    InitDbOptions();
     succ = Open();
     if (!succ) {
         LOG(ERROR) << "Failed to open rocksdb";

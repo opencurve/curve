@@ -176,19 +176,22 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     friend void InitRocksdbOptions(
         rocksdb::DBOptions* options,
-        std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies);
+        std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies,
+        bool createIfMissing,
+        bool errorIfExists);
 
     void InitDbOptions();
 
  private:
-    RWLock rwLock_;  // lock for Counter
     bool inited_;
     StorageOptions options_;
-    // RocksDBOptions rocksdbOptions_;
     DB* db_;
     TransactionDB* txnDB_;
     std::vector<ColumnFamilyHandle*> handles_;
     static const std::string kDelimiter_;
+
+    // open a clean database or recovery from a checkpoint
+    bool cleanOpen_ = true;
 
     // only for transaction
     bool InTransaction_;

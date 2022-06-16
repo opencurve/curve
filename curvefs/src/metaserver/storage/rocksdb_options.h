@@ -43,7 +43,9 @@ void ParseRocksdbOptions(curve::common::Configuration* conf);
 
 void InitRocksdbOptions(
     rocksdb::DBOptions* options,
-    std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies);
+    std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies,
+    bool createIfMissing = true,
+    bool errorIfExists = false);
 
 }  // namespace storage
 }  // namespace metaserver

@@ -120,14 +120,17 @@ std::shared_ptr<MetricEventListener> GetMetricEventListener() {
 
 void InitRocksdbOptions(
     rocksdb::DBOptions* options,
-    std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies) {
+    std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies,
+    bool createIfMissing,
+    bool errorIfExists) {
     assert(options != nullptr);
     assert(columnFamilies != nullptr);
     columnFamilies->clear();
 
     CreateBlockCacheAndWriterBufferManager();
 
-    options->create_if_missing = true;
+    options->create_if_missing = createIfMissing;
+    options->error_if_exists = errorIfExists;
     options->create_missing_column_families = true;
     options->max_background_jobs = FLAGS_rocksdb_max_background_jobs;
     options->atomic_flush = true;
