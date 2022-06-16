@@ -36,6 +36,29 @@ def check_fs_cluster_ok():
         logger.debug("cluster is %s"%rs[1])
         return False
 
+def wait_fs_cluster_ok():
+    mds = config.fs_mds[0]
+    ssh = shell_operator.create_ssh_connect(mds, 1046, config.abnormal_user)
+    ori_cmd = "sudo docker ps |grep curvefs | awk '{print $1}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    docker_id = rs[1][0].strip()
+    logger.info("docker is %s"%rs[1])
+    ori_cmd = "sudo docker exec -i %s curvefs_tool status |grep unhealthy"%docker_id
+    starttime = time.time()
+    while time.time() - starttime < 1200:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.info("status is %s"%rs[1])
+        if rs[0] != 0 and rs[1] == []:
+            logger.info("cluster is healthy")
+            return True
+        else:
+            logger.info("cluster is unhealthy")
+            time.sleep(60)
+    ori_cmd = "sudo docker exec -i %s curvefs_tool status"%docker_id
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    logger.debug("cluster is %s"%rs[1])
+    assert False,"cluster metaserver not recover finish in %d"%(120)
+
 def check_fs_copyset_status():
     mds = config.fs_mds[0]
     ssh = shell_operator.create_ssh_connect(mds, 1046, config.abnormal_user)
@@ -280,9 +303,12 @@ def test_kill_process(process_name,num=1):
         raise
     return host
 
-def test_start_process(process_name):
+def test_start_process(process_name,host=None):
     try:
-        cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
+        if host == None:
+            cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
+        else:
+            cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s --host=%s"%(process_name,host)
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"start %s fail"%process_name
     except Exception as e:
@@ -493,6 +519,24 @@ def test_in_metaserver_copyset():
     except Exception as e:
         logger.error("error is %s"%e)
         raise
+
+def test_ipmitool_restart_metaserver():
+    metaserver_host = random.choice(config.fs_metaserver)
+    logger.info("|------begin test metaserver ipmitool cycle,host %s------|"%(metaserver_host))
+    ssh = shell_operator.create_ssh_connect(metaserver_host, 1046, config.abnormal_user)
+    fault_inject.ipmitool_cycle_restart_host(ssh)
+    time.sleep(60)
+    starttime = time.time()
+    i = 0
+    while time.time() - starttime < 600:
+        status = fault_inject.check_host_connect(metaserver_host)
+        if status == True:
+            break
+        else:
+            logger.debug("wait host up")
+            time.sleep(5)
+    assert status,"restart host %s fail"%metaserver_host
+    test_start_process("metaserver",metaserver_host)
 
 def wait_fuse_exit(fusename=""):
     test_client = config.fs_test_client[0]
