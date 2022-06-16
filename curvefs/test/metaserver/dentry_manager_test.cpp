@@ -54,7 +54,8 @@ class DentryManagerTest : public ::testing::Test {
 
         StorageOptions options;
         options.dataDir = testDataDir_;
-        options.type = "memory";
+        options.type = "rocksdb";
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         dentryStorage_ = std::make_shared<DentryStorage>(

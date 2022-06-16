@@ -34,10 +34,15 @@
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/src/metaserver/storage/storage_fstream.h"
 #include "curvefs/test/metaserver/storage/storage_test.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
+
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
 
 using ContainerType = std::unordered_map<std::string, std::string>;
 
@@ -172,6 +177,7 @@ TEST_F(StorageFstreamTest, DISABLED_MemoryStorageSaveBackground) {
 TEST_F(StorageFstreamTest, RocksDBStorageSave) {
     StorageOptions options;
     options.dataDir = dbpath_;
+    options.localFileSystem = localfs.get();
     auto kvStorage = std::make_shared<RocksDBStorage>(options);
     ASSERT_TRUE(kvStorage->Open());
     TestSave(kvStorage, false);

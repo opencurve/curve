@@ -34,6 +34,7 @@
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/test/metaserver/storage/storage_test.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "test/fs/mock_local_filesystem.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -43,8 +44,12 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ROCKSDB_STATUS = ROCKSDB_NAMESPACE::Status;
-
+using ::curve::fs::MockLocalFileSystem;
 using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
+
+using ::testing::_;
+using ::testing::Return;
+using ::testing::Invoke;
 
 class RocksDBStorageTest : public testing::Test {
  protected:
@@ -184,6 +189,54 @@ ino_t GetPathInodeId(const std::string& path) {
 
 }  // namespace
 
+TEST_F(RocksDBStorageTest, TestCleanOpen) {
+    ASSERT_TRUE(kvStorage_->Close());
+
+    MockLocalFileSystem mockfs;
+    options_.localFileSystem = &mockfs;
+
+    // data directory exists but delete failed
+    EXPECT_CALL(mockfs, DirExists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mockfs, Delete(_))
+        .WillOnce(Invoke([](const std::string&) {
+            errno = EPERM;
+            return -1;
+        }));
+
+    kvStorage_ = std::make_shared<RocksDBStorage>(options_);
+    ASSERT_FALSE(kvStorage_->Open());
+}
+
+TEST_F(RocksDBStorageTest, TestRecover) {
+    ASSERT_TRUE(kvStorage_->Close());
+
+    MockLocalFileSystem mockfs;
+    options_.localFileSystem = &mockfs;
+    options_.dataDir += std::to_string(time(nullptr));
+
+    // only first open will check dir exists
+    EXPECT_CALL(mockfs, DirExists(_))
+        .WillOnce(Return(false));
+
+    // recover should delete previous database
+    EXPECT_CALL(mockfs, Delete(_))
+        .WillOnce(Invoke([](const std::string& dir) {
+            return curve::fs::Ext4FileSystemImpl::getInstance()->Delete(dir);
+        }));
+
+    // open first
+    kvStorage_ = std::make_shared<RocksDBStorage>(options_);
+    ASSERT_TRUE(kvStorage_->Open());
+
+    // do checkpoint
+    std::vector<std::string> files;
+    ASSERT_TRUE(kvStorage_->Checkpoint(dirname_, &files));
+
+    // recovery
+    ASSERT_TRUE(kvStorage_->Recover(dirname_));
+}
+
 TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
     // put some values
     auto s = kvStorage_->SSet("1", "1", Value("1"));
@@ -215,7 +268,9 @@ TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
     // get values that checkpoint should have
     Dentry dummyDentry;
     kvStorage_->SGet("1", "1", &dummyDentry);
-    EXPECT_EQ(Value("1"), dummyDentry);
+    EXPECT_EQ(Value("1"), dummyDentry)
+        << "Expect: " << Value("1").ShortDebugString()
+        << ", actual: " << dummyDentry.ShortDebugString();
 
     kvStorage_->SGet("2", "2", &dummyDentry);
     EXPECT_EQ(Value("2"), dummyDentry);

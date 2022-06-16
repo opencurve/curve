@@ -31,6 +31,7 @@
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 using ::testing::_;
@@ -51,6 +52,11 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 
 namespace curvefs {
 namespace metaserver {
+
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
+
 class InodeManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
@@ -58,6 +64,7 @@ class InodeManagerTest : public ::testing::Test {
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 

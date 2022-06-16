@@ -32,6 +32,7 @@
 #include "curvefs/test/metaserver/mock_s3compactwq_impl.h"
 #include "curvefs/test/metaserver/mock_s3infocache.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::curvefs::metaserver::copyset::CopysetNode;
 using ::curvefs::metaserver::copyset::CopysetNodeManager;
@@ -54,6 +55,11 @@ using ::curvefs::metaserver::storage::NameGenerator;
 
 namespace curvefs {
 namespace metaserver {
+
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
+
 class S3CompactWorkQueueImplTest : public ::testing::Test {
  public:
     void SetUp() override {
@@ -78,6 +84,7 @@ class S3CompactWorkQueueImplTest : public ::testing::Test {
         dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 

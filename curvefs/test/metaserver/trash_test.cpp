@@ -27,6 +27,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -40,6 +41,10 @@ using ::testing::SaveArg;
 namespace curvefs {
 namespace metaserver {
 
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
+
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
@@ -51,6 +56,7 @@ class TestTrash : public ::testing::Test {
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
 
