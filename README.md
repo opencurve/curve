@@ -9,6 +9,7 @@
 [![Releases](https://img.shields.io/github/v/release/opencurve/curve?include_prereleases)](https://github.com/opencurve/curve/releases)
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6136/badge)](https://bestpractices.coreinfrastructure.org/projects/6136)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fopencurve%2Fcurve.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fopencurve%2Fcurve?ref=badge_shield)
 
 Curve is a distributed storage system designed and developed by NetEase, featured with high performance, easy operation and cloud native. Curve is compose of CurveBS(Curve Block Storage) and CurveFS(Curve FileSystem). CurveBS supports snapshot, clone, and recover, also supports virtual machines with qemu and physical machine with nbd. CurveFS supports POSIX based on Fuse.
 
@@ -149,3 +150,7 @@ All the developments will be done under master branch. If there's any new versio
 - [Double Week Meetings](https://github.com/opencurve/curve-meetup-slides/tree/main/2022): We have an online community meeting every two weeks which talk about what Curve is doing and planning to do. The time and links of the meeting are public in the user group and [Double Week Meetings](https://github.com/opencurve/curve-meetup-slides/tree/main/2022).
 
 <img src="docs/images/curve-wechat.jpeg" style="zoom: 75%;" />
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fopencurve%2Fcurve.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fopencurve%2Fcurve?ref=badge_large)
