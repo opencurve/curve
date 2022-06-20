@@ -211,6 +211,15 @@ TEST_F(TestDiskCacheManager, SetDiskFsUsedRatio) {
     ASSERT_EQ(-1, ret);
 
     struct statfs stat;
+    stat.f_frsize = 0;
+    stat.f_blocks = 0;
+    stat.f_bfree = 0;
+    stat.f_bavail = 0;
+    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
+        .WillOnce(DoAll(SetArgPointee<1>(stat), Return(0)));
+    ret = diskCacheManager_->SetDiskFsUsedRatio();
+    ASSERT_EQ(-1, ret);
+
     stat.f_frsize = 1;
     stat.f_blocks = 1;
     stat.f_bfree = 0;
