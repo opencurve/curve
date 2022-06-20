@@ -263,7 +263,8 @@ int DiskCacheManager::LinkWriteToRead(const std::string fileName,
 int64_t DiskCacheManager::SetDiskFsUsedRatio() {
     struct statfs stat;
     if (posixWrapper_->statfs(cacheDir_.c_str(), &stat) == -1) {
-        LOG(ERROR) << "get cache disk space error.";
+        LOG_EVERY_N(WARNING, 100)
+            << "get cache disk space error, errno is: " << errno;
         return -1;
     }
 
@@ -272,8 +273,12 @@ int64_t DiskCacheManager::SetDiskFsUsedRatio() {
     int64_t freeBytes = stat.f_bfree * frsize;
     int64_t availableBytes = stat.f_bavail * frsize;
     int64_t usedBytes = totalBytes - freeBytes;
+    if ((usedBytes == 0) &&
+      (availableBytes == 0)) {
+        LOG_EVERY_N(WARNING, 100) << "get cache disk space zero.";
+        return -1;
+    }
     int64_t usedPercent = 100 * usedBytes / (usedBytes + availableBytes) + 1;
-
     diskFsUsedRatio_.store(usedPercent, std::memory_order_seq_cst);
     return usedPercent;
 }
@@ -284,12 +289,14 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
     SysUtils sysUtils;
     std::string result = sysUtils.RunSysCmd(cmd);
     if (result.empty()) {
-        LOG(ERROR) << "get disk used size failed.";
+        LOG_EVERY_N(WARNING, 100)
+            << "get disk used size failed.";
         return;
     }
     uint64_t usedBytes = 0;
     if (!curve::common::StringToUll(result, &usedBytes)) {
-        LOG(ERROR) << "get disk used size failed.";
+        LOG_EVERY_N(WARNING, 100)
+            << "get disk used size failed.";
         return;
     }
     usedBytes_.fetch_add(usedBytes, std::memory_order_seq_cst);
@@ -363,50 +370,51 @@ void DiskCacheManager::TrimCache() {
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
         SetDiskFsUsedRatio();
-            while (!IsDiskCacheSafe()) {
-                if (!cachedObjName_->GetLast(false, &cacheKey)) {
-                    VLOG(9) << "obj is empty";
-                    break;
-                }
-
-                VLOG(6) << "obj will be removed01: " << cacheKey;
-                cacheReadFile = cacheReadFullDir + "/" + cacheKey;
-                cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
-                struct stat statFile;
-                int ret;
-                ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
-                // if file has not been uploaded to S3,
-                // but remove the cache read file,
-                // then read will fail when do cache read,
-                // and then it cannot load the file from S3.
-                // so read is fail.
-                if (ret == 0) {
-                    VLOG(1) << "do not remove this disk file"
-                            << ", file has not been uploaded to S3."
-                            << ", file is: " << cacheKey;
-                    continue;
-                }
-                cachedObjName_->Remove(cacheKey);
-                struct stat statReadFile;
-                ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
-                if (ret != 0) {
-                    VLOG(0) << "stat disk file error"
-                            << ", file is: " << cacheKey;
-                    continue;
-                }
-                // if remove disk file before delete cache,
-                // then read maybe fail.
-                const char *toDelFile;
-                toDelFile = cacheReadFile.c_str();
-                ret = posixWrapper_->remove(toDelFile);
-                if (ret < 0) {
-                    LOG(ERROR)
-                        << "remove disk file error, file is: " << cacheKey;
-                    continue;
-                }
-                DecDiskUsedBytes(statReadFile.st_size);
-                VLOG(6) << "remove disk file success, file is: " << cacheKey;
+        while (!IsDiskCacheSafe()) {
+            if (!cachedObjName_->GetLast(false, &cacheKey)) {
+                VLOG(9) << "obj is empty";
+                break;
             }
+
+            VLOG(6) << "obj will be removed01: " << cacheKey;
+            cacheReadFile = cacheReadFullDir + "/" + cacheKey;
+            cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
+            struct stat statFile;
+            int ret;
+            ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
+            // if file has not been uploaded to S3,
+            // but remove the cache read file,
+            // then read will fail when do cache read,
+            // and then it cannot load the file from S3.
+            // so read is fail.
+            if (ret == 0) {
+                VLOG(1) << "do not remove this disk file"
+                        << ", file has not been uploaded to S3."
+                        << ", file is: " << cacheKey;
+                continue;
+            }
+            cachedObjName_->Remove(cacheKey);
+            struct stat statReadFile;
+            ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
+            if (ret != 0) {
+                VLOG(0) << "stat disk file error"
+                        << ", file is: " << cacheKey;
+                continue;
+            }
+            // if remove disk file before delete cache,
+            // then read maybe fail.
+            const char *toDelFile;
+            toDelFile = cacheReadFile.c_str();
+            ret = posixWrapper_->remove(toDelFile);
+            if (ret < 0) {
+                LOG(ERROR)
+                    << "remove disk file error, file is: " << cacheKey
+                    << "error is: " << errno;
+                continue;
+            }
+            DecDiskUsedBytes(statReadFile.st_size);
+            VLOG(6) << "remove disk file success, file is: " << cacheKey;
+        }
     }
     LOG(INFO) << "trim function end.";
 }
