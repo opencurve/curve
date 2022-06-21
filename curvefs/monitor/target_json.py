@@ -69,7 +69,7 @@ def loadClient():
     ret, output = runCurvefsToolCommand(["list-fs"])
     clients = []
     if ret == 0 :
-        data = json.loads(output)
+        data = json.loads(output.decode())
         for fsinfo in data["fsInfo"]:
             for mountpoint in fsinfo["mountpoints"]:
                 clients.append(mountpoint["hostname"] + ":" + str(mountpoint["port"]))
