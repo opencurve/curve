@@ -10,7 +10,10 @@
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6136/badge)](https://bestpractices.coreinfrastructure.org/projects/6136)
 
-Curve is a distributed storage system designed and developed by NetEase, featured with high performance, easy operation and cloud native. Curve is compose of CurveBS(Curve Block Storage) and CurveFS(Curve FileSystem). CurveBS supports snapshot, clone, and recover, also supports virtual machines with qemu and physical machine with nbd. CurveFS supports POSIX based on Fuse.
+
+Curve is a high-performance, lightweight-operation, cloud-native open source distributed storage system. Can be applied to mainstream cloud-native infrastructure platforms: connect to OpenStack platform to provide high-performance block storage services for cloud VM; connect to Kubernetes to provide RWO, RWX and other types of persistent volumes; connect to PolarFS as a high-performance storage for cloud-native databases, perfectly supports the storage-computing separation architecture of cloud-native databases. Curve can also be used as a cloud storage middleware using S3-compatible object storage as a data storage engine, providing cost-effective shared file storage for public cloud users.
+
+Curve has hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox project.
 
 ## Curve Architecture
 The architecture overview of Curve is as follows:
