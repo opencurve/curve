@@ -1,0 +1,797 @@
+diff --git a/src/bthread/rwlock_v2.cpp b/src/bthread/rwlock_v2.cpp
+new file mode 100644
+index 0000000..3c12875
+--- b/src/bthread/rwlock_v2.cpp
++++ b/src/bthread/rwlock_v2.cpp
+@@ -0,0 +1,399 @@
++// bthread rwlock
++// Copyright (c) 2022 Netease, Inc.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// Author: (yfxu@netease)
++
++#include "butil/atomicops.h"
++#include "butil/macros.h"                        // BAIDU_CASSERT
++#include "bthread/rwlock_v2.h"
++#include "bthread/mutex.h"
++#include "bthread/condition_variable.h"
++#include "bthread/task_group.h"
++
++#define RWLOCK_WRITE_OWNER     0x80000000U
++#define RWLOCK_WRITE_WAITERS   0x40000000U
++#define RWLOCK_READ_WAITERS    0x20000000U
++#define RWLOCK_MAX_READERS     0x1fffffffU
++#define RWLOCK_READER_COUNT(c) ((c) & RWLOCK_MAX_READERS)
++
++#define PREFER_READER(rwlock) ((rwlock)->rw_flags != 0)
++
++namespace bthread {
++
++extern BAIDU_THREAD_LOCAL TaskGroup* tls_task_group; 
++
++namespace v2 {
++static inline int
++cas_acq_int(volatile int *dst, int expect, int src)
++{
++    return __atomic_compare_exchange_n(dst, &expect, src, 0,
++                __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
++}
++
++static inline int
++cas_rel_int(volatile int *dst, int expect, int src)
++{
++    return __atomic_compare_exchange_n(dst, &expect, src, 0,
++                __ATOMIC_RELEASE, __ATOMIC_RELAXED);
++}
++
++int
++bthread_rwlockattr_init(bthread_rwlockattr_t *attr)
++{
++    attr->lockkind = BTHREAD_RWLOCK_DEFAULT_NP;
++    return 0;
++}
++
++int
++bthread_rwlockattr_destroy(bthread_rwlockattr_t *attr)
++{
++    return 0;
++}
++
++int
++bthread_rwlockattr_getkind_np(
++    const bthread_rwlockattr_t* __restrict attr, int *__restrict pref)
++{
++    *pref = attr->lockkind;
++    return 0;
++}
++
++int
++bthread_rwlockattr_setkind_np(bthread_rwlockattr_t *attr,
++                                          int pref)
++{
++    switch(pref) {
++    case BTHREAD_RWLOCK_PREFER_WRITER_NP:
++    case BTHREAD_RWLOCK_PREFER_READER_NP:
++    case BTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP:
++         attr->lockkind = pref;
++         return 0;
++    }
++    return EINVAL;
++}
++
++static inline void
++rwlock_set_owner(bthread_rwlock_t *rwlock)
++{
++    TaskGroup* g = tls_task_group;
++    if (NULL == g || g->is_current_pthread_task()) {
++        rwlock->rw_task = NULL;
++        rwlock->rw_thread = pthread_self();
++    } else {
++        rwlock->rw_task = g->current_task();
++        rwlock->rw_thread = 0;
++    }
++}
++
++static inline int 
++rwlock_check_owner(bthread_rwlock_t *rwlock)
++{
++    TaskGroup* g = tls_task_group;
++    if (NULL == g || g->is_current_pthread_task()) {
++        if (rwlock->rw_thread != pthread_self())
++            return -1; 
++    } else {
++        if (rwlock->rw_task != g->current_task())
++            return -1;
++    }
++    return 0;
++}
++
++static inline void
++rwlock_clear_owner(bthread_rwlock_t *rwlock)
++{
++    rwlock->rw_task = NULL;
++    rwlock->rw_thread = 0;
++}
++
++static inline int
++rwlock_tryrdlock(bthread_rwlock_t *rwlock)
++{
++    int state;
++    int wrflags;
++
++    wrflags = RWLOCK_WRITE_OWNER;
++    if (!PREFER_READER(rwlock))
++        wrflags |= RWLOCK_WRITE_WAITERS;
++    state = rwlock->rw_state;
++    while (!(state & wrflags)) {
++        if (RWLOCK_READER_COUNT(state) == RWLOCK_MAX_READERS)
++            return (EAGAIN);
++        if (cas_acq_int(&rwlock->rw_state, state, state + 1))
++            return (0);
++        state = rwlock->rw_state;
++    }
++
++    return (EBUSY);
++}  	
++
++static int
++rwlock_rdwait(bthread_rwlock_t *rwlock, const struct timespec *abstime)
++{
++    int state;
++    int wrflags;
++    int error = 0;
++
++    wrflags = RWLOCK_WRITE_OWNER;
++    if (!PREFER_READER(rwlock))
++        wrflags |= RWLOCK_WRITE_WAITERS;
++
++    bthread_mutex_lock(&rwlock->rw_mutex);
++    while (error == 0) {
++        state = rwlock->rw_state;
++        if ((state & wrflags) == 0)
++            break;
++        if ((state & RWLOCK_READ_WAITERS) == 0) {
++            /* Set reader-waiting bit */
++            if (! cas_acq_int(&rwlock->rw_state, state,
++                        state | RWLOCK_READ_WAITERS))
++                continue;
++        }
++        rwlock->rw_blocked_readers++;
++        if (abstime != NULL)
++            error = bthread_cond_timedwait(&rwlock->rw_cv_reader,
++                    &rwlock->rw_mutex, abstime);
++        else
++            error = bthread_cond_wait(&rwlock->rw_cv_reader,
++                    &rwlock->rw_mutex);
++
++        if (--rwlock->rw_blocked_readers == 0) {
++            /* it is lastest reader thread, clear waiting bit. */
++            for (;;) {
++                state = rwlock->rw_state;
++                if (cas_acq_int(&rwlock->rw_state,
++                            state, state & ~RWLOCK_READ_WAITERS))
++                    break;
++            }
++        }
++    }
++    bthread_mutex_unlock(&rwlock->rw_mutex);
++    return (error);
++}
++
++static inline int
++rwlock_trywrlock(bthread_rwlock_t *rwlock)
++{
++    int state;
++
++    state = rwlock->rw_state;
++    while (!(state & RWLOCK_WRITE_OWNER) && RWLOCK_READER_COUNT(state) == 0) {
++        if (cas_acq_int(&rwlock->rw_state, state,
++                    state | RWLOCK_WRITE_OWNER)) {
++            rwlock_set_owner(rwlock);
++            return (0);
++        }
++        state = rwlock->rw_state;
++    }
++
++    return (EBUSY);
++}
++
++static int
++rwlock_wrwait(bthread_rwlock_t *rwlock, const struct timespec *abstime)
++{
++    int state;
++    int error = 0;
++
++    bthread_mutex_lock(&rwlock->rw_mutex);
++    while (error == 0) {
++        state = rwlock->rw_state;
++        if (!(state & RWLOCK_WRITE_OWNER) && RWLOCK_READER_COUNT(state) == 0)
++            break;
++        if ((state & RWLOCK_WRITE_WAITERS) == 0) {
++            if (!cas_acq_int(&rwlock->rw_state, state,
++                        state | RWLOCK_WRITE_WAITERS))
++                continue;
++        }
++        rwlock->rw_blocked_writers++;
++        if (abstime != NULL) {
++            error = bthread_cond_timedwait(&rwlock->rw_cv_writer,
++                    &rwlock->rw_mutex, abstime);
++        } else {
++            error = bthread_cond_wait(&rwlock->rw_cv_writer,
++                    &rwlock->rw_mutex);
++        }
++        if (--rwlock->rw_blocked_writers == 0) {
++            /* it is lastest writer thread, clear waiting bit. */
++            for (;;) {
++                state = rwlock->rw_state;
++                if (cas_acq_int(&rwlock->rw_state,
++                            state, state & ~RWLOCK_WRITE_WAITERS))
++                    break;
++            }
++        }
++    }
++    bthread_mutex_unlock(&rwlock->rw_mutex);
++    return (error);
++}
++
++int
++bthread_rwlock_timedrdlock(bthread_rwlock_t *rwlock,
++    const struct timespec *abstime)
++{
++    int error;
++
++    /*
++     * POSIX said the validity of the abstimeout parameter need
++     * not be checked if the lock can be immediately acquired.
++     */
++    error = rwlock_tryrdlock(rwlock);
++    if (error == 0)
++        return (error);
++
++    for (;;) {
++        error = rwlock_rdwait(rwlock, abstime);
++        if (rwlock_tryrdlock(rwlock) == 0) {
++            error = 0;
++            break;
++        } else if (error != 0)
++            break;
++    }
++    return (error);
++}
++
++int
++bthread_rwlock_timedwrlock(bthread_rwlock_t *rwlock,
++    const struct timespec *abstime)
++{
++    int error;
++
++    error = rwlock_trywrlock(rwlock);
++    if (error == 0)
++        return (error);
++
++    for (;;) {
++        error = rwlock_wrwait(rwlock, abstime);
++        if (rwlock_trywrlock(rwlock) == 0) {
++            error = 0;
++            break;
++        } else if (error != 0)
++            break;
++    }
++    return (error);
++}
++
++int
++bthread_rwlock_unlock(bthread_rwlock_t *rwlock)
++{
++    int state;
++    int broadcast;
++    bthread_cond_t *q;
++
++    state = rwlock->rw_state;
++    if (state & RWLOCK_WRITE_OWNER) {
++        if (rwlock_check_owner(rwlock))
++            return (EPERM);
++        rwlock_clear_owner(rwlock);
++        for (;;) {
++            if (cas_rel_int(&rwlock->rw_state, state,
++                        state & ~RWLOCK_WRITE_OWNER))
++                break;
++            state = rwlock->rw_state;
++            if (!(state & RWLOCK_WRITE_OWNER))
++                return (EPERM);
++        }
++    } else if (RWLOCK_READER_COUNT(state) != 0) {
++        for (;;) {
++            if (cas_rel_int(&rwlock->rw_state, state,
++                        state - 1))
++                break;
++            state = rwlock->rw_state;
++            if (RWLOCK_READER_COUNT(state) == 0)
++                return (EPERM);
++        }
++        if (RWLOCK_READER_COUNT(state) > 1)
++            return (0);
++    } else {
++        return (EPERM);
++    }
++    q = NULL;
++    broadcast = 0;
++    if (!PREFER_READER(rwlock)) {
++        if (state & RWLOCK_WRITE_WAITERS) {
++            broadcast = 0;
++            q = &rwlock->rw_cv_writer;
++        } else if (state & RWLOCK_READ_WAITERS) {
++            broadcast = 1;
++            q = &rwlock->rw_cv_reader;
++        }
++    } else {
++        if (state & RWLOCK_READ_WAITERS) {
++            broadcast = 1;
++            q = &rwlock->rw_cv_reader;
++        } else if (state & RWLOCK_WRITE_WAITERS) {
++            broadcast = 0;
++            q = &rwlock->rw_cv_writer;
++        }
++    }
++
++    if (q != NULL) {
++        bthread_mutex_lock(&rwlock->rw_mutex);
++        if (broadcast)
++            bthread_cond_broadcast(q);
++        else
++            bthread_cond_signal(q);
++        bthread_mutex_unlock(&rwlock->rw_mutex);
++    }
++
++    return (0);
++}
++
++int
++bthread_rwlock_tryrdlock(bthread_rwlock_t *rwlock)
++{
++    return rwlock_tryrdlock(rwlock);
++}
++
++int
++bthread_rwlock_trywrlock(bthread_rwlock_t *rwlock)
++{
++    return rwlock_trywrlock(rwlock);
++}
++
++int
++bthread_rwlock_rdlock(bthread_rwlock_t *rwlock)
++{
++    return bthread_rwlock_timedrdlock(rwlock, NULL);
++}
++
++int
++bthread_rwlock_wrlock(bthread_rwlock_t *rwlock)
++{
++    return bthread_rwlock_timedwrlock(rwlock, NULL);
++}
++
++int
++bthread_rwlock_init(bthread_rwlock_t *rwlock, const bthread_rwlockattr_t *attr)
++{
++    memset(rwlock, 0, sizeof(bthread_rwlock_t));
++    rwlock->rw_flags = attr ?
++        (attr->lockkind == BTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP) : 0;
++    bthread_mutex_init(&rwlock->rw_mutex, NULL);
++    bthread_cond_init(&rwlock->rw_cv_reader, NULL);
++    bthread_cond_init(&rwlock->rw_cv_writer, NULL);
++    return (0);
++}
++
++int
++bthread_rwlock_destroy(bthread_rwlock_t *rwlock)
++{
++    bthread_mutex_destroy(&rwlock->rw_mutex);
++    bthread_cond_destroy(&rwlock->rw_cv_reader);
++    bthread_cond_destroy(&rwlock->rw_cv_writer);
++    return (0);
++}
++} // v2
++} // namespace bthread
+diff --git a/src/bthread/rwlock_v2.h b/src/bthread/rwlock_v2.h
+new file mode 100644
+index 0000000..5b4d9c6
+--- b/src/bthread/rwlock_v2.h
++++ b/src/bthread/rwlock_v2.h
+@@ -0,0 +1,181 @@
++// bthread rwlock
++// Copyright (c) 2022 Netease, Inc.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// Author: (yfxu@netease)
++
++#ifndef BTHREAD_RW_LOCKV2_H
++#define BTHREAD_RW_LOCKV2_H
++
++#include "bthread/types.h"
++#include "butil/errno.h"
++#include "butil/logging.h"
++
++enum
++{
++    BTHREAD_RWLOCK_PREFER_READER_NP,
++    BTHREAD_RWLOCK_PREFER_WRITER_NP, // ignored by bthread_rwlock_v2_t
++    BTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP,
++    BTHREAD_RWLOCK_DEFAULT_NP = BTHREAD_RWLOCK_PREFER_READER_NP
++}; 
++
++namespace bthread {
++namespace v2 {
++
++typedef struct {
++    int lockkind;
++} bthread_rwlockattr_t;
++
++typedef struct bthread_rwlock {
++    volatile int    rw_state;
++    int             rw_flags;
++    bthread_mutex_t rw_mutex;
++    bthread_cond_t  rw_cv_reader;
++    bthread_cond_t  rw_cv_writer;
++    int             rw_blocked_readers;
++    int             rw_blocked_writers;
++    pthread_t       rw_thread;
++    void            *rw_task;
++} bthread_rwlock_t;
++
++// -------------------------------------------
++// Functions for handling read-write locks.
++// -------------------------------------------
++
++/* Initialize attribute object ATTR with default values.  */
++extern int bthread_rwlockattr_init(bthread_rwlockattr_t *attr);
++
++/* Destroy attribute object ATTR.  */
++extern int bthread_rwlockattr_destroy(bthread_rwlockattr_t *attr);
++
++/* Return current setting of reader/writer preference.  */ 
++extern int bthread_rwlockattr_getkind_np(
++    const bthread_rwlockattr_t* __restrict attr, int *__restrict pref);
++
++/* Set reader/write preference.  */
++extern int bthread_rwlockattr_setkind_np(bthread_rwlockattr_t *attr,
++                                          int pref);
++
++// Initialize read-write lock `rwlock' using attributes `attr', or use
++// the default values if later is NULL.
++extern int bthread_rwlock_init(bthread_rwlock_t* __restrict rwlock,
++                               const bthread_rwlockattr_t* __restrict attr);
++
++// Destroy read-write lock `rwlock'.
++extern int bthread_rwlock_destroy(bthread_rwlock_t* rwlock);
++
++// Acquire read lock for `rwlock'.
++extern int bthread_rwlock_rdlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire read lock for `rwlock'.
++extern int bthread_rwlock_tryrdlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire read lock for `rwlock' or return after specfied time.
++extern int bthread_rwlock_timedrdlock(bthread_rwlock_t* __restrict rwlock,
++                                      const struct timespec* __restrict abstime);
++
++// Acquire write lock for `rwlock'.
++extern int bthread_rwlock_wrlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire write lock for `rwlock'.
++extern int bthread_rwlock_trywrlock(bthread_rwlock_t* rwlock);
++
++// Try to acquire write lock for `rwlock' or return after specfied time.
++extern int bthread_rwlock_timedwrlock(bthread_rwlock_t* __restrict rwlock,
++                                      const struct timespec* __restrict abstime);
++
++// Unlock `rwlock'.
++extern int bthread_rwlock_unlock(bthread_rwlock_t* rwlock);
++
++
++// ---------------------------------------------------
++// Functions for handling read-write lock attributes.
++// ---------------------------------------------------
++
++// Initialize attribute object `attr' with default values.
++extern int bthread_rwlockattr_init(bthread_rwlockattr_t* attr);
++
++// Destroy attribute object `attr'.
++extern int bthread_rwlockattr_destroy(bthread_rwlockattr_t* attr);
++
++// Return current setting of reader/writer preference.
++extern int bthread_rwlockattr_getkind_np(const bthread_rwlockattr_t* attr, int* pref);
++
++// Set reader/write preference.
++extern int bthread_rwlockattr_setkind_np(bthread_rwlockattr_t* attr, int pref);
++
++
++// Specialize std::lock_guard and std::unique_lock for bthread_rwlock_t
++
++class wlock_guard {
++public:
++    explicit wlock_guard(bthread_rwlock_t& mutex) : _pmutex(&mutex) {
++#if !defined(NDEBUG)
++        const int rc = bthread_rwlock_wrlock(_pmutex);
++        if (rc) {
++            LOG(FATAL) << "Fail to lock bthread_rwlock_t=" << _pmutex << ", " << berror(rc);
++            _pmutex = NULL;
++        }
++#else
++        bthread_rwlock_wrlock(_pmutex);
++#endif // NDEBUG
++    }
++
++    ~wlock_guard() {
++#ifndef NDEBUG
++        if (_pmutex) {
++            bthread_rwlock_unlock(_pmutex);
++        }
++#else
++        bthread_rwlock_unlock(_pmutex);
++#endif
++    }
++
++private:
++    DISALLOW_COPY_AND_ASSIGN(wlock_guard);
++    bthread_rwlock_t* _pmutex;
++};
++
++class rlock_guard {
++public:
++    explicit rlock_guard(bthread_rwlock_t& mutex) : _pmutex(&mutex) {
++#if !defined(NDEBUG)
++        const int rc = bthread_rwlock_rdlock(_pmutex);
++        if (rc) {
++            LOG(FATAL) << "Fail to lock bthread_rwlock_t=" << _pmutex << ", " << berror(rc);
++            _pmutex = NULL;
++        }
++#else
++        bthread_rwlock_rdlock(_pmutex);
++#endif // NDEBUG
++    }
++
++    ~rlock_guard() {
++#ifndef NDEBUG
++        if (_pmutex) {
++            bthread_rwlock_unlock(_pmutex);
++        }
++#else
++        bthread_rwlock_unlock(_pmutex);
++#endif
++    }
++
++private:
++    DISALLOW_COPY_AND_ASSIGN(rlock_guard);
++    bthread_rwlock_t* _pmutex;
++};
++
++} // namespace v2
++} // namespace bthread
++#endif // BTHREAD_RW_LOCKV2_H
+diff --git a/test/bthread_brpc_rwlockv2_unittest.cpp b/test/bthread_brpc_rwlockv2_unittest.cpp
+new file mode 100644
+index 0000000..98de891
+--- b/test/bthread_brpc_rwlockv2_unittest.cpp
++++ b/test/bthread_brpc_rwlockv2_unittest.cpp
+@@ -0,0 +1,199 @@
++// Copyright (c) 2020 Bigo, Inc.
++// Author: HeTao (hetao@bigo.sg)
++// Date: Jan 06 2020
++
++#include <gtest/gtest.h>
++#include "butil/compat.h"
++#include "butil/time.h"
++#include "butil/macros.h"
++#include "butil/string_printf.h"
++#include "butil/logging.h"
++#include "bthread/bthread.h"
++#include "bthread/butex.h"
++#include "bthread/task_control.h"
++#include "bthread/rwlock_v2.h"
++#include "butil/gperftools_profiler.h"
++
++#include <stdlib.h>
++
++namespace {
++
++TEST(RwlockTest, sanity) {
++    bthread::v2::bthread_rwlock_t m;
++    ASSERT_EQ(0, bthread_rwlock_init(&m, NULL));
++    ASSERT_EQ(0, bthread_rwlock_rdlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_unlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_wrlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_unlock(&m));
++    ASSERT_EQ(0, bthread_rwlock_destroy(&m));
++}
++
++
++
++bool g_started = false;
++bool g_stopped = false;
++
++template <typename Rwlock>
++struct BAIDU_CACHELINE_ALIGNMENT PerfArgs {
++    Rwlock* rwlock;
++    int64_t counter;
++    int64_t elapse_ns;
++    bool ready;
++    int32_t op_type;   /*0 for read,1 for write*/
++
++    PerfArgs() : rwlock(NULL), counter(0), elapse_ns(0), ready(false), op_type(0) {}
++};
++
++template <typename Rwlock>
++void* add_with_rwlock(void* void_arg) {
++    PerfArgs<Rwlock>* args = (PerfArgs<Rwlock>*)void_arg;
++    args->ready = true;
++    butil::Timer t;
++    while (!g_stopped) {
++        if (g_started) {
++            break;
++        }
++        bthread_usleep(1000);
++    }
++    t.start();
++    while (!g_stopped) {
++        if(args->op_type == 0) {
++            // args->rwlock->Rlock();
++            bthread_rwlock_rdlock(args->rwlock);
++        }
++        else {
++            // args->rwlock->Wlock();
++            bthread_rwlock_wrlock(args->rwlock);
++            }
++        // args->rwlock->Unlock();
++        bthread_rwlock_unlock(args->rwlock);
++        ++args->counter;
++    }
++    t.stop();
++    args->elapse_ns = t.n_elapsed();
++    return NULL;
++}
++
++int g_prof_name_counter = 0;
++
++template <typename Rwlock, typename ThreadId,
++         typename ThreadCreateFn, typename ThreadJoinFn>
++         void PerfTest(Rwlock* rwlock,
++                 ThreadId* /*dummy*/,
++                 int thread_num,
++                 const ThreadCreateFn& create_fn,
++                 const ThreadJoinFn& join_fn,
++                 int op_type=0 /*0 for read,1 for write*/) {
++    g_started = false;
++    g_stopped = false;
++    ThreadId threads[thread_num];
++    std::vector<PerfArgs<Rwlock> > args(thread_num);
++    for (int i = 0; i < thread_num; ++i) {
++        args[i].rwlock = rwlock;
++        args[i].op_type = op_type;
++        create_fn(&threads[i], NULL, add_with_rwlock<Rwlock>, &args[i]);
++    }
++    while (true) {
++        bool all_ready = true;
++        for (int i = 0; i < thread_num; ++i) {
++            if (!args[i].ready) {
++                all_ready = false;
++                break;
++            }
++        }
++        if (all_ready) {
++            break;
++        }
++        usleep(1000);
++    }
++    g_started = true;
++    char prof_name[32];
++    snprintf(prof_name, sizeof(prof_name), "rwlock_perf_%d.prof", ++g_prof_name_counter);
++    ProfilerStart(prof_name);
++    usleep(500 * 1000);
++    ProfilerStop();
++    g_stopped = true;
++    int64_t wait_time = 0;
++    int64_t count = 0;
++    for (int i = 0; i < thread_num; ++i) {
++        join_fn(threads[i], NULL);
++        wait_time += args[i].elapse_ns;
++        count += args[i].counter;
++    }
++    LOG(INFO) << butil::class_name<Rwlock>() << (op_type==0?" readlock ":" writelock ") << " in "
++        << ((void*)create_fn == (void*)pthread_create ? "pthread" : "bthread")
++        << " thread_num=" << thread_num
++        << " count=" << count
++        << " average_time=" << wait_time / (double)count;
++}
++
++
++TEST(RWLockTest, performance) {
++    const int thread_num = 12;
++    bthread::v2::bthread_rwlock_t brw;
++    bthread_rwlock_init(&brw, NULL);
++    //rlock
++    PerfTest(&brw, (pthread_t*)NULL, thread_num, pthread_create, pthread_join);
++    PerfTest(&brw, (bthread_t*)NULL, thread_num, bthread_start_background, bthread_join);
++
++    //add test 1 rlock for compare
++    PerfTest(&brw, (pthread_t*)NULL, 1, pthread_create, pthread_join);
++    PerfTest(&brw, (bthread_t*)NULL, 1, bthread_start_background, bthread_join);
++
++    //for wlock
++    PerfTest(&brw, (pthread_t*)NULL, thread_num, pthread_create, pthread_join, 1);
++    PerfTest(&brw, (bthread_t*)NULL, thread_num, bthread_start_background, bthread_join, 1);
++
++    //add test 1 wlock for compare
++    PerfTest(&brw, (pthread_t*)NULL, 1, pthread_create, pthread_join, 1);
++    PerfTest(&brw, (bthread_t*)NULL, 1, bthread_start_background, bthread_join, 1);
++}
++
++void* loop_until_stopped(void* arg) {
++    bthread::v2::bthread_rwlock_t *m = (bthread::v2::bthread_rwlock_t*)arg;
++    while (!g_stopped) {
++        int r = rand() % 100;
++        if((r&1)==0)
++        {
++            bthread::v2::rlock_guard rg(*m);
++        }
++        else{
++            bthread::v2::wlock_guard wg(*m);
++        }
++        bthread_usleep(20);
++    }
++    return NULL;
++}
++
++TEST(RwlockTest, mix_thread_types) {
++    g_stopped = false;
++    const int N = 16;
++    const int M = N * 2;
++    // bthread::Mutex m;
++    bthread::v2::bthread_rwlock_t brw;
++    bthread_rwlock_init(&brw, NULL);
++
++    pthread_t pthreads[N];
++    bthread_t bthreads[M];
++    // reserve enough workers for test. This is a must since we have
++    // BTHREAD_ATTR_PTHREAD bthreads which may cause deadlocks (the
++    // bhtread_usleep below can't be scheduled and g_stopped is never
++    // true, thus loop_until_stopped spins forever)
++    bthread_setconcurrency(M);
++    for (int i = 0; i < N; ++i) {
++        ASSERT_EQ(0, pthread_create(&pthreads[i], NULL, loop_until_stopped, &brw));
++    }
++    for (int i = 0; i < M; ++i) {
++        const bthread_attr_t *attr = i % 2 ? NULL : &BTHREAD_ATTR_PTHREAD;
++        ASSERT_EQ(0, bthread_start_urgent(&bthreads[i], attr, loop_until_stopped, &brw));
++    }
++    bthread_usleep(1000L * 1000);
++    g_stopped = true;
++    for (int i = 0; i < M; ++i) {
++        bthread_join(bthreads[i], NULL);
++    }
++    for (int i = 0; i < N; ++i) {
++        pthread_join(pthreads[i], NULL);
++    }
++}
++} // namespace
