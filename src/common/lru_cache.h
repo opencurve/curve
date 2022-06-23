@@ -282,7 +282,7 @@ class LRUCache : public LRUCacheInterface<K, V> {
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
 uint64_t LRUCache<K, V, KeyTraits, ValueTraits>::Size() {
     ::curve::common::WriteLockGuard guard(lock_);
-    return ll_.size();
+    return cache_.size();
 }
 
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
