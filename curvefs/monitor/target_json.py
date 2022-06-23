@@ -1,24 +1,6 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-#
-#     Copyright (c) 2022 NetEase Inc.
-#
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License along
-#  with this program; if not, write to the Free Software Foundation, Inc.,
-#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-
 from cProfile import label
 import os
 import time
@@ -49,7 +31,7 @@ def runCurvefsToolCommand(command):
     except subprocess.CalledProcessError as e:
         return 0, e.output
     return 0, output
-    
+
 
 def loadServer():
     ret, _ = runCurvefsToolCommand(["list-topology", "-jsonType=tree", "-jsonPath=%s"%JSON_PATH])
@@ -123,10 +105,10 @@ def refresh():
     # load mds
     mds = loadType("mds")
     targets.append(mds)
-    # load client 
+    # load client
     client = loadClient()
     targets.append(client)
-    
+
     with open(targetPath+'.new', 'w', 0o777) as fd:
         json.dump(targets, fd, indent=4)
         fd.flush()
