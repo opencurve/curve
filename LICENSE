@@ -2,10 +2,6 @@ Files: *
 Copyright: Copyright (c) 2020, NetEase Inc.
 License: Apache 2.0 (see LICENSE_APACHE)
 
-Files: monitor/*
-Copyright: Copyright (c) 2020, NetEase Inc.
-License: GPL 2.0 (see LICENSE_GPL)
-
 Files: src/chunkserver/raftsnapshot/curve_file_service.cpp
        src/chunkserver/raftsnapshot/curve_file_service.h
        src/chunkserver/raftsnapshot/curve_snapshot.cpp
