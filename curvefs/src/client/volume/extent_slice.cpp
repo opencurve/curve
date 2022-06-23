@@ -380,6 +380,9 @@ void ExtentSlice::Merge(uint64_t loffset, const PExtent &extent) {
     // try merge with rightside
     const auto endOff = inserted->first + inserted->second.len;
     it = extents_.lower_bound(endOff);
+    if (it == extents_.end()) {
+        return;
+    }
 
     if (!it->second.UnWritten && it != extents_.end() && it->first == endOff &&
         inserted->second.pOffset + inserted->second.len == it->second.pOffset) {
