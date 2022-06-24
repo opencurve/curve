@@ -40,6 +40,7 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD1(Load, bool(const std::string&));
     MOCK_METHOD2(Save, bool(const std::string&, OnSnapshotSaveDoneClosure*));
     MOCK_METHOD0(Clear, bool());
+    MOCK_METHOD0(Destroy, bool());
 
     MOCK_METHOD2(CreatePartition, MetaStatusCode(const CreatePartitionRequest*,
                                                  CreatePartitionResponse*));

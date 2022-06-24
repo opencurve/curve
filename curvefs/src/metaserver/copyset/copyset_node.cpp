@@ -174,7 +174,7 @@ void CopysetNode::Stop() {
     }
 
     if (metaStore_) {
-        LOG_IF(ERROR, metaStore_->Clear() != true)
+        LOG_IF(ERROR, metaStore_->Destroy() != true)
             << "Failed to clear metastore, copyset: " << name_;
     }
 }
