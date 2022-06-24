@@ -176,19 +176,6 @@ TEST_F(RocksDBStorageTest, HClearTestSMixOperator) {
 }
 TEST_F(RocksDBStorageTest, Transaction) { TestTransaction(kvStorage_); }
 
-namespace {
-
-ino_t GetPathInodeId(const std::string& path) {
-    struct stat st{};
-    if (stat(path.c_str(), &st) != 0) {
-        return 0;
-    }
-
-    return st.st_ino;
-}
-
-}  // namespace
-
 TEST_F(RocksDBStorageTest, TestCleanOpen) {
     ASSERT_TRUE(kvStorage_->Close());
 
@@ -238,6 +225,30 @@ TEST_F(RocksDBStorageTest, TestRecover) {
 }
 
 TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
+    ASSERT_TRUE(kvStorage_->Close());
+
+    MockLocalFileSystem mockfs;
+    options_.localFileSystem = &mockfs;
+
+    EXPECT_CALL(mockfs, DirExists(_))
+        .WillOnce(Invoke([this](const std::string& dir) {
+            return localfs_->DirExists(dir);
+        }));
+
+    EXPECT_CALL(mockfs, Delete(_))
+        .Times(2)
+        .WillRepeatedly(Invoke(
+            [this](const std::string& dir) { return localfs_->Delete(dir); }));
+
+    EXPECT_CALL(mockfs, List(_, _))
+        .WillOnce(Invoke(
+            [this](const std::string& dir, std::vector<std::string>* files) {
+                return localfs_->List(dir, files);
+            }));
+
+    kvStorage_ = std::make_shared<RocksDBStorage>(options_);
+    ASSERT_TRUE(kvStorage_->Open());
+
     // put some values
     auto s = kvStorage_->SSet("1", "1", Value("1"));
     s = kvStorage_->SSet("2", "2", Value("2"));
@@ -250,20 +261,11 @@ TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
 
     ASSERT_TRUE(s.ok()) << s.ToString();
 
-    auto prevIno = GetPathInodeId(dbpath_);
-    ASSERT_NE(0, prevIno);
-
     std::vector<std::string> files;
     ASSERT_TRUE(kvStorage_->Checkpoint(dirname_, &files));
     EXPECT_FALSE(files.empty());
 
     ASSERT_TRUE(kvStorage_->Recover(dirname_));
-
-    auto afterIno = GetPathInodeId(dbpath_);
-    ASSERT_NE(0, afterIno);
-
-    // check inode id before and after recover
-    ASSERT_NE(prevIno, afterIno);
 
     // get values that checkpoint should have
     Dentry dummyDentry;

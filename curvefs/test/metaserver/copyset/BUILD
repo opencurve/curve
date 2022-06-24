@@ -20,7 +20,7 @@ cc_test(
     name = "metaserver_copyset_test",
     srcs = glob(
         ["*.cpp"],
-        exclude = ["raft_cli_servic2_test.cpp"],
+        exclude = ["raft_cli_service2_test.cpp"],
     ),
     copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
     deps = [
@@ -37,7 +37,7 @@ cc_test(
 cc_test(
     name = "metaserver_copyset_cli_service2_test",
     srcs = [
-        "raft_cli_servic2_test.cpp",
+        "raft_cli_service2_test.cpp",
     ],
     copts = CURVE_TEST_COPTS + ["-DUNIT_TEST"],
     deps = [
