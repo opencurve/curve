@@ -254,7 +254,7 @@ bool Key4Dentry::ParseFromString(const std::string& value) {
         return false;
     }
 
-    size_t prefixLength = sizeof(keyType_) +
+    size_t prefixLength = items[0].size() +
                           items[1].size() +
                           items[2].size() +
                           3 * strlen(kDelimiter);

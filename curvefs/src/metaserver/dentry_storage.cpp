@@ -20,6 +20,8 @@
  * Author: chenwei
  */
 
+#include <butil/time.h>
+#include <cstdint>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -133,13 +135,19 @@ void DentryList::PushBack(DentryVec* vec) {
         return;
     } else if (dentrys.size() == 0 || HasDeleteMarkFlag(*last)) {
         return;
-    } else if (onlyDir_ && last->type() != FsFileType::TYPE_DIRECTORY) {
-        return;
     } else if (last->name() == exclude_) {
         return;
     }
 
     size_++;
+
+    if (onlyDir_ && last->type() != FsFileType::TYPE_DIRECTORY) {
+        // record the last even if it is not dir(will deal in client)
+        if (IsFull()) {
+            list_->push_back(*last);
+        }
+        return;
+    }
     list_->push_back(*last);
     VLOG(9) << "Push dentry, dentry = (" << last->ShortDebugString() << ")";
 }
@@ -338,6 +346,7 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
                                    std::vector<Dentry>* dentrys,
                                    uint32_t limit,
                                    bool onlyDir) {
+    // TODO(all): consider store dir dentry and file dentry separately
     ReadLockGuard lg(rwLock_);
 
     // 1. precheck for dentry vector
@@ -356,11 +365,6 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
     Key4Dentry key(fsId, parentInodeId, name);
     std::string lower = conv_.SerializeToString(key);  // "1:1:", "1:1:/a/b/c"
 
-    VLOG(3) << "ListDentry request: dentry = ("
-            << dentry.ShortDebugString() << ")"
-            << ", limit = " << limit << ", onlyDir = " << onlyDir
-            << ", lower key = " << lower;
-
     // 3. iterator key/value pair one by one
     auto iterator = kvStorage_->SSeek(table4Dentry_, lower);
     iterator->DisablePrefixChecking();
@@ -370,7 +374,11 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
 
     DentryVec current;
     DentryList list(dentrys, limit, name, dentry.txid(), onlyDir);
+    butil::Timer time;
+    uint32_t seekTimes = 0;
+    time.start();
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
+        seekTimes++;
         std::string skey = iterator->Key();
         std::string svalue = iterator->Value();
         if (!StringStartWith(skey, sprefix)) {
@@ -384,6 +392,15 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
             break;
         }
     }
+    time.stop();
+    VLOG(1) << "ListDentry request: dentry = ("
+            << dentry.ShortDebugString() << ")"
+            << ", onlyDir = " << onlyDir
+            << ", limit = " << limit
+            << ", lower key = " << lower
+            << ", seekTimes = " << seekTimes
+            << ", dentrySize = " << dentrys->size()
+            << ", costUs = " << time.u_elapsed();
 
     if (list.Size() == 0) {
         return MetaStatusCode::NOT_FOUND;
