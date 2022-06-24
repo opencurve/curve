@@ -145,10 +145,10 @@ TEST_F(TestInodeCacheManager, GetInodeAttr) {
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(DoAll(SetArgPointee<2>(attrs), Return(MetaStatusCode::OK)));
 
-    CURVEFS_ERROR ret = iCacheManager_->GetInodeAttr(inodeId, &out, parentId);
+    CURVEFS_ERROR ret = iCacheManager_->GetInodeAttr(inodeId, &out);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
-    ret = iCacheManager_->GetInodeAttr(inodeId, &out, parentId);
+    ret = iCacheManager_->GetInodeAttr(inodeId, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
@@ -168,7 +168,7 @@ TEST_F(TestInodeCacheManager, GetInodeAttr) {
     ret = iCacheManager_->CreateInode(param, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out, parentId);
+    ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId + 1, out.inodeid());
     ASSERT_EQ(fsId_ + 1, out.fsid());

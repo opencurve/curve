@@ -54,10 +54,11 @@ class MockDentryCacheManager : public DentryCacheManager {
                                              const std::string &name,
                                              FsFileType type));
 
-    MOCK_METHOD4(ListDentry, CURVEFS_ERROR(uint64_t parent,
+    MOCK_METHOD5(ListDentry, CURVEFS_ERROR(uint64_t parent,
                                            std::list<Dentry> *dentryList,
                                            uint32_t limit,
-                                           bool onlyDir));
+                                           bool onlyDir,
+                                           uint32_t nlink));
 };
 
 

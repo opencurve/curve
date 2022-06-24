@@ -441,6 +441,33 @@ TEST_F(DentryStorageTest, List) {
     dentry = GenDentry(1, 0, "", 0, 0, false);
     ASSERT_EQ(storage.List(dentry, &dentrys, 0, true), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 1);
+
+    // CASE 10: list directory only with limit
+    storage.Clear();
+    InsertDentrys(&storage, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A", 0, 1, false),
+        GenDentry(1, 0, "B", 0, 2, false),
+        GenDentry(1, 0, "D", 0, 3, false),
+    });
+
+    dentrys.clear();
+    dentry = GenDentry(1, 0, "", 0, 0, false);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 1, true), MetaStatusCode::OK);
+    ASSERT_EQ(dentrys.size(), 1);
+
+    storage.Clear();
+    InsertDentrys(&storage, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A", 0, 1, false, FsFileType::TYPE_DIRECTORY),
+        GenDentry(1, 0, "B", 0, 2, false),
+        GenDentry(1, 0, "D", 0, 3, false),
+    });
+
+    dentrys.clear();
+    dentry = GenDentry(1, 0, "", 0, 0, false);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 3, true), MetaStatusCode::OK);
+    ASSERT_EQ(dentrys.size(), 2);
 }
 
 TEST_F(DentryStorageTest, HandleTx) {

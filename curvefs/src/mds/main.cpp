@@ -56,7 +56,6 @@ int main(int argc, char **argv) {
     conf->GetValueFatalIfFail("mds.loglevel", &FLAGS_v);
     LoadConfigFromCmdline(conf.get());
     FLAGS_vlog_level = FLAGS_v;
-    conf->PrintConfig();
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("mds.common.logDir", &FLAGS_log_dir)) {
             LOG(WARNING) << "no mds.common.logDir in " << confPath
@@ -66,6 +65,8 @@ int main(int argc, char **argv) {
 
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
+
+    conf->PrintConfig();
 
     curvefs::mds::MDS mds;
 

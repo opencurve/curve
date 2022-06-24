@@ -41,8 +41,9 @@ bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction) {
         } else {
             if (firstNum < secondNum) {
                 *first = std::to_string(0);
-                LOG(ERROR) << "AddUllStringToFirst failed when minus, first = "
-                           << firstNum << ", second = " << secondNum;
+                LOG(WARNING) << "AddUllStringToFirst failed when minus,"
+                             << " first = " << firstNum
+                             << ", second = " << secondNum;
                 return false;
             }
             *first = std::to_string(firstNum - secondNum);
@@ -157,8 +158,23 @@ bool XattrManager::ConcurrentListDentry(
             continue;
         }
 
-        auto tret = dentryManager_->ListDentry(ino, dentrys,
-                                              listDentryLimit_, dirOnly);
+        // if onlydir, can get parent nlink to know dir number under this dir
+        uint32_t nlink = 0;
+        if (dirOnly) {
+            InodeAttr attr;
+            auto retCode = inodeManager_->GetInodeAttr(ino, &attr);
+            if (retCode != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "inodeManager get inodeAttr fail, ret = "
+                           << retCode << ", inodeid = " << ino;
+                ret->store(false);
+                inflightNum->fetch_sub(1);
+                return false;
+            }
+            nlink = attr.nlink();
+        }
+
+        auto tret = dentryManager_->ListDentry(ino, dentrys, listDentryLimit_,
+                                               dirOnly, nlink);
         if (CURVEFS_ERROR::OK != tret) {
             LOG(ERROR) << "ListDentry failed, inodeId = " << ino
                        << ", limit = " << listDentryLimit_ << ", onlyDir = "
