@@ -102,6 +102,9 @@ bool RocksDBStorage::Open() {
         return true;
     }
 
+    assert(txnDB_ == nullptr);
+    assert(db_ == nullptr);
+
     if (cleanOpen_ && options_.localFileSystem->DirExists(options_.dataDir)) {
         int ret = options_.localFileSystem->Delete(options_.dataDir);
         if (ret != 0) {
@@ -151,6 +154,11 @@ bool RocksDBStorage::Close() {
 
     handles_.clear();
     inited_ = false;
+
+    delete txnDB_;
+    db_ = nullptr;
+    txnDB_ = nullptr;
+
     return true;
 }
 
@@ -387,41 +395,6 @@ bool DoCheckpoint(rocksdb::DB* db, const std::string& dest) {
     return true;
 }
 
-}  // namespace
-
-bool RocksDBStorage::Checkpoint(const std::string& dir,
-                                std::vector<std::string>* files) {
-    rocksdb::FlushOptions options;
-    options.wait = true;
-    options.allow_write_stall = true;
-    auto status = db_->Flush(options, handles_);
-    if (!status.ok()) {
-        LOG(ERROR) << "Failed to flush DB, " << status.ToString();
-        return false;
-    }
-
-    const std::string dest = dir + "/" + kRocksdbCheckpointPath;
-    if (!DoCheckpoint(db_, dest)) {
-        return false;
-    }
-
-    std::vector<std::string> filenames;
-    int ret = options_.localFileSystem->List(dest, &filenames);
-
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to list checkpoint files at `" << dest << "`, "
-                   << berror();
-        return false;
-    }
-
-    files->reserve(filenames.size());
-    for (const auto& f : filenames) {
-        files->push_back(std::string(kRocksdbCheckpointPath) + "/" + f);
-    }
-
-    return true;
-}
-
 bool DuplicateRocksdbCheckpoint(const std::string& from,
                                 const std::string& to) {
     LOG(INFO) << "Duplicating rocksdb storage from `" << from << "` to `" << to
@@ -455,6 +428,41 @@ bool DuplicateRocksdbCheckpoint(const std::string& from,
     }
 
     return DoCheckpoint(db, to);
+}
+
+}  // namespace
+
+bool RocksDBStorage::Checkpoint(const std::string& dir,
+                                std::vector<std::string>* files) {
+    rocksdb::FlushOptions options;
+    options.wait = true;
+    options.allow_write_stall = true;
+    auto status = db_->Flush(options, handles_);
+    if (!status.ok()) {
+        LOG(ERROR) << "Failed to flush DB, " << status.ToString();
+        return false;
+    }
+
+    const std::string dest = dir + "/" + kRocksdbCheckpointPath;
+    if (!DoCheckpoint(db_, dest)) {
+        return false;
+    }
+
+    std::vector<std::string> filenames;
+    int ret = options_.localFileSystem->List(dest, &filenames);
+
+    if (ret != 0) {
+        LOG(ERROR) << "Failed to list checkpoint files at `" << dest << "`, "
+                   << berror();
+        return false;
+    }
+
+    files->reserve(filenames.size());
+    for (const auto& f : filenames) {
+        files->push_back(std::string(kRocksdbCheckpointPath) + "/" + f);
+    }
+
+    return true;
 }
 
 bool RocksDBStorage::Recover(const std::string& dir) {
