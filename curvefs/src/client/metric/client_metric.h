@@ -123,10 +123,11 @@ struct InflightGuard {
 
     bvar::Adder<int64_t>* inflight_;
 };
+
 struct OpMetric {
-    bvar::Adder<uint64_t> ecount;
     bvar::LatencyRecorder latency;
     bvar::Adder<int64_t> inflightOpNum;
+    bvar::Adder<uint64_t> ecount;
 
     explicit OpMetric(const std::string& prefix, const std::string& name)
         : latency(prefix, name + "_lat"),

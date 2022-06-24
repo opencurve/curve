@@ -183,8 +183,7 @@ bool MetaStoreImpl::Save(const std::string& dir,
     return true;
 }
 
-bool MetaStoreImpl::Clear() {
-    WriteLockGuard writeLockGuard(rwLock_);
+bool MetaStoreImpl::ClearInternal() {
     for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
         TrashManager::GetInstance().Remove(it->first);
         it->second->ClearS3Compact();
@@ -197,6 +196,27 @@ bool MetaStoreImpl::Clear() {
     }
     partitionMap_.clear();
 
+    return true;
+}
+
+bool MetaStoreImpl::Clear() {
+    WriteLockGuard writeLockGuard(rwLock_);
+    return ClearInternal();
+}
+
+bool MetaStoreImpl::Destroy() {
+    WriteLockGuard writeLockGuard(rwLock_);
+    if (!ClearInternal()) {
+        LOG(WARNING) << "Failed to clear metastore";
+        return false;
+    }
+
+    if (kvStorage_ != nullptr && !kvStorage_->Close()) {
+        LOG(WARNING) << "Failed to close storage";
+        return false;
+    }
+
+    kvStorage_.reset();
     return true;
 }
 

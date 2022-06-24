@@ -183,10 +183,10 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     void InitDbOptions();
 
  private:
-    bool inited_;
+    bool inited_ = false;
     StorageOptions options_;
-    DB* db_;
-    TransactionDB* txnDB_;
+    DB* db_ = nullptr;
+    TransactionDB* txnDB_ = nullptr;
     std::vector<ColumnFamilyHandle*> handles_;
     static const std::string kDelimiter_;
 
@@ -195,7 +195,7 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     // only for transaction
     bool InTransaction_;
-    Transaction* txn_;
+    Transaction* txn_ = nullptr;
 
     // db options
     rocksdb::DBOptions dbOptions_;

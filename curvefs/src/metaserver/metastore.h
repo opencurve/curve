@@ -93,6 +93,7 @@ class MetaStore {
     virtual bool Save(const std::string& dir,
                       OnSnapshotSaveDoneClosure* done) = 0;
     virtual bool Clear() = 0;
+    virtual bool Destroy() = 0;
     virtual MetaStatusCode CreatePartition(
         const CreatePartitionRequest* request,
         CreatePartitionResponse* response) = 0;
@@ -175,6 +176,7 @@ class MetaStoreImpl : public MetaStore {
     bool Save(const std::string& dir,
               OnSnapshotSaveDoneClosure* done) override;
     bool Clear() override;
+    bool Destroy() override;
 
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
                                    CreatePartitionResponse* response) override;
@@ -270,6 +272,10 @@ class MetaStoreImpl : public MetaStore {
                         OnSnapshotSaveDoneClosure* done);
 
     bool InitStorage();
+
+    // Clear data and stop background tasks
+    // REQUIRES: rwLock_ is held with write permission
+    bool ClearInternal();
 
  private:
     RWLock rwLock_;  // protect partitionMap_
