@@ -211,6 +211,14 @@ TEST_F(TestDentryCacheManager, ListDentryEmpty) {
     ASSERT_EQ(0, out.size());
 }
 
+TEST_F(TestDentryCacheManager, ListDentryOnlyDir) {
+    uint64_t parent = 99;
+    std::list<Dentry> out;
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0, 1, 2);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(0, out.size());
+}
+
 TEST_F(TestDentryCacheManager, ListDentryFailed) {
     uint64_t parent = 99;
 

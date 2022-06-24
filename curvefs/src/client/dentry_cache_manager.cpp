@@ -22,6 +22,7 @@
  */
 #include "curvefs/src/client/dentry_cache_manager.h"
 
+#include <cstdint>
 #include <string>
 #include <list>
 #include <vector>
@@ -123,10 +124,18 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
 CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                                                  std::list<Dentry> *dentryList,
                                                  uint32_t limit,
-                                                 bool onlyDir) {
-    bool perceed = true;
-    MetaStatusCode ret = MetaStatusCode::OK;
+                                                 bool onlyDir,
+                                                 uint32_t nlink) {
     dentryList->clear();
+    // means no dir under this dir
+    if (onlyDir && nlink == 2) {
+        LOG(INFO) << "ListDentry parent = " << parent
+                  << ", onlyDir = 1 and nlink = 2, return directly";
+        return CURVEFS_ERROR::OK;
+    }
+
+    MetaStatusCode ret = MetaStatusCode::OK;
+    bool perceed = true;
     std::string last = "";
     do {
         std::list<Dentry> part;
@@ -147,12 +156,30 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                        << ", count = " << limit << ", onlyDir = " << onlyDir;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        if (part.size() < limit) {
-            perceed = false;
-        }
-        if (!part.empty()) {
-            last = part.back().name();
-            dentryList->splice(dentryList->end(), part);
+
+        if (!onlyDir) {
+            if (part.size() < limit) {
+                perceed = false;
+            }
+            if (!part.empty()) {
+                last = part.back().name();
+                dentryList->splice(dentryList->end(), part);
+            }
+        } else {
+            // means iterate over the range
+            if (part.empty()) {
+                perceed = false;
+            } else {
+                last = part.back().name();
+                if (part.back().type() != FsFileType::TYPE_DIRECTORY) {
+                    part.pop_back();
+                }
+                dentryList->splice(dentryList->end(), part);
+                // means already get all the dir under this dir
+                if (nlink - dentryList->size() == 2) {
+                    perceed = false;
+                }
+            }
         }
     } while (perceed);
 

@@ -125,8 +125,7 @@ class InodeCacheManager {
     virtual CURVEFS_ERROR GetInode(uint64_t inodeId,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
-    virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId,
-        InodeAttr *out, uint64_t parentId = 0) = 0;
+    virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) = 0;
 
     virtual CURVEFS_ERROR BatchGetInodeAttr(
         std::set<uint64_t> *inodeIds,
@@ -216,8 +215,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     CURVEFS_ERROR GetInode(uint64_t inodeId,
         std::shared_ptr<InodeWrapper> &out) override;
 
-    CURVEFS_ERROR GetInodeAttr(uint64_t inodeId,
-        InodeAttr *out, uint64_t parentId) override;
+    CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) override;
 
     CURVEFS_ERROR BatchGetInodeAttr(std::set<uint64_t> *inodeIds,
         std::list<InodeAttr> *attrs) override;

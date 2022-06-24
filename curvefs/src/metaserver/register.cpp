@@ -99,14 +99,15 @@ int Register::RegisterToMDS(MetaServerMetadata *metadata) {
         if (!cntl.Failed() && resp.statuscode() == TopoStatusCode::TOPO_OK) {
             break;
         } else {
-            LOG(INFO) << ops_.metaserverInternalIp << ":"
-                      << ops_.metaserverInternalPort
-                      << " Fail to register to MDS "
-                      << mdsEps_[inServiceIndex_]
-                      << ", cntl errorCode: " << cntl.ErrorCode() << ","
-                      << " cntl error: " << cntl.ErrorText() << ","
-                      << " statusCode: " << resp.statuscode() << ","
-                      << " going to sleep and try again.";
+            LOG(WARNING) << ops_.metaserverInternalIp << ":"
+                         << ops_.metaserverInternalPort
+                         << " Fail to register to MDS "
+                         << mdsEps_[inServiceIndex_]
+                         << ", cntl errorCode: " << cntl.ErrorCode() << ","
+                         << " cntl error: " << cntl.ErrorText() << ","
+                         << " statusCode: "
+                         << TopoStatusCode_Name(resp.statuscode()) << ","
+                         << " going to sleep and try again.";
             if (cntl.ErrorCode() == EHOSTDOWN ||
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                 inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
