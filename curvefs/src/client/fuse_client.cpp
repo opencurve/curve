@@ -302,10 +302,9 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
 
     fuse_ino_t ino = dentry.inodeid();
     InodeAttr attr;
-    ret = inodeManager_->GetInodeAttr(ino, &attr, parent);
+    ret = inodeManager_->GetInodeAttr(ino, &attr);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
-                   << ", parentId = " << parent
                    << ", inodeid = " << ino;
         return ret;
     }
@@ -594,9 +593,9 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
             std::to_string(inodeWrapper->GetLength())});
         auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, false);
         if (tret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "UpdateParentInodeXattr failed,"
-                       << " inodeId = " << parent
-                       << ", xattr = " << xattr.DebugString();
+            LOG(WARNING) << "UpdateParentInodeXattr failed,"
+                         << " inodeId = " << parent
+                         << ", xattr = " << xattr.DebugString();
         }
     }
 

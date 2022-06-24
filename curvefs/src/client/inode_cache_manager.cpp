@@ -112,7 +112,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
-    InodeAttr *out, uint64_t parentId) {
+    InodeAttr *out) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
     // 1. find in icache
     std::shared_ptr<InodeWrapper> inodeWrapper;

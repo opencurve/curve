@@ -221,7 +221,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                 << ", onlyDir = " << onlyDir
                 << ", errcode = " << ret
                 << ", errmsg = " << MetaStatusCode_Name(ret);
-        } else if (response.has_appliedindex() && response.dentrys_size() > 0) {
+        } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
 
@@ -233,7 +233,7 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
                 << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
                 << ", last = " << last << ", count = " << count
                 << ", onlyDir = " << onlyDir
-                << " ok, but dentry and applyIndex not set in response:"
+                << " ok, but applyIndex not set in response:"
                 << response.DebugString();
             return -1;
         }
