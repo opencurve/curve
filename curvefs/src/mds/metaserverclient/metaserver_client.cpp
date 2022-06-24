@@ -119,20 +119,23 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
         stub.GetLeader(&cntl, &request, &response, nullptr);
 
         uint32_t maxRetry = options_.rpcRetryTimes;
-        while (cntl.Failed() && maxRetry > 0) {
+        while (cntl.Failed() && (maxRetry > 0)) {
+            int32_t retCode = cntl.ErrorCode();
+            if (retCode == -EHOSTDOWN || retCode == -ECONNRESET ||
+                retCode == -ECONNREFUSED || retCode == -brpc::ELOGOFF) {
+                LOG(WARNING) << "GetLeader failed"
+                         << ", poolid = " << ctx.poolId
+                         << ", copysetId = " << ctx.copysetId
+                         << ", Rpc error = " << cntl.ErrorText();
+                break;
+            }
             maxRetry--;
             bthread_usleep(options_.rpcRetryIntervalUs);
             cntl.Reset();
             cntl.set_timeout_ms(options_.rpcTimeoutMs);
             stub.GetLeader(&cntl, &request, &response, nullptr);
         }
-        if (cntl.Failed()) {
-            LOG(WARNING) << "GetLeader failed"
-                         << ", poolid = " << ctx.poolId
-                         << ", copysetId = " << ctx.copysetId
-                         << ", Rpc error = " << cntl.ErrorText();
-            continue;
-        }
+
         if (response.has_leader()) {
             std::string ip;
             uint32_t port;
