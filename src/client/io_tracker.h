@@ -76,7 +76,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param fileInfo 当前io对应文件的基本信息
      */
     void StartWrite(const void* buf, off_t offset, size_t length,
-                    MDSClient* mdsclient, const FInfo_t* fileInfo);
+                    MDSClient* mdsclient, const FInfo_t* fileInfo,
+                    const FileEpoch* fEpoch);
 
     /**
      * @brief start an async read operation
@@ -92,9 +93,12 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param ctx async write context
      * @param mdsclient used to communicate with MDS
      * @param fileInfo current file info
+     * @param fEpoch  file epoch info
      */
     void StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
-                       const FInfo_t* fileInfo);
+                       const FInfo_t* fileInfo,
+                       const FileEpoch* fEpoch);
+
     /**
      * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
      * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
@@ -257,7 +261,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                        const UserInfo_t& userInfo, MDSClient* mdsClient);
 
     // perform write operation
-    void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo);
+    void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                 const FileEpoch* fEpoch);
 
  private:
     // io 类型

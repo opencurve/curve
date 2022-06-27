@@ -36,6 +36,7 @@
 #include "src/client/file_instance.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/uuid.h"
+#include "src/client/chunkserver_broadcaster.h"
 
 // TODO(tongguangxun) :添加关键函数trace功能
 namespace curve {
@@ -88,6 +89,17 @@ class FileClient {
     virtual int Open4ReadOnly(const std::string& filename,
                               const UserInfo_t& userinfo,
                               bool disableStripe = false);
+
+    /**
+     * @brief increase epoch
+     *
+     * @param filename file name
+     * @param userinfo user info
+     *
+     * @return 0 for success, -1 for fail
+     */
+    int IncreaseEpoch(const std::string& filename,
+                      const UserInfo_t& userinfo);
 
     /**
      * 创建文件
@@ -287,12 +299,19 @@ class FileClient {
 
     // 每个vdisk都有一个FileInstance，通过返回的fd映射到对应的instance
     std::unordered_map<int, FileInstance*> fileserviceMap_;
+    // <filename, FileInstance>
+    std::unordered_map<std::string, FileInstance*> fileserviceFileNameMap_;
 
     // FileClient配置
     ClientConfig clientconfig_;
 
     // fileclient对应的全局mdsclient
     std::shared_ptr<MDSClient> mdsClient_;
+
+    // chunkserver client
+    std::shared_ptr<ChunkServerClient> csClient_;
+    // chunkserver broadCaster
+    std::shared_ptr<ChunkServerBroadCaster> csBroadCaster_;
 
     // 是否初始化成功
     bool inited_;

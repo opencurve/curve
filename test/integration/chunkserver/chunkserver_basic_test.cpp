@@ -47,6 +47,8 @@ const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 #define BASIC_TEST_CHUNK_SERVER_PORT "9078"
 #define KB 1024
 
+const char* kFakeMdsAddr = "127.0.0.1:9079";
+
 static char *chunkServerParams[1][16] = {
     { "chunkserver", "-chunkServerIp=127.0.0.1",
       "-chunkServerPort=" BASIC_TEST_CHUNK_SERVER_PORT,
@@ -97,6 +99,7 @@ class ChunkServerIoTest : public testing::Test {
         externalIp_ = butil::my_ip_cstr();
         cg1_.SetKV("global.external_ip", externalIp_);
         cg1_.SetKV("global.enable_external_server", "true");
+        cg1_.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1_.Generate());
 
         paramsIndexs_[PeerCluster::PeerToId(peer1_)] = 0;
@@ -164,6 +167,7 @@ class ChunkServerIoTest : public testing::Test {
         std::string leader = "";
         PeerCluster cluster("InitShutdown-cluster", logicPoolId_, copysetId_,
                         peers_, params_, paramsIndexs_);
+        ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
         ASSERT_EQ(0, InitCluster(&cluster));
 
         /* 场景一：新建的文件，Chunk文件不存在 */
@@ -220,6 +224,7 @@ class ChunkServerIoTest : public testing::Test {
         std::string leader = "";
         PeerCluster cluster("InitShutdown-cluster", logicPoolId_, copysetId_,
                         peers_, params_, paramsIndexs_);
+        ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
         ASSERT_EQ(0, InitCluster(&cluster));
 
         // 构造初始环境

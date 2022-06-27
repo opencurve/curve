@@ -183,17 +183,18 @@ int SnapshotClient::CreateCloneFile(const std::string& source,
 }
 
 int SnapshotClient::GetFileInfo(const std::string &filename,
-                                        const UserInfo_t& userinfo,
-                                        FInfo* fileInfo) {
-    LIBCURVE_ERROR ret = mdsclient_.GetFileInfo(filename, userinfo, fileInfo);
+                                const UserInfo_t &userinfo, FInfo *fileInfo) {
+    FileEpoch_t fEpoch;
+    LIBCURVE_ERROR ret = mdsclient_.GetFileInfo(filename, userinfo,
+                                                fileInfo, &fEpoch);
     return -ret;
 }
 
-int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
-                                        uint64_t offset,
-                                        const FInfo_t* fi,
-                                        SegmentInfo *segInfo) {
-    int ret = mdsclient_.GetOrAllocateSegment(allocate, offset, fi, segInfo);
+int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate, uint64_t offset,
+                                             const FInfo_t *fi,
+                                             SegmentInfo *segInfo) {
+    int ret = mdsclient_.GetOrAllocateSegment(
+        allocate, offset, fi, nullptr, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;

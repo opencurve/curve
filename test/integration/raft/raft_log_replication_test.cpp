@@ -44,6 +44,7 @@ using curve::fs::FileSystemType;
 const uint32_t kOpRequestAlignSize = 4096;
 
 const char kRaftLogRepTestLogDir[] = "./runlog/RaftLogRep";
+const char* kFakeMdsAddr = "127.0.0.1:9070";
 
 static char* raftLogParam[5][16] = {
     {
@@ -182,30 +183,35 @@ class RaftLogReplicationTest : public testing::Test {
             std::to_string(snapshotIntervalS));
         cg1.SetKV("chunkserver.common.logDir",
             kRaftLogRepTestLogDir);
+        cg1.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg2.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg2.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
         cg2.SetKV("chunkserver.common.logDir",
             kRaftLogRepTestLogDir);
+        cg2.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg3.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg3.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
         cg3.SetKV("chunkserver.common.logDir",
             kRaftLogRepTestLogDir);
+        cg3.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg4.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg4.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
         cg4.SetKV("chunkserver.common.logDir",
             kRaftLogRepTestLogDir);
+        cg4.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg5.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg5.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
         cg5.SetKV("chunkserver.common.logDir",
             kRaftLogRepTestLogDir);
+        cg5.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
         ASSERT_TRUE(cg3.Generate());
@@ -295,6 +301,7 @@ TEST_F(RaftLogReplicationTest, ThreeNodeImplicitCommit) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -399,6 +406,7 @@ TEST_F(RaftLogReplicationTest, ThreeNodeTruncateLog) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -498,6 +506,7 @@ TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -613,6 +622,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -883,6 +893,7 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1139,6 +1150,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeKill) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1405,6 +1417,7 @@ TEST_F(RaftLogReplicationTest, FiveNodeHang) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));

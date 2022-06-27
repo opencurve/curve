@@ -158,7 +158,8 @@ int IOManager4File::Write(const char* buf,
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     temp.SetUserDataType(UserDataType::IOBuffer);
-    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo());
+    temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo(),
+                    this->GetFileEpoch());
 
     int rc = temp.Wait();
     return rc;
@@ -203,7 +204,8 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     temp->SetUserDataType(dataType);
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
-        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo());
+        temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(),
+                            this->GetFileEpoch());
     };
 
     taskPool_.Enqueue(task);

@@ -42,6 +42,19 @@ void CurveClient::UnInit() {
     return fileClient_->UnInit();
 }
 
+int CurveClient::IncreaseEpoch(const std::string& filename) {
+    curve::client::UserInfo userInfo;
+    std::string realFileName;
+    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
+        filename, &realFileName, &userInfo.owner);
+
+    if (!ret) {
+        LOG(ERROR) << "Get User Info from filename failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return fileClient_->IncreaseEpoch(realFileName, userInfo);
+}
+
 int CurveClient::Open(const std::string& filename,
                       const OpenFlags& openflags) {
     curve::client::UserInfo userInfo;

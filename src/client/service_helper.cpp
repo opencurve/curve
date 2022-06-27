@@ -35,7 +35,7 @@ namespace curve {
 namespace client {
 
 void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
-                                        FInfo_t* fi) {
+                                        FInfo_t* fi, FileEpoch_t* fEpoch) {
     if (finfo.has_owner()) {
         fi->owner = finfo.owner();
     }
@@ -77,6 +77,13 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     }
     if (finfo.has_stripecount()) {
         fi->stripeCount = finfo.stripecount();
+    }
+
+    fEpoch->fileId = finfo.id();
+    if (finfo.has_epoch()) {
+        fEpoch->epoch = finfo.epoch();
+    } else {
+        fEpoch->epoch = 0;
     }
 }
 
