@@ -273,6 +273,26 @@ struct ClientConfigOption {
     MetaServerOption metaServerOpt;
 };
 
+struct ChunkServerBroadCasterOption {
+    uint32_t broadCastMaxNum;
+
+    ChunkServerBroadCasterOption()
+      : broadCastMaxNum(200) {}
+};
+
+struct ChunkServerClientRetryOptions {
+     uint32_t rpcTimeoutMs;
+     uint32_t rpcMaxTry;
+     uint32_t rpcIntervalUs;
+     uint32_t rpcMaxTimeoutMs;
+
+    ChunkServerClientRetryOptions()
+      : rpcTimeoutMs(500),
+        rpcMaxTry(3),
+        rpcIntervalUs(100000),
+        rpcMaxTimeoutMs(8000) {}
+};
+
 /**
  * FileServiceOption是QEMU侧总体配置信息
  */
@@ -282,6 +302,8 @@ struct FileServiceOption {
     LeaseOption leaseOpt;
     CommonConfigOpt commonOpt;
     MetaServerOption metaServerOpt;
+    ChunkServerClientRetryOptions csClientOpt;
+    ChunkServerBroadCasterOption csBroadCasterOpt;
 };
 
 }  // namespace client

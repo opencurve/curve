@@ -53,6 +53,7 @@ class Splitor {
      * @param: length数据长度
      * @param: mdsclient在查找metacahe失败时，通过mdsclient查找信息
      * @param: fi存储当前IO的一些基本信息，比如chunksize等
+     * @param: FileEpoch_t  file epoch info
      */
     static int IO2ChunkRequests(IOTracker* iotracker,
                            MetaCache* metaCache,
@@ -61,7 +62,8 @@ class Splitor {
                            off_t offset,
                            size_t length,
                            MDSClient* mdsclient,
-                           const FInfo_t* fi);
+                           const FInfo_t* fi,
+                           const FileEpoch_t* fEpoch);
 
     /**
      * 对单ChunkIO进行细粒度拆分
@@ -120,6 +122,7 @@ class Splitor {
                            uint64_t length,
                            MDSClient* mdsclient,
                            const FInfo_t* fi,
+                           const FileEpoch_t* fEpoch,
                            ChunkIndex chunkidx);
 
     static bool GetOrAllocateSegment(bool allocateIfNotExist,
@@ -127,17 +130,20 @@ class Splitor {
                                      MDSClient* mdsClient,
                                      MetaCache* metaCache,
                                      const FInfo* fileInfo,
+                                     const FileEpoch_t *fEpoch,
                                      ChunkIndex chunkidx);
 
     static int SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
                               std::vector<RequestContext*>* targetlist,
                               butil::IOBuf* data, off_t offset, size_t length,
-                              MDSClient* mdsclient, const FInfo_t* fileInfo);
+                              MDSClient* mdsclient, const FInfo_t* fileInfo,
+                              const FileEpoch_t* fEpoch);
 
     static int SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
                               std::vector<RequestContext*>* targetlist,
                               butil::IOBuf* data, off_t offset, size_t length,
-                              MDSClient* mdsclient, const FInfo_t* fileInfo);
+                              MDSClient* mdsclient, const FInfo_t* fileInfo,
+                              const FileEpoch_t* fEpoch);
 
     static uint64_t ProcessUnalignedRequests(const off_t currentOffset,
                                              const uint64_t requestLength,

@@ -46,6 +46,7 @@ using curve::mds::PageFileSegment;
 using curve::mds::StatusCode;
 using curve::mds::PageFileChunkInfo;
 using curve::mds::topology::kTopoErrCodeSuccess;
+using curve::common::ChunkServerLocation;
 
 namespace curve {
 namespace tool {

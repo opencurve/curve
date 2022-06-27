@@ -54,6 +54,7 @@ using curve::mds::DeleteFileRequest;
 using curve::mds::DeleteFileResponse;
 using curve::mds::GetFileInfoRequest;
 using curve::mds::GetFileInfoResponse;
+using curve::mds::IncreaseFileEpochResponse;
 using curve::mds::DeleteSnapShotRequest;
 using curve::mds::DeleteSnapShotResponse;
 using curve::mds::ReFreshSessionRequest;
@@ -84,6 +85,8 @@ using curve::mds::topology::GetClusterInfoRequest;
 using curve::mds::topology::GetClusterInfoResponse;
 using curve::mds::topology::GetChunkServerInfoResponse;
 using curve::mds::topology::ListChunkServerResponse;
+using curve::mds::IncreaseFileEpochRequest;
+using curve::mds::IncreaseFileEpochResponse;
 
 extern const char* kRootUserName;
 
@@ -153,6 +156,23 @@ class MDSClientBase {
                      GetFileInfoResponse* response,
                      brpc::Controller* cntl,
                      brpc::Channel* channel);
+
+    /**
+     * @brief Increase epoch and return chunkserver locations
+     *
+     * @param[in] filename  file name
+     * @param[in] userinfo  user info
+     * @param[out] response  rpc response
+     * @param[in,out] cntl  rpc cntl
+     * @param[in] channel  rpc channel
+     *
+     */
+     void IncreaseEpoch(const std::string& filename,
+                        const UserInfo_t& userinfo,
+                        IncreaseFileEpochResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
+
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息
@@ -311,18 +331,21 @@ class MDSClientBase {
                             SetCloneFileStatusResponse* response,
                             brpc::Controller* cntl,
                             brpc::Channel* channel);
+
     /**
-     * 获取segment的chunk信息，并更新到Metacache
-     * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
-     * @param: offset为文件整体偏移
-     * @param: fi是当前文件的基本信息
-     * @param[out]: response为该rpc的response，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]:channel是当前与mds建立的通道
+     * Get or Alloc SegmentInfo，and update to Metacache
+     * @param: allocate  ture for allocate, false for get only
+     * @param: offset  segment start offset
+     * @param: fi file info
+     * @param: fEpoch  file epoch info
+     * @param[out]: reponse  rpc response
+     * @param[in|out]: cntl  rpc controller
+     * @param[in]:channel  rpc channel
      */
     void GetOrAllocateSegment(bool allocate,
                               uint64_t offset,
                               const FInfo_t* fi,
+                              const FileEpoch_t *fEpoch,
                               GetOrAllocateSegmentResponse* response,
                               brpc::Controller* cntl,
                               brpc::Channel* channel);

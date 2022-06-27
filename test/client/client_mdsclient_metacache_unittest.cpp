@@ -876,8 +876,9 @@ TEST_F(MDSClientTest, GetFileInfo) {
         new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetGetFileInfoFakeReturn(fakeret);
 
-    curve::client::FInfo_t* finfo = new curve::client::FInfo_t;
-    mdsclient_.GetFileInfo(filename, userinfo, finfo);
+    curve::client::FInfo_t *finfo = new curve::client::FInfo_t;
+    curve::client::FileEpoch_t fEpoch;
+    mdsclient_.GetFileInfo(filename, userinfo, finfo, &fEpoch);
 
     ASSERT_EQ(finfo->filename, "_filename_");
     ASSERT_EQ(finfo->id, 1);
@@ -900,8 +901,8 @@ TEST_F(MDSClientTest, GetFileInfo) {
     curvefsservice.CleanRetryTimes();
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-         mdsclient_.GetFileInfo(filename.c_str(),
-          userinfo, finfo));
+              mdsclient_.GetFileInfo(filename.c_str(), userinfo,
+                  finfo, &fEpoch));
 
     delete fakeret;
     delete fakeret2;
@@ -982,7 +983,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
 
     SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-    mdsclient_.GetOrAllocateSegment(true, 0, &fi, &segInfo);
+    mdsclient_.GetOrAllocateSegment(true, 0, &fi, nullptr, &segInfo);
     int count = 0;
     for (auto iter : segInfo.chunkvec) {
         uint64_t index = (segInfo.startoffset +
@@ -1105,7 +1106,7 @@ TEST_F(MDSClientTest, GetServerList) {
     response_1.set_statuscode(0);
     uint32_t chunkserveridc = 1;
 
-    ::curve::mds::topology::ChunkServerLocation* cslocs;
+    ::curve::common::ChunkServerLocation* cslocs;
     ::curve::mds::topology::CopySetServerInfo* csinfo;
     for (int j = 0; j < 256; j++) {
         csinfo = response_1.add_csinfo();
@@ -1265,7 +1266,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     response_1.set_statuscode(0);
     uint32_t chunkserveridc = 1;
 
-    ::curve::mds::topology::ChunkServerLocation* cslocs;
+    ::curve::common::ChunkServerLocation* cslocs;
     ::curve::mds::topology::CopySetServerInfo* csinfo;
     csinfo = response_1.add_csinfo();
     csinfo->set_copysetid(1234);
@@ -1362,8 +1363,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
 TEST_F(MDSClientTest, GetFileInfoException) {
     std::string filename = "/1_userinfo_";
-    FakeReturn* fakeret = nullptr;
-    curve::client::FInfo_t* finfo = nullptr;
+    FakeReturn *fakeret = nullptr;
+    curve::client::FInfo_t *finfo = nullptr;
+    FileEpoch_t fEpoch;
     {
         curve::mds::FileInfo* info = new curve::mds::FileInfo;
         ::curve::mds::GetFileInfoResponse response;
@@ -1376,7 +1378,7 @@ TEST_F(MDSClientTest, GetFileInfoException) {
 
         finfo = new curve::client::FInfo_t;
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                mdsclient_.GetFileInfo(filename, userinfo, finfo));
+                  mdsclient_.GetFileInfo(filename, userinfo, finfo, &fEpoch));
     }
 
     {
@@ -1399,7 +1401,7 @@ TEST_F(MDSClientTest, GetFileInfoException) {
 
         finfo = new curve::client::FInfo_t;
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                mdsclient_.GetFileInfo(filename, userinfo, finfo));
+                  mdsclient_.GetFileInfo(filename, userinfo, finfo, &fEpoch));
     }
 
     delete fakeret;

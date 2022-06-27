@@ -143,5 +143,9 @@ int64_t cbd_ext4_filesize(const char* filename) {
     }
 }
 
+int cbd_ext4_increase_epoch(const char* filename) {
+    return 0;
+}
+
 }  // extern "C"
 

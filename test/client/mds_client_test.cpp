@@ -267,6 +267,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
     userInfo.owner = "test";
 
     FInfo fileInfo;
+    FileEpoch_t fEpoch;
     LeaseSession session;
 
     // rpc always failed
@@ -277,7 +278,8 @@ TEST_F(MDSClientTest, TestOpenFile) {
 
         auto startMs = TimeUtility::GetTimeofDayMs();
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-                  mdsClient_.OpenFile(fileName, userInfo, &fileInfo, &session));
+                  mdsClient_.OpenFile(fileName, userInfo,
+                      &fileInfo, &fEpoch, &session));
         auto endMs = TimeUtility::GetTimeofDayMs();
         ASSERT_LE(option_.mdsMaxRetryMS, endMs - startMs);
     }
@@ -293,7 +295,8 @@ TEST_F(MDSClientTest, TestOpenFile) {
                 Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
 
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-                  mdsClient_.OpenFile(fileName, userInfo, &fileInfo, &session));
+                  mdsClient_.OpenFile(fileName, userInfo,
+                      &fileInfo, &fEpoch, &session));
     }
 
     // open normal file success
@@ -316,7 +319,8 @@ TEST_F(MDSClientTest, TestOpenFile) {
                 Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                  mdsClient_.OpenFile(fileName, userInfo, &fileInfo, &session));
+                  mdsClient_.OpenFile(fileName, userInfo,
+                      &fileInfo, &fEpoch, &session));
     }
 
     // open a flattened clone file
@@ -343,7 +347,8 @@ TEST_F(MDSClientTest, TestOpenFile) {
                 Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                  mdsClient_.OpenFile(fileName, userInfo, &fileInfo, &session));
+                  mdsClient_.OpenFile(fileName, userInfo,
+                      &fileInfo, &fEpoch, &session));
     }
 
     // open clone file, but response doesn't contains clone source segment
@@ -371,7 +376,8 @@ TEST_F(MDSClientTest, TestOpenFile) {
                 Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                  mdsClient_.OpenFile(fileName, userInfo, &fileInfo, &session));
+                  mdsClient_.OpenFile(fileName, userInfo,
+                      &fileInfo, &fEpoch, &session));
     }
 
     // open clone file success
@@ -407,13 +413,155 @@ TEST_F(MDSClientTest, TestOpenFile) {
                 Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                  mdsClient_.OpenFile(fileName, userInfo, &fileInfo, &session));
+                  mdsClient_.OpenFile(fileName, userInfo,
+                      &fileInfo, &fEpoch, &session));
 
         ASSERT_EQ(fileInfo.sourceInfo.name, "/clone");
         ASSERT_EQ(fileInfo.sourceInfo.length, 10 * kGiB);
         ASSERT_EQ(fileInfo.sourceInfo.segmentSize, 1 * kGiB);
         ASSERT_EQ(fileInfo.sourceInfo.allocatedSegmentOffsets,
                   std::unordered_set<uint64_t>({0 * kGiB, 1 * kGiB, 9 * kGiB}));
+    }
+}
+
+TEST_F(MDSClientTest, TestIncreaseEpoch) {
+    const std::string fileName = "/TestOpenFile";
+    UserInfo userInfo;
+    userInfo.owner = "test";
+
+    FInfo fileInfo;
+    FileEpoch_t fEpoch;
+    std::list<CopysetPeerInfo> csLocs;
+
+    // rpc always failed
+    {
+        EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
+            .WillRepeatedly(Invoke(
+                FakeRpcService<IncreaseFileEpochRequest,
+                               IncreaseFileEpochResponse, true>));
+
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.IncreaseEpoch(fileName, userInfo,
+                      &fileInfo, &fEpoch, &csLocs));
+    }
+    // rpc response failed
+    {
+        curve::mds::IncreaseFileEpochResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kFileNotExists);
+
+        EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
+            .WillRepeatedly(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(FakeRpcService<IncreaseFileEpochRequest,
+                    IncreaseFileEpochResponse>)));
+
+
+        ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+                  mdsClient_.IncreaseEpoch(fileName, userInfo,
+                      &fileInfo, &fEpoch, &csLocs));
+    }
+    // response not have fileInfo
+    {
+        curve::mds::IncreaseFileEpochResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+
+        EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
+            .WillRepeatedly(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(FakeRpcService<IncreaseFileEpochRequest,
+                    IncreaseFileEpochResponse>)));
+
+
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+                  mdsClient_.IncreaseEpoch(fileName, userInfo,
+                      &fileInfo, &fEpoch, &csLocs));
+    }
+
+    // success 1, not have externalAddr
+    {
+        uint64_t fileId = 100;
+        uint64_t epoch = 10086;
+        curve::mds::IncreaseFileEpochResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        auto fiOut = new curve::mds::FileInfo();
+        fiOut->set_id(fileId);
+        fiOut->set_epoch(epoch);
+        response.set_allocated_fileinfo(fiOut);
+
+        for (int i = 0; i < 10; i++) {
+            curve::common::ChunkServerLocation *lc =
+                response.mutable_cslocs()->Add();
+            lc->set_chunkserverid(i);
+            lc->set_hostip("127.0.0.1");
+            lc->set_port(8200 + i);
+        }
+
+        EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
+            .WillRepeatedly(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(FakeRpcService<IncreaseFileEpochRequest,
+                    IncreaseFileEpochResponse>)));
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.IncreaseEpoch(fileName, userInfo,
+                      &fileInfo, &fEpoch, &csLocs));
+
+        ASSERT_EQ(fileId, fEpoch.fileId);
+        ASSERT_EQ(epoch, fEpoch.epoch);
+        ASSERT_EQ(10, csLocs.size());
+        int i = 0;
+        for (auto it = csLocs.begin(); it != csLocs.end(); it++) {
+            ASSERT_EQ(i, it->chunkserverID);
+            ASSERT_STREQ("127.0.0.1",
+                butil::ip2str(it->internalAddr.addr_.ip).c_str());
+            ASSERT_EQ(8200 + i, it->internalAddr.addr_.port);
+            i++;
+        }
+    }
+
+    // success 2, have externalAddr
+    {
+        uint64_t fileId = 100;
+        uint64_t epoch = 10086;
+        curve::mds::IncreaseFileEpochResponse response;
+        response.set_statuscode(curve::mds::StatusCode::kOK);
+        auto fiOut = new curve::mds::FileInfo();
+        fiOut->set_id(fileId);
+        fiOut->set_epoch(epoch);
+        response.set_allocated_fileinfo(fiOut);
+
+        for (int i = 0; i < 10; i++) {
+            curve::common::ChunkServerLocation *lc =
+                response.mutable_cslocs()->Add();
+            lc->set_chunkserverid(i);
+            lc->set_hostip("127.0.0.1");
+            lc->set_port(8200 + i);
+            lc->set_externalip("127.0.0.2");
+        }
+
+        EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
+            .WillRepeatedly(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(FakeRpcService<IncreaseFileEpochRequest,
+                    IncreaseFileEpochResponse>)));
+
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                  mdsClient_.IncreaseEpoch(fileName, userInfo,
+                      &fileInfo, &fEpoch, &csLocs));
+
+        ASSERT_EQ(fileId, fEpoch.fileId);
+        ASSERT_EQ(epoch, fEpoch.epoch);
+        ASSERT_EQ(10, csLocs.size());
+        int i = 0;
+        for (auto it = csLocs.begin(); it != csLocs.end(); it++) {
+            ASSERT_EQ(i, it->chunkserverID);
+            ASSERT_STREQ("127.0.0.1",
+                butil::ip2str(it->internalAddr.addr_.ip).c_str());
+            ASSERT_STREQ("127.0.0.2",
+                butil::ip2str(it->externalAddr.addr_.ip).c_str());
+            ASSERT_EQ(8200 + i, it->internalAddr.addr_.port);
+            i++;
+        }
     }
 }
 

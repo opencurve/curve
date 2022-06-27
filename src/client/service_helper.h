@@ -90,12 +90,13 @@ struct GetLeaderClosure : public google::protobuf::Closure {
 class ServiceHelper {
  public:
     /**
-     * proto格式的FInfo转换为本地格式的FInfo
-     * @param: finfo为proto格式的文件信息
-     * @param: fi为本地格式的文件信息
+     * transfer FileInfo to FInfo_t and FileEpoch_t
+     * @param: finfo  file info of FileInfo type
+     * @param: fi File  info of FInfo_t type
+     * @param: fEpoch  file Epoch info
      */
     static void ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
-                                    FInfo_t* fi);
+                                    FInfo_t* fi, FileEpoch_t* fEpoch);
 
     static void ProtoCloneSourceInfo2Local(
         const curve::mds::OpenFileResponse& openFileResponse,

@@ -172,6 +172,8 @@ struct MDSClientMetric {
     InterfaceMetric getChunkServerId;
     // ListChunkServerInServer接口统计
     InterfaceMetric listChunkserverInServer;
+    // IncreaseEpoch
+    InterfaceMetric increaseEpoch;
 
     // 切换mds server总次数
     bvar::Adder<uint64_t> mdsServerChangeTimes;
@@ -197,6 +199,7 @@ struct MDSClientMetric {
           registerClient(prefix, "registerClient"),
           getChunkServerId(prefix, "GetChunkServerId"),
           listChunkserverInServer(prefix, "ListChunkServerInServer"),
+          increaseEpoch(prefix, "IncreaseEpoch"),
           mdsServerChangeTimes(prefix, "mds_server_change_times") {}
 };
 

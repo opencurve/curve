@@ -192,20 +192,27 @@ int ChunkServer::Run(int argc, char** argv) {
     registerOptions.fs = fs;
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
+    ChunkServerMetadata localMetadata;
     // 从本地获取meta
     std::string metaPath = UriParser::GetPathFromUri(
         registerOptions.chunkserverMetaUri).c_str();
+
+    auto epochMap = std::make_shared<EpochMap>();
     if (fs->FileExists(metaPath)) {
         LOG_IF(FATAL, GetChunkServerMetaFromLocal(
                             registerOptions.chunserverStoreUri,
                             registerOptions.chunkserverMetaUri,
-                            registerOptions.fs, &metadata) != 0)
+                            registerOptions.fs, &localMetadata) != 0)
+            << "Failed to GetChunkServerMetaFromLocal.";
+        LOG_IF(FATAL, registerMDS.RegisterToMDS(
+            &localMetadata, &metadata, epochMap) != 0)
             << "Failed to register to MDS.";
     } else {
         // 如果本地获取不到，向mds注册
         LOG(INFO) << "meta file "
                   << metaPath << " do not exist, register to mds";
-        LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadata) != 0)
+        LOG_IF(FATAL, registerMDS.RegisterToMDS(
+            nullptr, &metadata, epochMap) != 0)
             << "Failed to register to MDS.";
     }
 
@@ -311,7 +318,8 @@ int ChunkServer::Run(int argc, char** argv) {
     chunkServiceOptions.copysetNodeManager = copysetNodeManager_;
     chunkServiceOptions.cloneManager = &cloneManager_;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
-    ChunkServiceImpl chunkService(chunkServiceOptions);
+
+    ChunkServiceImpl chunkService(chunkServiceOptions, epochMap);
     ret = server.AddService(&chunkService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add ChunkService";

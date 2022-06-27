@@ -111,6 +111,11 @@ class NameSpaceService: public CurveFSService {
                        ::curve::mds::ListDirResponse* response,
                        ::google::protobuf::Closure* done) override;
 
+    void IncreaseFileEpoch(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::IncreaseFileEpochRequest* request,
+                       ::curve::mds::IncreaseFileEpochResponse* response,
+                       ::google::protobuf::Closure* done) override;
+
     void CreateSnapShot(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateSnapShotRequest* request,
                        ::curve::mds::CreateSnapShotResponse* response,

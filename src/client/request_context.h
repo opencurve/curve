@@ -109,6 +109,10 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     // 来告知当前的request结束了
     RequestClosure*     done_ = nullptr;
 
+    // file id
+    uint64_t fileId_;
+    // file epoch
+    uint64_t epoch_;
     // request的版本信息
     uint64_t            seq_ = 0;
     // appliedindex_表示当前IO是否走chunkserver端的raft协议，为0的时候走raft

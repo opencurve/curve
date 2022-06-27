@@ -167,3 +167,23 @@ TEST(TestLibcbdExt4, AioReadWriteTest) {
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, 0);
 }
+
+TEST(TestLibcbdExt4, IncreaseEpochTest) {
+    int ret;
+    CurveOptions opt;
+    std::string filename = "test.img";
+
+    memset(&opt, 0, sizeof(opt));
+
+    opt.datahome = ".";
+    ret = cbd_lib_init(&opt);
+    ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_increase_epoch(filename.c_str());
+    ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_fini();
+    ASSERT_EQ(ret, 0);
+}
+
+

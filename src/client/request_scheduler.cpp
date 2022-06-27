@@ -175,7 +175,8 @@ void RequestScheduler::ProcessAligned(RequestContext* ctx) {
             break;
         case OpType::WRITE:
             ctx->done_->GetInflightRPCToken();
-            client_.WriteChunk(ctx->idinfo_, ctx->seq_, ctx->writeData_,
+            client_.WriteChunk(ctx->idinfo_, ctx->fileId_, ctx->epoch_,
+                               ctx->seq_, ctx->writeData_,
                                ctx->offset_, ctx->rawlength_, ctx->sourceInfo_,
                                guard.release());
             break;

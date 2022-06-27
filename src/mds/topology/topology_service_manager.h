@@ -34,18 +34,29 @@
 #include "src/common/concurrent/name_lock.h"
 
 
+using curve::mds::copyset::CopysetManager;
+
 namespace curve {
 namespace mds {
 namespace topology {
 
+struct ChunkServerRegistInfoBuilder {
+    ChunkServerRegistInfoBuilder() {}
+    virtual ~ChunkServerRegistInfoBuilder() {}
+
+    virtual int BuildEpochMap(::google::protobuf::Map<
+        ::google::protobuf::uint64, ::google::protobuf::uint64> *epochMap) = 0;
+};
 
 class TopologyServiceManager {
  public:
     TopologyServiceManager(
-        std::shared_ptr<Topology> topology,
-        std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager)
+        const std::shared_ptr<Topology> &topology,
+        const std::shared_ptr<CopysetManager> &copysetManager,
+        const std::shared_ptr<ChunkServerRegistInfoBuilder> &registInfoBuilder)
         : topology_(topology),
-          copysetManager_(copysetManager) {}
+          copysetManager_(copysetManager),
+          registInfoBuilder_(registInfoBuilder) {}
 
     virtual ~TopologyServiceManager() {}
 
@@ -210,6 +221,12 @@ class TopologyServiceManager {
      * @brief copyset manager module
      */
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
+
+
+    /**
+     * @brief chunkserver register info builder
+     */
+    std::shared_ptr<ChunkServerRegistInfoBuilder> registInfoBuilder_;
 
     /**
      * @brief register mutex for chunkserver, preventing duplicate registration
