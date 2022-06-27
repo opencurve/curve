@@ -39,8 +39,8 @@ void DiskCacheWrite::Init(S3Client *client,
                           std::shared_ptr<PosixWrapper> posixWrapper,
                           const std::string cacheDir,
                           uint64_t asyncLoadPeriodMs,
-                          std::shared_ptr<LRUCache<
-                            std::string, bool>> cachedObjName) {
+                          std::shared_ptr<SglLRUCache<
+                            std::string>> cachedObjName) {
     client_ = client;
     posixWrapper_ = posixWrapper;
     asyncLoadPeriodMs_ = asyncLoadPeriodMs;
@@ -392,7 +392,6 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     }
     for (auto iter = uploadObjs.begin(); iter != uploadObjs.end(); iter++) {
         RemoveFile(*iter);
-        cachedObjName_->Put(*iter, false);
     }
     VLOG(3) << "upload all cached write file end.";
     return 0;
@@ -409,7 +408,7 @@ int DiskCacheWrite::RemoveFile(const std::string fileName) {
                    << ", errno = " << errno;
         return -1;
     }
-    cachedObjName_->Put(fileName, false);
+    cachedObjName_->MoveBack(fileName);
     VLOG(9) << "remove file success, file = " << fileName;
     return 0;
 }

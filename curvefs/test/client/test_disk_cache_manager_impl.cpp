@@ -68,8 +68,8 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
             wrapper_, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper_, "/mnt/test");
 
-        std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
-          = std::make_shared<LRUCache<std::string, bool>>
+        std::shared_ptr<SglLRUCache<std::string>> cachedObjName
+          = std::make_shared<SglLRUCache<std::string>>
               (0, std::make_shared<CacheMetrics>("diskcache"));
         diskCacheWrite_->Init(client_, wrapper_, "/mnt/test", 1, cachedObjName);
         diskCacheManagerImpl_ =
