@@ -64,8 +64,8 @@ class TestDiskCacheManager : public ::testing::Test {
         diskCacheManager_ = std::make_shared<DiskCacheManager>(
             wrapper, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper, "/mnt/test");
-         std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
-          = std::make_shared<LRUCache<std::string, bool>>
+         std::shared_ptr<SglLRUCache<std::string>> cachedObjName
+          = std::make_shared<SglLRUCache<std::string>>
               (0, std::make_shared<CacheMetrics>("diskcache"));
         diskCacheWrite_->Init(client, wrapper, "/mnt/test", 1, cachedObjName);
     }
@@ -298,7 +298,11 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
         .WillRepeatedly(Return(buf));
     EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
         .WillRepeatedly(Return(buf));
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillRepeatedly(Return(0));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+        .Times(3)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1))
+        .WillOnce(Return(0));
     diskCacheManager_->AddCache("test");
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
@@ -390,8 +394,11 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
     stat.f_blocks = 1;
     stat.f_bfree = 0;
     stat.f_bavail = 0;
-    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+        .Times(3)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1))
+        .WillOnce(Return(0));
 
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
@@ -407,11 +414,12 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     option.diskCacheOpt.cacheDir = "/mnt/test_unit";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     option.diskCacheOpt.fullRatio = 0;
-    option.diskCacheOpt.safeRatio = 0;
-    option.diskCacheOpt.maxUsableSpaceBytes = 0;
+    option.diskCacheOpt.safeRatio = 5;
+    option.diskCacheOpt.maxUsableSpaceBytes = 100;
     option.diskCacheOpt.cmdTimeoutSec = 5;
     option.diskCacheOpt.asyncLoadPeriodMs = 10;
-
+    option.diskCacheOpt.maxFileNums =
+      std::numeric_limits<uint64_t>::max();
     diskCacheManager_->Init(client, option);
 
     std::string buf = "test";
@@ -425,7 +433,7 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     stat.f_bfree = 0;
     stat.f_bavail = 0;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(-1)));
 
     diskCacheManager_->AddCache("test00");
     diskCacheManager_->AddCache("test01");
