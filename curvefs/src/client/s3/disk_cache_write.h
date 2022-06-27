@@ -49,7 +49,7 @@ namespace client {
 
 using curvefs::common::PosixWrapper;
 using curve::common::InterruptibleSleeper;
-using ::curve::common::LRUCache;
+using ::curve::common::SglLRUCache;
 using curve::common::PutObjectAsyncCallBack;
 
 class DiskCacheWrite : public DiskCacheBase {
@@ -83,7 +83,7 @@ class DiskCacheWrite : public DiskCacheBase {
     }
     void Init(S3Client *client, std::shared_ptr<PosixWrapper> posixWrapper,
               const std::string cacheDir, uint64_t asyncLoadPeriodMs,
-              std::shared_ptr<LRUCache<std::string, bool>> cachedObjName);
+              std::shared_ptr<SglLRUCache<std::string>> cachedObjName);
     /**
      * @brief write obj to write cahce disk
      * @param[in] client S3Client
@@ -153,7 +153,7 @@ class DiskCacheWrite : public DiskCacheBase {
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
 
-    std::shared_ptr<LRUCache<std::string, bool>> cachedObjName_;
+    std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
 };
 
 }  // namespace client

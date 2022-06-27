@@ -130,8 +130,8 @@ TEST_F(TestDiskCacheRead, LinkWriteToRead) {
 
 TEST_F(TestDiskCacheRead, LoadAllCacheFile) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull())).WillOnce(Return(-1));
-    std::shared_ptr<LRUCache<std::string, bool>> cachedObj;
-    cachedObj =  std::make_shared<LRUCache<std::string, bool>>
+    std::shared_ptr<SglLRUCache<std::string>> cachedObj;
+    cachedObj =  std::make_shared<SglLRUCache<std::string>>
         (0, std::make_shared<CacheMetrics>("diskcache"));;
     int ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(-1, ret);
@@ -226,4 +226,3 @@ TEST_F(TestDiskCacheRead, ClearReadCache) {
 
 }  // namespace client
 }  // namespace curvefs
-

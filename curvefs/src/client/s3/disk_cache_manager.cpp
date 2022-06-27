@@ -67,7 +67,7 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     // cannot limit the size,
     // because cache is been delete must after upload to s3
     cachedObjName_ = std::make_shared<
-      LRUCache<std::string, bool>>(0,
+      SglLRUCache<std::string>>(0,
         std::make_shared<CacheMetrics>("diskcache"));
 }
 
@@ -159,13 +159,12 @@ int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
 
 void DiskCacheManager::AddCache(const std::string name,
   bool cacheWriteExist) {
-    cachedObjName_->Put(name, cacheWriteExist);
+    cachedObjName_->Put(name);
     VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
 bool DiskCacheManager::IsCached(const std::string name) {
-    bool exist;
-    if (!cachedObjName_->Get(name, &exist)) {
+    if (!cachedObjName_->IsCached(name)) {
         VLOG(9) << "not cached, name = " << name;
         return false;
     }
@@ -371,7 +370,7 @@ void DiskCacheManager::TrimCache() {
         InitQosParam();
         SetDiskFsUsedRatio();
         while (!IsDiskCacheSafe()) {
-            if (!cachedObjName_->GetLast(false, &cacheKey)) {
+            if (!cachedObjName_->GetBack(&cacheKey)) {
                 VLOG(9) << "obj is empty";
                 break;
             }
@@ -380,7 +379,7 @@ void DiskCacheManager::TrimCache() {
             cacheReadFile = cacheReadFullDir + "/" + cacheKey;
             cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
             struct stat statFile;
-            int ret;
+            int ret = 0;
             ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
             // if file has not been uploaded to S3,
             // but remove the cache read file,
@@ -391,6 +390,7 @@ void DiskCacheManager::TrimCache() {
                 VLOG(1) << "do not remove this disk file"
                         << ", file has not been uploaded to S3."
                         << ", file is: " << cacheKey;
+                usleep(1000);
                 continue;
             }
             cachedObjName_->Remove(cacheKey);
