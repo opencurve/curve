@@ -167,7 +167,7 @@ class DiskCacheManager {
     std::shared_ptr<DiskCacheWrite> cacheWrite_;
     std::shared_ptr<DiskCacheRead> cacheRead_;
 
-    std::shared_ptr<LRUCache<std::string, bool>> cachedObjName_;
+    std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
 
     S3Client *client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;

@@ -477,6 +477,10 @@ class SglLRUCacheInterface {
     * @param[out] the back key
     */
     virtual bool GetBack(K *value) = 0;
+    /*
+    * @brief move the key to list tail
+    */
+    virtual bool MoveBack(const K &value) = 0;
 
     /*
     * @brief Get the size
@@ -484,16 +488,20 @@ class SglLRUCacheInterface {
     virtual uint64_t Size() = 0;
 };
 
+// Todo(hzwuhongsong)： recommended to implement this module
+// not use lru by huyao
 template <typename K, typename KeyTraits = CacheTraits<K>>
 class SglLRUCache : public SglLRUCacheInterface<K> {
  public:
     explicit SglLRUCache(uint64_t maxCount,
         std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
       : maxCount_(maxCount),
+        size_(0),
         cacheMetrics_(cacheMetrics) {}
 
     explicit SglLRUCache(std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
       : maxCount_(0),
+        size_(0),
         cacheMetrics_(cacheMetrics) {}
 
     void Put(const K &key) override;
@@ -503,6 +511,7 @@ class SglLRUCache : public SglLRUCacheInterface<K> {
     void Remove(const K &key) override;
     bool GetBefore(const K key, K *keyNext) override;
     bool GetBack(K *value) override;
+    bool MoveBack(const K &value) override;
     uint64_t Size();
 
     std::shared_ptr<CacheMetrics> GetCacheMetrics() const;
@@ -526,6 +535,8 @@ class SglLRUCache : public SglLRUCacheInterface<K> {
     // dequeue for storing items
     // can not use list or vector, bacause iterator may invalidated
     std::list<K> ll_;
+    // list size
+    uint64_t size_;
     // record the position of the item corresponding to the key in the dequeue
     std::unordered_map<K, typename std::list<K>::iterator> cache_;
 
@@ -541,14 +552,33 @@ std::shared_ptr<CacheMetrics>
 
 template <typename K, typename KeyTraits>
 uint64_t SglLRUCache<K, KeyTraits>::Size() {
-    ::curve::common::WriteLockGuard guard(lock_);
-    return ll_.size();
+    return size_;
 }
 
 template <typename K, typename KeyTraits>
 void SglLRUCache<K, KeyTraits>::Put(const K &key) {
     ::curve::common::WriteLockGuard guard(lock_);
     PutLocked(key);
+}
+
+template <typename K, typename KeyTraits>
+bool SglLRUCache<K, KeyTraits>::MoveBack(const K &key) {
+    ::curve::common::WriteLockGuard guard(lock_);
+    auto iter = cache_.find(key);
+    if (iter == cache_.end()) {
+        return false;
+    }
+    // delete the old value
+    RemoveElement(iter->second);
+    // put new value at tail
+    ll_.push_back(key);
+    cache_[key] = --ll_.end();
+    size_++;
+    if (cacheMetrics_ != nullptr) {
+        cacheMetrics_->UpdateAddToCacheCount();
+        cacheMetrics_->UpdateAddToCacheBytes(KeyTraits::CountBytes(key));
+    }
+    return true;
 }
 
 template <typename K, typename KeyTraits>
@@ -622,6 +652,7 @@ void SglLRUCache<K, KeyTraits>::PutLocked(const K &key) {
     ll_.emplace_front(key);
     VLOG(9) << "put: " << key;
     cache_[key] = ll_.begin();
+    size_++;
     if (cacheMetrics_ != nullptr) {
         cacheMetrics_->UpdateAddToCacheCount();
         cacheMetrics_->UpdateAddToCacheBytes(KeyTraits::CountBytes(key));
@@ -675,6 +706,7 @@ void SglLRUCache<K, KeyTraits>::RemoveElement(
     }
     cache_.erase(iter);
     ll_.erase(elemTmp);
+    size_--;
 }
 
 }  // namespace common
