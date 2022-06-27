@@ -407,7 +407,9 @@ int CopysetNodeManager::AddService(brpc::Server *server,
         ret = server->AddService(new CopysetServiceImpl(copysetNodeManager),
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add CopysetService";
-        ret = server->AddService(new ChunkServiceImpl(chunkServiceOptions),
+        auto epochMap = std::make_shared<EpochMap>();
+        ret = server->AddService(new ChunkServiceImpl(
+                                    chunkServiceOptions, epochMap),
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add ChunkService";
     } while (false);

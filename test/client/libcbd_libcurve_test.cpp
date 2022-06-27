@@ -402,6 +402,33 @@ TEST_F(TestLibcbdLibcurve, ReadAndCloseConcurrencyTest) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, cbd_lib_fini());
 }
 
+TEST_F(TestLibcbdLibcurve, IncreaseEpochTest) {
+    int ret;
+    CurveOptions opt;
+
+    memset(&opt, 0, sizeof(opt));
+
+    // testing with conf specified
+    opt.conf = const_cast<char*>(configpath.c_str());
+    ret = cbd_lib_init(&opt);
+    ASSERT_EQ(ret, 0);
+
+    auto fakecurvefsservice = mds_->GetMDSService();
+
+    curve::mds::IncreaseFileEpochResponse response;
+    response.set_statuscode(curve::mds::StatusCode::kOK);
+    response.set_allocated_fileinfo(new curve::mds::FileInfo);
+
+    FakeReturn fakeIncreaseFileEpochret(nullptr, &response);
+    fakecurvefsservice->SetIncreaseFileEpochReturn(&fakeIncreaseFileEpochret);
+
+    ret = cbd_lib_increase_epoch(filename);
+    ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_fini();
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+}
+
 std::string mdsMetaServerAddr = "127.0.0.1:9951";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT

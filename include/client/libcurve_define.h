@@ -90,6 +90,9 @@ enum LIBCURVE_ERROR {
     SNAPSTHO_FROZEN = 29,
     // You must retry it until success
     RETRY_UNTIL_SUCCESS = 30,
+    // EPOCH_TOO_OLD
+    EPOCH_TOO_OLD = 31,
+
     // unknown error
     UNKNOWN                 = 100
 };

@@ -173,7 +173,9 @@ int FileInstance::Open(const std::string& filename,
     LeaseSession_t  lease;
     int ret = LIBCURVE_ERROR::FAILED;
 
-    ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
+    FileEpoch_t fEpoch;
+    ret = mdsclient_->OpenFile(filename, finfo_.userinfo,
+        &finfo_, &fEpoch, &lease);
     if (ret == LIBCURVE_ERROR::OK) {
         iomanager4file_.UpdateFileThrottleParams(finfo_.throttleParams);
         ret = leaseExecutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
@@ -181,6 +183,7 @@ int FileInstance::Open(const std::string& filename,
         if (nullptr != sessionId) {
             sessionId->assign(lease.sessionID);
         }
+        iomanager4file_.UpdateFileEpoch(fEpoch);
     }
     return -ret;
 }
@@ -192,8 +195,10 @@ int FileInstance::ReOpen(const std::string& filename,
     return Open(filename, userInfo, newSessionId);
 }
 
-int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
-    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, finfo_.userinfo, fi);
+int FileInstance::GetFileInfo(const std::string& filename,
+    FInfo_t* fi, FileEpoch_t *fEpoch) {
+    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, finfo_.userinfo,
+                                                 fi, fEpoch);
     return -ret;
 }
 
@@ -250,7 +255,8 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
     }
 
     FInfo fileInfo;
-    int ret = instance->GetFileInfo(filename, &fileInfo);
+    FileEpoch_t fEpoch;
+    int ret = instance->GetFileInfo(filename, &fileInfo, &fEpoch);
     if (ret != 0) {
         LOG(ERROR) << "Get file info failed!";
         instance->UnInitialize();
@@ -262,6 +268,7 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
     fileInfo.userinfo = userInfo;
     fileInfo.fullPathName = filename;
     instance->GetIOManager4File()->UpdateFileInfo(fileInfo);
+    instance->GetIOManager4File()->UpdateFileEpoch(fEpoch);
 
     return instance;
 }

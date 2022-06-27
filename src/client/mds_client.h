@@ -29,6 +29,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "include/client/libcurve.h"
 #include "proto/nameserver2.pb.h"
@@ -184,17 +185,20 @@ class MDSClient : public MDSClientBase,
                               bool normalFile = true, uint64_t stripeUnit = 0,
                               uint64_t stripeCount = 0);
     /**
-     * 打开文件
-     * @param: filename是文件名
-     * @param: userinfo为user信息
-     * @param: fi是出参，保存该文件信息
-     * @param: lease是出参，携带该文件对应的lease信息
+     * open file
+     * @param: filename  file name
+     * @param: userinfo  user info
+     * @param[out]: fi  file info returned
+     * @param[out]: fEpoch  file epoch info returned
+     * @param[out]: lease lease of file returned
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     * return LIBCURVE_ERROR::OK for success,
+     * return LIBCURVE_ERROR::AUTHFAIL for auth fail,
+     * otherwise return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR OpenFile(const std::string &filename,
                             const UserInfo_t &userinfo, FInfo_t *fi,
+                            FileEpoch_t *fEpoch,
                             LeaseSession *lease);
 
     /**
@@ -217,17 +221,20 @@ class MDSClient : public MDSClientBase,
     LIBCURVE_ERROR GetClusterInfo(ClusterContext *clsctx);
 
     /**
-     * 获取segment的chunk信息，并更新到Metacache
-     * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
-     * @param: offset为文件整体偏移
-     * @param: fi是当前文件的基本信息
-     * @param[out]: segInfoh获取当前segment的内部chunk信息
+     * Get or Alloc SegmentInfo，and update to Metacache
+     * @param: allocate  ture for allocate, false for get only
+     * @param: offset  segment start offset
+     * @param: fi file info
+     * @param: fEpoch  file epoch info
+     * @param[out]: segInfo segment info returned
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     * return LIBCURVE_ERROR::OK for success,
+     * return LIBCURVE_ERROR::AUTHFAIL for auth fail,
+     * otherwise return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetOrAllocateSegment(bool allocate, uint64_t offset,
                                         const FInfo_t *fi,
+                                        const FileEpoch_t *fEpoch,
                                         SegmentInfo *segInfo);
 
     /**
@@ -240,16 +247,38 @@ class MDSClient : public MDSClientBase,
                                              uint64_t offset);
 
     /**
-     * 获取文件信息，fi是出参
-     * @param: filename是文件名
-     * @param: userinfo为user信息
-     * @param: fi是出参，保存文件基本信息
+     * Get File Info
+     * @param: filename  file name
+     * @param: userinfo  user info
+     * @param[out]: fi  file info returned
+     * @param[out]: fEpoch  file epoch info returned
      * @return:
-     * 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
+     * return LIBCURVE_ERROR::OK for success,
+     * return LIBCURVE_ERROR::AUTHFAIL for auth fail,
+     * otherwise return LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetFileInfo(const std::string &filename,
-                               const UserInfo_t &userinfo, FInfo_t *fi);
+                               const UserInfo_t &userinfo,
+                               FInfo_t *fi,
+                               FileEpoch_t *fEpoch);
+
+    /**
+     * @brief Increase epoch and return chunkserver locations
+     *
+     * @param[in] filename  file name
+     * @param[in] userinfo  user info
+     * @param[out] fi  file info
+     * @param[out] fEpoch  file epoch info
+     * @param[out] csLocs  chunkserver locations
+     *
+     * @return LIBCURVE_ERROR::OK for success, LIBCURVE_ERROR::FAILED for fail.
+     */
+    LIBCURVE_ERROR IncreaseEpoch(const std::string& filename,
+         const UserInfo_t& userinfo,
+         FInfo_t* fi,
+         FileEpoch_t *fEpoch,
+         std::list<CopysetPeerInfo<ChunkServerID>> *csLocs);
+
     /**
      * 扩展文件
      * @param: userinfo是用户信息

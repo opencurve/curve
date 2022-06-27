@@ -42,7 +42,7 @@ using curve::mds::PageFileChunkInfo;
 using curve::mds::PageFileSegment;
 using curve::mds::ProtoSession;
 using curve::mds::StatusCode;
-using curve::mds::topology::ChunkServerLocation;
+using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
 
 // rpc发送和mds地址切换状态机
@@ -249,6 +249,7 @@ void MDSClient::UnInitialize() {
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
                                    const UserInfo_t &userinfo, FInfo_t *fi,
+                                   FileEpoch_t *fEpoch,
                                    LeaseSession *lease) {
     auto task = RPCTaskDefine {
         OpenFileResponse response;
@@ -281,7 +282,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
             lease->createTime = leasesession.createtime();
 
             const curve::mds::FileInfo &protoFileInfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi);
+            ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi, fEpoch);
 
             if (protoFileInfo.has_clonesource() &&
                 protoFileInfo.filestatus() ==
@@ -379,7 +380,8 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string &filename,
 }
 
 LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
-                                      const UserInfo_t &uinfo, FInfo_t *fi) {
+                                      const UserInfo_t &uinfo, FInfo_t *fi,
+                                      FileEpoch_t *fEpoch) {
     auto task = RPCTaskDefine {
         GetFileInfoResponse response;
         mdsClientMetric_.getFile.qps.count << 1;
@@ -392,7 +394,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
         }
 
         if (response.has_fileinfo()) {
-            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi);
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi, fEpoch);
         }
 
         LIBCURVE_ERROR retcode;
@@ -409,9 +411,69 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string &filename,
-                                         const UserInfo_t &userinfo,
-                                         uint64_t *seq) {
+LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
+    const UserInfo_t& userinfo,
+    FInfo_t* fi,
+    FileEpoch_t *fEpoch,
+    std::list<CopysetPeerInfo<ChunkServerID>> *csLocs) {
+    auto task = RPCTaskDefine {
+        IncreaseFileEpochResponse response;
+        mdsClientMetric_.increaseEpoch.qps.count << 1;
+        LatencyGuard lg(&mdsClientMetric_.increaseEpoch.latency);
+        MDSClientBase::IncreaseEpoch(
+            filename, userinfo, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            mdsClientMetric_.increaseEpoch.eps.count << 1;
+            return -cntl->ErrorCode();
+        }
+
+        StatusCode stcode = response.statuscode();
+        if (stcode != StatusCode::kOK) {
+            LIBCURVE_ERROR retcode;
+            MDSStatusCode2LibcurveError(stcode, &retcode);
+            LOG(ERROR) << "IncreaseEpoch: filename = " << filename
+                << ", owner = " << userinfo.owner
+                << ", errocde = " << retcode
+                << ", error msg = " << StatusCode_Name(stcode)
+                << ", log id = " << cntl->log_id();
+            return retcode;
+        }
+
+        if (response.has_fileinfo()) {
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi, fEpoch);
+        } else {
+            LOG(ERROR) << "IncreaseEpoch response has no fileinfo!";
+            return LIBCURVE_ERROR::FAILED;
+        }
+
+        csLocs->clear();
+        int csLocSize = response.cslocs_size();
+        for (int i = 0; i < csLocSize; i++) {
+            CopysetPeerInfo<ChunkServerID> csinfo;
+            csinfo.peerID = response.cslocs(i).chunkserverid();
+            EndPoint internal;
+            butil::str2endpoint(response.cslocs(i).hostip().c_str(),
+                    response.cslocs(i).port(), &internal);
+            EndPoint external;
+            if (response.cslocs(i).has_externalip()) {
+                butil::str2endpoint(response.cslocs(i).externalip().c_str(),
+                    response.cslocs(i).port(), &external);
+            }
+            csinfo.internalAddr = PeerAddr(internal);
+            csinfo.externalAddr = PeerAddr(external);
+
+            csLocs->push_back(std::move(csinfo));
+        }
+        return LIBCURVE_ERROR::OK;
+    };
+    return ReturnError(
+        rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
+}
+
+LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
+                                         const UserInfo_t& userinfo,
+                                         uint64_t* seq) {
     auto task = RPCTaskDefine {
         CreateSnapShotResponse response;
         MDSClientBase::CreateSnapShot(filename, userinfo, &response, cntl,
@@ -432,7 +494,9 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string &filename,
              stcode == StatusCode::kFileUnderSnapShot) &&
             hasinfo) {
             FInfo_t *fi = new (std::nothrow) FInfo_t;
-            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(), fi);
+            FileEpoch_t fEpoch;
+            ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(),
+                                               fi, &fEpoch);
             *seq = fi->seqnum;
             delete fi;
             if (stcode == StatusCode::kOK) {
@@ -447,8 +511,9 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string &filename,
 
         if (hasinfo) {
             FInfo_t fi;
+            FileEpoch_t fEpoch;
             ServiceHelper::ProtoFileInfo2Local(response.snapshotfileinfo(),
-                                               &fi);  // NOLINT
+                                               &fi, &fEpoch);  // NOLINT
             *seq = fi.seqnum;
         }
 
@@ -527,7 +592,9 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string &filename,
 
         for (int i = 0; i < response.fileinfo_size(); i++) {
             FInfo_t tempInfo;
-            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i), &tempInfo);
+            FileEpoch_t fEpoch;
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(i),
+                                               &tempInfo, &fEpoch);
             snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
         }
 
@@ -648,8 +715,10 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
             break;
         case StatusCode::kOK:
             if (response.has_fileinfo()) {
+                FileEpoch_t fEpoch;
                 ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
-                                                   &resp->finfo);
+                                                   &resp->finfo,
+                                                   &fEpoch);
                 resp->status = LeaseRefreshResult::Status::OK;
             } else {
                 LOG(WARNING) << "session response has no fileinfo!";
@@ -831,7 +900,9 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(
             << ", log id = " << cntl->log_id();
 
         if (stcode == StatusCode::kOK) {
-            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fileinfo);
+            FileEpoch_t fEpoch;
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(),
+                                               fileinfo, &fEpoch);
             fileinfo->sourceInfo.name = response.fileinfo().clonesource();
             fileinfo->sourceInfo.length = response.fileinfo().clonelength();
         }
@@ -887,13 +958,14 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
 
 LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
                                                const FInfo_t *fi,
+                                               const FileEpoch_t *fEpoch,
                                                SegmentInfo *segInfo) {
     auto task = RPCTaskDefine {
         GetOrAllocateSegmentResponse response;
         mdsClientMetric_.getOrAllocateSegment.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);
-        MDSClientBase::GetOrAllocateSegment(allocate, offset, fi, &response,
-                                            cntl, channel);
+        MDSClientBase::GetOrAllocateSegment(allocate, offset, fi, fEpoch,
+                                            &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
             LOG(WARNING) << "allocate segment failed, error code = "
@@ -917,6 +989,9 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
         case StatusCode::kSegmentNotAllocated:
             LOG(WARNING) << "GetOrAllocateSegment: segment not allocated!";
             return LIBCURVE_ERROR::NOT_ALLOCATE;
+        case StatusCode::kEpochTooOld:
+            LOG(WARNING) << "GetOrAllocateSegment return epoch too old!";
+            return LIBCURVE_ERROR::EPOCH_TOO_OLD;
         default:
             break;
         }

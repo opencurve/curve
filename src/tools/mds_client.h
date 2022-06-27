@@ -53,7 +53,7 @@ using curve::mds::StatusCode;
 using curve::mds::PageFileChunkInfo;
 using curve::mds::topology::kTopoErrCodeSuccess;
 using curve::mds::topology::ChunkServerInfo;
-using curve::mds::topology::ChunkServerLocation;
+using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
 using curve::mds::topology::ServerInfo;
 using curve::mds::topology::ZoneInfo;

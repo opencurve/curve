@@ -29,6 +29,7 @@
 
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/config_info.h"
+#include "src/chunkserver/epoch_map.h"
 
 namespace curve {
 namespace chunkserver {
@@ -40,7 +41,8 @@ class CopysetNodeManager;
 
 class ChunkServiceImpl : public ChunkService {
  public:
-    explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions);
+    explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions,
+        const std::shared_ptr<EpochMap> &epochMap);
     ~ChunkServiceImpl() {}
 
     void DeleteChunk(RpcController *controller,
@@ -91,6 +93,11 @@ class ChunkServiceImpl : public ChunkService {
                       GetChunkHashResponse *response,
                       Closure *done);
 
+    void UpdateEpoch(RpcController *controller,
+                    const UpdateEpochRequest *request,
+                    UpdateEpochResponse *response,
+                    Closure *done);
+
  private:
     /**
      * 验证op request的offset和length是否越界和对齐
@@ -105,6 +112,8 @@ class ChunkServiceImpl : public ChunkService {
     CopysetNodeManager  *copysetNodeManager_;
     std::shared_ptr<InflightThrottle> inflightThrottle_;
     uint32_t            maxChunkSize_;
+
+    std::shared_ptr<EpochMap> epochMap_;
 };
 
 }  // namespace chunkserver

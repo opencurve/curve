@@ -206,6 +206,12 @@ class MetaCache {
 
     const FInfo *GetFileInfo() const { return &fileInfo_; }
 
+    void UpdateFileEpoch(const FileEpoch& fEpoch) {
+        fEpoch_ = fEpoch;
+    }
+
+    const FileEpoch* GetFileEpoch() const { return &fEpoch_; }
+
     uint64_t GetLatestFileSn() const { return fileInfo_.seqnum; }
 
     void SetLatestFileSn(uint64_t newSn) { fileInfo_.seqnum = newSn; }
@@ -312,6 +318,9 @@ class MetaCache {
 
     // 当前文件信息
     FInfo fileInfo_;
+
+    // epoch info
+    FileEpoch fEpoch_;
 
     UnstableHelper unstableHelper_;
 };

@@ -175,6 +175,7 @@ int IOManager4File::Write(const char* buf,
     IOTracker temp(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     temp.SetUserDataType(UserDataType::IOBuffer);
     temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo(),
+                    this->GetFileEpoch(),
                     throttle_.get());
 
     int rc = temp.Wait();
@@ -222,6 +223,7 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(),
+                            this->GetFileEpoch(),
                             throttle_.get());
     };
 

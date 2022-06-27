@@ -47,7 +47,8 @@ void Splitor::Init(const IOSplitOption& ioSplitOpt) {
 int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
                               std::vector<RequestContext*>* targetlist,
                               butil::IOBuf* data, off_t offset, size_t length,
-                              MDSClient* mdsclient, const FInfo_t* fileInfo) {
+                              MDSClient* mdsclient, const FInfo_t* fileInfo,
+                              const FileEpoch_t* fEpoch) {
     if (targetlist == nullptr || mdsclient == nullptr || metaCache == nullptr ||
         iotracker == nullptr || fileInfo == nullptr) {
         return -1;
@@ -62,10 +63,10 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
     if (((fileInfo->stripeUnit == 0) && (fileInfo->stripeCount == 0)) ||
         fileInfo->stripeCount == 1 || iotracker->IsStripeDisabled()) {
         return SplitForNormal(iotracker, metaCache, targetlist, data, offset,
-                              length, mdsclient, fileInfo);
+                              length, mdsclient, fileInfo, fEpoch);
     } else {
         return SplitForStripe(iotracker, metaCache, targetlist, data, offset,
-                              length, mdsclient, fileInfo);
+                              length, mdsclient, fileInfo, fEpoch);
     }
 }
 
@@ -140,6 +141,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                              std::vector<RequestContext*>* targetlist,
                              butil::IOBuf* data, off_t off, size_t len,
                              MDSClient* mdsclient, const FInfo_t* fileInfo,
+                             const FileEpoch_t* fEpoch,
                              ChunkIndex chunkidx) {
     const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
 
@@ -173,7 +175,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
         if (false == GetOrAllocateSegment(
                          isAllocateSegment,
                          static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
-                         mdsclient, metaCache, fileInfo, chunkidx)) {
+                         mdsclient, metaCache, fileInfo, fEpoch, chunkidx)) {
             return false;
         }
 
@@ -196,6 +198,12 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                                           fileInfo->seqnum);
 
         for (auto& ctx : templist) {
+            ctx->fileId_ = fileInfo->id;
+            if (fEpoch != nullptr) {
+                ctx->epoch_ = fEpoch->epoch;
+            } else {
+                ctx->epoch_ = 0;
+            }
             ctx->appliedindex_ = appliedindex_;
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
@@ -224,22 +232,30 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
                                    MDSClient* mdsClient,
                                    MetaCache* metaCache,
                                    const FInfo* fileInfo,
+                                   const FileEpoch_t *fEpoch,
                                    ChunkIndex chunkidx) {
     SegmentInfo segmentInfo;
     LIBCURVE_ERROR errCode = mdsClient->GetOrAllocateSegment(
-        allocateIfNotExist, offset, fileInfo, &segmentInfo);
+        allocateIfNotExist, offset, fileInfo, fEpoch, &segmentInfo);
 
-    if (errCode == LIBCURVE_ERROR::FAILED ||
-        errCode == LIBCURVE_ERROR::AUTHFAIL) {
-        LOG(ERROR) << "GetOrAllocateSegmen failed, filename: "
-                   << fileInfo->filename << ", offset: " << offset;
-        return false;
-    } else if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
-        // this chunkIdInfo(0, 0, 0) identify the unallocated chunk when read
-        ChunkIDInfo chunkIdInfo(0, 0, 0);
-        chunkIdInfo.chunkExist = false;
-        metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
-        return true;
+    if (errCode != LIBCURVE_ERROR::OK) {
+        if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
+            // this chunkIdInfo(0, 0, 0) identify
+            // the unallocated chunk when read
+            ChunkIDInfo chunkIdInfo(0, 0, 0);
+            chunkIdInfo.chunkExist = false;
+            metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
+            return true;
+        }
+        if (errCode == LIBCURVE_ERROR::EPOCH_TOO_OLD) {
+            LOG(WARNING) << "GetOrAllocateSegmen epoch too old, filename: "
+                         << fileInfo->filename << ", offset: " << offset;
+            return false;
+        } else {
+            LOG(ERROR) << "GetOrAllocateSegmen failed, filename: "
+                       << fileInfo->filename << ", offset: " << offset;
+            return false;
+        }
     }
 
     const auto chunksize = fileInfo->chunksize;
@@ -288,7 +304,8 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
 int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
                             std::vector<RequestContext*>* targetlist,
                             butil::IOBuf* data, off_t offset, size_t length,
-                            MDSClient* mdsclient, const FInfo_t* fileInfo) {
+                            MDSClient* mdsclient, const FInfo_t* fileInfo,
+                            const FileEpoch_t* fEpoch) {
     const uint64_t chunksize = fileInfo->chunksize;
 
     uint64_t currentChunkIndex = offset / chunksize;
@@ -317,7 +334,7 @@ int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
 
         if (!AssignInternal(iotracker, metaCache, targetlist, data,
                             currentChunkOffset, requestLength, mdsclient,
-                            fileInfo, currentChunkIndex)) {
+                            fileInfo, fEpoch, currentChunkIndex)) {
             LOG(ERROR) << "request split failed"
                        << ", off = " << currentChunkOffset
                        << ", len = " << requestLength
@@ -343,7 +360,8 @@ int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
 int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
                             std::vector<RequestContext*>* targetlist,
                             butil::IOBuf* data, off_t offset, size_t length,
-                            MDSClient* mdsclient, const FInfo_t* fileInfo) {
+                            MDSClient* mdsclient, const FInfo_t* fileInfo,
+                            const FileEpoch_t* fEpoch) {
     const uint64_t chunksize = fileInfo->chunksize;
     const uint64_t stripeUnit = fileInfo->stripeUnit;
     const uint64_t stripeCount = fileInfo->stripeCount;
@@ -367,8 +385,8 @@ int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
         uint64_t requestLength = std::min((stripeUnit - blockOff), left);
 
         if (!AssignInternal(iotracker, metaCache, targetlist, data,
-                            curChunkOffset, requestLength, mdsclient, fileInfo,
-                            curChunkIndex)) {
+                            curChunkOffset, requestLength, mdsclient,
+                            fileInfo, fEpoch, curChunkIndex)) {
             LOG(ERROR) << "request split failed"
                        << ", off = " << curChunkOffset
                        << ", len = " << requestLength

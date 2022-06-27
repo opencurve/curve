@@ -54,6 +54,7 @@ using ::curve::mds::copyset::ClusterInfo;
 using ::curve::mds::copyset::Copyset;
 using ::curve::mds::copyset::CopysetConstrait;
 using ::curve::common::CopysetInfo;
+using ::curve::common::ChunkServerLocation;
 
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
@@ -62,6 +63,46 @@ void TopologyServiceManager::RegistChunkServer(
     uint32_t port = request->port();
     ::curve::common::NameLockGuard lock(registCsMutex,
         hostIp + ":" + std::to_string(port));
+
+    if (request->has_chunkserverid()) {
+        if (!request->has_token()) {
+            response->set_statuscode(kTopoErrCodeInvalidParam);
+            LOG(ERROR) << "token missing, chunkserverid: "
+                << request->chunkserverid();
+            return;
+        }
+        ChunkServer cs;
+        if (topology_->GetChunkServer(request->chunkserverid(), &cs)) {
+            if (ChunkServerStatus::RETIRED == cs.GetStatus()) {
+                LOG(WARNING) << "Received RegistChunkServer request from "
+                             << "retired chunkserver, "
+                             << "chunkserverid: " << request->chunkserverid();
+                response->set_statuscode(kTopoErrCodeInvalidParam);
+                return;
+            }
+
+            if (cs.GetToken() != request->token()) {
+                LOG(ERROR) << "Check Chunkserver token failed, "
+                           << "token in mds is: " << cs.GetToken()
+                           << ", token in request is: " << request->token();
+                response->set_statuscode(kTopoErrCodeInvalidParam);
+                return;
+            }
+            response->set_statuscode(kTopoErrCodeSuccess);
+            response->set_chunkserverid(cs.GetId());
+            response->set_token(cs.GetToken());
+            ::google::protobuf::Map<::google::protobuf::uint64,
+                ::google::protobuf::uint64> epochMap;
+            int err = registInfoBuilder_->BuildEpochMap(&epochMap);
+            if (err < 0) {
+                LOG(ERROR) << "BuildEpochMap failed, err: " << err;
+                response->set_statuscode(kTopoErrCodeInternalError);
+                return;
+            }
+            response->mutable_epochmap()->swap(epochMap);
+            return;
+        }
+    }
 
     // here we get chunkserver already registered in the cluster that have
     // the same ip and port as what we're trying to register and are running
@@ -83,6 +124,15 @@ void TopologyServiceManager::RegistChunkServer(
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_chunkserverid(cs.GetId());
         response->set_token(cs.GetToken());
+        ::google::protobuf::Map<::google::protobuf::uint64,
+            ::google::protobuf::uint64> epochMap;
+        int err = registInfoBuilder_->BuildEpochMap(&epochMap);
+        if (err < 0) {
+            LOG(ERROR) << "BuildEpochMap failed, err: " << err;
+            response->set_statuscode(kTopoErrCodeInternalError);
+            return;
+        }
+        response->mutable_epochmap()->swap(epochMap);
         LOG(WARNING) << "Received duplicated registChunkServer message, "
                       << "hostip = " << hostIp
                       << ", port = " << port;
@@ -148,6 +198,15 @@ void TopologyServiceManager::RegistChunkServer(
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_chunkserverid(chunkserver.GetId());
         response->set_token(chunkserver.GetToken());
+        ::google::protobuf::Map<::google::protobuf::uint64,
+            ::google::protobuf::uint64> epochMap;
+        int err = registInfoBuilder_->BuildEpochMap(&epochMap);
+        if (err < 0) {
+            LOG(ERROR) << "BuildEpochMap failed, err: " << err;
+            response->set_statuscode(kTopoErrCodeInternalError);
+            return;
+        }
+        response->mutable_epochmap()->swap(epochMap);
     } else {
         response->set_statuscode(errcode);
     }
