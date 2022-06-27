@@ -217,7 +217,7 @@ int ClientConfig::Init(const std::string& configpath) {
     LOG_IF(ERROR, ret == false) << "config no mds.maxFailedTimesBeforeChangeMDS info";  // NOLINT
 
     ret = conf_.GetUInt64Value("mds.normalRetryTimesBeforeTriggerWait",
-        &fileServiceOption_.metaServerOpt.rpcRetryOpt.normalRetryTimesBeforeTriggerWait); // NOLINT 
+        &fileServiceOption_.metaServerOpt.rpcRetryOpt.normalRetryTimesBeforeTriggerWait); // NOLINT
     LOG_IF(ERROR, ret == false) << "config no mds.normalRetryTimesBeforeTriggerWait info";  // NOLINT
 
     ret = conf_.GetUInt64Value("mds.waitSleepMs",
@@ -295,6 +295,29 @@ int ClientConfig::Init(const std::string& configpath) {
                       "global.alignment.cloneVolume must align to 512";
         RETURN_IF_FALSE(false);
     }
+
+    // only client side need these follow 5 options
+    ret = conf_.GetUInt32Value("csClientOpt.rpcTimeoutMs",
+        &fileServiceOption_.csClientOpt.rpcTimeoutMs);
+    LOG_IF(WARNING, ret = false) << "config no csClientOpt.rpcTimeoutMs info";
+
+    ret = conf_.GetUInt32Value("csClientOpt.rpcMaxTry",
+        &fileServiceOption_.csClientOpt.rpcMaxTry);
+    LOG_IF(WARNING, ret = false) << "config no csClientOpt.rpcMaxTry info";
+
+    ret = conf_.GetUInt32Value("csClientOpt.rpcIntervalUs",
+        &fileServiceOption_.csClientOpt.rpcIntervalUs);
+    LOG_IF(WARNING, ret = false) << "config no csClientOpt.rpcIntervalUs info";
+
+    ret = conf_.GetUInt32Value("csClientOpt.rpcMaxTimeoutMs",
+        &fileServiceOption_.csClientOpt.rpcIntervalUs);
+    LOG_IF(WARNING, ret = false)
+        << "config no csClientOpt.rpcMaxTimeoutMs info";
+
+    ret = conf_.GetUInt32Value("csBroadCasterOpt.broadCastMaxNum",
+        &fileServiceOption_.csBroadCasterOpt.broadCastMaxNum);
+    LOG_IF(WARNING, ret = false)
+        << "config no csBroadCasterOpt.broadCastMaxNum info";
 
     kMinIOAlignment =
         fileServiceOption_.ioOpt.ioSplitOpt.alignment.commonVolume;

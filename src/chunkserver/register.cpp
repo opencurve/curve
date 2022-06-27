@@ -52,10 +52,11 @@ Register::Register(const RegisterOptions &ops) {
     inServiceIndex_ = 0;
 }
 
-int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
+int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
+    ChunkServerMetadata *metadata,
+    const std::shared_ptr<EpochMap> &epochMap) {
     ::curve::mds::topology::ChunkServerRegistRequest req;
     ::curve::mds::topology::ChunkServerRegistResponse resp;
-
     req.set_disktype(ops_.chunkserverDiskType);
     req.set_diskpath(ops_.chunserverStoreUri);
     req.set_hostip(ops_.chunkserverInternalIp);
@@ -63,6 +64,11 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
         req.set_externalip(ops_.chunkserverExternalIp);
     }
     req.set_port(ops_.chunkserverPort);
+
+    if (localMetadata != nullptr) {
+        req.set_chunkserverid(localMetadata->id());
+        req.set_token(localMetadata->token());
+    }
 
     LOG(INFO) << " Registering to MDS " << mdsEps_[inServiceIndex_]
               << ". internal ip: " << ops_.chunkserverInternalIp
@@ -113,6 +119,13 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
                    << " Fail to register to MDS for " << ops_.registerRetries
                    << " times.";
         return -1;
+    }
+
+    if (resp.epochmap_size() != 0) {
+        for (auto it = resp.epochmap().begin();
+            it != resp.epochmap().end(); it++) {
+            epochMap->UpdateEpoch(it->first, it->second);
+        }
     }
 
     metadata->set_version(CURRENT_METADATA_VERSION);

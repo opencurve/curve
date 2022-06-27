@@ -154,12 +154,18 @@ class MockStorage : public TopologyStorage {
                  bool(const ClusterInformation &info));
 };
 
+class MockChunkServerRegistInfoBuilder : public ChunkServerRegistInfoBuilder {
+ public:
+     MOCK_METHOD1(BuildEpochMap, int(::google::protobuf::Map<
+        ::google::protobuf::uint64, ::google::protobuf::uint64> *epochMap));
+};
+
 class MockTopologyServiceManager : public TopologyServiceManager {
  public:
     MockTopologyServiceManager(
         std::shared_ptr<Topology> topology,
         std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager) //NOLINT
-        : TopologyServiceManager(topology, copysetManager) {}
+        : TopologyServiceManager(topology, copysetManager, nullptr) {}
 
     ~MockTopologyServiceManager() {}
 

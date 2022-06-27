@@ -107,7 +107,7 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo,
     }
 
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, nullptr, offset_,
-                                        length_, mdsclient, fileInfo);
+                                        length_, mdsclient, fileInfo, nullptr);
     if (ret == 0) {
         PrepareReadIOBuffers(reqlist_.size());
         uint32_t subIoIndex = 0;
@@ -162,6 +162,7 @@ int IOTracker::ReadFromSource(const std::vector<RequestContext*>& reqCtxVec,
 
 void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
                            MDSClient* mdsclient, const FInfo_t* fileInfo,
+                           const FileEpoch* fEpoch,
                            Throttle* throttle) {
     data_ = const_cast<void*>(buf);
     offset_ = offset;
@@ -170,11 +171,12 @@ void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
 
     DVLOG(9) << "write op, offset = " << offset << ", length = " << length;
 
-    DoWrite(mdsclient, fileInfo, throttle);
+    DoWrite(mdsclient, fileInfo, fEpoch, throttle);
 }
 
 void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
-                              const FInfo_t* fileInfo, Throttle* throttle) {
+                              const FInfo_t* fileInfo, const FileEpoch* fEpoch,
+                              Throttle* throttle) {
     aioctx_ = ctx;
     data_ = ctx->buf;
     offset_ = ctx->offset;
@@ -184,10 +186,11 @@ void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     DVLOG(9) << "aiowrite op, offset = " << ctx->offset
              << ", length = " << ctx->length;
 
-    DoWrite(mdsclient, fileInfo, throttle);
+    DoWrite(mdsclient, fileInfo, fEpoch, throttle);
 }
 
 void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                        const FileEpoch* fEpoch,
                         Throttle* throttle) {
     if (nullptr == data_) {
         ReturnOnFail();
@@ -209,7 +212,8 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
     }
 
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_,
-                                        offset_, length_, mdsclient, fileInfo);
+                                        offset_, length_,
+                                        mdsclient, fileInfo, fEpoch);
     if (ret == 0) {
         uint32_t subIoIndex = 0;
 
@@ -255,7 +259,7 @@ void IOTracker::StartAioDiscard(CurveAioContext* ctx, MDSClient* mdsclient,
 void IOTracker::DoDiscard(MDSClient* mdsClient, const FInfo* fileInfo,
                           DiscardTaskManager* taskManager) {
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, nullptr, offset_,
-                                        length_, mdsClient, fileInfo);
+                                        length_, mdsClient, fileInfo, nullptr);
 
     if (ret == 0 && !discardSegments_.empty()) {
         for (auto index : discardSegments_) {
@@ -505,10 +509,17 @@ void IOTracker::Done() {
     } else {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
         if (type_ == OpType::READ || type_ == OpType::WRITE) {
-            LOG(ERROR) << "file [" << fileMetric_->filename << "]"
-                    << ", IO Error, OpType = " << OpTypeToString(type_)
-                    << ", offset = " << offset_
-                    << ", length = " << length_;
+            if (LIBCURVE_ERROR::EPOCH_TOO_OLD == errcode_) {
+                LOG(WARNING) << "file [" << fileMetric_->filename << "]"
+                        << ", epoch too old, OpType = " << OpTypeToString(type_)
+                        << ", offset = " << offset_
+                        << ", length = " << length_;
+            } else {
+                LOG(ERROR) << "file [" << fileMetric_->filename << "]"
+                        << ", IO Error, OpType = " << OpTypeToString(type_)
+                        << ", offset = " << offset_
+                        << ", length = " << length_;
+            }
         } else {
             if (OpType::CREATE_CLONE == type_ &&
                 LIBCURVE_ERROR::EXISTS == errcode_) {
@@ -578,6 +589,9 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
             break;
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
             *errout = LIBCURVE_ERROR::EXISTS;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
+            *errout = LIBCURVE_ERROR::EPOCH_TOO_OLD;
             break;
         default:
             *errout = LIBCURVE_ERROR::FAILED;

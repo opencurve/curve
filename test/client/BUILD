@@ -35,7 +35,9 @@ cc_test(
                 "request_sender_test.cpp",
                 "mds_client_test.cpp",
                 "client_mdsclient_metacache_unittest.cpp",
-                "splitor_test.cpp"
+                "splitor_test.cpp",
+                "chunkserverclient_unittest.cpp",
+                "chunkserverbroadcaster_unittest.cpp",
                 ]
     ),
     copts = CURVE_TEST_COPTS,
@@ -360,4 +362,32 @@ cc_test(
         "//src/client:curve_client",
         "@com_google_googletest//:gtest",
     ]
+)
+
+cc_test(
+    name = "chunkserver_client_test",
+    srcs = [
+        "chunkserverclient_unittest.cpp",
+        "chunkserverbroadcaster_unittest.cpp",
+        ],
+    copts = CURVE_TEST_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//test/client/mock:client_mock_lib",
+    ],
 )

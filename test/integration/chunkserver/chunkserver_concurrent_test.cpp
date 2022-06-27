@@ -43,6 +43,8 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 using curve::common::Thread;
 
+const char* kFakeMdsAddr = "127.0.0.1:9329";
+
 static char *chunkConcurrencyParams1[1][16] = {
     {
         "chunkserver",
@@ -111,6 +113,7 @@ class ChunkServerConcurrentNotFromFilePoolTest : public testing::Test {
         ASSERT_TRUE(cg1.Init("9076"));
         cg1.SetKV("copyset.election_timeout_ms", "3000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
+        cg1.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1.Generate());
 
         logicPoolId = 1;
@@ -181,6 +184,7 @@ class ChunkServerConcurrentFromFilePoolTest : public testing::Test {
         cg1.SetKV("copyset.election_timeout_ms", "3000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
         cg1.SetKV("chunkfilepool.enable_get_chunk_from_pool", "true");
+        cg1.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1.Generate());
 
         logicPoolId = 1;
@@ -513,6 +517,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadOneChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
 
@@ -557,6 +562,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteOneChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机write chunk
@@ -592,6 +598,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, WriteOneChunkOnTheSameOffset) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机write chunk
@@ -663,6 +670,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteOneChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生
@@ -724,6 +732,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生
@@ -769,6 +778,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadMultiNotExistChunk) {  
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机read chunk
@@ -805,6 +815,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandWriteMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生，避免下面同时从
@@ -852,6 +863,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, RandReadWriteMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机read write chunk
@@ -901,6 +913,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, DeleteMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生
@@ -944,6 +957,7 @@ TEST_F(ChunkServerConcurrentNotFromFilePoolTest, CreateCloneMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机create clone chunk
@@ -985,6 +999,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadOneChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生
@@ -1028,6 +1043,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteOneChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机write chunk
@@ -1063,6 +1079,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, WriteOneChunkOnTheSameOffset) {   
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机write chunk
@@ -1132,6 +1149,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteOneChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机read write chunk
@@ -1181,6 +1199,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生
@@ -1226,6 +1245,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadMultiNotExistChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机read chunk
@@ -1260,6 +1280,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机write chunk
@@ -1294,6 +1315,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandReadWriteMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机read write chunk
@@ -1343,6 +1365,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, DeleteMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 对chunk发起一次写，保证chunk已经产生
@@ -1387,6 +1410,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, CreateCloneMultiChunk) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 起多个线程执行随机create clone chunk
@@ -1423,6 +1447,7 @@ TEST_F(ChunkServerConcurrentFromFilePoolTest, RandWriteMultiChunkWithCOW) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     InitCluster(&cluster);
 
     // 2. 用低版本的sn写一遍chunk

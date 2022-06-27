@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <braft/cli.h>
+#include <brpc/server.h>
 
 #include <string>
 #include <vector>
@@ -40,6 +41,11 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/copyset_node.h"
 #include "proto/common.pb.h"
+#include "proto/topology.pb.h"
+
+using ::curve::mds::topology::TopologyService;
+using ::curve::mds::topology::ChunkServerRegistRequest;
+using ::curve::mds::topology::ChunkServerRegistResponse;
 
 namespace curve {
 namespace chunkserver {
@@ -73,6 +79,18 @@ struct PeerNode {
     PeerNodeState state;
 };
 
+class FakeTopologyService : public TopologyService {
+    void RegistChunkServer(google::protobuf::RpcController* cntl_base,
+                      const ChunkServerRegistRequest* request,
+                      ChunkServerRegistResponse* response,
+                      google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        response->set_statuscode(0);
+        response->set_chunkserverid(request->chunkserverid());
+        response->set_token(request->token());
+    }
+};
+
 /**
  * 封装模拟cluster测试相关的接口
  */
@@ -84,9 +102,22 @@ class PeerCluster {
                 const std::vector<Peer> &peers,
                 std::vector<char **> params,
                 std::map<int, int> paramsIndexs);
-    virtual ~PeerCluster() { StopAllPeers(); }
+    virtual ~PeerCluster() {
+        StopAllPeers();
+        if (isFakeMdsStart_) {
+            fakeMdsServer_.Stop(0);
+            fakeMdsServer_.Join();
+        }
+    }
 
  public:
+    /**
+     * @brief start a fake topology service for register
+     *
+     * @return 0 for success, -1 for failed
+     */
+    int StartFakeTopoloyService(const std::string &listenAddr);
+
     /**
      * 启动一个 Peer
      * @param peer
@@ -204,6 +235,13 @@ class PeerCluster {
     std::map<int, int> paramsIndexs_;
     // chunkserver启动需要传递的参数列表
     std::vector<char **> params_;
+
+    // fake mds server
+    brpc::Server fakeMdsServer_;
+    // fake topology service
+    FakeTopologyService fakeTopologyService_;
+    // is fake mds start
+    bool isFakeMdsStart_;
 };
 
 /**

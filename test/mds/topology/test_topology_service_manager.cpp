@@ -60,13 +60,14 @@ class TestTopologyServiceManager : public ::testing::Test {
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
+        regInfoBuilder_ = std::make_shared<MockChunkServerRegistInfoBuilder>();
         TopologyOption topologyOption;
         CopysetOption copysetOption;
         copysetManager_ =
             std::make_shared<curve::mds::copyset::CopysetManager>(
                 copysetOption);
         serviceManager_ = std::make_shared<TopologyServiceManager>(topology_,
-             copysetManager_);
+             copysetManager_, regInfoBuilder_);
         serviceManager_->Init(topologyOption);
 
         mockCopySetService =
@@ -85,6 +86,7 @@ class TestTopologyServiceManager : public ::testing::Test {
         storage_ = nullptr;
         topology_ = nullptr;
         copysetManager_ = nullptr;
+        regInfoBuilder_ = nullptr;
         serviceManager_ = nullptr;
 
         server_->Stop(0);
@@ -219,6 +221,7 @@ class TestTopologyServiceManager : public ::testing::Test {
     std::shared_ptr<MockStorage> storage_;
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
+    std::shared_ptr<MockChunkServerRegistInfoBuilder> regInfoBuilder_;
     std::shared_ptr<TopologyServiceManager> serviceManager_;
 
     butil::EndPoint listenAddr_;
@@ -252,6 +255,9 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_SuccessWithExIp) {
 
     EXPECT_CALL(*storage_, StorageChunkServer(_))
         .WillOnce(Return(true));
+
+    EXPECT_CALL(*regInfoBuilder_, BuildEpochMap(_))
+        .WillOnce(Return(0));
     serviceManager_->RegistChunkServer(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -316,6 +322,8 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_SuccessWithoutExIp) {
 
     EXPECT_CALL(*storage_, StorageChunkServer(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*regInfoBuilder_, BuildEpochMap(_))
+        .WillOnce(Return(0));
     serviceManager_->RegistChunkServer(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());

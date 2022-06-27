@@ -175,6 +175,16 @@ typedef struct FInfo {
     }
 } FInfo_t;
 
+typedef struct FileEpoch {
+    uint64_t fileId;
+    uint64_t epoch;
+
+    FileEpoch() {
+        fileId = 0;
+        epoch = 0;
+    }
+} FileEpoch_t;
+
 // PeerAddr 代表一个copyset group里的一个chunkserver节点
 // 与braft中的PeerID对应
 struct PeerAddr {
@@ -185,7 +195,8 @@ struct PeerAddr {
     explicit PeerAddr(butil::EndPoint addr) : addr_(addr) {}
 
     bool IsEmpty() const {
-        return (addr_.ip == butil::IP_ANY && addr_.port == 0);
+        return (addr_.ip == butil::IP_ANY && addr_.port == 0) &&
+                addr_.socket_file.empty();
     }
 
     // 重置当前地址信息

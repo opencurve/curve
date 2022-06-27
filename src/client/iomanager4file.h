@@ -181,6 +181,14 @@ class IOManager4File : public IOManager {
         return mc_.GetFileInfo();
     }
 
+    void UpdateFileEpoch(const FileEpoch& fEpoch) {
+        mc_.UpdateFileEpoch(fEpoch);
+    }
+
+    const FileEpoch* GetFileEpoch() const {
+        return mc_.GetFileEpoch();
+    }
+
     /**
      * 返回文件最新版本号
      */

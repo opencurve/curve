@@ -234,6 +234,10 @@ void ClientClosure::Run() {
             OnChunkExist();
             break;
 
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
+            OnEpochTooOld();
+            break;
+
         default:
             needRetry = true;
             LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
@@ -356,6 +360,18 @@ void ClientClosure::OnChunkExist() {
         << butil::endpoint2str(cntl_->remote_side()).c_str();
 }
 
+void ClientClosure::OnEpochTooOld() {
+    reqDone_->SetFailed(status_);
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " epoch too old, reqCtx: " << *reqCtx_
+        << ", status: " << status_
+        << ", retried times: " << reqDone_->GetRetriedTimes()
+        << ", IO id: " << reqDone_->GetIOTracker()->GetID()
+        << ", request id: " << reqCtx_->id_
+        << ", remote side: "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
 void ClientClosure::OnRedirected() {
     LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " redirected, "
         << *reqCtx_
@@ -468,7 +484,10 @@ void ClientClosure::OnInvalidRequest() {
 }
 
 void WriteChunkClosure::SendRetryRequest() {
-    client_->WriteChunk(reqCtx_->idinfo_, reqCtx_->seq_,
+    client_->WriteChunk(reqCtx_->idinfo_,
+                        reqCtx_->fileId_,
+                        reqCtx_->epoch_,
+                        reqCtx_->seq_,
                         reqCtx_->writeData_,
                         reqCtx_->offset_,
                         reqCtx_->rawlength_,

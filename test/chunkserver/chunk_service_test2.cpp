@@ -579,6 +579,24 @@ class ChunkServiceTestClosure : public ::google::protobuf::Closure {
     int sleep_;
 };
 
+class UpdateEpochTestClosure : public ::google::protobuf::Closure {
+ public:
+    explicit UpdateEpochTestClosure(int sleepUs = 0) : sleep_(sleepUs) {
+    }
+    virtual ~UpdateEpochTestClosure() = default;
+
+    void Run() override {
+        if (0 != sleep_) {
+            // 睡眠一会方面测试，overload
+            ::usleep(sleep_);
+            LOG(INFO) << "return rpc";
+        }
+    }
+
+ private:
+    int sleep_;
+};
+
 TEST_F(ChunkService2Test, overload_test) {
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.maxChunkSize = 16 * 1024 * 1024;
@@ -594,7 +612,8 @@ TEST_F(ChunkService2Test, overload_test) {
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
-    ChunkServiceImpl chunkService(chunkServiceOptions);
+    auto epochMap = std::make_shared<EpochMap>();
+    ChunkServiceImpl chunkService(chunkServiceOptions, epochMap);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10000;
@@ -741,7 +760,8 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
-    ChunkServiceImpl chunkService(chunkServiceOptions);
+    auto epochMap = std::make_shared<EpochMap>();
+    ChunkServiceImpl chunkService(chunkServiceOptions, epochMap);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10000;
@@ -1027,6 +1047,135 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         chunkService.GetChunkInfo(&cntl, &request, &response, &done);
 
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
+    }
+}
+
+TEST_F(ChunkService2Test, CheckEpochTest) {
+    CopysetNodeOptions copysetNodeOptions;
+    copysetNodeOptions.maxChunkSize = 16 * 1024 * 1024;
+
+    // inflight throttle
+    uint64_t maxInflight = 10000;
+    std::shared_ptr<InflightThrottle> inflightThrottle
+        = std::make_shared<InflightThrottle>(maxInflight);
+    CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
+
+    // chunk service
+    CopysetNodeManager &nodeManager = CopysetNodeManager::GetInstance();
+    ChunkServiceOptions chunkServiceOptions;
+    chunkServiceOptions.copysetNodeManager = &nodeManager;
+    chunkServiceOptions.inflightThrottle = inflightThrottle;
+    auto epochMap = std::make_shared<EpochMap>();
+    ChunkServiceImpl chunkService(chunkServiceOptions, epochMap);
+
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 10000;
+    ChunkID chunkId = 1;
+
+    // write chunk request have no epoch
+    {
+        brpc::Controller cntl;
+        ChunkRequest request;
+        ChunkResponse response;
+        ChunkServiceTestClosure done;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        chunkService.WriteChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
+            response.status());
+    }
+
+    // write chunk request have epoch, but epoch map have no epoch
+    {
+        brpc::Controller cntl;
+        ChunkRequest request;
+        ChunkResponse response;
+        ChunkServiceTestClosure done;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_fileid(1);
+        request.set_epoch(1);
+        chunkService.WriteChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
+            response.status());
+    }
+    // update epoch map to {(1, 1) , (2, 2)}
+    {
+        brpc::Controller cntl;
+        UpdateEpochRequest request;
+        UpdateEpochResponse response;
+        UpdateEpochTestClosure done;
+        request.set_fileid(1);
+        request.set_epoch(1);
+        chunkService.UpdateEpoch(&cntl, &request, &response, &done);
+
+        request.set_fileid(2);
+        request.set_epoch(2);
+        chunkService.UpdateEpoch(&cntl, &request, &response, &done);
+    }
+    // write chunk check epoch success
+    {
+        brpc::Controller cntl;
+        ChunkRequest request;
+        ChunkResponse response;
+        ChunkServiceTestClosure done;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_fileid(1);
+        request.set_epoch(1);
+        chunkService.WriteChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
+            response.status());
+    }
+    // write chunk check epoch failed
+    {
+        brpc::Controller cntl;
+        ChunkRequest request;
+        ChunkResponse response;
+        ChunkServiceTestClosure done;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_fileid(2);
+        request.set_epoch(1);
+        chunkService.WriteChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
+            response.status());
+    }
+
+    // update epoch map to {(1, 2) , (2, 2)}
+    {
+        brpc::Controller cntl;
+        UpdateEpochRequest request;
+        UpdateEpochResponse response;
+        UpdateEpochTestClosure done;
+        request.set_fileid(1);
+        request.set_epoch(2);
+        chunkService.UpdateEpoch(&cntl, &request, &response, &done);
+    }
+
+    // write chunk check epoch failed 2
+    {
+        brpc::Controller cntl;
+        ChunkRequest request;
+        ChunkResponse response;
+        ChunkServiceTestClosure done;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_fileid(1);
+        request.set_epoch(1);
+        chunkService.WriteChunk(&cntl, &request, &response, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
+            response.status());
     }
 }
 

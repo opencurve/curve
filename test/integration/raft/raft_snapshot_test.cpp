@@ -41,6 +41,7 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
 const char kRaftSnapshotTestLogDir[] = "./runlog/RaftSnapshot";
+const char* kFakeMdsAddr = "127.0.0.1:9320";
 
 const uint32_t kOpRequestAlignSize = 4096;
 
@@ -157,24 +158,28 @@ class RaftSnapshotTest : public testing::Test {
                   std::to_string(snapshotIntervalS_));
         cg1_.SetKV("chunkserver.common.logDir",
             kRaftSnapshotTestLogDir);
+        cg1_.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg2_.SetKV("copyset.election_timeout_ms",
                   std::to_string(electionTimeoutMs_));
         cg2_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
         cg2_.SetKV("chunkserver.common.logDir",
             kRaftSnapshotTestLogDir);
+        cg2_.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg3_.SetKV("copyset.election_timeout_ms",
                   std::to_string(electionTimeoutMs_));
         cg3_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
         cg3_.SetKV("chunkserver.common.logDir",
             kRaftSnapshotTestLogDir);
+        cg3_.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg4_.SetKV("copyset.election_timeout_ms",
                   std::to_string(electionTimeoutMs_));
         cg4_.SetKV("copyset.snapshot_interval_s",
                   std::to_string(snapshotIntervalS_));
         cg4_.SetKV("chunkserver.common.logDir",
             kRaftSnapshotTestLogDir);
+        cg4_.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1_.Generate());
         ASSERT_TRUE(cg2_.Generate());
         ASSERT_TRUE(cg3_.Generate());
@@ -263,6 +268,7 @@ TEST_F(RaftSnapshotTest, AddPeerRecoverFromSnapshot) {
                         peers,
                         params_,
                         paramsIndexs_);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     ASSERT_EQ(0, cluster.StartPeer(peer1_, PeerCluster::PeerToId(peer1_)));
     ASSERT_EQ(0, cluster.StartPeer(peer2_, PeerCluster::PeerToId(peer2_)));
     ASSERT_EQ(0, cluster.StartPeer(peer3_, PeerCluster::PeerToId(peer3_)));
@@ -363,6 +369,7 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                         peers,
                         params_,
                         paramsIndexs_);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     ASSERT_EQ(0, cluster.StartPeer(peer1_, PeerCluster::PeerToId(peer1_)));
     ASSERT_EQ(0, cluster.StartPeer(peer2_, PeerCluster::PeerToId(peer2_)));
     ASSERT_EQ(0, cluster.StartPeer(peer3_, PeerCluster::PeerToId(peer3_)));
@@ -484,6 +491,7 @@ TEST_F(RaftSnapshotTest, DoCurveSnapshotAfterShutdownPeerThenRestart) {
                         peers,
                         params_,
                         paramsIndexs_);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     ASSERT_EQ(0, cluster.StartPeer(peer1_, PeerCluster::PeerToId(peer1_)));
     ASSERT_EQ(0, cluster.StartPeer(peer2_, PeerCluster::PeerToId(peer2_)));
     ASSERT_EQ(0, cluster.StartPeer(peer3_, PeerCluster::PeerToId(peer3_)));
@@ -621,6 +629,7 @@ TEST_F(RaftSnapshotTest, AddPeerWhenDoingCurveSnapshotWithMultiCopyset) {
                         peers,
                         params_,
                         paramsIndexs_);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     ASSERT_EQ(0, cluster.StartPeer(peer1_, PeerCluster::PeerToId(peer1_)));
     ASSERT_EQ(0, cluster.StartPeer(peer2_, PeerCluster::PeerToId(peer2_)));
     ASSERT_EQ(0, cluster.StartPeer(peer3_, PeerCluster::PeerToId(peer3_)));

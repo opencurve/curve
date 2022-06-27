@@ -28,6 +28,7 @@
 #include <vector>
 #include "src/fs/local_filesystem.h"
 #include "proto/chunkserver.pb.h"
+#include "src/chunkserver/epoch_map.h"
 
 using ::curve::fs::LocalFileSystem;
 
@@ -57,11 +58,15 @@ class Register {
     ~Register() {}
 
     /**
-     * @brief RegisterToMDS 向mds注册
+     * @brief RegisterToMDS regist to mds
      *
-     * @param[out] metadata 注册获取的chunkserver元数据信息
+     * @param[in] localMetadata local meta
+     * @param[out] metadata chunkserver meta
+     * @param[in,out] epochMap  epochMap to update
      */
-    int RegisterToMDS(ChunkServerMetadata *metadata);
+    int RegisterToMDS(const ChunkServerMetadata *localMetadata,
+        ChunkServerMetadata *metadata,
+        const std::shared_ptr<EpochMap> &epochMap);
 
     /**
      * @brief 持久化ChunkServer元数据

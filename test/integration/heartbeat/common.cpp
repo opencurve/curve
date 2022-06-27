@@ -307,7 +307,7 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     auto copysetManager = std::make_shared<CopysetManager>(CopysetOption());
     auto allocStat = std::make_shared<MockAllocStatistic>();
     auto topologyServiceManager = std::make_shared<TopologyServiceManager>(
-        topology_, copysetManager);
+        topology_, copysetManager, nullptr);
 
     // 初始化basic集群
     PrepareBasicCluseter();

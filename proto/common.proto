@@ -38,3 +38,10 @@ message CopysetInfo {
     optional bool lastScanConsistent = 5;
 }
 
+message ChunkServerLocation {
+    required uint32 chunkServerID = 1;
+    required string hostIp = 2;
+    required uint32 port = 3;
+    optional string externalIp = 4;
+}
+

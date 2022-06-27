@@ -140,7 +140,12 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
         return leaseExecutor_.get();
     }
 
-    int GetFileInfo(const std::string& filename, FInfo_t* fi);
+    int GetFileInfo(const std::string& filename,
+        FInfo_t* fi, FileEpoch_t *fEpoch);
+
+    void UpdateFileEpoch(const FileEpoch_t &fEpoch) {
+        iomanager4file_.UpdateFileEpoch(fEpoch);
+    }
 
     /**
      * @brief 获取当前instance对应的文件信息

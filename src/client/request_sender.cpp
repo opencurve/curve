@@ -111,6 +111,8 @@ int RequestSender::ReadChunk(const ChunkIDInfo& idinfo,
 }
 
 int RequestSender::WriteChunk(const ChunkIDInfo& idinfo,
+                              uint64_t fileId,
+                              uint64_t epoch,
                               uint64_t sn,
                               const butil::IOBuf& data,
                               off_t offset,
@@ -135,6 +137,10 @@ int RequestSender::WriteChunk(const ChunkIDInfo& idinfo,
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(length);
+    request.set_fileid(fileId);
+    if (epoch != 0) {
+        request.set_epoch(epoch);
+    }
 
     if (sourceInfo.IsValid()) {
         request.set_clonefilesource(sourceInfo.cloneFileSource);

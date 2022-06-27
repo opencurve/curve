@@ -100,6 +100,8 @@ class CopysetClient {
     /**
     * 写Chunk
     * @param idinfo为chunk相关的id信息
+    * @param fileId: file id
+    * @param epoch: file epoch
     * @param sn:文件版本号
     * @param writeData:要写入的数据
      *@param offset:写的偏移
@@ -108,12 +110,14 @@ class CopysetClient {
     * @param done:上一层异步回调的closure
     */
     int WriteChunk(const ChunkIDInfo& idinfo,
-                  uint64_t sn,
-                  const butil::IOBuf& writeData,
-                  off_t offset,
-                  size_t length,
-                  const RequestSourceInfo& sourceInfo,
-                  Closure *done);
+                   uint64_t fileId,
+                   uint64_t epoch,
+                   uint64_t sn,
+                   const butil::IOBuf& writeData,
+                   off_t offset,
+                   size_t length,
+                   const RequestSourceInfo& sourceInfo,
+                   Closure *done);
 
     /**
      * 读Chunk快照文件
