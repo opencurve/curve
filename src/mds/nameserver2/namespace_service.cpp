@@ -320,6 +320,25 @@ void NameSpaceService::GetOrAllocateSegment(
         return;
     }
 
+    if (request->allocateifnotexist() && request->has_epoch()) {
+        retCode = kCurveFS.CheckEpoch(request->filename(), request->epoch());
+        if (retCode != StatusCode::kOK) {
+            response->set_statuscode(retCode);
+            if (google::ERROR != GetMdsLogLevel(retCode)) {
+                LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", CheckEpoch fail, filename = " <<  request->filename()
+                    << ", epoch = " << request->epoch()
+                    << ", statusCode = " << retCode;
+            } else {
+                LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", CheckEpoch fail, filename = " <<  request->filename()
+                    << ", epoch = " << request->epoch()
+                    << ", statusCode = " << retCode;
+            }
+            return;
+        }
+    }
+
     retCode = kCurveFS.GetOrAllocateSegment(request->filename(),
                 request->offset(),
                 request->allocateifnotexist(),
@@ -700,6 +719,83 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
         }
         LOG(INFO) << "logid = " << cntl->log_id()
                   << ", ListDir ok, filename = " << request->filename()
+                  << ", cost " << expiredTime.ExpiredMs() << " ms";
+    }
+    return;
+}
+
+void NameSpaceService::IncreaseFileEpoch(
+    ::google::protobuf::RpcController* controller,
+    const ::curve::mds::IncreaseFileEpochRequest* request,
+    ::curve::mds::IncreaseFileEpochResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+    ExpiredTime expiredTime;
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", IncreaseFileEpoch request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", IncreaseFileEpoch request, filename = " << request->filename();
+
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+        return;
+    }
+
+    retCode = kCurveFS.IncreaseFileEpoch(request->filename(),
+        response->mutable_fileinfo(),
+        response->mutable_cslocs());
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", IncreaseFileEpoch fail, filename = "
+                <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", IncreaseFileEpoch fail, filename = "
+                <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode)
+                << ", cost " << expiredTime.ExpiredMs() << " ms";
+        }
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+                  << ", IncreaseFileEpoch ok, filename = "
+                  << request->filename()
                   << ", cost " << expiredTime.ExpiredMs() << " ms";
     }
     return;
@@ -1847,6 +1943,7 @@ uint32_t GetMdsLogLevel(StatusCode code) {
         case StatusCode::kParaError:
         case StatusCode::kDeleteFileBeingCloned:
         case StatusCode::kFileUnderDeleting:
+        case StatusCode::kEpochTooOld:
             return google::WARNING;
 
         default:

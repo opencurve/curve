@@ -41,6 +41,7 @@ namespace chunkserver {
 
 using curve::fs::FileSystemType;
 
+
 PeerCluster::PeerCluster(const std::string &clusterName,
                          const LogicPoolID logicPoolID,
                          const CopysetID copysetID,
@@ -51,13 +52,32 @@ PeerCluster::PeerCluster(const std::string &clusterName,
     snapshotIntervalS_(1),
     electionTimeoutMs_(1000),
     params_(params),
-    paramsIndexs_(paramsIndexs) {
+    paramsIndexs_(paramsIndexs),
+    isFakeMdsStart_(false) {
     logicPoolID_ = logicPoolID;
     copysetID_ = copysetID;
     for (auto it = peers.begin(); it != peers.end(); ++it) {
         peers_.push_back(*it);
         conf_.add_peer(it->address());
     }
+}
+
+int PeerCluster::StartFakeTopoloyService(const std::string &listenAddr) {
+    if (isFakeMdsStart_) {
+        return 0;
+    }
+    int ret = fakeMdsServer_.AddService(&fakeTopologyService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE);
+    if (ret != 0) {
+        LOG(ERROR) << "AddService topology falied";
+        return ret;
+    }
+    ret = fakeMdsServer_.Start(listenAddr.c_str(), nullptr);
+    if (ret != 0) {
+        LOG(ERROR) << "Start Server failed";
+    }
+    isFakeMdsStart_ = true;
+    return ret;
 }
 
 int PeerCluster::StartPeer(const Peer &peer,

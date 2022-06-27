@@ -61,6 +61,9 @@ message ChunkRequest {
     optional string location = 11;      // for CreateCloneChunk
     optional string cloneFileSource = 12;   // for write/read
     optional uint64 cloneFileOffset = 13;   // for write/read
+
+    optional uint64 fileId = 18;  // for io fence
+    optional uint64 epoch = 19;  // for io fence
 };
 
 enum CHUNK_OP_STATUS {
@@ -76,6 +79,7 @@ enum CHUNK_OP_STATUS {
     CHUNK_OP_STATUS_OVERLOAD = 9;           // 过载，表示服务端有过多请求未处理返回
     CHUNK_OP_STATUS_BACKWARD = 10;          // 请求的版本落后当前chunk的版本
     CHUNK_OP_STATUS_CHUNK_EXIST = 11;       // chunk已存在
+    CHUNK_OP_STATUS_EPOCH_TOO_OLD = 12;     // request epoch too old
 };
 
 message ChunkResponse {
@@ -125,6 +129,15 @@ message CreateS3CloneChunkResponse {
     optional string redirect = 2;       // 自己不是 leader，重定向给 leader
 };
 
+message UpdateEpochRequest {
+    required uint64 fileId = 1;
+    required uint64 epoch = 2;
+};
+
+message UpdateEpochResponse {
+    required CHUNK_OP_STATUS status = 1;
+};
+
 service ChunkService {
     rpc DeleteChunk (ChunkRequest) returns (ChunkResponse);
     rpc ReadChunk (ChunkRequest) returns (ChunkResponse);
@@ -141,4 +154,6 @@ service ChunkService {
     rpc CreateS3CloneChunk(CreateS3CloneChunkRequest) returns(CreateS3CloneChunkResponse);
 
     rpc RecoverChunk (ChunkRequest) returns (ChunkResponse);
+
+    rpc UpdateEpoch(UpdateEpochRequest) returns (UpdateEpochResponse);
 };

@@ -20,15 +20,10 @@
  * Author: xuchaojie
  */
 
-#include "src/snapshotcloneserver/common/task_tracker.h"
-
-#include <memory>
-
-#include "src/snapshotcloneserver/common/task.h"
-#include "src/snapshotcloneserver/clone/clone_task.h"
+#include "src/common/task_tracker.h"
 
 namespace curve {
-namespace snapshotcloneserver {
+namespace common {
 
 void TaskTracker::AddOneTrace() {
     concurrent_.fetch_add(1, std::memory_order_acq_rel);
@@ -58,5 +53,5 @@ void TaskTracker::WaitSome(uint32_t num) {
             (max - concurrent_.load(std::memory_order_acquire) >= num);});
 }
 
-}  // namespace snapshotcloneserver
+}  // namespace common
 }  // namespace curve

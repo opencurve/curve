@@ -27,6 +27,7 @@
 
 using ::curve::mds::topology::TopologyStorageEtcd;
 using ::curve::mds::topology::TopologyStorageCodec;
+using ::curve::mds::topology::ChunkServerRegistInfoBuilder;
 
 namespace curve {
 namespace mds {
@@ -120,8 +121,8 @@ void MDS::Init() {
     InitTopologyStat();
     InitTopologyChunkAllocator(options_.topologyOption);
     InitTopologyMetricService(options_.topologyOption);
-    InitTopologyServiceManager(options_.topologyOption);
     InitCurveFS(options_.curveFSOptions);
+    InitTopologyServiceManager(options_.topologyOption);
     InitCoordinator();
     InitHeartbeatManager();
 
@@ -351,9 +352,12 @@ void MDS::InitTopologyServiceManager(const TopologyOption& option) {
 
     LOG(INFO) << "init copysetManager success.";
     // init TopologyServiceManager
+
+    auto registerInfoBuilder =
+        std::make_shared<ChunkServerRegistInfoBuilderImpl>(&kCurveFS);
     topologyServiceManager_ =
         std::make_shared<TopologyServiceManager>(topology_,
-        copysetManager);
+        copysetManager, registerInfoBuilder);
     topologyServiceManager_->Init(option);
     LOG(INFO) << "init topologyServiceManager success.";
 }

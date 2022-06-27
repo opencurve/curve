@@ -153,6 +153,7 @@ typedef struct FInfo {
     uint64_t        cloneLength{0};
     uint64_t        stripeUnit;
     uint64_t        stripeCount;
+    uint64_t        epoch;
 
     OpenFlags       openflags;
 
@@ -165,6 +166,7 @@ typedef struct FInfo {
         segmentsize = 1 * 1024 * 1024 * 1024ul;
         stripeUnit = 0;
         stripeCount = 0;
+        epoch = 0;
     }
 } FInfo_t;
 

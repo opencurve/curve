@@ -110,6 +110,9 @@ class ClientClosure : public Closure {
     // 返回chunk存在 处理函数
     void OnChunkExist();
 
+    // handle epoch too old
+    void OnEpochTooOld();
+
     // 非法参数
     void OnInvalidRequest();
 

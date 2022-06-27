@@ -90,6 +90,17 @@ class FileClient {
                               bool disableStripe = false);
 
     /**
+     * @brief increase epoch
+     *
+     * @param filename file name
+     * @param userinfo user info
+     *
+     * @return 0 for success, -1 for fail
+     */
+    int IncreaseEpoch(const std::string& filename,
+                      const UserInfo_t& userinfo);
+
+    /**
      * 创建文件
      * @param: filename文件名
      * @param: userinfo是当前打开或创建时携带的user信息

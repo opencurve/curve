@@ -98,6 +98,15 @@ int Init(const char* path);
  */
 int Open4Qemu(const char* filename);
 
+
+/**
+ * increase epoch
+ * @param: filename, filename include userinfo
+ *         e.g: /1.img_userinfo_
+ * @return: 0 for success, -1 for fail
+ */
+int IncreaseEpoch(const char* filename);
+
 /**
  * 打开文件，非qemu场景
  * @param: filename文件名

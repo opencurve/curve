@@ -131,6 +131,23 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
     stub.GetFileInfo(cntl, &request, response, nullptr);
 }
 
+void MDSClientBase::IncreaseEpoch(const std::string& filename,
+                                  const UserInfo_t& userinfo,
+                                  IncreaseFileEpochResponse* response,
+                                  brpc::Controller* cntl,
+                                  brpc::Channel* channel) {
+    IncreaseFileEpochRequest request;
+    request.set_filename(filename);
+    FillUserInfo(&request, userinfo);
+
+    LOG(INFO) << "IncreaseEpoch, filename: " << filename
+              << ", user: " << userinfo.owner
+              << ", log id = " << cntl->log_id();
+
+    curve::mds::CurveFSService_Stub stub(channel);
+    stub.IncreaseFileEpoch(cntl, &request, response, nullptr);
+}
+
 void MDSClientBase::CreateSnapShot(const std::string& filename,
                                    const UserInfo_t& userinfo,
                                    CreateSnapShotResponse* response,
@@ -364,6 +381,9 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     request.set_filename(fi->fullPathName);
     request.set_offset(seg_offset);
     request.set_allocateifnotexist(allocate);
+    if (allocate) {
+        request.set_epoch(fi->epoch);
+    }
     FillUserInfo(&request, fi->userinfo);
 
     LOG(INFO) << "GetOrAllocateSegment: filename = " << fi->fullPathName

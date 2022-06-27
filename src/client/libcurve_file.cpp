@@ -30,6 +30,7 @@
 #include <mutex>   // NOLINT
 #include <thread>  // NOLINT
 #include <utility>
+#include <list>
 
 #include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
@@ -45,6 +46,7 @@
 #include "src/common/uuid.h"
 #include "src/common/string_util.h"
 #include "src/common/fast_align.h"
+#include "src/client/chunkserver_broadcaster.h"
 
 #define PORT_LIMIT  65535
 
@@ -230,6 +232,30 @@ int FileClient::Open4ReadOnly(const std::string& filename,
     openedFileNum_ << 1;
 
     return fd;
+}
+
+int FileClient::IncreaseEpoch(const std::string& filename,
+                              const UserInfo_t& userinfo) {
+    LOG(INFO) << "IncreaseEpoch, filename: " << filename;
+    FInfo_t fi;
+    std::list<CopysetPeerInfo> csLocs;
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->IncreaseEpoch(filename, userinfo, &fi, &csLocs);
+        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+            << "IncreaseEpoch failed, filename: " << filename
+            << ", ret: " << ret;
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    ChunkServerBroadCaster broadCaster;
+    int ret2 = broadCaster.BroadCastFileEpoch(fi.id, fi.epoch, csLocs);
+    LOG_IF(ERROR, ret2 != LIBCURVE_ERROR::OK)
+        << "BroadCastEpoch failed, filename: " << filename
+        << ", ret: " << ret2;
+    return ret2;
 }
 
 int FileClient::Create(const std::string& filename,
@@ -647,6 +673,24 @@ int Open4Qemu(const char* filename) {
     }
 
     return globalclient->Open(realname, userinfo);
+}
+
+int IncreaseEpoch(const char* filename) {
+    curve::client::UserInfo_t userinfo;
+    std::string realname;
+    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+               &realname, &userinfo.owner);
+    if (!ret) {
+        LOG(ERROR) << "get user info from filename failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->IncreaseEpoch(realname, userinfo);
 }
 
 int Extend4Qemu(const char* filename, int64_t newsize) {

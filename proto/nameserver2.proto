@@ -70,6 +70,8 @@ message FileInfo {
     optional    uint64      cloneLength =  14;
     optional    uint64      stripeUnit = 15;
     optional    uint64      stripeCount = 16;
+
+    optional    uint64      epoch = 18;
 }
 
 // status code
@@ -137,6 +139,8 @@ enum  StatusCode {
     kSnapshotCloneConnectFail = 136;
     // 快照克隆服务未初始化
     kSnapshotCloneServerNotInit = 137;
+    // epoch too old
+    kEpochTooOld = 140;
 
     // 元数据存储错误
     kStorageError = 501;
@@ -209,6 +213,8 @@ message GetOrAllocateSegmentRequest {
     required string     owner = 2;
     optional string     signature = 6;
     required uint64     date = 7;
+
+    optional uint64     epoch = 8;
 }
 
 message GetOrAllocateSegmentResponse {
@@ -514,6 +520,20 @@ message ListVolumesOnCopysetsResponse {
     repeated string fileNames = 2;
 }
 
+message IncreaseFileEpochRequest {
+    required string     fileName = 1;
+
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
+}
+
+message IncreaseFileEpochResponse {
+    required StatusCode statusCode = 1;
+    optional FileInfo fileInfo = 2;
+    repeated common.ChunkServerLocation csLocs = 3;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -525,6 +545,7 @@ service CurveFSService {
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
     rpc     ChangeOwner(ChangeOwnerRequest) returns (ChangeOwnerResponse);
     rpc     ListDir(ListDirRequest) returns (ListDirResponse);
+    rpc     IncreaseFileEpoch(IncreaseFileEpochRequest) returns (IncreaseFileEpochResponse);
 
     // snapshot rpcs
     rpc     CreateSnapShot(CreateSnapShotRequest)

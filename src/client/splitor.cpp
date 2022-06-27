@@ -177,6 +177,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
                                           fileinfo->seqnum);
 
         for (auto& ctx : templist) {
+            ctx->fileId_ = fileinfo->id;
+            ctx->epoch_ = fileinfo->epoch;
             ctx->appliedindex_ = appliedindex_;
             ctx->sourceInfo_ =
                 CalcRequestSourceInfo(iotracker, metaCache, chunkidx);
@@ -204,17 +206,24 @@ bool Splitor::GetOrAllocateSegment(bool allocateIfNotExist,
     LIBCURVE_ERROR errCode = mdsClient->GetOrAllocateSegment(
         allocateIfNotExist, offset, fileInfo, &segmentInfo);
 
-    if (errCode == LIBCURVE_ERROR::FAILED ||
-        errCode == LIBCURVE_ERROR::AUTHFAIL) {
-        LOG(ERROR) << "GetOrAllocateSegmen failed, filename: "
-                   << fileInfo->filename << ", offset: " << offset;
-        return false;
-    } else if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
-        // this chunkIdInfo(0, 0, 0) identify the unallocated chunk when read
-        ChunkIDInfo chunkIdInfo(0, 0, 0);
-        chunkIdInfo.chunkExist = false;
-        metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
-        return true;
+    if (errCode != LIBCURVE_ERROR::OK) {
+        if (errCode == LIBCURVE_ERROR::NOT_ALLOCATE) {
+            // this chunkIdInfo(0, 0, 0) identify
+            // the unallocated chunk when read
+            ChunkIDInfo chunkIdInfo(0, 0, 0);
+            chunkIdInfo.chunkExist = false;
+            metaCache->UpdateChunkInfoByIndex(chunkidx, chunkIdInfo);
+            return true;
+        }
+        if (errCode == LIBCURVE_ERROR::EPOCH_TOO_OLD) {
+            LOG(WARNING) << "GetOrAllocateSegmen epoch too old, filename: "
+                         << fileInfo->filename << ", offset: " << offset;
+            return false;
+        } else {
+            LOG(ERROR) << "GetOrAllocateSegmen failed, filename: "
+                       << fileInfo->filename << ", offset: " << offset;
+            return false;
+        }
     }
 
     const auto chunksize = fileInfo->chunksize;

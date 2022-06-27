@@ -54,6 +54,7 @@ using curve::mds::DeleteFileRequest;
 using curve::mds::DeleteFileResponse;
 using curve::mds::GetFileInfoRequest;
 using curve::mds::GetFileInfoResponse;
+using curve::mds::IncreaseFileEpochResponse;
 using curve::mds::DeleteSnapShotRequest;
 using curve::mds::DeleteSnapShotResponse;
 using curve::mds::ReFreshSessionRequest;
@@ -84,6 +85,8 @@ using curve::mds::topology::GetClusterInfoRequest;
 using curve::mds::topology::GetClusterInfoResponse;
 using curve::mds::topology::GetChunkServerInfoResponse;
 using curve::mds::topology::ListChunkServerResponse;
+using curve::mds::IncreaseFileEpochRequest;
+using curve::mds::IncreaseFileEpochResponse;
 
 extern const char* kRootUserName;
 
@@ -153,6 +156,23 @@ class MDSClientBase {
                      GetFileInfoResponse* response,
                      brpc::Controller* cntl,
                      brpc::Channel* channel);
+
+    /**
+     * @brief Increase epoch and return chunkserver locations
+     *
+     * @param[in] filename  file name
+     * @param[in] userinfo  user info
+     * @param[out] response  rpc response
+     * @param[in,out] cntl  rpc cntl
+     * @param[in] channel  rpc channel
+     *
+     */
+     void IncreaseEpoch(const std::string& filename,
+                        const UserInfo_t& userinfo,
+                        IncreaseFileEpochResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
+
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息

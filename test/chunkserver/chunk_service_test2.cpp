@@ -594,7 +594,8 @@ TEST_F(ChunkService2Test, overload_test) {
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
-    ChunkServiceImpl chunkService(chunkServiceOptions);
+    auto epochMap = std::make_shared<EpochMap>();
+    ChunkServiceImpl chunkService(chunkServiceOptions, epochMap);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10000;
@@ -741,7 +742,8 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
-    ChunkServiceImpl chunkService(chunkServiceOptions);
+    auto epochMap = std::make_shared<EpochMap>();
+    ChunkServiceImpl chunkService(chunkServiceOptions, epochMap);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10000;

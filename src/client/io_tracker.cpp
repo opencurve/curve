@@ -426,10 +426,17 @@ void IOTracker::Done() {
     } else {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
         if (type_ == OpType::READ || type_ == OpType::WRITE) {
-            LOG(ERROR) << "file [" << fileMetric_->filename << "]"
-                    << ", IO Error, OpType = " << OpTypeToString(type_)
-                    << ", offset = " << offset_
-                    << ", length = " << length_;
+            if (LIBCURVE_ERROR::EPOCH_TOO_OLD == errcode_) {
+                LOG(WARNING) << "file [" << fileMetric_->filename << "]"
+                        << ", epoch too old, OpType = " << OpTypeToString(type_)
+                        << ", offset = " << offset_
+                        << ", length = " << length_;
+            } else {
+                LOG(ERROR) << "file [" << fileMetric_->filename << "]"
+                        << ", IO Error, OpType = " << OpTypeToString(type_)
+                        << ", offset = " << offset_
+                        << ", length = " << length_;
+            }
         } else {
             if (OpType::CREATE_CLONE == type_ &&
                 LIBCURVE_ERROR::EXISTS == errcode_) {
@@ -501,6 +508,9 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
             break;
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
             *errout = LIBCURVE_ERROR::EXISTS;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
+            *errout = LIBCURVE_ERROR::EPOCH_TOO_OLD;
             break;
         default:
             *errout = LIBCURVE_ERROR::FAILED;

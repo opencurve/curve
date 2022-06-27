@@ -29,6 +29,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "include/client/libcurve.h"
 #include "proto/nameserver2.pb.h"
@@ -134,6 +135,22 @@ class MDSClient : public MDSClientBase,
     LIBCURVE_ERROR GetFileInfo(const std::string& filename,
                                const UserInfo_t& userinfo,
                                FInfo_t* fi);
+
+    /**
+     * @brief Increase epoch and return chunkserver locations
+     *
+     * @param[in] filename  file name
+     * @param[in] userinfo  user info
+     * @param[out] fi  file info
+     * @param[out] csLocs  chunkserver locations
+     *
+     * @return LIBCURVE_ERROR::OK for success, LIBCURVE_ERROR::FAILED for fail.
+     */
+    LIBCURVE_ERROR IncreaseEpoch(const std::string& filename,
+                                 const UserInfo_t& userinfo,
+                                 FInfo_t* fi,
+                                 std::list<CopysetPeerInfo> *csLocs);
+
     /**
      * 扩展文件
      * @param: userinfo是用户信息

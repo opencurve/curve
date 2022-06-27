@@ -38,6 +38,9 @@ using curve::common::TimeUtility;
 using curve::mds::topology::LogicalPool;
 using curve::mds::topology::LogicalPoolIdType;
 using curve::mds::topology::CopySetIdType;
+using curve::mds::topology::ChunkServer;
+using curve::mds::topology::ChunkServerStatus;
+using curve::mds::topology::OnlineState;
 
 namespace curve {
 namespace mds {
@@ -683,6 +686,64 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
     }
 }
 
+StatusCode CurveFS::IncreaseFileEpoch(const std::string &filename,
+    FileInfo *fileInfo,
+    ::google::protobuf::RepeatedPtrField<ChunkServerLocation> *cslocs) {
+    assert(fileInfo != nullptr);
+    assert(cslocs != nullptr);
+    std::string lastEntry;
+    FileInfo parentFileInfo;
+    auto ret = WalkPath(filename, &parentFileInfo, &lastEntry);
+    if (ret != StatusCode::kOK) {
+        if (ret == StatusCode::kNotDirectory) {
+            return StatusCode::kFileNotExists;
+        }
+        return ret;
+    } else {
+        if (lastEntry.empty()) {
+            LOG(ERROR) << "IncreaseFileEpoch found a directory"
+                       << ", filename: " << filename;
+            return StatusCode::kParaError;
+        }
+        ret = LookUpFile(parentFileInfo, lastEntry, fileInfo);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "LookUpFile failed, ret: " << ret
+                       << ", filename: " << filename;
+            return ret;
+        }
+        if (fileInfo->has_epoch()) {
+            uint64_t old = fileInfo->epoch();
+            fileInfo->set_epoch(++old);
+        } else {
+            fileInfo->set_epoch(1);
+        }
+        ret = PutFile(*fileInfo);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "Put File faied, ret: " << ret
+                       << ", filename: " << filename;
+            return ret;
+        }
+
+        // add chunkserver locations
+        std::vector<ChunkServerIdType> chunkserverlist =
+            topology_->GetChunkServerInCluster(
+                [] (const ChunkServer &cs) {
+                    return (cs.GetStatus() != ChunkServerStatus::RETIRED) &&
+                           (cs.GetOnlineState() != OnlineState::OFFLINE);
+                });
+        for (auto &id : chunkserverlist) {
+            ChunkServer cs;
+            if (topology_->GetChunkServer(id, &cs)) {
+                ChunkServerLocation *lc = cslocs->Add();
+                lc->set_chunkserverid(id);
+                lc->set_hostip(cs.GetHostIp());
+                lc->set_port(cs.GetPort());
+                lc->set_externalip(cs.GetExternalHostIp());
+            }
+        }
+        return StatusCode::kOK;
+    }
+}
 
 // TODO(hzsunjianliang): CheckNormalFileDeleteStatus?
 
@@ -1865,6 +1926,23 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
     }
 }
 
+StatusCode CurveFS::CheckEpoch(const std::string &filename,
+                               uint64_t epoch) {
+    FileInfo fileInfo;
+    auto ret = GetFileInfo(filename, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "get source file error, errCode = " << ret;
+        return  ret;
+    }
+    if (fileInfo.has_epoch() && fileInfo.epoch() > epoch) {
+        LOG(ERROR) << "Check Epoch Failed, fileInfo.epoch: "
+                   << fileInfo.epoch()
+                   << ", epoch: " << epoch;
+        return StatusCode::kEpochTooOld;
+    }
+    return StatusCode::kOK;
+}
+
 // kStaledRequestTimeIntervalUs represents the expiration time of the request
 // to prevent the request from being intercepted and played back
 bool CurveFS::CheckDate(uint64_t date) {
@@ -2078,6 +2156,23 @@ StatusCode CurveFS::ListAllFiles(uint64_t inodeId,
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::BuildEpochMap(::google::protobuf::Map<
+    ::google::protobuf::uint64, ::google::protobuf::uint64>  *epochMap) {
+    epochMap->clear();
+    std::vector<FileInfo> files;
+    StatusCode ret = ListAllFiles(ROOTINODEID, &files);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "List all files in root directory fail";
+        return ret;
+    }
+    for (const auto& file : files) {
+        if (file.has_epoch()) {
+            epochMap->insert({file.id(), file.epoch()});
+        }
+    }
+    return ret;
+}
+
 uint64_t CurveFS::GetOpenFileNum() {
     if (fileRecordManager_ == nullptr) {
         return 0;
@@ -2140,6 +2235,21 @@ StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
+
+int ChunkServerRegistInfoBuilderImpl::BuildEpochMap(::google::protobuf::Map<
+    ::google::protobuf::uint64,
+    ::google::protobuf::uint64> *epochMap) {
+    if (cfs_ == nullptr) {
+        return -1;
+    }
+    StatusCode ret = cfs_->BuildEpochMap(epochMap);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "BuildEpochMap failed, statusCode: " << ret
+                   << ", StatusCode_Name: " << StatusCode_Name(ret);
+        return -1;
+    }
+    return 0;
+}
 
 uint64_t GetOpenFileNum(void *varg) {
     CurveFS *curveFs = reinterpret_cast<CurveFS *>(varg);

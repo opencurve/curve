@@ -1105,7 +1105,7 @@ TEST_F(MDSClientTest, GetServerList) {
     response_1.set_statuscode(0);
     uint32_t chunkserveridc = 1;
 
-    ::curve::mds::topology::ChunkServerLocation* cslocs;
+    ::curve::common::ChunkServerLocation* cslocs;
     ::curve::mds::topology::CopySetServerInfo* csinfo;
     for (int j = 0; j < 256; j++) {
         csinfo = response_1.add_csinfo();
@@ -1265,7 +1265,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     response_1.set_statuscode(0);
     uint32_t chunkserveridc = 1;
 
-    ::curve::mds::topology::ChunkServerLocation* cslocs;
+    ::curve::common::ChunkServerLocation* cslocs;
     ::curve::mds::topology::CopySetServerInfo* csinfo;
     csinfo = response_1.add_csinfo();
     csinfo->set_copysetid(1234);

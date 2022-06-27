@@ -55,7 +55,7 @@ using curve::mds::CheckSnapShotStatusResponse;
 using curve::mds::SessionStatus;
 using curve::mds::ProtoSession;
 using curve::mds::StatusCode;
-using curve::mds::topology::ChunkServerLocation;
+using curve::common::ChunkServerLocation;
 using curve::mds::topology::CopySetServerInfo;
 
 MDSClient::MDSClient(const std::string& metricPrefix)
@@ -419,6 +419,59 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
             << "GetFileInfo: filename = " << filename
             << ", owner = " << uinfo.owner
+            << ", errocde = " << retcode
+            << ", error msg = " << StatusCode_Name(stcode)
+            << ", log id = " << cntl->log_id();
+        return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::IncreaseEpoch(const std::string& filename,
+                                        const UserInfo_t& userinfo,
+                                        FInfo_t* fi,
+                                        std::list<CopysetPeerInfo> *csLocs) {
+    auto task = RPCTaskDefine {
+        IncreaseFileEpochResponse response;
+        mdsClientMetric_.increaseEpoch.qps.count << 1;
+        LatencyGuard lg(&mdsClientMetric_.increaseEpoch.latency);
+        MDSClientBase::IncreaseEpoch(
+            filename, userinfo, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            mdsClientMetric_.increaseEpoch.eps.count << 1;
+            return -cntl->ErrorCode();
+        }
+
+        if (response.has_fileinfo()) {
+            ServiceHelper::ProtoFileInfo2Local(response.fileinfo(), fi);
+        }
+
+        int csLocSize = response.cslocs_size();
+        for (int i = 0; i < csLocSize; i++) {
+            CopysetPeerInfo csinfo;
+            ChunkServerLocation csl = response.cslocs(i);
+            csinfo.chunkserverID = csl.chunkserverid();
+            std::string internalIp = csl.hostip();
+            EndPoint internal;
+            butil::str2endpoint(internalIp.c_str(), csl.port(), &internal);
+            EndPoint external;
+            if (csl.has_externalip()) {
+                std::string externalIp = csl.hostip();
+                butil::str2endpoint(externalIp.c_str(), csl.port(), &external);
+            }
+            csinfo.internalAddr = ChunkServerAddr(internal);
+            csinfo.externalAddr = ChunkServerAddr(external);
+
+            csLocs->push_back(std::move(csinfo));
+        }
+
+        LIBCURVE_ERROR retcode;
+        StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+        LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
+            << "IncreaseEpoch: filename = " << filename
+            << ", owner = " << userinfo.owner
             << ", errocde = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
@@ -933,6 +986,9 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
             case StatusCode::kSegmentNotAllocated:
                 LOG(WARNING) << "GetOrAllocateSegment: segment not allocated!";
                 return LIBCURVE_ERROR::NOT_ALLOCATE;
+            case StatusCode::kEpochTooOld:
+                LOG(WARNING) << "GetOrAllocateSegment return epoch too old!";
+                return LIBCURVE_ERROR::EPOCH_TOO_OLD;
             default: break;
         }
 

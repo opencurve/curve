@@ -72,14 +72,14 @@ Used port list:
     cli-test:               9030 9031 9032
     chunk-test1:            9040 9041 9042 9043 9044
     chunk-snapshot-test:    9050 9051 9052
-    raft-log-replication-test   9071 9072 9073 9074 9075
-    chunkserver-concurrent-test 9076 9077
-    basic-io-test           9078
+    raft-log-replication-test   9070 9071 9072 9073 9074 9075
+    chunkserver-concurrent-test 9076 9077 9329
+    basic-io-test           9078 9079
     clone-recover-test      9200-9215
 
-    raft-config-test        9081 9082 9083 9084 9085
-    raft-config-test        9091 9092 9093
-    raft-snapshot-test      9321 9322 9323 9324
+    raft-config-test        9080 9081 9082 9083 9084 9085
+    raft-vote-test          9090 9091 9092 9093
+    raft-snapshot-test      9320 9321 9322 9323 9324
     heartbeat_test:         9300
     chunkserver_test:       9301
     cli-test2:              9310 9311 9312

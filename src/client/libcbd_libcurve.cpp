@@ -99,4 +99,10 @@ int cbd_libcurve_resize(const char* filename, int64_t size) {
     return Extend4Qemu(filename, size);
 }
 
+// 执行成功返回0， 执行失败返回-1
+// filename: curve卷的path
+int cbd_libcurve_increase_epoch(const char* filename) {
+    return IncreaseEpoch(filename);
+}
+
 }  // extern "C"

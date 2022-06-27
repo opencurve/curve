@@ -83,6 +83,10 @@ int cbd_libcurve_sync(int fd);
 int64_t cbd_libcurve_filesize(const char* filename);
 int cbd_libcurve_resize(const char* filename, int64_t size);
 
+// 执行成功返回0， 执行失败返回-1
+// filename: curve卷的path
+int cbd_libcurve_increase_epoch(const char* filename);
+
 #ifndef CBD_BACKEND_FAKE
 #define cbd_lib_init        cbd_libcurve_init
 #define cbd_lib_fini        cbd_libcurve_fini
@@ -95,6 +99,7 @@ int cbd_libcurve_resize(const char* filename, int64_t size);
 #define cbd_lib_sync        cbd_libcurve_sync
 #define cbd_lib_filesize    cbd_libcurve_filesize
 #define cbd_lib_resize      cbd_libcurve_resize
+#define cbd_lib_increase_epoch cbd_libcurve_increase_epoch
 #else
 #define cbd_lib_init        cbd_ext4_init
 #define cbd_lib_fini        cbd_ext4_fini
@@ -106,6 +111,7 @@ int cbd_libcurve_resize(const char* filename, int64_t size);
 #define cbd_lib_aio_pwrite  cbd_ext4_aio_pwrite
 #define cbd_lib_sync        cbd_ext4_sync
 #define cbd_lib_filesize    cbd_ext4_filesize
+#define cbd_lib_increase_epoch cbd_libcurve_increase_epoch
 #endif
 
 #ifdef __cplusplus

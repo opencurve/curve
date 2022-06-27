@@ -41,6 +41,7 @@ using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
 const char kRaftVoteTestLogDir[] = "./runlog/RaftVote";
+const char* kFakeMdsAddr = "127.0.0.1:9090";
 
 const uint32_t kOpRequestAlignSize = 4096;
 
@@ -135,18 +136,21 @@ class RaftVoteTest : public testing::Test {
             std::to_string(snapshotIntervalS));
         cg1.SetKV("chunkserver.common.logDir",
             kRaftVoteTestLogDir);
+        cg1.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg2.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg2.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
         cg2.SetKV("chunkserver.common.logDir",
             kRaftVoteTestLogDir);
+        cg2.SetKV("mds.listen.addr", kFakeMdsAddr);
         cg3.SetKV("copyset.election_timeout_ms",
             std::to_string(electionTimeoutMs));
         cg3.SetKV("copyset.snapshot_interval_s",
             std::to_string(snapshotIntervalS));
         cg3.SetKV("chunkserver.common.logDir",
             kRaftVoteTestLogDir);
+        cg3.SetKV("mds.listen.addr", kFakeMdsAddr);
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
         ASSERT_TRUE(cg3.Generate());
@@ -222,6 +226,7 @@ TEST_F(RaftVoteTest, OneNode) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -330,6 +335,7 @@ TEST_F(RaftVoteTest, TwoNodeKillLeader) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -409,6 +415,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -507,6 +514,7 @@ TEST_F(RaftVoteTest, TwoNodeHangLeader) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -587,6 +595,7 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -680,6 +689,7 @@ TEST_F(RaftVoteTest, ThreeNodesNormal) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -731,6 +741,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeader) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -811,6 +822,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -893,6 +905,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartLeader) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -974,6 +987,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1042,6 +1056,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1139,6 +1154,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1237,6 +1253,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1342,6 +1359,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1432,6 +1450,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangOneFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1513,6 +1532,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeaderAndOneFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1615,6 +1635,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
@@ -1729,6 +1750,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
                         peers,
                         params,
                         paramsIndexs);
+    ASSERT_EQ(0, cluster.StartFakeTopoloyService(kFakeMdsAddr));
     cluster.SetElectionTimeoutMs(electionTimeoutMs);
     cluster.SetsnapshotIntervalS(snapshotIntervalS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));

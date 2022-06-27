@@ -78,6 +78,9 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     if (finfo.has_stripecount()) {
         fi->stripeCount = finfo.stripecount();
     }
+    if (finfo.has_epoch()) {
+        fi->epoch = finfo.epoch();
+    }
 }
 
 void ServiceHelper::ProtoCloneSourceInfo2Local(
