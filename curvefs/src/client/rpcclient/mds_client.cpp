@@ -618,9 +618,9 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
             VLOG(9) << "AllocateVolumeBlockGroup, response: "
                     << response.ShortDebugString();
             groups->reserve(response.blockgroups_size());
-            for (int i = 0; i < response.blockgroups_size(); ++i) {
-                groups->push_back(std::move(*response.mutable_blockgroups(i)));
-            }
+            std::move(response.mutable_blockgroups()->begin(),
+                      response.mutable_blockgroups()->end(),
+                      std::back_inserter(*groups));
         }
 
         return status;

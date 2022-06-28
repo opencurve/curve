@@ -117,7 +117,7 @@ TEST_F(ConverterTest, NameGenerator) {
     ASSERT_EQ(ng.GetInodeTableName().size(), ng.GetFixedLength());
     ASSERT_EQ(ng.GetS3ChunkInfoTableName().size(), ng.GetFixedLength());
     ASSERT_EQ(ng.GetDentryTableName().size(), ng.GetFixedLength());
-    ASSERT_EQ(ng.GetVolumnExtentTableName().size(), ng.GetFixedLength());
+    ASSERT_EQ(ng.GetVolumeExtentTableName().size(), ng.GetFixedLength());
     ASSERT_EQ(ng.GetInodeAuxInfoTableName().size(), ng.GetFixedLength());
 }
 

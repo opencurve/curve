@@ -109,6 +109,10 @@ class BitmapAllocator : public Allocator {
                uint64_t* offInBitmap,
                uint64_t* lenInBitmap) const;
 
+    uint32_t ToBitmapIndex(uint64_t offset) const;
+
+    uint64_t ToBitmapOffset(uint32_t index) const;
+
  private:
     const BitmapAllocatorOption opt_;
     const uint64_t bitmapAreaLength_;

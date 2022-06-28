@@ -110,7 +110,7 @@ TEST_F(SpaceManagerImplTest, TestAlloc) {
     mds::space::BlockGroup group;
     group.set_offset(0);
     group.set_size(kBlockGroupSize);
-    group.set_available(kBlockGroupSize);
+    group.set_available(kBlockGroupSize / 2);
     group.set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
 
     EXPECT_CALL(*mdsClient_, AllocateVolumeBlockGroup(_, _, _, _))
@@ -150,7 +150,7 @@ TEST_F(SpaceManagerImplTest, TestMultiThreadAlloc) {
     mds::space::BlockGroup group;
     group.set_offset(0);
     group.set_size(kBlockGroupSize);
-    group.set_available(kBlockGroupSize);
+    group.set_available(kBlockGroupSize / 2);
     group.set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
 
     mds::space::BlockGroup group2(group);

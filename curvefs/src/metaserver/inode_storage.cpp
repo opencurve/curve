@@ -58,7 +58,7 @@ InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
     : kvStorage_(std::move(kvStorage)),
       table4Inode_(nameGenerator->GetInodeTableName()),
       table4S3ChunkInfo_(nameGenerator->GetS3ChunkInfoTableName()),
-      table4VolumeExtent_(nameGenerator->GetVolumnExtentTableName()),
+      table4VolumeExtent_(nameGenerator->GetVolumeExtentTableName()),
       table4InodeAuxInfo_(nameGenerator->GetInodeAuxInfoTableName()),
       nInode_(nInode),
       conv_() {}

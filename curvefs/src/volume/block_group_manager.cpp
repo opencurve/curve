@@ -66,13 +66,14 @@ bool BlockGroupManagerImpl::AllocateBlockGroup(
         return false;
     }
 
-    for (auto& group : groups) {
+    for (const auto& group : groups) {
         VLOG(9) << "load group: " << group.ShortDebugString();
         AllocatorAndBitmapUpdater res;
         res.blockGroupOffset = group.offset();
         BlockGroupBitmapLoader loader(
             blockDeviceClient_.get(), option_.blockSize, group.offset(),
-            group.size(), group.bitmaplocation(), allocatorOption_);
+            group.size(), group.bitmaplocation(),
+            group.size() == group.available(), allocatorOption_);
         auto ret = loader.Load(&res);
         if (!ret) {
             LOG(ERROR) << "Create allocator for block group failed";

@@ -208,10 +208,6 @@ TEST(ExtentCacheMergeTest, MergeCase4_PhysicalOffsetContinuous) {
     ASSERT_EQ(96 * kMiB, range[16 * kMiB].pOffset);
     ASSERT_EQ(8 * kMiB, range[16 * kMiB].len);
     ASSERT_FALSE(range[16 * kMiB].UnWritten);
-
-    // ASSERT_EQ(104 * kMiB, range[20 * kMiB].pOffset);
-    // ASSERT_EQ(4 * kMiB, range[20 * kMiB].len);
-    // ASSERT_TRUE(range[20 * kMiB].UnWritten);
 }
 
 // adding extent             |----|
