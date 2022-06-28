@@ -1644,7 +1644,8 @@ TEST_F(TestTopology, GetAvailableCopyset_success) {
     bool ret = topology_->GetAvailableCopyset(&data);
     ASSERT_EQ(true, ret);
 
-    std::list<CopySetKey> copysetList1 = topology_->GetAvailableCopysetList();
+    std::list<CopySetKey> copysetList1 =
+                                    topology_->GetAvailableCopysetKeyList();
     ASSERT_EQ(copysetList1.size(), 1);
     int num1 = topology_->GetAvailableCopysetNum();
     ASSERT_EQ(num1, 1);
@@ -1657,7 +1658,8 @@ TEST_F(TestTopology, GetAvailableCopyset_success) {
     ret = topology_->GetAvailableCopyset(&data);
     ASSERT_EQ(false, ret);
 
-    std::list<CopySetKey> copysetList2 = topology_->GetAvailableCopysetList();
+    std::list<CopySetKey> copysetList2 =
+                topology_->GetAvailableCopysetKeyList();
     ASSERT_EQ(copysetList2.size(), 0);
     int num2 = topology_->GetAvailableCopysetNum();
     ASSERT_EQ(num2, 0);
@@ -1668,7 +1670,8 @@ TEST_F(TestTopology, GetAvailableCopyset_success) {
     ret = topology_->GetAvailableCopyset(&data2);
     ASSERT_EQ(true, ret);
 
-    std::list<CopySetKey> copysetList3 = topology_->GetAvailableCopysetList();
+    std::list<CopySetKey> copysetList3 =
+                    topology_->GetAvailableCopysetKeyList();
     ASSERT_EQ(copysetList3.size(), 2);
     int num3 = topology_->GetAvailableCopysetNum();
     ASSERT_EQ(num3, 2);
@@ -2153,7 +2156,7 @@ TEST_F(TestTopology, GetCopySet_CopysetNotFound) {
     ASSERT_EQ(false, ret);
 }
 
-TEST_F(TestTopology, GenCopysetAddrRandomBatch_metaserver_not_found) {
+TEST_F(TestTopology, GenCopysetAddrBatch_metaserver_not_found) {
     PoolIdType poolId = 0x11;
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2176,11 +2179,11 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_metaserver_not_found) {
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x42);
 
     std::list<CopysetCreateInfo> copysetList;
-    TopoStatusCode ret = topology_->GenInitialCopysetAddrBatch(1, &copysetList);
+    TopoStatusCode ret = topology_->GenCopysetAddrBatch(1, &copysetList);
     ASSERT_EQ(ret, TopoStatusCode::TOPO_METASERVER_NOT_FOUND);
 }
 
-TEST_F(TestTopology, GenCopysetAddrRandomBatch_1pool_4zone) {
+TEST_F(TestTopology, GenCopysetAddrBatch_1pool_4zone) {
     PoolIdType poolId = 0x11;
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2224,9 +2227,9 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_1pool_4zone) {
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x45);
 
     std::list<CopysetCreateInfo> copysetList;
-    auto ret = topology_->GenInitialCopysetAddrBatch(10, &copysetList);
+    auto ret = topology_->GenCopysetAddrBatch(10, &copysetList);
     ASSERT_EQ(ret, TopoStatusCode::TOPO_OK);
-    ASSERT_EQ(10, copysetList.size());
+    ASSERT_EQ(12, copysetList.size());
     for (const auto& it : copysetList) {
         LOG(INFO) << it.ToString();
         ASSERT_EQ(it.poolId, poolId);
@@ -2235,7 +2238,7 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_1pool_4zone) {
     }
 }
 
-TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
+TEST_F(TestTopology, GenCopysetAddrBatch_2pool) {
     PoolIdType poolId1 = 0x11;
     PoolIdType poolId2 = 0x12;
     Pool::RedundanceAndPlaceMentPolicy policy;
@@ -2263,6 +2266,14 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
         0x36, "server6", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x26, poolId2);
     PrepareAddServer(
         0x37, "server7", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x27, poolId2);
+    PrepareAddServer(
+        0x38, "server8", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x24, poolId2);
+    PrepareAddServer(
+        0x39, "server9", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x25, poolId2);
+    PrepareAddServer(
+        0x40, "server10", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x26, poolId2);
+    PrepareAddServer(
+        0x41, "server11", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x27, poolId2);
     PrepareAddMetaServer(0x41, "metaserver1", "token1", 0x31,
                         "127.0.0.1", 8200, "127.0.0.1", 8200);
     PrepareAddMetaServer(0x42, "metaserver2", "token2", 0x32,
@@ -2277,6 +2288,14 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
                         "127.0.0.1", 8200, "127.0.0.1", 8200);
     PrepareAddMetaServer(0x47, "metaserver7", "token7", 0x37,
                         "127.0.0.1", 8200, "127.0.0.1", 8200);
+    PrepareAddMetaServer(0x48, "metaserver8", "token8", 0x38,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
+    PrepareAddMetaServer(0x49, "metaserver9", "token9", 0x39,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
+    PrepareAddMetaServer(0x50, "metaserver10", "token10", 0x40,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
+    PrepareAddMetaServer(0x51, "metaserver11", "token11", 0x41,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x41);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x42);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
@@ -2284,6 +2303,10 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x45);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x46);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x47);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x48);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x49);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x50);
+    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x51);
 
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x41);
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x42);
@@ -2292,11 +2315,15 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x45);
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x46);
     topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x47);
+    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x48);
+    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x49);
+    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x50);
+    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x51);
 
     std::list<CopysetCreateInfo> copysetList;
-    auto ret = topology_->GenInitialCopysetAddrBatch(10, &copysetList);
+    auto ret = topology_->GenCopysetAddrBatch(10, &copysetList);
     ASSERT_EQ(ret, TopoStatusCode::TOPO_OK);
-    ASSERT_EQ(20, copysetList.size());
+    ASSERT_EQ(15, copysetList.size());
     int pool1Count = 0;
     int pool2Count = 0;
     for (const auto& it : copysetList) {
@@ -2310,113 +2337,8 @@ TEST_F(TestTopology, GenCopysetAddrRandomBatch_2pool) {
         }
     }
 
-    ASSERT_EQ(pool1Count, 10);
-    ASSERT_EQ(pool2Count, 10);
-}
-
-TEST_F(TestTopology, GenCopysetAddrByResourceUsage_success) {
-    PoolIdType poolId = 0x11;
-    Pool::RedundanceAndPlaceMentPolicy policy;
-    policy.replicaNum = 3;
-    PrepareAddPool(poolId, "test1", policy, 0);
-    PrepareAddZone(0x21, "zone1", poolId);
-    PrepareAddZone(0x22, "zone2", poolId);
-    PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddZone(0x24, "zone4", poolId);
-    PrepareAddZone(0x25, "zone5", poolId);
-    PrepareAddZone(0x26, "zone6", poolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, poolId);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, poolId);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, poolId);
-    PrepareAddServer(
-        0x34, "server4", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x24, poolId);
-    PrepareAddServer(
-        0x35, "server5", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x25, poolId);
-    PrepareAddServer(
-        0x36, "server6", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x26, poolId);
-    PrepareAddMetaServer(0x41, "metaserver1", "token1", 0x31,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x42, "metaserver2", "token2", 0x32,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x43, "metaserver3", "token3", 0x33,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x44, "metaserver4", "token4", 0x34,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x45, "metaserver5", "token5", 0x35,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x46, "metaserver6", "token6", 0x36,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 110), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x43);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 40), 0x44);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 30), 0x45);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 20), 0x46);
-
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x41);
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x42);
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x43);
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x44);
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x45);
-    topology_->UpdateMetaServerOnlineState(OnlineState::OFFLINE, 0x46);
-
-    std::set<MetaServerIdType> metaServers;
-    PoolIdType poolIdTemp;
-    TopoStatusCode ret = topology_->GenCopysetAddrByResourceUsage(
-                                                    &metaServers, &poolIdTemp);
-    ASSERT_EQ(ret, TopoStatusCode::TOPO_OK);
-    ASSERT_EQ(poolId, poolIdTemp);
-    std::set<MetaServerIdType> metaServers2 = {0x43, 0x44, 0x45};
-    ASSERT_EQ(metaServers2, metaServers);
-}
-
-TEST_F(TestTopology, GenCopysetAddrByResourceUsage_fail) {
-    PoolIdType poolId = 0x11;
-    Pool::RedundanceAndPlaceMentPolicy policy;
-    policy.replicaNum = 3;
-    PrepareAddPool(poolId, "test1", policy, 0);
-    PrepareAddZone(0x21, "zone1", poolId);
-    PrepareAddZone(0x22, "zone2", poolId);
-    PrepareAddZone(0x23, "zone3", poolId);
-    PrepareAddZone(0x24, "zone4", poolId);
-
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, poolId);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, poolId);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, poolId);
-    PrepareAddServer(
-        0x34, "server4", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x24, poolId);
-
-    PrepareAddMetaServer(0x41, "metaserver1", "token1", 0x31,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x42, "metaserver2", "token2", 0x32,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x43, "metaserver3", "token3", 0x33,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-    PrepareAddMetaServer(0x44, "metaserver4", "token4", 0x34,
-                        "127.0.0.1", 8200, "127.0.0.1", 8200);
-
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 110), 0x41);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 90), 0x42);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x43);
-    topology_->UpdateMetaServerSpace(MetaServerSpace(100, 40), 0x44);
-
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x41);
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x42);
-    topology_->UpdateMetaServerOnlineState(OnlineState::OFFLINE, 0x43);
-    topology_->UpdateMetaServerOnlineState(OnlineState::ONLINE, 0x44);
-
-    std::set<MetaServerIdType> metaServers;
-    PoolIdType poolIdTemp;
-    TopoStatusCode ret = topology_->GenCopysetAddrByResourceUsage(
-                                                    &metaServers, &poolIdTemp);
-    ASSERT_EQ(ret, TopoStatusCode::TOPO_METASERVER_NOT_FOUND);
+    ASSERT_EQ(pool1Count, 3);
+    ASSERT_EQ(pool2Count, 12);
 }
 }  // namespace topology
 }  // namespace mds

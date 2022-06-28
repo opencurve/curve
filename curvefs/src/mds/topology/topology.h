@@ -158,7 +158,8 @@ class Topology {
     virtual uint32_t GetLeaderNumInMetaserver(MetaServerIdType id) const = 0;
     virtual bool GetAvailableCopyset(CopySetInfo *out) const = 0;
     virtual int GetAvailableCopysetNum() const = 0;
-    virtual std::list<CopySetKey> GetAvailableCopysetList() const = 0;
+    virtual std::list<CopySetKey> GetAvailableCopysetKeyList() const = 0;
+    virtual std::vector<CopySetInfo> GetAvailableCopysetList() const = 0;
     virtual bool GetPartition(PartitionIdType partitionId, Partition *out) = 0;
 
     virtual bool GetPool(const std::string &poolName, Pool *out) const = 0;
@@ -195,6 +196,10 @@ class Topology {
         PoolIdType id, MetaServerFilter filter = [](const MetaServer &) {
             return true;
         }) const = 0;
+    virtual uint32_t GetMetaServerNumInPool(
+        PoolIdType id, MetaServerFilter filter = [](const MetaServer &) {
+            return true;
+        }) const = 0;
 
     virtual void GetAvailableMetaserversUnlock(
                     std::vector<const MetaServer *>* vec) = 0;
@@ -211,6 +216,11 @@ class Topology {
 
     // get copyset list
     virtual std::vector<CopySetIdType> GetCopySetsInPool(
+        PoolIdType poolId, CopySetFilter filter = [](const CopySetInfo &) {
+            return true;
+        }) const = 0;
+
+    virtual uint32_t GetCopySetNumInPool(
         PoolIdType poolId, CopySetFilter filter = [](const CopySetInfo &) {
             return true;
         }) const = 0;
@@ -251,15 +261,17 @@ class Topology {
     virtual std::list<Partition> GetPartitionInfosInCopyset(
         CopySetIdType copysetId) const = 0;
 
-    virtual TopoStatusCode GenInitialCopysetAddrBatch(uint32_t needCreateNum,
+    virtual TopoStatusCode GenCopysetAddrBatch(uint32_t needCreateNum,
+                    std::list<CopysetCreateInfo>* copysetList) = 0;
+
+    virtual void GenCopysetIfPoolEmptyUnlocked(
         std::list<CopysetCreateInfo>* copysetList) = 0;
 
-    virtual TopoStatusCode GenInitialCopysetAddrBatchForPool(PoolIdType poolId,
-    uint16_t replicaNum, uint32_t needCreateNum,
-    std::list<CopysetCreateInfo>* copysetList) = 0;
+    virtual TopoStatusCode GenSubsequentCopysetAddrBatchUnlocked(
+        uint32_t needCreateNum, std::list<CopysetCreateInfo>* copysetList) = 0;
 
-    virtual TopoStatusCode GenCopysetAddrByResourceUsage(
-        std::set<MetaServerIdType> *replicas, PoolIdType *poolId) = 0;
+    virtual TopoStatusCode GenCopysetAddrBatchForPool(PoolIdType poolId,
+        uint16_t replicaNum, std::list<CopysetCreateInfo>* copysetList) = 0;
 
     virtual uint32_t GetPartitionIndexOfFS(FsIdType fsId) = 0;
 
@@ -362,7 +374,8 @@ class TopologyImpl : public Topology {
     bool GetAvailableCopyset(CopySetInfo *out) const override;
     int GetAvailableCopysetNum() const override;
 
-    std::list<CopySetKey> GetAvailableCopysetList() const override;
+    std::list<CopySetKey> GetAvailableCopysetKeyList() const override;
+    std::vector<CopySetInfo> GetAvailableCopysetList() const override;
 
     bool GetPartition(PartitionIdType partitionId, Partition *out) override;
 
@@ -417,6 +430,10 @@ class TopologyImpl : public Topology {
                                                         [](const MetaServer &) {
                                                             return true;
                                                         }) const override;
+    uint32_t GetMetaServerNumInPool(PoolIdType id,
+                        MetaServerFilter filter = [](const MetaServer &) {
+                            return true;
+                        }) const override;
     void GetAvailableMetaserversUnlock(
                     std::vector<const MetaServer *>* vec) override;
 
@@ -440,6 +457,12 @@ class TopologyImpl : public Topology {
                                                      }) const override;
 
     std::vector<CopySetIdType> GetCopySetsInPool(PoolIdType poolId,
+                                                 CopySetFilter filter =
+                                                     [](const CopySetInfo &) {
+                                                         return true;
+                                                     }) const override;
+
+    uint32_t GetCopySetNumInPool(PoolIdType poolId,
                                                  CopySetFilter filter =
                                                      [](const CopySetInfo &) {
                                                          return true;
@@ -477,15 +500,17 @@ class TopologyImpl : public Topology {
         const std::set<MetaServerIdType> &unavailableMs,
         MetaServerIdType *target) override;
 
-    TopoStatusCode GenInitialCopysetAddrBatch(uint32_t needCreateNum,
+    TopoStatusCode GenCopysetAddrBatch(uint32_t needCreateNum,
+                    std::list<CopysetCreateInfo>* copysetList) override;
+
+    void GenCopysetIfPoolEmptyUnlocked(
         std::list<CopysetCreateInfo>* copysetList) override;
 
-    TopoStatusCode GenInitialCopysetAddrBatchForPool(PoolIdType poolId,
-    uint16_t replicaNum, uint32_t needCreateNum,
+    TopoStatusCode GenSubsequentCopysetAddrBatchUnlocked(uint32_t needCreateNum,
     std::list<CopysetCreateInfo>* copysetList) override;
 
-    TopoStatusCode GenCopysetAddrByResourceUsage(
-        std::set<MetaServerIdType> *metaServers, PoolIdType *poolId) override;
+    TopoStatusCode GenCopysetAddrBatchForPool(PoolIdType poolId,
+    uint16_t replicaNum, std::list<CopysetCreateInfo>* copysetList) override;
 
     uint32_t GetPartitionIndexOfFS(FsIdType fsId);
 

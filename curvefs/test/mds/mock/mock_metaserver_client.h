@@ -50,6 +50,8 @@ class MockMetaserverClient : public MetaserverClient {
     MOCK_METHOD4(DeletePartition, FSStatusCode(uint32_t poolId,
         uint32_t copysetId, uint32_t partitionId,
         const std::set<std::string> &addrs));
+    MOCK_METHOD3(CreateCopySetOnOneMetaserver, FSStatusCode(uint32_t poolId,
+                 uint32_t copysetId, const std::string &addr));
 };
 
 }  // namespace mds

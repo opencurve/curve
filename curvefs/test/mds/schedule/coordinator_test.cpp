@@ -25,7 +25,7 @@
 #include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/schedule/common.h"
-#include "curvefs/test/mds/schedule/mock_topoAdapter.h"
+#include "curvefs/test/mds/mock/mock_topoAdapter.h"
 
 using ::curvefs::mds::topology::MockTopology;
 using ::curvefs::mds::schedule::ScheduleOption;

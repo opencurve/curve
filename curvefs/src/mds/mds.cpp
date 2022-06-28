@@ -92,10 +92,6 @@ void MDS::InitTopologyOption(TopologyOption* topologyOption) {
                                &topologyOption->maxPartitionNumberInCopyset);
     conf_->GetValueFatalIfFail("mds.topology.IdNumberInPartition",
                                &topologyOption->idNumberInPartition);
-    conf_->GetValueFatalIfFail("mds.topology.InitialCopysetNumber",
-                               &topologyOption->initialCopysetNumber);
-    conf_->GetValueFatalIfFail("mds.topology.MinAvailableCopysetNum",
-                               &topologyOption->minAvailableCopysetNum);
     conf_->GetValueFatalIfFail("mds.topology.CreatePartitionNumber",
                                &topologyOption->createPartitionNumber);
     conf_->GetValueFatalIfFail("mds.topology.MaxCopysetNumInMetaserver",

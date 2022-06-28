@@ -167,9 +167,8 @@ class TopologyManager {
     virtual void ListMetaserverOfCluster(ListMetaServerResponse* response);
 
  private:
-    TopoStatusCode CreateEnoughCopyset();
-    TopoStatusCode InitialCreateCopyset();
-    TopoStatusCode CreateCopysetByResourceUsage(int createNum);
+    TopoStatusCode CreateEnoughCopyset(int32_t createNum);
+
     TopoStatusCode CreateCopyset(const CopysetCreateInfo& copyset);
 
     virtual void GetCopysetInfo(const uint32_t& poolId,
@@ -178,6 +177,9 @@ class TopologyManager {
 
     virtual void ClearCopysetCreating(PoolIdType poolId,
                                       CopySetIdType copysetId);
+    TopoStatusCode CreatePartitionOnCopyset(FsIdType fsId,
+                                            const CopySetInfo& copyset,
+                                            PartitionInfo *info);
 
  private:
     std::shared_ptr<Topology> topology_;

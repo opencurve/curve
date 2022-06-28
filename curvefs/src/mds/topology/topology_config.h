@@ -36,10 +36,6 @@ struct TopologyOption {
     uint64_t maxPartitionNumberInCopyset;
     // id number in each partition
     uint64_t idNumberInPartition;
-    // initial create copyset number
-    uint32_t initialCopysetNumber;
-    // min available copyset num
-    uint32_t minAvailableCopysetNum;
     // create partition number
     uint32_t createPartitionNumber;
     // max copyset num in metaserver
@@ -49,11 +45,9 @@ struct TopologyOption {
 
     TopologyOption()
         : topologyUpdateToRepoSec(0),
-          maxPartitionNumberInCopyset(256),
-          idNumberInPartition(16777216),
-          initialCopysetNumber(10),
-          minAvailableCopysetNum(10),
-          createPartitionNumber(3),
+          maxPartitionNumberInCopyset(128),
+          idNumberInPartition(1048576),
+          createPartitionNumber(12),
           maxCopysetNumInMetaserver(100),
           UpdateMetricIntervalSec(60) {}
 };
