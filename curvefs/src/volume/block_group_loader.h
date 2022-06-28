@@ -24,6 +24,7 @@
 #define CURVEFS_SRC_VOLUME_BLOCK_GROUP_LOADER_H_
 
 #include <memory>
+#include <vector>
 
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/volume/allocator.h"
@@ -52,12 +53,14 @@ class BlockGroupBitmapLoader {
                            uint64_t offset,
                            uint64_t blockGroupSize,
                            BitmapLocation location,
+                           bool clean,
                            const AllocatorOption& option)
         : blockDev_(client),
           offset_(offset),
           blockGroupSize_(blockGroupSize),
           blockSize_(blockSize),
           bitmapLocation_(location),
+          clean_(clean),
           allocatorOption_(option) {}
 
     BlockGroupBitmapLoader(const BlockGroupBitmapLoader&) = delete;
@@ -73,12 +76,17 @@ class BlockGroupBitmapLoader {
  private:
     BitmapRange CalcBitmapRange() const;
 
+    bool LoadBitmap(std::unique_ptr<Bitmap>* bitmap,
+                    BitmapRange* bitmapRange,
+                    std::vector<Extent>* used);
+
  private:
     BlockDeviceClient* blockDev_;
     uint64_t offset_;
     uint64_t blockGroupSize_;
     uint32_t blockSize_;
     BitmapLocation bitmapLocation_;
+    bool clean_;
     const AllocatorOption& allocatorOption_;
 };
 

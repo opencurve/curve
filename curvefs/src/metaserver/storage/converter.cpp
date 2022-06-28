@@ -69,7 +69,7 @@ std::string NameGenerator::GetDentryTableName() const {
     return tableName4Dentry_;
 }
 
-std::string NameGenerator::GetVolumnExtentTableName() const {
+std::string NameGenerator::GetVolumeExtentTableName() const {
     return tableName4VolumeExtent_;
 }
 
@@ -320,7 +320,8 @@ Prefix4InodeVolumeExtent::Prefix4InodeVolumeExtent(uint32_t fsId,
     : fsId_(fsId), inodeId_(inodeId) {}
 
 std::string Prefix4InodeVolumeExtent::SerializeToString() const {
-    return absl::StrCat(keyType_, kDelimiter, fsId_, kDelimiter, inodeId_);
+    return absl::StrCat(keyType_, kDelimiter, fsId_, kDelimiter, inodeId_,
+                        kDelimiter);
 }
 
 bool Prefix4InodeVolumeExtent::ParseFromString(const std::string &value) {

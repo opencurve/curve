@@ -63,6 +63,8 @@ class FreeExtents {
      * @brief DeAllocate space
      */
     void DeAlloc(const uint64_t off, const uint64_t len) {
+        assert(len != 0);
+
         DeAllocInternal(off, len);
         available_ += len;
         assert(length_ == 0 || available_ <= length_);
@@ -86,6 +88,7 @@ class FreeExtents {
      * @brief Mark extent: [off, len] used
      */
     void MarkUsed(const uint64_t off, const uint64_t len) {
+        assert(len != 0);
         MarkUsedInternal(off, len);
         available_ -= len;
         assert(length_ == 0 || available_ <= length_);
@@ -99,7 +102,7 @@ class FreeExtents {
     std::map<uint64_t, uint64_t> AvailableExtents() const { return extents_; }
 
     /**
-     * @brief Get currnet available blocks
+     * @brief Get current available blocks
      * @return Total size of available blocks
      */
     uint64_t AvailableBlocks(std::map<uint64_t, uint64_t>* blocks);

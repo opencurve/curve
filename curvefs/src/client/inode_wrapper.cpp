@@ -191,6 +191,7 @@ CURVEFS_ERROR InodeWrapper::FlushVolumeExtent() {
     auto dirtyExtents = extentCache_.GetDirtyExtents();
     VLOG(9) << "FlushVolumeExtent, ino: " << inode_.inodeid()
             << ", dirty extents: " << dirtyExtents.ShortDebugString();
+    CHECK_GT(dirtyExtents.slices_size(), 0);
     metaClient_->AsyncUpdateVolumeExtent(inode_.fsid(), inode_.inodeid(),
                                          dirtyExtents, &closure);
     return closure.Wait();
@@ -204,6 +205,9 @@ void InodeWrapper::FlushVolumeExtentAsync() {
     }
 
     auto dirtyExtents = extentCache_.GetDirtyExtents();
+    VLOG(9) << "FlushVolumeExtent, ino: " << inode_.inodeid()
+            << ", dirty extents: " << dirtyExtents.ShortDebugString();
+    CHECK_GT(dirtyExtents.slices_size(), 0);
     auto *closure = new UpdateVolumeExtentClosure(shared_from_this(), false);
     metaClient_->AsyncUpdateVolumeExtent(inode_.fsid(), inode_.inodeid(),
                                          dirtyExtents, closure);
@@ -490,6 +494,8 @@ CURVEFS_ERROR InodeWrapper::RefreshVolumeExtent() {
     VolumeExtentList extents;
     auto st = metaClient_->GetVolumeExtent(inode_.fsid(), inode_.inodeid(),
                                            true, &extents);
+    VLOG(9) << "RefreshVolumeExtent, ino: " << inode_.inodeid()
+            << ", extents: " << extents.ShortDebugString();
     if (st == MetaStatusCode::OK) {
         VLOG(9) << "Refresh volume extent success, inodeid: "
                 << inode_.inodeid() << ", extents: ["

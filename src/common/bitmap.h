@@ -62,6 +62,11 @@ class Bitmap {
      * @param bitmap: 外部提供的用于初始化的bitmap
      */
     explicit Bitmap(uint32_t bits, const char* bitmap);
+
+    // Construct from a given bitmap, if transfer is false, allocate enough
+    // memory and copy the given bitmap, otherwise, just store the pointer
+    Bitmap(uint32_t bits, char* bitmap, bool transfer = false);
+
     ~Bitmap();
 
     /**

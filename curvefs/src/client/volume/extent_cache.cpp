@@ -52,7 +52,7 @@ using ::curvefs::metaserver::VolumeExtent;
 namespace {
 
 bvar::LatencyRecorder g_write_divide_latency("extent_cache_write_divide");
-bvar::LatencyRecorder g_read_divide_latency_("extent_cache_read_divide");
+bvar::LatencyRecorder g_read_divide_latency("extent_cache_read_divide");
 bvar::LatencyRecorder g_merge_latency("extent_cache_merge");
 bvar::LatencyRecorder g_mark_written_latency("extent_cache_mark_written");
 
@@ -72,7 +72,7 @@ ExtentCacheOption ExtentCache::option_;
 void ExtentCache::Merge(uint64_t loffset, const PExtent& pExt) {
     VLOG(9) << "merge extent, loffset: " << loffset
             << ", physical offset: " << pExt.pOffset << ", len: " << pExt.len
-            << ", writtern: " << !pExt.UnWritten;
+            << ", written: " << !pExt.UnWritten;
     assert(is_aligned(loffset, option_.blockSize));
     assert(is_aligned(pExt.pOffset, option_.blockSize));
     assert(is_aligned(pExt.len, option_.blockSize));
@@ -192,7 +192,7 @@ void ExtentCache::DivideForRead(uint64_t offset,
                                 char* data,
                                 std::vector<ReadPart>* reads,
                                 std::vector<ReadPart>* holes) {
-    LatencyUpdater updater(&g_read_divide_latency_);
+    LatencyUpdater updater(&g_read_divide_latency);
     ReadLockGuard lk(lock_);
 
     const auto end = offset + len;

@@ -199,7 +199,7 @@ TEST_F(BitmapAllocatorTest, Alloc4) {
 
 TEST_F(BitmapAllocatorTest, TestMarkUsed) {
     // [0, 2kGiB] for Small allocate
-    // [2kGiB, 8, kGiB] for bit allocate
+    // [2kGiB, 8kGiB] for bit allocate
     Extents used = {{1 * kGiB, 2 * kGiB}};
     allocator_->MarkUsed(used);
     EXPECT_EQ(8 * kGiB, allocator_->AvailableSize());

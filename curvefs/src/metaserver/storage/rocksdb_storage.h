@@ -126,6 +126,11 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     Status Rollback() override;
 
+    bool Checkpoint(const std::string& dir,
+                    std::vector<std::string>* files) override;
+
+    bool Recover(const std::string& dir) override;
+
  private:
     ColumnFamilyHandle* GetColumnFamilyHandle(bool ordered);
 
@@ -166,11 +171,6 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     size_t Size(const std::string& name, bool ordered);
 
     Status Clear(const std::string& name, bool ordered);
-
-    bool Checkpoint(const std::string& dir,
-                    std::vector<std::string>* files) override;
-
-    bool Recover(const std::string& dir) override;
 
  private:
     friend class RocksDBStorageIterator;

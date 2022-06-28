@@ -76,6 +76,9 @@ ssize_t DefaultVolumeStorage::Write(uint64_t ino,
                                     off_t offset,
                                     size_t len,
                                     const char* data) {
+    VLOG(9) << "writer start, ino: " << ino << ", offset: " << offset
+            << ", len: " << len;
+
     std::shared_ptr<InodeWrapper> inodeWrapper;
     LatencyUpdater updater(&metric_.writeLatency);
     auto ret = inodeCacheManager_->GetInode(ino, inodeWrapper);
@@ -122,6 +125,9 @@ ssize_t DefaultVolumeStorage::Write(uint64_t ino,
 
     inodeCacheManager_->ShipToFlush(inodeWrapper);
 
+    VLOG(9) << "writer end, ino: " << ino << ", offset: " << offset
+            << ", len: " << len;
+
     return nr;
 }
 
@@ -129,6 +135,9 @@ ssize_t DefaultVolumeStorage::Read(uint64_t ino,
                                    off_t offset,
                                    size_t len,
                                    char* data) {
+    VLOG(9) << "read start, ino: " << ino << ", offset: " << offset
+            << ", len: " << len;
+
     std::shared_ptr<InodeWrapper> inodeWrapper;
     LatencyUpdater updater(&metric_.readLatency);
     auto ret = inodeCacheManager_->GetInode(ino, inodeWrapper);
@@ -142,7 +151,7 @@ ssize_t DefaultVolumeStorage::Read(uint64_t ino,
     std::vector<ReadPart> holes;
     extentCache->DivideForRead(offset, len, data, &reads, &holes);
 
-    VLOG(9) << "read ino: " << ino << ", offest: " << offset << ", len: " << len
+    VLOG(9) << "read ino: " << ino << ", offset: " << offset << ", len: " << len
             << ", read holes: " << holes;
 
     for (auto& hole : holes) {
@@ -168,6 +177,9 @@ ssize_t DefaultVolumeStorage::Read(uint64_t ino,
     auto* inode = inodeWrapper->GetMutableInodeUnlocked();
     UpdateInodeTimestamp(inode, kAccessTime);
     inodeCacheManager_->ShipToFlush(inodeWrapper);
+
+    VLOG(9) << "read end, ino: " << ino << ", offset: " << offset
+            << ", len: " << len;
 
     return len;
 }

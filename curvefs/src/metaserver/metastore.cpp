@@ -743,6 +743,8 @@ MetaStatusCode MetaStoreImpl::UpdateVolumeExtent(
         return st;
     }
 
+    VLOG(9) << "UpdateVolumeExtent, request: " << request->ShortDebugString();
+
     auto st = partition->UpdateVolumeExtent(request->fsid(), request->inodeid(),
                                             request->extents());
     response->set_statuscode(st);
