@@ -276,7 +276,7 @@ class MockTopology : public TopologyImpl {
     MOCK_CONST_METHOD1(GetLeaderNumInMetaserver, uint32_t(MetaServerIdType id));
     MOCK_CONST_METHOD1(GetAvailableCopyset, bool(CopySetInfo *out));
     MOCK_CONST_METHOD0(GetAvailableCopysetNum, int());
-    MOCK_CONST_METHOD0(GetAvailableCopysetList, std::list<CopySetKey>());
+    MOCK_CONST_METHOD0(GetAvailableCopysetKeyList, std::list<CopySetKey>());
     MOCK_METHOD2(GetPartition,
                  bool(PartitionIdType partitionId, Partition *out));
 
@@ -331,13 +331,6 @@ class MockTopology : public TopologyImpl {
                        const std::set<ZoneIdType> &unavailableZones,
                        const std::set<MetaServerIdType> &unavailableMs,
                        MetaServerIdType *target));
-
-    MOCK_METHOD2(GenInitialCopysetAddrBatch, TopoStatusCode(
-        uint32_t needCreateNum,
-        std::list<CopysetCreateInfo>* copysetList));
-
-    MOCK_METHOD2(GenCopysetAddrByResourceUsage, TopoStatusCode(
-        std::set<MetaServerIdType> *replicas, PoolIdType *poolId));
 
     MOCK_CONST_METHOD1(GetPartitionInfosInCopyset,
                        std::list<Partition>(CopySetIdType copysetId));

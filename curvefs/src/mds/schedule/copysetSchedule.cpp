@@ -187,7 +187,7 @@ void CopySetScheduler::FileterUnhealthyMetaserver(
     return;
 }
 
-int CopySetScheduler::CheckAndBalanceZone(ZoneIdType zoneId) {
+int CopySetScheduler::CheckAndBalanceZoneByMetaserverUsage(ZoneIdType zoneId) {
     int genOpCount = 0;
     std::vector<MetaServerInfo> metaserverVector =
         topo_->GetMetaServersInZone(zoneId);
@@ -222,8 +222,68 @@ int CopySetScheduler::CheckAndBalanceZone(ZoneIdType zoneId) {
             if (!IsCopysetCanTransfer(copyset)) {
                 continue;
             }
-            LOG(INFO) << "transfer copyset from metaserver " << sourceId
-                      << " to metaserver " << destId;
+            LOG(INFO) << "transfer copyset from high disk usage metaserver "
+                      << sourceId << " to low usage metaserver " << destId;
+            if (TransferCopyset(copyset, sourceId, destId)) {
+                genOpCount++;
+                return genOpCount;
+            }
+        }
+    }
+
+    return genOpCount;
+}
+
+int CopySetScheduler::CheckAndBalanceZoneByCopysetNum(ZoneIdType zoneId) {
+    int genOpCount = 0;
+    std::vector<MetaServerInfo> metaserverVector =
+        topo_->GetMetaServersInZone(zoneId);
+
+    FileterUnhealthyMetaserver(&metaserverVector);
+
+    if (metaserverVector.size() < 2) {
+        return genOpCount;
+    }
+
+    // sort by copyset num decrease
+    auto sortFunc = [](const MetaServerInfo a, const MetaServerInfo b) {
+        return a.copysetNum > b.copysetNum;
+    };
+
+    std::sort(metaserverVector.begin(), metaserverVector.end(), sortFunc);
+
+    uint32_t maxCopysetNum = metaserverVector.front().copysetNum;
+    uint32_t minCopysetNum = metaserverVector.back().copysetNum;
+
+    // the resource useage of the metaserver which has the max copysets num
+    double ratioFirst = metaserverVector.front().GetResourceUseRatioPercent();
+    // the resource useage of the metaserver which has the min copysets num
+    double rationSecond = metaserverVector.back().GetResourceUseRatioPercent();
+
+    // If the difference between the copy nums of metaservers within a zone
+    // is greater than or equal to 2, and the max copysets num metaserver'
+    // resource usage is larger then the min copyset num metaserver, then
+    // here transfer one copyset from max copyset num metaserver to min one
+    if (maxCopysetNum >= 2 + minCopysetNum && ratioFirst >= rationSecond) {
+        MetaServerIdType sourceId = metaserverVector.front().info.id;
+        MetaServerIdType destId = metaserverVector.back().info.id;
+
+        LOG(INFO) << "find meta copyset num not balance in zone = " << zoneId
+                  << ", metaserver = " << sourceId
+                  << ", max copysetNum = " << maxCopysetNum
+                  << ", metaserver = " << destId
+                  << ", min copysetNum = " << minCopysetNum;
+
+        std::vector<CopySetInfo> copysetVector =
+            topo_->GetCopySetInfosInMetaServer(sourceId);
+        for (const auto &copyset : copysetVector) {
+            if (!IsCopysetCanTransfer(copyset)) {
+                continue;
+            }
+            LOG(INFO) << "transfer copyset from more copyset metaserver "
+                      << sourceId << " to less copyset metaserver " << destId
+                      << ", copyset (" << copyset.id.first << ", "
+                      << copyset.id.second << ")";
             if (TransferCopyset(copyset, sourceId, destId)) {
                 genOpCount++;
                 return genOpCount;
@@ -237,7 +297,14 @@ int CopySetScheduler::CheckAndBalanceZone(ZoneIdType zoneId) {
 int CopySetScheduler::CopySetScheduleNormalMetaserver(PoolIdType poolId) {
     std::list<ZoneIdType> zoneList = topo_->GetZoneInPool(poolId);
     for (ZoneIdType zoneId : zoneList) {
-        int ret = CheckAndBalanceZone(zoneId);
+        int ret = CheckAndBalanceZoneByMetaserverUsage(zoneId);
+        if (ret > 0) {
+            return ret;
+        }
+    }
+
+    for (ZoneIdType zoneId : zoneList) {
+        int ret = CheckAndBalanceZoneByCopysetNum(zoneId);
         if (ret > 0) {
             return ret;
         }

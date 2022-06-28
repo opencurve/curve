@@ -19,8 +19,8 @@
  * @Date: 2021-11-10 11:04:24
  * @Author: chenwei
  */
-#ifndef CURVEFS_TEST_MDS_SCHEDULE_MOCK_TOPOADAPTER_H_
-#define CURVEFS_TEST_MDS_SCHEDULE_MOCK_TOPOADAPTER_H_
+#ifndef CURVEFS_TEST_MDS_MOCK_MOCK_TOPOADAPTER_H_
+#define CURVEFS_TEST_MDS_MOCK_MOCK_TOPOADAPTER_H_
 
 #include <gmock/gmock.h>
 #include <list>
@@ -89,4 +89,4 @@ class MockTopoAdapter : public TopoAdapter {
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs
-#endif  // CURVEFS_TEST_MDS_SCHEDULE_MOCK_TOPOADAPTER_H_
+#endif  // CURVEFS_TEST_MDS_MOCK_MOCK_TOPOADAPTER_H_

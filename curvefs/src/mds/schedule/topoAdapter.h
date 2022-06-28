@@ -116,9 +116,9 @@ struct MetaServerInfo {
     MetaServerInfo() : startUpTime(0) {}
     MetaServerInfo(const PeerInfo &info, OnlineState state,
                    const MetaServerSpace &space, uint32_t copysetNum = 0,
-                   uint32_t leaderNum = 0) : info(info), state(state),
-                   space(space), copysetNum(copysetNum), leaderNum(leaderNum),
-                   startUpTime(0) {}
+                   uint32_t leaderNum = 0) : startUpTime(0), info(info),
+                   state(state), copysetNum(copysetNum), leaderNum(leaderNum),
+                   space(space) {}
 
     bool IsOnline() const;
     bool IsOffline() const;

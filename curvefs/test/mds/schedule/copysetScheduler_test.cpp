@@ -27,7 +27,7 @@
 #include "curvefs/src/mds/schedule/scheduler.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/schedule/common.h"
-#include "curvefs/test/mds/schedule/mock_topoAdapter.h"
+#include "curvefs/test/mds/mock/mock_topoAdapter.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -668,12 +668,15 @@ TEST_F(TestCopysetSheduler, normal_no_dest_metaserver_test) {
     std::vector<MetaServerInfo> metaseverZone3 = {msInfo3};
 
     EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(1))
+        .WillOnce(Return(metaseverZone1))
         .WillOnce(Return(metaseverZone1));
 
     EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(2))
+        .WillOnce(Return(metaseverZone2))
         .WillOnce(Return(metaseverZone2));
 
     EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(3))
+        .WillOnce(Return(metaseverZone3))
         .WillOnce(Return(metaseverZone3));
 
     ASSERT_EQ(copysetScheduler_->Schedule(), 0);
@@ -727,12 +730,15 @@ TEST_F(TestCopysetSheduler, normal_get_copyset_fail_test) {
     std::vector<MetaServerInfo> metaseverZone3 = {msInfo3};
 
     EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(1))
+        .WillOnce(Return(metaseverZone1))
         .WillOnce(Return(metaseverZone1));
 
     EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(2))
+        .WillOnce(Return(metaseverZone2))
         .WillOnce(Return(metaseverZone2));
 
     EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(3))
+        .WillOnce(Return(metaseverZone3))
         .WillOnce(Return(metaseverZone3));
 
     std::vector<CopySetInfo> copysetVector;
@@ -742,7 +748,7 @@ TEST_F(TestCopysetSheduler, normal_get_copyset_fail_test) {
     ASSERT_EQ(copysetScheduler_->Schedule(), 0);
 }
 
-TEST_F(TestCopysetSheduler, normal_balanca_success_test) {
+TEST_F(TestCopysetSheduler, normal_balanca_by_metaserver_usage_success_test) {
     PoolIdType poolid = 1;
     CopySetInfo testCopySetInfo = GetCopySetInfoForTest();
     std::vector<CopySetInfo> copysets = {testCopySetInfo};
@@ -810,6 +816,84 @@ TEST_F(TestCopysetSheduler, normal_balanca_success_test) {
 
     EXPECT_CALL(*topoAdapter_,
                 CreateCopySetAtMetaServer(testCopySetInfo.id, 4))
+        .WillOnce(Return(true));
+
+    ASSERT_EQ(copysetScheduler_->Schedule(), 1);
+}
+
+TEST_F(TestCopysetSheduler, normal_balanca_by_copyset_num_success_test) {
+    PoolIdType poolid = 1;
+    CopySetInfo testCopySetInfo = GetCopySetInfoForTest();
+    std::vector<CopySetInfo> copysets = {testCopySetInfo};
+    MetaServerSpace space(100, 20);
+    MetaServerInfo msInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
+                           space, 10);
+    MetaServerInfo msInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                           space);
+    MetaServerInfo msInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                           space);
+    // peer4, peer5 has same zone with ms1
+    PeerInfo peer4(4, 1, 1, "192.168.10.1", 9001);
+    PeerInfo peer5(5, 1, 1, "192.168.10.1", 9002);
+
+    // peer6 has same zone with ms2
+    PeerInfo peer6(6, 2, 2, "192.168.10.2", 9001);
+
+    MetaServerInfo msInfo4(peer4, OnlineState::ONLINE, space, 8);
+    MetaServerInfo msInfo5(peer5, OnlineState::ONLINE, space, 6);
+    MetaServerInfo msInfo6(peer6, OnlineState::ONLINE, space);
+
+    std::vector<MetaServerInfo> metaservers = {msInfo1, msInfo2, msInfo3,
+                                               msInfo4, msInfo5, msInfo6};
+    std::list<ZoneIdType> zoneList = {1, 2, 3};
+
+    EXPECT_CALL(*topoAdapter_, Getpools())
+        .WillOnce(Return(std::vector<PoolIdType>({poolid})));
+
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfosInPool(poolid))
+        .WillOnce(Return(copysets));
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServersInPool(poolid))
+        .Times(1)
+        .WillRepeatedly(Return(metaservers));
+
+    EXPECT_CALL(*topoAdapter_, GetZoneInPool(poolid))
+        .WillOnce(Return(zoneList));
+
+    std::vector<MetaServerInfo> metaseverZone1 = {msInfo1, msInfo4, msInfo5};
+
+    std::vector<MetaServerInfo> metaseverZone2 = {msInfo2, msInfo6};
+
+    std::vector<MetaServerInfo> metaseverZone3 = {msInfo3};
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(1))
+        .WillOnce(Return(metaseverZone1))
+        .WillOnce(Return(metaseverZone1));
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(2))
+        .WillOnce(Return(metaseverZone2));
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServersInZone(3))
+        .WillOnce(Return(metaseverZone3));
+
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfosInMetaServer(1))
+        .WillOnce(Return(copysets));
+
+    EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInPool(poolid))
+        .WillOnce(Return(3));
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(1, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(msInfo1), Return(true)));
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(2, _))
+        .WillOnce(DoAll(SetArgPointee<1>(msInfo2), Return(true)));
+
+    EXPECT_CALL(*topoAdapter_, GetMetaServerInfo(3, _))
+        .WillOnce(DoAll(SetArgPointee<1>(msInfo3), Return(true)));
+
+    EXPECT_CALL(*topoAdapter_,
+                CreateCopySetAtMetaServer(testCopySetInfo.id, 5))
         .WillOnce(Return(true));
 
     ASSERT_EQ(copysetScheduler_->Schedule(), 1);

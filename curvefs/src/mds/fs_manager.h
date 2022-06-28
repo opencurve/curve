@@ -88,10 +88,10 @@ class FsManager {
         : fsStorage_(fsStorage),
           spaceManager_(spaceManager),
           metaserverClient_(metaserverClient),
+          nameLock_(),
           topoManager_(topoManager),
           s3Adapter_(s3Adapter),
           dlock_(dlock),
-          nameLock_(),
           isStop_(true),
           option_(option) {}
 

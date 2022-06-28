@@ -209,7 +209,9 @@ class CopySetScheduler : public Scheduler {
 
     int CopySetScheduleNormalMetaserver(PoolIdType poolId);
 
-    int CheckAndBalanceZone(ZoneIdType zoneId);
+    int CheckAndBalanceZoneByMetaserverUsage(ZoneIdType zoneId);
+
+    int CheckAndBalanceZoneByCopysetNum(ZoneIdType zoneId);
 
     void FileterUnhealthyMetaserver(
         std::vector<MetaServerInfo> *metaserverVector);

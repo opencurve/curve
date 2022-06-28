@@ -303,12 +303,7 @@ class MetaServerSpace {
             diskUseRatio = 100.0 * diskUsedByte_ / diskThresholdByte_;
         }
 
-        double memUseRatio = 0;
-        if (memoryThresholdByte_ != 0) {
-            memUseRatio = 100.0 * memoryUsedByte_ / memoryThresholdByte_;
-        }
-
-        return std::max(memUseRatio, diskUseRatio);
+        return diskUseRatio;
     }
 
     bool IsMetaserverResourceAvailable() {
@@ -317,27 +312,12 @@ class MetaServerSpace {
             return false;
         }
 
-        if (memoryCopySetMinRequireByte_ != 0 &&
-            (memoryThresholdByte_ <
-             (memoryCopySetMinRequireByte_ + memoryUsedByte_))) {
-            return false;
-        }
-
         return true;
     }
 
-    // if memoryCopySetMinRequireByte_ equals 0, not consider the memory usage
+    // only consider the disk usage
     bool IsResourceOverload() {
-        if (diskThresholdByte_ < diskUsedByte_) {
-            return true;
-        }
-
-        if (memoryCopySetMinRequireByte_ != 0 &&
-            memoryThresholdByte_ < memoryUsedByte_) {
-            return true;
-        }
-
-        return false;
+        return diskThresholdByte_ < diskUsedByte_;
     }
 
  private:
