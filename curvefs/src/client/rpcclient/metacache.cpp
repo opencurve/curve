@@ -129,7 +129,7 @@ bool MetaCache::SelectTarget(uint32_t fsID, CopysetTarget *target,
 
         if (!SelectPartition(target)) {
             LOG(ERROR) << "select target for {fsid:" << fsID
-                       << "} fail,  select paritiotn fail";
+                       << "} fail,  select partition fail";
             return false;
         }
     }
@@ -254,7 +254,7 @@ bool MetaCache::ListPartitions(uint32_t fsID) {
     WriteLockGuard wl4CopysetMap(rwlock4copysetInfoMap_);
 
     fsID_ = fsID;
-    PatitionInfoList partitionInfos;
+    PartitionInfoList partitionInfos;
     std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap;
     if (!DoListOrCreatePartitions(true, &partitionInfos, &copysetMap)) {
         return false;
@@ -266,13 +266,17 @@ bool MetaCache::ListPartitions(uint32_t fsID) {
 }
 
 bool MetaCache::CreatePartitions(int currentNum,
-                                 PatitionInfoList *newPartitions) {
+                                 PartitionInfoList *newPartitions) {
     std::lock_guard<Mutex> lg(createMutex_);
 
     // already create
     {
         ReadLockGuard rl(rwlock4Partitions_);
         if (partitionInfos_.size() > currentNum) {
+            newPartitions->reserve(partitionInfos_.size() - currentNum);
+            newPartitions->insert(newPartitions->end(),
+                                  partitionInfos_.begin() + currentNum,
+                                  partitionInfos_.end());
             return true;
         }
     }
@@ -293,7 +297,7 @@ bool MetaCache::CreatePartitions(int currentNum,
 }
 
 bool MetaCache::DoListOrCreatePartitions(
-    bool list, PatitionInfoList *partitionInfos,
+    bool list, PartitionInfoList *partitionInfos,
     std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> *copysetMap) {
     // TODO(@lixiaocui): list or get partition need too many rpc,
     // it's better to return all infos once.
@@ -374,7 +378,7 @@ bool MetaCache::DoListOrCreatePartitions(
 }
 
 void MetaCache::DoAddOrResetPartitionAndCopyset(
-    PatitionInfoList partitionInfos,
+    PartitionInfoList partitionInfos,
     std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap,
     bool reset) {
     if (reset) {
@@ -498,18 +502,20 @@ bool MetaCache::SelectPartition(CopysetTarget *target) {
     }
 
     if (candidate.empty()) {
-        // create parition for fs
+        // create partition for fs
         LOG(INFO) << "no partition can be select for fsid:" << fsID_
                   << ", need create new partitions";
-        PatitionInfoList newPartitions;
+        PartitionInfoList newPartitions;
         if (!CreatePartitions(currentNum, &newPartitions)) {
             LOG(ERROR) << "create partition for fsid:" << fsID_ << " fail";
             return false;
         }
-        target->groupID = CopysetGroupID(newPartitions[0].poolid(),
-                                         newPartitions[0].copysetid());
-        target->partitionID = newPartitions[0].partitionid();
-        target->txId = newPartitions[0].txid();
+        CHECK(!newPartitions.empty());
+        const auto index = butil::fast_rand() % newPartitions.size();
+        auto iter = newPartitions.begin() + index;
+        target->groupID = CopysetGroupID(iter->poolid(), iter->copysetid());
+        target->partitionID = iter->partitionid();
+        target->txId = iter->txid();
     } else {
         // random select a partition
         const auto index = butil::fast_rand() % candidate.size();
