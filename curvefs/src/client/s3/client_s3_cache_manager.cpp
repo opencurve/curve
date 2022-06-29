@@ -1467,10 +1467,11 @@ void ChunkCacheManager::AddReadDataCache(DataCachePtr dataCache) {
     for (auto key : deleteKeyVec) {
         auto iter = dataRCacheMap_.find(key);
         std::list<DataCachePtr>::iterator dcpIter = iter->second;
+        uint64_t actualLen = (*dcpIter)->GetActualLen();
         if (s3ClientAdaptor_->GetFsCacheManager()->Delete(dcpIter)) {
             g_s3MultiManagerMetric->readDataCacheNum << -1;
             g_s3MultiManagerMetric->readDataCacheByte
-                << -1 * (*dcpIter)->GetActualLen();
+                << -1 * actualLen;
             dataRCacheMap_.erase(iter);
         }
     }
