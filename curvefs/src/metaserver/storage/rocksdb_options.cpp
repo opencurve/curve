@@ -103,7 +103,8 @@ void CreateBlockCacheAndWriterBufferManager() {
             std::make_shared<rocksdb::WriteBufferManager>(
                 FLAGS_rocksdb_write_buffer_manager_capacity,
                 FLAGS_rocksdb_WBM_cost_block_cache ? rocksdbBlockCache
-                                                   : nullptr);
+                                                   : nullptr,
+                true);
     });
 }
 
