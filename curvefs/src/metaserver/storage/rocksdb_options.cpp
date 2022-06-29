@@ -78,6 +78,10 @@ DEFINE_int32(rocksdb_ordered_cf_max_write_buffer_number,
              2,
              "Number of writer buffer for ordered column family");
 
+DEFINE_int32(rocksdb_max_write_buffer_size_to_maintain,
+             20 << 20,
+             "The target number of write history bytes to hold in memory");
+
 DEFINE_int32(rocksdb_stats_dump_period_sec,
              180,
              "Dump rocksdb.stats to LOG every stats_dump_period_sec");
@@ -149,6 +153,8 @@ void InitRocksdbOptions(
     tableOptions.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
 
     rocksdb::ColumnFamilyOptions defaultCfOptions;
+    defaultCfOptions.max_write_buffer_size_to_maintain =
+        FLAGS_rocksdb_max_write_buffer_size_to_maintain;
     defaultCfOptions.enable_blob_files = true;
     defaultCfOptions.level_compaction_dynamic_level_bytes = true;
     defaultCfOptions.compaction_pri = rocksdb::kMinOverlappingRatio;
@@ -211,6 +217,10 @@ void ParseRocksdbOptions(curve::common::Configuration* conf) {
     dummy.Load(conf, "rocksdb_ordered_cf_max_write_buffer_number",
                "storage.rocksdb.ordered_max_write_buffer_number",
                &FLAGS_rocksdb_ordered_cf_max_write_buffer_number,
+               /*fatalIfMissing*/ false);
+    dummy.Load(conf, "rocksdb_max_write_buffer_size_to_maintain",
+               "storage.rocksdb.max_write_buffer_size_to_maintain",
+               &FLAGS_rocksdb_max_write_buffer_size_to_maintain,
                /*fatalIfMissing*/ false);
     dummy.Load(conf, "rocksdb_stats_dump_period_sec",
                "storage.rocksdb.stats_dump_period_sec",
