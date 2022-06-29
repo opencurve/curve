@@ -361,6 +361,7 @@ void DiskCacheManager::TrimCache() {
     cacheReadFullDir = GetCacheReadFullDir();
     cacheWriteFullDir = GetCacheWriteFullDir();
     while (true) {
+        SetDiskFsUsedRatio();
         waitIntervalSec_.WaitForNextExcution();
         if (!isRunning_) {
             LOG(INFO) << "trim thread end.";
@@ -368,8 +369,8 @@ void DiskCacheManager::TrimCache() {
         }
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
-        SetDiskFsUsedRatio();
         while (!IsDiskCacheSafe()) {
+            SetDiskFsUsedRatio();
             if (!cachedObjName_->GetBack(&cacheKey)) {
                 VLOG(9) << "obj is empty";
                 break;
