@@ -133,8 +133,8 @@ class MetaCacheTest : public testing::Test {
     std::shared_ptr<MockCli2Client> mockCli2Client_;
 
     curve::client::CopysetInfo<MetaserverID> metaServerList_;
-    MetaCache::PatitionInfoList pInfoList_;
-    MetaCache::PatitionInfoList pInfoList2_;
+    MetaCache::PartitionInfoList pInfoList_;
+    MetaCache::PartitionInfoList pInfoList2_;
     std::map<PartitionID, Copyset> copysetMap_;
 
     CopysetTarget expect;

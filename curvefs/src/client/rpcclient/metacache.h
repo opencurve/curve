@@ -111,15 +111,14 @@ class MetaCache {
  public:
     void Init(MetaCacheOpt opt, std::shared_ptr<Cli2Client> cli2Client,
               std::shared_ptr<MdsClient> mdsClient) {
-        metacacheopt_ = opt;
-        cli2Client_ = cli2Client;
-        mdsClient_ = mdsClient;
+        metacacheopt_ = std::move(opt);
+        cli2Client_ = std::move(cli2Client);
+        mdsClient_ = std::move(mdsClient);
         init_ = false;
     }
 
     using PoolIDCopysetID = uint64_t;
-    using PatitionInfoList = std::vector<PartitionInfo>;
-    using FS2PatitionInfoMap = std::unordered_map<uint32_t, PatitionInfoList>;
+    using PartitionInfoList = std::vector<PartitionInfo>;
     using CopysetInfoMap =
         std::unordered_map<PoolIDCopysetID, CopysetInfo<MetaserverID>>;
 
@@ -162,12 +161,12 @@ class MetaCache {
 
  private:
     void GetTxId(uint32_t partitionId, uint64_t *txId);
-    bool CreatePartitions(int currentNum, PatitionInfoList *newPartitions);
+    bool CreatePartitions(int currentNum, PartitionInfoList *newPartitions);
     bool DoListOrCreatePartitions(
-        bool list, PatitionInfoList *partitionInfos,
+        bool list, PartitionInfoList *partitionInfos,
         std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> *copysetMap);
     void DoAddOrResetPartitionAndCopyset(
-        PatitionInfoList partitionInfos,
+        PartitionInfoList partitionInfos,
         std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap,
         bool reset);
 
@@ -206,7 +205,7 @@ class MetaCache {
     std::unordered_map<uint32_t, uint64_t> partitionTxId_;
 
     RWLock rwlock4Partitions_;
-    PatitionInfoList partitionInfos_;
+    PartitionInfoList partitionInfos_;
     RWLock rwlock4copysetInfoMap_;
     CopysetInfoMap copysetInfoMap_;
 
