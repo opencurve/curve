@@ -98,6 +98,5 @@ FuseOpGetXattr*2            -> file // security.selinux;system.posix_acl_access
 | cephfs-kernel | 1.2s | 1.5s | 7s |
 | cubefs | 1.s | 5.2s | 5.6s |
 | fastcfs | 0.67s | 0.81s | 1.36s |
-| curvefs | 0.72s | 24.8s | 29s |
 | curvefs | 1.3s | 1.6s | 5.7s |
 | curvefs & disable xattr | 1.3s | 1.5s | 2.6s |

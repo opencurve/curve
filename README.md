@@ -100,7 +100,7 @@ Please refer to the CurveBS cluster deployment steps in the [CurveAdm User Manua
 [curve_ops_tool introduction](docs/en/curve_ops_tool_en.md)
 
 ## Quick Start of CurveFS
-In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS (scaleout, upgrade and other functions are under development), please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
+In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS, please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
 
 Detail for deploying CurveFS cluster: [CurveFS ​​deployment](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment)
 
