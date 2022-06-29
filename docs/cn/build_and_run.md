@@ -3,8 +3,12 @@
 # 编译环境搭建
 
 请注意：
-1. 如您只是想体验CURVE的部署流程和基本功能，**则不需要编译CURVE**，请参考[单机部署](deploy.md#%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2)
-2. 本文档仅用来帮助你搭建CURVE代码编译环境，便于您参与CURVE的开发调试及打包测试
+1. 如您只是想体验CURVE的部署流程和基本功能，**则不需要编译CURVE**，请参考[部署](https://github.com/opencurve/curveadm/wiki)
+2. 本文档仅用来帮助你搭建CURVE代码编译环境，便于您参与CURVE的开发调试
+
+**注意：**
+
+mk-tar.sh 和 mk-deb.sh 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
 
 ## 使用Docker进行编译（推荐方式）
 
@@ -33,10 +37,14 @@ docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
 cd <workspace>
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 # （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
-bash mk-tar.sh
+# curve v2.0 之前
+bash mk-tar.sh （编译 curvebs 并打tar包）
+bash mk-deb.sh （编译 curvebs 并打debian包）
+# curve v2.0 及之后
+编译 curvebs: cd curve && make build
+编译 curvefs: cd curve/curvefs && make build
 ```
 
-基于tar包的安装部署流程可参考：[集群部署](deploy.md)
 
 ## 在物理机上编译
 
@@ -53,28 +61,17 @@ CURVE的其他依赖项，均由bazel去管理，不可单独安装。
 
 编译相关的软件依赖可以参考 [dockerfile](../../docker/debian9/compile/Dockerfile) 中的安装步骤。
 
-### 一键编译和打包
-
-CURVE提供一键编译脚本，mk-tar.sh 生成所需的全部tar二进制包，命令如下：
+### 一键编译
 
 ```
+git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 # （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
-bash ./mk-tar.sh
-```
-
-基于tar包的安装部署流程可参考：[集群部署](deploy.md)
-
-特别的，由于CURVE内部版本使用在debian系统上，因此特别提供debian的版本，命令如下：
-
-```
-bash ./mk-deb.sh
-```
-注意：基于deb包的安装部署流程正在整理中，目前不推荐使用deb包安装部署
-
-仅编译全部模块，不进行打包，可以执行命令：
-
-```
-bash ./build.sh
+# curve v2.0 之前
+bash mk-tar.sh （编译 curvebs 并打tar包）
+bash mk-deb.sh （编译 curvebs 并打debian包）
+# curve v2.0 及之后
+编译 curvebs: cd curve && make build
+编译 curvefs: cd curve/curvefs && make build
 ```
 
 ## 测试用例编译及执行
@@ -136,7 +133,9 @@ cd etcd-v3.4.10-linux-amd64 && cp etcd etcdctl /usr/bin
 #### 运行单元/集成测试
 
 bazel 编译后的可执行程序都在 `./bazel-bin` 目录下，例如 test/common 目录下的测试代码对应的测试程序为 `./bazel-bin/test/common/common-test`，可以直接运行程序进行测试。
-- CURVE相关单元测试程序目录在 ./bazel-bin/test 目录下，集成测试在 ./bazel-bin/test/integration 目录下
+- CurveBS相关单元测试程序目录在 ./bazel-bin/test 目录下
+- CurveFS相关单元测试程序目录在 ./bazel-bin/curvefs/test 目录下
+- 集成测试在 ./bazel-bin/test/integration 目录下
 - NEBD相关单元测试程序在 ./bazel-bin/nebd/test 目录下
 - NBD相关单元测试程序在 ./bazel-bin/nbd/test 目录下
 
