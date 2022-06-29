@@ -304,10 +304,11 @@ bool MdsClientImpl::CreatePartition(
             return TopoStatusCode::TOPO_CREATE_PARTITION_FAIL;
         }
 
+        partitionInfos->reserve(count);
         partitionInfos->clear();
-        for (int i = 0; i < partitionNum; i++) {
-            partitionInfos->push_back(response.partitioninfolist(i));
-        }
+        std::move(response.mutable_partitioninfolist()->begin(),
+                  response.mutable_partitioninfolist()->end(),
+                  std::back_inserter(*partitionInfos));
 
         return TopoStatusCode::TOPO_OK;
     };
