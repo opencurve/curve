@@ -149,6 +149,7 @@ void InitRocksdbOptions(
     tableOptions.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
 
     rocksdb::ColumnFamilyOptions defaultCfOptions;
+    defaultCfOptions.max_write_buffer_size_to_maintain = 32ULL << 20;  // 32MiB
     defaultCfOptions.enable_blob_files = true;
     defaultCfOptions.level_compaction_dynamic_level_bytes = true;
     defaultCfOptions.compaction_pri = rocksdb::kMinOverlappingRatio;
