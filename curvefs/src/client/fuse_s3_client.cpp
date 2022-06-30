@@ -229,9 +229,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
                                          const char *name, mode_t mode,
                                          struct fuse_file_info *fi,
                                          fuse_entry_param *e) {
-    LOG(INFO) << "FuseOpCreate, parent: " << parent
-              << ", name: " << name
-              << ", mode: " << mode;
+    VLOG(1) << "FuseOpCreate, parent: " << parent << ", name: " << name
+            << ", mode: " << mode;
     CURVEFS_ERROR ret =
         MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, e);
     if (ret != CURVEFS_ERROR::OK) {
@@ -243,34 +242,30 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
 CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                         const char *name, mode_t mode,
                                         dev_t rdev, fuse_entry_param *e) {
-    LOG(INFO) << "FuseOpMkNod, parent: " << parent
-              << ", name: " << name
-              << ", mode: " << mode
-              << ", rdev: " << rdev;
+    VLOG(1) << "FuseOpMkNod, parent: " << parent << ", name: " << name
+            << ", mode: " << mode << ", rdev: " << rdev;
     return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                                      fuse_ino_t newparent, const char *newname,
                                      fuse_entry_param *e) {
-    LOG(INFO) << "FuseOpLink, ino: " << ino
-              << ", newparent: " << newparent
-              << ", newname: " << newname;
+    VLOG(1) << "FuseOpLink, ino: " << ino << ", newparent: " << newparent
+            << ", newname: " << newname;
     return FuseClient::FuseOpLink(
         req, ino, newparent, newname, FsFileType::TYPE_S3, e);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
                                          const char *name) {
-    LOG(INFO) << "FuseOpUnlink, parent: " << parent
-              << ", name: " << name;
+    VLOG(1) << "FuseOpUnlink, parent: " << parent << ", name: " << name;
     return RemoveNode(req, parent, name, FsFileType::TYPE_S3);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                         int datasync,
                                         struct fuse_file_info *fi) {
-    LOG(INFO) << "FuseOpFsync, ino: " << ino << ", datasync: " << datasync;
+    VLOG(1) << "FuseOpFsync, ino: " << ino << ", datasync: " << datasync;
 
     CURVEFS_ERROR ret = s3Adaptor_->Flush(ino);
     if (ret != CURVEFS_ERROR::OK) {
@@ -298,7 +293,7 @@ CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
 
 CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
-    LOG(INFO) << "FuseOpFlush, ino: " << ino;
+    VLOG(1) << "FuseOpFlush, ino: " << ino;
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
 
     // if enableCto, flush all write cache both in memory cache and disk cache
@@ -336,7 +331,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
         }
     }
 
-    LOG(INFO) << "FuseOpFlush, ino: " << ino << " flush ok";
+    VLOG(1) << "FuseOpFlush, ino: " << ino << " flush ok";
     return CURVEFS_ERROR::OK;
 }
 
