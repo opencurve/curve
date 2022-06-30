@@ -52,3 +52,6 @@ sed -i "s;https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf
 
 # rules_cc
 sed -i "s;https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf808622f5bb0928f00b.zip;https://curve-build.nos-eastchina1.126.net/rules_cc-9e10b8a6db775b1ecd358d8ddd3dab379a2c29a5.zip;g" WORKSPACE
+
+# curve-nbd
+sed -i "s;https://github.com/opencurve/curve-nbd;https://gitee.com/NetEase_Curve/curve-nbd;g" .gitmodules
