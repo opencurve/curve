@@ -273,7 +273,7 @@ void MdsServiceImpl::AllocateS3Chunk(
     ::curvefs::mds::AllocateS3ChunkResponse* response,
     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
-    VLOG(0) << "start to allocate chunkId.";
+    VLOG(9) << "start to allocate chunkId.";
 
     uint64_t chunkId = 0;
     int stat = chunkIdAllocator_->GenChunkId(&chunkId);
@@ -292,7 +292,7 @@ void MdsServiceImpl::AllocateS3Chunk(
                    << ", error: " << FSStatusCode_Name(resStat);
     } else {
         response->set_chunkid(chunkId);
-        VLOG(0) << "AllocateS3Chunk success, request: "
+        VLOG(9) << "AllocateS3Chunk success, request: "
                 << request->ShortDebugString()
                 << ", response: " << response->ShortDebugString();
     }
