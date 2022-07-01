@@ -1,10 +1,13 @@
-## 概述
+[中文版](Community_Guidelines_cn.md)
 
-本文旨在帮助社区开发者了解 Curve 项目的全貌，更好的参与 Curve 项目的开发与演进。本文会站在社区参与者的角度进行描述如何更好的参与到 Curve 项目发展中来。
 
-## 如何了解 Curve
+## Overview
 
-参与开源项目的前提是了解它，特别是针对 Curve 这样的大型的复杂项目，入门难度较大，这里提供一些资料帮助那些对 Curve 项目感兴趣的同学：
+This article aims to help community developers to get the full picture of the Curve project and better participate in the development and evolution of the Curve project. This article will describe how to better participate in the development of the Curve project from the perspective of community participants.
+
+## How to learn about Curve
+
+The premise of participating in an open source project is to understand it, especially for a large and complex project such as Curve, it is difficult to get started. Here are some information to help those who are interested in the Curve project:
 
 - [Curve Overview](https://github.com/opencurve/curve/tree/master/docs)
 - [Curve Architecture](http://www.opencurve.io/)
@@ -13,61 +16,61 @@
 - [Curve Code  Analysis](https://github.com/opencurve/curve/wiki/Curve源码及核心流程深度解读)
 - [Curve FAQ](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ)
 
-通过上面的资料的学习相信你已经对 Curve 项目有了一个整体的了解，同时可能也存在着一些好奇和疑问，这时可以部署一个 Curve 的体验环境，这样有利于更加直观的感知 Curve 系统，对于遇到了问题或者是想要新的 feature 可以追踪相关的代码，在这个过程中很容易对相关模块有了解，不少贡献者就是这样完成了第一次的贡献。
+Through the study of the above materials, I believe that you already have an overall understanding of the Curve project, and there may also be some curiosity and doubts. At this time, you can deploy a Curve experience environment, which is conducive to a more intuitive perception of the Curve system. If you encounter a problem or want a new feature, you can track the relevant code. In the process, it is easy to understand the relevant modules. This is lots of contributors completed their first contributions.
 
-Curve 社区有多个[沟通渠道](#社区交流)，每两周还会有线上的社区例会，例会上会同步近期 Curve 项目的进展，解答大家的疑问，也欢迎大家参加 Curve 社区例会，在会上进行交流，这样能够快速解答大家的疑问，提升对 Curve 项目的了解和同步现阶段做的事情。
+The Curve community has multiple [communication channels](#Comminication), and there will be an online community meeting every two weeks. The regular meeting will synchronize the recent progress of the Curve project and answer your questions. You are also welcome to participate in the Curve community regular meeting. We will communicate at the meeting, so that we can quickly answer your questions, improve our understanding of the Curve project and synchronize what we are doing at this stage.
 
-## 如何参与 Curve
+## How to participate in Curve
 
-在对 Curve 项目有一定了解后，如果感兴趣就可以选择入手点进行 Curve 开源项目的参与了，可以从以下几个方面进行选择：
+After you have a certain understanding of the Curve project, if you are interested, you can choose the starting point to participate in the Curve. You can choose from the following aspects:
 
-- 从 Curve 项目的 [Issue](https://github.com/opencurve/curve/issues) 中选择感兴趣的问题入手，可以特别关注带有 good_first_issue tag 的 issue，这些是我们经过评估认为是相对好入门的一些问题。
-- 在对 Curve 项目有一定了解的基础上也可以从 [Roadmap](https://github.com/opencurve/curve/wiki/Roadmap_CN) 中进行选择。
-- 从 Curve 项目的运维工具 [Curveadm](https://github.com/opencurve/curveadm) 的 [Issue](https://github.com/opencurve/curveadm/issues) 和 [Roadmap](https://github.com/opencurve/curveadm/issues/92) 中进行选择，开发方式可参见[快速上手 CurveAdm 开发](https://github.com/opencurve/curveadm/wiki/develop)。
-- 除了已有的 issue，也欢迎将自己发现的问题或希望的新特性提出 issue 并进行解决。
-- 可以关注现有 Curve 代码中的 *TODO* ，大部分为代码逻辑优化和待补充特性，选择感兴趣的提出相关 issue 跟进并尝试解决。
-
-
-## 如何进行方案提交
-
-找到一个感兴趣的点之后，可以通过 issue 进行讨论，如果是一个小的 bug-fix 或者是功能点，可以在进行简单讨论之后开始着手开发。即使简单的问题，也建议先与我们进行沟通，以免出现对问题的理解出了偏差或解决方案有问题，做了无用功。
-
-如果要做的事情比较复杂，需要先写一个详细的设计文档，提交到 curve/docs 下，这个目录下已有的设计方案供你参考。一篇好的设计方案要写清楚以下几点：
-
-- 背景描述
-- 解决什么问题
-- 方案设计（方案描述，正确性和可行性），最好还能包括几种方案的对比
-- 与现有系统的兼容性
-- 方案的具体实现
-
-在开始方案撰写之前同样建议先与我们进行沟通，对方案的可行性不太确定的可以先提供简单的方案描述，经过我们评估后再进行细化和开发。
+- Start by selecting a interested one from the [Issues](https://github.com/opencurve/curve/issues) of the Curve project. You can pay attention to issues with the good_first_issue tag which we have assessed as relatively good starters.
+- Based on a certain understanding of the Curve project, you can also choose from [Roadmap](https://github.com/opencurve/curve/wiki/Roadmap).
+- Selecting form [Issues](https://github.com/opencurve/curveadm/issues) and [Roadmap](https://github.com/opencurve/curveadm/issues/92) of  Curve Operation and maintenance tools [Curveadm](https://github.com/opencurve/curveadm). Here are [quick start guidelines](https://github.com/opencurve/curveadm/wiki/develop)。
+- In addition to the existing issues, you are also welcome to submit issues that you have discovered or new features you hope for and resolve them.
+- You can pay attention to the *TODO* in the existing Curve code, most of which are code logic optimization and features to be supplemented, choose the ones you are interested in and raise relevant issues to follow up and try to solve.
 
 
-## 如何提交PR
+## How to submit a proposal
 
-在完成代码编写后，就可以提交 PR。当然如果开发尚未完成，在某些情况下也可以先提交 PR，比如希望先让社区看一下大致的解决方案，可以在完成代码框架后提价 PR。
+After you find a point of interest, you can discuss it through an issue. If it is a small bug-fix or a feature point, you can start development after a brief discussion. Even if it is a simple problem, it is recommended to communicate with us first, so as to avoid a deviation in the understanding of the problem or a problem with the solution, and useless efforts are made.
 
-[Curve 编译环境快速构建](https://github.com/opencurve/curve/blob/master/docs/cn/build_and_run.md)
+If the work to be done is more complicated, you need to write a detailed design document and submit it to curve/docs. The existing design solutions in this directory are for your reference. A good design plan should clearly write the following points:
 
-[Curve 测试用例编译及执行](https://github.com/opencurve/curve/blob/master/docs/cn/build_and_run.md#测试用例编译及执行)
+- Background description
+- what problem to solve
+- Scheme design (scheme description, correctness and feasibility), preferably including the comparison of several schemes
+- Compatibility with existing systems
+- Concrete realization of the scheme
 
-对于 PR 我们有如下要求：
+It is also recommended to communicate with us before starting the plan writing. If you are not sure about the feasibility of the plan, you can provide a simple plan description first, and then refine and develop it after our evaluation.
 
-- CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，请您也遵循这一指南来提交您的代码。
-- 代码必须有测试，文档除外，单元测试（增量行覆盖80%以上，增量分支覆盖70%以上）；集成测试（与单元测试合并统计，满足单元测试覆盖率要求即可）
-- 请尽可能详细的填写 PR 的描述，关联相关问题的 issuse，PR commit message 能清晰看出解决的问题，提交到 Curve master 分支之后会自动触发Curve CI，需保证 CI 通过，CI 的 Jenkins 用户名密码为 netease/netease，如遇到 CI 运行失败可以登录 Jenkins 平台查看失败原因。
-- CI 通过之后可开始进行 review，每个 PR 在合并之前都需要至少得到两个 Committer/Maintainer 的 LGTM。
-- PR 代码需要一定量的注释来使代码容易理解，且所有注释和 review 意见和回复均要求使用英语。
 
-## 社区交流
+## How to submit a PR
 
-目前 Curve 社区有多个沟通交流的渠道，请根据自己的需求选择合适高效的沟通方式：
+Once you've finished writing the code, you can submit a PR. Of course, if the development has not been completed, you can submit PR first in some cases. For example, if you want to let the community take a look at the general solution, you can raise the price of PR after completing the code framework.
 
-- [**GIthub Issue**](https://github.com/opencurve/curve/issues): Curve 项目功能、性能等相关问题请优先选择该渠道，这样便于问题的持续追踪和研发同学的及时回复。
-- [**Curve FAQ**](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ): 主要根据 Curve User Group中的常见问题整理，涵盖了大部分用户关心的问题，包括 Curve 的产品定位，应用场景，应用现状和开源目标等。在了解 Curve 项目过程中可查看常见问题来加深了解。
-- [**Curve 论坛**](https://ask.opencurve.io/): Curve 论坛同样是重要的沟通渠道，在这 Curve 团队会发布技术文章和大家进行技术问题的探讨，如果你有关于 Curve 项目的问题可以在这里发布讨论话题。
-- **Curve 微信公众号**: OpenCurve，可关注 Curve 微信公众号，我们每周都会发布文章，除了技术文章还会有 Curve 的应用进展和大新闻，便于大家了解 Curve 的现状。对于发布的内容有疑问或想了解的内容可以通过私信反馈。
+[Quick build Curve development environment](https://github.com/opencurve/curve/blob/master/docs/en/build_and_run_en.md)
+
+[Build and run Curve tests](https://github.com/opencurve/curve/blob/master/docs/en/build_and_run_en.md#test-case-compilation-and-execution)
+
+For PR we have the following requirements:
+
+- The CURVE coding standard strictly follows the [Google C++ Open Source Project Coding Guide](https://google.github.io/styleguide/cppguide.html), please follow this guide as well Submit your code.
+- The code must have test cases, excluding documentation, unit tests (incremental lines cover more than 80%, and incremental branches cover more than 70%); integration tests (merge statistics with unit tests, and meet the unit test coverage requirements).
+- Please fill in the description of the PR as detailed as possible,  associate with the relevant issues, and the PR commit message can clearly see the resolved issues. After submitting to the Curve master branch, Curve CI will be triggered automatically. It is necessary to ensure that the CI is passed, and the Jenkins username and password of the CI is netease/netease, if the CI fails to run, you can log in to the Jenkins platform to view the reason for the failure.
+- After the CI is passed, the review can start, and each PR needs to get at least two LGTMs of Committer/Maintainer before merging.
+- PR code requires a certain amount of comments to make the code easy to understand, and all comments and review comments and replies are required to be in English.
+
+## Comminication
+
+At present, the Curve community has multiple communication channels, please choose an appropriate and efficient communication method according to your needs:
+
+- [**GIthub Issue**](https://github.com/opencurve/curve/issues): For questions related to the function and performance of the Curve project, please choose this channel first, which is convenient for continuous tracking of problems and timely responses from R&D students.
+- [**Curve FAQ**](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ): It is mainly organized according to the common problems in the Curve User Group, covering the issues that most users care about, including Curve's product positioning, application scenarios, application status and open source goals. Check out the Frequently Asked Questions to learn more about the Curve project.
+- [**Curve forum**](https://ask.opencurve.io/): The Curve forum is also an important communication channel, where the Curve team will publish technical articles and discuss technical issues with everyone. If you have questions about the Curve project, you can post a discussion topic here.
+- **Curve WeChat public account**: OpenCurve，You can subscribe to Curve's WeChat official account. We will publish articles every week. In addition to technical articles, there will be Curve's application progress and big news, so that everyone can understand the current situation of Curve. If you have any questions or want to know about the published content, you can give feedback through private messages.
 - **slack**: cloud-native.slack.com，channel #project_curve
-- **Curve User Group**: 为了便于大家即时的沟通，Curve User Group 目前为微信群，由于群人数过多，需要先添加OpenCurve_bot微信，再邀请进群。在用户群里大家可以自由的沟通关于 Curve 和存储相关的话题，对于存在问题也可以较为即时的得到反馈。
+- **Curve User Group**: In order to facilitate instant communication with everyone, the Curve User Group is currently a WeChat group. Due to the large number of people in the group, it is necessary to add OpenCurve_bot WeChat first, and then invite into the group. In the user group, everyone can freely communicate about Curve and storage-related topics, and get immediate feedback on problems.
 
 <img src="docs/images/curve-wechat.jpeg" style="zoom: 75%;" />

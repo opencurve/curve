@@ -113,25 +113,14 @@ Curve支持部署在私有云和公有云环境，也可以以混合云方式使
 
 ## 参与贡献
 
+如何参与 Curve 项目开发详见[Curve 开源社区指南](../Community_Guidelines_cn.md)
+
 ### 部署编译开发环境
 
 [编译开发环境搭建](cn/build_and_run.md)
 
 ### 测试用例编译及运行
 [测试用例编译及运行](cn/build_and_run.md#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E7%BC%96%E8%AF%91%E5%8F%8A%E6%89%A7%E8%A1%8C)
-
-### 编码规范
-CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，请您也遵循这一指南来提交您的代码。
-
-### 测试覆盖率要求
-1. 单元测试：增量行覆盖80%以上，增量分支覆盖70%以上
-2. 集成测试：与单元测试合并统计，满足上述覆盖率要求即可
-3. 异常测试：暂不做要求
-
-### 其他开发流程说明
-代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。CI的Jenkins用户名密码为netease/netease，如遇到CI运行失败可以登录Jenkins平台查看失败原因。
-具体规则请见[CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
-
 
 ## 联系社区
 - [Github Issues](https://github.com/openCURVE/CURVE/issues)：欢迎提交BUG、建议，使用中如遇到问题可参考FAQ或加入我们的User group进行咨询
