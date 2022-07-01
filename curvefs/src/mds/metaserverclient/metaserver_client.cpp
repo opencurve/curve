@@ -108,6 +108,7 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
     request.set_copysetid(ctx.copysetId);
 
     for (const std::string &item : ctx.addrs) {
+        LOG(INFO) << "GetLeader from " << item;
         if (channel_.Init(item.c_str(), nullptr) != 0) {
             LOG(ERROR) << "Init channel to metaserver: " << item << " failed!";
             continue;
@@ -121,12 +122,13 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
         uint32_t maxRetry = options_.rpcRetryTimes;
         while (cntl.Failed() && (maxRetry > 0)) {
             int32_t retCode = cntl.ErrorCode();
-            if (retCode == -EHOSTDOWN || retCode == -ECONNRESET ||
-                retCode == -ECONNREFUSED || retCode == -brpc::ELOGOFF) {
-                LOG(WARNING) << "GetLeader failed"
-                             << ", poolid = " << ctx.poolId
-                             << ", copysetId = " << ctx.copysetId
-                             << ", Rpc error = " << cntl.ErrorText();
+            LOG(WARNING) << "GetLeader failed"
+                         << ", poolid = " << ctx.poolId
+                         << ", copysetId = " << ctx.copysetId
+                         << ", errorCode = " << retCode
+                         << ", Rpc error = " << cntl.ErrorText();
+            if (retCode == EHOSTDOWN || retCode == ECONNRESET ||
+                retCode == ECONNREFUSED || retCode == brpc::ELOGOFF) {
                 break;
             }
             maxRetry--;
@@ -270,6 +272,8 @@ FSStatusCode MetaserverClient::CreatePartition(
     } else {
         switch (response.statuscode()) {
             case MetaStatusCode::OK:
+                LOG(INFO) << "CreatePartition success, partitionId = "
+                          << partitionId;
                 return FSStatusCode::OK;
             case MetaStatusCode::PARTITION_EXIST:
                 LOG(ERROR) << "CreatePartition failed, partition exist.";
