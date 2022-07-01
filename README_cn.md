@@ -116,7 +116,7 @@ Ceph: L/N
 
 ## 参与开发
 
-如何参与 Curve 项目开发详见[Curve 开源社区指南](Community_Guidelines.md)
+如何参与 Curve 项目开发详见[Curve 开源社区指南](Community_Guidelines_cn.md)
 
 ### 部署编译开发环境
 
