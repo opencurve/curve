@@ -316,6 +316,24 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
         ++(*deletedNum);
     }
 
+    const S3ChunkInfoMap &map2add = request.s3chunkinfoadd();
+    const S3ChunkInfoList *list2add;
+    VLOG(9) << "UpdateInode inode " << old->inodeid() << " map2add size "
+            << map2add.size();
+    uint64_t size4add = 0;
+    for (const auto &item : map2add) {
+        uint64_t chunkIndex = item.first;
+        list2add = &item.second;
+        MetaStatusCode rc = inodeStorage_->ModifyInodeS3ChunkInfoList(
+            old->fsid(), old->inodeid(), chunkIndex, list2add, nullptr);
+        if (rc != MetaStatusCode::OK) {
+            LOG(ERROR) << "Modify inode s3chunkinfo list failed, fsId="
+                       << old->fsid() << ", inodeId=" << old->inodeid()
+                       << ", retCode=" << rc;
+            return rc;
+        }
+    }
+
     VLOG(9) << "UpdateInode success, " << request.ShortDebugString();
     return MetaStatusCode::OK;
 }
