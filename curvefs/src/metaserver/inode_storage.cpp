@@ -49,7 +49,6 @@ using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4AllInode;
 using ::curvefs::metaserver::storage::Key4InodeAuxInfo;
 
-using Transaction = std::shared_ptr<StorageTransaction>;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
@@ -270,13 +269,16 @@ MetaStatusCode InodeStorage::Clear() {
     return MetaStatusCode::OK;
 }
 
-bool InodeStorage::UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
-                                         uint64_t size4add, uint64_t size4del) {
+MetaStatusCode InodeStorage::UpdateInodeS3MetaSize(Transaction txn,
+                                                   uint32_t fsId,
+                                                   uint64_t inodeId,
+                                                   uint64_t size4add,
+                                                   uint64_t size4del) {
     uint64_t size = 0;
     InodeAuxInfo out;
     Key4InodeAuxInfo key(fsId, inodeId);
     std::string skey = key.SerializeToString();
-    Status s = kvStorage_->HGet(table4InodeAuxInfo_, skey, &out);
+    Status s = txn->HGet(table4InodeAuxInfo_, skey, &out);
     if (s.ok()) {
         size = out.s3metasize();
     } else if (s.IsNotFound()) {
@@ -284,24 +286,24 @@ bool InodeStorage::UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
     } else {
         LOG(ERROR) << "failed to get inode s3 meta size, status="
                    << s.ToString();
-        return false;
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     size += size4add;
     if (size < size4del) {
-        LOG(ERROR) << "current inode s3 meta size is " << size
-                   << ", less than " << size4del;
-        return false;
+        LOG(ERROR) << "current inode s3 meta size is " << size << ", less than "
+                   << size4del;
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     out.set_s3metasize(size - size4del);
-    s = kvStorage_->HSet(table4InodeAuxInfo_, skey, out);
+    s = txn->HSet(table4InodeAuxInfo_, skey, out);
     if (!s.ok()) {
         LOG(ERROR) << "failed to set inode s3 meta size, status="
                    << s.ToString();
-        return false;
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-    return true;
+    return MetaStatusCode::OK;
 }
 
 uint64_t InodeStorage::GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
@@ -335,11 +337,16 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     size_t size = list2add->s3chunks_size();
     uint64_t firstChunkId = list2add->s3chunks(0).chunkid();
     uint64_t lastChunkId = list2add->s3chunks(size - 1).chunkid();
+
     Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
                             firstChunkId, lastChunkId, size);
     std::string skey = conv_.SerializeToString(key);
-
-    Status s = txn->SSet(table4S3ChunkInfo_, skey, *list2add);
+    Status s;
+    if (txn) {
+        s = txn->SSet(table4S3ChunkInfo_, skey, *list2add);
+    } else {
+        s = kvStorage_->SSet(table4S3ChunkInfo_, skey, *list2add);
+    }
     return s.ok() ? MetaStatusCode::OK :
                     MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
@@ -410,16 +417,31 @@ MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
     const S3ChunkInfoList* list2del) {
     WriteLockGuard lg(rwLock_);
     auto txn = kvStorage_->BeginTransaction();
+    std::string step;
     if (nullptr == txn) {
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
 
     auto rc = DelS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2del);
+    step = "del s3 chunkinfo list ";
     if (rc == MetaStatusCode::OK) {
         rc = AddS3ChunkInfoList(txn, fsId, inodeId, chunkIndex, list2add);
+        step = "add s3 chunkInfo list ";
+    }
+
+    if (rc == MetaStatusCode::OK) {
+        uint64_t size4add =
+            (nullptr == list2add) ? 0 : list2add->s3chunks_size();
+        uint64_t size4del =
+            (nullptr == list2del) ? 0 : list2del->s3chunks_size();
+        // TODO(huyao): I don't think this place is idempotent. If the timeout
+        // is retried, the size will increase.
+        rc = UpdateInodeS3MetaSize(txn, fsId, inodeId, size4add, size4del);
+        step = "update inode s3 meta size ";
     }
 
     if (rc != MetaStatusCode::OK) {
+        LOG(ERROR) << "txn is failed in " << step << ".";
         if (!txn->Rollback().ok()) {
             LOG(ERROR) << "Rollback transaction failed";
             rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
@@ -427,18 +449,6 @@ MetaStatusCode InodeStorage::ModifyInodeS3ChunkInfoList(
     } else if (!txn->Commit().ok()) {
         LOG(ERROR) << "Commit transaction failed";
         rc = MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-
-    if (rc != MetaStatusCode::OK) {
-        return rc;
-    }
-
-    // rc == MetaStatusCode::OK
-    uint64_t size4add = (nullptr == list2add) ? 0 : list2add->s3chunks_size();
-    uint64_t size4del = (nullptr == list2del) ? 0 : list2del->s3chunks_size();
-    if (!UpdateInodeS3MetaSize(fsId, inodeId, size4add, size4del)) {
-        LOG(ERROR) << "Update inode s3meta size failed";
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
     return rc;
 }

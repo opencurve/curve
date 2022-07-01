@@ -51,6 +51,7 @@ using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::common::StreamStatus;
 using ::curvefs::common::StreamClient;
+using S3ChunkInofMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace client {
@@ -111,20 +112,22 @@ class MetaServerClient {
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE,
-            bool internal = false) = 0;
+    virtual MetaStatusCode UpdateInodeAttrWithOutNlink(
+        const Inode &inode,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        S3ChunkInofMap *s3ChunkInfoAdd = nullptr,
+        bool internal = false) = 0;
 
     virtual void UpdateInodeAttrAsync(const Inode &inode,
         MetaServerClientDone *done,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual void UpdateInodeAttrWithOutNlinkAsync(const Inode &inode,
+    virtual void UpdateInodeWithOutNlinkAsync(const Inode &inode,
         MetaServerClientDone *done,
         InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) = 0;
+            InodeOpenStatusChange::NOCHANGE,
+            S3ChunkInofMap *s3ChunkInfoAdd = nullptr) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -213,19 +216,21 @@ class MetaServerClientImpl : public MetaServerClient {
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) override;
 
-    MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE,
-            bool internal = false) override;
+    MetaStatusCode UpdateInodeAttrWithOutNlink(
+        const Inode &inode,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        S3ChunkInofMap *s3ChunkInfoAdd = nullptr,
+        bool internal = false) override;
 
     void UpdateInodeAttrAsync(const Inode &inode, MetaServerClientDone *done,
                           InodeOpenStatusChange statusChange =
                               InodeOpenStatusChange::NOCHANGE) override;
 
-    void UpdateInodeAttrWithOutNlinkAsync(const Inode &inode,
+    void UpdateInodeWithOutNlinkAsync(const Inode &inode,
         MetaServerClientDone *done,
         InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) override;
+            InodeOpenStatusChange::NOCHANGE,
+            S3ChunkInofMap *s3ChunkInfoAdd = nullptr) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -272,7 +277,8 @@ class MetaServerClientImpl : public MetaServerClient {
 
     UpdateInodeRequest BuileUpdateInodeAttrWithOutNlinkRequest(
         const Inode &inode,
-        InodeOpenStatusChange statusChange);
+        InodeOpenStatusChange statusChange,
+        S3ChunkInofMap *s3ChunkInfoAdd);
 
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
                                  uint64_t* chunkIndex,

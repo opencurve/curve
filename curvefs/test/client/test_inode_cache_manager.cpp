@@ -245,22 +245,13 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync(_, _, _, _))
         .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
-                            InodeOpenStatusChange statusChange) {
+                            InodeOpenStatusChange statusChange,
+                            S3ChunkInofMap *s3ChunkInfoAdd) {
             done->SetMetaStatusCode(MetaStatusCode::OK);
             done->Run();
         }));
-
-    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))
-        .WillOnce(
-            Invoke([](uint32_t fsId, uint64_t inodeId,
-                      const google::protobuf::Map<uint64_t, S3ChunkInfoList>
-                          &s3ChunkInfos,
-                      MetaServerClientDone *done) {
-                done->SetMetaStatusCode(MetaStatusCode::OK);
-                done->Run();
-            }));
 
     iCacheManager_->FlushAll();
 }
@@ -367,10 +358,11 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync(_, _, _, _))
         .WillRepeatedly(
             Invoke([](const Inode &inode, MetaServerClientDone *done,
-                      InodeOpenStatusChange statusChange) {
+                      InodeOpenStatusChange statusChange,
+                      S3ChunkInofMap *s3ChunkInfoAdd) {
                 done->SetMetaStatusCode(MetaStatusCode::OK);
                 done->Run();
             }));
