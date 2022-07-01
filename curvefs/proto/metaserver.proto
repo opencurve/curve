@@ -292,6 +292,7 @@ message UpdateInodeRequest {
     optional InodeOpenStatusChange inodeOpenstatusChange = 19;
     map<string, string> xattr = 20;
     repeated uint64 parent = 21;
+    map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
 }
 
 message UpdateInodeResponse {

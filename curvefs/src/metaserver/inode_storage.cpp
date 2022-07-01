@@ -343,11 +343,16 @@ MetaStatusCode InodeStorage::AddS3ChunkInfoList(
     size_t size = list2add->s3chunks_size();
     uint64_t firstChunkId = list2add->s3chunks(0).chunkid();
     uint64_t lastChunkId = list2add->s3chunks(size - 1).chunkid();
+
     Key4S3ChunkInfoList key(fsId, inodeId, chunkIndex,
                             firstChunkId, lastChunkId, size);
     std::string skey = conv_.SerializeToString(key);
-
-    Status s = txn->SSet(table4S3ChunkInfo_, skey, *list2add);
+    Status s;
+    if (txn) {
+        s = txn->SSet(table4S3ChunkInfo_, skey, *list2add);
+    } else {
+        s = kvStorage_->SSet(table4S3ChunkInfo_, skey, *list2add);
+    }
     return s.ok() ? MetaStatusCode::OK :
                     MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
