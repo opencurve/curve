@@ -140,10 +140,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -165,18 +162,11 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
-        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
-
-    CURVEFS_ERROR ret2 = inodeWrapper_->Sync();
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret2);
 }
 
 TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
@@ -184,7 +174,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
 
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
     inodeWrapper_->ClearDirty();
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .Times(0);
@@ -203,7 +193,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     pext.pOffset = 0;
     pext.UnWritten = true;
     extentCache->Merge(0, pext);
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,

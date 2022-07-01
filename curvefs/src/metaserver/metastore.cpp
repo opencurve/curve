@@ -619,6 +619,7 @@ MetaStatusCode MetaStoreImpl::DeleteInode(const DeleteInodeRequest* request,
 MetaStatusCode MetaStoreImpl::UpdateInode(const UpdateInodeRequest* request,
                                           UpdateInodeResponse* response) {
     ReadLockGuard readLockGuard(rwLock_);
+    VLOG(9) << "UpdateInode inode " << request->inodeid();
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
         MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
