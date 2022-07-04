@@ -283,6 +283,62 @@ TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithExIp) {
     ASSERT_EQ(TopoStatusCode::TOPO_METASERVER_EXIST, response.statuscode());
 }
 
+TEST_F(TestTopologyManager, test_RegistMetaServer_SuccessWithOfflineMs) {
+    MetaServerIdType msId = 0x41;
+    MetaServerIdType msId2 = 0x42;
+    ServerIdType serverId = 0x31;
+    std::string token = "token";
+    std::string token2 = "token2";
+
+    PrepareAddPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "testServer", "testInternalIp", 0, "externalIp1",
+                     0);
+
+    MetaServerRegistRequest request;
+    request.set_hostname("metaserver");
+    request.set_internalip("testInternalIp");
+    request.set_internalport(0);
+    request.set_externalip("externalIp1");
+    request.set_externalport(0);
+
+    MetaServerRegistResponse response;
+
+    EXPECT_CALL(*tokenGenerator_, GenToken())
+        .WillOnce(Return(token))
+        .WillOnce(Return(token2));
+
+    EXPECT_CALL(*idGenerator_, GenMetaServerId())
+        .WillOnce(Return(msId))
+        .WillOnce(Return(msId2));
+
+    EXPECT_CALL(*storage_, StorageMetaServer(_)).WillRepeatedly(Return(true));
+    serviceManager_->RegistMetaServer(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_metaserverid());
+    ASSERT_EQ(msId, response.metaserverid());
+    ASSERT_TRUE(response.has_token());
+    ASSERT_EQ(token, response.token());
+    MetaServer metaserver;
+    ASSERT_TRUE(topology_->GetMetaServer(msId, &metaserver));
+    ASSERT_EQ("externalIp1", metaserver.GetExternalIp());
+
+    // set metaserver offline
+    ASSERT_EQ(TopoStatusCode::TOPO_OK,
+        topology_->UpdateMetaServerOnlineState(OnlineState::OFFLINE, msId));
+
+    // test regist same metaserver but metaserver is offline
+    serviceManager_->RegistMetaServer(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_metaserverid());
+    ASSERT_EQ(msId2, response.metaserverid());
+    ASSERT_TRUE(response.has_token());
+    ASSERT_EQ(token2, response.token());
+    ASSERT_TRUE(topology_->GetMetaServer(msId, &metaserver));
+    ASSERT_EQ("externalIp1", metaserver.GetExternalIp());
+}
+
 TEST_F(TestTopologyManager, test_RegistMetaServer_ExIpNotMatch) {
     MetaServerIdType csId = 0x41;
     ServerIdType serverId = 0x31;

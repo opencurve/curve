@@ -57,7 +57,8 @@ void TopologyManager::RegistMetaServer(const MetaServerRegistRequest *request,
     std::vector<MetaServerIdType> list = topology_->GetMetaServerInCluster(
         [&hostIp, &port](const MetaServer &ms) {
             return (ms.GetInternalIp() == hostIp) &&
-                   (ms.GetInternalPort() == port);
+                   (ms.GetInternalPort() == port) &&
+                   (ms.GetOnlineState() != OnlineState::OFFLINE);
         });
     if (1 == list.size()) {
         // report duplicated register (already a metaserver with same ip and
