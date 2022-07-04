@@ -274,6 +274,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetRpcStreamIdleTimeoutMs;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRpcRetryIntervalUs;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>

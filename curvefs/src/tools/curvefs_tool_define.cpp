@@ -83,6 +83,7 @@ static constexpr uint64_t kGiB = 1ULL * 1024 * 1024 * 1024;
 DEFINE_uint64(volumeSliceSize, 1 * kGiB, "volume extents slice size");
 
 DEFINE_uint32(rpcStreamIdleTimeoutMs, 10000, "rpc stream idle timeout");
+DEFINE_uint32(rpcRetryIntervalUs, 1000, "rpc retry interval(us)");
 
 namespace curvefs {
 
@@ -232,6 +233,11 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetRpcStreamIdleTimeoutMs = std::bind(
         &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
         "rpcStreamIdleTimeoutMs", &FLAGS_rpcStreamIdleTimeoutMs);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetRpcRetryIntervalUs = std::bind(
+        &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
+        "rpcRetryIntervalUs", &FLAGS_rpcRetryIntervalUs);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =
