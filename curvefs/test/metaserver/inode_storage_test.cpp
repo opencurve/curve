@@ -224,7 +224,6 @@ TEST_F(InodeStorageTest, test1) {
     ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::OK);
 
     // update
-    ASSERT_EQ(storage.Update(inode1), MetaStatusCode::NOT_FOUND);
     Inode oldInode;
     ASSERT_EQ(storage.Get(Key4Inode(inode2), &oldInode), MetaStatusCode::OK);
     inode2.set_atime(400);
