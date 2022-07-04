@@ -450,7 +450,7 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
                     std::dynamic_pointer_cast<const GetObjectAsyncContext>(
                         awsCtx));
 
-            LOG_IF(ERROR, !response.IsSuccess())
+            LOG_IF(WARNING, !response.IsSuccess())
                 << "GetObjectAsync error: "
                 << response.GetError().GetExceptionName()
                 << response.GetError().GetMessage();
