@@ -96,6 +96,8 @@ MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
         return MetaStatusCode::OK;
     } else if (s.IsNotFound()) {
         return MetaStatusCode::NOT_FOUND;
+    } else if (s.IsDBClosed()) {
+        return MetaStatusCode::STORAGE_CLOSED;
     }
 
     LOG(ERROR) << "Get inode failed, status = " << s.ToString();

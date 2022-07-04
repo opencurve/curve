@@ -147,9 +147,15 @@ MetaStatusCode InodeManager::GetInode(uint32_t fsId,
     }
 
     if (rc != MetaStatusCode::OK) {
-        LOG(ERROR) << "GetInode fail, fsId = " << fsId
-                   << ", inodeId = " << inodeId
-                   << ", retCode = " << MetaStatusCode_Name(rc);
+        std::ostringstream oss;
+        oss << "GetInode fail, fsId = " << fsId << ", inodeId = " << inodeId
+            << ", retCode = " << MetaStatusCode_Name(rc);
+
+        if (rc == MetaStatusCode::STORAGE_CLOSED) {
+            LOG(WARNING) << oss.str();
+        } else {
+            LOG(ERROR) << oss.str();
+        }
         return rc;
     }
 
