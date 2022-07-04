@@ -188,17 +188,7 @@ MetaStatusCode InodeStorage::Update(const Inode& inode) {
     Key4Inode key(inode.fsid(), inode.inodeid());
     std::string skey = conv_.SerializeToString(key);
 
-    // FIXME: we need't to HGet() before HSet(), because every time
-    // we try to update inode we will get inode first in inode manager.
-    Inode out;
-    Status s = kvStorage_->HGet(table4Inode_, skey, &out);
-    if (s.IsNotFound()) {
-        return MetaStatusCode::NOT_FOUND;
-    } else if (!s.ok()) {
-        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
-    }
-
-    s = kvStorage_->HSet(table4Inode_, skey, inode);
+    Status s = kvStorage_->HSet(table4Inode_, skey, inode);
     if (s.ok()) {
         return MetaStatusCode::OK;
     }
