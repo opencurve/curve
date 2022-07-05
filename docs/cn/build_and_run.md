@@ -42,7 +42,7 @@ bash mk-tar.sh （编译 curvebs 并打tar包）
 bash mk-deb.sh （编译 curvebs 并打debian包）
 # curve v2.0 及之后
 编译 curvebs: cd curve && make build
-编译 curvefs: cd curve/curvefs && make build
+编译 curvefs: cd curve/curvefs && make build dep=1
 ```
 
 
@@ -71,7 +71,7 @@ bash mk-tar.sh （编译 curvebs 并打tar包）
 bash mk-deb.sh （编译 curvebs 并打debian包）
 # curve v2.0 及之后
 编译 curvebs: cd curve && make build
-编译 curvefs: cd curve/curvefs && make build
+编译 curvefs: cd curve/curvefs && make build dep=1
 ```
 
 ## 测试用例编译及执行

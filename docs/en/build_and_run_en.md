@@ -38,7 +38,7 @@ bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
 # after curve v2.0
 compile curvebs: cd curve && make build
-compile curvefs: cd curve/curvefs && make build
+compile curvefs: cd curve/curvefs && make build dep=1
 ```
 
 ## Compile on a physical machine
@@ -66,7 +66,7 @@ bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
 # after curve v2.0
 compile curvebs: cd curve && make build
-compile curvefs: cd curve/curvefs && make build
+compile curvefs: cd curve/curvefs && make build dep=1
 ```
 
 ## Test case compilation and execution
