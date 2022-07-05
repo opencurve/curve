@@ -58,12 +58,32 @@ DEFINE_int32(
     16,
     "Maximum number of concurrent background jobs (compactions and flushes)");
 
+DEFINE_int32(
+    rocksdb_max_subcompactions,
+    4,
+    "Maxinum number of threads to perform a compaction job by simultaneously");
+
+DEFINE_int32(rocksdb_level0_file_num_compaction_trigger,
+             1,
+             "Number of files to trigger level-0 compaction");
+
+// NOTE: now we enable `level_compaction_dynamic_level_bytes`,
+// the `max_bytes_for_level_base` represent level-6's capacity,
+// and in this model, all level-0 SST will compacted into L6 directly,
+// so we should increase level-6's max_bytes, it helped to reduce
+// range scan performance skews caused by scanning excessed number of tombstones
+// for this reason, `rocksdb_level0_file_num_compaction_trigger`
+// should also been set to 1
+DEFINE_int64(rocksdb_max_bytes_for_level_base,
+             1ULL << 30,
+             "Control maximum total data size for a level");
+
 DEFINE_double(rocksdb_memtable_prefix_bloom_size_ratio,
               0.1,
               "Rocksdb memtable prefix bloom size ratio");
 
 DEFINE_int64(rocksdb_unordered_cf_write_buffer_size,
-             64 << 20,
+             64ULL << 20,
              "Writer buffer size for unordered column family");
 
 DEFINE_int32(rocksdb_unordered_cf_max_write_buffer_number,
@@ -71,7 +91,7 @@ DEFINE_int32(rocksdb_unordered_cf_max_write_buffer_number,
              "Number of writer buffer for unordered column family");
 
 DEFINE_int64(rocksdb_ordered_cf_write_buffer_size,
-             64 << 20,
+             64ULL << 20,
              "Writer buffer size for ordered column family");
 
 DEFINE_int32(rocksdb_ordered_cf_max_write_buffer_number,
@@ -79,7 +99,7 @@ DEFINE_int32(rocksdb_ordered_cf_max_write_buffer_number,
              "Number of writer buffer for ordered column family");
 
 DEFINE_int32(rocksdb_max_write_buffer_size_to_maintain,
-             20 << 20,
+             20ULL << 20,
              "The target number of write history bytes to hold in memory");
 
 DEFINE_int32(rocksdb_stats_dump_period_sec,
@@ -144,6 +164,7 @@ void InitRocksdbOptions(
     options->listeners.push_back(GetMetricEventListener());
     options->statistics = rocksdb::CreateDBStatistics();
     options->stats_dump_period_sec = FLAGS_rocksdb_stats_dump_period_sec;
+    options->max_subcompactions = FLAGS_rocksdb_max_subcompactions;
 
     rocksdb::BlockBasedTableOptions tableOptions;
     tableOptions.block_size = 16ULL << 10;  // 16KiB
@@ -158,12 +179,22 @@ void InitRocksdbOptions(
     defaultCfOptions.enable_blob_files = true;
     defaultCfOptions.level_compaction_dynamic_level_bytes = true;
     defaultCfOptions.compaction_pri = rocksdb::kMinOverlappingRatio;
+    defaultCfOptions.level0_file_num_compaction_trigger =
+        FLAGS_rocksdb_level0_file_num_compaction_trigger;
+    defaultCfOptions.max_bytes_for_level_base =
+        FLAGS_rocksdb_max_bytes_for_level_base;
     defaultCfOptions.prefix_extractor.reset(
         rocksdb::NewFixedPrefixTransform(RocksDBStorage::GetKeyPrefixLength()));
     defaultCfOptions.memtable_prefix_bloom_size_ratio =
         FLAGS_rocksdb_memtable_prefix_bloom_size_ratio;
     defaultCfOptions.table_factory.reset(
         rocksdb::NewBlockBasedTableFactory(tableOptions));
+    const size_t slidingWindowSize = 10000;
+    const size_t deletionTrigger = 1000;
+    const double deletionRatio = 0.2;
+    defaultCfOptions.table_properties_collector_factories.emplace_back(
+        rocksdb::NewCompactOnDeletionCollectorFactory(
+            slidingWindowSize, deletionTrigger, deletionRatio));
 
     rocksdb::ColumnFamilyOptions orderedCfOptions = defaultCfOptions;
     orderedCfOptions.write_buffer_size =
@@ -198,6 +229,17 @@ void ParseRocksdbOptions(curve::common::Configuration* conf) {
     dummy.Load(conf, "rocksdb_max_background_jobs",
                "storage.rocksdb.max_background_jobs",
                &FLAGS_rocksdb_max_background_jobs, /*fatalIfMissing*/ false);
+    dummy.Load(conf, "rocksdb_max_subcompactions",
+               "storage.rocksdb.max_subcompactions",
+               &FLAGS_rocksdb_max_subcompactions, /*fatalIfMissing*/ false);
+    dummy.Load(conf, "rocksdb_level0_file_num_compaction_trigger",
+               "storage.rocksdb.level0_file_num_compaction_trigger",
+               &FLAGS_rocksdb_level0_file_num_compaction_trigger,
+               /*fatalIfMissing*/ false);
+    dummy.Load(conf, "rocksdb_max_bytes_for_level_base",
+               "storage.rocksdb.max_bytes_for_level_base",
+               &FLAGS_rocksdb_max_bytes_for_level_base,
+               /*fatalIfMissing*/ false);
     dummy.Load(conf, "rocksdb_memtable_prefix_bloom_size_ratio",
                "storage.rocksdb.memtable_prefix_bloom_size_ratio",
                &FLAGS_rocksdb_memtable_prefix_bloom_size_ratio,
