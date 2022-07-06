@@ -315,7 +315,8 @@ class FileCacheManager {
     int ReadFromS3(const std::vector<S3ReadRequest> &requests,
                             std::vector<S3ReadResponse> *responses,
                             uint64_t fileLen);
-    void PrefetchS3Objs(std::vector<std::string> prefetchObjs);
+    void PrefetchS3Objs(
+        const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs);
     void HandleReadRequest(const ReadRequest &request,
                            const S3ChunkInfo &s3ChunkInfo,
                            std::vector<ReadRequest> *addReadRequests,
