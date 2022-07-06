@@ -47,7 +47,8 @@ class SnapshotCloneClientTest : public ::testing::Test {
 
 TEST_F(SnapshotCloneClientTest, Init) {
     SnapshotCloneClient client(metricClient_);
-    ASSERT_EQ(-1, client.Init("", "8081"));
+    // no snapshot clone server
+    ASSERT_EQ(1, client.Init("", ""));
     ASSERT_EQ(-1, client.Init("127.0.0.1:5555", ""));
     // dummy server与mds不匹配
     ASSERT_EQ(-1, client.Init("127.0.0.1:5555", "8081,8082,8083"));

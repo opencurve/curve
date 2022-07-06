@@ -32,8 +32,8 @@ DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
 DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 DEFINE_uint64(rpcConcurrentNum, 10, "rpc concurrent number to chunkserver");
-DEFINE_string(snapshotCloneAddr, "127.0.0.1:5555", "snapshot clone addr");
-DEFINE_string(snapshotCloneDummyPort, "8081", "dummy port of snapshot clone, "
+DEFINE_string(snapshotCloneAddr, "", "snapshot clone addr");
+DEFINE_string(snapshotCloneDummyPort, "", "dummy port of snapshot clone, "
                                     "can specify one or several. "
                                     "if specify several, the order should "
                                     "be the same as snapshot clone addr");
