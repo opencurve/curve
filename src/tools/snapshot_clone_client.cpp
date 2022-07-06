@@ -29,8 +29,8 @@ int SnapshotCloneClient::Init(const std::string& serverAddr,
                               const std::string& dummyPort) {
     curve::common::SplitString(serverAddr, ",", &serverAddrVec_);
     if (serverAddrVec_.empty()) {
-        std::cout << "Split snapshot clone server address fail!" << std::endl;
-        return -1;
+        // no snapshot clone server
+        return 1;
     }
 
     int res = InitDummyServerMap(dummyPort);
