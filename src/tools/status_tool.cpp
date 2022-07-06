@@ -82,10 +82,20 @@ int StatusTool::Init(const std::string& command) {
         etcdInited_ = true;
     }
     if (CommandNeedSnapshotClone(command)) {
-        if (snapshotClient_->Init(FLAGS_snapshotCloneAddr,
-                                  FLAGS_snapshotCloneDummyPort) != 0) {
-            std::cout << "Init snapshotClient failed!" << std::endl;
-            return -1;
+        int snapshotRet = snapshotClient_->Init(FLAGS_snapshotCloneAddr,
+                                  FLAGS_snapshotCloneDummyPort);
+        switch (snapshotRet) {
+            case 0:
+                // success
+                break;
+            case 1:
+                // no snapshot clone server
+                noSnapshotServer_ = true;
+                break;
+            default:
+                // -1 and other
+                std::cout << "Init snapshotClient failed!" << std::endl;
+                return -1;
         }
     }
     return 0;
@@ -492,7 +502,8 @@ bool StatusTool::IsClusterHeatlhy() {
     }
 
     // 4、检查snapshot clone server状态
-    if (!CheckServiceHealthy(ServiceName::kSnapshotCloneServer)) {
+    if (!noSnapshotServer_ &&
+        !CheckServiceHealthy(ServiceName::kSnapshotCloneServer)) {
         ret = false;
     }
 
@@ -635,6 +646,10 @@ int StatusTool::PrintEtcdStatus() {
 
 int StatusTool::PrintSnapshotCloneStatus() {
     std::cout << "SnapshotCloneServer status:" << std::endl;
+    if (noSnapshotServer_) {
+        std::cout << "No SnapshotCloneServer" << std::endl;
+        return 0;
+    }
     std::string version;
     std::vector<std::string> failedList;
     int res = versionTool_->GetAndCheckSnapshotCloneVersion(&version,

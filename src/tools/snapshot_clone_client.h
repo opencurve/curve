@@ -46,7 +46,11 @@ class SnapshotCloneClient {
      *  @param dummyPort dummy port列表，只输入一个的话
      *         所有server用同样的dummy port，用字符串分隔有多个的话
      *         为每个server设置不同的dummy port
-     *  @return 成功返回0，失败返回-1
+     *  @return
+     * success: 0
+     * failed: -1
+     * no snapshot server: 1
+     *
      */
     virtual int Init(const std::string& serverAddr,
                      const std::string& dummyPort);
