@@ -81,7 +81,8 @@ class DiskCacheWrite : public DiskCacheBase {
     virtual ~DiskCacheWrite() {
        AsyncUploadStop();
     }
-    void Init(S3Client *client, std::shared_ptr<PosixWrapper> posixWrapper,
+    void Init(std::shared_ptr<S3Client> client,
+              std::shared_ptr<PosixWrapper> posixWrapper,
               const std::string cacheDir, uint64_t asyncLoadPeriodMs,
               std::shared_ptr<SglLRUCache<std::string>> cachedObjName);
     /**
@@ -148,7 +149,7 @@ class DiskCacheWrite : public DiskCacheBase {
     bthread::Mutex mtx_;
     InterruptibleSleeper sleeper_;
     uint64_t asyncLoadPeriodMs_;
-    S3Client *client_;
+    std::shared_ptr<S3Client> client_;
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;

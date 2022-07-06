@@ -51,7 +51,9 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     SetFuseClientS3Option(&opt, fsS3Option);
 
     auto s3Client = std::make_shared<S3ClientImpl>();
+    auto s3DiskCacheClient = std::make_shared<S3ClientImpl>();
     s3Client->Init(opt.s3Opt.s3AdaptrOpt);
+    s3DiskCacheClient->Init(opt.s3Opt.s3AdaptrOpt);
     auto fsCacheManager = std::make_shared<FsCacheManager>(
         dynamic_cast<S3ClientAdaptorImpl *>(s3Adaptor_.get()),
         opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
@@ -64,7 +66,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
         auto diskCacheManager = std::make_shared<DiskCacheManager>(
             wrapper, diskCacheWrite, diskCacheRead);
         auto diskCacheManagerImpl = std::make_shared<DiskCacheManagerImpl>(
-            diskCacheManager, s3Client.get());
+            diskCacheManager, s3DiskCacheClient);
         ret = s3Adaptor_->Init(opt.s3Opt.s3ClientAdaptorOpt, s3Client,
                                inodeManager_, mdsClient_, fsCacheManager,
                                diskCacheManagerImpl, true);
