@@ -35,7 +35,7 @@ namespace curvefs {
 
 namespace client {
 
-void DiskCacheWrite::Init(S3Client *client,
+void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
                           std::shared_ptr<PosixWrapper> posixWrapper,
                           const std::string cacheDir,
                           uint64_t asyncLoadPeriodMs,
