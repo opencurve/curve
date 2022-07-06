@@ -497,23 +497,31 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                 << iter->chunkId << ",fsid" << iter->fsId
                 << ",inodeId:" << iter->inodeId;
         // prefetch read
+        // TODO(huyao): The read-ahead trigger logic needs to be refactored and
+        // supplemented with unit tests
         if (s3ClientAdaptor_->HasDiskCache()) {
             uint64_t blockIndexTmp = blockIndex;
             // the counts of blocks that need prefetch
             uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
-            std::vector<std::string> prefetchObjs;
+            std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
             for (int count = 0; count < prefetchBlocks; count++) {
                 std::string name = curvefs::common::s3util::GenObjName(
                     iter->chunkId, blockIndexTmp, iter->compaction, iter->fsId,
                     iter->inodeId);
-                prefetchObjs.push_back(name);
-                blockIndexTmp++;
-                uint64_t readLen = blockIndexTmp * blockSize;
-                if ((readLen > fileLen) ||
-                    (blockIndexTmp >= chunkSize / blockSize)) {
+                uint64_t readLen = (blockIndexTmp + 1) * blockSize;
+                if (readLen > fileLen) {
                     VLOG(6) << "end, redLen :" << readLen
                             << ", fileLen: " << fileLen << ", blockIndexTmp "
                             << blockIndexTmp;
+                    readLen = fileLen - blockIndexTmp * blockSize;
+                    prefetchObjs.push_back(std::make_pair(name, readLen));
+                    break;
+                } else {
+                    prefetchObjs.push_back(std::make_pair(name, blockSize));
+                }
+
+                blockIndexTmp++;
+                if (blockIndexTmp >= chunkSize / blockSize) {
                     break;
                 }
             }
@@ -653,10 +661,11 @@ class AsyncPrefetchCallback {
     S3ClientAdaptorImpl *s3Client_;
 };
 
-void FileCacheManager::PrefetchS3Objs(std::vector<std::string> prefetchObjs) {
-    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+void FileCacheManager::PrefetchS3Objs(
+    const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs) {
     for (auto &obj : prefetchObjs) {
-        std::string name = obj;
+        std::string name = obj.first;
+        uint64_t readLen = obj.second;
         curve::common::LockGuard lg(downloadMtx_);
         if (downloadingObj_.find(name) != downloadingObj_.end()) {
             VLOG(9) << "obj is already in downloading: " << name
@@ -674,13 +683,13 @@ void FileCacheManager::PrefetchS3Objs(std::vector<std::string> prefetchObjs) {
 
         auto inode = inode_;
         auto s3ClientAdaptor = s3ClientAdaptor_;
-        auto task = [name, inode, s3ClientAdaptor, blockSize]() {
-            char *dataCacheS3 = new char[blockSize];
+        auto task = [name, inode, s3ClientAdaptor, readLen]() {
+            char *dataCacheS3 = new char[readLen];
             auto context = std::make_shared<GetObjectAsyncContext>();
             context->key = name;
             context->buf = dataCacheS3;
             context->offset = 0;
-            context->len = blockSize;
+            context->len = readLen;
             context->cb = AsyncPrefetchCallback{inode, s3ClientAdaptor};
             VLOG(9) << "prefetch start: " << context->key
                     << ", len: " << context->len;
