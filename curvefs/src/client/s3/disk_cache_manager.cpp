@@ -71,7 +71,7 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
         std::make_shared<CacheMetrics>("diskcache"));
 }
 
-int DiskCacheManager::Init(S3Client *client,
+int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
                            const S3ClientAdaptorOption option) {
     LOG(INFO) << "DiskCacheManager init start.";
     client_ = client;

@@ -61,7 +61,8 @@ class DiskCacheManager {
     DiskCacheManager() {}
     virtual ~DiskCacheManager() { TrimStop(); }
 
-    virtual int Init(S3Client *client, const S3ClientAdaptorOption option);
+    virtual int Init(std::shared_ptr<S3Client> client,
+        const S3ClientAdaptorOption option);
 
     virtual int UmountDiskCache();
     virtual bool IsCached(const std::string name);
@@ -169,7 +170,7 @@ class DiskCacheManager {
 
     std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
 
-    S3Client *client_;
+    std::shared_ptr<S3Client> client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
 
