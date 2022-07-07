@@ -262,10 +262,13 @@ struct DiskCacheMetric {
 
     std::string fsName;
     InterfaceMetric writeS3;
+    bvar::Status<uint64_t> diskUsedBytes;
+
     explicit DiskCacheMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
-          writeS3(prefix, fsName + "_write_s3") {}
+          writeS3(prefix, fsName + "_write_s3"),
+          diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
 };
 
 }  // namespace metric
