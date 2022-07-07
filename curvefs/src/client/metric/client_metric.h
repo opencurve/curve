@@ -41,23 +41,32 @@ struct MDSClientMetric {
     InterfaceMetric mountFs;
     InterfaceMetric umountFs;
     InterfaceMetric getFsInfo;
-    InterfaceMetric allocateS3Chunk;
-
+    InterfaceMetric getMetaServerInfo;
+    InterfaceMetric getMetaServerListInCopysets;
+    InterfaceMetric createPartition;
+    InterfaceMetric getCopysetOfPartitions;
+    InterfaceMetric listPartition;
+    InterfaceMetric allocS3ChunkId;
+    InterfaceMetric refreshSession;
     InterfaceMetric getLatestTxId;
     InterfaceMetric commitTx;
-
-    InterfaceMetric getMetaserverInfo;
 
     explicit MDSClientMetric(const std::string &prefix_ = "")
         : prefix(!prefix_.empty() ? prefix_
                                   : "curvefs_mds_client_" +
-                                        curve::common::ToHexString(this)),
-          mountFs(prefix, "mountFs"), umountFs(prefix, "unmountFs"),
+                                    curve::common::ToHexString(this)),
+          mountFs(prefix, "mountFs"),
+          umountFs(prefix, "umountFs"),
           getFsInfo(prefix, "getFsInfo"),
-          allocateS3Chunk(prefix, "allocateS3Chunk"),
+          getMetaServerInfo(prefix, "getMetaServerInfo"),
+          getMetaServerListInCopysets(prefix, "getMetaServerListInCopysets"),
+          createPartition(prefix, "createPartition"),
+          getCopysetOfPartitions(prefix, "getCopysetOfPartitions"),
+          listPartition(prefix, "listPartition"),
+          allocS3ChunkId(prefix, "allocS3ChunkId"),
+          refreshSession(prefix, "refreshSession"),
           getLatestTxId(prefix, "getLatestTxId"),
-          commitTx(prefix, "commitTx"),
-          getMetaserverInfo(prefix, "getMetaserverInfo") {}
+          commitTx(prefix, "commitTx") {}
 };
 
 struct MetaServerClientMetric {
@@ -76,14 +85,10 @@ struct MetaServerClientMetric {
     InterfaceMetric createInode;
     InterfaceMetric updateInode;
     InterfaceMetric deleteInode;
-    InterfaceMetric createRootInode;
     InterfaceMetric appendS3ChunkInfo;
 
     // tnx
     InterfaceMetric prepareRenameTx;
-
-    // partition
-    InterfaceMetric createPartition;
 
     // volume extent
     InterfaceMetric updateVolumeExtent;
@@ -103,10 +108,8 @@ struct MetaServerClientMetric {
           createInode(prefix, "createInode"),
           updateInode(prefix, "updateInode"),
           deleteInode(prefix, "deleteInode"),
-          createRootInode(prefix, "createRootInode"),
           appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
-          createPartition(prefix, "createPartition"),
           updateVolumeExtent(prefix, "updateVolumeExtent"),
           getVolumeExtent(prefix, "getVolumeExtent") {}
 };
