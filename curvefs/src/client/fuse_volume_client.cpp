@@ -57,7 +57,6 @@ CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
 
     BlockDeviceClientOptions opts;
     opts.configPath = option.bdevOpt.configPath;
-    opts.threadnum = option.bdevOpt.threadnum;
 
     bool ret2 = blockDeviceClient_->Init(opts);
 
