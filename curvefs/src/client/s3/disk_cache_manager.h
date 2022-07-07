@@ -116,6 +116,8 @@ class DiskCacheManager {
      */
     void AddDiskUsedBytes(uint64_t length) {
         usedBytes_.fetch_add(length, std::memory_order_seq_cst);
+        if (metric_.get() != nullptr)
+            metric_->diskUsedBytes.set_value(usedBytes_/1024/1024);
         VLOG(9) << "add disk used size is: " << length
                 << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
         return;
@@ -129,7 +131,8 @@ class DiskCacheManager {
         int64_t usedBytes;
         usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
         assert(usedBytes >= 0);
-        (void)usedBytes;
+        if (metric_.get() != nullptr)
+            metric_->diskUsedBytes.set_value(usedBytes_);
         VLOG(9) << "dec disk used size is: " << length
                 << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
         return;
