@@ -297,7 +297,7 @@ void MDS::Stop() {
 }
 
 void MDS::StartDummyServer() {
-    conf_->ExposeMetric("curvefs_mds");
+    conf_->ExposeMetric("curvefs_mds_config");
     status_.expose("curvefs_mds_status");
     status_.set_value("follower");
 
