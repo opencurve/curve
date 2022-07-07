@@ -45,7 +45,6 @@ using MdsOption = ::curve::client::MetaServerOption;
 
 struct BlockDeviceClientOptions {
     std::string configPath;
-    uint32_t threadnum;
 };
 
 struct MetaCacheOpt {

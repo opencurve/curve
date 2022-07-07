@@ -113,7 +113,6 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts, bool internal) {
 void InitBlockDeviceOption(Configuration *conf,
                            BlockDeviceClientOptions *bdevOpt) {
     conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
-    conf->GetValueFatalIfFail("bdev.threadnum", &bdevOpt->threadnum);
 }
 
 void InitDiskCacheOption(Configuration *conf,

@@ -28,10 +28,11 @@
 #include <string>
 #include <vector>
 
-#include "absl/cleanup/cleanup.h"
+#include "absl/memory/memory.h"
 #include "curvefs/src/common/metric_utils.h"
-#include "src/client/service_helper.h"
-#include "src/common/concurrent/count_down_event.h"
+#include "curvefs/src/volume/block_device_aio.h"
+#include "include/client/libcurve_define.h"
+#include "src/client/libcurve_file.h"
 
 namespace curvefs {
 namespace volume {
@@ -48,13 +49,11 @@ bvar::LatencyRecorder g_read_latency("block_device_read");
 }  // namespace
 
 BlockDeviceClientImpl::BlockDeviceClientImpl()
-    : fileClient_(std::make_shared<FileClient>()),
-      fd_(-1) {}
+    : fd_(-1), fileClient_(std::make_shared<FileClient>()) {}
 
 BlockDeviceClientImpl::BlockDeviceClientImpl(
     const std::shared_ptr<FileClient>& fileClient)
-    : fileClient_(fileClient),
-      fd_(-1) {}
+    : fd_(-1), fileClient_(fileClient) {}
 
 bool BlockDeviceClientImpl::Init(const BlockDeviceClientOptions& options) {
     auto ret = fileClient_->Init(options.configPath);
@@ -63,17 +62,10 @@ bool BlockDeviceClientImpl::Init(const BlockDeviceClientOptions& options) {
         return false;
     }
 
-    ret = taskpool_.Start(options.threadnum);
-    if (ret != 0) {
-        LOG(ERROR) << "Start task pool failed";
-        return false;
-    }
-
     return true;
 }
 
 void BlockDeviceClientImpl::UnInit() {
-    taskpool_.Stop();
     fileClient_->UnInit();
 }
 
@@ -138,23 +130,12 @@ ssize_t BlockDeviceClientImpl::Read(char* buf, off_t offset, size_t length) {
     if (fd_ < 0) {
         return -1;
     } else if (0 == length) {
-        return length;
-    } else if (IsAligned(offset, length)) {
-        return AlignRead(buf, offset, length);
+        return 0;
     }
 
-    auto range = CalcAlignRange(offset, offset + length);  // [start, end)
-    off_t readStart = range.first;
-    off_t readEnd = range.second;
-    size_t readLength = readEnd - readStart;
-    std::unique_ptr<char[]> readBuffer(new (std::nothrow) char[readLength]);
-
-    auto retCode = AlignRead(readBuffer.get(), readStart, readLength);
-    if (retCode >= 0) {
-        memcpy(buf, readBuffer.get() + (offset - readStart), length);
-    }
-
-    return retCode;
+    AioRead request(offset, length, buf, fileClient_.get(), fd_);
+    request.Issue();
+    return request.Wait();
 }
 
 ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart>& iov) {
@@ -164,41 +145,30 @@ ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart>& iov) {
         return Read(iov[0].data, iov[0].offset, iov[0].length);
     }
 
-    CountDownEvent counter(iov.size());
-    std::atomic<ssize_t> res(0);
+    std::vector<std::unique_ptr<AioRead>> requests;
+    requests.reserve(iov.size());
 
-    for (auto& io : iov) {
-        auto task = [this, &counter, &io, &res]() {
-            VLOG(9) << "read block offset: " << io.offset
-                    << ", length: " << io.length;
-            auto nr = this->Read(io.data, io.offset, io.length);
-            if (nr < 0) {
-                LOG(ERROR) << "IO Error, offseet: " << io.offset
-                           << ", len: " << io.length;
-                res.store(nr, std::memory_order_relaxed);
-            } else {
-                auto old = res.load(std::memory_order_release);
-                if (old < 0) {
-                    // already error
-                } else {
-                    while (!res.compare_exchange_strong(
-                        old, old + nr, std::memory_order_relaxed)) {
-                        if (old < 0) {
-                            // another request is error
-                            break;
-                        }
-                    }
-                }
-            }
+    for (const auto& io : iov) {
+        requests.push_back(absl::make_unique<AioRead>(
+            io.offset, io.length, io.data, fileClient_.get(), fd_));
 
-            counter.Signal();
-        };
-
-        taskpool_.Enqueue(std::move(task));
+        requests.back()->Issue();
     }
 
-    counter.Wait();
-    return res.load(std::memory_order_relaxed);
+    bool error = false;
+    ssize_t total = 0;
+    for (const auto& r : requests) {
+        auto nr = r->Wait();
+        if (nr < 0) {
+            error = true;
+            LOG(ERROR) << "AioRead error, offset: " << r->offset
+                       << ", length: " << r->length;
+        } else {
+            total += nr;
+        }
+    }
+
+    return error ? -1 : total;
 }
 
 ssize_t BlockDeviceClientImpl::Write(const char* buf,
@@ -211,72 +181,50 @@ ssize_t BlockDeviceClientImpl::Write(const char* buf,
     if (fd_ < 0) {
         return -1;
     } else if (0 == length) {
-        return length;
-    } else if (IsAligned(offset, length)) {
-        return AlignWrite(buf, offset, length);
+        return 0;
     }
 
-    auto range = CalcAlignRange(offset, offset + length);  // [start, end)
-    off_t writeStart = range.first;
-    off_t writeEnd = range.second;
-    size_t writeLength = writeEnd - writeStart;
-    std::unique_ptr<char[]> writeBuffer(new (std::nothrow) char[writeLength]);
-
-    auto retCode = WritePadding(
-        writeBuffer.get(), writeStart, writeEnd, offset, length);
-    if (!retCode) {
-        return -1;
-    }
-
-    memcpy(writeBuffer.get() + (offset - writeStart), buf, length);
-    return AlignWrite(writeBuffer.get(), writeStart, writeLength);
+    AioWrite request(offset, length, buf, fileClient_.get(), fd_);
+    request.Issue();
+    return request.Wait();
 }
 
-ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart>& writes) {
-    if (writes.size() == 1) {
-        return Write(writes[0].data, writes[0].offset, writes[0].length);
+ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart>& iov) {
+    if (iov.size() == 1) {
+        return Write(iov[0].data, iov[0].offset, iov[0].length);
     }
 
-    CountDownEvent counter(writes.size());
-    std::atomic<ssize_t> res(0);
+    std::vector<std::unique_ptr<AioWrite>> requests;
+    requests.reserve(iov.size());
 
-    for (const auto& io : writes) {
-        auto task = [this, &counter, &io, &res]() {
-            auto nr = this->Write(io.data, io.offset, io.length);
-            if (nr < 0) {
-                LOG(ERROR) << "IO Error, offseet: " << io.offset
-                           << ", len: " << io.length;
-                res.store(nr, std::memory_order_relaxed);
-            } else {
-                auto old = res.load(std::memory_order_release);
-                if (old < 0) {
-                    // already error
-                } else {
-                    while (!res.compare_exchange_strong(
-                        old, old + io.length, std::memory_order_relaxed)) {
-                        if (old < 0) {
-                            // another request is error
-                            break;
-                        }
-                    }
-                }
-            }
+    for (const auto& io : iov) {
+        requests.push_back(absl::make_unique<AioWrite>(
+            io.offset, io.length, io.data, fileClient_.get(), fd_));
 
-            counter.Signal();
-        };
-
-        taskpool_.Enqueue(std::move(task));
+        requests.back()->Issue();
     }
 
-    counter.Wait();
-    return res.load(std::memory_order_relaxed);
+    bool error = false;
+    ssize_t total = 0;
+    for (const auto& r : requests) {
+        auto nr = r->Wait();
+        if (nr < 0) {
+            error = true;
+            LOG(ERROR) << "AioWrite error, offset: " << r->offset
+                       << ", length: " << r->length;
+        } else {
+            total += nr;
+        }
+    }
+
+    return error ? -1 : total;
 }
 
 bool BlockDeviceClientImpl::WritePadding(char* writeBuffer,
                                          off_t writeStart,
                                          off_t writeEnd,
-                                         off_t offset,
-                                         size_t length) {
+                                         off_t offset,     // actual offset
+                                         size_t length) {  // actual length
     std::vector<std::pair<off_t, size_t>> readvec;  // Align reads
     off_t readEnd = 0;
 

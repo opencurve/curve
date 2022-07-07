@@ -29,9 +29,12 @@
 #include <vector>
 
 #include "curvefs/src/volume/common.h"
-#include "src/client/client_common.h"
-#include "src/client/libcurve_file.h"
-#include "src/common/concurrent/task_thread_pool.h"
+
+namespace curve {
+namespace client {
+class FileClient;
+}  // namespace client
+}  // namespace curve
 
 namespace curvefs {
 namespace volume {
@@ -43,7 +46,6 @@ using Range = std::pair<off_t, off_t>;
 struct BlockDeviceClientOptions {
     // config path
     std::string configPath;
-    uint32_t threadnum;
 };
 
 enum class BlockDeviceStatus {
@@ -155,14 +157,14 @@ class BlockDeviceClientImpl : public BlockDeviceClient {
 
     ssize_t Readv(const std::vector<ReadPart>& iov) override;
 
-    ssize_t Writev(const std::vector<WritePart>& writes) override;
+    ssize_t Writev(const std::vector<WritePart>& iov) override;
 
  private:
     bool WritePadding(char* writeBuffer,
-                               off_t writeStart,
-                               off_t writeEnd,
-                               off_t offset,
-                               size_t length);
+                      off_t writeStart,
+                      off_t writeEnd,
+                      off_t offset,
+                      size_t length);
 
     ssize_t AlignRead(char* buf, off_t offset, size_t length);
 
@@ -177,15 +179,13 @@ class BlockDeviceClientImpl : public BlockDeviceClient {
     bool ConvertFileStatus(int fileStatus, BlockDeviceStatus* bdStatus);
 
  private:
-    int64_t fd_;
+    int fd_;
 
     std::string filename_;
 
     std::string owner_;
 
     std::shared_ptr<FileClient> fileClient_;
-
-    curve::common::TaskThreadPool<> taskpool_;
 };
 
 }  // namespace volume
