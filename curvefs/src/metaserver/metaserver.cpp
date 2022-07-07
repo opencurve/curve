@@ -188,6 +188,7 @@ void Metaserver::Init() {
     InitPartitionOption(s3Adaptor_, mdsClient_, &partitionCleanOption);
     PartitionCleanManager::GetInstance().Init(partitionCleanOption);
 
+    conf_->ExposeMetric("curvefs_metaserver_config");
     inited_ = true;
 }
 
