@@ -111,7 +111,6 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
     // start trim thread
     TrimRun();
 
-    SetDiskInitUsedBytes();
     SetDiskFsUsedRatio();
 
     FLAGS_avgFlushIops = option_.diskCacheOpt.avgFlushIops;
@@ -299,6 +298,8 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
         return;
     }
     usedBytes_.fetch_add(usedBytes, std::memory_order_seq_cst);
+    if (metric_.get() != nullptr)
+        metric_->diskUsedBytes.set_value(usedBytes_);
     VLOG(9) << "cache disk used size is: " << result;
     return;
 }
@@ -448,6 +449,9 @@ void DiskCacheManager::InitMetrics(const std::string &fsName) {
     metric_ = std::make_shared<DiskCacheMetric>(fsName);
     cacheWrite_->InitMetrics(metric_);
     cacheRead_->InitMetrics(metric_);
+    // this function move to here from init，
+    // Otherwise, you can't get the original metric
+    SetDiskInitUsedBytes();
 }
 
 }  // namespace client
