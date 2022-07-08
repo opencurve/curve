@@ -92,19 +92,6 @@ apt-get install docker-ce-cli
   apt-get install docker-compose
   ```
 
-* node_exporter
-
-  可能很多节点都要安装，可以用脚本来一起装，如下面的方式：
-
-  ```
-  for i in {1..4};
-  do
-  scp -P 1046 ~/Downloads/node_exporter-0.18.1.linux-amd64.tar.gz yangyaokai@pubt1-curve$i.yq.163.org:~/
-  ssh -p 1046 yangyaokai@pubt1-curve$i.yq.163.org "tar zxvf node_exporter-0.18.1.linux-amd64.tar.gz ; cd node_exporter-0.18.1.linux-amd64 ; nohup ./node_exporter >/dev/null 2>log &"
-  echo $i
-  done
-  ```
-
 * jq
 
   update_dashboard.sh脚本需要依赖jq命令，这个一般机器上都没装
