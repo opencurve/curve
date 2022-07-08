@@ -39,23 +39,27 @@ def loadServer():
     if ret == 0:
         with open(JSON_PATH) as load_f:
             data = json.load(load_f)
-    servers = []
+    metaservers = []
     if data is not None:
         for pool in data["poollist"]:
             for zone in pool["zonelist"]:
                 for server in zone["serverlist"]:
-                    servers.append(server)
-    return servers
+                    for metaserver in server["metaserverlist"]:
+                        metaservers.append(metaserver)
+    return metaservers
 
 def loadClient():
     ret, output = runCurvefsToolCommand(["list-fs"])
     clients = []
+    label = lablesValue(None, "client")
     if ret == 0 :
-        data = json.loads(output.decode())
+        try:
+            data = json.loads(output.decode())
+        except json.decoder.JSONDecodeError:
+            return unitValue(label, clients)
         for fsinfo in data["fsInfo"]:
             for mountpoint in fsinfo["mountpoints"]:
                 clients.append(mountpoint["hostname"] + ":" + str(mountpoint["port"]))
-    label = lablesValue(None, "client")
     return unitValue(label, clients)
 
 def loadType(hostType):
@@ -70,9 +74,10 @@ def ipPort2Addr(ip, port):
     return str(ip) + ":" + str(port)
 
 def server2Target(server):
-    labels = lablesValue(server["hostname"], "metaserver")
+    hostname = server["hostname"] + "." + str(server["metaserverid"])
+    labels = lablesValue(hostname, "metaserver")
     serverAddr = []
-    serverAddr.append(ipPort2Addr(server["internalip"], server["internalport"]))
+    serverAddr.append(ipPort2Addr(server["externalip"], server["externalport"]))
     targets = list(set(serverAddr))
     return unitValue(labels, targets)
 

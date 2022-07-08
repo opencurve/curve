@@ -57,13 +57,11 @@ prometheus的配置文件
 
 ## 使用说明
 
-以下步骤为不使用puppet进行部署的过程。
-
 #### 环境初始化
 
 1.部署监控系统的机器需要安装如下组件：
 
-node_exporter、docker、docker-compose、jq
+docker、docker-compose、jq
 
 * docker安装
 
@@ -92,19 +90,6 @@ apt-get install docker-ce-cli
   apt-get install docker-compose
   ```
 
-* node_exporter
-
-  可能很多节点都要安装，可以用脚本来一起装，如下面的方式：
-
-  ```
-  for i in {1..4};
-  do
-  scp -P 1046 ~/Downloads/node_exporter-0.18.1.linux-amd64.tar.gz yangyaokai@pubt1-curve$i.yq.163.org:~/
-  ssh -p 1046 yangyaokai@pubt1-curve$i.yq.163.org "tar zxvf node_exporter-0.18.1.linux-amd64.tar.gz ; cd node_exporter-0.18.1.linux-amd64 ; nohup ./node_exporter >/dev/null 2>log &"
-  echo $i
-  done
-  ```
-
 * jq
 
   update_dashboard.sh脚本需要依赖jq命令，这个一般机器上都没装
@@ -112,9 +97,6 @@ apt-get install docker-ce-cli
   ```
   apt-get install jq
   ```
-
-2.chunkserver上安装node_exporter（机器监控可以依赖哨兵，可以不装）
-
 
 #### 部署监控系统
 
@@ -139,21 +121,3 @@ crontab配置定时任务，添加如下任务：
 如果机器上没有配置其他的定时任务，可直接用下面命令
 echo "30 8 * * * python /etc/curve/monitor/report.py >> /etc/curve/monitor/cron.log 2>&1" >> conf && crontab conf && rm -f conf
 
-
-
-
-#### 对接puppet
-
-如果对接puppet，配置相关文件都会放到puppet上，配置的变更都要上传到puppet上。
-
-puppet上管理的配置包括：docker-compose.yml、target.ini、grafana.ini、prometheus.yml
-
-通过安装包安装完curve-monitor以后，会将curve-monitor.sh拷贝到/usr/bin目录下，可以通过以下命令管理监控系统：
-
-启动：```curve-monitor.sh start```
-
-停止：```curve-monitor.sh stop```
-
-重启：```curve-monitor.sh restart```
-
-上面环境初始化中的依赖的包puppet基本都会帮忙安装，除了node_exporter需要自己安装。

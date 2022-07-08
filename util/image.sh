@@ -19,6 +19,7 @@ prefix="$(pwd)/docker/$2/curvebs"
 mkdir -p $prefix $prefix/conf
 make install prefix="$prefix"
 make install prefix="$prefix" only=etcd
+make install prefix="$prefix" only=monitor
 for path in `ls conf/* nebd/etc/nebd/*`;
 do
     dir=`dirname $path`

@@ -19,9 +19,6 @@ start() {
 
     echo "" > monitor.log
 
-    stdbuf -oL python3 target_json.py >> monitor.log 2>&1 &
-    echo "start prometheus targets service success!"
-
     docker-compose up >> monitor.log 2>&1 &
     echo "start metric system success!"
 }
