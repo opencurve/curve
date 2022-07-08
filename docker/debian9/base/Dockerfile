@@ -1,4 +1,4 @@
-FROM debian:9
+FROM opencurvedocker/curve-base:debian9
 
 RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
          "deb http://mirrors.163.com/debian/ stretch-updates main non-free contrib\n" \
@@ -27,6 +27,9 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
         zlib1g-dev \
         libsnappy-dev \
         liblz4-dev \
+        python \
+        wget \
+        python3 \
     && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
     && tar -xzvf curve-base.tar.gz
 

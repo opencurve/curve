@@ -20,6 +20,7 @@ prefix="$(pwd)/docker/$2/curvefs"
 mkdir -p $prefix $prefix/conf
 make install prefix="$prefix"
 make install prefix="$prefix" only=etcd
+make install prefix="$prefix" only=monitor
 for file in `ls conf`;
 do
     dsv="="

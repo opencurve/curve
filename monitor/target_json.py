@@ -61,12 +61,6 @@ def refresh():
             'targets': [chunkserverip[i]+':'+chunkserverport[i]],
         })
 
-    # add node_exporter targets
-    targets.append({
-        'labels': {'job': "node_exporter"},
-        'targets': [t+':9100' for t in chunkserverip],
-    })
-
     # get client's ip and port
     curve_ops_tool_res = commands.getstatusoutput("curve_ops_tool client-list -listClientInRepo=true")
     if curve_ops_tool_res[0] != 0:

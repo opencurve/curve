@@ -223,6 +223,21 @@ install_etcd() {
     success "install $project_name success\n"
 }
 
+install_monitor() {
+    local project_name="monitor"
+    g_project_name=$project_name
+
+    local project_prefix="$g_prefix/monitor"
+    local dst="monitor"
+    mkdir -p $project_prefix
+    mkdir -p "$project_prefix/prometheus"
+    mkdir -p "$project_prefix/data"
+    copy_file "$dst/target_json.py" "$project_prefix"
+    copy_file "$dst/target.ini" "$project_prefix"
+
+    success "install $project_name success\n"
+}
+
 main() {
     get_options "$@"
 
@@ -231,6 +246,8 @@ main() {
         exit 1
     elif [ "$g_only" == "etcd" ]; then
         install_etcd
+    elif [ "$g_only" == "monitor" ]; then
+        install_monitor
     else
         install_curvebs
     fi

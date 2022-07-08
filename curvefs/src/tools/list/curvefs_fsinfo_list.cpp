@@ -75,6 +75,7 @@ bool FsInfoListTool::AfterSendRequestToHost(const std::string& host) {
     } else if (show_) {
         if (response_->fsinfo().empty()) {
             std::cout << "no fs in cluster." << std::endl;
+            return true;
         }
 
         std::string output;

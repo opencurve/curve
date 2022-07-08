@@ -93,6 +93,10 @@ function prepare() {
             g_binary="$g_prefix/sbin/nebd-server"
             g_start_args="-confPath=$g_prefix/conf/nebd-server.conf -log_dir=$g_prefix/logs"
             ;;
+        monitor)
+            g_binary="python"
+            g_start_args="target_json.py"
+            ;;
         *)
             usage
             exit 1
@@ -122,6 +126,9 @@ function main() {
     [[ ! -z $g_preexec ]] && $g_preexec
     if [ $g_role == "etcd" ]; then
         exec $g_binary $g_start_args >>$g_prefix/logs/etcd.log 2>&1
+    elif [ $g_role == "monitor" ]; then
+        cd $g_prefix
+        exec $g_binary $g_start_args
     else
         exec $g_binary $g_start_args
     fi
