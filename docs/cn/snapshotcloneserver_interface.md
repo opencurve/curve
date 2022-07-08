@@ -1,5 +1,7 @@
 # snapshotcloneserver interface
 
+> 注意：卷的文件名需要包括/前缀，例如File=/vol01，下文中的File=test其中test为卷文件名，仅用作示例，请以实际包括/前缀的文件名为准
+
 ## 创建快照：
 
 ##### 描述
