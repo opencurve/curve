@@ -35,6 +35,7 @@ CMakeLists.txt
 bin
 *.temp
 .clwb
+*.swp
 
 # cscope
 cscope.out
