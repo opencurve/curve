@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "curvefs/src/client/error_code.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/test/volume/mock/mock_block_device_client.h"
@@ -74,8 +75,10 @@ TEST_F(DefaultVolumeStorageTest, WriteAndReadTest_InodeNotFound) {
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
 
-    ASSERT_GT(0, storage_.Read(ino, offset, len, data.get()));
-    ASSERT_GT(0, storage_.Write(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST,
+              storage_.Read(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST,
+              storage_.Write(ino, offset, len, data.get()));
 }
 
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadError) {
@@ -116,7 +119,8 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadError) {
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
 
-    ASSERT_GT(0, storage_.Read(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::IO_ERROR,
+              storage_.Read(ino, offset, len, data.get()));
 }
 
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadSuccess) {
@@ -160,7 +164,7 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadSuccess) {
     EXPECT_CALL(inodeCacheMgr_, ShipToFlush(inodeWrapper))
         .Times(1);
 
-    ASSERT_EQ(len, storage_.Read(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::OK, storage_.Read(ino, offset, len, data.get()));
 }
 
 TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadHoleSuccess) {
@@ -206,7 +210,7 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadHoleSuccess) {
     EXPECT_CALL(inodeCacheMgr_, ShipToFlush(inodeWrapper))
         .Times(1);
 
-    ASSERT_EQ(len, storage_.Read(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::OK, storage_.Read(ino, offset, len, data.get()));
 
     for (size_t i = 0; i < len; ++i) {
         ASSERT_EQ(data[i], 0);
@@ -242,7 +246,8 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_PrepareError) {
     size_t len = 4096;
     std::unique_ptr<char[]> data(new char[len]);
 
-    ASSERT_GT(0, storage_.Write(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::NO_SPACE,
+              storage_.Write(ino, offset, len, data.get()));
 }
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
@@ -285,7 +290,8 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
     EXPECT_CALL(blockDev_, Writev(_))
         .WillOnce(Return(-1));
 
-    ASSERT_GT(0, storage_.Write(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::IO_ERROR,
+              storage_.Write(ino, offset, len, data.get()));
 }
 
 TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
@@ -332,7 +338,7 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
     EXPECT_CALL(inodeCacheMgr_, ShipToFlush(inodeWrapper))
         .Times(1);
 
-    ASSERT_EQ(len, storage_.Write(ino, offset, len, data.get()));
+    ASSERT_EQ(CURVEFS_ERROR::OK, storage_.Write(ino, offset, len, data.get()));
 
     auto internal = inodeWrapper->GetInodeUnlocked();
     ASSERT_EQ(offset + len, internal.length());

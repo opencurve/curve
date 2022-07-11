@@ -30,7 +30,6 @@
 #include <utility>
 
 #include "curvefs/src/volume/common.h"
-#include "curvefs/src/volume/utils.h"
 #include "src/common/fast_align.h"
 
 namespace curvefs {
