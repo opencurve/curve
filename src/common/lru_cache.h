@@ -585,7 +585,6 @@ template <typename K, typename KeyTraits>
 bool SglLRUCache<K, KeyTraits>::GetBack(K *value) {
     ::curve::common::WriteLockGuard guard(lock_);
     if (ll_.empty()) {
-        LOG(INFO) << "cache is empty.";
         return false;
     }
     *value = ll_.back();

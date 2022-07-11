@@ -131,6 +131,7 @@ class DiskCacheManager {
         int64_t usedBytes;
         usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
         assert(usedBytes >= 0);
+        (void)usedBytes;
         if (metric_.get() != nullptr)
             metric_->diskUsedBytes.set_value(usedBytes_);
         VLOG(9) << "dec disk used size is: " << length
