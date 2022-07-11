@@ -30,7 +30,7 @@
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
-#include "curvefs/src/volume/utils.h"
+#include "curvefs/src/volume/common.h"
 #include "src/common/fast_align.h"
 
 namespace curvefs {

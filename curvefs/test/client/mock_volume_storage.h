@@ -32,9 +32,9 @@ namespace client {
 
 class MockVolumeStorage : public VolumeStorage {
  public:
-    MOCK_METHOD4(Read, ssize_t(uint64_t, off_t, size_t, char*));
-    MOCK_METHOD4(Write, ssize_t(uint64_t, off_t, size_t, const char*));
-    MOCK_METHOD1(Flush, bool(uint64_t));
+    MOCK_METHOD4(Read, CURVEFS_ERROR(uint64_t, off_t, size_t, char*));
+    MOCK_METHOD4(Write, CURVEFS_ERROR(uint64_t, off_t, size_t, const char*));
+    MOCK_METHOD1(Flush, CURVEFS_ERROR(uint64_t));
     MOCK_METHOD0(Shutdown, bool());
 };
 

@@ -32,7 +32,7 @@
 #include "curvefs/src/volume/allocator.h"
 #include "curvefs/src/volume/block_device_client.h"
 #include "curvefs/src/volume/block_group_updater.h"
-#include "curvefs/src/volume/utils.h"
+#include "curvefs/src/volume/common.h"
 #include "src/common/bitmap.h"
 #include "src/common/fast_align.h"
 

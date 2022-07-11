@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,18 +14,35 @@
  *  limitations under the License.
  */
 
-/**
+/*
  * Project: curve
- * File Created: Fri Jul 16 21:22:40 CST 2021
+ * Date: Tuesday Jul 12 11:04:47 CST 2022
  * Author: wuhanqing
  */
 
-#include "curvefs/src/volume/utils.h"
+#include "curvefs/src/volume/common.h"
 
+#include <ostream>
 #include <sstream>
+#include <string>
 
 namespace curvefs {
 namespace volume {
+
+std::ostream& operator<<(std::ostream& os, const AllocateHint& hint) {
+    auto offstr = [](uint64_t offset) {
+        if (offset == AllocateHint::INVALID_OFFSET) {
+            return std::string{"None"};
+        }
+
+        return std::to_string(offset);
+    };
+
+    os << "[type: " << hint.allocType << ", left: " << offstr(hint.leftOffset)
+       << ", right: " << offstr(hint.rightOffset) << "]";
+
+    return os;
+}
 
 std::ostream& operator<<(std::ostream& os, const Extent& e) {
     os << "[off: " << e.offset << " ~ len: " << e.len << "]";
@@ -38,24 +55,6 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Extent>& es) {
     for (const auto& e : es) {
         oss << e << " ";
     }
-
-    os << oss.str();
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const AllocateHint& hint) {
-    std::ostringstream oss;
-
-    oss << "[type: " << hint.allocType;
-
-    if (hint.HasLeftHint()) {
-        oss << ", left hint: " << hint.leftOffset;
-    }
-    if (hint.HasRightHint()) {
-        oss << ", right hint: " << hint.rightOffset;
-    }
-
-    oss << "]";
 
     os << oss.str();
     return os;

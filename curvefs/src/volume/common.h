@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <iosfwd>
 #include <limits>
+#include <vector>
 
 namespace curvefs {
 namespace volume {
@@ -100,6 +101,14 @@ struct ReadPart {
     ReadPart(off_t offset, size_t length, char* data)
         : offset(offset), length(length), data(data) {}
 };
+
+std::ostream& operator<<(std::ostream& os, const Extent& e);
+
+std::ostream& operator<<(std::ostream& os, const std::vector<Extent>& es);
+
+std::ostream& operator<<(std::ostream& os, AllocateType type);
+
+std::ostream& operator<<(std::ostream& os, const AllocateHint& hint);
 
 }  // namespace volume
 }  // namespace curvefs

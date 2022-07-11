@@ -23,7 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "absl/memory/memory.h"
+#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/common/define.h"
@@ -274,7 +274,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLookupNameTooLong) {
 TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     PrepareEnv();
 
-    fuse_req_t req;
+    fuse_req_t req{};
     fuse_ino_t ino = 1;
     const char *buf = "xxx";
     size_t size = 4;
@@ -287,14 +287,15 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     inode.set_inodeid(ino);
     inode.set_length(0);
 
-    for (auto ret : std::initializer_list<int64_t>{size, -1}) {
+    for (auto ret : {CURVEFS_ERROR::OK, CURVEFS_ERROR::IO_ERROR,
+                     CURVEFS_ERROR::NO_SPACE}) {
         EXPECT_CALL(*volumeStorage_, Write(_, _, _, _))
             .WillOnce(Return(ret));
 
-        ASSERT_EQ(ret == size ? CURVEFS_ERROR::OK : CURVEFS_ERROR::IO_ERROR,
+        ASSERT_EQ(ret,
                   client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize));
 
-        if (ret == size) {
+        if (ret == CURVEFS_ERROR::OK) {
             ASSERT_EQ(size, wSize);
         }
     }
@@ -303,7 +304,7 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
 TEST_F(TestFuseVolumeClient, FuseOpRead) {
     PrepareEnv();
 
-    fuse_req_t req;
+    fuse_req_t req{};
     fuse_ino_t ino = 1;
     size_t size = 4;
     off_t off = 0;
@@ -317,15 +318,15 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     inode.set_inodeid(ino);
     inode.set_length(4096);
 
-    for (auto ret : std::initializer_list<int64_t>{size, -1}) {
+    for (auto ret : {CURVEFS_ERROR::OK, CURVEFS_ERROR::IO_ERROR,
+                     CURVEFS_ERROR::NO_SPACE}) {
         EXPECT_CALL(*volumeStorage_, Read(_, _, _, _))
             .WillOnce(Return(ret));
 
-        ASSERT_EQ(
-            ret == size ? CURVEFS_ERROR::OK : CURVEFS_ERROR::IO_ERROR,
-            client_->FuseOpRead(req, ino, size, off, &fi, buf.get(), &rSize));
+        ASSERT_EQ(ret, client_->FuseOpRead(req, ino, size, off, &fi, buf.get(),
+                                           &rSize));
 
-        if (ret == size) {
+        if (ret == CURVEFS_ERROR::OK) {
             ASSERT_EQ(size, rSize);
         }
     }

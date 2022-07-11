@@ -72,7 +72,8 @@ bool AllocSpace(SpaceManager* space,
     std::vector<Extent> exts;
     auto ret = space->Alloc(part.allocInfo.len, hint, &exts);
     if (!ret) {
-        LOG(ERROR) << "allocate space error: " << ret;
+        LOG(ERROR) << "allocate space error, length: " << part.allocInfo.len
+                   << ", hint: " << hint;
         return false;
     }
 
