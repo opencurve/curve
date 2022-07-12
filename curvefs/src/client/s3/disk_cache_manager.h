@@ -115,11 +115,11 @@ class DiskCacheManager {
      * @brief add the used bytes of disk cache.
      */
     void AddDiskUsedBytes(uint64_t length) {
-        usedBytes_.fetch_add(length, std::memory_order_seq_cst);
+        usedBytes_.fetch_add(length);
         if (metric_.get() != nullptr)
             metric_->diskUsedBytes.set_value(usedBytes_/1024/1024);
         VLOG(9) << "add disk used size is: " << length
-                << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
+                << ", now is: " << usedBytes_.load();
         return;
     }
     /**
@@ -128,19 +128,17 @@ class DiskCacheManager {
      * because there are link in read cache
      */
     void DecDiskUsedBytes(uint64_t length) {
-        int64_t usedBytes;
-        usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
-        assert(usedBytes >= 0);
-        (void)usedBytes;
+        usedBytes_.fetch_sub(length);
+        assert(usedBytes_ >= 0);
         if (metric_.get() != nullptr)
             metric_->diskUsedBytes.set_value(usedBytes_);
         VLOG(9) << "dec disk used size is: " << length
-                << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
+                << ", now is: " << usedBytes_.load();
         return;
     }
     void SetDiskInitUsedBytes();
     uint64_t GetDiskUsedbytes() {
-        return usedBytes_.load(std::memory_order_seq_cst);
+        return usedBytes_.load();
     }
 
     void InitQosParam();
