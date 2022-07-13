@@ -197,20 +197,23 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
         uint64_t index = offset / chunkSize_;
         uint64_t chunkPos = offset % chunkSize_;
         uint64_t n = 0;
-        uint64_t chunkId;
+        uint64_t beginChunkId;
         FSStatusCode ret;
         uint64_t fsId = inode->fsid();
-        ret = AllocS3ChunkId(fsId, &chunkId);
+        uint32_t chunkIdNum = len / chunkSize_ + 1;
+        ret = AllocS3ChunkId(fsId, chunkIdNum, &beginChunkId);
         if (ret != FSStatusCode::OK) {
             LOG(ERROR) << "Truncate alloc s3 chunkid fail. ret:" << ret;
             return CURVEFS_ERROR::INTERNAL;
         }
+        uint64_t chunkId = beginChunkId;
         while (len > 0) {
             if (chunkPos + len > chunkSize_) {
                 n = chunkSize_ - chunkPos;
             } else {
                 n = len;
             }
+            assert(chunkId <= (beginChunkId + chunkIdNum - 1));
             S3ChunkInfo *tmp;
             auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
             auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
@@ -236,6 +239,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
             index++;
             chunkPos = (chunkPos + n) % chunkSize_;
             offset += n;
+            chunkId++;
         }
         return CURVEFS_ERROR::OK;
     }
@@ -268,8 +272,9 @@ CURVEFS_ERROR S3ClientAdaptorImpl::FsSync() {
 }
 
 FSStatusCode S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
+                                                 uint32_t idNum,
                                                  uint64_t *chunkId) {
-    return mdsClient_->AllocS3ChunkId(fsId, chunkId);
+    return mdsClient_->AllocS3ChunkId(fsId, idNum, chunkId);
 }
 
 void S3ClientAdaptorImpl::BackGroundFlush() {

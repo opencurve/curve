@@ -139,6 +139,7 @@ void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
     AllocateS3ChunkResponse response;
     curvefs::mds::MdsService_Stub stub(&channel);
     request.set_fsid(0);
+    request.set_chunkidnum(1);
     for (int i = 0; i < numChunkIds; ++i) {
         stub.AllocateS3Chunk(cntl, &request, &response, nullptr);
 
@@ -161,7 +162,7 @@ void GetChunkIds(std::shared_ptr<curve::common::Configuration> conf,
             return;
         }
 
-        uint64_t chunkId = response.chunkid();
+        uint64_t chunkId = response.beginchunkid();
         data->push_back(chunkId);
         cntl->Reset();
     }

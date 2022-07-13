@@ -276,7 +276,11 @@ void MdsServiceImpl::AllocateS3Chunk(
     VLOG(9) << "start to allocate chunkId.";
 
     uint64_t chunkId = 0;
-    int stat = chunkIdAllocator_->GenChunkId(&chunkId);
+    uint64_t chunkIdNum = 1;
+    if (request->has_chunkidnum()) {
+        chunkIdNum = request->chunkidnum();
+    }
+    int stat = chunkIdAllocator_->GenChunkId(chunkIdNum, &chunkId);
     FSStatusCode resStat;
     if (stat >= 0) {
         resStat = OK;
@@ -291,7 +295,7 @@ void MdsServiceImpl::AllocateS3Chunk(
                    << request->ShortDebugString()
                    << ", error: " << FSStatusCode_Name(resStat);
     } else {
-        response->set_chunkid(chunkId);
+        response->set_beginchunkid(chunkId);
         VLOG(9) << "AllocateS3Chunk success, request: "
                 << request->ShortDebugString()
                 << ", response: " << response->ShortDebugString();

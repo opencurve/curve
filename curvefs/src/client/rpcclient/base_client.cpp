@@ -130,12 +130,13 @@ void MDSBaseClient::ListPartition(uint32_t fsID,
     stub.ListPartition(cntl, &request, response, nullptr);
 }
 
-void MDSBaseClient::AllocS3ChunkId(uint32_t fsId,
+void MDSBaseClient::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                    AllocateS3ChunkResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     AllocateS3ChunkRequest request;
     request.set_fsid(fsId);
+    request.set_chunkidnum(idNum);
 
     curvefs::mds::MdsService_Stub stub(channel);
     stub.AllocateS3Chunk(cntl, &request, response, nullptr);

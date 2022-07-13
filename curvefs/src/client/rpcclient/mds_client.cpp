@@ -413,12 +413,13 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
 }
 
-FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
+FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
+                                           uint64_t *chunkId) {
     auto task = RPCTask {
         mdsClientMetric_.allocS3ChunkId.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.allocS3ChunkId.latency);
         AllocateS3ChunkResponse response;
-        mdsbasecli_->AllocS3ChunkId(fsId, &response, cntl, channel);
+        mdsbasecli_->AllocS3ChunkId(fsId, idNum, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.allocS3ChunkId.eps.count << 1;
             LOG(WARNING) << "AllocS3ChunkId Failed, errorcode = "
@@ -433,8 +434,8 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
             LOG(WARNING) << "AllocS3ChunkId: fsid = " << fsId
                          << ", errcode = " << ret
                          << ", errmsg = " << FSStatusCode_Name(ret);
-        } else if (response.has_chunkid()) {
-            *chunkId = response.chunkid();
+        } else if (response.has_beginchunkid()) {
+            *chunkId = response.beginchunkid();
         }
 
         return ret;
