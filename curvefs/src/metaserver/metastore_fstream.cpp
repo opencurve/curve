@@ -91,7 +91,8 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
 
     const auto pid = partitionInfo.partitionid();
     partitionMap_->emplace(
-        pid, std::make_shared<Partition>(std::move(partitionInfo), kvStorage_));
+        pid, std::make_shared<Partition>(std::move(partitionInfo), kvStorage_,
+                                         /*startCompact*/ false));
 
     return true;
 }

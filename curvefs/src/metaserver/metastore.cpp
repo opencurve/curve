@@ -109,8 +109,15 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
         }
     }
 
+    auto startCompacts = [this]() {
+        for (auto& part : partitionMap_) {
+            part.second->StartS3Compact();
+        }
+    };
+
     // reload from a previous version, and doesn't have storage checkpoint yet
     if (version <= storage::kDumpFileV2) {
+        startCompacts();
         return true;
     }
 
@@ -120,6 +127,7 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
         return false;
     }
 
+    startCompacts();
     return true;
 }
 
@@ -186,7 +194,7 @@ bool MetaStoreImpl::Save(const std::string& dir,
 bool MetaStoreImpl::ClearInternal() {
     for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
         TrashManager::GetInstance().Remove(it->first);
-        it->second->ClearS3Compact();
+        it->second->CancelS3Compact();
         PartitionCleanManager::GetInstance().Remove(it->first);
 
         if (!it->second->Clear()) {
@@ -255,7 +263,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
         LOG(INFO) << "DeletePartition, partition is deletable, delete it"
                   << ", partitionId = " << partitionId;
         TrashManager::GetInstance().Remove(partitionId);
-        it->second->ClearS3Compact();
+        it->second->CancelS3Compact();
         PartitionCleanManager::GetInstance().Remove(partitionId);
         partitionMap_.erase(it);
         response->set_statuscode(MetaStatusCode::OK);
@@ -272,7 +280,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
                                                  copysetNode_);
         it->second->SetStatus(PartitionStatus::DELETING);
         TrashManager::GetInstance().Remove(partitionId);
-        it->second->ClearS3Compact();
+        it->second->CancelS3Compact();
     } else {
         LOG(INFO) << "DeletePartition, partition is already deleting"
                   << ", partitionId = " << partitionId;

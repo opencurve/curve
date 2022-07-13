@@ -32,6 +32,7 @@
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/s3compact.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -39,7 +40,8 @@ namespace metaserver {
 using ::curvefs::metaserver::storage::NameGenerator;
 
 Partition::Partition(PartitionInfo partition,
-                     std::shared_ptr<KVStorage> kvStorage) {
+                     std::shared_ptr<KVStorage> kvStorage,
+                     bool startCompact) {
     assert(partition.start() <= partition.end());
     partitionInfo_ = std::move(partition);
 
@@ -70,8 +72,9 @@ Partition::Partition(PartitionInfo partition,
 
     if (partitionInfo_.status() != PartitionStatus::DELETING) {
         TrashManager::GetInstance().Add(partitionInfo_.partitionid(), trash_);
-        s3compact_ = std::make_shared<S3Compact>(inodeManager_, partitionInfo_);
-        S3CompactManager::GetInstance().RegisterS3Compact(s3compact_);
+        if (startCompact) {
+            StartS3Compact();
+        }
     }
 }
 
@@ -507,6 +510,15 @@ MetaStatusCode Partition::GetVolumeExtent(uint32_t fsId,
                                           VolumeExtentList* extents) {
     PRECHECK(fsId, inodeId);
     return inodeManager_->GetVolumeExtent(fsId, inodeId, slices, extents);
+}
+
+void Partition::StartS3Compact() {
+    S3CompactManager::GetInstance().Register(
+        S3Compact{inodeManager_, partitionInfo_});
+}
+
+void Partition::CancelS3Compact() {
+    S3CompactManager::GetInstance().Cancel(partitionInfo_.partitionid());
 }
 
 }  // namespace metaserver
