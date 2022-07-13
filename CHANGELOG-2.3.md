@@ -26,6 +26,40 @@ Previous change logs can be found at [CHANGELOG-2.2](https://github.com/opencurv
 
 - [CurveFS client: perf optimize](https://github.com/opencurve/curve/pull/1194)
 
+Hardware: 3 nodes(3*mds, 9*metaserver), each with:
+ - Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz
+ - 256G RAM
+ - disk cache: INTEL SSDSC2BB80 800G(iops is about 30000+,bw is about 300MB)
+
+  - performance is as follows:
+
+s3 backend is minio and the cto is disable([what is cto](https://github.com/opencurve/curve/blob/master/docs/cn/CurveFS%E6%94%AF%E6%8C%81%E5%A4%9A%E6%8C%82%E8%BD%BD.pdf)). and as you know, the performance of read may associated with read cache hit.
+
+| minio + diskcache(free)| iops/bandwidth | avg-latency(ms) | clat 99.00th (ms) | clat 99.99th (ms) |
+| :----: | :----: | :----: | :----: | :----: |
+| (numjobs 1) (50G filesize) 4k randwrite | 3539 | 0.281 | 1.5 | 16 |
+| (numjobs 1) (50G filesize) 4k randread | 2785 | 0.357 | 0.9 | 5.8|
+| (numjobs 1) (50G filesize) 512k write | 290 MB/s | 1 | 600 ms | 248|
+| (numjobs 1) (50G filesize) 512k read | 216 MB/s | 4.3 | 275 ms | 7.6 |
+
+
+| minio + diskcache(near full)| iops/bandwidth | avg-latency(ms) | clat 99.00th (ms) | clat 99.99th (ms) |
+| :----: | :----: | :----: | :----: | :----: |
+| (numjobs 1) (50G filesize) 4k randwrite | 2988 | 0.3 | 1.2 | 18 |
+| (numjobs 1) (50G filesize) 4k randread | 1559 | 0.6 | 1.9 | 346|
+| (numjobs 1) (50G filesize) 512k write | 266 MB/s | 0.9| 600 ms | 396|
+| (numjobs 1) (50G filesize) 512k read | 82 MB/s | 86 | 275 ms | 901|
+
+
+| minio + diskcache(full)| iops/bandwidth | avg-latency(ms) | clat 99.00th (ms) | clat 99.99th (ms) |
+| :----: | :----: | :----: | :----: | :----: |
+| (numjobs 1) (20G filesize * 5) 4k randwrite | 2860 | 1.7| 14 | 41 |
+| (numjobs 1) (20G filesize * 5) 4k randread | 76 | 65 | 278 | 725|
+| (numjobs 1) (20G filesize * 5) 512k write | 240 MB/s | 10| 278 | 513|
+| (numjobs 1) (20G filesize * 5) 512k read | 192 MB/s | 12 | 40 | 1955 |
+
+
+
 
 ## bug fix
 
