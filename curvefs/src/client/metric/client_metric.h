@@ -274,6 +274,14 @@ struct DiskCacheMetric {
           diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
 };
 
+struct S3ChunkInfoMetric {
+    const std::string prefix = "inode_s3_chunk_info";
+
+    bvar::Adder<int64_t> s3ChunkInfoSize;
+
+    S3ChunkInfoMetric() : s3ChunkInfoSize(prefix, "size") {}
+};
+
 }  // namespace metric
 }  // namespace client
 }  // namespace curvefs

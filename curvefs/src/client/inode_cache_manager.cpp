@@ -138,7 +138,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
 
     auto type = inode.type();
     out = std::make_shared<InodeWrapper>(
-        std::move(inode), metaClient_);
+        std::move(inode), metaClient_, s3ChunkInfoMetric_);
 
     // NOTE: if the s3chunkinfo inside inode is too large,
     // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
@@ -329,7 +329,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     }
     uint64_t inodeid = inode.inodeid();
     out = std::make_shared<InodeWrapper>(
-        std::move(inode), metaClient_);
+        std::move(inode), metaClient_, s3ChunkInfoMetric_);
 
     std::shared_ptr<InodeWrapper> eliminatedOne;
     bool eliminated = false;

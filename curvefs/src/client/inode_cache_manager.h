@@ -61,6 +61,7 @@ using rpcclient::InodeParam;
 using rpcclient::MetaServerClientDone;
 using rpcclient::BatchGetInodeAttrDone;
 using curve::common::CountDownEvent;
+using metric::S3ChunkInfoMetric;
 
 class InodeAttrCache {
  public:
@@ -190,6 +191,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         maxCacheSize_ = cacheSize;
         flushPeriodSec_ = flushPeriodSec;
         iAttrCache_ = std::make_shared<InodeAttrCache>();
+        s3ChunkInfoMetric_ = std::make_shared<S3ChunkInfoMetric>();
         return CURVEFS_ERROR::OK;
     }
 
@@ -255,6 +257,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>> iCache_;
+    std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
 
     std::shared_ptr<InodeAttrCache> iAttrCache_;
 

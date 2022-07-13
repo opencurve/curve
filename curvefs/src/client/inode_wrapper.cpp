@@ -156,7 +156,7 @@ CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo(bool internal) {
                        << ", inodeid: " << inode_.inodeid();
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        s3ChunkInfoAdd_.clear();
+        ClearS3ChunkInfoAdd();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -177,7 +177,7 @@ void InodeWrapper::FlushS3ChunkInfoAsync() {
         metaClient_->GetOrModifyS3ChunkInfoAsync(
             inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_,
             done);
-        s3ChunkInfoAdd_.clear();
+        ClearS3ChunkInfoAdd();
     }
 }
 
@@ -223,8 +223,10 @@ CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
                    << ", inodeid: " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
+    auto before = GetS3ChunkSize();
     inode_.mutable_s3chunkinfomap()->swap(s3ChunkInfoMap);
-    s3ChunkInfoAdd_.clear();
+    UpdateS3ChunkInfoMetric(GetS3ChunkSize() - before);
+    ClearS3ChunkInfoAdd();
     return CURVEFS_ERROR::OK;
 }
 
@@ -453,7 +455,7 @@ CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
             dirty_ = true;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        s3ChunkInfoAdd_.clear();
+        ClearS3ChunkInfoAdd();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -465,7 +467,7 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
         metaClient_->UpdateInodeWithOutNlinkAsync(
             inode_, done, InodeOpenStatusChange::NOCHANGE, &s3ChunkInfoAdd_);
         dirty_ = false;
-        s3ChunkInfoAdd_.clear();
+        ClearS3ChunkInfoAdd();
     }
 }
 

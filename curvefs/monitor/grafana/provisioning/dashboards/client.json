@@ -23,7 +23,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 3,
-  "iteration": 1657537535386,
+  "iteration": 1657691847424,
   "links": [],
   "panels": [
     {
@@ -6672,7 +6672,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 18
           },
           "hiddenSeries": false,
           "id": 122,
@@ -6768,7 +6768,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 18
           },
           "hiddenSeries": false,
           "id": 123,
@@ -6854,7 +6854,7 @@
           "datasource": null,
           "fieldConfig": {
             "defaults": {
-              "unit": "short"
+              "unit": "none"
             },
             "overrides": []
           },
@@ -6864,7 +6864,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 98
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 124,
@@ -6927,7 +6927,7 @@
           "yaxes": [
             {
               "$$hashKey": "object:212",
-              "format": "short",
+              "format": "none",
               "logBase": 1,
               "show": true
             },
@@ -6950,7 +6950,7 @@
           "datasource": null,
           "fieldConfig": {
             "defaults": {
-              "unit": "bytes"
+              "unit": "none"
             },
             "overrides": []
           },
@@ -6960,7 +6960,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 98
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 125,
@@ -6996,7 +6996,7 @@
                 "type": "prometheus"
               },
               "exemplar": true,
-              "expr": "{__name__=~\"icache_cache_bytes\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\"inode_s3_chunk_info_size\", instance=~\"$instance\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -7006,7 +7006,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "icache_cache_bytes",
+          "title": "inode_s3_chunk_info_size",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -7023,7 +7023,7 @@
           "yaxes": [
             {
               "$$hashKey": "object:212",
-              "format": "bytes",
+              "format": "none",
               "logBase": 1,
               "show": true
             },
@@ -7056,7 +7056,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 106
+            "y": 34
           },
           "hiddenSeries": false,
           "id": 126,
@@ -7152,7 +7152,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 106
+            "y": 34
           },
           "hiddenSeries": false,
           "id": 127,
@@ -12402,9 +12402,13 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "{__name__=~\"curvefs_s3_.*_adaptor_write_bps\", job=\"client\"}",
@@ -12460,9 +12464,13 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "{__name__=~\"curvefs_client_op_.*_inflight_num\", job=\"client\"}",
@@ -12494,5 +12502,5 @@
   "timezone": "",
   "title": "client",
   "uid": "I2_uSSenk",
-  "version": 102
+  "version": 107
 }
