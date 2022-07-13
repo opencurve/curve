@@ -20,8 +20,8 @@
 > Created Time: Tue 7 Sept 2021
  ************************************************************************/
 
-#ifndef CURVEFS_TEST_METASERVER_MOCK_S3_ADAPTER_H_
-#define CURVEFS_TEST_METASERVER_MOCK_S3_ADAPTER_H_
+#ifndef CURVEFS_TEST_METASERVER_S3COMPACT_MOCK_S3_ADAPTER_H_
+#define CURVEFS_TEST_METASERVER_S3COMPACT_MOCK_S3_ADAPTER_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -68,4 +68,4 @@ class MockS3Adapter : public S3Adapter {
 };
 }  // namespace metaserver
 }  // namespace curvefs
-#endif  // CURVEFS_TEST_METASERVER_MOCK_S3_ADAPTER_H_
+#endif  // CURVEFS_TEST_METASERVER_S3COMPACT_MOCK_S3_ADAPTER_H_

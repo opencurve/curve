@@ -28,8 +28,8 @@ cc_test(
             "metaserver_s3_adaptor_test.cpp",
             "mock_metaserver_s3_adaptor.h",
             "metaserver_s3_test.cpp",
-            "mock_s3compactwq_impl.h",
-            "s3compactwq_test.cpp",
+            "mock_s3compact_inode.h",
+            "s3compact_test.cpp",
             "mock_s3_adapter.h",
             "partition_clean_test.cpp",
         ],
@@ -118,25 +118,5 @@ cc_test(
         "@com_google_googletest//:gtest",
         "//external:brpc",
         "//curvefs/test/metaserver/storage:metaserver_storage_test_utils",
-    ],
-)
-
-cc_test(
-    name = "s3compactwq_test",
-    srcs = glob([
-        "s3compactwq_test.cpp",
-        "mock_s3compactwq_impl.h",
-        "mock_s3_adapter.h",
-        "mock_s3infocache.h"
-    ]),
-    copts = CURVE_TEST_COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//curvefs/src/metaserver:curvefs_metaserver",
-        "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
-        "//curvefs/test/metaserver/storage:metaserver_storage_test_utils",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
     ],
 )

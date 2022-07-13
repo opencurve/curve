@@ -20,8 +20,8 @@
 > Created Time: Tue 7 Sept 2021
  ************************************************************************/
 
-#ifndef CURVEFS_TEST_METASERVER_MOCK_S3COMPACTWQ_IMPL_H_
-#define CURVEFS_TEST_METASERVER_MOCK_S3COMPACTWQ_IMPL_H_
+#ifndef CURVEFS_TEST_METASERVER_S3COMPACT_MOCK_S3COMPACT_INODE_H_
+#define CURVEFS_TEST_METASERVER_S3COMPACT_MOCK_S3COMPACT_INODE_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -29,23 +29,18 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/s3compact_wq_impl.h"
-#include "curvefs/test/metaserver/mock_s3infocache.h"
+#include "curvefs/src/metaserver/s3compact_inode.h"
 
 using curve::common::S3Adapter;
 using curvefs::metaserver::copyset::CopysetNode;
-using ::testing::Return;
 
 namespace curvefs {
 namespace metaserver {
 
-class MockS3CompactWorkQueueImpl : public S3CompactWorkQueueImpl {
+class MockCompactInodeJob : public CompactInodeJob {
  public:
-    MockS3CompactWorkQueueImpl(
-        std::shared_ptr<S3AdapterManager> s3AdapterManager,
-        std::shared_ptr<S3InfoCache> s3infoCache,
-        const S3CompactWorkQueueOption& opts, copyset::CopysetNodeManager* mgr)
-        : S3CompactWorkQueueImpl(s3AdapterManager, s3infoCache, opts, mgr) {}
+    using CompactInodeJob::CompactInodeJob;
+
     MetaStatusCode UpdateInode(
         CopysetNode* copysetNode, const PartitionInfo& pinfo, uint64_t inodeId,
         ::google::protobuf::Map<uint64_t, S3ChunkInfoList>&& s3ChunkInfoAdd,
@@ -70,4 +65,4 @@ class MockCopysetNodeWrapper : public CopysetNodeWrapper {
 
 }  // namespace metaserver
 }  // namespace curvefs
-#endif  // CURVEFS_TEST_METASERVER_MOCK_S3COMPACTWQ_IMPL_H_
+#endif  // CURVEFS_TEST_METASERVER_S3COMPACT_MOCK_S3COMPACT_INODE_H_

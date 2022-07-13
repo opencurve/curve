@@ -20,8 +20,8 @@
  * @Author: majie1
  */
 
-#ifndef CURVEFS_SRC_METASERVER_S3COMPACT_WQ_IMPL_H_
-#define CURVEFS_SRC_METASERVER_S3COMPACT_WQ_IMPL_H_
+#ifndef CURVEFS_SRC_METASERVER_S3COMPACT_INODE_H_
+#define CURVEFS_SRC_METASERVER_S3COMPACT_INODE_H_
 
 #include <algorithm>
 #include <condition_variable>
@@ -38,9 +38,8 @@
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/storage/converter.h"
-#include "src/common/concurrent/task_thread_pool.h"
-#include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
+#include "curvefs/src/metaserver/s3compact_worker.h"
 
 using curve::common::Configuration;
 using curve::common::InitS3AdaptorOptionExceptS3InfoOption;
@@ -55,48 +54,41 @@ namespace metaserver {
 
 class CopysetNodeWrapper {
  public:
-    explicit CopysetNodeWrapper(const std::shared_ptr<CopysetNode>& copysetNode)
+    explicit CopysetNodeWrapper(CopysetNode* copysetNode)
         : copysetNode_(copysetNode) {}
-    virtual ~CopysetNodeWrapper() {}
-    std::shared_ptr<CopysetNode> copysetNode_;
+
+    virtual ~CopysetNodeWrapper() = default;
     virtual bool IsLeaderTerm() {
-        return copysetNode_ && copysetNode_->IsLeaderTerm();
+        return copysetNode_ != nullptr && copysetNode_->IsLeaderTerm();
     }
     virtual bool IsValid() {
         return copysetNode_ != nullptr;
     }
     CopysetNode* Get() {
-        return copysetNode_.get();
+        return copysetNode_;
     }
+ private:
+    CopysetNode* copysetNode_;
 };
 
-class S3CompactWorkQueueImpl : public TaskThreadPool<> {
+struct S3CompactionWorkerOptions;
+
+class CompactInodeJob {
  public:
-    S3CompactWorkQueueImpl(std::shared_ptr<S3AdapterManager> s3adapterManager,
-                           std::shared_ptr<S3InfoCache> s3infoCache,
-                           const S3CompactWorkQueueOption& opts,
-                           copyset::CopysetNodeManager* nodeMgr)
-        : s3adapterManager_(s3adapterManager),
-          s3infoCache_(s3infoCache),
-          opts_(opts),
-          copysetNodeMgr_(nodeMgr) {}
+    explicit CompactInodeJob(const S3CompactWorkerOptions* opts)
+        : opts_(opts) {}
 
-    std::shared_ptr<S3AdapterManager> s3adapterManager_;
-    std::shared_ptr<S3InfoCache> s3infoCache_;
-    S3CompactWorkQueueOption opts_;
-    std::deque<Key4Inode> compactingInodes_;
+    virtual ~CompactInodeJob() = default;
+
+    const S3CompactWorkerOptions* opts_;
     copyset::CopysetNodeManager* copysetNodeMgr_;
-    void Enqueue(std::shared_ptr<InodeManager> inodeManager, Key4Inode inodeKey,
-                 PartitionInfo pinfo);
-    std::function<void()> Dequeue();
-    void ThreadFunc();
 
-    // compact task for one partition
+    // compact task for one inode
     struct S3CompactTask {
         std::shared_ptr<InodeManager> inodeManager;
         Key4Inode inodeKey;
         PartitionInfo pinfo;
-        std::shared_ptr<CopysetNodeWrapper> copysetNodeWrapper;
+        std::unique_ptr<CopysetNodeWrapper> copysetNodeWrapper;
     };
 
     struct S3CompactCtx {
@@ -126,7 +118,7 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
                   uint64_t off, uint64_t len)
             : reqIndex(reqIndex),
               zero(zero),
-              objName(objName),
+              objName(std::move(objName)),
               off(off),
               len(len) {}
     };
@@ -210,10 +202,10 @@ class S3CompactWorkQueueImpl : public TaskThreadPool<> {
     void DeleteObjsOfS3ChunkInfoList(const struct S3CompactCtx& ctx,
                                      const S3ChunkInfoList& s3chunkinfolist);
     // func bind with task
-    void CompactChunks(const struct S3CompactTask& task);
+    void CompactChunks(const S3CompactTask& task);
 };
 
 }  // namespace metaserver
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_METASERVER_S3COMPACT_WQ_IMPL_H_
+#endif  // CURVEFS_SRC_METASERVER_S3COMPACT_INODE_H_

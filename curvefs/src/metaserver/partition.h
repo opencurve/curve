@@ -34,7 +34,6 @@
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 #include "curvefs/src/metaserver/inode_storage.h"
-#include "curvefs/src/metaserver/s3compact.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
 
@@ -51,9 +50,9 @@ constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
 class Partition {
  public:
-    Partition(PartitionInfo partition, std::shared_ptr<KVStorage> kvStorage);
-
-    ~Partition() {}
+    Partition(PartitionInfo partition,
+              std::shared_ptr<KVStorage> kvStorage,
+              bool startCompact = true);
 
     // dentry
     MetaStatusCode CreateDentry(const Dentry& dentry);
@@ -157,7 +156,9 @@ class Partition {
 
     PartitionStatus GetStatus() { return partitionInfo_.status(); }
 
-    void ClearS3Compact() { s3compact_ = nullptr; }
+    void StartS3Compact();
+
+    void CancelS3Compact();
 
     std::string GetInodeTablename();
 
@@ -193,7 +194,6 @@ class Partition {
     std::shared_ptr<TxManager> txManager_;
 
     PartitionInfo partitionInfo_;
-    std::shared_ptr<S3Compact> s3compact_;
 };
 }  // namespace metaserver
 }  // namespace curvefs
