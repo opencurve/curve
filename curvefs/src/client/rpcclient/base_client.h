@@ -173,7 +173,7 @@ class MDSBaseClient {
     virtual void ListPartition(uint32_t fsID, ListPartitionResponse* response,
                                brpc::Controller* cntl, brpc::Channel* channel);
 
-    virtual void AllocS3ChunkId(uint32_t fsId,
+    virtual void AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                 AllocateS3ChunkResponse* response,
                                 brpc::Controller* cntl, brpc::Channel* channel);
 

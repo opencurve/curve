@@ -26,20 +26,21 @@
 namespace curvefs {
 namespace mds {
 
-int ChunkIdAllocatorImpl::GenChunkId(uint64_t *chunkId) {
+int ChunkIdAllocatorImpl::GenChunkId(uint64_t idNum, uint64_t *chunkId) {
     int ret = 0;
     // will unloack at destructor
     ::curve::common::WriteLockGuard guard(nextIdRWlock_);
 
-    if (nextId_ > lastId_ || CHUNKIDINITIALIZE == nextId_) {
+    if (nextId_ + idNum - 1> lastId_ || CHUNKIDINITIALIZE == nextId_) {
         // the chunkIds is exhausted || first to get chunkId
-        ret = AllocateBundleIds(bundleSize_);
+        uint64_t allocSize = nextId_ + idNum - lastId_ + bundleSize_;
+        ret = AllocateBundleIds(allocSize);
     }
 
     if (ret >= 0) {
         // allocate id
         *chunkId = nextId_;
-        ++nextId_;
+        nextId_ += idNum;
         VLOG(3) << "allocate chunkid:" << *chunkId;
     } else {
         // the chunkIds in the current bundle is exhausted,

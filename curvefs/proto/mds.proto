@@ -155,12 +155,13 @@ message DeleteFsResponse {
 
 message AllocateS3ChunkRequest {
     required uint32 fsId = 1;
+    optional uint32 chunkIdNum = 2;
 }
 
 message AllocateS3ChunkResponse {
-    // status code, default value is FSStatusCode::UNKNOWN_ERROR
+   // status code, default value is FSStatusCode::UNKNOWN_ERROR
    required FSStatusCode statusCode = 1;
-   required uint64 chunkId = 2;
+   required uint64 beginChunkId = 2;
 }
 
 message ListClusterFsInfoRequest {

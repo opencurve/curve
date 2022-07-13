@@ -50,7 +50,7 @@ class ChunkIdAllocator {
      * @return int
      * @details
      */
-    virtual int GenChunkId(uint64_t* chunkId) = 0;
+    virtual int GenChunkId(uint64_t idNum, uint64_t *chunkId) = 0;
 
     /**
      * @brief init ChunkIdAllocator
@@ -88,7 +88,7 @@ class ChunkIdAllocatorImpl : public ChunkIdAllocator {
      * @return int
      * @details
      */
-    int GenChunkId(uint64_t* chunkId) override;
+    int GenChunkId(uint64_t idNum, uint64_t *chunkId) override;
 
     /**
      * @brief init ChunkIdAllocator

@@ -93,7 +93,9 @@ void ChunkIdAllocatorTest::SetUp() {
     chunkIdAllocator_ = make_shared<ChunkIdAllocatorImpl>(mockEtcdClient_);
 }
 
-void ChunkIdAllocatorTest::TearDown() {}
+void ChunkIdAllocatorTest::TearDown() {
+    CHUNKID = 0;
+}
 
 TEST_F(ChunkIdAllocatorTest, test_get_chunkIds_1001) {
     EXPECT_CALL(*mockEtcdClient_.get(), Get(_, _))
@@ -104,7 +106,7 @@ TEST_F(ChunkIdAllocatorTest, test_get_chunkIds_1001) {
     set<uint64_t> chunkids;  // record get chunkids
     for (int i = 0; i < times; ++i) {
         uint64_t tmp = 0;
-        chunkIdAllocator_->GenChunkId(&tmp);
+        chunkIdAllocator_->GenChunkId(1, &tmp);
         chunkids.insert(tmp);
         LOG(INFO) << "allocate id:" << tmp;
     }
@@ -127,7 +129,7 @@ TEST_F(ChunkIdAllocatorTest, test_reclient_get_chunkIds_1001) {
     set<uint64_t> chunkids;  // record get chunkids
     for (int i = 0; i < times; ++i) {
         uint64_t tmp = 0;
-        chunkIdAllocator_->GenChunkId(&tmp);
+        chunkIdAllocator_->GenChunkId(1, &tmp);
         chunkids.insert(tmp);
         LOG(INFO) << "allocate id:" << tmp;
     }
@@ -140,7 +142,7 @@ TEST_F(ChunkIdAllocatorTest, storeKeyExist_etcdNotOK) {
     EXPECT_CALL(*mockEtcdClient_.get(), Get(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));
     uint64_t chunkId;
-    int ret = chunkIdAllocator_->GenChunkId(&chunkId);
+    int ret = chunkIdAllocator_->GenChunkId(1, &chunkId);
     LOG(INFO) << "ret: " << ret;
     ASSERT_LT(ret, 0);
 }
@@ -152,7 +154,7 @@ TEST_F(ChunkIdAllocatorTest, storeKeyNotExist) {
     EXPECT_CALL(*mockEtcdClient_.get(), CompareAndSwap(_, _, _))
         .WillOnce(Return(0));
     uint64_t chunkId;
-    int ret = chunkIdAllocator_->GenChunkId(&chunkId);
+    int ret = chunkIdAllocator_->GenChunkId(1, &chunkId);
     LOG(INFO) << "ret: " << ret;
     ASSERT_EQ(ret, 0);
 }
@@ -162,7 +164,7 @@ TEST_F(ChunkIdAllocatorTest, DecodeID_ERROR) {
     EXPECT_CALL(*mockEtcdClient_.get(), Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(out), Return(EtcdErrCode::EtcdOK)));
     uint64_t chunkId;
-    int ret = chunkIdAllocator_->GenChunkId(&chunkId);
+    int ret = chunkIdAllocator_->GenChunkId(1, &chunkId);
     LOG(INFO) << "ret: " << ret;
     ASSERT_LT(ret, 0);
 }
@@ -174,9 +176,24 @@ TEST_F(ChunkIdAllocatorTest, CAS_ERROR) {
     EXPECT_CALL(*mockEtcdClient_.get(), CompareAndSwap(_, _, _))
         .WillOnce(Return(-3));
     uint64_t chunkId;
-    int ret = chunkIdAllocator_->GenChunkId(&chunkId);
+    int ret = chunkIdAllocator_->GenChunkId(1, &chunkId);
     LOG(INFO) << "ret: " << ret;
     ASSERT_LT(ret, 0);
+}
+
+TEST_F(ChunkIdAllocatorTest, test_get_more_chunkid) {
+     EXPECT_CALL(*mockEtcdClient_.get(), Get(_, _))
+        .WillRepeatedly(Invoke(GetRep));
+    EXPECT_CALL(*mockEtcdClient_.get(), CompareAndSwap(_, _, _))
+        .WillRepeatedly(Invoke(CompareAndSwapRep));
+
+    uint64_t chunkId;
+    int ret = chunkIdAllocator_->GenChunkId(5, &chunkId);
+    ASSERT_EQ(0, ret);
+    ASSERT_EQ(1, chunkId);
+    ret = chunkIdAllocator_->GenChunkId(10, &chunkId);
+    ASSERT_EQ(0, ret);
+    ASSERT_EQ(6, chunkId);
 }
 
 }  // namespace mds

@@ -86,7 +86,8 @@ class S3ClientAdaptor {
     virtual CURVEFS_ERROR FlushAllCache(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR FsSync() = 0;
     virtual int Stop() = 0;
-    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId) = 0;
+    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
+                                        uint64_t *chunkId) = 0;
     virtual void SetFsId(uint32_t fsId) = 0;
     virtual void InitMetrics(const std::string &fsName) = 0;
     virtual void CollectMetrics(InterfaceMetric *interface, int count,
@@ -170,7 +171,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     std::shared_ptr<DiskCacheManagerImpl> GetDiskCacheManager() {
         return diskCacheManagerImpl_;
     }
-    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t* chunkId);
+    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
+                                uint64_t *chunkId);
     void FsSyncSignal() {
         std::lock_guard<std::mutex> lk(mtx_);
         VLOG(3) << "fs sync signal";

@@ -1114,9 +1114,9 @@ TEST_F(ClientS3IntegrationTest, test_truncate_small3) {
     std::shared_ptr<FsCacheManager> fsCacheManager =
         s3ClientAdaptor_->GetFsCacheManager();
     uint64_t chunkId = 25;
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -1403,9 +1403,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_first_write) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
 
@@ -1466,9 +1466,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
@@ -1526,9 +1526,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write2) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
         .WillRepeatedly(
@@ -1587,9 +1587,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_hole_write) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
@@ -1650,9 +1650,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_more_chunk) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
@@ -1720,9 +1720,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read1) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -1804,9 +1804,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read2) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -1891,9 +1891,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
 
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -1999,9 +1999,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read4) {
 
     uint64_t chunkId = 25;
     uint64_t chunkId1 = 26;
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2082,9 +2082,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read5) {
 
     uint64_t chunkId = 25;
     uint64_t chunkId1 = 26;
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2179,9 +2179,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read6) {
 
     uint64_t chunkId = 25;
     uint64_t chunkId1 = 26;
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2274,10 +2274,10 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
     uint64_t chunkId = 25;
     uint64_t chunkId1 = 26;
     uint64_t chunkId2 = 27;
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId2), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId2), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2373,10 +2373,10 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
     uint64_t chunkId1 = 26;
     uint64_t chunkId2 = 27;
     inode.set_length(offset + len);
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId2), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId2), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2471,10 +2471,10 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
     uint64_t chunkId1 = 26;
     uint64_t chunkId2 = 27;
     inode.set_length(offset + len);
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId2), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId2), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2573,14 +2573,14 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read10) {
     uint64_t chunkId5 = 6;
     uint64_t chunkId6 = 7;
     inode.set_length(offset + len);
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId2), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId3), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId4), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId5), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId6), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId2), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId3), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId4), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId5), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId6), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2696,9 +2696,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read11) {
     uint64_t chunkId1 = 2;
 
     inode.set_length(offset + len);
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2784,9 +2784,9 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read12) {
     uint64_t chunkId1 = 2;
 
     inode.set_length(offset + len);
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId1), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId1), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
@@ -2869,9 +2869,9 @@ TEST_F(ClientS3IntegrationTest, test_fssync_success_and_fail) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillRepeatedly(
-            DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+            DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
     EXPECT_CALL(mockInodeManager_, GetInode(_, _))
@@ -2935,8 +2935,8 @@ TEST_F(ClientS3IntegrationTest, test_fssync_overlap_write) {
     //  mock
     uint64_t chunkId = 25;
 
-    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+    EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);

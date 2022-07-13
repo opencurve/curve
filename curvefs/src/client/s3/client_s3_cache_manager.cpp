@@ -2218,7 +2218,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
     blockIndex = chunkPos_ / blockSize;
     offset = chunkIndex * chunkSize + chunkPos_;
 
-    ret = s3ClientAdaptor_->AllocS3ChunkId(fsId, &chunkId);
+    ret = s3ClientAdaptor_->AllocS3ChunkId(fsId, 1, &chunkId);
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "alloc s3 chunkid fail. ret:" << ret;
         return CURVEFS_ERROR::INTERNAL;
