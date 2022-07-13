@@ -26,7 +26,8 @@ Previous change logs can be found at [CHANGELOG-2.2](https://github.com/opencurv
 
 - [CurveFS client: perf optimize](https://github.com/opencurve/curve/pull/1194)
 
-Hardware: 3 nodes(3*mds, 9*metaserver), each with:
+## Data Performance
+Hardware: 3 nodes (3*mds, 9*metaserver), each with:
  - Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz
  - 256G RAM
  - disk cache: INTEL SSDSC2BB80 800G(iops is about 30000+,bw is about 300MB)
@@ -58,8 +59,35 @@ s3 backend is minio and the cto is disable([what is cto](https://github.com/open
 | (numjobs 1) (20G filesize * 5) 512k write | 240 MB/s | 10| 278 | 513|
 | (numjobs 1) (20G filesize * 5) 512k read | 192 MB/s | 12 | 40 | 1955 |
 
+## Metadata Performance
+
+Cluster Topology: 3 nodes (3mds, 6metaserver), each metaserver is deployed on a separate SATA SSD
+
+Configuration: use default configuration
+
+Test tool: mdtest v3.4.0
+
+Test cases:
+- case 1: the directory structure is relatively flat and total 130,000 dirs and files.
+mdtest -z 2 -b 3 -I 10000 -d /mountpoint
+
+- case 2: the directory structure is relatively deep and total 204,700 dirs and files.
+mdtest -z 10 -b 2 -I 100 -d /mountpoint
 
 
+| Case | Dir creation | Dir stat | Dir rename | Dir removal | File creation | File stat | File read | File removal | Tree creation | Tree removal |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| case 1 | 1320 | 5853 | 149 | 670 | 1103 | 5858 | 1669 | 1419 | 851 | 64 |
+| case 2 | 1283 | 5205 | 147 | 924 | 1081 | 5316 | 1634 | 1260 | 1302 | 887 |
+
+You can set configuration item ‘fuseClient.enableMultiMountPointRename’ to false in client.conf if you don't need concurrent renames on multiple mountpoints on the same filesystem. It will improve the performance of metadata.
+
+fuseClient.enableMultiMountPointRename=false
+
+| Case | Dir creation | Dir stat | Dir rename | Dir removal | File creation | File stat | File read | File removal | Tree creation | Tree removal |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| case 1 | 1537 | 7885 | 530 | 611 | 1256 | 7998 | 1861 | 1614 | 1050 | 72 |
+| case 2 | 1471 | 6328 | 509 | 1055 | 1237 | 6874 | 1818 | 1454 | 1489 | 1034 |
 
 ## bug fix
 
