@@ -39,7 +39,7 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
-// Metric for each copyset to statictic operators apply latency/qps/eps/...
+// Metric for each copyset to statistic operators apply latency/qps/eps/...
 class OperatorMetric {
  public:
     OperatorMetric(PoolId poolId, CopysetId copysetId);
@@ -50,9 +50,9 @@ class OperatorMetric {
     void OnOperatorCompleteFromLog(OperatorType type, uint64_t latencyUs,
                             bool success = true);
 
-    void WaitInQueueLantancy(OperatorType type, uint64_t latencyUs);
+    void WaitInQueueLatency(OperatorType type, uint64_t latencyUs);
 
-    void ExecuteLantancy(OperatorType type, uint64_t latencyUs);
+    void ExecuteLatency(OperatorType type, uint64_t latencyUs);
 
     void NewArrival(OperatorType type);
 
@@ -67,8 +67,8 @@ class OperatorMetric {
               eps(prefix, "_eps", &errorCount, 1),
               rcount(prefix, "_rcount"),
               rps(prefix, "_rps", &rcount, 1),
-              waitInQueueLatency(prefix, "_wait_in_queue_latency"),
-              executeLatency(prefix, "_execute_latency") {}
+              executeLatency(prefix, "_execute_latency"),
+              waitInQueueLatency(prefix, "_wait_in_queue_latency") {}
 
         // latency recorder support latency/qps/count
         bvar::LatencyRecorder latRecorder;

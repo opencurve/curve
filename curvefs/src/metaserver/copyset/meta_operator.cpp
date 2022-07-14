@@ -156,13 +156,13 @@ bool GetVolumeExtentOperator::CanBypassPropose() const {
                                  uint64_t startTimeUs) {               \
         brpc::ClosureGuard doneGuard(done);                            \
         uint64_t timeUs = TimeUtility::GetTimeofDayUs();               \
-        node_->GetMetric()->WaitInQueueLantancy(                       \
+        node_->GetMetric()->WaitInQueueLatency(                        \
                 OperatorType::TYPE, timeUs - startTimeUs);             \
         auto status = node_->GetMetaStore()->TYPE(                     \
             static_cast<const TYPE##Request*>(request_),               \
             static_cast<TYPE##Response*>(response_));                  \
         uint64_t executeTime = TimeUtility::GetTimeofDayUs() - timeUs; \
-        node_->GetMetric()->ExecuteLantancy(                           \
+        node_->GetMetric()->ExecuteLatency(                            \
                 OperatorType::TYPE, executeTime);                      \
         if (status == MetaStatusCode::OK) {                            \
             node_->UpdateAppliedIndex(index);                          \
