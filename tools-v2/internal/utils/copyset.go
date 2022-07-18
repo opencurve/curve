@@ -154,5 +154,5 @@ func GetCopysetKey(poolid uint64, copysetid uint64) uint64 {
 func CopysetKey2PoolidCopysetid(copysetKey uint64) (uint32, uint32) {
 	poolid := copysetKey >> 32
 	copysetid := copysetKey & (1<<32 - 1)
-	return uint32(copysetid), uint32(poolid)
+	return uint32(poolid), uint32(copysetid)
 }

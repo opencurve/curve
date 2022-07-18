@@ -39,7 +39,7 @@ func addSubCommands(cmd *cobra.Command) {
 }
 
 func setupRootCommand(cmd *cobra.Command) {
-	cmd.SetVersionTemplate("curve {{.Version}}\n")
+	cmd.SetVersionTemplate("curve v{{.Version}}\n")
 	cobraUtil.SetFlagErrorFunc(cmd)
 	cobraUtil.SetHelpTemplate(cmd)
 	cobraUtil.SetUsageTemplate(cmd)

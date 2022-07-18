@@ -139,6 +139,7 @@ func (tCmd *TopologyCommand) scanPools() *cmderror.CmdError {
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
 			row[cobrautil.ROW_PARENT] = ""
 			tCmd.Table.AddRow(row)
+			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
 		}
 	}
 
@@ -165,6 +166,7 @@ func (tCmd *TopologyCommand) scanPools() *cmderror.CmdError {
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
 			row[cobrautil.ROW_PARENT] = ""
 			tCmd.Table.AddRow(row)
+			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
 		}
 	}
 

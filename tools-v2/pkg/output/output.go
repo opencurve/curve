@@ -46,7 +46,11 @@ func FinalCmdOutputJson(finalCmd *basecmd.FinalCurveCmd) error {
 
 func FinalCmdOutputPlain(finalCmd *basecmd.FinalCurveCmd,
 	funcs basecmd.FinalCurveCmdFunc) error {
-	fmt.Println(finalCmd.Table)
+	if finalCmd.TableNew.NumLines() == 0 {
+		fmt.Println(finalCmd.Table)
+	} else {
+		finalCmd.TableNew.Render()
+	}
 	if finalCmd.Error.Code != cmderror.CODE_SUCCESS {
 		// result error
 		// do not show how to use the command

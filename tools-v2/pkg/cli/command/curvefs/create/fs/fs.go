@@ -117,6 +117,8 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT)
+	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT}
+	fCmd.SetHeader(header)
 	if err != nil {
 		return err
 	}
@@ -327,6 +329,7 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	fCmd.Table.AddRow(row)
+	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
 
 	var errs []*cmderror.CmdError
 	res, errTranslate := output.MarshalProtoJson(response)

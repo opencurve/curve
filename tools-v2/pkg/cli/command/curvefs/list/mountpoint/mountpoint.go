@@ -23,11 +23,9 @@
 package mountpoint
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -76,6 +74,9 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	mpCmd.Error = fsInfoErr
 
 	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT)
+	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT}
+	mpCmd.SetHeader(header)
+	mpCmd.TableNew.SetAutoMergeCells(true)
 	if err != nil {
 		return err
 	}
@@ -88,31 +89,16 @@ func (mpCmd *MountpointCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (mpCmd *MountpointCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	updateTable(mpCmd.Table, mpCmd.fsInfo)
-
-	jsonResult, err := mpCmd.Table.JSON(0)
-	if err != nil {
-		return err
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	if err != nil {
-		return err
-	}
-	mpCmd.Result = m
+	mpCmd.updateTable()
 	return nil
 }
 
-func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
-	fssInfo := info.GetFsInfo()
+func (mpCmd *MountpointCommand) updateTable() {
+	fssInfo := mpCmd.fsInfo.GetFsInfo()
 	rows := make([]map[string]string, 0)
 	for _, fsInfo := range fssInfo {
 		if len(fsInfo.GetMountpoints()) == 0 {
-			row := make(map[string]string)
-			row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
-			row[cobrautil.ROW_FS_NAME] = fsInfo.GetFsName()
-			row[cobrautil.ROW_MOUNTPOINT] = ""
-			rows = append(rows, row)
+			continue
 		}
 		for _, mountpoint := range fsInfo.GetMountpoints() {
 			row := make(map[string]string)
@@ -123,7 +109,10 @@ func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
 			rows = append(rows, row)
 		}
 	}
-	table.AddRows(rows)
+	mpCmd.Table.AddRows(rows)
+	list := cobrautil.ListMap2ListSortByKeys(rows, mpCmd.Header, []string{cobrautil.ROW_FS_ID})
+	mpCmd.TableNew.AppendBulk(list)
+	mpCmd.Result = rows
 }
 
 func (mpCmd *MountpointCommand) ResultPlainOutput() error {
