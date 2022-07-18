@@ -26,8 +26,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -66,7 +65,7 @@ func NewCheckCopysetCommand() *CopysetCommand {
 	return copysetCmd
 }
 
-func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string) (interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string) (interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	checkCopyset := NewCheckCopysetCommand()
 	checkCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.CURVEFS_COPYSETID), copysetIds,
@@ -79,9 +78,9 @@ func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string)
 	if err != nil {
 		retErr := cmderror.ErrCheckCopyset()
 		retErr.Format(err.Error())
-		return checkCopyset.Result, checkCopyset.Table, retErr, checkCopyset.health
+		return checkCopyset.Result, checkCopyset.TableNew, retErr, checkCopyset.health
 	}
-	return checkCopyset.Result, checkCopyset.Table, checkCopyset.Error, checkCopyset.health
+	return checkCopyset.Result, checkCopyset.TableNew, checkCopyset.Error, checkCopyset.health
 }
 
 func (cCmd *CopysetCommand) AddFlags() {
@@ -100,14 +99,12 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		return queryCopysetErr.ToError()
 	}
 	cCmd.Error = queryCopysetErr
-	table, err := gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_EXPLAIN)
-	
 	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_EXPLAIN}
 	cCmd.SetHeader(header)
-	if err != nil {
-		return err
-	}
-	cCmd.Table = table
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		cCmd.Header, []string{cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID,
+			cobrautil.ROW_STATUS,
+	}))
 	copysetKey2Status := make(map[uint64]cobrautil.COPYSET_HEALTH_STATUS)
 	cCmd.copysetKey2Status = &copysetKey2Status
 	return nil
@@ -160,13 +157,14 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
 	})
-	cCmd.Table.AddRows(rows)
-	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{cobrautil.ROW_COPYSET_KEY})
+	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{
+		cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS,
+	})
 	cCmd.TableNew.AppendBulk(list)
 	cCmd.Result = rows
 	return nil
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
+	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }

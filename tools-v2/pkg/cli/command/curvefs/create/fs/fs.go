@@ -27,7 +27,6 @@ import (
 	"fmt"
 
 	"github.com/dustin/go-humanize"
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -42,9 +41,9 @@ import (
 
 const (
 	fsExample = `$ curve fs create fs --fsname test1
-$ curve fs create fs --fsname test1 --fstype s3 --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.buckname test1 --s3.blocksize 4mib --s3.chunksize 4mib
-$ curve fs create fs --fsname test1 --fstype volume --volume.bitmaplocation AtStart --volume.blockgroupsize 128mib --volume.blocksize 4kib --volume.name volume --volume.password password --volume.size 1mib --volume.slicesize 1mib --volume.user user
-$ curve fs create fs --fsname test1 --fstype hybrid  --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.buckname test1 --s3.blocksize 4mib --s3.chunksize 4mib  --volume.bitmaplocation AtStart --volume.blockgroupsize 128mib --volume.blocksize 4kib --volume.name volume --volume.password password --volume.size 1mib --volume.slicesize 1mib --volume.user user`
+$ curve fs create fs --fsname test1 --fstype s3 --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.bucketname test1 --s3.blocksize 4MiB --s3.chunksize 4MiB
+$ curve fs create fs --fsname test1 --fstype volume --volume.bitmaplocation AtStart --volume.blockgroupsize 128MiB --volume.blocksize 4kib --volume.name volume --volume.password password --volume.size 1MiB --volume.slicesize 1MiB --volume.user user
+$ curve fs create fs --fsname test1 --fstype hybrid  --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.bucketname test1 --s3.blocksize 4MiB --s3.chunksize 4MiB  --volume.bitmaplocation AtStart --volume.blockgroupsize 128MiB --volume.blocksize 4kib --volume.name volume --volume.password password --volume.size 1MiB --volume.slicesize 1MiB --volume.user user`
 )
 
 type CreateFsRpc struct {
@@ -116,13 +115,8 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT)
 	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT}
 	fCmd.SetHeader(header)
-	if err != nil {
-		return err
-	}
-	fCmd.Table = table
 
 	fsName := config.GetFlagString(cmd, config.CURVEFS_FSNAME)
 
@@ -271,10 +265,10 @@ func setVolumeInfo(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError 
 		return alignErr
 	}
 
-	align128MiB, _ := humanize.ParseBytes("128 mib")
+	align128MiB, _ := humanize.ParseBytes("128 MiB")
 	if !cobrautil.IsAligned(groupSize, align128MiB) {
 		alignErr := cmderror.ErrAligned()
-		alignErr.Format(config.CURVEFS_VOLUME_BLOCKGROUPSIZE, "128 mib")
+		alignErr.Format(config.CURVEFS_VOLUME_BLOCKGROUPSIZE, "128 MiB")
 		return alignErr
 	}
 
@@ -312,23 +306,15 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	if response.GetStatusCode() == mds.FSStatusCode_OK {
 		fsInfo := response.GetFsInfo()
-		fCmd.Table.AddColumn(cobrautil.ROW_ID)
 		row[cobrautil.ROW_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
-		fCmd.Table.AddColumn(cobrautil.ROW_STATUS)
 		row[cobrautil.ROW_STATUS] = fsInfo.GetStatus().String()
-		fCmd.Table.AddColumn(cobrautil.ROW_CAPACITY)
 		row[cobrautil.ROW_CAPACITY] = fmt.Sprintf("%d", fsInfo.GetCapacity())
-		fCmd.Table.AddColumn(cobrautil.ROW_BLOCKSIZE)
 		row[cobrautil.ROW_BLOCKSIZE] = fmt.Sprintf("%d", fsInfo.GetBlockSize())
-		fCmd.Table.AddColumn(cobrautil.ROW_FS_TYPE)
 		row[cobrautil.ROW_FS_TYPE] = fsInfo.GetFsType().String()
-		fCmd.Table.AddColumn(cobrautil.ROW_SUM_IN_DIR)
 		row[cobrautil.ROW_SUM_IN_DIR] = fmt.Sprintf("%t", fsInfo.GetEnableSumInDir())
-		fCmd.Table.AddColumn(cobrautil.ROW_OWNER)
 		row[cobrautil.ROW_OWNER] = fsInfo.GetOwner()
 	}
 
-	fCmd.Table.AddRow(row)
 	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
 
 	var errs []*cmderror.CmdError
@@ -349,5 +335,5 @@ func (fCmd *FsCommand) Print(cmd *cobra.Command, args []string) error {
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
+	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd)
 }

@@ -23,11 +23,9 @@
 package mds
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -68,11 +66,12 @@ func (mCmd *MdsCommand) AddFlags() {
 
 func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 	mCmd.health = cobrautil.HEALTH_ERROR
-	table, err := gotable.Create(cobrautil.ROW_ADDR, cobrautil.ROW_DUMMY_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	mCmd.Table = table
+
+	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_DUMMY_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	mCmd.SetHeader(header)
+	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		mCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	))
 
 	// set main addr
 	mainAddrs, addrErr := config.GetFsMdsAddrSlice(mCmd.Cmd)
@@ -165,22 +164,16 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
 	mCmd.Error = &mergeErr
-	mCmd.Table.AddRows(mCmd.rows)
-	jsonResult, err := mCmd.Table.JSON(0)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	mCmd.Result = m
+	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
+		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	})
+	mCmd.TableNew.AppendBulk(list)
+	mCmd.Result = mCmd.rows
 	return nil
 }
 
 func (mCmd *MdsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
+	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd)
 }
 
 func NewStatusMdsCommand() *MdsCommand {
@@ -195,7 +188,7 @@ func NewStatusMdsCommand() *MdsCommand {
 	return mdsCmd
 }
 
-func GetMdsStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetMdsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	mdsCmd := NewStatusMdsCommand()
 	mdsCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -203,5 +196,5 @@ func GetMdsStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.
 	cobrautil.AlignFlagsValue(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
 	mdsCmd.Cmd.SilenceErrors = true
 	mdsCmd.Cmd.Execute()
-	return &mdsCmd.Result, mdsCmd.Table, mdsCmd.Error, mdsCmd.health
+	return &mdsCmd.Result, mdsCmd.TableNew, mdsCmd.Error, mdsCmd.health
 }

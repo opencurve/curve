@@ -5,7 +5,7 @@
 release?= 0
 version?= "unknown"
 
-build:
+build: proto
 	@if [ ${release} = 1 ];then\
 		go build -ldflags "-w -s \
 		-X github.com/opencurve/curve/tools-v2/pkg/cli/command/version.Version=${version}" \

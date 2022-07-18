@@ -23,11 +23,9 @@
 package etcd
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -76,11 +74,11 @@ func (eCmd *EtcdCommand) AddFlags() {
 
 func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 	eCmd.health = cobrautil.HEALTH_ERROR
-	table, err := gotable.Create(cobrautil.ROW_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	eCmd.Table = table
+	header := []string{cobrautil.ROW_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	eCmd.SetHeader(header)
+	eCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		eCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	))
 
 	// set main addr
 	etcdAddrs, addrErr := config.GetFsEtcdAddrSlice(eCmd.Cmd)
@@ -177,22 +175,17 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		eCmd.health = cobrautil.HEALTH_OK
 	}
 
-	eCmd.Table.AddRows(eCmd.rows)
-	jsonResult, err := eCmd.Table.JSON(0)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	eCmd.Result = m
+	list := cobrautil.ListMap2ListSortByKeys(eCmd.rows, eCmd.Header, []string{
+		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	})
+	eCmd.TableNew.AppendBulk(list)
+
+	eCmd.Result = eCmd.rows
 	return nil
 }
 
 func (eCmd *EtcdCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&eCmd.FinalCurveCmd, eCmd)
+	return output.FinalCmdOutputPlain(&eCmd.FinalCurveCmd)
 }
 
 func NewStatusEtcdCommand() *EtcdCommand {
@@ -207,7 +200,7 @@ func NewStatusEtcdCommand() *EtcdCommand {
 	return etcdCmd
 }
 
-func GetEtcdStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetEtcdStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	etcdCmd := NewStatusEtcdCommand()
 	etcdCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -217,5 +210,5 @@ func GetEtcdStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror
 	})
 	etcdCmd.Cmd.SilenceErrors = true
 	etcdCmd.Cmd.Execute()
-	return &etcdCmd.Result, etcdCmd.Table, etcdCmd.Error, etcdCmd.health
+	return &etcdCmd.Result, etcdCmd.TableNew, etcdCmd.Error, etcdCmd.health
 }

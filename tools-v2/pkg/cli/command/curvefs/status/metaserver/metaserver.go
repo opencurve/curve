@@ -23,11 +23,9 @@
 package metaserver
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -82,11 +80,11 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(errMetaserver.Message)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	mCmd.Table = table
+	header := []string{cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	mCmd.SetHeader(header)
+	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		mCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	))
 
 	for i, addr := range externalAddrs {
 		if !cobrautil.IsValidAddr(addr) {
@@ -171,22 +169,16 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		mCmd.health = cobrautil.HEALTH_OK
 	}
 
-	mCmd.Table.AddRows(mCmd.rows)
-	jsonResult, err := mCmd.Table.JSON(0)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	mCmd.Result = m
+	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
+		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	})
+	mCmd.TableNew.AppendBulk(list)
+	mCmd.Result = mCmd.rows
 	return nil
 }
 
 func (mCmd *MetaserverCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
+	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd)
 }
 
 func NewStatusMetaserverCommand() *MetaserverCommand {
@@ -200,7 +192,7 @@ func NewStatusMetaserverCommand() *MetaserverCommand {
 	return mdsCmd
 }
 
-func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	metaserverCmd := NewStatusMetaserverCommand()
 	metaserverCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -210,5 +202,5 @@ func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *table.Table, *cm
 	})
 	metaserverCmd.Cmd.SilenceErrors = true
 	metaserverCmd.Cmd.Execute()
-	return &metaserverCmd.Result, metaserverCmd.Table, metaserverCmd.Error, metaserverCmd.health
+	return &metaserverCmd.Result, metaserverCmd.TableNew, metaserverCmd.Error, metaserverCmd.health
 }

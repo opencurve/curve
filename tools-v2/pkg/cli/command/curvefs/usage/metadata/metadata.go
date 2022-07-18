@@ -27,7 +27,6 @@ import (
 	"fmt"
 
 	"github.com/dustin/go-humanize"
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -97,11 +96,9 @@ func (mCmd *MetadataCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	mCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "StatMetadataUsage")
 
-	table, err := gotable.Create(cobrautil.ROW_METASERVER_ADDR, cobrautil.ROW_TOTAL, cobrautil.ROW_USED, cobrautil.ROW_LEFT)
-	if err != nil {
-		return err
-	}
-	mCmd.Table = table
+	header := []string{cobrautil.ROW_METASERVER_ADDR, cobrautil.ROW_TOTAL, cobrautil.ROW_USED, cobrautil.ROW_LEFT}
+	mCmd.SetHeader(header)
+
 	return nil
 }
 
@@ -142,9 +139,10 @@ func (mCmd *MetadataCommand) updateTable() {
 		row[cobrautil.ROW_LEFT] = humanize.IBytes(md.GetTotal() - md.GetUsed())
 		rows = append(rows, row)
 	}
-	mCmd.Table.AddRows(rows)
+	list := cobrautil.ListMap2ListSortByKeys(rows, mCmd.Header, []string{})
+	mCmd.TableNew.AppendBulk(list)
 }
 
 func (mCmd *MetadataCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
+	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd)
 }

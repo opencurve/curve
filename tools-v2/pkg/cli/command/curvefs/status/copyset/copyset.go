@@ -26,8 +26,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -75,7 +74,6 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	if len(copysetIdVec) == 0 {
 		var err error
-		cCmd.Table, err = gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_STATUS, cobrautil.ROW_EXPLAIN)
 		cCmd.Error = cmderror.ErrSuccess()
 		cCmd.Result = "No copyset found"
 		cCmd.health = cobrautil.HEALTH_OK
@@ -85,7 +83,7 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	poolIds := strings.Join(poolIdVec, ",")
 	result, table, errCheck, health := checkCopyset.GetCopysetsStatus(cCmd.Cmd, copysetIds, poolIds)
 	cCmd.Result = result
-	cCmd.Table = table
+	cCmd.TableNew = table
 	cCmd.Error = errCheck
 	cCmd.health = health
 	return nil
@@ -100,7 +98,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
+	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
 func NewStatusCopysetCommand() *CopysetCommand {
@@ -115,7 +113,7 @@ func NewStatusCopysetCommand() *CopysetCommand {
 	return copysetCmd
 }
 
-func GetCopysetStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetCopysetStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	copysetCmd := NewStatusCopysetCommand()
 	copysetCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
@@ -125,5 +123,5 @@ func GetCopysetStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmder
 	})
 	copysetCmd.Cmd.SilenceErrors = true
 	copysetCmd.Cmd.Execute()
-	return &copysetCmd.Result, copysetCmd.Table, copysetCmd.Error, copysetCmd.health
+	return &copysetCmd.Result, copysetCmd.TableNew, copysetCmd.Error, copysetCmd.health
 }

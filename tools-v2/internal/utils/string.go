@@ -24,14 +24,12 @@ package cobrautil
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
 
 	"github.com/gookit/color"
-	"github.com/liushuochen/gotable/table"
 )
 
 const (
@@ -79,14 +77,4 @@ func AskConfirmation(promptStr string, confirm string) bool {
 	default:
 		return false
 	}
-}
-
-func TableToResult(table *table.Table) (interface{}, error) {
-	jsonResult, err := table.JSON(0)
-	if err != nil {
-		return nil, err
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	return m, err
 }

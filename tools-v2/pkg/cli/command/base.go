@@ -31,7 +31,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liushuochen/gotable/table"
 	"github.com/moby/term"
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -58,7 +57,6 @@ type FinalCurveCmd struct {
 	Example  string             `json:"-"`
 	Error    *cmderror.CmdError `json:"error"`
 	Result   interface{}        `json:"result"`
-	Table    *table.Table       `json:"-"`
 	TableNew *tablewriter.Table `json:"-"`
 	Header   []string           `json:"-"`
 	Cmd      *cobra.Command     `json:"-"`
@@ -294,16 +292,17 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 				errDial := cmderror.ErrRpcDial()
 				errDial.Format(addr, err.Error())
 				errs <- errDial
-			}
-			rpcFunc.NewRpcClient(conn)
-			res, err := rpcFunc.Stub_Func(context.Background())
-			if err != nil {
-				errRpc := cmderror.ErrRpcCall()
-				errRpc.Format(rpc.RpcFuncName, err.Error())
-				errs <- errRpc
 			} else {
-				response <- res
-				errs <- cmderror.ErrSuccess()
+				rpcFunc.NewRpcClient(conn)
+				res, err := rpcFunc.Stub_Func(context.Background())
+				if err != nil {
+					errRpc := cmderror.ErrRpcCall()
+					errRpc.Format(rpc.RpcFuncName, err.Error())
+					errs <- errRpc
+				} else {
+					response <- res
+					errs <- cmderror.ErrSuccess()
+				}
 			}
 		}(addr)
 	}
