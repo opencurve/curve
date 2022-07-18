@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -91,13 +90,8 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT)
 	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT}
 	fCmd.SetHeader(header)
-	if err != nil {
-		return err
-	}
-	fCmd.Table = table
 
 	fsName := config.GetFlagString(fCmd.Cmd, config.CURVEFS_FSNAME)
 
@@ -134,7 +128,6 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
 		cobrautil.ROW_RESULT:  errDel.Message,
 	}
-	fCmd.Table.AddRow(row)
 	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
 
 	res, errTranslate := output.MarshalProtoJson(response)
@@ -151,5 +144,5 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
+	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd)
 }

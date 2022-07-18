@@ -29,7 +29,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -77,6 +76,8 @@ type TopologyCommand struct {
 	listZoneServerRpc  *ListZoneServerRpc
 	createServer       []*topology.ServerRegistRequest
 	deleteServer       []*topology.DeleteServerRequest
+
+	rows []map[string]string
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*TopologyCommand)(nil) // check interface
@@ -133,14 +134,9 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 		return updateZoneErr.ToError()
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_NAME, cobrautil.ROW_TYPE, cobrautil.ROW_OPERATION, cobrautil.ROW_PARENT)
 	header := []string{cobrautil.ROW_NAME, cobrautil.ROW_TYPE, cobrautil.ROW_OPERATION, cobrautil.ROW_PARENT}
 	tCmd.SetHeader(header)
 	tCmd.TableNew.SetAutoMergeCells(true)
-	if err != nil {
-		return err
-	}
-	tCmd.Table = table
 
 	scanErr := tCmd.scanCluster()
 	if scanErr.TypeCode() != cmderror.CODE_SUCCESS {
@@ -193,11 +189,8 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(err.Message)
 	}
-	result, resultErr := cobrautil.TableToResult(tCmd.Table)
-	if resultErr != nil {
-		return resultErr
-	}
-	tCmd.Result = result
+
+	tCmd.Result = tCmd.rows
 	tCmd.Error = err
 	return nil
 }
@@ -211,7 +204,7 @@ func (tCmd *TopologyCommand) ResultPlainOutput() error {
 		fmt.Println("no change")
 		return nil
 	}
-	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd, tCmd)
+	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd)
 }
 
 // Compare the topology in the cluster with json,

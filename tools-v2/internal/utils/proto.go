@@ -23,10 +23,12 @@
 package cobrautil
 
 import (
+	"encoding/json"
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/common"
+	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 )
 
 func TranslateFsType(fsType string) (common.FSType, *cmderror.CmdError) {
@@ -62,4 +64,131 @@ func SplitPeerToAddr(peer string) (string, *cmderror.CmdError) {
 func PeertoAddr(peer *common.Peer) (string, *cmderror.CmdError) {
 	address := peer.GetAddress()
 	return SplitPeerToAddr(address)
+}
+
+const (
+	CLUSTER_ID = "clusterid"
+	POOL_LIST  = "poollist"
+)
+
+type Pool struct {
+	PoolID                       *uint32      `json:"PoolID"`
+	PoolName                     *string      `json:"PoolName"`
+	CreateTime                   *uint64      `json:"createTime"`
+	RedundanceAndPlaceMentPolicy *interface{} `json:"redundanceAndPlaceMentPolicy"`
+}
+
+func topoPoolInfo2Pool(pool *topology.PoolInfo) (*Pool, *cmderror.CmdError) {
+	policyJson := pool.GetRedundanceAndPlaceMentPolicy()
+	var policy interface{}
+	err := json.Unmarshal(policyJson, &policy)
+	if err != nil {
+		unmarshalErr := cmderror.ErrUnmarshalJson()
+		unmarshalErr.Format(policyJson, err.Error())
+		return &Pool{
+			PoolID:     pool.PoolID,
+			PoolName:   pool.PoolName,
+			CreateTime: pool.CreateTime,
+		}, unmarshalErr
+	}
+	return &Pool{
+		PoolID:                       pool.PoolID,
+		PoolName:                     pool.PoolName,
+		CreateTime:                   pool.CreateTime,
+		RedundanceAndPlaceMentPolicy: &policy,
+	}, cmderror.ErrSuccess()
+}
+
+type PoolInfo struct {
+	Pool
+	Zones []*ZoneInfo `json:"zoneList"`
+}
+
+type ZoneInfo struct {
+	topology.ZoneInfo
+	Servers []*ServerInfo `json:"serverList"`
+}
+
+type ServerInfo struct {
+	topology.ServerInfo
+	Metaservers []*MetaserverInfo `json:"metaserverList"`
+}
+
+type MetaserverInfo struct {
+	topology.MetaServerInfo
+}
+
+func Topology2Map(topo *topology.ListTopologyResponse) (map[string]interface{}, *cmderror.CmdError) {
+	var ret = make(map[string]interface{})
+	ret[CLUSTER_ID] = topo.GetClusterId()
+	var errs []*cmderror.CmdError
+	poolMap := make(map[uint32]*PoolInfo)
+	pools := topo.GetPools().GetPoolInfos()
+	for _, pool := range pools {
+		poolInfo, err := topoPoolInfo2Pool(pool)
+		if err.TypeCode() != cmderror.CODE_SUCCESS {
+			errs = append(errs, err)
+		}
+		poolMap[pool.GetPoolID()] = &PoolInfo{Pool: *poolInfo}
+	}
+
+	zoneMap := make(map[uint32]*ZoneInfo)
+	zones := topo.GetZones().GetZoneInfos()
+	for _, zone := range zones {
+		zoneMap[zone.GetZoneID()] = &ZoneInfo{ZoneInfo: *zone}
+
+		// update pool
+		pool, found := poolMap[zone.GetPoolID()]
+		if !found {
+			err := cmderror.ErrTopology()
+			err.Format("zone", zone.GetZoneID(), "pool", zone.GetPoolID())
+			errs = append(errs, err)
+		}
+		tmp := zoneMap[zone.GetZoneID()]
+		pool.Zones = append(pool.Zones, tmp)
+	}
+
+	serverMap := make(map[uint32]*ServerInfo)
+	servers := topo.GetServers().GetServerInfos()
+	for _, server := range servers {
+		serverMap[server.GetServerID()] = &ServerInfo{ServerInfo: *server}
+
+		// update zone
+		zone, found := zoneMap[server.GetZoneID()]
+		if !found {
+			err := cmderror.ErrTopology()
+			err.Format("server", server.GetServerID(),
+				"zone", server.GetZoneID())
+			errs = append(errs, err)
+		}
+		tmp := serverMap[server.GetServerID()]
+		zone.Servers = append(zone.Servers, tmp)
+	}
+
+	metaserverMap := make(map[uint32]*MetaserverInfo)
+	metaservers := topo.GetMetaservers().GetMetaServerInfos()
+	for _, metaserver := range metaservers {
+		metaserverMap[metaserver.GetMetaServerID()] =
+			&MetaserverInfo{MetaServerInfo: *metaserver}
+
+		// update server
+		server, found := serverMap[metaserver.GetServerId()]
+		if !found {
+			err := cmderror.ErrTopology()
+			err.Format("metaserver", metaserver.GetMetaServerID(),
+				"server", metaserver.GetServerId())
+			errs = append(errs, err)
+		}
+		tmp := metaserverMap[metaserver.GetMetaServerID()]
+		server.Metaservers = append(server.Metaservers, tmp)
+	}
+
+	poolList := make([]*PoolInfo, 0)
+	for _, pool := range poolMap {
+		poolList = append(poolList, pool)
+	}
+
+	ret[POOL_LIST] = poolList
+	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
+	return ret, &retErr
 }

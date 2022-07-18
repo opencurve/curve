@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -109,12 +108,8 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s or %s is required", config.CURVEFS_METASERVERADDR, config.CURVEFS_METASERVERID)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_ONLINE_STATE)
-	if err != nil {
-		return err
-	}
-
-	mCmd.Table = table
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_ONLINE_STATE}
+	mCmd.SetHeader(header)
 
 	mCmd.Rows = make([]map[string]string, 0)
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
@@ -219,7 +214,8 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		}
 	}
 
-	mCmd.Table.AddRows(mCmd.Rows)
+	list := cobrautil.ListMap2ListSortByKeys(mCmd.Rows, mCmd.Header, []string{cobrautil.ROW_ID})
+	mCmd.TableNew.AppendBulk(list)
 	mCmd.Result = resList
 	mCmd.Error = cmderror.MostImportantCmdError(errs)
 
@@ -227,5 +223,5 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 }
 
 func (mCmd *MetaserverCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
+	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd)
 }

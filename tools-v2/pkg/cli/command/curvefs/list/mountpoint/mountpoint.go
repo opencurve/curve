@@ -25,7 +25,6 @@ package mountpoint
 import (
 	"fmt"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -73,14 +72,10 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	mpCmd.Error = fsInfoErr
 
-	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT)
 	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT}
 	mpCmd.SetHeader(header)
 	mpCmd.TableNew.SetAutoMergeCells(true)
-	if err != nil {
-		return err
-	}
-	mpCmd.Table = table
+
 	return nil
 }
 
@@ -109,12 +104,11 @@ func (mpCmd *MountpointCommand) updateTable() {
 			rows = append(rows, row)
 		}
 	}
-	mpCmd.Table.AddRows(rows)
 	list := cobrautil.ListMap2ListSortByKeys(rows, mpCmd.Header, []string{cobrautil.ROW_FS_ID})
 	mpCmd.TableNew.AppendBulk(list)
 	mpCmd.Result = rows
 }
 
 func (mpCmd *MountpointCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mpCmd.FinalCurveCmd, mpCmd)
+	return output.FinalCmdOutputPlain(&mpCmd.FinalCurveCmd)
 }

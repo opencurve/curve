@@ -314,6 +314,9 @@ var (
 	ErrGetFsPartition = func() *CmdError {
 		return NewInternalCmdError(28, "get fs partition failed! the error is: %s")
 	}
+	ErrTopology = func() *CmdError {
+		return NewInternalCmdError(29, "%s[%d] belongs to %s[%d] who was not found")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

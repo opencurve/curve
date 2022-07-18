@@ -24,12 +24,9 @@ package topology
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strconv"
+	"sort"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -129,20 +126,17 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	tCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
 
-	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST)
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST}
+	// header := []string{cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST}
+	header := []string{cobrautil.ROW_POOL, cobrautil.ROW_ZONE, cobrautil.ROW_SERVER, cobrautil.ROW_METASERVER}
 	tCmd.SetHeader(header)
 	var mergeIndex []int
-	mergeRow := []string {cobrautil.ROW_TYPE, cobrautil.ROW_CHILD_TYPE}
+	mergeRow := []string{cobrautil.ROW_POOL, cobrautil.ROW_ZONE, cobrautil.ROW_SERVER}
 	for _, row := range mergeRow {
 		index := slices.Index(header, row)
 		mergeIndex = append(mergeIndex, index)
 	}
 	tCmd.TableNew.SetAutoMergeCellsByColumnIndex(mergeIndex)
-	if err != nil {
-		return err
-	}
-	tCmd.Table = table
+
 	return nil
 }
 
@@ -158,108 +152,66 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	tCmd.Error = errCmd
 	topologyResponse := response.(*topology.ListTopologyResponse)
 	tCmd.Rpc.Response = topologyResponse
-	res, err := output.MarshalProtoJson(topologyResponse)
-	if err != nil {
-		return err
-	}
-	mapRes := res.(map[string]interface{})
-	tCmd.Result = mapRes
-	tCmd.updateTable(tCmd.Table, topologyResponse)
-	errs := updateJsonPoolInfoRedundanceAndPlaceMentPolicy(&mapRes, topologyResponse)
-	if len(errs) > 0 {
-		return fmt.Errorf(cmderror.MostImportantCmdError(errs).Message)
-	}
-
 	tCmd.updateMetaserverAddr(topologyResponse.GetMetaservers().MetaServerInfos)
+	topologyMap, topoErr := cobrautil.Topology2Map(topologyResponse)
+	tCmd.Error = topoErr
+	tCmd.updateTable(&topologyMap)
+	tCmd.Result = topologyMap
+
 	return nil
 }
 
 func (tCmd *TopologyCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd, tCmd)
+	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd)
 }
 
-func (tCmd *TopologyCommand) updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
-	pools := topology.GetPools().GetPoolInfos()
-	poolRows := make([]map[string]string, 0)
-	for _, pool := range pools {
-		row := make(map[string]string)
-		id := strconv.FormatUint(uint64(pool.GetPoolID()), 10)
-		row[cobrautil.ROW_ID] = id
-		row[cobrautil.ROW_TYPE] = "pool"
-		row[cobrautil.ROW_NAME] = pool.GetPoolName()
-		row[cobrautil.ROW_CHILD_TYPE] = "zone"
-		row[cobrautil.ROW_CHILD_LIST] = ""
-		poolRows = append(poolRows, row)
-	}
-
-	zones := topology.GetZones().GetZoneInfos()
-	zoneRows := make([]map[string]string, 0)
-	for _, zone := range zones {
-		row := make(map[string]string)
-		id := strconv.FormatUint(uint64(zone.GetZoneID()), 10)
-		row[cobrautil.ROW_ID] = id
-		row[cobrautil.ROW_TYPE] = "zone"
-		row[cobrautil.ROW_NAME] = zone.GetZoneName()
-		row[cobrautil.ROW_CHILD_TYPE] = "server"
-		row[cobrautil.ROW_CHILD_LIST] = ""
-		zoneRows = append(zoneRows, row)
-		// update pools child list
-		zonePoolId := strconv.FormatUint(uint64(zone.GetPoolID()), 10)
-		for _, pool := range poolRows {
-			if pool[cobrautil.ROW_ID] == zonePoolId {
-				pool[cobrautil.ROW_CHILD_LIST] = pool[cobrautil.ROW_CHILD_LIST] + zone.GetZoneName() + " "
+func (tCmd *TopologyCommand) updateTable(topoMap *map[string]interface{}) *cmderror.CmdError {
+	errs := make([]*cmderror.CmdError, 0)
+	poolList := (*topoMap)[cobrautil.POOL_LIST].([]*cobrautil.PoolInfo)
+	sort.SliceStable(poolList, func(i, j int) bool {
+		return *poolList[i].PoolID <
+			*poolList[j].PoolID
+	})
+	for _, pool := range poolList {
+		poolStr := *pool.PoolName
+		sort.SliceStable(pool.Zones, func(i, j int) bool {
+			return pool.Zones[i].GetZoneID() <
+				pool.Zones[j].GetZoneID()
+		})
+		for _, zone := range pool.Zones {
+			zoneStr := zone.GetZoneName()
+			sort.SliceStable(zone.Servers, func(i, j int) bool {
+				return zone.Servers[i].GetServerID() <
+					zone.Servers[j].GetServerID()
+			})
+			for _, server := range zone.Servers {
+				serverStr := server.GetHostName()
+				sort.SliceStable(server.Metaservers, func(i, j int) bool {
+					return server.Metaservers[i].GetMetaServerID() <
+						server.Metaservers[j].GetMetaServerID()
+				})
+				for _, metaserver := range server.Metaservers {
+					metaserverStr := fmt.Sprintf("%s:%d", metaserver.GetExternalIp(), metaserver.GetExternalPort())
+					row := []string{poolStr, zoneStr, serverStr, metaserverStr}
+					tCmd.TableNew.Append(row)
+				}
+				if len(server.Metaservers) == 0 {
+					row := []string{poolStr, zoneStr, serverStr, ""}
+					tCmd.TableNew.Append(row)
+				}
+			}
+			if len(zone.Servers) == 0 {
+				row := []string{poolStr, zoneStr, "", ""}
+				tCmd.TableNew.Append(row)
 			}
 		}
-	}
-
-	servers := topology.GetServers().GetServerInfos()
-	serverRows := make([]map[string]string, 0)
-	for _, server := range servers {
-		row := make(map[string]string)
-		id := strconv.FormatUint(uint64(server.GetServerID()), 10)
-		row[cobrautil.ROW_ID] = id
-		row[cobrautil.ROW_TYPE] = "server"
-		row[cobrautil.ROW_NAME] = server.GetHostName()
-		row[cobrautil.ROW_CHILD_TYPE] = "metaserver"
-		row[cobrautil.ROW_CHILD_LIST] = ""
-		serverRows = append(serverRows, row)
-		// update pools child list
-		serverZoneId := strconv.FormatUint(uint64(server.GetZoneID()), 10)
-		for _, zone := range zoneRows {
-			if zone[cobrautil.ROW_ID] == serverZoneId {
-				zone[cobrautil.ROW_CHILD_LIST] = zone[cobrautil.ROW_CHILD_LIST] + server.GetHostName() + " "
-			}
+		if len(pool.Zones) == 0 {
+			row := []string{poolStr, "", "", ""}
+			tCmd.TableNew.Append(row)
 		}
 	}
-
-	metaservers := topology.GetMetaservers().GetMetaServerInfos()
-	metaserverRows := make([]map[string]string, 0)
-	for _, metaserver := range metaservers {
-		row := make(map[string]string)
-		id := strconv.FormatUint(uint64(metaserver.GetMetaServerID()), 10)
-		row[cobrautil.ROW_ID] = id
-		row[cobrautil.ROW_TYPE] = "metaserver"
-		row[cobrautil.ROW_NAME] = metaserver.GetHostname()
-		row[cobrautil.ROW_CHILD_TYPE] = ""
-		row[cobrautil.ROW_CHILD_LIST] = ""
-		metaserverRows = append(metaserverRows, row)
-		// update server child list
-		metaserverServerId := strconv.FormatUint(uint64(metaserver.GetServerId()), 10)
-		for _, server := range serverRows {
-			if server[cobrautil.ROW_ID] == metaserverServerId {
-				server[cobrautil.ROW_CHILD_LIST] = server[cobrautil.ROW_CHILD_LIST] + fmt.Sprintf("%s.%d ", metaserver.GetHostname(), metaserver.GetMetaServerID())
-			}
-		}
-	}
-
-	rows := make([]map[string]string, 0)
-	rows = append(rows, poolRows...)
-	rows = append(rows, zoneRows...)
-	rows = append(rows, serverRows...)
-	rows = append(rows, metaserverRows...)
-	table.AddRows(rows)
-	list := cobrautil.ListMap2ListSortByKeys(rows, tCmd.Header, []string{})
-	tCmd.TableNew.AppendBulk(list)
+	retErr := cmderror.MergeCmdError(errs)
+	return &retErr
 }
 
 func (tCmd *TopologyCommand) updateMetaserverAddr(metaservers []*topology.MetaServerInfo) {
@@ -270,31 +222,4 @@ func (tCmd *TopologyCommand) updateMetaserverAddr(metaservers []*topology.MetaSe
 		externalAddr := fmt.Sprintf("%s:%d", metaserver.GetExternalIp(), metaserver.GetExternalPort())
 		tCmd.externalAddr = append(tCmd.externalAddr, externalAddr)
 	}
-}
-
-func updateJsonPoolInfoRedundanceAndPlaceMentPolicy(topologyMap *map[string]interface{}, topology *topology.ListTopologyResponse) []*cmderror.CmdError {
-	var retErr []*cmderror.CmdError
-	pools := (*topologyMap)["pools"]
-	poolsInfoMap := pools.(map[string]interface{})["PoolInfos"].([]interface{})
-	poolsInfoMapTopo := topology.GetPools().GetPoolInfos()
-	for _, pool := range poolsInfoMap {
-		poolInfo := pool.(map[string]interface{})
-		var policyJson []byte
-		for _, poolInfoTopo := range poolsInfoMapTopo {
-			if uint32(poolInfo["PoolID"].(float64)) == poolInfoTopo.GetPoolID() {
-				policyJson = poolInfoTopo.GetRedundanceAndPlaceMentPolicy()
-				break
-			}
-		}
-		var policy interface{}
-		err := json.Unmarshal(policyJson, &policy)
-		if err != nil {
-			unmarshalErr := cmderror.ErrUnmarshalJson()
-			unmarshalErr.Format(policyJson, err.Error())
-			retErr = append(retErr, unmarshalErr)
-			continue
-		}
-		poolInfo["redundanceAndPlaceMentPolicy"] = policy
-	}
-	return retErr
 }

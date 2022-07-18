@@ -23,12 +23,10 @@
 package inode
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -106,11 +104,10 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		filetype2Metric["inode_num"] = metric
 		iCmd.FsId2Filetype2Metric[fsId] = filetype2Metric
 	}
-	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_TYPE, cobrautil.ROW_NUM)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	iCmd.Table = table
+	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_TYPE, cobrautil.ROW_NUM}
+	iCmd.SetHeader(header)
+	iCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(header, []string{cobrautil.ROW_FS_ID}))
+
 	return nil
 }
 
@@ -188,22 +185,15 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	iCmd.Error = &mergeErr
 
 	if len(rows) > 0 {
-		// query some data
-		iCmd.Table.AddRows(rows)
-		jsonResult, err := iCmd.Table.JSON(0)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
-		var m interface{}
-		err = json.Unmarshal([]byte(jsonResult), &m)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
-		iCmd.Result = m
+		list := cobrautil.ListMap2ListSortByKeys(rows, iCmd.Header, []string{
+			config.CURVEFS_FSID,
+		})
+		iCmd.TableNew.AppendBulk(list)
+		iCmd.Result = rows
 	}
 	return mergeErr.ToError()
 }
 
 func (iCmd *InodeNumCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&iCmd.FinalCurveCmd, iCmd)
+	return output.FinalCmdOutputPlain(&iCmd.FinalCurveCmd)
 }

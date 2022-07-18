@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -124,12 +123,8 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if len(poolids) != len(copysetids) {
 		return fmt.Errorf("%s and %s is must be in one-to-one correspondence", config.CURVEFS_POOLID, config.CURVEFS_COPYSETID)
 	}
-	table, err := gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_EPOCH)
-	if err != nil {
-		return err
-	}
 
-	cCmd.Table = table
+	cCmd.Header = []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_EPOCH}
 
 	cCmd.Rows = make([]map[string]string, 0)
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
@@ -208,21 +203,33 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		if !allNotFound && detail {
 			statusErr := cCmd.UpdateCopysetsStatus(copysetValues)
 			errs = append(errs, statusErr...)
+		} else {
+			cCmd.SetHeader(cCmd.Header)
 		}
 	}
 
-	cCmd.Table.AddRows(cCmd.Rows)
+	indexSlice := cobrautil.GetIndexSlice(cCmd.Header, []string{
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER,
+	})
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(indexSlice)
+
+	list := cobrautil.ListMap2ListSortByKeys(cCmd.Rows, cCmd.Header, []string{
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, 
+		cobrautil.ROW_COPYSET_ID,
+	})
+	cCmd.TableNew.AppendBulk(list)
 	cCmd.Result = cCmd.key2Copyset
 	cCmd.Error = cmderror.MostImportantCmdError(errs)
 	return nil
 }
 
 func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue) []*cmderror.CmdError {
-	cCmd.Table.AddColumn(cobrautil.ROW_PEER_ADDR)
-	cCmd.Table.AddColumn(cobrautil.ROW_STATUS)
-	cCmd.Table.AddColumn(cobrautil.ROW_STATE)
-	cCmd.Table.AddColumn(cobrautil.ROW_TERM)
-	cCmd.Table.AddColumn(cobrautil.ROW_READONLY)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_PEER_ADDR)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_STATUS)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_STATE)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_TERM)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_READONLY)
+	cCmd.SetHeader(cCmd.Header)
 	for _, row := range cCmd.Rows {
 		row[cobrautil.ROW_PEER_ADDR] = cobrautil.ROW_VALUE_DNE
 		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
@@ -339,7 +346,7 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
+	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
 // copsetIds,poolId just like: 1,2,3

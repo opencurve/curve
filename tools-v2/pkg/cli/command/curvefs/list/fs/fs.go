@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -106,16 +105,12 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
 
-	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM)
 	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM}
 	fCmd.SetHeader(header)
 	index_owner := slices.Index(header, cobrautil.ROW_OWNER)
 	index_type := slices.Index(header, cobrautil.ROW_FS_TYPE)
 	fCmd.TableNew.SetAutoMergeCellsByColumnIndex([]int{index_owner, index_type})
-	if err != nil {
-		return err
-	}
-	fCmd.Table = table
+
 	return nil
 }
 
@@ -156,13 +151,15 @@ func (fCmd *FsCommand)updateTable() {
 		row[cobrautil.ROW_MOUNT_NUM] = fmt.Sprintf("%d", fsInfo.GetMountNum())
 		rows = append(rows, row)
 	}
-	fCmd.Table.AddRows(rows)
 	list := cobrautil.ListMap2ListSortByKeys(rows, fCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FS_TYPE, cobrautil.ROW_ID})
 	fCmd.TableNew.AppendBulk(list)
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
+	if fCmd.TableNew.NumLines() == 0 {
+		fmt.Println("no fs in cluster")
+	}
+	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd)
 }
 
 func GetClusterFsInfo(caller *cobra.Command) (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {

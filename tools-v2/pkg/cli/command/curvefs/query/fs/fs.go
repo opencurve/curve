@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -111,12 +110,11 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fsname or fsid is required")
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM)
-	if err != nil {
-		return err
-	}
-
-	fCmd.Table = table
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM}
+	fCmd.SetHeader(header)
+	fCmd.TableNew.SetAutoMergeCellsByColumnIndex(
+		cobrautil.GetIndexSlice(header, []string{cobrautil.ROW_FS_TYPE}),
+	)
 
 	fCmd.Rows = make([]map[string]string, 0)
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
@@ -224,7 +222,10 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fCmd.Table.AddRows(fCmd.Rows)
+	list := cobrautil.ListMap2ListSortByKeys(fCmd.Rows, fCmd.Header, []string{
+		cobrautil.ROW_FS_TYPE, cobrautil.ROW_ID,
+	})
+	fCmd.TableNew.AppendBulk(list)
 	fCmd.Result = resList
 	fCmd.Error = cmderror.MostImportantCmdError(errs)
 
@@ -232,5 +233,5 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
+	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd)
 }

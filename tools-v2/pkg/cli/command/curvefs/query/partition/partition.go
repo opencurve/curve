@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -91,11 +90,14 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_PEER_ID, cobrautil.ROW_PEER_ADDR)
-	if err != nil {
-		return err
+	header := []string{
+		cobrautil.ROW_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_PEER_ID, cobrautil.ROW_PEER_ADDR,
 	}
-	pCmd.Table = table
+	pCmd.SetHeader(header)
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		pCmd.Header, []string{
+			cobrautil.ROW_POOL_ID,cobrautil.ROW_COPYSET_ID, cobrautil.ROW_ID,
+	}))
 
 	partitionIds := viper.GetStringSlice(config.VIPER_CURVEFS_PARTITIONID)
 
@@ -156,7 +158,10 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		}
 	}
 
-	pCmd.Table.AddRows(rows)
+	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_ID,
+	})
+	pCmd.TableNew.AppendBulk(list)
 	pCmd.Result = res
 	pCmd.Error = cmderror.MostImportantCmdError(errs)
 
@@ -164,5 +169,5 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 }
 
 func (pCmd *PartitionCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd, pCmd)
+	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd)
 }
