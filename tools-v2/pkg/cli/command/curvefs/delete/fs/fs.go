@@ -92,6 +92,8 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT)
+	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_RESULT}
+	fCmd.SetHeader(header)
 	if err != nil {
 		return err
 	}
@@ -124,27 +126,26 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 
 	result, err := basecmd.GetRpcResponse(fCmd.Rpc.Info, fCmd.Rpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return fmt.Errorf(err.Message)
+		return err.ToError()
 	}
 	response := result.(*mds.DeleteFsResponse)
-	var errs []*cmderror.CmdError
 	errDel := cmderror.ErrDeleteFs(int(response.GetStatusCode()))
-	errs = append(errs, errDel)
 	row := map[string]string{
 		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
 		cobrautil.ROW_RESULT:  errDel.Message,
 	}
 	fCmd.Table.AddRow(row)
+	fCmd.TableNew.Append(cobrautil.Map2List(row, fCmd.Header))
 
 	res, errTranslate := output.MarshalProtoJson(response)
 	if errTranslate != nil {
 		errMar := cmderror.ErrMarShalProtoJson()
 		errMar.Format(errTranslate.Error())
-		errs = append(errs, errMar)
+		return errMar.ToError()
 	}
 
 	fCmd.Result = res
-	fCmd.Error = cmderror.MostImportantCmdError(errs)
+	fCmd.Error = cmderror.ErrSuccess()
 
 	return nil
 }

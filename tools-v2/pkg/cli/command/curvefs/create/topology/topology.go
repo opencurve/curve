@@ -134,6 +134,9 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	table, err := gotable.Create(cobrautil.ROW_NAME, cobrautil.ROW_TYPE, cobrautil.ROW_OPERATION, cobrautil.ROW_PARENT)
+	header := []string{cobrautil.ROW_NAME, cobrautil.ROW_TYPE, cobrautil.ROW_OPERATION, cobrautil.ROW_PARENT}
+	tCmd.SetHeader(header)
+	tCmd.TableNew.SetAutoMergeCells(true)
 	if err != nil {
 		return err
 	}
@@ -206,6 +209,7 @@ func (tCmd *TopologyCommand) Print(cmd *cobra.Command, args []string) error {
 func (tCmd *TopologyCommand) ResultPlainOutput() error {
 	if len(tCmd.createPool) == 0 && len(tCmd.deletePool) == 0 && len(tCmd.createZone) == 0 && len(tCmd.deleteZone) == 0 && len(tCmd.createServer) == 0 && len(tCmd.deleteServer) == 0 {
 		fmt.Println("no change")
+		return nil
 	}
 	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd, tCmd)
 }

@@ -57,15 +57,7 @@ const (
 var _ basecmd.FinalCurveCmdFunc = (*MdsCommand)(nil) // check interface
 
 func NewMdsCommand() *cobra.Command {
-	mdsCmd := &MdsCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:     "mds",
-			Short:   "get the inode usage of curvefs",
-			Example: mdsExample,
-		},
-	}
-	basecmd.NewFinalCurveCli(&mdsCmd.FinalCurveCmd, mdsCmd)
-	return mdsCmd.Cmd
+	return NewStatusMdsCommand().Cmd
 }
 
 func (mCmd *MdsCommand) AddFlags() {
@@ -195,7 +187,7 @@ func NewStatusMdsCommand() *MdsCommand {
 	mdsCmd := &MdsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "mds",
-			Short:   "get the inode usage of curvefs",
+			Short:   "get status of mds",
 			Example: mdsExample,
 		},
 	}

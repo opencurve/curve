@@ -131,7 +131,9 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			var value string
 			if err.TypeCode() == cmderror.CODE_SUCCESS {
 				value, err = basecmd.GetKeyValueFromJsonMetric(result, metricKey)
-				errs = append(errs, err)
+				if err.TypeCode() != cmderror.CODE_SUCCESS {
+					errs = append(errs, err)
+				}
 			}
 			results <- basecmd.MetricResult{
 				Addr:  m.Addrs[0],

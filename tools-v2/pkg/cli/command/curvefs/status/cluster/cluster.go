@@ -86,6 +86,7 @@ func (cCmd *ClusterCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	cCmd.type2Table = make(map[string]*table.Table)
 	cCmd.serverList = []string{TYPE_ETCD, TYPE_MDS, TYPE_MEATASERVER, TYPE_COPYSET}
+	cCmd.health = cobrautil.HEALTH_OK
 	return nil
 }
 

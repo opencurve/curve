@@ -38,6 +38,7 @@ import (
 	topology "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 )
 
@@ -72,15 +73,7 @@ func (lRpc *ListTopologyRpc) Stub_Func(ctx context.Context) (interface{}, error)
 }
 
 func NewTopologyCommand() *cobra.Command {
-	topologyCmd := &TopologyCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:     "topology",
-			Short:   "list the topology of the curvefs",
-			Example: topologyExample,
-		},
-	}
-	basecmd.NewFinalCurveCli(&topologyCmd.FinalCurveCmd, topologyCmd)
-	return topologyCmd.Cmd
+	return NewListTopologyCommand().Cmd
 }
 
 func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
@@ -110,7 +103,11 @@ func GetTopology() (*topology.ListTopologyResponse, *cmderror.CmdError) {
 
 func NewListTopologyCommand() *TopologyCommand {
 	topologyCmd := &TopologyCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{},
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:     "topology",
+			Short:   "list the topology of the curvefs",
+			Example: topologyExample,
+		},
 	}
 	basecmd.NewFinalCurveCli(&topologyCmd.FinalCurveCmd, topologyCmd)
 	return topologyCmd
@@ -133,6 +130,15 @@ func (tCmd *TopologyCommand) Init(cmd *cobra.Command, args []string) error {
 	tCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListTopology")
 
 	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST)
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_TYPE, cobrautil.ROW_NAME, cobrautil.ROW_CHILD_TYPE, cobrautil.ROW_CHILD_LIST}
+	tCmd.SetHeader(header)
+	var mergeIndex []int
+	mergeRow := []string {cobrautil.ROW_TYPE, cobrautil.ROW_CHILD_TYPE}
+	for _, row := range mergeRow {
+		index := slices.Index(header, row)
+		mergeIndex = append(mergeIndex, index)
+	}
+	tCmd.TableNew.SetAutoMergeCellsByColumnIndex(mergeIndex)
 	if err != nil {
 		return err
 	}
@@ -158,7 +164,7 @@ func (tCmd *TopologyCommand) RunCommand(cmd *cobra.Command, args []string) error
 	}
 	mapRes := res.(map[string]interface{})
 	tCmd.Result = mapRes
-	updateTable(tCmd.Table, topologyResponse)
+	tCmd.updateTable(tCmd.Table, topologyResponse)
 	errs := updateJsonPoolInfoRedundanceAndPlaceMentPolicy(&mapRes, topologyResponse)
 	if len(errs) > 0 {
 		return fmt.Errorf(cmderror.MostImportantCmdError(errs).Message)
@@ -172,9 +178,9 @@ func (tCmd *TopologyCommand) ResultPlainOutput() error {
 	return output.FinalCmdOutputPlain(&tCmd.FinalCurveCmd, tCmd)
 }
 
-func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
+func (tCmd *TopologyCommand) updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	pools := topology.GetPools().GetPoolInfos()
-	rows := make([]map[string]string, 0)
+	poolRows := make([]map[string]string, 0)
 	for _, pool := range pools {
 		row := make(map[string]string)
 		id := strconv.FormatUint(uint64(pool.GetPoolID()), 10)
@@ -183,9 +189,8 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 		row[cobrautil.ROW_NAME] = pool.GetPoolName()
 		row[cobrautil.ROW_CHILD_TYPE] = "zone"
 		row[cobrautil.ROW_CHILD_LIST] = ""
-		rows = append(rows, row)
+		poolRows = append(poolRows, row)
 	}
-	poolRows := rows
 
 	zones := topology.GetZones().GetZoneInfos()
 	zoneRows := make([]map[string]string, 0)
@@ -197,7 +202,6 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 		row[cobrautil.ROW_NAME] = zone.GetZoneName()
 		row[cobrautil.ROW_CHILD_TYPE] = "server"
 		row[cobrautil.ROW_CHILD_LIST] = ""
-		rows = append(rows, row)
 		zoneRows = append(zoneRows, row)
 		// update pools child list
 		zonePoolId := strconv.FormatUint(uint64(zone.GetPoolID()), 10)
@@ -218,7 +222,6 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 		row[cobrautil.ROW_NAME] = server.GetHostName()
 		row[cobrautil.ROW_CHILD_TYPE] = "metaserver"
 		row[cobrautil.ROW_CHILD_LIST] = ""
-		rows = append(rows, row)
 		serverRows = append(serverRows, row)
 		// update pools child list
 		serverZoneId := strconv.FormatUint(uint64(server.GetZoneID()), 10)
@@ -230,6 +233,7 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 	}
 
 	metaservers := topology.GetMetaservers().GetMetaServerInfos()
+	metaserverRows := make([]map[string]string, 0)
 	for _, metaserver := range metaservers {
 		row := make(map[string]string)
 		id := strconv.FormatUint(uint64(metaserver.GetMetaServerID()), 10)
@@ -238,7 +242,7 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 		row[cobrautil.ROW_NAME] = metaserver.GetHostname()
 		row[cobrautil.ROW_CHILD_TYPE] = ""
 		row[cobrautil.ROW_CHILD_LIST] = ""
-		rows = append(rows, row)
+		metaserverRows = append(metaserverRows, row)
 		// update server child list
 		metaserverServerId := strconv.FormatUint(uint64(metaserver.GetServerId()), 10)
 		for _, server := range serverRows {
@@ -248,7 +252,14 @@ func updateTable(table *table.Table, topology *topology.ListTopologyResponse) {
 		}
 	}
 
+	rows := make([]map[string]string, 0)
+	rows = append(rows, poolRows...)
+	rows = append(rows, zoneRows...)
+	rows = append(rows, serverRows...)
+	rows = append(rows, metaserverRows...)
 	table.AddRows(rows)
+	list := cobrautil.ListMap2ListSortByKeys(rows, tCmd.Header, []string{})
+	tCmd.TableNew.AppendBulk(list)
 }
 
 func (tCmd *TopologyCommand) updateMetaserverAddr(metaservers []*topology.MetaServerInfo) {

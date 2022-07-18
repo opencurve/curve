@@ -101,6 +101,9 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	cCmd.Error = queryCopysetErr
 	table, err := gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_EXPLAIN)
+	
+	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_EXPLAIN}
+	cCmd.SetHeader(header)
 	if err != nil {
 		return err
 	}
@@ -158,9 +161,10 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
 	})
 	cCmd.Table.AddRows(rows)
-	var err error
-	cCmd.Result, err = cobrautil.TableToResult(cCmd.Table)
-	return err
+	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{cobrautil.ROW_COPYSET_KEY})
+	cCmd.TableNew.AppendBulk(list)
+	cCmd.Result = rows
+	return nil
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {

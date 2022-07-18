@@ -27,10 +27,13 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/liushuochen/gotable/table"
+	"github.com/moby/term"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
@@ -49,14 +52,30 @@ const (
 // Error Use to indicate whether the command is wrong
 // and the reason for the execution error
 type FinalCurveCmd struct {
-	Use     string             `json:"-"`
-	Short   string             `json:"-"`
-	Long    string             `json:"-"`
-	Example string             `json:"-"`
-	Error   *cmderror.CmdError `json:"error"`
-	Result  interface{}        `json:"result"`
-	Table   *table.Table       `json:"-"`
-	Cmd     *cobra.Command     `json:"-"`
+	Use      string             `json:"-"`
+	Short    string             `json:"-"`
+	Long     string             `json:"-"`
+	Example  string             `json:"-"`
+	Error    *cmderror.CmdError `json:"error"`
+	Result   interface{}        `json:"result"`
+	Table    *table.Table       `json:"-"`
+	TableNew *tablewriter.Table `json:"-"`
+	Header   []string           `json:"-"`
+	Cmd      *cobra.Command     `json:"-"`
+}
+
+func (fc *FinalCurveCmd) SetHeader(header []string) {
+	fc.Header = header
+	fc.TableNew.SetHeader(header)
+	width := 80
+	if ws, err := term.GetWinsize(0); err == nil {
+		if width < int(ws.Width) {
+			width = int(ws.Width)
+		}
+	}
+	if len(header) != 0 {
+		fc.TableNew.SetColWidth(width/len(header) - 1)
+	}
 }
 
 // FinalCurveCmdFunc is the function type for final command
@@ -107,6 +126,15 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
 	cobrautil.SetFlagErrorFunc(cli.Cmd)
+
+	// set table
+	cli.TableNew = tablewriter.NewWriter(os.Stdout)
+	cli.TableNew.SetRowLine(true)
+	cli.TableNew.SetAutoFormatHeaders(true)
+	cli.TableNew.SetAutoWrapText(true)
+	cli.TableNew.SetRowLine(true)
+	cli.TableNew.SetAlignment(tablewriter.ALIGN_LEFT)
+
 	return cli.Cmd
 }
 

@@ -38,6 +38,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 )
 
@@ -97,6 +98,18 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	table, err := gotable.Create(cobrautil.ROW_PARTITION_ID, cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_START, cobrautil.ROW_END, cobrautil.ROW_STATUS)
+	header := []string{cobrautil.ROW_PARTITION_ID, cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_START, cobrautil.ROW_END, cobrautil.ROW_STATUS}
+	pCmd.SetHeader(header)
+	mergeRow := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID}
+	var mergeIndex []int
+	for _, row := range mergeRow {
+		index := slices.Index(header, row)
+		if index != -1 {
+			mergeIndex = append(mergeIndex, index)
+		}
+	}
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(mergeIndex)
+
 	if err != nil {
 		return err
 	}
@@ -172,21 +185,23 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 		partitionList := response.GetPartitionInfoList()
 		for _, partition := range partitionList {
 			fsId := partition.GetFsId()
-			rows := pCmd.fsId2Rows[fsId]
 			pCmd.fsId2PartitionList[fsId] = append(pCmd.fsId2PartitionList[fsId], partition)
-			var row map[string]string
-			if len(rows) == 1 && rows[0][cobrautil.ROW_POOL_ID] == "" {
-				row = rows[0]
+			var row *map[string]string
+			if len(pCmd.fsId2Rows[fsId]) == 1 && pCmd.fsId2Rows[fsId][0][cobrautil.ROW_POOL_ID] == cobrautil.ROW_VALUE_DNE {
+				row = &pCmd.fsId2Rows[fsId][0]
+				pCmd.fsId2Rows[fsId] = make([]map[string]string, 0)
 			} else {
-				row = make(map[string]string)
-				row[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
+				temp := make(map[string]string)
+				row = &temp
+				(*row)[cobrautil.ROW_FS_ID] = strconv.FormatUint(uint64(fsId), 10)
 			}
-			row[cobrautil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
-			row[cobrautil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
-			row[cobrautil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
-			row[cobrautil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
-			row[cobrautil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
-			row[cobrautil.ROW_STATUS] = partition.GetStatus().String()
+			(*row)[cobrautil.ROW_POOL_ID] = strconv.FormatUint(uint64(partition.GetPoolId()), 10)
+			(*row)[cobrautil.ROW_COPYSET_ID] = strconv.FormatUint(uint64(partition.GetCopysetId()), 10)
+			(*row)[cobrautil.ROW_PARTITION_ID] = strconv.FormatUint(uint64(partition.GetPartitionId()), 10)
+			(*row)[cobrautil.ROW_START] = strconv.FormatUint(uint64(partition.GetStart()), 10)
+			(*row)[cobrautil.ROW_END] = strconv.FormatUint(uint64(partition.GetEnd()), 10)
+			(*row)[cobrautil.ROW_STATUS] = partition.GetStatus().String()
+			pCmd.fsId2Rows[fsId] = append(pCmd.fsId2Rows[fsId], (*row))
 		}
 	}
 
@@ -202,11 +217,18 @@ func (pCmd *PartitionCommand) ResultPlainOutput() error {
 }
 
 func (pCmd *PartitionCommand) updateTable() {
+	var total []map[string]string
 	for _, rows := range pCmd.fsId2Rows {
 		for _, row := range rows {
 			pCmd.Table.AddRow(row)
+			total = append(total, row)
 		}
 	}
+	list := cobrautil.ListMap2ListSortByKeys(total, pCmd.Header, []string{
+		cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID,
+		cobrautil.ROW_START, cobrautil.ROW_PARTITION_ID, 
+	})
+	pCmd.TableNew.AppendBulk(list)
 }
 
 func NewListPartitionCommand() *PartitionCommand {

@@ -136,6 +136,7 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
 			row[cobrautil.ROW_PARENT] = zoneInfo.GetPoolName()
 			tCmd.Table.AddRow(row)
+			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
 		}
 	}
 
@@ -156,6 +157,7 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
 			row[cobrautil.ROW_PARENT] = zone.PoolName
 			tCmd.Table.AddRow(row)
+			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
 		}
 	}
 

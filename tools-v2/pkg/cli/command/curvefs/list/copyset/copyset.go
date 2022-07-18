@@ -35,6 +35,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 )
 
@@ -69,15 +70,7 @@ func (cRpc *ListCopysetRpc) Stub_Func(ctx context.Context) (interface{}, error) 
 }
 
 func NewCopysetCommand() *cobra.Command {
-	copysetCmd := &CopysetCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:     "copyset",
-			Short:   "list all copyset info of the curvefs",
-			Example: copysetExample,
-		},
-	}
-	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
-	return copysetCmd.Cmd
+	return NewListCopysetCommand().Cmd
 }
 
 func NewListCopysetCommand() *CopysetCommand {
@@ -85,6 +78,7 @@ func NewListCopysetCommand() *CopysetCommand {
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:   "copyset",
 			Short: "list all copyset info of the curvefs",
+			Example: copysetExample,
 		},
 	}
 	basecmd.NewFinalCurveCli(&copysetCmd.FinalCurveCmd, copysetCmd)
@@ -109,6 +103,11 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	cCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListCopysetInfo")
 
 	table, err := gotable.Create(cobrautil.ROW_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_EPOCH, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_PEER_NUMBER)
+	header := []string{cobrautil.ROW_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_EPOCH, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_PEER_NUMBER}
+	cCmd.SetHeader(header)
+	index_pool := slices.Index(header, cobrautil.ROW_POOL_ID)
+	index_leader := slices.Index(header, cobrautil.ROW_LEADER_PEER)
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex([]int{index_pool, index_leader})
 	if err != nil {
 		return err
 	}
@@ -165,6 +164,8 @@ func (cCmd *CopysetCommand) updateTable() {
 		rows = append(rows, row)
 	}
 	cCmd.Table.AddRows(rows)
+	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{cobrautil.ROW_LEADER_PEER, cobrautil.ROW_KEY})
+	cCmd.TableNew.AppendBulk(list)
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {

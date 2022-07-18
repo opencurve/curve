@@ -98,9 +98,9 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 
 	fCmd.Rpc.Request = &mds.UmountFsRequest{}
 
-	fCmd.fsName = viper.GetString(config.VIPER_CURVEFS_FSNAME)
+	fCmd.fsName = config.GetFlagString(fCmd.Cmd, config.CURVEFS_FSNAME)
 	fCmd.Rpc.Request.FsName = &fCmd.fsName
-	fCmd.mountpoint = viper.GetString(config.VIPER_CURVEFS_MOUNTPOINT)
+	fCmd.mountpoint = config.GetFlagString(fCmd.Cmd, config.CURVEFS_MOUNTPOINT)
 	mountpointSlice := strings.Split(fCmd.mountpoint, ":")
 	if len(mountpointSlice) != 3 {
 		return fmt.Errorf("invalid mountpoint: %s, should be like: hostname:port:path", fCmd.mountpoint)
@@ -139,7 +139,6 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	uf := response.(*mds.UmountFsResponse)
 	fCmd.updateTable(uf)
-
 	jsonResult, err := fCmd.Table.JSON(0)
 	if err != nil {
 		cobra.CheckErr(err)
@@ -150,18 +149,19 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		cobra.CheckErr(err)
 	}
 	fCmd.Result = m
+	fCmd.Error = errCmd
 
 	return nil
 }
 
 func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdError {
-	rows := make([]map[string]string, 1)
-	rows[0] = make(map[string]string)
-	rows[0][cobrautil.ROW_FS_NAME] = fCmd.fsName
-	rows[0][cobrautil.ROW_MOUNTPOINT] = fCmd.mountpoint
+	row := make(map[string]string)
+	row[cobrautil.ROW_FS_NAME] = fCmd.fsName
+	row[cobrautil.ROW_MOUNTPOINT] = fCmd.mountpoint
 	err := cmderror.ErrUmountFs(int(info.GetStatusCode()))
+	row[cobrautil.ROW_RESULT] = err.Message
 
-	fCmd.Table.AddRows(rows)
+	fCmd.Table.AddRow(row)
 	return err
 }
 

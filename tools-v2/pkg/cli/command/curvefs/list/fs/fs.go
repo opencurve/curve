@@ -28,7 +28,6 @@ import (
 	"strconv"
 
 	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -37,6 +36,7 @@ import (
 	mds "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 )
 
@@ -72,7 +72,7 @@ func NewFsCommand() *cobra.Command {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "fs",
-			Short:   "list all fs info of the curvefs",
+			Short:   "list all fs info in the curvefs",
 			Example: fsExample,
 		},
 	}
@@ -107,6 +107,11 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListClusterFsInfo")
 
 	table, err := gotable.Create(cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM)
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME, cobrautil.ROW_STATUS, cobrautil.ROW_CAPACITY, cobrautil.ROW_BLOCKSIZE, cobrautil.ROW_FS_TYPE, cobrautil.ROW_SUM_IN_DIR, cobrautil.ROW_OWNER, cobrautil.ROW_MOUNT_NUM}
+	fCmd.SetHeader(header)
+	index_owner := slices.Index(header, cobrautil.ROW_OWNER)
+	index_type := slices.Index(header, cobrautil.ROW_FS_TYPE)
+	fCmd.TableNew.SetAutoMergeCellsByColumnIndex([]int{index_owner, index_type})
 	if err != nil {
 		return err
 	}
@@ -130,13 +135,13 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	mapRes := res.(map[string]interface{})
 	fCmd.Result = mapRes
-	updateTable(fCmd.Table, fCmd.response)
+	fCmd.updateTable()
 	fCmd.Error = cmderror.ErrSuccess()
 	return nil
 }
 
-func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
-	fssInfo := info.GetFsInfo()
+func (fCmd *FsCommand)updateTable() {
+	fssInfo := fCmd.response.GetFsInfo()
 	rows := make([]map[string]string, 0)
 	for _, fsInfo := range fssInfo {
 		row := make(map[string]string)
@@ -151,7 +156,9 @@ func updateTable(table *table.Table, info *mds.ListClusterFsInfoResponse) {
 		row[cobrautil.ROW_MOUNT_NUM] = fmt.Sprintf("%d", fsInfo.GetMountNum())
 		rows = append(rows, row)
 	}
-	table.AddRows(rows)
+	fCmd.Table.AddRows(rows)
+	list := cobrautil.ListMap2ListSortByKeys(rows, fCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FS_TYPE, cobrautil.ROW_ID})
+	fCmd.TableNew.AppendBulk(list)
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
