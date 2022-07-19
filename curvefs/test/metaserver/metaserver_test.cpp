@@ -56,6 +56,7 @@ class MetaserverTest : public ::testing::Test {
  protected:
     void SetUp() override {
         // run mds server
+        Aws::InitAPI(aws_sdk_options_);
         dataDir_ = RandomStoragePath();
         metaPath_ = "./meta.dat";
         ASSERT_EQ(0, server_.AddService(&mockTopologyService_,
@@ -86,6 +87,7 @@ class MetaserverTest : public ::testing::Test {
         server_.Join();
         auto output = execShell("rm -rf " + dataDir_);
         ASSERT_EQ(output.size(), 0);
+        Aws::ShutdownAPI(aws_sdk_options_);
         return;
     }
 
@@ -113,6 +115,7 @@ class MetaserverTest : public ::testing::Test {
     MockHeartbeatService mockHeartbeatService_;
 
     brpc::Server server_;
+    Aws::SDKOptions aws_sdk_options_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,

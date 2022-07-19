@@ -42,6 +42,7 @@ void TrashManager::Fini() {
         LOG(INFO) << "stop trash manager ...";
         sleeper_.interrupt();
         recycleThread_.join();
+        options_ = {};
     }
     LOG(INFO) << "stop trash manager ok.";
 }

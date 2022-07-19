@@ -20,6 +20,8 @@ mkdir -p $prefix $prefix/conf
 make install prefix="$prefix"
 make install prefix="$prefix" only=etcd
 make install prefix="$prefix" only=monitor
+cp -f ./thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-core/libaws-cpp-sdk-core.so docker/$2
+cp -f ./thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-s3-crt/libaws-cpp-sdk-s3-crt.so docker/$2
 for path in `ls conf/* nebd/etc/nebd/*`;
 do
     dir=`dirname $path`

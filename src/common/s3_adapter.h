@@ -22,39 +22,41 @@
 
 #ifndef SRC_COMMON_S3_ADAPTER_H_
 #define SRC_COMMON_S3_ADAPTER_H_
-#include <map>
+#include <aws/core/Aws.h>                                     //NOLINT
+#include <aws/core/auth/AWSCredentialsProvider.h>             //NOLINT
+#include <aws/core/client/ClientConfiguration.h>              //NOLINT
+#include <aws/core/http/HttpRequest.h>                        //NOLINT
+#include <aws/core/http/Scheme.h>                             //NOLINT
+#include <aws/core/utils/memory/AWSMemory.h>                  //NOLINT
+#include <aws/core/utils/memory/stl/AWSString.h>              //NOLINT
+#include <aws/core/utils/memory/stl/AWSStringStream.h>        //NOLINT
+#include <aws/core/utils/threading/Executor.h>                // NOLINT
+#include <aws/s3-crt/S3CrtClient.h>                           //NOLINT
+#include <aws/s3-crt/model/AbortMultipartUploadRequest.h>     //NOLINT
+#include <aws/s3-crt/model/BucketLocationConstraint.h>        //NOLINT
+#include <aws/s3-crt/model/CompleteMultipartUploadRequest.h>  //NOLINT
+#include <aws/s3-crt/model/CompletedPart.h>                   //NOLINT
+#include <aws/s3-crt/model/CreateBucketConfiguration.h>       //NOLINT
+#include <aws/s3-crt/model/CreateBucketRequest.h>             //NOLINT
+#include <aws/s3-crt/model/CreateMultipartUploadRequest.h>    //NOLINT
+#include <aws/s3-crt/model/Delete.h>                          //NOLINT
+#include <aws/s3-crt/model/DeleteBucketRequest.h>             //NOLINT
+#include <aws/s3-crt/model/DeleteObjectRequest.h>             //NOLINT
+#include <aws/s3-crt/model/DeleteObjectsRequest.h>            //NOLINT
+#include <aws/s3-crt/model/GetObjectRequest.h>                //NOLINT
+#include <aws/s3-crt/model/HeadBucketRequest.h>               //NOLINT
+#include <aws/s3-crt/model/HeadObjectRequest.h>               //NOLINT
+#include <aws/s3-crt/model/ObjectIdentifier.h>                //NOLINT
+#include <aws/s3-crt/model/PutObjectRequest.h>                //NOLINT
+#include <aws/s3-crt/model/UploadPartRequest.h>               //NOLINT
+
+#include <condition_variable>
 #include <list>
-#include <string>
+#include <map>
 #include <memory>
 #include <mutex>
-#include <condition_variable>
-#include <aws/core/utils/memory/AWSMemory.h>              //NOLINT
-#include <aws/core/Aws.h>                                 //NOLINT
-#include <aws/s3/S3Client.h>                              //NOLINT
-#include <aws/core/client/ClientConfiguration.h>          //NOLINT
-#include <aws/core/auth/AWSCredentialsProvider.h>         //NOLINT
-#include <aws/s3/model/PutObjectRequest.h>                //NOLINT
-#include <aws/s3/model/CreateBucketRequest.h>             //NOLINT
-#include <aws/s3/model/DeleteBucketRequest.h>             //NOLINT
-#include <aws/s3/model/HeadBucketRequest.h>               //NOLINT
-#include <aws/s3/model/HeadObjectRequest.h>               //NOLINT
-#include <aws/s3/model/GetObjectRequest.h>                //NOLINT
-#include <aws/s3/model/DeleteObjectRequest.h>             //NOLINT
-#include <aws/s3/model/CreateMultipartUploadRequest.h>    //NOLINT
-#include <aws/s3/model/UploadPartRequest.h>               //NOLINT
-#include <aws/s3/model/CompleteMultipartUploadRequest.h>  //NOLINT
-#include <aws/s3/model/AbortMultipartUploadRequest.h>     //NOLINT
-#include <aws/s3/model/ObjectIdentifier.h>                //NOLINT
-#include <aws/s3/model/Delete.h>                          //NOLINT
-#include <aws/s3/model/DeleteObjectsRequest.h>            //NOLINT
-#include <aws/core/http/HttpRequest.h>                    //NOLINT
-#include <aws/s3/model/CompletedPart.h>                   //NOLINT
-#include <aws/core/http/Scheme.h>                         //NOLINT
-#include <aws/core/utils/memory/stl/AWSString.h>          //NOLINT
-#include <aws/core/utils/memory/stl/AWSStringStream.h>    //NOLINT
-#include <aws/s3/model/BucketLocationConstraint.h>        //NOLINT
-#include <aws/s3/model/CreateBucketConfiguration.h>       //NOLINT
-#include <aws/core/utils/threading/Executor.h>            // NOLINT
+#include <string>
+
 #include "src/common/configuration.h"
 #include "src/common/throttle.h"
 
@@ -135,8 +137,14 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
 
 class S3Adapter {
  public:
-    S3Adapter() {}
-    virtual ~S3Adapter() {}
+    S3Adapter() {
+        clientCfg_ = nullptr;
+        s3Client_ = nullptr;
+        throttle_ = nullptr;
+    }
+    virtual ~S3Adapter() {
+        Deinit();
+    }
     /**
      * 初始化S3Adapter
      */
@@ -164,7 +172,7 @@ class S3Adapter {
     /**
      *  call aws sdk shutdown api
      */
-    virtual void Shutdown();
+    static void Shutdown();
     /**
      * reinit s3client with new AWSCredentials
      */
@@ -282,7 +290,7 @@ class S3Adapter {
      * @param 分片的数据内容
      * @return: 分片任务管理对象
      */
-    virtual Aws::S3::Model::CompletedPart
+    virtual Aws::S3Crt::Model::CompletedPart
     UploadOnePart(const Aws::String &key, const Aws::String &uploadId,
                   int partNum, int partSize, const char *buf);
     /**
@@ -292,9 +300,9 @@ class S3Adapter {
      * @管理分片上传任务的vector
      * @return 0 任务完成/ -1 任务失败
      */
-    virtual int
-    CompleteMultiUpload(const Aws::String &key, const Aws::String &uploadId,
-                        const Aws::Vector<Aws::S3::Model::CompletedPart> &cp_v);
+    virtual int CompleteMultiUpload(
+        const Aws::String& key, const Aws::String& uploadId,
+        const Aws::Vector<Aws::S3Crt::Model::CompletedPart>& cp_v);
     /**
      * 终止一个对象的分片上传任务
      * @param 对象名
@@ -333,8 +341,8 @@ class S3Adapter {
     // 对象的桶名
     Aws::String bucketName_;
     // aws sdk的配置
-    Aws::Client::ClientConfiguration *clientCfg_;
-    Aws::S3::S3Client *s3Client_;
+    Aws::S3Crt::ClientConfiguration *clientCfg_;
+    Aws::S3Crt::S3CrtClient *s3Client_;
     Configuration conf_;
 
     Throttle *throttle_;

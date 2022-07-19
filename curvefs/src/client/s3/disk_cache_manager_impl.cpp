@@ -178,6 +178,7 @@ int DiskCacheManagerImpl::UmountDiskCache() {
         return -1;
     }
     taskPool_.Stop();
+    client_->Deinit();
     return 0;
 }
 

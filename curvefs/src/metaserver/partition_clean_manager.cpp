@@ -80,6 +80,7 @@ void PartitionCleanManager::Fini() {
         thread_.join();
         partitonCleanerList_.clear();
         inProcessingCleaner_ = nullptr;
+        S3ClientAdaptor_ = nullptr;
     }
     LOG(INFO) << "stop PartitionCleanManager manager ok.";
 }

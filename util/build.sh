@@ -88,7 +88,7 @@ get_options() {
 }
 
 list_target() {
-    git submodule update --init
+    git submodule update --init -- nbd
     if [ $? -ne 0 ]
     then
         echo "submodule init failed"
@@ -110,7 +110,8 @@ get_target() {
 }
 
 build_target() {
-    git submodule update --init
+    (cd thirdparties/aws && make)
+    git submodule update --init -- nbd
     if [ $? -ne 0 ]
     then
         echo "submodule init failed"
