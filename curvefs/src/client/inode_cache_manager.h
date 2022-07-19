@@ -246,8 +246,6 @@ class InodeCacheManagerImpl : public InodeCacheManager,
 
     void ReleaseCache(uint64_t parentId) override;
 
-    void RemoveICache(const std::shared_ptr<InodeWrapper> &inode);
-
  private:
     virtual void FlushInodeBackground();
     void TrimIcache(uint64_t trimSize);

@@ -67,7 +67,6 @@ const uint32_t kOptimalIOBlockSize = 0x10000u;
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
-using rpcclient::MetaServerClientDone;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
@@ -257,12 +256,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     CURVEFS_ERROR RefreshNlink();
 
     CURVEFS_ERROR Sync(bool internal = false);
-
-    CURVEFS_ERROR SyncS3(bool internal = false);
-
-    void Async(MetaServerClientDone *done, bool internal = false);
-
-    void AsyncS3(MetaServerClientDone *done, bool internal = false);
 
     CURVEFS_ERROR SyncAttr(bool internal = false);
 

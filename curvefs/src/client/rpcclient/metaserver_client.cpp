@@ -831,8 +831,7 @@ MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request,
 UpdateInodeRequest
 MetaServerClientImpl::BuileUpdateInodeAttrWithOutNlinkRequest(
     const Inode &inode,
-    InodeOpenStatusChange statusChange,
-    S3ChunkInofMap *s3ChunkInfoAdd) {
+    InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request;
     request.set_inodeid(inode.inodeid());
     request.set_fsid(inode.fsid());
@@ -848,9 +847,6 @@ MetaServerClientImpl::BuileUpdateInodeAttrWithOutNlinkRequest(
     if (inode.xattr_size() > 0) {
         *(request.mutable_xattr()) = inode.xattr();
     }
-    if (s3ChunkInfoAdd && !s3ChunkInfoAdd->empty()) {
-        *(request.mutable_s3chunkinfoadd()) = *s3ChunkInfoAdd;
-    }
     return request;
 }
 
@@ -858,7 +854,7 @@ UpdateInodeRequest
 MetaServerClientImpl::BuildeUpdateInodeAttrRequest(const Inode &inode,
     InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange, nullptr);
+        inode, statusChange);
     request.set_nlink(inode.nlink());
     return request;
 }
@@ -871,11 +867,12 @@ MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
     return UpdateInode(request);
 }
 
-MetaStatusCode MetaServerClientImpl::UpdateInodeAttrWithOutNlink(
-    const Inode &inode, InodeOpenStatusChange statusChange,
-    S3ChunkInofMap *s3ChunkInfoAdd, bool internal) {
+MetaStatusCode
+MetaServerClientImpl::UpdateInodeAttrWithOutNlink(const Inode &inode,
+                                     InodeOpenStatusChange statusChange,
+                                     bool internal) {
     UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange, s3ChunkInfoAdd);
+        inode, statusChange);
     return UpdateInode(request, internal);
 }
 
@@ -960,11 +957,11 @@ void MetaServerClientImpl::UpdateInodeAttrAsync(
     UpdateInodeAsync(request, done);
 }
 
-void MetaServerClientImpl::UpdateInodeWithOutNlinkAsync(
+void MetaServerClientImpl::UpdateInodeAttrWithOutNlinkAsync(
     const Inode &inode, MetaServerClientDone *done,
-    InodeOpenStatusChange statusChange, S3ChunkInofMap *s3ChunkInfoAdd) {
-    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange, s3ChunkInfoAdd);
+    InodeOpenStatusChange statusChange) {
+    UpdateInodeRequest request =
+        BuileUpdateInodeAttrWithOutNlinkRequest(inode, statusChange);
     UpdateInodeAsync(request, done);
 }
 
