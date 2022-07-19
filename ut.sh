@@ -25,6 +25,9 @@ g_rocksdb_root="${PWD}/thirdparties/rocksdb"
 (cd ${g_rocksdb_root} && make build && make install prefix=${g_rocksdb_root})
 ################################################################ __ROCKSDB__
 
+g_aws_sdk_root="${PWD}/thirdparties/aws/"
+(cd ${g_aws_sdk_root} && make)
+
 if [ -f /home/nbs/etcdclient/libetcdclient.h ] && [ -f /home/nbs/etcdclient/libetcdclient.so ]
 then
     cp /home/nbs/etcdclient/libetcdclient.h ${WORKSPACE}thirdparties/etcdclient
@@ -40,7 +43,7 @@ bash replace-curve-repo.sh
 mkdir runlog storage
 bazel clean --async
 sleep 5
-git submodule update --init
+git submodule update --init -- nbd
 
 set +e
 

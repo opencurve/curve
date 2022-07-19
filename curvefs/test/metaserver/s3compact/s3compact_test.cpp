@@ -107,6 +107,7 @@ class S3CompactTest : public ::testing::Test {
     void TearDown() override {
         ASSERT_TRUE(kvStorage_->Close());
         ASSERT_EQ(0, system(std::string{"rm -rf " + dataDir_}.c_str()));
+        curve::common::S3Adapter::Shutdown();
     }
 
  protected:
@@ -601,7 +602,7 @@ TEST_F(S3CompactTest, test_CompactChunks) {
     EXPECT_CALL(*s3adapter_, GetS3Ak()).WillRepeatedly(Return(v));
     EXPECT_CALL(*s3adapter_, GetS3Sk()).WillRepeatedly(Return(v));
     EXPECT_CALL(*s3adapter_, GetS3Endpoint()).WillRepeatedly(Return(v));
-    EXPECT_CALL(*s3adapter_, Reinit(_, _, _, _)).WillRepeatedly(Return());
+    EXPECT_CALL(*s3adapter_, Reinit(_)).WillRepeatedly(Return());
     EXPECT_CALL(*s3adapter_, GetBucketName()).WillRepeatedly(Return(v));
 
     struct CompactInodeJob::S3CompactTask t {

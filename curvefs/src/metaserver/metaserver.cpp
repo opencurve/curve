@@ -445,8 +445,8 @@ void Metaserver::Stop() {
     LOG_IF(ERROR, !copysetNodeManager_->Stop())
         << "Failed to stop copyset node manager";
 
+    s3Adaptor_ = nullptr;
     S3CompactManager::GetInstance().Stop();
-
     LOG(INFO) << "MetaServer stopped success";
 }
 

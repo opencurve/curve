@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
     // stop server and background threads
     mds.Stop();
 
+    curve::common::S3Adapter::Shutdown();
     google::ShutdownGoogleLogging();
     return 0;
 }
