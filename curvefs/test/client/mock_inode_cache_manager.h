@@ -24,6 +24,7 @@
 #define CURVEFS_TEST_CLIENT_MOCK_INODE_CACHE_MANAGER_H_
 
 #include <gmock/gmock.h>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <list>
@@ -39,9 +40,10 @@ class MockInodeCacheManager : public InodeCacheManager {
     MockInodeCacheManager() {}
     ~MockInodeCacheManager() {}
 
-    MOCK_METHOD3(Init,
-                 CURVEFS_ERROR(uint64_t cacheSize, bool enableCacheMetrics,
-                               uint32_t flushPeriodSec));
+    MOCK_METHOD4(Init, CURVEFS_ERROR(uint64_t cacheSize,
+                                     bool enableCacheMetrics,
+                                     uint32_t flushPeriodSec,
+                                     RefreshDataOption option));
 
     MOCK_METHOD0(Run, void());
 

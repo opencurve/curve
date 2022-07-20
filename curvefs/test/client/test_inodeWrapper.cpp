@@ -216,5 +216,25 @@ TEST_F(TestInodeWrapper, TestRefreshNlink) {
     ASSERT_EQ(nlink, inode.nlink());
 }
 
+TEST_F(TestInodeWrapper, TestNeedRefreshData) {
+    Inode inode;
+    inode.set_inodeid(1);
+    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
+    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo->set_chunkid(1);
+    s3ChunkInfo->set_compaction(1);
+    s3ChunkInfo->set_offset(0);
+    s3ChunkInfo->set_len(1024);
+    s3ChunkInfo->set_size(65536);
+    s3ChunkInfo->set_zero(true);
+    s3ChunkInfoMap->insert({1, *s3ChunkInfoList});
+
+    auto inodeWrapper =  std::make_shared<InodeWrapper>(
+        inode, metaClient_, nullptr, 1, 0);
+
+    ASSERT_TRUE(inodeWrapper->NeedRefreshData());
+}
+
 }  // namespace client
 }  // namespace curvefs

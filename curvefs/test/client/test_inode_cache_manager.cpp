@@ -61,7 +61,10 @@ class TestInodeCacheManager : public ::testing::Test {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         iCacheManager_ = std::make_shared<InodeCacheManagerImpl>(metaClient_);
         iCacheManager_->SetFsId(fsId_);
-        iCacheManager_->Init(3, true, 1);
+        RefreshDataOption option;
+        option.maxDataSize = 1;
+        option.refreshDataIntervalSec = 0;
+        iCacheManager_->Init(3, true, 1, option);
     }
 
     virtual void TearDown() {
@@ -83,6 +86,16 @@ TEST_F(TestInodeCacheManager, GetInode) {
     inode.set_inodeid(inodeId);
     inode.set_fsid(fsId_);
     inode.set_length(fileLength);
+    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
+    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo->set_chunkid(1);
+    s3ChunkInfo->set_compaction(1);
+    s3ChunkInfo->set_offset(0);
+    s3ChunkInfo->set_len(1024);
+    s3ChunkInfo->set_size(65536);
+    s3ChunkInfo->set_zero(true);
+    s3ChunkInfoMap->insert({1, *s3ChunkInfoList});
 
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
@@ -92,6 +105,13 @@ TEST_F(TestInodeCacheManager, GetInode) {
     CURVEFS_ERROR ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
 
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    // hit cache and need refresh s3info
+    EXPECT_CALL(*metaClient_,
+        GetOrModifyS3ChunkInfo(fsId_, inodeId, _, true, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 

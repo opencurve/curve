@@ -227,10 +227,12 @@ CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
                    << ", inodeid: " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-    auto before = GetS3ChunkSize();
+    auto before = s3ChunkInfoSize_;
     inode_.mutable_s3chunkinfomap()->swap(s3ChunkInfoMap);
-    UpdateS3ChunkInfoMetric(GetS3ChunkSize() - before);
+    UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize() - before);
     ClearS3ChunkInfoAdd();
+    UpdateMaxS3ChunkInfoSize();
+    lastRefreshTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
     return CURVEFS_ERROR::OK;
 }
 

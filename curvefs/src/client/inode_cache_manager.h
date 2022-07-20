@@ -43,6 +43,7 @@
 #include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/client/inode_wrapper.h"
 #include "src/common/concurrent/name_lock.h"
+#include "curvefs/src/client/common/config.h"
 
 using ::curve::common::LRUCache;
 using ::curve::common::CacheMetrics;
@@ -62,6 +63,7 @@ using rpcclient::MetaServerClientDone;
 using rpcclient::BatchGetInodeAttrDone;
 using curve::common::CountDownEvent;
 using metric::S3ChunkInfoMetric;
+using common::RefreshDataOption;
 
 class InodeAttrCache {
  public:
@@ -117,7 +119,8 @@ class InodeCacheManager {
     }
 
     virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
-                               uint32_t flushPeriodSec) = 0;
+                               uint32_t flushPeriodSec,
+                               RefreshDataOption option) = 0;
 
     virtual void Run() = 0;
 
@@ -179,7 +182,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         iAttrCache_(nullptr) {}
 
     CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
-                       uint32_t flushPeriodSec) override {
+                       uint32_t flushPeriodSec,
+                       RefreshDataOption option) override {
         if (enableCacheMetrics) {
             iCache_ = std::make_shared<
                 LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0,
@@ -189,6 +193,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
                 LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0);
         }
         maxCacheSize_ = cacheSize;
+        option_ = option;
         flushPeriodSec_ = flushPeriodSec;
         iAttrCache_ = std::make_shared<InodeAttrCache>();
         s3ChunkInfoMetric_ = std::make_shared<S3ChunkInfoMetric>();
@@ -270,6 +275,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     curve::common::GenericNameLock<Mutex> asyncNameLock_;
 
     uint64_t maxCacheSize_;
+    RefreshDataOption option_;
     uint32_t flushPeriodSec_;
     Thread flushThread_;
     InterruptibleSleeper sleeper_;

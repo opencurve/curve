@@ -117,7 +117,7 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
 
     CURVEFS_ERROR ret3 =
         inodeManager_->Init(option.iCacheLruSize, option.enableICacheMetrics,
-                            option.flushPeriodSec);
+                            option.flushPeriodSec, option.refreshDataOption);
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
