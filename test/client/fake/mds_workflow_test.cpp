@@ -66,7 +66,7 @@ int main(int argc, char ** argv) {
             "chunkserverEnableAppliedIndexRead=1\n"\
             "logLevel=0";
 
-            int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR);
+            int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR, 0644);
             int len = write(fd_, config.c_str(), config.length());
             close(fd_);
 
