@@ -4,6 +4,8 @@ A tool for CurveFS & CurveBs.
 
 - [curve tool usage](#curve-tool-usage)
   - [How to use curve tool](#how-to-use-curve-tool)
+    - [Install](#install)
+    - [Introduction](#introduction)
   - [Command](#command)
     - [version](#version)
     - [fs](#fs)
@@ -41,6 +43,32 @@ A tool for CurveFS & CurveBs.
     - [curve fs](#curve-fs)
 
 ## How to use curve tool
+
+### Install
+
+install curve tool
+
+```bash
+wget https://curve-tool.nos-eastchina1.126.net/release/curve-latest
+chmod +x curve-latest
+mv curve-latest /usr/bin/curve
+```
+
+set configure file
+
+```bash
+wget https://github.com/opencurve/curve/blob/master/tools-v2/pkg/config/template.yaml
+```
+
+Please modify the mdsAddr, mdsDummyAddr, etcdAddr under curvefs/bs in the template.yaml file as required
+
+```bash
+mv template.yaml ~/.curve/config.yaml
+```
+
+### Introduction
+
+Here's how to use the tool
 
 ```bash
 curve COMMAND [options]
