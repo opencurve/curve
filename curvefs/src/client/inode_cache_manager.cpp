@@ -118,6 +118,14 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
                     << inodeId << " opencount is 0";
             iCache_->Remove(inodeId);
         } else {
+            curve::common::UniqueLock lgGuard = out->GetUniqueLock();
+            if (out->NeedRefreshData()) {
+                CURVEFS_ERROR rc = out->RefreshS3ChunkInfo();
+                if (rc != CURVEFS_ERROR::OK) {
+                    LOG(ERROR) << "RefreshS3ChunkInfo failed, retCode = " << rc;
+                    return rc;
+                }
+            }
             return CURVEFS_ERROR::OK;
         }
     }
@@ -137,8 +145,9 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     }
 
     auto type = inode.type();
-    out = std::make_shared<InodeWrapper>(
-        std::move(inode), metaClient_, s3ChunkInfoMetric_);
+    out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_,
+        s3ChunkInfoMetric_, option_.maxDataSize,
+        option_.refreshDataIntervalSec);
 
     // NOTE: if the s3chunkinfo inside inode is too large,
     // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
@@ -328,8 +337,9 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     uint64_t inodeid = inode.inodeid();
-    out = std::make_shared<InodeWrapper>(
-        std::move(inode), metaClient_, s3ChunkInfoMetric_);
+    out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_,
+        s3ChunkInfoMetric_, option_.maxDataSize,
+        option_.refreshDataIntervalSec);
 
     std::shared_ptr<InodeWrapper> eliminatedOne;
     bool eliminated = false;

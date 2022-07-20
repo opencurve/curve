@@ -225,6 +225,14 @@ void InitLeaseOpt(Configuration *conf, LeaseOpt *leaseOpt) {
                               &leaseOpt->refreshTimesPerLease);
 }
 
+void InitRefreshDataOpt(Configuration *conf,
+                        RefreshDataOption *opt) {
+    conf->GetValueFatalIfFail("fuseClient.maxDataSize",
+                              &opt->maxDataSize);
+    conf->GetValueFatalIfFail("fuseClient.refreshDataIntervalSec",
+                              &opt->refreshDataIntervalSec);
+}
+
 void SetBrpcOpt(Configuration *conf) {
     curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
     dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
@@ -243,6 +251,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);
     InitVolumeOption(conf, &clientOption->volumeOpt);
     InitLeaseOpt(conf, &clientOption->leaseOpt);
+    InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
 
     conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
                               &clientOption->attrTimeOut);

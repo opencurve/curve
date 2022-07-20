@@ -25,6 +25,7 @@
 #define CURVEFS_SRC_CLIENT_INODE_WRAPPER_H_
 
 #include <sys/stat.h>
+#include <climits>
 #include <cstdint>
 #include <utility>
 #include <memory>
@@ -37,6 +38,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "src/common/timeutility.h"
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeOpenStatusChange;
@@ -80,33 +82,47 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     InodeWrapper(const Inode &inode,
                  const std::shared_ptr<MetaServerClient> &metaClient,
                  const std::shared_ptr<S3ChunkInfoMetric>
-                    &s3ChunkInfoMetric = nullptr)
+                    &s3ChunkInfoMetric = nullptr,
+                 uint64_t maxDataSize = ULONG_MAX,
+                 uint32_t refreshDataInterval = UINT_MAX)
         : inode_(inode),
           status_(InodeStatus::Normal),
           isNlinkValid_(true),
           metaClient_(metaClient),
           s3ChunkInfoMetric_(s3ChunkInfoMetric),
           openCount_(0),
-          dirty_(false) {
-              UpdateS3ChunkInfoMetric(GetS3ChunkSize());
+          dirty_(false),
+          baseMaxDataSize_(maxDataSize),
+          maxDataSize_(maxDataSize),
+          refreshDataInterval_(refreshDataInterval),
+          lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
+          s3ChunkInfoAddSize_(0) {
+              UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
           }
 
     InodeWrapper(Inode &&inode,
                  const std::shared_ptr<MetaServerClient> &metaClient,
                  const std::shared_ptr<S3ChunkInfoMetric>
-                    &s3ChunkInfoMetric = nullptr)
+                    &s3ChunkInfoMetric = nullptr,
+                 uint64_t maxDataSize = ULONG_MAX,
+                 uint32_t refreshDataInterval = UINT_MAX)
         : inode_(std::move(inode)),
           status_(InodeStatus::Normal),
           isNlinkValid_(true),
           metaClient_(metaClient),
           s3ChunkInfoMetric_(s3ChunkInfoMetric),
           openCount_(0),
-          dirty_(false) {
-              UpdateS3ChunkInfoMetric(GetS3ChunkSize());
+          dirty_(false),
+          baseMaxDataSize_(maxDataSize),
+          maxDataSize_(maxDataSize),
+          refreshDataInterval_(refreshDataInterval),
+          lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
+          s3ChunkInfoAddSize_(0) {
+              UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
           }
 
     ~InodeWrapper() {
-        UpdateS3ChunkInfoMetric(-GetS3ChunkSize() - GetS3ChunkInfoAddSize());
+        UpdateS3ChunkInfoMetric(-s3ChunkInfoSize_ - s3ChunkInfoAddSize_);
     }
 
     uint64_t GetInodeId() const {
@@ -322,6 +338,8 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         AppendS3ChunkInfoToMap(chunkIndex, info, &s3ChunkInfoAdd_);
         AppendS3ChunkInfoToMap(chunkIndex, info,
             inode_.mutable_s3chunkinfomap());
+        s3ChunkInfoAddSize_++;
+        s3ChunkInfoSize_++;
         UpdateS3ChunkInfoMetric(2);
     }
 
@@ -363,25 +381,30 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR RefreshVolumeExtent();
 
+    bool NeedRefreshData() {
+        if (s3ChunkInfoSize_ >= maxDataSize_ &&
+            ::curve::common::TimeUtility::GetTimeofDaySec()
+            - lastRefreshTime_ >= refreshDataInterval_) {
+            VLOG(6) << "EliminateLargeS3ChunkInfo size = " << s3ChunkInfoSize_
+                    << ", max = " << maxDataSize_
+                    << ", inodeId = " << inode_.inodeid();
+            return true;
+        }
+        return false;
+    }
+
  private:
     CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
     CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
-    uint64_t GetS3ChunkSize() {
+    uint64_t CalS3ChunkInfoSize() {
         uint64_t size = 0;
         for (const auto &it : inode_.s3chunkinfomap()) {
             size += it.second.s3chunks_size();
         }
-        return size;
-    }
-
-    uint64_t GetS3ChunkInfoAddSize() {
-        uint64_t size = 0;
-        for (const auto &it : s3ChunkInfoAdd_) {
-            size += it.second.s3chunks_size();
-        }
-        return size;
+        s3ChunkInfoSize_ = size;
+        return s3ChunkInfoSize_;
     }
 
     void UpdateS3ChunkInfoMetric(int64_t count) {
@@ -391,8 +414,20 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
     void ClearS3ChunkInfoAdd() {
-        UpdateS3ChunkInfoMetric(-GetS3ChunkInfoAddSize());
+        UpdateS3ChunkInfoMetric(-s3ChunkInfoAddSize_);
         s3ChunkInfoAdd_.clear();
+        s3ChunkInfoAddSize_ = 0;
+    }
+
+    void UpdateMaxS3ChunkInfoSize() {
+        VLOG(6) << "UpdateMaxS3ChunkInfoSize size = " << s3ChunkInfoSize_
+                << ", max = " << maxDataSize_
+                << ", inodeId = " << inode_.inodeid();
+        if (s3ChunkInfoSize_ < baseMaxDataSize_) {
+            maxDataSize_ = baseMaxDataSize_;
+        } else {
+            maxDataSize_ = s3ChunkInfoSize_;
+        }
     }
 
  private:
@@ -405,10 +440,16 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     Inode inode_;
     uint32_t openCount_;
     InodeStatus status_;
+    uint64_t baseMaxDataSize_;
+    uint64_t maxDataSize_;
+    uint32_t refreshDataInterval_;
+    uint64_t lastRefreshTime_;
 
     bool isNlinkValid_;
 
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
+    uint64_t s3ChunkInfoAddSize_;
+    uint64_t s3ChunkInfoSize_;
 
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
