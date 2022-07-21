@@ -272,18 +272,24 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->enableICacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
-    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
     conf->GetValueFatalIfFail("client.dummyserver.startport",
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
     conf->GetValueFatalIfFail("fuseClient.disableXattr",
                               &clientOption->disableXattr);
+    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
 
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))
         << "Not found `fuseClient.enableSplice` in conf, use default value `"
         << std::boolalpha << clientOption->enableFuseSplice << '`';
+
+    // if enableCto, attr and entry cache must invalid
+    if (FLAGS_enableCto) {
+        clientOption->attrTimeOut = 0;
+        clientOption->entryTimeOut = 0;
+    }
 
     SetBrpcOpt(conf);
 }
