@@ -60,6 +60,12 @@ set configure file
 wget https://raw.githubusercontent.com/opencurve/curve/master/tools-v2/pkg/config/template.yaml
 ```
 
+or 
+
+```
+wget https://curve-tool.nos-eastchina1.126.net/config/template.yaml
+```
+
 Please modify the `mdsAddr, mdsDummyAddr, etcdAddr` under `curvefs/bs` in the template.yaml file as required
 
 ```bash
