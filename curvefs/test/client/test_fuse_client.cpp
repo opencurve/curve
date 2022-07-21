@@ -348,13 +348,8 @@ TEST_F(TestFuseVolumeClient, FuseOpOpen) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-
     CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-
-    ASSERT_TRUE(inodeWrapper->IsOpen());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
@@ -371,18 +366,10 @@ TEST_F(TestFuseVolumeClient, FuseOpOpenFailed) {
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
     EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
-        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
 
     CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
-
-    ret = client_->FuseOpOpen(req, ino, &fi);
-    ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpCreate) {
@@ -424,14 +411,9 @@ TEST_F(TestFuseVolumeClient, FuseOpCreate) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-
     fuse_entry_param e;
     CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, &fi, &e);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-
-    ASSERT_TRUE(inodeWrapper->IsOpen());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpMkDir) {
@@ -1292,6 +1274,35 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrFailed) {
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
+TEST_F(TestFuseVolumeClient, FuseOpGetAttrEnableCto) {
+    curvefs::client::common::FLAGS_enableCto = true;
+
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
+    struct stat attr;
+
+    InodeAttr inode;
+    inode.set_inodeid(ino);
+    inode.set_length(0);
+
+    // RefreshInode OK
+    EXPECT_CALL(*inodeManager_, RefreshInode(ino))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpGetAttr(req, ino, &fi, &attr));
+
+    // RefreshInode Fail
+    EXPECT_CALL(*inodeManager_, RefreshInode(ino))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
+              client_->FuseOpGetAttr(req, ino, &fi, &attr));
+}
+
 TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
@@ -1634,13 +1645,6 @@ TEST_F(TestFuseVolumeClient, FuseOpRelease) {
     inode.set_inodeid(ino);
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-    inodeWrapper->SetOpenCount(1);
-    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(
-        _, InodeOpenStatusChange::CLOSE, _))
-        .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpRelease(req, ino, &fi));
 }
 
@@ -1894,7 +1898,6 @@ TEST_F(TestFuseS3Client, FuseOpFlush) {
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     inodeWrapper->SetUid(32);
-    inodeWrapper->SetOpenCount(1);
 
     LOG(INFO) << "############ case1: test disable cto and s3 flush fail";
     curvefs::client::common::FLAGS_enableCto = false;
@@ -2454,7 +2457,6 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
     fuse_entry_param e;
     CURVEFS_ERROR ret = client_->FuseOpCreate(req, parent, name, mode, &fi, &e);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_TRUE(inodeWrapper->IsOpen());
 
     auto p = parentInodeWrapper->GetInodeLocked();
     ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "2");
@@ -2687,7 +2689,6 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
 
     CURVEFS_ERROR ret = client_->FuseOpOpen(req, ino, &fi);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_TRUE(inodeWrapper->IsOpen());
 
     auto p = parentInodeWrapper->GetInodeLocked();
     ASSERT_EQ(p.xattr().find(XATTRFILES)->second, "1");
