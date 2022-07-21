@@ -93,7 +93,7 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
         return -1;
     }
 
-    LOG(INFO) << "LoadAllCacheFile start, dir: " << cachePath;
+    VLOG(3) << "LoadAllCacheFile start, dir: " << cachePath;
     DIR *cacheDir = NULL;
     struct dirent *cacheDirent = NULL;
     cacheDir = posixWrapper_->opendir(cachePath.c_str());
@@ -115,7 +115,7 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
         LOG(ERROR) << "LoadAllCacheFile, opendir error, errno = " << errno;
         return rc;
     }
-    LOG(INFO) << "LoadAllCacheReadFile end, dir: " << cachePath;
+    VLOG(3) << "LoadAllCacheReadFile end, dir: " << cachePath;
     return 0;
 }
 

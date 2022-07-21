@@ -123,11 +123,7 @@ bool TrashImpl::NeedDelete(const TrashItem &item) {
                      << ", ret = " << MetaStatusCode_Name(ret);
         return false;
     }
-    if (inode.has_openmpcount() && inode.openmpcount() > 0) {
-            return false;
-    } else {
-        return ((now - item.dtime) >= options_.expiredAfterSec);
-    }
+    return ((now - item.dtime) >= options_.expiredAfterSec);
 }
 
 MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {

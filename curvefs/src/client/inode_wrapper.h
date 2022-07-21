@@ -76,21 +76,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
     InodeWrapper(const Inode &inode,
                  const std::shared_ptr<MetaServerClient> &metaClient)
-        : inode_(inode),
-          status_(InodeStatus::Normal),
-          isNlinkValid_(true),
-          metaClient_(metaClient),
-          openCount_(0),
-          dirty_(false) {}
+        : inode_(inode), status_(InodeStatus::Normal), isNlinkValid_(true),
+          metaClient_(metaClient), dirty_(false) {}
 
     InodeWrapper(Inode &&inode,
                  const std::shared_ptr<MetaServerClient> &metaClient)
-        : inode_(std::move(inode)),
-          status_(InodeStatus::Normal),
-          isNlinkValid_(true),
-          metaClient_(metaClient),
-          openCount_(0),
-          dirty_(false) {}
+        : inode_(std::move(inode)), status_(InodeStatus::Normal),
+          isNlinkValid_(true), metaClient_(metaClient), dirty_(false) {}
 
     uint64_t GetInodeId() const {
         return inode_.inodeid();
@@ -110,6 +102,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
     void SetLength(uint64_t len) {
+        if (inode_.length() > len) {
+            return;
+        }
+
         inode_.set_length(len);
         dirty_ = true;
     }
@@ -197,9 +193,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         }
         if (inode_.has_dtime()) {
             attr->set_dtime(inode_.dtime());
-        }
-        if (inode_.has_openmpcount()) {
-            attr->set_openmpcount(inode_.openmpcount());
         }
         if (inode_.xattr_size() > 0) {
             *(attr->mutable_xattr()) = inode_.xattr();
@@ -330,8 +323,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(syncingS3ChunkInfoMtx_);
     }
 
-    void SetOpenCount(uint32_t openCount) { openCount_ = openCount; }
-
     ExtentCache* GetMutableExtentCache() {
         curve::common::UniqueLock lk(mtx_);
         return &extentCache_;
@@ -352,7 +343,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
  private:
     Inode inode_;
-    uint32_t openCount_;
     InodeStatus status_;
 
     bool isNlinkValid_;

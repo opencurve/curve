@@ -329,33 +329,6 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
     return CURVEFS_ERROR::INTERNAL;
 }
 
-CURVEFS_ERROR InodeWrapper::Open() {
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (0 == openCount_) {
-        ret = UpdateInodeStatus(InodeOpenStatusChange::OPEN);
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
-        }
-    }
-    openCount_++;
-
-    return CURVEFS_ERROR::OK;
-}
-
-bool InodeWrapper::IsOpen() { return openCount_ > 0; }
-
-CURVEFS_ERROR InodeWrapper::Release() {
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    if (1 == openCount_) {
-        ret = UpdateInodeStatus(InodeOpenStatusChange::CLOSE);
-        if (ret != CURVEFS_ERROR::OK) {
-            return ret;
-        }
-    }
-    openCount_--;
-    return CURVEFS_ERROR::OK;
-}
-
 CURVEFS_ERROR
 InodeWrapper::UpdateInodeStatus(InodeOpenStatusChange statusChange) {
     MetaStatusCode ret =

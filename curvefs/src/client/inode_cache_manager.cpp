@@ -51,97 +51,114 @@ bool IsNotDirtyInode(const std::shared_ptr<InodeWrapper> &inode) {
     return !inode->IsDirty() && inode->S3ChunkInfoEmpty();
 }
 
-CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
-    std::shared_ptr<InodeWrapper> &out) {
+#define GET_INODE_REMOTE(FSID, INODEID, OUT, STREAMING)                        \
+    MetaStatusCode ret = metaClient_->GetInode(FSID, INODEID, OUT, STREAMING); \
+    if (ret != MetaStatusCode::OK) {                                           \
+        LOG_IF(ERROR, ret != MetaStatusCode::NOT_FOUND)                        \
+            << "metaClient_ GetInode failed, MetaStatusCode = " << ret         \
+            << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)          \
+            << ", inodeid = " << INODEID;                                      \
+        return MetaStatusCodeToCurvefsErrCode(ret);                            \
+    }
+
+#define PUT_INODE_CACHE(INODEID, INODEWRAPPER)                                 \
+    std::shared_ptr<InodeWrapper> eliminatedOne;                               \
+    bool eliminated = iCache_->Put(INODEID, INODEWRAPPER, &eliminatedOne);     \
+    if (eliminated) {                                                          \
+        VLOG(3) << "GetInode eliminate one inode, ino: "                       \
+                << eliminatedOne->GetInodeId()                                 \
+                << ", iCache does not evict inodes via put interface ";        \
+        assert(0);                                                             \
+    }
+
+#define REFRESH_DATA_REMOTE(OUT, STREAMING)                                    \
+    CURVEFS_ERROR rc = RefreshData(OUT, STREAMING);                            \
+    if (rc != CURVEFS_ERROR::OK) {                                             \
+        return rc;                                                             \
+    }
+
+CURVEFS_ERROR
+InodeCacheManagerImpl::GetInode(uint64_t inodeId,
+                                std::shared_ptr<InodeWrapper> &out) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
+    // get inode from cache
     bool ok = iCache_->Get(inodeId, &out);
     if (ok) {
-        // if enableCto, we need and is unopen, we need reload from metaserver
-        if (curvefs::client::common::FLAGS_enableCto && !out->IsOpen()) {
-            VLOG(6) << "InodeCacheManagerImpl, GetInode: enableCto and inode: "
-                    << inodeId << " opencount is 0";
-            iCache_->Remove(inodeId);
-        } else {
-            return CURVEFS_ERROR::OK;
-        }
+        return CURVEFS_ERROR::OK;
     }
 
+    // get inode from metaserver
     Inode inode;
-    bool streaming;
+    bool streaming = false;
+    GET_INODE_REMOTE(fsId_, inodeId, &inode, &streaming);
+    out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_);
 
-    MetaStatusCode ret2 = metaClient_->GetInode(
-        fsId_, inodeId, &inode, &streaming);
+    // refresh data
+    REFRESH_DATA_REMOTE(out, streaming);
 
-    if (ret2 != MetaStatusCode::OK) {
-        LOG_IF(ERROR, ret2 != MetaStatusCode::NOT_FOUND)
-            << "metaClient_ GetInode failed, MetaStatusCode = " << ret2
-            << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret2)
-            << ", inodeid = " << inodeId;
-        return MetaStatusCodeToCurvefsErrCode(ret2);
+    // put to cache
+    PUT_INODE_CACHE(inodeId, out);
+
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR
+InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
+    NameLockGuard lock(nameLock_, std::to_string(inodeId));
+
+    // get inode from metaserver
+    Inode inode;
+    bool streaming = false;
+    GET_INODE_REMOTE(fsId_, inodeId, &inode, &streaming);
+
+    // get inode from cache
+    std::shared_ptr<InodeWrapper> out;
+    bool ok = iCache_->Get(inodeId, &out);
+    curve::common::UniqueLock lgGuard;
+    if (!ok) {
+        out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_);
+    } else {
+        lgGuard = out->GetUniqueLock();
     }
 
-    auto type = inode.type();
-    out = std::make_shared<InodeWrapper>(
-        std::move(inode), metaClient_);
+    // refresh data
+    REFRESH_DATA_REMOTE(out, streaming);
 
-    // NOTE: if the s3chunkinfo inside inode is too large,
-    // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
-    // by streaming and padding its into inode.
-    if (type == FsFileType::TYPE_S3 && streaming) {
-        CURVEFS_ERROR rc = out->RefreshS3ChunkInfo();
-        if (rc != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "RefreshS3ChunkInfo() failed, retCode = " << rc;
-            return rc;
-        }
-    } else if (type == FsFileType::TYPE_FILE) {
-        auto rc = out->RefreshVolumeExtent();
-        if (rc != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "RefreshVolumeExtent failed, error: " << rc;
-            return rc;
-        }
+    // put to cache or refresh length
+    if (!ok) {
+        PUT_INODE_CACHE(inodeId, out);
+    } else {
+        out->SetLength(inode.length());
     }
 
-    std::shared_ptr<InodeWrapper> eliminatedOne;
-    bool eliminated = iCache_->Put(inodeId, out, &eliminatedOne);
-    if (eliminated) {
-        VLOG(3) << "GetInode eliminate one inode, ino: "
-                << eliminatedOne->GetInodeId();
-        eliminatedOne->FlushAsync();
-    }
     return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
-    InodeAttr *out) {
+                                                  InodeAttr *out) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
     // 1. find in icache
     std::shared_ptr<InodeWrapper> inodeWrapper;
     bool ok = iCache_->Get(inodeId, &inodeWrapper);
     if (ok) {
-        if (curvefs::client::common::FLAGS_enableCto &&
-            !inodeWrapper->IsOpen()) {
-            iCache_->Remove(inodeId);
-        } else {
-            inodeWrapper->GetInodeAttrLocked(out);
-            return CURVEFS_ERROR::OK;
-        }
+        inodeWrapper->GetInodeAttrLocked(out);
+        return CURVEFS_ERROR::OK;
     }
 
     // 2. get form metaserver
     std::set<uint64_t> inodeIds;
     std::list<InodeAttr> attrs;
     inodeIds.emplace(inodeId);
-    MetaStatusCode ret = metaClient_->BatchGetInodeAttr(
-        fsId_, inodeIds, &attrs);
+    MetaStatusCode ret =
+        metaClient_->BatchGetInodeAttr(fsId_, inodeIds, &attrs);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr failed"
-                   << ", inodeId = " << inodeId
-                   << ", MetaStatusCode = " << ret
+                   << ", inodeId = " << inodeId << ", MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret);
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
 
-    if (attrs.size() !=  1) {
+    if (attrs.size() != 1) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr error,"
                    << " getSize is 1, inodeId = " << inodeId
                    << "but real size = " << attrs.size();
@@ -377,6 +394,37 @@ void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
             break;
         }
     }
+}
+
+CURVEFS_ERROR
+InodeCacheManagerImpl::RefreshData(std::shared_ptr<InodeWrapper> &inode,
+                                   bool streaming) {
+    auto type = inode->GetType();
+    CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+
+    switch (type) {
+    case FsFileType::TYPE_S3:
+        if (streaming) {
+            // NOTE: if the s3chunkinfo inside inode is too large,
+            // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
+            // by streaming and padding its into inode.
+            rc = inode->RefreshS3ChunkInfo();
+            LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)
+                << "RefreshS3ChunkInfo() failed, retCode = " << rc;
+        }
+        break;
+
+    case FsFileType::TYPE_FILE:
+        rc = inode->RefreshVolumeExtent();
+        LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)
+            << "RefreshVolumeExtent failed, error: " << rc;
+        break;
+
+    default:
+        rc = CURVEFS_ERROR::OK;
+    }
+
+    return rc;
 }
 
 }  // namespace client

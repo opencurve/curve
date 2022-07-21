@@ -134,8 +134,8 @@ class FsManager {
      * @param[out] fsInfo: return the fsInfo
      *
      * @return If success return OK;
-     *         if fs has same mount point, return MOUNT_POINT_EXIST;
-     *         else return error code
+     *         if fs has same mount point or cto not consistent, return
+     *         MOUNT_POINT_CONFLICT; else return error code
      */
     FSStatusCode MountFs(const std::string& fsName,
                          const Mountpoint& mountpoint, FsInfo* fsInfo);
