@@ -75,13 +75,33 @@ FsInfoWrapper::FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request,
     fsInfo_ = std::move(fsInfo);
 }
 
-bool FsInfoWrapper::IsMountPointExist(const Mountpoint& mp) const {
+bool FsInfoWrapper::IsMountPointExist(const Mountpoint &mp) const {
     return std::find_if(fsInfo_.mountpoints().begin(),
                         fsInfo_.mountpoints().end(),
-                        [mp](const Mountpoint& mountPoint) {
+                        [mp](const Mountpoint &mountPoint) {
                             return mp.path() == mountPoint.path() &&
                                    mp.hostname() == mountPoint.hostname();
                         }) != fsInfo_.mountpoints().end();
+}
+
+bool FsInfoWrapper::IsMountPointConflict(const Mountpoint &mp) const {
+    bool cto = (fsInfo_.mountpoints_size() ? false : mp.cto());
+
+    bool exist =
+        std::find_if(fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end(),
+                     [&](const Mountpoint &mountPoint) {
+                         if (mountPoint.has_cto() && mountPoint.cto()) {
+                             cto = true;
+                         }
+
+                         return mp.path() == mountPoint.path() &&
+                                mp.hostname() == mountPoint.hostname();
+                     }) != fsInfo_.mountpoints().end();
+
+    // NOTE:
+    // 1. if mount point exist (exist = true), conflict
+    // 2. if existing mount point enableCto is diffrent from newcomer, conflict
+    return exist || (cto != mp.cto());
 }
 
 void FsInfoWrapper::AddMountPoint(const Mountpoint& mp) {
@@ -95,8 +115,10 @@ void FsInfoWrapper::AddMountPoint(const Mountpoint& mp) {
 FSStatusCode FsInfoWrapper::DeleteMountPoint(const Mountpoint& mp) {
     auto iter =
         std::find_if(fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end(),
-                     [mp](const Mountpoint& mountPoint) {
-                         return MessageDifferencer::Equals(mp, mountPoint);
+                     [mp](const Mountpoint &mountPoint) {
+                         return mp.path() == mountPoint.path() &&
+                                mp.hostname() == mountPoint.hostname() &&
+                                mp.port() == mountPoint.port();
                      });
 
     bool found = iter != fsInfo_.mountpoints().end();

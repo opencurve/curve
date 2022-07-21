@@ -126,8 +126,11 @@ class InodeCacheManager {
 
     virtual void Stop() = 0;
 
-    virtual CURVEFS_ERROR GetInode(uint64_t inodeId,
-        std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
+    virtual CURVEFS_ERROR
+    GetInode(uint64_t inodeId,
+             std::shared_ptr<InodeWrapper> &out) = 0;  // NOLINT
+
+    virtual CURVEFS_ERROR RefreshInode(uint64_t inodeId) = 0;
 
     virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) = 0;
 
@@ -220,7 +223,9 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     }
 
     CURVEFS_ERROR GetInode(uint64_t inodeId,
-        std::shared_ptr<InodeWrapper> &out) override;
+                           std::shared_ptr<InodeWrapper> &out) override;
+
+    CURVEFS_ERROR RefreshInode(uint64_t inodeId) override;
 
     CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) override;
 
@@ -258,6 +263,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
  private:
     virtual void FlushInodeBackground();
     void TrimIcache(uint64_t trimSize);
+    CURVEFS_ERROR RefreshData(std::shared_ptr<InodeWrapper> &inode,  // NOLINT
+                              bool streaming = true);
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;

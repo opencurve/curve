@@ -160,22 +160,13 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                                                        : mOpts->mountPoint);
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
+    mountpoint_.set_cto(FLAGS_enableCto);
+
     int retVal = SetHostPortInMountPoint(&mountpoint_);
     if (retVal < 0) {
         LOG(ERROR) << "Set Host and Port in MountPoint failed, ret = "
                    << retVal;
         return CURVEFS_ERROR::INTERNAL;
-    }
-
-    auto find = std::find_if(fsInfo_->mountpoints().begin(),
-                             fsInfo_->mountpoints().end(),
-                             [this](const Mountpoint& mp) {
-                                 return mp.path() == mountpoint_.path() &&
-                                        mp.hostname() == mountpoint_.hostname();
-                             });
-    if (find != fsInfo_->mountpoints().end()) {
-        LOG(ERROR) << "MountFs found mountPoint exist";
-        return CURVEFS_ERROR::MOUNT_POINT_EXIST;
     }
 
     auto ret = mdsClient_->MountFs(fsName, mountpoint_, fsInfo_.get());
@@ -329,12 +320,6 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-
-    ret = inodeWrapper->Open();
-    if (ret != CURVEFS_ERROR::OK) {
-        return ret;
-    }
-
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
             Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
@@ -777,8 +762,18 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi,
                                         struct stat *attr) {
     VLOG(1) << "FuseOpGetAttr ino = " << ino;
+    if (FLAGS_enableCto) {
+        CURVEFS_ERROR ret = inodeManager_->RefreshInode(ino);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                       << ", inodeid = " << ino;
+            return ret;
+        }
+    }
+
     InodeAttr inodeAttr;
-    CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &inodeAttr);
+    CURVEFS_ERROR ret =
+        inodeManager_->GetInodeAttr(ino, &inodeAttr);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
                    << ", inodeid = " << ino;
@@ -1175,26 +1170,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
     VLOG(1) << "FuseOpRelease, ino: " << ino;
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
-    std::shared_ptr<InodeWrapper> inodeWrapper;
-    ret = inodeManager_->GetInode(ino, inodeWrapper);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", ino: " << ino;
-        return ret;
-    }
-
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-
-    ret = inodeWrapper->Release();
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager release inode fail, ret = " << ret
-                   << ", ino: " << ino;
-        return ret;
-    }
-
-    VLOG(1) << "FuseOpRelease, ino: " << ino << " success";
-    return ret;
+    return CURVEFS_ERROR::OK;
 }
 
 void FuseClient::FlushInode() { inodeManager_->FlushInodeOnce(); }

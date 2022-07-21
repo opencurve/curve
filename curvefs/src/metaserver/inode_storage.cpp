@@ -140,9 +140,6 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     if (inode.has_dtime()) {
         attr->set_dtime(inode.dtime());
     }
-    if (inode.has_openmpcount()) {
-        attr->set_openmpcount(inode.openmpcount());
-    }
     if (inode.xattr_size() > 0) {
         *(attr->mutable_xattr()) = inode.xattr();
     }

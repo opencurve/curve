@@ -357,6 +357,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint.set_hostname("host1");
     mountPoint.set_port(9000);
     mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     MountFsRequest mountRequest;
     MountFsResponse mountResponse;
     mountRequest.set_fsname("fs1");
@@ -378,7 +379,8 @@ TEST_F(MdsServiceTest, test1) {
     cntl.Reset();
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::MOUNT_POINT_EXIST);
+        ASSERT_EQ(mountResponse.statuscode(),
+                  FSStatusCode::MOUNT_POINT_CONFLICT);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -389,6 +391,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint2.set_hostname("host1");
     mountPoint2.set_port(9000);
     mountPoint2.set_path("/a/b/d");
+    mountPoint2.set_cto(false);
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint2));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
@@ -407,6 +410,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint3.set_hostname("host2");
     mountPoint3.set_port(9000);
     mountPoint3.set_path("/a/b/d");
+    mountPoint3.set_cto(false);
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint3));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
@@ -424,6 +428,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint.set_hostname("host2");
     mountPoint.set_port(9000);
     mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {

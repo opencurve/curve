@@ -90,7 +90,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           isNlinkValid_(true),
           metaClient_(metaClient),
           s3ChunkInfoMetric_(s3ChunkInfoMetric),
-          openCount_(0),
           dirty_(false),
           baseMaxDataSize_(maxDataSize),
           maxDataSize_(maxDataSize),
@@ -111,7 +110,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           isNlinkValid_(true),
           metaClient_(metaClient),
           s3ChunkInfoMetric_(s3ChunkInfoMetric),
-          openCount_(0),
           dirty_(false),
           baseMaxDataSize_(maxDataSize),
           maxDataSize_(maxDataSize),
@@ -143,6 +141,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
     void SetLength(uint64_t len) {
+        if (inode_.length() > len) {
+            return;
+        }
+
         inode_.set_length(len);
         dirty_ = true;
     }
@@ -230,9 +232,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         }
         if (inode_.has_dtime()) {
             attr->set_dtime(inode_.dtime());
-        }
-        if (inode_.has_openmpcount()) {
-            attr->set_openmpcount(inode_.openmpcount());
         }
         if (inode_.xattr_size() > 0) {
             *(attr->mutable_xattr()) = inode_.xattr();
@@ -372,8 +371,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(syncingS3ChunkInfoMtx_);
     }
 
-    void SetOpenCount(uint32_t openCount) { openCount_ = openCount; }
-
     ExtentCache* GetMutableExtentCache() {
         curve::common::UniqueLock lk(mtx_);
         return &extentCache_;
@@ -438,7 +435,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
  private:
     Inode inode_;
-    uint32_t openCount_;
     InodeStatus status_;
     uint64_t baseMaxDataSize_;
     uint64_t maxDataSize_;

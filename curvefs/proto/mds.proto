@@ -54,6 +54,7 @@ enum FSStatusCode {
     LOCK_TIMEOUT = 29;
     COMMIT_TX_SEQUENCE_MISMATCH = 30;
     VOLUME_INFO_ERROR = 31;
+    MOUNT_POINT_CONFLICT = 32;
 }
 
 // fs interface
@@ -77,6 +78,7 @@ message Mountpoint {
     required string hostname = 1;
     required uint32 port = 2;
     required string path = 3;
+    optional bool cto = 4;
 }
 
 message FsInfo {

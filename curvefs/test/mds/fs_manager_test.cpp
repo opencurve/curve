@@ -393,6 +393,7 @@ TEST_F(FSManagerTest, test1) {
     mountPoint.set_hostname("host");
     mountPoint.set_port(90000);
     mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     FsInfo fsInfo3;
 
     // mount volumefs initspace fail
@@ -438,7 +439,7 @@ TEST_F(FSManagerTest, test1) {
 
     // mount volumefs mountpoint exist
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
-    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_EXIST);
+    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_CONFLICT);
 
     // mount s3 fs success
     FsInfo fsInfo4;
@@ -450,7 +451,7 @@ TEST_F(FSManagerTest, test1) {
 
     // mount s3 fs mount point exist
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
-    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_EXIST);
+    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_CONFLICT);
 
     // TEST UmountFs
     // umount UnInitSpace fail

@@ -463,7 +463,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
                                 const Mountpoint& mountpoint, FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);
 
-    // 1. query fs
+    // query fs
     FsInfoWrapper wrapper;
     FSStatusCode ret = fsStorage_->Get(fsName, &wrapper);
     if (ret != FSStatusCode::OK) {
@@ -472,7 +472,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
         return ret;
     }
 
-    // 2. check fs status
+    // check fs status
     FsStatus status = wrapper.GetStatus();
     switch (status) {
         case FsStatus::NEW:
@@ -490,14 +490,22 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
             return FSStatusCode::UNKNOWN_ERROR;
     }
 
-    // 3. if mount point exist, return MOUNT_POINT_EXIST
-    if (wrapper.IsMountPointExist(mountpoint)) {
-        LOG(WARNING) << "MountFs fail, mount point exist, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint.ShortDebugString();
-        return FSStatusCode::MOUNT_POINT_EXIST;
+    // check param
+    if (!mountpoint.has_cto()) {
+        LOG(WARNING) << "MountFs fail, mount point miss cto param, fsName = "
+                     << fsName << ", fs status = " << FsStatus_Name(status);
+        return FSStatusCode::PARAM_ERROR;
     }
 
-    // 4. If this is the first mountpoint, init space,
+    // mount point conflict
+    if (wrapper.IsMountPointConflict(mountpoint)) {
+        LOG(WARNING) << "MountFs fail, mount point conflict, fsName = "
+                     << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString();
+        return FSStatusCode::MOUNT_POINT_CONFLICT;
+    }
+
+    // If this is the first mountpoint, init space,
     if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
         wrapper.IsMountPointEmpty()) {
         const auto& tempFsInfo = wrapper.ProtoFsInfo();
@@ -510,7 +518,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
         }
     }
 
-    // 5. insert mountpoint
+    // insert mountpoint
     wrapper.AddMountPoint(mountpoint);
     // for persistence consider
     ret = fsStorage_->Update(wrapper);
@@ -523,7 +531,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     // update client alive time
     UpdateClientAliveTime(mountpoint, fsName, false);
 
-    // 6. convert fs info
+    // convert fs info
     FsMetric::GetInstance().OnMount(wrapper.GetFsName(), mountpoint);
     *fsInfo = std::move(wrapper).ProtoFsInfo();
 

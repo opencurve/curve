@@ -112,6 +112,8 @@ class FsInfoWrapper {
 
     bool IsMountPointExist(const Mountpoint& mp) const;
 
+    bool IsMountPointConflict(const Mountpoint &mp) const;
+
     void AddMountPoint(const Mountpoint& mp);
 
     FSStatusCode DeleteMountPoint(const Mountpoint& mp);
