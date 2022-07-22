@@ -53,6 +53,7 @@ enum FSStatusCode {
     LOCK_FAILED = 28;
     LOCK_TIMEOUT = 29;
     COMMIT_TX_SEQUENCE_MISMATCH = 30;
+    VOLUME_INFO_ERROR = 31;
 }
 
 // fs interface

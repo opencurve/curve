@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "curvefs/src/mds/mds_service.h"
+#include "curvefs/src/mds/space/mds_proxy_manager.h"
 #include "src/common/curve_version.h"
 
 namespace brpc {
@@ -70,6 +71,7 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     InitTopologyOption(&options_.topologyOptions);
     InitScheduleOption(&options_.scheduleOption);
     InitDLockOptions(&options_.dLockOptions);
+    InitMdsProxyManagerOptions(&options_.bsMdsProxyOptions);
 }
 
 void MDS::InitMetaServerOption(MetaserverOptions* metaserverOption) {
@@ -168,8 +170,11 @@ void MDS::Init() {
 
     InitEtcdClient();
 
+    space::MdsProxyManager::SetProxyOptions(options_.bsMdsProxyOptions);
+
     fsStorage_ = std::make_shared<PersisKVStorage>(etcdClient_);
-    spaceManager_ = std::make_shared<SpaceManagerImpl>(etcdClient_);
+    spaceManager_ =
+        std::make_shared<SpaceManagerImpl>(etcdClient_, fsStorage_);
     metaserverClient_ =
         std::make_shared<MetaserverClient>(options_.metaserverOptions);
     auto dlock = std::make_shared<DLock>(options_.dLockOptions, etcdClient_);
@@ -418,6 +423,25 @@ void MDS::InitHeartbeatManager() {
     heartbeatManager_ = std::make_shared<HeartbeatManager>(
         heartbeatOption, topology_, coordinator_);
     heartbeatManager_->Init();
+}
+
+void MDS::InitMdsProxyManagerOptions(MdsProxyOptions* options) {
+    conf_->GetValueFatalIfFail("bs.mds.maxRetryMs",
+                               &options->option.mdsMaxRetryMS);
+    conf_->GetValueFatalIfFail("bs.mds.rpcTimeoutMs",
+                               &options->option.rpcRetryOpt.rpcTimeoutMs);
+    conf_->GetValueFatalIfFail("bs.mds.maxRPCTimeoutMs",
+                               &options->option.rpcRetryOpt.maxRPCTimeoutMS);
+    conf_->GetValueFatalIfFail("bs.mds.rpcRetryIntervalUs",
+                               &options->option.rpcRetryOpt.rpcRetryIntervalUS);
+    conf_->GetValueFatalIfFail(
+        "bs.mds.maxFailedTimesBeforeChangeMDS",
+        &options->option.rpcRetryOpt.maxFailedTimesBeforeChangeAddr);
+    conf_->GetValueFatalIfFail(
+        "bs.mds.normalRetryTimesBeforeTriggerWait",
+        &options->option.rpcRetryOpt.normalRetryTimesBeforeTriggerWait);
+    conf_->GetValueFatalIfFail("bs.mds.waitSleepMs",
+                               &options->option.rpcRetryOpt.waitSleepMs);
 }
 
 }  // namespace mds

@@ -31,9 +31,12 @@
 #include <list>
 #include <utility>
 
+#include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
 #include "curvefs/src/mds/space/reloader.h"
+#include "curvefs/src/mds/space/mds_proxy_manager.h"
 
 namespace curvefs {
 namespace mds {
@@ -42,6 +45,7 @@ using ::curvefs::common::FSType;
 using ::curvefs::mds::space::Reloader;
 using ::curvefs::mds::dlock::LOCK_STATUS;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::google::protobuf::util::MessageDifferencer;
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
 bool FsManager::Init() {
@@ -246,7 +250,6 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     const auto& fsName = request->fsname();
     const auto& blockSize = request->blocksize();
     const auto& fsType = request->fstype();
-    const auto& enableSumInDir = request->enablesumindir();
     const auto& detail = request->fsdetail();
 
     NameLockGuard lock(nameLock_, fsName);
@@ -293,6 +296,18 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
                        << " error, s3info is not available!";
             return FSStatusCode::S3_INFO_ERROR;
         }
+    }
+
+    // fill volume size and segment size
+    if (detail.has_volume()) {
+        if (!FillVolumeInfo(const_cast<curvefs::mds::CreateFsRequest*>(request)
+                                ->mutable_fsdetail()
+                                ->mutable_volume())) {
+            LOG(WARNING) << "Fail to get volume size";
+            return FSStatusCode::VOLUME_INFO_ERROR;
+        }
+
+        LOG(INFO) << "Volume info: " << detail.volume().ShortDebugString();
     }
 
     if (!skipCreateNewFs) {
@@ -385,7 +400,7 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
         return ret;
     }
 
-    *fsInfo = wrapper.ProtoFsInfo();
+    *fsInfo = std::move(wrapper).ProtoFsInfo();
     return FSStatusCode::OK;
 }
 
@@ -484,7 +499,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     // 4. If this is the first mountpoint, init space,
     if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
         wrapper.IsMountPointEmpty()) {
-        FsInfo tempFsInfo = wrapper.ProtoFsInfo();
+        const auto& tempFsInfo = wrapper.ProtoFsInfo();
         auto ret = spaceManager_->AddVolume(tempFsInfo);
         if (ret != space::SpaceOk) {
             LOG(ERROR) << "MountFs fail, init space fail, fsName = " << fsName
@@ -508,9 +523,8 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
     UpdateClientAliveTime(mountpoint, fsName, false);
 
     // 6. convert fs info
-    *fsInfo = wrapper.ProtoFsInfo();
-
     FsMetric::GetInstance().OnMount(wrapper.GetFsName(), mountpoint);
+    *fsInfo = std::move(wrapper).ProtoFsInfo();
 
     return FSStatusCode::OK;
 }
@@ -636,12 +650,38 @@ int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
                                                const FsDetail& detail) {
     FsInfoWrapper existFs;
 
+    auto volumeInfoComparator = [](common::Volume lhs, common::Volume rhs) {
+        // only compare required fields
+        // 1. clear `volumeSize` and `extendAlignment`
+        // 2. if `autoExtend` is true, `extendFactor` must be equal too
+        lhs.clear_volumesize();
+        lhs.clear_extendalignment();
+        rhs.clear_volumesize();
+        rhs.clear_extendalignment();
+
+        return google::protobuf::util::MessageDifferencer::Equals(lhs, rhs);
+    };
+
+    auto checkFsInfo = [fsType, volumeInfoComparator](const FsDetail& lhs,
+                                                      const FsDetail& rhs) {
+        switch (fsType) {
+            case curvefs::common::FSType::TYPE_S3:
+                return MessageDifferencer::Equals(lhs.s3info(), rhs.s3info());
+            case curvefs::common::FSType::TYPE_VOLUME:
+                return volumeInfoComparator(lhs.volume(), rhs.volume());
+            case curvefs::common::FSType::TYPE_HYBRID:
+                return MessageDifferencer::Equals(lhs.s3info(), rhs.s3info()) &&
+                       volumeInfoComparator(lhs.volume(), rhs.volume());
+        }
+
+        return false;
+    };
+
     // assume fsname exists
     fsStorage_->Get(fsName, &existFs);
     if (fsName == existFs.GetFsName() && fsType == existFs.GetFsType() &&
         blocksize == existFs.GetBlockSize() &&
-        google::protobuf::util::MessageDifferencer::Equals(
-            detail, existFs.GetFsDetail())) {
+        checkFsInfo(detail, existFs.GetFsDetail())) {
         if (FsStatus::NEW == existFs.GetStatus()) {
             return 1;
         } else if (FsStatus::INITED == existFs.GetStatus()) {
@@ -663,7 +703,6 @@ void FsManager::GetAllFsInfo(
         *fsInfoVec->Add() = i.ProtoFsInfo();
     }
     LOG(INFO) << "get all fsinfo.";
-    return;
 }
 
 void FsManager::RefreshSession(const RefreshSessionRequest* request,
@@ -768,8 +807,8 @@ void FsManager::GetLatestTxId(const GetLatestTxIdRequest* request,
 
     // lock for multi-mount rename
     FSStatusCode rc;
-    std::string fsName = request->fsname();
-    std::string uuid = request->uuid();
+    const std::string& fsName = request->fsname();
+    const std::string& uuid = request->uuid();
     LOCK_STATUS status = dlock_->Lock(fsName, uuid);
     if (status != LOCK_STATUS::OK) {
         rc = (status == LOCK_STATUS::TIMEOUT) ? FSStatusCode::LOCK_TIMEOUT
@@ -954,6 +993,28 @@ bool FsManager::GetClientAliveTime(const std::string& mountpoint,
     }
 
     *out = iter->second;
+    return true;
+}
+
+bool FsManager::FillVolumeInfo(common::Volume* volume) {
+    auto* proxy = space::MdsProxyManager::GetInstance().GetOrCreateProxy(
+        {volume->cluster().begin(), volume->cluster().end()});
+    if (proxy == nullptr) {
+        LOG(ERROR) << "Fail to get or create proxy";
+        return false;
+    }
+
+    uint64_t size = 0;
+    uint64_t alignment = 0;
+    auto ret = proxy->GetVolumeInfo(*volume, &size, &alignment);
+    if (!ret) {
+        LOG(WARNING) << "Fail to get volume size, volume name: "
+                     << volume->volumename();
+        return false;
+    }
+
+    volume->set_volumesize(size);
+    volume->set_extendalignment(alignment);
     return true;
 }
 

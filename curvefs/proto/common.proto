@@ -31,8 +31,9 @@ enum BitmapLocation {
     AtEnd = 2;
 }
 
+// When creating fs, `volumeSize` and `extendAlignment` are fetched from the bs cluster
 message Volume {
-    required uint64 volumeSize = 1;
+    optional uint64 volumeSize = 1;
     required uint64 blockSize = 2;
     required string volumeName = 3;
     required string user = 4;
@@ -40,7 +41,14 @@ message Volume {
     required uint64 blockGroupSize = 6;
     required BitmapLocation bitmapLocation = 7;
     required uint64 sliceSize = 8;
-    // TODO(all): maybe we need curvebs cluster's mds ip and port in here
+    required bool autoExtend = 9;
+    // it's required if enable `autoExtend`
+    optional double extendFactor = 10;
+    optional uint64 extendAlignment = 11;
+    // mds ip:ports of curvebs
+    // example: 127.0.0.1:6666
+    //          192.168.1.1:6666/192.168.1.2:6666/192.168.1.3:6666
+    repeated string cluster = 12;
 }
 
 message S3Info {
