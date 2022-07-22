@@ -53,7 +53,6 @@ TEST_F(FSStorageTest, test1) {
     common::Volume volume;
     uint32_t fsId = 1;
     uint64_t rootInodeId = 1;
-    uint64_t capacity = 46900;
     uint64_t blockSize = 4096;
 
     FsDetail detail;

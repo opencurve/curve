@@ -55,7 +55,7 @@ struct MetaServerOption {
         uint64_t maxRPCTimeoutMS = 2000;
         // rpc normal timeout
         uint64_t rpcTimeoutMs = 500;
-        // rpc retry intervel
+        // rpc retry interval
         uint32_t rpcRetryIntervalUS = 50000;
         // retry maxFailedTimesBeforeChangeAddr at a server
         uint32_t maxFailedTimesBeforeChangeAddr = 5;

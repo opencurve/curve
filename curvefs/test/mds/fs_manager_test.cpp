@@ -22,6 +22,7 @@
 #include "curvefs/src/mds/fs_manager.h"
 #include <brpc/channel.h>
 #include <brpc/server.h>
+#include <butil/endpoint.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
@@ -31,6 +32,7 @@
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "test/common/mock_s3_adapter.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "curvefs/test/mds/utils.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -79,10 +81,8 @@ namespace mds {
 class FSManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        std::string addr = "127.0.0.1:6704";
-
         MetaserverOptions metaserverOptions;
-        metaserverOptions.metaserverAddr = addr;
+        metaserverOptions.metaserverAddr = addr_;
         metaserverOptions.rpcTimeoutMs = 500;
         fsStorage_ = std::make_shared<MemoryFsStorage>();
         spaceManager_ = std::make_shared<MockSpaceManager>();
@@ -118,23 +118,24 @@ class FSManagerTest : public ::testing::Test {
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockCliService2_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(addr.c_str(), nullptr));
+        ASSERT_EQ(0, server_.AddService(&fakeCurveFsService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
 
-        return;
+        ASSERT_EQ(0, server_.Start("127.0.0.1:0", nullptr));
+        addr_ = butil::endpoint2str(server_.listen_address()).c_str();
     }
 
     void TearDown() override {
         server_.Stop(0);
         server_.Join();
         fsManager_->Uninit();
-        return;
     }
 
-    bool CompareVolume(const Volume& first, const Volume& second) {
+    static bool CompareVolume(const Volume& first, const Volume& second) {
         return MessageDifferencer::Equals(first, second);
     }
 
-    bool CompareVolumeFs(const FsInfo& first, const FsInfo& second) {
+    static bool CompareVolumeFs(const FsInfo& first, const FsInfo& second) {
         return first.fsid() == second.fsid() &&
                first.fsname() == second.fsname() &&
                first.rootinodeid() == second.rootinodeid() &&
@@ -145,11 +146,11 @@ class FSManagerTest : public ::testing::Test {
                CompareVolume(first.detail().volume(), second.detail().volume());
     }
 
-    bool CompareS3Info(const S3Info& first, const S3Info& second) {
+    static bool CompareS3Info(const S3Info& first, const S3Info& second) {
         return MessageDifferencer::Equals(first, second);
     }
 
-    bool CompareS3Fs(const FsInfo& first, const FsInfo& second) {
+    static bool CompareS3Fs(const FsInfo& first, const FsInfo& second) {
         return first.fsid() == second.fsid() &&
                first.fsname() == second.fsname() &&
                first.rootinodeid() == second.rootinodeid() &&
@@ -171,6 +172,8 @@ class FSManagerTest : public ::testing::Test {
     std::shared_ptr<MockTopologyManager> topoManager_;
     brpc::Server server_;
     std::shared_ptr<MockS3Adapter> s3Adapter_;
+    FakeCurveFSService fakeCurveFsService_;
+    std::string addr_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -186,18 +189,18 @@ void RpcService(google::protobuf::RpcController* cntl_base,
 }
 
 TEST_F(FSManagerTest, test1) {
-    std::string addr = "127.0.0.1:6704";
-    std::string leader = "127.0.0.1:6704:0";
+    std::string addr = addr_;
+    std::string leader = addr_ + ":0";
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
     bool enableSumInDir = false;
     curvefs::common::Volume volume;
-    uint64_t volumeSize = 4096 * 10000;
-    volume.set_volumesize(volumeSize);
+    const uint64_t volumeSize = fakeCurveFsService_.volumeSize;
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
+    volume.add_cluster(addr_);
 
     FsInfo volumeFsInfo1;
     FsDetail detail;
@@ -497,18 +500,19 @@ TEST_F(FSManagerTest, backgroud_thread_test) {
 
 TEST_F(FSManagerTest, background_thread_deletefs_test) {
     fsManager_->Run();
-    std::string addr = "127.0.0.1:6704";
-    std::string leader = "127.0.0.1:6704:0";
+    std::string addr = addr_;
+    std::string leader = addr_ + ":0";
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
     bool enableSumInDir = false;
     curvefs::common::Volume volume;
-    uint64_t volumeSize = 4096 * 10000;
+    const uint64_t volumeSize = fakeCurveFsService_.volumeSize;
     volume.set_volumesize(volumeSize);
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
+    volume.add_cluster(addr_);
 
     FsInfo volumeFsInfo1;
     FsDetail detail;

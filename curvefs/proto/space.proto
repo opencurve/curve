@@ -32,6 +32,8 @@ enum SpaceErrCode {
     SpaceErrExist = 8;
     SpaceErrStorage = 9;
     SpaceErrParam = 10;
+    SpaceErrNotSupport = 11;
+    SpaceErrExtendVolumeError = 12;
 }
 
 message BlockGroup {

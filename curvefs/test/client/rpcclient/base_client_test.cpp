@@ -159,7 +159,6 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsName) {
     fsinfo->set_txsequence(0);
     fsinfo->set_txowner("owner");
     auto vresp = new curvefs::common::Volume();
-    vresp->set_volumesize(10 * 1024 * 1024L);
     vresp->set_blocksize(4 * 1024);
     vresp->set_volumename("test1");
     vresp->set_user("test");
@@ -167,6 +166,7 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsName) {
     vresp->set_blockgroupsize(128ULL * 1024 * 1024);
     vresp->set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
     vresp->set_slicesize(1ULL * 1024 * 1024 * 1024);
+    vresp->set_autoextend(false);
     auto detail = new curvefs::mds::FsDetail();
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
@@ -211,7 +211,6 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
     fsinfo->set_txsequence(0);
     fsinfo->set_txowner("owner");
     auto vresp = new curvefs::common::Volume();
-    vresp->set_volumesize(10 * 1024 * 1024L);
     vresp->set_blocksize(4 * 1024);
     vresp->set_volumename("test1");
     vresp->set_user("test");
@@ -219,6 +218,7 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
     vresp->set_blockgroupsize(128ULL * 1024 * 1024);
     vresp->set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
     vresp->set_slicesize(1ULL * 1024 * 1024 * 1024);
+    vresp->set_autoextend(false);
     auto detail = new curvefs::mds::FsDetail();
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);

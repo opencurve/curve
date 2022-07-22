@@ -242,8 +242,9 @@ class FsManager {
 
     void RebuildTimeRecorder();
 
- private:
     uint64_t GetRootId();
+
+    bool FillVolumeInfo(common::Volume* volume);
 
  private:
     std::shared_ptr<FsStorage> fsStorage_;
@@ -254,7 +255,7 @@ class FsManager {
     std::shared_ptr<S3Adapter> s3Adapter_;
     std::shared_ptr<DLock> dlock_;
 
-    // Manage fs backgroud delete threads
+    // Manage fs background delete threads
     Thread backEndThread_;
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;

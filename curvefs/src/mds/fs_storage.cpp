@@ -210,7 +210,7 @@ FSStatusCode PersisKVStorage::Insert(const FsInfoWrapper& fs) {
     }
 
     // persist to storage
-    if (!PersitToStorage(fs)) {
+    if (!PersistToStorage(fs)) {
         return FSStatusCode::STORAGE_ERROR;
     }
 
@@ -238,7 +238,7 @@ FSStatusCode PersisKVStorage::Update(const FsInfoWrapper& fs) {
     }
 
     // update to storage
-    if (!PersitToStorage(fs)) {
+    if (!PersistToStorage(fs)) {
         LOG(ERROR) << "Persist to storage failed, fsName: " << fs.GetFsName();
         return FSStatusCode::STORAGE_ERROR;
     }
@@ -377,7 +377,7 @@ bool PersisKVStorage::FsIDToName(uint64_t fsId, std::string* name) const {
     return false;
 }
 
-bool PersisKVStorage::PersitToStorage(const FsInfoWrapper& fs) {
+bool PersisKVStorage::PersistToStorage(const FsInfoWrapper& fs) {
     std::string key = codec::EncodeFsName(fs.GetFsName());
     std::string value;
 

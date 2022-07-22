@@ -239,8 +239,6 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption &metaServerOpt) {
 
 void MDSClient::UnInitialize() {
     inited_ = false;
-
-    LOG(INFO) << "MDSClient uninit success";
 }
 
 #define RPCTaskDefine                                                          \
@@ -389,6 +387,8 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string &filename,
         MDSClientBase::GetFileInfo(filename, uinfo, &response, cntl, channel);
 
         if (cntl->Failed()) {
+            LOG(WARNING) << "Fail to GetFileInfo, filename: " << filename
+                         << ", error: " << cntl->ErrorText();
             mdsClientMetric_.getFile.eps.count << 1;
             return -cntl->ErrorCode();
         }
