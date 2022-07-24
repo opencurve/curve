@@ -45,6 +45,7 @@ class SpinLock {
  private:
     CURVE_CACHELINE_ALIGNMENT std::atomic_flag flag_;
 };
+
 }   // namespace common
 }   // namespace curve
 #endif  // SRC_COMMON_CONCURRENT_SPINLOCK_H_
