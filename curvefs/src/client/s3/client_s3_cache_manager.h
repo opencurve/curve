@@ -192,20 +192,15 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
 
 class S3ReadResponse {
  public:
-    explicit S3ReadResponse(uint64_t length)
-        : data_(new char[length]), len_(length) {}
+    explicit S3ReadResponse(char *data, uint64_t length)
+        : data_(data), len_(length) {}
 
-    char *GetDataBuf() { return data_.get(); }
-
-    void SetReadOffset(uint64_t readOffset) { readOffset_ = readOffset; }
-
-    uint64_t GetReadOffset() { return readOffset_; }
+    char *GetDataBuf() { return data_; }
 
     uint64_t GetBufLen() { return len_; }
 
  private:
-    uint64_t readOffset_;
-    std::unique_ptr<char[]> data_;
+    char *data_;
     uint64_t len_;
 };
 
@@ -314,7 +309,7 @@ class FileCacheManager {
                            uint64_t fsId, uint64_t inodeId);
     int ReadFromS3(const std::vector<S3ReadRequest> &requests,
                             std::vector<S3ReadResponse> *responses,
-                            uint64_t fileLen);
+                            char* dataBuf, uint64_t fileLen);
     void PrefetchS3Objs(
         const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs);
     void HandleReadRequest(const ReadRequest &request,
