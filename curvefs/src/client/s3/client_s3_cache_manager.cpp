@@ -400,7 +400,7 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                         << ",inodeId:" << tmp_req.inodeId;
             }
 
-            ret = ReadFromS3(totalS3Requests, &responses, fileLen);
+            ret = ReadFromS3(totalS3Requests, &responses, dataBuf, fileLen);
             if (ret < 0) {
                 retry++;
                 responses.clear();
@@ -438,13 +438,6 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                 break;
             }
         }
-        auto repIter = responses.begin();
-        for (; repIter != responses.end(); repIter++) {
-            VLOG(6) << "readOffset:" << repIter->GetReadOffset()
-                    << ",bufLen:" << repIter->GetBufLen();
-            memcpy(dataBuf + repIter->GetReadOffset(),
-                repIter->GetDataBuf(), repIter->GetBufLen());
-        }
     }
 
     return readOffset;
@@ -452,7 +445,7 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
 
 int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                                  std::vector<S3ReadResponse> *responses,
-                                 uint64_t fileLen) {
+                                 char* dataBuf, uint64_t fileLen) {
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     std::vector<S3ReadRequest>::const_iterator iter = requests.begin();
@@ -487,10 +480,7 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
 
         std::vector<uint64_t> &dataCacheVec = dataCacheMap[chunkIndex];
         dataCacheVec.push_back(chunkPos);
-        S3ReadResponse response(len);
-        if (!response.GetDataBuf()) {
-            return -1;
-        }
+        S3ReadResponse response(dataBuf + iter->readOffset, len);
         VLOG(6) << "HandleReadRequest blockPos:" << blockPos << ",len:" << len
                 << ",blockIndex:" << blockIndex
                 << ",objectOffset:" << objectOffset << ",chunkid"
@@ -589,8 +579,7 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
             blockPos = (blockPos + n) % blockSize;
             objectOffset = 0;
         }
-        response.SetReadOffset(iter->readOffset);
-        VLOG(6) << "response readOffset:" << response.GetReadOffset()
+        VLOG(6) << "readOffset:" << iter->readOffset
                 << ",response len:" << response.GetBufLen()
                 << ",bufLen:" << readOffset;
         responses->emplace_back(std::move(response));
