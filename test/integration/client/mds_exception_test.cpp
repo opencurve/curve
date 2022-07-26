@@ -425,13 +425,13 @@ class MDSModuleException : public ::testing::Test {
             ASSERT_EQ(LIBCURVE_ERROR::OK, AioWrite(fd, context));
         };
 
-        std::thread writeThtread(writefunc);
+        std::thread writeThread(writefunc);
         {
             std::unique_lock<std::mutex> lk(resumeMtx);
             resumeCV.wait_for(lk, std::chrono::seconds(300));
         }
 
-        writeThtread.join();
+        writeThread.join();
         ASSERT_TRUE(testIOWrite);
 
         // 开始读
