@@ -52,7 +52,7 @@ func TranslateBitmapLocation(bitmapLocation string) (common.BitmapLocation, *cmd
 	return common.BitmapLocation(value), &retErr
 }
 
-func SplitPeerToAddr(peer string) (string, *cmderror.CmdError) {
+func PeerAddressToAddr(peer string) (string, *cmderror.CmdError) {
 	items := strings.Split(peer, ":")
 	if len(items) != 3 {
 		err := cmderror.ErrSplitPeer()
@@ -63,7 +63,7 @@ func SplitPeerToAddr(peer string) (string, *cmderror.CmdError) {
 
 func PeertoAddr(peer *common.Peer) (string, *cmderror.CmdError) {
 	address := peer.GetAddress()
-	return SplitPeerToAddr(address)
+	return PeerAddressToAddr(address)
 }
 
 const (

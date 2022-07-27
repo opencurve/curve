@@ -317,6 +317,21 @@ var (
 	ErrTopology = func() *CmdError {
 		return NewInternalCmdError(29, "%s[%d] belongs to %s[%d] who was not found")
 	}
+	ErrCopysetGapKey = func() *CmdError {
+		return NewInternalCmdError(30, "Fail to parse copyset key! the line is: %s")
+	}
+	ErrCopysetGapState = func() *CmdError {
+		return NewInternalCmdError(30, "Fail to parse copyset[%d] state! the line is: %s")
+	}
+	ErrCopysetGapLastLogId = func() *CmdError {
+		return NewInternalCmdError(31, "Fail to parse copyset[%d] last_log_id! the line is: %s")
+	}
+	ErrCopysetGapReplicator = func() *CmdError {
+		return NewInternalCmdError(32, "Fail to parse copyset[%d] replicator! the line is: %s")
+	}
+	ErrCopysetGap = func() *CmdError {
+		return NewInternalCmdError(33, "Fail to parse copyset[%d]: state or storage or replicator is not found!")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

@@ -38,7 +38,7 @@ import (
 
 type EtcdCommand struct {
 	basecmd.FinalCurveCmd
-	metrics []basecmd.Metric
+	metrics []*basecmd.Metric
 	rows    []map[string]string
 	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
@@ -90,9 +90,9 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 		addrs := []string{addr}
 		statusMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)
-		eCmd.metrics = append(eCmd.metrics, *statusMetric)
+		eCmd.metrics = append(eCmd.metrics, statusMetric)
 		versionMetric := basecmd.NewMetric(addrs, VERSION_SUBURI, timeout)
-		eCmd.metrics = append(eCmd.metrics, *versionMetric)
+		eCmd.metrics = append(eCmd.metrics, versionMetric)
 
 		// set rows
 		row := make(map[string]string)
@@ -115,7 +115,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	var errs []*cmderror.CmdError
 	for _, metric := range eCmd.metrics {
 		size++
-		go func(m basecmd.Metric) {
+		go func(m *basecmd.Metric) {
 			result, err := basecmd.QueryMetric(m)
 			var key string
 			var metricKey string

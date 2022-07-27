@@ -42,7 +42,7 @@ const (
 
 type MdsCommand struct {
 	basecmd.FinalCurveCmd
-	metrics []basecmd.Metric
+	metrics []*basecmd.Metric
 	rows    []map[string]string
 	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
@@ -90,9 +90,9 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 
 		addrs := []string{addr}
 		statusMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, *statusMetric)
+		mCmd.metrics = append(mCmd.metrics, statusMetric)
 		versionMetric := basecmd.NewMetric(addrs, VERSION_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, *versionMetric)
+		mCmd.metrics = append(mCmd.metrics, versionMetric)
 	}
 
 	for i := range mainAddrs {
@@ -116,7 +116,7 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	size := 0
 	for _, metric := range mCmd.metrics {
 		size++
-		go func(m basecmd.Metric) {
+		go func(m *basecmd.Metric) {
 			result, err := basecmd.QueryMetric(m)
 			var key string
 			if m.SubUri == STATUS_SUBURI {
