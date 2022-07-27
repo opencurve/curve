@@ -245,7 +245,7 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 			copysetInfo := value.GetCopysetInfo()
 			peers := copysetInfo.GetPeers()
 			for _, peer := range peers {
-				addr, err := cobrautil.SplitPeerToAddr(peer.GetAddress())
+				addr, err := cobrautil.PeerAddressToAddr(peer.GetAddress())
 				if err.TypeCode() != cmderror.CODE_SUCCESS {
 					ret = append(ret, err)
 				} else if addr2Request[addr] == nil {

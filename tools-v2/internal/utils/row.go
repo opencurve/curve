@@ -46,6 +46,7 @@ const (
 	ROW_LEADER_PEER     = "leaderPeer"
 	ROW_LEFT            = "left"
 	ROW_LENGTH          = "length"
+	ROW_LOG_GAP         = "logGap"
 	ROW_METASERVER      = "metaserver"
 	ROW_METASERVER_ADDR = "metaserverAddr"
 	ROW_MOUNT_NUM       = "mountNum"

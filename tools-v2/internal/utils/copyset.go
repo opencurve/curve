@@ -43,12 +43,19 @@ const (
 	COPYSET_NOTEXIST COPYSET_HEALTH_STATUS = 4
 )
 
+const (
+	COPYSET_OK_STR = "ok"
+	COPYSET_WARN_STR = "warn"
+	COPYSET_ERROR_STR = "error"
+	COPYSET_NOTEXIST_STR = "not exist"
+)
+
 var (
 	CopysetHealthStatus_Str = map[int32]string{
-		1: "ok",
-		2: "warn",
-		3: "error",
-		4: "not exist",
+		1: COPYSET_OK_STR,
+		2: COPYSET_WARN_STR,
+		3: COPYSET_ERROR_STR,
+		4: COPYSET_NOTEXIST_STR,
 	}
 )
 

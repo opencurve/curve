@@ -43,7 +43,7 @@ const (
 
 type InodeNumCommand struct {
 	basecmd.FinalCurveCmd
-	FsId2Filetype2Metric map[string]map[string]basecmd.Metric
+	FsId2Filetype2Metric map[string]map[string]*basecmd.Metric
 }
 
 type Result struct {
@@ -83,7 +83,7 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	iCmd.FsId2Filetype2Metric = make(map[string]map[string]basecmd.Metric)
+	iCmd.FsId2Filetype2Metric = make(map[string]map[string]*basecmd.Metric)
 
 	fsIds := config.GetFlagStringSliceDefaultAll(iCmd.Cmd, config.CURVEFS_FSID)
 	if len(fsIds) == 0 {
@@ -99,8 +99,8 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		subUri := fmt.Sprintf("/vars/"+PREFIX+"_%s*"+SUFFIX, fsId)
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
-		metric := *basecmd.NewMetric(addrs, subUri, timeout)
-		filetype2Metric := make(map[string]basecmd.Metric)
+		metric := basecmd.NewMetric(addrs, subUri, timeout)
+		filetype2Metric := make(map[string]*basecmd.Metric)
 		filetype2Metric["inode_num"] = metric
 		iCmd.FsId2Filetype2Metric[fsId] = filetype2Metric
 	}
@@ -121,7 +121,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	for fsId, filetype2Metric := range iCmd.FsId2Filetype2Metric {
 		for filetype, metric := range filetype2Metric {
 			size++
-			go func(m basecmd.Metric, filetype string, id string) {
+			go func(m *basecmd.Metric, filetype string, id string) {
 				result, err := basecmd.QueryMetric(m)
 				results <- Result{
 					Result: result,

@@ -167,7 +167,7 @@ func NewMetric(addrs []string, subUri string, timeout time.Duration) *Metric {
 	}
 }
 
-func QueryMetric(m Metric) (string, *cmderror.CmdError) {
+func QueryMetric(m *Metric) (string, *cmderror.CmdError) {
 	response := make(chan string, 1)
 	size := len(m.Addrs)
 	if size > config.MaxChannelSize() {
