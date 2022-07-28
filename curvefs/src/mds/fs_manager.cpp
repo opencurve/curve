@@ -30,6 +30,7 @@
 #include <limits>
 #include <list>
 #include <utility>
+#include <regex> // NOLINT
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -246,6 +247,15 @@ void FsManager::BackEndCheckMountPoint() {
     }
 }
 
+bool FsManager::CheckFsName(const std::string& fsName) {
+    static const std::regex reg("^([a-z0-9]+\\-?)+$");
+    if (!std::regex_match(fsName.cbegin(), fsName.cend(), reg)) {
+        LOG(ERROR) << "fsname is invalid, fsname = " << fsName;
+        return false;
+    }
+    return true;
+}
+
 FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
                                  FsInfo* fsInfo) {
     const auto& fsName = request->fsname();
@@ -253,11 +263,16 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     const auto& fsType = request->fstype();
     const auto& detail = request->fsdetail();
 
+    // check fsname
+    if (!CheckFsName(fsName)) {
+        return FSStatusCode::FSNAME_INVALID;
+    }
+
     NameLockGuard lock(nameLock_, fsName);
     FsInfoWrapper wrapper;
     bool skipCreateNewFs = false;
 
-    // 1. query fs
+    // query fs
     // TODO(cw123): if fs status is FsStatus::New, here need more consideration
     if (fsStorage_->Exist(fsName)) {
         int existRet =
@@ -285,7 +300,7 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     }
 
     // check s3info
-    if (detail.has_s3info()) {
+    if (!skipCreateNewFs && detail.has_s3info()) {
         const auto& s3Info = detail.s3info();
         option_.s3AdapterOption.ak = s3Info.ak();
         option_.s3AdapterOption.sk = s3Info.sk();

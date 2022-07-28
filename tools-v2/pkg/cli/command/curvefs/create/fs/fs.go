@@ -119,6 +119,9 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	fCmd.SetHeader(header)
 
 	fsName := config.GetFlagString(cmd, config.CURVEFS_FSNAME)
+	if !cobrautil.IsValidFsname(fsName) {
+		return fmt.Errorf("fsname[%s] is not vaild, it should be match regex: %s", fsName, cobrautil.FS_NAME_REGEX)
+	}
 
 	blocksizeStr := config.GetFlagString(cmd, config.CURVEFS_BLOCKSIZE)
 	blocksize, err := humanize.ParseBytes(blocksizeStr)
@@ -302,7 +305,7 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	errCreate := cmderror.ErrCreateFs(int(response.GetStatusCode()))
 	row := map[string]string{
 		cobrautil.ROW_FS_NAME: fCmd.Rpc.Request.GetFsName(),
-		cobrautil.ROW_RESULT: errCreate.Message,
+		cobrautil.ROW_RESULT:  errCreate.Message,
 	}
 	if response.GetStatusCode() == mds.FSStatusCode_OK {
 		fsInfo := response.GetFsInfo()
