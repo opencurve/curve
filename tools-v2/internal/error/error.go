@@ -411,8 +411,10 @@ var (
 			message = "fs exist, but s3 info is not inconsistent"
 		case mds.FSStatusCode_S3_INFO_ERROR:
 			message = "s3 info is not available"
+		case mds.FSStatusCode_FSNAME_INVALID:
+			message = "fsname should match regex: ^([a-z0-9]+\\-?)+$" 
 		default:
-			message = fmt.Sprintf("delete fs failed!, error is %s", code.String())
+			message = fmt.Sprintf("delete fs failed!, error is %s", mds.FSStatusCode_name[int32(code)])
 		}
 		return NewRpcReultCmdError(statusCode, message)
 	}
