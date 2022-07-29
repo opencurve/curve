@@ -243,7 +243,7 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     return;
 }
 
-void InodeAttr2ParamAttr(InodeAttr inodeAttr, struct stat *attr) {
+void InodeAttr2ParamAttr(const InodeAttr &inodeAttr, struct stat *attr) {
     attr->st_ino = inodeAttr.inodeid();
     attr->st_mode = inodeAttr.mode();
     attr->st_nlink = inodeAttr.nlink();
@@ -271,12 +271,12 @@ void InodeAttr2ParamAttr(InodeAttr inodeAttr, struct stat *attr) {
 
 void GetDentryParamFromInodeAttr(
     const FuseClientOption &option,
-    InodeAttr inodeAttr,
+    const InodeAttr &inodeAttr,
     fuse_entry_param *param) {
     memset(param, 0, sizeof(fuse_entry_param));
     param->ino = inodeAttr.inodeid();
     param->generation = 0;
-    InodeAttr2ParamAttr(std::move(inodeAttr), &param->attr);
+    InodeAttr2ParamAttr(inodeAttr, &param->attr);
     param->attr_timeout = option.attrTimeOut;
     param->entry_timeout = option.entryTimeOut;
 }
@@ -309,7 +309,7 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
 
@@ -499,7 +499,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
 
     InodeAttr attr;
     inodeWrapper->GetInodeAttrLocked(&attr);
-    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
 
@@ -651,7 +651,7 @@ static void dirbuf_add(fuse_req_t req, struct DirBufferHead *b,
         b->size += fuse_add_direntry_plus(req, NULL, 0, dentry.name().c_str(),
                                           NULL, 0);
         b->p = static_cast<char *>(realloc(b->p, b->size));
-        GetDentryParamFromInodeAttr(option, std::move(*attr), &param);
+        GetDentryParamFromInodeAttr(option, *attr, &param);
         fuse_add_direntry_plus(req, b->p + oldsize, b->size - oldsize,
                                dentry.name().c_str(), &param, b->size);
     }
@@ -780,7 +780,7 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    InodeAttr2ParamAttr(std::move(inodeAttr), attr);
+    InodeAttr2ParamAttr(inodeAttr, attr);
     return ret;
 }
 
@@ -851,7 +851,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         }
         InodeAttr inodeAttr;
         inodeWrapper->GetInodeAttrUnlocked(&inodeAttr);
-        InodeAttr2ParamAttr(std::move(inodeAttr), attrOut);
+        InodeAttr2ParamAttr(inodeAttr, attrOut);
 
         if (enableSumInDir_ && changeSize != 0) {
             // update parent summary info
@@ -877,7 +877,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
     }
     InodeAttr inodeAttr;
     inodeWrapper->GetInodeAttrUnlocked(&inodeAttr);
-    InodeAttr2ParamAttr(std::move(inodeAttr), attrOut);
+    InodeAttr2ParamAttr(inodeAttr, attrOut);
     return ret;
 }
 
@@ -1079,7 +1079,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
 
     InodeAttr attr;
     inodeWrapper->GetInodeAttrLocked(&attr);
-    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
 
@@ -1150,7 +1150,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
 
     InodeAttr attr;
     inodeWrapper->GetInodeAttrLocked(&attr);
-    GetDentryParamFromInodeAttr(option_, std::move(attr), e);
+    GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
 

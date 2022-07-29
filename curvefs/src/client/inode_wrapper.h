@@ -398,8 +398,8 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
-    uint64_t CalS3ChunkInfoSize() {
-        uint64_t size = 0;
+    int64_t CalS3ChunkInfoSize() {
+        int64_t size = 0;
         for (const auto &it : inode_.s3chunkinfomap()) {
             size += it.second.s3chunks_size();
         }
@@ -448,8 +448,8 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     bool isNlinkValid_;
 
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
-    uint64_t s3ChunkInfoAddSize_;
-    uint64_t s3ChunkInfoSize_;
+    int64_t s3ChunkInfoAddSize_;
+    int64_t s3ChunkInfoSize_;
 
     std::shared_ptr<MetaServerClient> metaClient_;
     std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
