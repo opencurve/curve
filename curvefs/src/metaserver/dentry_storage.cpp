@@ -401,10 +401,6 @@ MetaStatusCode DentryStorage::List(const Dentry& dentry,
             << ", seekTimes = " << seekTimes
             << ", dentrySize = " << dentrys->size()
             << ", costUs = " << time.u_elapsed();
-
-    if (list.Size() == 0) {
-        return MetaStatusCode::NOT_FOUND;
-    }
     return MetaStatusCode::OK;
 }
 

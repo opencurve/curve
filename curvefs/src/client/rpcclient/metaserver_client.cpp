@@ -215,12 +215,12 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
-                << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
-                << ", last = " << last << ", count = " << count
-                << ", onlyDir = " << onlyDir
-                << ", errcode = " << ret
-                << ", errmsg = " << MetaStatusCode_Name(ret);
+            LOG(WARNING) << "ListDentry: fsId = " << fsId
+                         << ", inodeid = " << inodeid
+                         << ", last = " << last << ", count = " << count
+                         << ", onlyDir = " << onlyDir
+                         << ", errcode = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
