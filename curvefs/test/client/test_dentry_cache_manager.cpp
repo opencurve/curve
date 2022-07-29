@@ -203,10 +203,10 @@ TEST_F(TestDentryCacheManager, ListDentryEmpty) {
     uint64_t parent = 99;
 
     EXPECT_CALL(*metaClient_, ListDentry(fsId_, parent, _, _, _, _))
-        .WillOnce(Return(MetaStatusCode::NOT_FOUND));
+        .WillOnce(Return(MetaStatusCode::OK));
 
     std::list<Dentry> out;
-    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 0);
+    CURVEFS_ERROR ret = dCacheManager_->ListDentry(parent, &out, 1);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(0, out.size());
 }

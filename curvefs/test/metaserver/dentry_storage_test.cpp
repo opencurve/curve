@@ -414,17 +414,17 @@ TEST_F(DentryStorageTest, List) {
 
     dentrys.clear();
     dentry = GenDentry(1, 2, "", 0, 0, false);
-    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 0);
 
     dentrys.clear();
     dentry = GenDentry(1, 3, "", 0, 0, false);
-    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 0);
 
     dentrys.clear();
     dentry = GenDentry(2, 0, "", 0, 0, false);
-    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 0);
 
     // CASE 9: list directory only
