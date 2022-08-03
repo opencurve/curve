@@ -39,6 +39,7 @@
 #include "src/common/net_common.h"
 #include "src/common/dummyserver.h"
 #include "src/client/client_common.h"
+#include "absl/memory/memory.h"
 
 #define PORT_LIMIT 65535
 
@@ -88,8 +89,8 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     metaCache->Init(option.metaCacheOpt, cli2Client, mdsClient_);
     auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
 
-    leaseExecutor_ =
-        std::make_shared<LeaseExecutor>(option.leaseOpt, metaCache, mdsClient_);
+    leaseExecutor_ = absl::make_unique<LeaseExecutor>(option.leaseOpt,
+                                                      metaCache, mdsClient_);
 
     xattrManager_ = std::make_shared<XattrManager>(inodeManager_,
         dentryManager_, option_.listDentryLimit, option_.listDentryThreads);
@@ -216,6 +217,10 @@ void FuseClient::FuseOpDestroy(void *userdata) {
     FlushAll();
     dirBuf_->DirBufferFreeAll();
 
+    // stop lease before umount fs, otherwise, lease request after umount fs
+    // will add a mountpoint entry.
+    leaseExecutor_.reset();
+
     struct MountOption *mOpts = (struct MountOption *)userdata;
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
@@ -240,7 +245,6 @@ void FuseClient::FuseOpDestroy(void *userdata) {
 
     LOG(INFO) << "Umount " << fsName << " on " << mountPoint.ShortDebugString()
               << " success!";
-    return;
 }
 
 void InodeAttr2ParamAttr(const InodeAttr &inodeAttr, struct stat *attr) {

@@ -82,6 +82,8 @@ SpaceErrCode SpaceManagerImpl::RemoveVolume(uint32_t fsId) {
     WriteLockGuard lk(rwlock_);
     auto it = volumes_.find(fsId);
     if (it == volumes_.end()) {
+        LOG(WARNING) << "Fail to remove volume space, fs not found, fsId: "
+                     << fsId;
         return SpaceErrNotFound;
     }
 

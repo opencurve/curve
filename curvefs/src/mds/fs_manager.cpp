@@ -33,6 +33,7 @@
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/space.pb.h"
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
 #include "curvefs/src/mds/space/reloader.h"
@@ -573,10 +574,12 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
             LOG(ERROR) << "UmountFs fail, uninit space fail, fsName = "
                        << fsName
                        << ", mountpoint = " << mountpoint.ShortDebugString()
-                       << ", errCode = "
-                       << FSStatusCode_Name(UNINIT_SPACE_ERROR);
+                       << ", errCode = " << space::SpaceErrCode_Name(ret);
             return UNINIT_SPACE_ERROR;
         }
+
+        LOG(INFO) << "Remove volume space success, fsName = " << fsName
+                  << ", fsId = " << wrapper.GetFsId();
     }
 
     // 4. update fs info
