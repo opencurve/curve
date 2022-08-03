@@ -53,7 +53,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     auto s3Client = std::make_shared<S3ClientImpl>();
     s3Client->Init(opt.s3Opt.s3AdaptrOpt);
     auto fsCacheManager = std::make_shared<FsCacheManager>(
-        dynamic_cast<S3ClientAdaptorImpl *>(s3Adaptor_.get()),
+        dynamic_cast<S3Adaptor *>(s3Adaptor_.get()),
         opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
         opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte);
     if (opt.s3Opt.s3ClientAdaptorOpt.diskCacheOpt.diskCacheType !=

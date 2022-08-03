@@ -43,6 +43,8 @@ cc_library(
             "s3/*.h",
             "volume/*.cpp",
             "volume/*.h",
+            "cache/*.cpp",
+            "cache/*.h",
         ],
         exclude = ["main.c"],
     ),

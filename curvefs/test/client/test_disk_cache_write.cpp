@@ -25,7 +25,7 @@
 
 #include "curvefs/test/client/mock_test_posix_wapper.h"
 #include "curvefs/test/client/mock_client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/client/cache/disk_cache_write.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "src/common/concurrent/concurrent.h"
 

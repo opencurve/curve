@@ -31,7 +31,7 @@
 namespace curvefs {
 namespace client {
 
-class MockS3ClientAdaptor : public S3ClientAdaptor {
+class MockS3ClientAdaptor : public S3Adaptor {
  public:
     MockS3ClientAdaptor() {}
     ~MockS3ClientAdaptor() {}

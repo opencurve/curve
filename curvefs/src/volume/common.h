@@ -90,17 +90,6 @@ struct WritePart {
         : offset(offset), length(length), data(data) {}
 };
 
-struct ReadPart {
-    off_t offset = 0;
-    size_t length = 0;
-    char* data = nullptr;
-
-    ReadPart() = default;
-
-    ReadPart(off_t offset, size_t length, char* data)
-        : offset(offset), length(length), data(data) {}
-};
-
 }  // namespace volume
 }  // namespace curvefs
 

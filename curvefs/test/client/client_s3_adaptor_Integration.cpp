@@ -116,7 +116,7 @@ class ClientS3IntegrationTest : public testing::Test {
             &mockInodeManager_);
         std::shared_ptr<MockMdsClient> mockMdsClient(&mockMdsClient_);
         std::shared_ptr<MockS3Client> mockS3Client(&mockS3Client_);
-        s3ClientAdaptor_ = new S3ClientAdaptorImpl();
+        s3ClientAdaptor_ = new S3Adaptor();
         auto fsCacheManager = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte,
             option.writeCacheMaxByte);
@@ -133,7 +133,7 @@ class ClientS3IntegrationTest : public testing::Test {
     }
 
  protected:
-    S3ClientAdaptorImpl *s3ClientAdaptor_;
+    S3Adaptor *s3ClientAdaptor_;
     MockMetaServerService mockMetaServerService_;
     MockS3Client mockS3Client_;
     MockInodeCacheManager mockInodeManager_;

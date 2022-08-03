@@ -58,6 +58,17 @@ enum class MetaServerOpType {
     GetOrModifyS3ChunkInfo,
 };
 
+struct ReadPart {
+    off_t offset = 0;
+    size_t length = 0;
+    char* data = nullptr;
+
+    ReadPart() = default;
+
+    ReadPart(off_t offset, size_t length, char* data)
+        : offset(offset), length(length), data(data) {}
+};
+
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
 
 const uint32_t MAXXATTRLENGTH = 256;

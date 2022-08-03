@@ -33,14 +33,13 @@ namespace curvefs {
 
 namespace client {
 CURVEFS_ERROR
-S3ClientAdaptorImpl::Init(
+S3Adaptor::Init(
     const S3ClientAdaptorOption &option, std::shared_ptr<S3Client> client,
     std::shared_ptr<InodeCacheManager> inodeManager,
     std::shared_ptr<MdsClient> mdsClient,
     std::shared_ptr<FsCacheManager> fsCacheManager,
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
     bool startBackGround) {
-    pendingReq_ = 0;
     blockSize_ = option.blockSize;
     chunkSize_ = option.chunkSize;
     pageSize_ = option.pageSize;
@@ -74,7 +73,7 @@ S3ClientAdaptorImpl::Init(
         downloadTaskQueues_.resize(prefetchExecQueueNum_);
         for (auto &q : downloadTaskQueues_) {
             int rc = bthread::execution_queue_start(
-                &q, nullptr, &S3ClientAdaptorImpl::ExecAsyncDownloadTask, this);
+                &q, nullptr, &S3Adaptor::ExecAsyncDownloadTask, this);
             if (rc != 0) {
                 LOG(ERROR) << "Init AsyncRpcQueues failed";
                 return CURVEFS_ERROR::INTERNAL;
@@ -83,10 +82,10 @@ S3ClientAdaptorImpl::Init(
     }
     if (startBackGround) {
         toStop_.store(false, std::memory_order_release);
-        bgFlushThread_ = Thread(&S3ClientAdaptorImpl::BackGroundFlush, this);
+        bgFlushThread_ = Thread(&S3Adaptor::BackGroundFlush, this);
     }
 
-    LOG(INFO) << "S3ClientAdaptorImpl Init. block size:" << blockSize_
+    LOG(INFO) << "S3Adaptor Init. block size:" << blockSize_
               << ", chunk size: " << chunkSize_
               << ", prefetchBlocks: " << prefetchBlocks_
               << ", prefetchExecQueueNum: " << prefetchExecQueueNum_
@@ -101,67 +100,41 @@ S3ClientAdaptorImpl::Init(
     return CURVEFS_ERROR::OK;
 }
 
-int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
+int S3Adaptor::Write(uint64_t inodeId, uint64_t offset,
                                uint64_t length, const char *buf) {
     VLOG(6) << "write start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     uint64_t start = butil::cpuwide_time_us();
+    fsCacheManager_->FlowControl(length);
+    
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
-    {
-        std::lock_guard<std::mutex> lockguard(ioMtx_);
-        pendingReq_.fetch_add(1, std::memory_order_seq_cst);
-        VLOG(6) << "pendingReq_ is: " << pendingReq_;
-        uint64_t pendingReq = pendingReq_.load(std::memory_order_seq_cst);
-        fsCacheManager_->DataCacheByteInc(length);
-        uint64_t size = fsCacheManager_->GetDataCacheSize();
-        uint64_t maxSize = fsCacheManager_->GetDataCacheMaxSize();
-        if ((size + pendingReq * fuseMaxSize_) >= maxSize) {
-            LOG(INFO) << "write cache is full, wait flush. size:" << size
-                      << ", maxSize:" << maxSize;
-            // offer to do flush
-            waitInterval_.StopWait();
-            fsCacheManager_->WaitFlush();
-        }
-    }
-    uint64_t memCacheRatio = fsCacheManager_->MemCacheRatio();
-    int64_t exceedRatio = memCacheRatio - memCacheNearfullRatio_;
-    if (exceedRatio > 0) {
-        // offer to do flush
-        waitInterval_.StopWait();
-        // upload to s3 derectly or cache disk full
-        bool needSleep =
-            (DisableDiskCache() || IsReadCache()) ||
-            (IsReadWriteCache() && diskCacheManagerImpl_->IsDiskCacheFull());
-        if (needSleep) {
-            uint32_t exponent = pow(2, (exceedRatio) / 10);
-            bthread_usleep(throttleBaseSleepUs_ * exceedRatio * exponent);
-            LOG(INFO) << "write cache is nearfull and use ratio is: "
-                      << memCacheRatio << ", exponent is: " << exponent;
-        }
-    }
     int ret = fileCacheManager->Write(offset, length, buf);
-    pendingReq_.fetch_sub(1, std::memory_order_seq_cst);
-    fsCacheManager_->DataCacheByteDec(length);
+
     if (s3Metric_.get() != nullptr) {
         CollectMetrics(&s3Metric_->adaptorWrite, ret, start);
         s3Metric_->writeSize << length;
     }
-    VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret
-            << ", pendingReq_ is: " << pendingReq_;
+    VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret;
     return ret;
 }
 
-int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
+int S3Adaptor::Read(uint64_t inodeId, uint64_t offset,
                               uint64_t length, char *buf) {
     VLOG(6) << "read start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
+    std::vector<ReadRequest> readRequests;
+    uint64_t chunkSize = fsCacheManager_->GetChunkSize();
     uint64_t start = butil::cpuwide_time_us();
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
 
-    int ret = fileCacheManager->Read(inodeId, offset, length, buf);
-    VLOG(6) << "read end inodeId:" << inodeId << ",ret:" << ret;
+    fileCacheManager->Read(inodeId, offset, length, buf, &readRequests);
+    for (auto& request : readRequests) {
+        uint64_t offset = request.index * chunkSize + request.chunkPos;
+        s3Storage_->Read(inodeId, offset, request.len, request.buf);
+    }
+    
     if (ret < 0) {
         return ret;
     }
@@ -171,10 +144,10 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     }
     VLOG(6) << "read end offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
-    return ret;
+    return length;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
+CURVEFS_ERROR S3Adaptor::Truncate(Inode *inode, uint64_t size) {
     uint64_t fileSize = inode->length();
 
     if (size < fileSize) {
@@ -239,7 +212,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
     }
 }
 
-void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {
+void S3Adaptor::ReleaseCache(uint64_t inodeId) {
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindFileCacheManager(inodeId);
     if (!fileCacheManager) {
@@ -251,7 +224,7 @@ void S3ClientAdaptorImpl::ReleaseCache(uint64_t inodeId) {
     return;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Flush(uint64_t inodeId) {
+CURVEFS_ERROR S3Adaptor::Flush(uint64_t inodeId) {
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindFileCacheManager(inodeId);
     if (!fileCacheManager) {
@@ -261,16 +234,16 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Flush(uint64_t inodeId) {
     return fileCacheManager->Flush(true, false);
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::FsSync() {
+CURVEFS_ERROR S3Adaptor::FsSync() {
     return fsCacheManager_->FsSync(true);
 }
 
-FSStatusCode S3ClientAdaptorImpl::AllocS3ChunkId(uint32_t fsId,
+FSStatusCode S3Adaptor::AllocS3ChunkId(uint32_t fsId,
                                                  uint64_t *chunkId) {
     return mdsClient_->AllocS3ChunkId(fsId, chunkId);
 }
 
-void S3ClientAdaptorImpl::BackGroundFlush() {
+void S3Adaptor::BackGroundFlush() {
     while (!toStop_.load(std::memory_order_acquire)) {
         {
             std::unique_lock<std::mutex> lck(mtx_);
@@ -297,8 +270,8 @@ void S3ClientAdaptorImpl::BackGroundFlush() {
     return;
 }
 
-int S3ClientAdaptorImpl::Stop() {
-    LOG(INFO) << "start Stopping S3ClientAdaptor.";
+int S3Adaptor::Stop() {
+    LOG(INFO) << "start Stopping S3Adaptor.";
     waitInterval_.StopWait();
     toStop_.store(true, std::memory_order_release);
     FsSyncSignal();
@@ -315,7 +288,7 @@ int S3ClientAdaptorImpl::Stop() {
     return 0;
 }
 
-int S3ClientAdaptorImpl::ExecAsyncDownloadTask(
+int S3Adaptor::ExecAsyncDownloadTask(
     void *meta,
     bthread::TaskIterator<AsyncDownloadTask> &iter) {  // NOLINT
     if (iter.is_queue_stopped()) {
@@ -330,7 +303,7 @@ int S3ClientAdaptorImpl::ExecAsyncDownloadTask(
     return 0;
 }
 
-void S3ClientAdaptorImpl::InitMetrics(const std::string &fsName) {
+void S3Adaptor::InitMetrics(const std::string &fsName) {
     fsName_ = fsName;
     s3Metric_ = std::make_shared<S3Metric>(fsName);
     if (HasDiskCache()) {
@@ -338,14 +311,14 @@ void S3ClientAdaptorImpl::InitMetrics(const std::string &fsName) {
     }
 }
 
-void S3ClientAdaptorImpl::CollectMetrics(InterfaceMetric *interface, int count,
+void S3Adaptor::CollectMetrics(InterfaceMetric *interface, int count,
                                          uint64_t start) {
     interface->bps.count << count;
     interface->qps.count << 1;
     interface->latency << (butil::cpuwide_time_us() - start);
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::FlushAllCache(uint64_t inodeId) {
+CURVEFS_ERROR S3Adaptor::FlushAllCache(uint64_t inodeId) {
     VLOG(6) << "FlushAllCache, inodeId:" << inodeId;
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindFileCacheManager(inodeId);
@@ -370,7 +343,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::FlushAllCache(uint64_t inodeId) {
     return ret;
 }
 
-int S3ClientAdaptorImpl::ClearDiskCache(int64_t inodeId) {
+int S3Adaptor::ClearDiskCache(int64_t inodeId) {
     // flush disk cache. read cache do not need clean
     int ret =
         diskCacheManagerImpl_->UploadWriteCacheByInode(std::to_string(inodeId));
@@ -379,7 +352,7 @@ int S3ClientAdaptorImpl::ClearDiskCache(int64_t inodeId) {
     return ret;
 }
 
-void S3ClientAdaptorImpl::Enqueue(
+void S3Adaptor::Enqueue(
   std::shared_ptr<FlushChunkCacheContext> context) {
     auto task = [this, context]() {
         this->FlushChunkClosure(context);
@@ -387,7 +360,7 @@ void S3ClientAdaptorImpl::Enqueue(
     taskPool_.Enqueue(task);
 }
 
-int S3ClientAdaptorImpl::FlushChunkClosure(
+int S3Adaptor::FlushChunkClosure(
   std::shared_ptr<FlushChunkCacheContext> context) {
     VLOG(9) << "FlushChunkCacheClosure start: " << context->inode;
     CURVEFS_ERROR ret = context->chunkCacheManptr->Flush(

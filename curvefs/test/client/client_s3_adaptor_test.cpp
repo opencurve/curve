@@ -51,7 +51,7 @@ class ClientS3AdaptorTest : public testing::Test {
     ClientS3AdaptorTest() {}
     ~ClientS3AdaptorTest() {}
     void SetUp() override {
-        s3ClientAdaptor_ = std::make_shared<S3ClientAdaptorImpl>();
+        s3ClientAdaptor_ = std::make_shared<S3Adaptor>();
         mockInodeManager_ = std::make_shared<MockInodeCacheManager>();
         mockDiskcacheManagerImpl_ =
             std::make_shared<MockDiskCacheManagerImpl>();
@@ -78,7 +78,7 @@ class ClientS3AdaptorTest : public testing::Test {
     }
 
  protected:
-    std::shared_ptr<S3ClientAdaptorImpl> s3ClientAdaptor_;
+    std::shared_ptr<S3Adaptor> s3ClientAdaptor_;
     std::shared_ptr<MockInodeCacheManager> mockInodeManager_;
     std::shared_ptr<MockDiskCacheManagerImpl> mockDiskcacheManagerImpl_;
     std::shared_ptr<MockFsCacheManager> mockFsCacheManager_;

@@ -32,8 +32,8 @@
 #include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
-#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
+#include "curvefs/src/client/cache/disk_cache_manager.h"
+#include "curvefs/src/client/cache/disk_cache_manager_impl.h"
 
 namespace curvefs {
 namespace client {

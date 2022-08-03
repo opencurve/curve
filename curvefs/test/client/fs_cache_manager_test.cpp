@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/client_cache_manager.h"
 #include "src/common/concurrent/count_down_event.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
 
@@ -54,7 +54,7 @@ class FsCacheManagerTest : public testing::Test {
         option.readCacheMaxByte = 104857600;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         option.chunkFlushThreads = 5;
-        s3ClientAdaptor_ = new S3ClientAdaptorImpl();
+        s3ClientAdaptor_ = new S3Adaptor();
         fsCacheManager_ = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, maxReadCacheByte_, maxWriteCacheByte);
         s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
@@ -69,7 +69,7 @@ class FsCacheManagerTest : public testing::Test {
     }
 
  protected:
-    S3ClientAdaptorImpl *s3ClientAdaptor_;
+    S3Adaptor *s3ClientAdaptor_;
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<MockChunkCacheManager> mockChunkCacheManager_;
     uint64_t maxReadCacheByte_;

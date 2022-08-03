@@ -29,7 +29,7 @@
 #include <vector>
 #include <set>
 
-#include "curvefs/src/client/s3/disk_cache_base.h"
+#include "curvefs/src/client/cache/disk_cache_base.h"
 
 namespace curvefs {
 namespace client {

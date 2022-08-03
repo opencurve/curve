@@ -28,17 +28,18 @@
 #include <string>
 #include <vector>
 
-#include "curvefs/proto/common.pb.h"
-#include "curvefs/proto/mds.pb.h"
+// #include "curvefs/proto/common.pb.h"
+// #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/error_code.h"
-#include "curvefs/src/client/inode_cache_manager.h"
-#include "curvefs/src/client/rpcclient/mds_client.h"
-#include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
-#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
+//#include "curvefs/src/client/inode_cache_manager.h"
+//#include "curvefs/src/client/rpcclient/mds_client.h"
+// #include "curvefs/src/client/s3/client_s3.h"
+#include "curvefs/src/client/cache/client_cache_manager.h"
+// #include "curvefs/src/client/cache/disk_cache_manager_impl.h"
+#include "curvefs/src/client/client_storage_adaptor.h"
 #include "src/common/wait_interval.h"
 namespace curvefs {
 namespace client {
@@ -56,7 +57,7 @@ using curvefs::client::metric::S3Metric;
 class DiskCacheManagerImpl;
 class FlushChunkCacheContext;
 class ChunkCacheManager;
-
+#if 0
 class S3ClientAdaptor {
  public:
     S3ClientAdaptor() {}
@@ -92,7 +93,7 @@ class S3ClientAdaptor {
     virtual void CollectMetrics(InterfaceMetric *interface, int count,
                                 uint64_t start) = 0;
 };
-
+#endif 
 using FlushChunkCacheCallBack = std::function<
   void(const std::shared_ptr<FlushChunkCacheContext>&)>;
 
@@ -105,11 +106,11 @@ struct FlushChunkCacheContext {
 };
 
 // client use s3 internal interface
-class S3ClientAdaptorImpl : public S3ClientAdaptor {
+class S3Adaptor : public StorageAdaptor {
  public:
-    S3ClientAdaptorImpl() {}
-    virtual ~S3ClientAdaptorImpl() {
-        LOG(INFO) << "delete S3ClientAdaptorImpl";
+    S3Adaptor() {}
+    virtual ~S3Adaptor() {
+        LOG(INFO) << "delete S3Adaptor";
     }
     /**
      * @brief Initailize s3 client
@@ -197,6 +198,9 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
        diskCacheType_ = type;
     }
 
+    std::shared_ptr<UnderStorage> GetUnderStorage() {
+        return s3Storage_;
+    }
  private:
     void BackGroundFlush();
 
@@ -223,39 +227,39 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     void Enqueue(std::shared_ptr<FlushChunkCacheContext> context);
 
  private:
-    std::shared_ptr<S3Client> client_;
-    uint64_t blockSize_;
-    uint64_t chunkSize_;
-    uint32_t fuseMaxSize_;
-    uint32_t prefetchBlocks_;
-    uint32_t prefetchExecQueueNum_;
-    std::string allocateServerEps_;
+    // std::shared_ptr<S3Client> client_;
+    // uint64_t blockSize_;
+    // uint64_t chunkSize_;
+    // uint32_t pageSize_;
+    // uint32_t fuseMaxSize_;
+    // uint32_t prefetchBlocks_;
+    // uint32_t prefetchExecQueueNum_;
     uint32_t flushIntervalSec_;
     uint32_t chunkFlushThreads_;
-    uint32_t memCacheNearfullRatio_;
-    uint32_t throttleBaseSleepUs_;
-    Thread bgFlushThread_;
-    std::atomic<bool> toStop_;
-    std::mutex mtx_;
-    std::mutex ioMtx_;
+    // uint32_t memCacheNearfullRatio_;
+    // uint32_t throttleBaseSleepUs_;
+    // Thread bgFlushThread_;
+    // std::atomic<bool> toStop_;
+    // std::mutex mtx_;
+    // std::mutex ioMtx_;
     std::condition_variable cond_;
-    curve::common::WaitInterval waitInterval_;
+    // curve::common::WaitInterval waitInterval_;
     std::shared_ptr<FsCacheManager> fsCacheManager_;
-    std::shared_ptr<InodeCacheManager> inodeManager_;
-    std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
-    DiskCacheType diskCacheType_;
-    std::atomic<uint64_t> pendingReq_;
-    std::shared_ptr<MdsClient> mdsClient_;
-    uint32_t fsId_;
-    std::string fsName_;
-    std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>
-      downloadTaskQueues_;
-    uint32_t pageSize_;
+    std::shared_ptr<UnderStorage> s3Storage_;
+    // std::shared_ptr<InodeCacheManager> inodeManager_;
+    // std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
+    // DiskCacheType diskCacheType_;
+    // std::shared_ptr<MdsClient> mdsClient_;
+    // uint32_t fsId_;
+    // std::string fsName_;
+    // std::vector<bthread::ExecutionQueueId<AsyncDownloadTask>>
+    //  downloadTaskQueues_;
+   
 
-    int FlushChunkClosure(std::shared_ptr<FlushChunkCacheContext> context);
+    // int FlushChunkClosure(std::shared_ptr<FlushChunkCacheContext> context);
 
-    TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
-        taskPool_;
+    // TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
+    //    taskPool_;
 };
 
 }  // namespace client
