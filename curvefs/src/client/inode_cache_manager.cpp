@@ -109,6 +109,10 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     bool ok = iCache_->Get(inodeId, &out);
     if (ok) {
         curve::common::UniqueLock lgGuard = out->GetUniqueLock();
+        if (out->GetType() == FsFileType::TYPE_FILE) {
+            return CURVEFS_ERROR::OK;
+        }
+
         REFRESH_DATA_REMOTE(out, out->NeedRefreshData());
         return CURVEFS_ERROR::OK;
     }
@@ -483,11 +487,14 @@ InodeCacheManagerImpl::RefreshData(std::shared_ptr<InodeWrapper> &inode,
         }
         break;
 
-    case FsFileType::TYPE_FILE:
-        rc = inode->RefreshVolumeExtent();
-        LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)
-            << "RefreshVolumeExtent failed, error: " << rc;
+    case FsFileType::TYPE_FILE: {
+        if (inode->GetLength() > 0) {
+            rc = inode->RefreshVolumeExtent();
+            LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)
+                << "RefreshVolumeExtent failed, error: " << rc;
+        }
         break;
+    }
 
     default:
         rc = CURVEFS_ERROR::OK;

@@ -214,6 +214,7 @@ TEST_F(TestInodeCacheManager, RefreshInode) {
     inodefile.set_inodeid(inodefileid);
     inodefile.set_fsid(fsId_);
     inodefile.set_type(FsFileType::TYPE_FILE);
+    inodefile.set_length(1);
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodefileid, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(inodefile), SetArgPointee<3>(false),
                         Return(MetaStatusCode::OK)));
