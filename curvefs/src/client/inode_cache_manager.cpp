@@ -30,6 +30,7 @@
 #include <utility>
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/inode_wrapper.h"
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::MetaStatusCode_Name;
@@ -47,43 +48,12 @@ namespace client {
 
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
-bool IsNotDirtyInode(const std::shared_ptr<InodeWrapper> &inode) {
-    return !inode->IsDirty() && inode->S3ChunkInfoEmpty();
-}
-
-class UpdataInodeAsyncS3Done : public MetaServerClientDone {
- public:
-    explicit UpdataInodeAsyncS3Done(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper)
-        : inodeWrapper_(inodeWrapper) {}
-    ~UpdataInodeAsyncS3Done() {}
-
-    void Run() override {
-        std::unique_ptr<UpdataInodeAsyncS3Done> self_guard(this);
-        MetaStatusCode ret = GetStatusCode();
-        if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, "
-                       << "MetaStatusCode: " << ret
-                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
-                       << ", inodeid: " << inodeWrapper_->GetInodeId();
-            inodeWrapper_->MarkInodeError();
-        }
-        VLOG(9) << "inode " << inodeWrapper_->GetInodeId() << " async success.";
-        inodeWrapper_->ReleaseSyncingInode();
-        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
-    };
-
- private:
-    std::shared_ptr<InodeWrapper> inodeWrapper_;
-};
-
 class TrimICacheAsyncDone : public MetaServerClientDone {
  public:
     explicit TrimICacheAsyncDone(
         const std::shared_ptr<InodeWrapper> &inodeWrapper,
         const std::shared_ptr<InodeCacheManagerImpl> &inodeCacheManager)
         : inodeWrapper_(inodeWrapper), inodeCacheManager_(inodeCacheManager) {}
-    ~TrimICacheAsyncDone() {}
 
     void Run() override {
         std::unique_ptr<TrimICacheAsyncDone> self_guard(this);
@@ -95,10 +65,8 @@ class TrimICacheAsyncDone : public MetaServerClientDone {
                        << ", inodeid: " << inodeWrapper_->GetInodeId();
             inodeWrapper_->MarkInodeError();
         }
-        VLOG(9) << "trime inode " << inodeWrapper_->GetInodeId()
+        VLOG(9) << "Trim inode " << inodeWrapper_->GetInodeId()
                 << " async success.";
-        inodeWrapper_->ReleaseSyncingInode();
-        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
         inodeCacheManager_->RemoveICache(inodeWrapper_);
     };
 
@@ -417,8 +385,7 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
     }
     for (auto it = temp_.begin(); it != temp_.end(); it++) {
         curve::common::UniqueLock ulk = it->second->GetUniqueLock();
-        auto *done = new UpdataInodeAsyncS3Done(it->second);
-        it->second->Async(done, true);
+        it->second->Async(nullptr, true);
     }
 }
 
@@ -439,13 +406,31 @@ void InodeCacheManagerImpl::FlushInodeBackground() {
     LOG(INFO) << "flush thread is stop.";
 }
 
+namespace {
+// Wether an inode is dirty or not.
+// if |needLock| is true, we acquire the lock firstly and do the test,
+// otherwise, we assume the lock is already held.
+bool IsDirtyInode(InodeWrapper *ino, bool needLock) {
+    auto check = [ino]() {
+        return ino->IsDirty() || !ino->S3ChunkInfoEmptyNolock() ||
+               ino->GetMutableExtentCacheLocked()->HasDirtyExtents();
+    };
+
+    if (needLock) {
+        auto lk = ino->GetUniqueLock();
+        return check();
+    }
+
+    return check();
+}
+}  // namespace
+
 void InodeCacheManagerImpl::RemoveICache(
     const std::shared_ptr<InodeWrapper> &inode) {
-    if (!inode->IsDirty() && inode->S3ChunkInfoEmpty()) {
+    if (!IsDirtyInode(inode.get(), true)) {
         uint64_t inodeId = inode->GetInodeId();
         NameLockGuard lock(nameLock_, std::to_string(inodeId));
         ::curve::common::UniqueLock lgGuard = inode->GetUniqueLock();
-        VLOG(9) << "RemoveICache remove inode " << inodeId << " from iCache";
         iCache_->Remove(inodeId);
     }
 }
@@ -453,14 +438,13 @@ void InodeCacheManagerImpl::RemoveICache(
 void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
     uint64_t inodeId;
-    VLOG(9) << "TrimIcache trimSize " << trimSize;
+    VLOG(3) << "TrimIcache trimSize " << trimSize;
     while (trimSize > 0) {
         bool ok = iCache_->GetLast(&inodeId, &inodeWrapper);
         if (ok) {
             NameLockGuard lock(nameLock_, std::to_string(inodeId));
             ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            if (inodeWrapper->IsDirty() ||
-                !inodeWrapper->S3ChunkInfoEmptyNolock()) {
+            if (IsDirtyInode(inodeWrapper.get(), false)) {
                 VLOG(9) << "TrimIcache sync dirty inode " << inodeId;
                 dirtyMapMutex_.lock();
                 dirtyMap_.erase(inodeId);
