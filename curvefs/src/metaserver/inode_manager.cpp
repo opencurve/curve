@@ -309,6 +309,21 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
         }
     }
 
+    // update extent in request
+    if (request.has_volumeextents()) {
+        const auto fsId = old->fsid();
+        const auto inodeId = old->inodeid();
+        for (const auto &slice : request.volumeextents().slices()) {
+            auto rc = UpdateVolumeExtentSliceLocked(fsId, inodeId, slice);
+            if (rc != MetaStatusCode::OK) {
+                LOG(ERROR) << "UpdateVolumeExtent failed, err: "
+                           << MetaStatusCode_Name(rc) << ", fsId: " << fsId
+                           << ", inodeId: " << inodeId;
+                return rc;
+            }
+        }
+    }
+
     VLOG(9) << "UpdateInode success, " << request.ShortDebugString();
     return MetaStatusCode::OK;
 }

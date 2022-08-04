@@ -15,7 +15,6 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: 2021-12-28
@@ -23,30 +22,36 @@
  */
 
 #include <gmock/gmock-more-actions.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <gtest/gtest.h>
+
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/src/client/volume/extent.h"
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
-#include "curvefs/src/client/inode_wrapper.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace client {
 
+using ::curvefs::client::rpcclient::MetaServerClientDone;
+using rpcclient::DataIndices;
 using ::testing::_;
 using ::testing::Contains;
 using ::testing::DoAll;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::Invoke;
-using ::curvefs::client::rpcclient::MetaServerClientDone;
 
 using rpcclient::MockMetaServerClient;
 
@@ -85,7 +90,6 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     ASSERT_EQ(1, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
     ASSERT_TRUE(MessageDifferencer::Equals(
         info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
-
 
     // add to same chunkIndex
     S3ChunkInfo info2;
@@ -234,6 +238,66 @@ TEST_F(TestInodeWrapper, TestNeedRefreshData) {
         inode, metaClient_, nullptr, 1, 0);
 
     ASSERT_TRUE(inodeWrapper->NeedRefreshData());
+}
+
+namespace {
+
+struct FakeCallback : public MetaServerClientDone {
+    void Run() override {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            runned = true;
+        }
+        cond.notify_one();
+    }
+
+    void Wait() {
+        std::unique_lock<std::mutex> lock(mtx);
+        cond.wait(lock, [this]() { return runned; });
+    }
+
+    std::mutex mtx;
+    std::condition_variable cond;
+    bool runned{false};
+};
+
+struct FakeUpdateInodeWithOutNlinkAsync {
+    void operator()(const Inode& inode,
+                    MetaServerClientDone* done,
+                    InodeOpenStatusChange statusChange,
+                    DataIndices indices) const {
+        std::thread th{[done]() {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }};
+
+        th.detach();
+    }
+};
+
+}  // namespace
+
+TEST_F(TestInodeWrapper, TestAsyncInode) {
+    for (auto type : {FsFileType::TYPE_DIRECTORY, FsFileType::TYPE_FILE,
+                      FsFileType::TYPE_S3, FsFileType::TYPE_SYM_LINK}) {
+        for (auto dirty : {true, false}) {
+            inodeWrapper_->SetType(type);
+            if (!dirty) {
+                inodeWrapper_->ClearDirty();
+            }
+
+            EXPECT_CALL(*metaClient_,
+                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+                .Times(dirty ? 1 : 0)
+                .WillRepeatedly(Invoke(FakeUpdateInodeWithOutNlinkAsync{}));
+
+            FakeCallback done;
+            inodeWrapper_->Async(&done);
+            done.Wait();
+            ASSERT_EQ(MetaStatusCode::OK, done.GetStatusCode());
+        }
+    }
 }
 
 }  // namespace client

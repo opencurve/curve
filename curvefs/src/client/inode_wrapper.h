@@ -56,7 +56,7 @@ do {                                        \
             return ret;                     \
         }                                   \
     }                                       \
-} while (0)                                 \
+} while (0)
 
 using ::curvefs::metaserver::VolumeExtentList;
 
@@ -76,6 +76,8 @@ using metric::S3ChunkInfoMetric;
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
     google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap);
+
+extern bvar::Adder<int64_t> g_alive_inode_count;
 
 class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
@@ -97,6 +99,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
           s3ChunkInfoAddSize_(0) {
               UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
+              g_alive_inode_count << 1;
           }
 
     InodeWrapper(Inode &&inode,
@@ -117,10 +120,12 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
           s3ChunkInfoAddSize_(0) {
               UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
+              g_alive_inode_count << 1;
           }
 
     ~InodeWrapper() {
         UpdateS3ChunkInfoMetric(-s3ChunkInfoSize_ - s3ChunkInfoAddSize_);
+        g_alive_inode_count << -1;
     }
 
     uint64_t GetInodeId() const {
@@ -297,9 +302,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR SyncAttr(bool internal = false);
 
-    void FlushAsync();
-
-    void FlushAttrAsync();
+    void AsyncFlushAttr(MetaServerClientDone *done, bool internal);
 
     void FlushS3ChunkInfoAsync();
 
@@ -376,6 +379,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return &extentCache_;
     }
 
+    ExtentCache* GetMutableExtentCacheLocked() {
+        return &extentCache_;
+    }
+
     CURVEFS_ERROR RefreshVolumeExtent();
 
     bool NeedRefreshData() {
@@ -427,8 +434,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         }
     }
 
+    // Flush inode attributes and extents asynchronously.
+    // REQUIRES: |mtx_| is held
+    void AsyncFlushAttrAndExtents(MetaServerClientDone *done, bool internal);
+
  private:
     friend class UpdateVolumeExtentClosure;
+    friend class UpdateInodeAttrAndExtentClosure;
 
     CURVEFS_ERROR FlushVolumeExtent();
     void FlushVolumeExtentAsync();

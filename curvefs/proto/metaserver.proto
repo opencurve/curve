@@ -294,6 +294,7 @@ message UpdateInodeRequest {
     map<string, string> xattr = 20;
     repeated uint64 parent = 21;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
+    optional VolumeExtentList volumeExtents = 23;
 }
 
 message UpdateInodeResponse {

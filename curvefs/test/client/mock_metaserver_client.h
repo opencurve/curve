@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <utility>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
@@ -101,17 +102,28 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD4(UpdateInodeAttrWithOutNlink,
                  MetaStatusCode(const Inode &inode,
                                 InodeOpenStatusChange statusChange,
-                                S3ChunkInofMap *s3ChunkInfoAdd,
+                                S3ChunkInfoMap *s3ChunkInfoAdd,
                                 bool internal));
 
     MOCK_METHOD3(UpdateInodeAttrAsync,
                  void(const Inode &inode, MetaServerClientDone *done,
                       InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD4(UpdateInodeWithOutNlinkAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
+    // Workaround for rvalue parameters
+    // https://stackoverflow.com/questions/12088537/workaround-for-gmock-to-support-rvalue-reference
+    void UpdateInodeWithOutNlinkAsync(const Inode& inode,
+                                      MetaServerClientDone* done,
+                                      InodeOpenStatusChange change,
+                                      DataIndices&& indices) override {
+        return UpdateInodeWithOutNlinkAsync_rvr(inode, done, change,
+                                                std::move(indices));
+    }
+
+    MOCK_METHOD4(UpdateInodeWithOutNlinkAsync_rvr,
+                 void(const Inode& inode,
+                      MetaServerClientDone* done,
                       InodeOpenStatusChange statusChange,
-                      S3ChunkInofMap *s3ChunkInfoAdd));
+                      DataIndices));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
         MetaServerClientDone *done));

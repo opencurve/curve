@@ -22,8 +22,11 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <chrono>
 #include <cstdint>
+#include <thread>
 
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/common/define.h"
@@ -50,6 +53,7 @@ using ::testing::AnyOf;
 
 using rpcclient::MetaServerClientDone;
 using rpcclient::MockMetaServerClient;
+using rpcclient::DataIndices;
 
 class TestInodeCacheManager : public ::testing::Test {
  protected:
@@ -338,10 +342,10 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
         .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
                             InodeOpenStatusChange statusChange,
-                            S3ChunkInofMap *s3ChunkInfoAdd) {
+                            DataIndices /*indices*/) {
             done->SetMetaStatusCode(MetaStatusCode::OK);
             done->Run();
         }));
@@ -451,13 +455,19 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
         .WillRepeatedly(
-            Invoke([](const Inode &inode, MetaServerClientDone *done,
+            Invoke([](const Inode& inode, MetaServerClientDone* done,
                       InodeOpenStatusChange statusChange,
-                      S3ChunkInofMap *s3ChunkInfoAdd) {
-                done->SetMetaStatusCode(MetaStatusCode::OK);
-                done->Run();
+                      DataIndices /*dataIndices*/) {
+                // run closure in a separate thread
+                std::thread th{[done]() {
+                    std::this_thread::sleep_for(std::chrono::microseconds(200));
+                    done->SetMetaStatusCode(MetaStatusCode::OK);
+                    done->Run();
+                }};
+
+                th.detach();
             }));
 
     EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))

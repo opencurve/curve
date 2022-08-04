@@ -867,7 +867,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
         .Times(1)
         .WillRepeatedly(
             Invoke([&](const Inode &inode, InodeOpenStatusChange statusChange,
-                       S3ChunkInofMap *s3ChunkInfoAdd, bool internal) {
+                       S3ChunkInfoMap *s3ChunkInfoAdd, bool internal) {
                 return MetaStatusCode::OK;
             }));
 
@@ -1036,7 +1036,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
         .Times(3)
         .WillRepeatedly(
             Invoke([&](const Inode &inode, InodeOpenStatusChange statusChange,
-                       S3ChunkInofMap *s3ChunkInfoAdd, bool internal) {
+                       S3ChunkInfoMap *s3ChunkInfoAdd, bool internal) {
                 return MetaStatusCode::OK;
             }));
 
