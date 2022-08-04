@@ -2296,6 +2296,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     InodeAttr inode;
     inode.set_inodeid(ino);
     inode.set_nlink(3);
+    inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_DIRECTORY);
     inode.mutable_xattr()->insert({XATTRFILES, "1"});
     inode.mutable_xattr()->insert({XATTRSUBDIRS, "1"});
@@ -2330,7 +2331,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // BatchGetInodeAttr failed
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
@@ -2347,7 +2348,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
 
     // AddUllStringToFirst  XATTRFILES failed
     inode.mutable_xattr()->find(XATTRFILES)->second = "aaa";
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
@@ -2366,7 +2367,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     // AddUllStringToFirst  XATTRSUBDIRS failed
     inode.mutable_xattr()->find(XATTRFILES)->second = "0";
     inode.mutable_xattr()->find(XATTRSUBDIRS)->second = "aaa";
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
@@ -2385,7 +2386,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     // AddUllStringToFirst  XATTRENTRIES failed
     inode.mutable_xattr()->find(XATTRSUBDIRS)->second = "0";
     inode.mutable_xattr()->find(XATTRENTRIES)->second = "aaa";
-    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _))
         .Times(AtLeast(2))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
