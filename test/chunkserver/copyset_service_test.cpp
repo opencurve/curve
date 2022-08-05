@@ -117,6 +117,7 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkFilePool =
         std::make_shared<FilePool>(fs);
+    copysetNodeOptions.walFilePool = copysetNodeOptions.chunkFilePool;
     copysetNodeOptions.trash = trash_;
     copysetNodeOptions.enableOdsyncWhenOpenChunkFile = true;
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
@@ -259,6 +260,7 @@ TEST_F(CopysetServiceTest, basic2) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkFilePool =
         std::make_shared<FilePool>(fs);
+    copysetNodeOptions.walFilePool = copysetNodeOptions.chunkFilePool;
     copysetNodeOptions.enableOdsyncWhenOpenChunkFile = true;
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
     ASSERT_EQ(0, copysetNodeManager->Run());

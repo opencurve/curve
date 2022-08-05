@@ -70,7 +70,7 @@ TEST_F(ConfEpochFileTest, LoadTest_ReadFailed) {
         .WillOnce(Return(0));
     EXPECT_CALL(*mockfs_, Close(_))
         .Times(1);
-    EXPECT_CALL(*mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(*mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(Return(0));
 
     EXPECT_NE(0,
@@ -85,7 +85,7 @@ TEST_F(ConfEpochFileTest, LoadTest_DecodeFailed) {
 
     const char* data = "{\"hello\", \"world\"}";
     size_t datasize = strlen(data);
-    EXPECT_CALL(*mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(*mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -102,7 +102,7 @@ TEST_F(ConfEpochFileTest, LoadTest_CrcFailed) {
     const char* data =
         "{\"poolId\": 123, \"copysetId\": 431, \"epoch\": 3, \"checksum\": 12}";
     size_t datasize = strlen(data);
-    EXPECT_CALL(*mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(*mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -119,7 +119,7 @@ TEST_F(ConfEpochFileTest, LoadTest_Success) {
     const char* data =
         "{\"poolId\": 123, \"copysetId\": 431, \"epoch\": 3, \"checksum\": 1347065312}";  // NOLINT
     size_t datasize = strlen(data);
-    EXPECT_CALL(*mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(*mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 

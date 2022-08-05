@@ -32,14 +32,14 @@
 #include <memory>
 #include "src/chunkserver/raftlog/curve_segment.h"
 #include "src/chunkserver/raftlog/define.h"
-#include "test/fs/mock_local_filesystem.h"
 #include "test/chunkserver/datastore/mock_file_pool.h"
 #include "test/chunkserver/raftlog/common.h"
 
 namespace curve {
 namespace chunkserver {
 
-using curve::fs::MockLocalFileSystem;
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemType;
 using ::testing::Return;
 using ::testing::_;
 
@@ -50,7 +50,7 @@ class CurveSegmentTest : public testing::Test {
         fp_option.fileSize = kSegmentSize;
     }
     void SetUp() {
-        lfs = std::make_shared<MockLocalFileSystem>();
+        lfs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         file_pool = std::make_shared<MockFilePool>(lfs);
         std::string cmd = std::string("mkdir ") + kRaftLogDataDir;
         ::system(cmd.c_str());
@@ -114,7 +114,7 @@ class CurveSegmentTest : public testing::Test {
             entry->Release();
         }
     }
-    std::shared_ptr<MockLocalFileSystem> lfs;
+    std::shared_ptr<LocalFileSystem> lfs;
     std::shared_ptr<MockFilePool> file_pool;
     FilePoolOptions fp_option;
 };
@@ -127,7 +127,7 @@ TEST_F(CurveSegmentTest, open_segment) {
     EXPECT_CALL(*file_pool, RecycleFile(_))
         .WillOnce(Return(0));
     scoped_refptr<CurveSegment> seg1 =
-                new CurveSegment(kRaftLogDataDir, 1, 0, file_pool);
+                new CurveSegment(kRaftLogDataDir, 1, 0, file_pool, lfs);
 
     // not open
     braft::LogEntry* entry = seg1->get(1);
@@ -156,7 +156,7 @@ TEST_F(CurveSegmentTest, open_segment) {
                                 new braft::ConfigurationManager;
     // load open segment
     scoped_refptr<CurveSegment> seg2 =
-                        new CurveSegment(kRaftLogDataDir, 1, 0, file_pool);
+                        new CurveSegment(kRaftLogDataDir, 1, 0, file_pool, lfs);
     ASSERT_EQ(0, seg2->load(configuration_manager));
 
     read_entries_curve_segment(seg2);
@@ -187,7 +187,7 @@ TEST_F(CurveSegmentTest, closed_segment) {
     EXPECT_CALL(*file_pool, RecycleFile(_))
         .WillOnce(Return(0));
     scoped_refptr<CurveSegment> seg1 =
-                new CurveSegment(kRaftLogDataDir, 1, 0, file_pool);
+                new CurveSegment(kRaftLogDataDir, 1, 0, file_pool, lfs);
 
     // create and open
     std::string path = kRaftLogDataDir;
@@ -213,7 +213,7 @@ TEST_F(CurveSegmentTest, closed_segment) {
                                 new braft::ConfigurationManager;
     // load closed segment
     scoped_refptr<CurveSegment> seg2 =
-                        new CurveSegment(kRaftLogDataDir, 1, 10, 0, file_pool);
+        new CurveSegment(kRaftLogDataDir, 1, 10, 0, file_pool, lfs);
     ASSERT_EQ(0, seg2->load(configuration_manager));
 
     read_entries_curve_segment(seg2);

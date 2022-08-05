@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS")
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS", "SPDK_COPTS", "SPDK_LINK_OPTS", "SPDK_DEPS")
 
 cc_library(
     name = "chunkserver-lib",
@@ -27,7 +27,24 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = CURVE_DEFAULT_COPTS,
+    copts = CURVE_DEFAULT_COPTS + select({
+        "//:with_spdk": SPDK_COPTS,
+        "//conditions:default": [],
+    }),
+
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }) + [
+        "-std=c++11",
+        "-luuid",
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -48,9 +65,12 @@ cc_library(
         "//src/common:curve_s3_adapter",
         "//src/fs:lfs",
         "//src/client:curve_client",
-	"//include/client:include_client",
-	"//proto:scan_cc_proto",
-    ],
+	    "//proto:scan_cc_proto",
+	    "//include/client:include_client",
+    ] + select({
+        "//:with_spdk": SPDK_DEPS,
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(
@@ -64,9 +84,25 @@ cc_library(
     hdrs = glob([
         "*.h",
     ]),
-    copts = CURVE_TEST_COPTS,
+    copts = CURVE_DEFAULT_COPTS + select({
+        "//:with_spdk": SPDK_COPTS,
+        "//conditions:default": [],
+    }),
     defines = ["UNIT_TEST"],
     visibility = ["//visibility:public"],
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }) + [
+        "-std=c++11",
+        "-luuid",
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -87,7 +123,10 @@ cc_library(
         "//src/fs:lfs",
         "//src/client:curve_client",
         "//proto:scan_cc_proto",
-    ],
+    ] + select({
+        "//:with_spdk": SPDK_DEPS,
+        "//conditions:default": [],
+    }),
 )
 
 # chunkserver exec

@@ -279,7 +279,7 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
         char* buffer = writeBuffer_.get();
 
         while (nwrite < ntotal) {
-            nbytes = fsptr_->Write(fd, buffer, nwrite,
+            nbytes = fsptr_->WriteZeroIfSupport(fd, buffer, nwrite,
                 std::min(ntotal - nwrite, (uint64_t)bytesPerWrite));
             if (nbytes < 0) {
                 LOG(ERROR) << "Write file failed: " << chunkpath;

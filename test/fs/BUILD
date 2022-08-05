@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_TEST_COPTS")
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS", "SPDK_COPTS", "SPDK_LINK_OPTS", "SPDK_DEPS")
 
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
 cc_library(
@@ -36,10 +36,17 @@ cc_test(
             "*.cpp",
         ]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = [
             "//src/fs:lfs",
             "//test/fs:fs_mock",
             "@com_google_googletest//:gtest_main",
-            ],
+    ] + select({
+        "//:with_spdk": SPDK_DEPS,
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
 )

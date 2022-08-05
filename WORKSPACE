@@ -128,10 +128,8 @@ bind(
 
 git_repository(
     name = "com_github_apache_brpc",
-    remote = "https://github.com/apache/incubator-brpc",
-    commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
-    patches = ["//:thirdparties/brpc/brpc.patch"],
-    patch_args = ["-p1"],
+    remote = "https://github.com/opencurve/incubator-brpc",
+    commit = "faba42354b45c6bfcc0a7cead1cf0766b0bbe211",
 )
 
 bind(
@@ -227,3 +225,55 @@ http_archive(
 )
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 hedron_compile_commands_setup()
+
+new_local_repository(
+    name = "pfs",
+    path = "/usr/local/polarstore/pfsd/include",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "headers",
+    hdrs = glob(["**/*.h"])
+)
+"""
+)
+
+bind(
+    name = "pfs_headers",
+    actual = "@pfs//:headers",
+)
+
+new_local_repository(
+    name = "dpdk",
+    path = "/usr/local/dpdk/include",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "headers",
+    hdrs = glob(["**/*.h"])
+)
+"""
+)
+
+bind(
+    name = "dpdk_headers",
+    actual = "@dpdk//:headers",
+)
+
+new_local_repository(
+    name = "spdk",
+    path = "/usr/local/spdk/include",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+cc_library(
+    name = "headers",
+    hdrs = glob(["**/*.h"])
+)
+"""
+)
+
+bind(
+    name = "spdk_headers",
+    actual = "@spdk//:headers",
+)
+

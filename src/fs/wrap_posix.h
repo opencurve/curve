@@ -66,6 +66,8 @@ class PosixWrapper {
     virtual int fsync(int fd);
     virtual int statfs(const char *path, struct statfs *buf);
     virtual int uname(struct utsname *buf);
+    virtual int access(const char *path, int amode);
+    virtual off_t lseek(int fd, off_t offset, int whence);
 };
 
 }  // namespace fs

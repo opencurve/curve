@@ -30,7 +30,7 @@
 #include "src/fs/local_filesystem.h"
 #include "test/fs/mock_local_filesystem.h"
 #include "src/chunkserver/datastore/file_pool.h"
-#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
 #include "src/chunkserver/raftsnapshot/define.h"
 
 using ::testing::_;

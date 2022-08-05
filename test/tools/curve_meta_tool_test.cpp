@@ -36,6 +36,7 @@ using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::Matcher;
 
 const uint32_t PAGE_SIZE = 4 * 1024;
 const uint32_t CHUNK_SIZE = 16 * 1024 * 1024;
@@ -75,7 +76,7 @@ TEST_F(CurveMetaToolTest, PrintChunkMeta) {
         .WillRepeatedly(Return(-1));
     ASSERT_EQ(-1, curveMetaTool.RunCommand("chunk-meta"));
     // 2、读取meta page失败
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(2)
         .WillOnce(Return(-1))
         .WillOnce(Return(10));
@@ -83,7 +84,7 @@ TEST_F(CurveMetaToolTest, PrintChunkMeta) {
     ASSERT_EQ(-1, curveMetaTool.RunCommand("chunk-meta"));
     // 3、解析失败
     char buf[PAGE_SIZE] = {0};
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + PAGE_SIZE),
                   Return(PAGE_SIZE)));
@@ -94,7 +95,7 @@ TEST_F(CurveMetaToolTest, PrintChunkMeta) {
     metaPage.sn = 1;
     metaPage.correctedSn = 2;
     metaPage.encode(buf);
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + PAGE_SIZE),
                   Return(PAGE_SIZE)));
@@ -107,7 +108,7 @@ TEST_F(CurveMetaToolTest, PrintChunkMeta) {
     bitmap->Set(size - 1);
     metaPage.bitmap = bitmap;
     metaPage.encode(buf);
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + PAGE_SIZE),
                   Return(PAGE_SIZE)));
@@ -126,7 +127,7 @@ TEST_F(CurveMetaToolTest, PrintSnapshotMeta) {
         .WillRepeatedly(Return(-1));
     ASSERT_EQ(-1, curveMetaTool.RunCommand("snapshot-meta"));
     // 2、读取meta page失败
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(2)
         .WillOnce(Return(-1))
         .WillOnce(Return(10));
@@ -134,7 +135,7 @@ TEST_F(CurveMetaToolTest, PrintSnapshotMeta) {
     ASSERT_EQ(-1, curveMetaTool.RunCommand("snapshot-meta"));
     // 3、解析失败
     char buf[PAGE_SIZE] = {0};
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + PAGE_SIZE),
                   Return(PAGE_SIZE)));
@@ -150,7 +151,7 @@ TEST_F(CurveMetaToolTest, PrintSnapshotMeta) {
     bitmap->Set(size - 1);
     metaPage.bitmap = bitmap;
     metaPage.encode(buf);
-    EXPECT_CALL(*localFs_, Read(_, _, 0, PAGE_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), 0, PAGE_SIZE))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + PAGE_SIZE),
                   Return(PAGE_SIZE)));

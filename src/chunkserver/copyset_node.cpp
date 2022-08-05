@@ -36,7 +36,7 @@
 #include <deque>
 #include <set>
 
-#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
@@ -174,11 +174,15 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         metric_->MonitorCurveSegmentLogStorage(logStorage);
     };
 
-    LogStorageOptions lsOptions(options.walFilePool, monitorMetricCb);
+
+    scoped_refptr<CurveFilesystemAdaptor> curveFileSystemAdaptor =
+        new CurveFilesystemAdaptor(
+            options.walFilePool, options.localFileSystem);
+    LogStorageOptions lsOptions(curveFileSystemAdaptor, monitorMetricCb);
 
     // In order to get more copysetNode's information in CurveSegmentLogStorage
     // without using global variables.
-    StoreOptForCurveSegmentLogStorage(lsOptions);
+    StoreOptForCurveSegmentLogStorage(&lsOptions);
 
     syncTimerIntervalMs_ = options.syncTimerIntervalMs;
     checkSyncingIntervalMs_ = options.checkSyncingIntervalMs;

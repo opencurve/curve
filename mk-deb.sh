@@ -447,7 +447,7 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
+#cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
 cp include/client/libcurve.h build/curve-sdk/usr/include
 cp include/client/libcbd.h build/curve-sdk/usr/include
 cp include/client/libcurve_define.h build/curve-sdk/usr/include
@@ -487,35 +487,35 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp -r ./curve-snapshotcloneserver-nginx/app/lib \
-build/curve-nginx/etc/curve/nginx/app
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp -r ./curve-snapshotcloneserver-nginx/app/src \
-build/curve-nginx/etc/curve/nginx/app
-if [ $? -ne 0 ]
-then
-    exit
-fi
-mkdir -p build/curve-nginx/etc/curve/nginx/conf
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp ./curve-snapshotcloneserver-nginx/conf/mime.types \
-build/curve-nginx/etc/curve/nginx/conf/
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp -r ./curve-snapshotcloneserver-nginx/docker \
-build/curve-nginx/etc/curve/nginx/
-if [ $? -ne 0 ]
-then
-    exit
-fi
+#cp -r ./curve-snapshotcloneserver-nginx/app/lib \
+#build/curve-nginx/etc/curve/nginx/app
+#if [ $? -ne 0 ]
+#then
+#    exit
+#fi
+#cp -r ./curve-snapshotcloneserver-nginx/app/src \
+#build/curve-nginx/etc/curve/nginx/app
+#if [ $? -ne 0 ]
+#then
+#    exit
+#fi
+#mkdir -p build/curve-nginx/etc/curve/nginx/conf
+#if [ $? -ne 0 ]
+#then
+#    exit
+#fi
+#cp ./curve-snapshotcloneserver-nginx/conf/mime.types \
+#build/curve-nginx/etc/curve/nginx/conf/
+#if [ $? -ne 0 ]
+#then
+#    exit
+#fi
+#cp -r ./curve-snapshotcloneserver-nginx/docker \
+#build/curve-nginx/etc/curve/nginx/
+#if [ $? -ne 0 ]
+#then
+#    exit
+#fi
 # step 4.1 prepare for nebd-package
 cp -r nebd/nebd-package build/
 mkdir -p build/nebd-package/usr/include/nebd

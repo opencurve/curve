@@ -37,3 +37,10 @@ config_setting(
         "@bazel_tools//tools/cpp:compiler": "clang",
     },
 )
+
+config_setting(
+    name = "with_spdk",
+    define_values = {"with_spdk": "true"},
+    visibility = ["//visibility:public"],
+)
+

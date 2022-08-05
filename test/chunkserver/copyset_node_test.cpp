@@ -143,6 +143,7 @@ class CopysetNodeTest : public ::testing::Test {
         defaultOptions_.localFileSystem = fs;
         defaultOptions_.chunkFilePool =
             std::make_shared<FilePool>(fs);
+        defaultOptions_.walFilePool = defaultOptions_.chunkFilePool;
         defaultOptions_.trash = std::make_shared<Trash>();
         defaultOptions_.enableOdsyncWhenOpenChunkFile = true;
     }
@@ -959,7 +960,7 @@ TEST_F(CopysetNodeTest, get_hash) {
             .WillOnce(Return(3));
         EXPECT_CALL(*mockfs, Fstat(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
-        EXPECT_CALL(*mockfs, Read(_, _, _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Read(_, Matcher<char*>(_), _, _)).Times(1)
             .WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.GetHash(&hash));
@@ -987,7 +988,7 @@ TEST_F(CopysetNodeTest, get_hash) {
             .WillOnce(Return(3));
         EXPECT_CALL(*mockfs, Fstat(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(fileInfo), Return(0)));
-        EXPECT_CALL(*mockfs, Read(_, _, _, _)).Times(1)
+        EXPECT_CALL(*mockfs, Read(_, Matcher<char*>(_), _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(*buff), Return(1024)));
 
         ASSERT_EQ(0, copysetNode.GetHash(&hash));

@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_TEST_COPTS")
+load("//:copts.bzl", "CURVE_TEST_COPTS", "SPDK_COPTS", "SPDK_LINK_OPTS", "SPDK_DEPS")
 
 cc_test(
     name = "curve-raftlog-unittest",
@@ -22,7 +22,10 @@ cc_test(
         "*.cpp",
         "*.h",
     ]),
-    copts = CURVE_TEST_COPTS,
+    copts = CURVE_TEST_COPTS + select({
+        "//:with_spdk": SPDK_COPTS,
+        "//conditions:default": [],
+    }),
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -30,5 +33,9 @@ cc_test(
         "//src/chunkserver/raftlog:chunkserver-raft-log",
         "//test/fs:fs_mock",
         "//test/chunkserver/datastore:datastore_mock",
-    ],
+        "//test/chunkserver:chunkserver_mock",
+    ] + select({
+        "//:with_spdk": SPDK_DEPS,
+        "//conditions:default": [],
+    }),
 )

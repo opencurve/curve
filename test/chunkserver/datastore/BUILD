@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_TEST_COPTS")
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS", "SPDK_COPTS", "SPDK_LINK_OPTS", "SPDK_DEPS")
 
 cc_library(
     name = "datastore_mock",
@@ -52,7 +52,14 @@ cc_test(
         "datastore_unittest_main.cpp",
         "file_helper_unittest.cpp",
     ],
-    copts = CURVE_TEST_COPTS,
+    copts = CURVE_TEST_COPTS + select({
+        "//:with_spdk": SPDK_COPTS,
+        "//conditions:default": [],
+    }),
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = [
         "@com_google_googletest//:gtest",
         "//external:gflags",
@@ -64,5 +71,8 @@ cc_test(
         "//test/chunkserver/datastore:datastore_mock",
         "//external:json",
         "//test/chunkserver/datastore:filepool_helper",
-    ],
+    ] + select({
+        "//:with_spdk": SPDK_DEPS,
+        "//conditions:default": [],
+    }),
 )

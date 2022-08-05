@@ -129,5 +129,13 @@ int PosixWrapper::uname(struct utsname *buf) {
     return ::uname(buf);
 }
 
+int PosixWrapper::access(const char *path, int amode) {
+    return ::access(path, amode);
+}
+
+off_t PosixWrapper::lseek(int fd, off_t offset, int whence) {
+    return ::lseek(fd, offset, whence);
+}
+
 }  // namespace fs
 }  // namespace curve

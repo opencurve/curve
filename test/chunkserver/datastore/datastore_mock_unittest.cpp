@@ -207,7 +207,7 @@ class CSDataStore_test : public testing::Test {
                 .WillRepeatedly(DoAll(SetArgPointee<1>(fileInfo),
                                 Return(0)));
             // fake Read
-            ON_CALL(*lfs_, Read(Ge(1), NotNull(), Ge(0), Gt(0)))
+            ON_CALL(*lfs_, Read(Ge(1), Matcher<char*>(NotNull()), Ge(0), Gt(0)))
                 .WillByDefault(ReturnArg<3>());
             // fake Write
             ON_CALL(*lfs_,
@@ -217,21 +217,21 @@ class CSDataStore_test : public testing::Test {
                 .WillByDefault(ReturnArg<3>());
             // fake read chunk1 metapage
             FakeEncodeChunk(chunk1MetaPage, 0, 2);
-            EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+            EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillRepeatedly(DoAll(
                                 SetArrayArgument<1>(chunk1MetaPage,
                                 chunk1MetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
             // fake read chunk1's snapshot1 metapage
             FakeEncodeSnapshot(chunk1SnapMetaPage, 1);
-            EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+            EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillRepeatedly(DoAll(
                                 SetArrayArgument<1>(chunk1SnapMetaPage,
                                 chunk1SnapMetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
             // fake read chunk2 metapage
             FakeEncodeChunk(chunk2MetaPage, 0, 2);
-            EXPECT_CALL(*lfs_, Read(3, NotNull(), 0, PAGE_SIZE))
+            EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillRepeatedly(DoAll(
                                 SetArrayArgument<1>(chunk2MetaPage,
                                 chunk2MetaPage + PAGE_SIZE),
@@ -470,7 +470,7 @@ TEST_F(CSDataStore_test, InitializeErrorTest3) {
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                         Return(0)));
     // read metapage failed
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_FALSE(dataStore->Initialize());
 
@@ -488,7 +488,7 @@ TEST_F(CSDataStore_test, InitializeErrorTest3) {
     // read metapage success, but version incompatible
     uint8_t version = FORMAT_VERSION + 1;
     memcpy(chunk1MetaPage, &version, sizeof(uint8_t));
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillOnce(DoAll(SetArrayArgument<1>(chunk1MetaPage,
                                 chunk1MetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
@@ -509,7 +509,7 @@ TEST_F(CSDataStore_test, InitializeErrorTest3) {
     version = FORMAT_VERSION;
     chunk1MetaPage[1] += 1;  // change the page data
     memcpy(chunk1MetaPage, &version, sizeof(uint8_t));
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillOnce(DoAll(SetArrayArgument<1>(chunk1MetaPage,
                                 chunk1MetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
@@ -575,7 +575,7 @@ TEST_F(CSDataStore_test, InitializeErrorTest4) {
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                         Return(0)));
     // read metapage failed
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_FALSE(dataStore->Initialize());
 
@@ -596,7 +596,7 @@ TEST_F(CSDataStore_test, InitializeErrorTest4) {
     // read metapage success, but version incompatible
     uint8_t version = FORMAT_VERSION + 1;
     memcpy(chunk1SnapMetaPage, &version, sizeof(uint8_t));
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillOnce(DoAll(SetArrayArgument<1>(chunk1SnapMetaPage,
                                 chunk1SnapMetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
@@ -620,7 +620,7 @@ TEST_F(CSDataStore_test, InitializeErrorTest4) {
     version = FORMAT_VERSION;
     chunk1SnapMetaPage[1] += 1;  // change the page data
     memcpy(chunk1SnapMetaPage, &version, sizeof(uint8_t));
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
                 .WillOnce(DoAll(SetArrayArgument<1>(chunk1SnapMetaPage,
                                 chunk1SnapMetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
@@ -694,7 +694,7 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
     char chunk3MetaPage[PAGE_SIZE];
     memset(chunk3MetaPage, 0, sizeof(chunk3MetaPage));
     FakeEncodeChunk(chunk3MetaPage, 0, 1);
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                         chunk3MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -710,7 +710,7 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
                                                           length,
                                                           nullptr));
 
-    EXPECT_CALL(*lfs_, Sync(4))
+    EXPECT_CALL(*lfs_, Fdatasync(4))
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
 
@@ -801,7 +801,7 @@ TEST_F(CSDataStore_test, WriteChunkTest3) {
     FakeEnv();
     // set chunk2's correctedSn as 3
     FakeEncodeChunk(chunk2MetaPage, 4, 2);
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk2MetaPage,
                         chunk2MetaPage + PAGE_SIZE),
@@ -943,7 +943,7 @@ TEST_F(CSDataStore_test, WriteChunkTest6) {
     FakeEnv();
     // set chunk2's correctedSn as 3
     FakeEncodeChunk(chunk2MetaPage, 3, 2);
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk2MetaPage,
                         chunk2MetaPage + PAGE_SIZE),
@@ -1017,7 +1017,7 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
     char metapage[PAGE_SIZE];
     memset(metapage, 0, sizeof(metapage));
     FakeEncodeSnapshot(metapage, 2);
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -1025,7 +1025,8 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
     EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will copy on write
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .Times(1);
     EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
                              PAGE_SIZE + offset, length))
@@ -1100,7 +1101,8 @@ TEST_F(CSDataStore_test, WriteChunkTest9) {
     memset(buf, 0, sizeof(buf));
     // will not create snapshot
     // will copy on write
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .Times(1);
     EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()),
                              PAGE_SIZE + offset, length))
@@ -1144,7 +1146,7 @@ TEST_F(CSDataStore_test, WriteChunkTest10) {
     FakeEnv();
     // set chunk1's correctedSn as 3
     FakeEncodeChunk(chunk1MetaPage, 3, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
@@ -1197,7 +1199,7 @@ TEST_F(CSDataStore_test, WriteChunkTest11) {
     FakeEnv();
     // set chunk1's correctedSn as 3
     FakeEncodeChunk(chunk1MetaPage, 3, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
@@ -1278,7 +1280,7 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -1463,7 +1465,7 @@ TEST_F(CSDataStore_test, WriteChunkTest14) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -1628,14 +1630,14 @@ TEST_F(CSDataStore_test, WriteChunkTest15) {
     FakeEnv();
     // fake read chunk1 metapage
     FakeEncodeChunk(chunk1MetaPage, 0, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // fake read chunk1's snapshot1 metapage,chunk.sn<snap.sn
     FakeEncodeSnapshot(chunk1SnapMetaPage, 3);
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1SnapMetaPage,
                         chunk1SnapMetaPage + PAGE_SIZE),
@@ -1687,14 +1689,14 @@ TEST_F(CSDataStore_test, WriteChunkTest16) {
     FakeEnv();
     // fake read chunk1 metapage
     FakeEncodeChunk(chunk1MetaPage, 0, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // fake read chunk1's snapshot1 metapage
     FakeEncodeSnapshot(chunk1SnapMetaPage, 3);
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1SnapMetaPage,
                         chunk1SnapMetaPage + PAGE_SIZE),
@@ -1796,7 +1798,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest1) {
         .WillOnce(Return(true));
     EXPECT_CALL(*lfs_, Open(snapPath, _))
         .WillOnce(Return(4));
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
@@ -1850,7 +1852,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest2) {
     char metapage[PAGE_SIZE];
     memset(metapage, 0, sizeof(metapage));
     FakeEncodeSnapshot(metapage, 2);
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -1912,7 +1914,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
     char metapage[PAGE_SIZE];
     memset(metapage, 0, sizeof(metapage));
     FakeEncodeSnapshot(metapage, 2);
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -1922,7 +1924,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
 
     LOG(INFO) << "case 1";
     // copy data failed
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .WillOnce(Return(-UT_ERRNO));
 
     EXPECT_EQ(CSErrorCode::InternalError,
@@ -1939,7 +1942,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
 
     LOG(INFO) << "case 2";
     // copy data success
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .Times(1);
     // write data to snapshot failed
     EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
@@ -1958,7 +1962,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
 
     LOG(INFO) << "case 3";
     // copy data success
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .Times(1);
     // write data to snapshot success
     EXPECT_CALL(*lfs_,
@@ -1981,7 +1986,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
     // 再次写入仍会cow
     // will copy on write
     LOG(INFO) << "case 4";
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .Times(1);
     EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
                              PAGE_SIZE + offset, length))
@@ -2044,7 +2050,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
     char metapage[PAGE_SIZE];
     memset(metapage, 0, sizeof(metapage));
     FakeEncodeSnapshot(metapage, 2);
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -2052,7 +2058,8 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
     EXPECT_CALL(*lfs_, Write(3, Matcher<const char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     // will copy on write
-    EXPECT_CALL(*lfs_, Read(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Read(3, Matcher<char*>(NotNull()),
+        PAGE_SIZE + offset, length))
         .Times(1);
     EXPECT_CALL(*lfs_, Write(4, Matcher<const char*>(NotNull()),
                              PAGE_SIZE + offset, length))
@@ -2196,7 +2203,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest5) {
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                         Return(0)));
     // read metapage failed
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError, dataStore->WriteChunk(id,
                                                                 sn,
@@ -2265,7 +2272,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest6) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -2434,7 +2441,8 @@ TEST_F(CSDataStore_test, ReadChunkTest3) {
     char buf[length];  // NOLINT
     memset(buf, 0, sizeof(buf));
     // test chunk exists
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<butil::IOPortal*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->ReadChunk(id,
@@ -2488,7 +2496,7 @@ TEST_F(CSDataStore_test, ReadChunkTest4) {
         .Times(1)
         .WillOnce(Return(4));
     // will read metapage
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                         chunk3MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -2504,7 +2512,7 @@ TEST_F(CSDataStore_test, ReadChunkTest4) {
     size_t length = PAGE_SIZE;
     char buf[2 * length];  // NOLINT
     memset(buf, 0, sizeof(buf));
-    EXPECT_CALL(*lfs_, Read(_, _, _, _))
+    EXPECT_CALL(*lfs_, Read(_, Matcher<char*>(_), _, _))
         .Times(0);
     EXPECT_EQ(CSErrorCode::PageNerverWrittenError,
               dataStore->ReadChunk(id,
@@ -2516,7 +2524,7 @@ TEST_F(CSDataStore_test, ReadChunkTest4) {
     // case2: 读取区域部分被写过
     offset = 0;
     length = 2 * PAGE_SIZE;
-    EXPECT_CALL(*lfs_, Read(_, _, _, _))
+    EXPECT_CALL(*lfs_, Read(_, Matcher<char*>(_), _, _))
         .Times(0);
     EXPECT_EQ(CSErrorCode::PageNerverWrittenError,
               dataStore->ReadChunk(id,
@@ -2528,7 +2536,8 @@ TEST_F(CSDataStore_test, ReadChunkTest4) {
     // case3: 读取区域已写过
     offset = 0;
     length = PAGE_SIZE;
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<butil::IOPortal*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->ReadChunk(id,
@@ -2564,7 +2573,8 @@ TEST_F(CSDataStore_test, ReadChunkErrorTest1) {
     char buf[length];  // NOLINT
     memset(buf, 0, sizeof(buf));
     // test read chunk failed
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<butil::IOPortal*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->ReadChunk(id,
@@ -2657,7 +2667,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest2) {
     // test in range
     offset = PAGE_SIZE;
     length = 2 * PAGE_SIZE;
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->ReadSnapshotChunk(id,
@@ -2691,7 +2702,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
     char writeBuf[length];  // NOLINT
     memset(writeBuf, 0, sizeof(writeBuf));
     // data in [PAGE_SIZE, 2*PAGE_SIZE) will be cow
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()),
                              offset + PAGE_SIZE, length))
@@ -2726,12 +2738,15 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
     // test in range, read [0, 4*PAGE_SIZE)
     offset = 0;
     // read chunk in[0, PAGE_SIZE) and [3*PAGE_SIZE, 4*PAGE_SIZE)
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        PAGE_SIZE, PAGE_SIZE))
         .Times(1);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 4 * PAGE_SIZE, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        4 * PAGE_SIZE, PAGE_SIZE))
         .Times(1);
     // read snapshot in[PAGE_SIZE, 3*PAGE_SIZE)
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 2 * PAGE_SIZE, 2 * PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()),
+        2 * PAGE_SIZE, 2 * PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->ReadSnapshotChunk(id,
@@ -2797,7 +2812,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
     char writeBuf[length];  // NOLINT
     memset(writeBuf, 0, sizeof(writeBuf));
     // data in [PAGE_SIZE, 2*PAGE_SIZE) will be cow
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_CALL(*lfs_, Write(2, Matcher<const char*>(NotNull()),
                              offset + PAGE_SIZE, length))
@@ -2824,7 +2840,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
     char readBuf[length];  // NOLINT
     memset(readBuf, 0, sizeof(readBuf));
     // read chunk failed
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        PAGE_SIZE, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->ReadSnapshotChunk(id,
@@ -2834,11 +2851,13 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest1) {
                                            length));
 
     // read snapshot failed
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), PAGE_SIZE, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), PAGE_SIZE, PAGE_SIZE))
         .Times(1);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 4 * PAGE_SIZE, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        4 * PAGE_SIZE, PAGE_SIZE))
         .Times(1);
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 2 * PAGE_SIZE, 2 * PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()),
+        2 * PAGE_SIZE, 2 * PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->ReadSnapshotChunk(id,
@@ -2873,7 +2892,8 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkErrorTest2) {
     memset(buf, 0, sizeof(buf));
     // test in range
     offset = PAGE_SIZE;
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()),
+        offset + PAGE_SIZE, length))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->ReadSnapshotChunk(id,
@@ -2931,7 +2951,7 @@ TEST_F(CSDataStore_test, ReadChunkMetaDataTest2) {
     char buf[PAGE_SIZE];
     memset(buf, 0, PAGE_SIZE);
     // test chunk exists
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->ReadChunkMetaPage(id, sn, buf));
@@ -3142,7 +3162,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest2) {
     FakeEnv();
     // set chunk1's correctedSn as 3
     FakeEncodeChunk(chunk1MetaPage, 3, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
@@ -3183,7 +3203,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
     FakeEnv();
     // set chunk1's correctedSn as 0, sn as 3
     FakeEncodeChunk(chunk1MetaPage, 0, 3);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
@@ -3348,7 +3368,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
         .Times(1)
         .WillOnce(Return(4));
     // will read metapage
-    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                         chunk3MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
@@ -3394,14 +3414,14 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest8) {
     FakeEnv();
     // fake read chunk1 metapage
     FakeEncodeChunk(chunk1MetaPage, 0, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // fake read chunk1's snapshot1 metapage,chunk.sn==snap.sn
     FakeEncodeSnapshot(chunk1SnapMetaPage, 2);
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1SnapMetaPage,
                         chunk1SnapMetaPage + PAGE_SIZE),
@@ -3445,14 +3465,14 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest9) {
     FakeEnv();
     // fake read chunk1 metapage
     FakeEncodeChunk(chunk1MetaPage, 2, 2);
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1MetaPage,
                         chunk1MetaPage + PAGE_SIZE),
                         Return(PAGE_SIZE)));
     // fake read chunk1's snapshot1 metapage,chunk.sn==snap.sn
     FakeEncodeSnapshot(chunk1SnapMetaPage, 3);
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
+    EXPECT_CALL(*lfs_, Read(2, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk1SnapMetaPage,
                         chunk1SnapMetaPage + PAGE_SIZE),
@@ -3620,7 +3640,7 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -3833,7 +3853,7 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -4054,7 +4074,7 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -4159,7 +4179,7 @@ TEST_F(CSDataStore_test, GetHashErrorTest2) {
     off_t offset = 0;
     size_t length = PAGE_SIZE + CHUNK_SIZE;
     // test read chunk failed
-    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, 4096))
+    EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, 4096))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
               dataStore->GetChunkHash(id,
@@ -4227,7 +4247,7 @@ TEST_F(CSDataStore_test, CloneChunkUnAlignedTest) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -4249,7 +4269,7 @@ TEST_F(CSDataStore_test, CloneChunkUnAlignedTest) {
     // read/write/paste offset are not aligned to pagesize
     {
         EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_), _, _)).Times(0);
-        EXPECT_CALL(*lfs_, Read(4, _, _, _)).Times(0);
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(_), _, _)).Times(0);
 
         ASSERT_EQ(CSErrorCode::InvalidArgError,
                   dataStore->WriteChunk(id, sn, buf, 1, length, nullptr));
@@ -4307,7 +4327,7 @@ TEST_F(CSDataStore_test, CloneChunkUnAlignedTest) {
     // read/write/paste length are not aligned to pagesize
     {
         EXPECT_CALL(*lfs_, Write(4, Matcher<butil::IOBuf>(_), _, _)).Times(0);
-        EXPECT_CALL(*lfs_, Read(4, _, _, _)).Times(0);
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(_), _, _)).Times(0);
 
         ASSERT_EQ(CSErrorCode::InvalidArgError,
                   dataStore->WriteChunk(id, sn, buf, 0, 1, nullptr));
@@ -4404,7 +4424,7 @@ TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
             .Times(1)
             .WillOnce(Return(4));
         // will read metapage
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()), 0, PAGE_SIZE))
             .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
                             chunk3MetaPage + PAGE_SIZE),
                             Return(PAGE_SIZE)));
@@ -4438,7 +4458,8 @@ TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
 
     // read offset/length both aligned
     {
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + PAGE_SIZE, length))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<butil::IOPortal*>(NotNull()),
+            offset + PAGE_SIZE, length))
             .Times(1)
             .WillOnce(Return(0));
         EXPECT_EQ(CSErrorCode::Success,
@@ -4453,7 +4474,8 @@ TEST_F(CSDataStore_test, CloneChunkAlignedTest) {
 
     // readspecificchunk offset/length both aligned
     {
-        EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + PAGE_SIZE, length))
+        EXPECT_CALL(*lfs_, Read(4, Matcher<char*>(NotNull()),
+            offset + PAGE_SIZE, length))
             .Times(1)
             .WillOnce(Return(0));
         EXPECT_EQ(CSErrorCode::Success,
@@ -4495,7 +4517,7 @@ TEST_F(CSDataStore_test, NormalChunkAlignmentTest) {
 
     // read unaligned test
     {
-        EXPECT_CALL(*lfs_, Read(0, NotNull(), _, _))
+        EXPECT_CALL(*lfs_, Read(0, Matcher<char*>(NotNull()), _, _))
             .Times(0);
 
         EXPECT_EQ(CSErrorCode::InvalidArgError,
@@ -4524,7 +4546,7 @@ TEST_F(CSDataStore_test, NormalChunkAlignmentTest) {
 
     // read aligned test
     {
-        EXPECT_CALL(*lfs_, Read(3, _, _, _))
+        EXPECT_CALL(*lfs_, Read(3, Matcher<butil::IOPortal*>(_), _, _))
             .Times(AtLeast(1))
             .WillRepeatedly(Return(0));
 
