@@ -26,6 +26,7 @@
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/fuse_volume_client.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/test/client/mock_client_s3_adaptor.h"
 #include "curvefs/test/client/mock_dentry_cache_mamager.h"
@@ -1327,8 +1328,11 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_))
+        .WillOnce(Invoke([](rpcclient::UpdateInodeContext context) {
+            context.done->SetMetaStatusCode(MetaStatusCode::OK);
+            context.done->Run();
+        }));
 
     attr.st_mode = 1;
     attr.st_uid = 2;
@@ -1374,8 +1378,11 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
-        .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_))
+        .WillOnce(Invoke([](rpcclient::UpdateInodeContext context) {
+            context.done->SetMetaStatusCode(MetaStatusCode::UNKNOWN_ERROR);
+            context.done->Run();
+        }));
 
     attr.st_mode = 1;
     attr.st_uid = 2;

@@ -31,7 +31,6 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/common/define.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"

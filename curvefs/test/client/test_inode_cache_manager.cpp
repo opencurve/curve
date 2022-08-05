@@ -343,12 +343,10 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
-        .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
-                            InodeOpenStatusChange statusChange,
-                            DataIndices /*indices*/) {
-            done->SetMetaStatusCode(MetaStatusCode::OK);
-            done->Run();
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_))
+        .WillOnce(Invoke([](rpcclient::UpdateInodeContext context) {
+            context.done->SetMetaStatusCode(MetaStatusCode::OK);
+            context.done->Run();
         }));
 
     iCacheManager_->FlushAll();
@@ -456,11 +454,11 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_))
         .WillRepeatedly(
-            Invoke([](const Inode& inode, MetaServerClientDone* done,
-                      InodeOpenStatusChange statusChange,
-                      DataIndices /*dataIndices*/) {
+            Invoke([](rpcclient::UpdateInodeContext context) {
+                auto* done = context.done;
+
                 // run closure in a separate thread
                 std::thread th{[done]() {
                     std::this_thread::sleep_for(std::chrono::microseconds(200));

@@ -66,6 +66,25 @@ struct DataIndices {
     absl::optional<VolumeExtentList> volumeExtents;
 };
 
+// Context for update inode request
+struct UpdateInodeContext {
+    // inode needs to update
+    const Inode* inode{nullptr};
+
+    // callback for asynchronous update
+    MetaServerClientDone* done{nullptr};
+
+    // open status change
+    InodeOpenStatusChange statusChange{InodeOpenStatusChange::NOCHANGE};
+
+    // if true, means request is trigger by background flush task.
+    // internal or not may has different retry policy
+    bool internal{false};
+
+    // data indices
+    DataIndices indices;
+};
+
 class MetaServerClient {
  public:
     virtual ~MetaServerClient() = default;
@@ -129,11 +148,7 @@ class MetaServerClient {
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual void UpdateInodeWithOutNlinkAsync(
-        const Inode& inode,
-        MetaServerClientDone* done,
-        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
-        DataIndices&& indices = {}) = 0;
+    virtual void UpdateInodeWithOutNlinkAsync(UpdateInodeContext&& context) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -232,11 +247,7 @@ class MetaServerClientImpl : public MetaServerClient {
                           InodeOpenStatusChange statusChange =
                               InodeOpenStatusChange::NOCHANGE) override;
 
-    void UpdateInodeWithOutNlinkAsync(
-        const Inode &inode,
-        MetaServerClientDone *done,
-        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
-        DataIndices &&indices = {}) override;
+    void UpdateInodeWithOutNlinkAsync(UpdateInodeContext&& context) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -275,8 +286,9 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode UpdateInode(const UpdateInodeRequest &request,
                                bool internal = false);
 
-    void UpdateInodeAsync(const UpdateInodeRequest &request,
-                          MetaServerClientDone *done);
+    void UpdateInodeAsync(const UpdateInodeRequest& request,
+                          MetaServerClientDone* done,
+                          bool internal = false);
 
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
                                  uint64_t* chunkIndex,

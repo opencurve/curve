@@ -33,6 +33,7 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/rpcclient/metacache.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "src/common/string_util.h"
@@ -937,8 +938,9 @@ void UpdateInodeRpcDone::Run() {
     return;
 }
 
-void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
-    MetaServerClientDone *done) {
+void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest& request,
+                                            MetaServerClientDone* done,
+                                            bool internal) {
     auto task = AsyncRPCTask {
         metric_.updateInode.qps.count << 1;
 
@@ -953,9 +955,11 @@ void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
         return MetaStatusCode::OK;
     };
 
+    const ExcutorOpt opt = internal ? optInternal_ : opt_;
+
     auto taskCtx = std::make_shared<TaskContext>(
         MetaServerOpType::UpdateInode, task, request.fsid(), request.inodeid());
-    auto excutor = std::make_shared<UpdateInodeExcutor>(opt_,
+    auto excutor = std::make_shared<UpdateInodeExcutor>(opt,
         metaCache_, channelManager_, std::move(taskCtx));
     TaskExecutorDone *taskDone = new TaskExecutorDone(
         excutor, done);
@@ -971,14 +975,12 @@ void MetaServerClientImpl::UpdateInodeAttrAsync(
 }
 
 void MetaServerClientImpl::UpdateInodeWithOutNlinkAsync(
-    const Inode &inode,
-    MetaServerClientDone *done,
-    InodeOpenStatusChange statusChange,
-    DataIndices &&indices) {
+    UpdateInodeContext&& context) {
     UpdateInodeRequest request;
-    FillInodeAttr(inode, statusChange, /*nlink=*/false, &request);
-    FillDataIndices(std::move(indices), &request);
-    UpdateInodeAsync(request, done);
+    FillInodeAttr(*context.inode, context.statusChange, /*nlink=*/false,
+                  &request);
+    FillDataIndices(std::move(context.indices), &request);
+    UpdateInodeAsync(request, context.done, context.internal);
 }
 
 bool MetaServerClientImpl::ParseS3MetaStreamBuffer(butil::IOBuf* buffer,

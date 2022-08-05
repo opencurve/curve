@@ -54,6 +54,7 @@ using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 
 using rpcclient::MockMetaServerClient;
+using rpcclient::UpdateInodeContext;
 
 class TestInodeWrapper : public ::testing::Test {
  protected:
@@ -199,11 +200,11 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     extentCache->Merge(0, pext);
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .Times(0);
-    EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
-        .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
-                            MetaServerClientDone* done) {
-            done->SetMetaStatusCode(MetaStatusCode::OK);
-            done->Run();
+
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_))
+        .WillOnce(Invoke([](rpcclient::UpdateInodeContext context) {
+            context.done->SetMetaStatusCode(MetaStatusCode::OK);
+            context.done->Run();
         }));
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
@@ -262,10 +263,8 @@ struct FakeCallback : public MetaServerClientDone {
 };
 
 struct FakeUpdateInodeWithOutNlinkAsync {
-    void operator()(const Inode& inode,
-                    MetaServerClientDone* done,
-                    InodeOpenStatusChange statusChange,
-                    DataIndices indices) const {
+    void operator()(UpdateInodeContext context) const {
+        auto* done = context.done;
         std::thread th{[done]() {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             done->SetMetaStatusCode(MetaStatusCode::OK);
@@ -288,7 +287,7 @@ TEST_F(TestInodeWrapper, TestAsyncInode) {
             }
 
             EXPECT_CALL(*metaClient_,
-                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+                        UpdateInodeWithOutNlinkAsync_rvr(_))
                 .Times(dirty ? 1 : 0)
                 .WillRepeatedly(Invoke(FakeUpdateInodeWithOutNlinkAsync{}));
 

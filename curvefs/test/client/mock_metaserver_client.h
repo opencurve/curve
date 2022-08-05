@@ -111,19 +111,11 @@ class MockMetaServerClient : public MetaServerClient {
 
     // Workaround for rvalue parameters
     // https://stackoverflow.com/questions/12088537/workaround-for-gmock-to-support-rvalue-reference
-    void UpdateInodeWithOutNlinkAsync(const Inode& inode,
-                                      MetaServerClientDone* done,
-                                      InodeOpenStatusChange change,
-                                      DataIndices&& indices) override {
-        return UpdateInodeWithOutNlinkAsync_rvr(inode, done, change,
-                                                std::move(indices));
+    void UpdateInodeWithOutNlinkAsync(UpdateInodeContext&& context) override {
+        UpdateInodeWithOutNlinkAsync_rvr(std::move(context));
     }
 
-    MOCK_METHOD4(UpdateInodeWithOutNlinkAsync_rvr,
-                 void(const Inode& inode,
-                      MetaServerClientDone* done,
-                      InodeOpenStatusChange statusChange,
-                      DataIndices));
+    MOCK_METHOD1(UpdateInodeWithOutNlinkAsync_rvr, void(UpdateInodeContext));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
         MetaServerClientDone *done));

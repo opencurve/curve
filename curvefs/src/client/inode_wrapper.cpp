@@ -24,6 +24,7 @@
 
 #include <glog/logging.h>
 
+#include <condition_variable>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -176,8 +177,11 @@ void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
                                   bool /*internal*/) {
     if (dirty_) {
         LockSyncingInode();
-        metaClient_->UpdateInodeWithOutNlinkAsync(
-            inode_, new UpdateInodeAsyncDone(shared_from_this(), done));
+
+        rpcclient::UpdateInodeContext context;
+        context.inode = &inode_;
+        context.done = new UpdateInodeAsyncDone(shared_from_this(), done);
+        metaClient_->UpdateInodeWithOutNlinkAsync(std::move(context));
         dirty_ = false;
         return;
     }
@@ -395,26 +399,51 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
     return CURVEFS_ERROR::OK;
 }
 
+namespace {
+
+class SyncClosure : public MetaServerClientDone {
+ public:
+    void Run() override {
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            done_ = true;
+        }
+        cond_.notify_one();
+    }
+
+    CURVEFS_ERROR Wait() {
+        std::unique_lock<std::mutex> lock(mtx_);
+        cond_.wait(lock, [this]() { return done_; });
+
+        return MetaStatusCodeToCurvefsErrCode(GetStatusCode());
+    }
+
+ private:
+    std::mutex mtx_;
+    std::condition_variable cond_;
+    bool done_{false};
+};
+
+}  // namespace
+
 CURVEFS_ERROR InodeWrapper::Sync(bool internal) {
-    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
     switch (inode_.type()) {
         case FsFileType::TYPE_S3:
-            ret = SyncS3(internal);
-            break;
-        case FsFileType::TYPE_FILE:
-            ret = SyncAttr(internal);
-            if (ret != CURVEFS_ERROR::OK) {
-                break;
-            }
-            ret = FlushVolumeExtent();
-            break;
+            return SyncS3(internal);
+        case FsFileType::TYPE_FILE: {
+            SyncClosure done;
+            AsyncFlushAttrAndExtents(&done, internal);
+            return done.Wait();
+        }
+        case FsFileType::TYPE_SYM_LINK:
+            FALLTHROUGH_INTENDED;
         case FsFileType::TYPE_DIRECTORY:
-            ret = SyncAttr(internal);
-            break;
-        default:
-            break;
+            return SyncAttr(internal);
     }
-    return ret;
+
+    LOG(ERROR) << "Unexpected inode type: " << inode_.type() << ", "
+               << inode_.ShortDebugString();
+    return CURVEFS_ERROR::UNKNOWN;
 }
 
 void InodeWrapper::Async(MetaServerClientDone *done, bool internal) {
@@ -436,19 +465,22 @@ void InodeWrapper::Async(MetaServerClientDone *done, bool internal) {
 }
 
 void InodeWrapper::AsyncFlushAttrAndExtents(MetaServerClientDone *done,
-                                            bool /*internal*/) {
+                                            bool internal) {
     if (dirty_ || extentCache_.HasDirtyExtents()) {
         LockSyncingInode();
         syncingVolumeExtentsMtx_.lock();
-        DataIndices indices;
+
+        rpcclient::UpdateInodeContext context;
+        context.inode = &inode_;
+        context.internal = internal;
+        context.done =
+            new UpdateInodeAttrAndExtentClosure{shared_from_this(), done};
+
         if (extentCache_.HasDirtyExtents()) {
-            indices.volumeExtents = extentCache_.GetDirtyExtents();
+            context.indices.volumeExtents = extentCache_.GetDirtyExtents();
         }
 
-        metaClient_->UpdateInodeWithOutNlinkAsync(
-            inode_,
-            new UpdateInodeAttrAndExtentClosure{shared_from_this(), done},
-            InodeOpenStatusChange::NOCHANGE, std::move(indices));
+        metaClient_->UpdateInodeWithOutNlinkAsync(std::move(context));
 
         dirty_ = false;
         return;
@@ -522,13 +554,17 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
     if (dirty_ || !s3ChunkInfoAdd_.empty()) {
         LockSyncingInode();
         LockSyncingS3ChunkInfo();
-        DataIndices indices;
+
+        rpcclient::UpdateInodeContext context;
+        context.inode = &inode_;
+        context.internal = internal;
+        context.done = new UpdateInodeAsyncS3Done{shared_from_this(), done};
+
         if (!s3ChunkInfoAdd_.empty()) {
-            indices.s3ChunkInfoMap = std::move(s3ChunkInfoAdd_);
+            context.indices.s3ChunkInfoMap = std::move(s3ChunkInfoAdd_);
         }
-        metaClient_->UpdateInodeWithOutNlinkAsync(
-            inode_, new UpdateInodeAsyncS3Done{shared_from_this(), done},
-            InodeOpenStatusChange::NOCHANGE, std::move(indices));
+
+        metaClient_->UpdateInodeWithOutNlinkAsync(std::move(context));
         dirty_ = false;
         ClearS3ChunkInfoAdd();
         return;
