@@ -14,14 +14,17 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS", "CURVE_TEST_COPTS", "SPDK_COPTS", "SPDK_LINK_OPTS", "SPDK_DEPS")
 
 cc_binary(
     name = "curve_format",
     srcs = [
         "curve_format_main.cpp",
     ],
-    copts = CURVE_DEFAULT_COPTS,
+    copts = CURVE_DEFAULT_COPTS + select({
+        "//:with_spdk": SPDK_COPTS,
+        "//conditions:default": [],
+    }),
     deps = [
         "//external:braft",
         "//external:brpc",

@@ -22,17 +22,18 @@
 
 #include <butil/fd_utility.h>
 #include <vector>
+#include <list>
 
-#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
 CurveFilesystemAdaptor::CurveFilesystemAdaptor(
-                                std::shared_ptr<FilePool> chunkFilePool,
+                                std::shared_ptr<FilePool> filePool,
                                 std::shared_ptr<LocalFileSystem> lfs) {
     lfs_ = lfs;
-    chunkFilePool_ = chunkFilePool;
-    uint64_t metapageSize = chunkFilePool->GetFilePoolOpt().metaPageSize;
+    filePool_ = filePool;
+    uint64_t metapageSize = filePool->GetFilePoolOpt().metaPageSize;
     tempMetaPageContent = new (std::nothrow) char[metapageSize];
     CHECK(tempMetaPageContent != nullptr);
     memset(tempMetaPageContent, 0, metapageSize);
@@ -47,7 +48,7 @@ CurveFilesystemAdaptor::~CurveFilesystemAdaptor() {
         delete[] tempMetaPageContent;
         tempMetaPageContent = nullptr;
     }
-    LOG(INFO) << "release raftsnapshot filesystem adaptor!";
+    LOG(INFO) << "release CurveFilesystemAdaptor!";
 }
 
 braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
@@ -55,20 +56,12 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
                     butil::File::Error* e) {
     (void) file_meta;
 
-    static std::once_flag local_s_check_cloexec_once;
-    static bool local_s_support_cloexec_on_open = false;
-    std::call_once(local_s_check_cloexec_once, [&](){
-        int fd = lfs_->Open("/dev/zero", O_RDONLY | O_CLOEXEC);
-        local_s_support_cloexec_on_open = (fd != -1);
-        if (fd != -1) {
-            lfs_->Close(fd);
-        }
-    });
-
     bool cloexec = (oflag & O_CLOEXEC);
-    if (cloexec && !local_s_support_cloexec_on_open) {
+    if (cloexec) {
         oflag &= (~O_CLOEXEC);
+        LOG(WARNING) << "CurveFilesystemAdaptor not support O_CLOEXEC!";
     }
+
     // Open就使用sync标志是为了避免集中在close一次性sync，对于16MB的chunk文件可能会造成抖动
     oflag |= O_SYNC;
 
@@ -79,7 +72,7 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
         (oflag & O_CREAT) &&
         false == lfs_->FileExists(path)) {
         // 从chunkfile pool中取出chunk返回
-        int rc = chunkFilePool_->GetFile(path, tempMetaPageContent);
+        int rc = filePool_->GetFile(path, tempMetaPageContent);
         // 如果从FilePool中取失败，返回错误。
         if (rc != 0) {
             LOG(ERROR) << "get chunk from chunkfile pool failed!";
@@ -98,20 +91,17 @@ braft::FileAdaptor* CurveFilesystemAdaptor::open(const std::string& path,
 
     if (fd < 0) {
         if (oflag & O_CREAT) {
-            LOG(ERROR) << "snapshot create chunkfile failed, filename = "
+            LOG(ERROR) << "create chunkfile failed, filename = "
                 << path.c_str() << ", errno = " << errno;
         } else {
-            LOG(WARNING) << "snapshot open chunkfile failed,"
+            LOG(WARNING) << "open chunkfile failed,"
                     << "may be deleted by user, filename = "
                     << path.c_str() << ",errno = " << errno;
         }
         return NULL;
     }
-    if (cloexec && !local_s_support_cloexec_on_open) {
-        butil::make_close_on_exec(fd);
-    }
 
-    return new CurveFileAdaptor(fd);
+    return new CurveFileAdaptor(fd, lfs_);
 }
 
 bool CurveFilesystemAdaptor::delete_file(const std::string& path,
@@ -135,7 +125,7 @@ bool CurveFilesystemAdaptor::delete_file(const std::string& path,
                  return lfs_->Delete(path) == 0;
              } else {
                 // chunkfilepool内部会检查path对应文件合法性，如果不符合就直接删除
-                return chunkFilePool_->RecycleFile(path) == 0;
+                return filePool_->RecycleFile(path) == 0;
              }
         }
     }
@@ -160,7 +150,7 @@ bool CurveFilesystemAdaptor::RecycleDirRecursive(
                     break;
                 }
             } else {
-                int ret = chunkFilePool_->RecycleFile(todeletePath);
+                int ret = filePool_->RecycleFile(todeletePath);
                 if (ret < 0) {
                     rc = false;
                     LOG(ERROR) << "recycle " << path + filepath << ", failed!";
@@ -176,14 +166,108 @@ bool CurveFilesystemAdaptor::rename(const std::string& old_path,
                                             const std::string& new_path) {
     if (!NeedFilter(new_path) && lfs_->FileExists(new_path)) {
         // chunkfilepool内部会检查path对应文件合法性，如果不符合就直接删除
-        chunkFilePool_->RecycleFile(new_path);
+        filePool_->RecycleFile(new_path);
     }
     return lfs_->Rename(old_path, new_path) == 0;
 }
 
+bool CurveFilesystemAdaptor::link(const std::string& old_path,
+          const std::string& new_path) {
+    return lfs_->Link(old_path, new_path) == 0;
+}
+
+bool CurveFilesystemAdaptor::CreateDirectoryAndGetError(
+    const FilePath& full_path,
+    File::Error* error,
+    bool create_parents) {
+  if (!create_parents) {
+    if (lfs_->DirExists(full_path.value())) {
+      return true;
+    }
+    if (lfs_->Mkdir(full_path.value(), false) == 0) {
+      return true;
+    }
+    const int saved_errno = errno;
+    if (lfs_->DirExists(full_path.value())) {
+      return true;
+    }
+    if (error) {
+      *error = File::OSErrorToFileError(saved_errno);
+    }
+    return false;
+  }
+  std::vector<FilePath> subpaths;
+
+  // Collect a list of all parent directories.
+  FilePath last_path = full_path;
+  subpaths.push_back(full_path);
+  for (FilePath path = full_path.DirName();
+       path.value() != last_path.value(); path = path.DirName()) {
+    subpaths.push_back(path);
+    last_path = path;
+  }
+
+  // Iterate through the parents and create the missing ones.
+  for (std::vector<FilePath>::reverse_iterator i = subpaths.rbegin();
+       i != subpaths.rend(); ++i) {
+    if (lfs_->DirExists(i->value()))
+      continue;
+    // NOTE(gejun): permission bits of dir are different from file's
+    // -The write bit allows the affected user to create, rename, or delete
+    //  files within the directory, and modify the directory's attributes
+    // -The read bit allows the affected user to list the files within the
+    //  directory
+    // -The execute bit allows the affected user to enter the directory, and
+    //  access files and directories inside
+    // -The sticky bit states that files and directories within that directory
+    //  may only be deleted or renamed by their owner (or root)
+    if (lfs_->Mkdir(i->value(), false) == 0)
+      continue;
+    // Mkdir failed, but it might have failed with EEXIST, or some other error
+    // due to the the directory appearing out of thin air. This can occur if
+    // two processes are trying to create the same file system tree at the same
+    // time. Check to see if it exists and make sure it is a directory.
+    int saved_errno = errno;
+    if (!lfs_->DirExists(i->value())) {
+      if (error)
+        *error = File::OSErrorToFileError(saved_errno);
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CurveFilesystemAdaptor::create_directory(const std::string& path,
+                              butil::File::Error* error,
+                              bool create_parent_directories) {
+    FilePath dir(path);
+    return CreateDirectoryAndGetError(dir, error, create_parent_directories);
+}
+
+bool CurveFilesystemAdaptor::path_exists(const std::string& path) {
+    return lfs_->PathExists(path);
+}
+
+bool CurveFilesystemAdaptor::directory_exists(const std::string& path) {
+    return lfs_->DirExists(path);
+}
+
+braft::DirReader* CurveFilesystemAdaptor::directory_reader(
+    const std::string& path) {
+    return new CurveDirReader(path.c_str(), lfs_);
+}
+
 void CurveFilesystemAdaptor::SetFilterList(
-                                    const std::vector<std::string>& filter) {
-    filterList_.assign(filter.begin(), filter.end());
+                                    const std::list<std::string>& filter) {
+    filterList_ = filter;
+}
+
+void CurveFilesystemAdaptor::AddToFilterList(std::list<std::string> *files) {
+    filterList_.splice(filterList_.end(), *files);
+}
+
+void CurveFilesystemAdaptor::AddToFilterList(const std::string& file) {
+    filterList_.push_back(file);
 }
 
 bool CurveFilesystemAdaptor::NeedFilter(const std::string& filename) {
@@ -197,6 +281,43 @@ bool CurveFilesystemAdaptor::NeedFilter(const std::string& filename) {
     }
     return ret;
 }
+
+CurveDirReader::CurveDirReader(const std::string& path,
+    const std::shared_ptr<LocalFileSystem> &lfs)
+    : path_(path), lfs_(lfs), dir_(nullptr), dirIter_(nullptr) {
+    dir_ = lfs_->OpenDir(path);
+}
+
+CurveDirReader::~CurveDirReader() {
+    if (dir_ != nullptr) {
+        lfs_->CloseDir(dir_);
+    }
+    dir_ = nullptr;
+}
+
+bool CurveDirReader::is_valid() const {
+    return dir_ != nullptr;
+}
+
+bool CurveDirReader::next() {
+    while ((dirIter_ = lfs_->ReadDir(dir_)) != nullptr) {
+        if (strcmp(dirIter_->d_name, ".") == 0
+                || strcmp(dirIter_->d_name, "..") == 0) {
+            continue;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+const char* CurveDirReader::name() const {
+    if (nullptr == dirIter_) {
+        return nullptr;
+    }
+    return dirIter_->d_name;
+}
+
 
 }  // namespace chunkserver
 }  // namespace curve

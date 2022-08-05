@@ -144,7 +144,7 @@ CSErrorCode CSDataStore::DeleteSnapshotChunkOrCorrectSn(
 
 CSErrorCode CSDataStore::ReadChunk(ChunkID id,
                                    SequenceNum sn,
-                                   char * buf,
+                                   butil::IOPortal* buf,
                                    off_t offset,
                                    size_t length) {
     auto chunkFile = metaCache_.Get(id);

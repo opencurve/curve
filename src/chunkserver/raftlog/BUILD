@@ -33,6 +33,7 @@ cc_library(
         "//external:gflags",
         "//external:glog",
         "//external:protobuf",
+        "//src/chunkserver/filesystem_adaptor:filesystem_adaptor",
         "//src/chunkserver/datastore:chunkserver_datastore",
     ],
 )

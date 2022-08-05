@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2020 NetEase Inc.
+#  Copyright (c) 2022 NetEase Inc.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,28 +17,21 @@
 load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
-    name = "chunkserver-raft-snapshot",
+    name = "filesystem_adaptor",
     srcs = glob(
         ["*.cpp"],
     ),
     hdrs = glob([
         "*.h",
     ]),
-    copts = CURVE_DEFAULT_COPTS + [
-        "-Wno-format-security",
-    ],
+    copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
-        "//external:brpc",
         "//external:bthread",
         "//external:butil",
         "//external:gflags",
         "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//proto:chunkserver-cc-protos",
-        "//src/chunkserver/filesystem_adaptor:filesystem_adaptor",
         "//src/chunkserver/datastore:chunkserver_datastore",
-    ],
+    ]
 )

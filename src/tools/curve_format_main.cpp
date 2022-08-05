@@ -37,6 +37,19 @@
 #include "src/common/crc32.h"
 #include "src/common/curve_define.h"
 #include "src/chunkserver/datastore/file_pool.h"
+#ifdef WITH_SPDK
+#include "src/fs/pfs_filesystem_impl.h"
+#include "src/chunkserver/spdk_hook.h"
+#endif
+
+using curve::fs::FileSystemType;
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemInfo;
+using curve::fs::LocalFileSystem;
+using curve::common::kFilePoolMaigic;
+#ifdef WITH_SPDK
+using ::curve::fs::InitPfsOption;
+#endif
 
 /**
  * chunkfile pool预分配工具，提供两种分配方式
@@ -86,11 +99,26 @@ DEFINE_bool(needWriteZero,
         true,
         "not write zero for test.");
 
-using curve::fs::FileSystemType;
-using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemInfo;
-using curve::fs::LocalFileSystem;
-using curve::common::kFilePoolMaigic;
+DEFINE_string(fileSystemType,
+    "ext4",
+    "file system type");
+
+#ifdef WITH_SPDK
+DEFINE_string(pfs_cluster,
+    "spdk",
+    "pfs cluster name, only for pfs");
+
+DEFINE_string(pfs_pbd_name,
+    "0000:c2:00.0n1",
+    "pfs pbd name, only for pfs");
+
+DEFINE_int32(pfs_host_id,
+    2,
+    "pfs host id, only for pfs");
+DEFINE_string(spdk_nvme_controller,
+    "",
+    "spdk nvme controller, only for pfs");
+#endif
 
 class CompareInternal {
  public:
@@ -145,7 +173,7 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
         }
 
         if (FLAGS_needWriteZero) {
-            ret = allocatestruct->fsptr->Write(fd, data, 0,
+            ret = allocatestruct->fsptr->WriteZeroIfSupport(fd, data, 0,
                 FLAGS_fileSize + FLAGS_metaPagSize);
             if (ret < 0) {
                 allocatestruct->fsptr->Close(fd);
@@ -177,12 +205,60 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
 
 // TODO(tongguangxun) :添加单元测试
 int main(int argc, char** argv) {
+#ifdef WITH_SPDK
+    FILE *dpdk_log_stream = NULL;
+    cookie_io_functions_t io_funcs;
+    memset(&io_funcs, 0, sizeof(io_funcs));
+#endif
+
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
 
+#ifdef WITH_SPDK
+    io_funcs.write = glog_dpdk_log_func;
+    dpdk_log_stream = fopencookie(NULL, "w", io_funcs);
+    if (dpdk_log_stream == NULL) {
+        LOG(FATAL) << "fopencookie failed";
+    }
+    rte_openlog_stream(dpdk_log_stream);
+    spdk_log_open(glog_spdk_func);
+    pfs_set_trace_func(glog_pfs_func);
+
+    curve::fs::HookIOBufIOFuncs();
+#endif
+
+    ::curve::fs::LocalFileSystemOption lfsOption;
+    lfsOption.type =
+        ::curve::fs::StringToFileSystemType(FLAGS_fileSystemType);
+#ifdef WITH_SPDK
+    if (::curve::fs::FileSystemType::PFS  == lfsOption.type) {
+        lfsOption.pfs_cluster = FLAGS_pfs_cluster;
+        lfsOption.pfs_pbd_name = FLAGS_pfs_pbd_name;
+        lfsOption.pfs_host_id = FLAGS_pfs_host_id;
+        lfsOption.spdk_nvme_controller = FLAGS_spdk_nvme_controller;
+
+        LOG_IF(FATAL, 0 != InitPfsOption(lfsOption))
+            << "InitPfsOption failed";
+
+        // setup spdk
+        LOG_IF(FATAL, 0 != pfs_spdk_setup())
+            << "setup spdk failed";
+        // start pfsdaemon
+        LOG_IF(FATAL, 0 != pfsd_start(true))
+            << "start pfsd failed";
+    } else {
+        LOG(FATAL) <<"PFS filesystem must be used when using spdk! "
+                   << "Current filesystem type: " << FLAGS_fileSystemType;
+    }
+#endif
     // load current chunkfile pool
     std::mutex mtx;
-    std::shared_ptr<LocalFileSystem> fsptr = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");   // NOLINT
+    std::shared_ptr<LocalFileSystem> fsptr =
+        LocalFsFactory::CreateFs(lfsOption.type, "");
+
+    LOG_IF(FATAL, 0 != fsptr->Init(lfsOption))
+        << "Failed to initialize local filesystem module!";
+
     std::set<std::string, CompareInternal> tmpChunkSet_;
     std::atomic<uint64_t> allocateChunknum_(0);
     std::vector<std::string> tmpvec;

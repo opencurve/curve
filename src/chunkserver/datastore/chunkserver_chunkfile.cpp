@@ -488,7 +488,8 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
+CSErrorCode CSChunkFile::Read(
+    butil::IOPortal * buf, off_t offset, size_t length) {
     ReadLockGuard readGuard(rwLock_);
     if (!CheckOffsetAndLength(
             offset, length, isCloneChunk_ ? pageSize_ : FLAGS_minIoAlignment)) {

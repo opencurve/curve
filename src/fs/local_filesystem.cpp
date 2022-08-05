@@ -25,6 +25,9 @@
 #include "src/fs/local_filesystem.h"
 #include "src/fs/ext4_filesystem_impl.h"
 #include "src/fs/wrap_posix.h"
+#ifdef WITH_SPDK
+#include "src/fs/pfs_filesystem_impl.h"
+#endif
 
 namespace curve {
 namespace fs {
@@ -33,10 +36,21 @@ std::shared_ptr<LocalFileSystem> LocalFsFactory::CreateFs(
     FileSystemType type,
     const std::string& deviceID) {
     std::shared_ptr<LocalFileSystem> localFs;
-    if (type == FileSystemType::EXT4) {
+    switch (type) {
+    case FileSystemType::EXT4:
         localFs = Ext4FileSystemImpl::getInstance();
-    } else {
-        LOG(ERROR) << "Unknown filesystem type.";
+        break;
+    case FileSystemType::PFS:
+#ifdef WITH_SPDK
+        localFs = PfsFileSystemImpl::getInstance();
+        break;
+#else
+        LOG(ERROR) << "PFS filesystem type is not be complied, "
+            "maybe you need to recompile after adding "
+            "the flag \"--define with_spdk=true\" ";
+#endif
+    default:
+        LOG(ERROR) << "Unknown filesystem type";
         return nullptr;
     }
     return localFs;

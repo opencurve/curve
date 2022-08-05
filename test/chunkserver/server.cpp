@@ -119,6 +119,8 @@ void CreateChunkFilePool(const std::string& dirname,
 
 int main(int argc, char *argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
+    // 初始化日志模块
+    google::InitGoogleLogging(argv[0]);
 
     /* Generally you only need one Server. */
     brpc::Server server;
@@ -194,6 +196,7 @@ int main(int argc, char *argv[]) {
     } else {
         LOG(INFO) << "chunfilepool init success";
     }
+    copysetNodeOptions.walFilePool = copysetNodeOptions.chunkFilePool;
 
     ConcurrentApplyOption opt{2, 1, 2, 1};
     LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(opt))
