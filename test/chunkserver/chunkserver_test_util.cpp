@@ -153,6 +153,7 @@ int StartChunkserver(const char *ip,
     if (nullptr == copysetNodeOptions.chunkFilePool) {
         LOG(FATAL) << "new chunfilepool failed";
     }
+    copysetNodeOptions.walFilePool = copysetNodeOptions.chunkFilePool;
     FilePoolOptions cfop;
     if (false == copysetNodeOptions.chunkFilePool->Initialize(cfop)) {
         LOG(FATAL) << "chunfilepool init failed";

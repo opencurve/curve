@@ -56,6 +56,10 @@
 #include "src/chunkserver/raftlog/segment.h"
 #include "src/chunkserver/raftlog/curve_segment.h"
 #include "src/chunkserver/raftlog/braft_segment.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
+
+using butil::FilePath;
+using butil::File;
 
 namespace curve {
 namespace chunkserver {
@@ -63,13 +67,15 @@ namespace chunkserver {
 class CurveSegmentLogStorage;
 
 struct LogStorageOptions {
-    std::shared_ptr<FilePool> walFilePool;
+    scoped_refptr<CurveFilesystemAdaptor> curveFileSystemAdaptor;
     std::function<void(CurveSegmentLogStorage*)> monitorMetricCb;
 
     LogStorageOptions() = default;
-    LogStorageOptions(std::shared_ptr<FilePool> walFilePool,
+    LogStorageOptions(
+        const scoped_refptr<CurveFilesystemAdaptor> &curveFileSystemAdaptor,
         std::function<void(CurveSegmentLogStorage*)> monitorMetricCb)
-        : walFilePool(walFilePool), monitorMetricCb(monitorMetricCb) {
+        : curveFileSystemAdaptor(curveFileSystemAdaptor),
+          monitorMetricCb(monitorMetricCb) {
     }
 };
 
@@ -82,7 +88,7 @@ struct LogStorageStatus {
 };
 
 LogStorageOptions StoreOptForCurveSegmentLogStorage(
-    LogStorageOptions options);
+    LogStorageOptions *options);
 
 void RegisterCurveSegmentLogStorageOrDie();
 
@@ -100,13 +106,30 @@ class CurveSegmentLogStorage : public braft::LogStorage {
 
     explicit CurveSegmentLogStorage(const std::string& path,
         bool enable_sync = true,
-        std::shared_ptr<FilePool> walFilePool = nullptr)
+        const scoped_refptr<CurveFilesystemAdaptor> &cfsAdaptor = nullptr)
         : _path(path)
         , _first_log_index(1)
         , _last_log_index(0)
         , _checksum_type(0)
         , _enable_sync(enable_sync)
+        , _cfsAdaptor(cfsAdaptor)
+        , _walFilePool(cfsAdaptor->GetFilePool())
+        , _lfs(cfsAdaptor->GetLocalFileSystem())
+    {}
+
+    CurveSegmentLogStorage(const std::string& path,
+        bool enable_sync,
+        const scoped_refptr<CurveFilesystemAdaptor> &cfsAdaptor,
+        const std::shared_ptr<FilePool> &walFilePool,
+        const std::shared_ptr<LocalFileSystem> &lfs)
+        : _path(path)
+        , _first_log_index(1)
+        , _last_log_index(0)
+        , _checksum_type(0)
+        , _enable_sync(enable_sync)
+        , _cfsAdaptor(cfsAdaptor)
         , _walFilePool(walFilePool)
+        , _lfs(lfs)
     {}
 
     CurveSegmentLogStorage()
@@ -114,7 +137,9 @@ class CurveSegmentLogStorage : public braft::LogStorage {
         , _last_log_index(0)
         , _checksum_type(0)
         , _enable_sync(true)
+        , _cfsAdaptor(nullptr)
         , _walFilePool(nullptr)
+        , _lfs(nullptr)
     {}
 
     virtual ~CurveSegmentLogStorage() {}
@@ -185,9 +210,12 @@ class CurveSegmentLogStorage : public braft::LogStorage {
     braft::raft_mutex_t _mutex;
     SegmentMap _segments;
     scoped_refptr<Segment> _open_segment;
-    std::shared_ptr<FilePool> _walFilePool;
     int _checksum_type;
     bool _enable_sync;
+
+    scoped_refptr<CurveFilesystemAdaptor> _cfsAdaptor;
+    std::shared_ptr<FilePool> _walFilePool;
+    std::shared_ptr<LocalFileSystem> _lfs;
 };
 
 }  // namespace chunkserver

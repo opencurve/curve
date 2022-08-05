@@ -44,6 +44,11 @@ class MockDataStore : public CSDataStore {
                                         char*,
                                         off_t,
                                         size_t));
+    MOCK_METHOD5(ReadChunk, CSErrorCode(ChunkID id,
+                                  SequenceNum sn,
+                                  butil::IOPortal* buf,
+                                  off_t offset,
+                                  size_t length));
     MOCK_METHOD5(ReadSnapshotChunk, CSErrorCode(ChunkID,
                                                 SequenceNum,
                                                 char*,

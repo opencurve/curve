@@ -144,6 +144,10 @@ curve.curve_file_timeout_s=30
 #
 # 是否开启使用renameat2，ext4内核3.15以后开始支持
 fs.enable_renameat2=true
+fs.type=ext4  #ext4, pfs
+fs.pfs_cluster=spdk #cluster name for pfs
+fs.pfs_pbd_name=0000:81:00.0n1 #pdb name for pfs
+fs.pfs_host_id=2 #host id for pfs
 
 #
 # metrics settings

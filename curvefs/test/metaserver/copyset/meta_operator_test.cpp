@@ -419,7 +419,7 @@ TEST_F(MetaOperatorTest, PropostTest_RequestCanBypassProcess) {
     options.localFileSystem = &localFs;
     options.storageOptions.type = "memory";
 
-    EXPECT_CALL(localFs, Mkdir(_))
+    EXPECT_CALL(localFs, Mkdir(_, _))
         .WillOnce(Return(0));
 
     EXPECT_TRUE(node.Init(options));

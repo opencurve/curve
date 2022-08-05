@@ -260,7 +260,7 @@ TEST_F(CopysetNodeManagerTest,
 
     EXPECT_CALL(mockfs, DirExists(_))
         .WillOnce(Return(false));
-    EXPECT_CALL(mockfs, Mkdir(_))
+    EXPECT_CALL(mockfs, Mkdir(_, _))
         .WillOnce(Return(-1));
 
     EXPECT_FALSE(nodeManager_->PurgeCopysetNode(kPoolId, kCopysetId));

@@ -20,24 +20,36 @@
  * Author: charisu
  */
 
-#ifndef SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILE_ADAPTOR_H_
-#define SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILE_ADAPTOR_H_
+#ifndef SRC_CHUNKSERVER_FILESYSTEM_ADAPTOR_CURVE_FILE_ADAPTOR_H_
+#define SRC_CHUNKSERVER_FILESYSTEM_ADAPTOR_CURVE_FILE_ADAPTOR_H_
 
 #include <braft/file_system_adaptor.h>
+
+#include "src/fs/local_filesystem.h"
+
+using curve::fs::LocalFileSystem;
 
 namespace curve {
 namespace chunkserver {
 
-class CurveFileAdaptor : public braft::PosixFileAdaptor {
+class CurveFileAdaptor : public braft::FileAdaptor {
  public:
-    explicit CurveFileAdaptor(int fd) : PosixFileAdaptor(fd) {}
-    // close之前必须先sync，保证数据落盘，其他逻辑不变
-    bool close() override {
-        return sync() && braft::PosixFileAdaptor::close();
-    }
+    explicit CurveFileAdaptor(int fd,
+        const std::shared_ptr<LocalFileSystem> &lfs)
+        : fd_(fd), lfs_(lfs) {}
+
+    ssize_t write(const butil::IOBuf& data, off_t offset) override;
+    ssize_t read(butil::IOPortal* portal, off_t offset, size_t size) override;
+    ssize_t size() override;
+    bool sync() override;
+    bool close() override;
+
+ private:
+    int fd_;
+    std::shared_ptr<LocalFileSystem> lfs_;
 };
 
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILE_ADAPTOR_H_
+#endif  // SRC_CHUNKSERVER_FILESYSTEM_ADAPTOR_CURVE_FILE_ADAPTOR_H_

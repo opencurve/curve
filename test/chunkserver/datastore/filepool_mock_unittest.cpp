@@ -108,7 +108,8 @@ class CSChunkfilePoolMockTest : public testing::Test {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(100));
-        EXPECT_CALL(*lfs_, Read(100, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(100, Matcher<char*>(NotNull()),
+            0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(100))
@@ -214,7 +215,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(-1));
-        EXPECT_CALL(*lfs_, Read(_, _, _, _))
+        EXPECT_CALL(*lfs_, Read(_, Matcher<char*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*lfs_, Close(_))
             .Times(0);
@@ -230,7 +231,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
     {
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(Return(-1));
         EXPECT_CALL(*lfs_, Close(1))
             .Times(1);
@@ -247,7 +248,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
         char buf[metaFileSize] = {0};
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -270,7 +271,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -293,7 +294,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -316,7 +317,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -339,7 +340,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -362,7 +363,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -384,7 +385,7 @@ TEST_F(CSChunkfilePoolMockTest, DecodeMetaInfoFromMetaFileTest) {
 
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -420,7 +421,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
         char buf[metaFileSize] = {0};
         EXPECT_CALL(*lfs_, Open(poolMetaPath, _))
             .WillOnce(Return(1));
-        EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, metaFileSize))
+        EXPECT_CALL(*lfs_, Read(1, Matcher<char*>(NotNull()), 0, metaFileSize))
             .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + metaFileSize),
                             Return(metaFileSize)));
         EXPECT_CALL(*lfs_, Close(1))
@@ -570,7 +571,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
         FilePool pool(lfs_);
         EXPECT_CALL(*lfs_, DirExists(_))
             .WillOnce(Return(false));
-        EXPECT_CALL(*lfs_, Mkdir(_))
+        EXPECT_CALL(*lfs_, Mkdir(_, _))
             .WillOnce(Return(-1));
         ASSERT_EQ(false, pool.Initialize(options));
     }
@@ -579,7 +580,7 @@ TEST_F(CSChunkfilePoolMockTest, InitializeTest) {
         FilePool pool(lfs_);
         EXPECT_CALL(*lfs_, DirExists(_))
             .WillOnce(Return(false));
-        EXPECT_CALL(*lfs_, Mkdir(_))
+        EXPECT_CALL(*lfs_, Mkdir(_, _))
             .WillOnce(Return(0));
         ASSERT_EQ(true, pool.Initialize(options));
     }

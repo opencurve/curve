@@ -37,14 +37,14 @@
 
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/chunkserver/raftlog/define.h"
-#include "test/fs/mock_local_filesystem.h"
 #include "test/chunkserver/datastore/mock_file_pool.h"
 #include "test/chunkserver/raftlog/common.h"
 
 namespace curve {
 namespace chunkserver {
 
-using curve::fs::MockLocalFileSystem;
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemType;
 using ::testing::Return;
 using ::testing::Invoke;
 using ::testing::_;
@@ -56,8 +56,10 @@ class CurveSegmentLogStorageTest : public testing::Test {
         fp_option.fileSize = kSegmentSize;
     }
     void SetUp() {
-        lfs = std::make_shared<MockLocalFileSystem>();
+        lfs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         file_pool = std::make_shared<MockFilePool>(lfs);
+        cfsAdaptor = scoped_refptr<CurveFilesystemAdaptor>(
+            new CurveFilesystemAdaptor(file_pool, lfs));
         std::string cmd = std::string("mkdir ") + kRaftLogDataDir;
         ::system(cmd.c_str());
 
@@ -74,6 +76,7 @@ class CurveSegmentLogStorageTest : public testing::Test {
             .WillRepeatedly(Invoke(recycleFile));
     }
     void TearDown() {
+        cfsAdaptor = nullptr;
         std::string cmd = std::string("rm -rf ") + kRaftLogDataDir;
         ::system(cmd.c_str());
     }
@@ -137,14 +140,15 @@ class CurveSegmentLogStorageTest : public testing::Test {
         return "" != output ? std::stoi(output) : 0;
     }
 
-    std::shared_ptr<MockLocalFileSystem> lfs;
+    scoped_refptr<CurveFilesystemAdaptor> cfsAdaptor;
+    std::shared_ptr<LocalFileSystem> lfs;
     std::shared_ptr<MockFilePool> file_pool;
     FilePoolOptions fp_option;
 };
 
 TEST_F(CurveSegmentLogStorageTest, basic_test) {
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
 
     // init
     ASSERT_EQ(0, storage->init(new braft::ConfigurationManager()));
@@ -245,7 +249,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
 
     // reload from the existing log data
     auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     ASSERT_EQ(0, storage2->init(new braft::ConfigurationManager()));
     ASSERT_EQ(storage->first_log_index(), storage2->first_log_index());
     ASSERT_EQ(storage->last_log_index(), storage2->last_log_index());
@@ -255,7 +259,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
     std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
     execShell(cmd);
     auto storage3 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     ASSERT_EQ(0, storage3->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage3->first_log_index());
     ASSERT_EQ(0, storage3->last_log_index());
@@ -264,7 +268,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test) {
 
 TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     braft::ConfigurationManager* configuration_manager =
                                 new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
@@ -285,7 +289,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
 
     // reinit
     storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
     ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
@@ -339,7 +343,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
 
 TEST_F(CurveSegmentLogStorageTest, data_lost) {
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     braft::ConfigurationManager* configuration_manager =
                             new braft::ConfigurationManager;
     ASSERT_EQ(0, storage->init(configuration_manager));
@@ -361,7 +365,7 @@ TEST_F(CurveSegmentLogStorageTest, data_lost) {
     memset(data, 0, 4096);
     ASSERT_EQ(4096, ::pwrite(fd, data, 4096, 8192));
     storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_NE(0, storage->init(configuration_manager));
     ASSERT_EQ(countWalSegmentFile(), storage->GetStatus().walSegmentFileCount);
@@ -384,7 +388,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
 
     // reinit
     auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     configuration_manager = new braft::ConfigurationManager;
     ASSERT_EQ(0, storage2->init(configuration_manager));
     ASSERT_EQ(countWalSegmentFile(), storage2->GetStatus().walSegmentFileCount);
@@ -438,7 +442,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
 TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     FLAGS_enableWalDirectWrite = false;
     auto storage = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
 
     // init
     ASSERT_EQ(0, storage->init(new braft::ConfigurationManager()));
@@ -541,7 +545,7 @@ TEST_F(CurveSegmentLogStorageTest, basic_test_without_direct) {
     std::string cmd = std::string("rm -rf ") + kRaftLogDataDir + "/log_meta";
     ::system(cmd.c_str());
     auto storage2 = std::make_shared<CurveSegmentLogStorage>(kRaftLogDataDir,
-            true, file_pool);
+            true, cfsAdaptor, file_pool, lfs);
     ASSERT_EQ(0, storage2->init(new braft::ConfigurationManager()));
     ASSERT_EQ(1, storage2->first_log_index());
     ASSERT_EQ(0, storage2->last_log_index());

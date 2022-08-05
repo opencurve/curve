@@ -173,6 +173,19 @@ class CSDataStore {
      */
     virtual CSErrorCode DeleteSnapshotChunkOrCorrectSn(
         ChunkID id, SequenceNum correctedSn);
+
+    // Deprecated, only use for unit & integration test
+    virtual CSErrorCode ReadChunk(ChunkID id,
+                                  SequenceNum sn,
+                                  char * buf,
+                                  off_t offset,
+                                  size_t length) {
+        butil::IOPortal iop;
+        CSErrorCode rc = ReadChunk(id, sn, &iop, offset, length);
+        iop.copy_to(buf, length, 0);
+        return rc;
+    }
+
     /**
      * Read the contents of the current chunk
      * @param id: the chunk id to be read
@@ -185,7 +198,7 @@ class CSDataStore {
      */
     virtual CSErrorCode ReadChunk(ChunkID id,
                                   SequenceNum sn,
-                                  char * buf,
+                                  butil::IOPortal* buf,
                                   off_t offset,
                                   size_t length);
 

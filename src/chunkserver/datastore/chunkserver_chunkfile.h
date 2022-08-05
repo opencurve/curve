@@ -182,6 +182,7 @@ class CSChunkFile {
      * @return: return error code
      */
     CSErrorCode Paste(const char * buf, off_t offset, size_t length);
+
     /**
      * Read chunk files
      * There may be concurrency, add read lock
@@ -190,7 +191,7 @@ class CSChunkFile {
      * @param length: The length of the data requested to be read
      * @return: return error code
      */
-    CSErrorCode Read(char * buf, off_t offset, size_t length);
+    CSErrorCode Read(butil::IOPortal * buf, off_t offset, size_t length);
 
     /**
      * Read chunk meta data
@@ -323,6 +324,10 @@ class CSChunkFile {
         return lfs_->Read(fd_, buf, offset + pageSize_, length);
     }
 
+    inline int readData(butil::IOPortal* buf, off_t offset, size_t length) {
+        return lfs_->Read(fd_, buf, offset + pageSize_, length);
+    }
+
     inline int writeData(const char* buf, off_t offset, size_t length) {
         int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
         if (rc < 0) {
@@ -364,7 +369,7 @@ class CSChunkFile {
     }
 
     inline int SyncData() {
-        return lfs_->Sync(fd_);
+        return lfs_->Fdatasync(fd_);
     }
 
     inline bool CheckOffsetAndLength(off_t offset, size_t len, size_t align) {

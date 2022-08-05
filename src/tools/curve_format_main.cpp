@@ -26,6 +26,18 @@
 
 #include <fcntl.h>
 
+#ifdef WITH_SPDK
+#include <spdk/log.h>
+#include <rte_log.h>
+#include <rte_malloc.h>
+#include <pfs_spdk.h>
+#include <pfs_api.h>
+#include <pfs_trace_func.h>
+#include <pfsd.h>
+#include <pfsd_sdk.h>
+#include <pfsd_sdk_log.h>
+#endif
+
 #include <set>
 #include <mutex>    // NOLINT
 #include <thread>   // NOLINT
@@ -37,6 +49,15 @@
 #include "src/common/crc32.h"
 #include "src/common/curve_define.h"
 #include "src/chunkserver/datastore/file_pool.h"
+#ifdef WITH_SPDK
+#include "src/fs/pfs_filesystem_impl.h"
+#endif
+
+using curve::fs::FileSystemType;
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemInfo;
+using curve::fs::LocalFileSystem;
+using curve::common::kFilePoolMaigic;
 
 /**
  * chunkfile pool预分配工具，提供两种分配方式
@@ -86,11 +107,119 @@ DEFINE_bool(needWriteZero,
         true,
         "not write zero for test.");
 
-using curve::fs::FileSystemType;
-using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemInfo;
-using curve::fs::LocalFileSystem;
-using curve::common::kFilePoolMaigic;
+DEFINE_string(fileSystemType,
+    "ext4",
+    "file system type");
+
+DEFINE_string(pfs_cluster,
+    "spdk",
+    "pfs cluster name, only for pfs");
+
+DEFINE_string(pfs_pbd_name,
+    "0000:c2:00.0n1",
+    "pfs pbd name, only for pfs");
+
+DEFINE_int32(pfs_host_id,
+    2,
+    "pfs host id, only for pfs");
+
+#ifdef WITH_SPDK
+void
+glog_pfs_func(int level, const char *file, const char *func, int line,
+    const char *fmt, va_list ap) {
+    char buf[8192];
+
+    int glevel = google::GLOG_INFO;
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    switch (level) {
+    case PFS_TRACE_FATAL:
+        glevel = google::GLOG_FATAL;
+        google::LogMessage(file, line, glevel).stream() << buf;
+        abort();
+        break;
+    case PFS_TRACE_ERROR:
+        glevel = google::GLOG_ERROR;
+        break;
+    case PFS_TRACE_WARN:
+        glevel = google::GLOG_WARNING;
+        break;
+    case PFS_TRACE_INFO:
+    case PFS_TRACE_DBG:
+    case PFS_TRACE_VERB:
+    default:
+        glevel = google::GLOG_INFO;
+        break;
+    }
+    google::LogMessage(file, line, glevel).stream() << buf;
+}
+
+void
+glog_spdk_func(int level, const char *a_file, const int a_line,
+    const char *func, const char *fmt, va_list ap) {
+    char buf[8192];
+    const char *file = a_file;
+    int line = a_line;
+
+    if (file == NULL) {
+        file = "<spdk>";
+        if (a_line <= 0)
+            line = 1;
+    }
+
+    int glevel = google::GLOG_INFO;
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    switch (level) {
+    case SPDK_LOG_ERROR:
+        glevel = google::GLOG_ERROR;
+        break;
+    case SPDK_LOG_WARN:
+        glevel = google::GLOG_WARNING;
+        break;
+    case SPDK_LOG_NOTICE:
+    case SPDK_LOG_INFO:
+        glevel = google::GLOG_INFO;
+        break;
+#ifndef NDEBUG
+    case SPDK_LOG_DEBUG:
+        glevel = google::GLOG_INFO;
+        break;
+#endif
+    }
+    google::LogMessage(file, line, glevel).stream() << buf;
+}
+
+static ssize_t
+glog_dpdk_log_func(void *cookie, const char *buf, size_t size) {
+    int level = rte_log_cur_msg_loglevel();
+    int glevel = google::GLOG_INFO;
+
+    switch (level) {
+    case RTE_LOG_EMERG:
+    case RTE_LOG_ALERT:
+    case RTE_LOG_CRIT:
+    case RTE_LOG_ERR:
+        glevel = google::GLOG_ERROR;
+        break;
+    case RTE_LOG_WARNING:
+        glevel = google::GLOG_WARNING;
+        break;
+    case RTE_LOG_NOTICE:
+    case RTE_LOG_INFO:
+    default:
+        glevel = google::GLOG_INFO;
+        break;
+#ifndef NDEBUG
+    case RTE_LOG_DEBUG:
+        glevel = google::GLOG_INFO;
+        return 0;
+#endif
+    }
+    google::LogMessage("<dpdk>", 0, glevel).stream().write(buf, size);
+    if (level == RTE_LOG_EMERG)
+        abort();
+    return size;
+}
+#endif
 
 class CompareInternal {
  public:
@@ -145,7 +274,7 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
         }
 
         if (FLAGS_needWriteZero) {
-            ret = allocatestruct->fsptr->Write(fd, data, 0,
+            ret = allocatestruct->fsptr->WriteZeroIfSupport(fd, data, 0,
                 FLAGS_fileSize + FLAGS_metaPagSize);
             if (ret < 0) {
                 allocatestruct->fsptr->Close(fd);
@@ -177,12 +306,52 @@ int AllocateFiles(AllocateStruct* allocatestruct) {
 
 // TODO(tongguangxun) :添加单元测试
 int main(int argc, char** argv) {
+#ifdef WITH_SPDK
+    FILE *dpdk_log_stream = NULL;
+    cookie_io_functions_t io_funcs;
+    memset(&io_funcs, 0, sizeof(io_funcs));
+#endif
+
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
 
+#ifdef WITH_SPDK
+    io_funcs.write = glog_dpdk_log_func;
+    dpdk_log_stream = fopencookie(NULL, "w", io_funcs);
+    if (dpdk_log_stream == NULL) {
+        LOG(FATAL) << "fopencookie failed";
+    }
+    rte_openlog_stream(dpdk_log_stream);
+    spdk_log_open(glog_spdk_func);
+    pfs_set_trace_func(glog_pfs_func);
+
+    curve::fs::HookIOBufIOFuncs();
+#endif
+
+    ::curve::fs::LocalFileSystemOption lfsOption;
+    lfsOption.type =
+        ::curve::fs::StringToFileSystemType(FLAGS_fileSystemType);
+#ifdef WITH_SPDK
+    if (::curve::fs::FileSystemType::PFS  == lfsOption.type) {
+        lfsOption.pfs_cluster = FLAGS_pfs_cluster;
+        lfsOption.pfs_pbd_name = FLAGS_pfs_pbd_name;
+        lfsOption.pfs_host_id = FLAGS_pfs_host_id;
+        // setup spdk
+        LOG_IF(FATAL, 0 != pfs_spdk_setup())
+            << "setup spdk failed";
+        // start pfsdaemon
+        LOG_IF(FATAL, 0 != pfsd_start(true))
+            << "start pfsd failed";
+    }
+#endif
     // load current chunkfile pool
     std::mutex mtx;
-    std::shared_ptr<LocalFileSystem> fsptr = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");   // NOLINT
+    std::shared_ptr<LocalFileSystem> fsptr =
+        LocalFsFactory::CreateFs(lfsOption.type, "");
+
+    LOG_IF(FATAL, 0 != fsptr->Init(lfsOption))
+        << "Failed to initialize local filesystem module!";
+
     std::set<std::string, CompareInternal> tmpChunkSet_;
     std::atomic<uint64_t> allocateChunknum_(0);
     std::vector<std::string> tmpvec;

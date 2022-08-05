@@ -23,6 +23,7 @@
 #ifndef SRC_FS_LOCAL_FILESYSTEM_H_
 #define SRC_FS_LOCAL_FILESYSTEM_H_
 
+#include <dirent.h>
 #include <inttypes.h>
 #include <assert.h>
 #include <sys/stat.h>
@@ -44,13 +45,17 @@ namespace curve {
 namespace fs {
 
 struct LocalFileSystemOption {
+    FileSystemType type;
     bool enableRenameat2;
-    LocalFileSystemOption() : enableRenameat2(false) {}
+    std::string pfs_cluster;
+    std::string pfs_pbd_name;
+    int pfs_host_id;
+    LocalFileSystemOption() : enableRenameat2(false), pfs_host_id(2) {}
 };
 
 class LocalFileSystem {
  public:
-     LocalFileSystem() {}
+    LocalFileSystem() {}
     virtual ~LocalFileSystem() {}
 
     /**
@@ -99,7 +104,7 @@ class LocalFileSystem {
      * @param dirPath: 目录路径
      * @return 成功返回0
      */
-    virtual int Mkdir(const string& dirPath) = 0;
+    virtual int Mkdir(const string& dirPath, bool create_parents = true) = 0;
 
     /**
      * 判断目录是否存在
@@ -114,6 +119,15 @@ class LocalFileSystem {
      * @return 存在返回true，否则返回false
      */
     virtual bool FileExists(const string& filePath) = 0;
+
+    /**
+     * @brief Check if the path exists
+     *
+     * @param path: path
+     *
+     * @return true for exists, false for not
+     */
+    virtual bool PathExists(const string& path) = 0;
 
     /**
      * 重命名文件/目录
@@ -141,6 +155,33 @@ class LocalFileSystem {
     virtual int List(const string& dirPath, vector<std::string>* names) = 0;
 
     /**
+     * @brief  open the dir
+     *
+     * @param dirPath: dir path
+     *
+     * @return DIR
+     */
+    virtual DIR* OpenDir(const string& dirPath) = 0;
+
+    /**
+     * @brief read dir
+     *
+     * @param dir: DIR
+     *
+     * @return dirent
+     */
+    virtual struct dirent* ReadDir(DIR *dir) = 0;
+
+    /**
+     * @brief close the dir
+     *
+     * @param dir: DIR
+     *
+     * @return 0 for success, -1 for failed
+     */
+    virtual int CloseDir(DIR *dir) = 0;
+
+    /**
      * 从文件指定区域读取数据
      * @param fd：文件句柄id，通过Open接口获取
      * @param buf：接收读取数据的buffer
@@ -149,6 +190,20 @@ class LocalFileSystem {
      * @return 返回成功读取到的数据长度，失败返回-1
      */
     virtual int Read(int fd, char* buf, uint64_t offset, int length) = 0;
+
+
+    /**
+     * @brief  read for [offset, length]
+     *
+     * @param fd: fd
+     * @param portal: data recevied
+     * @param offset: read start offset
+     * @param length: read length
+     *
+     * @return return read length when success, return -errno when failed.
+     */
+    virtual int Read(int fd, butil::IOPortal* portal,
+             uint64_t offset, int length) = 0;
 
     /**
      * 向文件指定区域写入数据
@@ -172,13 +227,39 @@ class LocalFileSystem {
                       int length) = 0;
 
     /**
+     * @brief write zero to [offset, length]
+     *
+     * @param fd:  fd
+     * @param offset: start offset
+     * @param length: write length
+     *
+     * @return return actutal write length when success,
+     *  return -errno when failed.
+     */
+    virtual int WriteZero(int fd, uint64_t offset, int length) = 0;
+
+    /**
+     * @brief WriteZero if support, otherwise fallback to Write
+     *
+     * @param fd:  fd
+     * @param buf: the buffer filled with zero
+     * @param offset: start offset
+     * @param length: write length
+     *
+     * @return return actutal write length when success,
+     *  return -errno when failed.
+     */
+    virtual int WriteZeroIfSupport(int fd, const char* buf,
+            uint64_t offset, int length) = 0;
+
+    /**
      * @brief sync one fd
      *
      * @param fd : file descriptor
      *
-     * @return succcess return 0, otherwsie reutrn -1
+     * @return succcess return 0, otherwise return -1
      */
-    virtual int Sync(int fd) = 0;
+    virtual int Fdatasync(int fd) = 0;
 
     /**
      * 向文件末尾追加数据
@@ -214,6 +295,28 @@ class LocalFileSystem {
      * @return 成功返回0
      */
     virtual int Fsync(int fd) = 0;
+
+    /**
+     * @brief lseek
+     *
+     * @param fd: fd
+     * @param offset: lseek offset
+     * @param whence: lseek hence
+     *
+     * @return offset of file pointer
+     */
+    virtual off_t Lseek(int fd, off_t offset, int whence) = 0;
+
+    /**
+     * @brief link
+     *
+     * @param oldPath: link source
+     * @param newPath: link dest
+     *
+     * @return 0 for success, -1 for failed.
+     */
+    virtual int Link(const std::string &oldPath,
+        const std::string &newPath) = 0;
 
  private:
     virtual int DoRename(const string& /* oldPath */,

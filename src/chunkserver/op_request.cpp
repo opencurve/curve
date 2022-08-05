@@ -395,22 +395,16 @@ static void ReadBufferDeleter(void* ptr) {
 }
 
 void ReadChunkRequest::ReadChunk() {
-    char *readBuffer = nullptr;
     size_t size = request_->size();
 
-    readBuffer = new(std::nothrow)char[size];
-    CHECK(nullptr != readBuffer)
-        << "new readBuffer failed " << strerror(errno);
-
+    butil::IOPortal readBuffer;
     auto ret = datastore_->ReadChunk(request_->chunkid(),
                                      request_->sn(),
-                                     readBuffer,
+                                     &readBuffer,
                                      request_->offset(),
                                      size);
-    butil::IOBuf wrapper;
-    wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
     if (CSErrorCode::Success == ret) {
-        cntl_->response_attachment().append(wrapper);
+        cntl_->response_attachment().append(readBuffer);
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
         response_->set_status(
@@ -511,7 +505,6 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
         cloneSourceLocation =  func(request.clonefilesource(),
                             request.clonefileoffset());
     }
-
 
     auto ret = datastore->WriteChunk(request.chunkid(),
                                      request.sn(),

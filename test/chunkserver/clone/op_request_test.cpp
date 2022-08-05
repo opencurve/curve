@@ -36,6 +36,7 @@ namespace chunkserver {
 
 using curve::chunkserver::CHUNK_OP_TYPE;
 using curve::chunkserver::concurrent::ConcurrentApplyOption;
+using ::testing::Matcher;
 
 const char PEER_STRING[] = "127.0.0.1:8200:0";
 
@@ -670,8 +671,11 @@ TEST_F(OpRequestTest, ReadChunkTest) {
 
         char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
+        butil::IOPortal buf;
+        buf.append(chunkData, length);
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
+            .WillOnce(DoAll(SetArgPointee<2>(buf),
                             Return(CSErrorCode::Success)));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
@@ -706,8 +710,11 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 读chunk文件
         char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
+        butil::IOPortal buf;
+        buf.append(chunkData, length);
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
+            .WillOnce(DoAll(SetArgPointee<2>(buf),
                             Return(CSErrorCode::Success)));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
@@ -743,8 +750,11 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 读chunk文件
         char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(DoAll(SetArrayArgument<2>(chunkData, chunkData + length),
+        butil::IOPortal buf;
+        buf.append(chunkData, length);
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
+            .WillOnce(DoAll(testing::SetArgPointee<2>(buf),
                             Return(CSErrorCode::Success)));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_)).Times(1);
 
@@ -780,7 +790,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -812,7 +823,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
         // 不会读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -841,7 +853,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
         // 读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -881,9 +894,11 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 读chunk文件
         char chunkData[length];  // NOLINT
         memset(chunkData, 'a', length);
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
-            .WillOnce(DoAll(SetArrayArgument<2>(chunkData,
-                                                chunkData + length),
+        butil::IOPortal buf;
+        buf.append(chunkData, length);
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
+            .WillOnce(DoAll(testing::SetArgPointee<2>(buf),
                             Return(CSErrorCode::Success)));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(1);
@@ -913,7 +928,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::InternalError));
         // 不会读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -941,7 +957,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillRepeatedly(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件失败
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .WillRepeatedly(Return(CSErrorCode::InternalError));
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -965,7 +982,8 @@ TEST_F(OpRequestTest, ReadChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -1092,7 +1110,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 不读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(1);
@@ -1134,7 +1153,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 不读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(1);
@@ -1174,7 +1194,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 不读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(1);
@@ -1204,7 +1225,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 不读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(1);
@@ -1234,7 +1256,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -1266,7 +1289,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::ChunkNotExistError));
         // 不会读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -1292,7 +1316,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(Return(CSErrorCode::InternalError));
         // 不会读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, offset, length))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), offset, length))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
@@ -1322,7 +1347,8 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
         // 读chunk文件
-        EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
+        EXPECT_CALL(*datastore_, ReadChunk(_, _,
+            Matcher<butil::IOPortal*>(_), _, _))
             .Times(0);
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);

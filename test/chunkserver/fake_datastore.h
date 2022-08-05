@@ -112,6 +112,25 @@ class FakeCSDataStore : public CSDataStore {
         return CSErrorCode::Success;
     }
 
+    CSErrorCode ReadChunk(ChunkID id,
+                                  SequenceNum sn,
+                                  butil::IOPortal* buf,
+                                  off_t offset,
+                                  size_t length) {
+        CSErrorCode errorCode = HasInjectError();
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+        if (chunkIds_.find(id) == chunkIds_.end()) {
+            return CSErrorCode::ChunkNotExistError;
+        }
+        buf->append(chunk_ + offset, length);
+        if (HasInjectError()) {
+            return CSErrorCode::InternalError;
+        }
+        return CSErrorCode::Success;
+    }
+
     CSErrorCode ReadSnapshotChunk(ChunkID id,
                                   SequenceNum sn,
                                   char *buf,

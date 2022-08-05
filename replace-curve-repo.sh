@@ -24,7 +24,7 @@ sed -i "s;https://github.com/gflags/gflags/archive/v2.2.2.tar.gz;https://curve-b
 sed -i "s;https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz;https://curve-build.nos-eastchina1.126.net/leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz;g" WORKSPACE
 
 # brpc
-sed -i "s;https://github.com/apache/incubator-brpc;https://gitee.com/baidu/BRPC;g" WORKSPACE
+sed -i "s;https://github.com/opencurve/incubator-brpc;https://gitee.com/NetEase_Curve/incubator-brpc;g" WORKSPACE
 
 # jsoncpp
 sed -i "s;https://github.com/open-source-parsers/jsoncpp.git;https://gitee.com/mirrors/jsoncpp;g" WORKSPACE

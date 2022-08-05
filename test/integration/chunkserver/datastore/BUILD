@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 
-load("//:copts.bzl", "CURVE_TEST_COPTS")
+load("//:copts.bzl", "CURVE_TEST_COPTS", "SPDK_COPTS", "SPDK_LINK_OPTS", "SPDK_DEPS")
 
 DEPS = [
     "@com_google_googletest//:gtest",
@@ -25,7 +25,10 @@ DEPS = [
     "//src/common:curve_common",
     "//src/chunkserver/datastore:chunkserver_datastore",
     "//test/chunkserver/datastore:filepool_helper",
-]
+    ] + select({
+        "//:with_spdk": SPDK_DEPS,
+        "//conditions:default": [],
+    })
 
 cc_test(
     name = "datastore_clone_case_test",
@@ -36,6 +39,10 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )
 
@@ -48,6 +55,10 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )
 
@@ -60,6 +71,10 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )
 
@@ -72,6 +87,10 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )
 
@@ -84,6 +103,10 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )
 
@@ -96,6 +119,10 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )
 
@@ -108,5 +135,9 @@ cc_test(
     ]),
     includes = ([]),
     copts = CURVE_TEST_COPTS,
+    linkopts = select({
+        "//:with_spdk": SPDK_LINK_OPTS,
+        "//conditions:default": [],
+    }),
     deps = DEPS,
 )

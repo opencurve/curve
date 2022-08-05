@@ -46,6 +46,7 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
 using ::testing::AtLeast;
+using ::testing::Matcher;
 
 using ::curve::fs::MockLocalFileSystem;
 
@@ -65,7 +66,7 @@ class CopysetNodeTest : public testing::Test {
         options_.localFileSystem = &mockfs_;
         options_.storageOptions.type = "memory";
 
-        EXPECT_CALL(mockfs_, Mkdir(_))
+        EXPECT_CALL(mockfs_, Mkdir(_, _))
             .WillRepeatedly(Return(0));
     }
 
@@ -181,7 +182,7 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_PoolIdIsNotIdentical) {
         "{\"poolId\": 123, \"copysetId\": 1, \"epoch\": 3, \"checksum\": 3480649501}";  // NOLINT
 
     size_t datasize = strlen(data);
-    EXPECT_CALL(mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -204,7 +205,7 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_CopysetIdIsNotIdentical) {
         "{\"poolId\": 1, \"copysetId\": 431, \"epoch\": 3, \"checksum\": 2004834618}";  // NOLINT
 
     size_t datasize = strlen(data);
-    EXPECT_CALL(mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -228,7 +229,7 @@ TEST_F(CopysetNodeTest, LoadConEpoch_Success) {
         "{\"poolId\": 1, \"copysetId\": 1, \"epoch\": 3, \"checksum\": 3896751047}";  // NOLINT
 
     size_t datasize = strlen(data);
-    EXPECT_CALL(mockfs_, Read(_, _, _, _))
+    EXPECT_CALL(mockfs_, Read(_, Matcher<char*>(_), _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
