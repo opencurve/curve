@@ -35,8 +35,9 @@
 #include <future>
 #include <deque>
 #include <set>
+#include <list>
 
-#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
@@ -174,11 +175,15 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         metric_->MonitorCurveSegmentLogStorage(logStorage);
     };
 
-    LogStorageOptions lsOptions(options.walFilePool, monitorMetricCb);
+
+    scoped_refptr<CurveFilesystemAdaptor> curveFileSystemAdaptor =
+        new CurveFilesystemAdaptor(
+            options.walFilePool, options.localFileSystem);
+    LogStorageOptions lsOptions(curveFileSystemAdaptor, monitorMetricCb);
 
     // In order to get more copysetNode's information in CurveSegmentLogStorage
     // without using global variables.
-    StoreOptForCurveSegmentLogStorage(lsOptions);
+    StoreOptForCurveSegmentLogStorage(&lsOptions);
 
     syncTimerIntervalMs_ = options.syncTimerIntervalMs;
     checkSyncingIntervalMs_ = options.checkSyncingIntervalMs;
@@ -250,12 +255,12 @@ void CopysetNode::InitRaftNodeOptions(const CopysetNodeOptions &options) {
     CurveFilesystemAdaptor* cfa =
         new CurveFilesystemAdaptor(options.chunkFilePool,
                                    options.localFileSystem);
-    std::vector<std::string> filterList;
+    std::list<std::string> filterList;
     std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
     filterList.push_back(kCurveConfEpochFilename);
     filterList.push_back(snapshotMeta);
     filterList.push_back(snapshotMeta.append(BRAFT_PROTOBUF_FILE_TEMP));
-    cfa->SetFilterList(filterList);
+    cfa->AddToFilterList(&filterList);
 
     nodeOptions_.snapshot_file_system_adaptor =
         new scoped_refptr<braft::FileSystemAdaptor>(cfa);

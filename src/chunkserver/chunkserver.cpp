@@ -43,6 +43,10 @@
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 #include "src/chunkserver/raftlog/curve_segment_log_storage.h"
 #include "src/common/curve_version.h"
+#ifdef WITH_SPDK
+#include "src/fs/pfs_filesystem_impl.h"
+#include "src/chunkserver/spdk_hook.h"
+#endif
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -50,6 +54,10 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 using ::curve::chunkserver::concurrent::ConcurrentApplyModule;
 using ::curve::common::UriParser;
+
+#ifdef WITH_SPDK
+using ::curve::fs::InitPfsOption;
+#endif
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
@@ -75,10 +83,27 @@ DEFINE_string(walFilePoolDir, "./0/", "WAL filepool location");
 DEFINE_string(walFilePoolMetaPath, "./walfilepool.meta",
                                     "WAL filepool meta path");
 
+#ifdef WITH_SPDK
+DEFINE_string(pfs_cluster,
+    "",
+    "pfs cluster name, only for pfs");
+
+DEFINE_string(pfs_pbd_name,
+    "",
+    "pfs pbd name, only for pfs");
+DEFINE_int32(pfs_host_id,
+    -1,
+    "pfs host id, only for pfs");
+DEFINE_string(spdk_nvme_controller,
+    "",
+    "spdk nvme controller, only for pfs");
+#endif
+
 const char* kProtocalCurve = "curve";
 
 namespace curve {
 namespace chunkserver {
+
 
 int ChunkServer::Run(int argc, char** argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -99,6 +124,23 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
+
+#ifdef WITH_SPDK
+    FILE *dpdk_log_stream = NULL;
+    cookie_io_functions_t io_funcs;
+    memset(&io_funcs, 0, sizeof(io_funcs));
+
+    io_funcs.write = glog_dpdk_log_func;
+    dpdk_log_stream = fopencookie(NULL, "w", io_funcs);
+    if (dpdk_log_stream == NULL) {
+        LOG(FATAL) << "fopencookie failed";
+    }
+    rte_openlog_stream(dpdk_log_stream);
+    spdk_log_open(glog_spdk_func);
+    pfs_set_trace_func(glog_pfs_func);
+
+    curve::fs::HookIOBufIOFuncs();
+#endif
 
     // 打印参数
     conf.PrintConfig();
@@ -128,11 +170,46 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to initialize concurrentapply module!";
 
     // 初始化本地文件系统
-    std::shared_ptr<LocalFileSystem> fs(
-        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     LocalFileSystemOption lfsOption;
+    std::string fsTypeStr;
+    LOG_IF(FATAL, !conf.GetStringValue(
+        "fs.type", &fsTypeStr));
+    lfsOption.type = fs::StringToFileSystemType(fsTypeStr);
+#ifdef WITH_SPDK
+    if (fs::FileSystemType::PFS  == lfsOption.type) {
+        LOG_IF(FATAL, !conf.GetStringValue(
+            "fs.pfs_cluster", &lfsOption.pfs_cluster));
+        LOG_IF(FATAL, !conf.GetStringValue(
+            "fs.pfs_pbd_name", &lfsOption.pfs_pbd_name));
+        LOG_IF(FATAL, !conf.GetIntValue(
+            "fs.pfs_host_id", &lfsOption.pfs_host_id));
+        LOG_IF(FATAL, !conf.GetStringValue(
+            "fs.spdk_nvme_controller", &lfsOption.spdk_nvme_controller));
+
+        LOG_IF(FATAL, 0 != InitPfsOption(lfsOption))
+            << "InitPfsOption failed";
+
+        // setup spdk
+        LOG_IF(FATAL, 0 != pfs_spdk_setup())
+            << "setup spdk failed";
+        // make iobuf use dpdk malloc & free
+
+        butil::iobuf::set_blockmem_allocate_and_deallocate(
+            dpdk_mem_allocate, dpdk_mem_free);
+        // start pfsdaemon
+        LOG_IF(FATAL, 0 != pfsd_start(true))
+            << "start pfsd failed";
+    } else {
+        LOG(FATAL) <<"PFS filesystem must be used when using spdk! "
+                   << "Current filesystem type: " << fsTypeStr;
+    }
+#endif
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(lfsOption.type, ""));
+
     LOG_IF(FATAL, !conf.GetBoolValue(
         "fs.enable_renameat2", &lfsOption.enableRenameat2));
+
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
 
@@ -463,6 +540,11 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(ERROR, !chunkfilePool->StopCleaning())
         << "Failed to shutdown file pool clean worker.";
     concurrentapply.Stop();
+
+#ifdef WITH_SPDK
+    LOG_IF(ERROR, pfsd_stop() != 0)
+        << "Failed to stop pfsd.";
+#endif
 
     google::ShutdownGoogleLogging();
     return 0;
@@ -866,6 +948,23 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     if (GetCommandLineFlagInfo("minIoAlignment", &info) && !info.is_default) {
         conf->SetUInt32Value("global.min_io_alignment", FLAGS_minIoAlignment);
     }
+
+#ifdef WITH_SPDK
+    if (GetCommandLineFlagInfo("pfs_cluster", &info) && !info.is_default) {
+        conf->SetStringValue("fs.pfs_cluster", FLAGS_pfs_cluster);
+    }
+    if (GetCommandLineFlagInfo("pfs_pbd_name", &info) && !info.is_default) {
+        conf->SetStringValue("fs.pfs_pbd_name", FLAGS_pfs_pbd_name);
+    }
+    if (GetCommandLineFlagInfo("pfs_host_id", &info) && !info.is_default) {
+        conf->SetIntValue("fs.pfs_host_id", FLAGS_pfs_host_id);
+    }
+    if (GetCommandLineFlagInfo("spdk_nvme_controller", &info) &&
+        !info.is_default) {
+        conf->SetStringValue("fs.spdk_nvme_controller",
+            FLAGS_spdk_nvme_controller);
+    }
+#endif
 }
 
 int ChunkServer::GetChunkServerMetaFromLocal(

@@ -132,7 +132,7 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
 
         ASSERT_EQ(0, server_.Start(listenAddr, nullptr));
 
-        EXPECT_CALL(*mockfs_, Mkdir(_))
+        EXPECT_CALL(*mockfs_, Mkdir(_, _))
             .WillRepeatedly(Return(0));
     }
 

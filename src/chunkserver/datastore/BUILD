@@ -27,6 +27,7 @@ cc_library(
         "//external:braft",
         "//external:gflags",
         "//external:glog",
+        "//external:butil",
         "//include:include-common",
         "//include/chunkserver:include-chunkserver",
         "//src/fs:lfs",

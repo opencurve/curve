@@ -27,7 +27,7 @@
 #include <string>
 #include <memory>
 
-#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
@@ -42,6 +42,14 @@ class MockCurveFilesystemAdaptor : public CurveFilesystemAdaptor {
                                            butil::File::Error*));
     MOCK_METHOD2(delete_file, bool(const std::string&, bool));
     MOCK_METHOD2(rename, bool(const std::string&, const std::string&));
+    MOCK_METHOD2(link, bool(const std::string& old_path,
+              const std::string& new_path));
+    MOCK_METHOD3(create_directory, bool(const std::string& path,
+                                  butil::File::Error* error,
+                                  bool create_parent_directories));
+    MOCK_METHOD1(path_exists, bool(const std::string& path));
+    MOCK_METHOD1(directory_exists, bool(const std::string& path));
+    MOCK_METHOD1(directory_reader, braft::DirReader*(const std::string& path));
 };
 
 }  // namespace chunkserver

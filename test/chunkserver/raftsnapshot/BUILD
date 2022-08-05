@@ -30,5 +30,7 @@ cc_test(
         "//src/chunkserver/raftsnapshot:chunkserver-raft-snapshot",
         "//test/fs:fs_mock",
         "//test/chunkserver:chunkserver-test-util-lib",
+        "//test/chunkserver:chunkserver_mock",
     ],
 )
+

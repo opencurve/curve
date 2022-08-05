@@ -25,7 +25,7 @@
 #include <brpc/controller.h>
 #include <brpc/server.h>
 #include "src/chunkserver/raftsnapshot/curve_file_service.h"
-#include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
+#include "src/chunkserver/filesystem_adaptor/curve_filesystem_adaptor.h"
 #include "test/chunkserver/raftsnapshot/mock_file_reader.h"
 #include "test/chunkserver/raftsnapshot/mock_snapshot_attachment.h"
 

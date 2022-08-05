@@ -72,7 +72,7 @@ class TrashTest : public ::testing::Test {
  public:
     void RecycleCopyset50Times() {
         EXPECT_CALL(*lfs, DirExists(_)).WillRepeatedly(Return(false));
-        EXPECT_CALL(*lfs, Mkdir(_)).WillRepeatedly(Return(0));
+        EXPECT_CALL(*lfs, Mkdir(_, _)).WillRepeatedly(Return(0));
         EXPECT_CALL(*lfs, Rename(_, _, 0)).WillRepeatedly(Return(0));
         for (int i = 0; i < 50; i++) {
             ASSERT_EQ(0, trash->RecycleCopySet(
@@ -523,7 +523,7 @@ TEST_F(TrashTest, recycle_copyset_dir_noExist_createErr) {
     std::string dirPath = "./runlog/trash_test0/copysets/12345678";
     std::string trashPath = "./runlog/trash_test0/trash";
     EXPECT_CALL(*lfs, DirExists(trashPath)).WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(-1));
+    EXPECT_CALL(*lfs, Mkdir(trashPath, _)).WillOnce(Return(-1));
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
 
@@ -533,7 +533,7 @@ TEST_F(TrashTest, recycle_copyset_dir_trash_exist) {
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(false))
         .WillOnce(Return(true));
-    EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, Mkdir(trashPath, _)).WillOnce(Return(0));
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
 
@@ -543,7 +543,7 @@ TEST_F(TrashTest, recycle_copyset_dir_rename_err) {
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(false))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, Mkdir(trashPath, _)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(-1));
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
@@ -554,7 +554,7 @@ TEST_F(TrashTest, recycle_copyset_dir_list_err) {
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(false))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, Mkdir(trashPath, _)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(Return(-1));
@@ -567,7 +567,7 @@ TEST_F(TrashTest, recycle_copyset_dir_ok) {
     EXPECT_CALL(*lfs, DirExists(_))
         .WillOnce(Return(false))
         .WillOnce(Return(false));
-    EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, Mkdir(trashPath, _)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, List(_, _))
         .WillOnce(Return(0));

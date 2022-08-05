@@ -185,13 +185,21 @@ int Ext4FileSystemImpl::Delete(const string& path) {
     return rc;
 }
 
-int Ext4FileSystemImpl::Mkdir(const string& dirName) {
+int Ext4FileSystemImpl::Mkdir(const string& dirName, bool create_parents) {
     vector<string> names;
     ::curve::common::SplitString(dirName, "/", &names);
 
     // root dir must exists
     if (0 == names.size())
         return 0;
+
+    if (!create_parents) {
+        if (posixWrapper_->mkdir(dirName.c_str(), 0755) < 0) {
+            LOG(WARNING) << "mkdir " << dirName
+                << " failed. "<< strerror(errno);
+            return -errno;
+        }
+    }
 
     string path;
     for (size_t i = 0; i < names.size(); ++i) {
@@ -225,6 +233,10 @@ bool Ext4FileSystemImpl::FileExists(const string& filePath) {
         return S_ISREG(path_stat.st_mode);
     else
         return false;
+}
+
+bool Ext4FileSystemImpl::PathExists(const string& path) {
+    return posixWrapper_->access(path.c_str(), F_OK) == 0;
 }
 
 int Ext4FileSystemImpl::DoRename(const string& oldPath,
@@ -269,6 +281,19 @@ int Ext4FileSystemImpl::List(const string& dirName,
     return -errno;
 }
 
+DIR* Ext4FileSystemImpl::OpenDir(const string& dirPath) {
+    return posixWrapper_->opendir(dirPath.c_str());
+}
+
+struct dirent* Ext4FileSystemImpl::ReadDir(DIR *dir) {
+    return posixWrapper_->readdir(dir);
+}
+
+int Ext4FileSystemImpl::CloseDir(DIR *dir) {
+    posixWrapper_->closedir(dir);
+    return -errno;
+}
+
 int Ext4FileSystemImpl::Read(int fd,
                              char *buf,
                              uint64_t offset,
@@ -301,6 +326,30 @@ int Ext4FileSystemImpl::Read(int fd,
         relativeOffset += ret;
     }
     return length - remainLength;
+}
+
+int Ext4FileSystemImpl::Read(int fd, butil::IOPortal* portal,
+             uint64_t offset, int length) {
+    off_t orig_offset = offset;
+    ssize_t left = length;
+    int retryTimes = 0;
+    while (left > 0) {
+        ssize_t read_len = portal->pappend_from_file_descriptor(
+                fd, offset, static_cast<size_t>(left));
+        if (read_len > 0) {
+            left -= read_len;
+            offset += read_len;
+        } else if (read_len == 0) {
+            break;
+        } else if (errno == EINTR && retryTimes < 3) {
+            ++retryTimes;
+            continue;
+        } else {
+            LOG(ERROR) << "pread failed: " << strerror(errno);
+            return -errno;
+        }
+    }
+    return length - left;
 }
 
 int Ext4FileSystemImpl::Write(int fd,
@@ -357,7 +406,12 @@ int Ext4FileSystemImpl::Write(int fd,
     return length;
 }
 
-int Ext4FileSystemImpl::Sync(int fd) {
+int Ext4FileSystemImpl::WriteZero(int fd, uint64_t offset, int length) {
+    LOG(ERROR) << "not supprted!";
+    return -1;
+}
+
+int Ext4FileSystemImpl::Fdatasync(int fd) {
     int rc = posixWrapper_->fdatasync(fd);
     if (rc < 0) {
         LOG(ERROR) << "fdatasync failed: " << strerror(errno);
@@ -401,6 +455,19 @@ int Ext4FileSystemImpl::Fsync(int fd) {
         return -errno;
     }
     return 0;
+}
+
+off_t Ext4FileSystemImpl::Lseek(int fd, off_t offset, int whence) {
+    off_t rc = posixWrapper_->lseek(fd, offset, whence);
+    if (rc < 0) {
+        LOG(ERROR) << "lseek failed: " << strerror(errno);
+    }
+    return rc;
+}
+
+int Ext4FileSystemImpl::Link(const std::string &oldPath,
+    const std::string &newPath) {
+    return ::link(oldPath.c_str(), newPath.c_str());
 }
 
 }  // namespace fs

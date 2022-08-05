@@ -66,7 +66,7 @@ TEST_F(TrashTest, RecycleCopysetTest) {
         EXPECT_CALL(*mocklfs_, DirExists(_))
             .WillOnce(Return(false));
 
-        EXPECT_CALL(*mocklfs_, Mkdir(_))
+        EXPECT_CALL(*mocklfs_, Mkdir(_, _))
             .WillOnce(Return(-1));
 
         EXPECT_FALSE(trash_->RecycleCopyset("/mnt/data/copysets/123456789"));

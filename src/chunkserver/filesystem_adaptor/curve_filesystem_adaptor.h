@@ -19,8 +19,8 @@
  * File Created: Monday, 10th June 2019 2:20:12 pm
  * Author: tongguangxun
  */
-#ifndef SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILESYSTEM_ADAPTOR_H_
-#define SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILESYSTEM_ADAPTOR_H_
+#ifndef SRC_CHUNKSERVER_FILESYSTEM_ADAPTOR_CURVE_FILESYSTEM_ADAPTOR_H_
+#define SRC_CHUNKSERVER_FILESYSTEM_ADAPTOR_CURVE_FILESYSTEM_ADAPTOR_H_
 
 #include <braft/file_system_adaptor.h>
 #include <google/protobuf/message.h>
@@ -28,34 +28,25 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "src/chunkserver/datastore/file_pool.h"
-#include "src/chunkserver/raftsnapshot/curve_file_adaptor.h"
-
-/**
- * RaftSnapshotFilesystemAdaptor目的是为了接管braft
- * 内部snapshot创建chunk文件的逻辑，目前curve内部
- * 会从chunkfilepool中直接取出已经格式化好的chunk文件
- * 但是braft内部由于install snapshot也会创建chunk文件
- * 这个创建文件不感知chunkfilepool，因此我们希望install
- * snapshot也能从chunkfilepool中直接取出chunk文件，因此
- * 我们对install snapshot流程中的文件系统做了一层hook，在
- * 创建及删除文件操作上直接使用curve提供的文件系统接口即可。
- */
+#include "src/chunkserver/filesystem_adaptor/curve_file_adaptor.h"
 
 using curve::fs::LocalFileSystem;
 using curve::chunkserver::FilePool;
 
+using butil::FilePath;
+using butil::File;
+
 namespace curve {
 namespace chunkserver {
+
 /**
- * CurveFilesystemAdaptor继承raft的PosixFileSystemAdaptor类，在raft
- * 内部其快照使用PosixFileSystemAdaptor类进行文件操作，因为我们只希望在其创建文件
- * 或者删除文件的时候使用chunkfilepool提供的getchunk和recyclechunk接口，所以这里
- * 我们只实现了open和delete_file两个接口。其他接口在调用的时候仍然使用原来raft的内部
- * 的接口。
+ * CurveFilesystemAdaptor inherits braft::FileSystemAdaptor
+ * and is implemented using the interface of filePool and LocalFileSystem.
  */
-class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
+class CurveFilesystemAdaptor : public braft::FileSystemAdaptor {
  public:
     /**
      * 构造函数
@@ -63,7 +54,7 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
      * @param: lfs用于进行一些文件操作，比如打开或者删除目录
      */
     CurveFilesystemAdaptor(std::shared_ptr<FilePool> filePool,
-                                  std::shared_ptr<LocalFileSystem> lfs);
+                           std::shared_ptr<LocalFileSystem> lfs);
     CurveFilesystemAdaptor();
     virtual ~CurveFilesystemAdaptor();
 
@@ -94,16 +85,16 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
      *             int _fd;
      *          };
      */
-    virtual braft::FileAdaptor* open(const std::string& path, int oflag,
+    braft::FileAdaptor* open(const std::string& path, int oflag,
                               const ::google::protobuf::Message* file_meta,
-                              butil::File::Error* e);
+                              butil::File::Error* e) override;
     /**
      * 删除path对应的文件或目录
      * @param: path是待删除的文件路径
      * @param: recursive是否递归删除
      * @return: 成功返回true，否则返回false
      */
-    virtual bool delete_file(const std::string& path, bool recursive);
+    bool delete_file(const std::string& path, bool recursive) override;
 
     /**
      * rename到新路径
@@ -118,12 +109,52 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
      * @param: old_path旧文件路径
      * @param: new_path新文件路径
      */
-    virtual bool rename(const std::string& old_path,
-                       const std::string& new_path);
+    bool rename(const std::string& old_path,
+                       const std::string& new_path) override;
+
+    bool link(const std::string& old_path,
+              const std::string& new_path) override;
+
+    bool create_directory(const std::string& path,
+                                  butil::File::Error* error,
+                                  bool create_parent_directories) override;
+
+    bool path_exists(const std::string& path) override;
+
+    bool directory_exists(const std::string& path) override;
+
+    braft::DirReader* directory_reader(const std::string& path) override;
+
+    bool CreateDirectoryAndGetError(
+        const FilePath& full_path,
+        File::Error* error,
+        bool create_parents);
 
     // 设置过滤哪些文件，这些文件不从chunkfilepool取
     // 回收的时候也直接删除这些文件，不进入chunkfilepool
-    void SetFilterList(const std::vector<std::string>& filter);
+    void SetFilterList(const std::list<std::string>& filter);
+
+    /**
+     * @brief add files which is not get from chunkfilepool to filterlist
+     *
+     * @param files files to add
+     */
+    void AddToFilterList(std::list<std::string> *files);
+
+    /**
+     * @brief add a file which is not get from chunkfilepool to filterlist
+     *
+     * @param file file to add
+     */
+    void AddToFilterList(const std::string& file);
+
+    std::shared_ptr<FilePool> GetFilePool() const {
+        return filePool_;
+    }
+
+    std::shared_ptr<LocalFileSystem> GetLocalFileSystem() const {
+        return lfs_;
+    }
 
  private:
    /**
@@ -146,12 +177,39 @@ class CurveFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
     std::shared_ptr<LocalFileSystem> lfs_;
     // 操作chunkfilepool的指针，这个FilePool_与copysetnode的
     // chunkfilepool_应该是全局唯一的，保证操作chunkfilepool的原子性
-    std::shared_ptr<FilePool> chunkFilePool_;
+    std::shared_ptr<FilePool> filePool_;
     // 过滤名单，在当前vector中的文件名，都不从chunkfilepool中取文件
     // 回收的时候也直接删除这些文件，不进入chunkfilepool
-    std::vector<std::string> filterList_;
+    std::list<std::string> filterList_;
 };
+
+class CurveDirReader : public braft::DirReader {
+    friend class CurveFilesystemAdaptor;
+ public:
+    virtual ~CurveDirReader();
+
+    // Check if the dir reader is valid
+    virtual bool is_valid() const;
+
+    // Move to next entry in the directory
+    // Return true if a entry can be found, false otherwise
+    virtual bool next();
+
+    // Get the name of current entry
+    virtual const char* name() const;
+
+ protected:
+    CurveDirReader(const std::string& path,
+        const std::shared_ptr<LocalFileSystem> &lfs);
+
+ private:
+    std::string path_;
+    std::shared_ptr<LocalFileSystem> lfs_;
+    DIR *dir_;
+    struct dirent *dirIter_;
+};
+
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_FILESYSTEM_ADAPTOR_H_
+#endif  // SRC_CHUNKSERVER_FILESYSTEM_ADAPTOR_CURVE_FILESYSTEM_ADAPTOR_H_

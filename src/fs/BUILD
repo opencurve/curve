@@ -18,18 +18,40 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "lfs",
-    srcs = glob([
-                "*.cpp",
-                "ext4_filesystem_impl.h",
-                "ext4_util.h",
-                "wrap_posix.h"
-           ]),
-    hdrs = ["local_filesystem.h","fs_common.h"],
+    srcs = ["ext4_filesystem_impl.cpp",
+            "local_filesystem.cpp",
+            "wrap_posix.cpp",
+    ] + select({
+        "//:with_spdk": ["pfs_filesystem_impl.cpp"],
+        "//conditions:default": [],
+    }),
+    hdrs = ["ext4_filesystem_impl.h",
+            "fs_common.h",
+            "local_filesystem.h",
+            "wrap_posix.h",
+    ] + select({
+        "//:with_spdk": ["pfs_filesystem_impl.h"],
+        "//conditions:default": [],
+    }),
+    copts = CURVE_DEFAULT_COPTS + select({
+        "//:with_spdk": ["-DWITH_SPDK", "-Iexternal/pfs"],
+        "//conditions:default": [],
+    }),
+    linkopts = select({
+        "//:with_spdk": [ "-L/usr/local/curvestore/pfsd/lib", "-lpfsd" ],
+        "//conditions:default": [],
+    }) + [
+        "-std=c++11",
+    ],
     deps = [
-                "//src/common:curve_common",
-                "//external:glog",
-                "//external:butil",
-            ],
+        "//src/common:curve_common",
+        "//external:glog",
+        "//external:butil",
+    ] + select({
+        "//:with_spdk": ["@pfs//:headers"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
-    copts = CURVE_DEFAULT_COPTS,
 )
+
+

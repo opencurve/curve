@@ -188,7 +188,7 @@ then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib ${bazelflags} #--define=with_spdk=true
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
@@ -215,7 +215,7 @@ else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${curve_version} \
---linkopt -L/usr/local/lib ${bazelflags}
+--linkopt -L/usr/local/lib ${bazelflags} #--define=with_spdk=true
 if [ $? -ne 0 ]
 then
     echo "build phase1 failed"
@@ -349,6 +349,11 @@ if [ $? -ne 0 ]
 then
     exit
 fi
+mkdir -p build/curve-chunkserver/usr/lib
+if [ $? -ne 0 ]
+then
+    exit
+fi
 mkdir -p build/curve-chunkserver/etc/curve
 if [ $? -ne 0 ]
 then
@@ -356,6 +361,18 @@ then
 fi
 cp ./bazel-bin/src/chunkserver/chunkserver \
 build/curve-chunkserver/usr/bin/curve-chunkserver
+if [ $? -ne 0 ]
+then
+    exit
+fi
+cp thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-core/libaws-cpp-sdk-core.so \
+build/curve-chunkserver/usr/lib/libaws-cpp-sdk-core.so
+if [ $? -ne 0 ]
+then
+    exit
+fi
+cp thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-s3-crt/libaws-cpp-sdk-s3-crt.so \
+build/curve-chunkserver/usr/lib/libaws-cpp-sdk-s3-crt.so
 if [ $? -ne 0 ]
 then
     exit
@@ -447,7 +464,6 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp ./bazel-bin/src/client/libcurve.so build/curve-sdk/usr/lib
 cp include/client/libcurve.h build/curve-sdk/usr/include
 cp include/client/libcbd.h build/curve-sdk/usr/include
 cp include/client/libcurve_define.h build/curve-sdk/usr/include
@@ -487,31 +503,7 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp -r ./curve-snapshotcloneserver-nginx/app/lib \
-build/curve-nginx/etc/curve/nginx/app
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp -r ./curve-snapshotcloneserver-nginx/app/src \
-build/curve-nginx/etc/curve/nginx/app
-if [ $? -ne 0 ]
-then
-    exit
-fi
 mkdir -p build/curve-nginx/etc/curve/nginx/conf
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp ./curve-snapshotcloneserver-nginx/conf/mime.types \
-build/curve-nginx/etc/curve/nginx/conf/
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp -r ./curve-snapshotcloneserver-nginx/docker \
-build/curve-nginx/etc/curve/nginx/
 if [ $? -ne 0 ]
 then
     exit

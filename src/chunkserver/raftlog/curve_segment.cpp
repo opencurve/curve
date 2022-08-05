@@ -46,6 +46,10 @@
 #include "src/chunkserver/raftlog/curve_segment.h"
 #include "src/chunkserver/raftlog/define.h"
 
+namespace braft {
+DECLARE_bool(raft_use_fsync_rather_than_fdatasync);
+}
+
 namespace curve {
 namespace chunkserver {
 
@@ -71,15 +75,13 @@ int CurveSegment::create() {
         LOG(ERROR) << "Get segment from chunk file pool fail!";
         return -1;
     }
-    _fd = ::open(path.c_str(), O_RDWR|O_NOATIME, 0644);
-    if (_fd >= 0) {
-        butil::make_close_on_exec(_fd);
-    } else {
+    _fd = _lfs->Open(path, O_RDWR|O_NOATIME);
+    if (_fd < 0) {
         LOG(ERROR) << "Open path: " << path << " fail, error: "
                    << strerror(errno);
         return -1;
     }
-    res = ::lseek(_fd, _meta_page_size, SEEK_SET);
+    res = _lfs->Lseek(_fd, _meta_page_size, SEEK_SET);
     if (res != _meta_page_size) {
         LOG(ERROR) << "lseek fail! error: " << strerror(errno);
         return -1;
@@ -87,10 +89,9 @@ int CurveSegment::create() {
     LOG_IF(INFO, _fd >= 0) << "Created new segment `" << path
                            << "' with fd=" << _fd;
     if (FLAGS_enableWalDirectWrite) {
-        _direct_fd = ::open(path.c_str(), O_RDWR|O_NOATIME|O_DIRECT, 0644);
+        _direct_fd = _lfs->Open(path, O_RDWR|O_NOATIME|O_DIRECT);
         LOG_IF(FATAL, _direct_fd < 0) << "failed to open file with O_DIRECT"
                                          ", error: " << strerror(errno);
-        butil::make_close_on_exec(_direct_fd);
     }
     _meta.bytes += _meta_page_size;
     _update_meta_page();
@@ -126,16 +127,14 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
         butil::string_appendf(&path, "/" CURVE_SEGMENT_CLOSED_PATTERN,
                              _first_index, _last_index.load());
     }
-    _fd = ::open(path.c_str(), O_RDWR|O_NOATIME);
+    _fd = _lfs->Open(path.c_str(), O_RDWR|O_NOATIME);
     if (_fd < 0) {
         LOG(ERROR) << "Fail to open " << path << ", " << berror();
         return -1;
     }
-    butil::make_close_on_exec(_fd);
     if (FLAGS_enableWalDirectWrite) {
-        _direct_fd = ::open(path.c_str(), O_RDWR|O_NOATIME|O_DIRECT);
+        _direct_fd = _lfs->Open(path.c_str(), O_RDWR|O_NOATIME|O_DIRECT);
         LOG_IF(FATAL, _direct_fd < 0) << "failed to open file with O_DIRECT";
-        butil::make_close_on_exec(_direct_fd);
     }
 
     // load meta page
@@ -220,7 +219,7 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
     }
 
     // seek to end, for opening segment
-    ::lseek(_fd, entry_off, SEEK_SET);
+    _lfs->Lseek(_fd, entry_off, SEEK_SET);
 
     _meta.bytes = entry_off;
     return ret;
@@ -228,7 +227,7 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
 
 int CurveSegment::_load_meta() {
     char* metaPage = new char[_meta_page_size];
-    int res = ::pread(_fd, metaPage, _meta_page_size, 0);
+    int res = _lfs->Read(_fd, metaPage, 0, _meta_page_size);
     if (res != _meta_page_size) {
         delete metaPage;
         return -1;
@@ -306,7 +305,7 @@ int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
                               butil::IOBuf* data, size_t size_hint) const {
     butil::IOPortal buf;
     size_t to_read = std::max(size_hint, kEntryHeaderSize);
-    const ssize_t n = braft::file_pread(&buf, _fd, offset, to_read);
+    const ssize_t n = _lfs->Read(_fd, &buf, offset, to_read);
     if (n != (ssize_t)to_read) {
         return n < 0 ? -1 : 1;
     }
@@ -346,7 +345,7 @@ int CurveSegment::_load_entry(off_t offset, EntryHeader* head,
         if (buf.length() < kEntryHeaderSize + data_real_len) {
             const size_t to_read = kEntryHeaderSize + data_real_len
                                                     - buf.length();
-            const ssize_t n = braft::file_pread(&buf, _fd,
+            const ssize_t n = _lfs->Read(_fd, &buf,
                                     offset + buf.length(), to_read);
             if (n != (ssize_t)to_read) {
                 return n < 0 ? -1 : 1;
@@ -433,7 +432,7 @@ int CurveSegment::append(const braft::LogEntry* entry) {
                   _checksum_type, write_buf, kEntryHeaderSize - 4));
     if (FLAGS_enableWalDirectWrite) {
         data.copy_to(write_buf + kEntryHeaderSize, real_length);
-        int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
+        int ret = _lfs->Write(_direct_fd, write_buf, _meta.bytes, to_write);
         free(write_buf);
         if (ret != to_write) {
             LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd;
@@ -477,9 +476,9 @@ int CurveSegment::_update_meta_page() {
     memset(metaPage, 0, _meta_page_size);
     memcpy(metaPage, &_meta.bytes, sizeof(_meta.bytes));
     if (FLAGS_enableWalDirectWrite) {
-        ret = ::pwrite(_direct_fd, metaPage, _meta_page_size, 0);
+        ret = _lfs->Write(_direct_fd, metaPage, 0, _meta_page_size);
     } else {
-        ret = ::pwrite(_fd, metaPage, _meta_page_size, 0);
+        ret = _lfs->Write(_fd, metaPage, 0, _meta_page_size);
     }
     free(metaPage);
     if (ret != _meta_page_size) {
@@ -604,12 +603,16 @@ int CurveSegment::close(bool will_sync) {
     if (_last_index > _first_index) {
         if (FLAGS_raftSyncSegments && will_sync &&
                                 !FLAGS_enableWalDirectWrite) {
-            ret = braft::raft_fsync(_fd);
+            if (braft::FLAGS_raft_use_fsync_rather_than_fdatasync) {
+                ret = _lfs->Fsync(_fd);
+            } else {
+                ret = _lfs->Fdatasync(_fd);
+            }
         }
     }
     if (ret == 0) {
         _is_open = false;
-        const int rc = ::rename(old_path.c_str(), new_path.c_str());
+        const int rc = _lfs->Rename(old_path.c_str(), new_path.c_str());
         LOG_IF(INFO, rc == 0) << "Renamed `" << old_path
                               << "' to `" << new_path <<'\'';
         LOG_IF(ERROR, rc != 0) << "Fail to rename `" << old_path
@@ -625,7 +628,11 @@ int CurveSegment::sync(bool will_sync) {
         // CHECK(_is_open);
         if (!FLAGS_enableWalDirectWrite && braft::FLAGS_raft_sync
                                             && will_sync) {
-            return braft::raft_fsync(_fd);
+            if (braft::FLAGS_raft_use_fsync_rather_than_fdatasync) {
+                return _lfs->Fsync(_fd);
+            } else {
+                return _lfs->Fdatasync(_fd);
+            }
         } else {
             return 0;
         }
@@ -676,7 +683,7 @@ int CurveSegment::truncate(const int64_t last_index_kept) {
         std::string new_path(_path);
         butil::string_appendf(&new_path, "/" CURVE_SEGMENT_OPEN_PATTERN,
                               _first_index);
-        int ret = ::rename(old_path.c_str(), new_path.c_str());
+        int ret = _lfs->Rename(old_path.c_str(), new_path.c_str());
         LOG_IF(INFO, ret == 0) << "Renamed `" << old_path << "' to `"
                                << new_path << '\'';
         LOG_IF(ERROR, ret != 0) << "Fail to rename `" << old_path << "' to `"
@@ -694,7 +701,7 @@ int CurveSegment::truncate(const int64_t last_index_kept) {
     }
 
     // seek fd
-    off_t ret_off = ::lseek(_fd, truncate_size, SEEK_SET);
+    off_t ret_off = _lfs->Lseek(_fd, truncate_size, SEEK_SET);
     if (ret_off < 0) {
         PLOG(ERROR) << "Fail to lseek fd=" << _fd << " to size="
                     << truncate_size << " path: " << _path;

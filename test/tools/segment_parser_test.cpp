@@ -35,6 +35,7 @@ using ::testing::Return;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+using ::testing::Matcher;
 
 const char fileName[] = "log_inprogress_001";
 const uint32_t DATA_LEN = 20;
@@ -121,7 +122,7 @@ TEST_F(SetmentParserTest, GetNextEntryHeader) {
     char header_buf[ENTRY_HEADER_SIZE] = {0};
 
     // 读出来的数据大小不对
-    EXPECT_CALL(*localFs_, Read(_, _, _, ENTRY_HEADER_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), _, ENTRY_HEADER_SIZE))
         .Times(1)
         .WillOnce(Return(22));
     ASSERT_FALSE(parser.GetNextEntryHeader(&header2));
@@ -129,7 +130,7 @@ TEST_F(SetmentParserTest, GetNextEntryHeader) {
 
     // 校验失败
     PackHeader(header, header_buf, true);
-    EXPECT_CALL(*localFs_, Read(_, _, _, ENTRY_HEADER_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), _, ENTRY_HEADER_SIZE))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<1>(header_buf,
                                             header_buf + ENTRY_HEADER_SIZE),
@@ -139,7 +140,7 @@ TEST_F(SetmentParserTest, GetNextEntryHeader) {
 
     // 正常情况
     PackHeader(header, header_buf);
-    EXPECT_CALL(*localFs_, Read(_, _, _, ENTRY_HEADER_SIZE))
+    EXPECT_CALL(*localFs_, Read(_, Matcher<char*>(_), _, ENTRY_HEADER_SIZE))
         .Times(2)
         .WillRepeatedly(DoAll(SetArrayArgument<1>(header_buf,
                                               header_buf + ENTRY_HEADER_SIZE),

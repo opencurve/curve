@@ -23,13 +23,30 @@
 #ifndef SRC_FS_FS_COMMON_H_
 #define SRC_FS_FS_COMMON_H_
 
+#include <string>
+
 namespace curve {
 namespace fs {
 
 enum class FileSystemType {
     // SFS,
     EXT4,
+    PFS,
+    UNKOWN,
 };
+
+inline FileSystemType StringToFileSystemType(
+    const std::string &typeStr) {
+    FileSystemType type;
+    if (typeStr == "ext4") {
+        type = FileSystemType::EXT4;
+    } else if (typeStr == "pfs") {
+        type = FileSystemType::PFS;
+    } else {
+        type = FileSystemType::UNKOWN;
+    }
+    return type;
+}
 
 struct FileSystemInfo {
     uint64_t total = 0;         // Total bytes

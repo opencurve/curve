@@ -99,7 +99,8 @@ TEST(ConfEpochFileTest, load_save) {
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1).WillOnce(Return(-1));
+        EXPECT_CALL(*fs, Read(_, Matcher<char*>(_), _, _))
+            .Times(1).WillOnce(Return(-1));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
         ASSERT_EQ(-1, confEpochFile.Load(path,
                                          &loadLogicPoolID,
@@ -117,7 +118,7 @@ TEST(ConfEpochFileTest, load_save) {
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1)
+        EXPECT_CALL(*fs, Read(_, Matcher<char*>(_), _, _)).Times(1)
             .WillOnce(DoAll(SetArrayArgument<1>(json, json + jsonStr.size()),
                             Return(jsonStr.size())));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
@@ -137,7 +138,7 @@ TEST(ConfEpochFileTest, load_save) {
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1)
+        EXPECT_CALL(*fs, Read(_, Matcher<char*>(_), _, _)).Times(1)
             .WillOnce(DoAll(SetArrayArgument<1>(json, json + jsonStr.size()),
                             Return(jsonStr.size())));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
@@ -157,7 +158,7 @@ TEST(ConfEpochFileTest, load_save) {
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1)
+        EXPECT_CALL(*fs, Read(_, Matcher<char*>(_), _, _)).Times(1)
             .WillOnce(DoAll(SetArrayArgument<1>(json, json + jsonStr.size()),
                             Return(jsonStr.size())));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));

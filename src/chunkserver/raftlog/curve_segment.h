@@ -70,22 +70,27 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
           public Segment {
  public:
     CurveSegment(const std::string& path, const int64_t first_index,
-                 int checksum_type, std::shared_ptr<FilePool> walFilePool)
+                 int checksum_type,
+                 const std::shared_ptr<FilePool> &walFilePool,
+                 const std::shared_ptr<LocalFileSystem> &lfs)
         : _path(path), _meta(CurveSegmentMeta()),
         _fd(-1), _direct_fd(-1), _is_open(true),
         _first_index(first_index), _last_index(first_index - 1),
         _checksum_type(checksum_type),
         _walFilePool(walFilePool),
+        _lfs(lfs),
         _meta_page_size(walFilePool->GetFilePoolOpt().metaPageSize) {
     }
     CurveSegment(const std::string& path, const int64_t first_index,
                  const int64_t last_index, int checksum_type,
-                 std::shared_ptr<FilePool> walFilePool)
+                 const std::shared_ptr<FilePool> &walFilePool,
+                 const std::shared_ptr<LocalFileSystem> &lfs)
         : _path(path), _meta(CurveSegmentMeta()),
         _fd(-1), _direct_fd(-1), _is_open(false),
         _first_index(first_index), _last_index(last_index),
         _checksum_type(checksum_type),
         _walFilePool(walFilePool),
+        _lfs(lfs),
         _meta_page_size(walFilePool->GetFilePoolOpt().metaPageSize) {
     }
     ~CurveSegment() {
@@ -173,6 +178,7 @@ class BAIDU_CACHELINE_ALIGNMENT CurveSegment:
     int _checksum_type;
     std::vector<std::pair<int64_t, int64_t> > _offset_and_term;
     std::shared_ptr<FilePool> _walFilePool;
+    std::shared_ptr<LocalFileSystem> _lfs;
     uint32_t _meta_page_size;
 };
 

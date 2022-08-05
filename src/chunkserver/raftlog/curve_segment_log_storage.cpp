@@ -48,10 +48,10 @@ namespace curve {
 namespace chunkserver {
 
 LogStorageOptions StoreOptForCurveSegmentLogStorage(
-    LogStorageOptions options) {
+    LogStorageOptions *options) {
     static LogStorageOptions options_;
-    if (nullptr != options.walFilePool) {
-        options_ = options;
+    if (nullptr != options) {
+        options_ = *options;
     }
 
     return options_;
@@ -67,7 +67,7 @@ int CurveSegmentLogStorage::init(
                     braft::ConfigurationManager* configuration_manager) {
     butil::FilePath dir_path(_path);
     butil::File::Error e;
-    if (!butil::CreateDirectoryAndGetError(
+    if (!_cfsAdaptor->CreateDirectoryAndGetError(
                 dir_path, &e, braft::FLAGS_raft_create_parent_directories)) {
         LOG(ERROR) << "Fail to create " << dir_path.value() << " : " << e;
         return -1;
@@ -82,6 +82,9 @@ int CurveSegmentLogStorage::init(
         LOG_ONCE(INFO)
                 << "Use murmurhash32 as the checksum type of appending entries";
     }
+
+    std::string logMeta(BRAFT_SEGMENT_META_FILE);
+    _cfsAdaptor->AddToFilterList(logMeta);
 
     int ret = 0;
     bool is_empty = false;
@@ -120,7 +123,7 @@ int CurveSegmentLogStorage::load_meta() {
     std::string meta_path(_path);
     meta_path.append("/" BRAFT_SEGMENT_META_FILE);
 
-    braft::ProtoBufFile pb_file(meta_path);
+    braft::ProtoBufFile pb_file(meta_path, _cfsAdaptor);
     braft::LogPBMeta meta;
     if (0 != pb_file.load(&meta)) {
         PLOG_IF(ERROR, errno != ENOENT)
@@ -138,25 +141,25 @@ int CurveSegmentLogStorage::load_meta() {
 }
 
 int CurveSegmentLogStorage::list_segments(bool is_empty) {
-    butil::DirReaderPosix dir_reader(_path.c_str());
-    if (!dir_reader.IsValid()) {
+    braft::DirReader* dir_reader = _cfsAdaptor->directory_reader(_path.c_str());
+    if (!dir_reader->is_valid()) {
         LOG(WARNING) << "directory reader failed, maybe NOEXIST or PERMISSION."
                      << " path: " << _path;
         return -1;
     }
 
     // restore segment meta
-    while (dir_reader.Next()) {
+    while (dir_reader->next()) {
         // unlink unneed segments and unfinished unlinked segments
-        if ((is_empty && 0 == strncmp(dir_reader.name(),
+        if ((is_empty && 0 == strncmp(dir_reader->name(),
                                         "log_", strlen("log_"))) ||
-            (0 == strncmp(dir_reader.name() +
-                        (strlen(dir_reader.name()) - strlen(".tmp")),
+            (0 == strncmp(dir_reader->name() +
+                        (strlen(dir_reader->name()) - strlen(".tmp")),
                         ".tmp", strlen(".tmp")))) {
             std::string segment_path(_path);
             segment_path.append("/");
-            segment_path.append(dir_reader.name());
-            ::unlink(segment_path.c_str());
+            segment_path.append(dir_reader->name());
+            _lfs->Delete(segment_path.c_str());
 
             LOG(WARNING) << "unlink unused segment, path: " << segment_path;
 
@@ -167,7 +170,7 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
         int match = 0;
         int64_t first_index = 0;
         int64_t last_index = 0;
-        match = sscanf(dir_reader.name(), BRAFT_SEGMENT_CLOSED_PATTERN,
+        match = sscanf(dir_reader->name(), BRAFT_SEGMENT_CLOSED_PATTERN,
                        &first_index, &last_index);
         if (match == 2) {
             LOG(INFO) << "restore closed segment, path: " << _path
@@ -179,7 +182,7 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
             continue;
         }
 
-        match = sscanf(dir_reader.name(), BRAFT_SEGMENT_OPEN_PATTERN,
+        match = sscanf(dir_reader->name(), BRAFT_SEGMENT_OPEN_PATTERN,
                        &first_index);
         if (match == 1) {
             BRAFT_VLOG << "restore open segment, path: " << _path
@@ -196,7 +199,7 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
         }
 
         // Is curve log pattern
-        match = sscanf(dir_reader.name(), CURVE_SEGMENT_CLOSED_PATTERN,
+        match = sscanf(dir_reader->name(), CURVE_SEGMENT_CLOSED_PATTERN,
                        &first_index, &last_index);
         if (match == 2) {
             LOG(INFO) << "restore closed segment, path: " << _path
@@ -205,12 +208,13 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
             CurveSegment* segment = new CurveSegment(_path, first_index,
                                                      last_index,
                                                      _checksum_type,
-                                                     _walFilePool);
+                                                     _walFilePool,
+                                                     _lfs);
             _segments[first_index] = segment;
             continue;
         }
 
-        match = sscanf(dir_reader.name(), CURVE_SEGMENT_OPEN_PATTERN,
+        match = sscanf(dir_reader->name(), CURVE_SEGMENT_OPEN_PATTERN,
                        &first_index);
         if (match == 1) {
             BRAFT_VLOG << "restore open segment, path: " << _path
@@ -218,7 +222,8 @@ int CurveSegmentLogStorage::list_segments(bool is_empty) {
             if (!_open_segment) {
                 _open_segment =
                     new CurveSegment(_path, first_index, _checksum_type,
-                                     _walFilePool);
+                                     _walFilePool,
+                                     _lfs);
                 continue;
             } else {
                 LOG(WARNING) << "open segment conflict, path: " << _path
@@ -488,7 +493,7 @@ int CurveSegmentLogStorage::save_meta(const int64_t log_index) {
 
     braft::LogPBMeta meta;
     meta.set_first_log_index(log_index);
-    braft::ProtoBufFile pb_file(meta_path);
+    braft::ProtoBufFile pb_file(meta_path, _cfsAdaptor);
     int ret = pb_file.save(&meta, braft::raft_sync_meta());
 
     timer.stop();
@@ -678,13 +683,13 @@ void CurveSegmentLogStorage::sync() {
 
 braft::LogStorage* CurveSegmentLogStorage::new_instance(
     const std::string& uri) const {
-    LogStorageOptions options = StoreOptForCurveSegmentLogStorage(
-        LogStorageOptions());
+    LogStorageOptions options = StoreOptForCurveSegmentLogStorage(nullptr);
 
-    CHECK(nullptr != options.walFilePool) << "wal file pool is null";
+    CHECK(nullptr != options.curveFileSystemAdaptor)
+        << "curveFileSystemAdaptor is null";
 
     CurveSegmentLogStorage* logStorage = new CurveSegmentLogStorage(
-        uri, true, options.walFilePool);
+        uri, true, options.curveFileSystemAdaptor);
     options.monitorMetricCb(logStorage);
 
     return logStorage;
@@ -697,7 +702,8 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
         BAIDU_SCOPED_LOCK(_mutex);
         if (!_open_segment) {
             _open_segment = new CurveSegment(_path, last_log_index() + 1,
-                                             _checksum_type, _walFilePool);
+                                             _checksum_type,
+                                             _walFilePool, _lfs);
             if (_open_segment->create() != 0) {
                 _open_segment = NULL;
                 return NULL;
@@ -715,7 +721,8 @@ scoped_refptr<Segment> CurveSegmentLogStorage::open_segment(
             if (prev_open_segment->close(_enable_sync) == 0) {
                 BAIDU_SCOPED_LOCK(_mutex);
                 _open_segment = new CurveSegment(_path, last_log_index() + 1,
-                                                 _checksum_type, _walFilePool);
+                                                 _checksum_type,
+                                                 _walFilePool, _lfs);
                 if (_open_segment->create() == 0) {
                     // success
                     break;
