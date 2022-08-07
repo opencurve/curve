@@ -57,7 +57,7 @@ class ClientClosure : public Closure {
     ClientClosure(CopysetClient* client, Closure* done)
         : client_(client), done_(done) {}
 
-    virtual ~ClientClosure() = default;
+     ~ClientClosure() override = default;
 
     void SetCntl(brpc::Controller* cntl) {
         cntl_ = cntl;
