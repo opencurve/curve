@@ -92,6 +92,11 @@ class S3ClientAdaptor {
     virtual void InitMetrics(const std::string &fsName) = 0;
     virtual void CollectMetrics(InterfaceMetric *interface, int count,
                                 uint64_t start) = 0;
+    virtual std::shared_ptr<DiskCacheManagerImpl> GetDiskCacheManager() = 0;
+    virtual std::shared_ptr<S3Client> GetS3Client() = 0;
+    virtual uint64_t GetBlockSize() = 0;
+    virtual uint64_t GetChunkSize() = 0;
+    virtual bool HasDiskCache() = 0;
 };
 
 using FlushChunkCacheCallBack = std::function<

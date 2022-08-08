@@ -25,11 +25,20 @@
 #define CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
 
 #include <memory>
+#include <string>
+#include <list>
+#include <vector>
+#include <utility>
 
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "src/common/s3_adapter.h"
+
 namespace curvefs {
 namespace client {
+
+using curve::common::GetObjectAsyncContext;
+using curve::common::GetObjectAsyncCallBack;
 
 class FuseS3Client : public FuseClient {
  public:
@@ -88,10 +97,30 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
 
     void FlushData() override;
+    // get the warmUp filelist
+    void GetWarmUpFileList(const WarmUpFileContext_t&,
+      std::vector<std::string>&);
+    void BackGroundFetch();
+    // put the file needed warmup to queue,
+    // then can downlaod the objs belong to it
+    void fetchDataEnqueue(fuse_ino_t ino);
+    // travel all chunks
+    void travelChunks(fuse_ino_t ino, google::protobuf::Map<uint64_t,
+      S3ChunkInfoList> *s3ChunkInfoMap);
+    // travel and download all objs belong to the chunk
+    void travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
+      std::list<std::pair<std::string, uint64_t>>* prefetchObjs);
+    // warmup all the prefetchObjs
+    void WarmUpAllObjs(const std::list<
+      std::pair<std::string, uint64_t>> &prefetchObjs);
 
  private:
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
+
+    Thread bgFetchThread_;
+    std::atomic<bool> bgFetchStop_;
+    std::mutex fetchMtx_;
 };
 
 
