@@ -27,13 +27,17 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gookit/color"
+	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 )
 
 const (
 	IP_PORT_REGEX = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
+
+	PATH_REGEX = `^(/[^/ ]*)+/?$`
 )
 
 func IsValidAddr(addr string) bool {
@@ -78,3 +82,25 @@ func AskConfirmation(promptStr string, confirm string) bool {
 		return false
 	}
 }
+
+func IsValidPath(path string) bool {
+	match, _ := regexp.MatchString(PATH_REGEX, path)
+	return match
+}
+
+func SplitMountpoint(mountpoint string) ([]string, *cmderror.CmdError) {
+	mountpointSlice := strings.Split(mountpoint, ":")
+	if len(mountpointSlice) != 3 {
+		err := cmderror.ErrSplitMountpoint()
+		err.Format(mountpoint)
+		return nil, err
+	}
+	_, errP := strconv.ParseUint(mountpointSlice[1], 10, 32)
+	if errP != nil {
+		err := cmderror.ErrSplitMountpoint()
+		err.Format(mountpoint)
+		fmt.Println(errP)
+		return nil, err
+	}
+	return mountpointSlice, cmderror.ErrSuccess()
+} 

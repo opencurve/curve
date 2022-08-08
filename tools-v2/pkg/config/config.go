@@ -41,7 +41,9 @@ const (
 	FORMAT = "format"
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
+	HTTPTIMEOUT                 = "httptimeout"
 	VIPER_GLOBALE_HTTPTIMEOUT   = "global.httpTimeout"
+	DEFAULT_HTTPTIMEOUT         = 500 * time.Millisecond
 	RPCTIMEOUT                  = "rpctimeout"
 	VIPER_GLOBALE_RPCTIMEOUT    = "global.rpcTimeout"
 	DEFAULT_RPCTIMEOUT          = 10000 * time.Millisecond
@@ -95,6 +97,12 @@ const (
 	CURVEFS_CLUSTERMAP           = "clustermap"
 	VIPER_CURVEFS_CLUSTERMAP     = "curvefs.clustermap"
 	CURVEFS_DEFAULT_CLUSTERMAP   = "topo_example.json"
+	CURVEFS_MARGIN               = "margin"
+	VIPER_CURVEFS_MARGIN         = "curvefs.margin"
+	CURVEFS_DEFAULT_MARGIN       = uint64(1000)
+	CURVEFS_FILELIST             = "filelist"
+	VIPER_CURVEFS_FILELIST       = "curvefs.filelist"
+
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
 	VIPER_CURVEFS_S3_AK           = "curvefs.s3.ak"
@@ -373,7 +381,7 @@ const (
 )
 
 func AddFormatFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "Output format (json|plain)")
+	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "output format (json|plain)")
 	err := viper.BindPFlag("format", cmd.Flags().Lookup("format"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -775,6 +783,25 @@ func AddDetailOptionFlag(cmd *cobra.Command) {
 	AddBoolOptionFlag(cmd, CURVEFS_DETAIL, "show more infomation")
 }
 
+// margin [option]
+func AddMarginOptionFlag(cmd *cobra.Command) {
+	AddUint64OptionFlag(cmd, CURVEFS_MARGIN, "the maximum gap between peers")
+}
+
+func GetMarginOptionFlag(cmd *cobra.Command) uint64 {
+	return GetFlagUint64(cmd, CURVEFS_MARGIN)
+}
+
+// filelist [option]
+func AddFileListOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_FILELIST,
+		"filelist path, save the files(dir) to warmup absPath, and should be in curvefs")
+}
+
+func GetFileListOptionFlag(cmd *cobra.Command) string {
+	return GetFlagString(cmd, CURVEFS_FILELIST)
+}
+
 /* required */
 
 // copysetid [required]
@@ -800,4 +827,9 @@ func AddFsIdRequiredFlag(cmd *cobra.Command) {
 // cluserMap [required]
 func AddClusterMapRequiredFlag(cmd *cobra.Command) {
 	AddStringRequiredFlag(cmd, CURVEFS_CLUSTERMAP, "clusterMap")
+}
+
+// mountpoint [required]
+func AddMountpointRequiredFlag(cmd *cobra.Command) {
+	AddStringRequiredFlag(cmd, CURVEFS_MOUNTPOINT, "curvefs mountpoint path")
 }
