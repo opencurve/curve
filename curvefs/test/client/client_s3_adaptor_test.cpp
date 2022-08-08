@@ -177,7 +177,7 @@ TEST_F(ClientS3AdaptorTest, truncate_big_alloc_chunkId_fail) {
     curvefs::metaserver::Inode inode;
     InitInode(&inode);
 
-    EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _))
+    EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
               s3ClientAdaptor_->Truncate(&inode, 1000));
@@ -188,9 +188,27 @@ TEST_F(ClientS3AdaptorTest, truncate_big_success) {
     InitInode(&inode);
 
     uint64_t chunkId = 999;
-    EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
+    EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(&inode, 1000));
+}
+
+TEST_F(ClientS3AdaptorTest, truncate_big_more_chunkId) {
+    curvefs::metaserver::Inode inode;
+    InitInode(&inode);
+
+    uint64_t chunkId = 999;
+    EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+              s3ClientAdaptor_->Truncate(&inode, 8 * 1024 * 1024));
+    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+    auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
+    auto s3ChunkInfo = s3chunkInfoListIter->second.s3chunks(0);
+    ASSERT_EQ(999, s3ChunkInfo.chunkid());
+    auto s3chunkInfoListIter1 = s3ChunkInfoMap->find(1);
+    auto s3ChunkInfo1 = s3chunkInfoListIter1->second.s3chunks(0);
+    ASSERT_EQ(1000, s3ChunkInfo1.chunkid());
 }
 
 TEST_F(ClientS3AdaptorTest, flush_no_file_cache) {

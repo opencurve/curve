@@ -59,13 +59,14 @@ class BlockGroupManagerImpl final : public BlockGroupManager {
                           const BlockGroupManagerOption& managerOption,
                           const AllocatorOption& allocatorOption);
 
-    bool AllocateBlockGroup(std::vector<AllocatorAndBitmapUpdater>* out);
+    bool AllocateBlockGroup(
+        std::vector<AllocatorAndBitmapUpdater>* out) override;
 
     void AcquireBlockGroup();
 
     void AllocateBlockGroupAsync();
 
-    bool ReleaseAllBlockGroups();
+    bool ReleaseAllBlockGroups() override;
 
  private:
     SpaceManager* spaceManager_;

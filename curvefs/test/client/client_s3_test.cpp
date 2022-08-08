@@ -40,10 +40,10 @@ class ClientS3Test : public testing::Test {
     ClientS3Test() {}
     ~ClientS3Test() {}
     virtual void SetUp() {
+        Aws::InitAPI(awsOptions_);
         client_ = new S3ClientImpl();
         s3Client_ = std::make_shared<MockS3Adapter>();
         client_->SetAdapter(s3Client_);
-        Aws::InitAPI(awsOptions_);
     }
 
     virtual void TearDown() {

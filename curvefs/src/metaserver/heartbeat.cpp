@@ -39,6 +39,7 @@
 #include "src/common/uri_parser.h"
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/resource_statistic.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -48,8 +49,6 @@ using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
 using ::curvefs::metaserver::copyset::CopysetService_Stub;
 using ::curvefs::metaserver::copyset::ToGroupIdString;
-using ::curvefs::metaserver::storage::StorageStatistics;
-using ::curvefs::metaserver::storage::GetStorageInstance;
 
 namespace {
 
@@ -185,9 +184,27 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
     replica->set_address(leader.to_string());
     info->set_allocated_leaderpeer(replica);
 
+    bool isLoading = copyset->IsLoading();
+    info->set_iscopysetloading(isLoading);
+
     // add partition info
-    for (auto& it : copyset->GetPartitionInfoList()) {
-        info->add_partitioninfolist()->CopyFrom(it);
+    if (isLoading) {
+        LOG(WARNING) << "build copyset info for heartbeat get partition "
+                     << "list fail, because copyset is loading, poolId = "
+                     << poolId << ", copysetId = " << copysetId;
+    } else {
+        std::list<PartitionInfo> partitionInfoList;
+        bool ret = copyset->GetPartitionInfoList(&partitionInfoList);
+        if (ret) {
+            for (auto& it : partitionInfoList) {
+                info->add_partitioninfolist()->CopyFrom(it);
+            }
+        } else {
+            LOG(WARNING) << "build copyset info for heartbeat get partition "
+                         << "list fail, because copyset is loading, poolId = "
+                         << poolId << ", copysetId = " << copysetId;
+            info->set_iscopysetloading(true);
+        }
     }
 
     ConfigChangeInfo confChangeInfo;
@@ -203,10 +220,9 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
 bool Heartbeat::GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
                                          uint64_t ncopysets) {
     StorageStatistics statistics;
-    auto kvStorage = GetStorageInstance();
-    bool succ = kvStorage->GetStatistics(&statistics);
+    bool succ = options_.resourceCollector->GetResourceStatistic(&statistics);
     if (!succ) {
-        LOG(ERROR) << "Get storage statistics failed";
+        LOG(ERROR) << "Failed to get resource statistic";
         return false;
     }
 
@@ -218,19 +234,17 @@ bool Heartbeat::GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
         status->set_memorycopysetminrequirebyte(0);
         status->set_diskcopysetminrequirebyte(0);
     } else {
+        // TODO(all): report each copyset's resource usage
         status->set_memorycopysetminrequirebyte(
             uint64_t(statistics.memoryUsageBytes / ncopysets));
         status->set_diskcopysetminrequirebyte(
             uint64_t(statistics.diskUsageBytes / ncopysets));
     }
-    LOG(INFO) << "Send metaserver space status, status = "
-              << status->ShortDebugString();
+
     return true;
 }
 
 int Heartbeat::BuildRequest(HeartbeatRequest* req) {
-    int ret;
-
     req->set_metaserverid(options_.metaserverId);
     req->set_token(options_.metaserverToken);
     req->set_starttime(startUpTime_);
@@ -322,6 +336,8 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest &request,
 
     DumpHeartbeatRequest(request);
 
+    LOG(INFO) << "Send heartbeat from metaserver: " << msEp_.ip << ":"
+              << msEp_.port << " to mds :" << mdsEps_[inServiceIndex_];
     stub.MetaServerHeartbeat(&cntl, &request, response, nullptr);
     if (cntl.Failed()) {
         if (cntl.ErrorCode() == EHOSTDOWN || cntl.ErrorCode() == ETIMEDOUT ||

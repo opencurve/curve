@@ -22,6 +22,7 @@
 #include "curvefs/src/mds/fs_manager.h"
 #include <brpc/channel.h>
 #include <brpc/server.h>
+#include <butil/endpoint.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
@@ -31,6 +32,7 @@
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "test/common/mock_s3_adapter.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "curvefs/test/mds/utils.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -79,10 +81,8 @@ namespace mds {
 class FSManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        std::string addr = "127.0.0.1:6704";
-
         MetaserverOptions metaserverOptions;
-        metaserverOptions.metaserverAddr = addr;
+        metaserverOptions.metaserverAddr = addr_;
         metaserverOptions.rpcTimeoutMs = 500;
         fsStorage_ = std::make_shared<MemoryFsStorage>();
         spaceManager_ = std::make_shared<MockSpaceManager>();
@@ -105,6 +105,7 @@ class FSManagerTest : public ::testing::Test {
         // init fsmanager
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
+        fsManagerOption.clientTimeoutSec = 1;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceManager_,
                                                  metaserverClient_,
@@ -117,23 +118,24 @@ class FSManagerTest : public ::testing::Test {
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.AddService(&mockCliService2_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(addr.c_str(), nullptr));
+        ASSERT_EQ(0, server_.AddService(&fakeCurveFsService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
 
-        return;
+        ASSERT_EQ(0, server_.Start("127.0.0.1:0", nullptr));
+        addr_ = butil::endpoint2str(server_.listen_address()).c_str();
     }
 
     void TearDown() override {
         server_.Stop(0);
         server_.Join();
         fsManager_->Uninit();
-        return;
     }
 
-    bool CompareVolume(const Volume& first, const Volume& second) {
+    static bool CompareVolume(const Volume& first, const Volume& second) {
         return MessageDifferencer::Equals(first, second);
     }
 
-    bool CompareVolumeFs(const FsInfo& first, const FsInfo& second) {
+    static bool CompareVolumeFs(const FsInfo& first, const FsInfo& second) {
         return first.fsid() == second.fsid() &&
                first.fsname() == second.fsname() &&
                first.rootinodeid() == second.rootinodeid() &&
@@ -144,11 +146,11 @@ class FSManagerTest : public ::testing::Test {
                CompareVolume(first.detail().volume(), second.detail().volume());
     }
 
-    bool CompareS3Info(const S3Info& first, const S3Info& second) {
+    static bool CompareS3Info(const S3Info& first, const S3Info& second) {
         return MessageDifferencer::Equals(first, second);
     }
 
-    bool CompareS3Fs(const FsInfo& first, const FsInfo& second) {
+    static bool CompareS3Fs(const FsInfo& first, const FsInfo& second) {
         return first.fsid() == second.fsid() &&
                first.fsname() == second.fsname() &&
                first.rootinodeid() == second.rootinodeid() &&
@@ -170,6 +172,8 @@ class FSManagerTest : public ::testing::Test {
     std::shared_ptr<MockTopologyManager> topoManager_;
     brpc::Server server_;
     std::shared_ptr<MockS3Adapter> s3Adapter_;
+    FakeCurveFSService fakeCurveFsService_;
+    std::string addr_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -185,18 +189,18 @@ void RpcService(google::protobuf::RpcController* cntl_base,
 }
 
 TEST_F(FSManagerTest, test1) {
-    std::string addr = "127.0.0.1:6704";
-    std::string leader = "127.0.0.1:6704:0";
+    std::string addr = addr_;
+    std::string leader = addr_ + ":0";
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
     bool enableSumInDir = false;
     curvefs::common::Volume volume;
-    uint64_t volumeSize = 4096 * 10000;
-    volume.set_volumesize(volumeSize);
+    const uint64_t volumeSize = fakeCurveFsService_.volumeSize;
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
+    volume.add_cluster(addr_);
 
     FsInfo volumeFsInfo1;
     FsDetail detail;
@@ -385,7 +389,11 @@ TEST_F(FSManagerTest, test1) {
     ASSERT_EQ(ret, FSStatusCode::PARAM_ERROR);
 
     // TEST MountFs
-    std::string mountPoint = "host:/a/b/c";
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("host");
+    mountPoint.set_port(90000);
+    mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     FsInfo fsInfo3;
 
     // mount volumefs initspace fail
@@ -400,22 +408,50 @@ TEST_F(FSManagerTest, test1) {
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareVolumeFs(volumeFsInfo1, fsInfo3));
-    ASSERT_EQ(fsInfo3.mountpoints(0), mountPoint);
+    ASSERT_EQ(MessageDifferencer::Equals(fsInfo3.mountpoints(0), mountPoint),
+              true);
+    std::pair<std::string, uint64_t> tpair;
+    std::string mountpath = "host:90000:/a/b/c";
+    ASSERT_TRUE(fsManager_->GetClientAliveTime(mountpath, &tpair));
+    ASSERT_EQ(fsName1, tpair.first);
+    // test client timeout and restore session later
+    {
+        fsManager_->Run();
+        EXPECT_CALL(*spaceManager_, RemoveVolume(_))
+            .WillOnce(Return(space::SpaceOk));
+        // clientTimeoutSec in option
+        sleep(4);
+        FsInfo info;
+        ASSERT_EQ(FSStatusCode::OK, fsManager_->GetFsInfo(fsName1, &info));
+        ASSERT_EQ(0, info.mountpoints_size());
+
+        RefreshSessionRequest request;
+        RefreshSessionResponse response;
+        request.set_fsname(fsName1);
+        *request.mutable_mountpoint() = mountPoint;
+        fsManager_->RefreshSession(&request, &response);
+        ASSERT_EQ(FSStatusCode::OK, fsManager_->GetFsInfo(fsName1, &info));
+        ASSERT_EQ(1, info.mountpoints_size());
+        ASSERT_EQ(MessageDifferencer::Equals(info.mountpoints(0), mountPoint),
+            true);
+        fsManager_->Stop();
+    }
 
     // mount volumefs mountpoint exist
     ret = fsManager_->MountFs(fsName1, mountPoint, &fsInfo3);
-    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_EXIST);
+    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_CONFLICT);
 
     // mount s3 fs success
     FsInfo fsInfo4;
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
     ASSERT_EQ(ret, FSStatusCode::OK);
     ASSERT_TRUE(CompareS3Fs(s3FsInfo, fsInfo4));
-    ASSERT_EQ(fsInfo4.mountpoints(0), mountPoint);
+    ASSERT_EQ(MessageDifferencer::Equals(fsInfo4.mountpoints(0), mountPoint),
+              true);
 
     // mount s3 fs mount point exist
     ret = fsManager_->MountFs(fsName2, mountPoint, &fsInfo4);
-    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_EXIST);
+    ASSERT_EQ(ret, FSStatusCode::MOUNT_POINT_CONFLICT);
 
     // TEST UmountFs
     // umount UnInitSpace fail
@@ -430,6 +466,7 @@ TEST_F(FSManagerTest, test1) {
         .WillOnce(Return(space::SpaceOk));
     ret = fsManager_->UmountFs(fsName1, mountPoint);
     ASSERT_EQ(ret, FSStatusCode::OK);
+    ASSERT_FALSE(fsManager_->GetClientAliveTime(mountpath, &tpair));
 
     // umount not exist mountpoint
     ret = fsManager_->UmountFs(fsName1, mountPoint);
@@ -464,18 +501,19 @@ TEST_F(FSManagerTest, backgroud_thread_test) {
 
 TEST_F(FSManagerTest, background_thread_deletefs_test) {
     fsManager_->Run();
-    std::string addr = "127.0.0.1:6704";
-    std::string leader = "127.0.0.1:6704:0";
+    std::string addr = addr_;
+    std::string leader = addr_ + ":0";
     FSStatusCode ret;
     std::string fsName1 = "fs1";
     uint64_t blockSize = 4096;
     bool enableSumInDir = false;
     curvefs::common::Volume volume;
-    uint64_t volumeSize = 4096 * 10000;
+    const uint64_t volumeSize = fakeCurveFsService_.volumeSize;
     volume.set_volumesize(volumeSize);
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
+    volume.add_cluster(addr_);
 
     FsInfo volumeFsInfo1;
     FsDetail detail;
@@ -663,10 +701,15 @@ TEST_F(FSManagerTest, background_thread_deletefs_test) {
     ASSERT_EQ(ret, FSStatusCode::NOT_FOUND);
 }
 
-TEST_F(FSManagerTest, test_efreshSession) {
+TEST_F(FSManagerTest, test_refreshSession) {
     PartitionTxId tmp;
     tmp.set_partitionid(1);
     tmp.set_txid(1);
+    std::string fsName = "fs1";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
 
     {
         LOG(INFO) << "### case1: partition txid need update ###";
@@ -674,21 +717,20 @@ TEST_F(FSManagerTest, test_efreshSession) {
         RefreshSessionResponse response;
         std::vector<PartitionTxId> txidlist({std::move(tmp)});
         *request.mutable_txids() = {txidlist.begin(), txidlist.end()};
+        request.set_fsname(fsName);
+        *request.mutable_mountpoint() = mountpoint;
         EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
             .WillOnce(SetArgPointee<1>(txidlist));
-        fsManager_->RefreshSession(request.txids(),
-                                   response.mutable_latesttxidlist());
+        fsManager_->RefreshSession(&request, &response);
         ASSERT_EQ(1, response.latesttxidlist_size());
     }
     {
         LOG(INFO) << "### case2: partition txid do not need update ###";
         RefreshSessionResponse response;
         RefreshSessionRequest request;
-        std::vector<PartitionTxId> txidlist;
-        EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
-            .WillOnce(SetArgPointee<1>(txidlist));
-        fsManager_->RefreshSession(request.txids(),
-                                   response.mutable_latesttxidlist());
+        request.set_fsname(fsName);
+        *request.mutable_mountpoint() = mountpoint;
+        fsManager_->RefreshSession(&request, &response);
         ASSERT_EQ(0, response.latesttxidlist_size());
     }
 }

@@ -25,8 +25,10 @@
 
 #include "curvefs/src/mds/mds.h"
 #include "src/common/configuration.h"
+#include "curvefs/src/common/dynamic_vlog.h"
 
 using ::curve::common::Configuration;
+using ::curvefs::common::FLAGS_vlog_level;
 
 DEFINE_string(confPath, "curvefs/conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6700", "mds listen addr");
@@ -35,6 +37,10 @@ void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("mdsAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsAddr);
+    }
+
+    if (GetCommandLineFlagInfo("v", &info) && !info.is_default) {
+        conf->SetIntValue("mds.loglevel", FLAGS_v);
     }
 }
 
@@ -47,8 +53,9 @@ int main(int argc, char **argv) {
     conf->SetConfigPath(confPath);
     LOG_IF(FATAL, !conf->LoadConfig())
         << "load mds configuration fail, conf path = " << confPath;
+    conf->GetValueFatalIfFail("mds.loglevel", &FLAGS_v);
     LoadConfigFromCmdline(conf.get());
-    conf->PrintConfig();
+    FLAGS_vlog_level = FLAGS_v;
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("mds.common.logDir", &FLAGS_log_dir)) {
             LOG(WARNING) << "no mds.common.logDir in " << confPath
@@ -56,10 +63,12 @@ int main(int argc, char **argv) {
         }
     }
 
-    curvefs::mds::MDS mds;
-
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
+
+    conf->PrintConfig();
+
+    curvefs::mds::MDS mds;
 
     // initialize MDS options
     mds.InitOptions(conf);
@@ -77,6 +86,7 @@ int main(int argc, char **argv) {
     // stop server and background threads
     mds.Stop();
 
+    curve::common::S3Adapter::Shutdown();
     google::ShutdownGoogleLogging();
     return 0;
 }

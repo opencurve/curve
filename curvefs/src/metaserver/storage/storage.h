@@ -25,6 +25,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "curvefs/src/metaserver/storage/config.h"
 #include "curvefs/src/metaserver/storage/status.h"
@@ -36,19 +37,11 @@ namespace storage {
 
 using ::curvefs::metaserver::storage::Iterator;
 
-struct StorageStatistics {
-    uint64_t maxMemoryQuotaBytes;
-
-    uint64_t maxDiskQuotaBytes;
-
-    uint64_t memoryUsageBytes;
-
-    uint64_t diskUsageBytes;
-};
-
 // The interface inspired by redis, see also https://redis.io/commands
 class BaseStorage {
  public:
+    virtual ~BaseStorage() = default;
+
     // "H" is the prefix of unordered storage
     virtual Status HGet(const std::string& name,
                         const std::string& key,
@@ -108,16 +101,18 @@ class KVStorage : public BaseStorage {
 
     virtual bool Close() = 0;
 
-    virtual bool GetStatistics(StorageStatistics* Statistics) = 0;
-
     virtual StorageOptions GetStorageOptions() const = 0;
 
     virtual std::shared_ptr<StorageTransaction> BeginTransaction() = 0;
+
+    // Save storage's data into the destination directory, and return relative
+    // filenames of current checkpoint under the directory
+    virtual bool Checkpoint(const std::string& dir,
+                            std::vector<std::string>* files) = 0;
+
+    // Recover storage from a given directory
+    virtual bool Recover(const std::string& dir) = 0;
 };
-
-bool InitStorage(StorageOptions options);
-
-std::shared_ptr<KVStorage> GetStorageInstance();
 
 }  // namespace storage
 }  // namespace metaserver

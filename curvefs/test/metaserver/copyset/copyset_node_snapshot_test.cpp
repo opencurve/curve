@@ -112,12 +112,13 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
         options_.raftNodeOptions.raft_meta_uri = "local://" + dataPath_;
         options_.raftNodeOptions.snapshot_uri = "local://" + dataPath_;
 
-        // disable raft snaphsot
+        // disable raft snapshot
         options_.raftNodeOptions.snapshot_interval_s = -1;
 
         options_.localFileSystem = mockfs_.get();
 
         options_.trashOptions.trashUri = "local://" + trashPath_;
+        options_.storageOptions.type = "memory";
 
         butil::ip_t ip;
         ASSERT_EQ(0, butil::str2ip(options_.ip.c_str(), &ip));
@@ -130,6 +131,9 @@ class CopysetNodeRaftSnapshotTest : public testing::Test {
         nodeManager_->AddService(&server_, listenAddr);
 
         ASSERT_EQ(0, server_.Start(listenAddr, nullptr));
+
+        EXPECT_CALL(*mockfs_, Mkdir(_))
+            .WillRepeatedly(Return(0));
     }
 
     void TearDown() {
@@ -254,7 +258,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotSaveTest_Success) {
     EXPECT_CALL(writer, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(writer, add_file(_))
-        .Times(2);
+        .Times(1);
     EXPECT_CALL(*mockfs_, Open(_, _))
         .WillOnce(Return(0));
     EXPECT_CALL(*mockfs_, Write(_, Matcher<const char*>(_), _, _))
@@ -294,7 +298,9 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_LoadConfFileFailed) {
     EXPECT_CALL(*mockfs_, Open(_, _))
         .WillOnce(Return(-1));
 
+    ASSERT_FALSE(node->IsLoading());
     EXPECT_NE(0, node->on_snapshot_load(&reader));
+    ASSERT_FALSE(node->IsLoading());
 }
 
 TEST_F(CopysetNodeRaftSnapshotTest,
@@ -311,12 +317,13 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .Times(2)
-        .WillRepeatedly(Return(false));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())
         .Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_))
+        .WillOnce(Return(true));
 
     braft::SnapshotMeta meta;
     meta.set_last_included_index(100);
@@ -326,7 +333,9 @@ TEST_F(CopysetNodeRaftSnapshotTest,
     EXPECT_CALL(reader, load_meta(_))
         .WillOnce(DoAll(SetArgPointee<0>(meta), Return(0)));
 
+    ASSERT_FALSE(node->IsLoading());
     EXPECT_EQ(0, node->on_snapshot_load(&reader));
+    ASSERT_FALSE(node->IsLoading());
     EXPECT_EQ(100, node->LatestLoadSnapshotIndex());
 
     // load snapshot doesn't change epoch
@@ -361,8 +370,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
     EXPECT_CALL(reader, get_path())
         .WillRepeatedly(Return(dataPath_));
     EXPECT_CALL(*mockfs_, FileExists(_))
-        .WillOnce(Return(false))
-        .WillOnce(Return(true));
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockfs_, Open(_, _))
         .Times(0);
     EXPECT_CALL(*mockMetaStore, Clear())
@@ -372,10 +380,136 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadFailed) {
     EXPECT_CALL(reader, load_meta(_))
         .Times(0);
 
+    ASSERT_FALSE(node->IsLoading());
     EXPECT_NE(0, node->on_snapshot_load(&reader));
+    ASSERT_FALSE(node->IsLoading());
+
     node->SetMetaStore(nullptr);
 }
 
+void RunOnSnapshotLoad(CopysetNode* node, MockSnapshotReader *reader,
+                       uint32_t sleepSec) {
+    sleep(sleepSec);
+    ASSERT_FALSE(node->IsLoading());
+    EXPECT_EQ(0, node->on_snapshot_load(reader));
+    ASSERT_FALSE(node->IsLoading());
+}
+
+void RunGetPartitionInfoList(CopysetNode* node, uint32_t sleepSec,
+                             bool expectedValue) {
+    sleep(sleepSec);
+    std::list<PartitionInfo> partitionInfoList;
+    ASSERT_EQ(node->GetPartitionInfoList(&partitionInfoList), expectedValue);
+}
+
+// get partition list while copyset is loading
+TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess1) {
+    ASSERT_TRUE(CreateOneCopyset());
+
+    auto* node = nodeManager_->GetCopysetNode(poolId_, copysetId_);
+    ASSERT_NE(nullptr, node);
+
+    auto mockMetaStore = mockMetaStore_.get();
+    node->SetMetaStore(mockMetaStore_.release());
+
+    MockSnapshotReader reader;
+    EXPECT_CALL(reader, get_path())
+        .WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _))
+        .Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear())
+        .Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_))
+        .WillOnce(Invoke([](const std::string& pathname){
+            sleep(3);
+            return true;
+        }));
+    EXPECT_CALL(reader, load_meta(_))
+        .Times(1);
+
+    std::thread thread1(RunOnSnapshotLoad, node, &reader, 0);
+    std::thread thread2(RunGetPartitionInfoList, node, 3, false);
+    thread1.join();
+    thread2.join();
+
+    node->SetMetaStore(nullptr);
+}
+
+// get partition list after copyset is loading
+TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess2) {
+    ASSERT_TRUE(CreateOneCopyset());
+
+    auto* node = nodeManager_->GetCopysetNode(poolId_, copysetId_);
+    ASSERT_NE(nullptr, node);
+
+    auto mockMetaStore = mockMetaStore_.get();
+    node->SetMetaStore(mockMetaStore_.release());
+
+    MockSnapshotReader reader;
+    EXPECT_CALL(reader, get_path())
+        .WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _))
+        .Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear())
+        .Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_))
+        .WillOnce(Invoke([](const std::string& pathname){
+            sleep(1);
+            return true;
+        }));
+    EXPECT_CALL(reader, load_meta(_))
+        .Times(1);
+    EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_))
+        .WillOnce(Return(true));
+
+    std::thread thread1(RunOnSnapshotLoad, node, &reader, 0);
+    std::thread thread2(RunGetPartitionInfoList, node, 3, true);
+    thread1.join();
+    thread2.join();
+
+    node->SetMetaStore(nullptr);
+}
+
+// get partition list before copyset is loading
+TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess3) {
+    ASSERT_TRUE(CreateOneCopyset());
+
+    auto* node = nodeManager_->GetCopysetNode(poolId_, copysetId_);
+    ASSERT_NE(nullptr, node);
+
+    auto mockMetaStore = mockMetaStore_.get();
+    node->SetMetaStore(mockMetaStore_.release());
+
+    MockSnapshotReader reader;
+    EXPECT_CALL(reader, get_path())
+        .WillRepeatedly(Return(dataPath_));
+    EXPECT_CALL(*mockfs_, FileExists(_))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*mockfs_, Open(_, _))
+        .Times(0);
+    EXPECT_CALL(*mockMetaStore, Clear())
+        .Times(1);
+    EXPECT_CALL(*mockMetaStore, Load(_))
+        .WillOnce(Invoke([](const std::string& pathname){
+            sleep(1);
+            return true;
+        }));
+    EXPECT_CALL(reader, load_meta(_))
+        .Times(1);
+    EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_))
+        .WillOnce(Return(true));
+
+    std::thread thread1(RunOnSnapshotLoad, node, &reader, 2);
+    std::thread thread2(RunGetPartitionInfoList, node, 1, true);
+    thread1.join();
+    thread2.join();
+
+    node->SetMetaStore(nullptr);
+}
 }  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs

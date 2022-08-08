@@ -20,13 +20,13 @@
  * Author: lixiaocui
  */
 
-#include "curvefs/src/client/rpcclient/mds_client.h"
-
 #include <map>
 #include <utility>
 #include <vector>
 
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/common/metric_utils.h"
 
 namespace curvefs {
 namespace client {
@@ -34,6 +34,7 @@ namespace rpcclient {
 
 using ::curvefs::mds::space::SpaceErrCode;
 using ::curvefs::mds::space::SpaceErrCode_Name;
+using ::curvefs::common::LatencyUpdater;
 
 FSStatusCode
 MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
@@ -55,11 +56,11 @@ MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
     [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
         brpc::Controller *cntl) -> int
 
-FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
-                                    const std::string &mountPt,
-                                    FsInfo *fsInfo) {
+FSStatusCode MdsClientImpl::MountFs(const std::string& fsName,
+                                    const Mountpoint& mountPt, FsInfo* fsInfo) {
     auto task = RPCTask {
         mdsClientMetric_.mountFs.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.mountFs.latency);
         MountFsResponse response;
         mdsbasecli_->MountFs(fsName, mountPt, &response, cntl, channel);
         if (cntl->Failed()) {
@@ -73,7 +74,8 @@ FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
         FSStatusCode ret = response.statuscode();
         if (ret != FSStatusCode::OK) {
             LOG(WARNING) << "MountFs: fsname = " << fsName
-                         << ", mountPt = " << mountPt << ", errcode = " << ret
+                         << ", mountPt = " << mountPt.ShortDebugString()
+                         << ", errcode = " << ret
                          << ", errmsg = " << FSStatusCode_Name(ret);
         } else if (response.has_fsinfo()) {
             fsInfo->CopyFrom(response.fsinfo());
@@ -83,10 +85,11 @@ FSStatusCode MdsClientImpl::MountFs(const std::string &fsName,
     return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
-FSStatusCode MdsClientImpl::UmountFs(const std::string &fsName,
-                                     const std::string &mountPt) {
+FSStatusCode MdsClientImpl::UmountFs(const std::string& fsName,
+                                     const Mountpoint& mountPt) {
     auto task = RPCTask {
         mdsClientMetric_.umountFs.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.umountFs.latency);
         UmountFsResponse response;
         mdsbasecli_->UmountFs(fsName, mountPt, &response, cntl, channel);
         if (cntl->Failed()) {
@@ -99,7 +102,8 @@ FSStatusCode MdsClientImpl::UmountFs(const std::string &fsName,
 
         FSStatusCode ret = response.statuscode();
         LOG_IF(WARNING, ret != FSStatusCode::OK)
-            << "UmountFs: fsname = " << fsName << ", mountPt = " << mountPt
+            << "UmountFs: fsname = " << fsName
+            << ", mountPt = " << mountPt.ShortDebugString()
             << ", errcode = " << ret << ", errmsg = " << FSStatusCode_Name(ret);
         return ret;
     };
@@ -110,6 +114,7 @@ FSStatusCode MdsClientImpl::GetFsInfo(const std::string &fsName,
                                       FsInfo *fsInfo) {
     auto task = RPCTask {
         mdsClientMetric_.getFsInfo.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.getFsInfo.latency);
         GetFsInfoResponse response;
         mdsbasecli_->GetFsInfo(fsName, &response, cntl, channel);
 
@@ -139,6 +144,7 @@ FSStatusCode MdsClientImpl::GetFsInfo(const std::string &fsName,
 FSStatusCode MdsClientImpl::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
     auto task = RPCTask {
         mdsClientMetric_.getFsInfo.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.getFsInfo.latency);
         GetFsInfoResponse response;
         mdsbasecli_->GetFsInfo(fsId, &response, cntl, channel);
         if (cntl->Failed()) {
@@ -197,9 +203,12 @@ bool MdsClientImpl::GetMetaServerInfo(
     ::curve::common::StringToUll(strs[1], &port);
 
     auto task = RPCTask {
+        mdsClientMetric_.getMetaServerInfo.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.getMetaServerInfo.latency);
         GetMetaServerInfoResponse response;
         mdsbasecli_->GetMetaServerInfo(port, ip, &response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.getMetaServerInfo.eps.count << 1;
             LOG(WARNING) << "GetMetaServerInfo Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -207,9 +216,8 @@ bool MdsClientImpl::GetMetaServerInfo(
             return -cntl->ErrorCode();
         }
 
-        // TODO(lixiaocui): @wanghai 这里uint32返回的是什么
-        uint32_t ret = response.statuscode();
-        if (ret != 0) {
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
             LOG(WARNING) << "GetMetaServerInfo: ip= " << ip
                          << ", port= " << port << ", errcode = " << ret;
         } else {
@@ -231,10 +239,14 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
     const LogicPoolID &logicalpooid, const std::vector<CopysetID> &copysetidvec,
     std::vector<CopysetInfo<MetaserverID>> *cpinfoVec) {
     auto task = RPCTask {
+        mdsClientMetric_.getMetaServerListInCopysets.qps.count << 1;
+        LatencyUpdater updater(
+            &mdsClientMetric_.getMetaServerListInCopysets.latency);
         GetMetaServerListInCopySetsResponse response;
         mdsbasecli_->GetMetaServerListInCopysets(logicalpooid, copysetidvec,
                                                  &response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.getMetaServerListInCopysets.eps.count << 1;
             LOG(WARNING) << "get metaserver list from mds failed, error is "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
@@ -278,9 +290,12 @@ bool MdsClientImpl::GetMetaServerListInCopysets(
 bool MdsClientImpl::CreatePartition(
     uint32_t fsID, uint32_t count, std::vector<PartitionInfo> *partitionInfos) {
     auto task = RPCTask {
+        mdsClientMetric_.createPartition.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.createPartition.latency);
         CreatePartitionResponse response;
         mdsbasecli_->CreatePartition(fsID, count, &response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.createPartition.eps.count << 1;
             LOG(WARNING) << "CreatePartition from mds failed, error is "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
@@ -304,10 +319,11 @@ bool MdsClientImpl::CreatePartition(
             return TopoStatusCode::TOPO_CREATE_PARTITION_FAIL;
         }
 
+        partitionInfos->reserve(count);
         partitionInfos->clear();
-        for (int i = 0; i < partitionNum; i++) {
-            partitionInfos->push_back(response.partitioninfolist(i));
-        }
+        std::move(response.mutable_partitioninfolist()->begin(),
+                  response.mutable_partitioninfolist()->end(),
+                  std::back_inserter(*partitionInfos));
 
         return TopoStatusCode::TOPO_OK;
     };
@@ -319,10 +335,14 @@ bool MdsClientImpl::GetCopysetOfPartitions(
     const std::vector<uint32_t> &partitionIDList,
     std::map<uint32_t, Copyset> *copysetMap) {
     auto task = RPCTask {
+        mdsClientMetric_.getCopysetOfPartitions.qps.count << 1;
+        LatencyUpdater updater(
+            &mdsClientMetric_.getCopysetOfPartitions.latency);
         GetCopysetOfPartitionResponse response;
         mdsbasecli_->GetCopysetOfPartitions(partitionIDList, &response, cntl,
                                             channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.getCopysetOfPartitions.eps.count << 1;
             LOG(WARNING) << "GetCopysetOfPartition from mds failed, error is "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
@@ -359,9 +379,12 @@ bool MdsClientImpl::GetCopysetOfPartitions(
 bool MdsClientImpl::ListPartition(uint32_t fsID,
                                   std::vector<PartitionInfo> *partitionInfos) {
     auto task = RPCTask {
+        mdsClientMetric_.listPartition.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.listPartition.latency);
         ListPartitionResponse response;
         mdsbasecli_->ListPartition(fsID, &response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.listPartition.eps.count << 1;
             LOG(WARNING) << "ListPartition from mds failed, error is "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
@@ -390,11 +413,15 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
 }
 
-FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
+FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
+                                           uint64_t *chunkId) {
     auto task = RPCTask {
+        mdsClientMetric_.allocS3ChunkId.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.allocS3ChunkId.latency);
         AllocateS3ChunkResponse response;
-        mdsbasecli_->AllocS3ChunkId(fsId, &response, cntl, channel);
+        mdsbasecli_->AllocS3ChunkId(fsId, idNum, &response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.allocS3ChunkId.eps.count << 1;
             LOG(WARNING) << "AllocS3ChunkId Failed, errorcode = "
                          << cntl->ErrorCode()
                          << ", error content:" << cntl->ErrorText()
@@ -407,8 +434,8 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
             LOG(WARNING) << "AllocS3ChunkId: fsid = " << fsId
                          << ", errcode = " << ret
                          << ", errmsg = " << FSStatusCode_Name(ret);
-        } else if (response.has_chunkid()) {
-            *chunkId = response.chunkid();
+        } else if (response.has_beginchunkid()) {
+            *chunkId = response.beginchunkid();
         }
 
         return ret;
@@ -418,11 +445,20 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) {
 
 FSStatusCode
 MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
-                              std::vector<PartitionTxId> *latestTxIdList) {
+                              std::vector<PartitionTxId> *latestTxIdList,
+                              const std::string& fsName,
+                              const Mountpoint& mountpoint) {
     auto task = RPCTask {
+        mdsClientMetric_.refreshSession.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.refreshSession.latency);
+        RefreshSessionRequest request;
         RefreshSessionResponse response;
-        mdsbasecli_->RefreshSession(txIds, &response, cntl, channel);
+        *request.mutable_txids() = {txIds.begin(), txIds.end()};
+        request.set_fsname(fsName);
+        *request.mutable_mountpoint() = mountpoint;
+        mdsbasecli_->RefreshSession(request, &response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.refreshSession.eps.count << 1;
             LOG(WARNING) << "RefreshSession fail, errcode = "
                          << cntl->ErrorCode()
                          << ", error content: " << cntl->ErrorText()
@@ -451,8 +487,10 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
                                           GetLatestTxIdResponse* response) {
     auto task = RPCTask {
         mdsClientMetric_.getLatestTxId.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.getLatestTxId.latency);
         mdsbasecli_->GetLatestTxId(request, response, cntl, channel);
         if (cntl->Failed()) {
+            mdsClientMetric_.getLatestTxId.eps.count << 1;
             LOG(WARNING) << "GetLatestTxId fail, errCode = "
                          << cntl->ErrorCode()
                          << ", errorText = " << cntl->ErrorText()
@@ -481,6 +519,7 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
 FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
     auto task = RPCTask {
         mdsClientMetric_.commitTx.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.commitTx.latency);
         CommitTxResponse response;
         mdsbasecli_->CommitTx(request, &response, cntl, channel);
 
@@ -611,9 +650,9 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
             VLOG(9) << "AllocateVolumeBlockGroup, response: "
                     << response.ShortDebugString();
             groups->reserve(response.blockgroups_size());
-            for (int i = 0; i < response.blockgroups_size(); ++i) {
-                groups->push_back(std::move(*response.mutable_blockgroups(i)));
-            }
+            std::move(response.mutable_blockgroups()->begin(),
+                      response.mutable_blockgroups()->end(),
+                      std::back_inserter(*groups));
         }
 
         return status;

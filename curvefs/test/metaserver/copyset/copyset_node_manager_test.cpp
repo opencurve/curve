@@ -23,6 +23,7 @@
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 
 #include <brpc/server.h>
+#include <butil/fast_rand.h>
 #include <gtest/gtest.h>
 
 #include "curvefs/src/metaserver/common/types.h"
@@ -45,8 +46,8 @@ const char* kCopysetUri = "local://./runlog/fs/copyset_node_manager";
 const char* kTrashUri = "local://./runlog/fs/copyset_node_manager_trash";
 const int kPort = 29920;
 const char* kInitConf = "127.0.0.1:29920:0,127.0.0.1:29921:0,127.0.0.1:29922:0";
-const PoolId kPoolId = 12345;
-const CopysetId kCopysetId = 12345;
+const PoolId kPoolId = butil::fast_rand();
+const CopysetId kCopysetId = butil::fast_rand();
 
 class CopysetNodeManagerTest : public testing::Test {
  protected:
@@ -64,8 +65,8 @@ class CopysetNodeManagerTest : public testing::Test {
         options_.raftNodeOptions.snapshot_uri = kCopysetUri;
         options_.loadConcurrency = 5;
         options_.trashOptions.trashUri = kTrashUri;
-
         options_.localFileSystem = fs_.get();
+        options_.storageOptions.type = "memory";
     }
 
     void TearDown() override {
@@ -171,6 +172,26 @@ TEST_F(CopysetNodeManagerTest, CreateCopysetTest_Common) {
     EXPECT_EQ(kCopysetId, nodes[0]->GetCopysetId());
 }
 
+TEST_F(CopysetNodeManagerTest, CreateCopysetTest_InitRaftNodeFailed) {
+    // it's tricky, raft node will check ip != IP_ANY
+    options_.ip = "0.0.0.0";
+    EXPECT_TRUE(nodeManager_->Init(options_));
+    EXPECT_TRUE(nodeManager_->Start());
+
+    braft::Configuration conf;
+    EXPECT_EQ(0, conf.parse_from(kInitConf));
+
+    brpc::Server server;
+    butil::ip_t ip;
+    EXPECT_EQ(0, butil::str2ip("127.0.0.1", &ip));
+    EXPECT_NO_FATAL_FAILURE(
+        nodeManager_->AddService(&server, butil::EndPoint(ip, kPort)));
+
+    EXPECT_FALSE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
+
+    EXPECT_EQ(nullptr, nodeManager_->GetCopysetNode(kPoolId, kCopysetId));
+}
+
 TEST_F(CopysetNodeManagerTest, DeleteCopysetNodeTest_CopysetNodeNotExists) {
     EXPECT_TRUE(nodeManager_->Init(options_));
     EXPECT_FALSE(nodeManager_->DeleteCopysetNode(kPoolId, kCopysetId));
@@ -245,6 +266,35 @@ TEST_F(CopysetNodeManagerTest,
     EXPECT_FALSE(nodeManager_->PurgeCopysetNode(kPoolId, kCopysetId));
     nodeManager_->GetAllCopysets(&nodes);
     EXPECT_EQ(0, nodes.size());
+}
+
+// issue 1631 reports when we use rocksdb as storage, after creating and
+// removing a copyset, next time create the same copyset will fail
+TEST_F(CopysetNodeManagerTest, ISSUE_1631) {
+    options_.storageOptions.type = "rocksdb";
+
+    EXPECT_TRUE(nodeManager_->Init(options_));
+    EXPECT_TRUE(nodeManager_->Start());
+
+    braft::Configuration conf;
+    EXPECT_EQ(0, conf.parse_from(kInitConf));
+
+    brpc::Server server;
+    butil::ip_t ip;
+    EXPECT_EQ(0, butil::str2ip("127.0.0.1", &ip));
+    EXPECT_NO_FATAL_FAILURE(
+        nodeManager_->AddService(&server, butil::EndPoint(ip, kPort)));
+
+    // create copyset firstly
+    EXPECT_TRUE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    // then delete it
+    EXPECT_TRUE(nodeManager_->PurgeCopysetNode(kPoolId, kCopysetId));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    // create a same copyset again
+    EXPECT_TRUE(nodeManager_->CreateCopysetNode(kPoolId, kCopysetId, conf));
 }
 
 }  // namespace copyset

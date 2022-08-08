@@ -142,6 +142,23 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void IncreaseFileEpoch(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::IncreaseFileEpochRequest* request,
+                       ::curve::mds::IncreaseFileEpochResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeIncreaseFileEpochret_->controller_ != nullptr &&
+            fakeIncreaseFileEpochret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::IncreaseFileEpochResponse*>(
+                    fakeIncreaseFileEpochret_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void GetAllocatedSize(::google::protobuf::RpcController* controller,
                           const ::curve::mds::GetAllocatedSizeRequest* request,
                           ::curve::mds::GetAllocatedSizeResponse* response,
@@ -614,6 +631,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeGetFileInforet_ = fakeret;
     }
 
+    void SetIncreaseFileEpochReturn(FakeReturn* fakeret) {
+        fakeIncreaseFileEpochret_ = fakeret;
+    }
+
     void SetGetAllocatedSizeReturn(FakeReturn* fakeret) {
         fakeGetAllocatedSizeRet_ = fakeret;
     }
@@ -734,6 +755,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeCreateCloneFile_;
     FakeReturn* fakeCreateFileret_;
     FakeReturn* fakeGetFileInforet_;
+    FakeReturn* fakeIncreaseFileEpochret_;
     FakeReturn* fakeGetAllocatedSizeRet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
     FakeReturn* fakeGetOrAllocateSegmentretForClone_;

@@ -28,7 +28,7 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
-OperatorApplyMetric::OperatorApplyMetric(PoolId poolId, CopysetId copysetId) {
+OperatorMetric::OperatorMetric(PoolId poolId, CopysetId copysetId) {
     std::string prefix = "op_apply_pool_" + std::to_string(poolId) +
                          "_copyset_" + std::to_string(copysetId);
     std::string fromLogPrefix = "op_apply_from_log_pool_" +
@@ -42,7 +42,7 @@ OperatorApplyMetric::OperatorApplyMetric(PoolId poolId, CopysetId copysetId) {
     }
 }
 
-void OperatorApplyMetric::OnOperatorComplete(OperatorType type,
+void OperatorMetric::OnOperatorComplete(OperatorType type,
                                              uint64_t latencyUs, bool success) {
     auto index = static_cast<uint32_t>(type);
     if (index < kTotalOperatorNum) {
@@ -54,7 +54,7 @@ void OperatorApplyMetric::OnOperatorComplete(OperatorType type,
     }
 }
 
-void OperatorApplyMetric::OnOperatorCompleteFromLog(OperatorType type,
+void OperatorMetric::OnOperatorCompleteFromLog(OperatorType type,
                                              uint64_t latencyUs, bool success) {
     auto index = static_cast<uint32_t>(type);
     if (index < kTotalOperatorNum) {
@@ -63,6 +63,29 @@ void OperatorApplyMetric::OnOperatorCompleteFromLog(OperatorType type,
         } else {
             opMetricsFromLog_[index]->errorCount << 1;
         }
+    }
+}
+
+void OperatorMetric::WaitInQueueLatency(OperatorType type,
+                                             uint64_t latencyUs) {
+    auto index = static_cast<uint32_t>(type);
+    if (index < kTotalOperatorNum) {
+        opMetrics_[index]->waitInQueueLatency << latencyUs;
+    }
+}
+
+void OperatorMetric::ExecuteLatency(OperatorType type,
+                                             uint64_t latencyUs) {
+    auto index = static_cast<uint32_t>(type);
+    if (index < kTotalOperatorNum) {
+        opMetrics_[index]->executeLatency << latencyUs;
+    }
+}
+
+void OperatorMetric::NewArrival(OperatorType type) {
+    auto index = static_cast<uint32_t>(type);
+    if (index < kTotalOperatorNum) {
+        opMetrics_[index]->rcount << 1;
     }
 }
 

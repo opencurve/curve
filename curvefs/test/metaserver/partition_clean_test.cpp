@@ -30,6 +30,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::curvefs::mds::FSStatusCode;
 using ::curvefs::client::rpcclient::MockMdsClient;
@@ -45,12 +46,18 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 
 namespace curvefs {
 namespace metaserver {
+
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
+
 class PartitionCleanManagerTest : public testing::Test {
  protected:
     void SetUp() override {
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
     }
@@ -106,7 +113,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
                 std::make_shared<Partition>(partitionInfo, kvStorage_);
     Dentry dentry;
     dentry.set_fsid(fsId);
-    dentry.set_parentinodeid(0);
+    dentry.set_parentinodeid(1);
 
     InodeParam param;
     param.fsId = fsId;
@@ -120,8 +127,10 @@ TEST_F(PartitionCleanManagerTest, test1) {
     dentry.set_name("/");
     dentry.set_inodeid(100);
     dentry.set_txid(0);
-    ASSERT_EQ(partition->CreateDentry(dentry, true), MetaStatusCode::OK);
+    dentry.set_type(FsFileType::TYPE_DIRECTORY);
     ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
+    ASSERT_EQ(partition->CreateDentry(dentry), MetaStatusCode::OK);
 
     Inode inode1;
     param.type = FsFileType::TYPE_S3;
@@ -144,17 +153,17 @@ TEST_F(PartitionCleanManagerTest, test1) {
 
     EXPECT_CALL(copysetNode, Propose(_))
         .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
-                      MetaStatusCode::OK);
-            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
-                      << ", inodeId = " << ROOTINODEID + 1;
-            task.done->Run();
-        }))
-        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
             ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID),
                       MetaStatusCode::OK);
             LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
                       << ", inodeId = " << ROOTINODEID;
+            task.done->Run();
+        }))
+        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
+            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
+                      MetaStatusCode::OK);
+            LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
+                      << ", inodeId = " << ROOTINODEID + 1;
             task.done->Run();
         }))
         .WillOnce(Invoke([partition](const braft::Task& task) {

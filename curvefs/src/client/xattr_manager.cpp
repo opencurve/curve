@@ -41,8 +41,9 @@ bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction) {
         } else {
             if (firstNum < secondNum) {
                 *first = std::to_string(0);
-                LOG(ERROR) << "AddUllStringToFirst failed when minus, first = "
-                           << firstNum << ", second = " << secondNum;
+                LOG(WARNING) << "AddUllStringToFirst failed when minus,"
+                             << " first = " << firstNum
+                             << ", second = " << secondNum;
                 return false;
             }
             *first = std::to_string(firstNum - secondNum);
@@ -66,12 +67,12 @@ bool AddUllStringToFirst(uint64_t *first, const std::string &second) {
     return false;
 }
 
-CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(Inode *inode) {
+CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(InodeAttr *attr) {
     std::stack<uint64_t> iStack;
     // use set can deal with hard link
     std::set<uint64_t> inodeIds;
     std::list<InodeAttr> attrs;
-    auto ino = inode->inodeid();
+    auto ino = attr->inodeid();
 
     std::list<Dentry> dentryList;
     auto ret = dentryManager_->ListDentry(ino, &dentryList,
@@ -99,27 +100,27 @@ CURVEFS_ERROR XattrManager::CalOneLayerSumInfo(Inode *inode) {
             summaryInfo.fbytes += it.length();
         }
         if (!(AddUllStringToFirst(
-                &(inode->mutable_xattr()->find(XATTRFILES)->second),
+                &(attr->mutable_xattr()->find(XATTRFILES)->second),
                 summaryInfo.files, true) &&
             AddUllStringToFirst(
-                &(inode->mutable_xattr()->find(XATTRSUBDIRS)->second),
+                &(attr->mutable_xattr()->find(XATTRSUBDIRS)->second),
                 summaryInfo.subdirs, true) &&
             AddUllStringToFirst(
-                &(inode->mutable_xattr()->find(XATTRENTRIES)->second),
+                &(attr->mutable_xattr()->find(XATTRENTRIES)->second),
                 summaryInfo.entries, true) &&
             AddUllStringToFirst(
-                &(inode->mutable_xattr()->find(XATTRFBYTES)->second),
-                summaryInfo.fbytes + inode->length(), true))) {
+                &(attr->mutable_xattr()->find(XATTRFBYTES)->second),
+                summaryInfo.fbytes + attr->length(), true))) {
             ret = CURVEFS_ERROR::INTERNAL;
         }
     }
     return ret;
 }
 
-CURVEFS_ERROR XattrManager::FastCalOneLayerSumInfo(Inode *inode) {
+CURVEFS_ERROR XattrManager::FastCalOneLayerSumInfo(InodeAttr *attr) {
     if (!AddUllStringToFirst(
-        &(inode->mutable_xattr()->find(XATTRFBYTES)->second),
-        inode->length(), true)) {
+        &(attr->mutable_xattr()->find(XATTRFBYTES)->second),
+        attr->length(), true)) {
         return CURVEFS_ERROR::INTERNAL;
     }
     return CURVEFS_ERROR::OK;
@@ -157,8 +158,23 @@ bool XattrManager::ConcurrentListDentry(
             continue;
         }
 
-        auto tret = dentryManager_->ListDentry(ino, dentrys,
-                                              listDentryLimit_, dirOnly);
+        // if onlydir, can get parent nlink to know dir number under this dir
+        uint32_t nlink = 0;
+        if (dirOnly) {
+            InodeAttr attr;
+            auto retCode = inodeManager_->GetInodeAttr(ino, &attr);
+            if (retCode != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "inodeManager get inodeAttr fail, ret = "
+                           << retCode << ", inodeid = " << ino;
+                ret->store(false);
+                inflightNum->fetch_sub(1);
+                return false;
+            }
+            nlink = attr.nlink();
+        }
+
+        auto tret = dentryManager_->ListDentry(ino, dentrys, listDentryLimit_,
+                                               dirOnly, nlink);
         if (CURVEFS_ERROR::OK != tret) {
             LOG(ERROR) << "ListDentry failed, inodeId = " << ino
                        << ", limit = " << listDentryLimit_ << ", onlyDir = "
@@ -231,7 +247,7 @@ void XattrManager::ConcurrentGetInodeAttr(
     }
 }
 
-CURVEFS_ERROR XattrManager::CalAllLayerSumInfo(Inode *inode) {
+CURVEFS_ERROR XattrManager::CalAllLayerSumInfo(InodeAttr *attr) {
     std::stack<uint64_t> iStack;
     std::mutex stackMutex;
 
@@ -242,7 +258,7 @@ CURVEFS_ERROR XattrManager::CalAllLayerSumInfo(Inode *inode) {
     SummaryInfo summaryInfo;
     std::mutex valueMutex;
 
-    auto ino = inode->inodeid();
+    auto ino = attr->inodeid();
     iStack.emplace(ino);
     std::vector<Thread> threadpool;
     Atomic<uint32_t> inflightNum(0);
@@ -277,21 +293,21 @@ CURVEFS_ERROR XattrManager::CalAllLayerSumInfo(Inode *inode) {
         summaryInfo.fbytes -= it.second;
     }
 
-    inode->mutable_xattr()->insert({XATTRRFILES,
+    attr->mutable_xattr()->insert({XATTRRFILES,
         std::to_string(summaryInfo.files)});
-    inode->mutable_xattr()->insert({XATTRRSUBDIRS,
+    attr->mutable_xattr()->insert({XATTRRSUBDIRS,
         std::to_string(summaryInfo.subdirs)});
-    inode->mutable_xattr()->insert({XATTRRENTRIES,
+    attr->mutable_xattr()->insert({XATTRRENTRIES,
         std::to_string(summaryInfo.entries)});
-    inode->mutable_xattr()->insert({XATTRRFBYTES,
-        std::to_string(summaryInfo.fbytes + inode->length())});
+    attr->mutable_xattr()->insert({XATTRRFBYTES,
+        std::to_string(summaryInfo.fbytes + attr->length())});
     return CURVEFS_ERROR::OK;
 }
 
 void XattrManager::ConcurrentGetInodeXattr(
     std::stack<uint64_t> *iStack,
     std::mutex *stackMutex,
-    Inode *inode,
+    InodeAttr *attr,
     std::mutex *inodeMutex,
     Atomic<uint32_t> *inflightNum,
     Atomic<bool> *ret) {
@@ -349,16 +365,16 @@ void XattrManager::ConcurrentGetInodeXattr(
                 // record summary info to target inode
                 std::lock_guard<std::mutex> guard(*inodeMutex);
                 if (!(AddUllStringToFirst(
-                    &(inode->mutable_xattr()->find(XATTRRFILES)->second),
+                    &(attr->mutable_xattr()->find(XATTRRFILES)->second),
                     summaryInfo.files, true) &&
                     AddUllStringToFirst(
-                    &(inode->mutable_xattr()->find(XATTRRSUBDIRS)->second),
+                    &(attr->mutable_xattr()->find(XATTRRSUBDIRS)->second),
                     summaryInfo.subdirs, true) &&
                     AddUllStringToFirst(
-                    &(inode->mutable_xattr()->find(XATTRRENTRIES)->second),
+                    &(attr->mutable_xattr()->find(XATTRRENTRIES)->second),
                     summaryInfo.entries, true) &&
                     AddUllStringToFirst(
-                    &(inode->mutable_xattr()->find(XATTRRFBYTES)->second),
+                    &(attr->mutable_xattr()->find(XATTRRFBYTES)->second),
                     summaryInfo.fbytes, true))) {
                     ret->store(false);
                     return;
@@ -371,29 +387,29 @@ void XattrManager::ConcurrentGetInodeXattr(
     }
 }
 
-CURVEFS_ERROR XattrManager::FastCalAllLayerSumInfo(Inode *inode) {
+CURVEFS_ERROR XattrManager::FastCalAllLayerSumInfo(InodeAttr *attr) {
     std::stack<uint64_t> iStack;
     std::mutex stackMutex;
     std::mutex inodeMutex;
 
-    auto ino = inode->inodeid();
+    auto ino = attr->inodeid();
     iStack.emplace(ino);
     // add the size of itself first
     if (!AddUllStringToFirst(
-            &(inode->mutable_xattr()->find(XATTRFBYTES)->second),
-            inode->length(), true)) {
+            &(attr->mutable_xattr()->find(XATTRFBYTES)->second),
+            attr->length(), true)) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
     // add first layer summary to all layer summary info
-    inode->mutable_xattr()->insert({XATTRRFILES,
-        inode->xattr().find(XATTRFILES)->second});
-    inode->mutable_xattr()->insert({XATTRRSUBDIRS,
-        inode->xattr().find(XATTRSUBDIRS)->second});
-    inode->mutable_xattr()->insert({XATTRRENTRIES,
-        inode->xattr().find(XATTRENTRIES)->second});
-    inode->mutable_xattr()->insert({XATTRRFBYTES,
-        inode->xattr().find(XATTRFBYTES)->second});
+    attr->mutable_xattr()->insert({XATTRRFILES,
+        attr->xattr().find(XATTRFILES)->second});
+    attr->mutable_xattr()->insert({XATTRRSUBDIRS,
+        attr->xattr().find(XATTRSUBDIRS)->second});
+    attr->mutable_xattr()->insert({XATTRRENTRIES,
+        attr->xattr().find(XATTRENTRIES)->second});
+    attr->mutable_xattr()->insert({XATTRRFBYTES,
+        attr->xattr().find(XATTRFBYTES)->second});
 
     std::vector<Thread> threadpool;
     Atomic<uint32_t> inflightNum(0);
@@ -402,7 +418,7 @@ CURVEFS_ERROR XattrManager::FastCalAllLayerSumInfo(Inode *inode) {
         try {
             threadpool.emplace_back(Thread(
                 &XattrManager::ConcurrentGetInodeXattr,
-                this, &iStack, &stackMutex, inode,
+                this, &iStack, &stackMutex, attr,
                 &inodeMutex, &inflightNum, &ret));
         } catch (const std::exception& e) {
             LOG(WARNING) << "FastCalAllLayerSumInfo create thread failed,"

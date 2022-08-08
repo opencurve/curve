@@ -73,6 +73,8 @@ using curvefs::common::is_aligned;
 
 const uint32_t kMaxHostNameLength = 255u;
 
+using mds::Mountpoint;
+
 class FuseClient {
  public:
     FuseClient()
@@ -147,7 +149,7 @@ class FuseClient {
                                       fuse_entry_param* e);
 
     virtual CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
-                                       const char* name);
+                                       const char* name) = 0;
 
     virtual CURVEFS_ERROR FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
                                       const char* name);
@@ -158,10 +160,11 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
                                            struct fuse_file_info* fi);
 
-    virtual CURVEFS_ERROR FuseOpReadDir(fuse_req_t req, fuse_ino_t ino,
-                                        size_t size, off_t off,
-                                        struct fuse_file_info* fi,
-                                        char** buffer, size_t* rSize);
+    virtual CURVEFS_ERROR FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
+                                            size_t size, off_t off,
+                                            struct fuse_file_info* fi,
+                                            char** buffer, size_t* rSize,
+                                            bool cacheDir);
 
     virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req, fuse_ino_t parent,
                                        const char* name, fuse_ino_t newparent,
@@ -189,7 +192,7 @@ class FuseClient {
 
     virtual CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                                      fuse_ino_t newparent, const char* newname,
-                                     fuse_entry_param* e);
+                                     fuse_entry_param* e) = 0;
 
     virtual CURVEFS_ERROR FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string* linkStr);
@@ -248,34 +251,33 @@ class FuseClient {
                            fuse_entry_param* e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
-                             const char* name, bool idDir);
+                             const char* name, FsFileType type);
 
-    void GetDentryParamFromInode(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper_,
-        fuse_entry_param *param);
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
+                             fuse_ino_t newparent, const char* newname,
+                             FsFileType type,
+                             fuse_entry_param* e);
 
-    int AddHostPortToMountPointStr(const std::string& mountPointStr,
-                                   std::string* out) {
+    int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];
         int ret = gethostname(hostname, kMaxHostNameLength);
         if (ret < 0) {
             LOG(ERROR) << "GetHostName failed, ret = " << ret;
             return ret;
         }
-        *out =
-            std::string(hostname) + ":" +
-            std::to_string(
-                curve::client::ClientDummyServerInfo::GetInstance().GetPort()) +
-            ":" + mountPointStr;
+        out->set_hostname(hostname);
+        out->set_port(
+            curve::client::ClientDummyServerInfo::GetInstance().GetPort());
         return 0;
     }
 
  private:
     virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
 
-    virtual void FlushInodeLoop();
-
     virtual void FlushData() = 0;
+
+    CURVEFS_ERROR UpdateParentInodeMCTimeAndInvalidNlink(
+        fuse_ino_t parent, FsFileType type);
 
  protected:
     // mds client
@@ -311,16 +313,12 @@ class FuseClient {
 
     std::shared_ptr<FSMetric> fsMetric_;
 
-    std::string mountpoint_;
+    Mountpoint mountpoint_;
 
  private:
     MDSBaseClient* mdsBase_;
 
     Atomic<bool> isStop_;
-
-    InterruptibleSleeper sleeper_;
-
-    Thread flushThread_;
 
     curve::common::Mutex renameMutex_;
 };

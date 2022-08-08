@@ -20,6 +20,7 @@
  * Author: chengyi01
  */
 #include "curvefs/src/tools/umount/curvefs_umount_fs_tool.h"
+#include "src/common/string_util.h"
 
 DECLARE_string(fsName);
 DECLARE_string(mountpoint);
@@ -29,6 +30,8 @@ DECLARE_string(mdsAddr);
 namespace curvefs {
 namespace tools {
 namespace umount {
+
+using mds::Mountpoint;
 
 void UmountFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
@@ -72,7 +75,21 @@ int UmountFsTool::Init() {
     // adjust the unique element of the queue
     curvefs::mds::UmountFsRequest request;
     request.set_fsname(FLAGS_fsName);
-    request.set_mountpoint(FLAGS_mountpoint);
+    // set mountpoint
+    std::vector<std::string> mountpoint;
+    curve::common::SplitString(FLAGS_mountpoint, ":", &mountpoint);
+    uint32_t port = 0;
+    if (mountpoint.size() < 3 ||
+        !curve::common::StringToUl(mountpoint[1], &port)) {
+        std::cerr << "mountpoint " << FLAGS_mountpoint << " is invalid.\n"
+                  << std::endl;
+        return -1;
+    }
+    auto *mp = new Mountpoint();
+    mp->set_hostname(mountpoint[0]);
+    mp->set_port(port);
+    mp->set_path(mountpoint[2]);
+    request.set_allocated_mountpoint(mp);
     AddRequest(request);
 
     service_stub_func_ =

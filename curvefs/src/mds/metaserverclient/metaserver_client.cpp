@@ -108,6 +108,7 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
     request.set_copysetid(ctx.copysetId);
 
     for (const std::string &item : ctx.addrs) {
+        LOG(INFO) << "GetLeader from " << item;
         if (channel_.Init(item.c_str(), nullptr) != 0) {
             LOG(ERROR) << "Init channel to metaserver: " << item << " failed!";
             continue;
@@ -119,20 +120,24 @@ FSStatusCode MetaserverClient::GetLeader(const LeaderCtx &ctx,
         stub.GetLeader(&cntl, &request, &response, nullptr);
 
         uint32_t maxRetry = options_.rpcRetryTimes;
-        while (cntl.Failed() && maxRetry > 0) {
+        while (cntl.Failed() && (maxRetry > 0)) {
+            int32_t retCode = cntl.ErrorCode();
+            LOG(WARNING) << "GetLeader failed"
+                         << ", poolid = " << ctx.poolId
+                         << ", copysetId = " << ctx.copysetId
+                         << ", errorCode = " << retCode
+                         << ", Rpc error = " << cntl.ErrorText();
+            if (retCode == EHOSTDOWN || retCode == ECONNRESET ||
+                retCode == ECONNREFUSED || retCode == brpc::ELOGOFF) {
+                break;
+            }
             maxRetry--;
             bthread_usleep(options_.rpcRetryIntervalUs);
             cntl.Reset();
             cntl.set_timeout_ms(options_.rpcTimeoutMs);
             stub.GetLeader(&cntl, &request, &response, nullptr);
         }
-        if (cntl.Failed()) {
-            LOG(WARNING) << "GetLeader failed"
-                         << ", poolid = " << ctx.poolId
-                         << ", copysetId = " << ctx.copysetId
-                         << ", Rpc error = " << cntl.ErrorText();
-            continue;
-        }
+
         if (response.has_leader()) {
             std::string ip;
             uint32_t port;
@@ -247,6 +252,7 @@ FSStatusCode MetaserverClient::CreatePartition(
     partition->set_end(idEnd);
     partition->set_txid(0);
     partition->set_status(PartitionStatus::READWRITE);
+    LOG(INFO) << "CreatePartition request: " << request.ShortDebugString();
 
     auto fp = &MetaServerService_Stub::CreatePartition;
     LeaderCtx ctx;
@@ -266,6 +272,8 @@ FSStatusCode MetaserverClient::CreatePartition(
     } else {
         switch (response.statuscode()) {
             case MetaStatusCode::OK:
+                LOG(INFO) << "CreatePartition success, partitionId = "
+                          << partitionId;
                 return FSStatusCode::OK;
             case MetaStatusCode::PARTITION_EXIST:
                 LOG(ERROR) << "CreatePartition failed, partition exist.";
@@ -310,7 +318,8 @@ FSStatusCode MetaserverClient::DeletePartition(
             case MetaStatusCode::PARTITION_NOT_FOUND:
                 return FSStatusCode::OK;
             case MetaStatusCode::PARTITION_DELETING:
-                LOG(INFO) << "DeletePartition partition deleting.";
+                LOG(INFO) << "DeletePartition partition deleting, id = "
+                          << partitionId;
                 return FSStatusCode::UNDER_DELETING;
             default:
                 LOG(ERROR) << "DeletePartition failed, request = "

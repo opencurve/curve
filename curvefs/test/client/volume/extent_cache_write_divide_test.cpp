@@ -37,9 +37,9 @@ using ::curve::common::align_up;
 class ExtentCacheWriteDivideTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        option_.preallocSize = 32 * kKiB;
-        option_.rangeSize = 1 * kGiB;
-        option_.blocksize = 4 * kKiB;
+        option_.preAllocSize = 32 * kKiB;
+        option_.sliceSize = 1 * kGiB;
+        option_.blockSize = 4 * kKiB;
 
         ExtentCache::SetOption(option_);
     }
@@ -624,7 +624,7 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase15) {
 // extents     |----|                       |-----|
 // We can prealloc more space, but it can't overlap with next allocated extent
 TEST_F(ExtentCacheWriteDivideTest, DivideCase16_BoundaryTest) {
-    option_.preallocSize = 64 * kKiB;
+    option_.preAllocSize = 64 * kKiB;
     ExtentCache::SetOption(option_);
     ExtentCache cache;
 
@@ -670,7 +670,7 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase16_BoundaryTest) {
 //                            |
 // We can prealloc more space, but it can't overlap with next range
 TEST_F(ExtentCacheWriteDivideTest, DivideCase17_BoundaryTest) {
-    option_.preallocSize = 64 * kKiB;
+    option_.preAllocSize = 64 * kKiB;
     ExtentCache::SetOption(option_);
     ExtentCache cache;
 
@@ -678,7 +678,7 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase17_BoundaryTest) {
     std::vector<AllocPart> needAlloc;
 
     // write 0 ~ 8KiB
-    off_t offset = option_.rangeSize - 4 * kKiB;
+    off_t offset = option_.sliceSize - 4 * kKiB;
     size_t length = 4 * kKiB;
 
     std::unique_ptr<char[]> data(new char[length]);
@@ -689,7 +689,7 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase17_BoundaryTest) {
     ASSERT_EQ(1, needAlloc.size());
 
     ASSERT_EQ(data.get(), needAlloc[0].data);
-    ASSERT_EQ(option_.rangeSize - 4 * kKiB, needAlloc[0].allocInfo.lOffset);
+    ASSERT_EQ(option_.sliceSize - 4 * kKiB, needAlloc[0].allocInfo.lOffset);
     ASSERT_EQ(4 * kKiB, needAlloc[0].allocInfo.len);
     ASSERT_FALSE(needAlloc[0].allocInfo.leftHintAvailable);
 }
@@ -698,8 +698,8 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase18_EmptyRangeAndUnalignedWrite) {
     ExtentCache cache;
 
     ExtentCacheOption opt;
-    opt.blocksize = 4 * kKiB;
-    opt.preallocSize = 4 * kKiB;
+    opt.blockSize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
 
     cache.SetOption(opt);
 
@@ -731,8 +731,8 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase18_EmptyRangeAndUnalignedWrite2) {
     ExtentCache cache;
 
     ExtentCacheOption opt;
-    opt.blocksize = 4 * kKiB;
-    opt.preallocSize = 4 * kKiB;
+    opt.blockSize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
 
     cache.SetOption(opt);
 
@@ -764,15 +764,15 @@ TEST_F(ExtentCacheWriteDivideTest,
     ExtentCache cache;
 
     ExtentCacheOption opt;
-    opt.blocksize = 4 * kKiB;
-    opt.preallocSize = 4 * kKiB;
+    opt.blockSize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
 
     cache.SetOption(opt);
 
     std::vector<WritePart> allocated;
     std::vector<AllocPart> needAlloc;
 
-    off_t offset = opt.rangeSize - 4;
+    off_t offset = opt.sliceSize - 4;
     size_t length = 4096;
 
     std::unique_ptr<char[]> data(new char[length]);
@@ -785,14 +785,14 @@ TEST_F(ExtentCacheWriteDivideTest,
     auto& alloc1 = needAlloc[0];
     auto& alloc2 = needAlloc[1];
 
-    ASSERT_EQ(alloc1.allocInfo.lOffset, align_down(offset, opt.blocksize));
-    ASSERT_EQ(alloc1.allocInfo.len, opt.rangeSize - alloc1.allocInfo.lOffset);
+    ASSERT_EQ(alloc1.allocInfo.lOffset, align_down(offset, opt.blockSize));
+    ASSERT_EQ(alloc1.allocInfo.len, opt.sliceSize - alloc1.allocInfo.lOffset);
     ASSERT_EQ(alloc1.writelength, 4);
     ASSERT_EQ(alloc1.padding, 4092);
     ASSERT_EQ(alloc1.data, data.get());
 
-    ASSERT_EQ(alloc2.allocInfo.lOffset, opt.rangeSize);
-    ASSERT_EQ(alloc2.allocInfo.len, opt.preallocSize);
+    ASSERT_EQ(alloc2.allocInfo.lOffset, opt.sliceSize);
+    ASSERT_EQ(alloc2.allocInfo.len, opt.preAllocSize);
     ASSERT_EQ(alloc2.writelength, 4092);
     ASSERT_EQ(alloc2.padding, 0);
     ASSERT_EQ(alloc2.data, data.get() + 4);
@@ -803,8 +803,8 @@ TEST_F(ExtentCacheWriteDivideTest,
 TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite1) {
     ExtentCache cache;
     ExtentCacheOption opt;
-    opt.preallocSize = 4 * kKiB;
-    opt.blocksize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
+    opt.blockSize = 4 * kKiB;
     cache.SetOption(opt);
 
     std::vector<WritePart> allocated;
@@ -831,7 +831,7 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite1) {
 
     ASSERT_EQ(data.get(), alloc.data);
     ASSERT_EQ(10 * kMiB, alloc.allocInfo.lOffset);
-    ASSERT_EQ(opt.preallocSize, alloc.allocInfo.len);
+    ASSERT_EQ(opt.preAllocSize, alloc.allocInfo.len);
     ASSERT_TRUE(alloc.allocInfo.leftHintAvailable);
     ASSERT_EQ(16 * kMiB, alloc.allocInfo.pOffsetLeft);
     ASSERT_FALSE(alloc.allocInfo.rightHintAvailable);
@@ -845,8 +845,8 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite1) {
 TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite2) {
     ExtentCache cache;
     ExtentCacheOption opt;
-    opt.preallocSize = 4 * kKiB;
-    opt.blocksize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
+    opt.blockSize = 4 * kKiB;
     cache.SetOption(opt);
 
     std::vector<WritePart> allocated;
@@ -878,7 +878,7 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite2) {
 
     ASSERT_EQ(data.get() + 6, alloc.data);
     ASSERT_EQ(10 * kMiB, alloc.allocInfo.lOffset);
-    ASSERT_EQ(opt.preallocSize, alloc.allocInfo.len);
+    ASSERT_EQ(opt.preAllocSize, alloc.allocInfo.len);
     ASSERT_TRUE(alloc.allocInfo.leftHintAvailable);
     ASSERT_EQ(16 * kMiB, alloc.allocInfo.pOffsetLeft);
     ASSERT_FALSE(alloc.allocInfo.rightHintAvailable);
@@ -892,8 +892,8 @@ TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite2) {
 TEST_F(ExtentCacheWriteDivideTest, DivideCase19_UnalignedWrite3) {
     ExtentCache cache;
     ExtentCacheOption opt;
-    opt.preallocSize = 4 * kKiB;
-    opt.blocksize = 4 * kKiB;
+    opt.preAllocSize = 4 * kKiB;
+    opt.blockSize = 4 * kKiB;
     cache.SetOption(opt);
 
     std::vector<WritePart> allocated;

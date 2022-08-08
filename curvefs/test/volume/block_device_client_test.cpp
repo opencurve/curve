@@ -23,9 +23,12 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <cstring>
 #include "absl/memory/memory.h"
 
 #include "curvefs/src/volume/block_device_client.h"
+#include "include/client/libcurve.h"
+#include "include/client/libcurve_define.h"
 #include "test/client/mock/mock_file_client.h"
 #include "curvefs/test/volume/common.h"
 
@@ -38,6 +41,8 @@ using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::curve::client::UserInfo;
 using ::curve::client::MockFileClient;
+using ::curve::client::UserDataType;
+
 using AlignRead = std::pair<off_t, size_t>;
 using AlignReads = std::vector<AlignRead>;
 
@@ -45,7 +50,6 @@ class BlockDeviceClientTest : public ::testing::Test {
  protected:
     void SetUp() override {
         options_.configPath = "/etc/curvefs/client.conf";
-        options_.threadnum = 10;
 
         fileClient_ = std::make_shared<MockFileClient>();
         client_ = absl::make_unique<BlockDeviceClientImpl>(fileClient_);
@@ -152,6 +156,28 @@ TEST_F(BlockDeviceClientTest, TestStat) {
     ASSERT_EQ(stat.status, BlockDeviceStatus::DELETING);
 }
 
+namespace {
+
+struct FakeAioRequest {
+    int retcode;
+    bool succ = true;
+
+    FakeAioRequest() = default;
+
+    explicit FakeAioRequest(int retcode) : retcode(retcode), succ(false) {}
+
+    int operator()(int /*fd*/,
+                   CurveAioContext* aio,
+                   UserDataType /*type*/) const {
+        aio->ret = succ ? aio->length : retcode;
+        aio->cb(aio);
+
+        return 0;
+    }
+};
+
+}  // namespace
+
 TEST_F(BlockDeviceClientTest, TestReadBasic) {
     char buf[4096];
 
@@ -163,34 +189,77 @@ TEST_F(BlockDeviceClientTest, TestReadBasic) {
         .WillOnce(Return(10));
     ASSERT_TRUE(client_->Open("/filename", "owner"));
 
-    EXPECT_CALL(*fileClient_, Read(10, buf, 0, 4096))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+        .WillOnce(Invoke(
+            [&buf](int /*fd*/, CurveAioContext* ctx, UserDataType /*type*/) {
+                EXPECT_EQ(ctx->buf, buf);
+                EXPECT_EQ(ctx->offset, 0);
+                EXPECT_EQ(ctx->length, 4096);
+
+                ctx->ret = -1;
+                ctx->cb(ctx);
+
+                return 0;
+            }));
+
     ASSERT_LT(client_->Read(buf, 0, 4096), 0);
 
     // CASE 3: read failed with read not complete
-    EXPECT_CALL(*fileClient_, Read(10, buf, 0, 4096))
-        .WillOnce(Return(4095));
+    EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+        .WillOnce(Invoke(
+            [&buf](int /*fd*/, CurveAioContext* ctx, UserDataType /*type*/) {
+                EXPECT_EQ(ctx->buf, buf);
+                EXPECT_EQ(ctx->offset, 0);
+                EXPECT_EQ(ctx->length, 4096);
+
+                ctx->ret = 4095;
+                ctx->cb(ctx);
+
+                return 0;
+            }));
+
     ASSERT_LT(client_->Read(buf, 0, 4096), 0);
 
     // CASE 4: read success with length is zero
-    EXPECT_CALL(*fileClient_, Read(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioRead(_, _, _))
         .Times(0);
     ASSERT_EQ(client_->Read(buf, 0, 0), 0);
 
     // CASE 5: read success with aligned offset and length
-    EXPECT_CALL(*fileClient_, Read(10, buf, 0, 4096))
-        .WillOnce(Return(4096));
+    EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+        .WillOnce(Invoke(
+            [&buf](int /*fd*/, CurveAioContext* ctx, UserDataType /*type*/) {
+                EXPECT_EQ(ctx->buf, buf);
+                EXPECT_EQ(ctx->offset, 0);
+                EXPECT_EQ(ctx->length, 4096);
+
+                std::memset(ctx->buf, 'a', ctx->length);
+
+                ctx->ret = ctx->length;
+                ctx->cb(ctx);
+
+                return 0;
+            }));
+
     ASSERT_EQ(client_->Read(buf, 0, 4096), 4096);
+    ASSERT_EQ(std::string(buf, sizeof(buf)), std::string(sizeof(buf), 'a'));
 }
 
 TEST_F(BlockDeviceClientTest, TestReadWithUnAligned) {
-    auto TEST_READ = [this](off_t offset, size_t length,
-                            off_t alignOffset, size_t alignLength) {
+    auto TEST_READ = [this](off_t offset, size_t length, off_t alignOffset,
+                            size_t alignLength) {
         char buf[40960];
         memset(buf, '0', sizeof(buf));
 
-        EXPECT_CALL(*fileClient_, Read(10, _, alignOffset, alignLength))
-            .WillOnce(Invoke(ReadCallback));
+        EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+            .WillOnce(Invoke(
+                [](int /*fd*/, CurveAioContext* ctx, UserDataType /*type*/) {
+                    std::memset(ctx->buf, '1', ctx->length);
+                    ctx->ret = ctx->length;
+                    ctx->cb(ctx);
+
+                    return 0;
+                }));
 
         ASSERT_GT(client_->Read(buf, offset, length), 0);
         for (auto i = 0; i < 40960; i++) {
@@ -218,13 +287,18 @@ TEST_F(BlockDeviceClientTest, TestReadWithUnAligned) {
         char buf[4096];
         memset(buf, '0', sizeof(buf));
 
-        EXPECT_CALL(*fileClient_, Read(10, _, 0, 4096))
-            .WillOnce(Return(0));
+        EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+            .WillOnce(Invoke(FakeAioRequest{-1}));
+
         ASSERT_LT(client_->Read(buf, 0, 1), 0);
         for (auto i = 0; i < 4096; i++) {
             ASSERT_EQ(buf[i], '0');
         }
     }
+}
+
+MATCHER_P2(MatchOffAndLen, a, b, "") {
+    return arg->offset == a && arg->length == b;
 }
 
 TEST_F(BlockDeviceClientTest, TestWriteBasic) {
@@ -238,23 +312,23 @@ TEST_F(BlockDeviceClientTest, TestWriteBasic) {
         .WillOnce(Return(10));
     ASSERT_TRUE(client_->Open("/filename", "owner"));
 
-    EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*fileClient_, AioWrite(10, MatchOffAndLen(0, 4096), _))
+        .WillOnce(Invoke(FakeAioRequest{-1}));
     ASSERT_LT(client_->Write(buf, 0, 4096), 0);
 
     // CASE 3: write failed with write not complete
-    EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
-        .WillOnce(Return(4095));
+    EXPECT_CALL(*fileClient_, AioWrite(10, MatchOffAndLen(0, 4096), _))
+        .WillOnce(Invoke(FakeAioRequest{4095}));
     ASSERT_LT(client_->Write(buf, 0, 4096), 0);
 
     // CASE 4: write success with length is zero
-    EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
+    EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
         .Times(0);
     ASSERT_EQ(client_->Write(buf, 0, 0), 0);
 
     // CASE 5: write success with aligned offset and length
-    EXPECT_CALL(*fileClient_, Write(10, buf, 0, 4096))
-        .WillOnce(Return(4096));
+    EXPECT_CALL(*fileClient_, AioWrite(10, MatchOffAndLen(0, 4096), _))
+        .WillOnce(Invoke(FakeAioRequest{}));
     ASSERT_EQ(client_->Write(buf, 0, 4096), 4096);
 }
 
@@ -263,28 +337,41 @@ TEST_F(BlockDeviceClientTest, TestWriteWithUnAligned) {
                              off_t alignOffset, size_t alignLength,
                              AlignReads&& alignReads) {
         // Prepare write buffer
-        char buf[40960], writeBuffer[40960];
-        memset(buf, '0', sizeof(buf));
-        memset(writeBuffer, '0', sizeof(writeBuffer));
-        for (auto i = 0; i < length; i++) {
-            buf[i] = '2';
-        }
+        char buf[40960] = {0};
+        char writeBuffer[40960] = {0};
+        memset(buf, '2', length);
 
         // Align read
         for (auto& alignRead : alignReads) {
             auto readOffset = alignRead.first;
             auto readLength = alignRead.second;
-            EXPECT_CALL(*fileClient_, Read(10, _, readOffset, readLength))
-                .WillOnce(Invoke(ReadCallback));
+            EXPECT_CALL(*fileClient_,
+                        AioRead(10, MatchOffAndLen(readOffset, readLength), _))
+                .WillOnce(Invoke([&](int /*fd*/, CurveAioContext* aio,
+                                     UserDataType /*type*/) {
+                    // EXPECT_EQ(aio->offset, readOffset);
+                    // EXPECT_EQ(aio->length, readLength);
+                    std::memset(aio->buf, '1', aio->length);
+                    aio->ret = aio->length;
+                    aio->cb(aio);
+
+                    return 0;
+                }));
         }
 
         // Align write
-        EXPECT_CALL(*fileClient_, Write(10, _, alignOffset, alignLength))
-            .WillOnce(Invoke([&](int fd, const char* buf,
-                                 off_t offset, size_t length) {
-                memcpy(writeBuffer, buf, length);
-                return alignLength;
-            }));
+        EXPECT_CALL(*fileClient_, AioWrite(10, _, _))
+            .WillOnce(Invoke(
+                [&](int /*fd*/, CurveAioContext* aio, UserDataType /*type*/) {
+                    EXPECT_EQ(aio->offset, alignOffset);
+                    EXPECT_EQ(aio->length, alignLength);
+
+                    std::memcpy(writeBuffer, aio->buf, aio->length);
+                    aio->ret = aio->length;
+                    aio->cb(aio);
+
+                    return 0;
+                }));
 
         ASSERT_GT(client_->Write(buf, offset, length), 0);
 
@@ -294,9 +381,9 @@ TEST_F(BlockDeviceClientTest, TestWriteWithUnAligned) {
             auto pos = i + alignOffset;
             if (pos >= offset && pos < offset + length) {
                 count++;
-                ASSERT_EQ(writeBuffer[i], '2');
+                ASSERT_EQ(writeBuffer[i], '2') << i;
             } else {
-                ASSERT_EQ(writeBuffer[i], '1');
+                ASSERT_EQ(writeBuffer[i], '1') << i;
             }
         }
 
@@ -325,33 +412,34 @@ TEST_F(BlockDeviceClientTest, TestWriteWithUnAligned) {
         memset(buf, '0', sizeof(buf));
 
         // CASE 1: read failed -> write failed
-        EXPECT_CALL(*fileClient_, Read(10, _, 0, 4096))
+        EXPECT_CALL(*fileClient_, AioRead(10, _, _))
             .WillOnce(Return(-1));
-        EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+        EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
             .Times(0);
         ASSERT_LT(client_->Write(buf, 0, 1), 0);
 
         // CASE 2: read unexpected bytes -> write failed
-        EXPECT_CALL(*fileClient_, Read(10, _, 0, 8192))
-            .WillOnce(Return(8191));
-        EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+        EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+            .WillOnce(Invoke(FakeAioRequest{-1}));
+
+        EXPECT_CALL(*fileClient_, AioWrite(_,  _, _))
             .Times(0);
         ASSERT_LT(client_->Write(buf, 1000, 5000), 0);
 
         // CASE 3: read failed once -> write failed
-        EXPECT_CALL(*fileClient_, Read(10, _, 8192, 4096))
-            .WillOnce(Return(4096));
-        EXPECT_CALL(*fileClient_, Read(10, _, 16384, 4096))
-            .WillOnce(Return(4095));
-        EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+        EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+            .WillOnce(Invoke(FakeAioRequest{4096}))
+            .WillOnce(Invoke(FakeAioRequest{4095}));
+
+        EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
             .Times(0);
         ASSERT_LT(client_->Write(buf, 10000, 10000), 0);
 
         // CASE 4: write failed
-        EXPECT_CALL(*fileClient_, Read(10, _, 0, 4096))
-            .WillOnce(Return(4096));
-        EXPECT_CALL(*fileClient_, Write(_, _, _, _))
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*fileClient_, AioRead(10, _, _))
+            .WillOnce(Invoke(FakeAioRequest{4096}));
+        EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
+            .WillOnce(Invoke(FakeAioRequest{-1}));
         ASSERT_LT(client_->Write(buf, 0, 1), 0);
     }
 }
@@ -369,10 +457,9 @@ TEST_F(BlockDeviceClientTest, ReadvTest_AllSuccess) {
         {12 * kMiB, 4 * kKiB, data},
     };
 
-    EXPECT_CALL(*fileClient_, Read(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioRead(_, _, _))
         .Times(4)
-        .WillRepeatedly(
-            Invoke([](int, char*, off_t, size_t length) { return length; }));
+        .WillRepeatedly(Invoke(FakeAioRequest{}));
 
     ASSERT_TRUE(client_->Open({}, {}));
     ASSERT_EQ(4 * (4 * kKiB), client_->Readv(iov));
@@ -391,10 +478,9 @@ TEST_F(BlockDeviceClientTest, ReadvTest_AllFailed) {
         {12 * kMiB, 4 * kKiB, data},
     };
 
-    EXPECT_CALL(*fileClient_, Read(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioRead(_, _, _))
         .Times(4)
-        .WillRepeatedly(
-            Invoke([](int, char*, off_t, size_t length) { return -1; }));
+        .WillRepeatedly(Invoke(FakeAioRequest{-1}));
 
     ASSERT_TRUE(client_->Open({}, {}));
     ASSERT_GT(0, client_->Readv(iov));
@@ -417,16 +503,20 @@ TEST_F(BlockDeviceClientTest, ReadvTest_PartialFailed) {
     int count = rand_r(&seed) % (iov.size() - 1) + 1;
     std::atomic<int> counter(iov.size());
 
-    EXPECT_CALL(*fileClient_, Read(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioRead(_, _, _))
         .Times(4)
         .WillRepeatedly(
-            Invoke([&count, &counter](int, char*, off_t, size_t length) -> int {
+            Invoke([&count, &counter](int /*fd*/, CurveAioContext* aio,
+                                      UserDataType /*type*/) -> int {
                 auto c = counter.fetch_sub(1);
                 if (c <= count) {
-                    return -1;
+                    aio->ret = -1;
+                } else {
+                    aio->ret = aio->length;
                 }
 
-                return length;
+                aio->cb(aio);
+                return 0;
             }));
 
     ASSERT_TRUE(client_->Open({}, {}));
@@ -447,10 +537,9 @@ TEST_F(BlockDeviceClientTest, WritevTest_AllSuccess) {
         {12 * kMiB, 4 * kKiB, data},
     };
 
-    EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
         .Times(4)
-        .WillRepeatedly(Invoke(
-            [](int, const char*, off_t, size_t length) { return length; }));
+        .WillRepeatedly(Invoke(FakeAioRequest{}));
 
     ASSERT_TRUE(client_->Open({}, {}));
     ASSERT_EQ(4 * (4 * kKiB), client_->Writev(iov));
@@ -469,10 +558,9 @@ TEST_F(BlockDeviceClientTest, WritevTest_AllFailed) {
         {12 * kMiB, 4 * kKiB, data},
     };
 
-    EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
         .Times(4)
-        .WillRepeatedly(
-            Invoke([](int, const char*, off_t, size_t length) { return -1; }));
+        .WillRepeatedly(Invoke(FakeAioRequest{-1}));
 
     ASSERT_TRUE(client_->Open({}, {}));
     ASSERT_GT(0, client_->Writev(iov));
@@ -495,16 +583,20 @@ TEST_F(BlockDeviceClientTest, WritevTest_PartialFailed) {
     int count = rand_r(&seed) % (iov.size() - 1) + 1;
     std::atomic<int> counter(iov.size());
 
-    EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
         .Times(4)
-        .WillRepeatedly(Invoke(
-            [&count, &counter](int, const char*, off_t, size_t length) -> int {
+        .WillRepeatedly(
+            Invoke([&count, &counter](int /*fd*/, CurveAioContext* aio,
+                                      UserDataType /*type*/) -> int {
                 auto c = counter.fetch_sub(1);
                 if (c <= count) {
-                    return -1;
+                    aio->ret = -1;
+                } else {
+                    aio->ret = aio->length;
                 }
 
-                return length;
+                aio->cb(aio);
+                return 0;
             }));
 
     ASSERT_TRUE(client_->Open({}, {}));
@@ -524,15 +616,13 @@ TEST_F(BlockDeviceClientTest, WritevTest_AllUnAlignedSuccess) {
         {12 * kMiB, 2 * kKiB, data},
     };
 
-    EXPECT_CALL(*fileClient_, Read(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioRead(_, _, _))
         .Times(4)
-        .WillRepeatedly(Invoke(
-            [](int, const char*, off_t, size_t length) { return length; }));
+        .WillRepeatedly(Invoke(FakeAioRequest{}));
 
-    EXPECT_CALL(*fileClient_, Write(_, _, _, _))
+    EXPECT_CALL(*fileClient_, AioWrite(_, _, _))
         .Times(4)
-        .WillRepeatedly(Invoke(
-            [](int, const char*, off_t, size_t length) { return length; }));
+        .WillRepeatedly(Invoke(FakeAioRequest{}));
 
     ASSERT_TRUE(client_->Open({}, {}));
     ASSERT_EQ(4 * (2 * kKiB), client_->Writev(iov));

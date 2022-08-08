@@ -209,7 +209,7 @@ class PersisKVStorage : public FsStorage {
 
     bool FsIDToName(uint64_t fsId, std::string* name) const;
 
-    bool PersitToStorage(const FsInfoWrapper& fs);
+    bool PersistToStorage(const FsInfoWrapper& fs);
 
     bool RemoveFromStorage(const FsInfoWrapper& fs);
 

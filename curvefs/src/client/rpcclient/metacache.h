@@ -85,6 +85,14 @@ struct CopysetTarget {
                partitionID != 0 && txId != 0 && metaServerID != 0 &&
                endPoint.ip != butil::IP_ANY && endPoint.port != 0;
     }
+
+    void Reset() {
+        groupID = CopysetGroupID{};
+        partitionID = 0;
+        txId = 0;
+        metaServerID = 0;
+        endPoint = butil::EndPoint{};
+    }
 };
 
 inline std::ostream &operator<<(std::ostream &os, const CopysetGroupID &g) {
@@ -103,15 +111,14 @@ class MetaCache {
  public:
     void Init(MetaCacheOpt opt, std::shared_ptr<Cli2Client> cli2Client,
               std::shared_ptr<MdsClient> mdsClient) {
-        metacacheopt_ = opt;
-        cli2Client_ = cli2Client;
-        mdsClient_ = mdsClient;
+        metacacheopt_ = std::move(opt);
+        cli2Client_ = std::move(cli2Client);
+        mdsClient_ = std::move(mdsClient);
         init_ = false;
     }
 
     using PoolIDCopysetID = uint64_t;
-    using PatitionInfoList = std::vector<PartitionInfo>;
-    using FS2PatitionInfoMap = std::unordered_map<uint32_t, PatitionInfoList>;
+    using PartitionInfoList = std::vector<PartitionInfo>;
     using CopysetInfoMap =
         std::unordered_map<PoolIDCopysetID, CopysetInfo<MetaserverID>>;
 
@@ -149,18 +156,19 @@ class MetaCache {
 
     bool RefreshTxId();
 
- private:
-    void GetTxId(uint32_t partitionId, uint64_t *txId);
-
     // list or create partitions for fs
     bool ListPartitions(uint32_t fsID);
-    bool CreatePartitions(int currentNum, PatitionInfoList *newPartitions);
+
+ private:
+    void GetTxId(uint32_t partitionId, uint64_t *txId);
+    bool CreatePartitions(int currentNum, PartitionInfoList *newPartitions);
     bool DoListOrCreatePartitions(
-        bool list, PatitionInfoList *partitionInfos,
+        bool list, PartitionInfoList *partitionInfos,
         std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> *copysetMap);
-    void DoAddPartitionAndCopyset(
-        const PatitionInfoList &partitionInfos,
-        const std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> &copysetMap);
+    void DoAddOrResetPartitionAndCopyset(
+        PartitionInfoList partitionInfos,
+        std::map<PoolIDCopysetID, CopysetInfo<MetaserverID>> copysetMap,
+        bool reset);
 
     // retry policy
     // TODO(@lixiaocui): rpc service may be split to ServiceHelper
@@ -197,7 +205,7 @@ class MetaCache {
     std::unordered_map<uint32_t, uint64_t> partitionTxId_;
 
     RWLock rwlock4Partitions_;
-    PatitionInfoList partitionInfos_;
+    PartitionInfoList partitionInfos_;
     RWLock rwlock4copysetInfoMap_;
     CopysetInfoMap copysetInfoMap_;
 

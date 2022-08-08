@@ -30,8 +30,6 @@
 #include <vector>
 
 #include "curvefs/proto/mds.pb.h"
-#include "src/common/concurrent/rw_lock.h"
-#include "src/kvstorageclient/etcd_client.h"
 
 namespace curvefs {
 namespace mds {
@@ -43,61 +41,22 @@ class FsInfoWrapper {
     friend class PersisKVStorage;
 
  public:
-    FsInfoWrapper() : fsInfo_() {}
+    FsInfoWrapper() = default;
 
     explicit FsInfoWrapper(const FsInfo& fsInfo) : fsInfo_(fsInfo) {}
 
     explicit FsInfoWrapper(FsInfo&& fsInfo)
         : fsInfo_(std::move(fsInfo)) {}
 
-    FsInfoWrapper(const FsInfoWrapper& other) : fsInfo_(other.fsInfo_) {}
+    FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request,
+                  uint64_t fsId,
+                  uint64_t rootInodeId);
 
-    FsInfoWrapper(FsInfoWrapper&& other) : FsInfoWrapper() {
-        Swap(other);
-    }
+    FsInfoWrapper(const FsInfoWrapper& other) = default;
+    FsInfoWrapper& operator=(const FsInfoWrapper& other) = default;
 
-    FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request, uint64_t fsId,
-                  uint64_t rootInodeId) {
-        FsInfo fsInfo;
-        fsInfo.set_fsname(request->fsname());
-        fsInfo.set_fsid(fsId);
-        fsInfo.set_status(FsStatus::NEW);
-        fsInfo.set_rootinodeid(rootInodeId);
-        fsInfo.set_blocksize(request->blocksize());
-        fsInfo.set_mountnum(0);
-        fsInfo.set_enablesumindir(request->enablesumindir());
-        fsInfo.set_txsequence(0);
-        fsInfo.set_txowner("");
-
-        const auto& detail = request->fsdetail();
-        fsInfo.set_allocated_detail(new FsDetail(detail));
-
-        switch (request->fstype()) {
-            case FSType::TYPE_S3:
-                fsInfo.set_fstype(FSType::TYPE_S3);
-                fsInfo.set_capacity(request->capacity());
-                break;
-            case FSType::TYPE_VOLUME:
-                fsInfo.set_fstype(FSType::TYPE_VOLUME);
-                fsInfo.set_capacity(std::min(detail.volume().volumesize(),
-                                             request->capacity()));
-                break;
-            case FSType::TYPE_HYBRID:
-                fsInfo.set_fstype(FSType::TYPE_HYBRID);
-                // TODO(huyao): set capacity for hybrid fs
-                fsInfo.set_capacity(std::min(detail.volume().volumesize(),
-                                             request->capacity()));
-                break;
-        }
-
-        fsInfo.set_owner(request->owner());
-        fsInfo_ = std::move(fsInfo);
-    }
-
-    FsInfoWrapper& operator=(FsInfoWrapper other) {
-        Swap(other);
-        return *this;
-    }
+    FsInfoWrapper(FsInfoWrapper&& other) noexcept = default;
+    FsInfoWrapper& operator=(FsInfoWrapper&& other) noexcept = default;
 
     void SetFsType(FSType type) {
         fsInfo_.set_fstype(type);
@@ -151,20 +110,22 @@ class FsInfoWrapper {
         return fsInfo_.mountpoints_size() == 0;
     }
 
-    bool IsMountPointExist(const std::string& mp) const;
+    bool IsMountPointExist(const Mountpoint& mp) const;
 
-    void AddMountPoint(const std::string& mp);
+    bool IsMountPointConflict(const Mountpoint &mp) const;
 
-    FSStatusCode DeleteMountPoint(const std::string& mp);
+    void AddMountPoint(const Mountpoint& mp);
 
-    std::vector<std::string> MountPoints() const;
+    FSStatusCode DeleteMountPoint(const Mountpoint& mp);
 
-    void Swap(FsInfoWrapper& other) {
-        fsInfo_.Swap(&other.fsInfo_);
+    std::vector<Mountpoint> MountPoints() const;
+
+    const FsInfo& ProtoFsInfo() const & {
+        return fsInfo_;
     }
 
-    FsInfo ProtoFsInfo() const {
-        return fsInfo_;
+    FsInfo ProtoFsInfo() && {
+        return std::move(fsInfo_);
     }
 
     const FsDetail& GetFsDetail() const {
@@ -190,6 +151,8 @@ class FsInfoWrapper {
     uint64_t GetFsTxSequence() {
         return fsInfo_.has_txsequence() ? fsInfo_.txsequence() : 0;
     }
+
+    void SetVolumeSize(uint64_t size);
 
  private:
     FsInfo fsInfo_;

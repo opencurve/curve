@@ -88,6 +88,12 @@ get_options() {
 }
 
 list_target() {
+    git submodule update --init -- nbd
+    if [ $? -ne 0 ]
+    then
+        echo "submodule init failed"
+        exit
+    fi
     print_title " SOURCE TARGETS "
     bazel query 'kind("cc_binary", //src/...)'
     bazel query 'kind("cc_binary", //tools/...)'
@@ -104,6 +110,13 @@ get_target() {
 }
 
 build_target() {
+    (cd thirdparties/aws && make)
+    git submodule update --init -- nbd
+    if [ $? -ne 0 ]
+    then
+        echo "submodule init failed"
+        exit
+    fi
     local targets
     local tag=$(git describe --tags --abbrev=0)
     local commit_id=$(git rev-parse --short HEAD)
@@ -119,7 +132,7 @@ build_target() {
         echo "debug" > .BUILD_MODE
     fi
     g_build_opts+=("--copt -DCURVEVERSION=${version}")
-    
+
     if [ "$g_os" == "debian10" -o "$g_os" == "debian11" ]; then
         g_build_opts+=("--config=gcc7-later")
     fi

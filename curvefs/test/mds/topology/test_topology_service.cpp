@@ -957,7 +957,55 @@ TEST_F(TestTopologyService, test_CreatePartition_fail) {
     }
 
     ASSERT_EQ(TopoStatusCode::TOPO_CREATE_PARTITION_FAIL,
-                 response.statuscode());
+              response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_DeletePartition_success) {
+    TopologyService_Stub stub(&channel_);
+
+    brpc::Controller cntl;
+    DeletePartitionRequest request;
+    request.set_partitionid(1);
+
+    DeletePartitionResponse response;
+
+    DeletePartitionResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(*manager_, DeletePartition(_, _))
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.DeletePartition(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_DeletePartition_fail) {
+    TopologyService_Stub stub(&channel_);
+
+    brpc::Controller cntl;
+    DeletePartitionRequest request;
+    request.set_partitionid(1);
+
+    DeletePartitionResponse response;
+
+    DeletePartitionResponse reps;
+    reps.set_statuscode(
+        TopoStatusCode::TOPO_DELETE_PARTITION_ON_METASERVER_FAIL);
+    EXPECT_CALL(*manager_, DeletePartition(_, _))
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.DeletePartition(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_DELETE_PARTITION_ON_METASERVER_FAIL,
+              response.statuscode());
 }
 
 TEST_F(TestTopologyService, test_CommitTx_success) {

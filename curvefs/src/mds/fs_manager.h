@@ -28,6 +28,8 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <map>
+#include <utility>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
@@ -65,10 +67,12 @@ using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::topology::TopologyManager;
 
 using ::curvefs::mds::dlock::DLock;
+using ::curvefs::mds::Mountpoint;
 
 struct FsManagerOption {
     uint32_t backEndThreadRunInterSec;
     uint32_t spaceReloadConcurrency = 10;
+    uint32_t clientTimeoutSec = 20;
     curve::common::S3AdapterOption s3AdapterOption;
 };
 
@@ -84,15 +88,16 @@ class FsManager {
         : fsStorage_(fsStorage),
           spaceManager_(spaceManager),
           metaserverClient_(metaserverClient),
+          nameLock_(),
           topoManager_(topoManager),
           s3Adapter_(s3Adapter),
           dlock_(dlock),
-          nameLock_(),
           isStop_(true),
           option_(option) {}
 
     bool Init();
     void Run();
+    void Stop();
     void Uninit();
     void BackEndFunc();
     void ScanFs(const FsInfoWrapper& wrapper);
@@ -129,11 +134,11 @@ class FsManager {
      * @param[out] fsInfo: return the fsInfo
      *
      * @return If success return OK;
-     *         if fs has same mount point, return MOUNT_POINT_EXIST;
-     *         else return error code
+     *         if fs has same mount point or cto not consistent, return
+     *         MOUNT_POINT_CONFLICT; else return error code
      */
     FSStatusCode MountFs(const std::string& fsName,
-                         const std::string& mountpoint, FsInfo* fsInfo);
+                         const Mountpoint& mountpoint, FsInfo* fsInfo);
 
     /**
      * @brief Umount fs, it will decrease mountNum.
@@ -146,7 +151,7 @@ class FsManager {
      *         else return error code
      */
     FSStatusCode UmountFs(const std::string& fsName,
-                          const std::string& mountpoint);
+                          const Mountpoint& mountpoint);
 
     /**
      * @brief get fs info by fsname
@@ -183,16 +188,22 @@ class FsManager {
     void GetAllFsInfo(::google::protobuf::RepeatedPtrField<
                       ::curvefs::mds::FsInfo>* fsInfoVec);
 
-    void RefreshSession(
-        const google::protobuf::RepeatedPtrField<
-            curvefs::mds::topology::PartitionTxId> &txIds,
-        google::protobuf::RepeatedPtrField<PartitionTxId> *needUpdate);
+    void RefreshSession(const RefreshSessionRequest* request,
+                        RefreshSessionResponse* response);
 
     void GetLatestTxId(const GetLatestTxIdRequest* request,
                        GetLatestTxIdResponse* response);
 
     void CommitTx(const CommitTxRequest* request,
                   CommitTxResponse* response);
+
+    // periodically check if the mount point is alive
+    void BackEndCheckMountPoint();
+    void CheckMountPoint();
+
+    // for utest
+    bool GetClientAliveTime(const std::string& mountpoint,
+        std::pair<std::string, uint64_t>* out);
 
  private:
      // return 0: ExactlySame; 1: uncomplete, -1: neither
@@ -220,8 +231,20 @@ class FsManager {
     FSStatusCode GetFsTxSequence(const std::string& fsName,
                                  uint64_t* sequence);
 
- private:
+    void UpdateClientAliveTime(const Mountpoint& mountpoint,
+        const std::string& fsName, bool addMountPoint = true);
+
+    // add mount point to fs if client restore session
+    FSStatusCode AddMountPoint(const Mountpoint& mountpoint,
+        const std::string& fsName);
+
+    void DeleteClientAliveTime(const std::string& mountpoint);
+
+    void RebuildTimeRecorder();
+
     uint64_t GetRootId();
+
+    bool FillVolumeInfo(common::Volume* volume);
 
  private:
     std::shared_ptr<FsStorage> fsStorage_;
@@ -232,11 +255,18 @@ class FsManager {
     std::shared_ptr<S3Adapter> s3Adapter_;
     std::shared_ptr<DLock> dlock_;
 
-    // Manage fs backgroud delete threads
+    // Manage fs background delete threads
     Thread backEndThread_;
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;
     FsManagerOption option_;
+
+    // deal with check mountpoint alive
+    Thread checkMountPointThread_;
+    InterruptibleSleeper checkMountPointSleeper_;
+    // <mountpoint, <fsname,last update time>>
+    std::map<std::string, std::pair<std::string, uint64_t>> mpTimeRecorder_;
+    mutable RWLock recorderMutex_;
 };
 }  // namespace mds
 }  // namespace curvefs

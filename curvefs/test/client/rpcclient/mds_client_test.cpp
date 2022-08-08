@@ -21,6 +21,7 @@
  */
 
 #include <brpc/server.h>
+#include <gmock/gmock-more-actions.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 
@@ -40,16 +41,17 @@ using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
 
 using ::curvefs::mds::topology::TopoStatusCode;
 
-void MountFsRpcFailed(const std::string &fsName, const std::string &mountPt,
+void MountFsRpcFailed(const std::string &fsName, const Mountpoint &mountPt,
                       MountFsResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
 }
 
-void UmountFsRpcFailed(const std::string &fsName, const std::string &mountPt,
+void UmountFsRpcFailed(const std::string &fsName, const Mountpoint &mountPt,
                        UmountFsResponse *response, brpc::Controller *cntl,
                        brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
@@ -99,7 +101,7 @@ void ListPartitionRpcFailed(uint32_t fsID, ListPartitionResponse *response,
     cntl->SetFailed(112, "Not connected to");
 }
 
-void RefreshSessionRpcFailed(const std::vector<PartitionTxId> &txIds,
+void RefreshSessionRpcFailed(const RefreshSessionRequest &request,
                              RefreshSessionResponse *response,
                              brpc::Controller *cntl, brpc::Channel *channel) {
     cntl->SetFailed(112, "Not connected to");
@@ -151,7 +153,10 @@ class MdsClientImplTest : public testing::Test {
 
 TEST_F(MdsClientImplTest, test_MountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     FsInfo out;
 
     curvefs::mds::MountFsResponse response;
@@ -171,7 +176,11 @@ TEST_F(MdsClientImplTest, test_MountFs) {
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
     fsinfo->set_mountnum(1);
-    fsinfo->add_mountpoints("0.0.0.0:/data");
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("0.0.0.0");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/data");
+    *fsinfo->add_mountpoints() = mountPoint;
     response.set_allocated_fsinfo(fsinfo);
 
     // 1. mount ok
@@ -202,7 +211,10 @@ TEST_F(MdsClientImplTest, test_MountFs) {
 
 TEST_F(MdsClientImplTest, test_UmountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     curvefs::mds::UmountFsResponse response;
 
     // 1. umount ok
@@ -246,7 +258,11 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsname) {
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
     fsinfo->set_mountnum(1);
-    fsinfo->add_mountpoints("0.0.0.0:/data");
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("0.0.0.0");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/data");
+    *fsinfo->add_mountpoints() = mountPoint;
     response.set_allocated_fsinfo(fsinfo);
 
     // 1. get fsinfo ok
@@ -295,7 +311,11 @@ TEST_F(MdsClientImplTest, test_GetFsInfo_by_fsid) {
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
     fsinfo->set_mountnum(1);
-    fsinfo->add_mountpoints("0.0.0.0:/data");
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("0.0.0.0");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/data");
+    *fsinfo->add_mountpoints() = mountPoint;
     response.set_allocated_fsinfo(fsinfo);
 
     // 1. get file info ok
@@ -782,6 +802,11 @@ TEST_F(MdsClientImplTest, RefreshSession) {
     tmp.set_partitionid(1);
     tmp.set_txid(2);
     std::vector<PartitionTxId> txIds({tmp});
+    std::string fsName = "fs";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
 
     // out
     std::vector<PartitionTxId> out;
@@ -793,7 +818,8 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         response.set_statuscode(FSStatusCode::OK);
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
-        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
+                                               fsName, mountpoint));
         ASSERT_TRUE(out.empty());
     }
 
@@ -803,7 +829,8 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillOnce(SetArgPointee<1>(response));
-        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out));
+        ASSERT_FALSE(mdsclient_.RefreshSession(txIds, &out,
+                                               fsName, mountpoint));
         ASSERT_EQ(1, out.size());
         ASSERT_TRUE(
             google::protobuf::util::MessageDifferencer::Equals(out[0], tmp))
@@ -819,7 +846,7 @@ TEST_F(MdsClientImplTest, RefreshSession) {
         EXPECT_CALL(mockmdsbasecli_, RefreshSession(_, _, _, _))
             .WillRepeatedly(Invoke(RefreshSessionRpcFailed));
         ASSERT_EQ(FSStatusCode::RPC_ERROR,
-                  mdsclient_.RefreshSession(txIds, &out));
+                  mdsclient_.RefreshSession(txIds, &out, fsName, mountpoint));
     }
 }
 

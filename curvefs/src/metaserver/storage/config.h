@@ -25,13 +25,17 @@
 
 #include <string>
 
+namespace curve {
+namespace fs {
+class LocalFileSystem;
+}  // namespace fs
+}  // namespace curve
+
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
 struct StorageOptions {
-    StorageOptions() {}
-
     std::string type;
 
     uint64_t maxMemoryQuotaBytes;
@@ -44,20 +48,14 @@ struct StorageOptions {
     bool compression;
 
     // only rocksdb storage interested the below config item
-    uint64_t unorderedWriteBufferSize;
+    uint64_t statsDumpPeriodSec;
 
-    uint64_t unorderedMaxWriteBufferNumber;
-
-    uint64_t orderedWriteBufferSize;
-
-    uint64_t orderedMaxWriteBufferNumber;
-
-    uint64_t blockCacheCapacity;
-
-    double memtablePrefixBloomSizeRatio;
+    size_t keyPrefixLength;
 
     // misc config item
     uint64_t s3MetaLimitSizeInsideInode;
+
+    curve::fs::LocalFileSystem* localFileSystem = nullptr;
 };
 
 }  // namespace storage

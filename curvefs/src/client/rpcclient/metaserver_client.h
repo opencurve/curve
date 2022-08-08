@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/space.pb.h"
 #include "curvefs/src/client/common/config.h"
@@ -38,6 +39,7 @@
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "absl/types/optional.h"
 
 using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::metaserver::Dentry;
@@ -50,21 +52,27 @@ using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::common::StreamStatus;
 using ::curvefs::common::StreamClient;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ::curvefs::metaserver::VolumeExtentList;
+
+struct DataIndices {
+    absl::optional<S3ChunkInfoMap> s3ChunkInfoMap;
+    absl::optional<VolumeExtentList> volumeExtents;
+};
 
 class MetaServerClient {
  public:
-    MetaServerClient() {}
-
-    virtual ~MetaServerClient() {}
+    virtual ~MetaServerClient() = default;
 
     virtual MetaStatusCode
-    Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+    Init(const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
+         std::shared_ptr<MetaCache> metaCache,
          std::shared_ptr<ChannelManager<MetaserverID>> channelManager) = 0;
 
     virtual MetaStatusCode GetTxId(uint32_t fsId, uint64_t inodeId,
@@ -83,7 +91,8 @@ class MetaServerClient {
     virtual MetaStatusCode CreateDentry(const Dentry &dentry) = 0;
 
     virtual MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                        const std::string &name) = 0;
+                                        const std::string &name,
+                                        FsFileType type) = 0;
 
     virtual MetaStatusCode
     PrepareRenameTx(const std::vector<Dentry> &dentrys) = 0;
@@ -91,22 +100,40 @@ class MetaServerClient {
     virtual MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                                     Inode *out, bool* streaming) = 0;
 
+    virtual MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeid,
+                                        InodeAttr *attr) = 0;
+
     virtual MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr) = 0;
 
+    virtual MetaStatusCode BatchGetInodeAttrAsync(uint32_t fsId,
+        const std::vector<uint64_t> &inodeIds, MetaServerClientDone *done) = 0;
+
     virtual MetaStatusCode BatchGetXAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) = 0;
 
-    virtual MetaStatusCode UpdateInode(const Inode &inode,
-                                       InodeOpenStatusChange statusChange =
-                                           InodeOpenStatusChange::NOCHANGE) = 0;
+    virtual MetaStatusCode UpdateInodeAttr(const Inode &inode,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual void UpdateInodeAsync(const Inode &inode,
-                                  MetaServerClientDone *done,
-                                  InodeOpenStatusChange statusChange =
-                                      InodeOpenStatusChange::NOCHANGE) = 0;
+    virtual MetaStatusCode UpdateInodeAttrWithOutNlink(
+        const Inode &inode,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        S3ChunkInfoMap *s3ChunkInfoAdd = nullptr,
+        bool internal = false) = 0;
+
+    virtual void UpdateInodeAttrAsync(const Inode &inode,
+        MetaServerClientDone *done,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) = 0;
+
+    virtual void UpdateInodeWithOutNlinkAsync(
+        const Inode& inode,
+        MetaServerClientDone* done,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        DataIndices&& indices = {}) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -114,7 +141,8 @@ class MetaServerClient {
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
         bool returnS3ChunkInfoMap = false,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out = nullptr) = 0;
+            uint64_t, S3ChunkInfoList> *out = nullptr,
+            bool internal = false) = 0;
 
     virtual void GetOrModifyS3ChunkInfoAsync(
         uint32_t fsId, uint64_t inodeId,
@@ -125,17 +153,30 @@ class MetaServerClient {
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
 
     virtual MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) = 0;
+
+    virtual bool SplitRequestInodes(uint32_t fsId,
+        const std::set<uint64_t> &inodeIds,
+        std::vector<std::vector<uint64_t>> *inodeGroups) = 0;
+
+    virtual void AsyncUpdateVolumeExtent(uint32_t fsId,
+                                         uint64_t inodeId,
+                                         const VolumeExtentList &extents,
+                                         MetaServerClientDone *done) = 0;
+
+    virtual MetaStatusCode GetVolumeExtent(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           bool streaming,
+                                           VolumeExtentList *extents) = 0;
 };
 
 class MetaServerClientImpl : public MetaServerClient {
  public:
     explicit MetaServerClientImpl(const std::string &metricPrefix = "")
-        : metaserverClientMetric_(std::make_shared<MetaServerClientMetric>(
-                                  metricPrefix)),
-          streamClient_(std::make_shared<StreamClient>()) {}
+        : metric_(metricPrefix) {}
 
     MetaStatusCode
-    Init(const ExcutorOpt &excutorOpt, std::shared_ptr<MetaCache> metaCache,
+    Init(const ExcutorOpt &excutorOpt, const ExcutorOpt &excutorInternalOpt,
+         std::shared_ptr<MetaCache> metaCache,
          std::shared_ptr<ChannelManager<MetaserverID>> channelManager) override;
 
     MetaStatusCode GetTxId(uint32_t fsId, uint64_t inodeId,
@@ -154,28 +195,48 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode CreateDentry(const Dentry &dentry) override;
 
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
-                                const std::string &name) override;
+                                const std::string &name,
+                                FsFileType type) override;
 
     MetaStatusCode PrepareRenameTx(const std::vector<Dentry> &dentrys) override;
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeid,
                             Inode *out, bool* streaming) override;
 
+    MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeid,
+                                InodeAttr *attr) override;
+
     MetaStatusCode BatchGetInodeAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<InodeAttr> *attr) override;
 
+    MetaStatusCode BatchGetInodeAttrAsync(uint32_t fsId,
+        const std::vector<uint64_t> &inodeIds,
+        MetaServerClientDone *done) override;
+
     MetaStatusCode BatchGetXAttr(uint32_t fsId,
-        std::set<uint64_t> *inodeIds,
+        const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) override;
 
-    MetaStatusCode UpdateInode(const Inode &inode,
-                               InodeOpenStatusChange statusChange =
-                                   InodeOpenStatusChange::NOCHANGE) override;
+    MetaStatusCode UpdateInodeAttr(const Inode &inode,
+        InodeOpenStatusChange statusChange =
+            InodeOpenStatusChange::NOCHANGE) override;
 
-    void UpdateInodeAsync(const Inode &inode, MetaServerClientDone *done,
+    MetaStatusCode UpdateInodeAttrWithOutNlink(
+        const Inode &inode,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        S3ChunkInfoMap *s3ChunkInfoAdd = nullptr,
+        bool internal = false) override;
+
+    void UpdateInodeAttrAsync(const Inode &inode, MetaServerClientDone *done,
                           InodeOpenStatusChange statusChange =
                               InodeOpenStatusChange::NOCHANGE) override;
+
+    void UpdateInodeWithOutNlinkAsync(
+        const Inode &inode,
+        MetaServerClientDone *done,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        DataIndices &&indices = {}) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,
@@ -183,7 +244,8 @@ class MetaServerClientImpl : public MetaServerClient {
             uint64_t, S3ChunkInfoList> &s3ChunkInfos,
         bool returnS3ChunkInfoMap = false,
         google::protobuf::Map<
-            uint64_t, S3ChunkInfoList> *out = nullptr) override;
+            uint64_t, S3ChunkInfoList> *out = nullptr,
+            bool internal = false) override;
 
     void GetOrModifyS3ChunkInfoAsync(
         uint32_t fsId, uint64_t inodeId,
@@ -195,7 +257,27 @@ class MetaServerClientImpl : public MetaServerClient {
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
 
+    bool SplitRequestInodes(uint32_t fsId,
+        const std::set<uint64_t> &inodeIds,
+        std::vector<std::vector<uint64_t>> *inodeGroups) override;
+
+    void AsyncUpdateVolumeExtent(uint32_t fsId,
+                                 uint64_t inodeId,
+                                 const VolumeExtentList &extents,
+                                 MetaServerClientDone *done) override;
+
+    MetaStatusCode GetVolumeExtent(uint32_t fsId,
+                                   uint64_t inodeId,
+                                   bool streaming,
+                                   VolumeExtentList *extents) override;
+
  private:
+    MetaStatusCode UpdateInode(const UpdateInodeRequest &request,
+                               bool internal = false);
+
+    void UpdateInodeAsync(const UpdateInodeRequest &request,
+                          MetaServerClientDone *done);
+
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,
                                  uint64_t* chunkIndex,
                                  S3ChunkInfoList* list);
@@ -204,13 +286,13 @@ class MetaServerClientImpl : public MetaServerClient {
 
  private:
     ExcutorOpt opt_;
+    ExcutorOpt optInternal_;
 
     std::shared_ptr<MetaCache> metaCache_;
     std::shared_ptr<ChannelManager<MetaserverID>> channelManager_;
 
-    std::shared_ptr<StreamClient> streamClient_;
-
-    std::shared_ptr<MetaServerClientMetric> metaserverClientMetric_;
+    StreamClient streamClient_;
+    MetaServerClientMetric metric_;
 };
 }  // namespace rpcclient
 }  // namespace client

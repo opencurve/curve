@@ -49,8 +49,10 @@ const char kCreateTopologyCmd[] = "create-topology";
 const char kCreateFsCmd[] = "create-fs";
 // umount
 const char kUmountFsCmd[] = "umount-fs";
-// delete
+// delete-fs
 const char kDeleteFsCmd[] = "delete-fs";
+// delete-partition
+const char kPartitionDeleteCmd[] = "delete-partition";
 // metadata-usage
 const char kMetedataUsageCmd[] = "usage-metadata";
 // status
@@ -103,12 +105,13 @@ const char kHelpStr[] =
     "list-fs:           list all fs in cluster\n"
     "list-copysetInfo:  list all copysetInfo in cluster\n"
     "list-topology:     list cluster's topology\n"
-    "list-partition:     list partition by fsId\n"
+    "list-partition:    list partition by fsId\n"
     "create-topology:   create cluster topology based on topo.json\n"
     "create-fs:         create fs\n"
     "umount-fs:         umount curvefs from local and cluster\n"
     "usage-metadata:    show the metadata usage of cluster\n"
     "delete-fs:         delete fs by fsName\n"
+    "delete-partition:  delete partition by partitionId\n"
     "check-copyset:     checkout copyset status\n"
     "query-copyset:     query copyset by copysetId and poolId\n"
     "query-partition:   query copyset in partition by partitionId\n"
@@ -187,6 +190,7 @@ const char kMetaserverId[] = "metaserverid";
 const char kHostIp[] = "hostip";
 const char kPort[] = "port";
 const char kOnlineState[] = "state";
+const char kPartitionId[] = "partitionid";
 
 }  // namespace topology
 }  // namespace mds
@@ -227,9 +231,6 @@ extern std::function<void(curve::common::Configuration*,
     SetFsType;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
-    SetVolumeSize;
-extern std::function<void(curve::common::Configuration*,
-                          google::CommandLineFlagInfo*)>
     SetVolumeBlockSize;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
@@ -242,10 +243,16 @@ extern std::function<void(curve::common::Configuration*,
     SetVolumePassword;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
-    SetVolumeBlockSize;
+    SetVolumeBitmapLocation;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
-    SetVolumeBitmapLocation;
+    SetVolumeAutoExtend;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeExtendFactor;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeCluster;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetS3_ak;
@@ -270,6 +277,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetRpcStreamIdleTimeoutMs;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRpcRetryIntervalUs;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>

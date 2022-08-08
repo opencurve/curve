@@ -23,6 +23,7 @@
 #ifndef CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
 #define CURVEFS_SRC_METASERVER_STORAGE_DUMPFILE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -60,6 +61,7 @@ enum class DUMPFILE_ERROR {
     FORK_FAILED,
     WAITPID_FAILED,
     UNEXPECTED_SIGNAL,
+    ENCOUNTER_EOF,
 };
 
 enum class DUMPFILE_LOAD_STATUS {
@@ -71,6 +73,20 @@ enum class DUMPFILE_LOAD_STATUS {
     INVALID_SIZE,
     INVALID_PAIRS,
     INVALID_CHECKSUM,
+};
+
+enum DumpFileVersion : uint8_t {
+    // Version 1 dumps all metadata into a single file
+    // including partitions/inodes/dentries/pending tx/s3 chunk info and
+    // volume extent
+    kDumpFileV1 = 1,
+    // See below dumpfile format diagram, it shows the difference between
+    // kDumpFileV1 and kDumpFileV2
+    kDumpFileV2 = 2,
+    // Version 3 only dumps partitions and pending tx into file based on
+    // kDumpFileV2 (because they're not inserted into rocksdb), other metadata
+    // is saved by rocksdb
+    kDumpFileV3 = 3,
 };
 
 std::ostream& operator<<(std::ostream& os, DUMPFILE_ERROR code);
@@ -98,14 +114,27 @@ class DumpFileClosure {
     std::condition_variable cond_;
 };
 
+class DumpFileIterator;
+
 /*
  * dumpfile format:
+ *
+ * v1:
  *   +---------+---------+------+-----------------+-----------+
  *   | CURVEFS | version | size | key_value_pairs | check_sum |
  *   +---------+---------+------+-----------------+-----------+
  *      CURVEFS:  "CURVEFS" (7-bytes)
  *      version:  uint8_t   (1-byte)
  *      size:     uint64_t  (8-bytes)
+ *      checksum: uint32_t  (4-bytes)
+ *
+ * v2:
+ *   +---------+---------+-----------------+-----+-----------+
+ *   | CURVEFS | version | key_value_pairs | EOF | check_sum |
+ *   +---------+---------+-----------------+-----+-----------+
+ *      CURVEFS:  "CURVEFS" (7-bytes)
+ *      version:  uint8_t   (1-byte)
+ *      EOF:      uint32_t  (4-bytes)
  *      checksum: uint32_t  (4-bytes)
  *
  * key_value_pairs format:
@@ -118,6 +147,8 @@ class DumpFile {
  public:
     explicit DumpFile(const std::string& pathname);
 
+    DumpFile(const std::string& pathname, uint8_t version);
+
     DUMPFILE_ERROR Open();
 
     DUMPFILE_ERROR Close();
@@ -127,11 +158,13 @@ class DumpFile {
     DUMPFILE_ERROR SaveBackground(std::shared_ptr<Iterator> iter,
                                   DumpFileClosure* done = nullptr);
 
-    std::shared_ptr<Iterator> Load();
+    std::shared_ptr<DumpFileIterator> Load();
 
     DUMPFILE_LOAD_STATUS GetLoadStatus();
 
     void SetLoadStatus(DUMPFILE_LOAD_STATUS status);
+
+    uint8_t GetVersion();
 
  private:
     DUMPFILE_ERROR Write(const char* buffer, off_t offset, size_t length);
@@ -175,6 +208,9 @@ class DumpFile {
     friend class DumpFileIterator;
     friend class DumpFileTest;
 
+    // Check whether a version is valid
+    static bool CheckDumpFileVersion(uint8_t ver);
+
  private:
     std::string pathname_;
 
@@ -184,9 +220,13 @@ class DumpFile {
 
     DUMPFILE_LOAD_STATUS loadStatus_;
 
+    uint8_t version_;
+
     static const std::string kCurvefs_;
 
     static const uint8_t kVersion_;
+
+    static const uint32_t kEOF_;
 
     static const uint32_t kMaxStringLength_;
 };
@@ -214,6 +254,10 @@ class DumpFileIterator : public Iterator {
 
     int Status() override;
 
+    uint8_t Version() const {
+        return version_;
+    }
+
  private:
     void End();
 
@@ -233,6 +277,8 @@ class DumpFileIterator : public Iterator {
     uint64_t startTime_;
 
     DumpFile* dumpfile_;
+
+    uint8_t version_;
 };
 
 }  // namespace storage

@@ -296,7 +296,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
         SegmentInfo sinfo;
         LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-        mdsclient_->GetOrAllocateSegment(true, 0, &fi, &sinfo);
+        mdsclient_->GetOrAllocateSegment(true, 0, &fi, nullptr, &sinfo);
         int count = 0;
         for (auto iter : sinfo.chunkvec) {
             uint64_t index = (sinfo.startoffset + count*fi.chunksize )
@@ -754,7 +754,8 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
 
     auto threadfunc = [&]() {
         iotracker->SetUserDataType(UserDataType::RawBuffer);
-        iotracker->StartWrite(nullptr, offset, length, mdsclient_.get(), &fi);
+        iotracker->StartWrite(nullptr, offset, length, mdsclient_.get(),
+            &fi, nullptr);
     };
 
     std::thread process(threadfunc);
@@ -840,7 +841,7 @@ TEST_F(IOTrackerSplitorTest, largeIOTest) {
     auto dataCopy = writeData;
     ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(
                      iotracker, mc, &reqlist, &dataCopy, offset, length,
-                     mdsclient_.get(), &fi));
+                     mdsclient_.get(), &fi, nullptr));
     ASSERT_EQ(2, reqlist.size());
 
     RequestContext* first = reqlist.front();
@@ -887,7 +888,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       nullptr, mc, &reqlist, &iobuf, offset, length,
-                      mdsclient_.get(), &fi));
+                      mdsclient_.get(), &fi, nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       nullptr, mc,
@@ -895,7 +896,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, nullptr, &reqlist, &iobuf, offset, length,
-                      mdsclient_.get(), nullptr));
+                      mdsclient_.get(), nullptr, nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       iotracker, nullptr,
@@ -903,11 +904,12 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, &iobuf, offset, length,
-                      mdsclient_.get(), nullptr));
+                      mdsclient_.get(), nullptr, nullptr));
 
     ASSERT_EQ(
         -1, curve::client::Splitor::IO2ChunkRequests(
-                iotracker, mc, &reqlist, &iobuf, offset, length, nullptr, &fi));
+                iotracker, mc, &reqlist, &iobuf, offset, length, nullptr,
+                &fi, nullptr));
 
     ASSERT_EQ(0, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                      iotracker, mc,
@@ -915,7 +917,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, nullptr, &iobuf, offset, length,
-                      mdsclient_.get(), nullptr));
+                      mdsclient_.get(), nullptr, nullptr));
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       iotracker, mc,
@@ -923,7 +925,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, nullptr, offset, length,
-                      mdsclient_.get(), nullptr));
+                      mdsclient_.get(), nullptr, nullptr));
 
     iotracker->SetOpType(OpType::WRITE);
     ASSERT_EQ(-1,
@@ -934,7 +936,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
     iotracker->SetOpType(OpType::WRITE);
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, nullptr, offset, length,
-                      mdsclient_.get(), &fi));
+                      mdsclient_.get(), &fi, nullptr));
 
     // ASSERT_EQ(-1, Splitor::CalcDiscardSegments(nullptr));
 
@@ -1070,7 +1072,7 @@ TEST_F(IOTrackerSplitorTest, stripeTest) {
     std::vector<RequestContext*> reqlist;
     ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(
                      iotracker, mc, &reqlist, &dataCopy, offset, length,
-                     mdsclient_.get(), &fi));
+                     mdsclient_.get(), &fi, nullptr));
 
     ASSERT_EQ(2, reqlist.size());
     RequestContext* first = reqlist.front();
@@ -1099,7 +1101,7 @@ TEST_F(IOTrackerSplitorTest, stripeTest) {
     mc->UpdateChunkInfoByIndex(4, chinfo1);
     ASSERT_EQ(0, curve::client::Splitor::IO2ChunkRequests(
                      iotracker, mc, &reqlist, &dataCopy, offset, length,
-                     mdsclient_.get(), &fi));
+                     mdsclient_.get(), &fi, nullptr));
     ASSERT_EQ(2, reqlist.size());
     first = reqlist.front();
     reqlist.erase(reqlist.begin());
@@ -1151,7 +1153,7 @@ TEST_F(IOTrackerSplitorTest, TestDisableStripeForStripeFile) {
     std::vector<RequestContext*> reqlist;
     ASSERT_EQ(0,
               Splitor::IO2ChunkRequests(&ioTracker, cache, &reqlist, &dataCopy,
-                                        offset, length, mdsclient_.get(), &fi));
+                    offset, length, mdsclient_.get(), &fi, nullptr));
 
     ASSERT_EQ(2, reqlist.size());
     auto* first = reqlist[0];

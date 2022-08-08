@@ -108,6 +108,16 @@ class MetaServerServiceImpl : public MetaServerService {
                          PrepareRenameTxResponse* response,
                          google::protobuf::Closure* done) override;
 
+    void GetVolumeExtent(::google::protobuf::RpcController* controller,
+                         const GetVolumeExtentRequest* request,
+                         GetVolumeExtentResponse* response,
+                         ::google::protobuf::Closure* done) override;
+
+    void UpdateVolumeExtent(::google::protobuf::RpcController* controller,
+                            const UpdateVolumeExtentRequest* request,
+                            UpdateVolumeExtentResponse* response,
+                            ::google::protobuf::Closure* done) override;
+
  private:
     CopysetNodeManager* copysetNodeManager_;
     InflightThrottle* inflightThrottle_;

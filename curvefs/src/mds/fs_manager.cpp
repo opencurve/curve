@@ -22,17 +22,22 @@
 
 #include "curvefs/src/mds/fs_manager.h"
 
+#include <sys/stat.h>  // for S_IFDIR
 #include <glog/logging.h>
 #include <google/protobuf/util/message_differencer.h>
-#include <sys/stat.h>  // for S_IFDIR
+#include <string>
 
 #include <limits>
 #include <list>
 #include <utility>
 
+#include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/space.pb.h"
 #include "curvefs/src/mds/common/types.h"
 #include "curvefs/src/mds/metric/fs_metric.h"
 #include "curvefs/src/mds/space/reloader.h"
+#include "curvefs/src/mds/space/mds_proxy_manager.h"
 
 namespace curvefs {
 namespace mds {
@@ -41,6 +46,7 @@ using ::curvefs::common::FSType;
 using ::curvefs::mds::space::Reloader;
 using ::curvefs::mds::dlock::LOCK_STATUS;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::google::protobuf::util::MessageDifferencer;
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 
 bool FsManager::Init() {
@@ -50,29 +56,36 @@ bool FsManager::Init() {
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "Reload mounted fs volume space error";
     }
-
+    RebuildTimeRecorder();
     return ret == FSStatusCode::OK;
 }
 
 void FsManager::Run() {
     if (isStop_.exchange(false)) {
         backEndThread_ = Thread(&FsManager::BackEndFunc, this);
+        checkMountPointThread_ = Thread(&FsManager::BackEndCheckMountPoint,
+                                        this);
         LOG(INFO) << "FsManager start running";
     } else {
         LOG(INFO) << "FsManager already is running";
     }
 }
 
-void FsManager::Uninit() {
+void FsManager::Stop() {
     if (!isStop_.exchange(true)) {
         LOG(INFO) << "stop FsManager...";
         sleeper_.interrupt();
         backEndThread_.join();
+        checkMountPointSleeper_.interrupt();
+        checkMountPointThread_.join();
         LOG(INFO) << "stop FsManager ok.";
     } else {
         LOG(INFO) << "FsManager not running.";
     }
+}
 
+void FsManager::Uninit() {
+    Stop();
     fsStorage_->Uninit();
     LOG(INFO) << "FsManager Uninit ok.";
 }
@@ -171,12 +184,73 @@ void FsManager::BackEndFunc() {
     }
 }
 
+void MountPoint2Str(const Mountpoint& in, std::string *out) {
+    *out = in.hostname() + ":" + std::to_string(in.port()) + ":" + in.path();
+}
+
+bool Str2MountPoint(const std::string& in, Mountpoint* out) {
+    std::vector<std::string> vec;
+    curve::common::SplitString(in, ":", &vec);
+    if (vec.size() != 3) {
+        LOG(ERROR) << "split string to mountpoint failed, str = " << in;
+        return false;
+    }
+    out->set_hostname(vec[0]);
+    uint32_t port;
+    if (!curve::common::StringToUl(vec[1], &port)) {
+        LOG(ERROR) << "StringToUl failed, str = " << vec[1];
+        return false;
+    }
+    out->set_port(port);
+    out->set_path(vec[2]);
+    return true;
+}
+
+void FsManager::CheckMountPoint() {
+    std::map<std::string, std::pair<std::string, uint64_t>> tmap;
+    {
+        ReadLockGuard rlock(recorderMutex_);
+        tmap = mpTimeRecorder_;
+    }
+    uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
+    for (auto iter = tmap.begin(); iter != tmap.end(); iter++) {
+        std::string fsName = iter->second.first;
+        std::string mountpath = iter->first;
+        if (now - iter->second.second > option_.clientTimeoutSec) {
+            Mountpoint mountpoint;
+            if (!Str2MountPoint(mountpath, &mountpoint)) {
+                LOG(ERROR) << "mountpath to mountpoint failed, mountpath = "
+                           << mountpath;
+                DeleteClientAliveTime(iter->first);
+            } else {
+                auto ret = UmountFs(fsName, mountpoint);
+                if (ret != FSStatusCode::OK &&
+                    ret != FSStatusCode::MOUNT_POINT_NOT_EXIST) {
+                    LOG(WARNING) << "umount fs = " << fsName
+                                 << " form mountpoint = " << mountpath
+                                 << " failed when client timeout";
+                } else {
+                    LOG(INFO) << "umount fs = " << fsName
+                              << " mountpoint = " << mountpath
+                              << " success after client timeout.";
+                }
+            }
+        }
+    }
+}
+
+void FsManager::BackEndCheckMountPoint() {
+    while (checkMountPointSleeper_.wait_for(
+        std::chrono::seconds(option_.backEndThreadRunInterSec))) {
+        CheckMountPoint();
+    }
+}
+
 FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
                                  FsInfo* fsInfo) {
     const auto& fsName = request->fsname();
     const auto& blockSize = request->blocksize();
     const auto& fsType = request->fstype();
-    const auto& enableSumInDir = request->enablesumindir();
     const auto& detail = request->fsdetail();
 
     NameLockGuard lock(nameLock_, fsName);
@@ -223,6 +297,18 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
                        << " error, s3info is not available!";
             return FSStatusCode::S3_INFO_ERROR;
         }
+    }
+
+    // fill volume size and segment size
+    if (detail.has_volume()) {
+        if (!FillVolumeInfo(const_cast<curvefs::mds::CreateFsRequest*>(request)
+                                ->mutable_fsdetail()
+                                ->mutable_volume())) {
+            LOG(WARNING) << "Fail to get volume size";
+            return FSStatusCode::VOLUME_INFO_ERROR;
+        }
+
+        LOG(INFO) << "Volume info: " << detail.volume().ShortDebugString();
     }
 
     if (!skipCreateNewFs) {
@@ -315,7 +401,7 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
         return ret;
     }
 
-    *fsInfo = wrapper.ProtoFsInfo();
+    *fsInfo = std::move(wrapper).ProtoFsInfo();
     return FSStatusCode::OK;
 }
 
@@ -335,7 +421,8 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
     if (!wrapper.IsMountPointEmpty()) {
         LOG(WARNING) << "DeleteFs fail, mount point exist, fsName = " << fsName;
         for (auto& it : wrapper.MountPoints()) {
-            LOG(WARNING) << "mountpoint [" << it << "] exist";
+            LOG(WARNING) << "mountpoint [" << it.ShortDebugString()
+                         << "] exist";
         }
         return FSStatusCode::FS_BUSY;
     }
@@ -373,10 +460,10 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
 }
 
 FSStatusCode FsManager::MountFs(const std::string& fsName,
-                                const std::string& mountpoint, FsInfo* fsInfo) {
+                                const Mountpoint& mountpoint, FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);
 
-    // 1. query fs
+    // query fs
     FsInfoWrapper wrapper;
     FSStatusCode ret = fsStorage_->Get(fsName, &wrapper);
     if (ret != FSStatusCode::OK) {
@@ -385,7 +472,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
         return ret;
     }
 
-    // 2. check fs status
+    // check fs status
     FsStatus status = wrapper.GetStatus();
     switch (status) {
         case FsStatus::NEW:
@@ -403,47 +490,56 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
             return FSStatusCode::UNKNOWN_ERROR;
     }
 
-    // 3. if mount point exist, return MOUNT_POINT_EXIST
-    if (wrapper.IsMountPointExist(mountpoint)) {
-        LOG(WARNING) << "MountFs fail, mount point exist, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint;
-        return FSStatusCode::MOUNT_POINT_EXIST;
+    // check param
+    if (!mountpoint.has_cto()) {
+        LOG(WARNING) << "MountFs fail, mount point miss cto param, fsName = "
+                     << fsName << ", fs status = " << FsStatus_Name(status);
+        return FSStatusCode::PARAM_ERROR;
     }
 
-    // 4. If this is the first mountpoint, init space,
+    // mount point conflict
+    if (wrapper.IsMountPointConflict(mountpoint)) {
+        LOG(WARNING) << "MountFs fail, mount point conflict, fsName = "
+                     << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString();
+        return FSStatusCode::MOUNT_POINT_CONFLICT;
+    }
+
+    // If this is the first mountpoint, init space,
     if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
         wrapper.IsMountPointEmpty()) {
-        FsInfo tempFsInfo = wrapper.ProtoFsInfo();
+        const auto& tempFsInfo = wrapper.ProtoFsInfo();
         auto ret = spaceManager_->AddVolume(tempFsInfo);
         if (ret != space::SpaceOk) {
             LOG(ERROR) << "MountFs fail, init space fail, fsName = " << fsName
-                       << ", mountpoint = " << mountpoint
+                       << ", mountpoint = " << mountpoint.ShortDebugString()
                        << ", errCode = " << FSStatusCode_Name(INIT_SPACE_ERROR);
             return INIT_SPACE_ERROR;
         }
     }
 
-    // 5. insert mountpoint
+    // insert mountpoint
     wrapper.AddMountPoint(mountpoint);
     // for persistence consider
     ret = fsStorage_->Update(wrapper);
     if (ret != FSStatusCode::OK) {
         LOG(WARNING) << "MountFs fail, update fs fail, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
+    // update client alive time
+    UpdateClientAliveTime(mountpoint, fsName, false);
 
-    // 6. convert fs info
-    *fsInfo = wrapper.ProtoFsInfo();
-
+    // convert fs info
     FsMetric::GetInstance().OnMount(wrapper.GetFsName(), mountpoint);
+    *fsInfo = std::move(wrapper).ProtoFsInfo();
 
     return FSStatusCode::OK;
 }
 
 FSStatusCode FsManager::UmountFs(const std::string& fsName,
-                                 const std::string& mountpoint) {
+                                 const Mountpoint& mountpoint) {
     NameLockGuard lock(nameLock_, fsName);
 
     // 1. query fs
@@ -459,7 +555,8 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     if (!wrapper.IsMountPointExist(mountpoint)) {
         ret = FSStatusCode::MOUNT_POINT_NOT_EXIST;
         LOG(WARNING) << "UmountFs fail, mount point not exist, fsName = "
-                     << fsName << ", mountpoint = " << mountpoint
+                     << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
@@ -467,10 +564,15 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     ret = wrapper.DeleteMountPoint(mountpoint);
     if (ret != FSStatusCode::OK) {
         LOG(WARNING) << "UmountFs fail, delete mount point fail, fsName = "
-                     << fsName << ", mountpoint = " << mountpoint
+                     << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
+
+    std::string mountpath;
+    MountPoint2Str(mountpoint, &mountpath);
+    DeleteClientAliveTime(mountpath);
 
     // 3. if no mount point exist, uninit space
     if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
@@ -478,11 +580,14 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
         auto ret = spaceManager_->RemoveVolume(wrapper.GetFsId());
         if (ret != space::SpaceOk) {
             LOG(ERROR) << "UmountFs fail, uninit space fail, fsName = "
-                       << fsName << ", mountpoint = " << mountpoint
-                       << ", errCode = "
-                       << FSStatusCode_Name(UNINIT_SPACE_ERROR);
+                       << fsName
+                       << ", mountpoint = " << mountpoint.ShortDebugString()
+                       << ", errCode = " << space::SpaceErrCode_Name(ret);
             return UNINIT_SPACE_ERROR;
         }
+
+        LOG(INFO) << "Remove volume space success, fsName = " << fsName
+                  << ", fsId = " << wrapper.GetFsId();
     }
 
     // 4. update fs info
@@ -490,13 +595,12 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
     ret = fsStorage_->Update(wrapper);
     if (ret != FSStatusCode::OK) {
         LOG(WARNING) << "UmountFs fail, update fs fail, fsName = " << fsName
-                     << ", mountpoint = " << mountpoint
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
 
     FsMetric::GetInstance().OnUnMount(fsName, mountpoint);
-
     return FSStatusCode::OK;
 }
 
@@ -557,12 +661,38 @@ int FsManager::IsExactlySameOrCreateUnComplete(const std::string& fsName,
                                                const FsDetail& detail) {
     FsInfoWrapper existFs;
 
+    auto volumeInfoComparator = [](common::Volume lhs, common::Volume rhs) {
+        // only compare required fields
+        // 1. clear `volumeSize` and `extendAlignment`
+        // 2. if `autoExtend` is true, `extendFactor` must be equal too
+        lhs.clear_volumesize();
+        lhs.clear_extendalignment();
+        rhs.clear_volumesize();
+        rhs.clear_extendalignment();
+
+        return google::protobuf::util::MessageDifferencer::Equals(lhs, rhs);
+    };
+
+    auto checkFsInfo = [fsType, volumeInfoComparator](const FsDetail& lhs,
+                                                      const FsDetail& rhs) {
+        switch (fsType) {
+            case curvefs::common::FSType::TYPE_S3:
+                return MessageDifferencer::Equals(lhs.s3info(), rhs.s3info());
+            case curvefs::common::FSType::TYPE_VOLUME:
+                return volumeInfoComparator(lhs.volume(), rhs.volume());
+            case curvefs::common::FSType::TYPE_HYBRID:
+                return MessageDifferencer::Equals(lhs.s3info(), rhs.s3info()) &&
+                       volumeInfoComparator(lhs.volume(), rhs.volume());
+        }
+
+        return false;
+    };
+
     // assume fsname exists
     fsStorage_->Get(fsName, &existFs);
     if (fsName == existFs.GetFsName() && fsType == existFs.GetFsType() &&
         blocksize == existFs.GetBlockSize() &&
-        google::protobuf::util::MessageDifferencer::Equals(
-            detail, existFs.GetFsDetail())) {
+        checkFsInfo(detail, existFs.GetFsDetail())) {
         if (FsStatus::NEW == existFs.GetStatus()) {
             return 1;
         } else if (FsStatus::INITED == existFs.GetStatus()) {
@@ -584,16 +714,22 @@ void FsManager::GetAllFsInfo(
         *fsInfoVec->Add() = i.ProtoFsInfo();
     }
     LOG(INFO) << "get all fsinfo.";
-    return;
 }
 
-void FsManager::RefreshSession(
-    const google::protobuf::RepeatedPtrField<PartitionTxId> &txIds,
-    google::protobuf::RepeatedPtrField<PartitionTxId> *needUpdate) {
-    std::vector<PartitionTxId> out;
-    std::vector<PartitionTxId> in = {txIds.begin(), txIds.end()};
-    topoManager_->GetLatestPartitionsTxId(in, &out);
-    *needUpdate = {out.begin(), out.end()};
+void FsManager::RefreshSession(const RefreshSessionRequest* request,
+    RefreshSessionResponse* response) {
+    if (request->txids_size() != 0) {
+        std::vector<PartitionTxId> out;
+        std::vector<PartitionTxId> in = {request->txids().begin(),
+                                         request->txids().end()};
+        topoManager_->GetLatestPartitionsTxId(in, &out);
+        *response->mutable_latesttxidlist() = {
+            std::make_move_iterator(out.begin()),
+            std::make_move_iterator(out.end())};
+    }
+
+    // update this client's alive time
+    UpdateClientAliveTime(request->mountpoint(), request->fsname());
 }
 
 FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {
@@ -682,8 +818,8 @@ void FsManager::GetLatestTxId(const GetLatestTxIdRequest* request,
 
     // lock for multi-mount rename
     FSStatusCode rc;
-    std::string fsName = request->fsname();
-    std::string uuid = request->uuid();
+    const std::string& fsName = request->fsname();
+    const std::string& uuid = request->uuid();
     LOCK_STATUS status = dlock_->Lock(fsName, uuid);
     if (status != LOCK_STATUS::OK) {
         rc = (status == LOCK_STATUS::TIMEOUT) ? FSStatusCode::LOCK_TIMEOUT
@@ -787,6 +923,110 @@ void FsManager::CommitTx(const CommitTxRequest* request,
     // we can ignore the UnLock result for the
     // lock can releaseed automaticlly by timeout
     dlock_->UnLock(fsName, uuid);
+}
+
+// after mds restart need rebuild mountpoint ttl recorder
+void FsManager::RebuildTimeRecorder() {
+    std::vector<FsInfoWrapper> fsInfos;
+    fsStorage_->GetAll(&fsInfos);
+    for (auto const& info : fsInfos) {
+        for (auto const& mount : info.MountPoints()) {
+            UpdateClientAliveTime(mount, info.GetFsName(), false);
+        }
+    }
+    LOG(INFO) << "RebuildTimeRecorder size = " << mpTimeRecorder_.size();
+}
+
+FSStatusCode FsManager::AddMountPoint(const Mountpoint& mountpoint,
+    const std::string& fsName) {
+    LOG(INFO) << "AddMountPoint mountpoint = " << mountpoint.DebugString()
+              << ", fsName = " << fsName;
+    // 1. query fs
+    FsInfoWrapper wrapper;
+    FSStatusCode ret = fsStorage_->Get(fsName, &wrapper);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "AddMountPoint fail, get fs fail, fsName = " << fsName
+                     << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    // 2. insert mountpoint
+    wrapper.AddMountPoint(mountpoint);
+    // for persistence consider
+    ret = fsStorage_->Update(wrapper);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "AddMountPoint update fs fail, fsName = " << fsName
+                     << ", mountpoint = " << mountpoint.ShortDebugString()
+                     << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    return FSStatusCode::OK;
+}
+
+void FsManager::UpdateClientAliveTime(const Mountpoint& mountpoint,
+    const std::string& fsName, bool addMountPoint) {
+    VLOG(1) << "UpdateClientAliveTime fsName = " << fsName
+            << ", mp = " << mountpoint.DebugString()
+            << ". addMountPoint = " << addMountPoint;
+    std::string mountpath;
+    MountPoint2Str(mountpoint, &mountpath);
+    WriteLockGuard wlock(recorderMutex_);
+    if (addMountPoint) {
+        auto iter = mpTimeRecorder_.find(mountpath);
+        // client hang timeout and recover later
+        // need add mountpoint to fsInfo
+        if (iter == mpTimeRecorder_.end()) {
+            if (AddMountPoint(mountpoint, fsName) != FSStatusCode::OK) {
+                return;
+            }
+        }
+    }
+    mpTimeRecorder_[mountpath] = std::make_pair(
+        fsName, ::curve::common::TimeUtility::GetTimeofDaySec());
+}
+
+void FsManager::DeleteClientAliveTime(const std::string& mountpoint) {
+    WriteLockGuard wlock(recorderMutex_);
+    auto it = mpTimeRecorder_.find(mountpoint);
+    if (it != mpTimeRecorder_.end()) {
+        mpTimeRecorder_.erase(it);
+    }
+}
+
+// for utest
+bool FsManager::GetClientAliveTime(const std::string& mountpoint,
+    std::pair<std::string, uint64_t>* out) {
+    ReadLockGuard rlock(recorderMutex_);
+    auto iter = mpTimeRecorder_.find(mountpoint);
+    if (iter == mpTimeRecorder_.end()) {
+        return false;
+    }
+
+    *out = iter->second;
+    return true;
+}
+
+bool FsManager::FillVolumeInfo(common::Volume* volume) {
+    auto* proxy = space::MdsProxyManager::GetInstance().GetOrCreateProxy(
+        {volume->cluster().begin(), volume->cluster().end()});
+    if (proxy == nullptr) {
+        LOG(ERROR) << "Fail to get or create proxy";
+        return false;
+    }
+
+    uint64_t size = 0;
+    uint64_t alignment = 0;
+    auto ret = proxy->GetVolumeInfo(*volume, &size, &alignment);
+    if (!ret) {
+        LOG(WARNING) << "Fail to get volume size, volume name: "
+                     << volume->volumename();
+        return false;
+    }
+
+    volume->set_volumesize(size);
+    volume->set_extendalignment(alignment);
+    return true;
 }
 
 }  // namespace mds

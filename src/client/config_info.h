@@ -55,7 +55,7 @@ struct MetaServerOption {
         uint64_t maxRPCTimeoutMS = 2000;
         // rpc normal timeout
         uint64_t rpcTimeoutMs = 500;
-        // rpc retry intervel
+        // rpc retry interval
         uint32_t rpcRetryIntervalUS = 50000;
         // retry maxFailedTimesBeforeChangeAddr at a server
         uint32_t maxFailedTimesBeforeChangeAddr = 5;
@@ -294,6 +294,26 @@ struct ClientConfigOption {
     MetaServerOption metaServerOpt;
 };
 
+struct ChunkServerBroadCasterOption {
+    uint32_t broadCastMaxNum;
+
+    ChunkServerBroadCasterOption()
+      : broadCastMaxNum(200) {}
+};
+
+struct ChunkServerClientRetryOptions {
+     uint32_t rpcTimeoutMs;
+     uint32_t rpcMaxTry;
+     uint32_t rpcIntervalUs;
+     uint32_t rpcMaxTimeoutMs;
+
+    ChunkServerClientRetryOptions()
+      : rpcTimeoutMs(500),
+        rpcMaxTry(3),
+        rpcIntervalUs(100000),
+        rpcMaxTimeoutMs(8000) {}
+};
+
 /**
  * FileServiceOption是QEMU侧总体配置信息
  */
@@ -303,6 +323,8 @@ struct FileServiceOption {
     LeaseOption leaseOpt;
     CommonConfigOpt commonOpt;
     MetaServerOption metaServerOpt;
+    ChunkServerClientRetryOptions csClientOpt;
+    ChunkServerBroadCasterOption csBroadCasterOpt;
 };
 
 }  // namespace client

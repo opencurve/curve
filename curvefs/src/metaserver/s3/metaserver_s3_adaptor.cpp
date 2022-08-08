@@ -189,7 +189,7 @@ void S3ClientAdaptorImpl::GenObjNameListForChunkInfo(
     uint64_t length = chunkInfo.len();
     uint64_t blockIndex = chunkPos / blockSize_;
     uint64_t blockPos = chunkPos % blockSize_;
-    VLOG(3) << "delete Chunk start, fsId = "<< fsId << ", inodeId = " << inodeId
+    VLOG(9) << "delete Chunk start, fsId = "<< fsId << ", inodeId = " << inodeId
             << ", chunk id: " << chunkId
             << ", compaction:" << compaction << ", chunkPos: " << chunkPos
             << ", length: " << length;

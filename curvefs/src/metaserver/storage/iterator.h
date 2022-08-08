@@ -50,11 +50,11 @@ class Iterator {
 
     virtual std::string Value() = 0;
 
+    virtual const ValueType* RawValue() const { return nullptr; }
+
     virtual int Status() = 0;
 
-    virtual bool ParseFromValue(ValueType* value) {
-        return true;
-    }
+    virtual bool ParseFromValue(ValueType* value) { return true; }
 
     virtual void DisablePrefixChecking() {}
 };

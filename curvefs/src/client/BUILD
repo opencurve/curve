@@ -67,6 +67,7 @@ cc_library(
         "//src/common:curve_s3_adapter",
         "//curvefs/src/volume",
         "//curvefs/src/common:metric_utils",
+        "//curvefs/src/common:dynamic_vlog",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/meta:type_traits",

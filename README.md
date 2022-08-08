@@ -8,8 +8,12 @@
 [![Docs](https://img.shields.io/badge/docs-latest-green.svg)](https://github.com/opencurve/curve/tree/master/docs)
 [![Releases](https://img.shields.io/github/v/release/opencurve/curve?include_prereleases)](https://github.com/opencurve/curve/releases)
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6136/badge)](https://bestpractices.coreinfrastructure.org/projects/6136)
 
-Curve is a distributed storage system designed and developed by NetEase, featured with high performance, easy operation and cloud native. Curve is compose of CurveBS(Curve Block Storage) and CurveFS(Curve FileSystem). CurveBS supports snapshot, clone, and recover, also supports virtual machines with qemu and physical machine with nbd. CurveFS supports POSIX based on Fuse.
+
+Curve is a high-performance, lightweight-operation, cloud-native open source distributed storage system. Can be applied to mainstream cloud-native infrastructure platforms: connect to OpenStack platform to provide high-performance block storage services for cloud VM; connect to Kubernetes to provide RWO, RWX and other types of persistent volumes; connect to PolarFS as a high-performance storage for cloud-native databases, perfectly supports the storage-computing separation architecture of cloud-native databases. Curve can also be used as a cloud storage middleware using S3-compatible object storage as a data storage engine, providing cost-effective shared file storage for public cloud users.
+
+Curve has hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox project.
 
 ## Curve Architecture
 The architecture overview of Curve is as follows:
@@ -96,7 +100,7 @@ Please refer to the CurveBS cluster deployment steps in the [CurveAdm User Manua
 [curve_ops_tool introduction](docs/en/curve_ops_tool_en.md)
 
 ## Quick Start of CurveFS
-In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS (scaleout, upgrade and other functions are under development), please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
+In order to improve the operation and maintenance convenience of Curve, we designed and developed the [CurveAdm](https://github.com/opencurve/curveadm) project, which is mainly used for deploying and managing Curve clusters. Currently, it supports the deployment of CurveBS & CurveFS, please refer to the [CurveAdm User Manual](https://github.com/opencurve/curveadm/wiki) for related documentation, and install the CurveAdm tool according to the manual before deploying the Curve cluster.
 
 Detail for deploying CurveFS cluster: [CurveFS ​​deployment](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment)
 
@@ -107,6 +111,8 @@ Detail for deploying CurveFS cluster: [CurveFS ​​deployment](https://github.
 
 ## For Developers
 
+How to participate in the Curve project development is detailed in [Curve Community Guidelines](Community_Guidelines.md)
+
 ### Deploy build and development environment
 
 [development environment deployment](docs/en/build_and_run_en.md)
@@ -116,20 +122,6 @@ Detail for deploying CurveFS cluster: [CurveFS ​​deployment](https://github.
 
 ### FIO curve block storage engine
 Fio curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
-
-### Coding style guides
-CURVE is coded following [Google C++ Style Guide strictly](https://google.github.io/styleguide/cppguide.html). Please follow this guideline if you're trying to contribute your codes.
-
-### Code coverage requirement
-1. Unit tests: Incremental line coverage ≥ 80%, incremental branch coverage ≥ 70%
-2. Integration tests: Measure together with unit tests, and should fulfill the same requirement
-3. Exception tests: Not required yet
-
-### Other processes
-
-After finishing the development of your code, you should submit a pull request to master branch of CURVE and fill out a pull request template. The pull request will trigger the CI automatically, and the code will only be merged after passing the CI and being reviewed. The Jenkins username and password of CI is netease/netease. If the CI fails to run, you can login to the Jenkins platform to view the reason for the failure.
-
-For more detail, please refer to [CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
 ## Release Cycle
 - CURVE release cycle：Half a year for major version, 1~2 months for minor version

@@ -62,6 +62,11 @@ class CopysetNodeTest : public testing::Test {
         options_.dataUri = "local:///data/";
         options_.ip = "127.0.0.1";
         options_.port = 29940;
+        options_.localFileSystem = &mockfs_;
+        options_.storageOptions.type = "memory";
+
+        EXPECT_CALL(mockfs_, Mkdir(_))
+            .WillRepeatedly(Return(0));
     }
 
     void TearDown() override {
@@ -90,6 +95,8 @@ class CopysetNodeTest : public testing::Test {
 
     std::unique_ptr<brpc::Server> server_;
     std::unique_ptr<MockCopysetService> mockCopysetService_;
+
+    MockLocalFileSystem mockfs_;
 };
 
 TEST_F(CopysetNodeTest, TestInit) {
@@ -103,10 +110,11 @@ TEST_F(CopysetNodeTest, TestInit) {
 
     // apply queue init failed
     {
-        CopysetNodeOptions options;
+        CopysetNodeOptions options = options_;
         options.applyQueueOption.queueDepth = 0;
         options.applyQueueOption.workerCount = 0;
         options.dataUri = "local:///mnt/data";
+        options.localFileSystem = &mockfs_;
 
         CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
         EXPECT_EQ(false, node.Init(options));
@@ -115,7 +123,7 @@ TEST_F(CopysetNodeTest, TestInit) {
 
 TEST_F(CopysetNodeTest, TestLeaderTerm) {
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options  = options_;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
     options.port = 29940;
@@ -149,14 +157,10 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_EpochLoadFailed) {
     poolId_ = 1;
     copysetId_ = 1;
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options  = options_;
     options.dataUri = "local:///mnt/data";
 
-    std::unique_ptr<MockLocalFileSystem> mockfs(
-        absl::make_unique<MockLocalFileSystem>());
-    options.localFileSystem = mockfs.get();
-
-    EXPECT_CALL(*mockfs, Open(_, _))
+    EXPECT_CALL(mockfs_, Open(_, _))
         .WillOnce(Return(-1));
 
     EXPECT_TRUE(node.Init(options));
@@ -167,21 +171,17 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_PoolIdIsNotIdentical) {
     poolId_ = 1;
     copysetId_ = 1;
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options  = options_;
     options.dataUri = "local:///mnt/data";
 
-    std::unique_ptr<MockLocalFileSystem> mockfs(
-        absl::make_unique<MockLocalFileSystem>());
-    options.localFileSystem = mockfs.get();
-
-    EXPECT_CALL(*mockfs, Open(_, _)).
+    EXPECT_CALL(mockfs_, Open(_, _)).
         WillOnce(Return(0));
-    EXPECT_CALL(*mockfs, Close(_)).Times(1);
+    EXPECT_CALL(mockfs_, Close(_)).Times(1);
     const char* data =
         "{\"poolId\": 123, \"copysetId\": 1, \"epoch\": 3, \"checksum\": 3480649501}";  // NOLINT
 
     size_t datasize = strlen(data);
-    EXPECT_CALL(*mockfs, Read(_, _, _, _))
+    EXPECT_CALL(mockfs_, Read(_, _, _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -193,22 +193,18 @@ TEST_F(CopysetNodeTest, LoadConEpochFailed_CopysetIdIsNotIdentical) {
     poolId_ = 1;
     copysetId_ = 1;
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options  = options_;
     options.dataUri = "local:///mnt/data";
 
-    std::unique_ptr<MockLocalFileSystem> mockfs(
-        absl::make_unique<MockLocalFileSystem>());
-    options.localFileSystem = mockfs.get();
-
-    EXPECT_CALL(*mockfs, Open(_, _))
+    EXPECT_CALL(mockfs_, Open(_, _))
         .WillOnce(Return(0));
-    EXPECT_CALL(*mockfs, Close(_))
+    EXPECT_CALL(mockfs_, Close(_))
         .Times(1);
     const char* data =
         "{\"poolId\": 1, \"copysetId\": 431, \"epoch\": 3, \"checksum\": 2004834618}";  // NOLINT
 
     size_t datasize = strlen(data);
-    EXPECT_CALL(*mockfs, Read(_, _, _, _))
+    EXPECT_CALL(mockfs_, Read(_, _, _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -220,22 +216,19 @@ TEST_F(CopysetNodeTest, LoadConEpoch_Success) {
     poolId_ = 1;
     copysetId_ = 1;
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options = options_;
     options.dataUri = "local:///mnt/data";
+    options.localFileSystem = &mockfs_;
 
-    std::unique_ptr<MockLocalFileSystem> mockfs(
-        absl::make_unique<MockLocalFileSystem>());
-    options.localFileSystem = mockfs.get();
-
-    EXPECT_CALL(*mockfs, Open(_, _))
+    EXPECT_CALL(mockfs_, Open(_, _))
         .WillOnce(Return(0));
-    EXPECT_CALL(*mockfs, Close(_))
+    EXPECT_CALL(mockfs_, Close(_))
         .Times(1);
     const char* data =
         "{\"poolId\": 1, \"copysetId\": 1, \"epoch\": 3, \"checksum\": 3896751047}";  // NOLINT
 
     size_t datasize = strlen(data);
-    EXPECT_CALL(*mockfs, Read(_, _, _, _))
+    EXPECT_CALL(mockfs_, Read(_, _, _, _))
         .WillOnce(DoAll(SetArrayArgument<1>(data, data + datasize),
                         Return(datasize)));
 
@@ -246,7 +239,7 @@ TEST_F(CopysetNodeTest, LoadConEpoch_Success) {
 
 TEST_F(CopysetNodeTest, UpdateAppliedIndexTest) {
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options = options_;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
     options.port = 29940;
@@ -291,7 +284,7 @@ TEST_F(CopysetNodeTest, UpdateAppliedIndexTest) {
 
 TEST_F(CopysetNodeTest, ListPeersTest) {
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options = options_;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
     options.port = 29940;
@@ -307,7 +300,7 @@ TEST_F(CopysetNodeTest, ListPeersTest) {
 
 TEST_F(CopysetNodeTest, FetchLeaderStatusTest_LeaderIdIsEmpty) {
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options = options_;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
     options.port = 29940;
@@ -331,7 +324,7 @@ TEST_F(CopysetNodeTest, FetchLeaderStatusTest_LeaderIdIsEmpty) {
 
 TEST_F(CopysetNodeTest, FetchLeaderStatusTest_CurrentNodeIsLeader) {
     CopysetNode node(poolId_, copysetId_, conf_, &mockNodeManager_);
-    CopysetNodeOptions options;
+    CopysetNodeOptions options = options_;
     options.dataUri = "local:///data/";
     options.ip = "127.0.0.1";
     options.port = 29940;

@@ -69,8 +69,8 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     MOCK_METHOD0(FsSync, CURVEFS_ERROR());
     MOCK_METHOD0(Stop, int());
     MOCK_METHOD2(Truncate, CURVEFS_ERROR(Inode* inode, uint64_t size));
-    MOCK_METHOD2(AllocS3ChunkId,
-                 FSStatusCode(uint32_t fsId, uint64_t* chunkId));
+    MOCK_METHOD3(AllocS3ChunkId, FSStatusCode(uint32_t fsId, uint32_t idNum,
+                                              uint64_t *chunkId));
     MOCK_METHOD1(SetFsId, void(uint32_t fsId));
     MOCK_METHOD1(InitMetrics, void(const std::string &fsName));
     MOCK_METHOD3(CollectMetrics,

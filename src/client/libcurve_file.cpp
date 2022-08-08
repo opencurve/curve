@@ -26,14 +26,16 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 #include <mutex>   // NOLINT
 #include <thread>  // NOLINT
 #include <utility>
+#include <list>
 
 #include "include/client/libcurve.h"
+#include "include/client/libcurve_define.h"
 #include "include/curve_compiler_specific.h"
-#include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/file_instance.h"
@@ -138,6 +140,8 @@ FileClient::FileClient()
       fileserviceMap_(),
       clientconfig_(),
       mdsClient_(),
+      csClient_(std::make_shared<ChunkServerClient>()),
+      csBroadCaster_(std::make_shared<ChunkServerBroadCaster>(csClient_)),
       inited_(false),
       openedFileNum_("open_file_num_" + common::ToHexString(this)) {}
 
@@ -182,6 +186,19 @@ int FileClient::Init(const std::string& configpath) {
     }
 
     mdsClient_ = std::move(tmpMdsClient);
+
+    int rc2 = csClient_->Init(
+        clientconfig_.GetFileServiceOption().csClientOpt);
+    if (rc2 != 0) {
+        LOG(ERROR) << "Init ChunkServer Client failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    rc2 = csBroadCaster_->Init(
+        clientconfig_.GetFileServiceOption().csBroadCasterOpt);
+    if (rc2 != 0) {
+        LOG(ERROR) << "Init ChunkServer BroadCaster failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
     inited_ = true;
     LOG(INFO) << "Init file client success";
     return LIBCURVE_ERROR::OK;
@@ -198,6 +215,7 @@ void FileClient::UnInit() {
         delete iter.second;
     }
     fileserviceMap_.clear();
+    fileserviceFileNameMap_.clear();
 
     mdsClient_.reset();
     inited_ = false;
@@ -229,6 +247,7 @@ int FileClient::Open(const std::string& filename,
     {
         WriteLockGuard lk(rwlock_);
         fileserviceMap_[fd] = fileserv;
+        fileserviceFileNameMap_[filename] = fileserv;
     }
 
     LOG(INFO) << "Open success, filname = " << filename << ", fd = " << fd;
@@ -256,11 +275,44 @@ int FileClient::Open4ReadOnly(const std::string& filename,
     {
         WriteLockGuard lk(rwlock_);
         fileserviceMap_[fd] = instance;
+        fileserviceFileNameMap_[filename] = instance;
     }
 
     openedFileNum_ << 1;
 
     return fd;
+}
+
+int FileClient::IncreaseEpoch(const std::string& filename,
+                              const UserInfo_t& userinfo) {
+    LOG(INFO) << "IncreaseEpoch, filename: " << filename;
+    FInfo_t fi;
+    FileEpoch_t fEpoch;
+    std::list<CopysetPeerInfo<ChunkServerID>> csLocs;
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->IncreaseEpoch(filename, userinfo,
+            &fi, &fEpoch, &csLocs);
+        LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
+            << "IncreaseEpoch failed, filename: " << filename
+            << ", ret: " << ret;
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    int ret2 = csBroadCaster_->BroadCastFileEpoch(
+        fEpoch.fileId, fEpoch.epoch, csLocs);
+    LOG_IF(ERROR, ret2 != LIBCURVE_ERROR::OK)
+        << "BroadCastEpoch failed, filename: " << filename
+        << ", ret: " << ret2;
+
+    // update epoch if file is already open
+    auto it = fileserviceFileNameMap_.find(filename);
+    if (it != fileserviceFileNameMap_.end()) {
+        it->second->UpdateFileEpoch(fEpoch);
+    }
+    return ret2;
 }
 
 int FileClient::Create(const std::string& filename,
@@ -474,9 +526,10 @@ int FileClient::Recover(const std::string& filename,
 int FileClient::StatFile(const std::string& filename,
     const UserInfo_t& userinfo, FileStatInfo* finfo) {
     FInfo_t fi;
+    FileEpoch_t fEpoch;
     int ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->GetFileInfo(filename, userinfo, &fi);
+        ret = mdsClient_->GetFileInfo(filename, userinfo, &fi, &fEpoch);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
             << "StatFile failed, filename: " << filename << ", ret" << ret;
     } else {
@@ -580,12 +633,15 @@ int FileClient::Close(int fd) {
     int ret = fileserviceMap_[fd]->Close();
     if (ret == LIBCURVE_ERROR::OK ||
         ret == -LIBCURVE_ERROR::SESSION_NOT_EXIST) {
+        std::string filename =
+            fileserviceMap_[fd]->GetCurrentFileInfo().fullPathName;
         fileserviceMap_[fd]->UnInitialize();
 
         {
             WriteLockGuard lk(rwlock_);
             delete fileserviceMap_[fd];
             fileserviceMap_.erase(fd);
+            fileserviceFileNameMap_.erase(filename);
         }
 
         LOG(INFO) << "CloseFile ok, fd = " << fd;
@@ -717,6 +773,24 @@ int Open4Qemu(const char* filename) {
     }
 
     return globalclient->Open(realname, userinfo);
+}
+
+int IncreaseEpoch(const char* filename) {
+    curve::client::UserInfo_t userinfo;
+    std::string realname;
+    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+               &realname, &userinfo.owner);
+    if (!ret) {
+        LOG(ERROR) << "get user info from filename failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->IncreaseEpoch(realname, userinfo);
 }
 
 int Extend4Qemu(const char* filename, int64_t newsize) {
@@ -1070,4 +1144,79 @@ void GlobalUnInit() {
         globalclientinited_ = false;
         LOG(INFO) << "destory global client instance success!";
     }
+}
+
+const char* LibCurveErrorName(LIBCURVE_ERROR err) {
+    switch (err) {
+        case LIBCURVE_ERROR::OK:
+            return "OK";
+        case LIBCURVE_ERROR::EXISTS:
+            return "EXISTS";
+        case LIBCURVE_ERROR::FAILED:
+            return "FAILED";
+        case LIBCURVE_ERROR::DISABLEIO:
+            return "DISABLEIO";
+        case LIBCURVE_ERROR::AUTHFAIL:
+            return "AUTHFAIL";
+        case LIBCURVE_ERROR::DELETING:
+            return "DELETING";
+        case LIBCURVE_ERROR::NOTEXIST:
+            return "NOTEXIST";
+        case LIBCURVE_ERROR::UNDER_SNAPSHOT:
+            return "UNDER_SNAPSHOT";
+        case LIBCURVE_ERROR::NOT_UNDERSNAPSHOT:
+            return "NOT_UNDERSNAPSHOT";
+        case LIBCURVE_ERROR::DELETE_ERROR:
+            return "DELETE_ERROR";
+        case LIBCURVE_ERROR::NOT_ALLOCATE:
+            return "NOT_ALLOCATE";
+        case LIBCURVE_ERROR::NOT_SUPPORT:
+            return "NOT_SUPPORT";
+        case LIBCURVE_ERROR::NOT_EMPTY:
+            return "NOT_EMPTY";
+        case LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE:
+            return "NO_SHRINK_BIGGER_FILE";
+        case LIBCURVE_ERROR::SESSION_NOTEXISTS:
+            return "SESSION_NOTEXISTS";
+        case LIBCURVE_ERROR::FILE_OCCUPIED:
+            return "FILE_OCCUPIED";
+        case LIBCURVE_ERROR::PARAM_ERROR:
+            return "PARAM_ERROR";
+        case LIBCURVE_ERROR::INTERNAL_ERROR:
+            return "INTERNAL_ERROR";
+        case LIBCURVE_ERROR::CRC_ERROR:
+            return "CRC_ERROR";
+        case LIBCURVE_ERROR::INVALID_REQUEST:
+            return "INVALID_REQUEST";
+        case LIBCURVE_ERROR::DISK_FAIL:
+            return "DISK_FAIL";
+        case LIBCURVE_ERROR::NO_SPACE:
+            return "NO_SPACE";
+        case LIBCURVE_ERROR::NOT_ALIGNED:
+            return "NOT_ALIGNED";
+        case LIBCURVE_ERROR::BAD_FD:
+            return "BAD_FD";
+        case LIBCURVE_ERROR::LENGTH_NOT_SUPPORT:
+            return "LENGTH_NOT_SUPPORT";
+        case LIBCURVE_ERROR::SESSION_NOT_EXIST:
+            return "SESSION_NOT_EXIST";
+        case LIBCURVE_ERROR::STATUS_NOT_MATCH:
+            return "STATUS_NOT_MATCH";
+        case LIBCURVE_ERROR::DELETE_BEING_CLONED:
+            return "DELETE_BEING_CLONED";
+        case LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT:
+            return "CLIENT_NOT_SUPPORT_SNAPSHOT";
+        case LIBCURVE_ERROR::SNAPSTHO_FROZEN:
+            return "SNAPSTHO_FROZEN";
+        case LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS:
+            return "RETRY_UNTIL_SUCCESS";
+        case LIBCURVE_ERROR::EPOCH_TOO_OLD:
+            return "EPOCH_TOO_OLD";
+        case LIBCURVE_ERROR::UNKNOWN:
+            break;
+    }
+
+    static thread_local char message[64];
+    snprintf(message, sizeof(message), "Unknown[%d]", static_cast<int>(err));
+    return message;
 }

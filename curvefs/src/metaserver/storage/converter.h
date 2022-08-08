@@ -24,22 +24,61 @@
 #define CURVEFS_SRC_METASERVER_STORAGE_CONVERTER_H_
 
 
+#include <google/protobuf/message.h>
 #include <string>
+#include <type_traits>
 
 #include "curvefs/src/metaserver/storage/common.h"
 
 namespace curvefs {
 namespace metaserver {
+
+class MetaStoreFStream;
+
 namespace storage {
 
 enum KEY_TYPE : unsigned char {
     kTypeInode = 1,
     kTypeS3ChunkInfo = 2,
     kTypeDentry = 3,
+    kTypeVolumeExtent = 4,
+    kTypeInodeAuxInfo = 5,
+};
+
+// NOTE: you must generate all table name by NameGenerator class for
+// gurantee the fixed prefix for rocksdb storage.
+// e.g: 1:0001
+class NameGenerator {
+ public:
+    explicit NameGenerator(uint32_t partitionId);
+
+    std::string GetInodeTableName() const;
+
+    std::string GetS3ChunkInfoTableName() const;
+
+    std::string GetDentryTableName() const;
+
+    std::string GetVolumeExtentTableName() const;
+
+    std::string GetInodeAuxInfoTableName() const;
+
+    static size_t GetFixedLength();
+
+ private:
+    std::string Format(KEY_TYPE type, uint32_t partitionId);
+
+ private:
+    std::string tableName4Inode_;
+    std::string tableName4S3ChunkInfo_;
+    std::string tableName4Dentry_;
+    std::string tableName4VolumeExtent_;
+    std::string tableName4InodeAuxInfo_;
 };
 
 class StorageKey {
  public:
+    virtual ~StorageKey() = default;
+
     virtual std::string SerializeToString() const = 0;
     virtual bool ParseFromString(const std::string& value) = 0;
 };
@@ -51,6 +90,13 @@ class StorageKey {
  *   Prefix4ChunkIndexS3ChunkInfoList : kTypeS3ChunkInfo:fsId:inodeId:chunkIndex:  // NOLINT
  *   Prefix4InodeS3ChunkInfoList      : kTypeS3ChunkInfo:fsId:inodeId:
  *   Prefix4AllS3ChunkInfoList        : kTypeS3ChunkInfo:
+ *   Key4Dentry                       : kTypeDentry:parentInodeId:name
+ *   Prefix4SameParentDentry          : kTypeDentry:parentInodeId:
+ *   Prefix4AllDentry                 : kTypeDentry:
+ *   Key4VolumeExtentSlice            : kTypeExtent:fsId:InodeId:SliceOffset
+ *   Prefix4InodeVolumeExtent         : kTypeExtent:fsId:InodeId:
+ *   Prefix4AllVolumeExtent           : kTypeExtent:
+ *   Key4InodeAuxInfo                 : kTypeInodeAuxInfo:fsId:inodeId
  */
 
 class Key4Inode : public StorageKey {
@@ -163,6 +209,121 @@ class Prefix4AllS3ChunkInfoList : public StorageKey {
     static const KEY_TYPE keyType_ = kTypeS3ChunkInfo;
 };
 
+class Key4Dentry : public StorageKey {
+ public:
+    Key4Dentry() = default;
+
+    Key4Dentry(uint32_t fsId,
+               uint64_t parentInodeId,
+               const std::string& name);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ public:
+    uint32_t fsId;
+    uint64_t parentInodeId;
+    std::string name;
+
+ private:
+    static const KEY_TYPE keyType_ = kTypeDentry;
+};
+
+class Prefix4SameParentDentry : public StorageKey {
+ public:
+    Prefix4SameParentDentry() = default;
+
+    Prefix4SameParentDentry(uint32_t fsId,
+                            uint64_t parentInodeId);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ public:
+    uint32_t fsId;
+    uint64_t parentInodeId;
+
+ private:
+    static const KEY_TYPE keyType_ = kTypeDentry;
+};
+
+class Prefix4AllDentry : public StorageKey {
+ public:
+    Prefix4AllDentry() = default;
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    static const KEY_TYPE keyType_ = kTypeDentry;
+};
+
+class Key4VolumeExtentSlice : public StorageKey {
+ public:
+    Key4VolumeExtentSlice() = default;
+
+    Key4VolumeExtentSlice(uint32_t fsId, uint64_t inodeId, uint64_t offset);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    friend class curvefs::metaserver::MetaStoreFStream;
+
+    uint32_t fsId_;
+    uint64_t inodeId_;
+    uint64_t offset_;
+
+    static constexpr KEY_TYPE keyType_ = kTypeVolumeExtent;
+};
+
+class Prefix4InodeVolumeExtent : public StorageKey {
+ public:
+    Prefix4InodeVolumeExtent(uint32_t fsId, uint64_t inodeId);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    uint32_t fsId_;
+    uint64_t inodeId_;
+
+    static constexpr KEY_TYPE keyType_ = kTypeVolumeExtent;
+};
+
+class Prefix4AllVolumeExtent : public StorageKey {
+ public:
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ private:
+    static constexpr KEY_TYPE keyType_ = kTypeVolumeExtent;
+};
+
+class Key4InodeAuxInfo : public StorageKey {
+ public:
+    Key4InodeAuxInfo() = default;
+
+    Key4InodeAuxInfo(uint32_t fsId, uint64_t inodeId);
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string& value) override;
+
+ public:
+    uint32_t fsId;
+    uint64_t inodeId;
+
+ private:
+    static constexpr KEY_TYPE keyType_ = kTypeInodeAuxInfo;
+};
+
 // converter
 class Converter {
  public:
@@ -176,8 +337,11 @@ class Converter {
                            std::string* value);
 
     // for key&value
-    template <typename Message>
-    bool ParseFromString(const std::string& value, Message* entry) {
+    template <typename Entry,
+              typename = typename std::enable_if<
+                  std::is_base_of<google::protobuf::Message, Entry>::value ||
+                  std::is_base_of<StorageKey, Entry>::value>::type>
+    bool ParseFromString(const std::string& value, Entry* entry) {
         return entry->ParseFromString(value);
     }
 };

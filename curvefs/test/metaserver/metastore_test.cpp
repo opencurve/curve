@@ -23,14 +23,19 @@
 #include "curvefs/src/metaserver/metastore.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <braft/storage.h>
 #include <condition_variable>  // NOLINT
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/common/rpc_stream.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/copyset/copyset_node.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/common/uuid.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -49,29 +54,52 @@ using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::metaserver::copyset::CopysetNode;
+
+namespace {
+
+class MockSnapshotWriter : public braft::SnapshotWriter {
+ public:
+    MOCK_METHOD0(get_path, std::string());
+    MOCK_METHOD1(list_files, void(std::vector<std::string>*));
+    MOCK_METHOD1(save_meta, int(const braft::SnapshotMeta&));
+    MOCK_METHOD1(add_file, int(const std::string&));
+    MOCK_METHOD2(add_file,
+                 int(const std::string &, const google::protobuf::Message *));
+    MOCK_METHOD1(remove_file, int(const std::string&));
+};
+
+curve::common::UUIDGenerator uuid;
+std::shared_ptr<class curve::fs::Ext4FileSystemImpl> localfs =
+    curve::fs::Ext4FileSystemImpl::getInstance();
+
+}  // namespace
 
 class MetastoreTest : public ::testing::Test {
  protected:
     void SetUp() override {
         test_path_ = "./metastore_test.dat";
 
-        dataDir_ = RandomStoragePath();;
-        StorageOptions options;
-        options.dataDir = dataDir_;
-        options.s3MetaLimitSizeInsideInode = 100;
-        kvStorage_ = std::make_shared<RocksDBStorage>(options);
+        options_.type = "memory";
+        options_.dataDir = test_path_ + "/" + uuid.GenerateUUID();
+        options_.s3MetaLimitSizeInsideInode = 100;
+        options_.localFileSystem = localfs.get();
+
+        // create the path
+        ASSERT_EQ(0, localfs->Mkdir(options_.dataDir));
+
+        dataDir_ = RandomStoragePath();
+        kvStorage_ = std::make_shared<RocksDBStorage>(options_);
         ASSERT_TRUE(kvStorage_->Open());
 
         conv_ = std::make_shared<Converter>();
+        braft::Configuration conf;
+        copyset_ = std::make_shared<CopysetNode>(1, 1, conf, nullptr);
     }
 
     void TearDown() override {
-        std::string cmd = "rm -rf " + test_path_;
-        system(cmd.c_str());
-
-        ASSERT_TRUE(kvStorage_->Close());
-        auto output = execShell("rm -rf " + dataDir_);
-        ASSERT_EQ(output.size(), 0);
+        ASSERT_EQ(0, localfs->Delete(test_path_));
+        ASSERT_TRUE(0 == localfs->Delete(dataDir_) || errno == ENOENT);
     }
 
     std::string execShell(const std::string& cmd) {
@@ -230,6 +258,11 @@ class MetastoreTest : public ::testing::Test {
         }
         bool IsSuccess() { return ret_; }
 
+        braft::SnapshotWriter* GetSnapshotWriter() const override {
+            static MockSnapshotWriter mockWriter;
+            return &mockWriter;
+        }
+
      private:
         bool ret_;
         bool finished_ = false;
@@ -242,10 +275,14 @@ class MetastoreTest : public ::testing::Test {
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<Converter> conv_;
+    std::shared_ptr<CopysetNode> copyset_;
+    StorageOptions options_;
 };
 
 TEST_F(MetastoreTest, partition) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     CreatePartitionRequest createPartitionRequest;
     CreatePartitionResponse createPartitionResponse;
     PartitionInfo partitionInfo;
@@ -335,12 +372,14 @@ TEST_F(MetastoreTest, partition) {
     ASSERT_EQ(ret, MetaStatusCode::PARTITION_DELETING);
     ASSERT_EQ(deletePartitionResponse.statuscode(), ret);
 
-    std::list<PartitionInfo> partitionList = metastore.GetPartitionInfoList();
+    std::list<PartitionInfo> partitionList;
+    ASSERT_TRUE(metastore.GetPartitionInfoList(&partitionList));
     ASSERT_EQ(partitionList.size(), 2);
 }
 
 TEST_F(MetastoreTest, test_inode) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -541,12 +580,10 @@ TEST_F(MetastoreTest, test_inode) {
     updateRequest3.set_partitionid(partitionId);
     updateRequest3.set_fsid(fsId);
     updateRequest3.set_inodeid(createResponse.inode().inodeid());
-    VolumeExtentList volumeExtentList;
-    updateRequest3.mutable_volumeextentmap()->insert({0, volumeExtentList});
     S3ChunkInfoList s3ChunkInfoList;
     updateRequest3.mutable_s3chunkinfomap()->insert({0, s3ChunkInfoList});
     ret = metastore.UpdateInode(&updateRequest3, &updateResponse3);
-    ASSERT_EQ(updateResponse3.statuscode(), MetaStatusCode::PARAM_ERROR);
+    ASSERT_EQ(updateResponse3.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(updateResponse3.statuscode(), ret);
 
     // DELETE INODE
@@ -569,12 +606,13 @@ TEST_F(MetastoreTest, test_inode) {
     ASSERT_EQ(deleteResponse.statuscode(), ret);
 
     ret = metastore.DeleteInode(&deleteRequest, &deleteResponse);
-    ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(deleteResponse.statuscode(), ret);
 }
 
 TEST_F(MetastoreTest, test_dentry) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1 partition2
     CreatePartitionRequest createPartitionRequest;
@@ -643,6 +681,7 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name(name);
     dentry1.set_txid(0);
+    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
     createRequest.set_poolid(poolId);
     createRequest.set_copysetid(copysetId);
@@ -670,6 +709,7 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry2.set_parentinodeid(parentId);
     dentry2.set_name("dentry2");
     dentry2.set_txid(0);
+    dentry2.set_type(FsFileType::TYPE_DIRECTORY);
     createRequest.mutable_dentry()->CopyFrom(dentry2);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -682,6 +722,7 @@ TEST_F(MetastoreTest, test_dentry) {
     dentry3.set_parentinodeid(parentId);
     dentry3.set_name("dentry3");
     dentry3.set_txid(0);
+    dentry3.set_type(FsFileType::TYPE_DIRECTORY);
     createRequest.mutable_dentry()->CopyFrom(dentry3);
 
     ret = metastore.CreateDentry(&createRequest, &createResponse);
@@ -738,8 +779,8 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.dentrys_size(), 3);
 
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry1));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry3));
 
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
@@ -751,8 +792,8 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.statuscode(), MetaStatusCode::OK);
     ASSERT_EQ(listResponse.dentrys_size(), 2);
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry3));
-    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry2));
+    ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
 
     listRequest.set_fsid(fsId);
     listRequest.set_dirinodeid(parentId);
@@ -797,14 +838,18 @@ TEST_F(MetastoreTest, test_dentry) {
     ASSERT_EQ(listResponse.dentrys_size(), 2);
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(0), dentry1));
     ASSERT_TRUE(CompareDentry(listResponse.dentrys(1), dentry3));
-    // ASSERT_TRUE(CompareDentry(listResponse.dentrys(2), dentry3));
 
     ret = metastore.DeleteDentry(&deleteRequest, &deleteResponse);
     ASSERT_EQ(deleteResponse.statuscode(), MetaStatusCode::NOT_FOUND);
 }
 
 TEST_F(MetastoreTest, persist_success) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    options_.type = "rocksdb";
+    options_.dataDir = options_.dataDir + "/rocksdb";
+
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -883,6 +928,7 @@ TEST_F(MetastoreTest, persist_success) {
     dentry1.set_parentinodeid(100);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
+    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
 
     createDentryRequest.set_poolid(poolId);
@@ -918,7 +964,12 @@ TEST_F(MetastoreTest, persist_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(nullptr, kvStorage_);
+    StorageOptions optsNew = options_;
+    optsNew.dataDir = options_.dataDir + "_new";
+
+    MetaStoreImpl metastoreNew(copyset_.get(), optsNew);
+    ASSERT_TRUE(metastoreNew.InitStorage());
+
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load(test_path_));
 
@@ -942,7 +993,12 @@ TEST_F(MetastoreTest, persist_success) {
 }
 
 TEST_F(MetastoreTest, persist_deleting_partition_success) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    options_.type = "rocksdb";
+    options_.dataDir = options_.dataDir + "/rocksdb";
+
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
     uint32_t partitionId2 = 2;
     // create partition1
@@ -1021,6 +1077,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     dentry1.set_parentinodeid(100);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
+    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
 
     createDentryRequest.set_poolid(poolId);
@@ -1070,7 +1127,12 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     ASSERT_TRUE(done.IsSuccess());
 
     // load MetaStoreImpl to new meta
-    MetaStoreImpl metastoreNew(nullptr, kvStorage_);
+    StorageOptions optsNew = options_;
+    optsNew.dataDir = options_.dataDir + "_new";
+
+    MetaStoreImpl metastoreNew(copyset_.get(), optsNew);
+    ASSERT_TRUE(metastoreNew.InitStorage());
+
     LOG(INFO) << "MetastoreTest test Load";
     ASSERT_TRUE(metastoreNew.Load(test_path_));
 
@@ -1094,7 +1156,9 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
 }
 
 TEST_F(MetastoreTest, persist_partition_fail) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1110,7 +1174,7 @@ TEST_F(MetastoreTest, persist_partition_fail) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save(test_path_, &done));
+    ASSERT_FALSE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -1118,7 +1182,9 @@ TEST_F(MetastoreTest, persist_partition_fail) {
 }
 
 TEST_F(MetastoreTest, persist_dentry_fail) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t partitionId = 4;
 
     // create partition1
@@ -1176,6 +1242,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     dentry1.set_parentinodeid(parentId);
     dentry1.set_name("dentry1");
     dentry1.set_txid(0);
+    dentry1.set_type(FsFileType::TYPE_DIRECTORY);
 
     createDentryRequest.set_poolid(2);
     createDentryRequest.set_copysetid(3);
@@ -1189,7 +1256,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     // dump MetaStoreImpl to file
     OnSnapshotSaveDoneImpl done;
     LOG(INFO) << "MetastoreTest test Save";
-    ASSERT_TRUE(metastore.Save(test_path_, &done));
+    ASSERT_FALSE(metastore.Save(test_path_, &done));
 
     // wait meta save to file
     done.Wait();
@@ -1201,7 +1268,8 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
 }
 
 TEST_F(MetastoreTest, testBatchGetInodeAttr) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1274,7 +1342,8 @@ TEST_F(MetastoreTest, testBatchGetInodeAttr) {
 }
 
 TEST_F(MetastoreTest, testBatchGetXAttr) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
 
     // create partition1
     CreatePartitionRequest createPartitionRequest;
@@ -1390,7 +1459,9 @@ TEST_F(MetastoreTest, testBatchGetXAttr) {
 }
 
 TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t poolId = 1;
     uint32_t copysetId = 1;
     uint32_t partitionId = 1;
@@ -1487,10 +1558,43 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
         ASSERT_EQ(response.statuscode(), rc);
         ASSERT_EQ(response.mutable_s3chunkinfomap()->size(), 2);
     }
+
+    // CASE 4: GetOrModifyS3ChunkInfo success with unsupport streaming
+    // and without return s3chunkinfo
+    {
+        LOG(INFO) << "CASE 3: GetOrModifyS3ChunkInfo success"
+                  << " with unsupport streaming";
+        GetOrModifyS3ChunkInfoRequest request;
+        GetOrModifyS3ChunkInfoResponse response;
+        std::vector<uint64_t> chunkIndexs{ 1, 2 };
+        std::vector<S3ChunkInfoList> lists2add{
+            GenS3ChunkInfoList(100, 200),
+            GenS3ChunkInfoList(300, 400),
+        };
+
+        request.set_partitionid(partitionId);
+        request.set_fsid(fsId);
+        request.set_inodeid(inodeId);
+        request.set_supportstreaming(false);
+        request.set_returns3chunkinfomap(false);
+        for (size_t i = 0; i < chunkIndexs.size(); i++) {
+            request.mutable_s3chunkinfoadd()->insert(
+                { chunkIndexs[i], lists2add[i] });
+        }
+
+        std::shared_ptr<Iterator> iterator;
+        MetaStatusCode rc = metastore.GetOrModifyS3ChunkInfo(
+            &request, &response, &iterator);
+        ASSERT_EQ(rc, MetaStatusCode::OK);
+        ASSERT_EQ(response.statuscode(), rc);
+        ASSERT_EQ(response.mutable_s3chunkinfomap()->size(), 0);
+    }
 }
 
 TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
-    MetaStoreImpl metastore(nullptr, kvStorage_);
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
     uint32_t poolId = 1;
     uint32_t copysetId = 1;
     uint32_t partitionId = 1;
@@ -1649,6 +1753,20 @@ TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
         ASSERT_EQ(response.streaming(), false);
         ASSERT_EQ(inode->mutable_s3chunkinfomap()->size(), 3);
     }
+}
+
+TEST_F(MetastoreTest, TestUpdateVolumeExtent_PartitionNotFound) {
+    MetaStoreImpl metastore(copyset_.get(), options_);
+    ASSERT_TRUE(metastore.InitStorage());
+
+    UpdateVolumeExtentRequest request;
+    UpdateVolumeExtentResponse response;
+
+    request.set_partitionid(100);
+
+    auto st = metastore.UpdateVolumeExtent(&request, &response);
+    ASSERT_EQ(st, MetaStatusCode::PARTITION_NOT_FOUND);
+    ASSERT_EQ(MetaStatusCode::PARTITION_NOT_FOUND, response.statuscode());
 }
 
 }  // namespace metaserver

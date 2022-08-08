@@ -67,11 +67,11 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     // cannot limit the size,
     // because cache is been delete must after upload to s3
     cachedObjName_ = std::make_shared<
-      LRUCache<std::string, bool>>(0,
+      SglLRUCache<std::string>>(0,
         std::make_shared<CacheMetrics>("diskcache"));
 }
 
-int DiskCacheManager::Init(S3Client *client,
+int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
                            const S3ClientAdaptorOption option) {
     LOG(INFO) << "DiskCacheManager init start.";
     client_ = client;
@@ -82,6 +82,7 @@ int DiskCacheManager::Init(S3Client *client,
     safeRatio_ = option.diskCacheOpt.safeRatio;
     cacheDir_ = option.diskCacheOpt.cacheDir;
     maxUsableSpaceBytes_ = option.diskCacheOpt.maxUsableSpaceBytes;
+    maxFileNums_ = option.diskCacheOpt.maxFileNums;
     cmdTimeoutSec_ = option.diskCacheOpt.cmdTimeoutSec;
 
     cacheWrite_->Init(client_, posixWrapper_, cacheDir_,
@@ -110,7 +111,6 @@ int DiskCacheManager::Init(S3Client *client,
     // start trim thread
     TrimRun();
 
-    SetDiskInitUsedBytes();
     SetDiskFsUsedRatio();
 
     FLAGS_avgFlushIops = option_.diskCacheOpt.avgFlushIops;
@@ -125,6 +125,7 @@ int DiskCacheManager::Init(S3Client *client,
     LOG(INFO) << "DiskCacheManager init success. "
               << ", cache dir is: " << cacheDir_
               << ", maxUsableSpaceBytes is: " << maxUsableSpaceBytes_
+              << ", maxFileNums is: " << maxFileNums_
               << ", cmdTimeoutSec is: " << cmdTimeoutSec_
               << ", safeRatio is: " << safeRatio_
               << ", fullRatio is: " << fullRatio_
@@ -157,13 +158,12 @@ int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
 
 void DiskCacheManager::AddCache(const std::string name,
   bool cacheWriteExist) {
-    cachedObjName_->Put(name, cacheWriteExist);
+    cachedObjName_->Put(name);
     VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
 bool DiskCacheManager::IsCached(const std::string name) {
-    bool exist;
-    if (!cachedObjName_->Get(name, &exist)) {
+    if (!cachedObjName_->IsCached(name)) {
         VLOG(9) << "not cached, name = " << name;
         return false;
     }
@@ -261,7 +261,8 @@ int DiskCacheManager::LinkWriteToRead(const std::string fileName,
 int64_t DiskCacheManager::SetDiskFsUsedRatio() {
     struct statfs stat;
     if (posixWrapper_->statfs(cacheDir_.c_str(), &stat) == -1) {
-        LOG(ERROR) << "get cache disk space error.";
+        LOG_EVERY_N(WARNING, 100)
+            << "get cache disk space error, errno is: " << errno;
         return -1;
     }
 
@@ -270,8 +271,12 @@ int64_t DiskCacheManager::SetDiskFsUsedRatio() {
     int64_t freeBytes = stat.f_bfree * frsize;
     int64_t availableBytes = stat.f_bavail * frsize;
     int64_t usedBytes = totalBytes - freeBytes;
+    if ((usedBytes == 0) &&
+      (availableBytes == 0)) {
+        LOG_EVERY_N(WARNING, 100) << "get cache disk space zero.";
+        return -1;
+    }
     int64_t usedPercent = 100 * usedBytes / (usedBytes + availableBytes) + 1;
-
     diskFsUsedRatio_.store(usedPercent, std::memory_order_seq_cst);
     return usedPercent;
 }
@@ -282,15 +287,19 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
     SysUtils sysUtils;
     std::string result = sysUtils.RunSysCmd(cmd);
     if (result.empty()) {
-        LOG(ERROR) << "get disk used size failed.";
+        LOG_EVERY_N(WARNING, 100)
+            << "get disk used size failed.";
         return;
     }
     uint64_t usedBytes = 0;
     if (!curve::common::StringToUll(result, &usedBytes)) {
-        LOG(ERROR) << "get disk used size failed.";
+        LOG_EVERY_N(WARNING, 100)
+            << "get disk used size failed.";
         return;
     }
     usedBytes_.fetch_add(usedBytes, std::memory_order_seq_cst);
+    if (metric_.get() != nullptr)
+        metric_->diskUsedBytes.set_value(usedBytes_);
     VLOG(9) << "cache disk used size is: " << result;
     return;
 }
@@ -313,6 +322,9 @@ bool DiskCacheManager::IsDiskCacheFull() {
 }
 
 bool DiskCacheManager::IsDiskCacheSafe() {
+    if (IsExceedFileNums()) {
+        return false;
+    }
     int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
     uint64_t usedBytes = GetDiskUsedbytes();
     if ((usedBytes < (safeRatio_ * maxUsableSpaceBytes_ / 100))
@@ -328,6 +340,16 @@ bool DiskCacheManager::IsDiskCacheSafe() {
     return false;
 }
 
+// TODO(wuhongsong):
+// See Also: https://github.com/opencurve/curve/issues/1534
+bool DiskCacheManager::IsExceedFileNums() {
+    uint64_t fileNums = cachedObjName_->Size();
+    if (fileNums >= maxFileNums_) {
+        return true;
+    }
+    return false;
+}
+
 void DiskCacheManager::TrimCache() {
     const std::chrono::seconds sleepSec(trimCheckIntervalSec_);
     LOG(INFO) << "trim function start.";
@@ -340,6 +362,7 @@ void DiskCacheManager::TrimCache() {
     cacheReadFullDir = GetCacheReadFullDir();
     cacheWriteFullDir = GetCacheWriteFullDir();
     while (true) {
+        SetDiskFsUsedRatio();
         waitIntervalSec_.WaitForNextExcution();
         if (!isRunning_) {
             LOG(INFO) << "trim thread end.";
@@ -347,51 +370,53 @@ void DiskCacheManager::TrimCache() {
         }
         VLOG(9) << "trim thread wake up.";
         InitQosParam();
-        SetDiskFsUsedRatio();
-            while (!IsDiskCacheSafe()) {
-                if (!cachedObjName_->GetLast(false, &cacheKey)) {
-                    VLOG(9) << "obj is empty";
-                    break;
-                }
-
-                VLOG(6) << "obj will be removed01: " << cacheKey;
-                cacheReadFile = cacheReadFullDir + "/" + cacheKey;
-                cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
-                struct stat statFile;
-                int ret;
-                ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
-                // if file has not been uploaded to S3,
-                // but remove the cache read file,
-                // then read will fail when do cache read,
-                // and then it cannot load the file from S3.
-                // so read is fail.
-                if (ret == 0) {
-                    VLOG(1) << "do not remove this disk file"
-                            << ", file has not been uploaded to S3."
-                            << ", file is: " << cacheKey;
-                    continue;
-                }
-                cachedObjName_->Remove(cacheKey);
-                struct stat statReadFile;
-                ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
-                if (ret != 0) {
-                    VLOG(0) << "stat disk file error"
-                            << ", file is: " << cacheKey;
-                    continue;
-                }
-                // if remove disk file before delete cache,
-                // then read maybe fail.
-                const char *toDelFile;
-                toDelFile = cacheReadFile.c_str();
-                ret = posixWrapper_->remove(toDelFile);
-                if (ret < 0) {
-                    LOG(ERROR)
-                        << "remove disk file error, file is: " << cacheKey;
-                    continue;
-                }
-                DecDiskUsedBytes(statReadFile.st_size);
-                VLOG(6) << "remove disk file success, file is: " << cacheKey;
+        while (!IsDiskCacheSafe()) {
+            SetDiskFsUsedRatio();
+            if (!cachedObjName_->GetBack(&cacheKey)) {
+                VLOG(9) << "obj is empty";
+                break;
             }
+
+            VLOG(6) << "obj will be removed01: " << cacheKey;
+            cacheReadFile = cacheReadFullDir + "/" + cacheKey;
+            cacheWriteFile = cacheWriteFullDir + "/" + cacheKey;
+            struct stat statFile;
+            int ret = 0;
+            ret = posixWrapper_->stat(cacheWriteFile.c_str(), &statFile);
+            // if file has not been uploaded to S3,
+            // but remove the cache read file,
+            // then read will fail when do cache read,
+            // and then it cannot load the file from S3.
+            // so read is fail.
+            if (ret == 0) {
+                VLOG(1) << "do not remove this disk file"
+                        << ", file has not been uploaded to S3."
+                        << ", file is: " << cacheKey;
+                usleep(1000);
+                continue;
+            }
+            cachedObjName_->Remove(cacheKey);
+            struct stat statReadFile;
+            ret = posixWrapper_->stat(cacheReadFile.c_str(), &statReadFile);
+            if (ret != 0) {
+                VLOG(0) << "stat disk file error"
+                        << ", file is: " << cacheKey;
+                continue;
+            }
+            // if remove disk file before delete cache,
+            // then read maybe fail.
+            const char *toDelFile;
+            toDelFile = cacheReadFile.c_str();
+            ret = posixWrapper_->remove(toDelFile);
+            if (ret < 0) {
+                LOG(ERROR)
+                    << "remove disk file error, file is: " << cacheKey
+                    << "error is: " << errno;
+                continue;
+            }
+            DecDiskUsedBytes(statReadFile.st_size);
+            VLOG(6) << "remove disk file success, file is: " << cacheKey;
+        }
     }
     LOG(INFO) << "trim function end.";
 }
@@ -424,6 +449,9 @@ void DiskCacheManager::InitMetrics(const std::string &fsName) {
     metric_ = std::make_shared<DiskCacheMetric>(fsName);
     cacheWrite_->InitMetrics(metric_);
     cacheRead_->InitMetrics(metric_);
+    // this function move to here from init，
+    // Otherwise, you can't get the original metric
+    SetDiskInitUsedBytes();
 }
 
 }  // namespace client

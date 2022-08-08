@@ -109,6 +109,9 @@ class TopologyManager {
     virtual void CreatePartitions(const CreatePartitionRequest *request,
                                   CreatePartitionResponse *response);
 
+    virtual void DeletePartition(const DeletePartitionRequest *request,
+                                 DeletePartitionResponse *response);
+
     virtual TopoStatusCode CreatePartitionsAndGetMinPartition(
         FsIdType fsId, PartitionInfo *partition);
 
@@ -164,9 +167,8 @@ class TopologyManager {
     virtual void ListMetaserverOfCluster(ListMetaServerResponse* response);
 
  private:
-    TopoStatusCode CreateEnoughCopyset();
-    TopoStatusCode InitialCreateCopyset();
-    TopoStatusCode CreateCopysetByResourceUsage(int createNum);
+    TopoStatusCode CreateEnoughCopyset(int32_t createNum);
+
     TopoStatusCode CreateCopyset(const CopysetCreateInfo& copyset);
 
     virtual void GetCopysetInfo(const uint32_t& poolId,
@@ -175,6 +177,9 @@ class TopologyManager {
 
     virtual void ClearCopysetCreating(PoolIdType poolId,
                                       CopySetIdType copysetId);
+    TopoStatusCode CreatePartitionOnCopyset(FsIdType fsId,
+                                            const CopySetInfo& copyset,
+                                            PartitionInfo *info);
 
  private:
     std::shared_ptr<Topology> topology_;
@@ -185,6 +190,8 @@ class TopologyManager {
      *        in concurrent scenario
      */
     NameLock registMsMutex;
+
+    NameLock createPartitionMutex_;
 
     /**
      * @brief topology options

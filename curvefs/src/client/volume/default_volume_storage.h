@@ -58,14 +58,17 @@ class DefaultVolumeStorage final : public VolumeStorage {
 
     ~DefaultVolumeStorage() override = default;
 
-    ssize_t Read(uint64_t ino, off_t offset, size_t len, char* data) override;
+    CURVEFS_ERROR Read(uint64_t ino,
+                       off_t offset,
+                       size_t len,
+                       char* data) override;
 
-    ssize_t Write(uint64_t ino,
-                  off_t offset,
-                  size_t len,
-                  const char* data) override;
+    CURVEFS_ERROR Write(uint64_t ino,
+                        off_t offset,
+                        size_t len,
+                        const char* data) override;
 
-    bool Flush(uint64_t ino) override;
+    CURVEFS_ERROR Flush(uint64_t ino) override;
 
     bool Shutdown() override;
 

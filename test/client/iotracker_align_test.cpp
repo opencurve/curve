@@ -173,7 +173,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite1) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 
@@ -219,7 +219,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite2) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 
@@ -265,7 +265,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite3) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 
@@ -311,7 +311,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite4) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 
@@ -357,7 +357,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite5) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 
@@ -404,7 +404,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite6) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 
@@ -485,7 +485,7 @@ TEST_F(IOTrackerAlignmentTest, TestUnalignedWrite7) {
     fakeData.resize(length, 'a');
     tracker.SetUserDataType(UserDataType::IOBuffer);
     tracker.StartWrite(&fakeData, offset, length, mockMDSClient_.get(),
-                       &fileInfo_);
+                       &fileInfo_, nullptr);
 
     EXPECT_GE(tracker.Wait(), 0);
 

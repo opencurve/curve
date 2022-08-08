@@ -139,6 +139,13 @@ bool TaskExecutor::OnReturn(int retCode) {
             OnCopysetNotExist();
             break;
 
+        case MetaStatusCode::PARTITION_NOT_FOUND:
+            // need refresh partition, may be deleted
+            if (OnPartitionNotExist()) {
+                needRetry = true;
+            }
+            break;
+
         case MetaStatusCode::PARTITION_ALLOC_ID_FAIL:
             // TODO(@lixiaocui @cw123): metaserver and mds heartbeat should
             // report this status
@@ -234,6 +241,10 @@ void TaskExecutor::OnSuccess() {}
 
 void TaskExecutor::OnCopysetNotExist() { RefreshLeader(); }
 
+bool TaskExecutor::OnPartitionNotExist() {
+    return metaCache_->ListPartitions(task_->fsID);
+}
+
 void TaskExecutor::OnReDirected() { RefreshLeader(); }
 
 void TaskExecutor::RefreshLeader() {
@@ -254,6 +265,7 @@ void TaskExecutor::RefreshLeader() {
 
 void TaskExecutor::OnPartitionAllocIDFail() {
     metaCache_->MarkPartitionUnavailable(task_->target.partitionID);
+    task_->target.Reset();
 }
 
 uint64_t TaskExecutor::OverLoadBackOff() {

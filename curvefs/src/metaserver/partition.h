@@ -28,12 +28,12 @@
 #include <unordered_map>
 #include <vector>
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/metaserver/dentry_manager.h"
 #include "curvefs/src/metaserver/dentry_storage.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 #include "curvefs/src/metaserver/inode_storage.h"
-#include "curvefs/src/metaserver/s3compact.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/iterator.h"
 
@@ -44,18 +44,20 @@ using curvefs::common::PartitionStatus;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::Iterator;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ::curvefs::metaserver::FsFileType;
 
 constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
 
 class Partition {
  public:
-    Partition(const PartitionInfo& paritionInfo,
-              std::shared_ptr<KVStorage> kvStorage);
-
-    ~Partition() {}
+    Partition(PartitionInfo partition,
+              std::shared_ptr<KVStorage> kvStorage,
+              bool startCompact = true);
 
     // dentry
-    MetaStatusCode CreateDentry(const Dentry& dentry, bool isLoadding = false);
+    MetaStatusCode CreateDentry(const Dentry& dentry);
+
+    MetaStatusCode LoadDentry(const DentryVec& vec, bool merge);
 
     MetaStatusCode DeleteDentry(const Dentry& dentry);
 
@@ -102,11 +104,24 @@ class Partition {
                                            S3ChunkInfoMap* m,
                                            uint64_t limit = 0);
 
+    MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      const VolumeExtentList& extents);
+
+    MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           const VolumeExtentSlice& slice);
+
+    MetaStatusCode GetVolumeExtent(uint32_t fsId,
+                                   uint64_t inodeId,
+                                   const std::vector<uint64_t>& slices,
+                                   VolumeExtentList* extents);
+
     MetaStatusCode InsertInode(const Inode& inode);
 
     bool GetInodeIdList(std::list<uint64_t>* InodeIdList);
 
-    // if patition has no inode or no dentry, it is deletable
+    // if partition has no inode or no dentry, it is deletable
     bool IsDeletable();
 
     // check if fsid matchs and inode range belongs to this partition
@@ -115,7 +130,7 @@ class Partition {
     // check if fsid match this partition
     bool IsInodeBelongs(uint32_t fsId);
 
-    uint32_t GetPartitionId();
+    uint32_t GetPartitionId() const;
 
     uint32_t GetPoolId() { return partitionInfo_.poolid(); }
 
@@ -133,13 +148,17 @@ class Partition {
 
     uint32_t GetDentryNum();
 
+    bool EmptyInodeStorage();
+
     void SetStatus(PartitionStatus status) {
         partitionInfo_.set_status(status);
     }
 
     PartitionStatus GetStatus() { return partitionInfo_.status(); }
 
-    void ClearS3Compact() { s3compact_ = nullptr; }
+    void StartS3Compact();
+
+    void CancelS3Compact();
 
     std::string GetInodeTablename();
 
@@ -151,7 +170,20 @@ class Partition {
 
     std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
 
+    std::shared_ptr<Iterator> GetAllVolumeExtentList();
+
     bool Clear();
+
+    MetaStatusCode UpdatePartitionInfoFsType2InodeNum(MetaStatusCode ret,
+                                                      const FsFileType& type,
+                                                      int32_t count) {
+        if (MetaStatusCode::OK == ret) {
+            partitionInfo_.set_inodenum(partitionInfo_.inodenum() + count);
+            (*partitionInfo_.mutable_filetype2inodenum())[type] += count;
+        }
+
+        return ret;
+    }
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
@@ -162,7 +194,6 @@ class Partition {
     std::shared_ptr<TxManager> txManager_;
 
     PartitionInfo partitionInfo_;
-    std::shared_ptr<S3Compact> s3compact_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

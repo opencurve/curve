@@ -57,14 +57,15 @@ class TestDiskCacheWrite : public ::testing::Test {
 
     virtual void SetUp() {
         Aws::InitAPI(awsOptions_);
-        client_ = new MockS3Client();
+//        client_ = new MockS3Client();
+        client_ = std::make_shared<MockS3Client>();
         diskCacheWrite_ = std::make_shared<DiskCacheWrite>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
 
         std::shared_ptr<PosixWrapper> wrapper =
             std::make_shared<PosixWrapper>();
-         std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
-          = std::make_shared<LRUCache<std::string, bool>>
+         std::shared_ptr<SglLRUCache<std::string>> cachedObjName
+          = std::make_shared<SglLRUCache<std::string>>
               (0, std::make_shared<CacheMetrics>("diskcache"));
         diskCacheWrite_->Init(client_, wrapper_, "test", 1, cachedObjName);
     }
@@ -72,13 +73,14 @@ class TestDiskCacheWrite : public ::testing::Test {
     virtual void TearDown() {
         // allows the destructor of lfs_ to be invoked correctly
         Mock::VerifyAndClear(wrapper_.get());
-        delete client_;
+//        delete client_;
         Mock::VerifyAndClear(diskCacheWrite_.get());
         Aws::ShutdownAPI(awsOptions_);
     }
     std::shared_ptr<DiskCacheWrite> diskCacheWrite_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
-    MockS3Client *client_;
+    std::shared_ptr<MockS3Client> client_;
+//    MockS3Client *client_;
     Aws::SDKOptions awsOptions_;
 };
 

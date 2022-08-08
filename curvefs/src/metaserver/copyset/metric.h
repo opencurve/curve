@@ -29,8 +29,8 @@
 #include <memory>
 #include <string>
 
-#include "curvefs/src/metaserver/common/operator_type.h"
 #include "curvefs/src/metaserver/common/types.h"
+#include "curvefs/src/metaserver/copyset/operator_type.h"
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "include/curve_compiler_specific.h"
 #include "src/common/timeutility.h"
@@ -39,10 +39,10 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
-// Metric for each copyset to statictic operators apply latency/qps/eps/...
-class OperatorApplyMetric {
+// Metric for each copyset to statistic operators apply latency/qps/eps/...
+class OperatorMetric {
  public:
-    OperatorApplyMetric(PoolId poolId, CopysetId copysetId);
+    OperatorMetric(PoolId poolId, CopysetId copysetId);
 
     void OnOperatorComplete(OperatorType type, uint64_t latencyUs,
                             bool success = true);
@@ -50,15 +50,25 @@ class OperatorApplyMetric {
     void OnOperatorCompleteFromLog(OperatorType type, uint64_t latencyUs,
                             bool success = true);
 
-    OperatorApplyMetric(const OperatorApplyMetric&) = delete;
-    OperatorApplyMetric& operator=(const OperatorApplyMetric&) = delete;
+    void WaitInQueueLatency(OperatorType type, uint64_t latencyUs);
+
+    void ExecuteLatency(OperatorType type, uint64_t latencyUs);
+
+    void NewArrival(OperatorType type);
+
+    OperatorMetric(const OperatorMetric&) = delete;
+    OperatorMetric& operator=(const OperatorMetric&) = delete;
 
  private:
     struct OpMetric {
         explicit OpMetric(const std::string& prefix)
             : latRecorder(prefix, "_latency"),
               errorCount(prefix, "_total_error"),
-              eps(prefix, "_eps", &errorCount, 1) {}
+              eps(prefix, "_eps", &errorCount, 1),
+              rcount(prefix, "_rcount"),
+              rps(prefix, "_rps", &rcount, 1),
+              executeLatency(prefix, "_execute_latency"),
+              waitInQueueLatency(prefix, "_wait_in_queue_latency") {}
 
         // latency recorder support latency/qps/count
         bvar::LatencyRecorder latRecorder;
@@ -68,6 +78,16 @@ class OperatorApplyMetric {
 
         // error per second
         bvar::PerSecond<bvar::Adder<uint64_t>> eps;
+
+        // request per second
+        bvar::Adder<uint64_t> rcount;
+        bvar::PerSecond<bvar::Adder<uint64_t>> rps;
+
+        // latency of metastore execute
+        bvar::LatencyRecorder executeLatency;
+
+        // latency of request wait in queue
+        bvar::LatencyRecorder waitInQueueLatency;
     };
 
  private:

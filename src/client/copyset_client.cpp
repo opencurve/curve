@@ -131,7 +131,10 @@ int CopysetClient::ReadChunk(const ChunkIDInfo& idinfo, uint64_t sn,
     return DoRPCTask(idinfo, task, doneGuard.release());
 }
 
-int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo, uint64_t sn,
+int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo,
+                              uint64_t fileId,
+                              uint64_t epoch,
+                              uint64_t sn,
                               const butil::IOBuf& data,
                               off_t offset, size_t length,
                               const RequestSourceInfo& sourceInfo,
@@ -173,7 +176,8 @@ int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo, uint64_t sn,
 
     auto task = [&](Closure* done, std::shared_ptr<RequestSender> senderPtr) {
         WriteChunkClosure* writeDone = new WriteChunkClosure(this, done);
-        senderPtr->WriteChunk(idinfo, sn, data, offset, length, sourceInfo,
+        senderPtr->WriteChunk(idinfo, fileId, epoch, sn,
+                              data, offset, length, sourceInfo,
                               writeDone);
     };
 

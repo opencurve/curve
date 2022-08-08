@@ -55,12 +55,13 @@ TEST(CodecTest, TestEncodeProtobufMessage) {
     fsinfo.set_txowner("owner");
 
     Volume volume;
-    volume.set_volumesize(8192);
     volume.set_blocksize(4096);
     volume.set_volumename("/curvefs");
     volume.set_user("test");
     volume.set_blockgroupsize(4096);
     volume.set_bitmaplocation(curvefs::common::BitmapLocation::AtEnd);
+    volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
+    volume.set_autoextend(false);
 
     fsinfo.mutable_detail()->set_allocated_volume(new Volume(volume));
 
@@ -89,12 +90,13 @@ TEST(CodecTest, TestDecodeProtobufMessage) {
     fsinfo.set_txowner("owner");
 
     Volume volume;
-    volume.set_volumesize(8192);
     volume.set_blocksize(4096);
     volume.set_volumename("/curvefs");
     volume.set_user("test");
     volume.set_blockgroupsize(4096);
     volume.set_bitmaplocation(curvefs::common::BitmapLocation::AtEnd);
+    volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
+    volume.set_autoextend(false);
 
     fsinfo.mutable_detail()->set_allocated_volume(new Volume(volume));
 

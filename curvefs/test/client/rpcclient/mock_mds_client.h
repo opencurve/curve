@@ -50,18 +50,18 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD3(MountFs,
                  FSStatusCode(const std::string& fsName,
-                              const std::string& mountPt, FsInfo* fsInfo));
+                              const Mountpoint& mountPt, FsInfo* fsInfo));
 
     MOCK_METHOD2(UmountFs, FSStatusCode(const std::string& fsName,
-                                        const std::string& mountPt));
+                                        const Mountpoint& mountPt));
 
     MOCK_METHOD2(GetFsInfo,
                  FSStatusCode(const std::string& fsName, FsInfo* fsInfo));
 
     MOCK_METHOD2(GetFsInfo, FSStatusCode(uint32_t fsId, FsInfo* fsInfo));
 
-    MOCK_METHOD2(AllocS3ChunkId,
-                 FSStatusCode(uint32_t fsId, uint64_t* chunkId));
+    MOCK_METHOD3(AllocS3ChunkId, FSStatusCode(uint32_t fsId, uint32_t idNum,
+                                              uint64_t *chunkId));
 
     MOCK_METHOD1(GetLatestTxId,
                  FSStatusCode(std::vector<PartitionTxId>* txIds));
@@ -103,9 +103,11 @@ class MockMdsClient : public MdsClient {
                  bool(uint32_t fsID,
                       std::vector<PartitionInfo>* partitionInfos));
 
-    MOCK_METHOD2(RefreshSession,
+    MOCK_METHOD4(RefreshSession,
                  FSStatusCode(const std::vector<PartitionTxId> &txIds,
-                              std::vector<PartitionTxId> *latestTxIdList));
+                              std::vector<PartitionTxId> *latestTxIdList,
+                              const std::string& fsName,
+                              const Mountpoint& mountpoint));
 
     MOCK_METHOD4(AllocateVolumeBlockGroup,
                  SpaceErrCode(uint32_t,

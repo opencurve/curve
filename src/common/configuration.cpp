@@ -52,7 +52,8 @@ bool Configuration::LoadConfig() {
             SetValue(key, value);
         }
     } else {
-        LOG(ERROR) << "Open config file '" << confFile_ << "' failed";
+        LOG(ERROR) << "Open config file '" << confFile_ << "' failed: "
+                   << strerror(errno);
         return false;
     }
 

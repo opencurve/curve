@@ -23,45 +23,39 @@
 #ifndef CURVEFS_SRC_METASERVER_INODE_STORAGE_H_
 #define CURVEFS_SRC_METASERVER_INODE_STORAGE_H_
 
-#include <functional>
-#include <utility>
-#include <unordered_map>
-#include <unordered_set>
 #include <list>
 #include <string>
 #include <memory>
+#include <utility>
+#include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
+#include "absl/container/btree_set.h"
+#include "absl/container/btree_map.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 
-using curve::common::RWLock;
-using curve::common::ReadLockGuard;
-using curve::common::WriteLockGuard;
-using ::curvefs::metaserver::storage::Status;
-using ::curvefs::metaserver::storage::Iterator;
-using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageTransaction;
-using ::curvefs::metaserver::storage::Hash;
-
 namespace curvefs {
 namespace metaserver {
 
+using ::curve::common::RWLock;
+using ::curvefs::metaserver::storage::Iterator;
+using ::curvefs::metaserver::storage::KVStorage;
+using ::curvefs::metaserver::storage::StorageTransaction;
 using ::curvefs::metaserver::storage::Key4Inode;
 using ::curvefs::metaserver::storage::Converter;
+using ::curvefs::metaserver::storage::NameGenerator;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
-
-enum TABLE_TYPE : unsigned char {
-    kTypeInode = 1,
-    kTypeS3ChunkInfo = 2,
-};
-
+using Transaction = std::shared_ptr<StorageTransaction>;
 class InodeStorage {
  public:
     InodeStorage(std::shared_ptr<KVStorage> kvStorage,
-                 const std::string& tablename);
+                 std::shared_ptr<NameGenerator> nameGenerator,
+                 uint64_t nInode);
 
     /**
      * @brief insert inode to storage
@@ -108,6 +102,20 @@ class InodeStorage {
      */
     MetaStatusCode Update(const Inode& inode);
 
+    std::shared_ptr<Iterator> GetAllInode();
+
+    bool GetAllInodeId(std::list<uint64_t>* ids);
+
+    // NOTE: the return size is accurate under normal cluster status,
+    // but under abnormal status, the return size maybe less than
+    // the real value for delete the unexist inode multi-times.
+    size_t Size();
+
+    bool Empty();
+
+    MetaStatusCode Clear();
+
+    // s3chunkinfo
     MetaStatusCode ModifyInodeS3ChunkInfoList(uint32_t fsId,
                                               uint64_t inodeId,
                                               uint64_t chunkIndex,
@@ -124,21 +132,35 @@ class InodeStorage {
 
     std::shared_ptr<Iterator> GetAllS3ChunkInfoList();
 
-    std::shared_ptr<Iterator> GetAllInode();
+    // volume extent
+    std::shared_ptr<Iterator> GetAllVolumeExtentList();
 
-    size_t Size();
+    MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           const VolumeExtentSlice& slice);
 
-    MetaStatusCode Clear();
+    MetaStatusCode GetAllVolumeExtent(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      VolumeExtentList* extents);
 
-    bool GetInodeIdList(std::list<uint64_t>* inodeIdList);
+    MetaStatusCode GetVolumeExtentByOffset(uint32_t fsId,
+                                           uint64_t inodeId,
+                                           uint64_t offset,
+                                           VolumeExtentSlice* slice);
 
- private:
     MetaStatusCode AddS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
         uint32_t fsId,
         uint64_t inodeId,
         uint64_t chunkIndex,
         const S3ChunkInfoList* list2add);
+
+ private:
+    MetaStatusCode UpdateInodeS3MetaSize(Transaction txn, uint32_t fsId,
+                                         uint64_t inodeId, uint64_t size4add,
+                                         uint64_t size4del);
+
+    uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId);
 
     MetaStatusCode DelS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
@@ -147,55 +169,18 @@ class InodeStorage {
         uint64_t chunkIndex,
         const S3ChunkInfoList* list2del);
 
-    std::string RealTablename(TABLE_TYPE type, std::string tablename) {
-        std::ostringstream oss;
-        oss << type << ":" << tablename;
-        return oss.str();
-    }
-
-    static std::string InodeS3MetaSizeKey(uint32_t fsId, uint64_t inodeId) {
-        std::ostringstream oss;
-        oss << fsId << ":" << inodeId;
-        return oss.str();
-    }
-
-    bool UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
-                               uint64_t size4add, uint64_t size4del) {
-        std::string key = InodeS3MetaSizeKey(fsId, inodeId);
-        uint64_t size = inodeS3MetaSize_[key] + size4add;
-        if (size < size4del) {
-            return false;
-        }
-        inodeS3MetaSize_[key] = size - size4del;
-        return true;
-    }
-
-    uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId) {
-        std::string key = InodeS3MetaSizeKey(fsId, inodeId);
-        return inodeS3MetaSize_[key];
-    }
-
-    bool FindKey(const std::string& key) {
-        return keySet_.find(key) != keySet_.end();
-    }
-
-    void InsertKey(const std::string& key) {
-        keySet_.insert(key);
-    }
-
-    void EraseKey(const std::string& key) {
-        keySet_.erase(key);
-    }
-
  private:
+    // FIXME: please remove this lock, because we has locked each inode
+    // in inode manager, this lock only for proetct storage, but now we
+    // use rocksdb storage, it support write in parallel.
     RWLock rwLock_;
     std::shared_ptr<KVStorage> kvStorage_;
-    std::string table4inode_;
-    std::string table4s3chunkinfo_;
-    std::shared_ptr<Converter> conv_;
-    std::unordered_set<std::string> keySet_;
-    // key: Hash(inode), value: the number of inode's chunkinfo size
-    std::unordered_map<std::string, uint64_t> inodeS3MetaSize_;
+    std::string table4Inode_;
+    std::string table4S3ChunkInfo_;
+    std::string table4VolumeExtent_;
+    std::string table4InodeAuxInfo_;
+    size_t nInode_;
+    Converter conv_;
 };
 
 }  // namespace metaserver

@@ -1,5 +1,7 @@
 # snapshotcloneserver interface
 
+> 注意：卷的文件名需要包括/前缀，例如File=/vol01，下文中的File=test其中test为卷文件名，仅用作示例，请以实际包括/前缀的文件名为准。
+
 ## 创建快照：
 
 ##### 描述
@@ -34,27 +36,23 @@
 ##### 示例
 
 request
-
-[http://127.0.0.1](http://127.0.0.1/):5555/SnapshotCloneService?Action=CreateSnapshot&Version=0.0.6&User=test&File=test&Name=test
-
+```
+"http://127.0.0.1:5555/SnapshotCloneService?Action=CreateSnapshot&Version=0.0.6&User=test&File=test&Name=test"
+```
 response
 
 ```
 HTTP/1.1 200 OK
 Content-Length: xxx
-```
 
 {
 
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx"
-
-​    "UUID" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx"
+    "UUID" : "xxx"
 }
+```
 
 ##### 错误码
 
@@ -95,24 +93,22 @@ Content-Length: xxx
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=DeleteSnapshot&Version=0.0.6&User=test&File=test&UUID=uuid1
+"http://127.0.0.1:5555/SnapshotCloneService?Action=DeleteSnapshot&Version=0.0.6&User=test&File=test&UUID=uuid1"
 ```
 
 response
 
+```
 HTTP/1.1 200 OK
 
 Content-Length: xxx
 
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx"
 }
+```
 
 ##### 错误码
 
@@ -153,23 +149,21 @@ Content-Length: xxx
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=CancelSnapshot&Version=0.0.6&User=test&File=test&UUID=uuid1
-response
+"http://127.0.0.1:5555/SnapshotCloneService?Action=CancelSnapshot&Version=0.0.6&User=test&File=test&UUID=uuid1"
 ```
+response
 
+```
 HTTP/1.1 200 OK
 
 Content-Length: xxx
 
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx"
 }
+```
 
 ##### 错误码
 
@@ -233,53 +227,37 @@ Snapshot类型说明
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=0.0.6&User=zjm&File=/zjm/test1&Limit=10 
-response
+"http://127.0.0.1:5555/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=0.0.6&User=zjm&File=/zjm/test1&Limit=10"
 ```
+response
 
+```
 HTTP/1.1 200 OK
 
 Content-Length: xxx
 
+
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx", 
-
-​    "TotalCount": 1,
-
-​    "Snapshots":
-
- [
-
-​    {
-
-​        "File" : "/zjm/test1",
-
-​        "FileLength" : 10737418240,
-
-​        "Name" : "snap1",
-
-​        "Progress" : 30,
-
-​        "SeqNum" : 1,
-
-​        "Status" : 1,
-
-​        "Time" : 1564391913582677,
-
-​        "UUID" : "de06df66-b9e4-44df-ba3d-ac94ddee0b28",
-
-​        "User" : "zjm"
-
-​     }
-
-   ]
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx", 
+    "TotalCount": 1,
+    "Snapshots":
+     [
+         {
+            "File" : "/zjm/test1",
+            "FileLength" : 10737418240,
+            "Name" : "snap1",
+            "Progress" : 30,
+            "SeqNum" : 1,
+            "Status" : 1,
+            "Time" : 1564391913582677,
+            "UUID" : "de06df66-b9e4-44df-ba3d-ac94ddee0b28",
+            "User" : "zjm"
+        }
+    ]
 }
+```
 
 ##### 错误码
 
@@ -322,24 +300,21 @@ Content-Length: xxx
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=0.0.6&User=zjm&Source=/zjm/test1&Destination=/zjm/clone1&Lazy=true 
-response
-HTTP/1.1 200 OK
-Content-Length: xxx
+"http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=0.0.6&User=zjm&Source=/zjm/test1&Destination=/zjm/clone1&Lazy=true"
 ```
+response
+```
+HTTP/1.1 200 OK
+
+Content-Length: xxx
 
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx",
-
-​    "UUID" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx",
+    "UUID" : "xxx"
 }
-
+```
 ##### 错误码
 
 见最后一节错误码表。
@@ -381,23 +356,22 @@ Content-Length: xxx
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=0.0.6&User=zjm&Source=de06df66-b9e4-44df-ba3d-ac94ddee0b28&Destination=/zjm/recover1&Lazy=true 
-response
-HTTP/1.1 200 OK
-Content-Length: xxx
+"http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=0.0.6&User=zjm&Source=de06df66-b9e4-44df-ba3d-ac94ddee0b28&Destination=/zjm/recover1&Lazy=true"
 ```
+response
+
+```
+HTTP/1.1 200 OK
+
+Content-Length: xxx
 
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx",
-
-​    "UUID" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx",
+    "UUID" : "xxx"
 }
+```
 
 ##### 错误码
 
@@ -437,21 +411,21 @@ Content-Length: xxx
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=Flatten&Version=0.0.6&User=zjm&UUID=de06df66-b9e4-44df-ba3d-ac94ddee0b28
-response
-HTTP/1.1 200 OK
-Content-Length: xxx
+"http://127.0.0.1:5555/SnapshotCloneService?Action=Flatten&Version=0.0.6&User=zjm&UUID=de06df66-b9e4-44df-ba3d-ac94ddee0b28"
 ```
 
+response
+```
+HTTP/1.1 200 OK
+
+Content-Length: xxx
+
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx"
 }
+```
 
 ##### 错误码
 
@@ -515,48 +489,33 @@ TaskInfo类型说明
 request
 
 ```
-http://127.0.0.1:5555//SnapshotCloneService?Action=GetCloneTasks&Version=0.0.6&User=zjm&Limit=10"
-response
+"http://127.0.0.1:5555//SnapshotCloneService?Action=GetCloneTasks&Version=0.0.6&User=zjm&Limit=10"
 ```
 
+response
+```
 HTTP/1.1 200 OK
 
 Content-Length: xxx
 
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx", 
-
-​    "TotalCount": 1,
-
-​    "TaskInfos" :
-
-​    [
-
-​        {
-
-​            "File" : "/zjm/clone1",
-
-​            "UUID" : "78e83875-2b50-438f-8f25-36715380f4f5",
-
-​            "TaskStatus" : 5,
-
-​            "TaskType" : 0,
-
-​            "Time" : 0,
-
-​            "User" : "zjm"
-
-​        }
-
-​    ]
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx", 
+    "TotalCount": 1,
+    "TaskInfos" :
+    [
+        {
+            "File" : "/zjm/clone1",
+            "UUID" : "78e83875-2b50-438f-8f25-36715380f4f5",
+            "TaskStatus" : 5,
+            "TaskType" : 0,
+            "Time" : 0,
+            "User" : "zjm"
+        }
+    ]
 }
-
+```
 
 
 ##### 错误码
@@ -597,25 +556,22 @@ Content-Length: xxx
 request
 
 ```
-http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=0.0.6&User=zjm&UUID=78e83875-2b50-438f-8f25-36715380f4f5
+"http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=0.0.6&User=zjm&UUID=78e83875-2b50-438f-8f25-36715380f4f5"
 ```
 
 response
 
 ```
 HTTP/1.1 200 OK
+
 Content-Length: xxx
-```
 
 {
-
-​    "Code" : "0",
-
-​    "Message" : "Exec success.",
-
-​    "RequestId" : "xxx"
-
+    "Code" : "0",
+    "Message" : "Exec success.",
+    "RequestId" : "xxx"
 }
+```
 
 ##### 错误码
 

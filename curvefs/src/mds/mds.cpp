@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "curvefs/src/mds/mds_service.h"
+#include "curvefs/src/mds/space/mds_proxy_manager.h"
 #include "src/common/curve_version.h"
 
 namespace brpc {
@@ -70,6 +71,7 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     InitTopologyOption(&options_.topologyOptions);
     InitScheduleOption(&options_.scheduleOption);
     InitDLockOptions(&options_.dLockOptions);
+    InitMdsProxyManagerOptions(&options_.bsMdsProxyOptions);
 }
 
 void MDS::InitMetaServerOption(MetaserverOptions* metaserverOption) {
@@ -90,10 +92,6 @@ void MDS::InitTopologyOption(TopologyOption* topologyOption) {
                                &topologyOption->maxPartitionNumberInCopyset);
     conf_->GetValueFatalIfFail("mds.topology.IdNumberInPartition",
                                &topologyOption->idNumberInPartition);
-    conf_->GetValueFatalIfFail("mds.topology.InitialCopysetNumber",
-                               &topologyOption->initialCopysetNumber);
-    conf_->GetValueFatalIfFail("mds.topology.MinAvailableCopysetNum",
-                               &topologyOption->minAvailableCopysetNum);
     conf_->GetValueFatalIfFail("mds.topology.CreatePartitionNumber",
                                &topologyOption->createPartitionNumber);
     conf_->GetValueFatalIfFail("mds.topology.MaxCopysetNumInMetaserver",
@@ -146,8 +144,15 @@ void MDS::InitFsManagerOptions(FsManagerOption* fsManagerOption) {
                                &fsManagerOption->backEndThreadRunInterSec);
 
     LOG_IF(ERROR,
-           conf_->GetUInt32Value("mds.fsmanager.reloadSpaceConcurrency",
-                                 &fsManagerOption->spaceReloadConcurrency))
+           !conf_->GetUInt32Value("mds.fsmanager.client.timeoutSec",
+                                  &fsManagerOption->clientTimeoutSec))
+        << "Get `mds.fsmanager.client.timeoutSec` from conf error, use "
+           "default value: "
+        << fsManagerOption->clientTimeoutSec;
+
+    LOG_IF(ERROR,
+           !conf_->GetUInt32Value("mds.fsmanager.reloadSpaceConcurrency",
+                                  &fsManagerOption->spaceReloadConcurrency))
         << "Get `mds.fsmanager.reloadSpaceConcurrency` from conf error, use "
            "default value: "
         << fsManagerOption->spaceReloadConcurrency;
@@ -161,8 +166,11 @@ void MDS::Init() {
 
     InitEtcdClient();
 
+    space::MdsProxyManager::SetProxyOptions(options_.bsMdsProxyOptions);
+
     fsStorage_ = std::make_shared<PersisKVStorage>(etcdClient_);
-    spaceManager_ = std::make_shared<SpaceManagerImpl>(etcdClient_);
+    spaceManager_ =
+        std::make_shared<SpaceManagerImpl>(etcdClient_, fsStorage_);
     metaserverClient_ =
         std::make_shared<MetaserverClient>(options_.metaserverOptions);
     auto dlock = std::make_shared<DLock>(options_.dLockOptions, etcdClient_);
@@ -290,7 +298,7 @@ void MDS::Stop() {
 }
 
 void MDS::StartDummyServer() {
-    conf_->ExposeMetric("curvefs_mds");
+    conf_->ExposeMetric("curvefs_mds_config");
     status_.expose("curvefs_mds_status");
     status_.set_value("follower");
 
@@ -411,6 +419,25 @@ void MDS::InitHeartbeatManager() {
     heartbeatManager_ = std::make_shared<HeartbeatManager>(
         heartbeatOption, topology_, coordinator_);
     heartbeatManager_->Init();
+}
+
+void MDS::InitMdsProxyManagerOptions(MdsProxyOptions* options) {
+    conf_->GetValueFatalIfFail("bs.mds.maxRetryMs",
+                               &options->option.mdsMaxRetryMS);
+    conf_->GetValueFatalIfFail("bs.mds.rpcTimeoutMs",
+                               &options->option.rpcRetryOpt.rpcTimeoutMs);
+    conf_->GetValueFatalIfFail("bs.mds.maxRPCTimeoutMs",
+                               &options->option.rpcRetryOpt.maxRPCTimeoutMS);
+    conf_->GetValueFatalIfFail("bs.mds.rpcRetryIntervalUs",
+                               &options->option.rpcRetryOpt.rpcRetryIntervalUS);
+    conf_->GetValueFatalIfFail(
+        "bs.mds.maxFailedTimesBeforeChangeMDS",
+        &options->option.rpcRetryOpt.maxFailedTimesBeforeChangeAddr);
+    conf_->GetValueFatalIfFail(
+        "bs.mds.normalRetryTimesBeforeTriggerWait",
+        &options->option.rpcRetryOpt.normalRetryTimesBeforeTriggerWait);
+    conf_->GetValueFatalIfFail("bs.mds.waitSleepMs",
+                               &options->option.rpcRetryOpt.waitSleepMs);
 }
 
 }  // namespace mds

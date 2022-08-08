@@ -214,6 +214,7 @@ CURVEFS_ERROR RenameOperator::PrepareTx() {
     dentry_.set_flag(dentry_.flag() |
                      DentryFlag::DELETE_MARK_FLAG |
                      DentryFlag::TRANSACTION_PREPARE_FLAG);
+    dentry_.set_type(srcDentry_.type());
 
     newDentry_ = Dentry(srcDentry_);
     newDentry_.set_parentinodeid(newParentId_);
@@ -222,6 +223,7 @@ CURVEFS_ERROR RenameOperator::PrepareTx() {
     newDentry_.set_txsequence(sequence_);
     newDentry_.set_flag(newDentry_.flag() |
                         DentryFlag::TRANSACTION_PREPARE_FLAG);
+    newDentry_.set_type(srcDentry_.type());
 
     CURVEFS_ERROR rc;
     std::vector<Dentry> dentrys{ dentry_ };
@@ -305,25 +307,68 @@ CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId, uint64_t parent) {
     return rc;
 }
 
+CURVEFS_ERROR RenameOperator::UpdateMCTime(uint64_t inodeId) {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("GetInode", rc);
+        return rc;
+    }
+
+    curve::common::UniqueLock lk = inodeWrapper->GetUniqueLock();
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    inodeWrapper->SetMTime(now.tv_sec, now.tv_nsec);
+    inodeWrapper->SetCTime(now.tv_sec, now.tv_nsec);
+
+    rc = inodeWrapper->SyncAttr();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("SyncAttr", rc);
+        return rc;
+    }
+    // CURVEFS_ERROR::OK
+    return rc;
+}
+
 CURVEFS_ERROR RenameOperator::LinkDestParentInode() {
     // Link action is unnecessary when met one of the following 2 conditions:
     //   (1) source and destination under same directory
     //   (2) destination already exist
-    if (parentId_ == newParentId_ || oldInodeId_ != 0) {
+    //   (3) destination is not a directory
+    if (!srcDentry_.has_type()) {
+        LOG(ERROR) << "srcDentry_ not have type!"
+                   << "Dentry: " << srcDentry_.ShortDebugString();
+        return CURVEFS_ERROR::INTERNAL;
+    }
+    if (FsFileType::TYPE_DIRECTORY != srcDentry_.type() ||
+        parentId_ == newParentId_ || oldInodeId_ != 0) {
+        UpdateMCTime(newParentId_);
         return CURVEFS_ERROR::OK;
     }
     return LinkInode(newParentId_);
 }
 
-void RenameOperator::UnlinkSrcParentInode() {
+CURVEFS_ERROR RenameOperator::UnlinkSrcParentInode() {
     // UnLink action is unnecessary when met the following 2 conditions:
     //   (1) source and destination under same directory
     //   (2) destination not exist
-    if (parentId_ == newParentId_ && oldInodeId_ == 0) {
-        return;
+    // or
+    //    source is not a directory
+    if (!srcDentry_.has_type()) {
+        LOG(ERROR) << "srcDentry_ not have type!"
+                   << "Dentry: " << srcDentry_.ShortDebugString();
+        return CURVEFS_ERROR::INTERNAL;
+    }
+    if (FsFileType::TYPE_DIRECTORY != srcDentry_.type() ||
+        (parentId_ == newParentId_ && oldInodeId_ == 0)) {
+        if (parentId_ != newParentId_) {
+            UpdateMCTime(parentId_);
+        }
+        return CURVEFS_ERROR::OK;
     }
     auto rc = UnLinkInode(parentId_);
     LOG(INFO) << "Unlink source parent inode, retCode = " << rc;
+    return rc;
 }
 
 void RenameOperator::UnlinkOldInode() {

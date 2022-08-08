@@ -93,7 +93,8 @@ class StatusTool : public CurveTool {
                   versionTool_(versionTool),
                   metricClient_(metricClient),
                   snapshotClient_(snapshotClient),
-                  mdsInited_(false), etcdInited_(false) {}
+                  mdsInited_(false), etcdInited_(false),
+                  noSnapshotServer_(false) {}
     ~StatusTool() = default;
 
     /**
@@ -203,6 +204,8 @@ class StatusTool : public CurveTool {
     bool mdsInited_;
     // etcd是否初始化过
     bool etcdInited_;
+    // Is there a snapshot service or not
+    bool noSnapshotServer_;
 };
 }  // namespace tool
 }  // namespace curve

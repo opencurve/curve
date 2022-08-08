@@ -23,13 +23,17 @@
 #ifndef CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
 #define CURVEFS_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
 
+#include <cstdint>
 #include <list>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <algorithm>
+#include <map>
 
 #include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 #include "src/common/concurrent/concurrent.h"
@@ -40,16 +44,37 @@ namespace curvefs {
 namespace mds {
 namespace topology {
 
+using FileType = metaserver::FsFileType;
+using ProtoFileType2InodeNumMap = ::google::protobuf::Map<int32_t, int64_t>;
+
 /**
  * @brief cluster information, so far we only use clusterId
  */
 struct ClusterInformation {
     // the only and unique Id of a cluster
     std::string clusterId;
+    // <fsId, partition index of this fs>
+    std::map<uint32_t, uint32_t> partitionIndexs;
 
     ClusterInformation() = default;
     explicit ClusterInformation(const std::string &clusterId)
         : clusterId(clusterId) {}
+
+    // all partition number include deleted
+    uint32_t GetPartitionIndexOfFS(uint32_t fsId) {
+        return partitionIndexs[fsId];
+    }
+
+    // for upgrade to keep compatibility
+    void UpdatePartitionIndexOfFs(uint32_t fsId, uint32_t number) {
+        if (number > partitionIndexs[fsId]) {
+            partitionIndexs[fsId] = number;
+        }
+    }
+
+    void AddPartitionIndexOfFs(uint32_t fsId) {
+        partitionIndexs[fsId]++;
+    }
 
     bool SerializeToString(std::string *value) const;
 
@@ -278,12 +303,7 @@ class MetaServerSpace {
             diskUseRatio = 100.0 * diskUsedByte_ / diskThresholdByte_;
         }
 
-        double memUseRatio = 0;
-        if (memoryThresholdByte_ != 0) {
-            memUseRatio = 100.0 * memoryUsedByte_ / memoryThresholdByte_;
-        }
-
-        return std::max(memUseRatio, diskUseRatio);
+        return diskUseRatio;
     }
 
     bool IsMetaserverResourceAvailable() {
@@ -292,27 +312,12 @@ class MetaServerSpace {
             return false;
         }
 
-        if (memoryCopySetMinRequireByte_ != 0 &&
-            (memoryThresholdByte_ <
-             (memoryCopySetMinRequireByte_ + memoryUsedByte_))) {
-            return false;
-        }
-
         return true;
     }
 
-    // if memoryCopySetMinRequireByte_ equals 0, not consider the memory usage
+    // only consider the disk usage
     bool IsResourceOverload() {
-        if (diskThresholdByte_ < diskUsedByte_) {
-            return true;
-        }
-
-        if (memoryCopySetMinRequireByte_ != 0 &&
-            memoryThresholdByte_ < memoryUsedByte_) {
-            return true;
-        }
-
-        return false;
+        return diskThresholdByte_ < diskUsedByte_;
     }
 
  private:
@@ -468,7 +473,6 @@ class CopySetInfo {
           copySetId_(UNINITIALIZE_ID),
           leader_(UNINITIALIZE_ID),
           epoch_(0),
-          partitionNum_(0),
           hasCandidate_(false),
           candidate_(UNINITIALIZE_ID),
           dirty_(false),
@@ -479,7 +483,6 @@ class CopySetInfo {
           copySetId_(id),
           leader_(UNINITIALIZE_ID),
           epoch_(0),
-          partitionNum_(0),
           hasCandidate_(false),
           candidate_(UNINITIALIZE_ID),
           dirty_(false),
@@ -491,7 +494,7 @@ class CopySetInfo {
           leader_(v.leader_),
           epoch_(v.epoch_),
           peers_(v.peers_),
-          partitionNum_(v.partitionNum_),
+          partitionIds_(v.partitionIds_),
           hasCandidate_(v.hasCandidate_),
           candidate_(v.candidate_),
           dirty_(v.dirty_),
@@ -506,7 +509,7 @@ class CopySetInfo {
         leader_ = v.leader_;
         epoch_ = v.epoch_;
         peers_ = v.peers_;
-        partitionNum_ = v.partitionNum_;
+        partitionIds_ = v.partitionIds_;
         hasCandidate_ = v.hasCandidate_;
         candidate_ = v.candidate_;
         dirty_ = v.dirty_;
@@ -546,13 +549,7 @@ class CopySetInfo {
 
     bool SetCopySetMembersByJson(const std::string &jsonStr);
 
-    uint64_t GetPartitionNum() const { return partitionNum_; }
-
-    void SetPartitionNum(u_int64_t number) { partitionNum_ = number; }
-
-    void AddPartitionNum() { partitionNum_ += 1; }
-
-    void ReducePartitionNum() { partitionNum_ -= 1; }
+    uint64_t GetPartitionNum() const { return partitionIds_.size(); }
 
     bool HasCandidate() const { return hasCandidate_; }
 
@@ -587,6 +584,8 @@ class CopySetInfo {
 
     void AddPartitionId(const PartitionIdType &id) { partitionIds_.insert(id); }
 
+    void RemovePartitionId(PartitionIdType id) { partitionIds_.erase(id); }
+
     const std::set<PartitionIdType> &GetPartitionIds() const {
         return partitionIds_;
     }
@@ -597,8 +596,6 @@ class CopySetInfo {
     MetaServerIdType leader_;
     EpochType epoch_;
     std::set<MetaServerIdType> peers_;
-    // TODO(chengyi01): replace it whith partitionIds.size()
-    uint64_t partitionNum_;
     std::set<PartitionIdType> partitionIds_;
     bool hasCandidate_;
     MetaServerIdType candidate_;
@@ -625,6 +622,7 @@ struct PartitionStatistic {
     common::PartitionStatus status;
     uint64_t inodeNum;
     uint64_t dentryNum;
+    std::unordered_map<FileType, uint64_t> fileType2InodeNum;
 };
 
 class Partition {
@@ -638,8 +636,10 @@ class Partition {
           idEnd_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
-          inodeNum_(UNINITIALIZE_COUNT),
-          dentryNum_(UNINITIALIZE_COUNT) {}
+          inodeNum_(0),
+          dentryNum_(0) {
+        InitFileType2InodeNum();
+    }
 
     Partition(FsIdType fsId, PoolIdType poolId, CopySetIdType copySetId,
               PartitionIdType partitionId, uint64_t idStart, uint64_t idEnd)
@@ -651,8 +651,10 @@ class Partition {
           idEnd_(idEnd),
           txId_(0),
           status_(PartitionStatus::READWRITE),
-          inodeNum_(UNINITIALIZE_COUNT),
-          dentryNum_(UNINITIALIZE_COUNT) {}
+          inodeNum_(0),
+          dentryNum_(0) {
+        InitFileType2InodeNum();
+    }
 
     Partition(const Partition &v)
         : fsId_(v.fsId_),
@@ -664,7 +666,8 @@ class Partition {
           txId_(v.txId_),
           status_(v.status_),
           inodeNum_(v.inodeNum_),
-          dentryNum_(v.dentryNum_) {}
+          dentryNum_(v.dentryNum_),
+          fileType2InodeNum_(v.fileType2InodeNum_) {}
 
     Partition &operator=(const Partition &v) {
         if (&v == this) {
@@ -680,6 +683,7 @@ class Partition {
         status_ = v.status_;
         inodeNum_ = v.inodeNum_;
         dentryNum_ = v.dentryNum_;
+        fileType2InodeNum_ = v.fileType2InodeNum_;
         return *this;
     }
 
@@ -692,8 +696,12 @@ class Partition {
         idEnd_ = v.end();
         txId_ = v.txid();
         status_ = v.status();
-        inodeNum_ = v.has_inodenum() ? v.inodenum() : UNINITIALIZE_COUNT;
-        dentryNum_ = v.has_dentrynum() ? v.dentrynum() : UNINITIALIZE_COUNT;
+        inodeNum_ = v.has_inodenum() ? v.inodenum() : 0;
+        dentryNum_ = v.has_dentrynum() ? v.dentrynum() : 0;
+        for (auto const& i : v.filetype2inodenum()) {
+            fileType2InodeNum_.emplace(static_cast<FileType>(i.first),
+                                       i.second);
+        }
     }
 
     explicit operator common::PartitionInfo() const {
@@ -701,12 +709,17 @@ class Partition {
         partition.set_fsid(fsId_);
         partition.set_poolid(poolId_);
         partition.set_copysetid(copySetId_);
+        partition.set_partitionid(partitionId_);
         partition.set_start(idStart_);
         partition.set_end(idEnd_);
         partition.set_txid(txId_);
         partition.set_status(status_);
         partition.set_inodenum(inodeNum_);
         partition.set_dentrynum(dentryNum_);
+        auto partitionFileType2InodeNum = partition.mutable_filetype2inodenum();
+        for (auto const& i : fileType2InodeNum_) {
+            (*partitionFileType2InodeNum)[i.first] = i.second;
+        }
         return partition;
     }
 
@@ -760,6 +773,22 @@ class Partition {
 
     common::PartitionInfo ToPartitionInfo();
 
+    std::unordered_map<FileType, uint64_t> GetFileType2InodeNum() const {
+        return fileType2InodeNum_;
+    }
+
+    void SetFileType2InodeNum(
+        const std::unordered_map<FileType, uint64_t>& map) {
+        fileType2InodeNum_ = map;
+    }
+
+    void InitFileType2InodeNum() {
+        for (int i = metaserver::FsFileType_MIN;
+             i <= metaserver::FsFileType_MAX; ++i) {
+            fileType2InodeNum_.emplace(static_cast<FileType>(i), 0);
+        }
+    }
+
  private:
     FsIdType fsId_;
     PoolIdType poolId_;
@@ -771,6 +800,7 @@ class Partition {
     common::PartitionStatus status_;
     uint64_t inodeNum_;
     uint64_t dentryNum_;
+    std::unordered_map<FileType, uint64_t> fileType2InodeNum_;
     mutable ::curve::common::RWLock mutex_;
 };
 

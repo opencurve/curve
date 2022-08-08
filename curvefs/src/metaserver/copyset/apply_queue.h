@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -38,9 +39,12 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
+class CopysetNode;
+
 struct ApplyQueueOption {
     uint32_t workerCount = 1;
     uint32_t queueDepth = 1;
+    CopysetNode* copysetNode = nullptr;
 };
 
 class CURVE_CACHELINE_ALIGNMENT ApplyQueue {
@@ -63,8 +67,11 @@ class CURVE_CACHELINE_ALIGNMENT ApplyQueue {
     void StartWorkers();
 
     struct TaskWorker {
-        explicit TaskWorker(size_t cap)
-            : running(false), worker(), tasks(cap) {}
+        TaskWorker(size_t cap, std::string workerName)
+            : running(false),
+              worker(),
+              tasks(cap),
+              workerName_(std::move(workerName)) {}
 
         void Start();
 
@@ -75,6 +82,7 @@ class CURVE_CACHELINE_ALIGNMENT ApplyQueue {
         std::atomic<bool> running;
         std::thread worker;
         curve::common::TaskQueue tasks;
+        std::string workerName_;
     };
 
  private:

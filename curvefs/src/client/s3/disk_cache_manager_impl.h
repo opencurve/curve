@@ -54,6 +54,7 @@ struct DiskCacheOption {
     std::string cacheDir;
     bool forceFlush;
     uint64_t maxUsableSpaceBytes;
+    uint64_t maxFileNums;
     uint32_t cmdTimeoutSec;
     uint32_t threads;
     uint64_t avgFlushBytes;
@@ -67,7 +68,7 @@ struct DiskCacheOption {
 class DiskCacheManagerImpl {
  public:
     DiskCacheManagerImpl(std::shared_ptr<DiskCacheManager> diskCacheManager,
-                         S3Client *client);
+        std::shared_ptr<S3Client> client);
     DiskCacheManagerImpl() {}
     virtual ~DiskCacheManagerImpl() {}
     /**
@@ -124,7 +125,7 @@ class DiskCacheManagerImpl {
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
 
     bool forceFlush_;
-    S3Client *client_;
+    std::shared_ptr<S3Client> client_;
 
     int WriteClosure(std::shared_ptr<PutObjectAsyncContext> context);
     // threads for disk cache

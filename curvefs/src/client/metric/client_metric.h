@@ -41,23 +41,32 @@ struct MDSClientMetric {
     InterfaceMetric mountFs;
     InterfaceMetric umountFs;
     InterfaceMetric getFsInfo;
-    InterfaceMetric allocateS3Chunk;
-
+    InterfaceMetric getMetaServerInfo;
+    InterfaceMetric getMetaServerListInCopysets;
+    InterfaceMetric createPartition;
+    InterfaceMetric getCopysetOfPartitions;
+    InterfaceMetric listPartition;
+    InterfaceMetric allocS3ChunkId;
+    InterfaceMetric refreshSession;
     InterfaceMetric getLatestTxId;
     InterfaceMetric commitTx;
-
-    InterfaceMetric getMetaserverInfo;
 
     explicit MDSClientMetric(const std::string &prefix_ = "")
         : prefix(!prefix_.empty() ? prefix_
                                   : "curvefs_mds_client_" +
-                                        curve::common::ToHexString(this)),
-          mountFs(prefix, "mountFs"), umountFs(prefix, "unmountFs"),
+                                    curve::common::ToHexString(this)),
+          mountFs(prefix, "mountFs"),
+          umountFs(prefix, "umountFs"),
           getFsInfo(prefix, "getFsInfo"),
-          allocateS3Chunk(prefix, "allocateS3Chunk"),
+          getMetaServerInfo(prefix, "getMetaServerInfo"),
+          getMetaServerListInCopysets(prefix, "getMetaServerListInCopysets"),
+          createPartition(prefix, "createPartition"),
+          getCopysetOfPartitions(prefix, "getCopysetOfPartitions"),
+          listPartition(prefix, "listPartition"),
+          allocS3ChunkId(prefix, "allocS3ChunkId"),
+          refreshSession(prefix, "refreshSession"),
           getLatestTxId(prefix, "getLatestTxId"),
-          commitTx(prefix, "commitTx"),
-          getMetaserverInfo(prefix, "getMetaserverInfo") {}
+          commitTx(prefix, "commitTx") {}
 };
 
 struct MetaServerClientMetric {
@@ -76,14 +85,14 @@ struct MetaServerClientMetric {
     InterfaceMetric createInode;
     InterfaceMetric updateInode;
     InterfaceMetric deleteInode;
-    InterfaceMetric createRootInode;
     InterfaceMetric appendS3ChunkInfo;
 
     // tnx
     InterfaceMetric prepareRenameTx;
 
-    // partition
-    InterfaceMetric createPartition;
+    // volume extent
+    InterfaceMetric updateVolumeExtent;
+    InterfaceMetric getVolumeExtent;
 
     explicit MetaServerClientMetric(const std::string &prefix_ = "")
         : prefix(!prefix_.empty() ? prefix_
@@ -99,10 +108,10 @@ struct MetaServerClientMetric {
           createInode(prefix, "createInode"),
           updateInode(prefix, "updateInode"),
           deleteInode(prefix, "deleteInode"),
-          createRootInode(prefix, "createRootInode"),
           appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
-          createPartition(prefix, "createPartition") {}
+          updateVolumeExtent(prefix, "updateVolumeExtent"),
+          getVolumeExtent(prefix, "getVolumeExtent") {}
 };
 
 struct InflightGuard {
@@ -117,10 +126,11 @@ struct InflightGuard {
 
     bvar::Adder<int64_t>* inflight_;
 };
+
 struct OpMetric {
-    bvar::Adder<uint64_t> ecount;
     bvar::LatencyRecorder latency;
     bvar::Adder<int64_t> inflightOpNum;
+    bvar::Adder<uint64_t> ecount;
 
     explicit OpMetric(const std::string& prefix, const std::string& name)
         : latency(prefix, name + "_lat"),
@@ -187,13 +197,21 @@ struct ClientOpMetric {
 struct S3MultiManagerMetric {
     const std::string prefix;
     bvar::Adder<int64_t> fileManagerNum;
-    bvar::Adder<int64_t> chunkCacheNum;
+    bvar::Adder<int64_t> chunkManagerNum;
+    bvar::Adder<int64_t> writeDataCacheNum;
+    bvar::Adder<int64_t> writeDataCacheByte;
+    bvar::Adder<int64_t> readDataCacheNum;
+    bvar::Adder<int64_t> readDataCacheByte;
 
     explicit S3MultiManagerMetric(
         const std::string &prefix_ = "curvefs_client_manager")
         : prefix(prefix_) {
         fileManagerNum.expose_as(prefix, "file_manager_num");
-        chunkCacheNum.expose_as(prefix, "chunk_cache_num");
+        chunkManagerNum.expose_as(prefix, "chunk_manager_num");
+        writeDataCacheNum.expose_as(prefix, "write_data_cache_num");
+        writeDataCacheByte.expose_as(prefix, "write_data_cache_byte");
+        readDataCacheNum.expose_as(prefix, "read_data_cache_num");
+        readDataCacheByte.expose_as(prefix, "read_data_cache_byte");
     }
 };
 
@@ -204,12 +222,16 @@ struct FSMetric {
 
     InterfaceMetric userWrite;
     InterfaceMetric userRead;
+    bvar::LatencyRecorder userWriteIoSize;
+    bvar::LatencyRecorder userReadIoSize;
 
     explicit FSMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           userWrite(prefix, fsName + "_userWrite"),
-          userRead(prefix, fsName + "_userRead") {}
+          userRead(prefix, fsName + "_userRead"),
+          userWriteIoSize(prefix, fsName + "_userWriteIoSize"),
+          userReadIoSize(prefix, fsName + "_userReadIoSize") {}
 };
 
 struct S3Metric {
@@ -243,10 +265,21 @@ struct DiskCacheMetric {
 
     std::string fsName;
     InterfaceMetric writeS3;
+    bvar::Status<uint64_t> diskUsedBytes;
+
     explicit DiskCacheMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
-          writeS3(prefix, fsName + "_write_s3") {}
+          writeS3(prefix, fsName + "_write_s3"),
+          diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
+};
+
+struct S3ChunkInfoMetric {
+    const std::string prefix = "inode_s3_chunk_info";
+
+    bvar::Adder<int64_t> s3ChunkInfoSize;
+
+    S3ChunkInfoMetric() : s3ChunkInfoSize(prefix, "size") {}
 };
 
 }  // namespace metric

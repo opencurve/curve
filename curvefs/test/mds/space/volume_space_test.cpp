@@ -22,11 +22,19 @@
 
 #include "curvefs/src/mds/space/volume_space.h"
 
+#include <brpc/closure_guard.h>
+#include <brpc/server.h>
 #include <gtest/gtest.h>
+#include <cassert>
 
 #include "absl/memory/memory.h"
+#include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/space.pb.h"
 #include "curvefs/src/mds/space/block_group_storage.h"
 #include "curvefs/test/mds/mock/mock_block_group_storage.h"
+#include "curvefs/test/mds/mock/mock_fs_stroage.h"
+#include "proto/nameserver2.pb.h"
 
 namespace curvefs {
 namespace mds {
@@ -35,6 +43,7 @@ namespace space {
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
+using ::testing::Matcher;
 
 static constexpr uint32_t kFsId = 1;
 static constexpr uint64_t kVolumeSize = 10ULL * 1024 * 1024 * 1024;
@@ -43,6 +52,7 @@ static constexpr uint32_t kBlockGroupSize = 128ULL * 1024 * 1024;
 static constexpr curvefs::common::BitmapLocation kBitmapLocation =
     curvefs::common::BitmapLocation::AtStart;
 static constexpr uint32_t kAllocateOnce = 4;
+static constexpr double kExtendFactor = 1.5;
 static const char* kOwner = "test";
 
 static unsigned int seed = time(nullptr);
@@ -51,6 +61,13 @@ class VolumeSpaceTest : public ::testing::Test {
  protected:
     void SetUp() override {
         storage_ = absl::make_unique<MockBlockGroupStorage>();
+        fsStorage_ = absl::make_unique<MockFsStorage>();
+        volume_.set_volumesize(kVolumeSize);
+        volume_.set_blocksize(kBlockSize);
+        volume_.set_blockgroupsize(kBlockGroupSize);
+        volume_.set_bitmaplocation(kBitmapLocation);
+        volume_.set_autoextend(false);
+        volume_.set_volumename("test");
     }
 
     std::unique_ptr<VolumeSpace> CreateOneEmptyVolumeSpace() {
@@ -60,9 +77,8 @@ class VolumeSpaceTest : public ::testing::Test {
                 return SpaceOk;
             }));
 
-        auto space =
-            VolumeSpace::Create(kFsId, kVolumeSize, kBlockSize, kBlockGroupSize,
-                                kBitmapLocation, storage_.get());
+        auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
+                                         fsStorage_.get());
         EXPECT_NE(nullptr, space);
         return space;
     }
@@ -101,15 +117,16 @@ class VolumeSpaceTest : public ::testing::Test {
                     return SpaceOk;
                 }));
 
-        auto space =
-            VolumeSpace::Create(kFsId, kVolumeSize, kBlockSize, kBlockGroupSize,
-                                kBitmapLocation, storage_.get());
+        auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
+                                         fsStorage_.get());
         EXPECT_NE(nullptr, space);
         return space;
     }
 
  protected:
     std::unique_ptr<MockBlockGroupStorage> storage_;
+    std::unique_ptr<MockFsStorage> fsStorage_;
+    common::Volume volume_;
 };
 
 TEST_F(VolumeSpaceTest, TestCreate_ListError) {
@@ -117,8 +134,7 @@ TEST_F(VolumeSpaceTest, TestCreate_ListError) {
         .WillOnce(Return(SpaceErrStorage));
 
     auto space =
-        VolumeSpace::Create(kFsId, kVolumeSize, kBlockSize, kBlockGroupSize,
-                            kBitmapLocation, storage_.get());
+        VolumeSpace::Create(kFsId, volume_, storage_.get(), fsStorage_.get());
     EXPECT_EQ(nullptr, space);
 }
 
@@ -130,8 +146,7 @@ TEST_F(VolumeSpaceTest, TestCreate_Success) {
         }));
 
     auto space =
-        VolumeSpace::Create(kFsId, kVolumeSize, kBlockSize, kBlockGroupSize,
-                            kBitmapLocation, storage_.get());
+        VolumeSpace::Create(kFsId, volume_, storage_.get(), fsStorage_.get());
     EXPECT_NE(nullptr, space);
 }
 
@@ -158,7 +173,7 @@ TEST_F(VolumeSpaceTest, TestAllocateBlockGroups) {
 
     uint64_t i = 0;
     while (i < totalGroups) {
-        uint64_t count = rand_r(&seed) % 10;
+        uint64_t count = rand_r(&seed) % 10 + 1;
         count = std::min(totalGroups - i, count);
 
         std::vector<BlockGroup> newGroups;
@@ -181,6 +196,131 @@ TEST_F(VolumeSpaceTest, TestAllocateBlockGroups) {
 
     ASSERT_EQ(SpaceErrNoSpace,
               space->AllocateBlockGroups(kAllocateOnce, kOwner, &groups));
+}
+
+TEST_F(VolumeSpaceTest, TestAutoExtendVolume_ExtendError) {
+    volume_.set_autoextend(true);
+    volume_.set_extendfactor(kExtendFactor);
+    volume_.add_cluster("127.0.0.1:34000");
+    volume_.add_cluster("127.0.0.1:34001");
+    volume_.add_cluster("127.0.0.1:34002");
+
+    constexpr auto totalGroups = kVolumeSize / kBlockGroupSize;
+    auto space = CreateOneEmptyVolumeSpace();
+
+    EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+        .Times(totalGroups)
+        .WillRepeatedly(Return(SpaceOk));
+
+    std::vector<BlockGroup> groups;
+    ASSERT_EQ(SpaceOk,
+              space->AllocateBlockGroups(totalGroups, kOwner, &groups));
+    ASSERT_EQ(totalGroups, groups.size());
+
+    std::vector<BlockGroup> newGroups;
+    ASSERT_EQ(SpaceErrNoSpace,
+              space->AllocateBlockGroups(1, kOwner, &newGroups));
+}
+
+namespace {
+class FakeCurveFSService : public curve::mds::CurveFSService {
+ public:
+    void ExtendFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ExtendFileRequest* request,
+                    ::curve::mds::ExtendFileResponse* response,
+                    ::google::protobuf::Closure* done) override {
+        brpc::ClosureGuard guard(done);
+        if (request->newsize() % kBlockGroupSize != 0) {
+            response->set_statuscode(curve::mds::kParaError);
+        } else {
+            response->set_statuscode(curve::mds::kOK);
+        }
+    }
+};
+}  // namespace
+
+TEST_F(VolumeSpaceTest, TestAutoExtendVolume_UpdateFsInfoError) {
+    volume_.set_autoextend(true);
+    volume_.set_extendfactor(kExtendFactor);
+    volume_.set_extendalignment(kBlockGroupSize);
+    volume_.add_cluster("127.0.0.1:34000");
+    volume_.add_cluster("127.0.0.1:34001");
+    volume_.add_cluster("127.0.0.1:34002");
+
+    brpc::Server server;
+    ASSERT_EQ(0, server.AddService(new FakeCurveFSService(),
+                                   brpc::SERVER_OWNS_SERVICE));
+    ASSERT_EQ(0, server.Start("127.0.0.1:34000", nullptr));
+
+    constexpr auto totalGroups = kVolumeSize / kBlockGroupSize;
+    auto space = CreateOneEmptyVolumeSpace();
+
+    EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+        .Times(totalGroups)
+        .WillRepeatedly(Return(SpaceOk));
+
+    std::vector<BlockGroup> groups;
+    ASSERT_EQ(SpaceOk,
+              space->AllocateBlockGroups(totalGroups, kOwner, &groups));
+    ASSERT_EQ(totalGroups, groups.size());
+
+    EXPECT_CALL(*fsStorage_, Get(Matcher<uint64_t>(_), _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*fsStorage_, Update(_))
+        .WillOnce(Return(FSStatusCode::STORAGE_ERROR));
+
+    std::vector<BlockGroup> newGroups;
+    ASSERT_EQ(SpaceErrNoSpace,
+              space->AllocateBlockGroups(1, kOwner, &newGroups));
+
+    server.Stop(0);
+    server.Join();
+}
+
+TEST_F(VolumeSpaceTest, TestAutoExtendVolumeSuccess) {
+    volume_.set_autoextend(true);
+    volume_.set_extendfactor(kExtendFactor);
+    volume_.set_extendalignment(kBlockGroupSize);
+    volume_.add_cluster("127.0.0.1:34000");
+    volume_.add_cluster("127.0.0.1:34001");
+    volume_.add_cluster("127.0.0.1:34002");
+
+    brpc::Server server;
+    ASSERT_EQ(0, server.AddService(new FakeCurveFSService(),
+                                   brpc::SERVER_OWNS_SERVICE));
+    ASSERT_EQ(0, server.Start("127.0.0.1:34000", nullptr));
+
+    constexpr auto totalGroups = kVolumeSize / kBlockGroupSize;
+    auto space = CreateOneEmptyVolumeSpace();
+
+    EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+        .Times(totalGroups)
+        .WillRepeatedly(Return(SpaceOk));
+
+    std::vector<BlockGroup> groups;
+    ASSERT_EQ(SpaceOk,
+              space->AllocateBlockGroups(totalGroups, kOwner, &groups));
+    ASSERT_EQ(totalGroups, groups.size());
+
+    EXPECT_CALL(*fsStorage_, Get(Matcher<uint64_t>(_), _))
+        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*fsStorage_, Update(_))
+        .WillOnce(Return(FSStatusCode::OK));
+
+    EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+        .Times(1)
+        .WillRepeatedly(Return(SpaceOk));
+
+    std::vector<BlockGroup> newGroups;
+    ASSERT_EQ(SpaceOk,
+              space->AllocateBlockGroups(1, kOwner, &newGroups));
+
+    ASSERT_EQ(totalGroups + 1, space->allocatedGroups_.size());
+    ASSERT_TRUE(space->availableGroups_.empty());
+    ASSERT_FALSE(space->cleanGroups_.empty());
+
+    server.Stop(0);
+    server.Join();
 }
 
 TEST_F(VolumeSpaceTest, TestAcquireBlockGroups) {

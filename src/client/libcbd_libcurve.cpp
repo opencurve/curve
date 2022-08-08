@@ -110,4 +110,9 @@ int cbd_libcurve_resize(const char* filename, int64_t size) {
     return Extend4Qemu(filename, size);
 }
 
+// return 0 for success, -1 for failed, others return an errno
+int cbd_libcurve_increase_epoch(const char* filename) {
+    return IncreaseEpoch(filename);
+}
+
 }  // extern "C"

@@ -1,13 +1,11 @@
+# Copyright (C) 2022 Jingli Chen (Wine93), NetEase Inc.
 
-  
-.PHONY: build
+.PHONY: build init proto clean
 
 release?= 0
 version?= "unknown"
 
-build:
-	protoc --go_out=proto --proto_path=.. ../curvefs/proto/*.proto
-	protoc --go-grpc_out=proto --proto_path=.. ../curvefs/proto/*.proto
+build: proto
 	@if [ ${release} = 1 ];then\
 		go build -ldflags "-w -s \
 		-X github.com/opencurve/curve/tools-v2/pkg/cli/command/version.Version=${version}" \
@@ -18,9 +16,12 @@ build:
 		-o sbin/curve $(PWD)/cmd/curvecli/main.go;\
 	fi
 
-init: clean
+init: proto
 	go mod init github.com/opencurve/curve/tools-v2
 	go mod tidy
+
+proto:
+	@bash mk-proto.sh
 
 clean:
 	rm -rf sbin

@@ -34,7 +34,8 @@ namespace curvefs {
 namespace client {
 
 DiskCacheManagerImpl::DiskCacheManagerImpl(
-    std::shared_ptr<DiskCacheManager> diskCacheManager, S3Client *client) {
+    std::shared_ptr<DiskCacheManager> diskCacheManager,
+    std::shared_ptr<S3Client> client) {
     diskCacheManager_ = diskCacheManager;
     client_ = client;
 }
@@ -177,6 +178,7 @@ int DiskCacheManagerImpl::UmountDiskCache() {
         return -1;
     }
     taskPool_.Stop();
+    client_->Deinit();
     return 0;
 }
 

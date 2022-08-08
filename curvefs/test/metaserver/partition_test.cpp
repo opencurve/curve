@@ -30,6 +30,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -47,6 +48,11 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 
 namespace curvefs {
 namespace metaserver {
+
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
+
 class PartitionTest : public ::testing::Test {
  protected:
     void SetUp() override {
@@ -62,6 +68,7 @@ class PartitionTest : public ::testing::Test {
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
     }
@@ -260,6 +267,7 @@ TEST_F(PartitionTest, dentrynum) {
     dentry.set_parentinodeid(100);
     dentry.set_name("name");
     dentry.set_txid(0);
+    dentry.set_type(FsFileType::TYPE_DIRECTORY);
     ASSERT_EQ(partition1.CreateDentry(dentry), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetDentryNum(), 1);
 

@@ -23,7 +23,9 @@
 #ifndef CURVEFS_SRC_MDS_SPACE_VOLUME_SPACE_H_
 #define CURVEFS_SRC_MDS_SPACE_VOLUME_SPACE_H_
 
+#include <bthread/condition_variable.h>
 #include <bthread/mutex.h>
+#include <gtest/gtest_prod.h>
 
 #include <cstdint>
 #include <memory>
@@ -32,7 +34,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/space/block_group_storage.h"
 
 namespace curvefs {
@@ -57,15 +61,14 @@ class AbstractVolumeSpace {
 };
 
 using ::curvefs::common::BitmapLocation;
+using ::curvefs::common::Volume;
 
 class VolumeSpace final : public AbstractVolumeSpace {
  public:
     static std::unique_ptr<VolumeSpace> Create(uint32_t fsId,
-                                               uint64_t size,
-                                               uint32_t blockSize,
-                                               uint64_t blockGroupSize,
-                                               BitmapLocation location,
-                                               BlockGroupStorage* storage);
+                                               const Volume& volume,
+                                               BlockGroupStorage* storage,
+                                               FsStorage* fsStorage);
 
     VolumeSpace(const VolumeSpace&) = delete;
     VolumeSpace& operator=(const VolumeSpace&) = delete;
@@ -100,11 +103,9 @@ class VolumeSpace final : public AbstractVolumeSpace {
 
  private:
     VolumeSpace(uint32_t fsId,
-                uint64_t size,
-                uint32_t blockSize,
-                uint64_t blockGroupSize,
-                BitmapLocation location,
-                BlockGroupStorage* storage);
+                Volume volume,
+                BlockGroupStorage* storage,
+                FsStorage* fsStorage);
 
  private:
     SpaceErrCode AllocateBlockGroupsInternal(
@@ -124,6 +125,12 @@ class VolumeSpace final : public AbstractVolumeSpace {
                                            const std::string& owner,
                                            BlockGroup* group);
 
+    SpaceErrCode ExtendVolume();
+
+    bool UpdateFsInfo(uint64_t origin, uint64_t extended);
+
+    void AddCleanGroups(uint64_t origin, uint64_t extended);
+
  private:
     // persist block group to backend storage
     SpaceErrCode PersistBlockGroup(const BlockGroup& group);
@@ -133,12 +140,10 @@ class VolumeSpace final : public AbstractVolumeSpace {
     SpaceErrCode ClearBlockGroup(const BlockGroup& group);
 
  private:
-    const uint32_t fsId_;
-    const uint32_t blockSize_;
-    const uint64_t blockGroupSize_;
-    const BitmapLocation bitmapLocation_;
+    FRIEND_TEST(VolumeSpaceTest, TestAutoExtendVolumeSuccess);
 
-    uint64_t volumeSize_;
+    const uint32_t fsId_;
+    Volume volume_;
 
     mutable bthread::Mutex mtx_;
 
@@ -149,7 +154,7 @@ class VolumeSpace final : public AbstractVolumeSpace {
     //    other clients.
     //    allocated block groups are persisted into storage.
     // 2. available
-    //    these block groups had been used by some clinets, but now they don't
+    //    these block groups had been used by some clients, but now they don't
     //    have owners, and their space is partial used. so they can be
     //    reallocated to other clients.
     //    available block groups are persisted into storage, but doesn't have to
@@ -170,7 +175,13 @@ class VolumeSpace final : public AbstractVolumeSpace {
     std::unordered_set<uint64_t> cleanGroups_;
 
     BlockGroupStorage* storage_;
+
+    FsStorage* fsStorage_;
 };
+
+// Calculate extended size based on origin with factor, and the result size is
+// aligned with alignment
+uint64_t ExtendedSize(uint64_t origin, double factor, uint64_t alignment);
 
 }  // namespace space
 }  // namespace mds

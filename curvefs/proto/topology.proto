@@ -46,6 +46,7 @@ enum TopoStatusCode {
     TOPO_CREATE_PARTITION_FAIL = 21;
     TOPO_METASERVER_EXIST = 22;
     TOPO_GET_AVAILABLE_COPYSET_ERROR = 23;
+    TOPO_DELETE_PARTITION_ON_METASERVER_FAIL = 24;
 }
 
 enum OnlineState {
@@ -57,6 +58,9 @@ enum OnlineState {
 // etcd struct defination
 message ClusterInfoData {
     required string clusterId = 1;
+    // <fsId, partitionIndex of this fs>
+    map<uint32, uint32> partitionIndexs = 2;
+    
 }
 
 message PoolData {
@@ -100,7 +104,8 @@ message CopysetData {
     required uint32 PoolId = 2;
     required uint64 epoch = 3;
     repeated uint32 MetaServerIds = 4;
-    required uint32 PartitionNumber = 5;
+    // delete PartitionNumber, for compatibility reasons, don't use number 5
+    // required uint32 PartitionNumber = 5;
     optional bool availFlag = 6;
 }
 
@@ -351,6 +356,14 @@ message CreatePartitionResponse {
     repeated common.PartitionInfo partitionInfoList = 2;
 }
 
+message DeletePartitionRequest {
+    required uint32 partitionId = 1;
+}
+
+message DeletePartitionResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
 message ListPartitionRequest {
     required uint32 fsId = 1;
 }
@@ -470,6 +483,8 @@ service TopologyService {
     rpc GetMetaServerListInCopysets(GetMetaServerListInCopySetsRequest)
         returns (GetMetaServerListInCopySetsResponse);
     rpc CreatePartition(CreatePartitionRequest) returns (CreatePartitionResponse);
+    rpc DeletePartition(DeletePartitionRequest) returns (DeletePartitionResponse);
+
     rpc ListPartition(ListPartitionRequest) returns (ListPartitionResponse);
     rpc GetCopysetOfPartition(GetCopysetOfPartitionRequest) returns (GetCopysetOfPartitionResponse);
     rpc CommitTx(CommitTxRequest) returns (CommitTxResponse);

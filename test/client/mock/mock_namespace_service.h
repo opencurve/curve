@@ -58,6 +58,12 @@ class MockNameService : public CurveFSService {
                       const curve::mds::ReFreshSessionRequest* request,
                       curve::mds::ReFreshSessionResponse* response,
                       ::google::protobuf::Closure* done));
+
+    MOCK_METHOD4(IncreaseFileEpoch,
+                 void(::google::protobuf::RpcController* controller,
+                      const curve::mds::IncreaseFileEpochRequest* request,
+                      curve::mds::IncreaseFileEpochResponse* response,
+                      ::google::protobuf::Closure* done));
 };
 
 }  // namespace mds

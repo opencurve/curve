@@ -20,29 +20,36 @@
  * Author: Jingli Chen (Wine93)
  */
 
+#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+
+#include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <memory>
 
-#include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
-#include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/test/metaserver/storage/storage_test.h"
+#include "src/fs/ext4_filesystem_impl.h"
+#include "test/fs/mock_local_filesystem.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace storage {
 
-using ::curvefs::metaserver::storage::InitStorage;
-using ::curvefs::metaserver::storage::GetStorageInstance;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::StorageStatistics;
-using ::curvefs::metaserver::storage::RocksDBStorageComparator;
 using ROCKSDB_STATUS = ROCKSDB_NAMESPACE::Status;
-
+using ::curve::fs::MockLocalFileSystem;
 using STORAGE_TYPE = ::curvefs::metaserver::storage::KVStorage::STORAGE_TYPE;
+
+using ::testing::_;
+using ::testing::Return;
+using ::testing::Invoke;
 
 class RocksDBStorageTest : public testing::Test {
  protected:
@@ -58,12 +65,7 @@ class RocksDBStorageTest : public testing::Test {
         options_.maxDiskQuotaBytes = 2199023255552;
         options_.dataDir = dbpath_;
         options_.compression = false;
-        options_.unorderedWriteBufferSize = 134217728;
-        options_.unorderedMaxWriteBufferNumber = 5;
-        options_.orderedWriteBufferSize = 134217728;
-        options_.orderedMaxWriteBufferNumber = 15;
-        options_.blockCacheCapacity = 134217728;
-        options_.memtablePrefixBloomSizeRatio = 0.1;
+        options_.localFileSystem = localfs_.get();
 
         kvStorage_ = std::make_shared<RocksDBStorage>(options_);
         ASSERT_TRUE(kvStorage_->Open());
@@ -88,20 +90,17 @@ class RocksDBStorageTest : public testing::Test {
         return true;
     }
 
-    Status ToStorageStatus(ROCKSDB_STATUS status) {
-        auto storage = std::make_shared<RocksDBStorage>(options_);
-        return storage->ToStorageStatus(status);
-    }
-
  protected:
     std::string dirname_;
     std::string dbpath_;
     StorageOptions options_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<curve::fs::LocalFileSystem> localfs_ =
+        curve::fs::Ext4FileSystemImpl::getInstance();
 };
 
 TEST_F(RocksDBStorageTest, OpenCloseTest) {
-    // CASE 1: open twoce
+    // CASE 1: open twice
     ASSERT_TRUE(kvStorage_->Open());
     ASSERT_TRUE(kvStorage_->Open());
 
@@ -146,42 +145,7 @@ TEST_F(RocksDBStorageTest, OpenCloseTest) {
     ASSERT_TRUE(s.IsDBClosed());
 }
 
-TEST_F(RocksDBStorageTest, GetStatisticsTest) {
-    StorageStatistics statistics;
-    ASSERT_TRUE(kvStorage_->GetStatistics(&statistics));
-    ASSERT_EQ(statistics.maxMemoryQuotaBytes, options_.maxMemoryQuotaBytes);
-    ASSERT_EQ(statistics.maxDiskQuotaBytes, options_.maxDiskQuotaBytes);
-    ASSERT_GT(statistics.memoryUsageBytes, 0);
-    ASSERT_GT(statistics.diskUsageBytes, 0);
-}
-
-TEST_F(RocksDBStorageTest, ComparatorTest) {
-    RocksDBStorageComparator cmp;
-    std::string str4num1 = Number2BinaryString(1);
-    std::string str4num2 = Number2BinaryString(2);
-    std::string key1 = str4num1 + ":/a";
-    std::string key2 = str4num1 + ":/b";
-
-    ASSERT_EQ(cmp.Compare(str4num1, str4num2), -1);
-    ASSERT_EQ(cmp.Compare(str4num2, str4num1), 1);
-    ASSERT_EQ(cmp.Compare(str4num2, str4num1), 1);
-    ASSERT_EQ(cmp.Compare(key1, key2), -1);
-    ASSERT_EQ(cmp.Compare(key2, key1), 1);
-    ASSERT_EQ(cmp.Compare(key1, key1), 0);
-}
-
 TEST_F(RocksDBStorageTest, MiscTest) {
-    // CASE 1: storage type
-    ASSERT_EQ(kvStorage_->Type(), STORAGE_TYPE::ROCKSDB_STORAGE);
-
-    // CASE 3: init global storage
-    options_.type = "rocksdb";
-    options_.dataDir = dirname_ + "/global_rocksdb_storage";
-    InitStorage(options_);
-    ASSERT_EQ(GetStorageInstance()->Type(), STORAGE_TYPE::ROCKSDB_STORAGE);
-    ASSERT_TRUE(GetStorageInstance()->Close());
-
-    // CASE 2: status converter
     Status s;
     ASSERT_TRUE(ToStorageStatus(ROCKSDB_STATUS::OK()).ok());
     ASSERT_TRUE(ToStorageStatus(ROCKSDB_STATUS::NotFound()).IsNotFound());
@@ -205,8 +169,130 @@ TEST_F(RocksDBStorageTest, SSeekTest) { TestSSeek(kvStorage_); }
 TEST_F(RocksDBStorageTest, SGetAllTest) { TestSGetAll(kvStorage_); }
 TEST_F(RocksDBStorageTest, SSizeTest) { TestSSize(kvStorage_); }
 TEST_F(RocksDBStorageTest, SClearTest) { TestSClear(kvStorage_); }
-TEST_F(RocksDBStorageTest, SMixOperator) { TestMixOperator(kvStorage_); }
+TEST_F(RocksDBStorageTest, MixOperatorTest) { TestMixOperator(kvStorage_); }
+TEST_F(RocksDBStorageTest, TransactionTest) { TestTransaction(kvStorage_); }
+TEST_F(RocksDBStorageTest, HClearTestSMixOperator) {
+    TestMixOperator(kvStorage_);
+}
 TEST_F(RocksDBStorageTest, Transaction) { TestTransaction(kvStorage_); }
+
+TEST_F(RocksDBStorageTest, TestCleanOpen) {
+    ASSERT_TRUE(kvStorage_->Close());
+
+    MockLocalFileSystem mockfs;
+    options_.localFileSystem = &mockfs;
+
+    // data directory exists but delete failed
+    EXPECT_CALL(mockfs, DirExists(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mockfs, Delete(_))
+        .WillOnce(Invoke([](const std::string&) {
+            errno = EPERM;
+            return -1;
+        }));
+
+    kvStorage_ = std::make_shared<RocksDBStorage>(options_);
+    ASSERT_FALSE(kvStorage_->Open());
+}
+
+TEST_F(RocksDBStorageTest, TestRecover) {
+    ASSERT_TRUE(kvStorage_->Close());
+
+    MockLocalFileSystem mockfs;
+    options_.localFileSystem = &mockfs;
+    options_.dataDir += std::to_string(time(nullptr));
+
+    // only first open will check dir exists
+    EXPECT_CALL(mockfs, DirExists(_))
+        .WillOnce(Return(false));
+
+    // recover should delete previous database
+    EXPECT_CALL(mockfs, Delete(_))
+        .WillOnce(Invoke([](const std::string& dir) {
+            return curve::fs::Ext4FileSystemImpl::getInstance()->Delete(dir);
+        }));
+
+    // open first
+    kvStorage_ = std::make_shared<RocksDBStorage>(options_);
+    ASSERT_TRUE(kvStorage_->Open());
+
+    // do checkpoint
+    std::vector<std::string> files;
+    ASSERT_TRUE(kvStorage_->Checkpoint(dirname_, &files));
+
+    // recovery
+    ASSERT_TRUE(kvStorage_->Recover(dirname_));
+}
+
+TEST_F(RocksDBStorageTest, TestCheckpointAndRecover) {
+    ASSERT_TRUE(kvStorage_->Close());
+
+    MockLocalFileSystem mockfs;
+    options_.localFileSystem = &mockfs;
+
+    EXPECT_CALL(mockfs, DirExists(_))
+        .WillOnce(Invoke([this](const std::string& dir) {
+            return localfs_->DirExists(dir);
+        }));
+
+    EXPECT_CALL(mockfs, Delete(_))
+        .Times(2)
+        .WillRepeatedly(Invoke(
+            [this](const std::string& dir) { return localfs_->Delete(dir); }));
+
+    EXPECT_CALL(mockfs, List(_, _))
+        .WillOnce(Invoke(
+            [this](const std::string& dir, std::vector<std::string>* files) {
+                return localfs_->List(dir, files);
+            }));
+
+    kvStorage_ = std::make_shared<RocksDBStorage>(options_);
+    ASSERT_TRUE(kvStorage_->Open());
+
+    // put some values
+    auto s = kvStorage_->SSet("1", "1", Value("1"));
+    s = kvStorage_->SSet("2", "2", Value("2"));
+    s = kvStorage_->SSet("3", "3", Value("3"));
+    s = kvStorage_->SSet("4", "4", Value("4"));
+    s = kvStorage_->SSet("5", "5", Value("5"));
+    s = kvStorage_->SSet("6", "6", Value("6"));
+    s = kvStorage_->SSet("7", "7", Value("7"));
+    s = kvStorage_->SDel("3", "3");
+
+    ASSERT_TRUE(s.ok()) << s.ToString();
+
+    std::vector<std::string> files;
+    ASSERT_TRUE(kvStorage_->Checkpoint(dirname_, &files));
+    EXPECT_FALSE(files.empty());
+
+    ASSERT_TRUE(kvStorage_->Recover(dirname_));
+
+    // get values that checkpoint should have
+    Dentry dummyDentry;
+    kvStorage_->SGet("1", "1", &dummyDentry);
+    EXPECT_EQ(Value("1"), dummyDentry)
+        << "Expect: " << Value("1").ShortDebugString()
+        << ", actual: " << dummyDentry.ShortDebugString();
+
+    kvStorage_->SGet("2", "2", &dummyDentry);
+    EXPECT_EQ(Value("2"), dummyDentry);
+
+    // "3" is deleted
+    s = kvStorage_->SGet("3", "3", &dummyDentry);
+    EXPECT_TRUE(s.IsNotFound()) << s.ToString();
+
+    kvStorage_->SGet("4", "4", &dummyDentry);
+    EXPECT_EQ(Value("4"), dummyDentry);
+
+    kvStorage_->SGet("5", "5", &dummyDentry);
+    EXPECT_EQ(Value("5"), dummyDentry);
+
+    kvStorage_->SGet("6", "6", &dummyDentry);
+    EXPECT_EQ(Value("6"), dummyDentry);
+
+    kvStorage_->SGet("7", "7", &dummyDentry);
+    EXPECT_EQ(Value("7"), dummyDentry);
+}
 
 }  // namespace storage
 }  // namespace metaserver

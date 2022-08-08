@@ -27,7 +27,7 @@
 #include "curvefs/src/mds/schedule/scheduleMetrics.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
-#include "curvefs/test/mds/schedule/mock_topoAdapter.h"
+#include "curvefs/test/mds/mock/mock_topoAdapter.h"
 
 using ::testing::Return;
 using ::testing::SetArgPointee;

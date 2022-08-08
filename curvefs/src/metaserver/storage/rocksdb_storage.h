@@ -35,11 +35,14 @@
 #include "rocksdb/options.h"
 #include "rocksdb/filter_policy.h"
 #include "rocksdb/slice_transform.h"
+#include "rocksdb/table_properties.h"
 #include "rocksdb/utilities/transaction.h"
 #include "rocksdb/utilities/transaction_db.h"
+#include "rocksdb/utilities/table_properties_collectors.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
+#include "curvefs/src/metaserver/storage/rocksdb_perf.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 
 namespace curvefs {
@@ -62,72 +65,9 @@ using ROCKSDB_NAMESPACE::NewFixedPrefixTransform;
 using ROCKSDB_NAMESPACE::NewBlockBasedTableFactory;
 using STORAGE_TYPE = KVStorage::STORAGE_TYPE;
 
-class RocksDBStorageTest;
-
-class RocksDBOptions {
- public:
-    RocksDBOptions() {}
-
-    explicit RocksDBOptions(StorageOptions options);
-
-    ROCKSDB_NAMESPACE::Options DBOptions();
-
-    ROCKSDB_NAMESPACE::TransactionDBOptions TransactionDBOptions();
-
-    std::vector<ColumnFamilyDescriptor> ColumnFamilys();
-
-    ROCKSDB_NAMESPACE::ReadOptions ReadOptions();
-
-    ROCKSDB_NAMESPACE::WriteOptions WriteOptions();
-
- private:
-    ROCKSDB_NAMESPACE::Options dbOptions_;
-
-    std::vector<ColumnFamilyDescriptor> columnFamilies_;
-
-    static const std::string kOrderedColumnFamilyName_;
-
-    std::shared_ptr<rocksdb::Comparator> comparator_;
-};
-
-class RocksDBStorageComparator : public rocksdb::Comparator {
- public:
-    // if slice1 < slice2, return -1
-    // if slice1 > slice2, return 1
-    // if slice1 == slice2, return 0
-    int Compare(const rocksdb::Slice& slice1,
-                const rocksdb::Slice& slice2) const override {
-        std::string key1 = std::string(slice1.data(), slice1.size());
-        std::string key2 = std::string(slice2.data(), slice2.size());
-        size_t num1 = BinrayString2Number(key1);
-        size_t num2 = BinrayString2Number(key2);
-        if (num1 < num2) {
-            return -1;
-        } else if (num1 > num2) {
-            return 1;
-        }
-        // n1 == n2
-        if (key1 < key2) {
-            return -1;
-        } else if (key1 > key2) {
-            return 1;
-        }
-        return 0;
-    }
-
-    // Ignore the following methods for now
-    const char* Name() const override { return "RocksDBStorageComparator"; }
-
-    void FindShortestSeparator(std::string*,
-                               const rocksdb::Slice&) const override {}
-
-    void FindShortSuccessor(std::string*) const override {}
-};
-
+// NOTE: The HSize() and SSize() is an expensive operation for rocksdb storage,
+// you should only invoke it in test cases.
 class RocksDBStorage : public KVStorage, public StorageTransaction {
- public:
-    using KeyPair = std::pair<std::string, std::string>;
-
  public:
     RocksDBStorage();
 
@@ -140,8 +80,6 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     bool Close() override;
 
     STORAGE_TYPE Type() override;
-
-    bool GetStatistics(StorageStatistics* Statistics) override;
 
     StorageOptions GetStorageOptions() const override;
 
@@ -188,42 +126,25 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
 
     Status Rollback() override;
 
+    bool Checkpoint(const std::string& dir,
+                    std::vector<std::string>* files) override;
+
+    bool Recover(const std::string& dir) override;
+
  private:
-    ROCKSDB_NAMESPACE::Options DBOptions();
-
-    ROCKSDB_NAMESPACE::TransactionDBOptions TransactionDBOptions();
-
-    std::vector<ColumnFamilyDescriptor> ColumnFamilys();
-
-    ROCKSDB_NAMESPACE::ReadOptions ReadOptions();
-
-    ROCKSDB_NAMESPACE::WriteOptions WriteOptions();
-
     ColumnFamilyHandle* GetColumnFamilyHandle(bool ordered);
 
-    Status ToStorageStatus(const ROCKSDB_NAMESPACE::Status& s);
+    static size_t GetKeyPrefixLength();
 
-    std::string ToInternalName(const std::string& name, bool ordered);
+    static std::string ToInternalName(const std::string& name,
+                                      bool ordered,
+                                      bool start);
 
-    std::string FormatInternalKey(size_t num4name, const std::string& key);
-
-    std::string ToInternalKey(const std::string& iname, const std::string& key);
+    std::string ToInternalKey(const std::string& name,
+                              const std::string& key,
+                              bool ordered);
 
     std::string ToUserKey(const std::string& ikey);
-
-    bool FindKey(std::string name, std::string key);
-
-    void InsertKey(std::string name, std::string key);
-
-    void EraseKey(std::string name, std::string key);
-
-    size_t TableSize(std::string name);
-
-    void ClearTable(std::string name);
-
-    void CommitKeys();
-
-    void RollbackKeys();
 
     Status Get(const std::string& name,
                const std::string& key,
@@ -255,21 +176,35 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     friend class RocksDBStorageIterator;
     friend class RocksDBStorageTest;
 
- private:
-    RWLock rwLock_;  // lock for Counter
-    bool inited_;
-    StorageOptions options_;
-    RocksDBOptions rocksdbOptions_;
-    DB* db_;
-    TransactionDB* txnDB_;
-    std::vector<ColumnFamilyHandle*> handles_;
-    std::shared_ptr<Counter> counter_;
+    friend void InitRocksdbOptions(
+        rocksdb::DBOptions* options,
+        std::vector<rocksdb::ColumnFamilyDescriptor>* columnFamilies,
+        bool createIfMissing,
+        bool errorIfExists);
 
-    // for transaction
+    void InitDbOptions();
+
+ private:
+    bool inited_ = false;
+    StorageOptions options_;
+    DB* db_ = nullptr;
+    TransactionDB* txnDB_ = nullptr;
+    std::vector<ColumnFamilyHandle*> handles_;
+    static const std::string kDelimiter_;
+
+    // open a clean database or recovery from a checkpoint
+    bool cleanOpen_ = true;
+
+    // only for transaction
     bool InTransaction_;
-    Transaction* txn_;
-    std::vector<KeyPair> pending4set_;
-    std::vector<KeyPair> pending4del_;
+    Transaction* txn_ = nullptr;
+
+    // db options
+    rocksdb::DBOptions dbOptions_;
+    rocksdb::TransactionDBOptions dbTransOptions_;
+    rocksdb::WriteOptions dbWriteOptions_;
+    rocksdb::ReadOptions dbReadOptions_;
+    std::vector<rocksdb::ColumnFamilyDescriptor> dbCfDescriptors_;
 };
 
 inline Status RocksDBStorage::HGet(const std::string& name,
@@ -340,19 +275,20 @@ inline Status RocksDBStorage::SClear(const std::string& name) {
 class RocksDBStorageIterator : public Iterator {
  public:
     RocksDBStorageIterator(RocksDBStorage* storage,
-                           const std::string& prefix,
+                           std::string prefix,
                            size_t size,
                            int status,
                            bool ordered)
         : storage_(storage),
-          prefix_(prefix),
+          prefix_(std::move(prefix)),
           size_(size),
           status_(status),
           prefixChecking_(true),
           ordered_(ordered),
           iter_(nullptr) {
+        RocksDBPerfGuard guard(OP_GET_SNAPSHOT);
         if (status_ == 0) {
-            readOptions_ = storage_->ReadOptions();
+            readOptions_ = storage_->dbReadOptions_;
             if (storage_->InTransaction_) {
                 readOptions_.snapshot = storage_->txn_->GetSnapshot();
             } else {
@@ -362,6 +298,7 @@ class RocksDBStorageIterator : public Iterator {
     }
 
     ~RocksDBStorageIterator() {
+        RocksDBPerfGuard guard(OP_CLEAR_SNAPSHOT);
         if (status_ == 0) {
             if (storage_->InTransaction_) {
                 storage_->txn_->ClearSnapshot();
@@ -388,25 +325,33 @@ class RocksDBStorageIterator : public Iterator {
 
     void SeekToFirst() {
         auto handler = storage_->GetColumnFamilyHandle(ordered_);
-        if (storage_->InTransaction_) {
-            iter_.reset(storage_->txn_->GetIterator(readOptions_, handler));
-        } else {
-            iter_.reset(storage_->db_->NewIterator(readOptions_, handler));
+        {
+            RocksDBPerfGuard guard(OP_GET_ITERATOR);
+            if (storage_->InTransaction_) {
+                iter_.reset(storage_->txn_->GetIterator(readOptions_, handler));
+            } else {
+                iter_.reset(storage_->db_->NewIterator(readOptions_, handler));
+            }
         }
+
+        RocksDBPerfGuard guard(OP_ITERATOR_SEEK_TO_FIRST);
         iter_->Seek(prefix_);
     }
 
     void Next() {
+        RocksDBPerfGuard guard(OP_ITERATOR_NEXT);
         iter_->Next();
     }
 
     std::string Key() {
+        RocksDBPerfGuard guard(OP_ITERATOR_GET_KEY);
         auto slice = iter_->key();
         auto ikey = std::string(slice.data(), slice.size());
         return storage_->ToUserKey(ikey);
     }
 
     std::string Value() {
+        RocksDBPerfGuard guard(OP_ITERATOR_GET_VALUE);
         auto slice = iter_->value();
         return std::string(slice.data(), slice.size());
     }
@@ -438,6 +383,9 @@ class RocksDBStorageIterator : public Iterator {
     RocksDBStorage* storage_;
     rocksdb::ReadOptions readOptions_;
 };
+
+// Convert rocksdb status to our storage status
+Status ToStorageStatus(const ROCKSDB_NAMESPACE::Status& s);
 
 }  // namespace storage
 }  // namespace metaserver

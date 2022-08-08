@@ -28,6 +28,7 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "curvefs/src/metaserver/copyset/operator_type.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 
 namespace curvefs {
@@ -172,14 +173,14 @@ class GetDentryOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
 
     bool CanBypassPropose() const override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class ListDentryOperator : public MetaOperator {
@@ -193,14 +194,14 @@ class ListDentryOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
 
     bool CanBypassPropose() const override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class CreateDentryOperator : public MetaOperator {
@@ -214,12 +215,12 @@ class CreateDentryOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class DeleteDentryOperator : public MetaOperator {
@@ -233,12 +234,12 @@ class DeleteDentryOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class GetInodeOperator : public MetaOperator {
@@ -252,14 +253,14 @@ class GetInodeOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
 
     bool CanBypassPropose() const override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class BatchGetInodeAttrOperator : public MetaOperator {
@@ -273,14 +274,14 @@ class BatchGetInodeAttrOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
 
     bool CanBypassPropose() const override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class BatchGetXAttrOperator : public MetaOperator {
@@ -294,14 +295,14 @@ class BatchGetXAttrOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
 
     bool CanBypassPropose() const override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class CreateInodeOperator : public MetaOperator {
@@ -315,12 +316,12 @@ class CreateInodeOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class UpdateInodeOperator : public MetaOperator {
@@ -334,12 +335,12 @@ class UpdateInodeOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class GetOrModifyS3ChunkInfoOperator : public MetaOperator {
@@ -353,12 +354,12 @@ class GetOrModifyS3ChunkInfoOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class DeleteInodeOperator : public MetaOperator {
@@ -372,12 +373,12 @@ class DeleteInodeOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class CreateRootInodeOperator : public MetaOperator {
@@ -391,12 +392,12 @@ class CreateRootInodeOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class UpdateInodeS3VersionOperator : public MetaOperator {
@@ -410,12 +411,12 @@ class UpdateInodeS3VersionOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class CreatePartitionOperator : public MetaOperator {
@@ -429,12 +430,12 @@ class CreatePartitionOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class DeletePartitionOperator : public MetaOperator {
@@ -448,12 +449,12 @@ class DeletePartitionOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
-
-    OperatorType GetOperatorType() const override;
 };
 
 class PrepareRenameTxOperator : public MetaOperator {
@@ -467,12 +468,54 @@ class PrepareRenameTxOperator : public MetaOperator {
 
     uint64_t HashCode() const override;
 
+    OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
+};
+
+class GetVolumeExtentOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index,
+                 google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
+    OperatorType GetOperatorType() const override;
+
  private:
     void Redirect() override;
 
     void OnFailed(MetaStatusCode code) override;
 
+    bool CanBypassPropose() const override;
+};
+
+class UpdateVolumeExtentOperator : public MetaOperator {
+ public:
+    using MetaOperator::MetaOperator;
+
+    void OnApply(int64_t index,
+                 google::protobuf::Closure* done,
+                 uint64_t startTimeUs) override;
+
+    void OnApplyFromLog(uint64_t startTimeUs) override;
+
+    uint64_t HashCode() const override;
+
     OperatorType GetOperatorType() const override;
+
+ private:
+    void Redirect() override;
+
+    void OnFailed(MetaStatusCode code) override;
 };
 
 }  // namespace copyset

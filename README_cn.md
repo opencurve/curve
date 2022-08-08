@@ -12,9 +12,11 @@
 [![Docs](https://img.shields.io/badge/docs-latest-green.svg)](https://github.com/opencurve/curve/tree/master/docs)
 [![Releases](https://img.shields.io/github/v/release/opencurve/curve?include_prereleases)](https://github.com/opencurve/curve/releases)
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6136/badge)](https://bestpractices.coreinfrastructure.org/projects/6136)
 
+Curve是一款高性能、易运维、云原生的开源分布式存储系统。可应用于主流的云原生基础设施平台：对接 OpenStack 平台为云主机提供高性能块存储服务；对接 Kubernetes 为其提供 RWO、RWX 等类型的持久化存储卷；对接 PolarFS 作为云原生数据库的高性能存储底座，完美支持云原生数据库的存算分离架构。Curve 亦可作为云存储中间件使用 S3 兼容的对象存储作为数据存储引擎，为公有云用户提供高性价比的共享文件存储。
 
-Curve是网易自主设计研发的高性能、易运维、云原生的分布式存储系统，目前提供块(CurveBS)和文件(CurveFS)两种存储方式。CurveBS支持快照克隆和恢复,支持QEMU虚拟机和物理机NBD设备两种挂载方式。CurveFS基于Fuse支持POSIX文件系统接口。
+Curve已加入云原生计算基金会（CNCF）作为沙箱项目托管。
 
 ## Curve Architecture
 Curve总体架构图：
@@ -102,7 +104,7 @@ Ceph: L/N
 [命令行工具说明](docs/cn/curve_ops_tool.md)
 
 ## CurveFS快速开始
-为了提升 Curve 的运维便利性，我们设计开发了 [CurveAdm](https://github.com/opencurve/curveadm) 项目，其主要用于部署和管理 Curve 集群，目前已支持部署CurveBS & CurveFS（扩容、版本升级等更多功能正在开发中），相关使用文档请参考 [CurveAdm用户手册](https://github.com/opencurve/curveadm/wiki)，并根据手册首先安装CurveAdm工具之后再进行Curve集群的部署。
+为了提升 Curve 的运维便利性，我们设计开发了 [CurveAdm](https://github.com/opencurve/curveadm) 项目，其主要用于部署和管理 Curve 集群，目前已支持部署CurveBS & CurveFS，相关使用文档请参考 [CurveAdm用户手册](https://github.com/opencurve/curveadm/wiki)，并根据手册首先安装CurveAdm工具之后再进行Curve集群的部署。
 
 
 具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment)
@@ -114,6 +116,8 @@ Ceph: L/N
 
 ## 参与开发
 
+如何参与 Curve 项目开发详见[Curve 开源社区指南](Community_Guidelines_cn.md)
+
 ### 部署编译开发环境
 
 [编译开发环境搭建](docs/cn/build_and_run.md)
@@ -123,18 +127,6 @@ Ceph: L/N
 
 ### FIO curve块存储引擎
 fio的curve块存储引擎代码已经上传到 https://github.com/opencurve/fio ，请自行编译测试（依赖nebd库），fio命令行示例：`./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
-
-### 编码规范
-CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，请您也遵循这一指南来提交您的代码。
-
-### 测试覆盖率要求
-1. 单元测试：增量行覆盖80%以上，增量分支覆盖70%以上
-2. 集成测试：与单元测试合并统计，满足上述覆盖率要求即可
-3. 异常测试：暂不做要求
-
-### 其他开发流程说明
-代码开发完成之后，提[pr](https://github.com/opencurve/curve/compare)到curve的master分支。提交pr时，请填写pr模板。pr提交之后会自动触发CI，CI通过并且经过review之后，代码才可合入。CI的Jenkins用户名密码为netease/netease，如遇到CI运行失败可以登录Jenkins平台查看失败原因。
-具体规则请见[CONTRIBUTING](https://github.com/opencurve/curve/blob/master/CONTRIBUTING.md).
 
 ## 版本发布周期
 - CURVE版本发布周期：大版本半年，小版本1~2个月

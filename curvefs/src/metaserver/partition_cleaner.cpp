@@ -66,7 +66,7 @@ bool PartitionCleaner::ScanPartition() {
     }
 
     uint32_t partitionId = partition_->GetPartitionId();
-    if (partition_->GetInodeNum() == 0) {
+    if (partition_->EmptyInodeStorage()) {
         LOG(INFO) << "Inode num is 0, delete partition from metastore"
                   << ", partitonId = " << partitionId;
         MetaStatusCode ret = DeletePartition();

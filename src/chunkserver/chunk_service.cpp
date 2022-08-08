@@ -41,10 +41,12 @@
 namespace curve {
 namespace chunkserver {
 
-ChunkServiceImpl::ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions) :
+ChunkServiceImpl::ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions,
+    const std::shared_ptr<EpochMap> &epochMap) :
     chunkServiceOptions_(chunkServiceOptions),
     copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
-    inflightThrottle_(chunkServiceOptions.inflightThrottle) {
+    inflightThrottle_(chunkServiceOptions.inflightThrottle),
+    epochMap_(epochMap) {
     maxChunkSize_ = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
 }
 
@@ -115,6 +117,17 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
              << " size: " << request->size() << " buf header: "
              << *(unsigned int *) cntl->request_attachment().to_string().c_str()
              << " attachement size " << cntl->request_attachment().size();
+
+    if (request->has_epoch()) {
+        if (!epochMap_->CheckEpoch(request->fileid(), request->epoch())) {
+            LOG(WARNING) << "I/O request, op: " << request->optype()
+                         << ", CheckEpoch failed, ChunkRequest: "
+                         << request->ShortDebugString();
+            response->set_status(
+                CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD);
+            return;
+        }
+    }
 
     // 判断request参数是否合法
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
@@ -533,6 +546,25 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
                    << " error message: " << strerror(errno)
                    << " data store return: " << ret;
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    }
+}
+
+void ChunkServiceImpl::UpdateEpoch(RpcController *controller,
+                const UpdateEpochRequest *request,
+                UpdateEpochResponse *response,
+                Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+    bool success = epochMap_->UpdateEpoch(request->fileid(), request->epoch());
+    if (success) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        LOG(INFO) << "Update fileId: " << request->fileid()
+                  << " to epoch: " << request->epoch()
+                  << " success.";
+    } else {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD);
+        LOG(WARNING) << "Update fileId: " << request->fileid()
+                     << " to epoch: " << request->epoch()
+                     << " failed, epoch too old.";
     }
 }
 

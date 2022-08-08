@@ -23,16 +23,19 @@
 #ifndef CURVEFS_SRC_METASERVER_METASTORE_H_
 #define CURVEFS_SRC_METASERVER_METASTORE_H_
 
+#include <gtest/gtest_prod.h>
+
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
+
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/copyset/snapshot_closure.h"
-#include "curvefs/src/metaserver/partition.h"
-#include "curvefs/src/metaserver/metastore_fstream.h"
-#include "curvefs/src/metaserver/storage/iterator.h"
 #include "curvefs/src/common/rpc_stream.h"
+#include "curvefs/src/metaserver/copyset/snapshot_closure.h"
+#include "curvefs/src/metaserver/metastore_fstream.h"
+#include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/storage/iterator.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -79,15 +82,18 @@ using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamConnection;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
+using ::curvefs::metaserver::storage::StorageOptions;
+
 class MetaStore {
  public:
     MetaStore() = default;
     virtual ~MetaStore() = default;
 
     virtual bool Load(const std::string& pathname) = 0;
-    virtual bool Save(const std::string& path,
+    virtual bool Save(const std::string& dir,
                       OnSnapshotSaveDoneClosure* done) = 0;
     virtual bool Clear() = 0;
+    virtual bool Destroy() = 0;
     virtual MetaStatusCode CreatePartition(
         const CreatePartitionRequest* request,
         CreatePartitionResponse* response) = 0;
@@ -96,7 +102,8 @@ class MetaStore {
         const DeletePartitionRequest* request,
         DeletePartitionResponse* response) = 0;
 
-    virtual std::list<PartitionInfo> GetPartitionInfoList() = 0;
+    virtual bool GetPartitionInfoList(
+                            std::list<PartitionInfo> *partitionInfoList) = 0;
 
     virtual std::shared_ptr<StreamServer> GetStreamServer() = 0;
 
@@ -149,17 +156,27 @@ class MetaStore {
     virtual MetaStatusCode SendS3ChunkInfoByStream(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) = 0;
+
+    virtual MetaStatusCode GetVolumeExtent(
+        const GetVolumeExtentRequest* request,
+        GetVolumeExtentResponse* response) = 0;
+
+    virtual MetaStatusCode UpdateVolumeExtent(
+        const UpdateVolumeExtentRequest* request,
+        UpdateVolumeExtentResponse* response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
  public:
-    MetaStoreImpl(copyset::CopysetNode* node,
-                  std::shared_ptr<KVStorage> kvStorage_);
+    static std::unique_ptr<MetaStoreImpl> Create(
+        copyset::CopysetNode* node,
+        const storage::StorageOptions& storageOptions);
 
-    bool Load(const std::string& pathname) override;
-    bool Save(const std::string& path,
-        OnSnapshotSaveDoneClosure* done) override;
+    bool Load(const std::string& checkpoint) override;
+    bool Save(const std::string& dir,
+              OnSnapshotSaveDoneClosure* done) override;
     bool Clear() override;
+    bool Destroy() override;
 
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
                                    CreatePartitionResponse* response) override;
@@ -167,7 +184,8 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode DeletePartition(const DeletePartitionRequest* request,
                                    DeletePartitionResponse* response) override;
 
-    std::list<PartitionInfo> GetPartitionInfoList() override;
+    bool GetPartitionInfoList(
+                        std::list<PartitionInfo> *partitionInfoList) override;
 
     std::shared_ptr<StreamServer> GetStreamServer() override;
 
@@ -220,7 +238,31 @@ class MetaStoreImpl : public MetaStore {
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator) override;
 
+    MetaStatusCode GetVolumeExtent(const GetVolumeExtentRequest* request,
+                                   GetVolumeExtentResponse* response) override;
+
+    MetaStatusCode UpdateVolumeExtent(
+        const UpdateVolumeExtentRequest* request,
+        UpdateVolumeExtentResponse* response) override;
+
  private:
+    FRIEND_TEST(MetastoreTest, partition);
+    FRIEND_TEST(MetastoreTest, test_inode);
+    FRIEND_TEST(MetastoreTest, test_dentry);
+    FRIEND_TEST(MetastoreTest, persist_success);
+    FRIEND_TEST(MetastoreTest, DISABLED_persist_deleting_partition_success);
+    FRIEND_TEST(MetastoreTest, persist_partition_fail);
+    FRIEND_TEST(MetastoreTest, persist_dentry_fail);
+    FRIEND_TEST(MetastoreTest, testBatchGetInodeAttr);
+    FRIEND_TEST(MetastoreTest, testBatchGetXAttr);
+    FRIEND_TEST(MetastoreTest, GetOrModifyS3ChunkInfo);
+    FRIEND_TEST(MetastoreTest, GetInodeWithPaddingS3Meta);
+    FRIEND_TEST(MetastoreTest, TestUpdateVolumeExtent_PartitionNotFound);
+    FRIEND_TEST(MetastoreTest, persist_deleting_partition_success);
+
+    MetaStoreImpl(copyset::CopysetNode* node,
+                  const StorageOptions& storageOptions);
+
     void PrepareStreamBuffer(butil::IOBuf* buffer,
                              uint64_t chunkIndex,
                              const std::string& value);
@@ -228,6 +270,12 @@ class MetaStoreImpl : public MetaStore {
     void SaveBackground(const std::string& path,
                         DumpFileClosure* child,
                         OnSnapshotSaveDoneClosure* done);
+
+    bool InitStorage();
+
+    // Clear data and stop background tasks
+    // REQUIRES: rwLock_ is held with write permission
+    bool ClearInternal();
 
  private:
     RWLock rwLock_;  // protect partitionMap_
@@ -238,6 +286,8 @@ class MetaStoreImpl : public MetaStore {
     copyset::CopysetNode* copysetNode_;
 
     std::shared_ptr<StreamServer> streamServer_;
+
+    storage::StorageOptions storageOptions_;
 };
 
 }  // namespace metaserver

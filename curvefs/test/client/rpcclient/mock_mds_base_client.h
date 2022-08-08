@@ -37,12 +37,12 @@ class MockMDSBaseClient : public MDSBaseClient {
     ~MockMDSBaseClient() = default;
 
     MOCK_METHOD5(MountFs,
-                 void(const std::string &fsName, const std::string &mountPt,
+                 void(const std::string &fsName, const Mountpoint &mountPt,
                       MountFsResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
 
     MOCK_METHOD5(UmountFs,
-                 void(const std::string &fsName, const std::string &mountPt,
+                 void(const std::string &fsName, const Mountpoint &mountPt,
                       UmountFsResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
 
@@ -90,7 +90,7 @@ class MockMDSBaseClient : public MDSBaseClient {
                       brpc::Controller *cntl, brpc::Channel *channel));
 
     MOCK_METHOD4(RefreshSession,
-                 void(const std::vector<PartitionTxId> &txIds,
+                 void(const RefreshSessionRequest &request,
                       RefreshSessionResponse *response, brpc::Controller *cntl,
                       brpc::Channel *channel));
 

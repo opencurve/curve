@@ -43,8 +43,6 @@ enum FileType {
     INODE_SNAPSHOT_PAGEFILE = 4
 };
 
-const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
-
 typedef struct FileStatInfo {
     uint64_t        id;
     uint64_t        parentid;
@@ -83,6 +81,8 @@ typedef struct DirInfo {
 extern "C" {
 #endif
 
+const char* LibCurveErrorName(LIBCURVE_ERROR err);
+
 /**
  * 初始化系统
  * @param: path为配置文件路径
@@ -97,6 +97,15 @@ int Init(const char* path);
  * @return: 返回文件fd
  */
 int Open4Qemu(const char* filename);
+
+
+/**
+ * increase epoch
+ * @param: filename, filename include userinfo
+ *         e.g: /1.img_userinfo_
+ * @return: 0 for success, -1 for fail
+ */
+int IncreaseEpoch(const char* filename);
 
 /**
  * 打开文件，非qemu场景
@@ -393,6 +402,14 @@ class CurveClient {
      * 反初始化
      */
     virtual void UnInit();
+
+    /**
+     * increase epoch
+     * @param: filename, filename include userinfo
+     *         e.g: /1.img_userinfo_
+     * @return: 0 for success, -1 for fail
+     */
+    virtual int IncreaseEpoch(const std::string& filename);
 
     /**
      * 打开文件

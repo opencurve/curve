@@ -1,0 +1,6 @@
+[submodule "nbd"]
+	path = nbd
+	url = https://github.com/opencurve/curve-nbd
+[submodule "thirdparties/aws/aws-sdk-cpp"]
+	path = thirdparties/aws/aws-sdk-cpp
+	url = https://github.com/opencurve/aws-sdk-cpp

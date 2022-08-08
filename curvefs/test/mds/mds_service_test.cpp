@@ -25,7 +25,10 @@
 #include <brpc/channel.h>
 #include <brpc/server.h>
 #include <gmock/gmock.h>
+#include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <functional>
+#include <string>
 
 #include "curvefs/test/mds/fake_metaserver.h"
 #include "curvefs/test/mds/mock/mock_kvstorage_client.h"
@@ -33,6 +36,8 @@
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "test/common/mock_s3_adapter.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "proto/nameserver2.pb.h"
+#include "curvefs/test/mds/utils.h"
 
 using ::curve::common::MockS3Adapter;
 using ::curvefs::common::S3Info;
@@ -82,6 +87,7 @@ using ::testing::StrEq;
 
 using ::curve::common::MockS3Adapter;
 using ::curvefs::mds::space::MockSpaceManager;
+using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace mds {
@@ -119,22 +125,20 @@ class MdsServiceTest : public ::testing::Test {
             fsStorage_, spaceManager_, metaserverClient_, topoManager_,
             s3Adapter_, nullptr, fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
-        return;
     }
 
-    void TearDown() override {
-        return;
+    static bool CompareVolume(const Volume& first, const Volume& second) {
+#define COMPARE_FIELD(field)                     \
+    (first.has_##field() && second.has_##field() \
+         ? first.field() == second.field()       \
+         : true)
+
+        return COMPARE_FIELD(volumesize) && COMPARE_FIELD(blocksize) &&
+               COMPARE_FIELD(volumename) && COMPARE_FIELD(user) &&
+               COMPARE_FIELD(password);
     }
 
-    bool CompareVolume(const Volume& first, const Volume& second) {
-        return first.volumesize() == second.volumesize() &&
-               first.blocksize() == second.blocksize() &&
-               first.volumename() == second.volumename() &&
-               first.user() == second.user() &&
-               first.has_password() == second.has_password();
-    }
-
-    bool CompareFs(const FsInfo& first, const FsInfo& second) {
+    static bool CompareFs(const FsInfo& first, const FsInfo& second) {
         return first.fsid() == second.fsid() &&
                first.fsname() == second.fsname() &&
                first.rootinodeid() == second.rootinodeid() &&
@@ -181,6 +185,10 @@ TEST_F(MdsServiceTest, test1) {
         server.AddService(&mockCliService2, brpc::SERVER_DOESNT_OWN_SERVICE),
         0);
 
+    FakeCurveFSService fakeCurveFSService;
+    ASSERT_EQ(0, server.AddService(&fakeCurveFSService,
+                                   brpc::SERVER_DOESNT_OWN_SERVICE));
+
     // start rpc server
     brpc::ServerOptions option;
     std::string addr = "127.0.0.1:6703";
@@ -203,8 +211,11 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.set_enablesumindir(false);
-    createRequest.mutable_fsdetail();
-    createRequest.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+    auto* detail = createRequest.mutable_fsdetail();  // force allocate detail
+    (void)detail;
+
+    const auto capacity = 100ULL << 30;
+    createRequest.set_capacity(capacity);
     createRequest.set_owner("test");
 
     FsInfo fsinfo1;
@@ -218,12 +229,14 @@ TEST_F(MdsServiceTest, test1) {
 
     // type if volume, create ok
     Volume volume;
-    volume.set_volumesize(4096 * 4096);
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
     volume.set_blockgroupsize(128ull * 1024 * 1024);
     volume.set_bitmaplocation(common::BitmapLocation::AtStart);
+    volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
+    volume.set_autoextend(false);
+    volume.add_cluster("127.0.0.1:6703");
 
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
@@ -254,11 +267,13 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_EQ(fsinfo1.fsid(), 0);
         ASSERT_EQ(fsinfo1.fsname(), "fs1");
         ASSERT_EQ(fsinfo1.rootinodeid(), 1);
-        ASSERT_EQ(fsinfo1.capacity(), 4096 * 4096);
+        ASSERT_EQ(fsinfo1.capacity(), capacity);
         ASSERT_EQ(fsinfo1.blocksize(), 4096);
         ASSERT_EQ(fsinfo1.mountnum(), 0);
         ASSERT_EQ(fsinfo1.mountpoints_size(), 0);
-        ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()));
+        ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()))
+            << "Request:\n" << volume.DebugString()
+            << ", response:\n" << fsinfo1.detail().volume().DebugString();
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -338,11 +353,15 @@ TEST_F(MdsServiceTest, test1) {
 
     // test MountFs
     cntl.Reset();
-    std::string mountPoint = "host1:/a/b/c";
+    Mountpoint mountPoint;
+    mountPoint.set_hostname("host1");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     MountFsRequest mountRequest;
     MountFsResponse mountResponse;
     mountRequest.set_fsname("fs1");
-    mountRequest.set_mountpoint(mountPoint);
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
@@ -350,7 +369,8 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_TRUE(CompareFs(mountResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(mountResponse.fsinfo().mountnum(), 1);
         ASSERT_EQ(mountResponse.fsinfo().mountpoints_size(), 1);
-        ASSERT_EQ(mountResponse.fsinfo().mountpoints(0), mountPoint);
+        ASSERT_EQ(MessageDifferencer::Equals(
+                      mountResponse.fsinfo().mountpoints(0), mountPoint), true);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -359,15 +379,20 @@ TEST_F(MdsServiceTest, test1) {
     cntl.Reset();
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::MOUNT_POINT_EXIST);
+        ASSERT_EQ(mountResponse.statuscode(),
+                  FSStatusCode::MOUNT_POINT_CONFLICT);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
 
     cntl.Reset();
-    std::string mountPoint2 = "host1:/a/b/d";
-    mountRequest.set_mountpoint(mountPoint2);
+    Mountpoint mountPoint2;
+    mountPoint2.set_hostname("host1");
+    mountPoint2.set_port(9000);
+    mountPoint2.set_path("/a/b/d");
+    mountPoint2.set_cto(false);
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint2));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
@@ -381,8 +406,12 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     cntl.Reset();
-    std::string mountPoint3 = "host2:/a/b/d";
-    mountRequest.set_mountpoint(mountPoint3);
+    Mountpoint mountPoint3;
+    mountPoint3.set_hostname("host2");
+    mountPoint3.set_port(9000);
+    mountPoint3.set_path("/a/b/d");
+    mountPoint3.set_cto(false);
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint3));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
@@ -396,8 +425,11 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     cntl.Reset();
-    mountPoint = "host2:/a/b/c";
-    mountRequest.set_mountpoint(mountPoint);
+    mountPoint.set_hostname("host2");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
+    mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::OK);
@@ -553,8 +585,10 @@ TEST_F(MdsServiceTest, test1) {
     UmountFsRequest umountRequest;
     UmountFsResponse umountResponse;
     umountRequest.set_fsname(fsinfo1.fsname());
-    mountPoint = "host1:/a/b/c";
-    umountRequest.set_mountpoint(mountPoint);
+    mountPoint.set_hostname("host1");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/a/b/c");
+    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
@@ -574,8 +608,10 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     cntl.Reset();
-    mountPoint = "host2:/a/b/c";
-    umountRequest.set_mountpoint(mountPoint);
+    mountPoint.set_hostname("host2");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/a/b/c");
+    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
@@ -594,6 +630,49 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_TRUE(CompareFs(getResponse.fsinfo(), fsinfo1));
         ASSERT_EQ(getResponse.fsinfo().mountnum(), 2);
         ASSERT_EQ(getResponse.fsinfo().mountpoints_size(), 2);
+    } else {
+        LOG(ERROR) << "error = " << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // test refresh session
+    cntl.Reset();
+    RefreshSessionRequest refreshSessionRequest;
+    RefreshSessionResponse refreshSessionResponse;
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+    std::vector<PartitionTxId> partitionList({std::move(tmp)});
+    std::string fsName = "fs1";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
+    *refreshSessionRequest.mutable_txids() = {partitionList.begin(),
+                                              partitionList.end()};
+    refreshSessionRequest.set_fsname(fsName);
+    *refreshSessionRequest.mutable_mountpoint() = mountpoint;
+    EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
+        .WillOnce(SetArgPointee<1>(partitionList));
+    stub.RefreshSession(&cntl, &refreshSessionRequest, &refreshSessionResponse,
+                        NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(refreshSessionResponse.statuscode(), FSStatusCode::OK);
+        ASSERT_EQ(1, refreshSessionResponse.latesttxidlist_size());
+        std::pair<std::string, uint64_t> tpair;
+        std::string mountpath = "127.0.0.1:9000:/mnt";
+        ASSERT_TRUE(fsManager_->GetClientAliveTime(mountpath, &tpair));
+        ASSERT_EQ(fsName, tpair.first);
+        // RefreshSession will add a mountpoint to fs1
+        cntl.Reset();
+        UmountFsRequest umountRequest;
+        UmountFsResponse umountResponse;
+        umountRequest.set_fsname("fs1");
+        mountPoint.set_hostname("127.0.0.1");
+        mountPoint.set_port(9000);
+        mountPoint.set_path("/mnt");
+        umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
+        stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -623,8 +702,10 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     cntl.Reset();
-    mountPoint = "host1:/a/b/d";
-    umountRequest.set_mountpoint(mountPoint);
+    mountPoint.set_hostname("host1");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/a/b/d");
+    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
@@ -634,8 +715,10 @@ TEST_F(MdsServiceTest, test1) {
     }
 
     cntl.Reset();
-    mountPoint = "host2:/a/b/d";
-    umountRequest.set_mountpoint(mountPoint);
+    mountPoint.set_hostname("host2");
+    mountPoint.set_port(9000);
+    mountPoint.set_path("/a/b/d");
+    umountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.UmountFs(&cntl, &umountRequest, &umountResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(umountResponse.statuscode(), FSStatusCode::OK);
@@ -649,29 +732,6 @@ TEST_F(MdsServiceTest, test1) {
     stub.DeleteFs(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), FSStatusCode::OK);
-    } else {
-        LOG(ERROR) << "error = " << cntl.ErrorText();
-        ASSERT_TRUE(false);
-    }
-
-    // test refresh session
-    cntl.Reset();
-    RefreshSessionRequest refreshSessionRequest;
-    RefreshSessionResponse refreshSessionResponse;
-    PartitionTxId tmp;
-    tmp.set_partitionid(1);
-    tmp.set_txid(1);
-    std::vector<PartitionTxId> partitionList({std::move(tmp)});
-    *refreshSessionRequest.mutable_txids() = {partitionList.begin(),
-                                              partitionList.end()};
-
-    EXPECT_CALL(*topoManager_, GetLatestPartitionsTxId(_, _))
-        .WillOnce(SetArgPointee<1>(partitionList));
-    stub.RefreshSession(&cntl, &refreshSessionRequest, &refreshSessionResponse,
-                        NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(refreshSessionResponse.statuscode(), FSStatusCode::OK);
-        ASSERT_EQ(1, refreshSessionResponse.latesttxidlist_size());
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);

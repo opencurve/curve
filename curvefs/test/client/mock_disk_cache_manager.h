@@ -47,7 +47,8 @@ class MockDiskCacheManager : public DiskCacheManager {
     ~MockDiskCacheManager() {}
 
     MOCK_METHOD2(Init,
-                 int(S3Client *client, const S3ClientAdaptorOption option));
+                 int(std::shared_ptr<S3Client> client,
+                 const S3ClientAdaptorOption option));
     MOCK_METHOD0(IsDiskCacheFull,
                  bool());
     MOCK_METHOD3(WriteReadDirect,

@@ -102,6 +102,20 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
             const ::curvefs::metaserver::GetOrModifyS3ChunkInfoRequest *request,
              ::curvefs::metaserver::GetOrModifyS3ChunkInfoResponse *response,
              ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(
+        GetVolumeExtent,
+        void(::google::protobuf::RpcController *controller,
+             const ::curvefs::metaserver::GetVolumeExtentRequest *request,
+             ::curvefs::metaserver::GetVolumeExtentResponse *response,
+             ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(
+        UpdateVolumeExtent,
+        void(::google::protobuf::RpcController *controller,
+             const ::curvefs::metaserver::UpdateVolumeExtentRequest *request,
+             ::curvefs::metaserver::UpdateVolumeExtentResponse *response,
+             ::google::protobuf::Closure *done));
 };
 }  // namespace rpcclient
 }  // namespace client

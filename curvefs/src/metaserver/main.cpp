@@ -27,6 +27,8 @@
 #include "curvefs/src/common/process.h"
 #include "curvefs/src/metaserver/metaserver.h"
 #include "src/common/configuration.h"
+#include "curvefs/src/common/dynamic_vlog.h"
+#include "curvefs/src/common/threading.h"
 
 DEFINE_string(confPath, "curvefs/conf/metaserver.conf", "metaserver confPath");
 DEFINE_string(ip, "127.0.0.1", "metasetver listen ip");
@@ -43,6 +45,23 @@ DEFINE_string(raftSnapshotUri, "local://mnt/data/copysets",
 DECLARE_int32(v);
 
 using ::curve::common::Configuration;
+using ::curvefs::common::FLAGS_vlog_level;
+
+namespace bthread {
+extern void (*g_worker_startfn)();
+}
+
+namespace {
+
+void SetBthreadWorkerName() {
+    static std::atomic<int> counter(0);
+
+    char buffer[16] = {0};
+    snprintf(buffer, sizeof(buffer), "bthread:%d",
+             counter.fetch_add(1, std::memory_order_relaxed));
+
+    curvefs::common::SetThreadName(buffer);
+}
 
 void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
@@ -86,6 +105,8 @@ void LoadConfigFromCmdline(Configuration *conf) {
     }
 }
 
+}  // namespace
+
 int main(int argc, char **argv) {
     // config initialization
     google::ParseCommandLineFlags(&argc, &argv, false);
@@ -93,13 +114,16 @@ int main(int argc, char **argv) {
     ::curvefs::common::Process::InitSetProcTitle(argc, argv);
     butil::AtExitManager atExit;
 
+    bthread::g_worker_startfn = SetBthreadWorkerName;
+
     std::string confPath = FLAGS_confPath;
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath(confPath);
     LOG_IF(FATAL, !conf->LoadConfig())
         << "load metaserver configuration fail, conf path = " << confPath;
-    LoadConfigFromCmdline(conf.get());
     conf->GetValueFatalIfFail("metaserver.loglevel", &FLAGS_v);
+    LoadConfigFromCmdline(conf.get());
+    FLAGS_vlog_level = FLAGS_v;
 
     // initialize logging module
     google::InitGoogleLogging(argv[0]);
@@ -120,6 +144,7 @@ int main(int argc, char **argv) {
     // stop server and background threads
     metaserver.Stop();
 
+    curve::common::S3Adapter::Shutdown();
     google::ShutdownGoogleLogging();
     return 0;
 }

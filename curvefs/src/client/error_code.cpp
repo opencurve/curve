@@ -31,7 +31,7 @@ namespace client {
 
 using ::curvefs::metaserver::MetaStatusCode;
 
-std::map<CURVEFS_ERROR, std::string> err2Msg = {
+static const std::map<CURVEFS_ERROR, std::string> err2Msg = {
     {CURVEFS_ERROR::OK, "OK"},
     {CURVEFS_ERROR::INTERNAL, "internal error"},
     {CURVEFS_ERROR::UNKNOWN, "unknown"},
@@ -50,10 +50,15 @@ std::map<CURVEFS_ERROR, std::string> err2Msg = {
 };
 
 std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {
-    os << static_cast<int>(code)
-       << "["
-       << err2Msg[code]
-       << "]";
+    os << static_cast<int>(code) << "[" << [code]() {
+        auto it = err2Msg.find(code);
+        if (it != err2Msg.end()) {
+            return it->second;
+        }
+
+        return std::string{"Unknown"};
+    }() << "]";
+
     return os;
 }
 

@@ -311,7 +311,7 @@ class FakeTopologyServiceManager : public TopologyServiceManager {
     FakeTopologyServiceManager() :
         TopologyServiceManager(std::make_shared<FakeTopo>(),
             std::make_shared<CopysetManager>(
-                ::curve::mds::copyset::CopysetOption{})) {}
+                ::curve::mds::copyset::CopysetOption{}), nullptr) {}
 
     bool CreateCopysetNodeOnChunkServer(
         ChunkServerIdType csId,

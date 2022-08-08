@@ -28,6 +28,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/mds/chunkid_allocator.h"
@@ -39,12 +40,10 @@ namespace mds {
 
 class MdsServiceImpl : public MdsService {
  public:
-    explicit MdsServiceImpl(
-        std::shared_ptr<FsManager> fsManager,
-        std::shared_ptr<ChunkIdAllocator> chunkIdAllocator) {
-        fsManager_ = fsManager;
-        chunkIdAllocator_ = chunkIdAllocator;
-    }
+    MdsServiceImpl(std::shared_ptr<FsManager> fsManager,
+                   std::shared_ptr<ChunkIdAllocator> chunkIdAllocator)
+        : fsManager_(std::move(fsManager)),
+          chunkIdAllocator_(std::move(chunkIdAllocator)) {}
 
     void CreateFs(::google::protobuf::RpcController* controller,
                   const CreateFsRequest* request,

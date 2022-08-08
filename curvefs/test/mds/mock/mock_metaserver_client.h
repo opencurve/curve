@@ -23,6 +23,7 @@
 #ifndef CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_CLIENT_H_
 #define CURVEFS_TEST_MDS_MOCK_MOCK_METASERVER_CLIENT_H_
 
+#include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock.h>
 #include <set>
 #include <string>
@@ -46,6 +47,11 @@ class MockMetaserverClient : public MetaserverClient {
                                  const std::set<std::string> &addrs));
     MOCK_METHOD3(CreateCopySet, FSStatusCode(uint32_t poolId,
             uint32_t copysetId, const std::set<std::string> &addrs));
+    MOCK_METHOD4(DeletePartition, FSStatusCode(uint32_t poolId,
+        uint32_t copysetId, uint32_t partitionId,
+        const std::set<std::string> &addrs));
+    MOCK_METHOD3(CreateCopySetOnOneMetaserver, FSStatusCode(uint32_t poolId,
+                 uint32_t copysetId, const std::string &addr));
 };
 
 }  // namespace mds

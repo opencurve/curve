@@ -25,11 +25,12 @@
 #include <butil/time.h>
 #include <bvar/bvar.h>
 
+#include <atomic>
 #include <unordered_set>
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
-#include "curvefs/src/volume/utils.h"
+#include "curvefs/src/volume/common.h"
 #include "src/common/fast_align.h"
 
 namespace curvefs {
@@ -45,7 +46,7 @@ SpaceManagerImpl::SpaceManagerImpl(
     const std::shared_ptr<BlockDeviceClient>& blockDev)
     : totalBytes_(0),
       availableBytes_(0),
-      blockSize_(option.blockGroupManagerOption.blockGroupSize),
+      blockSize_(option.blockGroupManagerOption.blockSize),
       blockGroupSize_(option.blockGroupManagerOption.blockGroupSize),
       blockGroupManager_(
           new BlockGroupManagerImpl(this,
@@ -64,7 +65,7 @@ bool SpaceManagerImpl::Alloc(uint32_t size,
     timer.start();
 
     if (availableBytes_.load(std::memory_order_acquire) < size) {
-        auto ret = AllocateBlockGroup();
+        auto ret = AllocateBlockGroup(size);
         if (!ret) {
             LOG(ERROR) << "Allocate block group error";
             metric_.errorCount << 1;
@@ -75,8 +76,9 @@ bool SpaceManagerImpl::Alloc(uint32_t size,
     int64_t left = size;
     while (left > 0) {
         auto allocated = AllocInternal(left, hint, extents);
+        availableBytes_.fetch_sub(allocated, std::memory_order_relaxed);
         if (allocated < left) {
-            auto ret = AllocateBlockGroup();
+            auto ret = AllocateBlockGroup(left);
             if (!ret) {
                 LOG(ERROR) << "Allocate block group error";
                 metric_.errorCount << 1;
@@ -164,9 +166,10 @@ bool SpaceManagerImpl::UpdateBitmap(const std::vector<Extent>& exts) {
     ReadLockGuard lk(updatersLock_);
 
     std::unordered_set<BlockGroupBitmapUpdater*> dirty;
-    for (auto& ext : exts) {
+    for (const auto& ext : exts) {
         BlockGroupBitmapUpdater* updater = FindBitmapUpdater(ext);
         updater->Update(ext, BlockGroupBitmapUpdater::Set);
+        dirty.insert(updater);
     }
 
     for (auto d : dirty) {
@@ -208,30 +211,27 @@ bool SpaceManagerImpl::Shutdown() {
     return ret;
 }
 
-bool SpaceManagerImpl::AllocateBlockGroup() {
+bool SpaceManagerImpl::AllocateBlockGroup(uint64_t hint) {
     {
         std::unique_lock<std::mutex> lk(mtx_);
         if (allocating_) {
             cond_.wait(lk);
+        }
+
+        if (availableBytes_.load(std::memory_order_relaxed) >= hint) {
             return true;
         }
     }
 
-    {
-        std::lock_guard<std::mutex> lk(mtx_);
-        allocating_ = true;
-    }
-
-    auto wakeup = absl::MakeCleanup([this]() {
-        std::unique_lock<std::mutex> lk(mtx_);
-        allocating_ = false;
-        cond_.notify_all();
-    });
+    std::lock_guard<std::mutex> lk(mtx_);
+    allocating_ = true;
 
     std::vector<AllocatorAndBitmapUpdater> out;
     auto ret = blockGroupManager_->AllocateBlockGroup(&out);
     if (!ret) {
         LOG(ERROR) << "Allocate block group failed";
+        allocating_ = false;
+        cond_.notify_all();
         return false;
     }
 
@@ -252,6 +252,8 @@ bool SpaceManagerImpl::AllocateBlockGroup() {
     availableBytes_.fetch_add(available, std::memory_order_release);
     totalBytes_.fetch_add(total, std::memory_order_release);
 
+    allocating_ = false;
+    cond_.notify_all();
     return true;
 }
 

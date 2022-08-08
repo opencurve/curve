@@ -22,13 +22,23 @@
 
 #include "curvefs/src/mds/space/volume_space.h"
 
+#include <bthread/mutex.h>
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <cmath>
+#include <memory>
+#include <mutex>
 #include <set>
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "curvefs/proto/common.pb.h"
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/space.pb.h"
+#include "curvefs/src/common/fast_align.h"
+#include "curvefs/src/mds/fs_info_wrapper.h"
+#include "curvefs/src/mds/space/mds_proxy_manager.h"
 
 namespace curvefs {
 namespace mds {
@@ -55,13 +65,16 @@ BlockGroup BuildBlockGroupFromClean(uint64_t offset,
 }  // namespace
 
 std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
-                                                 uint64_t size,
-                                                 uint32_t blockSize,
-                                                 uint64_t blockGroupSize,
-                                                 BitmapLocation location,
-                                                 BlockGroupStorage* storage) {
-    auto space = absl::WrapUnique(new VolumeSpace(
-        fsId, size, blockSize, blockGroupSize, location, storage));
+                                                 const Volume& volume,
+                                                 BlockGroupStorage* storage,
+                                                 FsStorage* fsStorage) {
+    if (!volume.has_volumesize()) {
+        LOG(ERROR) << "Volume info doesn't have size";
+        return nullptr;
+    }
+
+    auto space =
+        absl::WrapUnique(new VolumeSpace(fsId, volume, storage, fsStorage));
 
     // reload from storage
     std::vector<BlockGroup> groups;
@@ -72,7 +85,12 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
         return nullptr;
     }
 
-    // only record availabe block groups and clean groups
+    const auto blockGroupSize = volume.blockgroupsize();
+    const auto location = volume.bitmaplocation();
+    const auto volumeSize = volume.volumesize();
+    const auto blockSize = volume.blocksize();
+
+    // only record available block groups and clean groups
     // for allocated groups, client will send heartbeat to update usage
     uint64_t availableSize = 0;
     std::set<uint64_t> usedGroupOffsets;
@@ -93,7 +111,7 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
     }
 
     std::set<uint64_t> allOffsets;
-    for (uint64_t off = 0; off < size; off += blockGroupSize) {
+    for (uint64_t off = 0; off < volumeSize; off += blockGroupSize) {
         allOffsets.insert(off);
     }
 
@@ -106,10 +124,10 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
     space->cleanGroups_ = std::move(cleanGroupOffsets);
 
     LOG(INFO) << "Init volume space success, fsId: " << fsId
-              << ", size: " << size << ", available: " << availableSize
+              << ", size: " << volumeSize << ", available: " << availableSize
               << ", block size: " << blockSize
               << ", block group size: " << blockGroupSize
-              << ", total groups: " << size / blockGroupSize
+              << ", total groups: " << volumeSize / blockGroupSize
               << ", allocated groups: " << space->allocatedGroups_.size()
               << ", available groups: " << space->availableGroups_.size()
               << ", clean groups: " << space->cleanGroups_.size();
@@ -118,17 +136,13 @@ std::unique_ptr<VolumeSpace> VolumeSpace::Create(uint32_t fsId,
 }
 
 VolumeSpace::VolumeSpace(uint32_t fsId,
-                         uint64_t size,
-                         uint32_t blockSize,
-                         uint64_t blockGroupSize,
-                         BitmapLocation location,
-                         BlockGroupStorage* storage)
+                         Volume volume,
+                         BlockGroupStorage* storage,
+                         FsStorage* fsStorage)
     : fsId_(fsId),
-      blockSize_(blockSize),
-      blockGroupSize_(blockGroupSize),
-      bitmapLocation_(location),
-      volumeSize_(size),
-      storage_(storage) {}
+      volume_(std::move(volume)),
+      storage_(storage),
+      fsStorage_(fsStorage) {}
 
 SpaceErrCode VolumeSpace::AllocateBlockGroups(
     uint32_t count,
@@ -160,20 +174,35 @@ SpaceErrCode VolumeSpace::AllocateBlockGroupsInternal(
     uint32_t count,
     const std::string& owner,
     std::vector<BlockGroup>* blockGroups) {
+    bool extend = false;
     uint32_t allocated = 0;
-    allocated += AllocateFromCleanGroups(count, owner, blockGroups);
 
-    if (allocated >= count) {
-        return SpaceOk;
+    while (allocated < count) {
+        allocated += AllocateFromCleanGroups(count, owner, blockGroups);
+        if (allocated >= count) {
+            return SpaceOk;
+        }
+
+        allocated +=
+            AllocateFromAvailableGroups(count - allocated, owner, blockGroups);
+        if (allocated >= count) {
+            return SpaceOk;
+        }
+
+        if (!extend) {
+            extend = true;
+            auto ret = ExtendVolume();
+            if (ret != SpaceOk) {
+                LOG(WARNING) << "Fail to extend volume, fsId: " << fsId_
+                             << ", err: " << SpaceErrCode_Name(ret);
+                // don't expose internal error
+                return SpaceErrNoSpace;
+            }
+        } else {
+            break;
+        }
     }
 
-    allocated +=
-        AllocateFromAvailableGroups(count - allocated, owner, blockGroups);
-    if (allocated >= count) {
-        return SpaceOk;
-    }
-
-    // TODO(wuhanqing): extent the volume
     return SpaceErrNoSpace;
 }
 
@@ -187,8 +216,8 @@ uint32_t VolumeSpace::AllocateFromCleanGroups(uint32_t count,
         it = cleanGroups_.erase(it);
 
         ++allocated;
-        groups->push_back(BuildBlockGroupFromClean(offset, blockGroupSize_,
-                                                   bitmapLocation_, owner));
+        groups->push_back(BuildBlockGroupFromClean(
+            offset, volume_.blockgroupsize(), volume_.bitmaplocation(), owner));
     }
 
     return allocated;
@@ -271,9 +300,10 @@ SpaceErrCode VolumeSpace::AcquireBlockGroupInternal(uint64_t blockGroupOffset,
                      << ", block group offset: " << blockGroupOffset
                      << ", owner: " << owner;
 
-        if (cleanGroups_.count(blockGroupOffset)) {
-            *group = BuildBlockGroupFromClean(blockGroupOffset, blockGroupSize_,
-                                              bitmapLocation_, owner);
+        if (cleanGroups_.count(blockGroupOffset) != 0) {
+            *group = BuildBlockGroupFromClean(blockGroupOffset,
+                                              volume_.blockgroupsize(),
+                                              volume_.bitmaplocation(), owner);
             allocatedGroups_.emplace(blockGroupOffset, *group);
             return SpaceOk;
         }
@@ -338,7 +368,7 @@ SpaceErrCode VolumeSpace::PersistBlockGroup(const BlockGroup& group) {
 SpaceErrCode VolumeSpace::PersistBlockGroups(
     const std::vector<BlockGroup>& blockGroups) {
     SpaceErrCode err = SpaceOk;
-    for (auto& group : blockGroups) {
+    for (const auto& group : blockGroups) {
         err = PersistBlockGroup(group);
 
         // TODO(wuhanqing): handle error, and rollback if necessary
@@ -389,6 +419,78 @@ SpaceErrCode VolumeSpace::RemoveAllBlockGroups() {
     cleanGroups_.clear();
 
     return SpaceOk;
+}
+
+bool VolumeSpace::UpdateFsInfo(uint64_t origin, uint64_t extended) {
+    FsInfoWrapper fsInfo;
+    auto ret = fsStorage_->Get(fsId_, &fsInfo);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "Fail to get fs info from storage, fsId: " << fsId_;
+        return false;
+    }
+
+    fsInfo.SetCapacity(fsInfo.GetCapacity() + (extended - origin));
+    fsInfo.SetVolumeSize(extended);
+    ret = fsStorage_->Update(fsInfo);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "Fail to update fs info, fsId: " << fsId_;
+        return false;
+    }
+
+    return true;
+}
+
+void VolumeSpace::AddCleanGroups(uint64_t origin, uint64_t extended) {
+    for (auto offset = origin; offset < extended;
+         offset += volume_.blockgroupsize()) {
+        cleanGroups_.insert(offset);
+    }
+}
+
+SpaceErrCode VolumeSpace::ExtendVolume() {
+    if (!volume_.autoextend()) {
+        LOG(WARNING) << "Auto extend is not supported, fsId: " << fsId_
+                     << ", volume: " << volume_.volumename();
+        return SpaceErrNotSupport;
+    }
+
+    const auto origin = volume_.volumesize();
+    const auto extended =
+        ExtendedSize(origin, volume_.extendfactor(), volume_.extendalignment());
+
+    LOG(INFO) << "Going to extend volume size from " << volume_.volumesize()
+              << " to " << extended;
+
+    auto* proxy = MdsProxyManager::GetInstance().GetOrCreateProxy(
+        {volume_.cluster().begin(), volume_.cluster().end()});
+    if (proxy == nullptr) {
+        LOG(WARNING) << "Fail to get or create proxy";
+        return SpaceErrUnknown;
+    }
+
+    auto ret = proxy->ExtendVolume(volume_, extended);
+    if (!ret) {
+        LOG(WARNING) << "Fail to extend volume";
+        return SpaceErrExtendVolumeError;
+    }
+
+    if (!UpdateFsInfo(origin, extended)) {
+        LOG(WARNING) << "Fail to update fs info";
+        return SpaceErrStorage;
+    }
+
+    volume_.set_volumesize(extended);
+    AddCleanGroups(origin, extended);
+
+    LOG(INFO) << "Extended volume size from " << origin << " to " << extended;
+
+    return SpaceOk;
+}
+
+uint64_t ExtendedSize(uint64_t origin, double factor, uint64_t alignment) {
+    return common::align_up(
+        static_cast<uint64_t>(std::floor(static_cast<double>(origin) * factor)),
+        alignment);
 }
 
 }  // namespace space

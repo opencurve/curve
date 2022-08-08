@@ -23,6 +23,7 @@
 #define CURVEFS_SRC_TOOLS_CURVEFS_TOOL_H_
 
 #include <brpc/channel.h>
+#include <bthread/bthread.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/service.h>
 #include <json/json.h>
@@ -48,6 +49,7 @@ DECLARE_string(confPath);
 DECLARE_uint32(rpcTimeoutMs);
 DECLARE_uint32(rpcRetryTimes);
 DECLARE_uint32(rpcStreamIdleTimeoutMs);
+DECLARE_uint32(rpcRetryIntervalUs);
 
 namespace curvefs {
 namespace tools {
@@ -210,7 +212,6 @@ class CurvefsToolRpc : public CurvefsTool {
         uint32_t failHostNumber = 0;
         bool ret = false;
         for (const std::string& host : hostsAddr_) {
-            SetController();
             brpc::ChannelOptions channelOpt;
             if (isStreaming_) {
                 // set stream rpc client
@@ -230,11 +231,30 @@ class CurvefsToolRpc : public CurvefsTool {
                 ++failHostNumber;
                 continue;
             }
-            // if service_stub_func_ does not assign a value
-            // it will crash in there
-            service_stub_func_(controller_.get(), &requestQueue_.front(),
-                               response_.get());
-            if (controller_->Failed()) {
+            uint32_t i = 0;
+            bool changeServer = false;
+            for (i = 0; i <= FLAGS_rpcRetryTimes; ++i) {
+                controller_->Reset();
+                SetController();
+                // if service_stub_func_ does not assign a value
+                // it will crash in there
+                service_stub_func_(controller_.get(), &requestQueue_.front(),
+                                   response_.get());
+                if (!controller_->Failed()) {
+                    // send success
+                    break;
+                }
+                int32_t retCode = controller_->ErrorCode();
+                if (retCode == EHOSTDOWN || retCode == ECONNRESET ||
+                    retCode == ECONNREFUSED || retCode == brpc::ELOGOFF) {
+                    // no need to retry
+                    changeServer = true;
+                    bthread_usleep(FLAGS_rpcRetryIntervalUs);
+                    break;
+                }
+                bthread_usleep(FLAGS_rpcRetryIntervalUs);
+            }
+            if (i > FLAGS_rpcRetryTimes || changeServer) {
                 ++failHostNumber;
             }
             if (isStreaming_) {
@@ -265,7 +285,7 @@ class CurvefsToolRpc : public CurvefsTool {
 
     virtual void SetController() {
         controller_->set_timeout_ms(FLAGS_rpcTimeoutMs);
-        controller_->set_max_retry(FLAGS_rpcRetryTimes);
+        controller_->set_max_retry(0);
     }
 
     void AddUpdateFlagsFunc(

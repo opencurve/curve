@@ -25,7 +25,8 @@
 #define CURVEFS_SRC_CLIENT_INODE_WRAPPER_H_
 
 #include <sys/stat.h>
-
+#include <climits>
+#include <cstdint>
 #include <utility>
 #include <memory>
 #include <string>
@@ -36,15 +37,28 @@
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/client/volume/extent_cache.h"
+#include "curvefs/src/client/metric/client_metric.h"
+#include "src/common/timeutility.h"
 
 using ::curvefs::metaserver::Inode;
 using ::curvefs::metaserver::InodeOpenStatusChange;
-using ::curvefs::metaserver::VolumeExtentList;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::metaserver::S3ChunkInfo;
 
 namespace curvefs {
 namespace client {
+
+#define REFRESH_NLINK_IF_NEED               \
+do {                                        \
+    if (!isNlinkValid_) {                   \
+        CURVEFS_ERROR ret = RefreshNlink(); \
+        if (ret != CURVEFS_ERROR::OK) {     \
+            return ret;                     \
+        }                                   \
+    }                                       \
+} while (0)
+
+using ::curvefs::metaserver::VolumeExtentList;
 
 enum InodeStatus {
     Normal = 0,
@@ -56,34 +70,63 @@ const uint32_t kOptimalIOBlockSize = 0x10000u;
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using rpcclient::MetaServerClientDone;
+using metric::S3ChunkInfoMetric;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
     google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap);
 
+extern bvar::Adder<int64_t> g_alive_inode_count;
+
 class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
     InodeWrapper(const Inode &inode,
-        const std::shared_ptr<MetaServerClient> &metaClient)
-      : inode_(inode),
-        status_(InodeStatus::Normal),
-        metaClient_(metaClient),
-        openCount_(0),
-        dirty_(false) {
-        BuildExtentCache();
-        }
+                 const std::shared_ptr<MetaServerClient> &metaClient,
+                 const std::shared_ptr<S3ChunkInfoMetric>
+                    &s3ChunkInfoMetric = nullptr,
+                 uint64_t maxDataSize = ULONG_MAX,
+                 uint32_t refreshDataInterval = UINT_MAX)
+        : inode_(inode),
+          status_(InodeStatus::Normal),
+          isNlinkValid_(true),
+          metaClient_(metaClient),
+          s3ChunkInfoMetric_(s3ChunkInfoMetric),
+          dirty_(false),
+          baseMaxDataSize_(maxDataSize),
+          maxDataSize_(maxDataSize),
+          refreshDataInterval_(refreshDataInterval),
+          lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
+          s3ChunkInfoAddSize_(0) {
+              UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
+              g_alive_inode_count << 1;
+          }
 
     InodeWrapper(Inode &&inode,
-        const std::shared_ptr<MetaServerClient> &metaClient)
-      : inode_(std::move(inode)),
-        status_(InodeStatus::Normal),
-        metaClient_(metaClient),
-        openCount_(0),
-        dirty_(false) {
-        BuildExtentCache();
-        }
+                 const std::shared_ptr<MetaServerClient> &metaClient,
+                 const std::shared_ptr<S3ChunkInfoMetric>
+                    &s3ChunkInfoMetric = nullptr,
+                 uint64_t maxDataSize = ULONG_MAX,
+                 uint32_t refreshDataInterval = UINT_MAX)
+        : inode_(std::move(inode)),
+          status_(InodeStatus::Normal),
+          isNlinkValid_(true),
+          metaClient_(metaClient),
+          s3ChunkInfoMetric_(s3ChunkInfoMetric),
+          dirty_(false),
+          baseMaxDataSize_(maxDataSize),
+          maxDataSize_(maxDataSize),
+          refreshDataInterval_(refreshDataInterval),
+          lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
+          s3ChunkInfoAddSize_(0) {
+              UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
+              g_alive_inode_count << 1;
+          }
 
-    ~InodeWrapper() {}
+    ~InodeWrapper() {
+        UpdateS3ChunkInfoMetric(-s3ChunkInfoSize_ - s3ChunkInfoAddSize_);
+        g_alive_inode_count << -1;
+    }
 
     uint64_t GetInodeId() const {
         return inode_.inodeid();
@@ -103,6 +146,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
     void SetLength(uint64_t len) {
+        if (inode_.length() > len) {
+            return;
+        }
+
         inode_.set_length(len);
         dirty_ = true;
     }
@@ -132,6 +179,24 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         dirty_ = true;
     }
 
+    void SetMTime(uint64_t mtime, uint32_t mtime_ns) {
+        inode_.set_mtime(mtime);
+        inode_.set_mtime_ns(mtime_ns);
+        dirty_ = true;
+    }
+
+    void SetCTime(uint64_t ctime, uint32_t ctime_ns) {
+        inode_.set_ctime(ctime);
+        inode_.set_ctime_ns(ctime_ns);
+        dirty_ = true;
+    }
+
+    void SetATime(uint64_t atime, uint32_t atime_ns) {
+        inode_.set_atime(atime);
+        inode_.set_atime_ns(atime_ns);
+        dirty_ = true;
+    }
+
     Inode GetInodeUnlocked() const {
         return inode_;
     }
@@ -146,45 +211,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return &inode_;
     }
 
-    void GetInodeAttrLocked(struct stat *attr) {
-        curve::common::UniqueLock lg(mtx_);
-        GetInodeAttrUnLocked(attr);
-        return;
-    }
+    CURVEFS_ERROR GetInodeAttrUnlocked(InodeAttr *attr) {
+        REFRESH_NLINK_IF_NEED;
 
-    void GetInodeAttrUnLocked(struct stat *attr) {
-        memset(attr, 0, sizeof(*attr));
-        attr->st_ino = inode_.inodeid();
-        attr->st_mode = inode_.mode();
-        attr->st_nlink = inode_.nlink();
-        attr->st_uid = inode_.uid();
-        attr->st_gid = inode_.gid();
-        attr->st_size = inode_.length();
-        attr->st_rdev = inode_.rdev();
-        attr->st_atim.tv_sec = inode_.atime();
-        attr->st_atim.tv_nsec = inode_.atime_ns();
-        attr->st_mtim.tv_sec = inode_.mtime();
-        attr->st_mtim.tv_nsec = inode_.mtime_ns();
-        attr->st_ctim.tv_sec = inode_.ctime();
-        attr->st_ctim.tv_nsec = inode_.ctime_ns();
-        attr->st_blksize = kOptimalIOBlockSize;
-
-        switch (inode_.type()) {
-            case metaserver::TYPE_S3:
-                attr->st_blocks = (inode_.length() + 511) / 512;
-                break;
-            default:
-                attr->st_blocks = 0;
-                break;
-        }
-
-        VLOG(6) << "GetInodeAttr attr =  " << *attr
-                << ", inodeid = " << inode_.inodeid();
-        return;
-    }
-
-    void GetInodeAttrLocked(InodeAttr *attr) {
-        curve::common::UniqueLock lg(mtx_);
         attr->set_inodeid(inode_.inodeid());
         attr->set_fsid(inode_.fsid());
         attr->set_length(inode_.length());
@@ -199,6 +228,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         attr->set_mode(inode_.mode());
         attr->set_nlink(inode_.nlink());
         attr->set_type(inode_.type());
+        *(attr->mutable_parent()) = inode_.parent();
         if (inode_.has_symlink()) {
             attr->set_symlink(inode_.symlink());
         }
@@ -208,9 +238,15 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         if (inode_.has_dtime()) {
             attr->set_dtime(inode_.dtime());
         }
-        if (inode_.has_openmpcount()) {
-            attr->set_openmpcount(inode_.openmpcount());
+        if (inode_.xattr_size() > 0) {
+            *(attr->mutable_xattr()) = inode_.xattr();
         }
+        return CURVEFS_ERROR::OK;
+    }
+
+    void GetInodeAttrLocked(InodeAttr *attr) {
+        curve::common::UniqueLock lg(mtx_);
+        GetInodeAttrUnlocked(attr);
     }
 
     void GetXattrLocked(XAttr *xattr) {
@@ -218,15 +254,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         xattr->set_fsid(inode_.fsid());
         xattr->set_inodeid(inode_.inodeid());
         *(xattr->mutable_xattrinfos()) = inode_.xattr();
-    }
-
-    bool GetXattrUnLocked(const char *name, std::string *value) {
-        auto it = inode_.xattr().find(name);
-        if (it != inode_.xattr().end()) {
-            *value = it->second;
-            return true;
-        }
-        return false;
     }
 
     void UpdateInode(const Inode &inode) {
@@ -250,47 +277,32 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR UnLinkLocked(uint64_t parent = 0);
 
-    CURVEFS_ERROR IncreaseNLink();
-
-    CURVEFS_ERROR DecreaseNLink();
-
-    CURVEFS_ERROR Sync() {
-        VLOG(9) << "sync inode: " << inode_.ShortDebugString();
-
-        switch (inode_.type()) {
-            case FsFileType::TYPE_S3: {
-                auto ret = SyncAttr();
-                if (ret != CURVEFS_ERROR::OK) {
-                    return ret;
-                }
-
-                return SyncS3ChunkInfo();
-            }
-
-            case FsFileType::TYPE_FILE: {
-                return SyncFullInode();
-            }
-
-            default:
-                return CURVEFS_ERROR::INVALIDPARAM;
-        }
+    // mark nlink invalid, need to refresh from metaserver
+    void InvalidateNlink() {
+        isNlinkValid_ = false;
     }
 
-    CURVEFS_ERROR SyncFullInode();
-
-    CURVEFS_ERROR SyncAttr();
-
-    CURVEFS_ERROR SyncS3ChunkInfo();
-
-    void FlushAsync() {
-        FlushAttrAsync();
-
-        if (inode_.type() == FsFileType::TYPE_S3) {
-            FlushS3ChunkInfoAsync();
-        }
+    void ResetNlinkValid() {
+        isNlinkValid_ = true;
     }
 
-    void FlushAttrAsync();
+    bool IsNlinkValid() {
+        return isNlinkValid_;
+    }
+
+    CURVEFS_ERROR RefreshNlink();
+
+    CURVEFS_ERROR Sync(bool internal = false);
+
+    CURVEFS_ERROR SyncS3(bool internal = false);
+
+    void Async(MetaServerClientDone *done, bool internal = false);
+
+    void AsyncS3(MetaServerClientDone *done, bool internal = false);
+
+    CURVEFS_ERROR SyncAttr(bool internal = false);
+
+    void AsyncFlushAttr(MetaServerClientDone *done, bool internal);
 
     void FlushS3ChunkInfoAsync();
 
@@ -310,16 +322,27 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return dirty_;
     }
 
+    void ClearDirty() {
+        dirty_ = false;
+    }
+
+    bool S3ChunkInfoEmpty() {
+        curve::common::UniqueLock lg(mtx_);
+        return s3ChunkInfoAdd_.empty();
+    }
+
+    bool S3ChunkInfoEmptyNolock() {
+        return s3ChunkInfoAdd_.empty();
+    }
+
     void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
         curve::common::UniqueLock lg(mtx_);
         AppendS3ChunkInfoToMap(chunkIndex, info, &s3ChunkInfoAdd_);
         AppendS3ChunkInfoToMap(chunkIndex, info,
             inode_.mutable_s3chunkinfomap());
-        VLOG(8) << "AppendS3ChunkInfoToMap chunkIndex: " << chunkIndex
-                << "s3chunkInfo { chunkId: " << info.chunkid()
-                << ", compaction: " << info.compaction()
-                << ", offset: " << info.offset() << ", len: " << info.len()
-                << ", zero: " << info.zero() << ", ino: " << inode_.inodeid();
+        s3ChunkInfoAddSize_++;
+        s3ChunkInfoSize_++;
+        UpdateS3ChunkInfoMetric(2);
     }
 
     void MarkInodeError() {
@@ -351,30 +374,93 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(syncingS3ChunkInfoMtx_);
     }
 
-    void SetOpenCount(uint32_t openCount) { openCount_ = openCount; }
-
     ExtentCache* GetMutableExtentCache() {
         curve::common::UniqueLock lk(mtx_);
-        dirty_ = true;
         return &extentCache_;
+    }
+
+    ExtentCache* GetMutableExtentCacheLocked() {
+        return &extentCache_;
+    }
+
+    CURVEFS_ERROR RefreshVolumeExtent();
+
+    bool NeedRefreshData() {
+        if (s3ChunkInfoSize_ >= maxDataSize_ &&
+            ::curve::common::TimeUtility::GetTimeofDaySec()
+            - lastRefreshTime_ >= refreshDataInterval_) {
+            VLOG(6) << "EliminateLargeS3ChunkInfo size = " << s3ChunkInfoSize_
+                    << ", max = " << maxDataSize_
+                    << ", inodeId = " << inode_.inodeid();
+            return true;
+        }
+        return false;
     }
 
  private:
     CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
 
-    void BuildExtentCache();
+    CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
-    // TODO(wuhanqing): separate `volumeextentmap` from `Inode`
-    void AddVolumeExtentMapToInode();
+    int64_t CalS3ChunkInfoSize() {
+        int64_t size = 0;
+        for (const auto &it : inode_.s3chunkinfomap()) {
+            size += it.second.s3chunks_size();
+        }
+        s3ChunkInfoSize_ = size;
+        return s3ChunkInfoSize_;
+    }
+
+    void UpdateS3ChunkInfoMetric(int64_t count) {
+        if (nullptr != s3ChunkInfoMetric_) {
+            s3ChunkInfoMetric_->s3ChunkInfoSize << count;
+        }
+    }
+
+    void ClearS3ChunkInfoAdd() {
+        UpdateS3ChunkInfoMetric(-s3ChunkInfoAddSize_);
+        s3ChunkInfoAdd_.clear();
+        s3ChunkInfoAddSize_ = 0;
+    }
+
+    void UpdateMaxS3ChunkInfoSize() {
+        VLOG(6) << "UpdateMaxS3ChunkInfoSize size = " << s3ChunkInfoSize_
+                << ", max = " << maxDataSize_
+                << ", inodeId = " << inode_.inodeid();
+        if (s3ChunkInfoSize_ < baseMaxDataSize_) {
+            maxDataSize_ = baseMaxDataSize_;
+        } else {
+            maxDataSize_ = s3ChunkInfoSize_;
+        }
+    }
+
+    // Flush inode attributes and extents asynchronously.
+    // REQUIRES: |mtx_| is held
+    void AsyncFlushAttrAndExtents(MetaServerClientDone *done, bool internal);
+
+ private:
+    friend class UpdateVolumeExtentClosure;
+    friend class UpdateInodeAttrAndExtentClosure;
+
+    CURVEFS_ERROR FlushVolumeExtent();
+    void FlushVolumeExtentAsync();
 
  private:
     Inode inode_;
-    uint32_t openCount_;
     InodeStatus status_;
+    uint64_t baseMaxDataSize_;
+    uint64_t maxDataSize_;
+    uint32_t refreshDataInterval_;
+    uint64_t lastRefreshTime_;
+
+    bool isNlinkValid_;
 
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
+    int64_t s3ChunkInfoAddSize_;
+    int64_t s3ChunkInfoSize_;
 
     std::shared_ptr<MetaServerClient> metaClient_;
+    std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
     bool dirty_;
     mutable ::curve::common::Mutex mtx_;
 

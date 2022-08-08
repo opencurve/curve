@@ -111,7 +111,7 @@ class CopysetNode : public braft::StateMachine {
 
     ApplyQueue* GetApplyQueue() const;
 
-    OperatorApplyMetric* GetMetric() const;
+    OperatorMetric* GetMetric() const;
 
     const std::string& Name() const;
 
@@ -176,7 +176,9 @@ class CopysetNode : public braft::StateMachine {
 
  public:
     // for heartbeat
-    std::list<PartitionInfo> GetPartitionInfoList();
+    bool GetPartitionInfoList(std::list<PartitionInfo> *partitionInfoList);
+
+    bool IsLoading() const;
 
  private:
     void InitRaftNodeOptions();
@@ -228,7 +230,9 @@ class CopysetNode : public braft::StateMachine {
 
     OngoingConfChange ongoingConfChange_;
 
-    std::unique_ptr<OperatorApplyMetric> metric_;
+    std::unique_ptr<OperatorMetric> metric_;
+
+    std::atomic<bool> isLoading_;
 };
 
 inline void CopysetNode::Propose(const braft::Task& task) {
@@ -274,7 +278,7 @@ inline ApplyQueue* CopysetNode::GetApplyQueue() const {
     return applyQueue_.get();
 }
 
-inline OperatorApplyMetric* CopysetNode::GetMetric() const {
+inline OperatorMetric* CopysetNode::GetMetric() const {
     return metric_.get();
 }
 
@@ -285,6 +289,10 @@ inline int64_t CopysetNode::LatestLoadSnapshotIndex() const {
 }
 
 inline const braft::PeerId& CopysetNode::GetPeerId() const { return peerId_; }
+
+inline bool CopysetNode::IsLoading() const {
+    return isLoading_.load(std::memory_order_acquire);
+}
 
 }  // namespace copyset
 }  // namespace metaserver

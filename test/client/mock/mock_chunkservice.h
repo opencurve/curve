@@ -175,6 +175,11 @@ class MockChunkServiceImpl : public ChunkService {
         const ::curve::chunkserver::ChunkRequest *request,
         ::curve::chunkserver::ChunkResponse *response,
         google::protobuf::Closure *done));
+    MOCK_METHOD4(UpdateEpoch, void(::google::protobuf::RpcController
+        *controller,
+        const ::curve::chunkserver::UpdateEpochRequest *request,
+        ::curve::chunkserver::UpdateEpochResponse *response,
+        google::protobuf::Closure *done));
 
     void DelegateToFake() {
         ON_CALL(*this, WriteChunk(_, _, _, _))

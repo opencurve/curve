@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "curvefs/src/volume/common.h"
-#include "curvefs/src/volume/utils.h"
 #include "src/common/fast_align.h"
 
 namespace curvefs {
@@ -86,7 +85,7 @@ BitmapAllocator::BitmapAllocator(const BitmapAllocatorOption& opt)
         << ", opt.length: " << opt.length;
 
     VLOG(9) << "offset: " << opt_.startOffset << ", len: " << opt_.length
-            << ", size_per_bit: " << opt_.sizePerBit << "bitmapAreaLength_ "
+            << ", size_per_bit: " << opt_.sizePerBit << ", bitmapAreaLength_ "
             << bitmapAreaLength_ << ", bitmapAreaOffset_: " << bitmapAreaOffset_
             << ", smallAreaLength_: " << smallAreaLength_
             << ", available: " << available_;
@@ -333,50 +332,72 @@ void BitmapAllocator::MarkUsedForSmallExtent(const uint64_t off,
     smallExtent_.MarkUsed(off, len);
 }
 
+uint32_t BitmapAllocator::ToBitmapIndex(uint64_t offset) const {
+    return (offset - bitmapAreaOffset_) / opt_.sizePerBit;
+}
+
+uint64_t BitmapAllocator::ToBitmapOffset(uint32_t index) const {
+    return index * opt_.sizePerBit + bitmapAreaOffset_;
+}
+
 void BitmapAllocator::MarkUsedForBitmap(const uint64_t off,
                                         const uint64_t len) {
     // if it's a aligned block, mark slot used
     // otherwise call bitmapExtent::MarkUsed
 
-    uint64_t alignedLeftOff = align_down<uint64_t>(off, opt_.sizePerBit);
+    uint64_t alignedLeftOff = align_up<uint64_t>(off, opt_.sizePerBit);
     uint64_t unalignedLeftLen = alignedLeftOff - off;
 
-    uint64_t alignedRightOff = align_up<uint64_t>(off + len, opt_.sizePerBit);
+    uint64_t alignedRightOff = align_down<uint64_t>(off + len, opt_.sizePerBit);
     uint64_t unalignedRightLen = off + len - alignedRightOff;
 
     // bitmap
-    if (alignedRightOff >= alignedLeftOff) {
-        if (alignedRightOff > alignedLeftOff) {
-            auto curOff = alignedLeftOff;
-            while (curOff < alignedRightOff) {
-                auto idx = (curOff - bitmapAreaOffset_) / opt_.sizePerBit;
-                bitmap_.Set(idx);
-
-                curOff += opt_.sizePerBit;
-            }
+    if (alignedRightOff > alignedLeftOff) {
+        auto curOff = alignedLeftOff;
+        while (curOff < alignedRightOff) {
+            auto idx = ToBitmapIndex(curOff);
+            assert(bitmap_.Test(idx) == false);
+            bitmap_.Set(idx);
+            curOff += opt_.sizePerBit;
         }
 
         if (unalignedLeftLen != 0) {
-            auto idx = (off - bitmapAreaOffset_) / opt_.sizePerBit;
-            bitmap_.Set(idx);
-            bitmapExtent_.DeAlloc(idx * opt_.sizePerBit + bitmapAreaOffset_,
-                                  off % opt_.sizePerBit);
+            auto idx = ToBitmapIndex(off);
+            if (bitmap_.Test(idx)) {
+                bitmapExtent_.MarkUsed(off, unalignedLeftLen);
+            } else {
+                bitmap_.Set(idx);
+                bitmapExtent_.DeAlloc(ToBitmapOffset(idx),
+                                      opt_.sizePerBit - unalignedLeftLen);
+            }
         }
-
         if (unalignedRightLen != 0) {
-            auto idx = (off - bitmapAreaOffset_) / opt_.sizePerBit;
-            bitmap_.Set(idx);
-            bitmapExtent_.DeAlloc(
-                off + len,
-                (idx + 1) * opt_.sizePerBit + bitmapAreaOffset_ - (off + len));
+            auto idx = ToBitmapIndex(off + len);
+            if (bitmap_.Test(idx)) {
+                bitmapExtent_.MarkUsed(alignedRightOff, unalignedRightLen);
+            } else {
+                bitmap_.Set(idx);
+                bitmapExtent_.DeAlloc(off + len,
+                                      opt_.sizePerBit - unalignedRightLen);
+            }
         }
     } else {
-        auto idx = (off - bitmapAreaOffset_) / opt_.sizePerBit;
-        bitmap_.Set(idx);
-        bitmapExtent_.DeAlloc(idx * opt_.sizePerBit + bitmapAreaOffset_,
-                              off % opt_.sizePerBit);
-        bitmapExtent_.DeAlloc(off + len, (idx + 1) * opt_.sizePerBit +
-                                             bitmapAreaOffset_ - (off + len));
+        auto idx = ToBitmapIndex(off);
+        if (bitmap_.Test(idx)) {
+            bitmapExtent_.MarkUsed(off, len);
+        } else {
+            bitmap_.Set(idx);
+            const auto startOff = ToBitmapOffset(idx);
+
+            if (off != startOff) {
+                bitmapExtent_.DeAlloc(startOff, off - startOff);
+            }
+
+            if ((off + len) != ToBitmapOffset(idx + 1)) {
+                bitmapExtent_.DeAlloc(off + len,
+                                    ToBitmapOffset(idx + 1) - (off + len));
+            }
+        }
     }
 }
 

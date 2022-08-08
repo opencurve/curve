@@ -43,6 +43,7 @@
 #include "curvefs/src/metaserver/register.h"
 #include "src/common/configuration.h"
 #include "src/fs/local_filesystem.h"
+#include "curvefs/src/metaserver/resource_statistic.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -83,6 +84,7 @@ class Metaserver {
     void InitLocalFileSystem();
     void InitInflightThrottle();
     void InitHeartbeatOptions();
+    void InitResourceCollector();
     void InitHeartbeat();
     void InitRegisterOptions();
     void InitBRaftFlags(const std::shared_ptr<Configuration>& conf);
@@ -125,7 +127,7 @@ class Metaserver {
     HeartbeatOptions heartbeatOptions_;
     Heartbeat heartbeat_;
 
-    StorageOptions storageOptions_;
+    std::unique_ptr<ResourceCollector> resourceCollector_;
 
     CopysetNodeOptions copysetNodeOptions_;
     CopysetNodeManager* copysetNodeManager_;

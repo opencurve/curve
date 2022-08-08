@@ -30,6 +30,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -39,17 +40,26 @@ using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+const std::string kBaseTestDir = "./dentry_manager_test";  // NOLINT
+}  // namespace
+
 class DentryManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        tablename_ = "partition:1";
-        dataDir_ = RandomStoragePath();;
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
+        testDataDir_ = kBaseTestDir + "/" + RandomStoragePath();
+        ASSERT_EQ(0, localfs->Mkdir(testDataDir_));
+
         StorageOptions options;
-        options.dataDir = dataDir_;
+        options.dataDir = testDataDir_;
+        options.type = "rocksdb";
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
         dentryStorage_ = std::make_shared<DentryStorage>(
-            kvStorage_, tablename_);
+            kvStorage_, nameGenerator_, 0);
         txManager_ = std::make_shared<TxManager>(dentryStorage_);
         dentryManager_ = std::make_shared<DentryManager>(
             dentryStorage_, txManager_);
@@ -57,8 +67,7 @@ class DentryManagerTest : public ::testing::Test {
 
     void TearDown() override {
         ASSERT_TRUE(kvStorage_->Close());
-        auto output = execShell("rm -rf " + dataDir_);
-        ASSERT_EQ(output.size(), 0);
+        ASSERT_EQ(0, localfs->Delete(kBaseTestDir));
     }
 
     std::string execShell(const std::string& cmd) {
@@ -92,7 +101,8 @@ class DentryManagerTest : public ::testing::Test {
     }
 
  protected:
-    std::string dataDir_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
+    std::string testDataDir_;
     std::string tablename_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
@@ -111,14 +121,6 @@ TEST_F(DentryManagerTest, CreateDentry) {
     ASSERT_EQ(dentryManager_->CreateDentry(dentry2),
               MetaStatusCode::DENTRY_EXIST);
     ASSERT_EQ(dentryStorage_->Size(), 1);
-
-    // CASE 3: CreateDentry: success
-    //   1) invoke from snapshot loading
-    //   2) dentry has TRANSACTION_PREPARE_FLAG flag
-    dentry2.set_txid(1);
-    dentry2.set_flag(DentryFlag::TRANSACTION_PREPARE_FLAG);
-    ASSERT_EQ(dentryManager_->CreateDentry(dentry2), MetaStatusCode::OK);
-    ASSERT_EQ(dentryStorage_->Size(), 2);
 }
 
 TEST_F(DentryManagerTest, DeleteDentry) {
@@ -166,8 +168,8 @@ TEST_F(DentryManagerTest, ListDentry) {
     auto rc = dentryManager_->ListDentry(dentry, &dentrys, 0);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 2);
-    ASSERT_EQ(dentrys[0].name(), "B");
-    ASSERT_EQ(dentrys[1].name(), "A");
+    ASSERT_EQ(dentrys[0].name(), "A");
+    ASSERT_EQ(dentrys[1].name(), "B");
 }
 
 TEST_F(DentryManagerTest, HandleRenameTx) {

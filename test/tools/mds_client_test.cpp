@@ -133,7 +133,7 @@ class ToolMDSClientTest : public ::testing::Test {
                                 int num, uint32_t copysetId = 1) {
         info->Clear();
         for (int i = 0; i < num; ++i) {
-            curve::mds::topology::ChunkServerLocation *csLoc =
+            curve::common::ChunkServerLocation *csLoc =
                                                 info->add_cslocs();
             csLoc->set_chunkserverid(i);
             csLoc->set_hostip("127.0.0.1");

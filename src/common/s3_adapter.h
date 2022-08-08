@@ -15,46 +15,48 @@
  */
 
 /*************************************************************************
-	> File Name: s3_adapter.h
-	> Author:
-	> Created Time: Mon Dec 10 14:30:12 2018
+    > File Name: s3_adapter.h
+    > Author:
+    > Created Time: Mon Dec 10 14:30:12 2018
  ************************************************************************/
 
 #ifndef SRC_COMMON_S3_ADAPTER_H_
 #define SRC_COMMON_S3_ADAPTER_H_
-#include <map>
+#include <aws/core/Aws.h>                                     //NOLINT
+#include <aws/core/auth/AWSCredentialsProvider.h>             //NOLINT
+#include <aws/core/client/ClientConfiguration.h>              //NOLINT
+#include <aws/core/http/HttpRequest.h>                        //NOLINT
+#include <aws/core/http/Scheme.h>                             //NOLINT
+#include <aws/core/utils/memory/AWSMemory.h>                  //NOLINT
+#include <aws/core/utils/memory/stl/AWSString.h>              //NOLINT
+#include <aws/core/utils/memory/stl/AWSStringStream.h>        //NOLINT
+#include <aws/core/utils/threading/Executor.h>                // NOLINT
+#include <aws/s3-crt/S3CrtClient.h>                           //NOLINT
+#include <aws/s3-crt/model/AbortMultipartUploadRequest.h>     //NOLINT
+#include <aws/s3-crt/model/BucketLocationConstraint.h>        //NOLINT
+#include <aws/s3-crt/model/CompleteMultipartUploadRequest.h>  //NOLINT
+#include <aws/s3-crt/model/CompletedPart.h>                   //NOLINT
+#include <aws/s3-crt/model/CreateBucketConfiguration.h>       //NOLINT
+#include <aws/s3-crt/model/CreateBucketRequest.h>             //NOLINT
+#include <aws/s3-crt/model/CreateMultipartUploadRequest.h>    //NOLINT
+#include <aws/s3-crt/model/Delete.h>                          //NOLINT
+#include <aws/s3-crt/model/DeleteBucketRequest.h>             //NOLINT
+#include <aws/s3-crt/model/DeleteObjectRequest.h>             //NOLINT
+#include <aws/s3-crt/model/DeleteObjectsRequest.h>            //NOLINT
+#include <aws/s3-crt/model/GetObjectRequest.h>                //NOLINT
+#include <aws/s3-crt/model/HeadBucketRequest.h>               //NOLINT
+#include <aws/s3-crt/model/HeadObjectRequest.h>               //NOLINT
+#include <aws/s3-crt/model/ObjectIdentifier.h>                //NOLINT
+#include <aws/s3-crt/model/PutObjectRequest.h>                //NOLINT
+#include <aws/s3-crt/model/UploadPartRequest.h>               //NOLINT
+
+#include <condition_variable>
 #include <list>
-#include <string>
+#include <map>
 #include <memory>
 #include <mutex>
-#include <condition_variable>
-#include <aws/core/utils/memory/AWSMemory.h>  //NOLINT
-#include <aws/core/Aws.h>   //NOLINT
-#include <aws/s3/S3Client.h>  //NOLINT
-#include <aws/core/client/ClientConfiguration.h>  //NOLINT
-#include <aws/core/auth/AWSCredentialsProvider.h>  //NOLINT
-#include <aws/s3/model/PutObjectRequest.h>  //NOLINT
-#include <aws/s3/model/CreateBucketRequest.h>  //NOLINT
-#include <aws/s3/model/DeleteBucketRequest.h>  //NOLINT
-#include <aws/s3/model/HeadBucketRequest.h>   //NOLINT
-#include <aws/s3/model/HeadObjectRequest.h>  //NOLINT
-#include <aws/s3/model/GetObjectRequest.h>  //NOLINT
-#include <aws/s3/model/DeleteObjectRequest.h>  //NOLINT
-#include <aws/s3/model/CreateMultipartUploadRequest.h>  //NOLINT
-#include <aws/s3/model/UploadPartRequest.h>  //NOLINT
-#include <aws/s3/model/CompleteMultipartUploadRequest.h>  //NOLINT
-#include <aws/s3/model/AbortMultipartUploadRequest.h>   //NOLINT
-#include <aws/s3/model/ObjectIdentifier.h>   //NOLINT
-#include <aws/s3/model/Delete.h>   //NOLINT
-#include <aws/s3/model/DeleteObjectsRequest.h>  //NOLINT
-#include <aws/core/http/HttpRequest.h>  //NOLINT
-#include <aws/s3/model/CompletedPart.h>  //NOLINT
-#include <aws/core/http/Scheme.h>  //NOLINT
-#include <aws/core/utils/memory/stl/AWSString.h>  //NOLINT
-#include <aws/core/utils/memory/stl/AWSStringStream.h>  //NOLINT
-#include <aws/s3/model/BucketLocationConstraint.h>  //NOLINT
-#include <aws/s3/model/CreateBucketConfiguration.h>  //NOLINT
-#include <aws/core/utils/threading/Executor.h> // NOLINT
+#include <string>
+
 #include "src/common/configuration.h"
 #include "src/common/throttle.h"
 
@@ -98,14 +100,14 @@ struct S3InfoOption {
     uint64_t chunkSize;
 };
 
-void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
-                                         S3AdapterOption* s3Opt);
+void InitS3AdaptorOptionExceptS3InfoOption(Configuration *conf,
+                                           S3AdapterOption *s3Opt);
 
-void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt);
+void InitS3AdaptorOption(Configuration *conf, S3AdapterOption *s3Opt);
 
-typedef std::function<void(const S3Adapter*,
-    const std::shared_ptr<GetObjectAsyncContext>&)>
-        GetObjectAsyncCallBack;
+typedef std::function<void(const S3Adapter *,
+                           const std::shared_ptr<GetObjectAsyncContext> &)>
+    GetObjectAsyncCallBack;
 
 struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     std::string key;
@@ -121,8 +123,8 @@ typedef std::function<void(const S3Adapter*,
     const std::shared_ptr<PutObjectAsyncContext>&)>
         PutObjectAsyncCallBack;
 */
-typedef std::function<void(const std::shared_ptr<PutObjectAsyncContext>&)>
-        PutObjectAsyncCallBack;
+typedef std::function<void(const std::shared_ptr<PutObjectAsyncContext> &)>
+    PutObjectAsyncCallBack;
 
 struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     std::string key;
@@ -135,24 +137,30 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
 
 class S3Adapter {
  public:
-    S3Adapter() {}
-    virtual ~S3Adapter() {}
+    S3Adapter() {
+        clientCfg_ = nullptr;
+        s3Client_ = nullptr;
+        throttle_ = nullptr;
+    }
+    virtual ~S3Adapter() {
+        Deinit();
+    }
     /**
      * 初始化S3Adapter
      */
-    virtual void Init(const std::string& path);
+    virtual void Init(const std::string &path);
     /**
      * 初始化S3Adapter
      * 但不包括 S3InfoOption
      */
-    virtual void InitExceptFsS3Option(const std::string& path);
+    virtual void InitExceptFsS3Option(const std::string &path);
     /**
      * 初始化S3Adapter
      */
     virtual void Init(const S3AdapterOption &option);
     /**
-     * @brief 
-     * 
+     * @brief
+     *
      * @details
      */
     virtual void SetS3Option(const S3InfoOption &fsS3Opt);
@@ -164,11 +172,11 @@ class S3Adapter {
     /**
      *  call aws sdk shutdown api
      */
-    virtual void Shutdown();
+    static void Shutdown();
     /**
      * reinit s3client with new AWSCredentials
      */
-    virtual void Reinit(const S3AdapterOption& option);
+    virtual void Reinit(const S3AdapterOption &option);
     /**
      * get s3 ak
      */
@@ -204,7 +212,7 @@ class S3Adapter {
      * @return:0 上传成功/ -1 上传失败
      */
     virtual int PutObject(const Aws::String &key, const char *buffer,
-            const size_t bufferSize);
+                          const size_t bufferSize);
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,
     //        const int bufferSize);
@@ -234,7 +242,8 @@ class S3Adapter {
      * @param 读取的偏移
      * @param 读取的长度
      */
-    virtual int GetObject(const std::string &key, char *buf, off_t offset, size_t len);   //NOLINT
+    virtual int GetObject(const std::string &key, char *buf, off_t offset,
+                          size_t len);  // NOLINT
 
     /**
      * @brief 异步从对象存储读取数据
@@ -250,7 +259,7 @@ class S3Adapter {
      */
     virtual int DeleteObject(const Aws::String &key);
 
-    virtual int DeleteObjects(const std::list<Aws::String>& keyList);
+    virtual int DeleteObjects(const std::list<Aws::String> &keyList);
     /**
      * 判断对象是否存在
      * @param 对象名
@@ -281,11 +290,9 @@ class S3Adapter {
      * @param 分片的数据内容
      * @return: 分片任务管理对象
      */
-    virtual Aws::S3::Model::CompletedPart UploadOnePart(const Aws::String &key,
-            const Aws::String &uploadId,
-            int partNum,
-            int partSize,
-            const char* buf);
+    virtual Aws::S3Crt::Model::CompletedPart
+    UploadOnePart(const Aws::String &key, const Aws::String &uploadId,
+                  int partNum, int partSize, const char *buf);
     /**
      * 完成分片上传任务
      * @param 对象名
@@ -293,9 +300,9 @@ class S3Adapter {
      * @管理分片上传任务的vector
      * @return 0 任务完成/ -1 任务失败
      */
-    virtual int CompleteMultiUpload(const Aws::String &key,
-                            const Aws::String &uploadId,
-                        const Aws::Vector<Aws::S3::Model::CompletedPart> &cp_v);
+    virtual int CompleteMultiUpload(
+        const Aws::String& key, const Aws::String& uploadId,
+        const Aws::Vector<Aws::S3Crt::Model::CompletedPart>& cp_v);
     /**
      * 终止一个对象的分片上传任务
      * @param 对象名
@@ -303,21 +310,15 @@ class S3Adapter {
      * @return 0 终止成功/ -1 终止失败
      */
     virtual int AbortMultiUpload(const Aws::String &key,
-                        const Aws::String &uploadId);
-    void SetBucketName(const Aws::String &name) {
-        bucketName_ = name;
-    }
-    Aws::String GetBucketName() {
-        return bucketName_;
-    }
+                                 const Aws::String &uploadId);
+    void SetBucketName(const Aws::String &name) { bucketName_ = name; }
+    Aws::String GetBucketName() { return bucketName_; }
 
  private:
     class AsyncRequestInflightBytesThrottle {
      public:
         explicit AsyncRequestInflightBytesThrottle(uint64_t maxInflightBytes)
-            : maxInflightBytes_(maxInflightBytes),
-              inflightBytes_(0),
-              mtx_(),
+            : maxInflightBytes_(maxInflightBytes), inflightBytes_(0), mtx_(),
               cond_() {}
 
         void OnStart(uint64_t len);
@@ -340,14 +341,67 @@ class S3Adapter {
     // 对象的桶名
     Aws::String bucketName_;
     // aws sdk的配置
-    Aws::Client::ClientConfiguration *clientCfg_;
-    Aws::S3::S3Client *s3Client_;
+    Aws::S3Crt::ClientConfiguration *clientCfg_;
+    Aws::S3Crt::S3CrtClient *s3Client_;
     Configuration conf_;
 
     Throttle *throttle_;
 
     std::unique_ptr<AsyncRequestInflightBytesThrottle> inflightBytesThrottle_;
 };
+
+class FakeS3Adapter : public S3Adapter {
+ public:
+    FakeS3Adapter() : S3Adapter() {}
+    virtual ~FakeS3Adapter() {}
+
+    bool BucketExist() override { return true; }
+
+    int PutObject(const Aws::String &key, const char *buffer,
+                  const size_t bufferSize) override {
+        return 0;
+    }
+
+    int PutObject(const Aws::String &key, const std::string &data) override {
+        return 0;
+    }
+
+    void
+    PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) override {
+        context->retCode = 0;
+        context->cb(context);
+    }
+
+    int GetObject(const Aws::String &key, std::string *data) override {
+        // just return 4M data
+        data->resize(4 * 1024 * 1024, '1');
+        return 0;
+    }
+
+    int GetObject(const std::string &key, char *buf, off_t offset,
+                  size_t len) override {
+        // juset return len data
+        memset(buf, '1', len);
+        return 0;
+    }
+
+    void
+    GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) override {
+        memset(context->buf, '1', context->len);
+        context->retCode = 0;
+        context->cb(this, context);
+    }
+
+    int DeleteObject(const Aws::String &key) override { return 0; }
+
+    int DeleteObjects(const std::list<Aws::String> &keyList) override {
+        return 0;
+    }
+
+    bool ObjectExist(const Aws::String &key) override { return true; }
+};
+
+
 }  // namespace common
 }  // namespace curve
 #endif  // SRC_COMMON_S3_ADAPTER_H_

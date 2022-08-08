@@ -42,6 +42,9 @@ class DentryManager {
 
     MetaStatusCode CreateDentry(const Dentry& dentry);
 
+    // only invoked from snapshot loadding
+    MetaStatusCode CreateDentry(const DentryVec& vec, bool merge);
+
     MetaStatusCode DeleteDentry(const Dentry& dentry);
 
     MetaStatusCode GetDentry(Dentry* dentry);
@@ -63,6 +66,7 @@ class DentryManager {
     std::shared_ptr<DentryStorage> dentryStorage_;
     std::shared_ptr<TxManager> txManager_;
 };
+
 }  // namespace metaserver
 }  // namespace curvefs
 

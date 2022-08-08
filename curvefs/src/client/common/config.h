@@ -45,7 +45,6 @@ using MdsOption = ::curve::client::MetaServerOption;
 
 struct BlockDeviceClientOptions {
     std::string configPath;
-    uint32_t threadnum;
 };
 
 struct MetaCacheOpt {
@@ -66,7 +65,7 @@ struct ExcutorOpt {
     uint64_t maxRetrySleepIntervalUS = 64ull * 1000 * 1000;
     uint64_t minRetryTimesForceTimeoutBackoff = 5;
     uint64_t maxRetryTimesBeforeConsiderSuspend = 20;
-    uint32_t batchLimit = 100;
+    uint32_t batchInodeAttrLimit = 10000;
     bool enableRenameParallel = false;
 };
 
@@ -97,6 +96,8 @@ struct DiskCacheOption {
     uint64_t safeRatio;
     // the max size disk cache can use
     uint64_t maxUsableSpaceBytes;
+    // the max file nums can cache
+    uint64_t maxFileNums;
     // the max time system command can run
     uint32_t cmdTimeoutSec;
     // threads for disk cache
@@ -129,6 +130,8 @@ struct S3ClientAdaptorOption {
     uint64_t readCacheMaxByte;
     uint32_t nearfullRatio;
     uint32_t baseSleepUs;
+    uint32_t maxReadRetryIntervalMs;
+    uint32_t readRetryIntervalMs;
     DiskCacheOption diskCacheOpt;
 };
 
@@ -163,16 +166,22 @@ struct ExtentManagerOption {
     uint64_t preAllocSize;
 };
 
+struct RefreshDataOption {
+    uint64_t maxDataSize = 1024;
+    uint32_t refreshDataIntervalSec = 30;
+};
 struct FuseClientOption {
     MdsOption mdsOpt;
     MetaCacheOpt metaCacheOpt;
     ExcutorOpt excutorOpt;
+    ExcutorOpt excutorInternalOpt;
     SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;
     ExtentManagerOption extentManagerOpt;
     VolumeOption volumeOpt;
     LeaseOpt leaseOpt;
+    RefreshDataOption refreshDataOption;
 
     double attrTimeOut;
     double entryTimeOut;
@@ -184,12 +193,10 @@ struct FuseClientOption {
     uint64_t dCacheLruSize;
     bool enableICacheMetrics;
     bool enableDCacheMetrics;
-
     uint32_t dummyServerStartPort;
-
     bool enableMultiMountPointRename = false;
-
     bool enableFuseSplice = false;
+    bool disableXattr = false;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);

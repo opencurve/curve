@@ -40,12 +40,13 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD1(Load, bool(const std::string&));
     MOCK_METHOD2(Save, bool(const std::string&, OnSnapshotSaveDoneClosure*));
     MOCK_METHOD0(Clear, bool());
+    MOCK_METHOD0(Destroy, bool());
 
     MOCK_METHOD2(CreatePartition, MetaStatusCode(const CreatePartitionRequest*,
                                                  CreatePartitionResponse*));
     MOCK_METHOD2(DeletePartition, MetaStatusCode(const DeletePartitionRequest*,
                                                  DeletePartitionResponse*));
-    MOCK_METHOD0(GetPartitionInfoList, std::list<PartitionInfo>());
+    MOCK_METHOD1(GetPartitionInfoList, bool(std::list<PartitionInfo> *));
 
     MOCK_METHOD2(CreateDentry, MetaStatusCode(const CreateDentryRequest*,
                                               CreateDentryResponse*));
@@ -86,6 +87,14 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD2(SendS3ChunkInfoByStream, MetaStatusCode(
         std::shared_ptr<StreamConnection> connection,
         std::shared_ptr<Iterator> iterator));
+
+    MOCK_METHOD2(GetVolumeExtent,
+                 MetaStatusCode(const GetVolumeExtentRequest*,
+                                GetVolumeExtentResponse*));
+
+    MOCK_METHOD2(UpdateVolumeExtent,
+                 MetaStatusCode(const UpdateVolumeExtentRequest*,
+                                UpdateVolumeExtentResponse*));
 };
 
 }  // namespace mock

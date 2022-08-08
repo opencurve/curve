@@ -85,6 +85,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     void StartWrite(const void* buf, off_t offset, size_t length,
                     MDSClient* mdsclient, const FInfo_t* fileInfo,
+                    const FileEpoch* fEpoch,
                     Throttle* throttle = nullptr);
 
     /**
@@ -101,9 +102,11 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param ctx async write context
      * @param mdsclient used to communicate with MDS
      * @param fileInfo current file info
+     * @param fEpoch  file epoch info
      */
     void StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
-                       const FInfo_t* fileInfo, Throttle* throttle = nullptr);
+                       const FInfo_t* fileInfo,
+                       const FileEpoch* fEpoch, Throttle* throttle = nullptr);
 
     void StartDiscard(off_t offset, size_t length, MDSClient* mdsclient,
                       const FInfo_t* fileInfo, DiscardTaskManager* taskManager);
@@ -280,6 +283,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 
     // perform write operation
     void DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
+                 const FileEpoch* fEpoch,
                  Throttle* throttle);
 
     void DoDiscard(MDSClient* mdsclient, const FInfo_t* fileInfo,

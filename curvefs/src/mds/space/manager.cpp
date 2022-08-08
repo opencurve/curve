@@ -21,6 +21,7 @@
  */
 
 #include "curvefs/src/mds/space/manager.h"
+#include <glog/logging.h>
 
 #include <utility>
 
@@ -47,20 +48,19 @@ AbstractVolumeSpace* SpaceManagerImpl::GetVolumeSpace(uint32_t fsId) const {
 }
 
 SpaceErrCode SpaceManagerImpl::AddVolume(const FsInfo& fsInfo) {
+    CHECK(fsInfo.detail().has_volume());
+
     NameLockGuard lock(namelock_, fsInfo.fsname());
 
     {
         ReadLockGuard lk(rwlock_);
-        if (volumes_.count(fsInfo.fsid())) {
+        if (volumes_.count(fsInfo.fsid()) != 0) {
             return SpaceErrCode::SpaceErrExist;
         }
     }
 
-    const auto& volumeInfo = fsInfo.detail().volume();
-    auto space =
-        VolumeSpace::Create(fsInfo.fsid(), volumeInfo.volumesize(),
-                            volumeInfo.blocksize(), volumeInfo.blockgroupsize(),
-                            volumeInfo.bitmaplocation(), storage_.get());
+    auto space = VolumeSpace::Create(fsInfo.fsid(), fsInfo.detail().volume(),
+                                     storage_.get(), fsStorage_.get());
 
     if (!space) {
         LOG(ERROR) << "Create volume space failed, fsId: " << fsInfo.fsid();
@@ -72,6 +72,9 @@ SpaceErrCode SpaceManagerImpl::AddVolume(const FsInfo& fsInfo) {
         volumes_.emplace(fsInfo.fsid(), std::move(space));
     }
 
+    LOG(INFO) << "Added volume space, fsName: " << fsInfo.fsname()
+              << ", fsId: " << fsInfo.fsid();
+
     return SpaceOk;
 }
 
@@ -79,6 +82,8 @@ SpaceErrCode SpaceManagerImpl::RemoveVolume(uint32_t fsId) {
     WriteLockGuard lk(rwlock_);
     auto it = volumes_.find(fsId);
     if (it == volumes_.end()) {
+        LOG(WARNING) << "Fail to remove volume space, fs not found, fsId: "
+                     << fsId;
         return SpaceErrNotFound;
     }
 

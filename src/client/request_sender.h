@@ -74,6 +74,8 @@ class RequestSender {
     /**
    * 写Chunk
    * @param idinfo为chunk相关的id信息
+   * @param fileId: file id
+   * @param epoch: file epoch
    * @param sn:文件版本号
    * @param data 要写入的数据
     *@param offset:写的偏移
@@ -82,6 +84,8 @@ class RequestSender {
    * @param done:上一层异步回调的closure
    */
     int WriteChunk(const ChunkIDInfo& idinfo,
+                   uint64_t fileId,
+                   uint64_t epoch,
                    uint64_t sn,
                    const butil::IOBuf& data,
                    off_t offset,

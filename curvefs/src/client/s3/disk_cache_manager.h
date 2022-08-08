@@ -61,7 +61,8 @@ class DiskCacheManager {
     DiskCacheManager() {}
     virtual ~DiskCacheManager() { TrimStop(); }
 
-    virtual int Init(S3Client *client, const S3ClientAdaptorOption option);
+    virtual int Init(std::shared_ptr<S3Client> client,
+        const S3ClientAdaptorOption option);
 
     virtual int UmountDiskCache();
     virtual bool IsCached(const std::string name);
@@ -114,9 +115,11 @@ class DiskCacheManager {
      * @brief add the used bytes of disk cache.
      */
     void AddDiskUsedBytes(uint64_t length) {
-        usedBytes_.fetch_add(length, std::memory_order_seq_cst);
+        usedBytes_.fetch_add(length);
+        if (metric_.get() != nullptr)
+            metric_->diskUsedBytes.set_value(usedBytes_/1024/1024);
         VLOG(9) << "add disk used size is: " << length
-                << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
+                << ", now is: " << usedBytes_.load();
         return;
     }
     /**
@@ -125,17 +128,17 @@ class DiskCacheManager {
      * because there are link in read cache
      */
     void DecDiskUsedBytes(uint64_t length) {
-        int64_t usedBytes;
-        usedBytes = usedBytes_.fetch_sub(length, std::memory_order_seq_cst);
-        assert(usedBytes >= 0);
-        (void)usedBytes;
+        usedBytes_.fetch_sub(length);
+        assert(usedBytes_ >= 0);
+        if (metric_.get() != nullptr)
+            metric_->diskUsedBytes.set_value(usedBytes_);
         VLOG(9) << "dec disk used size is: " << length
-                << ", now is: " << usedBytes_.load(std::memory_order_seq_cst);
+                << ", now is: " << usedBytes_.load();
         return;
     }
     void SetDiskInitUsedBytes();
     uint64_t GetDiskUsedbytes() {
-        return usedBytes_.load(std::memory_order_seq_cst);
+        return usedBytes_.load();
     }
 
     void InitQosParam();
@@ -143,6 +146,11 @@ class DiskCacheManager {
      * @brief trim cache func.
      */
     void TrimCache();
+
+    /**
+     * @brief whether the cache file is exceed maxFileNums_.
+     */
+    bool IsExceedFileNums();
 
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
@@ -152,6 +160,7 @@ class DiskCacheManager {
     uint32_t fullRatio_;
     uint32_t safeRatio_;
     uint64_t maxUsableSpaceBytes_;
+    uint64_t maxFileNums_;
     // used bytes of disk cache
     std::atomic<int64_t> usedBytes_;
     // used ratio of the file system in disk cache
@@ -161,9 +170,9 @@ class DiskCacheManager {
     std::shared_ptr<DiskCacheWrite> cacheWrite_;
     std::shared_ptr<DiskCacheRead> cacheRead_;
 
-    std::shared_ptr<LRUCache<std::string, bool>> cachedObjName_;
+    std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
 
-    S3Client *client_;
+    std::shared_ptr<S3Client> client_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
     std::shared_ptr<DiskCacheMetric> metric_;
 

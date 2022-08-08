@@ -107,18 +107,13 @@ do {                                             \
     return Status::OK();                         \
 } while (0)
 
-
-#define SET(TYPE, NAME, KEY, VALUE)                   \
-do {                                                  \
-    auto container = GET_CONTAINER(TYPE, NAME);       \
-    auto valueWrapper = ValueWrapper(VALUE);          \
-    auto ret = container->emplace(KEY, valueWrapper); \
-    if (!ret.second) {                                \
-        ret.first->second = valueWrapper;             \
-    }                                                 \
-    return Status::OK();                              \
-} while (0)
-
+#define SET(TYPE, NAME, KEY, VALUE)                 \
+    do {                                            \
+        auto container = GET_CONTAINER(TYPE, NAME); \
+        auto valueWrapper = ValueWrapper(VALUE);    \
+        (*container)[KEY].Swap(valueWrapper);       \
+        return Status::OK();                        \
+    } while (0)
 
 #define SET_SERALIZED(TYPE, NAME, KEY, VALUE)   \
 do {                                            \
@@ -139,10 +134,9 @@ do {                                            \
 do {                                            \
     auto container = GET_CONTAINER(TYPE, NAME); \
     auto iter = container->find(KEY);           \
-    if (iter == container->end()) {             \
-        return Status::NotFound();              \
+    if (iter != container->end()) {             \
+        container->erase(iter);                 \
     }                                           \
-    container->erase(iter);                     \
     return Status::OK();                        \
 } while (0)
 
@@ -301,28 +295,19 @@ Status MemoryStorage::Rollback()  {
     return Status::OK();
 }
 
-bool MemoryStorage::GetStatistics(StorageStatistics* statistics) {
-    statistics->maxMemoryQuotaBytes = options_.maxMemoryQuotaBytes;
-    statistics->maxDiskQuotaBytes = options_.maxDiskQuotaBytes;
-
-    // memory usage bytes
-    if (!GetProcMemory(&statistics->memoryUsageBytes)) {
-        return false;
-    }
-
-    // disk usage bytes
-    uint64_t total, available;
-    if (!GetFileSystemSpaces(options_.dataDir, &total, &available)) {
-        LOG(ERROR) << "Get filesystem space failed.";
-        return false;
-    }
-    statistics->diskUsageBytes = total - available;
-
-    return true;
-}
-
 StorageOptions MemoryStorage::GetStorageOptions() const {
     return options_;
+}
+
+bool MemoryStorage::Checkpoint(const std::string& dir,
+                               std::vector<std::string>* files) {
+    LOG(WARNING) << "Not supported";
+    return false;
+}
+
+bool MemoryStorage::Recover(const std::string& dir) {
+    LOG(WARNING) << "Not supported";
+    return false;
 }
 
 }  // namespace storage

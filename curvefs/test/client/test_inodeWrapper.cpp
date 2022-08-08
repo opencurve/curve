@@ -15,28 +15,40 @@
  *  limitations under the License.
  */
 
-
 /*
  * Project: curve
  * Created Date: 2021-12-28
  * Author: xuchaojie
  */
 
-#include <gtest/gtest.h>
+#include <gmock/gmock-more-actions.h>
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <gtest/gtest.h>
 
-#include "curvefs/test/client/mock_metaserver_client.h"
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
+#include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
+#include "curvefs/src/client/rpcclient/task_excutor.h"
+#include "curvefs/src/client/volume/extent.h"
+#include "curvefs/src/client/volume/extent_cache.h"
+#include "curvefs/test/client/mock_metaserver_client.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 
 namespace curvefs {
 namespace client {
 
+using ::curvefs::client::rpcclient::MetaServerClientDone;
+using rpcclient::DataIndices;
 using ::testing::_;
 using ::testing::Contains;
 using ::testing::DoAll;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
@@ -78,7 +90,6 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     ASSERT_EQ(1, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
     ASSERT_TRUE(MessageDifferencer::Equals(
         info1, s3ChunkInfoMap[chunkIndex1].s3chunks(0)));
-
 
     // add to same chunkIndex
     S3ChunkInfo info2;
@@ -133,10 +144,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -158,80 +166,137 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInode(_, _))
-        .WillOnce(Return(MetaStatusCode::NOT_FOUND))
-        .WillOnce(Return(MetaStatusCode::OK));
-
-    EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
     ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
-
-    CURVEFS_ERROR ret2 = inodeWrapper_->Sync();
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret2);
 }
 
-static void AddOneExtent(InodeWrapper* wrap) {
-    auto extentcache = wrap->GetMutableExtentCache();
-    PExtent pext;
-    extentcache->Merge(0, pext);
-}
+TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
+    ExtentCache::SetOption({});
 
-MATCHER(HasVolumeExtentMap, "") {
-    return !arg.volumeextentmap().empty();
-}
-
-TEST_F(TestInodeWrapper, TestAllUpdateInodeMustHasVolumeExtentMap) {
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
+    inodeWrapper_->ClearDirty();
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+        .Times(0);
+    EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
+        .Times(0);
 
-    // Sync
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->Sync();
+    ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
+}
+
+TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
+    ExtentCache::SetOption({});
+
+    inodeWrapper_->SetType(FsFileType::TYPE_FILE);
+    inodeWrapper_->ClearDirty();
+    auto* extentCache = inodeWrapper_->GetMutableExtentCache();
+    PExtent pext;
+    pext.len = 4096;
+    pext.pOffset = 0;
+    pext.UnWritten = true;
+    extentCache->Merge(0, pext);
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+        .Times(0);
+    EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
+        .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
+                            MetaServerClientDone* done) {
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
+}
+
+TEST_F(TestInodeWrapper, TestRefreshNlink) {
+    google::protobuf::uint32 nlink = 10086;
+    InodeAttr attr;
+    attr. set_nlink(nlink);
+    EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
+    inodeWrapper_->RefreshNlink();
+    Inode inode = inodeWrapper_->GetInodeUnlocked();
+    ASSERT_EQ(nlink, inode.nlink());
+}
+
+TEST_F(TestInodeWrapper, TestNeedRefreshData) {
+    Inode inode;
+    inode.set_inodeid(1);
+    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
+    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
+    s3ChunkInfo->set_chunkid(1);
+    s3ChunkInfo->set_compaction(1);
+    s3ChunkInfo->set_offset(0);
+    s3ChunkInfo->set_len(1024);
+    s3ChunkInfo->set_size(65536);
+    s3ChunkInfo->set_zero(true);
+    s3ChunkInfoMap->insert({1, *s3ChunkInfoList});
+
+    auto inodeWrapper =  std::make_shared<InodeWrapper>(
+        inode, metaClient_, nullptr, 1, 0);
+
+    ASSERT_TRUE(inodeWrapper->NeedRefreshData());
+}
+
+namespace {
+
+struct FakeCallback : public MetaServerClientDone {
+    void Run() override {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            runned = true;
+        }
+        cond.notify_one();
     }
 
-    // Open and Release
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(2);
-        inodeWrapper_->Open();
-        inodeWrapper_->Release();
+    void Wait() {
+        std::unique_lock<std::mutex> lock(mtx);
+        cond.wait(lock, [this]() { return runned; });
     }
 
-    // UpdateParent
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->UpdateParentLocked(1, 2);
-    }
+    std::mutex mtx;
+    std::condition_variable cond;
+    bool runned{false};
+};
 
-    // SyncAttr
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->SyncAttr();
-    }
+struct FakeUpdateInodeWithOutNlinkAsync {
+    void operator()(const Inode& inode,
+                    MetaServerClientDone* done,
+                    InodeOpenStatusChange statusChange,
+                    DataIndices indices) const {
+        std::thread th{[done]() {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            done->SetMetaStatusCode(MetaStatusCode::OK);
+            done->Run();
+        }};
 
-    // Link
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->LinkLocked(2);
+        th.detach();
     }
+};
 
-    // UnLink
-    {
-        AddOneExtent(inodeWrapper_.get());
-        EXPECT_CALL(*metaClient_, UpdateInode(HasVolumeExtentMap(), _))
-            .Times(1);
-        inodeWrapper_->UnLinkLocked(2);
+}  // namespace
+
+TEST_F(TestInodeWrapper, TestAsyncInode) {
+    for (auto type : {FsFileType::TYPE_DIRECTORY, FsFileType::TYPE_FILE,
+                      FsFileType::TYPE_S3, FsFileType::TYPE_SYM_LINK}) {
+        for (auto dirty : {true, false}) {
+            inodeWrapper_->SetType(type);
+            if (!dirty) {
+                inodeWrapper_->ClearDirty();
+            }
+
+            EXPECT_CALL(*metaClient_,
+                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+                .Times(dirty ? 1 : 0)
+                .WillRepeatedly(Invoke(FakeUpdateInodeWithOutNlinkAsync{}));
+
+            FakeCallback done;
+            inodeWrapper_->Async(&done);
+            done.Wait();
+            ASSERT_EQ(MetaStatusCode::OK, done.GetStatusCode());
+        }
     }
 }
 

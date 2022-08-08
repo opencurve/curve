@@ -133,8 +133,8 @@ class MetaCacheTest : public testing::Test {
     std::shared_ptr<MockCli2Client> mockCli2Client_;
 
     curve::client::CopysetInfo<MetaserverID> metaServerList_;
-    MetaCache::PatitionInfoList pInfoList_;
-    MetaCache::PatitionInfoList pInfoList2_;
+    MetaCache::PartitionInfoList pInfoList_;
+    MetaCache::PartitionInfoList pInfoList2_;
     std::map<PartitionID, Copyset> copysetMap_;
 
     CopysetTarget expect;
@@ -144,6 +144,7 @@ TEST_F(MetaCacheTest, test_GetTarget) {
     // in
     uint32_t fsID = 1;
     uint64_t inodeID = 1;
+    uint64_t inodeID1 = 11;
     CopysetGroupID groupID(1, 1);
 
     // out
@@ -208,7 +209,17 @@ TEST_F(MetaCacheTest, test_GetTarget) {
     ASSERT_TRUE(ret);
     ASSERT_TRUE(CopysetTargetEQ(target, expect));
 
-    LOG(INFO) << "test7: mark partition full";
+    LOG(INFO) << "test7: get target failed and success after get from mds";
+    EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
+        .WillOnce(DoAll(SetArgPointee<1>(pInfoList2_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysetMap_), Return(true)));
+    EXPECT_CALL(*mockMdsClient_.get(), GetMetaServerListInCopysets(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(metaServerInfos), Return(true)));
+    ret = metaCache_.GetTarget(fsID, inodeID1, &target, &applyIndex);
+    ASSERT_TRUE(ret);
+
+    LOG(INFO) << "test8: mark partition full";
     metaCache_.MarkPartitionUnavailable(1);
 }
 
@@ -265,6 +276,8 @@ TEST_F(MetaCacheTest, test_SelectTarget) {
     uint64_t applyIndex;
 
     LOG(INFO) << "test1: list partition fail";
+    EXPECT_CALL(*mockMdsClient_.get(), CreatePartition(_, _, _))
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
         .WillOnce(Return(false));
     bool ret = metaCache_.SelectTarget(fsID, &target, &applyIndex);
@@ -276,6 +289,8 @@ TEST_F(MetaCacheTest, test_SelectTarget) {
     metaServerInfos.push_back(metaServerList_);
     curve::client::PeerAddr pd;
     pd.Parse("127.0.0.1:9120:0");
+    EXPECT_CALL(*mockMdsClient_.get(), CreatePartition(_, _, _))
+        .WillOnce(Return(false));
     EXPECT_CALL(*mockMdsClient_.get(), ListPartition(fsID, _))
         .WillOnce(DoAll(SetArgPointee<1>(pInfoList_), Return(true)));
     EXPECT_CALL(*mockMdsClient_.get(), GetCopysetOfPartitions(_, _))

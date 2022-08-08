@@ -77,7 +77,7 @@ void ServiceHelper::ParseProtoThrottleParams(
 }
 
 void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
-                                        FInfo_t* fi) {
+                                        FInfo_t* fi, FileEpoch_t* fEpoch) {
     if (finfo.has_owner()) {
         fi->owner = finfo.owner();
     }
@@ -120,10 +120,16 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     if (finfo.has_stripecount()) {
         fi->stripeCount = finfo.stripecount();
     }
-
     if (finfo.has_throttleparams()) {
         fi->throttleParams =
             ProtoFileThrottleParamsToLocal(finfo.throttleparams());
+    }
+
+    fEpoch->fileId = finfo.id();
+    if (finfo.has_epoch()) {
+        fEpoch->epoch = finfo.epoch();
+    } else {
+        fEpoch->epoch = 0;
     }
 }
 
@@ -238,7 +244,7 @@ class GetLeaderProxy : public std::enable_shared_from_this<GetLeaderProxy> {
             }
         }
 
-        for (int i = 0; i < channels_.size(); ++i) {
+        for (size_t i = 0; i < channels_.size(); ++i) {
             curve::chunkserver::CliService2_Stub stub(channels_[i].get());
             curve::chunkserver::GetLeaderRequest2 request;
             request.set_logicpoolid(logicPoolId);

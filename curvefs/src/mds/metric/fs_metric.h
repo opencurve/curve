@@ -41,8 +41,8 @@ class FsMetric {
         return fsMetric;
     }
 
-    void OnMount(const std::string& fsname, const std::string& mp);
-    void OnUnMount(const std::string& fsname, const std::string& mp);
+    void OnMount(const std::string& fsname, const Mountpoint& mp);
+    void OnUnMount(const std::string& fsname, const Mountpoint& mp);
 
  private:
     FsMetric() = default;

@@ -28,6 +28,7 @@
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
+#include "src/fs/ext4_filesystem_impl.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -35,16 +36,22 @@ namespace metaserver {
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using TX_OP_TYPE = DentryStorage::TX_OP_TYPE;
+
+namespace {
+auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
+}
 
 class DentryStorageTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        tablename_ = "partition:1";
+        nameGenerator_ = std::make_shared<NameGenerator>(1);
         dataDir_ = RandomStoragePath();;
         StorageOptions options;
         options.dataDir = dataDir_;
+        options.localFileSystem = localfs.get();
         kvStorage_ = std::make_shared<RocksDBStorage>(options);
         ASSERT_TRUE(kvStorage_->Open());
     }
@@ -103,12 +110,12 @@ class DentryStorageTest : public ::testing::Test {
 
  protected:
     std::string dataDir_;
-    std::string tablename_;
+    std::shared_ptr<NameGenerator> nameGenerator_;
     std::shared_ptr<KVStorage> kvStorage_;
 };
 
 TEST_F(DentryStorageTest, Insert) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
 
     Dentry dentry;
     dentry.set_fsid(1);
@@ -147,7 +154,7 @@ TEST_F(DentryStorageTest, Insert) {
 }
 
 TEST_F(DentryStorageTest, Delete) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
 
     Dentry dentry;
     dentry.set_fsid(1);
@@ -206,13 +213,14 @@ TEST_F(DentryStorageTest, Delete) {
     dentry.set_flag(DentryFlag::DELETE_MARK_FLAG);
     rc = storage.HandleTx(TX_OP_TYPE::PREPARE, dentry);
     ASSERT_EQ(rc, MetaStatusCode::OK);
+    ASSERT_EQ(storage.Size(), 2);
 
     ASSERT_EQ(storage.Delete(dentry), MetaStatusCode::NOT_FOUND);
     ASSERT_EQ(storage.Size(), 0);
 }
 
 TEST_F(DentryStorageTest, Get) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
     Dentry dentry;
 
     // CASE 1: dentry not found
@@ -264,11 +272,10 @@ TEST_F(DentryStorageTest, Get) {
 }
 
 TEST_F(DentryStorageTest, List) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
     std::vector<Dentry> dentrys;
     Dentry dentry;
 
-    /*
     // CASE 1: basic list
     InsertDentrys(&storage, std::vector<Dentry>{
         // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
@@ -407,19 +414,18 @@ TEST_F(DentryStorageTest, List) {
 
     dentrys.clear();
     dentry = GenDentry(1, 2, "", 0, 0, false);
-    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 0);
 
     dentrys.clear();
     dentry = GenDentry(1, 3, "", 0, 0, false);
-    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 0);
 
     dentrys.clear();
     dentry = GenDentry(2, 0, "", 0, 0, false);
-    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 0), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 0);
-    */
 
     // CASE 9: list directory only
     storage.Clear();
@@ -435,10 +441,37 @@ TEST_F(DentryStorageTest, List) {
     dentry = GenDentry(1, 0, "", 0, 0, false);
     ASSERT_EQ(storage.List(dentry, &dentrys, 0, true), MetaStatusCode::OK);
     ASSERT_EQ(dentrys.size(), 1);
+
+    // CASE 10: list directory only with limit
+    storage.Clear();
+    InsertDentrys(&storage, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A", 0, 1, false),
+        GenDentry(1, 0, "B", 0, 2, false),
+        GenDentry(1, 0, "D", 0, 3, false),
+    });
+
+    dentrys.clear();
+    dentry = GenDentry(1, 0, "", 0, 0, false);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 1, true), MetaStatusCode::OK);
+    ASSERT_EQ(dentrys.size(), 1);
+
+    storage.Clear();
+    InsertDentrys(&storage, std::vector<Dentry>{
+        // { fsId, parentId, name, txId, inodeId, deleteMarkFlag }
+        GenDentry(1, 0, "A", 0, 1, false, FsFileType::TYPE_DIRECTORY),
+        GenDentry(1, 0, "B", 0, 2, false),
+        GenDentry(1, 0, "D", 0, 3, false),
+    });
+
+    dentrys.clear();
+    dentry = GenDentry(1, 0, "", 0, 0, false);
+    ASSERT_EQ(storage.List(dentry, &dentrys, 3, true), MetaStatusCode::OK);
+    ASSERT_EQ(dentrys.size(), 2);
 }
 
 TEST_F(DentryStorageTest, HandleTx) {
-    DentryStorage storage(kvStorage_, tablename_);
+    DentryStorage storage(kvStorage_, nameGenerator_, 0);
     std::vector<Dentry> dentrys;
     Dentry dentry;
 
@@ -488,7 +521,9 @@ TEST_F(DentryStorageTest, HandleTx) {
         GenDentry(1, 0, "A", 0, 1, false),
         GenDentry(1, 0, "A", 1, 2, false),
     });
+    ASSERT_EQ(storage.Size(), 2);
 
+    dentry = GenDentry(1, 0, "A", 1, 2, false);
     rc = storage.HandleTx(TX_OP_TYPE::ROLLBACK, dentry);
     ASSERT_EQ(rc, MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 1);

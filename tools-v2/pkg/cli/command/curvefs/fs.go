@@ -24,6 +24,14 @@ package curvefs
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/check"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/delete"
+	list "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/query"
+	status "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/status"
+	umount "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/umount"
+	usage "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/usage"
 	"github.com/spf13/cobra"
 )
 
@@ -34,15 +42,24 @@ type CurveFsCommand struct {
 var _ basecmd.MidCurveCmdFunc = (*CurveFsCommand)(nil) // check interface
 
 func (fsCmd *CurveFsCommand) AddSubCommands() {
+	fsCmd.Cmd.AddCommand(
+		usage.NewUsageCommand(),
+		list.NewListCommand(),
+		status.NewStatusCommand(),
+		umount.NewUmountCommand(),
+		query.NewQueryCommand(),
+		delete.NewDeleteCommand(),
+		create.NewCreateCommand(),
+		check.NewCheckCommand(),
+	)
 }
 
 func NewCurveFsCommand() *cobra.Command {
 	fsCmd := &CurveFsCommand{
 		basecmd.MidCurveCmd{
 			Use:   "fs",
-			Short: "Manage curve fs cluster",
+			Short: "Manage curvefs cluster",
 		},
 	}
-	fsCmd.Cmd = basecmd.NewMidCurveCli(&fsCmd.MidCurveCmd, fsCmd)
-	return fsCmd.Cmd
+	return basecmd.NewMidCurveCli(&fsCmd.MidCurveCmd, fsCmd)
 }

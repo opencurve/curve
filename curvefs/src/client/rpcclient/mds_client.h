@@ -53,6 +53,7 @@ using ::curvefs::mds::FSStatusCode;
 using ::curvefs::mds::space::SpaceErrCode;
 using ::curvefs::mds::topology::Copyset;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::mds::Mountpoint;
 
 namespace curvefs {
 namespace client {
@@ -62,6 +63,8 @@ using curvefs::mds::GetLatestTxIdRequest;
 using curvefs::mds::GetLatestTxIdResponse;
 using curvefs::mds::CommitTxRequest;
 using curvefs::mds::CommitTxResponse;
+using curvefs::mds::Mountpoint;
+
 class MdsClient {
  public:
     MdsClient() {}
@@ -70,12 +73,11 @@ class MdsClient {
     virtual FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                               MDSBaseClient *baseclient) = 0;
 
-    virtual FSStatusCode MountFs(const std::string &fsName,
-                                 const std::string &mountPt,
-                                 FsInfo *fsInfo) = 0;
+    virtual FSStatusCode MountFs(const std::string& fsName,
+                                 const Mountpoint& mountPt, FsInfo* fsInfo) = 0;
 
     virtual FSStatusCode UmountFs(const std::string &fsName,
-                                  const std::string &mountPt) = 0;
+                                  const Mountpoint &mountPt) = 0;
 
     virtual FSStatusCode GetFsInfo(const std::string &fsName,
                                    FsInfo *fsInfo) = 0;
@@ -101,11 +103,14 @@ class MdsClient {
 
     virtual bool ListPartition(uint32_t fsID,
                                std::vector<PartitionInfo> *partitionInfos) = 0;
-    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) = 0;
+    virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
+                                        uint64_t *chunkId) = 0;
 
     virtual FSStatusCode
     RefreshSession(const std::vector<PartitionTxId> &txIds,
-                   std::vector<PartitionTxId> *latestTxIdList) = 0;
+                   std::vector<PartitionTxId> *latestTxIdList,
+                   const std::string& fsName,
+                   const Mountpoint& mountpoint) = 0;
 
     virtual FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) = 0;
 
@@ -154,11 +159,11 @@ class MdsClientImpl : public MdsClient {
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                       MDSBaseClient *baseclient) override;
 
-    FSStatusCode MountFs(const std::string &fsName, const std::string &mountPt,
-                         FsInfo *fsInfo) override;
+    FSStatusCode MountFs(const std::string& fsName, const Mountpoint& mountPt,
+                         FsInfo* fsInfo) override;
 
-    FSStatusCode UmountFs(const std::string &fsName,
-                          const std::string &mountPt) override;
+    FSStatusCode UmountFs(const std::string& fsName,
+                          const Mountpoint& mountPt) override;
 
     FSStatusCode GetFsInfo(const std::string &fsName, FsInfo *fsInfo) override;
 
@@ -183,11 +188,13 @@ class MdsClientImpl : public MdsClient {
     bool ListPartition(uint32_t fsID,
                        std::vector<PartitionInfo> *partitionInfos) override;
 
-    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint64_t *chunkId) override;
+    FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
+                                uint64_t *chunkId) override;
 
-    FSStatusCode
-    RefreshSession(const std::vector<PartitionTxId> &txIds,
-                   std::vector<PartitionTxId> *latestTxIdList) override;
+    FSStatusCode RefreshSession(const std::vector<PartitionTxId> &txIds,
+                                std::vector<PartitionTxId> *latestTxIdList,
+                                const std::string& fsName,
+                                const Mountpoint& mountpoint) override;
 
     FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) override;
 

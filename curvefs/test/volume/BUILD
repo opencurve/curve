@@ -30,6 +30,7 @@ cc_test(
     linkopts = LINKOPTS,
     deps = [
         "//curvefs/src/volume",
+        "//curvefs/test/client/rpcclient:rpcclient_test_mock",
         "//curvefs/test/volume/mock",
         "//test/client/mock:client_mock_lib",
         "@com_google_absl//absl/memory",

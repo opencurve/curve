@@ -41,8 +41,11 @@
 #include "src/common/authenticator.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
+#include "src/mds/topology/topology_service_manager.h"
+
 using curve::common::Authenticator;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
+using curve::common::ChunkServerLocation;
 
 namespace curve {
 namespace mds {
@@ -210,6 +213,19 @@ class CurveFS {
     StatusCode RecoverFile(const std::string & originFileName,
                            const std::string & recycleFileName,
                            uint64_t fileId);
+
+    /**
+     * @brief increase file epoch
+     *
+     * @param filename  volume path
+     * @param fileinfo  volume info
+     * @param cslocs  chunkserver list needed to update epoch
+     *
+     * @return StatusCode::kOK if succeeded
+     */
+    StatusCode IncreaseFileEpoch(const std::string &filename,
+        FileInfo *fileinfo,
+        ::google::protobuf::RepeatedPtrField<ChunkServerLocation> *cslocs);
 
     /**
      *  @brief get information of all files in the directory
@@ -469,6 +485,18 @@ class CurveFS {
                               uint64_t date);
 
     /**
+     * @brief Check if epoch is greater than file.epoch()
+     *
+     * @param filename  file name
+     * @param epoch epoch
+     *
+     *  @return StatusCode::kOK if succeeded,
+     *          StatusCode::kEpochTooOld if failed.
+     */
+    StatusCode CheckEpoch(const std::string &filename,
+                                   uint64_t epoch);
+
+    /**
      *  @brief Check whether the owner passed in match the actual owner of the
      *         destination. This function is basically the same as
      *         CheckFileOwner, the only different is that CheckFileOwner will
@@ -582,6 +610,16 @@ class CurveFS {
      *  @return return maxFileLength info obtained
      */
     uint64_t GetMaxFileLength();
+
+    /**
+     * @brief build epoch map
+     *
+     * @param epochMap epoch map
+     *
+     * @return StatusCode::kOK if succeeded, StatusCode::kFileNotExists if failed //NOLINT
+     */
+    StatusCode BuildEpochMap(::google::protobuf::Map<
+        ::google::protobuf::uint64, ::google::protobuf::uint64> *epochMap);
 
  private:
     CurveFS() = default;
@@ -784,6 +822,21 @@ class CurveFS {
     std::chrono::steady_clock::time_point startTime_;
 };
 extern CurveFS &kCurveFS;
+
+using ::curve::mds::topology::ChunkServerRegistInfoBuilder;
+class ChunkServerRegistInfoBuilderImpl : public ChunkServerRegistInfoBuilder {
+ public:
+    explicit ChunkServerRegistInfoBuilderImpl(CurveFS *cfs)
+      : cfs_(cfs) {}
+    virtual ~ChunkServerRegistInfoBuilderImpl() {}
+    int BuildEpochMap(::google::protobuf::Map<
+        ::google::protobuf::uint64,
+        ::google::protobuf::uint64> *epochMap) override;
+
+ private:
+    CurveFS *cfs_;
+};
+
 }   // namespace mds
 }   // namespace curve
 #endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_

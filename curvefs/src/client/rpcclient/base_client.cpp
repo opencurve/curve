@@ -28,24 +28,25 @@ namespace rpcclient {
 
 using ::curvefs::mds::space::SpaceService_Stub;
 
+
 void MDSBaseClient::MountFs(const std::string& fsName,
-                            const std::string& mountPt,
+                            const Mountpoint& mountPt,
                             MountFsResponse* response, brpc::Controller* cntl,
                             brpc::Channel* channel) {
     MountFsRequest request;
     request.set_fsname(fsName);
-    request.set_mountpoint(mountPt);
+    request.set_allocated_mountpoint(new Mountpoint(mountPt));
     curvefs::mds::MdsService_Stub stub(channel);
     stub.MountFs(cntl, &request, response, nullptr);
 }
 
 void MDSBaseClient::UmountFs(const std::string& fsName,
-                             const std::string& mountPt,
+                             const Mountpoint& mountPt,
                              UmountFsResponse* response, brpc::Controller* cntl,
                              brpc::Channel* channel) {
     UmountFsRequest request;
     request.set_fsname(fsName);
-    request.set_mountpoint(mountPt);
+    request.set_allocated_mountpoint(new Mountpoint(mountPt));
     curvefs::mds::MdsService_Stub stub(channel);
     stub.UmountFs(cntl, &request, response, nullptr);
 }
@@ -129,23 +130,22 @@ void MDSBaseClient::ListPartition(uint32_t fsID,
     stub.ListPartition(cntl, &request, response, nullptr);
 }
 
-void MDSBaseClient::AllocS3ChunkId(uint32_t fsId,
+void MDSBaseClient::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                    AllocateS3ChunkResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     AllocateS3ChunkRequest request;
     request.set_fsid(fsId);
+    request.set_chunkidnum(idNum);
 
     curvefs::mds::MdsService_Stub stub(channel);
     stub.AllocateS3Chunk(cntl, &request, response, nullptr);
 }
 
-void MDSBaseClient::RefreshSession(const std::vector<PartitionTxId> &txIds,
+void MDSBaseClient::RefreshSession(const RefreshSessionRequest& request,
                                    RefreshSessionResponse *response,
                                    brpc::Controller *cntl,
                                    brpc::Channel *channel) {
-    RefreshSessionRequest request;
-    *request.mutable_txids() = {txIds.begin(), txIds.end()};
     curvefs::mds::MdsService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
 }

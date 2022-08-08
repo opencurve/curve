@@ -39,6 +39,7 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::curvefs::mds::space::MockSpaceService;
+using mds::Mountpoint;
 
 template <typename RpcRequestType, typename RpcResponseType,
           bool RpcFailed = false>
@@ -83,7 +84,10 @@ class BaseClientTest : public testing::Test {
 
 TEST_F(BaseClientTest, test_MountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     MountFsResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -107,7 +111,10 @@ TEST_F(BaseClientTest, test_MountFs) {
 
 TEST_F(BaseClientTest, test_UmountFs) {
     std::string fsName = "test1";
-    std::string mp = "0.0.0.0:/data";
+    Mountpoint mp;
+    mp.set_hostname("0.0.0.0");
+    mp.set_port(9000);
+    mp.set_path("/data");
     UmountFsResponse resp;
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -152,13 +159,14 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsName) {
     fsinfo->set_txsequence(0);
     fsinfo->set_txowner("owner");
     auto vresp = new curvefs::common::Volume();
-    vresp->set_volumesize(10 * 1024 * 1024L);
     vresp->set_blocksize(4 * 1024);
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
     vresp->set_blockgroupsize(128ULL * 1024 * 1024);
     vresp->set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
+    vresp->set_slicesize(1ULL * 1024 * 1024 * 1024);
+    vresp->set_autoextend(false);
     auto detail = new curvefs::mds::FsDetail();
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
@@ -203,13 +211,14 @@ TEST_F(BaseClientTest, test_GetFsInfo_by_fsId) {
     fsinfo->set_txsequence(0);
     fsinfo->set_txowner("owner");
     auto vresp = new curvefs::common::Volume();
-    vresp->set_volumesize(10 * 1024 * 1024L);
     vresp->set_blocksize(4 * 1024);
     vresp->set_volumename("test1");
     vresp->set_user("test");
     vresp->set_password("test");
     vresp->set_blockgroupsize(128ULL * 1024 * 1024);
     vresp->set_bitmaplocation(curvefs::common::BitmapLocation::AtStart);
+    vresp->set_slicesize(1ULL * 1024 * 1024 * 1024);
+    vresp->set_autoextend(false);
     auto detail = new curvefs::mds::FsDetail();
     detail->set_allocated_volume(vresp);
     fsinfo->set_allocated_detail(detail);
@@ -375,6 +384,11 @@ TEST_F(BaseClientTest, test_RefreshSession) {
     tmp.set_partitionid(1);
     tmp.set_txid(2);
     std::vector<PartitionTxId> txIds({tmp});
+    std::string fsName = "fs1";
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(1000);
@@ -383,7 +397,11 @@ TEST_F(BaseClientTest, test_RefreshSession) {
     RefreshSessionResponse resp;
 
     // prepare out param
+    RefreshSessionRequest request;
     RefreshSessionResponse response;
+    *request.mutable_txids() = {txIds.begin(), txIds.end()};
+    request.set_fsname(fsName);
+    *request.mutable_mountpoint() = mountpoint;
     response.set_statuscode(curvefs::mds::FSStatusCode::OK);
     *response.mutable_latesttxidlist() = {txIds.begin(), txIds.end()};
 
@@ -392,7 +410,7 @@ TEST_F(BaseClientTest, test_RefreshSession) {
             SetArgPointee<2>(response),
             Invoke(RpcService<RefreshSessionRequest, RefreshSessionResponse>)));
 
-    mdsbasecli_.RefreshSession(txIds, &resp, &cntl, &ch);
+    mdsbasecli_.RefreshSession(request, &resp, &cntl, &ch);
     ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
     ASSERT_TRUE(
         google::protobuf::util::MessageDifferencer::Equals(resp, response))

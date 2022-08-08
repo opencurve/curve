@@ -60,7 +60,7 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
 
     virtual void SetUp() {
         Aws::InitAPI(awsOptions_);
-        client_ = new MockS3Client();
+        client_ = std::make_shared<MockS3Client>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
         diskCacheWrite_ = std::make_shared<MockDiskCacheWrite>();
         diskCacheRead_ = std::make_shared<MockDiskCacheRead>();
@@ -68,8 +68,8 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
             wrapper_, diskCacheWrite_, diskCacheRead_);
         diskCacheRead_->Init(wrapper_, "/mnt/test");
 
-        std::shared_ptr<LRUCache<std::string, bool>> cachedObjName
-          = std::make_shared<LRUCache<std::string, bool>>
+        std::shared_ptr<SglLRUCache<std::string>> cachedObjName
+          = std::make_shared<SglLRUCache<std::string>>
               (0, std::make_shared<CacheMetrics>("diskcache"));
         diskCacheWrite_->Init(client_, wrapper_, "/mnt/test", 1, cachedObjName);
         diskCacheManagerImpl_ =
@@ -77,7 +77,6 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
     }
 
     virtual void TearDown() {
-        delete client_;
         Mock::VerifyAndClear(wrapper_.get());
         Mock::VerifyAndClear(diskCacheManagerImpl_.get());
         Mock::VerifyAndClear(diskCacheWrite_.get());
@@ -90,17 +89,19 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
     std::shared_ptr<MockDiskCacheManager> diskCacheManager_;
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
-    MockS3Client *client_;
+    std::shared_ptr<MockS3Client> client_;
     Aws::SDKOptions awsOptions_;
 };
 
 
 TEST_F(TestDiskCacheManagerImpl, Init) {
     S3ClientAdaptorOption s3AdaptorOption;
+    s3AdaptorOption.diskCacheOpt.forceFlush = false;
+    s3AdaptorOption.diskCacheOpt.threads = 0;
+
     EXPECT_CALL(*diskCacheManager_, Init(_, _)).WillOnce(Return(-1));
     int ret = diskCacheManagerImpl_->Init(s3AdaptorOption);
     ASSERT_EQ(-1, ret);
-
     EXPECT_CALL(*diskCacheManager_, Init(_, _)).WillOnce(Return(0));
     ret = diskCacheManagerImpl_->Init(s3AdaptorOption);
     ASSERT_EQ(0, ret);

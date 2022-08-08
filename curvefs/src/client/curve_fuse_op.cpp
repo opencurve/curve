@@ -38,6 +38,7 @@
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/common/metric_utils.h"
+#include "curvefs/src/common/dynamic_vlog.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -52,26 +53,11 @@ using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::client::metric::InflightGuard;
 
+using ::curvefs::common::FLAGS_vlog_level;
+
 static FuseClient *g_ClientInstance = nullptr;
 static FuseClientOption *g_fuseClientOption = nullptr;
 static ClientOpMetric* g_clientOpMetric = nullptr;
-
-DECLARE_int32(v);
-
-/**
- * use vlog_level to set vlog level on the fly
- * When vlog_level is set, CheckVLogLevel is called to check the validity of the
- * value. Dynamically modify the vlog level by setting FLAG_v in CheckVLogLevel.
- *
- * You can modify the vlog level to 0 using:
- * curl -s http://127.0.0.1:9000/flags/vlog_level?setvalue=0
- */
-DEFINE_int32(vlog_level, 0, "set vlog level");
-static bool CheckVLogLevel(const char*, int32_t value) {
-    FLAGS_v = value;
-    return true;
-}
-DEFINE_validator(vlog_level, CheckVLogLevel);
 
 namespace {
 
@@ -329,13 +315,29 @@ void FuseOpListXattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
 }
 
 void FuseOpReadDir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                   struct fuse_file_info *fi) {
+                       struct fuse_file_info *fi) {
     InflightGuard guard(&g_clientOpMetric->opReadDir.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opReadDir.latency);
     char *buffer = nullptr;
     size_t rSize = 0;
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDir(req, ino, size, off, fi,
-                                                        &buffer, &rSize);
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDirPlus(req, ino,
+        size, off, fi, &buffer, &rSize, false);
+    if (ret != CURVEFS_ERROR::OK) {
+        g_clientOpMetric->opReadDir.ecount << 1;
+        FuseReplyErrByErrCode(req, ret);
+        return;
+    }
+    fuse_reply_buf(req, buffer, rSize);
+}
+
+void FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                       struct fuse_file_info *fi) {
+    InflightGuard guard(&g_clientOpMetric->opReadDir.inflightOpNum);
+    LatencyUpdater updater(&g_clientOpMetric->opReadDir.latency);
+    char *buffer = nullptr;
+    size_t rSize = 0;
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpReadDirPlus(req, ino,
+        size, off, fi, &buffer, &rSize, true);
     if (ret != CURVEFS_ERROR::OK) {
         g_clientOpMetric->opReadDir.ecount << 1;
         FuseReplyErrByErrCode(req, ret);

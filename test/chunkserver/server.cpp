@@ -213,8 +213,6 @@ int main(int argc, char *argv[]) {
         peers.push_back(peer);
     }
 
-    LogicPoolID logicPoolId = 1;
-    CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
     CopysetNodeManager::GetInstance().Run();
     CopysetNodeManager::GetInstance().CreateCopysetNode(FLAGS_logic_pool_id,
@@ -225,7 +223,8 @@ int main(int argc, char *argv[]) {
     server.RunUntilAskedToQuit();
 
     LOG(INFO) << "server test service is going to quit";
-    CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
+    CopysetNodeManager::GetInstance().DeleteCopysetNode(
+        FLAGS_logic_pool_id, FLAGS_copyset_id);
 
     return 0;
 }

@@ -22,6 +22,7 @@
  */
 #include "curvefs/src/client/dentry_cache_manager.h"
 
+#include <cstdint>
 #include <string>
 #include <list>
 #include <vector>
@@ -104,12 +105,13 @@ CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
 }
 
 CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
-                                                   const std::string &name) {
+                                                   const std::string &name,
+                                                   FsFileType type) {
     std::string key = GetDentryCacheKey(parent, name);
     NameLockGuard lock(nameLock_, key);
     dCache_->Remove(key);
 
-    MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name);
+    MetaStatusCode ret = metaClient_->DeleteDentry(fsId_, parent, name, type);
     if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
         LOG(ERROR) << "metaClient_ DeleteInode failed, MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
@@ -122,10 +124,18 @@ CURVEFS_ERROR DentryCacheManagerImpl::DeleteDentry(uint64_t parent,
 CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                                                  std::list<Dentry> *dentryList,
                                                  uint32_t limit,
-                                                 bool onlyDir) {
-    bool perceed = true;
-    MetaStatusCode ret = MetaStatusCode::OK;
+                                                 bool onlyDir,
+                                                 uint32_t nlink) {
     dentryList->clear();
+    // means no dir under this dir
+    if (onlyDir && nlink == 2) {
+        LOG(INFO) << "ListDentry parent = " << parent
+                  << ", onlyDir = 1 and nlink = 2, return directly";
+        return CURVEFS_ERROR::OK;
+    }
+
+    MetaStatusCode ret = MetaStatusCode::OK;
+    bool perceed = true;
     std::string last = "";
     do {
         std::list<Dentry> part;
@@ -136,22 +146,36 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                 << ", onlyDir = " << onlyDir
                 << ", ret = " << ret << ", part.size() = " << part.size();
         if (ret != MetaStatusCode::OK) {
-            if (MetaStatusCode::NOT_FOUND == ret) {
-                return CURVEFS_ERROR::OK;
-            }
-            LOG(ERROR) << "metaClient_ ListDentry failed, MetaStatusCode = "
-                       << ret
+            LOG(ERROR) << "metaClient_ ListDentry failed"
                        << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", parent = " << parent << ", last = " << last
                        << ", count = " << limit << ", onlyDir = " << onlyDir;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
-        if (part.size() < limit) {
-            perceed = false;
-        }
-        if (!part.empty()) {
-            last = part.back().name();
-            dentryList->splice(dentryList->end(), part);
+
+        if (!onlyDir) {
+            if (part.size() < limit) {
+                perceed = false;
+            }
+            if (!part.empty()) {
+                last = part.back().name();
+                dentryList->splice(dentryList->end(), part);
+            }
+        } else {
+            // means iterate over the range
+            if (part.empty()) {
+                perceed = false;
+            } else {
+                last = part.back().name();
+                if (part.back().type() != FsFileType::TYPE_DIRECTORY) {
+                    part.pop_back();
+                }
+                dentryList->splice(dentryList->end(), part);
+                // means already get all the dir under this dir
+                if (nlink - dentryList->size() == 2) {
+                    perceed = false;
+                }
+            }
         }
     } while (perceed);
 
