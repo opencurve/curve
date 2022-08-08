@@ -24,6 +24,7 @@
 
 #include <gmock/gmock.h>
 
+#include <memory>
 #include <string>
 
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
@@ -44,6 +45,10 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
         const std::string& ak, const std::string& sk,
         const std::string& endpoint, const std::string& bucketName));
     MOCK_METHOD1(GetS3ClientAdaptorOption, void(S3ClientAdaptorOption *option));
+    MOCK_METHOD0(GetS3Client, std::shared_ptr<S3Client>());
+    MOCK_METHOD0(GetBlockSize, uint64_t());
+    MOCK_METHOD0(GetChunkSize, uint64_t());
+    MOCK_METHOD0(HasDiskCache, bool());
 };
 
 }  // namespace metaserver
