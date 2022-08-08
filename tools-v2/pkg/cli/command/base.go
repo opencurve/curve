@@ -109,6 +109,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 		Long:    cli.Long,
 		Example: cli.Example,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
 			err := funcs.Init(cmd, args)
 			if err != nil {
 				return err
@@ -119,7 +120,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 			}
 			return funcs.Print(cmd, args)
 		},
-		SilenceUsage: true,
+		SilenceUsage: false,
 	}
 	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()

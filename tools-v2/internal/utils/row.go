@@ -89,6 +89,7 @@ const (
 	ROW_VALUE_DNE     = "DNE"
 	ROW_VALUE_OFFLINE = "offline"
 	ROW_VALUE_UNKNOWN = "unknown"
+	ROW_VALUE_SUCCESS = "success"
 )
 
 // topology type
