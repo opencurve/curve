@@ -52,6 +52,7 @@ using ::testing::AtLeast;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::Invoke;
+using ::testing::Matcher;
 
 namespace curve {
 namespace mds {
@@ -292,7 +293,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     uint64_t alloc=kMiniFileLength;
     PhysicalPool out;
     PoolIdType poolId;
-    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+    EXPECT_CALL(*topology_, GetPhysicalPool(Matcher<PoolIdType>(_), _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
@@ -1194,7 +1195,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     uint64_t alloc=kMiniFileLength;
     PhysicalPool out;
     PoolIdType poolId;
-    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+    EXPECT_CALL(*topology_, GetPhysicalPool(Matcher<PoolIdType>(_), _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
@@ -1469,7 +1470,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     uint64_t alloc=kMiniFileLength;
     PhysicalPool out;
     PoolIdType poolId;
-    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+    EXPECT_CALL(*topology_, GetPhysicalPool(Matcher<PoolIdType>(_), _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
@@ -2191,7 +2192,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     uint64_t alloc=kMiniFileLength;
     PhysicalPool out;
     PoolIdType poolId;
-    EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+    EXPECT_CALL(*topology_, GetPhysicalPool(Matcher<PoolIdType>(_), _))
         .Times(AtLeast(1))
         .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
@@ -2829,7 +2830,7 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
         uint64_t alloc=kMiniFileLength;
         PhysicalPool out;
         PoolIdType poolId;
-        EXPECT_CALL(*topology_, GetPhysicalPool(poolId,_))
+        EXPECT_CALL(*topology_, GetPhysicalPool(Matcher<PoolIdType>(_), _))
             .Times(AtLeast(1))
             .WillRepeatedly(DoAll(SetArgPointee<1>(truepPool),Return(true)));
         EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_,_))
