@@ -30,6 +30,8 @@
 #include <memory>
 #include <string>
 #include <list>
+#include <utility>
+#include <vector>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -45,12 +47,15 @@
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/src/common/s3util.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/lease/lease_excutor.h"
 #include "curvefs/src/client/xattr_manager.h"
 
 #define DirectIOAlignment 512
+#define WARMUP_CHECKINTERVAL_US 1000*1000
+#define WARMUP_THREADS 10
 
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
@@ -74,7 +79,11 @@ using curvefs::common::is_aligned;
 const uint32_t kMaxHostNameLength = 255u;
 
 using mds::Mountpoint;
-
+typedef struct WarmUpFileContext {
+    fuse_ino_t inode;
+    uint64_t fileLen;
+    bool exist;
+} WarmUpFileContext_t;
 class FuseClient {
  public:
     FuseClient()
@@ -87,6 +96,7 @@ class FuseClient {
         mdsBase_(nullptr),
         isStop_(true),
         init_(false),
+        mounted_(false),
         enableSumInDir_(false) {}
 
     virtual ~FuseClient() {}
@@ -104,6 +114,7 @@ class FuseClient {
             mdsBase_(nullptr),
             isStop_(true),
             init_(false),
+            mounted_(false),
             enableSumInDir_(false) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
@@ -230,6 +241,15 @@ class FuseClient {
         init_ = true;
     }
 
+    void SetMounted(bool mounted) {
+        mounted_ = mounted;
+    }
+
+    TaskThreadPool<bthread::Mutex, bthread::ConditionVariable> &
+      GetTaskFetchPool() {
+        return taskFetchMetaPool_;
+    }
+
     std::shared_ptr<FsInfo> GetFsInfo() {
         return fsInfo_;
     }
@@ -243,6 +263,34 @@ class FuseClient {
     // for unit test
     void SetEnableSumInDir(bool enable) {
         enableSumInDir_ = enable;
+    }
+    std::list<fuse_ino_t>& GetReadAheadFiles() {
+        std::unique_lock<std::mutex> lck(fetchMtx_);
+        return readAheadFiles_;
+    }
+
+    void GetWarmUpFile(WarmUpFileContext_t* warmUpFile) {
+        std::unique_lock<std::mutex> lck(warmUpFileMtx_);
+        *warmUpFile = std::move(warmUpFile_);
+        warmUpFile_.exist = false;
+        return;
+    }
+    void SetWarmUpFile(WarmUpFileContext_t warmUpFile) {
+        std::unique_lock<std::mutex> lck(warmUpFileMtx_);
+        warmUpFile_ = warmUpFile;
+        warmUpFile_.exist = true;
+    }
+    bool hasWarmUpTask() {
+        std::unique_lock<std::mutex> lck(warmUpFileMtx_);
+        return warmUpFile_.exist;
+    }
+
+    void FetchDentryEnqueue(std::string file);
+
+    void PutWarmTask(const std::string& warmUpTask) {
+        std::unique_lock<std::mutex> lck(warmUpTaskMtx_);
+        warmUpTasks_.push_back(warmUpTask);
+        WarmUpRun();
     }
 
  protected:
@@ -271,6 +319,30 @@ class FuseClient {
         return 0;
     }
 
+    void splitStr(const std::string& srcStr, const std::string& delimiter,
+      std::vector<std::string>* splitPath) {
+        char* pToken = nullptr;
+        char* pSave = nullptr;
+        pToken = strtok_r(const_cast<char*>(srcStr.c_str()),
+          const_cast<char*>(delimiter.c_str()), &pSave);
+        if (nullptr == pToken) {
+            VLOG(3) << "whsdel lookpath end";
+            return;
+        }
+        splitPath->push_back(pToken);
+        while (true) {
+            pToken = strtok_r(NULL, const_cast<char*>(
+              delimiter.c_str()), &pSave);
+            if (nullptr == pToken) {
+                VLOG(3) << "whsdel lookpath end";
+                break;
+            }
+            VLOG(9) << "whsdel pToken is:" << pToken
+                    << "pSave:" << pSave;
+            splitPath->push_back(pToken);
+        }
+    }
+
  private:
     virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
 
@@ -278,6 +350,23 @@ class FuseClient {
 
     CURVEFS_ERROR UpdateParentInodeMCTimeAndInvalidNlink(
         fuse_ino_t parent, FsFileType type);
+
+    void WarmUpTask();
+
+    void WarmUpRun() {
+        std::lock_guard<std::mutex> lk(mtx_);
+        runned_ = true;
+        cond_.notify_one();
+    }
+    void WaitWarmUp() {
+        std::unique_lock<std::mutex> lk(mtx_);
+        cond_.wait(lk, [this]() { return runned_; });
+        runned_ = false;
+    }
+    std::mutex mtx_;
+    std::condition_variable cond_;
+    bool runned_ = false;
+
 
  protected:
     // mds client
@@ -308,6 +397,8 @@ class FuseClient {
     // init flags
     bool init_;
 
+    std::atomic<bool>  mounted_;
+
     // enable record summary info in dir inode xattr
     bool enableSumInDir_;
 
@@ -321,6 +412,40 @@ class FuseClient {
     Atomic<bool> isStop_;
 
     curve::common::Mutex renameMutex_;
+
+    Thread bgCmdTaskThread_;
+    std::atomic<bool> bgCmdStop_;
+    std::mutex cmdMtx_;
+
+    void FetchChildDentryEnqueue(fuse_ino_t  ino);
+    void FetchChildDentry(fuse_ino_t ino);
+    void FetchDentry(fuse_ino_t ino, std::string file);
+    void LookPath(std::string file);
+    TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
+        taskFetchMetaPool_;
+
+    // need warmup files
+    std::list<fuse_ino_t> readAheadFiles_;
+    std::mutex fetchMtx_;
+
+    //  one warmup file provided by the user
+    WarmUpFileContext_t warmUpFile_;
+    std::mutex warmUpFileMtx_;
+
+    std::list<std::string> warmUpTasks_;  // todo: need size control ?
+    std::mutex warmUpTaskMtx_;
+
+    void GetwarmTask(std::string *warmUpTask) {
+        std::unique_lock<std::mutex> lck(warmUpTaskMtx_);
+        if (warmUpTasks_.empty())
+            return;
+        *warmUpTask = std::move(warmUpTasks_.front());
+        warmUpTasks_.pop_front();
+    }
+    bool hasWarmTask() {
+        std::unique_lock<std::mutex> lck(warmUpTaskMtx_);
+        return !warmUpTasks_.empty();
+    }
 };
 
 }  // namespace client

@@ -345,6 +345,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         UpdateS3ChunkInfoMetric(2);
     }
 
+    google::protobuf::Map<uint64_t, S3ChunkInfoList>* GetChunkInfoMap() {
+         return inode_.mutable_s3chunkinfomap();
+     }
+
     void MarkInodeError() {
         // TODO(xuchaojie) : when inode is marked error, prevent futher write.
         status_ = InodeStatus::Error;
