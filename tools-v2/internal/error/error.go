@@ -273,19 +273,19 @@ var (
 		return NewInternalCmdError(14, "invalid %s: %s")
 	}
 	ErrSplitPeer = func() *CmdError {
-		return NewInternalCmdError(15, "split peer %s failed!")
+		return NewInternalCmdError(15, "split peer %s failed")
 	}
 	ErrMarshalJson = func() *CmdError {
 		return NewInternalCmdError(16, "marshal %s to json error, the error is: %s")
 	}
 	ErrCopysetKey = func() *CmdError {
-		return NewInternalCmdError(17, "copyset key [%d] not found in %s!")
+		return NewInternalCmdError(17, "copyset key [%d] not found in %s")
 	}
 	ErrQueryCopyset = func() *CmdError {
 		return NewInternalCmdError(18, "query copyset failed! the error is: %s")
 	}
 	ErrOfflineCopysetPeer = func() *CmdError {
-		return NewInternalCmdError(19, "peer [%s] is offline!")
+		return NewInternalCmdError(19, "peer [%s] is offline")
 	}
 	ErrStateCopysetPeer = func() *CmdError {
 		return NewInternalCmdError(20, "state in peer[%s]: %s")
@@ -297,13 +297,13 @@ var (
 		return NewInternalCmdError(22, "check copyset failed! the error is: %s")
 	}
 	ErrEtcdOffline = func() *CmdError {
-		return NewInternalCmdError(23, "etcd[%s] is offline!")
+		return NewInternalCmdError(23, "etcd[%s] is offline")
 	}
 	ErrMdsOffline = func() *CmdError {
-		return NewInternalCmdError(24, "mds[%s] is offline!")
+		return NewInternalCmdError(24, "mds[%s] is offline")
 	}
 	ErrMetaserverOffline = func() *CmdError {
-		return NewInternalCmdError(25, "metaserver[%s] is offline!")
+		return NewInternalCmdError(25, "metaserver[%s] is offline")
 	}
 	ErrCheckPoolTopology = func() *CmdError {
 		return NewInternalCmdError(26, "pool[%s] is not in cluster nor in json file")
@@ -318,19 +318,31 @@ var (
 		return NewInternalCmdError(29, "%s[%d] belongs to %s[%d] who was not found")
 	}
 	ErrCopysetGapKey = func() *CmdError {
-		return NewInternalCmdError(30, "Fail to parse copyset key! the line is: %s")
+		return NewInternalCmdError(30, "fail to parse copyset key! the line is: %s")
 	}
 	ErrCopysetGapState = func() *CmdError {
-		return NewInternalCmdError(30, "Fail to parse copyset[%d] state! the line is: %s")
+		return NewInternalCmdError(30, "fail to parse copyset[%d] state! the line is: %s")
 	}
 	ErrCopysetGapLastLogId = func() *CmdError {
-		return NewInternalCmdError(31, "Fail to parse copyset[%d] last_log_id! the line is: %s")
+		return NewInternalCmdError(31, "fail to parse copyset[%d] last_log_id! the line is: %s")
 	}
 	ErrCopysetGapReplicator = func() *CmdError {
-		return NewInternalCmdError(32, "Fail to parse copyset[%d] replicator! the line is: %s")
+		return NewInternalCmdError(32, "fail to parse copyset[%d] replicator! the line is: %s")
 	}
 	ErrCopysetGap = func() *CmdError {
-		return NewInternalCmdError(33, "Fail to parse copyset[%d]: state or storage or replicator is not found!")
+		return NewInternalCmdError(33, "fail to parse copyset[%d]: state or storage or replicator is not found!")
+	}
+	ErrSplitMountpoint = func() *CmdError {
+		return NewInternalCmdError(30, "invalid mountpoint[%s], should be like: hostname:port:path")
+	}
+	ErrGetMountpoint = func() *CmdError {
+		return NewInternalCmdError(31, "get mountpoint failed! the error is: %s")
+	}
+	ErrWriteFile = func() *CmdError {
+		return NewInternalCmdError(32, "write file[%s] failed! the error is: %s")
+	}
+	ErrSetxattr = func() *CmdError {
+		return NewInternalCmdError(33, "setxattr [%s] failed! the error is: %s")
 	}
 
 	// http error
@@ -462,7 +474,7 @@ var (
 		case topology.TopoStatusCode_TOPO_OK:
 			message = "ok"
 		default:
-			message = fmt.Sprintf("delete %s[%s] err: %s", topoType, name,statusCode.String())
+			message = fmt.Sprintf("delete %s[%s] err: %s", topoType, name, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
