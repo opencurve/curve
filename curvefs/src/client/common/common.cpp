@@ -76,6 +76,29 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
     return os;
 }
 
+const char kCurveFsWarmupOpAdd[] = "add";
+const char kCurveFsWarmupTypeList[] = "list";
+const char kCurveFsWarmupTypeSingle[] = "single";
+
+WarmupOpType GetWarmupOpType(const std::string& op) {
+    auto ret = WarmupOpType::kWarmupOpUnknown;
+    if (op == kCurveFsWarmupOpAdd) {
+        ret = WarmupOpType::kWarmupOpAdd;
+    }
+    return ret;
+}
+
+WarmupType GetWarmupType(const std::string& type) {
+    auto ret =
+        WarmupType::kWarmupTypeUnknown;
+    if (type == kCurveFsWarmupTypeList) {
+        ret = WarmupType::kWarmupTypeList;
+    } else if (type == kCurveFsWarmupTypeSingle) {
+        ret = WarmupType::kWarmupTypeSingle;
+    }
+    return ret;
+}
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
