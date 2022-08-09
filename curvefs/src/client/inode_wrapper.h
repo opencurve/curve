@@ -164,6 +164,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return inode_.length();
     }
 
+    // Get inode's length
+    //
+    // REQUIRES: |mtx_| is held
+    uint64_t GetLengthLocked() const {
+        return inode_.length();
+    }
+
     void SetUid(uint32_t uid) {
         inode_.set_uid(uid);
         dirty_ = true;

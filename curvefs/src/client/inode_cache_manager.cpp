@@ -95,7 +95,7 @@ class TrimICacheAsyncDone : public MetaServerClientDone {
         assert(0);                                                             \
     }
 
-#define REFRESH_DATA_REMOTE(OUT, STREAMING)                                    \
+#define REFRESH_DATA_REMOTE_LOCKED(OUT, STREAMING)                             \
     CURVEFS_ERROR rc = RefreshData(OUT, STREAMING);                            \
     if (rc != CURVEFS_ERROR::OK) {                                             \
         return rc;                                                             \
@@ -113,7 +113,7 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
             return CURVEFS_ERROR::OK;
         }
 
-        REFRESH_DATA_REMOTE(out, out->NeedRefreshData());
+        REFRESH_DATA_REMOTE_LOCKED(out, out->NeedRefreshData());
         return CURVEFS_ERROR::OK;
     }
 
@@ -126,7 +126,10 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
         option_.refreshDataIntervalSec);
 
     // refresh data
-    REFRESH_DATA_REMOTE(out, streaming);
+    {
+        auto inodeLock = out->GetUniqueLock();
+        REFRESH_DATA_REMOTE_LOCKED(out, streaming);
+    }
 
     // put to cache
     PUT_INODE_CACHE(inodeId, out);
@@ -151,19 +154,19 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
         out = std::make_shared<InodeWrapper>(
             std::move(inode), metaClient_, s3ChunkInfoMetric_,
             option_.maxDataSize, option_.refreshDataIntervalSec);
+        lgGuard = out->GetUniqueLock();
     } else {
         lgGuard = out->GetUniqueLock();
         streaming = true;
+        out->SetLength(inode.length());
     }
 
     // refresh data
-    REFRESH_DATA_REMOTE(out, streaming);
+    REFRESH_DATA_REMOTE_LOCKED(out, streaming);
 
-    // put to cache or refresh length
+    // put to cache
     if (!ok) {
         PUT_INODE_CACHE(inodeId, out);
-    } else {
-        out->SetLength(inode.length());
     }
 
     return CURVEFS_ERROR::OK;
@@ -489,7 +492,7 @@ InodeCacheManagerImpl::RefreshData(std::shared_ptr<InodeWrapper> &inode,
         break;
 
     case FsFileType::TYPE_FILE: {
-        if (inode->GetLength() > 0) {
+        if (inode->GetLengthLocked() > 0) {
             rc = inode->RefreshVolumeExtent();
             LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)
                 << "RefreshVolumeExtent failed, error: " << rc;

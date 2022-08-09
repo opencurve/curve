@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <thread>
 
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_cache_manager.h"
@@ -163,6 +164,7 @@ TEST_F(TestInodeCacheManager, RefreshInode) {
     S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
     S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
     s3ChunkInfo->set_chunkid(1);
+
     s3ChunkInfo->set_compaction(1);
     s3ChunkInfo->set_offset(0);
     s3ChunkInfo->set_len(1024);
@@ -230,6 +232,33 @@ TEST_F(TestInodeCacheManager, RefreshInode) {
     EXPECT_CALL(*metaClient_, GetVolumeExtent(fsId_, inodefileid, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
     ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodefileid));
+}
+
+// get inode from cache and refresh volume extents
+TEST_F(TestInodeCacheManager, RefreshVolumeInode) {
+    const uint64_t ino = 1;
+
+    Inode inode;
+    inode.set_inodeid(ino);
+    inode.set_fsid(fsId_);
+    inode.set_length(0);
+    inode.set_type(FsFileType::TYPE_FILE);
+
+    // ensure ino is in cache
+    EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
+
+    std::shared_ptr<InodeWrapper> out;
+    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->GetInode(ino, out));
+
+    inode.set_length(4096);
+    EXPECT_CALL(*metaClient_, GetInode(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(inode), Return(MetaStatusCode::OK)));
+
+    EXPECT_CALL(*metaClient_, GetVolumeExtent(_, _, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(ino));
 }
 
 TEST_F(TestInodeCacheManager, GetInodeAttr) {
