@@ -349,6 +349,8 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     uint32_t gid = 0;                 // TODO(cw123)
     uint32_t mode = S_IFDIR | 01777;  // TODO(cw123)
 
+    std::set<std::string> addrs;
+
     // create partition
     FSStatusCode ret = FSStatusCode::OK;
     PartitionInfo partition;
@@ -360,15 +362,15 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
         ret = FSStatusCode::CREATE_PARTITION_ERROR;
     } else {
         // get copyset members
-        std::set<std::string> addrs;
         if (TopoStatusCode::TOPO_OK !=
             topoManager_->GetCopysetMembers(partition.poolid(),
                                             partition.copysetid(), &addrs)) {
             LOG(ERROR) << "CreateFs fail, get copyset members fail,"
-                       << " poolId = " << partition.poolid()
-                       << ", copysetId = " << partition.copysetid();
+                        << " poolId = " << partition.poolid()
+                        << ", copysetId = " << partition.copysetid();
             ret = FSStatusCode::UNKNOWN_ERROR;
         } else {
+            // create root inode
             ret = metaserverClient_->CreateRootInode(
                 wrapper.GetFsId(), partition.poolid(), partition.copysetid(),
                 partition.partitionid(), uid, gid, mode, addrs);
@@ -387,6 +389,33 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
             return ret2;
         }
         return ret;
+    }
+
+    // if trash time is not 0, create trash inode and dentry for fs
+    if (request->has_recycletimehour() && request->recycletimehour() != 0) {
+        ret = metaserverClient_->CreateManageInode(
+            wrapper.GetFsId(), partition.poolid(), partition.copysetid(),
+            partition.partitionid(), uid, gid, mode,
+            ManageInodeType::TYPE_RECYCLE, addrs);
+        if (ret != FSStatusCode::OK && ret != FSStatusCode::INODE_EXIST) {
+            LOG(ERROR) << "CreateFs fail, create trash inode fail"
+                    << ", fsName = " << fsName
+                    << ", ret = " << FSStatusCode_Name(ret);
+            // TODO(chenwei): delete root inode, delete fs
+            return ret;
+        }
+
+        ret = metaserverClient_->CreateDentry(
+            wrapper.GetFsId(), partition.poolid(), partition.copysetid(),
+            partition.partitionid(), ROOTINODEID, RECYCLENAME, RECYCLEINODEID,
+            addrs);
+        if (ret != FSStatusCode::OK) {
+            LOG(ERROR) << "CreateFs fail, insert trash dentry fail"
+                    << ", fsName = " << fsName
+                    << ", ret = " << FSStatusCode_Name(ret);
+            // TODO(chenwei): delete fs
+            return ret;
+        }
     }
 
     wrapper.SetStatus(FsStatus::INITED);

@@ -59,6 +59,7 @@ class RenameOperator {
     CURVEFS_ERROR UnlinkSrcParentInode();
     void UnlinkOldInode();
     CURVEFS_ERROR UpdateInodeParent();
+    CURVEFS_ERROR UpdateInodeCtime();
     void UpdateCache();
 
     void GetOldInode(uint64_t *oldInodeId, int64_t *oldInodeSize,

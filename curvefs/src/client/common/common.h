@@ -59,6 +59,7 @@ enum class MetaServerOpType {
     GetOrModifyS3ChunkInfo,
     GetVolumeExtent,
     UpdateVolumeExtent,
+    CreateManageInode,
 };
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
@@ -92,6 +93,11 @@ enum class NlinkChange : int32_t {
     kSubOne = -1,
 };
 
+// if direction is true means '+', false means '-'
+// is direction is true, add second to first
+// if direction is false, sub second from first
+bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction);
+bool AddUllStringToFirst(uint64_t *first, const std::string &second);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs

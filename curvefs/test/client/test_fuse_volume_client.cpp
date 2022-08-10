@@ -886,9 +886,6 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .Times(2)
         .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
-        .Times(1)
-        .WillRepeatedly(Return(MetaStatusCode::OK));
 
     // step3: precheck
     // dentry = { fsid, parentid, name, txid, inodeid, DELETE }
@@ -946,14 +943,18 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
 
-    // step7: update inode parent
+    // step7: update inode parent and ctime
     Inode InodeInfo;
     InodeInfo.set_inodeid(inodeId);
     InodeInfo.add_parent(parent);
     inodeWrapper = std::make_shared<InodeWrapper>(InodeInfo, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(inodeId, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, inodeId, _, _, _))
+        .Times(2)
+        .WillRepeatedly(Return(MetaStatusCode::OK));
 
     // step8: update cache
     EXPECT_CALL(*dentryManager_, DeleteCache(parent, name)).Times(1);
@@ -1066,7 +1067,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
             return MetaStatusCode::OK;
         }));
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
-        .Times(3)
+        .Times(4)
         .WillRepeatedly(Invoke(
             [&](uint32_t /*fsId*/, uint64_t /*inodeId*/,
                 const InodeAttr& /*attr*/,
@@ -1094,7 +1095,8 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
     InodeInfo.add_parent(parent);
     inodeWrapper = std::make_shared<InodeWrapper>(InodeInfo, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(inodeId, _))
-        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
 
     // step8: update cache
@@ -1243,7 +1245,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
-        .Times(times)
+        .Times(times * 2)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     // step6: unlink old inode
@@ -1257,7 +1259,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
     oldAttr.set_type(FsFileType::TYPE_FILE);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(inode.inodeid(), _))
-        .Times(times)
+        .Times(times * 2)
         .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                               Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, 10, _))

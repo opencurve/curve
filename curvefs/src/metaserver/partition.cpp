@@ -258,6 +258,20 @@ MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
     return inodeManager_->CreateRootInode(param);
 }
 
+MetaStatusCode Partition::CreateManageInode(const InodeParam &param,
+                                            ManageInodeType manageType,
+                                            Inode* inode) {
+    if (!IsInodeBelongs(param.fsId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    return inodeManager_->CreateManageInode(param, manageType, inode);
+}
+
 MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
                                    Inode* inode) {
     if (!IsInodeBelongs(fsId, inodeId)) {

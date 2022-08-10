@@ -28,6 +28,7 @@
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/test/client/rpcclient/mock_mds_client.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -49,11 +50,12 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::client::rpcclient::MockMdsClient;
 
 class TestTrash : public ::testing::Test {
  protected:
     void SetUp() override {
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
         options.localFileSystem = localfs.get();
@@ -118,6 +120,7 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     TrashOption option;
     option.scanPeriodSec = 1;
     option.expiredAfterSec = 1;
+    option.mdsClient = std::make_shared<MockMdsClient>();
 
     trashManager_->Init(option);
     trashManager_->Run();

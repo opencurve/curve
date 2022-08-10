@@ -77,16 +77,16 @@ MetaStatusCode InodeManager::CreateInode(uint64_t inodeId,
 }
 
 MetaStatusCode InodeManager::CreateRootInode(const InodeParam &param) {
-    VLOG(6) << "CreateRootInode, fsId = " << param.fsId
-            << ", uid = " << param.uid
-            << ", gid = " << param.gid
-            << ", mode = " << param.mode;
+    LOG(INFO) << "CreateRootInode, fsId = " << param.fsId
+              << ", uid = " << param.uid
+              << ", gid = " << param.gid
+              << ", mode = " << param.mode;
 
-    // 1. generate inode
+    // 1. generate root inode
     Inode inode;
     GenerateInodeInternal(ROOTINODEID, param, &inode);
 
-    // 2. insert inode
+    // 2. insert root inode
     MetaStatusCode ret = inodeStorage_->Insert(inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "CreateRootInode fail, fsId = " << param.fsId
@@ -96,7 +96,46 @@ MetaStatusCode InodeManager::CreateRootInode(const InodeParam &param) {
         return ret;
     }
     ++(*type2InodeNum_)[inode.type()];
-    VLOG(9) << "CreateRootInode success, inode: " << inode.ShortDebugString();
+    LOG(INFO) << "CreateRootInode success, inode: " << inode.ShortDebugString();
+    return MetaStatusCode::OK;
+}
+
+MetaStatusCode InodeManager::CreateManageInode(const InodeParam &param,
+                                               ManageInodeType manageType,
+                                               Inode *newInode) {
+    LOG(INFO) << "CreateManageInode, fsId = " << param.fsId
+              << ", uid = " << param.uid
+              << ", gid = " << param.gid
+              << ", mode = " << param.mode;
+
+    // 1. get inode id
+    uint64_t inodeId = 0;
+    if (ManageInodeType::TYPE_RECYCLE == manageType) {
+        inodeId = RECYCLEINODEID;
+    } else {
+        LOG(ERROR) << "Create manage inode fail, manageType not support.";
+        return MetaStatusCode::PARAM_ERROR;
+    }
+
+    // 2. generate manage inode
+    Inode inode;
+    GenerateInodeInternal(inodeId, param, &inode);
+
+    // 3. insert manage inode
+    MetaStatusCode ret = inodeStorage_->Insert(inode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "CreateManageInode fail, fsId = " << param.fsId
+                   << ", uid = " << param.uid << ", gid = " << param.gid
+                   << ", mode = " << param.mode
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
+    }
+
+    ++(*type2InodeNum_)[inode.type()];
+    newInode->CopyFrom(inode);
+
+    LOG(INFO) << "CreateManageInode success, inode: "
+              << inode.ShortDebugString();
     return MetaStatusCode::OK;
 }
 
@@ -244,7 +283,7 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId) {
 }
 
 MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
-    VLOG(9) << "update inode open status, fsid: " << request.fsid()
+    VLOG(9) << "update inode, fsid: " << request.fsid()
             << ", inodeid: " << request.inodeid();
     NameLockGuard lg(inodeLock_, GetInodeLockName(
             request.fsid(), request.inodeid()));
@@ -289,6 +328,9 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
             old.set_dtime(now);
             needAddTrash = true;
         }
+        VLOG(9) << "update inode nlink, from " << old.nlink() << " to "
+                << request.nlink() << ", fsid: " << request.fsid()
+                << ", inodeid: " << request.inodeid();
         old.set_nlink(request.nlink());
         needUpdate = true;
     }

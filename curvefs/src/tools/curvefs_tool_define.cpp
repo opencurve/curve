@@ -80,6 +80,8 @@ DEFINE_uint64(capacity, (uint64_t)100 * 1024 * 1024 * 1024,
 DEFINE_string(user, "anonymous", "user of request");
 DEFINE_string(inodeId, "1,2,3", "inodes id");
 
+DEFINE_uint32(recycleTimeHour, 1, "recycle time hour");
+
 // list-topology
 DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");
 DEFINE_string(jsonType, "build", "output json type(build or tree)");
@@ -261,6 +263,11 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetRpcRetryIntervalUs = std::bind(
         &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
         "rpcRetryIntervalUs", &FLAGS_rpcRetryIntervalUs);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetRecycleTimeHour = std::bind(
+        &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
+        "recycleTimeHour", &FLAGS_recycleTimeHour);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =

@@ -140,6 +140,9 @@ class MockMetaServerClient : public MetaServerClient {
     MOCK_METHOD2(CreateInode, MetaStatusCode(
             const InodeParam &param, Inode *out));
 
+    MOCK_METHOD2(CreateManageInode, MetaStatusCode(
+                 const InodeParam &param, Inode *out));
+
     MOCK_METHOD2(DeleteInode, MetaStatusCode(uint32_t fsId, uint64_t inodeid));
 
     MOCK_METHOD3(SplitRequestInodes, bool(uint32_t fsId,

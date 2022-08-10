@@ -69,6 +69,10 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::LocalFileSystemOption;
 
 using ::curvefs::metaserver::copyset::ApplyQueueOption;
+using ::curvefs::client::rpcclient::MetaServerClientImpl;
+using ::curvefs::client::rpcclient::ChannelManager;
+using ::curvefs::client::rpcclient::MetaCache;
+using ::curvefs::client::rpcclient::Cli2ClientImpl;
 
 void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
@@ -144,6 +148,54 @@ void Metaserver::InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
     partitionCleanOption->mdsClient = mdsClient;
 }
 
+void Metaserver::InitRecycleManagerOption(
+                RecycleManagerOption* recycleManagerOption) {
+    recycleManagerOption->mdsClient = mdsClient_;
+    recycleManagerOption->metaClient = metaClient_;
+    LOG_IF(FATAL, !conf_->GetUInt32Value("recycle.manager.scanPeriodSec",
+                                         &recycleManagerOption->scanPeriodSec));
+    LOG_IF(FATAL, !conf_->GetUInt32Value("recycle.cleaner.scanLimit",
+                                         &recycleManagerOption->scanLimit));
+}
+
+void InitExcutorOption(const std::shared_ptr<Configuration>& conf,
+                       ExcutorOpt *opts, bool internal) {
+    if (internal) {
+        conf->GetValueFatalIfFail("excutorOpt.maxInternalRetry",
+                                  &opts->maxRetry);
+    } else {
+        conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
+    }
+
+    conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
+                              &opts->retryIntervalUS);
+    conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.rpcStreamIdleTimeoutMS",
+                              &opts->rpcStreamIdleTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.maxRPCTimeoutMS",
+                              &opts->maxRPCTimeoutMS);
+    conf->GetValueFatalIfFail("excutorOpt.maxRetrySleepIntervalUS",
+                              &opts->maxRetrySleepIntervalUS);
+    conf->GetValueFatalIfFail("excutorOpt.minRetryTimesForceTimeoutBackoff",
+                              &opts->minRetryTimesForceTimeoutBackoff);
+    conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
+                              &opts->maxRetryTimesBeforeConsiderSuspend);
+    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
+                              &opts->batchInodeAttrLimit);
+    conf->GetValueFatalIfFail("excutorOpt.enableMultiMountPointRename",
+                              &opts->enableRenameParallel);
+}
+
+void InitMetaCacheOption(const std::shared_ptr<Configuration>& conf,
+                         MetaCacheOpt *opts) {
+    conf->GetValueFatalIfFail("metaCacheOpt.metacacheGetLeaderRetry",
+                              &opts->metacacheGetLeaderRetry);
+    conf->GetValueFatalIfFail("metaCacheOpt.metacacheRPCRetryIntervalUS",
+                              &opts->metacacheRPCRetryIntervalUS);
+    conf->GetValueFatalIfFail("metaCacheOpt.metacacheGetLeaderRPCTimeOutMS",
+                              &opts->metacacheGetLeaderRPCTimeOutMS);
+}
+
 void Metaserver::Init() {
     TrashOption trashOption;
     trashOption.InitTrashOptionFromConf(conf_);
@@ -153,6 +205,9 @@ void Metaserver::Init() {
     ::curvefs::client::common::InitMdsOption(conf_.get(), &mdsOptions_);
     mdsClient_ = std::make_shared<MdsClientImpl>();
     mdsClient_->Init(mdsOptions_, mdsBase_);
+
+    // init metaserver client for recycle
+    InitMetaClient();
 
     s3Adaptor_ = std::make_shared<S3ClientAdaptorImpl>();
 
@@ -169,6 +224,10 @@ void Metaserver::Init() {
     trashOption.s3Adaptor = s3Adaptor_;
     trashOption.mdsClient = mdsClient_;
     TrashManager::GetInstance().Init(trashOption);
+
+    RecycleManagerOption recycleManagerOption;
+    InitRecycleManagerOption(&recycleManagerOption);
+    RecycleManager::GetInstance().Init(recycleManagerOption);
 
     // NOTE: Do not arbitrarily adjust the order, there are dependencies
     //       between different modules
@@ -190,6 +249,21 @@ void Metaserver::Init() {
 
     conf_->ExposeMetric("curvefs_metaserver_config");
     inited_ = true;
+}
+
+void Metaserver::InitMetaClient() {
+    metaClient_ = std::make_shared<MetaServerClientImpl>();
+    auto cli2Client = std::make_shared<Cli2ClientImpl>();
+    auto metaCache = std::make_shared<MetaCache>();
+    MetaCacheOpt metaCacheOpt;
+    InitMetaCacheOption(conf_, &metaCacheOpt);
+    metaCache->Init(metaCacheOpt, cli2Client, mdsClient_);
+    auto channelManager = std::make_shared<ChannelManager<MetaserverID>>();
+    ExcutorOpt excutorOpt;
+    ExcutorOpt internalOpt;
+    InitExcutorOption(conf_, &excutorOpt, false);
+    InitExcutorOption(conf_, &internalOpt, true);
+    metaClient_->Init(excutorOpt, internalOpt, metaCache, channelManager);
 }
 
 void Metaserver::GetMetaserverDataByLoadOrRegister() {
@@ -342,6 +416,8 @@ void Metaserver::Run() {
 
     TrashManager::GetInstance().Run();
 
+    RecycleManager::GetInstance().Run();
+
     // start heartbeat
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
@@ -440,6 +516,8 @@ void Metaserver::Stop() {
     PartitionCleanManager::GetInstance().Fini();
 
     LOG_IF(ERROR, heartbeat_.Fini() != 0);
+
+    RecycleManager::GetInstance().Stop();
 
     TrashManager::GetInstance().Fini();
     LOG_IF(ERROR, !copysetNodeManager_->Stop())

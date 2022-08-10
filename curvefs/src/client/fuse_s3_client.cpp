@@ -534,7 +534,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
     VLOG(1) << "FuseOpCreate, parent: " << parent << ", name: " << name
             << ", mode: " << mode;
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, false, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -546,7 +546,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                         dev_t rdev, fuse_entry_param *e) {
     VLOG(1) << "FuseOpMkNod, parent: " << parent << ", name: " << name
             << ", mode: " << mode << ", rdev: " << rdev;
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
+    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, false,
+                    e);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpLink(fuse_req_t req, fuse_ino_t ino,

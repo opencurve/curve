@@ -272,6 +272,28 @@ message CreateRootInodeResponse {
     optional uint64 appliedIndex = 2;
 }
 
+enum ManageInodeType {
+    TYPE_NOT_MANAGE = 0;
+    TYPE_RECYCLE = 1;
+};
+
+message CreateManageInodeRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint32 uid = 5;
+    required uint32 gid = 6;
+    required uint32 mode = 7;
+    required ManageInodeType manageType = 8;
+}
+
+message CreateManageInodeResponse {
+    required MetaStatusCode statusCode = 1;
+    optional Inode inode = 2;
+    optional uint64 appliedIndex = 3;
+}
+
 message UpdateInodeRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -474,6 +496,7 @@ service MetaServerService {
     rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
+    rpc CreateManageInode(CreateManageInodeRequest) returns (CreateManageInodeResponse);
     rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
     rpc BatchGetInodeAttr(BatchGetInodeAttrRequest) returns (BatchGetInodeAttrResponse);
     rpc BatchGetXAttr(BatchGetXAttrRequest) returns (BatchGetXAttrResponse);

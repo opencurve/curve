@@ -280,6 +280,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetRpcRetryIntervalUs;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRecycleTimeHour;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>

@@ -86,7 +86,7 @@ void TrashImpl::ScanTrash() {
                 continue;
             }
             VLOG(6) << "Trash Delete Inode, fsId = " << it->fsId
-                    << "inodeId = " << it->inodeId;
+                    << ", inodeId = " << it->inodeId;
             it = temp.erase(it);
         } else {
             it++;
@@ -123,7 +123,46 @@ bool TrashImpl::NeedDelete(const TrashItem &item) {
                      << ", ret = " << MetaStatusCode_Name(ret);
         return false;
     }
-    return ((now - item.dtime) >= options_.expiredAfterSec);
+
+    // for compatibility, if fs recycleTimeHour is 0, use old trash logic
+    // if fs recycleTimeHour is 0, use trash wait until expiredAfterSec
+    // if fs recycleTimeHour is not 0, return true
+    uint64_t recycleTimeHour = GetFsRecycleTimeHour(item.fsId);
+    if (recycleTimeHour == 0) {
+        return ((now - item.dtime) >= options_.expiredAfterSec);
+    } else {
+        return true;
+    }
+}
+
+uint64_t TrashImpl::GetFsRecycleTimeHour(uint32_t fsId) {
+    FsInfo fsInfo;
+    uint64_t recycleTimeHour = 0;
+    if (fsInfoMap_.find(fsId) == fsInfoMap_.end()) {
+        auto ret = mdsClient_->GetFsInfo(fsId, &fsInfo);
+        if (ret != FSStatusCode::OK) {
+            if (FSStatusCode::NOT_FOUND == ret) {
+                LOG(ERROR) << "The fs not exist, fsId = " << fsId;
+                return 0;
+            } else {
+                LOG(ERROR)
+                    << "GetFsInfo failed, FSStatusCode = " << ret
+                    << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
+                    << ", fsId = " << fsId;
+                return 0;
+            }
+        }
+        fsInfoMap_.insert({fsId, fsInfo});
+    } else {
+        fsInfo = fsInfoMap_.find(fsId)->second;
+    }
+
+    if (fsInfo.has_recycletimehour()) {
+        recycleTimeHour = fsInfo.recycletimehour();
+    } else {
+        recycleTimeHour = 0;
+    }
+    return recycleTimeHour;
 }
 
 MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
