@@ -154,24 +154,6 @@ CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo(bool internal) {
-    curve::common::UniqueLock lock = GetSyncingS3ChunkInfoUniqueLock();
-    if (!s3ChunkInfoAdd_.empty()) {
-        MetaStatusCode ret = metaClient_->GetOrModifyS3ChunkInfo(
-            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_, false, nullptr,
-            internal);
-        if (ret != MetaStatusCode::OK) {
-            LOG(ERROR) << "metaClient_ GetOrModifyS3ChunkInfo failed, "
-                       << "MetaStatusCode: " << ret
-                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
-                       << ", inodeid: " << inode_.inodeid();
-            return MetaStatusCodeToCurvefsErrCode(ret);
-        }
-        ClearS3ChunkInfoAdd();
-    }
-    return CURVEFS_ERROR::OK;
-}
-
 void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
                                   bool /*internal*/) {
     if (dirty_) {
@@ -185,17 +167,6 @@ void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
     if (done != nullptr) {
         done->SetMetaStatusCode(MetaStatusCode::OK);
         done->Run();
-    }
-}
-
-void InodeWrapper::FlushS3ChunkInfoAsync() {
-    if (!s3ChunkInfoAdd_.empty()) {
-        LockSyncingS3ChunkInfo();
-         auto *done = new GetOrModifyS3ChunkInfoAsyncDone(shared_from_this());
-        metaClient_->GetOrModifyS3ChunkInfoAsync(
-            inode_.fsid(), inode_.inodeid(), s3ChunkInfoAdd_,
-            done);
-        ClearS3ChunkInfoAdd();
     }
 }
 
@@ -481,6 +452,9 @@ CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
         }
         ClearS3ChunkInfoAdd();
     }
+
+    std::unique_lock<std::mutex> lk(inflightAsyncS3ChunkInfoMtx_);
+    cond_.wait(lk, [] { return inflightAsyncS3ChunkInfo_ == 0; });
     return CURVEFS_ERROR::OK;
 }
 
@@ -524,13 +498,14 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
         LockSyncingS3ChunkInfo();
         DataIndices indices;
         if (!s3ChunkInfoAdd_.empty()) {
-            indices.s3ChunkInfoMap = std::move(s3ChunkInfoAdd_);
+            indices.s3ChunkInfoMap = s3ChunkInfoAdd_;
         }
         metaClient_->UpdateInodeWithOutNlinkAsync(
             inode_, new UpdateInodeAsyncS3Done{shared_from_this(), done},
             InodeOpenStatusChange::NOCHANGE, std::move(indices));
         dirty_ = false;
         ClearS3ChunkInfoAdd();
+        inflightAsyncS3ChunkInfo_.fetch_add(1);
         return;
     }
 

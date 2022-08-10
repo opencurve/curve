@@ -75,6 +75,21 @@ class TrimICacheAsyncDone : public MetaServerClientDone {
     std::shared_ptr<InodeCacheManagerImpl> inodeCacheManager_;
 };
 
+class AsyncS3ChunkInfoDone : public MetaServerClientDone {
+ public:
+    explicit AsyncS3ChunkInfoDone(
+        const std::shared_ptr<InodeWrapper> &inodeWrapper)
+        : inodeWrapper_(inodeWrapper) {}
+
+    void Run() override {
+        std::unique_ptr<AsyncDonAsyncDone> self_guard(this);
+        inodeWrapper_->NotifyInflightAsyncS3ChunkInfoBack();
+    };
+
+ private:
+    std::shared_ptr<InodeWrapper> inodeWrapper_;
+};
+
 #define GET_INODE_REMOTE(FSID, INODEID, OUT, STREAMING)                        \
     MetaStatusCode ret = metaClient_->GetInode(FSID, INODEID, OUT, STREAMING); \
     if (ret != MetaStatusCode::OK) {                                           \
@@ -153,6 +168,7 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
             option_.maxDataSize, option_.refreshDataIntervalSec);
     } else {
         lgGuard = out->GetUniqueLock();
+        streaming = true;
     }
 
     // refresh data
@@ -258,10 +274,9 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
         std::make_shared<CountDownEvent>(inodeGroups.size());
     for (const auto& it : inodeGroups) {
         VLOG(3) << "BatchGetInodeAttrAsync Send " << it.size();
-        auto* done = new BatchGetInodeAttrAsyncDone(shared_from_this(),
-                                                    cond, parentId);
-        MetaStatusCode ret = metaClient_->BatchGetInodeAttrAsync(fsId_, it,
-                                                                 done);
+        MetaStatusCode ret = metaClient_->BatchGetInodeAttrAsync(
+            fsId_, it,
+            new BatchGetInodeAttrAsyncDone(shared_from_this(), cond, parentId));
         if (MetaStatusCode::OK != ret) {
             LOG(ERROR) << "metaClient BatchGetInodeAsync failed,"
                        << " MetaStatusCode = " << ret
@@ -389,7 +404,7 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
     }
     for (auto it = temp_.begin(); it != temp_.end(); it++) {
         curve::common::UniqueLock ulk = it->second->GetUniqueLock();
-        it->second->Async(nullptr, true);
+        it->second->Async(new AsyncS3ChunkInfoDone(it->second), true);
     }
 }
 
@@ -453,9 +468,8 @@ void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
                 dirtyMapMutex_.lock();
                 dirtyMap_.erase(inodeId);
                 dirtyMapMutex_.unlock();
-                auto *done =
-                    new TrimICacheAsyncDone(inodeWrapper, shared_from_this());
-                inodeWrapper->Async(done);
+                inodeWrapper->Async(
+                    TrimICacheAsyncDone(inodeWrapper, shared_from_this()));
             } else {
                 VLOG(9) << "TrimIcache remove inode " << inodeId
                         << " from iCache";
