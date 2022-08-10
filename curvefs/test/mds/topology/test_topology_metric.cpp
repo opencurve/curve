@@ -123,6 +123,14 @@ class TestTopologyMetric : public ::testing::Test {
             << "should have PrepareAddPool()";
     }
 
+    void UpdateCopysetMembers(CopySetIdType copysetId, PoolIdType poolId,
+                           const std::set<MetaServerIdType> &members) {
+        CopySetInfo cs(poolId, copysetId);
+        cs.SetCopySetMembers(members);
+        TopoStatusCode ret = topology_->UpdateCopySetTopo(cs);
+        ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
+    }
+
     void PrepareAddPartition(PartitionIdType partitionId,
                              CopySetIdType copysetId, PoolIdType poolId) {
         Partition partition;
@@ -205,6 +213,42 @@ TEST_F(TestTopologyMetric, TestUpdateTopologyMetricsOnePool) {
     ASSERT_EQ(1, gPoolMetrics[poolId]->copysetNum.get_value());
     ASSERT_EQ(100 * 1024 * 3, gPoolMetrics[poolId]->diskThreshold.get_value());
     ASSERT_EQ(10 * 1024 * 3, gPoolMetrics[poolId]->diskUsed.get_value());
+    ASSERT_EQ(30, gPoolMetrics[poolId]->inodeNum.get_value());
+    ASSERT_EQ(300, gPoolMetrics[poolId]->dentryNum.get_value());
+    ASSERT_EQ(3, gPoolMetrics[poolId]->partitionNum.get_value());
+
+    // Simulate metaserver offline and migrate data to another metaserver
+    PrepareAddMetaServer(0x44, "host4", "token4", 0x33, "127.0.0.1", 8890);
+    std::set<MetaServerIdType> replicas2;
+    replicas2.insert(0x41);
+    replicas2.insert(0x42);
+    replicas2.insert(0x44);
+    UpdateCopysetMembers(copysetId, poolId, replicas2);
+
+    testObj_->UpdateTopologyMetrics();
+
+    ASSERT_EQ(0, gMetaServerMetrics[0x43]->scatterWidth.get_value());
+    ASSERT_EQ(0, gMetaServerMetrics[0x43]->copysetNum.get_value());
+    ASSERT_EQ(0, gMetaServerMetrics[0x43]->leaderNum.get_value());
+    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x43]->diskThreshold.get_value());
+    ASSERT_EQ(10 * 1024, gMetaServerMetrics[0x43]->diskUsed.get_value());
+    ASSERT_EQ(20 * 1024, gMetaServerMetrics[0x43]->memoryUsed.get_value());
+    ASSERT_EQ(0, gMetaServerMetrics[0x43]->partitionNum.get_value());
+
+    ASSERT_EQ(2, gMetaServerMetrics[0x44]->scatterWidth.get_value());
+    ASSERT_EQ(1, gMetaServerMetrics[0x44]->copysetNum.get_value());
+    ASSERT_EQ(0, gMetaServerMetrics[0x44]->leaderNum.get_value());
+    ASSERT_EQ(100 * 1024, gMetaServerMetrics[0x44]->diskThreshold.get_value());
+    ASSERT_EQ(10 * 1024, gMetaServerMetrics[0x44]->diskUsed.get_value());
+    ASSERT_EQ(20 * 1024, gMetaServerMetrics[0x44]->memoryUsed.get_value());
+    ASSERT_EQ(3, gMetaServerMetrics[0x44]->partitionNum.get_value());
+
+
+    ASSERT_EQ(1, gPoolMetrics.size());
+    ASSERT_EQ(4, gPoolMetrics[poolId]->metaServerNum.get_value());
+    ASSERT_EQ(1, gPoolMetrics[poolId]->copysetNum.get_value());
+    ASSERT_EQ(100 * 1024 * 4, gPoolMetrics[poolId]->diskThreshold.get_value());
+    ASSERT_EQ(10 * 1024 * 4, gPoolMetrics[poolId]->diskUsed.get_value());
     ASSERT_EQ(30, gPoolMetrics[poolId]->inodeNum.get_value());
     ASSERT_EQ(300, gPoolMetrics[poolId]->dentryNum.get_value());
     ASSERT_EQ(3, gPoolMetrics[poolId]->partitionNum.get_value());
