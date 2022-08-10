@@ -45,7 +45,8 @@ using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::Iterator;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
-constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
+// skip ROOTINODEID and RECYCLEINODEID
+constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 2;
 
 class Partition {
  public:
@@ -80,6 +81,11 @@ class Partition {
                                Inode* inode);
 
     MetaStatusCode CreateRootInode(const InodeParam &param);
+
+    MetaStatusCode CreateManageInode(const InodeParam &param,
+                                     ManageInodeType manageType,
+                                     Inode* inode);
+
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode* inode);
 
     MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,
@@ -172,6 +178,16 @@ class Partition {
     std::shared_ptr<Iterator> GetAllVolumeExtentList();
 
     bool Clear();
+
+    void SetManageFlag(bool flag) { partitionInfo_.set_manageflag(flag); }
+
+    bool GetManageFlag() {
+        if (partitionInfo_.has_manageflag()) {
+            return partitionInfo_.manageflag();
+        } else {
+            return false;
+        }
+    }
 
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;

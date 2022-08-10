@@ -30,7 +30,7 @@ namespace client {
 
 using ::curve::common::StringToUll;
 using ::curve::common::Thread;
-
+using ::curvefs::client::common::AddUllStringToFirst;
 
 bool IsSummaryInfo(const char *name) {
     return std::strstr(name, SUMMARYPREFIX);
@@ -43,42 +43,6 @@ bool IsOneLayer(const char *name) {
         std::strcmp(name, XATTRFBYTES) == 0) {
         return true;
     }
-    return false;
-}
-
-// if direction is true means '+', false means '-'
-bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction) {
-    uint64_t firstNum = 0;
-    uint64_t secondNum = second;
-    if (StringToUll(*first, &firstNum)) {
-        if (direction) {
-            *first = std::to_string(firstNum + secondNum);
-        } else {
-            if (firstNum < secondNum) {
-                *first = std::to_string(0);
-                LOG(WARNING) << "AddUllStringToFirst failed when minus,"
-                             << " first = " << firstNum
-                             << ", second = " << secondNum;
-                return false;
-            }
-            *first = std::to_string(firstNum - secondNum);
-        }
-    } else {
-        LOG(ERROR) << "StringToUll failed, first = " << *first
-                   << ", second = " << second;
-        return false;
-    }
-    return true;
-}
-
-bool AddUllStringToFirst(uint64_t *first, const std::string &second) {
-    uint64_t secondNum = 0;
-    if (StringToUll(second, &secondNum)) {
-        *first += secondNum;
-        return true;
-    }
-
-    LOG(ERROR) << "StringToUll failed, second = " << second;
     return false;
 }
 

@@ -61,6 +61,9 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
                                              CreateInodeResponse*));
     MOCK_METHOD2(CreateRootInode, MetaStatusCode(const CreateRootInodeRequest*,
                                                  CreateRootInodeResponse*));
+    MOCK_METHOD2(CreateManageInode,
+                MetaStatusCode(const CreateManageInodeRequest*,
+                                                 CreateManageInodeResponse*));
     MOCK_METHOD2(GetInode,
                  MetaStatusCode(const GetInodeRequest*, GetInodeResponse*));
     MOCK_METHOD2(BatchGetInodeAttr,

@@ -72,6 +72,10 @@ class InodeManager {
                                Inode *inode);
     MetaStatusCode CreateRootInode(const InodeParam &param);
 
+    MetaStatusCode CreateManageInode(const InodeParam &param,
+                                     ManageInodeType manageType,
+                                     Inode *inode);
+
     MetaStatusCode GetInode(uint32_t fsId,
                             uint64_t inodeId,
                             Inode *inode,

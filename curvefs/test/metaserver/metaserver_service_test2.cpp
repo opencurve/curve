@@ -88,6 +88,7 @@ TEST_F(MetaServerServiceTest2, ServiceOverload) {
     TEST_SERVICE_OVERLOAD(UpdateInode);
     TEST_SERVICE_OVERLOAD(DeleteInode);
     TEST_SERVICE_OVERLOAD(CreateRootInode);
+    TEST_SERVICE_OVERLOAD(CreateManageInode);
     TEST_SERVICE_OVERLOAD(CreatePartition);
     TEST_SERVICE_OVERLOAD(DeletePartition);
     TEST_SERVICE_OVERLOAD(PrepareRenameTx);
@@ -121,6 +122,7 @@ TEST_F(MetaServerServiceTest2, CopysetNodeNotFound) {
     TEST_COPYSETNODE_NOTFOUND(UpdateInode);
     TEST_COPYSETNODE_NOTFOUND(DeleteInode);
     TEST_COPYSETNODE_NOTFOUND(CreateRootInode);
+    TEST_COPYSETNODE_NOTFOUND(CreateManageInode);
     TEST_COPYSETNODE_NOTFOUND(CreatePartition);
     TEST_COPYSETNODE_NOTFOUND(DeletePartition);
     TEST_COPYSETNODE_NOTFOUND(PrepareRenameTx);

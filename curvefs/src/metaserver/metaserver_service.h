@@ -75,10 +75,15 @@ class MetaServerServiceImpl : public MetaServerService {
                      ::curvefs::metaserver::CreateInodeResponse* response,
                      ::google::protobuf::Closure* done) override;
     void CreateRootInode(
-        ::google::protobuf::RpcController* controller,
-        const ::curvefs::metaserver::CreateRootInodeRequest* request,
-        ::curvefs::metaserver::CreateRootInodeResponse* response,
-        ::google::protobuf::Closure* done) override;
+            ::google::protobuf::RpcController* controller,
+            const ::curvefs::metaserver::CreateRootInodeRequest* request,
+            ::curvefs::metaserver::CreateRootInodeResponse* response,
+            ::google::protobuf::Closure* done) override;
+    void CreateManageInode(
+            ::google::protobuf::RpcController* controller,
+            const ::curvefs::metaserver::CreateManageInodeRequest* request,
+            ::curvefs::metaserver::CreateManageInodeResponse* response,
+            ::google::protobuf::Closure* done) override;
     void UpdateInode(::google::protobuf::RpcController* controller,
                      const ::curvefs::metaserver::UpdateInodeRequest* request,
                      ::curvefs::metaserver::UpdateInodeResponse* response,

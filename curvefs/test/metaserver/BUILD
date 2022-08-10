@@ -32,6 +32,7 @@ cc_test(
             "s3compact_test.cpp",
             "mock_s3_adapter.h",
             "partition_clean_test.cpp",
+            "recycle*.cpp",
         ],
     ),
     copts = CURVE_TEST_COPTS,
@@ -71,6 +72,29 @@ cc_test(
             "//curvefs/test/metaserver/storage:metaserver_storage_test_utils",
     ],
 )
+
+cc_test(
+    name = "curvefs_recycle_test",
+    srcs = glob([
+        "recycle*.cpp",
+    ],
+        exclude = [],
+    ),
+    copts = CURVE_TEST_COPTS,
+    deps = [
+            "//curvefs/src/metaserver:curvefs_metaserver",
+            "@com_google_googletest//:gtest_main",
+            "@com_google_googletest//:gtest",
+            # # "//external:brpc",
+            # "//curvefs/proto:curvefs_topology_cc_proto",
+            "//curvefs/test/metaserver/copyset/mock:metaserver_copyset_test_mock",
+            # "//curvefs/src/metaserver:metaserver_s3_lib",
+            "//curvefs/test/client/rpcclient:rpcclient_test_mock",
+            "//curvefs/test/client:mock",
+            "//curvefs/test/metaserver/storage:metaserver_storage_test_utils",
+    ],
+)
+
 
 # s3 adaptor
 cc_test(

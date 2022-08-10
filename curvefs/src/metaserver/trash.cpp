@@ -34,7 +34,6 @@ using ::curvefs::mds::FSStatusCode;
 
 void TrashOption::InitTrashOptionFromConf(std::shared_ptr<Configuration> conf) {
     conf->GetValueFatalIfFail("trash.scanPeriodSec", &scanPeriodSec);
-    conf->GetValueFatalIfFail("trash.expiredAfterSec", &expiredAfterSec);
 }
 
 void TrashImpl::Init(const TrashOption &option) {
@@ -86,7 +85,7 @@ void TrashImpl::ScanTrash() {
                 continue;
             }
             VLOG(6) << "Trash Delete Inode, fsId = " << it->fsId
-                    << "inodeId = " << it->inodeId;
+                    << ", inodeId = " << it->inodeId;
             it = temp.erase(it);
         } else {
             it++;
@@ -108,7 +107,6 @@ bool TrashImpl::IsStop() {
 }
 
 bool TrashImpl::NeedDelete(const TrashItem &item) {
-    uint32_t now = TimeUtility::GetTimeofDaySec();
     Inode inode;
     MetaStatusCode ret =
         inodeStorage_->Get(Key4Inode(item.fsId, item.inodeId), &inode);
@@ -123,7 +121,7 @@ bool TrashImpl::NeedDelete(const TrashItem &item) {
                      << ", ret = " << MetaStatusCode_Name(ret);
         return false;
     }
-    return ((now - item.dtime) >= options_.expiredAfterSec);
+    return true;
 }
 
 MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {

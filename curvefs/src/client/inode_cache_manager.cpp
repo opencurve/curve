@@ -321,6 +321,35 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR InodeCacheManagerImpl::CreateManageInode(
+    const InodeParam &param,
+    std::shared_ptr<InodeWrapper> &out) {
+    Inode inode;
+    MetaStatusCode ret = metaClient_->CreateManageInode(param, &inode);
+    if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "metaClient_ CreateManageInode failed, MetaStatusCode = "
+                   << ret << ", MetaStatusCode_Name = "
+                   << MetaStatusCode_Name(ret);
+        return MetaStatusCodeToCurvefsErrCode(ret);
+    }
+    uint64_t inodeid = inode.inodeid();
+    out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_,
+        s3ChunkInfoMetric_, option_.maxDataSize,
+        option_.refreshDataIntervalSec);
+
+    std::shared_ptr<InodeWrapper> eliminatedOne;
+    bool eliminated = false;
+    {
+        NameLockGuard lock(nameLock_, std::to_string(inodeid));
+        eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
+    }
+    if (eliminated) {
+        /* iCache does not evict inodes via put interface */
+        assert(0);
+    }
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR InodeCacheManagerImpl::DeleteInode(uint64_t inodeId) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
     iCache_->Remove(inodeId);

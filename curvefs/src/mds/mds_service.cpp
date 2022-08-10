@@ -43,6 +43,8 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
     // set response statuscode default value is ok
     response->set_statuscode(FSStatusCode::OK);
 
+    LOG(INFO) << "CreateFs request: " << request->ShortDebugString();
+
     // create volume fs
     auto createVolumeFs =
         [&]() {
@@ -54,13 +56,6 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
                 return;
             }
             const auto& volume = request->fsdetail().volume();
-            LOG(INFO) << "CreateFs request, fsName = " << fsName
-                      << ", blockSize = " << blockSize
-                      << ", volume.volumeName = " << volume.volumename()
-                      << ", enableSumInDir = " << enableSumInDir
-                      << ", owner = " << request->owner()
-                      << ", capacity = " << request->capacity();
-
             FSStatusCode status =
                 fsManager_->CreateFs(request, response->mutable_fsinfo());
 
@@ -88,13 +83,6 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
                 return;
             }
             const auto& s3Info = request->fsdetail().s3info();
-            LOG(INFO) << "CreateFs request, fsName = " << fsName
-                      << ", blockSize = " << blockSize
-                      << ", s3Info.bucketname = " << s3Info.bucketname()
-                      << ", enableSumInDir = " << enableSumInDir
-                      << ", owner = " << request->owner()
-                      << ", capacity = " << request->capacity();
-
             FSStatusCode status =
                 fsManager_->CreateFs(request, response->mutable_fsinfo());
 

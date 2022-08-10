@@ -158,6 +158,8 @@ int CreateFsTool::Init() {
     request.set_fsname(FLAGS_fsName);
     request.set_blocksize(FLAGS_blockSize);
     request.set_enablesumindir(FLAGS_enableSumInDir);
+    // TODO(chenwei) : get from conf or gflags
+    request.set_recycletimehour(1);
 
     auto SetS3Request = [&]() -> int {
         request.set_fstype(common::FSType::TYPE_S3);

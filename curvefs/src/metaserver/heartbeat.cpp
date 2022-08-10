@@ -44,7 +44,6 @@
 namespace curvefs {
 namespace metaserver {
 
-using ::braft::Configuration;
 using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
 using ::curvefs::metaserver::copyset::CopysetService_Stub;

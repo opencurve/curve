@@ -50,6 +50,9 @@ FsInfoWrapper::FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request,
     fsInfo.set_enablesumindir(request->enablesumindir());
     fsInfo.set_txsequence(0);
     fsInfo.set_txowner("");
+    if (request->has_recycletimehour()) {
+        fsInfo.set_recycletimehour(request->recycletimehour());
+    }
 
     const auto& detail = request->fsdetail();
     fsInfo.set_allocated_detail(new FsDetail(detail));

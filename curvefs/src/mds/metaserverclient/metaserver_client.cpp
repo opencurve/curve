@@ -31,10 +31,15 @@ namespace mds {
 using curvefs::metaserver::Time;
 using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
+using curvefs::metaserver::CreateManageInodeRequest;
+using curvefs::metaserver::CreateManageInodeResponse;
+using curvefs::metaserver::CreateDentryRequest;
+using curvefs::metaserver::CreateDentryResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
 using curvefs::metaserver::MetaServerService_Stub;
 using curvefs::metaserver::MetaStatusCode;
+using curvefs::metaserver::Dentry;
 using curvefs::metaserver::copyset::COPYSET_OP_STATUS;
 using curvefs::metaserver::copyset::CopysetService_Stub;
 using curvefs::mds::topology::SplitPeerId;
@@ -191,7 +196,7 @@ FSStatusCode MetaserverClient::CreateRootInode(
             case MetaStatusCode::OK:
                 return FSStatusCode::OK;
             case MetaStatusCode::INODE_EXIST:
-                LOG(ERROR) << "CreateInode failed, Inode exist.";
+                LOG(WARNING) << "CreateInode failed, Inode exist.";
                 return FSStatusCode::INODE_EXIST;
             default:
                 LOG(ERROR) << "CreateInode failed, request = "
@@ -202,6 +207,103 @@ FSStatusCode MetaserverClient::CreateRootInode(
         }
     }
 }
+
+FSStatusCode MetaserverClient::CreateManageInode(
+    uint32_t fsId, uint32_t poolId, uint32_t copysetId, uint32_t partitionId,
+    uint32_t uid, uint32_t gid, uint32_t mode, ManageInodeType manageType,
+    const std::set<std::string> &addrs) {
+    CreateManageInodeRequest request;
+    CreateManageInodeResponse response;
+    request.set_poolid(poolId);
+    request.set_copysetid(copysetId);
+    request.set_partitionid(partitionId);
+    request.set_fsid(fsId);
+    request.set_uid(uid);
+    request.set_gid(gid);
+    request.set_mode(mode);
+    request.set_managetype(manageType);
+
+    auto fp = &MetaServerService_Stub::CreateManageInode;
+    LeaderCtx ctx;
+    ctx.addrs = addrs;
+    ctx.poolId = request.poolid();
+    ctx.copysetId = request.copysetid();
+    auto ret = SendRpc2MetaServer(&request, &response, ctx, fp);
+
+    if (FSStatusCode::RPC_ERROR == ret) {
+        LOG(ERROR) << "CreateManageInode failed, rpc error. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else if (FSStatusCode::NOT_FOUND == ret) {
+        LOG(ERROR) << "CreateManageInode failed, get leader failed. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else {
+        switch (response.statuscode()) {
+            case MetaStatusCode::OK:
+                return FSStatusCode::OK;
+            case MetaStatusCode::INODE_EXIST:
+                LOG(WARNING) << "CreateManageInode failed, Inode exist.";
+                return FSStatusCode::INODE_EXIST;
+            default:
+                LOG(ERROR) << "CreateManageInode failed, request = "
+                           << request.ShortDebugString()
+                           << ", response statuscode = "
+                           << response.statuscode();
+                return FSStatusCode::INSERT_MANAGE_INODE_FAIL;
+        }
+    }
+}
+
+FSStatusCode MetaserverClient::CreateDentry(uint32_t fsId, uint32_t poolId,
+                                      uint32_t copysetId, uint32_t partitionId,
+                                      uint64_t parentInodeId,
+                                      const std::string &name,
+                                      uint64_t inodeId,
+                                      const std::set<std::string> &addrs) {
+    CreateDentryRequest request;
+    CreateDentryResponse response;
+    request.set_poolid(poolId);
+    request.set_copysetid(copysetId);
+    request.set_partitionid(partitionId);
+    Dentry *d = new Dentry;
+    d->set_fsid(fsId);
+    d->set_inodeid(inodeId);
+    d->set_parentinodeid(parentInodeId);
+    d->set_name(name);
+    d->set_txid(0);
+    d->set_type(FsFileType::TYPE_DIRECTORY);
+    request.set_allocated_dentry(d);
+
+    auto fp = &MetaServerService_Stub::CreateDentry;
+    LeaderCtx ctx;
+    ctx.addrs = addrs;
+    ctx.poolId = request.poolid();
+    ctx.copysetId = request.copysetid();
+    auto ret = SendRpc2MetaServer(&request, &response, ctx, fp);
+
+    if (FSStatusCode::RPC_ERROR == ret) {
+        LOG(ERROR) << "CreateDentry failed, rpc error. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else if (FSStatusCode::NOT_FOUND == ret) {
+        LOG(ERROR) << "CreateDentry failed, get leader failed. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else {
+        switch (response.statuscode()) {
+            case MetaStatusCode::OK:
+                return FSStatusCode::OK;
+            default:
+                LOG(ERROR) << "CreateDentry failed, request = "
+                           << request.ShortDebugString()
+                           << ", response statuscode = "
+                           << response.statuscode();
+                return FSStatusCode::INSERT_DENTRY_FAIL;
+        }
+    }
+}
+
 
 FSStatusCode MetaserverClient::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     DeleteInodeRequest request;

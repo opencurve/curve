@@ -142,6 +142,7 @@ TEST_F(MetaOperatorTest, OperatorTypeTest) {
     TEST_OPERATOR_TYPE(GetOrModifyS3ChunkInfo);
     TEST_OPERATOR_TYPE(DeleteInode);
     TEST_OPERATOR_TYPE(CreateRootInode);
+    TEST_OPERATOR_TYPE(CreateManageInode);
     TEST_OPERATOR_TYPE(CreatePartition);
     TEST_OPERATOR_TYPE(DeletePartition);
     TEST_OPERATOR_TYPE(PrepareRenameTx);
@@ -188,6 +189,7 @@ TEST_F(MetaOperatorTest, OnApplyErrorTest) {
     OPERATOR_ON_APPLY_TEST(UpdateInode);
     OPERATOR_ON_APPLY_TEST(DeleteInode);
     OPERATOR_ON_APPLY_TEST(CreateRootInode);
+    OPERATOR_ON_APPLY_TEST(CreateManageInode);
     OPERATOR_ON_APPLY_TEST(CreatePartition);
     OPERATOR_ON_APPLY_TEST(DeletePartition);
     OPERATOR_ON_APPLY_TEST(PrepareRenameTx);
@@ -305,6 +307,7 @@ TEST_F(MetaOperatorTest, OnApplyFromLogErrorTest) {
     OPERATOR_ON_APPLY_FROM_LOG_TEST(UpdateInode);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(DeleteInode);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(CreateRootInode);
+    OPERATOR_ON_APPLY_FROM_LOG_TEST(CreateManageInode);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(CreatePartition);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(DeletePartition);
     OPERATOR_ON_APPLY_FROM_LOG_TEST(PrepareRenameTx);

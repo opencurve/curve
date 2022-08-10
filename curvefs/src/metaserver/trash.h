@@ -34,6 +34,9 @@
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
+namespace curvefs {
+namespace metaserver {
+
 using ::curve::common::Configuration;
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
@@ -42,9 +45,6 @@ using ::curve::common::LockGuard;
 using ::curve::common::InterruptibleSleeper;
 using ::curvefs::client::rpcclient::MdsClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
-
-namespace curvefs {
-namespace metaserver {
 
 struct TrashItem {
     uint32_t fsId;
@@ -58,12 +58,10 @@ struct TrashItem {
 
 struct TrashOption {
     uint32_t scanPeriodSec;
-    uint32_t expiredAfterSec;
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor;
     std::shared_ptr<MdsClient> mdsClient;
     TrashOption()
       : scanPeriodSec(0),
-        expiredAfterSec(0),
         s3Adaptor(nullptr),
         mdsClient(nullptr) {}
 

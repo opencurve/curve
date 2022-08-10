@@ -22,6 +22,8 @@
  */
 
 #include "curvefs/src/client/common/common.h"
+#include "src/common/string_util.h"
+
 namespace curvefs {
 namespace client {
 namespace common {
@@ -97,6 +99,44 @@ WarmupType GetWarmupType(const std::string& type) {
         ret = WarmupType::kWarmupTypeSingle;
     }
     return ret;
+}
+
+using ::curve::common::StringToUll;
+
+// if direction is true means '+', false means '-'
+bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction) {
+    uint64_t firstNum = 0;
+    uint64_t secondNum = second;
+    if (StringToUll(*first, &firstNum)) {
+        if (direction) {
+            *first = std::to_string(firstNum + secondNum);
+        } else {
+            if (firstNum < secondNum) {
+                *first = std::to_string(0);
+                LOG(WARNING) << "AddUllStringToFirst failed when minus,"
+                             << " first = " << firstNum
+                             << ", second = " << secondNum;
+                return false;
+            }
+            *first = std::to_string(firstNum - secondNum);
+        }
+    } else {
+        LOG(ERROR) << "StringToUll failed, first = " << *first
+                   << ", second = " << second;
+        return false;
+    }
+    return true;
+}
+
+bool AddUllStringToFirst(uint64_t *first, const std::string &second) {
+    uint64_t secondNum = 0;
+    if (StringToUll(second, &secondNum)) {
+        *first += secondNum;
+        return true;
+    }
+
+    LOG(ERROR) << "StringToUll failed, second = " << second;
+    return false;
 }
 
 }  // namespace common

@@ -53,7 +53,7 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 class TestTrash : public ::testing::Test {
  protected:
     void SetUp() override {
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
         options.localFileSystem = localfs.get();
@@ -117,7 +117,6 @@ class TestTrash : public ::testing::Test {
 TEST_F(TestTrash, testAdd3ItemAndDelete) {
     TrashOption option;
     option.scanPeriodSec = 1;
-    option.expiredAfterSec = 1;
 
     trashManager_->Init(option);
     trashManager_->Run();

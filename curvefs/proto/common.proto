@@ -83,6 +83,7 @@ message PartitionInfo {
     optional uint64 inodeNum = 10;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
     optional uint64 dentryNum = 11;  // hearbeat upload this value to mds topo, topo/metaserver needn't persist this value
     map<int32, uint64> fileType2inodeNum = 12;
+    optional bool manageFlag = 13;
 }
 
 message Peer {

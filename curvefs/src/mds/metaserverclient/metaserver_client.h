@@ -24,22 +24,25 @@
 #define CURVEFS_SRC_MDS_METASERVERCLIENT_METASERVER_CLIENT_H_
 
 #include <brpc/channel.h>
+
 #include <set>
 #include <string>
+
 #include "curvefs/proto/cli2.pb.h"
 #include "curvefs/proto/copyset.pb.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
 
+using curvefs::common::PartitionInfo;
+using curvefs::common::PartitionStatus;
 using curvefs::metaserver::FsFileType;
-using curvefs::metaserver::copyset::GetLeaderRequest2;
-using curvefs::metaserver::copyset::GetLeaderResponse2;
+using curvefs::metaserver::ManageInodeType;
 using curvefs::metaserver::copyset::CliService2_Stub;
 using curvefs::metaserver::copyset::CreateCopysetRequest;
 using curvefs::metaserver::copyset::CreateCopysetResponse;
-using curvefs::common::PartitionInfo;
-using curvefs::common::PartitionStatus;
+using curvefs::metaserver::copyset::GetLeaderRequest2;
+using curvefs::metaserver::copyset::GetLeaderResponse2;
 
 namespace curvefs {
 namespace mds {
@@ -74,6 +77,17 @@ class MetaserverClient {
                                          uint32_t gid, uint32_t mode,
                                          const std::set<std::string> &addrs);
 
+    virtual FSStatusCode CreateManageInode(
+        uint32_t fsId, uint32_t poolId, uint32_t copysetId,
+        uint32_t partitionId, uint32_t uid, uint32_t gid, uint32_t mode,
+        ManageInodeType manageType, const std::set<std::string> &addrs);
+
+    virtual FSStatusCode CreateDentry(uint32_t fsId, uint32_t poolId,
+                                      uint32_t copysetId, uint32_t partitionId,
+                                      uint64_t parentInodeId,
+                                      const std::string &name, uint64_t inodeId,
+                                      const std::set<std::string> &addrs);
+
     virtual FSStatusCode CreatePartition(uint32_t fsId, uint32_t poolId,
                                          uint32_t copysetId,
                                          uint32_t partitionId, uint64_t idStart,
@@ -84,8 +98,7 @@ class MetaserverClient {
                                          uint32_t partitionId,
                                          const std::set<std::string> &addrs);
 
-    virtual FSStatusCode CreateCopySet(uint32_t poolId,
-                                       uint32_t copysetId,
+    virtual FSStatusCode CreateCopySet(uint32_t poolId, uint32_t copysetId,
                                        const std::set<std::string> &addrs);
 
     virtual FSStatusCode CreateCopySetOnOneMetaserver(uint32_t poolId,

@@ -39,11 +39,13 @@
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/register.h"
 #include "src/common/configuration.h"
 #include "src/fs/local_filesystem.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
+#include "curvefs/src/metaserver/recycle_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -58,6 +60,7 @@ using ::curvefs::metaserver::copyset::RaftCliService2;
 using ::curvefs::client::rpcclient::MdsClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::rpcclient::MDSBaseClient;
+using ::curvefs::client::rpcclient::MetaServerClient;
 using ::curvefs::client::common::MdsOption;
 using ::curvefs::metaserver::storage::StorageOptions;
 
@@ -91,6 +94,8 @@ class Metaserver {
     void InitPartitionOption(std::shared_ptr<S3ClientAdaptor> s3Adaptor,
                               std::shared_ptr<MdsClient> mdsClient,
                              PartitionCleanOption* partitionCleanOption);
+    void InitRecycleManagerOption(
+                RecycleManagerOption* recycleManagerOption);
     void GetMetaserverDataByLoadOrRegister();
     int PersistMetaserverMeta(std::string path, MetaServerMetadata* metadata);
     int LoadMetaserverMeta(const std::string& metaFilePath,
@@ -111,6 +116,7 @@ class Metaserver {
 
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<MdsClient> mdsClient_;
+    std::shared_ptr<MetaServerClient> metaClient_;
     MDSBaseClient* mdsBase_;
     MdsOption mdsOptions_;
     MetaserverOptions options_;

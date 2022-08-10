@@ -384,6 +384,10 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     inodeManager_->SetFsId(fsInfo_->fsid());
     dentryManager_->SetFsId(fsInfo_->fsid());
     enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
+    if (fsInfo_->has_recycletimehour()) {
+        enableSumInDir_ = enableSumInDir_ && (fsInfo_->recycletimehour() == 0);
+    }
+
     LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
               << " success!" << " enableSumInDir = " << enableSumInDir_;
 
@@ -590,11 +594,24 @@ CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
 
 CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
                                    const char *name, mode_t mode,
-                                   FsFileType type, dev_t rdev,
+                                   FsFileType type, dev_t rdev, bool internal,
                                    fuse_entry_param *e) {
     if (strlen(name) > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
+
+    // check if node is recycle or under recycle
+    if (!internal && strcmp(name, RECYCLENAME) == 0 && parent == ROOTINODEID) {
+        LOG(WARNING) << "Can not make node " << RECYCLENAME
+                     << " under root dir.";
+        return CURVEFS_ERROR::NOPERMISSION;
+    }
+
+    if (!internal && parent == RECYCLEINODEID) {
+        LOG(WARNING) << "Can not make node under recycle.";
+        return CURVEFS_ERROR::NOPERMISSION;
+    }
+
     const struct fuse_ctx *ctx = fuse_req_ctx(req);
     InodeParam param;
     param.fsId = fsInfo_->fsid();
@@ -692,8 +709,9 @@ CURVEFS_ERROR FuseClient::FuseOpMkDir(fuse_req_t req, fuse_ino_t parent,
                                       fuse_entry_param *e) {
     VLOG(1) << "FuseOpMkDir, parent: " << parent << ", name: " << name
             << ", mode: " << mode;
+    bool internal = false;
     return MakeNode(req, parent, name, S_IFDIR | mode,
-                    FsFileType::TYPE_DIRECTORY, 0, e);
+                    FsFileType::TYPE_DIRECTORY, 0, internal, e);
 }
 
 CURVEFS_ERROR FuseClient::FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
@@ -702,38 +720,9 @@ CURVEFS_ERROR FuseClient::FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
     return RemoveNode(req, parent, name, FsFileType::TYPE_DIRECTORY);
 }
 
-CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
-                                     const char *name, FsFileType type) {
-    if (strlen(name) > option_.maxNameLength) {
-        return CURVEFS_ERROR::NAMETOOLONG;
-    }
-    Dentry dentry;
-    CURVEFS_ERROR ret = dentryManager_->GetDentry(parent, name, &dentry);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(WARNING) << "dentryManager_ GetDentry fail, ret = " << ret
-                     << ", parent = " << parent << ", name = " << name;
-        return ret;
-    }
-
-    uint64_t ino = dentry.inodeid();
-
-    // judge dir empty
-    if (FsFileType::TYPE_DIRECTORY == type) {
-        std::list<Dentry> dentryList;
-        auto limit = option_.listDentryLimit;
-        ret = dentryManager_->ListDentry(ino, &dentryList, limit);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
-                       << ", parent = " << ino;
-            return ret;
-        }
-        if (!dentryList.empty()) {
-            LOG(ERROR) << "rmdir not empty";
-            return CURVEFS_ERROR::NOTEMPTY;
-        }
-    }
-
-    ret = dentryManager_->DeleteDentry(parent, name, type);
+CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
+                             const char* name, FsFileType type) {
+    CURVEFS_ERROR ret = dentryManager_->DeleteDentry(parent, name, type);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ DeleteDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name;
@@ -784,6 +773,274 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
     inodeManager_->ClearInodeCache(ino);
     return ret;
+}
+
+std::string GetRecycleTimeDirName() {
+    time_t timeStamp;
+    time(&timeStamp);
+    struct tm p = *localtime_r(&timeStamp, &p);
+    char now[64];
+    strftime(now, 64, "%Y-%m-%d-%H", &p);
+    return now;
+}
+
+CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req, uint64_t parent,
+                    const char *name, mode_t mode, ManageInodeType manageType,
+                    fuse_entry_param *e) {
+    if (strlen(name) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
+
+    InodeParam param;
+    param.fsId = fsInfo_->fsid();
+    const struct fuse_ctx *ctx = fuse_req_ctx(req);
+    param.uid = ctx->uid;
+    param.gid = ctx->gid;
+    param.mode = mode;
+    param.manageType = manageType;
+
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->CreateManageInode(param, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager CreateManageNode fail, ret = " << ret
+                   << ", parent = " << parent << ", name = " << name
+                   << ", mode = " << mode;
+        return ret;
+    }
+
+    VLOG(6) << "inodeManager CreateManageNode success"
+            << ", parent = " << parent << ", name = " << name
+            << ", mode = " << mode
+            << ", inode id = " << inodeWrapper->GetInodeId();
+
+    Dentry dentry;
+    dentry.set_fsid(fsInfo_->fsid());
+    dentry.set_inodeid(inodeWrapper->GetInodeId());
+    dentry.set_parentinodeid(parent);
+    dentry.set_name(name);
+    dentry.set_type(inodeWrapper->GetType());
+    FsFileType type = inodeWrapper->GetType();
+    if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
+        dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
+    }
+
+    ret = dentryManager_->CreateDentry(dentry);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
+                   << ", parent = " << parent << ", name = " << name
+                   << ", mode = " << mode;
+
+        CURVEFS_ERROR ret2 =
+            inodeManager_->DeleteInode(inodeWrapper->GetInodeId());
+        if (ret2 != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "Also delete inode failed, ret = " << ret2
+                       << ", inodeid = " << inodeWrapper->GetInodeId();
+        }
+        return ret;
+    }
+
+    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kAddOne);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
+                   << ", parent: " << parent
+                   << ", name: " << name
+                   << ", type: " << type;
+        return ret;
+    }
+
+    VLOG(6) << "dentryManager_ CreateDentry success"
+            << ", parent = " << parent << ", name = " << name
+            << ", mode = " << mode;
+
+    if (enableSumInDir_) {
+        // update parent summary info
+        XAttr xattr;
+        xattr.mutable_xattrinfos()->insert({XATTRENTRIES, "1"});
+        if (type == FsFileType::TYPE_DIRECTORY) {
+            xattr.mutable_xattrinfos()->insert({XATTRSUBDIRS, "1"});
+        } else {
+            xattr.mutable_xattrinfos()->insert({XATTRFILES, "1"});
+        }
+        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+            std::to_string(inodeWrapper->GetLength())});
+        auto tret = xattrManager_->UpdateParentInodeXattr(parent, xattr, true);
+        if (tret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "UpdateParentInodeXattr failed,"
+                       << " inodeId = " << parent
+                       << ", xattr = " << xattr.DebugString();
+        }
+    }
+
+    InodeAttr attr;
+    inodeWrapper->GetInodeAttrLocked(&attr);
+    GetDentryParamFromInodeAttr(option_, attr, e);
+    return ret;
+}
+
+CURVEFS_ERROR FuseClient::GetOrCreateRecycleDir(fuse_req_t req, Dentry *out) {
+    auto ret = dentryManager_->GetDentry(ROOTINODEID, RECYCLENAME, out);
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+        LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
+                   << ", inode = " << ROOTINODEID
+                   << ", name = " << RECYCLENAME;
+        return ret;
+    } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+        LOG(INFO) << "recycle dir is not exist, create " << RECYCLENAME
+                  << ", parentid = " << ROOTINODEID;
+        fuse_entry_param param;
+        ret = CreateManageNode(req, ROOTINODEID, RECYCLENAME,
+                       S_IFDIR | 0755, ManageInodeType::TYPE_RECYCLE, &param);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "CreateManageNode failed, ret = " << ret
+                       << ", inode = " << ROOTINODEID
+                       << ", name = " << RECYCLENAME
+                       << ", type = TYPE_RECYCLE";
+            return ret;
+        }
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR FuseClient::MoveToRecycle(fuse_req_t req, fuse_ino_t ino,
+            fuse_ino_t parent, const char* name, FsFileType type) {
+    // 1. check recycle exist, if not exist, create recycle dir
+    Dentry recycleDir;
+    CURVEFS_ERROR ret = GetOrCreateRecycleDir(req, &recycleDir);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "GetOrCreateRecycleDir fail, move " << name
+                   << " to recycle fail, ret = " << ret;
+        return ret;
+    }
+
+    // 1. check recycle time dir is exist, if not exist, create time dir
+    std::string recycleTimeDirName = GetRecycleTimeDirName();
+    Dentry dentry;
+    uint64_t recycleTimeDirIno;
+    ret = dentryManager_->GetDentry(RECYCLEINODEID,
+                                        recycleTimeDirName.c_str(), &dentry);
+    if (ret != CURVEFS_ERROR::OK && ret != CURVEFS_ERROR::NOTEXIST) {
+        LOG(ERROR) << "dentryManager_ GetDentry fail, ret = " << ret
+                   << ", inode = " << RECYCLEINODEID
+                   << ", name = " << recycleTimeDirName;
+        return ret;
+    } else if (ret == CURVEFS_ERROR::NOTEXIST) {
+        fuse_entry_param param;
+        bool internal = true;
+        ret = MakeNode(req, RECYCLEINODEID, recycleTimeDirName.c_str(),
+              S_IFDIR | 0755, FsFileType::TYPE_DIRECTORY, 0, internal, &param);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "MakeNode failed, ret = " << ret
+                       << ", inode = " << RECYCLEINODEID
+                       << ", name = " << recycleTimeDirName;
+            return ret;
+        }
+        recycleTimeDirIno = param.ino;
+    } else {
+        recycleTimeDirIno = dentry.inodeid();
+    }
+
+    // 3. generate new name
+    std::string newName(name);
+    newName = std::to_string(parent) + "_" + std::to_string(ino)
+                + "_" + newName;
+    if (newName.length() > option_.maxNameLength) {
+        newName = newName.substr(0, option_.maxNameLength);
+    }
+
+    // 4. move inode to recycle time dir
+    ret = FuseOpRename(req, parent, name,
+                                     recycleTimeDirIno, newName.c_str());
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "MoveToRecycle failed, ret = " << ret
+                   << ", inodeid = " << ino
+                   << ", parent = " << parent << ", name = " << name;
+        return ret;
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
+bool FuseClient::ShouldMoveToRecycle(fuse_ino_t parent) {
+    // 1. check if recycle is open, if recycle not open, return false
+    if (!fsInfo_->has_recycletimehour() || fsInfo_->recycletimehour() ==  0) {
+        return false;
+    }
+
+    // 2. check if inode is in recycle, if node in recycle, return false
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(parent, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << parent;
+        return false;
+    }
+
+    InodeAttr attr;
+    inodeWrapper->GetInodeAttrLocked(&attr);
+    if (attr.parent_size() != 0 && attr.parent(0) == RECYCLEINODEID) {
+        return false;
+    }
+
+    return true;
+}
+
+CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
+                                     const char *name, FsFileType type) {
+    if (strlen(name) > option_.maxNameLength) {
+        return CURVEFS_ERROR::NAMETOOLONG;
+    }
+
+    // check if node is recycle or recycle time dir
+    if ((strcmp(name, RECYCLENAME) == 0 && parent == ROOTINODEID) ||
+         parent == RECYCLEINODEID) {
+        return CURVEFS_ERROR::NOPERMISSION;
+    }
+
+    Dentry dentry;
+    CURVEFS_ERROR ret = dentryManager_->GetDentry(parent, name, &dentry);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(WARNING) << "dentryManager_ GetDentry fail, ret = " << ret
+                     << ", parent = " << parent << ", name = " << name;
+        return ret;
+    }
+
+    uint64_t ino = dentry.inodeid();
+
+    // check dir empty
+    if (FsFileType::TYPE_DIRECTORY == type) {
+        std::list<Dentry> dentryList;
+        auto limit = option_.listDentryLimit;
+        ret = dentryManager_->ListDentry(ino, &dentryList, limit);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
+                       << ", parent = " << ino;
+            return ret;
+        }
+        if (!dentryList.empty()) {
+            LOG(ERROR) << "rmdir not empty";
+            return CURVEFS_ERROR::NOTEMPTY;
+        }
+    }
+
+    // check if inode should move to recycle
+    if (ShouldMoveToRecycle(parent)) {
+        ret = MoveToRecycle(req, ino, parent, name, type);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "MoveToRecycle failed, ret = " << ret
+                       << ", inodeid = " << ino;
+            return ret;
+        }
+    } else {
+        ret = DeleteNode(ino, parent, name, type);
+        if (ret != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "DeleteNode failed, ret = " << ret
+                       << ", inodeid = " << ino;
+            return ret;
+        }
+    }
+
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
@@ -919,6 +1176,10 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
             << newparent << ", " << newname << ")";
     if (strlen(name) > option_.maxNameLength ||
         strlen(newname) > option_.maxNameLength) {
+        LOG(WARNING) << "FuseOpRename name too long, name = " << name
+                     << ", name len = " << strlen(name) << ", new name = "
+                     << newname << ", new name len = " << strlen(newname)
+                     << ", maxNameLength = " << option_.maxNameLength;
         return CURVEFS_ERROR::NAMETOOLONG;
     }
 
@@ -944,6 +1205,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     renameOp.UnlinkSrcParentInode();
     renameOp.UnlinkOldInode();
     renameOp.UpdateInodeParent();
+    renameOp.UpdateInodeCtime();
     renameOp.UpdateCache();
 
     if (enableSumInDir_) {

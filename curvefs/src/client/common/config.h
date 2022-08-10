@@ -32,15 +32,13 @@
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
 
+namespace curvefs {
+namespace client {
+namespace common {
 using ::curve::common::Configuration;
 using ::curve::common::S3AdapterOption;
 using ::curvefs::client::common::DiskCacheType;
 using ::curve::common::S3InfoOption;
-
-namespace curvefs {
-namespace client {
-namespace common {
-
 using MdsOption = ::curve::client::MetaServerOption;
 
 struct BlockDeviceClientOptions {
