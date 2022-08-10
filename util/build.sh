@@ -5,6 +5,7 @@
 ############################  GLOBAL VARIABLES
 
 g_list=0
+g_depend=0
 g_target=""
 g_release=0
 g_build_opts=(
@@ -51,7 +52,7 @@ _EOC_
 }
 
 get_options() {
-    local args=`getopt -o lorh --long list,only:,os:,release: -n "$0" -- "$@"`
+    local args=`getopt -o ldorh --long list,dep:,only:,os:,release: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
@@ -59,6 +60,10 @@ get_options() {
             -l|--list)
                 g_list=1
                 shift 1
+                ;;
+            -d|--dep)
+                g_depend=$2
+                shift 2
                 ;;
             -o|--only)
                 g_target=$2
@@ -110,7 +115,6 @@ get_target() {
 }
 
 build_target() {
-    (cd thirdparties/aws && make)
     git submodule update --init -- nbd
     if [ $? -ne 0 ]
     then
@@ -160,15 +164,26 @@ build_target() {
     done
 }
 
+
+build_requirements() {
+    g_aws_sdk_root="thirdparties/aws"
+    (cd ${g_aws_sdk_root} && make)
+    g_etcdclient_root="thirdparties/etcdclient"
+    (cd ${g_etcdclient_root} && make clean && make all)
+}
+
 main() {
     get_options "$@"
 
     if [ "$g_list" -eq 1 ]; then
         list_target
-    elif [ "$g_target" == "" ]; then
+    elif [[ "$g_target" == "" && "$g_depend" -ne 1 ]]; then
         usage
         exit 1
     else
+        if [ "$g_depend" -eq 1 ]; then
+            build_requirements
+        fi
         build_target
     fi
 }

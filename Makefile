@@ -4,6 +4,7 @@
 
 prefix?= "$(PWD)/projects"
 release?= 0
+dep?= 0
 only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
@@ -13,7 +14,10 @@ list:
 	@bash util/build.sh --list
 
 build:
-	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os)
+	@bash util/build.sh --only=$(only) --dep=$(dep) --release=$(release) --os=$(os)
+
+dep:
+	@bash util/build.sh --only="" --dep=1
 
 install:
 	@bash util/install.sh --prefix=$(prefix) --only=$(only)
