@@ -20,8 +20,10 @@
  * @Author: chenwei
  */
 #include "curvefs/src/metaserver/metastore.h"
-#include <glog/logging.h>
+
 #include <braft/storage.h>
+#include <glog/logging.h>
+
 #include <memory>
 #include <thread>  // NOLINT
 #include <unordered_map>
@@ -29,22 +31,23 @@
 #include <utility>
 #include <vector>
 
-#include "rocksdb/utilities/checkpoint.h"
-#include "rocksdb/utilities/options_util.h"
-
 #include "absl/cleanup/cleanup.h"
 #include "absl/types/optional.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
+#include "curvefs/src/metaserver/partition_clean_manager.h"
+#include "curvefs/src/metaserver/recycle_cleaner.h"
+#include "curvefs/src/metaserver/recycle_manager.h"
+#include "curvefs/src/metaserver/resource_statistic.h"
 #include "curvefs/src/metaserver/storage/config.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/memory_storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
+#include "curvefs/src/metaserver/storage/storage.h"
+#include "rocksdb/utilities/checkpoint.h"
+#include "rocksdb/utilities/options_util.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/fs/ext4_filesystem_impl.h"
-#include "curvefs/src/metaserver/storage/storage.h"
-#include "curvefs/src/metaserver/resource_statistic.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -55,9 +58,9 @@ using ::curvefs::metaserver::storage::DumpFileClosure;
 using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 
-using ::curvefs::metaserver::storage::StorageOptions;
 using ::curvefs::metaserver::storage::MemoryStorage;
 using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 namespace {
 const char* const kMetaDataFilename = "metadata";
@@ -65,8 +68,7 @@ bvar::LatencyRecorder g_storage_checkpoint_latency("storage_checkpoint");
 }  // namespace
 
 std::unique_ptr<MetaStoreImpl> MetaStoreImpl::Create(
-    copyset::CopysetNode* node,
-    const StorageOptions& storageOptions) {
+    copyset::CopysetNode* node, const StorageOptions& storageOptions) {
     auto store = absl::WrapUnique(new MetaStoreImpl(node, storageOptions));
     auto succ = store->InitStorage();
     if (succ) {
@@ -101,12 +103,17 @@ bool MetaStoreImpl::Load(const std::string& pathname) {
     }
 
     for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
+        uint32_t partitionId = it->second->GetPartitionId();
         if (it->second->GetStatus() == PartitionStatus::DELETING) {
-            uint32_t partitionId = it->second->GetPartitionId();
             std::shared_ptr<PartitionCleaner> partitionCleaner =
                 std::make_shared<PartitionCleaner>(GetPartition(partitionId));
             PartitionCleanManager::GetInstance().Add(
                 partitionId, partitionCleaner, copysetNode_);
+        } else if (it->second->GetManageFlag()) {
+            std::shared_ptr<RecycleCleaner> recycleCleaner =
+                std::make_shared<RecycleCleaner>(GetPartition(partitionId));
+            RecycleManager::GetInstance().Add(partitionId, recycleCleaner,
+                                                copysetNode_);
         }
     }
 
@@ -264,6 +271,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
         LOG(INFO) << "DeletePartition, partition is deletable, delete it"
                   << ", partitionId = " << partitionId;
         TrashManager::GetInstance().Remove(partitionId);
+        RecycleManager::GetInstance().Remove(partitionId);
         it->second->CancelS3Compact();
         PartitionCleanManager::GetInstance().Remove(partitionId);
         partitionMap_.erase(it);
@@ -281,6 +289,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
                                                  copysetNode_);
         it->second->SetStatus(PartitionStatus::DELETING);
         TrashManager::GetInstance().Remove(partitionId);
+        RecycleManager::GetInstance().Remove(partitionId);
         it->second->CancelS3Compact();
     } else {
         LOG(INFO) << "DeletePartition, partition is already deleting"
@@ -292,7 +301,7 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
 }
 
 bool MetaStoreImpl::GetPartitionInfoList(
-                                std::list<PartitionInfo> *partitionInfoList) {
+    std::list<PartitionInfo>* partitionInfoList) {
     // when metastore is loading, it will hold the rwLock_ for a long time.
     // and heartbeat will stuck when try to GetPartitionInfoList if use
     // ReadLockGuard to get the rwLock_
@@ -310,7 +319,6 @@ bool MetaStoreImpl::GetPartitionInfoList(
         return false;
     }
 }
-
 
 std::shared_ptr<StreamServer> MetaStoreImpl::GetStreamServer() {
     return streamServer_;
@@ -415,8 +423,8 @@ MetaStatusCode MetaStoreImpl::ListDentry(const ListDentryRequest* request,
     }
 
     std::vector<Dentry> dentrys;
-    auto rc = partition->ListDentry(dentry, &dentrys, request->count(),
-                                    onlyDir);
+    auto rc =
+        partition->ListDentry(dentry, &dentrys, request->count(), onlyDir);
     response->set_statuscode(rc);
     if (rc == MetaStatusCode::OK && !dentrys.empty()) {
         *response->mutable_dentrys() = {dentrys.begin(), dentrys.end()};
@@ -524,6 +532,59 @@ MetaStatusCode MetaStoreImpl::CreateRootInode(
     return status;
 }
 
+MetaStatusCode MetaStoreImpl::CreateManageInode(
+    const CreateManageInodeRequest* request,
+    CreateManageInodeResponse* response) {
+    InodeParam param;
+    param.fsId = request->fsid();
+    param.uid = request->uid();
+    param.gid = request->gid();
+    param.mode = request->mode();
+    param.length = 0;
+    param.rdev = 0;
+
+    if (request->managetype() == ManageInodeType::TYPE_RECYCLE) {
+        param.type = FsFileType::TYPE_DIRECTORY;
+        param.parent = ROOTINODEID;
+    } else {
+        LOG(ERROR) << "unsupport manage inode type"
+                   << ManageInodeType_Name(request->managetype());
+        return PARAM_ERROR;
+    }
+
+    ReadLockGuard readLockGuard(rwLock_);
+    std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
+    if (partition == nullptr) {
+        MetaStatusCode status = MetaStatusCode::PARTITION_NOT_FOUND;
+        response->set_statuscode(status);
+        return status;
+    }
+
+    MetaStatusCode status =
+        partition->CreateManageInode(param, request->managetype(),
+                                     response->mutable_inode());
+    response->set_statuscode(status);
+    if (status != MetaStatusCode::OK) {
+        LOG(ERROR) << "CreateManageInode fail, fsId = " << param.fsId
+                   << ", uid = " << param.uid << ", gid = " << param.gid
+                   << ", mode = " << param.mode << ", manage inode type = "
+                   << ManageInodeType_Name(request->managetype())
+                   << ", retCode = " << MetaStatusCode_Name(status);
+        return status;
+    }
+
+    // if create trash inode, start backgroud trash scan
+    if (request->managetype() == ManageInodeType::TYPE_RECYCLE) {
+        std::shared_ptr<RecycleCleaner> recycleCleaner =
+            std::make_shared<RecycleCleaner>(partition);
+        RecycleManager::GetInstance().Add(request->partitionid(),
+                                          recycleCleaner, copysetNode_);
+        partition->SetManageFlag(true);
+    }
+
+    return MetaStatusCode::OK;
+}
+
 MetaStatusCode MetaStoreImpl::GetInode(const GetInodeRequest* request,
                                        GetInodeResponse* response) {
     uint32_t fsId = request->fsid();
@@ -588,9 +649,8 @@ MetaStatusCode MetaStoreImpl::BatchGetInodeAttr(
     return status;
 }
 
-MetaStatusCode MetaStoreImpl::BatchGetXAttr(
-    const BatchGetXAttrRequest* request,
-    BatchGetXAttrResponse* response) {
+MetaStatusCode MetaStoreImpl::BatchGetXAttr(const BatchGetXAttrRequest* request,
+                                            BatchGetXAttrResponse* response) {
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());
     if (partition == nullptr) {
@@ -663,13 +723,10 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
 
     uint32_t fsId = request->fsid();
     uint64_t inodeId = request->inodeid();
-    rc = partition->GetOrModifyS3ChunkInfo(fsId, inodeId,
-                                           request->s3chunkinfoadd(),
-                                           request->s3chunkinforemove(),
-                                           request->returns3chunkinfomap(),
-                                           iterator);
-    if (rc == MetaStatusCode::OK &&
-        !request->supportstreaming() &&
+    rc = partition->GetOrModifyS3ChunkInfo(
+        fsId, inodeId, request->s3chunkinfoadd(), request->s3chunkinforemove(),
+        request->returns3chunkinfomap(), iterator);
+    if (rc == MetaStatusCode::OK && !request->supportstreaming() &&
         request->returns3chunkinfomap()) {
         rc = partition->PaddingInodeS3ChunkInfo(
             fsId, inodeId, response->mutable_s3chunkinfomap(), 0);
@@ -726,8 +783,7 @@ std::shared_ptr<Partition> MetaStoreImpl::GetPartition(uint32_t partitionId) {
 }
 
 MetaStatusCode MetaStoreImpl::GetVolumeExtent(
-    const GetVolumeExtentRequest* request,
-    GetVolumeExtentResponse* response) {
+    const GetVolumeExtentRequest* request, GetVolumeExtentResponse* response) {
     ReadLockGuard guard(rwLock_);
     auto partition = GetPartition(request->partitionid());
     if (!partition) {

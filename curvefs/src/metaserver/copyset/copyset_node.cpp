@@ -741,9 +741,9 @@ void CopysetNode::ChangePeers(const std::vector<Peer>& newPeers,
         newPeerIds.emplace_back(peer.address());
     }
 
-    Configuration newConf(newPeerIds);
-    Configuration adding;
-    Configuration removing;
+    braft::Configuration newConf(newPeerIds);
+    braft::Configuration adding;
+    braft::Configuration removing;
 
     {
         std::lock_guard<Mutex> lk(confMtx_);

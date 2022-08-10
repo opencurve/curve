@@ -43,6 +43,7 @@ namespace curvefs {
 namespace client {
 
 using curvefs::common::PosixWrapper;
+using curvefs::client::common::DiskCacheType;
 using curve::common::TaskThreadPool;
 
 struct DiskCacheOption {

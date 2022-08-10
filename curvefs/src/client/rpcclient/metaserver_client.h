@@ -150,6 +150,9 @@ class MetaServerClient {
 
     virtual MetaStatusCode CreateInode(const InodeParam &param, Inode *out) = 0;
 
+    virtual MetaStatusCode CreateManageInode(const InodeParam &param,
+                                             Inode *out) = 0;
+
     virtual MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) = 0;
 
     virtual bool SplitRequestInodes(uint32_t fsId,
@@ -251,6 +254,9 @@ class MetaServerClientImpl : public MetaServerClient {
         MetaServerClientDone *done) override;
 
     MetaStatusCode CreateInode(const InodeParam &param, Inode *out) override;
+
+    MetaStatusCode CreateManageInode(const InodeParam &param,
+                                     Inode *out) override;
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeid) override;
 

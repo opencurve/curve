@@ -62,6 +62,7 @@ using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Thread;
 using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
+using ::curvefs::metaserver::ManageInodeType;
 using ::curvefs::client::metric::FSMetric;
 
 namespace curvefs {
@@ -300,10 +301,26 @@ class FuseClient {
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
                            mode_t mode, FsFileType type, dev_t rdev,
-                           fuse_entry_param* e);
+                           bool internal, fuse_entry_param* e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, FsFileType type);
+
+    CURVEFS_ERROR CreateManageNode(fuse_req_t req, uint64_t parent,
+                                   const char *name, mode_t mode,
+                                   ManageInodeType manageType,
+                                   fuse_entry_param *e);
+
+    CURVEFS_ERROR GetOrCreateRecycleDir(fuse_req_t req, Dentry *out);
+
+    CURVEFS_ERROR DeleteNode(fuse_ino_t ino, fuse_ino_t parent,
+                             const char* name, FsFileType type);
+
+    CURVEFS_ERROR MoveToRecycle(fuse_req_t req, fuse_ino_t ino,
+                                fuse_ino_t parent, const char* name,
+                                FsFileType type);
+
+    bool ShouldMoveToRecycle(fuse_ino_t parent);
 
     CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                              fuse_ino_t newparent, const char* newname,
@@ -367,10 +384,22 @@ class FuseClient {
         cond_.wait(lk, [this]() { return runned_; });
         runned_ = false;
     }
+
+    std::string GenerateNewRecycleName(fuse_ino_t ino,
+            fuse_ino_t parent, const char* name) {
+        std::string newName(name);
+        newName = std::to_string(parent) + "_" + std::to_string(ino)
+                    + "_" + newName;
+        if (newName.length() > option_.maxNameLength) {
+            newName = newName.substr(0, option_.maxNameLength);
+        }
+
+        return newName;
+    }
+
     std::mutex mtx_;
     std::condition_variable cond_;
     bool runned_ = false;
-
 
  protected:
     // mds client

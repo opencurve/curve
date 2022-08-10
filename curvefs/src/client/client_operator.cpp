@@ -396,6 +396,27 @@ CURVEFS_ERROR RenameOperator::UpdateInodeParent() {
     return rc;
 }
 
+CURVEFS_ERROR RenameOperator::UpdateInodeCtime() {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(srcDentry_.inodeid(), inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("GetInode", rc);
+        return rc;
+    }
+
+    curve::common::UniqueLock lk = inodeWrapper->GetUniqueLock();
+    inodeWrapper->UpdateTimestampLocked(kChangeTime);
+
+    rc = inodeWrapper->SyncAttr();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("UpdateInodeCtime", rc);
+        return rc;
+    }
+
+    LOG(INFO) << "UpdateInodeCtime inodeid = " << srcDentry_.inodeid();
+    return rc;
+}
+
 void RenameOperator::UpdateCache() {
     dentryManager_->DeleteCache(parentId_, name_);
     dentryManager_->InsertOrReplaceCache(newDentry_);

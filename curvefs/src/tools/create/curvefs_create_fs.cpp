@@ -62,6 +62,7 @@ DECLARE_uint32(rpcRetryTimes);
 DECLARE_bool(enableSumInDir);
 DECLARE_uint64(capacity);
 DECLARE_string(user);
+DECLARE_uint32(recycleTimeHour);
 
 namespace curvefs {
 namespace tools {
@@ -80,7 +81,8 @@ void CreateFsTool::PrintHelp() {
               << "] [-mdsAddr=" << FLAGS_mdsAddr
               << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
               << " -rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]"
-              << "]\n[-fsType=volume -volumeBlockGroupSize="
+              << "] [recycleTimeHour=" << FLAGS_recycleTimeHour
+              << "] \n[-fsType=volume -volumeBlockGroupSize="
               << FLAGS_volumeBlockGroupSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
               << " -volumeName=" << FLAGS_volumeName
@@ -129,6 +131,7 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
     AddUpdateFlagsFunc(curvefs::tools::SetEnableSumInDir);
+    AddUpdateFlagsFunc(curvefs::tools::SetRecycleTimeHour);
 }
 
 namespace {
@@ -158,6 +161,7 @@ int CreateFsTool::Init() {
     request.set_fsname(FLAGS_fsName);
     request.set_blocksize(FLAGS_blockSize);
     request.set_enablesumindir(FLAGS_enableSumInDir);
+    request.set_recycletimehour(FLAGS_recycleTimeHour);
 
     auto SetS3Request = [&]() -> int {
         request.set_fstype(common::FSType::TYPE_S3);

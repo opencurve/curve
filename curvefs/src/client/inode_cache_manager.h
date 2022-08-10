@@ -156,6 +156,9 @@ class InodeCacheManager {
     virtual CURVEFS_ERROR CreateInode(const InodeParam &param,
         std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
 
+    virtual CURVEFS_ERROR CreateManageInode(const InodeParam &param,
+        std::shared_ptr<InodeWrapper> &out) = 0;   // NOLINT
+
     virtual CURVEFS_ERROR DeleteInode(uint64_t inodeId) = 0;
 
     virtual void AddInodeAttrs(uint64_t parentId,
@@ -253,6 +256,9 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         std::list<XAttr> *xattrs) override;
 
     CURVEFS_ERROR CreateInode(const InodeParam &param,
+        std::shared_ptr<InodeWrapper> &out) override;
+
+    CURVEFS_ERROR CreateManageInode(const InodeParam &param,
         std::shared_ptr<InodeWrapper> &out) override;
 
     CURVEFS_ERROR DeleteInode(uint64_t inodeId) override;

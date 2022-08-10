@@ -69,6 +69,8 @@ using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
 using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
+using curvefs::metaserver::CreateManageInodeRequest;
+using curvefs::metaserver::CreateManageInodeResponse;
 
 // partition
 using curvefs::metaserver::CreatePartitionRequest;
@@ -131,6 +133,10 @@ class MetaStore {
     virtual MetaStatusCode CreateRootInode(
         const CreateRootInodeRequest* request,
         CreateRootInodeResponse* response) = 0;
+
+    virtual MetaStatusCode CreateManageInode(
+                                const CreateManageInodeRequest* request,
+                                CreateManageInodeResponse* response) = 0;
 
     virtual MetaStatusCode GetInode(const GetInodeRequest* request,
                                     GetInodeResponse* response) = 0;
@@ -211,6 +217,10 @@ class MetaStoreImpl : public MetaStore {
 
     MetaStatusCode CreateRootInode(const CreateRootInodeRequest* request,
                                    CreateRootInodeResponse* response) override;
+
+    MetaStatusCode CreateManageInode(
+                                const CreateManageInodeRequest* request,
+                                CreateManageInodeResponse* response) override;
 
     MetaStatusCode GetInode(const GetInodeRequest* request,
                             GetInodeResponse* response) override;

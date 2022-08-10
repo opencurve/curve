@@ -42,6 +42,7 @@ using ::curvefs::metaserver::copyset::BatchGetInodeAttrOperator;
 using ::curvefs::metaserver::copyset::BatchGetXAttrOperator;
 using ::curvefs::metaserver::copyset::CreateInodeOperator;
 using ::curvefs::metaserver::copyset::CreateRootInodeOperator;
+using ::curvefs::metaserver::copyset::CreateManageInodeOperator;
 using ::curvefs::metaserver::copyset::UpdateInodeOperator;
 using ::curvefs::metaserver::copyset::GetOrModifyS3ChunkInfoOperator;
 using ::curvefs::metaserver::copyset::DeleteInodeOperator;
@@ -196,6 +197,17 @@ void MetaServerServiceImpl::CreateRootInode(
     ::google::protobuf::Closure* done) {
     OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
     helper.operator()<CreateRootInodeOperator>(controller, request, response,
+                                               done, request->poolid(),
+                                               request->copysetid());
+}
+
+void MetaServerServiceImpl::CreateManageInode(
+    ::google::protobuf::RpcController* controller,
+    const ::curvefs::metaserver::CreateManageInodeRequest* request,
+    ::curvefs::metaserver::CreateManageInodeResponse* response,
+    ::google::protobuf::Closure* done) {
+    OperatorHelper helper(copysetNodeManager_, inflightThrottle_);
+    helper.operator()<CreateManageInodeOperator>(controller, request, response,
                                                done, request->poolid(),
                                                request->copysetid());
 }

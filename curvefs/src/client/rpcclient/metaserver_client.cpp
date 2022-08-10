@@ -1292,6 +1292,69 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
+MetaStatusCode MetaServerClientImpl::CreateManageInode(const InodeParam &param,
+                                                       Inode *out) {
+    auto task = RPCTask {
+        metric_.createInode.qps.count << 1;
+        LatencyUpdater updater(&metric_.createInode.latency);
+        CreateManageInodeResponse response;
+        CreateManageInodeRequest request;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(param.fsId);
+        request.set_uid(param.uid);
+        request.set_gid(param.gid);
+        request.set_mode(param.mode);
+        assert(param.manageType != ManageInodeType::TYPE_NOT_MANAGE);
+        request.set_managetype(param.manageType);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.CreateManageInode(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.createInode.eps.count << 1;
+            LOG(WARNING) << "CreateManageInode Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        MetaStatusCode ret = response.statuscode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "CreateManageInode:  param = " << param
+                         << ", errcode = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret)
+                         << ", remote side = "
+                         << butil::endpoint2str(cntl->remote_side()).c_str()
+                         << ", request: " << request.ShortDebugString()
+                         << ", pool: " << poolID << ", copyset: " << copysetID
+                         << ", partition: " << partitionID;
+        } else if (response.has_inode() && response.has_appliedindex()) {
+            *out = response.inode();
+
+            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
+                                         response.appliedindex());
+        } else {
+            LOG(WARNING) << "CreateManageInode:  param = " << param
+                         << " ok, but applyIndex or inode not set in response:"
+                         << response.DebugString();
+            return -1;
+        }
+
+        VLOG(6) << "CreateManageInode done, request: " << request.DebugString()
+                << "response: " << response.DebugString();
+        return ret;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+                    MetaServerOpType::CreateManageInode, task, param.fsId, 0);
+    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                               std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
 MetaStatusCode MetaServerClientImpl::DeleteInode(uint32_t fsId,
                                                  uint64_t inodeid) {
     auto task = RPCTask {

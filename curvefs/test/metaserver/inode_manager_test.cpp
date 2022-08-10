@@ -64,7 +64,7 @@ class InodeManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
         auto tablename = "partition:1";
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
         options.localFileSystem = localfs.get();
@@ -502,6 +502,22 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRSUBDIRS)->second, "1");
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRENTRIES)->second, "2");
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRFBYTES)->second, "100");
+}
+
+TEST_F(InodeManagerTest, testCreateManageInode) {
+    param_.type = FsFileType::TYPE_DIRECTORY;
+    param_.parent = ROOTINODEID;
+    ManageInodeType type = ManageInodeType::TYPE_RECYCLE;
+    Inode inode;
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager->CreateManageInode(param_, type, &inode));
+    ASSERT_EQ(inode.inodeid(), RECYCLEINODEID);
+    ASSERT_EQ(inode.parent()[0], ROOTINODEID);
+
+    Inode temp1;
+    ASSERT_EQ(manager->GetInode(1, inode.inodeid(), &temp1),
+              MetaStatusCode::OK);
+    ASSERT_TRUE(CompareInode(inode, temp1));
 }
 
 }  // namespace metaserver
