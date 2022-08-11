@@ -37,7 +37,10 @@ else
     #sudo cp /curve/curve_multijob/thirdparties/etcdclient/libetcdclient.so /usr/lib/
     #make clean
 fi
+
+export LD_LIBRARY_PATH=${g_aws_sdk_root}/aws-sdk-cpp/build/aws-cpp-sdk-core:${g_aws_sdk_root}/aws-sdk-cpp/build/aws-cpp-sdk-s3-crt:${LD_LIBRARY_PATH}
 export LD_LIBRARY_PATH=${WORKSPACE}thirdparties/etcdclient:${LD_LIBRARY_PATH}
+
 cd ${WORKSPACE}
 bash replace-curve-repo.sh
 mkdir runlog storage
