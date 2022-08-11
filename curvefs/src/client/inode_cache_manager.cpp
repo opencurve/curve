@@ -153,6 +153,7 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
             option_.maxDataSize, option_.refreshDataIntervalSec);
     } else {
         lgGuard = out->GetUniqueLock();
+        streaming = true;
     }
 
     // refresh data
