@@ -208,6 +208,15 @@ TEST_F(TestInodeCacheManager, RefreshInode) {
               iCacheManager_->GetInode(inodeId, inodeWrapper));
     ASSERT_EQ(inodenew.length(), inodeWrapper->GetLength());
 
+    // cache hit, refresh s3-inode from metaserver, need streaming
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(inodenew), SetArgPointee<3>(true),
+                        Return(MetaStatusCode::OK)));
+    EXPECT_CALL(*metaClient_,
+                GetOrModifyS3ChunkInfo(fsId_, inodeId, _, true, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodeId));
+
     // cache miss, get file-inode from metaserver
     Inode inodefile;
     uint64_t inodefileid = 300;
