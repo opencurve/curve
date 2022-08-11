@@ -119,6 +119,7 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
         out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_);
     } else {
         lgGuard = out->GetUniqueLock();
+        streaming = true;
     }
 
     // refresh data
