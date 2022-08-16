@@ -139,8 +139,10 @@ template <typename K,  typename V,
     typename ValueTraits = CacheTraits<V>>
 class LRUCache : public LRUCacheInterface<K, V> {
  public:
+    // to less one Key construct
+    // make the Item key be a pointer
     struct Item {
-        K key;
+        const K* key;
         V value;
     };
 
@@ -335,7 +337,7 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(const V value, K *key) {
     }
     if (it == ll_.rend())
         return false;
-    *key = (*it).key;
+    *key = *(it->key);
     return true;
 }
 
@@ -346,7 +348,7 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(K *key, V *value) {
         return false;
     }
     auto it = ll_.rbegin();
-    *key = (*it).key;
+    *key = *(it->key);
     *value = (*it).value;
     return true;
 }
@@ -362,8 +364,8 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(
     for (; it != ll_.rend(); it++) {
         bool ok = f((*it).value);
         if (ok) {
-            *key = (*it).key;
-            *value = (*it).value;
+            *key = *(it->key);
+            *value = (it->value);
             return true;
         }
     }
@@ -388,9 +390,10 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::PutLocked(
     }
 
     // put new value
-    Item kv{key, value};
+    Item kv{nullptr, value};
     ll_.push_front(kv);
     cache_[key] = ll_.begin();
+    ll_.begin()->key = &(cache_.find(key)->first);
     if (cacheMetrics_ != nullptr) {
         cacheMetrics_->UpdateAddToCacheCount();
         cacheMetrics_->UpdateAddToCacheBytes(
@@ -416,7 +419,7 @@ void LRUCache<K, V, KeyTraits, ValueTraits>::MoveToFront(
     Item duplica{elem->key, elem->value};
     ll_.erase(elem);
     ll_.push_front(duplica);
-    cache_[duplica.key] = ll_.begin();
+    cache_[*(duplica.key)] = ll_.begin();
 }
 
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
@@ -435,11 +438,11 @@ void LRUCache<K, V, KeyTraits, ValueTraits>::RemoveElement(
     if (cacheMetrics_ != nullptr) {
         cacheMetrics_->UpdateRemoveFromCacheCount();
         cacheMetrics_->UpdateRemoveFromCacheBytes(
-            KeyTraits::CountBytes(elem->key) +
+            KeyTraits::CountBytes(*(elem->key)) +
             ValueTraits::CountBytes(elem->value));
     }
     const typename std::list<Item>::iterator elemTmp = elem;
-    auto iter = cache_.find(elem->key);
+    auto iter = cache_.find(*(elem->key));
     cache_.erase(iter);
     ll_.erase(elemTmp);
 }
