@@ -2237,7 +2237,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
                 // will be destructed before being accessed
                 if (pendingReq.fetch_sub(
                     1, std::memory_order_seq_cst) == 1) {
-                    VLOG(9) << "pendingReq is over";
+                    VLOG(9) << "pendingReq is over, " << context->key;
                     cond.Signal();
                 }
                 VLOG(9) << "PutObjectAsyncCallBack: " << context->key
