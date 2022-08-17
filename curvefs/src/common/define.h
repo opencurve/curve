@@ -25,7 +25,11 @@
 #include <cstdint>
 
 namespace curvefs {
+// inode id from 1~1000 is reserved for system use
 const uint64_t ROOTINODEID = 1;
+
+// user inode use id from 1001~max
+const uint64_t MIN_NORMAL_INODEID = 1001;
 
 const char XATTRFILES[] = "curve.dir.files";
 const char XATTRSUBDIRS[] = "curve.dir.subdirs";

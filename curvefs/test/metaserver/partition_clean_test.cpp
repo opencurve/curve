@@ -108,7 +108,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_fsid(fsId);
     partitionInfo.set_start(0);
-    partitionInfo.set_end(100);
+    partitionInfo.set_end(2000);
     std::shared_ptr<Partition> partition =
                 std::make_shared<Partition>(partitionInfo, kvStorage_);
     Dentry dentry;
@@ -160,10 +160,10 @@ TEST_F(PartitionCleanManagerTest, test1) {
             task.done->Run();
         }))
         .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
+            ASSERT_EQ(partition->DeleteInode(fsId, MIN_NORMAL_INODEID),
                       MetaStatusCode::OK);
             LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
-                      << ", inodeId = " << ROOTINODEID + 1;
+                      << ", inodeId = " << MIN_NORMAL_INODEID;
             task.done->Run();
         }))
         .WillOnce(Invoke([partition](const braft::Task& task) {

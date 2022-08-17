@@ -291,7 +291,7 @@ TEST_F(MetastoreTest, partition) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(4);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(1000);
+    partitionInfo.set_end(10000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -389,8 +389,8 @@ TEST_F(MetastoreTest, test_inode) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(1);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(1000);
+    partitionInfo1.set_start(1500);
+    partitionInfo1.set_end(2000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -623,7 +623,7 @@ TEST_F(MetastoreTest, test_dentry) {
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(1);
     partitionInfo1.set_start(100);
-    partitionInfo1.set_end(1000);
+    partitionInfo1.set_end(2000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -861,7 +861,7 @@ TEST_F(MetastoreTest, persist_success) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(1000);
+    partitionInfo.set_end(2000);
     partitionInfo.set_txid(100);
     partitionInfo.set_status(PartitionStatus::READWRITE);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
@@ -911,7 +911,7 @@ TEST_F(MetastoreTest, persist_success) {
     ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse1);
     ASSERT_EQ(createInodeResponse1.statuscode(), ret);
     ASSERT_EQ(createInodeResponse1.statuscode(), MetaStatusCode::OK);
-    ASSERT_EQ(createInodeResponse1.inode().inodeid(), 100);
+    ASSERT_EQ(createInodeResponse1.inode().inodeid(), 1001);
 
     createInodeRequest.set_partitionid(partitionId);
     ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse2);
@@ -925,7 +925,7 @@ TEST_F(MetastoreTest, persist_success) {
     Dentry dentry1;
     dentry1.set_fsid(fsId);
     dentry1.set_inodeid(2000);
-    dentry1.set_parentinodeid(100);
+    dentry1.set_parentinodeid(1001);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
     dentry1.set_type(FsFileType::TYPE_DIRECTORY);
@@ -1010,7 +1010,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(1000);
+    partitionInfo.set_end(2000);
     partitionInfo.set_txid(100);
     partitionInfo.set_status(PartitionStatus::READWRITE);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
@@ -1060,7 +1060,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse1);
     ASSERT_EQ(createInodeResponse1.statuscode(), ret);
     ASSERT_EQ(createInodeResponse1.statuscode(), MetaStatusCode::OK);
-    ASSERT_EQ(createInodeResponse1.inode().inodeid(), 100);
+    ASSERT_EQ(createInodeResponse1.inode().inodeid(), 1001);
 
     createInodeRequest.set_partitionid(partitionId);
     ret = metastore.CreateInode(&createInodeRequest, &createInodeResponse2);
@@ -1074,7 +1074,7 @@ TEST_F(MetastoreTest, persist_deleting_partition_success) {
     Dentry dentry1;
     dentry1.set_fsid(fsId);
     dentry1.set_inodeid(2000);
-    dentry1.set_parentinodeid(100);
+    dentry1.set_parentinodeid(1001);
     dentry1.set_name("dentry1");
     dentry1.set_txid(1);
     dentry1.set_type(FsFileType::TYPE_DIRECTORY);
@@ -1196,7 +1196,7 @@ TEST_F(MetastoreTest, persist_dentry_fail) {
     partitionInfo.set_copysetid(3);
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_start(100);
-    partitionInfo.set_end(1000);
+    partitionInfo.set_end(2000);
     partitionInfo.set_status(common::PartitionStatus::READWRITE);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
@@ -1280,7 +1280,7 @@ TEST_F(MetastoreTest, testBatchGetInodeAttr) {
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(1);
     partitionInfo1.set_start(100);
-    partitionInfo1.set_end(1000);
+    partitionInfo1.set_end(2000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -1354,7 +1354,7 @@ TEST_F(MetastoreTest, testBatchGetXAttr) {
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(1);
     partitionInfo1.set_start(100);
-    partitionInfo1.set_end(1000);
+    partitionInfo1.set_end(2000);
     createPartitionRequest.mutable_partition()->CopyFrom(partitionInfo1);
     MetaStatusCode ret = metastore.CreatePartition(&createPartitionRequest,
                                                    &createPartitionResponse);
@@ -1478,7 +1478,7 @@ TEST_F(MetastoreTest, GetOrModifyS3ChunkInfo) {
         partitionInfo.set_partitionid(partitionId);
         partitionInfo.set_fsid(fsId);
         partitionInfo.set_start(1);
-        partitionInfo.set_end(100);
+        partitionInfo.set_end(2000);
         request.mutable_partition()->CopyFrom(partitionInfo);
         MetaStatusCode rc = metastore.CreatePartition(&request, &response);
         ASSERT_EQ(rc, MetaStatusCode::OK);
@@ -1612,7 +1612,7 @@ TEST_F(MetastoreTest, GetInodeWithPaddingS3Meta) {
         partitionInfo.set_partitionid(partitionId);
         partitionInfo.set_fsid(fsId);
         partitionInfo.set_start(1);
-        partitionInfo.set_end(100);
+        partitionInfo.set_end(2000);
         request.mutable_partition()->CopyFrom(partitionInfo);
         MetaStatusCode rc = metastore.CreatePartition(&request, &response);
         ASSERT_EQ(rc, MetaStatusCode::OK);

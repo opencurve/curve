@@ -46,7 +46,7 @@ using ::curvefs::metaserver::storage::Iterator;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 using ::curvefs::metaserver::FsFileType;
 
-constexpr uint64_t kMinPartitionStartId = ROOTINODEID + 1;
+constexpr uint64_t kMinPartitionStartId = MIN_NORMAL_INODEID;
 
 class Partition {
  public:

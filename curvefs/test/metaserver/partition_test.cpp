@@ -107,8 +107,8 @@ TEST_F(PartitionTest, testInodeIdGen1) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(2099);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
@@ -126,9 +126,9 @@ TEST_F(PartitionTest, testInodeIdGen2) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
-    partitionInfo1.set_nextid(150);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
+    partitionInfo1.set_nextid(2951);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
@@ -146,9 +146,9 @@ TEST_F(PartitionTest, testInodeIdGen3) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
-    partitionInfo1.set_nextid(200);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
+    partitionInfo1.set_nextid(3001);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
@@ -158,7 +158,8 @@ TEST_F(PartitionTest, testInodeIdGen3) {
 
 TEST_F(PartitionTest, testInodeIdGen4_NextId) {
     std::vector<std::pair<uint64_t, uint64_t>> testsets = {
-        {0, 2}, {1, 2}, {2, 2}, {3, 3}};
+        {0, 1001}, {1, 1001}, {2, 1001}, {3, 1001}, {1000, 1001},
+        {1001, 1001}, {1002, 1002}, {2000, 2000}};
 
     for (auto& t : testsets) {
         PartitionInfo partitionInfo1;
@@ -167,7 +168,7 @@ TEST_F(PartitionTest, testInodeIdGen4_NextId) {
         partitionInfo1.set_copysetid(3);
         partitionInfo1.set_partitionid(4);
         partitionInfo1.set_start(t.first);
-        partitionInfo1.set_end(199);
+        partitionInfo1.set_end(3000);
 
         Partition p(partitionInfo1, kvStorage_);
         EXPECT_EQ(t.second, p.GetNewInodeId());
@@ -180,17 +181,17 @@ TEST_F(PartitionTest, testInodeIdGen5_paritionstatus) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
-    partitionInfo1.set_nextid(198);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
+    partitionInfo1.set_nextid(2999);
     partitionInfo1.set_status(PartitionStatus::READWRITE);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
-    ASSERT_EQ(partition1.GetNewInodeId(), 198);
+    ASSERT_EQ(partition1.GetNewInodeId(), 2999);
     ASSERT_EQ(partition1.GetPartitionInfo().status(),
               PartitionStatus::READWRITE);
-    ASSERT_EQ(partition1.GetNewInodeId(), 199);
+    ASSERT_EQ(partition1.GetNewInodeId(), 3000);
     ASSERT_EQ(partition1.GetPartitionInfo().status(),
               PartitionStatus::READWRITE);
     ASSERT_EQ(partition1.GetNewInodeId(), UINT64_MAX);
@@ -204,16 +205,18 @@ TEST_F(PartitionTest, test1) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
     ASSERT_TRUE(partition1.IsDeletable());
-    ASSERT_TRUE(partition1.IsInodeBelongs(1, 100));
-    ASSERT_TRUE(partition1.IsInodeBelongs(1, 199));
-    ASSERT_FALSE(partition1.IsInodeBelongs(2, 100));
-    ASSERT_FALSE(partition1.IsInodeBelongs(2, 199));
+    ASSERT_TRUE(partition1.IsInodeBelongs(1, 2000));
+    ASSERT_TRUE(partition1.IsInodeBelongs(1, 3000));
+    ASSERT_FALSE(partition1.IsInodeBelongs(1, 1999));
+    ASSERT_FALSE(partition1.IsInodeBelongs(1, 3001));
+    ASSERT_FALSE(partition1.IsInodeBelongs(2, 2000));
+    ASSERT_FALSE(partition1.IsInodeBelongs(2, 3000));
     ASSERT_TRUE(partition1.IsInodeBelongs(1));
     ASSERT_FALSE(partition1.IsInodeBelongs(2));
     ASSERT_EQ(partition1.GetPartitionId(), 4);
@@ -226,8 +229,8 @@ TEST_F(PartitionTest, inodenum) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
@@ -238,7 +241,7 @@ TEST_F(PartitionTest, inodenum) {
               MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetInodeNum(), 1);
 
-    ASSERT_EQ(partition1.DeleteInode(1, 100), MetaStatusCode::OK);
+    ASSERT_EQ(partition1.DeleteInode(1, 2000), MetaStatusCode::OK);
     ASSERT_EQ(partition1.GetInodeNum(), 0);
 }
 
@@ -248,8 +251,8 @@ TEST_F(PartitionTest, dentrynum) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
 
     Partition partition1(partitionInfo1, kvStorage_);
     ASSERT_EQ(partition1.GetDentryNum(), 0);
@@ -257,14 +260,14 @@ TEST_F(PartitionTest, dentrynum) {
 
     // create parent inode
     Inode inode;
-    inode.set_inodeid(100);
+    inode.set_inodeid(2000);
     ASSERT_EQ(partition1.CreateInode(param_, &inode),
         MetaStatusCode::OK);
 
     Dentry dentry;
     dentry.set_fsid(1);
-    dentry.set_inodeid(101);
-    dentry.set_parentinodeid(100);
+    dentry.set_inodeid(2001);
+    dentry.set_parentinodeid(2000);
     dentry.set_name("name");
     dentry.set_txid(0);
     dentry.set_type(FsFileType::TYPE_DIRECTORY);
@@ -281,18 +284,18 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
     Dentry dentry1;
     dentry1.set_fsid(2);
-    dentry1.set_parentinodeid(100);
+    dentry1.set_parentinodeid(2000);
 
     Dentry dentry2;
     dentry2.set_fsid(1);
-    dentry2.set_parentinodeid(200);
+    dentry2.set_parentinodeid(3001);
 
     // test CreateDentry
     ASSERT_EQ(partition1.CreateDentry(dentry1),
@@ -388,20 +391,20 @@ TEST_F(PartitionTest, testGetInodeAttr) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
     // create parent inode
     Inode inode;
-    inode.set_inodeid(100);
+    inode.set_inodeid(2000);
     param_.type = FsFileType::TYPE_FILE;
     param_.fsId = 1;
     ASSERT_EQ(partition1.CreateInode(param_, &inode), MetaStatusCode::OK);
     InodeAttr attr;
-    ASSERT_EQ(partition1.GetInodeAttr(1, 100, &attr), MetaStatusCode::OK);
-    ASSERT_EQ(attr.inodeid(), 100);
+    ASSERT_EQ(partition1.GetInodeAttr(1, 2000, &attr), MetaStatusCode::OK);
+    ASSERT_EQ(attr.inodeid(), 2000);
     ASSERT_EQ(attr.fsid(), 1);
     ASSERT_EQ(attr.length(), 0);
     ASSERT_EQ(attr.uid(), 0);
@@ -416,19 +419,19 @@ TEST_F(PartitionTest, testGetXAttr) {
     partitionInfo1.set_poolid(2);
     partitionInfo1.set_copysetid(3);
     partitionInfo1.set_partitionid(4);
-    partitionInfo1.set_start(100);
-    partitionInfo1.set_end(199);
+    partitionInfo1.set_start(2000);
+    partitionInfo1.set_end(3000);
 
     Partition partition1(partitionInfo1, kvStorage_);
 
     // create parent inode
     Inode inode;
-    inode.set_inodeid(100);
+    inode.set_inodeid(1500);
     param_.type = FsFileType::TYPE_DIRECTORY;
     ASSERT_EQ(partition1.CreateInode(param_, &inode), MetaStatusCode::OK);
     XAttr xattr;
-    ASSERT_EQ(partition1.GetXAttr(1, 100, &xattr), MetaStatusCode::OK);
-    ASSERT_EQ(xattr.inodeid(), 100);
+    ASSERT_EQ(partition1.GetXAttr(1, 2000, &xattr), MetaStatusCode::OK);
+    ASSERT_EQ(xattr.inodeid(), 2000);
     ASSERT_EQ(xattr.fsid(), 1);
     ASSERT_EQ(xattr.xattrinfos().find(XATTRFILES)->second, "0");
     ASSERT_EQ(xattr.xattrinfos().find(XATTRSUBDIRS)->second, "0");

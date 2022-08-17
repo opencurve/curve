@@ -65,6 +65,7 @@ Partition::Partition(PartitionInfo partition,
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
     dentryManager_ =
         std::make_shared<DentryManager>(dentryStorage_, txManager_);
+
     if (!partitionInfo_.has_nextid()) {
         partitionInfo_.set_nextid(
             std::max(kMinPartitionStartId, partitionInfo_.start()));
