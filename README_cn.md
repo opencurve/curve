@@ -1,9 +1,14 @@
-[English version](README.md)
 
 
-<img src="docs/images/curve-logo1.png"/>
+<div align=center> <img src="docs/images/curve-logo1.png"/>
 
-# Curve
+# CURVE
+  
+**A could-native distributed storage system**
+
+#### [English](README.md) | 简体中文
+
+<div align=left>
 
 [![Jenkins Coverage](https://img.shields.io/jenkins/coverage/cobertura?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_untest_job%2F)](http://59.111.91.248:8080/job/curve_untest_job/HTML_20Report/)
 [![Robot failover](https://img.shields.io/jenkins/build?jobUrl=http%3A%2F%2F59.111.91.248%3A8080%2Fjob%2Fcurve_failover_testjob%2F&label=failover)](http://59.111.91.248:8080/job/curve_failover_testjob/)
@@ -14,7 +19,12 @@
 [![LICENSE](https://img.shields.io/badge/licence-Apache--2.0%2FGPL-blue)](https://github.com/opencurve/curve/blob/master/LICENSE)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6136/badge)](https://bestpractices.coreinfrastructure.org/projects/6136)
 
-Curve是一款高性能、易运维、云原生的开源分布式存储系统。可应用于主流的云原生基础设施平台：对接 OpenStack 平台为云主机提供高性能块存储服务；对接 Kubernetes 为其提供 RWO、RWX 等类型的持久化存储卷；对接 PolarFS 作为云原生数据库的高性能存储底座，完美支持云原生数据库的存算分离架构。Curve 亦可作为云存储中间件使用 S3 兼容的对象存储作为数据存储引擎，为公有云用户提供高性价比的共享文件存储。
+Curve是一款高性能、易运维、云原生的开源分布式存储系统。可应用于主流的云原生基础设施平台：
+- 对接 OpenStack 平台为云主机提供高性能块存储服务；
+- 对接 Kubernetes 为其提供 RWO、RWX 等类型的持久化存储卷；
+- 对接 PolarFS 作为云原生数据库的高性能存储底座，完美支持云原生数据库的存算分离架构。
+
+Curve 亦可作为云存储中间件使用 S3 兼容的对象存储作为数据存储引擎，为公有云用户提供高性价比的共享文件存储。
 
 Curve已加入云原生计算基金会（CNCF）作为沙箱项目托管。
 
@@ -90,15 +100,6 @@ Ceph: L/N
 ### 部署All-in-one体验环境
 请参考CurveAdm用户手册中[CurveBS集群部署步骤](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)，单机体验环境请使用“集群拓扑文件-单机部署”模板。
 
-
-[单机部署 - 即将废弃方式](docs/cn/deploy.md#%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2)
-
-### 部署多机集群
-请参考CurveAdm用户手册中[CurveBS集群部署步骤](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)，请使用“集群拓扑文件-多机部署”模板。
-
-
-[多机部署 - 即将废弃方式](docs/cn/deploy.md#%E5%A4%9A%E6%9C%BA%E9%83%A8%E7%BD%B2)
-
 ### 命令行工具说明
 
 [命令行工具说明](docs/cn/curve_ops_tool.md)
@@ -126,7 +127,11 @@ Ceph: L/N
 [测试用例编译及运行](docs/cn/build_and_run.md#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E7%BC%96%E8%AF%91%E5%8F%8A%E6%89%A7%E8%A1%8C)
 
 ### FIO curve块存储引擎
-fio的curve块存储引擎代码已经上传到 https://github.com/opencurve/fio ，请自行编译测试（依赖nebd库），fio命令行示例：`./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+fio的curve块存储引擎代码已经上传到 https://github.com/opencurve/fio ，请自行编译测试（依赖nebd库），fio命令行示例：`
+```bash
+$ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+```
+
 
 ## 版本发布周期
 - CURVE版本发布周期：大版本半年，小版本1~2个月
