@@ -80,15 +80,9 @@ int DiskCacheManagerImpl::Write(const std::string name, const char *buf,
     VLOG(9) << "write name = " << name << ", length = " << length;
     int ret = 0;
     ret = WriteDiskFile(name, buf, length);
-    if (ret < 0) {
-        ret = client_->Upload(name, buf, length);
-        if (ret < 0) {
-            LOG(ERROR) << "upload object fail. object: " << name;
-            return -1;
-        }
-    }
-    VLOG(9) << "write success, write name = " << name;
-    return 0;
+    VLOG(9) << "write end, write name: " << name
+            << "ret: " << ret;
+    return ret;
 }
 
 int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
