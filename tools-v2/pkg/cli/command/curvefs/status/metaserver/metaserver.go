@@ -197,7 +197,7 @@ func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *tablewriter.Tabl
 	metaserverCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, metaserverCmd.Cmd, []string{
+	config.AlignFlagsValue(caller, metaserverCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
 	metaserverCmd.Cmd.SilenceErrors = true

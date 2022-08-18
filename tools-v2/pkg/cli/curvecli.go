@@ -63,10 +63,11 @@ func newCurveCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolP("version", "v", false, "print curve version")
+	cmd.PersistentFlags().BoolP("version", "", false, "print curve version")
 	cmd.PersistentFlags().BoolP("help", "h", false, "print usage")
 	cmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
 	config.AddShowErrorPFlag(cmd)
+	cmd.PersistentFlags().BoolP("verbose", "v", false, "show some log")
 	viper.BindPFlag("useViper", cmd.PersistentFlags().Lookup("viper"))
 
 	addSubCommands(cmd)

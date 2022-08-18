@@ -243,7 +243,7 @@ func GetFsPartition(caller *cobra.Command) (*map[uint32][]*common.PartitionInfo,
 	listPartionCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, listPartionCmd.Cmd, []string{
+	config.AlignFlagsValue(caller, listPartionCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 		config.CURVEFS_FSID,
 	})

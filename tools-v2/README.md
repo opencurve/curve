@@ -39,6 +39,7 @@ A tool for CurveFS & CurveBs.
       - [usage](#usage)
         - [usage inode](#usage-inode)
         - [usage metadata](#usage-metadata)
+      - [warmup](#warmup)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
 
@@ -766,7 +767,20 @@ Output:
 +--------------------+---------+---------+---------+
 ```
 
+#### warmup
 
+#### add
+warmup a file(directory), or given a list file contains a list of files(directories) that you want to warmup.
+
+Usage:
+
+```shell
+curve fs warmup add /mnt/curvefs/warmup
+curve fs warmup add --filelist /mnt/curvefs/warmup.list
+```
+
+> `curve fs warmup add /mnt/curvefs/warmup` will warmup a file(directory).
+> /mnt/curvefs/warmup.list 
 ## Comparison of old and new commands
 
 ### curve fs

@@ -119,7 +119,7 @@ func GetCopysetStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, 
 	copysetCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, copysetCmd.Cmd, []string{
+	config.AlignFlagsValue(caller, copysetCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
 	copysetCmd.Cmd.SilenceErrors = true
