@@ -30,7 +30,9 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -40,6 +42,7 @@ var (
 const (
 	FORMAT = "format"
 	// global
+	SHOWERROR = "showerror"
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
 	HTTPTIMEOUT                 = "httptimeout"
 	VIPER_GLOBALE_HTTPTIMEOUT   = "global.httpTimeout"
@@ -50,6 +53,12 @@ const (
 	RPCRETRYTIMES               = "rpcretrytimes"
 	VIPER_GLOBALE_RPCRETRYTIMES = "global.rpcRetryTimes"
 	DEFAULT_RPCRETRYTIMES       = int32(1)
+	VERBOSE                     = "verbose"
+	VIPER_GLOBALE_VERBOSE       = "global.verbose"
+	DEFAULT_VERBOSE             = false
+	MAX_CHANNEL_SIZE = "maxChannelSize"
+	VIPER_GLOBALE_MAX_CHANNEL_SIZE = "global.maxChannelSize"
+	DEFAULT_MAX_CHANNEL_SIZE = int32(4)
 
 	// curvefs
 	CURVEFS_MDSADDR              = "mdsaddr"
@@ -150,9 +159,17 @@ const (
 )
 
 var (
+	FLAFG_GLOBAL = []string{
+		SHOWERROR, HTTPTIMEOUT, RPCTIMEOUT, RPCRETRYTIMES, VERBOSE,
+	}
+
 	FLAG2VIPER = map[string]string{
-		RPCTIMEOUT:             VIPER_GLOBALE_RPCTIMEOUT,
-		RPCRETRYTIMES:          VIPER_GLOBALE_RPCRETRYTIMES,
+		// verbose
+		RPCTIMEOUT:    VIPER_GLOBALE_RPCTIMEOUT,
+		RPCRETRYTIMES: VIPER_GLOBALE_RPCRETRYTIMES,
+		VERBOSE:       VIPER_GLOBALE_VERBOSE,
+
+		// curvefs
 		CURVEFS_MDSADDR:        VIPER_CURVEFS_MDSADDR,
 		CURVEFS_MDSDUMMYADDR:   VIPER_CURVEFS_MDSDUMMYADDR,
 		CURVEFS_ETCDADDR:       VIPER_CURVEFS_ETCDADDR,
@@ -197,6 +214,7 @@ var (
 	FLAG2DEFAULT = map[string]interface{}{
 		RPCTIMEOUT:         DEFAULT_RPCTIMEOUT,
 		RPCRETRYTIMES:      DEFAULT_RPCRETRYTIMES,
+		VERBOSE:            DEFAULT_VERBOSE,
 		CURVEFS_SUMINDIR:   CURVEFS_DEFAULT_SUMINDIR,
 		CURVEFS_DETAIL:     CURVEFS_DEFAULT_DETAIL,
 		CURVEFS_CLUSTERMAP: CURVEFS_DEFAULT_CLUSTERMAP,
@@ -415,13 +433,13 @@ func AddRpcRetryTimesFlag(cmd *cobra.Command) {
 
 // channel size
 func MaxChannelSize() int {
-	return viper.GetInt("global.maxChannelSize")
+	return viper.GetInt(VIPER_GLOBALE_MAX_CHANNEL_SIZE)
 }
 
 // show errors
 func AddShowErrorPFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().Bool("showerror", false, "display all errors in command")
-	err := viper.BindPFlag("global.showError", cmd.PersistentFlags().Lookup("showerror"))
+	cmd.PersistentFlags().Bool(SHOWERROR, false, "display all errors in command")
+	err := viper.BindPFlag(VIPER_GLOBALE_SHOWERROR, cmd.PersistentFlags().Lookup(SHOWERROR))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -439,7 +457,7 @@ func AddFsMdsAddrFlag(cmd *cobra.Command) {
 
 func GetAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.CmdError) {
 	var addrsStr string
-	if cmd.Flag(addrType).Changed {
+	if cmd.Flag(addrType) != nil && cmd.Flag(addrType).Changed {
 		addrsStr = cmd.Flag(addrType).Value.String()
 	} else {
 		addrsStr = viper.GetString(FLAG2VIPER[addrType])
@@ -457,7 +475,7 @@ func GetAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.CmdE
 
 func GetFlagString(cmd *cobra.Command, flagName string) string {
 	var value string
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value = cmd.Flag(flagName).Value.String()
 	} else {
 		value = viper.GetString(FLAG2VIPER[flagName])
@@ -467,7 +485,7 @@ func GetFlagString(cmd *cobra.Command, flagName string) string {
 
 func GetFlagBool(cmd *cobra.Command, flagName string) bool {
 	var value bool
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetBool(flagName)
 	} else {
 		value = viper.GetBool(FLAG2VIPER[flagName])
@@ -477,7 +495,7 @@ func GetFlagBool(cmd *cobra.Command, flagName string) bool {
 
 func GetFlagUint64(cmd *cobra.Command, flagName string) uint64 {
 	var value uint64
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetUint64(flagName)
 	} else {
 		value = viper.GetUint64(FLAG2VIPER[flagName])
@@ -487,7 +505,7 @@ func GetFlagUint64(cmd *cobra.Command, flagName string) uint64 {
 
 func GetFlagUint32(cmd *cobra.Command, flagName string) uint32 {
 	var value uint32
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetUint32(flagName)
 	} else {
 		value = viper.GetUint32(FLAG2VIPER[flagName])
@@ -497,7 +515,7 @@ func GetFlagUint32(cmd *cobra.Command, flagName string) uint32 {
 
 func GetFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 	var value []string
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetStringSlice(flagName)
 	} else {
 		value = viper.GetStringSlice(FLAG2VIPER[flagName])
@@ -507,7 +525,7 @@ func GetFlagStringSlice(cmd *cobra.Command, flagName string) []string {
 
 func GetFlagStringSliceDefaultAll(cmd *cobra.Command, flagName string) []string {
 	var value []string
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetStringSlice(flagName)
 	} else {
 		value = []string{"*"}
@@ -517,7 +535,7 @@ func GetFlagStringSliceDefaultAll(cmd *cobra.Command, flagName string) []string 
 
 func GetFlagDuration(cmd *cobra.Command, flagName string) time.Duration {
 	var value time.Duration
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetDuration(flagName)
 	} else {
 		value = viper.GetDuration(FLAG2VIPER[flagName])
@@ -527,7 +545,7 @@ func GetFlagDuration(cmd *cobra.Command, flagName string) time.Duration {
 
 func GetFlagInt32(cmd *cobra.Command, flagName string) int32 {
 	var value int32
-	if cmd.Flag(flagName).Changed {
+	if cmd.Flag(flagName) != nil && cmd.Flag(flagName).Changed {
 		value, _ = cmd.Flags().GetInt32(flagName)
 	} else {
 		value = viper.GetInt32(FLAG2VIPER[flagName])
@@ -842,4 +860,33 @@ func AddClusterMapRequiredFlag(cmd *cobra.Command) {
 // mountpoint [required]
 func AddMountpointRequiredFlag(cmd *cobra.Command) {
 	AddStringRequiredFlag(cmd, CURVEFS_MOUNTPOINT, "curvefs mountpoint path")
+}
+
+// Align the flag (changed) in the caller with the callee
+func AlignFlagsValue(caller *cobra.Command, callee *cobra.Command, flagNames []string) {
+	callee.Flags().VisitAll(func(flag *pflag.Flag) {
+		index := slices.IndexFunc(flagNames, func(i string) bool {
+			return flag.Name == i
+		})
+		if index == -1 {
+			return
+		}
+		callerFlag := caller.Flag(flag.Name)
+		if callerFlag != nil && callerFlag.Changed {
+			if flag.Value.Type() == callerFlag.Value.Type() {
+				flag.Value = callerFlag.Value
+				flag.Changed = callerFlag.Changed
+			} else {
+				flag.Value.Set(callerFlag.Value.String())
+				flag.Changed = callerFlag.Changed
+			}
+		}
+	})
+	// golobal flag
+	for _, flagName := range FLAFG_GLOBAL {
+		callerFlag := caller.Flag(flagName)
+		if callerFlag != nil && callerFlag.Changed {
+			callee.Flags().AddFlag(callerFlag)
+		}
+	}
 }

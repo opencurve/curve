@@ -165,6 +165,7 @@ func (fCmd *FsCommand) ResultPlainOutput() error {
 func GetClusterFsInfo(caller *cobra.Command) (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 	listFs := NewListFsCommand()
 	listFs.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	config.AlignFlagsValue(caller, listFs.Cmd, []string{})
 	listFs.Cmd.SilenceErrors = true
 	err := listFs.Cmd.Execute()
 	if err != nil {

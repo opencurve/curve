@@ -171,7 +171,7 @@ func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse,
 	listCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	config.AlignFlagsValue(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
 	listCopyset.Cmd.SilenceErrors = true
 	err := listCopyset.Cmd.Execute()
 	if err != nil {

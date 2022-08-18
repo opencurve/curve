@@ -356,7 +356,7 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	config.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
 	queryCopyset.Cmd.SilenceErrors = true
 	err := queryCopyset.Cmd.Execute()
 	if err != nil {
@@ -373,7 +373,7 @@ func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfo
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	config.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
 	queryCopyset.Cmd.SilenceErrors = true
 	err := queryCopyset.Cmd.Execute()
 	if err != nil {
