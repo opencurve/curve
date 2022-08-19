@@ -154,7 +154,7 @@ void FuseClient::WarmUpTask() {
             pToken = strtok_r(const_cast<char*>(warmUpTask.c_str()),
               const_cast<char*>(pDelimiter.c_str()), &pSave);
             if (nullptr == pToken) {
-                VLOG(3) << "warmUpTask nullptr";
+                VLOG(6) << "warmUpTask nullptr";
                 continue;
             }
             Dentry dentry;
