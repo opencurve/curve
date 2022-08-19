@@ -108,7 +108,15 @@ class DiskCacheManager {
      * @brief: stop trim thread.
      */
     int TrimStop();
+
     void InitMetrics(const std::string &fsName);
+
+    /**
+     * @brief: has geted the origin used size or not.
+     */
+    virtual bool IsDiskUsedInited() {
+        return diskUsedInit_.load();
+    }
 
  private:
     /**
@@ -179,6 +187,10 @@ class DiskCacheManager {
     Throttle diskCacheThrottle_;
 
     S3ClientAdaptorOption option_;
+
+    // has geted the origin used size or not
+    std::atomic<bool> diskUsedInit_;
+    curve::common::Thread diskInitThread_;
 };
 
 

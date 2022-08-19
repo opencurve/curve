@@ -326,7 +326,7 @@ class FuseClient {
         pToken = strtok_r(const_cast<char*>(srcStr.c_str()),
           const_cast<char*>(delimiter.c_str()), &pSave);
         if (nullptr == pToken) {
-            VLOG(3) << "whsdel lookpath end";
+            VLOG(6) << "del lookpath end";
             return;
         }
         splitPath->push_back(pToken);
@@ -334,10 +334,10 @@ class FuseClient {
             pToken = strtok_r(NULL, const_cast<char*>(
               delimiter.c_str()), &pSave);
             if (nullptr == pToken) {
-                VLOG(3) << "whsdel lookpath end";
+                VLOG(6) << "del lookpath end";
                 break;
             }
-            VLOG(9) << "whsdel pToken is:" << pToken
+            VLOG(9) << "del pToken is:" << pToken
                     << "pSave:" << pSave;
             splitPath->push_back(pToken);
         }
