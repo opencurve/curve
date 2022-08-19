@@ -89,7 +89,8 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
                                         uint64_t length) {
     VLOG(9) << "write name = " << name << ", length = " << length;
     // if cache disk is full
-    if (diskCacheManager_->IsDiskCacheFull()) {
+    if (!diskCacheManager_->IsDiskUsedInited() ||
+      diskCacheManager_->IsDiskCacheFull()) {
         VLOG(6) << "write disk file fail, disk full.";
         return -1;
     }
@@ -115,12 +116,13 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
 
     // notify async load to s3
     diskCacheManager_->AsyncUploadEnqueue(name);
-    return writeRet;
+    return 0;
 }
 
 int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
                                           const char *buf, uint64_t length) {
-    if (diskCacheManager_->IsDiskCacheFull()) {
+    if (!diskCacheManager_->IsDiskUsedInited() ||
+      diskCacheManager_->IsDiskCacheFull()) {
         VLOG(6) << "write disk file fail, disk full.";
         return -1;
     }

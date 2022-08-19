@@ -63,6 +63,7 @@ DiskCacheManager::DiskCacheManager(std::shared_ptr<PosixWrapper> posixWrapper,
     diskFsUsedRatio_ = 0;
     fullRatio_ = 0;
     safeRatio_ = 0;
+    diskUsedInit_ = false;
     maxUsableSpaceBytes_ = 0;
     // cannot limit the size,
     // because cache is been delete must after upload to s3
@@ -174,6 +175,7 @@ bool DiskCacheManager::IsCached(const std::string name) {
 int DiskCacheManager::UmountDiskCache() {
     LOG(INFO) << "umount disk cache.";
     int ret;
+    diskInitThread_.join();
     ret = cacheWrite_->UploadAllCacheWriteFile();
     if (ret < 0) {
         LOG(ERROR) << "umount disk cache error.";
@@ -277,7 +279,7 @@ int64_t DiskCacheManager::SetDiskFsUsedRatio() {
         return -1;
     }
     int64_t usedPercent = 100 * usedBytes / (usedBytes + availableBytes) + 1;
-    diskFsUsedRatio_.store(usedPercent, std::memory_order_seq_cst);
+    diskFsUsedRatio_.store(usedPercent);
     return usedPercent;
 }
 
@@ -297,15 +299,16 @@ void DiskCacheManager::SetDiskInitUsedBytes() {
             << "get disk used size failed.";
         return;
     }
-    usedBytes_.fetch_add(usedBytes, std::memory_order_seq_cst);
+    usedBytes_.fetch_add(usedBytes);
     if (metric_.get() != nullptr)
         metric_->diskUsedBytes.set_value(usedBytes_);
+    diskUsedInit_.store(true);
     VLOG(9) << "cache disk used size is: " << result;
     return;
 }
 
 bool DiskCacheManager::IsDiskCacheFull() {
-    int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
+    int64_t ratio = diskFsUsedRatio_.load();
     uint64_t usedBytes = GetDiskUsedbytes();
     if (ratio >= fullRatio_ || usedBytes >= maxUsableSpaceBytes_) {
         VLOG(6) << "disk cache is full"
@@ -325,7 +328,7 @@ bool DiskCacheManager::IsDiskCacheSafe() {
     if (IsExceedFileNums()) {
         return false;
     }
-    int64_t ratio = diskFsUsedRatio_.load(std::memory_order_seq_cst);
+    int64_t ratio = diskFsUsedRatio_.load();
     uint64_t usedBytes = GetDiskUsedbytes();
     if ((usedBytes < (safeRatio_ * maxUsableSpaceBytes_ / 100))
       && (ratio < safeRatio_)) {
@@ -354,6 +357,10 @@ void DiskCacheManager::TrimCache() {
     const std::chrono::seconds sleepSec(trimCheckIntervalSec_);
     LOG(INFO) << "trim function start.";
     waitIntervalSec_.Init(trimCheckIntervalSec_ * 1000);
+    // trim will start after get the disk size
+    while (!IsDiskUsedInited()) {
+        waitIntervalSec_.WaitForNextExcution();
+    }
     // 1. check cache disk usage every sleepSec seconds.
     // 2. if cache disk is full,
     //    then remove disk file until cache disk is lower than safeRatio_.
@@ -450,8 +457,11 @@ void DiskCacheManager::InitMetrics(const std::string &fsName) {
     cacheWrite_->InitMetrics(metric_);
     cacheRead_->InitMetrics(metric_);
     // this function move to here from init，
-    // Otherwise, you can't get the original metric
-    SetDiskInitUsedBytes();
+    // Otherwise, you can't get the original metric.
+    // SetDiskInitUsedBytes may takes a long time,
+    // so use a separate thread to do this.
+    diskInitThread_ = curve::common::Thread(
+      &DiskCacheManager::SetDiskInitUsedBytes, this);
 }
 
 }  // namespace client

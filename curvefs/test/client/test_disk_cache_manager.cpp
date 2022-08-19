@@ -272,11 +272,20 @@ TEST_F(TestDiskCacheManager, TrimStop) {
 }
 
 TEST_F(TestDiskCacheManager, TrimRun_1) {
+    S3ClientAdaptorOption option;
+    option.diskCacheOpt.cacheDir = "/tmp";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+        .WillOnce(Return(0));
+    diskCacheManager_->Init(client_, option);
+    diskCacheManager_->InitMetrics("test");
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
-    diskCacheManager_->TrimStop();
+    diskCacheManager_->UmountDiskCache();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_2) {
@@ -298,15 +307,19 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
         .WillRepeatedly(Return(buf));
     EXPECT_CALL(*diskCacheRead_, GetCacheIoFullDir())
         .WillRepeatedly(Return(buf));
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
-        .Times(3)
-        .WillOnce(Return(0))
-        .WillOnce(Return(-1))
+    S3ClientAdaptorOption option;
+    option.diskCacheOpt.cacheDir = "/tmp";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
         .WillOnce(Return(0));
+    diskCacheManager_->Init(client_, option);
+    diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
-    diskCacheManager_->TrimStop();
+    diskCacheManager_->UmountDiskCache();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_4) {
@@ -331,10 +344,19 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
     EXPECT_CALL(*wrapper, remove(_)).WillRepeatedly(Return(-1));
+    S3ClientAdaptorOption option;
+    option.diskCacheOpt.cacheDir = "/tmp";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+        .WillOnce(Return(0));
+    diskCacheManager_->Init(client_, option);
+    diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
-    diskCacheManager_->TrimStop();
+    diskCacheManager_->UmountDiskCache();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_5) {
@@ -360,17 +382,26 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
         .WillRepeatedly(Return(-1));
     EXPECT_CALL(*wrapper, remove(_)).WillRepeatedly(Return(0));
+    S3ClientAdaptorOption option;
+    option.diskCacheOpt.cacheDir = "/tmp";
+    option.diskCacheOpt.trimCheckIntervalSec = 1;
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+        .WillOnce(Return(0));
+    diskCacheManager_->Init(client_, option);
+    diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
     int ret = diskCacheManager_->TrimRun();
     sleep(6);
-    diskCacheManager_->TrimStop();
+    diskCacheManager_->UmountDiskCache();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
-    S3ClientAdaptorOption option;
+      S3ClientAdaptorOption option;
     option.diskCacheOpt.maxFileNums = 5;
     option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
-    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.cacheDir = "/tmp";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     option.diskCacheOpt.fullRatio = 0;
     option.diskCacheOpt.safeRatio = 0;
@@ -397,25 +428,26 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
         .WillOnce(Return(0))
         .WillOnce(Return(-1))
         .WillOnce(Return(0));
-
+    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+        .WillOnce(Return(0));
     int ret = diskCacheManager_->TrimRun();
+    diskCacheManager_->InitMetrics("test");
     sleep(6);
-    diskCacheManager_->TrimStop();
+    diskCacheManager_->UmountDiskCache();
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     S3ClientAdaptorOption option;
     option.diskCacheOpt.maxFileNums = 5;
     option.diskCacheOpt.diskCacheType = (DiskCacheType)2;
-    option.diskCacheOpt.cacheDir = "/mnt/test_unit";
+    option.diskCacheOpt.cacheDir = "/tmp";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
-    option.diskCacheOpt.fullRatio = 0;
-    option.diskCacheOpt.safeRatio = 5;
-    option.diskCacheOpt.maxUsableSpaceBytes = 100;
+    option.diskCacheOpt.fullRatio = 90;
+    option.diskCacheOpt.safeRatio = 70;
+    option.diskCacheOpt.maxUsableSpaceBytes =
+      std::numeric_limits<uint64_t>::max();
     option.diskCacheOpt.cmdTimeoutSec = 5;
     option.diskCacheOpt.asyncLoadPeriodMs = 10;
-    option.diskCacheOpt.maxFileNums =
-      std::numeric_limits<uint64_t>::max();
     diskCacheManager_->Init(client_, option);
 
     std::string buf = "test";
@@ -430,16 +462,23 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     stat.f_bavail = 0;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(-1)));
+    EXPECT_CALL(*wrapper, remove(_)).WillRepeatedly(Return(0));
 
     diskCacheManager_->AddCache("test00");
     diskCacheManager_->AddCache("test01");
     diskCacheManager_->AddCache("test02");
     diskCacheManager_->AddCache("test03");
     diskCacheManager_->AddCache("test04");
-    diskCacheManager_->AddCache("test05");
-    int ret = diskCacheManager_->TrimRun();
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+        .Times(2)
+        .WillOnce(Return(-1))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
+        .WillOnce(Return(0));
+    diskCacheManager_->TrimRun();
+    diskCacheManager_->InitMetrics("test");
     sleep(6);
-    diskCacheManager_->TrimStop();
+    diskCacheManager_->UmountDiskCache();
 }
 
 TEST_F(TestDiskCacheManager, WriteReadDirect) {
