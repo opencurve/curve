@@ -183,11 +183,11 @@ CURVEFS_ERROR RenameOperator::Precheck() {
 // record old inode info if overwrite
 CURVEFS_ERROR RenameOperator::RecordOldInodeInfo() {
     if (oldInodeId_ != 0) {
-        std::shared_ptr<InodeWrapper> inodeWrapper;
-        auto rc = inodeManager_->GetInode(oldInodeId_, inodeWrapper);
+        InodeAttr attr;
+        CURVEFS_ERROR rc = inodeManager_->GetInodeAttr(oldInodeId_, &attr);
         if (rc == CURVEFS_ERROR::OK) {
-            oldInodeSize_ = inodeWrapper->GetLength();
-            oldInodeType_ = inodeWrapper->GetType();
+            oldInodeSize_ = attr.length();
+            oldInodeType_ = attr.type();
         } else {
             LOG_ERROR("GetInode", rc);
             return CURVEFS_ERROR::NOTEXIST;
