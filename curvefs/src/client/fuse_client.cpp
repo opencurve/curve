@@ -33,9 +33,11 @@
 #include <utility>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/xattr_manager.h"
+#include "curvefs/src/common/define.h"
 #include "src/common/net_common.h"
 #include "src/common/dummyserver.h"
 #include "src/client/client_common.h"
@@ -718,6 +720,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
 
     uint64_t ino = dentry.inodeid();
 
+    // judge dir empty
     if (FsFileType::TYPE_DIRECTORY == type) {
         std::list<Dentry> dentryList;
         auto limit = option_.listDentryLimit;
@@ -1351,14 +1354,14 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string *linkStr) {
     VLOG(1) << "FuseOpReadLink, ino: " << ino << ", linkStr: " << linkStr;
-    std::shared_ptr<InodeWrapper> inodeWrapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+    InodeAttr attr;
+    CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &attr);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+        LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
                    << ", inodeid = " << ino;
         return ret;
     }
-    *linkStr = inodeWrapper->GetSymlinkStr();
+    *linkStr = attr.symlink();
     return CURVEFS_ERROR::OK;
 }
 
