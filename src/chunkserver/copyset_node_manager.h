@@ -55,7 +55,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
         static CopysetNodeManager instance;
         return instance;
     }
-
+    virtual ~CopysetNodeManager() = default;
     int Init(const CopysetNodeOptions &copysetNodeOptions);
     int Run();
     int Fini();
