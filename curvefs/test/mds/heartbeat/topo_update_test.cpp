@@ -127,6 +127,32 @@ TEST_F(TestTopoUpdater, test_UpdatePartitionTopo_case2) {
 
         updater_->UpdatePartitionTopo(copysetId, partitionList);
     }
+
+    {
+        // update partition statistic, only next id not same
+        partition1.SetStatus(PartitionStatus::READWRITE);
+        partition1.SetInodeNum(10);
+        partition1.SetIdNext(10);
+        topoPartitionList.clear();
+        topoPartitionList.push_back(partition1);
+
+        partition2.SetStatus(PartitionStatus::READWRITE);
+        partition2.SetInodeNum(10);
+        partition2.SetIdNext(11);
+        partitionList.clear();
+        partitionList.push_back(partition2);
+
+        EXPECT_CALL(*topology_, GetPartitionInfosInCopyset(_))
+            .WillOnce(Return(topoPartitionList));
+
+        EXPECT_CALL(*topology_, GetPartition(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(partition1), Return(true)));
+
+        EXPECT_CALL(*topology_, UpdatePartitionStatistic(_, _))
+            .WillOnce(Return(TopoStatusCode::TOPO_OK));
+
+        updater_->UpdatePartitionTopo(copysetId, partitionList);
+    }
 }
 
 // partition in topology, not in heartbeat

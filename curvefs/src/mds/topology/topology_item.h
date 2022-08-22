@@ -622,6 +622,7 @@ struct PartitionStatistic {
     common::PartitionStatus status;
     uint64_t inodeNum;
     uint64_t dentryNum;
+    uint64_t nextId;
     std::unordered_map<FileType, uint64_t> fileType2InodeNum;
 };
 
@@ -634,6 +635,7 @@ class Partition {
           partitionId_(UNINITIALIZE_ID),
           idStart_(0),
           idEnd_(0),
+          idNext_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(0),
@@ -649,6 +651,7 @@ class Partition {
           partitionId_(partitionId),
           idStart_(idStart),
           idEnd_(idEnd),
+          idNext_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(0),
@@ -663,6 +666,7 @@ class Partition {
           partitionId_(v.partitionId_),
           idStart_(v.idStart_),
           idEnd_(v.idEnd_),
+          idNext_(v.idNext_),
           txId_(v.txId_),
           status_(v.status_),
           inodeNum_(v.inodeNum_),
@@ -679,6 +683,7 @@ class Partition {
         partitionId_ = v.partitionId_;
         idStart_ = v.idStart_;
         idEnd_ = v.idEnd_;
+        idNext_ = v.idNext_;
         txId_ = v.txId_;
         status_ = v.status_;
         inodeNum_ = v.inodeNum_;
@@ -702,6 +707,7 @@ class Partition {
             fileType2InodeNum_.emplace(static_cast<FileType>(i.first),
                                        i.second);
         }
+        idNext_ = v.has_nextid() ? v.nextid() : 0;
     }
 
     explicit operator common::PartitionInfo() const {
@@ -719,6 +725,9 @@ class Partition {
         auto partitionFileType2InodeNum = partition.mutable_filetype2inodenum();
         for (auto const& i : fileType2InodeNum_) {
             (*partitionFileType2InodeNum)[i.first] = i.second;
+        }
+        if (idNext_ != 0) {
+            partition.set_nextid(idNext_);
         }
         return partition;
     }
@@ -748,6 +757,10 @@ class Partition {
     uint64_t GetIdEnd() const { return idEnd_; }
 
     void SetIdEnd(uint64_t idEnd) { idEnd_ = idEnd; }
+
+    uint64_t GetIdNext() const { return idNext_; }
+
+    void SetIdNext(uint64_t idNext) { idNext_ = idNext; }
 
     uint64_t GetTxId() const { return txId_; }
 
@@ -796,6 +809,7 @@ class Partition {
     PartitionIdType partitionId_;
     uint64_t idStart_;
     uint64_t idEnd_;
+    uint64_t idNext_;
     uint64_t txId_;
     common::PartitionStatus status_;
     uint64_t inodeNum_;
