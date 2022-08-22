@@ -232,13 +232,15 @@ void TopoUpdater::UpdatePartitionTopo(
         bool statisticChange =
             partitionInTopo.GetStatus() != it.GetStatus() ||
             partitionInTopo.GetInodeNum() != it.GetInodeNum() ||
-            partitionInTopo.GetDentryNum() != it.GetDentryNum();
+            partitionInTopo.GetDentryNum() != it.GetDentryNum() ||
+            partitionInTopo.GetIdNext() != it.GetIdNext();
         if (statusCanChange && statisticChange) {
             ::curvefs::mds::topology::PartitionStatistic statistic;
             statistic.status = it.GetStatus();
             statistic.inodeNum = it.GetInodeNum();
             statistic.dentryNum = it.GetDentryNum();
             statistic.fileType2InodeNum = it.GetFileType2InodeNum();
+            statistic.nextId = it.GetIdNext();
             topo_->UpdatePartitionStatistic(it.GetPartitionId(), statistic);
         }
     }

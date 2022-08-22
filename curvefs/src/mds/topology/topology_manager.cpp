@@ -977,6 +977,9 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
         info->set_status(partition.GetStatus());
         info->set_inodenum(partition.GetInodeNum());
         info->set_dentrynum(partition.GetDentryNum());
+        if (partition.GetIdNext() != 0) {
+            info->set_nextid(partition.GetIdNext());
+        }
     }
 }
 
@@ -1135,6 +1138,9 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
                 partition->set_status(tmp.GetStatus());
                 partition->set_inodenum(tmp.GetInodeNum());
                 partition->set_dentrynum(tmp.GetDentryNum());
+                if (tmp.GetIdNext() != 0) {
+                    partition->set_nextid(tmp.GetIdNext());
+                }
             }
         }
 

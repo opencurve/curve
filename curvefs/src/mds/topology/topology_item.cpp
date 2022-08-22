@@ -260,7 +260,7 @@ bool Partition::SerializeToString(std::string *value) const {
     data.set_end(idEnd_);
     data.set_txid(txId_);
     data.set_status(status_);
-    // no need serialize inodenum and dentrynum
+    // no need serialize inodenum and dentrynum and nextinodeid
     return data.SerializeToString(value);
 }
 
@@ -275,7 +275,7 @@ bool Partition::ParseFromString(const std::string &value) {
     idEnd_ = data.end();
     txId_ = data.txid();
     status_ = data.status();
-    // no need parse inodenum and dentrynum
+    // no need parse inodenum and dentrynum and nextinodeid
     return ret;
 }
 
@@ -293,6 +293,9 @@ common::PartitionInfo Partition::ToPartitionInfo() {
     info.set_dentrynum(dentryNum_);
     info.mutable_filetype2inodenum()->insert(fileType2InodeNum_.begin(),
                                              fileType2InodeNum_.end());
+    if (idNext_ != 0) {
+        info.set_nextid(idNext_);
+    }
     return info;
 }
 
