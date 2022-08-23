@@ -114,23 +114,25 @@ class MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) = 0;
 
-    virtual MetaStatusCode UpdateInodeAttr(const Inode &inode,
+    virtual MetaStatusCode UpdateInodeAttr(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) = 0;
 
     virtual MetaStatusCode UpdateInodeAttrWithOutNlink(
-        const Inode &inode,
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
-        S3ChunkInfoMap *s3ChunkInfoAdd = nullptr,
+        S3ChunkInfoMap* s3ChunkInfoAdd = nullptr,
         bool internal = false) = 0;
 
-    virtual void UpdateInodeAttrAsync(const Inode &inode,
-        MetaServerClientDone *done,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) = 0;
-
     virtual void UpdateInodeWithOutNlinkAsync(
-        const Inode& inode,
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         MetaServerClientDone* done,
         InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
         DataIndices&& indices = {}) = 0;
@@ -218,25 +220,28 @@ class MetaServerClientImpl : public MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) override;
 
-    MetaStatusCode UpdateInodeAttr(const Inode &inode,
+    MetaStatusCode UpdateInodeAttr(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) override;
 
     MetaStatusCode UpdateInodeAttrWithOutNlink(
-        const Inode &inode,
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
-        S3ChunkInfoMap *s3ChunkInfoAdd = nullptr,
+        S3ChunkInfoMap* s3ChunkInfoAdd = nullptr,
         bool internal = false) override;
 
-    void UpdateInodeAttrAsync(const Inode &inode, MetaServerClientDone *done,
-                          InodeOpenStatusChange statusChange =
-                              InodeOpenStatusChange::NOCHANGE) override;
-
     void UpdateInodeWithOutNlinkAsync(
-        const Inode &inode,
-        MetaServerClientDone *done,
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
+        MetaServerClientDone* done,
         InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
-        DataIndices &&indices = {}) override;
+        DataIndices&& indices = {}) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId,

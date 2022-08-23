@@ -43,14 +43,6 @@ using ::curvefs::volume::Extent;
 using ::curvefs::volume::SpaceManager;
 using ::curvefs::volume::WritePart;
 
-enum {
-    kAccessTime = 1 << 0,
-    kChangeTime = 1 << 1,
-    kModifyTime = 1 << 2,
-};
-
-void UpdateInodeTimestamp(Inode* inode, int flags);
-
 /**
  * @brief Allocate space for a write request
  * @param space space manager that used for allocating space
