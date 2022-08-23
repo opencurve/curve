@@ -455,10 +455,11 @@ CURVEFS_ERROR XattrManager::UpdateParentInodeXattr(uint64_t parentId,
     }
 
     ::curve::common::UniqueLock lgGuard = pInodeWrapper->GetUniqueLock();
-    auto inode = pInodeWrapper->GetMutableInodeUnlocked();
+    auto inodeXAttr = pInodeWrapper->GetInodeLocked()->xattr();
+    bool update = false;
     for (const auto &it : xattr.xattrinfos()) {
-        auto iter = inode->mutable_xattr()->find(it.first);
-        if (iter != inode->mutable_xattr()->end()) {
+        auto iter = inodeXAttr.find(it.first);
+        if (iter != inodeXAttr.end()) {
             uint64_t dat = 0;
             if (StringToUll(it.second, &dat)) {
                 if (!AddUllStringToFirst(&(iter->second), dat, direction)) {
@@ -468,9 +469,15 @@ CURVEFS_ERROR XattrManager::UpdateParentInodeXattr(uint64_t parentId,
                 LOG(ERROR) << "StringToUll failed, first = " << it.second;
                 return CURVEFS_ERROR::INTERNAL;
             }
+            update = true;
         }
     }
-    inodeManager_->ShipToFlush(pInodeWrapper);
+
+    if (update) {
+        pInodeWrapper->MergeXAttrLocked(inodeXAttr);
+        inodeManager_->ShipToFlush(pInodeWrapper);
+    }
+
     return CURVEFS_ERROR::OK;
 }
 

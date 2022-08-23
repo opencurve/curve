@@ -296,7 +296,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
     return inodeWrapper->Sync();
 }
 
-CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
+CURVEFS_ERROR FuseVolumeClient::Truncate(InodeWrapper *inode, uint64_t length) {
     // Todo: call volume truncate
     return CURVEFS_ERROR::OK;
 }
