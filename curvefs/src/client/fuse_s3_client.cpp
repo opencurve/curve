@@ -134,7 +134,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     // update file len
     if (inodeWrapper->GetLengthLocked() < off + *wSize) {
         changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
-        inodeWrapper->SetLength(off + *wSize);
+        inodeWrapper->SetLengthLocked(off + *wSize);
     }
 
     inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);

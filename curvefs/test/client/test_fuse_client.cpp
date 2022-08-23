@@ -863,7 +863,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
         .Times(2)
         .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(1)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 

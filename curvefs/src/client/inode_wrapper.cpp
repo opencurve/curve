@@ -235,7 +235,7 @@ CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::LinkLocked(uint64_t parent) {
+CURVEFS_ERROR InodeWrapper::Link(uint64_t parent) {
     curve::common::UniqueLock lg(mtx_);
     REFRESH_NLINK_IF_NEED;
     uint32_t old = inode_.nlink();
@@ -266,7 +266,7 @@ CURVEFS_ERROR InodeWrapper::LinkLocked(uint64_t parent) {
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
+CURVEFS_ERROR InodeWrapper::UnLink(uint64_t parent) {
     curve::common::UniqueLock lg(mtx_);
     REFRESH_NLINK_IF_NEED;
     uint32_t old = inode_.nlink();
@@ -337,7 +337,7 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
     return CURVEFS_ERROR::INTERNAL;
 }
 
-CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
+CURVEFS_ERROR InodeWrapper::UpdateParent(
     uint64_t oldParent, uint64_t newParent) {
     curve::common::UniqueLock lg(mtx_);
     auto parents = inode_.mutable_parent();
