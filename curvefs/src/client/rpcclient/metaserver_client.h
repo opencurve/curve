@@ -107,22 +107,32 @@ class MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) = 0;
 
-    virtual MetaStatusCode UpdateInodeAttr(const Inode &inode,
+    virtual MetaStatusCode UpdateInodeAttr(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE,
-            bool internal = false) = 0;
+    virtual MetaStatusCode UpdateInodeAttrWithOutNlink(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        bool internal = false) = 0;
 
-    virtual void UpdateInodeAttrAsync(const Inode &inode,
-        MetaServerClientDone *done,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) = 0;
+    virtual void UpdateInodeAttrAsync(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      const InodeAttr& attr,
+                                      MetaServerClientDone* done,
+                                      InodeOpenStatusChange statusChange =
+                                          InodeOpenStatusChange::NOCHANGE) = 0;
 
-    virtual void UpdateInodeAttrWithOutNlinkAsync(const Inode &inode,
-        MetaServerClientDone *done,
+    virtual void UpdateInodeAttrWithOutNlinkAsync(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
+        MetaServerClientDone* done,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) = 0;
 
@@ -209,21 +219,32 @@ class MetaServerClientImpl : public MetaServerClient {
         const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr) override;
 
-    MetaStatusCode UpdateInodeAttr(const Inode &inode,
+    MetaStatusCode UpdateInodeAttr(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) override;
 
-    MetaStatusCode UpdateInodeAttrWithOutNlink(const Inode &inode,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE,
-            bool internal = false) override;
+    MetaStatusCode UpdateInodeAttrWithOutNlink(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
+        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
+        bool internal = false) override;
 
-    void UpdateInodeAttrAsync(const Inode &inode, MetaServerClientDone *done,
-                          InodeOpenStatusChange statusChange =
-                              InodeOpenStatusChange::NOCHANGE) override;
+    void UpdateInodeAttrAsync(uint32_t fsId,
+                              uint64_t inodeId,
+                              const InodeAttr& attr,
+                              MetaServerClientDone* done,
+                              InodeOpenStatusChange statusChange =
+                                  InodeOpenStatusChange::NOCHANGE) override;
 
-    void UpdateInodeAttrWithOutNlinkAsync(const Inode &inode,
-        MetaServerClientDone *done,
+    void UpdateInodeAttrWithOutNlinkAsync(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
+        MetaServerClientDone* done,
         InodeOpenStatusChange statusChange =
             InodeOpenStatusChange::NOCHANGE) override;
 
@@ -267,11 +288,16 @@ class MetaServerClientImpl : public MetaServerClient {
     void UpdateInodeAsync(const UpdateInodeRequest &request,
                           MetaServerClientDone *done);
 
-    UpdateInodeRequest BuildeUpdateInodeAttrRequest(const Inode &inode,
+    UpdateInodeRequest BuildeUpdateInodeAttrRequest(
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange);
 
     UpdateInodeRequest BuileUpdateInodeAttrWithOutNlinkRequest(
-        const Inode &inode,
+        uint32_t fsId,
+        uint64_t inodeId,
+        const InodeAttr& attr,
         InodeOpenStatusChange statusChange);
 
     bool ParseS3MetaStreamBuffer(butil::IOBuf* buffer,

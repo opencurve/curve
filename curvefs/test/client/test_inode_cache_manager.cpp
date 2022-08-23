@@ -275,7 +275,7 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 
     ret = iCacheManager_->CreateInode(param, inodeWrapper);
-    Inode out = inodeWrapper->GetInodeUnlocked();
+    Inode out = inodeWrapper->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
@@ -284,7 +284,7 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    out = inodeWrapper->GetInodeUnlocked();
+    out = inodeWrapper->GetInode();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
@@ -324,12 +324,14 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _))
-        .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
-                            InodeOpenStatusChange statusChange) {
-            done->SetMetaStatusCode(MetaStatusCode::OK);
-            done->Run();
-        }));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _, _, _))
+        .WillOnce(
+            Invoke([](uint32_t /*fsId*/, uint64_t /*inodeId*/,
+                      const InodeAttr& /*attr*/, MetaServerClientDone* done,
+                      InodeOpenStatusChange statusChange) {
+                done->SetMetaStatusCode(MetaStatusCode::OK);
+                done->Run();
+            }));
 
     EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfoAsync(_, _, _, _))
         .WillOnce(
@@ -446,9 +448,10 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlinkAsync(_, _, _, _, _))
         .WillRepeatedly(
-            Invoke([](const Inode &inode, MetaServerClientDone *done,
+            Invoke([](uint32_t /*fsId*/, uint64_t /*inodeId*/,
+                      const InodeAttr& /*attr*/, MetaServerClientDone *done,
                       InodeOpenStatusChange statusChange) {
                 done->SetMetaStatusCode(MetaStatusCode::OK);
                 done->Run();

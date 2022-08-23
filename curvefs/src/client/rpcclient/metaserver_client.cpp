@@ -828,51 +828,72 @@ MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
+#define SET_REQUEST_FIELD_IF_HAS(request, attr, field) \
+    do {                                               \
+        if ((attr).has_##field()) {                    \
+            (request).set_##field((attr).field());    \
+        }                                              \
+    } while (false)
+
 UpdateInodeRequest
 MetaServerClientImpl::BuileUpdateInodeAttrWithOutNlinkRequest(
-    const Inode &inode,
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
     InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request;
-    request.set_inodeid(inode.inodeid());
-    request.set_fsid(inode.fsid());
-    request.set_length(inode.length());
-    request.set_ctime(inode.ctime());
-    request.set_mtime(inode.mtime());
-    request.set_atime(inode.atime());
-    request.set_uid(inode.uid());
-    request.set_gid(inode.gid());
-    request.set_mode(inode.mode());
+    request.set_fsid(fsId);
+    request.set_inodeid(inodeId);
+
+    SET_REQUEST_FIELD_IF_HAS(request, attr, length);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, atime);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, atime_ns);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, ctime);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, ctime_ns);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, mtime);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, mtime_ns);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, uid);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, gid);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, mode);
+
     request.set_inodeopenstatuschange(statusChange);
-    *(request.mutable_parent()) = inode.parent();
-    if (inode.xattr_size() > 0) {
-        *(request.mutable_xattr()) = inode.xattr();
+    *(request.mutable_parent()) = attr.parent();
+    if (attr.xattr_size() > 0) {
+        *(request.mutable_xattr()) = attr.xattr();
     }
     return request;
 }
 
-UpdateInodeRequest
-MetaServerClientImpl::BuildeUpdateInodeAttrRequest(const Inode &inode,
+UpdateInodeRequest MetaServerClientImpl::BuildeUpdateInodeAttrRequest(
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
     InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange);
-    request.set_nlink(inode.nlink());
+        fsId, inodeId, attr, statusChange);
+    assert(attr.has_nlink());
+    request.set_nlink(attr.nlink());
     return request;
 }
 
-MetaStatusCode
-MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
-                                      InodeOpenStatusChange statusChange) {
+MetaStatusCode MetaServerClientImpl::UpdateInodeAttr(
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
+    InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request =
-        BuildeUpdateInodeAttrRequest(inode, statusChange);
+        BuildeUpdateInodeAttrRequest(fsId, inodeId, attr, statusChange);
     return UpdateInode(request);
 }
 
-MetaStatusCode
-MetaServerClientImpl::UpdateInodeAttrWithOutNlink(const Inode &inode,
-                                     InodeOpenStatusChange statusChange,
-                                     bool internal) {
+MetaStatusCode MetaServerClientImpl::UpdateInodeAttrWithOutNlink(
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
+    InodeOpenStatusChange statusChange,
+    bool internal) {
     UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange);
+        fsId, inodeId, attr, statusChange);
     return UpdateInode(request, internal);
 }
 
@@ -921,7 +942,6 @@ void UpdateInodeRpcDone::Run() {
     VLOG(6) << "UpdateInode done, "
             << "response: " << response.DebugString();
     done_->SetRetCode(ret);
-    return;
 }
 
 void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
@@ -950,18 +970,24 @@ void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
 }
 
 void MetaServerClientImpl::UpdateInodeAttrAsync(
-    const Inode &inode, MetaServerClientDone *done,
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
+    MetaServerClientDone* done,
     InodeOpenStatusChange statusChange) {
     UpdateInodeRequest request =
-        BuildeUpdateInodeAttrRequest(inode, statusChange);
+        BuildeUpdateInodeAttrRequest(fsId, inodeId, attr, statusChange);
     UpdateInodeAsync(request, done);
 }
 
 void MetaServerClientImpl::UpdateInodeAttrWithOutNlinkAsync(
-    const Inode &inode, MetaServerClientDone *done,
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
+    MetaServerClientDone* done,
     InodeOpenStatusChange statusChange) {
-    UpdateInodeRequest request =
-        BuileUpdateInodeAttrWithOutNlinkRequest(inode, statusChange);
+    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
+        fsId, inodeId, attr, statusChange);
     UpdateInodeAsync(request, done);
 }
 

@@ -112,12 +112,11 @@ ssize_t DefaultVolumeStorage::Write(uint64_t ino,
 
     {
         auto lk = inodeWrapper->GetUniqueLock();
-        auto* inode = inodeWrapper->GetMutableInodeUnlocked();
-        UpdateInodeTimestamp(inode, kModifyTime | kChangeTime);
-
-        if (offset + len > inode->length()) {
-            inode->set_length(offset + len);
+        if (offset + len > inodeWrapper->GetLengthLocked()) {
+            inodeWrapper->SetLength(offset + len);
         }
+
+        inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
     }
 
     inodeCacheManager_->ShipToFlush(inodeWrapper);
@@ -165,8 +164,10 @@ ssize_t DefaultVolumeStorage::Read(uint64_t ino,
     }
 
     // TODO(all): check whether inode is opened with 'NO_ATIME'
-    auto* inode = inodeWrapper->GetMutableInodeUnlocked();
-    UpdateInodeTimestamp(inode, kAccessTime);
+    {
+        auto lock = inodeWrapper->GetUniqueLock();
+        inodeWrapper->UpdateTimestampLocked(kAccessTime);
+    }
     inodeCacheManager_->ShipToFlush(inodeWrapper);
 
     return len;

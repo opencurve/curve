@@ -356,7 +356,8 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
             {
                 ::curve::common::UniqueLock lgGuard =
                     inodeWrapper->GetUniqueLock();
-                Inode* inode = inodeWrapper->GetMutableInodeUnlocked();
+                const Inode* inode = inodeWrapper->GetInodeLocked();
+                const auto* s3chunkinfo = inodeWrapper->GetChunkInfoMap();
                 VLOG(9) << "FileCacheManager::Read Inode: "
                           << inode->DebugString();
                 fileLen = inode->length();
@@ -366,8 +367,8 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                             << ",len:" << iter->len
                             << ",bufOffset:" << iter->bufOffset;
                     auto s3InfoListIter =
-                        inode->s3chunkinfomap().find(iter->index);
-                    if (s3InfoListIter == inode->s3chunkinfomap().end()) {
+                        s3chunkinfo->find(iter->index);
+                    if (s3InfoListIter == s3chunkinfo->end()) {
                         VLOG(6)
                             << "s3infolist is not found.index:" << iter->index;
                         memset(dataBuf + iter->bufOffset, 0, iter->len);

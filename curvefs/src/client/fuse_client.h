@@ -272,7 +272,7 @@ class FuseClient {
     }
 
  private:
-    virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
+    virtual CURVEFS_ERROR Truncate(InodeWrapper* inode, uint64_t length) = 0;
 
     virtual void FlushData() = 0;
 

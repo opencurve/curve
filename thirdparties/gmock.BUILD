@@ -14,6 +14,14 @@
 #  limitations under the License.
 #
 
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "gtest_prod",
+    hdrs = ["googletest/include/gtest/gtest_prod.h"],
+    includes = ["googletest/include"],
+)
+
 cc_library(
       name = "gtest",
       srcs = [
@@ -32,13 +40,11 @@ cc_library(
           "googlemock/include",
       ],
       linkopts = ["-pthread"],
-      visibility = ["//visibility:public"],
   )
 
 cc_library(
       name = "gtest_main",
       srcs = ["googlemock/src/gmock_main.cc"],
       linkopts = ["-pthread"],
-      visibility = ["//visibility:public"],
       deps = [":gtest"],
 )

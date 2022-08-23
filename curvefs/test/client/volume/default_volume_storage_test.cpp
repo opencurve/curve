@@ -52,7 +52,7 @@ class DefaultVolumeStorageTest : public ::testing::Test {
           metaServerCli_(std::make_shared<MockMetaServerClient>()) {}
 
     void SetUp() override {
-        ON_CALL(*metaServerCli_, UpdateInodeAttrWithOutNlink(_, _, _))
+        ON_CALL(*metaServerCli_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
             .WillByDefault(Return(MetaStatusCode::OK));
     }
 
@@ -334,8 +334,7 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
 
     ASSERT_EQ(len, storage_.Write(ino, offset, len, data.get()));
 
-    auto internal = inodeWrapper->GetInodeUnlocked();
-    ASSERT_EQ(offset + len, internal.length());
+    ASSERT_EQ(offset + len, inodeWrapper->GetInode().length());
 }
 
 }  // namespace client

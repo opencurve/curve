@@ -26,9 +26,13 @@
 
 #include <sys/stat.h>
 
+#include <gtest/gtest_prod.h>
+#include <climits>
+#include <cstdint>
 #include <utility>
 #include <memory>
 #include <string>
+
 
 #include "curvefs/src/common/define.h"
 #include "curvefs/proto/metaserver.pb.h"
@@ -45,6 +49,10 @@ using ::curvefs::metaserver::S3ChunkInfo;
 namespace curvefs {
 namespace client {
 
+constexpr int kAccessTime = 1 << 0;
+constexpr int kChangeTime = 1 << 1;
+constexpr int kModifyTime = 1 << 2;
+
 #define REFRESH_NLINK_IF_NEED               \
 do {                                        \
     if (!isNlinkValid_) {                   \
@@ -57,9 +65,9 @@ do {                                        \
 
 using ::curvefs::metaserver::VolumeExtentList;
 
-enum InodeStatus {
-    Normal = 0,
-    Error = -1,
+enum class InodeStatus {
+    kNormal = 0,
+    kError = -1,
 };
 
 // TODO(xuchaojie) : get from conf maybe?
@@ -74,15 +82,16 @@ void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
 
 class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
  public:
-    InodeWrapper(const Inode &inode,
-                 const std::shared_ptr<MetaServerClient> &metaClient)
-        : inode_(inode), status_(InodeStatus::Normal), isNlinkValid_(true),
-          metaClient_(metaClient), dirty_(false) {}
+    InodeWrapper(Inode inode, std::shared_ptr<MetaServerClient> metaClient)
+        : inode_(std::move(inode)),
+          status_(InodeStatus::kNormal),
+          isNlinkValid_(true),
+          metaClient_(std::move(metaClient)),
+          dirty_(false) {}
 
-    InodeWrapper(Inode &&inode,
-                 const std::shared_ptr<MetaServerClient> &metaClient)
-        : inode_(std::move(inode)), status_(InodeStatus::Normal),
-          isNlinkValid_(true), metaClient_(metaClient), dirty_(false) {}
+    uint64_t inodeid() const {
+        return GetInodeId();
+    }
 
     uint64_t GetInodeId() const {
         return inode_.inodeid();
@@ -102,17 +111,24 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
     void SetLength(uint64_t len) {
-        if (inode_.length() > len) {
-            return;
-        }
+        curve::common::UniqueLock lg(mtx_);
+        SetLengthLocked(len);
+    }
 
+    void SetLengthLocked(uint64_t len) {
         inode_.set_length(len);
+        dirtyAttr_.set_length(len);
         dirty_ = true;
     }
 
     void SetType(FsFileType type) {
         inode_.set_type(type);
+        dirtyAttr_.set_type(type);
         dirty_ = true;
+    }
+
+    uint64_t GetLengthLocked() const {
+        return inode_.length();
     }
 
     uint64_t GetLength() const {
@@ -122,50 +138,46 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     void SetUid(uint32_t uid) {
         inode_.set_uid(uid);
+        dirtyAttr_.set_uid(uid);
         dirty_ = true;
     }
 
     void SetGid(uint32_t gid) {
         inode_.set_gid(gid);
+        dirtyAttr_.set_gid(gid);
         dirty_ = true;
     }
 
     void SetMode(uint32_t mode) {
         inode_.set_mode(mode);
+        dirtyAttr_.set_mode(mode);
         dirty_ = true;
     }
 
-    void SetMTime(uint64_t mtime, uint32_t mtime_ns) {
-        inode_.set_mtime(mtime);
-        inode_.set_mtime_ns(mtime_ns);
-        dirty_ = true;
-    }
-
-    void SetCTime(uint64_t ctime, uint32_t ctime_ns) {
-        inode_.set_ctime(ctime);
-        inode_.set_ctime_ns(ctime_ns);
-        dirty_ = true;
-    }
-
-    void SetATime(uint64_t atime, uint32_t atime_ns) {
-        inode_.set_atime(atime);
-        inode_.set_atime_ns(atime_ns);
-        dirty_ = true;
-    }
-
-    Inode GetInodeUnlocked() const {
-        return inode_;
-    }
-
-    Inode GetInodeLocked() const {
+    Inode GetInode() const {
         curve::common::UniqueLock lg(mtx_);
         return inode_;
     }
 
-    Inode* GetMutableInodeUnlocked() {
-        dirty_ = true;
+    // Get an immutable inode.
+    //
+    // The const return value is used to forbid modify inode through this
+    // interface, all modification operations should using `SetXXX()`.
+    const Inode* GetInodeLocked() const {
         return &inode_;
     }
+
+    // Update timestamp of inode.
+    //
+    // flags can be any combination of kAccessTime/kModifyTime/kChangeTime
+    void UpdateTimestampLocked(int flags);
+    void UpdateTimestampLocked(const timespec& now, int flags);
+
+    // Merge incoming extended attributes.
+    //
+    // Existing attributes will be overwritten, new attributes well be inserted.
+    void MergeXAttrLocked(
+        const google::protobuf::Map<std::string, std::string>& xattrs);
 
     CURVEFS_ERROR GetInodeAttrUnlocked(InodeAttr *attr) {
         REFRESH_NLINK_IF_NEED;
@@ -205,21 +217,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         GetInodeAttrUnlocked(attr);
     }
 
-    void GetXattrLocked(XAttr *xattr) {
+    XAttr GetXattr() const {
+        XAttr ret;
         curve::common::UniqueLock lg(mtx_);
-        xattr->set_fsid(inode_.fsid());
-        xattr->set_inodeid(inode_.inodeid());
-        *(xattr->mutable_xattrinfos()) = inode_.xattr();
-    }
-
-    void UpdateInode(const Inode &inode) {
-        inode_ = inode;
-        dirty_ = true;
-    }
-
-    void SwapInode(Inode *other) {
-        inode_.Swap(other);
-        dirty_ = true;
+        ret.set_fsid(inode_.fsid());
+        ret.set_inodeid(inode_.inodeid());
+        *(ret.mutable_xattrinfos()) = inode_.xattr();
+        return ret;
     }
 
     curve::common::UniqueLock GetUniqueLock() {
@@ -294,9 +298,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
             inode_.mutable_s3chunkinfomap());
     }
 
+    google::protobuf::Map<uint64_t, S3ChunkInfoList>* GetChunkInfoMap() {
+        return inode_.mutable_s3chunkinfomap();
+    }
+
     void MarkInodeError() {
         // TODO(xuchaojie) : when inode is marked error, prevent futher write.
-        status_ = InodeStatus::Error;
+        status_ = InodeStatus::kError;
     }
 
     void LockSyncingInode() const {
@@ -331,8 +339,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     CURVEFS_ERROR RefreshVolumeExtent();
 
  private:
-    CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
-
     CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
  private:
@@ -342,7 +348,13 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     void FlushVolumeExtentAsync();
 
  private:
+    FRIEND_TEST(TestInodeWrapper, TestUpdateInodeAttrIncrementally);
+
     Inode inode_;
+
+    // dirty attributes, and needs update to metaserver
+    InodeAttr dirtyAttr_;
+
     InodeStatus status_;
 
     bool isNlinkValid_;

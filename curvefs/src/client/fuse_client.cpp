@@ -37,6 +37,7 @@
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "src/common/net_common.h"
 #include "src/common/dummyserver.h"
@@ -321,21 +322,15 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
-            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
-            uint64_t length = inode->length();
-            CURVEFS_ERROR tRet = Truncate(inode, 0);
+            uint64_t length = inodeWrapper->GetLengthLocked();
+            CURVEFS_ERROR tRet = Truncate(inodeWrapper.get(), 0);
             if (tRet != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
-            inode->set_length(0);
-            struct timespec now;
-            clock_gettime(CLOCK_REALTIME, &now);
-            inode->set_ctime(now.tv_sec);
-            inode->set_ctime_ns(now.tv_nsec);
-            inode->set_mtime(now.tv_sec);
-            inode->set_mtime_ns(now.tv_nsec);
+            inodeWrapper->SetLength(0);
+            inodeWrapper->UpdateTimestampLocked(kChangeTime | kModifyTime);
             if (length != 0) {
                 ret = inodeWrapper->Sync();
                 if (ret != CURVEFS_ERROR::OK) {
@@ -347,6 +342,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
 
             if (enableSumInDir_ && length != 0) {
                 // update parent summary info
+                const Inode *inode = inodeWrapper->GetInodeLocked();
                 XAttr xattr;
                 xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
                     std::to_string(length)});
@@ -380,10 +376,7 @@ CURVEFS_ERROR FuseClient::UpdateParentInodeMCTimeAndInvalidNlink(
 
     {
         curve::common::UniqueLock lk = parentInodeWrapper->GetUniqueLock();
-        struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        parentInodeWrapper->SetMTime(now.tv_sec, now.tv_nsec);
-        parentInodeWrapper->SetCTime(now.tv_sec, now.tv_nsec);
+        parentInodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
         if (FsFileType::TYPE_DIRECTORY == type) {
             parentInodeWrapper->InvalidateNlink();
@@ -802,52 +795,48 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
+    if (to_set & FUSE_SET_ATTR_MODE) {
+        inodeWrapper->SetMode(attr->st_mode);
+    }
+    if (to_set & FUSE_SET_ATTR_UID) {
+        inodeWrapper->SetUid(attr->st_uid);
+    }
+    if (to_set & FUSE_SET_ATTR_GID) {
+        inodeWrapper->SetGid(attr->st_gid);
+    }
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
 
-    if (to_set & FUSE_SET_ATTR_MODE) {
-        inode->set_mode(attr->st_mode);
-    }
-    if (to_set & FUSE_SET_ATTR_UID) {
-        inode->set_uid(attr->st_uid);
-    }
-    if (to_set & FUSE_SET_ATTR_GID) {
-        inode->set_gid(attr->st_gid);
-    }
     if (to_set & FUSE_SET_ATTR_ATIME) {
-        inode->set_atime(attr->st_atim.tv_sec);
-        inode->set_atime_ns(attr->st_atim.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(attr->st_atim, kAccessTime);
     }
     if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
-        inode->set_atime(now.tv_sec);
-        inode->set_atime_ns(now.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(now, kAccessTime);
     }
     if (to_set & FUSE_SET_ATTR_MTIME) {
-        inode->set_mtime(attr->st_mtim.tv_sec);
-        inode->set_mtime_ns(attr->st_mtim.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(attr->st_mtim, kModifyTime);
     }
     if (to_set & FUSE_SET_ATTR_MTIME_NOW) {
-        inode->set_mtime(now.tv_sec);
-        inode->set_mtime_ns(now.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(now, kModifyTime);
     }
     if (to_set & FUSE_SET_ATTR_CTIME) {
-        inode->set_ctime(attr->st_ctim.tv_sec);
-        inode->set_ctime_ns(attr->st_ctim.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(attr->st_ctim, kChangeTime);
     } else {
-        inode->set_ctime(now.tv_sec);
-        inode->set_ctime_ns(now.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(now, kChangeTime);
     }
+
     if (to_set & FUSE_SET_ATTR_SIZE) {
-        int64_t changeSize =  attr->st_size - inode->length();
-        CURVEFS_ERROR tRet = Truncate(inode, attr->st_size);
+        int64_t changeSize =
+            attr->st_size -
+            static_cast<int64_t>(inodeWrapper->GetLengthLocked());
+        CURVEFS_ERROR tRet = Truncate(inodeWrapper.get(), attr->st_size);
         if (tRet != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "truncate file fail, ret = " << ret
                        << ", inodeid = " << ino;
             return tRet;
         }
-        inode->set_length(attr->st_size);
+        inodeWrapper->SetLength(attr->st_size);
         ret = inodeWrapper->Sync();
         if (ret != CURVEFS_ERROR::OK) {
             return ret;
@@ -858,6 +847,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
 
         if (enableSumInDir_ && changeSize != 0) {
             // update parent summary info
+            const Inode* inode = inodeWrapper->GetInodeLocked();
             XAttr xattr;
             xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
                 std::to_string(std::abs(changeSize))});
@@ -884,6 +874,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
+namespace {
+
 bool IsSummaryInfo(const char *name) {
     return std::strstr(name, SUMMARYPREFIX);
 }
@@ -897,6 +889,8 @@ bool IsOneLayer(const char *name) {
     }
     return false;
 }
+
+}  // namespace
 
 CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, void* value,
