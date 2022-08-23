@@ -23,6 +23,7 @@
 #ifndef CURVEFS_SRC_VOLUME_BLOCK_DEVICE_AIO_H_
 #define CURVEFS_SRC_VOLUME_BLOCK_DEVICE_AIO_H_
 
+#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <memory>

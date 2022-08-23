@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 
 #include <cstddef>
+#include <ctime>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -138,18 +139,20 @@ class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
 CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
     if (dirty_) {
-        dirty_ = false;
         MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
-            inode_, InodeOpenStatusChange::NOCHANGE, nullptr, internal);
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
+            InodeOpenStatusChange::NOCHANGE, nullptr, internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
-            dirty_ = true;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
+
+        dirty_ = false;
+        dirtyAttr_.Clear();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -177,8 +180,10 @@ void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
     if (dirty_) {
         LockSyncingInode();
         metaClient_->UpdateInodeWithOutNlinkAsync(
-            inode_, new UpdateInodeAsyncDone(shared_from_this(), done));
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
+            new UpdateInodeAsyncDone(shared_from_this(), done));
         dirty_ = false;
+        dirtyAttr_.Clear();
         return;
     }
 
@@ -261,19 +266,18 @@ CURVEFS_ERROR InodeWrapper::LinkLocked(uint64_t parent) {
     REFRESH_NLINK_IF_NEED;
     uint32_t old = inode_.nlink();
     inode_.set_nlink(old + 1);
+    dirtyAttr_.set_nlink(inode_.nlink());
     VLOG(3) << "LinkLocked, inodeid = " << inode_.inodeid()
             << ", newnlink = " << inode_.nlink();
 
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inode_.set_ctime(now.tv_sec);
-    inode_.set_ctime_ns(now.tv_nsec);
-    inode_.set_mtime(now.tv_sec);
-    inode_.set_mtime_ns(now.tv_nsec);
+    UpdateTimestampLocked(kChangeTime | kModifyTime);
     if (inode_.type() != FsFileType::TYPE_DIRECTORY && parent != 0) {
         inode_.add_parent(parent);
+        dirtyAttr_.add_parent(parent);
     }
-    MetaStatusCode ret = metaClient_->UpdateInodeAttr(inode_);
+
+    MetaStatusCode ret = metaClient_->UpdateInodeAttr(
+        inode_.fsid(), inode_.inodeid(), dirtyAttr_);
     if (ret != MetaStatusCode::OK) {
         inode_.set_nlink(old);
         LOG(ERROR) << "metaClient_ UpdateInodeAttr failed"
@@ -282,7 +286,9 @@ CURVEFS_ERROR InodeWrapper::LinkLocked(uint64_t parent) {
                    << ", inodeid = " << inode_.inodeid();
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
+
     dirty_ = false;
+    dirtyAttr_.Clear();
     return CURVEFS_ERROR::OK;
 }
 
@@ -300,17 +306,12 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
         VLOG(3) << "UnLinkLocked, inodeid = " << inode_.inodeid()
                 << ", newnlink = " << inode_.nlink()
                 << ", type = " << inode_.type();
-        struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        inode_.set_ctime(now.tv_sec);
-        inode_.set_ctime_ns(now.tv_nsec);
-        inode_.set_mtime(now.tv_sec);
-        inode_.set_mtime_ns(now.tv_nsec);
-        // newlink == 0 will be deleted at metasever
+        UpdateTimestampLocked(kChangeTime | kModifyTime);
+        // newnlink == 0 will be deleted at metaserver
         // dir will not update parent
         // parent = 0; is useless
-        if (newnlink != 0 && inode_.type() != FsFileType::TYPE_DIRECTORY
-            && parent != 0) {
+        if (newnlink != 0 && inode_.type() != FsFileType::TYPE_DIRECTORY &&
+            parent != 0) {
             auto parents = inode_.mutable_parent();
             for (auto iter = parents->begin(); iter != parents->end(); iter++) {
                 if (*iter == parent) {
@@ -340,7 +341,12 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
                 return err;
             }
         }
-        MetaStatusCode ret = metaClient_->UpdateInodeAttr(inode_);
+
+        dirtyAttr_.set_nlink(inode_.nlink());
+        *dirtyAttr_.mutable_parent() = inode_.parent();
+
+        MetaStatusCode ret = metaClient_->UpdateInodeAttr(
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_);
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttr failed"
                        << ", MetaStatusCode = " << ret
@@ -349,26 +355,12 @@ CURVEFS_ERROR InodeWrapper::UnLinkLocked(uint64_t parent) {
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
         dirty_ = false;
+        dirtyAttr_.Clear();
         return CURVEFS_ERROR::OK;
     }
     LOG(ERROR) << "Unlink find nlink <= 0, nlink = " << old
                << ", inode = " << inode_.inodeid();
     return CURVEFS_ERROR::INTERNAL;
-}
-
-CURVEFS_ERROR
-InodeWrapper::UpdateInodeStatus(InodeOpenStatusChange statusChange) {
-    MetaStatusCode ret =
-        metaClient_->UpdateInodeAttrWithOutNlink(inode_, statusChange);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed"
-                   << ", MetaStatusCode = " << ret
-                   << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
-                   << ", inodeid = " << inode_.inodeid();
-        return MetaStatusCodeToCurvefsErrCode(ret);
-    }
-    dirty_ = false;
-    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
@@ -382,8 +374,10 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
         }
     }
     inode_.add_parent(newParent);
+    *dirtyAttr_.mutable_parent() = inode_.parent();
 
-    MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(inode_);
+    MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
+        inode_.fsid(), inode_.inodeid(), dirtyAttr_);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed"
                    << ", MetaStatusCode = " << ret
@@ -392,6 +386,7 @@ CURVEFS_ERROR InodeWrapper::UpdateParentLocked(
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
     dirty_ = false;
+    dirtyAttr_.Clear();
     return CURVEFS_ERROR::OK;
 }
 
@@ -446,11 +441,12 @@ void InodeWrapper::AsyncFlushAttrAndExtents(MetaServerClientDone *done,
         }
 
         metaClient_->UpdateInodeWithOutNlinkAsync(
-            inode_,
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
             new UpdateInodeAttrAndExtentClosure{shared_from_this(), done},
             InodeOpenStatusChange::NOCHANGE, std::move(indices));
 
         dirty_ = false;
+        dirtyAttr_.Clear();
         return;
     }
 
@@ -466,20 +462,20 @@ CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
     curve::common::UniqueLock lockS3chunkInfo =
         GetSyncingS3ChunkInfoUniqueLock();
     if (dirty_ || !s3ChunkInfoAdd_.empty()) {
-        dirty_ = false;
         MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
-            inode_, InodeOpenStatusChange::NOCHANGE, &s3ChunkInfoAdd_,
-            internal);
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
+            InodeOpenStatusChange::NOCHANGE, &s3ChunkInfoAdd_, internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
-            dirty_ = true;
             return MetaStatusCodeToCurvefsErrCode(ret);
         }
         ClearS3ChunkInfoAdd();
+        dirty_ = false;
+        dirtyAttr_.Clear();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -527,9 +523,11 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
             indices.s3ChunkInfoMap = std::move(s3ChunkInfoAdd_);
         }
         metaClient_->UpdateInodeWithOutNlinkAsync(
-            inode_, new UpdateInodeAsyncS3Done{shared_from_this(), done},
+            inode_.fsid(), inode_.inodeid(), dirtyAttr_,
+            new UpdateInodeAsyncS3Done{shared_from_this(), done},
             InodeOpenStatusChange::NOCHANGE, std::move(indices));
         dirty_ = false;
+        dirtyAttr_.Clear();
         ClearS3ChunkInfoAdd();
         return;
     }
@@ -571,6 +569,53 @@ CURVEFS_ERROR InodeWrapper::RefreshNlink() {
     VLOG(3) << "RefreshNlink from metaserver, newnlink: " << attr.nlink();
     ResetNlinkValid();
     return CURVEFS_ERROR::OK;
+}
+
+void InodeWrapper::MergeXAttrLocked(
+    const google::protobuf::Map<std::string, std::string>& xattrs) {
+    auto helper =
+        [](const google::protobuf::Map<std::string, std::string>& incoming,
+           google::protobuf::Map<std::string, std::string>* xattrs) {
+            for (const auto& attr : incoming) {
+                (*xattrs)[attr.first] = attr.second;
+            }
+        };
+
+    helper(xattrs, inode_.mutable_xattr());
+    helper(xattrs, dirtyAttr_.mutable_xattr());
+    dirty_ = true;
+}
+
+void InodeWrapper::UpdateTimestampLocked(int flags) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    return UpdateTimestampLocked(now, flags);
+}
+
+void InodeWrapper::UpdateTimestampLocked(const timespec& now, int flags) {
+    if (flags & kAccessTime) {
+        inode_.set_atime(now.tv_sec);
+        inode_.set_atime_ns(now.tv_nsec);
+        dirtyAttr_.set_atime(now.tv_sec);
+        dirtyAttr_.set_atime_ns(now.tv_nsec);
+        dirty_ = true;
+    }
+
+    if (flags & kChangeTime) {
+        inode_.set_ctime(now.tv_sec);
+        inode_.set_ctime_ns(now.tv_nsec);
+        dirtyAttr_.set_ctime(now.tv_sec);
+        dirtyAttr_.set_ctime_ns(now.tv_nsec);
+        dirty_ = true;
+    }
+
+    if (flags & kModifyTime) {
+        inode_.set_mtime(now.tv_sec);
+        inode_.set_mtime_ns(now.tv_nsec);
+        dirtyAttr_.set_mtime(now.tv_sec);
+        dirtyAttr_.set_mtime_ns(now.tv_nsec);
+        dirty_ = true;
+    }
 }
 
 }  // namespace client

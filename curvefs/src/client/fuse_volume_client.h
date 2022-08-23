@@ -97,7 +97,7 @@ class FuseVolumeClient : public FuseClient {
     void SetVolumeStorageForTesting(VolumeStorage *storage);
 
  private:
-    CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
+    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
 

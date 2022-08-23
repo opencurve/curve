@@ -375,21 +375,16 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
     *wSize = wRet;
     size_t changeSize = 0;
     // update file len
-    if (inode->length() < off + *wSize) {
-        changeSize = off + *wSize - inode->length();
-        inode->set_length(off + *wSize);
+    if (inodeWrapper->GetLengthLocked() < off + *wSize) {
+        changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
+        inodeWrapper->SetLength(off + *wSize);
     }
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inode->set_mtime(now.tv_sec);
-    inode->set_mtime_ns(now.tv_nsec);
-    inode->set_ctime(now.tv_sec);
-    inode->set_ctime_ns(now.tv_nsec);
+
+    inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
     inodeManager_->ShipToFlush(inodeWrapper);
 
@@ -398,6 +393,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     if (enableSumInDir_ && changeSize != 0) {
+        const Inode* inode = inodeWrapper->GetInodeLocked();
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(changeSize)});
@@ -461,13 +457,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *newInode = inodeWrapper->GetMutableInodeUnlocked();
-
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    newInode->set_atime(now.tv_sec);
-    newInode->set_atime_ns(now.tv_nsec);
-
+    inodeWrapper->UpdateTimestampLocked(kAccessTime);
     inodeManager_->ShipToFlush(inodeWrapper);
 
     VLOG(9) << "read end, read size = " << *rSize;
@@ -536,7 +526,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
     return inodeWrapper->Sync();
 }
 
-CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
+CURVEFS_ERROR FuseS3Client::Truncate(InodeWrapper *inode, uint64_t length) {
     return s3Adaptor_->Truncate(inode, length);
 }
 

@@ -26,6 +26,7 @@
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/test/client/mock_client_s3.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
 #include "curvefs/test/client/mock_disk_cache_manager.h"
@@ -87,19 +88,23 @@ class ClientS3AdaptorTest : public testing::Test {
 };
 
 uint64_t gInodeId = 1;
-void InitInode(Inode *inode) {
-    inode->set_inodeid(gInodeId);
-    inode->set_fsid(2);
-    inode->set_length(0);
-    inode->set_ctime(1623835517);
-    inode->set_mtime(1623835517);
-    inode->set_atime(1623835517);
-    inode->set_uid(1);
-    inode->set_gid(1);
-    inode->set_mode(1);
-    inode->set_nlink(1);
-    inode->set_type(curvefs::metaserver::FsFileType::TYPE_S3);
+std::unique_ptr<InodeWrapper> InitInode() {
+    Inode inode;
+
+    inode.set_inodeid(gInodeId);
+    inode.set_fsid(2);
+    inode.set_length(0);
+    inode.set_ctime(1623835517);
+    inode.set_mtime(1623835517);
+    inode.set_atime(1623835517);
+    inode.set_uid(1);
+    inode.set_gid(1);
+    inode.set_mode(1);
+    inode.set_nlink(1);
+    inode.set_type(curvefs::metaserver::FsFileType::TYPE_S3);
     gInodeId++;
+
+    return absl::make_unique<InodeWrapper>(std::move(inode), nullptr);
 }
 
 TEST_F(ClientS3AdaptorTest, test_init) {
@@ -154,55 +159,50 @@ TEST_F(ClientS3AdaptorTest, read_fail) {
 }
 
 TEST_F(ClientS3AdaptorTest, truncate_small) {
-    curvefs::metaserver::Inode inode;
-    InitInode(&inode);
-    inode.set_length(1000);
+    auto inode = InitInode();
+    inode->SetLength(1000);
 
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*mockFsCacheManager_, FindOrCreateFileCacheManager(_, _))
         .WillOnce(Return(fileCache));
     EXPECT_CALL(*fileCache, TruncateCache(_, _)).WillOnce(Return());
-    ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(&inode, 100));
+    ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(inode.get(), 100));
 }
 
 TEST_F(ClientS3AdaptorTest, truncate_unchange) {
-    curvefs::metaserver::Inode inode;
-    InitInode(&inode);
-    inode.set_length(1000);
+    auto inode = InitInode();
+    inode->SetLength(1000);
 
-    ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(&inode, 1000));
+    ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(inode.get(), 1000));
 }
 
 TEST_F(ClientS3AdaptorTest, truncate_big_alloc_chunkId_fail) {
-    curvefs::metaserver::Inode inode;
-    InitInode(&inode);
+    auto inode = InitInode();
 
     EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillOnce(Return(FSStatusCode::UNKNOWN_ERROR));
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
-              s3ClientAdaptor_->Truncate(&inode, 1000));
+              s3ClientAdaptor_->Truncate(inode.get(), 1000));
 }
 
 TEST_F(ClientS3AdaptorTest, truncate_big_success) {
-    curvefs::metaserver::Inode inode;
-    InitInode(&inode);
+    auto inode = InitInode();
 
     uint64_t chunkId = 999;
     EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
-    ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(&inode, 1000));
+    ASSERT_EQ(CURVEFS_ERROR::OK, s3ClientAdaptor_->Truncate(inode.get(), 1000));
 }
 
 TEST_F(ClientS3AdaptorTest, truncate_big_more_chunkId) {
-    curvefs::metaserver::Inode inode;
-    InitInode(&inode);
+    auto inode = InitInode();
 
     uint64_t chunkId = 999;
     EXPECT_CALL(*mockMdsClient_, AllocS3ChunkId(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)));
     ASSERT_EQ(CURVEFS_ERROR::OK,
-              s3ClientAdaptor_->Truncate(&inode, 8 * 1024 * 1024));
-    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
+              s3ClientAdaptor_->Truncate(inode.get(), 8 * 1024 * 1024));
+    auto s3ChunkInfoMap = inode->GetChunkInfoMap();
     auto s3chunkInfoListIter = s3ChunkInfoMap->find(0);
     auto s3ChunkInfo = s3chunkInfoListIter->second.s3chunks(0);
     ASSERT_EQ(999, s3ChunkInfo.chunkid());

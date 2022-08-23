@@ -290,9 +290,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
         NameLockGuard lock(nameLock_, std::to_string(*iter));
         bool ok = iCache_->Get(*iter, &inodeWrapper);
         if (ok) {
-            XAttr tmpXattr;
-            inodeWrapper->GetXattrLocked(&tmpXattr);
-            xattr->emplace_back(tmpXattr);
+            xattr->emplace_back(inodeWrapper->GetXattr());
             iter = inodeIds->erase(iter);
         } else {
             ++iter;
