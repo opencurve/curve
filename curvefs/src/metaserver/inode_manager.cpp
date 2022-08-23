@@ -308,7 +308,6 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
     const S3ChunkInfoList *list2add;
     VLOG(9) << "UpdateInode inode " << old.inodeid() << " map2add size "
             << map2add.size();
-    uint64_t size4add = 0;
     for (const auto &item : map2add) {
         uint64_t chunkIndex = item.first;
         list2add = &item.second;
