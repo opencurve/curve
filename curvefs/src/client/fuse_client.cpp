@@ -530,7 +530,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
-            inodeWrapper->SetLength(0);
+            inodeWrapper->SetLengthLocked(0);
             inodeWrapper->UpdateTimestampLocked(kChangeTime | kModifyTime);
             if (length != 0) {
                 ret = inodeWrapper->Sync();
@@ -755,7 +755,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    ret = inodeWrapper->UnLinkLocked(parent);
+    ret = inodeWrapper->UnLink(parent);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "UnLink failed, ret = " << ret << ", inodeid = " << ino
                    << ", parent = " << parent << ", name = " << name;
@@ -1037,13 +1037,13 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
                        << ", inodeid = " << ino;
             return tRet;
         }
-        inodeWrapper->SetLength(attr->st_size);
+        inodeWrapper->SetLengthLocked(attr->st_size);
         ret = inodeWrapper->Sync();
         if (ret != CURVEFS_ERROR::OK) {
             return ret;
         }
         InodeAttr inodeAttr;
-        inodeWrapper->GetInodeAttrUnlocked(&inodeAttr);
+        inodeWrapper->GetInodeAttrLocked(&inodeAttr);
         InodeAttr2ParamAttr(inodeAttr, attrOut);
 
         if (enableSumInDir_ && changeSize != 0) {
@@ -1070,7 +1070,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
     InodeAttr inodeAttr;
-    inodeWrapper->GetInodeAttrUnlocked(&inodeAttr);
+    inodeWrapper->GetInodeAttrLocked(&inodeAttr);
     InodeAttr2ParamAttr(inodeAttr, attrOut);
     return ret;
 }
@@ -1295,7 +1295,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    ret = inodeWrapper->LinkLocked(newparent);
+    ret = inodeWrapper->Link(newparent);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Link Inode fail, ret = " << ret << ", inodeid = " << ino
                    << ", newparent = " << newparent
@@ -1313,7 +1313,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << newparent << ", name = " << newname;
 
-        CURVEFS_ERROR ret2 = inodeWrapper->UnLinkLocked(newparent);
+        CURVEFS_ERROR ret2 = inodeWrapper->UnLink(newparent);
         if (ret2 != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "Also unlink inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
