@@ -80,7 +80,8 @@ class S3ClientAdaptor {
                       const char *buf) = 0;
     virtual int Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                      char *buf) = 0;
-    virtual CURVEFS_ERROR Truncate(Inode *inode, uint64_t size) = 0;
+    virtual CURVEFS_ERROR Truncate(InodeWrapper *inodeWrapper,
+                                   uint64_t size) = 0;
     virtual void ReleaseCache(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR Flush(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR FlushAllCache(uint64_t inodeId) = 0;
@@ -129,7 +130,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     int Write(uint64_t inodeId, uint64_t offset, uint64_t length,
               const char *buf);
     int Read(uint64_t inodeId, uint64_t offset, uint64_t length, char *buf);
-    CURVEFS_ERROR Truncate(Inode *inode, uint64_t size);
+    CURVEFS_ERROR Truncate(InodeWrapper *inodeWrapper, uint64_t size);
     void ReleaseCache(uint64_t inodeId);
     CURVEFS_ERROR Flush(uint64_t inodeId);
     CURVEFS_ERROR FlushAllCache(uint64_t inodeId);

@@ -176,7 +176,9 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     return ret;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
+CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
+                                            uint64_t size) {
+    const auto *inode = inodeWrapper->GetInodeLocked();
     uint64_t fileSize = inode->length();
 
     if (size < fileSize) {
@@ -212,7 +214,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
                 n = len;
             }
             S3ChunkInfo *tmp;
-            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
+            auto* s3ChunkInfoMap = inodeWrapper->GetChunkInfoMap();
             auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
             if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
                 S3ChunkInfoList s3chunkInfoList;

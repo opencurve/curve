@@ -33,6 +33,7 @@
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_wrapper.h"
+#include "src/common/timeutility.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 
@@ -52,15 +53,12 @@ using rpcclient::MockMetaServerClient;
 
 class TestInodeWrapper : public ::testing::Test {
  protected:
-    TestInodeWrapper() {}
-    ~TestInodeWrapper() {}
-
-    virtual void SetUp() {
+    void SetUp() override {
         metaClient_ = std::make_shared<MockMetaServerClient>();
         inodeWrapper_ = std::make_shared<InodeWrapper>(Inode(), metaClient_);
     }
 
-    virtual void TearDown() {
+    void TearDown() override {
         metaClient_ = nullptr;
         inodeWrapper_ = nullptr;
     }
@@ -140,7 +138,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*metaClient_, GetOrModifyS3ChunkInfo(_, _, _, _, _, _))
@@ -165,7 +163,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND))
         .WillOnce(Return(MetaStatusCode::OK));
 
@@ -184,7 +182,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
 
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
     inodeWrapper_->ClearDirty();
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .Times(0);
@@ -203,7 +201,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     pext.pOffset = 0;
     pext.UnWritten = true;
     extentCache->Merge(0, pext);
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
@@ -222,8 +220,42 @@ TEST_F(TestInodeWrapper, TestRefreshNlink) {
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
     inodeWrapper_->RefreshNlink();
-    Inode inode = inodeWrapper_->GetInodeUnlocked();
+    Inode inode = inodeWrapper_->GetInode();
     ASSERT_EQ(nlink, inode.nlink());
+}
+
+TEST_F(TestInodeWrapper, TestUpdateInodeAttrIncrementally) {
+    Inode inode;
+    inode.set_type(FsFileType::TYPE_S3);
+    inode.set_length(0);
+    inode.set_atime(0);
+    inode.set_atime_ns(0);
+    inode.set_ctime(0);
+    inode.set_ctime_ns(0);
+    inode.set_mtime(0);
+    inode.set_mtime_ns(0);
+
+    InodeWrapper wrapper(std::move(inode), metaClient_);
+
+    {
+        auto lock = wrapper.GetUniqueLock();
+        wrapper.UpdateTimestampLocked(kAccessTime);
+    }
+
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
+        .WillOnce(Invoke(
+            [](uint32_t /*fsId*/, uint64_t /*inodeId*/, const InodeAttr& attr,
+               InodeOpenStatusChange /*statusChange*/, bool /*internal*/
+            ) {
+                EXPECT_FALSE(attr.has_length());
+                return MetaStatusCode::OK;
+            }));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, wrapper.Sync());
+
+    ASSERT_FALSE(wrapper.dirty_);
+    ASSERT_FALSE(wrapper.dirtyAttr_.has_atime());
+    ASSERT_FALSE(wrapper.dirtyAttr_.has_atime_ns());
 }
 
 }  // namespace client

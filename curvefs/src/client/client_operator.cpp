@@ -316,10 +316,7 @@ CURVEFS_ERROR RenameOperator::UpdateMCTime(uint64_t inodeId) {
     }
 
     curve::common::UniqueLock lk = inodeWrapper->GetUniqueLock();
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inodeWrapper->SetMTime(now.tv_sec, now.tv_nsec);
-    inodeWrapper->SetCTime(now.tv_sec, now.tv_nsec);
+    inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
     rc = inodeWrapper->SyncAttr();
     if (rc != CURVEFS_ERROR::OK) {

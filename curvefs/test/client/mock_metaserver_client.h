@@ -34,18 +34,12 @@
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 
-using ::testing::Return;
-using ::testing::_;
-
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
 class MockMetaServerClient : public MetaServerClient {
  public:
-    MockMetaServerClient() {}
-    ~MockMetaServerClient() {}
-
     MOCK_METHOD4(Init,
                  MetaStatusCode(const ExcutorOpt &excutorOpt,
                                 const ExcutorOpt &excutorInternalOpt,
@@ -94,21 +88,31 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr));
 
-    MOCK_METHOD2(UpdateInodeAttr,
-                 MetaStatusCode(const Inode &inode,
+    MOCK_METHOD4(UpdateInodeAttr,
+                 MetaStatusCode(uint32_t,
+                                uint64_t,
+                                const InodeAttr&,
                                 InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD3(UpdateInodeAttrWithOutNlink,
-                 MetaStatusCode(const Inode &inode,
+    MOCK_METHOD5(UpdateInodeAttrWithOutNlink,
+                 MetaStatusCode(uint32_t,
+                                uint64_t,
+                                const InodeAttr&,
                                 InodeOpenStatusChange statusChange,
                                 bool internal));
 
-    MOCK_METHOD3(UpdateInodeAttrAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
+    MOCK_METHOD5(UpdateInodeAttrAsync,
+                 void(uint32_t,
+                      uint64_t,
+                      const InodeAttr&,
+                      MetaServerClientDone* done,
                       InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD3(UpdateInodeAttrWithOutNlinkAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
+    MOCK_METHOD5(UpdateInodeAttrWithOutNlinkAsync,
+                 void(uint32_t,
+                      uint64_t,
+                      const InodeAttr&,
+                      MetaServerClientDone* done,
                       InodeOpenStatusChange statusChange));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
