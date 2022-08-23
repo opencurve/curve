@@ -33,7 +33,6 @@
 #include <memory>
 #include <string>
 
-
 #include "curvefs/src/common/define.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
@@ -88,10 +87,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           isNlinkValid_(true),
           metaClient_(std::move(metaClient)),
           dirty_(false) {}
-
-    uint64_t inodeid() const {
-        return GetInodeId();
-    }
 
     uint64_t GetInodeId() const {
         return inode_.inodeid();
@@ -179,7 +174,7 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     void MergeXAttrLocked(
         const google::protobuf::Map<std::string, std::string>& xattrs);
 
-    CURVEFS_ERROR GetInodeAttrUnlocked(InodeAttr *attr) {
+    CURVEFS_ERROR GetInodeAttrLocked(InodeAttr *attr) {
         REFRESH_NLINK_IF_NEED;
 
         attr->set_inodeid(inode_.inodeid());
@@ -212,9 +207,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return CURVEFS_ERROR::OK;
     }
 
-    void GetInodeAttrLocked(InodeAttr *attr) {
+    void GetInodeAttr(InodeAttr *attr) {
         curve::common::UniqueLock lg(mtx_);
-        GetInodeAttrUnlocked(attr);
+        GetInodeAttrLocked(attr);
     }
 
     XAttr GetXattr() const {
@@ -230,12 +225,12 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(mtx_);
     }
 
-    CURVEFS_ERROR UpdateParentLocked(uint64_t oldParent, uint64_t newParent);
+    CURVEFS_ERROR UpdateParent(uint64_t oldParent, uint64_t newParent);
 
     // dir will not update parent
-    CURVEFS_ERROR LinkLocked(uint64_t parent = 0);
+    CURVEFS_ERROR Link(uint64_t parent = 0);
 
-    CURVEFS_ERROR UnLinkLocked(uint64_t parent = 0);
+    CURVEFS_ERROR UnLink(uint64_t parent = 0);
 
     // mark nlink invalid, need to refresh from metaserver
     void InvalidateNlink() {

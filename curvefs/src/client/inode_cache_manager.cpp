@@ -129,7 +129,7 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
     if (!ok) {
         PUT_INODE_CACHE(inodeId, out);
     } else {
-        out->SetLength(inode.length());
+        out->SetLengthLocked(inode.length());
     }
 
     return CURVEFS_ERROR::OK;

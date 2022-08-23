@@ -113,7 +113,7 @@ ssize_t DefaultVolumeStorage::Write(uint64_t ino,
     {
         auto lk = inodeWrapper->GetUniqueLock();
         if (offset + len > inodeWrapper->GetLengthLocked()) {
-            inodeWrapper->SetLength(offset + len);
+            inodeWrapper->SetLengthLocked(offset + len);
         }
 
         inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
