@@ -70,10 +70,23 @@ Aws::String GetObjectRequestRange(uint64_t offset, uint64_t len) {
 
 void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt) {
     InitS3AdaptorOptionExceptS3InfoOption(conf, s3Opt);
-    LOG_IF(FATAL, !conf->GetStringValue("s3.endpoint", &s3Opt->s3Address));
+    // add s3.nos_address for compatible
+    std::string tmp;
+    bool hasEndpoint =
+        (conf->GetStringValue("s3.endpoint", &tmp) && !tmp.empty()) ||
+        (conf->GetStringValue("s3.nos_address", &tmp) && !tmp.empty());
+    LOG_IF(FATAL, !hasEndpoint);
+    s3Opt->s3Address = tmp;
+    // add s3.snapshot_bucket_name for compatible
+    bool hasBuckName =
+        (conf->GetStringValue("s3.bucket_name", &tmp) && !tmp.empty()) ||
+        (conf->GetStringValue("s3.snapshot_bucket_name", &tmp) && !tmp.empty());
+    LOG_IF(FATAL, !hasBuckName);
+    s3Opt->bucketName = tmp;
     LOG_IF(FATAL, !conf->GetStringValue("s3.ak", &s3Opt->ak));
     LOG_IF(FATAL, !conf->GetStringValue("s3.sk", &s3Opt->sk));
-    LOG_IF(FATAL, !conf->GetStringValue("s3.bucket_name", &s3Opt->bucketName));
+    LOG(INFO) << "address:" << s3Opt->s3Address << ", bucketname:"
+              << s3Opt->bucketName;
 }
 
 void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
