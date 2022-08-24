@@ -239,6 +239,8 @@ class Topology {
                                 uint32_t port,
                                 ChunkServer *out) const = 0;
 
+    virtual int GetBelongPhysicalPoolId(ChunkServerIdType csId,
+        PoolIdType *physicalPoolIdOut)  = 0;
 
     virtual std::vector<ChunkServerIdType> GetChunkServerInCluster(
         ChunkServerFilter filter = [](const ChunkServer&) {

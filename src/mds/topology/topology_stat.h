@@ -83,6 +83,8 @@ struct ChunkServerStat {
     uint64_t chunkSizeLeftBytes;
     // Size of chunks in recycle bin
     uint64_t chunkSizeTrashedBytes;
+    // Size of chunkfilepool
+    uint64_t chunkFilepoolSize;
 
     // Copyset statistic
     std::vector<CopysetStat> copysetStats;
@@ -102,7 +104,7 @@ struct ChunkServerStat {
 class TopologyStat {
  public:
     TopologyStat() {}
-    ~TopologyStat() {}
+    virtual ~TopologyStat() {}
 
     /**
      * @brief Update the statistic of the chunkservers that sent heartbeat
@@ -123,6 +125,14 @@ class TopologyStat {
      */
     virtual bool GetChunkServerStat(ChunkServerIdType csId,
         ChunkServerStat *stat) = 0;
+    /**
+     * @brief fetch the statistic information of chunkPool size that sent by heartbeat
+     *
+     * @param pId physicalId
+     * @param chunkpoolsize the size of chunkpool
+     */    
+    virtual bool GetChunkPoolSize(PoolIdType pId,
+    uint64_t *chunkPoolSize) = 0;
 };
 
 class TopologyStatImpl : public TopologyStat {
@@ -136,12 +146,18 @@ class TopologyStatImpl : public TopologyStat {
         const ChunkServerStat &stat) override;
     bool GetChunkServerStat(ChunkServerIdType csId,
         ChunkServerStat *stat) override;
+    bool GetChunkPoolSize(PoolIdType pId,
+    uint64_t *chunkPoolSize) override;
 
  private:
     /**
      * @brief chunkserver statistic
      */
     std::map<ChunkServerIdType, ChunkServerStat>  chunkServerStats_;
+      /**
+     * @brief Count the size of chunkFilePool
+     */ 
+    std::map<PoolIdType, uint64_t> ChunkPoolSize_;
     /**
      * @brief the lock for protecting concurrent visit of chunkServerStats_
      */

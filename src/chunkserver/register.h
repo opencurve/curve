@@ -29,6 +29,7 @@
 #include "src/fs/local_filesystem.h"
 #include "proto/chunkserver.pb.h"
 #include "src/chunkserver/epoch_map.h"
+#include "src/chunkserver/datastore/file_pool.h"
 
 using ::curve::fs::LocalFileSystem;
 
@@ -48,6 +49,10 @@ struct RegisterOptions {
     std::string chunkserverDiskType;
     int registerRetries;
     int registerTimeout;
+
+    uint32_t useChunkFilePoolAsWalPoolReserve;
+    bool useChunkFilePoolAsWalPool;
+    std::shared_ptr<FilePool> chunkFilepool;
 
     std::shared_ptr<LocalFileSystem> fs;
 };

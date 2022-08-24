@@ -443,7 +443,7 @@ int CurveCluster::FormatFilePool(const std::string &filePooldir,
                       " -filePoolMetaPath=" + filePoolmetapath +
                       " -fileSystemPath=" + filesystempath +
                       " -allocateByPercent=false -preAllocateNum=" +
-                      std::to_string(size * 64) +
+                      std::to_string(size * 300) +
                       " -needWriteZero=false";
 
     RETURN_IF_NOT_ZERO(system(cmd.c_str()));
