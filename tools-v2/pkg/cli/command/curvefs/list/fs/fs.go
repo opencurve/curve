@@ -68,6 +68,10 @@ func (fRpc *ListFsRpc) Stub_Func(ctx context.Context) (interface{}, error) {
 }
 
 func NewFsCommand() *cobra.Command {
+	return NewListFsCommand().Cmd
+}
+
+func NewListFsCommand() *FsCommand {
 	fsCmd := &FsCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "fs",
@@ -75,17 +79,9 @@ func NewFsCommand() *cobra.Command {
 			Example: fsExample,
 		},
 	}
+
 	basecmd.NewFinalCurveCli(&fsCmd.FinalCurveCmd, fsCmd)
-	return fsCmd.Cmd
-}
-
-func NewListFsCommand() *FsCommand {
-	listFsCmd := &FsCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{},
-	}
-
-	basecmd.NewFinalCurveCli(&listFsCmd.FinalCurveCmd, listFsCmd)
-	return listFsCmd
+	return fsCmd
 }
 
 func (fCmd *FsCommand) AddFlags() {
@@ -165,7 +161,9 @@ func (fCmd *FsCommand) ResultPlainOutput() error {
 func GetClusterFsInfo(caller *cobra.Command) (*mds.ListClusterFsInfoResponse, *cmderror.CmdError) {
 	listFs := NewListFsCommand()
 	listFs.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
-	config.AlignFlagsValue(caller, listFs.Cmd, []string{})
+	config.AlignFlagsValue(caller, listFs.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
+	})
 	listFs.Cmd.SilenceErrors = true
 	err := listFs.Cmd.Execute()
 	if err != nil {

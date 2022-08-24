@@ -25,6 +25,7 @@ proto:
 
 clean:
 	rm -rf sbin
-	rm -rf proto/*
+	rm -rf proto/proto/*
+	rm -rf proto/curvefs/*
 	rm -rf go.mod
 	rm -rf go.sum

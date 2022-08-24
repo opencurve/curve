@@ -18,6 +18,7 @@ syntax="proto2";
 package curve.chunkserver;
 
 option cc_generic_services = true;
+option go_package = "proto/cli";
 
 // 这里都用 logicPoolId, copysetId,进入 rpc service 之后，会转换成 string
 // 类型的 groupId，在传给 raft

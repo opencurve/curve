@@ -16,42 +16,36 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-06-21
+ * Created Date: 2022-08-25
  * Author: chengyi (Cyber-SiKu)
  */
 
-package process
+package list
 
 import (
-	"log"
-	"os"
+	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
+	"github.com/spf13/cobra"
 )
 
-type Cache struct {
-	// bufs []*bytes.Buffer
-	// mtx  *sync.RWMutex
+type ListCommand struct {
+	basecmd.MidCurveCmd
 }
 
-func (c *Cache) Write(p []byte) (n int, err error) {
-	// c.mtx.Lock()
-	// defer c.mtx.Unlock()
-	// c.bufs = append(c.bufs, bytes.NewBuffer(p))
-	return len(p), nil
+var _ basecmd.MidCurveCmdFunc = (*ListCommand)(nil) // check interface
+
+func (listCmd *ListCommand) AddSubCommands() {
+	listCmd.Cmd.AddCommand(
+		logicalpool.NewLogicalPoolCommand(),
+	)
 }
 
-var C *Cache
-
-func init() {
-	log.SetFlags(log.Ldate | log.Lshortfile | log.Lmicroseconds)
-	C = &Cache{
-		// bufs: make([]*bytes.Buffer, 0),
-		// mtx:  &sync.RWMutex{},
+func NewListCommand() *cobra.Command {
+	listCmd := &ListCommand{
+		basecmd.MidCurveCmd{
+			Use:   "list",
+			Short: "list resources in the curvebs",
+		},
 	}
-	log.SetOutput(C)
-}
-
-func SetShow(show bool) {
-	if show {
-		log.SetOutput(os.Stdout)
-	}
+	return basecmd.NewMidCurveCli(&listCmd.MidCurveCmd, listCmd)
 }

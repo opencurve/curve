@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moby/term"
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -67,15 +66,15 @@ type FinalCurveCmd struct {
 func (fc *FinalCurveCmd) SetHeader(header []string) {
 	fc.Header = header
 	fc.TableNew.SetHeader(header)
-	width := 80
-	if ws, err := term.GetWinsize(0); err == nil {
-		if width < int(ws.Width) {
-			width = int(ws.Width)
-		}
-	}
-	if len(header) != 0 {
-		fc.TableNew.SetColWidth(width/len(header) - 1)
-	}
+	// width := 80
+	// if ws, err := term.GetWinsize(0); err == nil {
+	// 	if width < int(ws.Width) {
+	// 		width = int(ws.Width)
+	// 	}
+	// }
+	// if len(header) != 0 {
+	// 	fc.TableNew.SetColWidth(width/len(header) - 1)
+	// }
 }
 
 // FinalCurveCmdFunc is the function type for final command
@@ -135,7 +134,6 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 	cli.TableNew.SetRowLine(true)
 	cli.TableNew.SetAutoFormatHeaders(true)
 	cli.TableNew.SetAutoWrapText(true)
-	cli.TableNew.SetRowLine(true)
 	cli.TableNew.SetAlignment(tablewriter.ALIGN_LEFT)
 
 	return cli.Cmd

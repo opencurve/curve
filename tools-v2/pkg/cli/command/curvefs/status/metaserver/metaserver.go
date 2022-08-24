@@ -74,7 +74,7 @@ func (mCmd *MetaserverCommand) AddFlags() {
 
 func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 	mCmd.health = cobrautil.HEALTH_ERROR
-	externalAddrs, internalAddrs, errMetaserver := topology.GetMetaserverAddrs()
+	externalAddrs, internalAddrs, errMetaserver := topology.GetMetaserverAddrs(mCmd.Cmd)
 	if errMetaserver.TypeCode() != cmderror.CODE_SUCCESS {
 		mCmd.Error = errMetaserver
 		return fmt.Errorf(errMetaserver.Message)

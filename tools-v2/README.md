@@ -768,7 +768,6 @@ Output:
 ```
 
 #### warmup
-
 #### add
 warmup a file(directory), or given a list file contains a list of files(directories) that you want to warmup.
 
@@ -781,6 +780,22 @@ curve fs warmup add --filelist /mnt/curvefs/warmup.list
 
 > `curve fs warmup add /mnt/curvefs/warmup` will warmup a file(directory).
 > /mnt/curvefs/warmup.list 
+
+### bs
+
+#### list
+
+##### list logical-pool
+
+list all logical pool information
+
+Usage:
+
+```
+curve bs list logical-pool
+```
+
+
 ## Comparison of old and new commands
 
 ### curve fs

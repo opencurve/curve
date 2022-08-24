@@ -73,10 +73,11 @@ func NewTopologyCommand() *cobra.Command {
 	return NewListTopologyCommand().Cmd
 }
 
-func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
+func GetMetaserverAddrs(caller *cobra.Command) ([]string, []string, *cmderror.CmdError) {
 	listTopo := NewListTopologyCommand()
 	listTopo.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
 	listTopo.Cmd.SilenceErrors = true
+	config.AlignFlagsValue(caller, listTopo.Cmd, []string{})
 	err := listTopo.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrGetMetaserverAddr()
@@ -86,9 +87,11 @@ func GetMetaserverAddrs() ([]string, []string, *cmderror.CmdError) {
 	return listTopo.externalAddr, listTopo.internalAddr, cmderror.ErrSuccess()
 }
 
-func GetTopology() (*topology.ListTopologyResponse, *cmderror.CmdError) {
+func GetTopology(caller *cobra.Command) (*topology.ListTopologyResponse, *cmderror.CmdError) {
 	listTopo := NewListTopologyCommand()
 	listTopo.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	listTopo.Cmd.SilenceErrors = true
+	config.AlignFlagsValue(caller, listTopo.Cmd, []string{})
 	err := listTopo.Cmd.Execute()
 	if err != nil {
 		retErr := cmderror.ErrGetMetaserverAddr()
