@@ -368,5 +368,24 @@ TEST_F(ConfigurationTest, TestGetValueFatalIfFail) {
     ASSERT_DEATH(conf.GetValueFatalIfFail("key7", &value7), "");
 }
 
+TEST_F(ConfigurationTest, TestLoadConfWithComment) {
+    unlink(confFile_.c_str());
+
+    std::ofstream out(confFile_);
+    ASSERT_TRUE(out.is_open());
+
+    out << "global.logPath=/data/log/curve/  # __CURVEADM_TEMPLATE__ /curvebs/client/logs __CURVEADM_TEMPLATE__";  // NOLINT[whitespace/line_length]
+
+    out.close();
+
+    Configuration conf;
+    conf.SetConfigPath(confFile_);
+
+    ASSERT_TRUE(conf.LoadConfig());
+
+    std::string logpath = conf.GetStringValue("global.logPath");
+    ASSERT_EQ("/data/log/curve/", logpath);
+}
+
 }  // namespace common
 }  // namespace curve
