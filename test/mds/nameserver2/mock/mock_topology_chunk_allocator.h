@@ -52,6 +52,7 @@ class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
                  void(const std::vector<PoolIdType>&,
                       std::map<PoolIdType, double>*,
                       const std::string&));
+    MOCK_METHOD3(UpdateChunkFilePoolAllocConfig, void(bool, bool, uint32_t));
 };
 
 }  // namespace mds

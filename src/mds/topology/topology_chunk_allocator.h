@@ -33,6 +33,7 @@
 #include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/mds/topology/topology_item.h"
+#include "src/mds/topology/topology_stat.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 namespace curve {
@@ -44,6 +45,43 @@ enum class ChoosePoolPolicy {
     kRandom = 0,
     // use available capacity as the weight for choosing pools
     kWeight,
+};
+
+class ChunkFilePoolAllocHelp {
+ public:
+    ChunkFilePoolAllocHelp()
+    : ChunkFilePoolPoolWalReserve(0),
+      useChunkFilepool(false),
+      useChunkFilePoolAsWalPool(false) {}
+    ~ChunkFilePoolAllocHelp() {}
+    void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
+        bool useChunkFilePoolAsWalPool_,
+        uint32_t useChunkFilePoolAsWalPoolReserve_)  {
+        useChunkFilepool.store(useChunkFilepool_, std::memory_order_release);
+        useChunkFilePoolAsWalPool.store(useChunkFilePoolAsWalPool_,
+            std::memory_order_release);
+        ChunkFilePoolPoolWalReserve.store(useChunkFilePoolAsWalPoolReserve_,
+            std::memory_order_release);
+    }
+    bool GetUseChunkFilepool() {
+        return useChunkFilepool.load(std::memory_order_acquire);
+    }
+    // After removing the reserved space, the remaining percentage
+    uint32_t GetAvailable() {
+        if (useChunkFilePoolAsWalPool.load(std::memory_order_acquire)) {
+            return 100 - ChunkFilePoolPoolWalReserve.load(
+                    std::memory_order_acquire);
+        } else {
+            return 100;
+        }
+    }
+
+ private:
+    // use chunkfile as allocation condition
+    std::atomic<bool> useChunkFilepool;
+    std::atomic<bool> useChunkFilePoolAsWalPool;
+    // Reserve extra space for walpool
+    std::atomic<uint32_t>  ChunkFilePoolPoolWalReserve;
 };
 
 class TopologyChunkAllocator {
@@ -66,16 +104,23 @@ class TopologyChunkAllocator {
         const std::vector<PoolIdType>& logicalPools,
         std::map<PoolIdType, double>* remianingSpace,
         const std::string& pstName) = 0;
+    virtual void UpdateChunkFilePoolAllocConfig(
+        bool useChunkFilepool_, bool useChunkFilePoolAsWalPool_,
+        uint32_t useChunkFilePoolAsWalPoolReserve_) = 0;
 };
 
 class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
  public:
     TopologyChunkAllocatorImpl(std::shared_ptr<Topology> topology,
         std::shared_ptr<AllocStatistic> allocStatistic,
+        std::shared_ptr<TopologyStat> topologyStat,
+        std::shared_ptr<ChunkFilePoolAllocHelp> ChunkFilePoolAllocHelp,
         const TopologyOption &option)
         : topology_(topology),
         allocStatistic_(allocStatistic),
-        poolUsagePercentLimit_(option.PoolUsagePercentLimit),
+        topoStat_(topologyStat),
+        chunkFilePoolAllocHelp_(ChunkFilePoolAllocHelp),
+        available_(option.PoolUsagePercentLimit),
         policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)),
         enableLogicalPoolStatus_(option.enableLogicalPoolStatus) {
         std::srand(std::time(nullptr));
@@ -122,6 +167,13 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
         const std::vector<PoolIdType>& logicalPools,
         std::map<PoolIdType, double>* remianingSpace,
         const std::string& pstName) override;
+    void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
+            bool useChunkFilePoolAsWalPool_,
+            uint32_t useChunkFilePoolAsWalPoolReserve_) override {
+              chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(
+                useChunkFilepool_, useChunkFilePoolAsWalPool_,
+                useChunkFilePoolAsWalPoolReserve_);
+        }
 
  private:
     /**
@@ -143,9 +195,17 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
     // allocation statistic module
     std::shared_ptr<AllocStatistic> allocStatistic_;
 
-    // usage limit of pool
-    uint32_t poolUsagePercentLimit_;
+    // usage limit percentage of pool
+    uint32_t available_;
 
+    /**
+     * @brief topology statistic module
+     */
+    std::shared_ptr<TopologyStat> topoStat_;
+    /**
+     * @brief chunkfilepool help with capacity allocation
+     */
+    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_;
     /**
      * @brief starting point of round robin for (copysets of) every logical pool
      */

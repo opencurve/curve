@@ -28,6 +28,7 @@
 
 #include "proto/topology.pb.h"
 #include "src/mds/topology/topology_service_manager.h"
+#include "src/mds/topology/topology_stat.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 
@@ -61,12 +62,22 @@ class TestTopologyServiceManager : public ::testing::Test {
                                                storage_);
         regInfoBuilder_ = std::make_shared<MockChunkServerRegistInfoBuilder>();
         TopologyOption topologyOption;
+        topologystat_ = std::make_shared<TopologyStatImpl>(topology_);
+        std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_ =
+                std::make_shared<ChunkFilePoolAllocHelp>();
+        chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
+        topologyChunkAllocator_ = std::make_shared<TopologyChunkAllocatorImpl>(
+            topology_, nullptr, topologystat_,
+            chunkFilePoolAllocHelp_, topologyOption);
         CopysetOption copysetOption;
         copysetManager_ =
             std::make_shared<curve::mds::copyset::CopysetManager>(
                 copysetOption);
         serviceManager_ = std::make_shared<TopologyServiceManager>(topology_,
-             copysetManager_, regInfoBuilder_);
+             topologystat_,
+             topologyChunkAllocator_,
+             copysetManager_,
+             regInfoBuilder_);
         serviceManager_->Init(topologyOption);
 
         mockCopySetService =
@@ -226,6 +237,8 @@ class TestTopologyServiceManager : public ::testing::Test {
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
     std::shared_ptr<Topology> topology_;
+    std::shared_ptr<TopologyStat> topologystat_;
+    std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
     std::shared_ptr<MockChunkServerRegistInfoBuilder> regInfoBuilder_;
     std::shared_ptr<TopologyServiceManager> serviceManager_;
@@ -3384,7 +3397,7 @@ TEST_F(TestTopologyServiceManager, test_GetCopySetsInCluster) {
     PrepareAddLogicalPool(logicalPoolId1, "logicalPool1", physicalPoolId1);
     PoolIdType logicalPoolId2 = 0x2;
     PoolIdType physicalPoolId2 = 0x12;
-    PrepareAddPhysicalPool(physicalPoolId2);
+    PrepareAddPhysicalPool(physicalPoolId2, "testPool2", poolsetId);
     PrepareAddLogicalPool(logicalPoolId2, "logicalPool2", physicalPoolId2);
 
     std::set<ChunkServerIdType> members = {1, 2, 3};

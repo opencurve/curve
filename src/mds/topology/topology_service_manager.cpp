@@ -63,6 +63,29 @@ void TopologyServiceManager::RegistChunkServer(
     ChunkServerRegistResponse *response) {
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
+    ChunkServerStat stat;
+    bool useChunkFilePoolAsWalPool = false;
+    uint32_t useChunkFilePoolAsWalPoolReserve;
+    bool useChunkFilepool = false;
+    if (request->has_chunkfilepoolsize()) {
+        stat.chunkFilepoolSize = request->chunkfilepoolsize();
+    }
+    if (request->has_usechunkfilepoolaswalpool()) {
+        useChunkFilepool = true;
+        useChunkFilePoolAsWalPool = request->usechunkfilepoolaswalpool();
+    }
+    if (request->has_usechunkfilepoolaswalpoolreserve()) {
+        useChunkFilePoolAsWalPoolReserve =
+            request->usechunkfilepoolaswalpoolreserve();
+    } else if (useChunkFilePoolAsWalPool) {
+        // Error occurs if usechunkfilepoolaswalpool is used,
+        // but no reserve percentage is set
+        LOG(WARNING) << "Received RegistChunkServer request from "
+                             << "parameter setting error, "
+                             << "chunkserverid: " << request->chunkserverid();
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
     ::curve::common::NameLockGuard lock(registCsMutex,
         hostIp + ":" + std::to_string(port));
 
@@ -93,6 +116,10 @@ void TopologyServiceManager::RegistChunkServer(
             response->set_statuscode(kTopoErrCodeSuccess);
             response->set_chunkserverid(cs.GetId());
             response->set_token(cs.GetToken());
+            topoStat_->UpdateChunkServerStat(cs.GetId(), stat);
+            topologyChunkAllocator_->UpdateChunkFilePoolAllocConfig(
+                useChunkFilepool, useChunkFilePoolAsWalPool,
+                useChunkFilePoolAsWalPoolReserve);
             ::google::protobuf::Map<::google::protobuf::uint64,
                 ::google::protobuf::uint64> epochMap;
             int err = registInfoBuilder_->BuildEpochMap(&epochMap);
@@ -126,6 +153,11 @@ void TopologyServiceManager::RegistChunkServer(
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_chunkserverid(cs.GetId());
         response->set_token(cs.GetToken());
+        topoStat_->UpdateChunkServerStat(cs.GetId(),
+                    stat);
+        topologyChunkAllocator_->UpdateChunkFilePoolAllocConfig(
+            useChunkFilepool, useChunkFilePoolAsWalPool,
+            useChunkFilePoolAsWalPoolReserve);
         ::google::protobuf::Map<::google::protobuf::uint64,
             ::google::protobuf::uint64> epochMap;
         int err = registInfoBuilder_->BuildEpochMap(&epochMap);
@@ -200,6 +232,12 @@ void TopologyServiceManager::RegistChunkServer(
         response->set_statuscode(kTopoErrCodeSuccess);
         response->set_chunkserverid(chunkserver.GetId());
         response->set_token(chunkserver.GetToken());
+        ChunkServerStat stat;
+        stat.chunkFilepoolSize = request->chunkfilepoolsize();
+        topoStat_->UpdateChunkServerStat(chunkserver.GetId(), stat);
+        topologyChunkAllocator_->UpdateChunkFilePoolAllocConfig(
+                useChunkFilepool, useChunkFilePoolAsWalPool,
+                useChunkFilePoolAsWalPoolReserve);
         ::google::protobuf::Map<::google::protobuf::uint64,
             ::google::protobuf::uint64> epochMap;
         int err = registInfoBuilder_->BuildEpochMap(&epochMap);

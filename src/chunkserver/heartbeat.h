@@ -73,6 +73,7 @@ struct HeartbeatOptions {
     CopysetNodeManager*     copysetNodeManager;
 
     std::shared_ptr<LocalFileSystem> fs;
+    std::shared_ptr<FilePool> chunkFilePool;
 };
 
 /**
