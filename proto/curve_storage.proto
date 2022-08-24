@@ -17,6 +17,8 @@
 syntax="proto2";
 package curve.chunkserver;
 
+option go_package = "proto/curve_storage";
+
 enum FileSource {
     FILE_SOURCE_LOCAL = 0;
     FILE_SOURCE_REFERENCE = 1;

@@ -28,6 +28,8 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
+	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
+	bs_topo_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 )
 
 // It is considered here that the importance of the error is related to the
@@ -228,6 +230,7 @@ func MergeCmdError(err []*CmdError) CmdError {
 
 var (
 	ErrSuccess = NewSucessCmdError
+	Success    = ErrSuccess
 
 	// internal error
 	ErrHttpCreateGetRequest = func() *CmdError {
@@ -269,7 +272,7 @@ var (
 	ErrUnknownBitmapLocation = func() *CmdError {
 		return NewInternalCmdError(13, "unknown bitmap location: %s")
 	}
-	ErrParseBytes = func() *CmdError {
+	ErrParse = func() *CmdError {
 		return NewInternalCmdError(14, "invalid %s: %s")
 	}
 	ErrSplitPeer = func() *CmdError {
@@ -343,6 +346,21 @@ var (
 	}
 	ErrSetxattr = func() *CmdError {
 		return NewInternalCmdError(33, "setxattr [%s] failed! the error is: %s")
+	}
+	ErrBsGetPhysicalPool = func() *CmdError {
+		return NewInternalCmdError(34, "list physical pool fail, the error is: %s")
+	}
+	ErrBsGetAllocatedSize = func() *CmdError {
+		return NewInternalCmdError(35, "get file allocated fail, the error is: %s")
+	}
+	ErrGettimeofday = func() *CmdError {
+		return NewInternalCmdError(36, "get time of day fail, the error is: %s")
+	}
+	ErrBsGetFileInfo = func() *CmdError {
+		return NewInternalCmdError(37, "get file info fail, the error is: %s")
+	}
+	ErrBsGetFileSize = func() *CmdError {
+		return NewInternalCmdError(37, "get file size fail, the error is: %s")
 	}
 
 	// http error
@@ -465,7 +483,7 @@ var (
 		case topology.TopoStatusCode_TOPO_OK:
 			message = "ok"
 		default:
-			message = fmt.Sprintf("list Server err: %s", statusCode.String())
+			message = fmt.Sprintf("list Server fail, err: %s", statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
@@ -476,7 +494,7 @@ var (
 		case topology.TopoStatusCode_TOPO_OK:
 			message = "ok"
 		default:
-			message = fmt.Sprintf("delete %s[%s] err: %s", topoType, name, statusCode.String())
+			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
@@ -487,7 +505,7 @@ var (
 		case topology.TopoStatusCode_TOPO_OK:
 			message = "ok"
 		default:
-			message = fmt.Sprintf("create %s[%s] err: %s", topoType, name, statusCode.String())
+			message = fmt.Sprintf("create %s[%s], err: %s", topoType, name, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
@@ -503,5 +521,22 @@ var (
 			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
 		}
 		return NewRpcReultCmdError(code, message)
+	}
+	ErrBsListPhysicalPoolRpc = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		code := int32(statusCode)
+		message := fmt.Sprintf("Rpc[ListPhysicalPool] status code: %s", bs_topo_statuscode.TopoStatusCode_name[code])
+		return NewRpcReultCmdError(int(-code), message)
+	}
+	ErrBsGetAllocatedSizeRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
+		message := fmt.Sprintf("Rpc[GetFileAllocatedSize] for [%s] status code: %s", file, statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+	ErrBsGetFileInfoRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
+		message := fmt.Sprintf("Rpc[GetFileInfo] for [%s] status code: %s", file, statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+	ErrBsGetFileSizeRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
+		message := fmt.Sprintf("Rpc[GetFileSize] for [%s] status code: %s", file, statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
 	}
 )

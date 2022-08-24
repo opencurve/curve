@@ -24,6 +24,9 @@ package cobrautil
 
 import (
 	"bufio"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"regexp"
@@ -111,4 +114,47 @@ func SplitMountpoint(mountpoint string) ([]string, *cmderror.CmdError) {
 		return nil, err
 	}
 	return mountpointSlice, cmderror.ErrSuccess()
+}
+
+func GetString2Signature(date uint64, owner string) string {
+	return fmt.Sprintf("%d:%s", date, owner)
+}
+
+func CalcString2Signature(in string, secretKet string) string {
+	h := hmac.New(sha256.New, []byte(secretKet))
+	h.Write([]byte(in))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+func IsDigit(r rune) bool {
+	return '0' <= r && r <= '9'
+}
+
+func IsAlpha(r rune) bool {
+	return ('a' <= r && r <= 'z') || IsUpper(r)
+}
+
+func IsUpper(r rune) bool {
+	return 'A' <= r && r <= 'Z'
+}
+
+func ToUnderscoredName(src string) string {
+	var ret string
+	for i, c := range src {
+		if IsAlpha(c) {
+			if c < 'a' { // upper cases
+				if i != 0 && !IsUpper(rune(src[i-1])) && ret[len(ret)-1] != '-' {
+					ret += "_"
+				}
+				ret += string(c-'A'+'a')
+			} else {
+				ret += string(c)
+			}
+		} else if IsDigit(c) {
+			ret += string(c)
+		} else if len(ret) == 0 || ret[len(ret)-1] != '_' {
+			ret += "_"
+		}
+	}
+	return ret
 }

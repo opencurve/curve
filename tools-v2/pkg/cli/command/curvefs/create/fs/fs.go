@@ -198,14 +198,14 @@ func setS3Info(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError {
 	blocksizeStr := config.GetFlagString(cmd, config.CURVEFS_S3_BLOCKSIZE)
 	blocksize, err := humanize.ParseBytes(blocksizeStr)
 	if err != nil {
-		errParse := cmderror.ErrParseBytes()
+		errParse := cmderror.ErrParse()
 		errParse.Format(config.CURVEFS_S3_BLOCKSIZE, blocksizeStr)
 		return errParse
 	}
 	chunksizeStr := config.GetFlagString(cmd, config.CURVEFS_S3_CHUNKSIZE)
 	chunksize, err := humanize.ParseBytes(chunksizeStr)
 	if err != nil {
-		errParse := cmderror.ErrParseBytes()
+		errParse := cmderror.ErrParse()
 		errParse.Format(config.CURVEFS_S3_CHUNKSIZE, chunksizeStr)
 		return errParse
 	}
@@ -226,13 +226,13 @@ func setVolumeInfo(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError 
 	sizeStr := config.GetFlagString(cmd, config.CURVEFS_VOLUME_SIZE)
 	size, err := humanize.ParseBytes(sizeStr)
 	if err != nil {
-		errParse := cmderror.ErrParseBytes()
+		errParse := cmderror.ErrParse()
 		errParse.Format(config.CURVEFS_VOLUME_SIZE, sizeStr)
 	}
 	blocksizeStr := config.GetFlagString(cmd, config.CURVEFS_VOLUME_BLOCKSIZE)
 	blocksize, err := humanize.ParseBytes(blocksizeStr)
 	if err != nil {
-		errParse := cmderror.ErrParseBytes()
+		errParse := cmderror.ErrParse()
 		errParse.Format(config.CURVEFS_VOLUME_BLOCKSIZE, blocksizeStr)
 	}
 	name := config.GetFlagString(cmd, config.CURVEFS_VOLUME_NAME)
@@ -241,7 +241,7 @@ func setVolumeInfo(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError 
 	groupSizeStr := config.GetFlagString(cmd, config.CURVEFS_VOLUME_BLOCKGROUPSIZE)
 	groupSize, err := humanize.ParseBytes(groupSizeStr)
 	if err != nil {
-		errParse := cmderror.ErrParseBytes()
+		errParse := cmderror.ErrParse()
 		errParse.Format(config.CURVEFS_VOLUME_BLOCKGROUPSIZE, groupSizeStr)
 	}
 	bitmapLocationStr := config.GetFlagString(cmd, config.CURVEFS_VOLUME_BITMAPLOCATION)
@@ -252,7 +252,7 @@ func setVolumeInfo(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError 
 	sliceStr := config.GetFlagString(cmd, config.CURVEFS_VOLUME_SLICESIZE)
 	slicesize, err := humanize.ParseBytes(sliceStr)
 	if err != nil {
-		errParse := cmderror.ErrParseBytes()
+		errParse := cmderror.ErrParse()
 		errParse.Format(config.CURVEFS_VOLUME_SLICESIZE, sliceStr)
 	}
 

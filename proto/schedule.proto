@@ -24,6 +24,7 @@ syntax="proto2";
 package curve.mds.schedule;
 
 option cc_generic_services = true;
+option go_package = "proto/schedule";
 
 message RapidLeaderScheduleRequst {
     required uint32 logicalPoolID = 1;
