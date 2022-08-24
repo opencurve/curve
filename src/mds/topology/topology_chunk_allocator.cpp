@@ -202,9 +202,19 @@ void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
             continue;
         }
 
-        uint64_t diskCapacity = pPool.GetDiskCapacity();
-        // calculate actual capacity available
-        diskCapacity = diskCapacity * poolUsagePercentLimit_ / 100;
+        uint64_t diskCapacity = 0;
+        double available = available_;
+        if (chunkFilePoolAllocHelp_->GetUseChunkFilepool()) {
+            topoStat_->GetChunkPoolSize(lPool.GetPhysicalPoolId(),
+                        &diskCapacity);
+            available = available *
+                chunkFilePoolAllocHelp_->GetAvailable() / 100;
+            diskCapacity = diskCapacity * available / 100;
+        } else {
+            diskCapacity = pPool.GetDiskCapacity();
+            // calculate actual capacity available
+            diskCapacity = diskCapacity * available / 100;
+        }
 
         // TODO(xuchaojie): if create more than one logical pools is supported,
         //                  the logic here need to be fixed

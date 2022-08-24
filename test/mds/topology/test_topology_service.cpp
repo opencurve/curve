@@ -71,13 +71,13 @@ class TestTopologyService : public ::testing::Test {
         auto codec = std::make_shared<TopologyStorageCodec>();
         auto storage_ =
             std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
+        auto topo_ = std::make_shared<TopologyImpl>(
+                idGenerator_, tokenGenerator_, storage_);
 
         CopysetOption copysetOption;
         manager_ = std::make_shared<MockTopologyServiceManager>(
-                       std::make_shared<TopologyImpl>(idGenerator_,
-                               tokenGenerator_,
-                               storage_),
-                       std::make_shared<CopysetManager>(copysetOption));
+                topo_, std::make_shared<TopologyStatImpl>(topo_),
+                std::make_shared<CopysetManager>(copysetOption));
 
         TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
         ASSERT_EQ(0, server_->AddService(topoService,
@@ -118,6 +118,9 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     request.set_hostip("3");
     request.set_port(8888);
     request.set_externalip("127.0.0.1");
+    request.set_chunkfilepoolsize(100000);
+    request.set_usechunkfilepoolaswalpool(true);
+    request.set_usechunkfilepoolaswalpoolreserve(15);
 
     ChunkServerRegistResponse response;
 
@@ -151,6 +154,9 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     request.set_hostip("3");
     request.set_port(8888);
     request.set_externalip("127.0.0.1");
+    request.set_chunkfilepoolsize(100000);
+    request.set_usechunkfilepoolaswalpool(true);
+    request.set_usechunkfilepoolaswalpoolreserve(15);
 
     ChunkServerRegistResponse response;
 

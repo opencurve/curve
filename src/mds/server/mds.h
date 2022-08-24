@@ -65,6 +65,7 @@ using ::curve::mds::topology::DefaultTokenGenerator;
 using ::curve::mds::topology::TopologyImpl;
 using ::curve::mds::topology::TopologyOption;
 using ::curve::mds::topology::TopologyStatImpl;
+using ::curve::mds::topology::ChunkFilePoolAllocHelp;
 using ::curve::mds::topology::TopologyMetricService;
 using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::copyset::CopysetOption;

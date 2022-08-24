@@ -173,8 +173,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
  public:
     MockTopologyServiceManager(
         std::shared_ptr<Topology> topology,
+        std::shared_ptr<TopologyStat> topologyStat,
         std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager) //NOLINT
-        : TopologyServiceManager(topology, copysetManager, nullptr) {}
+        : TopologyServiceManager(topology, topologyStat, nullptr,
+                                    copysetManager, nullptr) {}
 
     ~MockTopologyServiceManager() {}
 
@@ -344,6 +346,8 @@ class MockTopologyStat : public TopologyStat {
     MOCK_METHOD2(GetChunkServerStat,
                  bool(ChunkServerIdType csId,
                       ChunkServerStat *stat));
+
+    MOCK_METHOD2(GetChunkPoolSize, bool(PoolIdType, uint64_t*));
 };
 
 }  // namespace topology

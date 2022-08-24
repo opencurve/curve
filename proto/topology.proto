@@ -159,6 +159,9 @@ message ChunkServerRegistRequest {
     // already registed chunkserver should take chunkserverId & token
     optional uint32 chunkServerID = 6;
     optional string token = 7;
+    optional uint64 chunkFilepoolSize = 8;
+    optional bool   useChunkFilePoolAsWalPool = 9;
+    optional uint32 useChunkFilePoolAsWalPoolReserve = 10;
 };
 
 message ChunkServerRegistResponse {

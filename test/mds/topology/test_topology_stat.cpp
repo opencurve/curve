@@ -68,6 +68,10 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     stat1.writeRate = 1;
     stat1.readIOPS = 1;
     stat1.writeIOPS = 1;
+    stat1.chunkSizeUsedBytes = 1;
+    stat1.chunkSizeLeftBytes = 2;
+    stat1.chunkSizeTrashedBytes = 3;
+    stat1.chunkFilepoolSize = 2;
     cstat1.logicalPoolId = 1;
     cstat1.copysetId = 1;
     cstat1.readRate = 1;
@@ -81,6 +85,10 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     stat2.writeRate = 2;
     stat2.readIOPS = 2;
     stat2.writeIOPS = 2;
+    stat2.chunkSizeUsedBytes = 4;
+    stat2.chunkSizeLeftBytes = 5;
+    stat2.chunkSizeTrashedBytes = 6;
+    stat2.chunkFilepoolSize = 5;
     cstat2.logicalPoolId = 2;
     cstat2.copysetId = 2;
     cstat2.readRate = 2;
@@ -95,6 +103,10 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     stat3.readIOPS = 3;
     stat3.writeIOPS = 3;
     cstat3.logicalPoolId = 3;
+    stat3.chunkSizeUsedBytes = 7;
+    stat3.chunkSizeLeftBytes = 8;
+    stat3.chunkSizeTrashedBytes = 9;
+    stat3.chunkFilepoolSize = 8;
     cstat3.copysetId = 3;
     cstat3.readRate = 3;
     cstat3.writeRate = 3;
@@ -102,8 +114,13 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     cstat3.writeIOPS = 3;
     stat3.copysetStats.push_back(cstat3);
 
+    PoolIdType pPid = 2;
+    EXPECT_CALL(*topology_, GetBelongPhysicalPoolId(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(2),
+                            Return(kTopoErrCodeSuccess)));
     testObj_->UpdateChunkServerStat(1, stat1);
     testObj_->UpdateChunkServerStat(1, stat2);
+
 
     bool ret = testObj_->GetChunkServerStat(1, &stat3);
     ASSERT_TRUE(ret);
@@ -113,6 +130,7 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     ASSERT_EQ(2, stat3.writeRate);
     ASSERT_EQ(2, stat3.readIOPS);
     ASSERT_EQ(2, stat3.writeIOPS);
+    ASSERT_EQ(5, stat3.chunkFilepoolSize);
     ASSERT_EQ(1, stat3.copysetStats.size());
     ASSERT_EQ(2, stat3.copysetStats[0].logicalPoolId);
     ASSERT_EQ(2, stat3.copysetStats[0].copysetId);
@@ -120,6 +138,15 @@ TEST_F(TestTopologyStat, TestUpdateAndGetChunkServerStat) {
     ASSERT_EQ(2, stat3.copysetStats[0].writeRate);
     ASSERT_EQ(2, stat3.copysetStats[0].readIOPS);
     ASSERT_EQ(2, stat3.copysetStats[0].writeIOPS);
+
+    testObj_->UpdateChunkServerStat(2, stat1);
+    testObj_->UpdateChunkServerStat(3, stat3);
+
+    uint64_t size, chunkPoolSize;
+    ret = testObj_->GetChunkPoolSize(2, &size);
+    ASSERT_EQ(ret, true);
+    ASSERT_EQ(12, size);
+    ASSERT_EQ(false, testObj_->GetChunkPoolSize(9, &chunkPoolSize));
 }
 
 

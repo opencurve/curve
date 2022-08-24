@@ -30,6 +30,7 @@
 #include <random>
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/topology/topology.h"
+#include "src/mds/topology/topology_config.h"
 #include "src/mds/topology/topology_service_manager.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/scheduler.h"
@@ -47,6 +48,7 @@ using ::curve::mds::topology::Server;
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::CopySetInfo;
 using ::curve::mds::topology::ChunkServerState;
+using ::curve::mds::topology::TopologyOption;
 
 using ::curve::mds::topology::ZoneIdType;
 using ::curve::mds::topology::ServerIdType;
@@ -72,6 +74,8 @@ namespace curve {
 namespace mds {
 namespace schedule {
 bool leaderCountOn = false;
+class FakeTopologyStat;
+
 class FakeTopo : public ::curve::mds::topology::TopologyImpl {
  public:
     FakeTopo() : TopologyImpl(
@@ -310,6 +314,9 @@ class FakeTopologyServiceManager : public TopologyServiceManager {
  public:
     FakeTopologyServiceManager() :
         TopologyServiceManager(std::make_shared<FakeTopo>(),
+            std::static_pointer_cast<TopologyStat>(
+                std::make_shared<FakeTopologyStat>(
+                            std::make_shared<FakeTopo>())), nullptr,
             std::make_shared<CopysetManager>(
                 ::curve::mds::copyset::CopysetOption{}), nullptr) {}
 
@@ -343,6 +350,10 @@ class FakeTopologyStat : public TopologyStat {
             }
         }
         stat->leaderCount = leaderCount;
+        return true;
+    }
+    bool GetChunkPoolSize(PoolIdType pId,
+    uint64_t *chunkPoolSize) {
         return true;
     }
 

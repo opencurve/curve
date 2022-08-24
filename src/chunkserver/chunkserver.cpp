@@ -150,6 +150,7 @@ int ChunkServer::Run(int argc, char** argv) {
     std::string raftLogProtocol = UriParser::GetProtocolFromUri(raftLogUri);
     std::shared_ptr<FilePool> walFilePool = nullptr;
     bool useChunkFilePoolAsWalPool = true;
+    uint32_t useChunkFilePoolAsWalPoolReserve = 15;
     if (raftLogProtocol == kProtocalCurve) {
         LOG_IF(FATAL, !conf.GetBoolValue(
             "walfilepool.use_chunk_file_pool",
@@ -164,6 +165,9 @@ int ChunkServer::Run(int argc, char** argv) {
             LOG(INFO) << "initialize walpool success.";
         } else {
             walFilePool = chunkfilePool;
+            LOG_IF(FATAL, !conf.GetUInt32Value(
+            "walfilepool.use_chunk_file_pool_reserve",
+            &useChunkFilePoolAsWalPoolReserve));
             LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
         }
     }
@@ -190,7 +194,11 @@ int ChunkServer::Run(int argc, char** argv) {
     // 初始化注册模块
     RegisterOptions registerOptions;
     InitRegisterOptions(&conf, &registerOptions);
+    registerOptions.useChunkFilePoolAsWalPoolReserve =
+            useChunkFilePoolAsWalPoolReserve;
+    registerOptions.useChunkFilePoolAsWalPool = useChunkFilePoolAsWalPool;
     registerOptions.fs = fs;
+    registerOptions.chunkFilepool = chunkfilePool;
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     ChunkServerMetadata localMetadata;
@@ -279,6 +287,7 @@ int ChunkServer::Run(int argc, char** argv) {
     InitHeartbeatOptions(&conf, &heartbeatOptions);
     heartbeatOptions.copysetNodeManager = copysetNodeManager_;
     heartbeatOptions.fs = fs;
+    heartbeatOptions.chunkFilePool = chunkfilePool;
     heartbeatOptions.chunkserverId = metadata.id();
     heartbeatOptions.chunkserverToken = metadata.token();
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
