@@ -53,7 +53,6 @@ struct TopologyOption {
           CreateCopysetRpcRetryTimes(3),
           CreateCopysetRpcRetrySleepTimeMs(500),
           UpdateMetricIntervalSec(0),
-          PoolUsagePercentLimit(100),
           choosePoolPolicy(0),
           enableLogicalPoolStatus(false) {}
 };

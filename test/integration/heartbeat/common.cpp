@@ -128,6 +128,7 @@ void HeartbeatIntegrationCommon::BuildBasicChunkServerRequest(
     stats->set_chunksizeusedbytes(100);
     stats->set_chunksizeleftbytes(100);
     stats->set_chunksizetrashedbytes(100);
+    stats->set_chunkfilepoolsize(200);
     req->set_allocated_stats(stats);
 }
 
@@ -307,7 +308,7 @@ void HeartbeatIntegrationCommon::BuildBasicCluster() {
     auto copysetManager = std::make_shared<CopysetManager>(CopysetOption());
     auto allocStat = std::make_shared<MockAllocStatistic>();
     auto topologyServiceManager = std::make_shared<TopologyServiceManager>(
-        topology_, copysetManager, nullptr);
+        topology_, topologyStat_, nullptr, copysetManager, nullptr);
 
     // 初始化basic集群
     PrepareBasicCluseter();

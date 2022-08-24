@@ -367,7 +367,10 @@ void MDS::InitTopologyServiceManager(const TopologyOption& option) {
         std::make_shared<ChunkServerRegistInfoBuilderImpl>(&kCurveFS);
     topologyServiceManager_ =
         std::make_shared<TopologyServiceManager>(topology_,
-        copysetManager, registerInfoBuilder);
+        topologyStat_,
+        topologyChunkAllocator_,
+        copysetManager,
+        registerInfoBuilder);
     topologyServiceManager_->Init(option);
     LOG(INFO) << "init topologyServiceManager success.";
 }
@@ -389,9 +392,12 @@ void MDS::InitCopysetOption(CopysetOption *copysetOption) {
 
 
 void MDS::InitTopologyChunkAllocator(const TopologyOption& option) {
+    std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_ =
+          std::make_shared<ChunkFilePoolAllocHelp>();
     topologyChunkAllocator_ =
           std::make_shared<TopologyChunkAllocatorImpl>(topology_,
-               segmentAllocStatistic_, option);
+               segmentAllocStatistic_, topologyStat_,
+                chunkFilePoolAllocHelp_, option);
     LOG(INFO) << "init topologyChunkAllocator success.";
 }
 

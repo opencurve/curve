@@ -197,6 +197,10 @@ class MockTopology : public Topology {
         bool(const std::string &hostIp,
             uint32_t port,
             ChunkServer *out));
+    MOCK_METHOD2(GetBelongPhysicalPoolId,
+        int(ChunkServerIdType csId,
+        PoolIdType *physicalPoolIdOut));
+
     // getvector
     MOCK_CONST_METHOD1(GetChunkServerInCluster,
         std::vector<ChunkServerIdType>(ChunkServerFilter filter));
@@ -272,6 +276,12 @@ class MockTopologyStat : public TopologyStat {
     MOCK_METHOD2(GetChunkServerStat,
         bool(ChunkServerIdType csId,
         ChunkServerStat *stat));
+    MOCK_METHOD2(GetChunkPoolSize,
+        bool(PoolIdType pId,
+        uint64_t *chunkPoolSize));
+    MOCK_METHOD2(updateChunkFilepoolConfig,
+        void(bool useChunkFilepool_,
+        bool useChunkFilePoolAsWalPool_));
 };
 
 }  // namespace topology

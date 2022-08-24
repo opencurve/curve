@@ -64,6 +64,14 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
         req.set_externalip(ops_.chunkserverExternalIp);
     }
     req.set_port(ops_.chunkserverPort);
+    uint64_t chunkPoolSize = ops_.chunkFilepool->Size() *
+                ops_.chunkFilepool->GetFilePoolOpt().fileSize;
+    req.set_chunkfilepoolsize(chunkPoolSize);
+    if (ops_.chunkFilepool->GetFilePoolOpt().getFileFromPool) {
+        req.set_usechunkfilepoolaswalpool(ops_.useChunkFilePoolAsWalPool);
+        req.set_usechunkfilepoolaswalpoolreserve(
+            ops_.useChunkFilePoolAsWalPoolReserve);
+    }
 
     if (localMetadata != nullptr) {
         req.set_chunkserverid(localMetadata->id());
@@ -74,7 +82,8 @@ int Register::RegisterToMDS(const ChunkServerMetadata *localMetadata,
               << ". internal ip: " << ops_.chunkserverInternalIp
               << ", port: " << ops_.chunkserverPort
               << ", enable external server: " << ops_.enableExternalServer
-              << ", external ip: " << ops_.chunkserverExternalIp;
+              << ", external ip: " << ops_.chunkserverExternalIp
+              << ", size =" << chunkPoolSize;
 
     int retries = ops_.registerRetries;
     while (retries >= 0) {
