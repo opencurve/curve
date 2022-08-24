@@ -25,6 +25,8 @@ syntax="proto2";
 package curve.snapshotcloneserver;
 
 option cc_generic_services = true;
+option go_package = "proto/snapshotcloneserver";
+
 /*
 message ChunkName {
     required string filename = 1;

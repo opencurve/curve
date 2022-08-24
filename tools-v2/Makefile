@@ -58,5 +58,10 @@ init:
 
 clean:
 	rm -rf sbin
+<<<<<<< HEAD
+=======
+	rm -rf proto/proto/*
+	rm -rf proto/curvefs/*
+>>>>>>> cedb52a1... curve/tools-v2:bs
 	rm -rf go.mod
 	rm -rf go.sum

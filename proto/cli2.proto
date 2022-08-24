@@ -21,6 +21,7 @@ import "proto/common.proto";
 package curve.chunkserver;
 
 option cc_generic_services = true;
+option go_package = "proto/cli2";
 
 // cli.proto 供老的使用保证
 message AddPeerRequest2 {
