@@ -21,7 +21,6 @@
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
-#include <glog/logging.h>
 #include <string>
 #include <map>
 #include <memory>
