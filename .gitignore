@@ -116,5 +116,9 @@ test/integration/snapshotcloneserver/config/*.conf
 
 .pre-commit-config.yaml
 
-*.deb
-*.whl
+tools-v2/sbin/*
+tools-v2/proto/proto/*
+tools-v2/proto/curvefs/*
+tools-v2/*/*.test
+tools-v2/__debug_bin
+tools-v2/vendor/

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,25 +14,27 @@
  *  limitations under the License.
  */
 
-syntax="proto2";
-package curve.chunkserver;
-option cc_generic_services = true;
-option go_package = "proto/chunkserver";
+/*
+ * Project: CurveCli
+ * Created Date: 2022-08-29
+ * Author: chengyi (Cyber-SiKu)
+ */
 
-message ChunkServerMetadata {
-    required uint32 version = 1;
-    required uint32 id = 2;
-    required string token = 3;
-    required uint32 checksum = 4;
-};
+package cobrautil
 
-message ChunkServerStatusRequest {
-}
+import (
+	"syscall"
 
-message ChunkServerStatusResponse {
-    required bool copysetLoadFin = 1;
-}
+	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+)
 
-service ChunkServerService {
-    rpc ChunkServerStatus (ChunkServerStatusRequest) returns (ChunkServerStatusResponse);
-};
+ func GetTimeofDayUs() (uint64, *cmderror.CmdError) {
+	var now syscall.Timeval
+	if e := syscall.Gettimeofday(&now); e != nil {
+		retErr := cmderror.ErrGettimeofday()
+		retErr.Format(e.Error())
+		return uint64(0), retErr
+	}
+	return uint64(now.Sec) * 1000000 + uint64(now.Usec), cmderror.Success()
+ }
+ 

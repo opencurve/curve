@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020 NetEase Inc.
+ *  Copyright (c) 2022 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,25 +14,22 @@
  *  limitations under the License.
  */
 
-syntax="proto2";
-package curve.chunkserver;
-option cc_generic_services = true;
-option go_package = "proto/chunkserver";
+/*
+ * Project: CurveCli
+ * Created Date: 2022-09-02
+ * Author: chengyi (Cyber-SiKu)
+ */
+package cobrautil
 
-message ChunkServerMetadata {
-    required uint32 version = 1;
-    required uint32 id = 2;
-    required string token = 3;
-    required uint32 checksum = 4;
-};
+const (
+	kVars                    = "/vars/"
+	kLogicalPoolMetricPrefix = "topology_metric_logicalPool_"
+)
 
-message ChunkServerStatusRequest {
+func GetPoolLogicalCapacitySubUri(poolName string) string {
+	return kVars + ToUnderscoredName(kLogicalPoolMetricPrefix + poolName + "_logicalCapacity")
 }
 
-message ChunkServerStatusResponse {
-    required bool copysetLoadFin = 1;
+func GetPoolLogicalAllocSubUri(poolName string) string {
+	return kVars+ToUnderscoredName(kLogicalPoolMetricPrefix + poolName + "_logicalAlloc")
 }
-
-service ChunkServerService {
-    rpc ChunkServerStatus (ChunkServerStatusRequest) returns (ChunkServerStatusResponse);
-};
