@@ -101,11 +101,14 @@ class FackTopologyChunkAllocator: public TopologyChunkAllocator {
     void GetRemainingSpaceInLogicalPool(
         const std::vector<PoolIdType>& logicalPools,
         std::map<PoolIdType, double>* enoughSpacePools) override {
-            for (auto i = logicalPools.begin(); i != logicalPools.end(); i++){
+            for (auto i = logicalPools.begin(); i != logicalPools.end(); i++) {
                 enoughSpacePools->insert(std::pair<PoolIdType,
                     double>(*i, 10*FACK_FILE_INTTIALIZE));
             }
         }
+    void UpdateChunkFilePoolAllocConfig(bool useChunkFilepool_,
+            bool  useChunkFilePoolAsWalPool_,
+            uint32_t useChunkFilePoolAsWalPoolReserve_) {}
 };
 
 class FakeNameServerStorage : public NameServerStorage {

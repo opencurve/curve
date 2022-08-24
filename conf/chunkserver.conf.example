@@ -194,8 +194,10 @@ chunkfilepool.clean.throttle_iops=500
 #
 # WAL file pool
 #
-# walpool是否共用chunkfilepool，如果为true，则以下配置无效
+# walpool是否共用chunkfilepool，如果为true，从第三条开始配置无效
 walfilepool.use_chunk_file_pool=true
+# WALpool和ChunkFilePool共用时启用，在容量分配时会预留walpool的空间
+walfilepool.use_chunk_file_pool_reserve=15
 # 是否开启从walfilepool获取chunk，一般是true
 walfilepool.enable_get_segment_from_pool=true
 # walpool目录

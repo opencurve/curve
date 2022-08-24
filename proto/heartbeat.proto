@@ -87,6 +87,8 @@ message ChunkServerStatisticInfo {
     required uint64 chunkSizeLeftBytes = 6;
     // 回收站中chunk占用的磁盘空间
     required uint64 chunkSizeTrashedBytes = 7;
+    // chunkfilepool的大小
+    optional uint64 chunkFilepoolSize = 8;
 };
 
 message ChunkServerHeartbeatRequest {
