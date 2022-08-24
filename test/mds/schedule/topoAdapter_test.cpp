@@ -49,10 +49,11 @@ class TestTopoAdapterImpl : public ::testing::Test {
     void SetUp() override {
         mockTopo_ = std::make_shared<MockTopology>();
         CopysetOption copysetOption;
-        mockTopoManager_ = std::make_shared<MockTopologyServiceManager>(
-            mockTopo_, std::make_shared<::curve::mds::copyset::CopysetManager>(
-                copysetOption));
         mockTopoStat_ = std::make_shared<MockTopologyStat>();
+        mockTopoManager_ = std::make_shared<MockTopologyServiceManager>(
+            mockTopo_, mockTopoStat_,
+            std::make_shared<::curve::mds::copyset::CopysetManager>(
+                copysetOption));
         topoAdapter_ = std::make_shared<TopoAdapterImpl>(mockTopo_,
                                                         mockTopoManager_,
                                                         mockTopoStat_);

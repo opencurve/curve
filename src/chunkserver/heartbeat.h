@@ -71,6 +71,7 @@ struct HeartbeatOptions {
     ScanManager*            scanManager;
 
     std::shared_ptr<LocalFileSystem> fs;
+    std::shared_ptr<FilePool> chunkFilePool;
 };
 
 /**

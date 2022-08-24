@@ -164,8 +164,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
  public:
     MockTopologyServiceManager(
         std::shared_ptr<Topology> topology,
+        std::shared_ptr<TopologyStat> topologyStat,
         std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager) //NOLINT
-        : TopologyServiceManager(topology, copysetManager, nullptr) {}
+        : TopologyServiceManager(topology, topologyStat, nullptr,
+                                    copysetManager, nullptr) {}
 
     ~MockTopologyServiceManager() {}
 

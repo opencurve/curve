@@ -46,6 +46,9 @@ class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
     MOCK_METHOD4(AllocateChunkRoundRobinInSingleLogicalPool,
         bool(FileType, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
+
+    MOCK_METHOD3(UpdateChunkFilePoolAllocConfig, void(bool, bool, uint32_t));
+
     MOCK_METHOD2(GetRemainingSpaceInLogicalPool,
         void(const std::vector <PoolIdType>&,
         std::map<PoolIdType, double>*));
