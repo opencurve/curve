@@ -22,9 +22,12 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <gmock/gmock-spec-builders.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 #include "curvefs/src/client/client_operator.h"
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/test/client/mock_dentry_cache_mamager.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
@@ -34,6 +37,8 @@ namespace curvefs {
 namespace client {
 
 using ::testing::SetArgPointee;
+using ::testing::SetArgReferee;
+using ::testing::DoAll;
 using rpcclient::MockMetaServerClient;
 using rpcclient::MockMdsClient;
 
@@ -46,6 +51,7 @@ class ClientOperatorTest : public ::testing::Test {
         name_ = "A";
         newParentId_ = 20;
         newname_ = "B";
+        srcInodeId_ = 100;
         dentryManager_ = std::make_shared<MockDentryCacheManager>();
         inodeManager_ = std::make_shared<MockInodeCacheManager>();
         metaClient_ = std::make_shared<MockMetaServerClient>();
@@ -73,6 +79,7 @@ class ClientOperatorTest : public ::testing::Test {
     std::string name_;
     uint64_t newParentId_;
     std::string newname_;
+    uint64_t srcInodeId_;
     std::shared_ptr<MockDentryCacheManager> dentryManager_;
     std::shared_ptr<MockInodeCacheManager> inodeManager_;
     std::shared_ptr<MockMetaServerClient> metaClient_;
@@ -187,6 +194,158 @@ TEST_F(ClientOperatorTest, CommitTx) {
         .WillOnce(Return(FSStatusCode::OK));
 
     rc = renameOp_->CommitTx();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
+TEST_F(ClientOperatorTest, LinkDestParentInode) {
+    Dentry src, dst;
+    src.set_fsid(fsId_);
+    src.set_inodeid(srcInodeId_);
+    src.set_name(name_);
+    src.set_parentinodeid(parentId_);
+
+    dst = src;
+    dst.set_inodeid(30);
+    dst.set_name("dest");
+    dst.set_parentinodeid(newParentId_);
+
+    // case1: src has no type
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+    auto rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    rc = renameOp_->LinkDestParentInode();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+
+    // case2: dst not exist
+    src.set_type(FsFileType::TYPE_DIRECTORY);
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+    rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    Inode inode;
+    inode.set_inodeid(newParentId_);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+            Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    rc = renameOp_->LinkDestParentInode();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    // case3: dst exist
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(dst), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+    rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+            Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    rc = renameOp_->LinkDestParentInode();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    // case4: src is not directory
+    src.set_type(FsFileType::TYPE_FILE);
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(dst), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(_, _, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+    rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+            Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    rc = renameOp_->LinkDestParentInode();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+}
+
+TEST_F(ClientOperatorTest, UnlinkSrcParentInode) {
+    Dentry src, dst;
+    src.set_fsid(fsId_);
+    src.set_inodeid(srcInodeId_);
+    src.set_name(name_);
+    src.set_parentinodeid(parentId_);
+
+    dst = src;
+    dst.set_inodeid(30);
+    dst.set_name("dest");
+    dst.set_parentinodeid(newParentId_);
+
+    // case1: src has no type
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+    auto rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    rc = renameOp_->UnlinkSrcParentInode();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+
+    // case2: src is a dir
+    src.set_type(FsFileType::TYPE_DIRECTORY);
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+    rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    Inode inode;
+    inode.set_inodeid(newParentId_);
+    inode.set_nlink(3);
+    inode.set_nentry(2);
+    InodeAttr attr;
+    attr.set_inodeid(newParentId_);
+    attr.set_nlink(3);
+    attr.set_nentry(2);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+            Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(attr),
+            Return(MetaStatusCode::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    rc = renameOp_->UnlinkSrcParentInode();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    // case3: src is not dir
+    src.set_type(FsFileType::TYPE_FILE);
+    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(src), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+    rc = renameOp_->Precheck();
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+            Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(attr),
+            Return(MetaStatusCode::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_))
+        .WillOnce(Return(MetaStatusCode::OK));
+
+    rc = renameOp_->UnlinkSrcParentInode();
     ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 

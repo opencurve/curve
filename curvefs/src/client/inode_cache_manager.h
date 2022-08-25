@@ -132,7 +132,8 @@ class InodeCacheManager {
 
     virtual CURVEFS_ERROR RefreshInode(uint64_t inodeId) = 0;
 
-    virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) = 0;
+    virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out,
+        bool refreshNentry = false) = 0;
 
     virtual CURVEFS_ERROR BatchGetInodeAttr(
         std::set<uint64_t> *inodeIds,
@@ -227,7 +228,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
 
     CURVEFS_ERROR RefreshInode(uint64_t inodeId) override;
 
-    CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) override;
+    CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out,
+        bool refreshNlinkAndNentry = false) override;
 
     CURVEFS_ERROR BatchGetInodeAttr(std::set<uint64_t> *inodeIds,
         std::list<InodeAttr> *attrs) override;

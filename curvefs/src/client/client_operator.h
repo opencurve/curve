@@ -23,10 +23,12 @@
 #ifndef CURVEFS_SRC_CLIENT_CLIENT_OPERATOR_H_
 #define CURVEFS_SRC_CLIENT_CLIENT_OPERATOR_H_
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <memory>
 
+#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
@@ -87,6 +89,10 @@ class RenameOperator {
     CURVEFS_ERROR LinkInode(uint64_t inodeId, uint64_t parent = 0);
 
     CURVEFS_ERROR UnLinkInode(uint64_t inodeId, uint64_t parent = 0);
+
+    CURVEFS_ERROR AddNentry(uint64_t inodeId);
+
+    CURVEFS_ERROR SubNentry(uint64_t inodeId);
 
     CURVEFS_ERROR UpdateMCTime(uint64_t inodeId);
 

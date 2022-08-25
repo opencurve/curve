@@ -95,34 +95,26 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr));
 
-    MOCK_METHOD2(UpdateInodeAttr,
-                 MetaStatusCode(const Inode &inode,
-                                InodeOpenStatusChange statusChange));
+    MOCK_METHOD1(UpdateInodeAttr,
+                 MetaStatusCode(const Inode &inode));
 
-    MOCK_METHOD4(UpdateInodeAttrWithOutNlink,
+    MOCK_METHOD3(UpdateInodeAttrWithOutNlink,
                  MetaStatusCode(const Inode &inode,
-                                InodeOpenStatusChange statusChange,
                                 S3ChunkInfoMap *s3ChunkInfoAdd,
                                 bool internal));
-
-    MOCK_METHOD3(UpdateInodeAttrAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
-                      InodeOpenStatusChange statusChange));
 
     // Workaround for rvalue parameters
     // https://stackoverflow.com/questions/12088537/workaround-for-gmock-to-support-rvalue-reference
     void UpdateInodeWithOutNlinkAsync(const Inode& inode,
                                       MetaServerClientDone* done,
-                                      InodeOpenStatusChange change,
                                       DataIndices&& indices) override {
-        return UpdateInodeWithOutNlinkAsync_rvr(inode, done, change,
+        return UpdateInodeWithOutNlinkAsync_rvr(inode, done,
                                                 std::move(indices));
     }
 
-    MOCK_METHOD4(UpdateInodeWithOutNlinkAsync_rvr,
+    MOCK_METHOD3(UpdateInodeWithOutNlinkAsync_rvr,
                  void(const Inode& inode,
                       MetaServerClientDone* done,
-                      InodeOpenStatusChange statusChange,
                       DataIndices));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,

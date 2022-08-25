@@ -144,7 +144,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -166,7 +166,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -178,7 +178,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
 
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
     inodeWrapper_->ClearDirty();
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .Times(0);
@@ -197,7 +197,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     pext.pOffset = 0;
     pext.UnWritten = true;
     extentCache->Merge(0, pext);
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
@@ -209,15 +209,47 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper_->Sync());
 }
 
-TEST_F(TestInodeWrapper, TestRefreshNlink) {
+TEST_F(TestInodeWrapper, TestRefreshNlinkAndNentry) {
     google::protobuf::uint32 nlink = 10086;
+    uint32_t nentry = 10087;
     InodeAttr attr;
-    attr. set_nlink(nlink);
+    attr.set_nlink(nlink);
+    attr.set_nentry(nentry);
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
-    inodeWrapper_->RefreshNlink();
+    inodeWrapper_->RefreshNlinkAndNentry();
     Inode inode = inodeWrapper_->GetInodeUnlocked();
     ASSERT_EQ(nlink, inode.nlink());
+    ASSERT_EQ(nentry, inode.nentry());
+}
+
+TEST_F(TestInodeWrapper, TestAddAndSubNentry) {
+    InodeAttr attr;
+    attr.set_nlink(2);
+    attr.set_nentry(0);
+
+    EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(attr), Return(MetaStatusCode::OK)));
+    CURVEFS_ERROR rc = inodeWrapper_->SubNentry();
+    ASSERT_EQ(rc, CURVEFS_ERROR::INTERNAL);
+
+    attr.set_nentry(1);
+    EXPECT_CALL(*metaClient_, GetInodeAttr(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(attr),
+            Return(MetaStatusCode::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_))
+        .Times(2)
+        .WillRepeatedly(Return(MetaStatusCode::OK));
+    rc = inodeWrapper_->AddNentry();
+    Inode inode = inodeWrapper_->GetInodeLocked();
+    ASSERT_EQ(inode.nentry(), 2);
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
+
+    rc = inodeWrapper_->SubNentry();
+    inode = inodeWrapper_->GetInodeLocked();
+    ASSERT_EQ(inode.nentry(), 0);
+    ASSERT_EQ(rc, CURVEFS_ERROR::OK);
 }
 
 TEST_F(TestInodeWrapper, TestNeedRefreshData) {
@@ -264,7 +296,6 @@ struct FakeCallback : public MetaServerClientDone {
 struct FakeUpdateInodeWithOutNlinkAsync {
     void operator()(const Inode& inode,
                     MetaServerClientDone* done,
-                    InodeOpenStatusChange statusChange,
                     DataIndices indices) const {
         std::thread th{[done]() {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -288,7 +319,7 @@ TEST_F(TestInodeWrapper, TestAsyncInode) {
             }
 
             EXPECT_CALL(*metaClient_,
-                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _))
                 .Times(dirty ? 1 : 0)
                 .WillRepeatedly(Invoke(FakeUpdateInodeWithOutNlinkAsync{}));
 

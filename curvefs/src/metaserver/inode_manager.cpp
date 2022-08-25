@@ -111,6 +111,7 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId,
     inode->set_type(param.type);
     inode->set_rdev(param.rdev);
     inode->add_parent(param.parent);
+    inode->set_nentry(0);
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
@@ -251,10 +252,10 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
     bool needUpdate = false;
     bool needAddTrash = false;
 
-#define UPDATE_INODE(param)                  \
-    if (request.has_##param()) {            \
-        old.set_##param(request.param()); \
-        needUpdate = true; \
+#define UPDATE_INODE(param)                     \
+    if (request.has_##param()) {                \
+        old.set_##param(request.param());       \
+        needUpdate = true;                      \
     }
 
     UPDATE_INODE(length)
@@ -280,6 +281,11 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
             needAddTrash = true;
         }
         old.set_nlink(request.nlink());
+        needUpdate = true;
+    }
+
+    if (request.has_nentry()) {
+        old.set_nentry(request.nentry());
         needUpdate = true;
     }
 
@@ -432,6 +438,7 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
     }
 
     uint32_t oldNlink = inode.nlink();
+    uint32_t oldNentry = inode.nentry();
     if (oldNlink == 0) {
         LOG(ERROR)
             << "UpdateInodeWhenCreateOrRemoveSubNode already be deleted!"
@@ -449,6 +456,13 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
         } else {
             inode.set_nlink(--oldNlink);
         }
+    }
+
+    // record entry number under this directory
+    if (isCreate) {
+        inode.set_nentry(++oldNentry);
+    } else {
+        inode.set_nentry(--oldNentry);
     }
 
     struct timespec now;

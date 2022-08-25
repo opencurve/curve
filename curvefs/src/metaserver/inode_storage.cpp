@@ -143,6 +143,9 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     if (inode.xattr_size() > 0) {
         *(attr->mutable_xattr()) = inode.xattr();
     }
+    if (inode.has_nentry()) {
+        attr->set_nentry(inode.nentry());
+    }
     return MetaStatusCode::OK;
 }
 

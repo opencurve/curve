@@ -53,8 +53,8 @@ class MockInodeCacheManager : public InodeCacheManager {
                  CURVEFS_ERROR(uint64_t inodeId,
                                std::shared_ptr<InodeWrapper> &out));  // NOLINT
 
-    MOCK_METHOD2(GetInodeAttr, CURVEFS_ERROR(
-        uint64_t inodeId, InodeAttr *out));
+    MOCK_METHOD3(GetInodeAttr, CURVEFS_ERROR(
+        uint64_t inodeId, InodeAttr *out, bool refreshNlinkNentry));
 
     MOCK_METHOD1(RefreshInode, CURVEFS_ERROR(uint64_t inodeId));
 

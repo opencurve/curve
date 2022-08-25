@@ -352,9 +352,8 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _))
         .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
-                            InodeOpenStatusChange statusChange,
                             DataIndices /*indices*/) {
             done->SetMetaStatusCode(MetaStatusCode::OK);
             done->Run();
@@ -465,10 +464,9 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _))
         .WillRepeatedly(
             Invoke([](const Inode& inode, MetaServerClientDone* done,
-                      InodeOpenStatusChange statusChange,
                       DataIndices /*dataIndices*/) {
                 // run closure in a separate thread
                 std::thread th{[done]() {

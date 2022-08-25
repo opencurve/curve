@@ -220,6 +220,7 @@ message Inode {
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
     map<string, string> xattr = 21;
     repeated uint64 parent = 22;
+    optional uint32 nentry = 23;  // one level entries under dir
 }
 
 message GetInodeResponse {
@@ -295,6 +296,7 @@ message UpdateInodeRequest {
     repeated uint64 parent = 21;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
     optional VolumeExtentList volumeExtents = 23;
+    optional uint32 nentry = 24;
 }
 
 message UpdateInodeResponse {
@@ -386,6 +388,7 @@ message InodeAttr {
     optional uint32 openmpcount = 18;
     map<string, string> xattr = 19;
     repeated uint64 parent = 20;
+    optional uint32 nentry = 21;
 }
 
 message BatchGetInodeAttrRequest {

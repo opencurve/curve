@@ -53,7 +53,7 @@ class DefaultVolumeStorageTest : public ::testing::Test {
           metaServerCli_(std::make_shared<MockMetaServerClient>()) {}
 
     void SetUp() override {
-        ON_CALL(*metaServerCli_, UpdateInodeAttrWithOutNlink(_, _, _, _))
+        ON_CALL(*metaServerCli_, UpdateInodeAttrWithOutNlink(_, _, _))
             .WillByDefault(Return(MetaStatusCode::OK));
     }
 

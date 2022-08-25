@@ -22,6 +22,7 @@
 
 #include <list>
 
+#include "curvefs/src/client/error_code.h"
 #include "src/common/uuid.h"
 #include "curvefs/src/client/client_operator.h"
 
@@ -147,14 +148,13 @@ CURVEFS_ERROR RenameOperator::CheckOverwrite() {
         return CURVEFS_ERROR::OK;
     }
 
-    std::list<Dentry> dentrys;
-    auto rc = dentryManager_->ListDentry(dstDentry_.inodeid(), &dentrys, 1);
-    if (rc == CURVEFS_ERROR::OK && !dentrys.empty()) {
+    InodeAttr attr;
+    auto rc = inodeManager_->GetInodeAttr(dstDentry_.inodeid(), &attr, true);
+    if (rc == CURVEFS_ERROR::OK && attr.nentry() != 0) {
         LOG(ERROR) << "The directory is not empty"
                    << ", dentry = (" << dstDentry_.ShortDebugString() << ")";
         rc = CURVEFS_ERROR::NOTEMPTY;
     }
-
     return rc;
 }
 
@@ -284,8 +284,6 @@ CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId, uint64_t parent) {
         LOG_ERROR("Link", rc);
         return rc;
     }
-
-    // CURVEFS_ERROR::OK
     return rc;
 }
 
@@ -302,8 +300,38 @@ CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId, uint64_t parent) {
         LOG_ERROR("UnLink", rc);
         return rc;
     }
+    return rc;
+}
 
-    // CURVEFS_ERROR::OK
+CURVEFS_ERROR RenameOperator::AddNentry(uint64_t inodeId) {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("GetInode", rc);
+        return rc;
+    }
+
+    rc = inodeWrapper->AddNentry();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("AddNentry", rc);
+        return rc;
+    }
+    return rc;
+}
+
+CURVEFS_ERROR RenameOperator::SubNentry(uint64_t inodeId) {
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto rc = inodeManager_->GetInode(inodeId, inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("GetInode", rc);
+        return rc;
+    }
+
+    rc = inodeWrapper->SubNentry();
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG_ERROR("SubNentry", rc);
+        return rc;
+    }
     return rc;
 }
 
@@ -326,48 +354,64 @@ CURVEFS_ERROR RenameOperator::UpdateMCTime(uint64_t inodeId) {
         LOG_ERROR("SyncAttr", rc);
         return rc;
     }
-    // CURVEFS_ERROR::OK
     return rc;
 }
 
 CURVEFS_ERROR RenameOperator::LinkDestParentInode() {
-    // Link action is unnecessary when met one of the following 2 conditions:
-    //   (1) source and destination under same directory
-    //   (2) destination already exist
-    //   (3) destination is not a directory
     if (!srcDentry_.has_type()) {
         LOG(ERROR) << "srcDentry_ not have type!"
                    << "Dentry: " << srcDentry_.ShortDebugString();
         return CURVEFS_ERROR::INTERNAL;
     }
-    if (FsFileType::TYPE_DIRECTORY != srcDentry_.type() ||
-        parentId_ == newParentId_ || oldInodeId_ != 0) {
-        UpdateMCTime(newParentId_);
-        return CURVEFS_ERROR::OK;
+
+    // AddNentry action is unnecessary when met one of the following 2 conditions:  // NOLINT
+    //   (1) source and destination under same directory
+    //   (2) destination already exist
+
+    // Link action is unnecessary when met one of the following 3 conditions:
+    //   (1) source is not a directory
+    //   (2) source and destination under same directory
+    //   (3) destination already exist
+
+    CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+    if (parentId_ == newParentId_ || oldInodeId_ != 0) {
+        return UpdateMCTime(newParentId_);
+    } else {
+        if (FsFileType::TYPE_DIRECTORY == srcDentry_.type()) {
+            // LinkInode will also AddNentry
+            rc = LinkInode(newParentId_);
+        } else {
+            rc = AddNentry(newParentId_);
+        }
     }
-    return LinkInode(newParentId_);
+    return rc;
 }
 
 CURVEFS_ERROR RenameOperator::UnlinkSrcParentInode() {
-    // UnLink action is unnecessary when met the following 2 conditions:
-    //   (1) source and destination under same directory
-    //   (2) destination not exist
-    // or
-    //    source is not a directory
     if (!srcDentry_.has_type()) {
         LOG(ERROR) << "srcDentry_ not have type!"
                    << "Dentry: " << srcDentry_.ShortDebugString();
         return CURVEFS_ERROR::INTERNAL;
     }
-    if (FsFileType::TYPE_DIRECTORY != srcDentry_.type() ||
-        (parentId_ == newParentId_ && oldInodeId_ == 0)) {
-        if (parentId_ != newParentId_) {
-            UpdateMCTime(parentId_);
+
+    // SubNentry action is unnecessary when met the following conditions:
+    //    source and destination under same directory && destination not exist
+
+    // UnLink action is unnecessary when met the following 2 conditions:
+    //   (1) source is not a directory
+    //   (2) source and destination under same directory && destination not exist  // NOLINT
+    CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+    if (parentId_ == newParentId_ && oldInodeId_ == 0) {
+        // do nothing
+    } else {
+        if (FsFileType::TYPE_DIRECTORY == srcDentry_.type()) {
+            // UnLinkInode will also SubNentry
+            rc =  UnLinkInode(parentId_);
+            LOG(INFO) << "Unlink source parent inode, retCode = " << rc;
+        } else {
+            rc =  SubNentry(parentId_);
         }
-        return CURVEFS_ERROR::OK;
     }
-    auto rc = UnLinkInode(parentId_);
-    LOG(INFO) << "Unlink source parent inode, retCode = " << rc;
     return rc;
 }
 

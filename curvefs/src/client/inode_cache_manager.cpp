@@ -170,13 +170,14 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
 }
 
 CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
-                                                  InodeAttr *out) {
+                                                  InodeAttr *out,
+                                                  bool refreshNlinkAndNentry) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
     // 1. find in icache
     std::shared_ptr<InodeWrapper> inodeWrapper;
     bool ok = iCache_->Get(inodeId, &inodeWrapper);
     if (ok) {
-        inodeWrapper->GetInodeAttrLocked(out);
+        inodeWrapper->GetInodeAttrLocked(out, refreshNlinkAndNentry);
         return CURVEFS_ERROR::OK;
     }
 

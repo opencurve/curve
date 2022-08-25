@@ -41,21 +41,18 @@
 #include "src/common/timeutility.h"
 
 using ::curvefs::metaserver::Inode;
-using ::curvefs::metaserver::InodeOpenStatusChange;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::metaserver::S3ChunkInfo;
 
 namespace curvefs {
 namespace client {
 
-#define REFRESH_NLINK_IF_NEED               \
-do {                                        \
-    if (!isNlinkValid_) {                   \
-        CURVEFS_ERROR ret = RefreshNlink(); \
-        if (ret != CURVEFS_ERROR::OK) {     \
-            return ret;                     \
-        }                                   \
-    }                                       \
+#define REFRESH_NLINK_AND_NENTRY                    \
+do {                                                \
+    CURVEFS_ERROR ret = RefreshNlinkAndNentry();    \
+    if (ret != CURVEFS_ERROR::OK) {                 \
+        return ret;                                 \
+    }                                               \
 } while (0)
 
 using ::curvefs::metaserver::VolumeExtentList;
@@ -89,7 +86,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
                  uint32_t refreshDataInterval = UINT_MAX)
         : inode_(inode),
           status_(InodeStatus::Normal),
-          isNlinkValid_(true),
           metaClient_(metaClient),
           s3ChunkInfoMetric_(s3ChunkInfoMetric),
           dirty_(false),
@@ -110,7 +106,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
                  uint32_t refreshDataInterval = UINT_MAX)
         : inode_(std::move(inode)),
           status_(InodeStatus::Normal),
-          isNlinkValid_(true),
           metaClient_(metaClient),
           s3ChunkInfoMetric_(s3ChunkInfoMetric),
           dirty_(false),
@@ -211,43 +206,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return &inode_;
     }
 
-    CURVEFS_ERROR GetInodeAttrUnlocked(InodeAttr *attr) {
-        REFRESH_NLINK_IF_NEED;
+    CURVEFS_ERROR GetInodeAttrUnlocked(InodeAttr *attr,
+        bool refreshNlinkNentry = false);
 
-        attr->set_inodeid(inode_.inodeid());
-        attr->set_fsid(inode_.fsid());
-        attr->set_length(inode_.length());
-        attr->set_ctime(inode_.ctime());
-        attr->set_ctime_ns(inode_.ctime_ns());
-        attr->set_mtime(inode_.mtime());
-        attr->set_mtime_ns(inode_.mtime_ns());
-        attr->set_atime(inode_.atime());
-        attr->set_atime_ns(inode_.atime_ns());
-        attr->set_uid(inode_.uid());
-        attr->set_gid(inode_.gid());
-        attr->set_mode(inode_.mode());
-        attr->set_nlink(inode_.nlink());
-        attr->set_type(inode_.type());
-        *(attr->mutable_parent()) = inode_.parent();
-        if (inode_.has_symlink()) {
-            attr->set_symlink(inode_.symlink());
-        }
-        if (inode_.has_rdev()) {
-            attr->set_rdev(inode_.rdev());
-        }
-        if (inode_.has_dtime()) {
-            attr->set_dtime(inode_.dtime());
-        }
-        if (inode_.xattr_size() > 0) {
-            *(attr->mutable_xattr()) = inode_.xattr();
-        }
-        return CURVEFS_ERROR::OK;
-    }
-
-    void GetInodeAttrLocked(InodeAttr *attr) {
-        curve::common::UniqueLock lg(mtx_);
-        GetInodeAttrUnlocked(attr);
-    }
+    void GetInodeAttrLocked(InodeAttr *attr, bool refreshNlinkNentry = false);
 
     void GetXattrLocked(XAttr *xattr) {
         curve::common::UniqueLock lg(mtx_);
@@ -277,20 +239,11 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     CURVEFS_ERROR UnLinkLocked(uint64_t parent = 0);
 
-    // mark nlink invalid, need to refresh from metaserver
-    void InvalidateNlink() {
-        isNlinkValid_ = false;
-    }
+    CURVEFS_ERROR AddNentry();
 
-    void ResetNlinkValid() {
-        isNlinkValid_ = true;
-    }
+    CURVEFS_ERROR SubNentry();
 
-    bool IsNlinkValid() {
-        return isNlinkValid_;
-    }
-
-    CURVEFS_ERROR RefreshNlink();
+    CURVEFS_ERROR RefreshNlinkAndNentry();
 
     CURVEFS_ERROR Sync(bool internal = false);
 
@@ -333,6 +286,22 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     bool S3ChunkInfoEmptyNolock() {
         return s3ChunkInfoAdd_.empty();
+    }
+
+    uint32_t GetNlinkLocked() {
+        return inode_.nlink();
+    }
+
+    void UpdateNlinkLocked(uint32_t nlink) {
+        inode_.set_nlink(inode_.nlink() + nlink);
+    }
+
+    uint32_t GetNentryLocked() {
+        return inode_.nentry();
+    }
+
+    void UpdateNentryLocked(uint32_t nentry) {
+        inode_.set_nentry(inode_.nentry() + nentry);
     }
 
     void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
@@ -402,8 +371,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     }
 
  private:
-    CURVEFS_ERROR UpdateInodeStatus(InodeOpenStatusChange statusChange);
-
     CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
     int64_t CalS3ChunkInfoSize() {
@@ -456,8 +423,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     uint64_t maxDataSize_;
     uint32_t refreshDataInterval_;
     uint64_t lastRefreshTime_;
-
-    bool isNlinkValid_;
 
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
     int64_t s3ChunkInfoAddSize_;
