@@ -304,7 +304,8 @@ void FuseS3Client::WarmUpAllObjs(
             context->cb = cb;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
         }
-        cond.Wait();
+        if (pendingReq.load())
+            cond.Wait();
     }
 }
 
