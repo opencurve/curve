@@ -306,9 +306,9 @@ def test_kill_process(process_name,num=1):
 def test_start_process(process_name,host=None):
     try:
         if host == None:
-            cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
+            cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
         else:
-            cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s --host=%s"%(process_name,host)
+            cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm start --role=%s --host=%s"%(process_name,host)
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"start %s fail"%process_name
     except Exception as e:
