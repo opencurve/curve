@@ -29,6 +29,7 @@
 #include <memory>
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/strings/str_cat.h"
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/dumpfile.h"
 
@@ -82,9 +83,7 @@ static ENTRY_TYPE Str2Type(const std::string& s) {
 static std::string InternalKey(ENTRY_TYPE t,
                                uint32_t partitionId,
                                const std::string& ukey) {
-    std::ostringstream oss;
-    oss << Type2Str(t) << partitionId << ":" << ukey;
-    return oss.str();
+    return absl::StrCat(Type2Str(t), partitionId, ":", ukey);
 }
 
 static std::pair<std::string, std::string> UserKey(const std::string& ikey) {
