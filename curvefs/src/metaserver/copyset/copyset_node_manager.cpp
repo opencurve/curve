@@ -23,13 +23,19 @@
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 
 #include <brpc/server.h>
+#include <glog/logging.h>
 
+#include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
+#include "curvefs/src/metaserver/common/types.h"
 #include "curvefs/src/metaserver/copyset/copyset_reloader.h"
 #include "curvefs/src/metaserver/copyset/raft_cli_service2.h"
+#include "curvefs/src/metaserver/copyset/types.h"
 #include "curvefs/src/metaserver/copyset/utils.h"
+#include "src/common/concurrent/generic_name_lock.h"
 #include "src/common/timeutility.h"
 
 namespace curvefs {
@@ -37,6 +43,7 @@ namespace metaserver {
 namespace copyset {
 
 using ::curve::common::TimeUtility;
+using NameLockGuard = curve::common::GenericNameLockGuard<bthread::Mutex>;
 
 bool CopysetNodeManager::IsLoadFinished() const {
     return loadFinished_.load(std::memory_order_acquire);
@@ -197,6 +204,38 @@ int CopysetNodeManager::IsCopysetNodeExist(
     return 1;
 }
 
+bool CopysetNodeManager::CreateCopysetInternal(PoolId poolId,
+                                               CopysetId copysetId,
+                                               braft::GroupId&& groupId,
+                                               const braft::Configuration& conf,
+                                               bool removeData) {
+    auto node =
+        std::make_shared<CopysetNode>(poolId, copysetId, conf, this);
+    if (!node->Init(options_)) {
+        LOG(WARNING) << "Copyset " << ToGroupIdString(poolId, copysetId)
+                     << "init failed";
+        return false;
+    }
+
+    if (!node->Start()) {
+        DeleteCopysetNodeInternal(poolId, copysetId, removeData);
+        LOG(WARNING) << "Copyset " << ToGroupIdString(poolId, copysetId)
+                     << " start failed";
+        return false;
+    }
+
+    {
+        WriteLockGuard lock(lock_);
+        auto ret = copysets_.emplace(std::move(groupId), std::move(node));
+        CHECK(ret.second) << "Copyset " << ToGroupIdString(poolId, copysetId)
+                          << " already exists, unexpected";
+    }
+
+    LOG(INFO) << "Create copyset success "
+              << ToGroupIdString(poolId, copysetId);
+    return true;
+}
+
 bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
                                            const braft::Configuration& conf,
                                            bool checkLoadFinish) {
@@ -207,42 +246,28 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
     }
 
     braft::GroupId groupId = ToGroupId(poolId, copysetId);
-    std::shared_ptr<CopysetNode> copysetNode;
+    NameLockGuard guard(creatingCopysetLock_, groupId, std::try_to_lock);
+
+    if (!guard.OwnsLock()) {
+        LOG(WARNING) << "Copyset " << ToGroupIdString(poolId, copysetId)
+                     << " is in creating";
+        return false;
+    }
 
     {
-        WriteLockGuard lock(lock_);
+        ReadLockGuard lock(lock_);
         if (copysets_.count(groupId) != 0) {
             LOG(WARNING) << "Copyset node already exists: "
                          << ToGroupIdString(poolId, copysetId);
             return false;
         }
-
-        copysetNode =
-            std::make_shared<CopysetNode>(poolId, copysetId, conf, this);
-        if (!copysetNode->Init(options_)) {
-            LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
-                       << "init failed";
-            return false;
-        }
-
-        copysets_.emplace(groupId, copysetNode);
     }
 
-    // node start maybe time-consuming
-    if (!copysetNode->Start()) {
-        // checkLoadFinish equals to false when reloading copysets after a
-        // restart, in this case we should not automaticaly remove copyset's
-        // data
-        const bool removeData = checkLoadFinish;
-        DeleteCopysetNodeInternal(poolId, copysetId, removeData);
-        LOG(ERROR) << "Copyset " << ToGroupIdString(poolId, copysetId)
-                   << " start failed";
-        return false;
-    }
-
-    LOG(INFO) << "Create copyset success "
-              << ToGroupIdString(poolId, copysetId);
-    return true;
+    // checkLoadFinish equals to false when reloading copysets after a restart,
+    // in this case we should not automaticaly remove copyset's data
+    const bool removeData = checkLoadFinish;
+    return CreateCopysetInternal(poolId, copysetId, std::move(groupId), conf,
+                                 removeData);
 }
 
 void CopysetNodeManager::GetAllCopysets(

@@ -22,17 +22,15 @@
 
 #include "curvefs/src/metaserver/copyset/utils.h"
 
-#include <sstream>
+#include "absl/strings/str_cat.h"
 
 namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
 std::string ToGroupIdString(PoolId poolId, CopysetId copysetId) {
-    std::ostringstream oss;
-    oss << "(" << poolId << ", " << copysetId << ", "
-        << ToGroupId(poolId, copysetId) << ")";
-    return oss.str();
+    return absl::StrCat("(", poolId, ",", copysetId, ",",
+                        ToGroupNid(poolId, copysetId), ")");
 }
 
 }  // namespace copyset

@@ -32,6 +32,7 @@
 #include "curvefs/src/metaserver/common/types.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 #include "curvefs/src/metaserver/copyset/types.h"
+#include "src/common/concurrent/generic_name_lock.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -96,6 +97,12 @@ class CopysetNodeManager {
     bool DeleteCopysetNodeInternal(PoolId poolId, CopysetId copysetId,
                                    bool removeData);
 
+    bool CreateCopysetInternal(PoolId poolId,
+                               CopysetId copysetId,
+                               braft::GroupId&& groupId,
+                               const braft::Configuration& conf,
+                               bool removeData);
+
  private:
     using CopysetNodeMap =
         std::unordered_map<braft::GroupId, std::shared_ptr<CopysetNode>>;
@@ -114,6 +121,10 @@ class CopysetNodeManager {
     CopysetNodeMap copysets_;
 
     CopysetTrash trash_;
+
+    // in the progress of creating copysets, each copyset will hold a lock
+    // named by its group-id.
+    curve::common::GenericNameLock<bthread::Mutex> creatingCopysetLock_;
 };
 
 }  // namespace copyset

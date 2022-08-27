@@ -23,6 +23,7 @@
 #ifndef SRC_COMMON_CONCURRENT_GENERIC_NAME_LOCK_H_
 #define SRC_COMMON_CONCURRENT_GENERIC_NAME_LOCK_H_
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -93,27 +94,36 @@ class GenericNameLockGuard {
     GenericNameLockGuard(GenericNameLock<MutexT> &lock, const std::string &lockStr) :  //NOLINT
         lock_(lock),
         lockStr_(lockStr),
-        release_(false) {
+        owns_(true) {
         lock_.Lock(lockStr_);
     }
+
+    GenericNameLockGuard(GenericNameLock<MutexT>& lock,
+                         const std::string& lockStr,
+                         std::try_to_lock_t /*t*/)
+        : lock_(lock), lockStr_(lockStr), owns_(lock.TryLock(lockStr_)) {}
 
     GenericNameLockGuard(const GenericNameLockGuard&) = delete;
     GenericNameLockGuard& operator=(const GenericNameLockGuard&) = delete;
 
     ~GenericNameLockGuard() {
-        if (!release_) {
+        if (owns_) {
             lock_.Unlock(lockStr_);
         }
     }
 
+    bool OwnsLock() const {
+        return owns_;
+    }
+
     void Release() {
-        release_ = true;
+        owns_ = false;
     }
 
  private:
     GenericNameLock<MutexT> &lock_;
     std::string lockStr_;
-    bool release_;
+    bool owns_;
 };
 
 }   // namespace common
