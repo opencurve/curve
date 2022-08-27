@@ -69,16 +69,16 @@ class GenericNameLock  {
 
  private:
     struct LockEntry {
-        Atomic<uint32_t> ref_;
+        Atomic<uint32_t> ref_{1};
         MutexT lock_;
     };
-    using LockEntryPtr = std::shared_ptr<LockEntry>;
+    using LockEntryPtr = LockEntry*;
 
     struct LockBucket {
         MutexT mu;
-        std::unordered_map<std::string, LockEntryPtr> lockMap;
+        std::unordered_map<std::string, std::unique_ptr<LockEntry>> lockMap;
     };
-    using LockBucketPtr = std::shared_ptr<LockBucket>;
+    using LockBucketPtr = std::unique_ptr<LockBucket>;
 
     using LockGuard = std::lock_guard<MutexT>;
 
@@ -98,7 +98,7 @@ class GenericNameLockGuard {
         lock_.Lock(lockStr_);
     }
 
-    GenericNameLockGuard(GenericNameLock<MutexT>& lock,
+    GenericNameLockGuard(GenericNameLock<MutexT>& lock,  // NOLINT[runtime/references]
                          const std::string& lockStr,
                          std::try_to_lock_t /*t*/)
         : lock_(lock), lockStr_(lockStr), owns_(lock.TryLock(lockStr_)) {}

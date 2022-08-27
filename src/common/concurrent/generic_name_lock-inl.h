@@ -26,6 +26,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include "src/common/concurrent/concurrent.h"
 
 namespace curve {
 namespace common {
@@ -34,26 +35,26 @@ template <typename MutexT>
 GenericNameLock<MutexT>::GenericNameLock(int bucketNum) {
     locks_.reserve(bucketNum);
     for (int i = 0; i < bucketNum; i++) {
-        locks_.push_back(std::make_shared<LockBucket>());
+        locks_.push_back(std::unique_ptr<LockBucket>(new LockBucket()));
     }
 }
 
 template <typename MutexT>
 void GenericNameLock<MutexT>::Lock(const std::string &lockStr) {
-    LockEntryPtr entry = NULL;
+    LockEntryPtr entry = nullptr;
 
     int bucketOffset = GetBucketOffset(lockStr);
-    LockBucketPtr lockBucket = locks_[bucketOffset];
+    auto* lockBucket = locks_[bucketOffset].get();
 
     {
         LockGuard guard(lockBucket->mu);
         auto it = lockBucket->lockMap.find(lockStr);
         if (it == lockBucket->lockMap.end()) {
-            entry = std::make_shared<LockEntry>();
-            entry->ref_.store(1);
-            lockBucket->lockMap.emplace(lockStr, entry);
+            std::unique_ptr<LockEntry> e(new LockEntry());
+            entry = e.get();
+            lockBucket->lockMap.emplace(lockStr, std::move(e));
         } else {
-            entry = it->second;
+            entry = it->second.get();
             entry->ref_.fetch_add(1);
         }
     }
@@ -62,20 +63,20 @@ void GenericNameLock<MutexT>::Lock(const std::string &lockStr) {
 
 template <typename MutexT>
 bool GenericNameLock<MutexT>::TryLock(const std::string &lockStr) {
-    LockEntryPtr entry = NULL;
+    LockEntryPtr entry = nullptr;
 
     int bucketOffset = GetBucketOffset(lockStr);
-    LockBucketPtr lockBucket = locks_[bucketOffset];
+    auto* lockBucket = locks_[bucketOffset].get();
 
     {
         LockGuard guard(lockBucket->mu);
         auto it = lockBucket->lockMap.find(lockStr);
         if (it == lockBucket->lockMap.end()) {
-            entry = std::make_shared<LockEntry>();
-            entry->ref_.store(1);
-            lockBucket->lockMap.emplace(lockStr, entry);
+            std::unique_ptr<LockEntry> e(new LockEntry());
+            entry = e.get();
+            lockBucket->lockMap.emplace(lockStr, std::move(e));
         } else {
-            entry = it->second;
+            entry = it->second.get();
             entry->ref_.fetch_add(1);
         }
     }
@@ -93,12 +94,12 @@ bool GenericNameLock<MutexT>::TryLock(const std::string &lockStr) {
 template <typename MutexT>
 void GenericNameLock<MutexT>::Unlock(const std::string &lockStr) {
     int bucketOffset = GetBucketOffset(lockStr);
-    LockBucketPtr lockBucket = locks_[bucketOffset];
+    auto* lockBucket = locks_[bucketOffset].get();
 
     LockGuard guard(lockBucket->mu);
     auto it = lockBucket->lockMap.find(lockStr);
     if (it != lockBucket->lockMap.end()) {
-        LockEntryPtr entry = it->second;
+        LockEntryPtr entry = it->second.get();
         entry->lock_.unlock();
         if (entry->ref_.fetch_sub(1) == 1) {
             lockBucket->lockMap.erase(it);
