@@ -79,7 +79,7 @@ void MetaCache::GetAllTxIds(std::vector<PartitionTxId> *txIds) {
 
 bool MetaCache::RefreshTxId() {
     std::vector<PartitionTxId> txIds;
-    FSStatusCode rc = mdsClient_->GetLatestTxId(&txIds);
+    FSStatusCode rc = mdsClient_->GetLatestTxId(fsID_, &txIds);
     if (rc != FSStatusCode::OK) {
         LOG(ERROR) << "Get latest txid failed, retCode=" << rc;
         return false;
