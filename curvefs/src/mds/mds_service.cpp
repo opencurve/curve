@@ -327,7 +327,9 @@ void MdsServiceImpl::GetLatestTxId(
     GetLatestTxIdResponse* response,
     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
+    VLOG(3) << "GetLatestTxId [request]: " << request->DebugString();
     fsManager_->GetLatestTxId(request, response);
+    VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
 }
 
 void MdsServiceImpl::CommitTx(::google::protobuf::RpcController* controller,
@@ -335,7 +337,9 @@ void MdsServiceImpl::CommitTx(::google::protobuf::RpcController* controller,
                               CommitTxResponse* response,
                               ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
+    VLOG(3) << "CommitTx [request]: " << request->DebugString();
     fsManager_->CommitTx(request, response);
+    VLOG(3) << "CommitTx [response]: " << request->DebugString();
 }
 
 }  // namespace mds

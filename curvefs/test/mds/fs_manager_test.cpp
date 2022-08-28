@@ -69,6 +69,7 @@ using ::curvefs::mds::topology::TopologyImpl;
 using ::curvefs::mds::topology::CreatePartitionRequest;
 using ::curvefs::mds::topology::CreatePartitionResponse;
 using ::curvefs::mds::topology::TopoStatusCode;
+using ::curvefs::mds::topology::FsIdType;
 using ::curvefs::metaserver::copyset::MockCliService2;
 using ::curvefs::metaserver::copyset::GetLeaderResponse2;
 using ::curve::common::MockS3Adapter;
@@ -727,6 +728,42 @@ TEST_F(FSManagerTest, test_refreshSession) {
         *request.mutable_mountpoint() = mountpoint;
         fsManager_->RefreshSession(&request, &response);
         ASSERT_EQ(0, response.latesttxidlist_size());
+    }
+}
+
+TEST_F(FSManagerTest, GetLatestTxId_ParamFsId) {
+    // CASE 1: GetLatestTxId without fsid param
+    {
+        GetLatestTxIdRequest request;
+        GetLatestTxIdResponse response;
+        fsManager_->GetLatestTxId(&request, &response);
+        ASSERT_EQ(response.statuscode(), FSStatusCode::PARAM_ERROR);
+    }
+
+    // CASE 2: GetLatestTxId with fsid
+    {
+        GetLatestTxIdRequest request;
+        GetLatestTxIdResponse response;
+        request.set_fsid(1);
+        EXPECT_CALL(*topoManager_, ListPartitionOfFs(_, _))
+            .WillOnce(Invoke([&](FsIdType fsId,
+                                 std::list<PartitionInfo>* list) {
+                if (fsId != 1) {
+                    return;
+                }
+                PartitionInfo partition;
+                partition.set_fsid(0);
+                partition.set_poolid(0);
+                partition.set_copysetid(0);
+                partition.set_partitionid(0);
+                partition.set_start(0);
+                partition.set_end(0);
+                partition.set_txid(0);
+                list->push_back(partition);
+            }));
+        fsManager_->GetLatestTxId(&request, &response);
+        ASSERT_EQ(response.statuscode(), FSStatusCode::OK);
+        ASSERT_EQ(response.txids_size(), 1);
     }
 }
 
