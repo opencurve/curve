@@ -112,7 +112,8 @@ class MdsClient {
                    const std::string& fsName,
                    const Mountpoint& mountpoint) = 0;
 
-    virtual FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) = 0;
+    virtual FSStatusCode GetLatestTxId(uint32_t fsId,
+                                       std::vector<PartitionTxId>* txIds) = 0;
 
     virtual FSStatusCode
     GetLatestTxIdWithLock(uint32_t fsId,
@@ -196,7 +197,8 @@ class MdsClientImpl : public MdsClient {
                                 const std::string& fsName,
                                 const Mountpoint& mountpoint) override;
 
-    FSStatusCode GetLatestTxId(std::vector<PartitionTxId>* txIds) override;
+    FSStatusCode GetLatestTxId(uint32_t fsId,
+                               std::vector<PartitionTxId>* txIds) override;
 
     FSStatusCode
     GetLatestTxIdWithLock(uint32_t fsId,

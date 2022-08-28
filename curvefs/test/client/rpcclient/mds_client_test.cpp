@@ -440,22 +440,40 @@ TEST_F(MdsClientImplTest, CommitTxWithLock) {
 
 TEST_F(MdsClientImplTest, GetLatestTxId) {
     std::vector<PartitionTxId> txIds;
+    uint32_t fsId = 1;
 
     // CASE 1: GetLatestTxId success
-    GetLatestTxIdResponse response;
-    response.set_statuscode(FSStatusCode::OK);
     EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
-        .WillOnce(SetArgPointee<1>(response));
+        .WillOnce(
+            Invoke([&](const GetLatestTxIdRequest& request,
+                       GetLatestTxIdResponse* response,
+                       brpc::Controller *cntl,
+                       brpc::Channel *channel) {
+                if (request.fsid() != fsId) {
+                    response->set_statuscode(FSStatusCode::PARAM_ERROR);
+                } else {
+                    response->set_statuscode(FSStatusCode::OK);
+                }
+            }));
 
-    auto rc = mdsclient_.GetLatestTxId(&txIds);
+    auto rc = mdsclient_.GetLatestTxId(fsId, &txIds);
     ASSERT_EQ(rc, FSStatusCode::OK);
 
     // CASE 2: GetLatestTxId fail
-    response.set_statuscode(FSStatusCode::UNKNOWN_ERROR);
     EXPECT_CALL(mockmdsbasecli_, GetLatestTxId(_, _, _, _))
-        .WillOnce(SetArgPointee<1>(response));
+        .WillOnce(
+            Invoke([&](const GetLatestTxIdRequest& request,
+                       GetLatestTxIdResponse* response,
+                       brpc::Controller *cntl,
+                       brpc::Channel *channel) {
+                if (request.fsid() != fsId) {
+                    response->set_statuscode(FSStatusCode::PARAM_ERROR);
+                } else {
+                    response->set_statuscode(FSStatusCode::UNKNOWN_ERROR);
+                }
+            }));
 
-    rc = mdsclient_.GetLatestTxId(&txIds);
+    rc = mdsclient_.GetLatestTxId(fsId, &txIds);
     ASSERT_EQ(rc, FSStatusCode::UNKNOWN_ERROR);
 
     // CASE 3: RPC error, retry until success
@@ -467,14 +485,16 @@ TEST_F(MdsClientImplTest, GetLatestTxId) {
                        GetLatestTxIdResponse* response,
                        brpc::Controller *cntl,
                        brpc::Channel *channel) {
-                if (++count <= 5) {
+                if (request.fsid() != fsId) {
+                    response->set_statuscode(FSStatusCode::PARAM_ERROR);
+                } else if (++count <= 5) {
                     cntl->SetFailed(112, "Not connected to");
                 } else {
                     response->set_statuscode(FSStatusCode::OK);
                 }
             }));
 
-    rc = mdsclient_.GetLatestTxId(&txIds);
+    rc = mdsclient_.GetLatestTxId(fsId, &txIds);
     ASSERT_EQ(rc, FSStatusCode::OK);
 }
 
