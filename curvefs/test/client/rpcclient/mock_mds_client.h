@@ -63,8 +63,9 @@ class MockMdsClient : public MdsClient {
     MOCK_METHOD2(AllocS3ChunkId,
                  FSStatusCode(uint32_t fsId, uint64_t* chunkId));
 
-    MOCK_METHOD1(GetLatestTxId,
-                 FSStatusCode(std::vector<PartitionTxId>* txIds));
+    MOCK_METHOD2(GetLatestTxId,
+                 FSStatusCode(uint32_t fsId,
+                              std::vector<PartitionTxId>* txIds));
 
     MOCK_METHOD5(GetLatestTxIdWithLock,
                  FSStatusCode(uint32_t fsId,
