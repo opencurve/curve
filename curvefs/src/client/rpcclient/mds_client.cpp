@@ -486,6 +486,7 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
 FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
                                           GetLatestTxIdResponse* response) {
     auto task = RPCTask {
+        VLOG(3) << "GetLatestTxId [request]: " << request.DebugString();
         mdsClientMetric_.getLatestTxId.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.getLatestTxId.latency);
         mdsbasecli_->GetLatestTxId(request, response, cntl, channel);
@@ -509,6 +510,8 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
             LOG(WARNING) << "GetLatestTxId fail, errcode = " << rc
                          << ", errmsg = " << FSStatusCode_Name(rc);
         }
+
+        VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
         return rc;
     };
 
@@ -518,6 +521,7 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
 
 FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
     auto task = RPCTask {
+        VLOG(3) << "CommitTx [request]: " << request.DebugString();
         mdsClientMetric_.commitTx.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.commitTx.latency);
         CommitTxResponse response;
@@ -542,15 +546,18 @@ FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
             LOG(WARNING) << "CommitTx: retCode = " << rc
                          << ", message = " << FSStatusCode_Name(rc);
         }
+        VLOG(3) << "CommitTx [response]: " << response.DebugString();
         return rc;
     };
     // for rpc error or get lock failed/timeout, we will retry until success
     return ReturnError(rpcexcutor_.DoRPCTask(task, 0));
 }
 
-FSStatusCode MdsClientImpl::GetLatestTxId(std::vector<PartitionTxId>* txIds) {
+FSStatusCode MdsClientImpl::GetLatestTxId(uint32_t fsId,
+                                          std::vector<PartitionTxId>* txIds) {
     GetLatestTxIdRequest request;
     GetLatestTxIdResponse response;
+    request.set_fsid(fsId);
     FSStatusCode rc = GetLatestTxId(request, &response);
     if (rc == FSStatusCode::OK) {
         *txIds = { response.txids().begin(), response.txids().end() };

@@ -808,6 +808,13 @@ FSStatusCode FsManager::GetFsTxSequence(const std::string& fsName,
 void FsManager::GetLatestTxId(const GetLatestTxIdRequest* request,
                               GetLatestTxIdResponse* response) {
     std::vector<PartitionTxId> txIds;
+    if (!request->has_fsid()) {
+        response->set_statuscode(FSStatusCode::PARAM_ERROR);
+        LOG(ERROR) << "Bad GetLatestTxId request which missing fsid"
+                   << ", request=" << request->DebugString();
+        return;
+    }
+
     uint32_t fsId = request->fsid();
     if (!request->lock()) {
         GetLatestTxId(fsId, &txIds);
