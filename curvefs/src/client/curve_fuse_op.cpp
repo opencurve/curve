@@ -244,6 +244,9 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
     case CURVEFS_ERROR::NODATA:
         fuse_reply_err(req, ENODATA);
         break;
+    case CURVEFS_ERROR::EXISTS:
+        fuse_reply_err(req, EEXIST);
+        break;
     default:
         fuse_reply_err(req, EIO);
         break;
