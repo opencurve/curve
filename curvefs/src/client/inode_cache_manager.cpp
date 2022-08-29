@@ -51,62 +51,6 @@ bool IsNotDirtyInode(const std::shared_ptr<InodeWrapper> &inode) {
     return !inode->IsDirty() && inode->S3ChunkInfoEmpty();
 }
 
-class UpdataInodeAsyncS3Done : public MetaServerClientDone {
- public:
-    explicit UpdataInodeAsyncS3Done(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper)
-        : inodeWrapper_(inodeWrapper) {}
-    ~UpdataInodeAsyncS3Done() {}
-
-    void Run() override {
-        std::unique_ptr<UpdataInodeAsyncS3Done> self_guard(this);
-        MetaStatusCode ret = GetStatusCode();
-        if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, "
-                       << "MetaStatusCode: " << ret
-                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
-                       << ", inodeid: " << inodeWrapper_->GetInodeId();
-            inodeWrapper_->MarkInodeError();
-        }
-        VLOG(9) << "inode " << inodeWrapper_->GetInodeId() << " async success.";
-        inodeWrapper_->ReleaseSyncingInode();
-        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
-    };
-
- private:
-    std::shared_ptr<InodeWrapper> inodeWrapper_;
-};
-
-class TrimICacheAsyncDone : public MetaServerClientDone {
- public:
-    explicit TrimICacheAsyncDone(
-        const std::shared_ptr<InodeWrapper> &inodeWrapper,
-        const std::shared_ptr<InodeCacheManagerImpl> &inodeCacheManager)
-        : inodeWrapper_(inodeWrapper), inodeCacheManager_(inodeCacheManager) {}
-    ~TrimICacheAsyncDone() {}
-
-    void Run() override {
-        std::unique_ptr<TrimICacheAsyncDone> self_guard(this);
-        MetaStatusCode ret = GetStatusCode();
-        if (ret != MetaStatusCode::OK && ret != MetaStatusCode::NOT_FOUND) {
-            LOG(ERROR) << "metaClient_ UpdateInode failed, "
-                       << "MetaStatusCode: " << ret
-                       << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
-                       << ", inodeid: " << inodeWrapper_->GetInodeId();
-            inodeWrapper_->MarkInodeError();
-        }
-        VLOG(9) << "trime inode " << inodeWrapper_->GetInodeId()
-                << " async success.";
-        inodeWrapper_->ReleaseSyncingInode();
-        inodeWrapper_->ReleaseSyncingS3ChunkInfo();
-        inodeCacheManager_->RemoveICache(inodeWrapper_);
-    };
-
- private:
-    std::shared_ptr<InodeWrapper> inodeWrapper_;
-    std::shared_ptr<InodeCacheManagerImpl> inodeCacheManager_;
-};
-
 CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     std::shared_ptr<InodeWrapper> &out) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
@@ -162,8 +106,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     if (eliminated) {
         VLOG(3) << "GetInode eliminate one inode, ino: "
                 << eliminatedOne->GetInodeId();
-        /* iCache does not evict inodes via put interface */
-        assert(0);
+        eliminatedOne->FlushAsync();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -338,8 +281,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
         eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
     }
     if (eliminated) {
-        /* iCache does not evict inodes via put interface */
-        assert(0);
+        eliminatedOne->FlushAsync();
     }
     return CURVEFS_ERROR::OK;
 }
@@ -394,8 +336,7 @@ void InodeCacheManagerImpl::FlushInodeOnce() {
     }
     for (auto it = temp_.begin(); it != temp_.end(); it++) {
         curve::common::UniqueLock ulk = it->second->GetUniqueLock();
-        auto *done = new UpdataInodeAsyncS3Done(it->second);
-        it->second->Async(done, true);
+        it->second->FlushAsync();
     }
 }
 
@@ -407,53 +348,33 @@ void InodeCacheManagerImpl::ReleaseCache(uint64_t parentId) {
 void InodeCacheManagerImpl::FlushInodeBackground() {
     LOG(INFO) << "flush thread is start.";
     while (!isStop_.load()) {
+        FlushInodeOnce();
+        sleeper_.wait_for(std::chrono::seconds(flushPeriodSec_));
         if (iCache_->Size() > maxCacheSize_) {
             TrimIcache(iCache_->Size() - maxCacheSize_);
         }
-        FlushInodeOnce();
-        sleeper_.wait_for(std::chrono::seconds(flushPeriodSec_));
     }
     LOG(INFO) << "flush thread is stop.";
-}
-
-void InodeCacheManagerImpl::RemoveICache(
-    const std::shared_ptr<InodeWrapper> &inode) {
-    if (!inode->IsDirty() && inode->S3ChunkInfoEmpty()) {
-        uint64_t inodeId = inode->GetInodeId();
-        NameLockGuard lock(nameLock_, std::to_string(inodeId));
-        ::curve::common::UniqueLock lgGuard = inode->GetUniqueLock();
-        VLOG(9) << "RemoveICache remove inode " << inodeId << " from iCache";
-        iCache_->Remove(inodeId);
-    }
 }
 
 void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
     std::shared_ptr<InodeWrapper> inodeWrapper;
     uint64_t inodeId;
-    VLOG(9) << "TrimIcache trimSize " << trimSize;
     while (trimSize > 0) {
-        bool ok = iCache_->GetLast(&inodeId, &inodeWrapper);
+        bool ok = iCache_->GetLast(&inodeId, &inodeWrapper, IsNotDirtyInode);
         if (ok) {
             NameLockGuard lock(nameLock_, std::to_string(inodeId));
             ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            if (inodeWrapper->IsDirty() ||
-                !inodeWrapper->S3ChunkInfoEmptyNolock()) {
-                VLOG(9) << "TrimIcache sync dirty inode " << inodeId;
-                dirtyMapMutex_.lock();
-                dirtyMap_.erase(inodeId);
-                dirtyMapMutex_.unlock();
-                auto *done =
-                    new TrimICacheAsyncDone(inodeWrapper, shared_from_this());
-                inodeWrapper->Async(done);
-            } else {
+            if (!inodeWrapper->IsDirty() &&
+                inodeWrapper->S3ChunkInfoEmptyNolock()) {
                 VLOG(9) << "TrimIcache remove inode " << inodeId
                         << " from iCache";
                 iCache_->Remove(inodeId);
+                trimSize--;
             }
-            trimSize--;
         } else {
-            LOG(ERROR) << "icache size " << iCache_->Size();
-            assert(0);
+            VLOG(9) << "iCache size " << iCache_->Size() << " wait inode flush";
+            break;
         }
     }
 }
