@@ -98,20 +98,18 @@ class MockMetaServerClient : public MetaServerClient {
                  MetaStatusCode(const Inode &inode,
                                 InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD4(UpdateInodeAttrWithOutNlink,
+    MOCK_METHOD3(UpdateInodeAttrWithOutNlink,
                  MetaStatusCode(const Inode &inode,
                                 InodeOpenStatusChange statusChange,
-                                S3ChunkInofMap *s3ChunkInfoAdd,
                                 bool internal));
 
     MOCK_METHOD3(UpdateInodeAttrAsync,
                  void(const Inode &inode, MetaServerClientDone *done,
                       InodeOpenStatusChange statusChange));
 
-    MOCK_METHOD4(UpdateInodeWithOutNlinkAsync,
+    MOCK_METHOD3(UpdateInodeAttrWithOutNlinkAsync,
                  void(const Inode &inode, MetaServerClientDone *done,
-                      InodeOpenStatusChange statusChange,
-                      S3ChunkInofMap *s3ChunkInfoAdd));
+                      InodeOpenStatusChange statusChange));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
         MetaServerClientDone *done));

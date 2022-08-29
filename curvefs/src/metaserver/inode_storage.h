@@ -50,7 +50,7 @@ using ::curvefs::metaserver::storage::Key4Inode;
 using ::curvefs::metaserver::storage::Converter;
 using ::curvefs::metaserver::storage::NameGenerator;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
-using Transaction = std::shared_ptr<StorageTransaction>;
+
 class InodeStorage {
  public:
     InodeStorage(std::shared_ptr<KVStorage> kvStorage,
@@ -148,19 +148,18 @@ class InodeStorage {
                                            uint64_t offset,
                                            VolumeExtentSlice* slice);
 
+ private:
+    bool UpdateInodeS3MetaSize(uint32_t fsId, uint64_t inodeId,
+                               uint64_t size4add, uint64_t size4del);
+
+    uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId);
+
     MetaStatusCode AddS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
         uint32_t fsId,
         uint64_t inodeId,
         uint64_t chunkIndex,
         const S3ChunkInfoList* list2add);
-
- private:
-    MetaStatusCode UpdateInodeS3MetaSize(Transaction txn, uint32_t fsId,
-                                         uint64_t inodeId, uint64_t size4add,
-                                         uint64_t size4del);
-
-    uint64_t GetInodeS3MetaSize(uint32_t fsId, uint64_t inodeId);
 
     MetaStatusCode DelS3ChunkInfoList(
         std::shared_ptr<StorageTransaction> txn,
