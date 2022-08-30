@@ -59,7 +59,7 @@ test fs mds loss package 5%
     test fs process loss package   mds   ${percent}
     check fuse mount success
     check fuse iops
-    [Teardown]	check fs cluster ok 
+    [Teardown]	wait fs cluster ok 
 
 test fs metaserver loss package 5%
     [Tags]    P1    base    first release   failover
@@ -135,13 +135,21 @@ inject fuse client mem stress 90%
     del mem stress   ${ssh}
     check fuse mount success
     check fuse iops
-    [Teardown]     del mem stress    ${ssh}
+    [Teardown]  wait fs cluster ok
 
 test metaserver copyset migrates out in
     [Tags]    P1    base    first release   failover
     test out metaserver copyset
     test in metaserver copyset
     check fuse mount success
+
+test ipmitool restart metaserver node
+   [Tags]    P1    base    first release   failover  ipmitool
+   test ipmitool restart metaserver
+   sleep  60
+   check fuse mount success
+   check fuse iops
+   [Teardown]   wait fs cluster ok
 
 test loop mount umount
     [Tags]    P0    base    first release   failover
@@ -171,7 +179,7 @@ inject kill all mds
     check fuse mount success
     check fuse iops
     check fs cluster ok
-    [Teardown]    test start process  mds
+    [Teardown]    wait fs cluster ok
 
 inject kill two metaserver
     [Tags]    P1    base    first release   failover
@@ -183,7 +191,7 @@ inject kill two metaserver
     check fuse mount success
     check fuse iops
     check fs cluster ok
-    [Teardown]    test start process  metaserver
+    [Teardown]    wait fs cluster ok
 
 inject kill all metaserver
     [Tags]    P1    base    first release   failover
@@ -195,7 +203,7 @@ inject kill all metaserver
     check fuse mount success
     check fuse iops
     check fs cluster ok
-    [Teardown]    test start process  metaserver
+    [Teardown]   wait fs cluster ok
 
 inject kill two etcd
     [Tags]    P1    base    first release   failover
@@ -247,7 +255,7 @@ check umount date consistency
     sleep  60
     check test dir file md5
     check cto dir file md5  test5
-#    [Teardown]   mount test dir
+#    [Teardown]   wait fs cluster ok
 
 *** Keywords ***
 
