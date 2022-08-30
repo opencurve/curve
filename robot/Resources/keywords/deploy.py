@@ -313,7 +313,7 @@ def destroy_curvefs():
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"checkout fail"
         for mountpoint in config.fs_mount_dir:
-            cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+            cmd = "/home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
             shell_operator.ssh_exec(ssh, cmd)
         cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm stop"
         ret = shell_operator.run_exec(cmd)
@@ -371,10 +371,10 @@ def mount_test_dir(mountpoint="",mountfile=""):
         if mountpoint == "":
             for mountpoint in config.fs_mount_dir:
                 if config.fs_use_curvebs:
-                    cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-bs-%s.yaml \
+                    cmd = "/home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-bs-%s.yaml \
                              --fstype volume"%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
                 else:    
-                    cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml\
+                    cmd = "/home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml\
                             "%(mountpoint,config.fs_mount_path,mountpoint,mountpoint)
                 rs = shell_operator.ssh_exec(ssh, cmd)
                 assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
@@ -382,10 +382,10 @@ def mount_test_dir(mountpoint="",mountfile=""):
             if mountfile == "":
                 mountfile = mountpoint
             if config.fs_use_curvebs:
-                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-bs-%s.yaml \
+                cmd = "/home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-bs-%s.yaml \
                         --fstype volume"%(mountpoint,config.fs_mount_path,mountfile,mountfile)
             else:
-                cmd = "sudo /home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml\
+                cmd = "/home/nbs/.curveadm/bin/curveadm mount %s %s%s -c client-%s.yaml\
                         "%(mountpoint,config.fs_mount_path,mountfile,mountfile)
             rs = shell_operator.ssh_exec(ssh, cmd)
             assert rs[3] == 0,"mount %s dir fail,error is %s"%(mountpoint,rs[2])
@@ -399,11 +399,11 @@ def umount_test_dir(mountpoint=""):
         ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
         if mountpoint == "":
             for mountpoint in config.fs_mount_dir:
-                cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+                cmd = "/home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
                 rs = shell_operator.ssh_exec(ssh, cmd)
                 assert rs[3] == 0,"umount %s dir fail,error is %s"%(mountpoint,rs[2])
         else:
-            cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
+            cmd = "/home/nbs/.curveadm/bin/curveadm umount %s%s"%(config.fs_mount_path,mountpoint)
             rs = shell_operator.ssh_exec(ssh, cmd)
             assert rs[3] == 0,"umount %s dir fail,error is %s"%(mountpoint,rs[2])
     except Exception:

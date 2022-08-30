@@ -306,9 +306,9 @@ def test_kill_process(process_name,num=1):
 def test_start_process(process_name,host=None):
     try:
         if host == None:
-            cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
+            cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm start --role=%s"%process_name
         else:
-            cmd = "/home/nbs/.curveadm/bin/curveadm start --role=%s --host=%s"%(process_name,host)
+            cmd = "echo 'yes' | /home/nbs/.curveadm/bin/curveadm start --role=%s --host=%s"%(process_name,host)
         ret = shell_operator.run_exec(cmd)
         assert ret == 0 ,"start %s fail"%process_name
     except Exception as e:
@@ -575,7 +575,7 @@ def mount_umount_test():
         time.sleep(30)
         check_fuse_mount_success(test_dir)
         multi_mdtest_exec(ssh,test_dir[0])
-        ori_cmd = "sudo /home/nbs/.curveadm/bin/curveadm umount " + config.fs_mount_path + test_dir[0]
+        ori_cmd = "/home/nbs/.curveadm/bin/curveadm umount " + config.fs_mount_path + test_dir[0]
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"umount %s fail,error is %s"%(test_dir,rs[1])
         wait_fuse_exit(test_dir[0])
