@@ -180,9 +180,12 @@ void S3Adapter::Init(const S3AdapterOption& option) {
         option.maxAsyncRequestInflightBytes == 0
             ? UINT64_MAX
             : option.maxAsyncRequestInflightBytes));
+    asyncCallbackTP_.Start(option.asyncThreadNum);
 }
 
 void S3Adapter::Deinit() {
+    // wait for all previous async requests finished
+    asyncCallbackTP_.Stop();
     // delete s3client in s3adapter
     if (clientCfg_ != nullptr) {
         Aws::Delete<Aws::S3Crt::ClientConfiguration>(clientCfg_);
@@ -340,16 +343,16 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         AWS_ALLOCATE_TAG, context->buffer, context->bufferSize));
 
     auto originCallback = context->cb;
-    auto wrapperCallback =
+    auto throttledCallback =
         [this,
-         originCallback](const std::shared_ptr<PutObjectAsyncContext>& ctx) {
+         originCallback](const std::shared_ptr<PutObjectAsyncContext> ctx) {
             inflightBytesThrottle_->OnComplete(ctx->bufferSize);
             ctx->cb = originCallback;
             ctx->cb(ctx);
         };
 
     Aws::S3Crt::PutObjectResponseReceivedHandler handler =
-        [context](
+        [this, context](
             const Aws::S3Crt::S3CrtClient * /*client*/,
             const Aws::S3Crt::Model::PutObjectRequest & /*request*/,
             const Aws::S3Crt::Model::PutObjectOutcome &response,
@@ -367,7 +370,7 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
                 << "resend: " << ctx->key;
 
             ctx->retCode = (response.IsSuccess() ? 0 : -1);
-            ctx->cb(ctx);
+            asyncCallbackTP_.Enqueue(ctx->cb, ctx);
         };
 
     if (throttle_) {
@@ -375,7 +378,7 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
     }
 
     inflightBytesThrottle_->OnStart(context->bufferSize);
-    context->cb = std::move(wrapperCallback);
+    context->cb = std::move(throttledCallback);
     s3Client_->PutObjectAsync(request, handler, context);
 }
 
@@ -440,10 +443,10 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
     });
 
     auto originCallback = context->cb;
-    auto wrapperCallback =
+    auto throttledCallback =
         [this, originCallback](
             const S3Adapter* /*adapter*/,
-            const std::shared_ptr<GetObjectAsyncContext>& ctx) {
+            const std::shared_ptr<GetObjectAsyncContext> ctx) {
             inflightBytesThrottle_->OnComplete(ctx->len);
             ctx->cb = originCallback;
             ctx->cb(this, ctx);
@@ -466,7 +469,7 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
                 << response.GetError().GetMessage();
 
             ctx->retCode = (response.IsSuccess() ? 0 : -1);
-            ctx->cb(this, ctx);
+            asyncCallbackTP_.Enqueue(ctx->cb, this, ctx);
         };
 
     if (throttle_) {
@@ -474,7 +477,7 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
     }
 
     inflightBytesThrottle_->OnStart(context->len);
-    context->cb = std::move(wrapperCallback);
+    context->cb = std::move(throttledCallback);
     s3Client_->GetObjectAsync(request, handler, context);
 }
 
