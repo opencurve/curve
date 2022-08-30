@@ -116,11 +116,19 @@ func (aCmd *AddCommand) Init(cmd *cobra.Command, args []string) error {
 	aCmd.Mountpoint = nil
 	for _, mountpoint := range mountpoints {
 		absPath, _ := filepath.Abs(aCmd.Path)
-		if strings.HasPrefix(absPath, mountpoint.MountPoint) {
+		rel , err := filepath.Rel(mountpoint.MountPoint, absPath)
+		if err == nil && !strings.HasPrefix(rel, "..") {
 			// found the mountpoint
-			aCmd.Mountpoint = mountpoint
-			aCmd.CurvefsPath = cobrautil.Path2CurvefsPath(aCmd.Path, mountpoint)
-			break
+			if aCmd.Mountpoint == nil ||
+				len(aCmd.Mountpoint.MountPoint) < len(mountpoint.MountPoint) {
+					// Prevent the curvefs directory from being mounted under the curvefs directory
+					// /a/b/c:
+					// test-1 mount in /a
+					// test-1 mount in /a/b
+					// warmup /a/b/c.
+					aCmd.Mountpoint = mountpoint
+					aCmd.CurvefsPath = cobrautil.Path2CurvefsPath(aCmd.Path, mountpoint)
+			}
 		}
 	}
 	if aCmd.Mountpoint == nil {
@@ -145,7 +153,8 @@ func (aCmd *AddCommand) convertFilelist() *cmderror.CmdError {
 	lines := strings.Split(string(data), "\n")
 	validPath := ""
 	for _, line := range lines {
-		if strings.HasPrefix(line, aCmd.Mountpoint.MountPoint) {
+		rel, err := filepath.Rel(aCmd.Mountpoint.MountPoint, line)
+		if err == nil && !strings.HasPrefix(rel, "..") {
 			// convert to curvefs path
 			curvefsAbspath := cobrautil.Path2CurvefsPath(line, aCmd.Mountpoint)
 			validPath += (curvefsAbspath + "\n")
