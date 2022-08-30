@@ -3,7 +3,7 @@ module github.com/opencurve/curve/tools-v2
 go 1.18
 
 require (
-	github.com/cilium/cilium v1.12.0
+	github.com/cilium/cilium v1.12.1
 	github.com/deckarep/golang-set/v2 v2.1.0
 	github.com/docker/cli v20.10.17+incompatible
 	github.com/dustin/go-humanize v1.0.0
