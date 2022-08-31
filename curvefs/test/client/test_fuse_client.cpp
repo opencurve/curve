@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/fuse_volume_client.h"
@@ -68,6 +69,7 @@ using rpcclient::MockMetaServerClient;
 using rpcclient::MetaServerClientDone;
 using ::curvefs::volume::MockBlockDeviceClient;
 using ::curvefs::volume::MockSpaceManager;
+using ::curvefs::client::common::FileHandle;
 
 #define EQUAL(a) (lhs.a() == rhs.a())
 
@@ -1325,6 +1327,13 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrEnableCto) {
 
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
               client_->FuseOpGetAttr(req, ino, &fi, &attr));
+
+    // need not refresh inode
+    fi.fh = static_cast<uint64_t>(FileHandle::kKeepCache);
+    EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpGetAttr(req, ino, &fi, &attr));
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
