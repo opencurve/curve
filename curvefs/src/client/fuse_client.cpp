@@ -33,6 +33,8 @@
 #include <utility>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/common/common.h"
+#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/xattr_manager.h"
@@ -47,6 +49,7 @@ using ::curvefs::common::Volume;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::mds::FSStatusCode_Name;
 using ::curvefs::client::common::MAXXATTRLENGTH;
+using ::curvefs::client::common::FileHandle;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -761,11 +764,14 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct stat *attr) {
     VLOG(1) << "FuseOpGetAttr ino = " << ino;
     if (FLAGS_enableCto) {
-        CURVEFS_ERROR ret = inodeManager_->RefreshInode(ino);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                       << ", inodeid = " << ino;
-            return ret;
+        if (fi == nullptr ||
+            fi->fh != static_cast<uint64_t>(FileHandle::kKeepCache)) {
+            CURVEFS_ERROR ret = inodeManager_->RefreshInode(ino);
+            if (ret != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                        << ", inodeid = " << ino;
+                return ret;
+            }
         }
     }
 
