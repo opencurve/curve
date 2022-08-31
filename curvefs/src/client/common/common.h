@@ -64,6 +64,11 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
 
 const uint32_t MAXXATTRLENGTH = 256;
 
+enum class FileHandle : uint64_t {
+    kDefaultValue = 0,
+    kKeepCache = 1,
+};
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
