@@ -157,7 +157,7 @@ build_target() {
     # set version
     g_build_opts+=("--copt -DCURVEVERSION=${curve_version}")
 
-    if [ "$g_os" == "debian10" -o "$g_os" == "debian11" ]; then
+    if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -gt 6 ]; then
         g_build_opts+=("--config=gcc7-later")
     fi
 

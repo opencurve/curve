@@ -86,6 +86,11 @@ fi
 
 set -e
 
+################################################################ __GCC VERSION__
+if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -gt 6 ]; then
+    g_build_opts+=("--config=gcc7-later")
+fi
+
 bazel build ... -c dbg --collect_code_coverage --copt -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX ${g_build_opts[@]}
 
 #test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
