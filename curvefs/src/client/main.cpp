@@ -22,6 +22,7 @@
  */
 
 #include <unordered_map>
+#include <string>
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_common.h"
 

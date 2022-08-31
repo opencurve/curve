@@ -82,7 +82,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
 
 void FuseS3Client::GetWarmUpFileList(const WarmUpFileContext_t&warmUpFile,
   std::vector<std::string>& warmUpFilelist) {
-        struct fuse_file_info fi;
+        struct fuse_file_info fi{};
         fi.flags &= ~O_DIRECT;
         size_t rSize = 0;
         std::unique_ptr<char[]> data(new char[warmUpFile.fileLen+1]);
