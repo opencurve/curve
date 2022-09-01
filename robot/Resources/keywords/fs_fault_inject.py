@@ -475,7 +475,7 @@ def test_fs_process_loss_package(process_name,percent):
 def test_out_metaserver_copyset():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    ori_cmd = "/home/nbs/.curveadm/bin/curveadm status --role=metaserver |grep metaserver| awk '{print $1}'"
+    ori_cmd = "/home/nbs/.curveadm/bin/curveadm status --role=metaserver -sv |grep metaserver| awk '{print $1}'"
     rs = shell_operator.run_exec2(ori_cmd)
     logger.info("rs is %s"%rs)
     rs = rs.split('\n')
