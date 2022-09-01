@@ -344,7 +344,7 @@ def wait_op_finish():
 def check_fs_io_error():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    ori_cmd = "sudo grep \'error\' /var/log/kern.log -R | grep -v libpthread"
+    ori_cmd = "sudo grep \'io error\' /var/log/kern.log -R | grep -v libpthread"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if rs[1] != []:
         ori_cmd = "sudo logrotate -vf /etc/logrotate.d/rsyslog"
