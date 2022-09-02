@@ -344,7 +344,7 @@ def wait_op_finish():
 def check_fs_io_error():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    ori_cmd = "sudo grep \'error\' /var/log/kern.log -R | grep -v libpthread"
+    ori_cmd = "sudo grep \'io error\' /var/log/kern.log -R | grep -v libpthread"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if rs[1] != []:
         ori_cmd = "sudo logrotate -vf /etc/logrotate.d/rsyslog"
@@ -475,7 +475,7 @@ def test_fs_process_loss_package(process_name,percent):
 def test_out_metaserver_copyset():
     test_client = config.fs_test_client[0]
     ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-    ori_cmd = "/home/nbs/.curveadm/bin/curveadm status --role=metaserver |grep metaserver| awk '{print $1}'"
+    ori_cmd = "/home/nbs/.curveadm/bin/curveadm status --role=metaserver -sv |grep metaserver| awk '{print $1}'"
     rs = shell_operator.run_exec2(ori_cmd)
     logger.info("rs is %s"%rs)
     rs = rs.split('\n')
