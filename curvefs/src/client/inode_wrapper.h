@@ -42,7 +42,6 @@
 #include "src/common/timeutility.h"
 
 using ::curvefs::metaserver::Inode;
-using ::curvefs::metaserver::InodeOpenStatusChange;
 using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::metaserver::S3ChunkInfo;
 

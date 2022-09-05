@@ -557,7 +557,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlink) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*inodeManager_, ClearInodeCache(inodeid)).Times(1);
@@ -611,7 +611,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*inodeManager_, ClearInodeCache(inodeid)).Times(1);
@@ -675,7 +675,7 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     EXPECT_CALL(*inodeManager_, ClearInodeCache(inodeid)).Times(1);
@@ -861,10 +861,10 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameBasic) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
     // include below unlink operate and update inode parent
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .Times(2)
         .WillRepeatedly(Return(MetaStatusCode::OK));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(1)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
@@ -1032,18 +1032,17 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameOverwrite) {
         .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
                   Return(CURVEFS_ERROR::OK)));
     // include below unlink old inode and update inode parent
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .Times(1)
         .WillRepeatedly(Invoke([&](uint32_t /*fsId*/, uint64_t /*inodeId*/,
-                                   const InodeAttr& /*attr*/,
-                                   InodeOpenStatusChange statusChange) {
+                                   const InodeAttr& /*attr*/) {
             return MetaStatusCode::OK;
         }));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(3)
         .WillRepeatedly(Invoke(
             [&](uint32_t /*fsId*/, uint64_t /*inodeId*/,
-                const InodeAttr& /*attr*/, InodeOpenStatusChange statusChange,
+                const InodeAttr& /*attr*/,
                 S3ChunkInfoMap* s3ChunkInfoAdd,
                 bool internal) { return MetaStatusCode::OK; }));
 
@@ -1200,11 +1199,11 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
         .WillRepeatedly(DoAll(SetArgReferee<1>(srcParentInodeWrapper),
                               Return(CURVEFS_ERROR::OK)));
     // include below operator which unlink old inode and update inode parent
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .Times(times * 2)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(times * 2)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
@@ -1350,7 +1349,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttr) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     attr.st_mode = 1;
@@ -1397,7 +1396,7 @@ TEST_F(TestFuseVolumeClient, FuseOpSetAttrFailed) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR));
 
     attr.st_mode = 1;
@@ -1556,7 +1555,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLink) {
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     fuse_entry_param e;
@@ -1589,7 +1588,7 @@ TEST_F(TestFuseVolumeClient, FuseOpLinkFailed) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillOnce(Return(MetaStatusCode::UNKNOWN_ERROR))   // link
         .WillOnce(Return(MetaStatusCode::OK))              // link
         .WillOnce(Return(MetaStatusCode::OK))              // link
@@ -2523,7 +2522,7 @@ TEST_F(TestFuseS3Client, FuseOpFsync) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = client_->FuseOpFsync(req, ino, 0, fi);
@@ -3095,7 +3094,7 @@ TEST_F(TestFuseS3Client, FuseOpCreate_EnableSummary) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*inodeManager_, ShipToFlush(_))
@@ -3197,7 +3196,7 @@ TEST_F(TestFuseS3Client, FuseOpLink_EnableSummary) {
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(pinodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
     EXPECT_CALL(*dentryManager_, CreateDentry(_))
         .WillOnce(Return(CURVEFS_ERROR::OK));
@@ -3267,7 +3266,7 @@ TEST_F(TestFuseS3Client, FuseOpUnlink_EnableSummary) {
             DoAll(SetArgReferee<1>(parentInodeWrapper),
                 Return(CURVEFS_ERROR::OK)));
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttr(_, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*inodeManager_, ShipToFlush(_))
@@ -3329,7 +3328,7 @@ TEST_F(TestFuseS3Client, FuseOpOpen_Trunc_EnableSummary) {
                 Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*s3ClientAdaptor_, Truncate(_, _))
         .WillOnce(Return(CURVEFS_ERROR::OK));
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillRepeatedly(Return(MetaStatusCode::OK));
     EXPECT_CALL(*inodeManager_, ShipToFlush(_))
         .Times(1);
