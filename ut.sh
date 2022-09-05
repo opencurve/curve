@@ -25,8 +25,6 @@ g_rocksdb_root="${PWD}/thirdparties/rocksdb"
 (cd ${g_rocksdb_root} && make build && make install prefix=${g_rocksdb_root})
 ################################################################ __ROCKSDB__
 
-g_aws_sdk_root="${PWD}/thirdparties/aws/"
-(cd ${g_aws_sdk_root} && make)
 
 if [ -f /home/nbs/etcdclient/libetcdclient.h ] && [ -f /home/nbs/etcdclient/libetcdclient.so ]
 then
