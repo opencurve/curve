@@ -89,17 +89,15 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr));
 
-    MOCK_METHOD4(UpdateInodeAttr,
+    MOCK_METHOD3(UpdateInodeAttr,
                  MetaStatusCode(uint32_t,
                                 uint64_t,
-                                const InodeAttr&,
-                                InodeOpenStatusChange statusChange));
+                                const InodeAttr&));
 
-    MOCK_METHOD6(UpdateInodeAttrWithOutNlink,
+    MOCK_METHOD5(UpdateInodeAttrWithOutNlink,
                  MetaStatusCode(uint32_t,
                                 uint64_t,
                                 const InodeAttr&,
-                                InodeOpenStatusChange statusChange,
                                 S3ChunkInfoMap* s3ChunkInfoAdd,
                                 bool internal));
 
@@ -109,18 +107,16 @@ class MockMetaServerClient : public MetaServerClient {
                                       uint64_t inodeId,
                                       const InodeAttr& attr,
                                       MetaServerClientDone* done,
-                                      InodeOpenStatusChange change,
                                       DataIndices&& indices) override {
         return UpdateInodeWithOutNlinkAsync_rvr(fsId, inodeId, attr, done,
-                                                change, std::move(indices));
+                                                std::move(indices));
     }
 
-    MOCK_METHOD6(UpdateInodeWithOutNlinkAsync_rvr,
+    MOCK_METHOD5(UpdateInodeWithOutNlinkAsync_rvr,
                  void(uint32_t,
                       uint64_t,
                       const InodeAttr&,
                       MetaServerClientDone* done,
-                      InodeOpenStatusChange statusChange,
                       DataIndices));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,

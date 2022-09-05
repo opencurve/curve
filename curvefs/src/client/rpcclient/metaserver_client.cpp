@@ -840,7 +840,6 @@ namespace {
 void FillInodeAttr(uint32_t fsId,
                    uint64_t inodeId,
                    const InodeAttr& attr,
-                   InodeOpenStatusChange statusChange,
                    bool nlink,
                    UpdateInodeRequest* request) {
     request->set_fsid(fsId);
@@ -856,8 +855,6 @@ void FillInodeAttr(uint32_t fsId,
     SET_REQUEST_FIELD_IF_HAS(request, attr, uid);
     SET_REQUEST_FIELD_IF_HAS(request, attr, gid);
     SET_REQUEST_FIELD_IF_HAS(request, attr, mode);
-
-    request->set_inodeopenstatuschange(statusChange);
 
     *request->mutable_parent() = attr.parent();
     if (attr.xattr_size() > 0) {
@@ -888,10 +885,9 @@ void FillDataIndices(DataIndices&& indices, UpdateInodeRequest* request) {
 MetaStatusCode MetaServerClientImpl::UpdateInodeAttr(
     uint32_t fsId,
     uint64_t inodeId,
-    const InodeAttr& attr,
-    InodeOpenStatusChange statusChange) {
+    const InodeAttr& attr) {
     UpdateInodeRequest request;
-    FillInodeAttr(fsId, inodeId, attr, statusChange, /*nlink=*/true, &request);
+    FillInodeAttr(fsId, inodeId, attr, /*nlink=*/true, &request);
     return UpdateInode(request);
 }
 
@@ -899,11 +895,10 @@ MetaStatusCode MetaServerClientImpl::UpdateInodeAttrWithOutNlink(
     uint32_t fsId,
     uint64_t inodeId,
     const InodeAttr& attr,
-    InodeOpenStatusChange statusChange,
     S3ChunkInfoMap* s3ChunkInfoAdd,
     bool internal) {
     UpdateInodeRequest request;
-    FillInodeAttr(fsId, inodeId, attr, statusChange, /*nlink=*/false,
+    FillInodeAttr(fsId, inodeId, attr, /*nlink=*/false,
                   &request);
     if (s3ChunkInfoAdd != nullptr) {
         DataIndices indices;
@@ -990,10 +985,9 @@ void MetaServerClientImpl::UpdateInodeWithOutNlinkAsync(
     uint64_t inodeId,
     const InodeAttr& attr,
     MetaServerClientDone* done,
-    InodeOpenStatusChange statusChange,
     DataIndices&& indices) {
     UpdateInodeRequest request;
-    FillInodeAttr(fsId, inodeId, attr, statusChange, /*nlink=*/false, &request);
+    FillInodeAttr(fsId, inodeId, attr, /*nlink=*/false, &request);
     FillDataIndices(std::move(indices), &request);
     UpdateInodeAsync(request, done);
 }
