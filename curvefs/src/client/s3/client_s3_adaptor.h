@@ -78,10 +78,13 @@ class S3ClientAdaptor {
      */
     virtual int Write(uint64_t inodeId, uint64_t offset, uint64_t length,
                       const char *buf) = 0;
-    virtual int Read(uint64_t inodeId, uint64_t offset, uint64_t length,
-                     char *buf) = 0;
+      int64_t ReadImpl(uint64_t inodeId, uint64_t offset, uint64_t length,
+                     char *buf, bool warmup = false) {
+        return Read(inodeId, offset, length, buf, warmup);
+    }
     virtual CURVEFS_ERROR Truncate(InodeWrapper *inodeWrapper,
                                    uint64_t size) = 0;
+
     virtual void ReleaseCache(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR Flush(uint64_t inodeId) = 0;
     virtual CURVEFS_ERROR FlushAllCache(uint64_t inodeId) = 0;
@@ -98,6 +101,10 @@ class S3ClientAdaptor {
     virtual uint64_t GetBlockSize() = 0;
     virtual uint64_t GetChunkSize() = 0;
     virtual bool HasDiskCache() = 0;
+
+ private:
+    virtual int64_t Read(uint64_t inodeId, uint64_t offset,
+      uint64_t length, char *buf, bool warmup) = 0;
 };
 
 using FlushChunkCacheCallBack = std::function<
@@ -135,7 +142,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
      */
     int Write(uint64_t inodeId, uint64_t offset, uint64_t length,
               const char *buf);
-    int Read(uint64_t inodeId, uint64_t offset, uint64_t length, char *buf);
+    int64_t Read(uint64_t inodeId, uint64_t offset,
+      uint64_t length, char *buf, bool warmup);
     CURVEFS_ERROR Truncate(InodeWrapper *inodeWrapper, uint64_t size);
     void ReleaseCache(uint64_t inodeId);
     CURVEFS_ERROR Flush(uint64_t inodeId);

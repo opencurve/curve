@@ -300,8 +300,8 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
     return chunkCacheManager;
 }
 
-int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
-                           char *dataBuf) {
+int64_t FileCacheManager::Read(uint64_t inodeId,
+  uint64_t offset, uint64_t length, char *dataBuf, bool warmup) {
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t index = offset / chunkSize;
     uint64_t chunkPos = offset % chunkSize;
@@ -310,27 +310,44 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
     uint64_t readOffset = 0;
     std::vector<ReadRequest> totalRequests;
 
+    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    bool nextChunk = false;
     //  Find offset~len in the write and read cache,
     //  and The parts that are not in the cache are placed in the totalRequests
     while (length > 0) {
         std::vector<ReadRequest> requests;
         if (chunkPos + length > chunkSize) {
-            readLen = chunkSize - chunkPos;
+            if (chunkSize - chunkPos > blockSize) {
+                nextChunk = false;
+                readLen = blockSize;
+            } else {
+                readLen = chunkSize - chunkPos;
+                nextChunk = true;
+            }
         } else {
             readLen = length;
         }
         ChunkCacheManagerPtr chunkCacheManager =
-        FindOrCreateChunkCacheManager(index);
-        chunkCacheManager->ReadChunk(index, chunkPos, readLen, dataBuf,
-                                     readOffset, &requests);
-        totalRequests.insert(totalRequests.end(), requests.begin(),
-                             requests.end());
+          FindOrCreateChunkCacheManager(index);
+        if (warmup) {
+            ReadRequest request{chunkCacheManager->GetIndex(),
+              chunkPos, readLen, readOffset};
+            totalRequests.push_back(request);
+        } else {
+            chunkCacheManager->ReadChunk(index, chunkPos, readLen, dataBuf,
+                readOffset, &requests);
+            totalRequests.insert(totalRequests.end(), requests.begin(),
+                requests.end());
+        }
         length -= readLen;
-        index++;
+        if (nextChunk) {
+            index++;
+        }
         readOffset += readLen;
         chunkPos = (chunkPos + readLen) % chunkSize;
+        VLOG(9) << "Read, readOffset: " << readOffset;
     }
-
+    VLOG(9) << "Read, readOffset: " << readOffset;
     if (totalRequests.empty()) {
         VLOG(3) << "read cache is all the hits.";
         return readOffset;
@@ -401,7 +418,8 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                         << ",inodeId:" << tmp_req.inodeId;
             }
 
-            ret = ReadFromS3(totalS3Requests, &responses, dataBuf, fileLen);
+            ret = ReadFromS3(totalS3Requests, &responses,
+              dataBuf, fileLen, warmup);
             if (ret < 0) {
                 retry++;
                 responses.clear();
@@ -440,13 +458,45 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
             }
         }
     }
-
     return readOffset;
+}
+
+void FileCacheManager::ReadAheadS3(uint64_t blockIndex,
+  std::vector<S3ReadRequest>::const_iterator iter, uint64_t fileLen) {
+    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    uint64_t blockIndexTmp = blockIndex;
+    // the counts of blocks that need prefetch
+    uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
+    std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
+    for (int count = 0; count < prefetchBlocks; count++) {
+        std::string name = curvefs::common::s3util::GenObjName(
+            iter->chunkId, blockIndexTmp, iter->compaction, iter->fsId,
+            iter->inodeId);
+        uint64_t readLen = (blockIndexTmp + 1) * blockSize;
+        if (readLen > fileLen) {
+            VLOG(6) << "end, redLen :" << readLen
+                    << ", fileLen: " << fileLen << ", blockIndexTmp "
+                    << blockIndexTmp;
+            readLen = fileLen - blockIndexTmp * blockSize;
+            prefetchObjs.push_back(std::make_pair(name, readLen));
+            break;
+        } else {
+            prefetchObjs.push_back(std::make_pair(name, blockSize));
+        }
+
+        blockIndexTmp++;
+        if (blockIndexTmp >= chunkSize / blockSize) {
+            break;
+        }
+    }
+    // prefetch object from s3
+    PrefetchS3Objs(prefetchObjs);
 }
 
 int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                                  std::vector<S3ReadResponse> *responses,
-                                 char* dataBuf, uint64_t fileLen) {
+                                 char* dataBuf, uint64_t fileLen, bool warmup) {
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
     std::vector<S3ReadRequest>::const_iterator iter = requests.begin();
@@ -487,38 +537,13 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                 << ",objectOffset:" << objectOffset << ",chunkid"
                 << iter->chunkId << ",fsid" << iter->fsId
                 << ",inodeId:" << iter->inodeId;
-        // prefetch read
+        // prefetch read (warmup no need prefetch)
         // TODO(huyao): The read-ahead trigger logic needs to be refactored and
         // supplemented with unit tests
-        if (s3ClientAdaptor_->HasDiskCache()) {
-            uint64_t blockIndexTmp = blockIndex;
-            // the counts of blocks that need prefetch
-            uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
-            std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
-            for (int count = 0; count < prefetchBlocks; count++) {
-                std::string name = curvefs::common::s3util::GenObjName(
-                    iter->chunkId, blockIndexTmp, iter->compaction, iter->fsId,
-                    iter->inodeId);
-                uint64_t readLen = (blockIndexTmp + 1) * blockSize;
-                if (readLen > fileLen) {
-                    VLOG(6) << "end, redLen :" << readLen
-                            << ", fileLen: " << fileLen << ", blockIndexTmp "
-                            << blockIndexTmp;
-                    readLen = fileLen - blockIndexTmp * blockSize;
-                    prefetchObjs.push_back(std::make_pair(name, readLen));
-                    break;
-                } else {
-                    prefetchObjs.push_back(std::make_pair(name, blockSize));
-                }
-
-                blockIndexTmp++;
-                if (blockIndexTmp >= chunkSize / blockSize) {
-                    break;
-                }
-            }
-            // prefetch object from s3
-            PrefetchS3Objs(prefetchObjs);
+        if (!warmup && s3ClientAdaptor_->HasDiskCache()) {
+            ReadAheadS3(blockIndex, iter, fileLen);
         }
+
         while (len > 0) {
             if (blockPos + len > blockSize) {
                 n = blockSize - blockPos;
@@ -572,6 +597,15 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
                                << ", len: " << n << ", ret is: " << ret;
                     return ret;
                 }
+                if (warmup) {
+                    ret = s3ClientAdaptor_->GetDiskCacheManager()->
+                      WriteReadDirect(name, response.GetDataBuf() +
+                        readOffset + blockPos - objectOffset, n);
+                    if (ret < 0) {
+                        LOG_EVERY_SECOND(INFO) <<
+                        "write read directly failed, key: " << name;
+                    }
+                }
             }
 
             len -= n;
@@ -590,22 +624,23 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
         cond.Wait();
     }
     uint32_t i = 0;
-    for (auto &dataCacheMapIter : dataCacheMap) {
-        ChunkCacheManagerPtr chunkCacheManager =
-            FindOrCreateChunkCacheManager(dataCacheMapIter.first);
-        std::vector<uint64_t> &DataCacheVec = dataCacheMapIter.second;
-        WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
-        for (auto &chunkPos : DataCacheVec) {
-            DataCachePtr dataCache = std::make_shared<DataCache>(
-            s3ClientAdaptor_, chunkCacheManager, chunkPos,
-            (*responses)[i].GetBufLen(), (*responses)[i].GetDataBuf());
-            if (!curvefs::client::common::FLAGS_enableCto) {
-                chunkCacheManager->AddReadDataCache(dataCache);
+    if (!warmup) {
+        for (auto &dataCacheMapIter : dataCacheMap) {
+            ChunkCacheManagerPtr chunkCacheManager =
+                FindOrCreateChunkCacheManager(dataCacheMapIter.first);
+            std::vector<uint64_t> &DataCacheVec = dataCacheMapIter.second;
+            WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
+            for (auto &chunkPos : DataCacheVec) {
+                DataCachePtr dataCache = std::make_shared<DataCache>(
+                s3ClientAdaptor_, chunkCacheManager, chunkPos,
+                (*responses)[i].GetBufLen(), (*responses)[i].GetDataBuf());
+                if (!curvefs::client::common::FLAGS_enableCto) {
+                    chunkCacheManager->AddReadDataCache(dataCache);
+                }
+                i++;
             }
-            i++;
         }
     }
-
     return 0;
 }
 
@@ -633,13 +668,13 @@ class AsyncPrefetchCallback {
             LOG(WARNING) << "prefetch failed, key: " << context->key;
             return;
         }
-
         int ret = s3Client_->GetDiskCacheManager()->WriteReadDirect(
             context->key, context->buf, context->len);
         if (ret < 0) {
             LOG_EVERY_SECOND(INFO) <<
               "write read directly failed, key: " << context->key;
         }
+
         {
             curve::common::LockGuard lg(fileCache->downloadMtx_);
             fileCache->downloadingObj_.erase(context->key);
@@ -647,6 +682,7 @@ class AsyncPrefetchCallback {
     }
 
  private:
+    bool needStore_;
     const uint64_t inode_;
     S3ClientAdaptorImpl *s3Client_;
 };
@@ -868,7 +904,9 @@ void FileCacheManager::GenerateS3Request(ReadRequest request,
 
     VLOG(9) << "GenerateS3Request start request index:" << request.index
             << ",chunkPos:" << request.chunkPos << ",len:" << request.len
-            << ",bufOffset:" << request.bufOffset;
+            << ",bufOffset:" << request.bufOffset
+            << ", chunkSize: " << s3ChunkInfoList.s3chunks_size();
+
     readRequests.emplace(request.chunkPos, request);
     for (int i = s3ChunkInfoList.s3chunks_size() - 1; i >= 0; i--) {
         const S3ChunkInfo &s3ChunkInfo = s3ChunkInfoList.s3chunks(i);

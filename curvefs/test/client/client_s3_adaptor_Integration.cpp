@@ -365,11 +365,11 @@ TEST_F(ClientS3IntegrationTest, test_read_one_chunk) {
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
 
-    int ret = s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, buf);
+    int ret = s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, buf);
     ASSERT_EQ(len, ret);
     ASSERT_EQ('a', buf[0]);
     offset = offset + len;
-    ret = s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, buf);
+    ret = s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, buf);
     ASSERT_EQ(-1, ret);
 
     delete buf;
@@ -402,13 +402,12 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block1) {
     memset(readBuf, 0, len + 1);
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
-
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'a', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     delete readBuf;
@@ -450,11 +449,11 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block2) {
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 'a', len);
     memset(expectBuf + len, 0, 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     delete readBuf;
@@ -499,17 +498,17 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block3) {
     memset(expectBuf, 'a', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'a', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     delete readBuf;
@@ -557,17 +556,17 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block4) {
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     delete readBuf;
@@ -615,17 +614,17 @@ TEST_F(ClientS3IntegrationTest, test_read_overlap_block5) {
     memset(expectBuf, 0, len + 1);
 
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = offset + len;
     memset(expectBuf, 'a', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // delete readBuf;
@@ -668,12 +667,12 @@ TEST_F(ClientS3IntegrationTest, test_read_hole1) {
     memset(readBuf + len, 0, 1);
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = 2 * 1024 * 1024;
     inode->SetLength(offset + len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -714,7 +713,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole2) {
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
     memset(expectBuf + 1024 * 1024, 'a', 1024 * 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
 
@@ -756,7 +755,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole3) {
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
     memset(expectBuf + 1024 * 1024, 'a', 1024 * 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -804,7 +803,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole4) {
     memset(expectBuf, 0, len + 1);
     memset(expectBuf, 'a', 1024 * 1024);
     memset(expectBuf + 2 * 1024 * 1024, 'b', 1024 * 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
 
@@ -855,7 +854,7 @@ TEST_F(ClientS3IntegrationTest, test_read_more_write) {
     memset(expectBuf, 0, len + 1);
     memset(expectBuf, 'a', 100);
     memset(expectBuf + 120, 'b', 100);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
 
@@ -905,7 +904,7 @@ TEST_F(ClientS3IntegrationTest, test_read_more_write2) {
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
     memset(expectBuf, 'b', len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
 
@@ -948,7 +947,7 @@ TEST_F(ClientS3IntegrationTest, test_read_more_chunks) {
     memset(expectBuf, 0, len + 1);
     memset(expectBuf, 'a', 1024);
     memset(expectBuf + 1024, 'b', 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
 
@@ -1136,7 +1135,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big1) {
     memset(readBuf, 0, len + 1);
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -1180,7 +1179,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big2) {
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
     memset(expectBuf, 'a', 1 * 1024 * 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
 
     EXPECT_STREQ(expectBuf, readBuf);
 
@@ -1242,7 +1241,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     memset(readBuf, 0, len + 1);
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = 512;
@@ -1252,7 +1251,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     char *expectBuf1 = new char[len + 1];
     memset(expectBuf1, 0, len + 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf1);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf1);
     EXPECT_STREQ(expectBuf1, readBuf1);
 
     len = 1 * 1024 * 1024;
@@ -1262,7 +1261,8 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     memset(readBuf2, 0, len + 1);
     char *expectBuf2 = new char[len + 1];
     memset(expectBuf2, 0, len + 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf2);
+
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf2);
     EXPECT_STREQ(expectBuf2, readBuf2);
 
     // cleanup
@@ -1671,7 +1671,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read1) {
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     //  cleanup
@@ -1750,11 +1750,11 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read2) {
     memset(expectBuf, 'a', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
     //  cleanup
     delete buf;
@@ -1822,12 +1822,12 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
     memset(readBuf + len, 0, 1);
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 0, len + 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     offset = 2 * 1024 * 1024;
     inode->SetLength(offset + len);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
@@ -1840,7 +1840,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
     memset(readBuf1 + len, 0, 1);
     memset(expectBuf1, 0, len + 1);
     memset(expectBuf1 + 1024 * 1024, 'a', 1024 * 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf1);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf1);
     EXPECT_STREQ(expectBuf1, readBuf1);
 
     s3ClientAdaptor_->ReleaseCache(inode->GetInodeId());
@@ -1852,7 +1852,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
     memset(readBuf2 + len, 0, 1);
     memset(expectBuf2, 0, len + 1);
     memset(expectBuf2, 'a', 0.5 * 1024 * 1024);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf2);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf2);
     EXPECT_STREQ(expectBuf2, readBuf2);
 
     // cleanup
@@ -1873,7 +1873,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
     ------        a     write1
        ------     b     write2 
                        flush
-                       releaseReadCache
+                       releaseReadImplCache
        ---        b     read
 
 */
@@ -1939,7 +1939,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read4) {
     char *expectBuf = new char[len + 1];
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2027,7 +2027,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read5) {
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2118,7 +2118,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read6) {
     memset(expectBuf + 1024, 'b', 512 * 1024);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2217,7 +2217,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
     memset(expectBuf + 2048, 'c', 512);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2309,7 +2309,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
     memset(expectBuf, 'c', 1048576);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2404,7 +2404,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
     memset(expectBuf, 'b', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2527,7 +2527,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read10) {
     memset(expectBuf, 'g', len);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2611,7 +2611,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read11) {
     memset(expectBuf + 126976, 'b', 4096);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup
@@ -2695,7 +2695,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read12) {
     memset(expectBuf + 126976, 'b', 4096);
     memset(expectBuf + len, 0, 1);
 
-    s3ClientAdaptor_->Read(inode->GetInodeId(), offset, len, readBuf);
+    s3ClientAdaptor_->ReadImpl(inode->GetInodeId(), offset, len, readBuf);
     EXPECT_STREQ(expectBuf, readBuf);
 
     // cleanup

@@ -154,15 +154,15 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     return ret;
 }
 
-int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
-                              uint64_t length, char *buf) {
+int64_t S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
+                              uint64_t length, char *buf, bool warmup) {
     VLOG(6) << "read start offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     uint64_t start = butil::cpuwide_time_us();
     FileCacheManagerPtr fileCacheManager =
         fsCacheManager_->FindOrCreateFileCacheManager(fsId_, inodeId);
 
-    int ret = fileCacheManager->Read(inodeId, offset, length, buf);
+    int64_t ret = fileCacheManager->Read(inodeId, offset, length, buf, warmup);
     VLOG(6) << "read end inodeId:" << inodeId << ",ret:" << ret;
     if (ret < 0) {
         return ret;

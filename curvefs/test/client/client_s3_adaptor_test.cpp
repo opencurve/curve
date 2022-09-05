@@ -141,8 +141,8 @@ TEST_F(ClientS3AdaptorTest, read_success) {
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*mockFsCacheManager_, FindOrCreateFileCacheManager(_, _))
         .WillOnce(Return(fileCache));
-    EXPECT_CALL(*fileCache, Read(_, _, _, _)).WillOnce(Return(length));
-    ASSERT_EQ(length, s3ClientAdaptor_->Read(inodeId, offset, length, buf));
+    EXPECT_CALL(*fileCache, Read(_, _, _, _, _)).WillOnce(Return(length));
+    ASSERT_EQ(length, s3ClientAdaptor_->ReadImpl(inodeId, offset, length, buf));
 }
 
 TEST_F(ClientS3AdaptorTest, read_fail) {
@@ -154,8 +154,8 @@ TEST_F(ClientS3AdaptorTest, read_fail) {
     auto fileCache = std::make_shared<MockFileCacheManager>();
     EXPECT_CALL(*mockFsCacheManager_, FindOrCreateFileCacheManager(_, _))
         .WillOnce(Return(fileCache));
-    EXPECT_CALL(*fileCache, Read(_, _, _, _)).WillOnce(Return(-1));
-    ASSERT_EQ(-1, s3ClientAdaptor_->Read(inodeId, offset, length, buf));
+    EXPECT_CALL(*fileCache, Read(_, _, _, _, _)).WillOnce(Return(-1));
+    ASSERT_EQ(-1, s3ClientAdaptor_->ReadImpl(inodeId, offset, length, buf));
 }
 
 TEST_F(ClientS3AdaptorTest, truncate_small) {

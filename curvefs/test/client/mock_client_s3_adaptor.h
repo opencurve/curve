@@ -34,6 +34,9 @@ namespace client {
 
 class MockS3ClientAdaptor : public S3ClientAdaptor {
  public:
+    MockS3ClientAdaptor() {}
+    ~MockS3ClientAdaptor() {}
+
     MOCK_METHOD7(Init,
                  CURVEFS_ERROR(const S3ClientAdaptorOption &option,
                                std::shared_ptr<S3Client> client,
@@ -47,8 +50,8 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     MOCK_METHOD4(Write, int(uint64_t inodeId, uint64_t offset, uint64_t length,
                             const char* buf));
 
-    MOCK_METHOD4(Read, int(uint64_t inodeId, uint64_t offset, uint64_t length,
-                           char* buf));
+    MOCK_METHOD5(Read, int64_t(uint64_t inodeId, uint64_t offset,
+      uint64_t length, char* buf, bool warmup));
     MOCK_METHOD1(ReleaseCache, void(uint64_t inodeId));
     MOCK_METHOD1(Flush, CURVEFS_ERROR(uint64_t inodeId));
     MOCK_METHOD1(FlushAllCache, CURVEFS_ERROR(uint64_t inodeId));

@@ -287,8 +287,8 @@ class FileCacheManager {
     virtual void TruncateCache(uint64_t offset, uint64_t fileSize);
     virtual CURVEFS_ERROR Flush(bool force, bool toS3 = false);
     virtual int Write(uint64_t offset, uint64_t length, const char *dataBuf);
-    virtual int Read(uint64_t inodeId, uint64_t offset, uint64_t length,
-                     char *dataBuf);
+    virtual int64_t Read(uint64_t inodeId, uint64_t offset, uint64_t length,
+                     char *dataBuf, bool warmup = false);
     bool IsEmpty() { return chunkCacheMap_.empty(); }
     uint64_t GetInodeId() const { return inode_; }
     void SetChunkCacheManagerForTest(uint64_t index,
@@ -307,9 +307,12 @@ class FileCacheManager {
                            const S3ChunkInfoList &s3ChunkInfoList,
                            char *dataBuf, std::vector<S3ReadRequest> *requests,
                            uint64_t fsId, uint64_t inodeId);
+    void ReadAheadS3(uint64_t blockIndex,
+      std::vector<S3ReadRequest>::const_iterator iter,
+      uint64_t fileLen);
     int ReadFromS3(const std::vector<S3ReadRequest> &requests,
-                            std::vector<S3ReadResponse> *responses,
-                            char* dataBuf, uint64_t fileLen);
+      std::vector<S3ReadResponse> *responses,
+      char* dataBuf, uint64_t fileLen, bool warmup = false);
     void PrefetchS3Objs(
         const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs);
     void HandleReadRequest(const ReadRequest &request,

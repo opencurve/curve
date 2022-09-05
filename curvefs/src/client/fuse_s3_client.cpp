@@ -132,7 +132,6 @@ void FuseS3Client::BackGroundFetch() {
 }
 
 void FuseS3Client::fetchDataEnqueue(fuse_ino_t ino) {
-    VLOG(9) << "fetchDataEnqueue start: " << ino;
     auto task = [this, ino]() {
         std::shared_ptr<InodeWrapper> inodeWrapper;
         CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
@@ -141,19 +140,18 @@ void FuseS3Client::fetchDataEnqueue(fuse_ino_t ino) {
                     << ", inodeid = " << ino;
             return;
         }
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap
-          = nullptr;
-        {
-            ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            s3ChunkInfoMap = inodeWrapper->GetChunkInfoMap();
-        }
-        if (nullptr == s3ChunkInfoMap ||
-          s3ChunkInfoMap->empty()) {
+        uint64_t fileSize = inodeWrapper->GetLength();
+        std::unique_ptr<char[]> buffer(new char[fileSize]);
+        VLOG(9) << "fetchDataEnqueue start: " << ino << ", " << fileSize;
+        int64_t rRet = s3Adaptor_->ReadImpl(
+          ino, 0, fileSize, buffer.get(), true);
+        if (rRet < 0) {
+            LOG(ERROR) << "s3Adaptor_ read failed, ret = " << rRet;
             return;
         }
-        travelChunks(ino, s3ChunkInfoMap);
     };
     GetTaskFetchPool().Enqueue(task);
+    VLOG(9) << "fetchDataEnqueue end: " << ino;
 }
 
 // travel and download all objs belong to the chunk
@@ -441,7 +439,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
     }
 
     // Read do not change inode. so we do not get lock here.
-    int rRet = s3Adaptor_->Read(ino, off, len, buffer);
+    int64_t rRet = s3Adaptor_->ReadImpl(ino, off, len, buffer, false);
     if (rRet < 0) {
         LOG(ERROR) << "s3Adaptor_ read failed, ret = " << rRet;
         return CURVEFS_ERROR::INTERNAL;

@@ -48,8 +48,8 @@ class MockFileCacheManager : public FileCacheManager {
     ~MockFileCacheManager() {}
     MOCK_METHOD3(Write,
                  int(uint64_t offset, uint64_t length, const char *dataBuf));
-    MOCK_METHOD4(Read, int(uint64_t inodeId, uint64_t offset, uint64_t length,
-                           char *dataBuf));
+    MOCK_METHOD5(Read, int64_t(uint64_t inodeId, uint64_t offset,
+      uint64_t length, char *dataBuf, bool warmup));
     MOCK_METHOD2(Flush, CURVEFS_ERROR(bool force, bool toS3));
     MOCK_METHOD2(TruncateCache, void(uint64_t offset, uint64_t fileSize));
 };
