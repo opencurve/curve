@@ -265,12 +265,6 @@ message CreateRootInodeResponse {
     optional uint64 appliedIndex = 2;
 }
 
-enum InodeOpenStatusChange {
-    OPEN = 1;
-    CLOSE = 2;
-    NOCHANGE = 3;
-}
-
 message UpdateInodeRequest {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
@@ -290,7 +284,7 @@ message UpdateInodeRequest {
     // field 16 is left for compatibility
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
-    optional InodeOpenStatusChange inodeOpenstatusChange = 19;
+    // field 19 is left for compatibility
     map<string, string> xattr = 20;
     repeated uint64 parent = 21;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;

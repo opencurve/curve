@@ -141,7 +141,7 @@ CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     if (dirty_) {
         MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
-            InodeOpenStatusChange::NOCHANGE, nullptr, internal);
+            nullptr, internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
@@ -443,7 +443,7 @@ void InodeWrapper::AsyncFlushAttrAndExtents(MetaServerClientDone *done,
         metaClient_->UpdateInodeWithOutNlinkAsync(
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
             new UpdateInodeAttrAndExtentClosure{shared_from_this(), done},
-            InodeOpenStatusChange::NOCHANGE, std::move(indices));
+            std::move(indices));
 
         dirty_ = false;
         dirtyAttr_.Clear();
@@ -464,7 +464,7 @@ CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
     if (dirty_ || !s3ChunkInfoAdd_.empty()) {
         MetaStatusCode ret = metaClient_->UpdateInodeAttrWithOutNlink(
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
-            InodeOpenStatusChange::NOCHANGE, &s3ChunkInfoAdd_, internal);
+            &s3ChunkInfoAdd_, internal);
 
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "metaClient_ UpdateInodeAttrWithOutNlink failed, "
@@ -525,7 +525,7 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
         metaClient_->UpdateInodeWithOutNlinkAsync(
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
             new UpdateInodeAsyncS3Done{shared_from_this(), done},
-            InodeOpenStatusChange::NOCHANGE, std::move(indices));
+            std::move(indices));
         dirty_ = false;
         dirtyAttr_.Clear();
         ClearS3ChunkInfoAdd();
