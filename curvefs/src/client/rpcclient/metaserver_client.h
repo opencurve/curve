@@ -45,7 +45,6 @@ using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::metaserver::Dentry;
 using ::curvefs::metaserver::FsFileType;
 using ::curvefs::metaserver::Inode;
-using ::curvefs::metaserver::InodeOpenStatusChange;
 using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
@@ -117,15 +116,12 @@ class MetaServerClient {
     virtual MetaStatusCode UpdateInodeAttr(
         uint32_t fsId,
         uint64_t inodeId,
-        const InodeAttr& attr,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) = 0;
+        const InodeAttr& attr) = 0;
 
     virtual MetaStatusCode UpdateInodeAttrWithOutNlink(
         uint32_t fsId,
         uint64_t inodeId,
         const InodeAttr& attr,
-        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
         S3ChunkInfoMap* s3ChunkInfoAdd = nullptr,
         bool internal = false) = 0;
 
@@ -134,7 +130,6 @@ class MetaServerClient {
         uint64_t inodeId,
         const InodeAttr& attr,
         MetaServerClientDone* done,
-        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
         DataIndices&& indices = {}) = 0;
 
     virtual MetaStatusCode GetOrModifyS3ChunkInfo(
@@ -223,15 +218,12 @@ class MetaServerClientImpl : public MetaServerClient {
     MetaStatusCode UpdateInodeAttr(
         uint32_t fsId,
         uint64_t inodeId,
-        const InodeAttr& attr,
-        InodeOpenStatusChange statusChange =
-            InodeOpenStatusChange::NOCHANGE) override;
+        const InodeAttr& attr) override;
 
     MetaStatusCode UpdateInodeAttrWithOutNlink(
         uint32_t fsId,
         uint64_t inodeId,
         const InodeAttr& attr,
-        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
         S3ChunkInfoMap* s3ChunkInfoAdd = nullptr,
         bool internal = false) override;
 
@@ -240,7 +232,6 @@ class MetaServerClientImpl : public MetaServerClient {
         uint64_t inodeId,
         const InodeAttr& attr,
         MetaServerClientDone* done,
-        InodeOpenStatusChange statusChange = InodeOpenStatusChange::NOCHANGE,
         DataIndices&& indices = {}) override;
 
     MetaStatusCode GetOrModifyS3ChunkInfo(

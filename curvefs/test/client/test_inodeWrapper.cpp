@@ -142,7 +142,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -164,7 +164,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Return(MetaStatusCode::NOT_FOUND));
 
     CURVEFS_ERROR ret = inodeWrapper_->Sync();
@@ -176,7 +176,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent_NoNeedFlush) {
 
     inodeWrapper_->SetType(FsFileType::TYPE_FILE);
     inodeWrapper_->ClearDirty();
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .Times(0);
@@ -195,7 +195,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     pext.pOffset = 0;
     pext.UnWritten = true;
     extentCache->Merge(0, pext);
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
         .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
@@ -264,7 +264,6 @@ struct FakeUpdateInodeWithOutNlinkAsync {
                     uint64_t /*inodeId*/,
                     const InodeAttr& attr,
                     MetaServerClientDone* done,
-                    InodeOpenStatusChange statusChange,
                     DataIndices indices) const {
         std::thread th{[done]() {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -288,7 +287,7 @@ TEST_F(TestInodeWrapper, TestAsyncInode) {
             }
 
             EXPECT_CALL(*metaClient_,
-                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _, _, _))
+                        UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _, _))
                 .Times(dirty ? 1 : 0)
                 .WillRepeatedly(Invoke(FakeUpdateInodeWithOutNlinkAsync{}));
 
@@ -318,10 +317,9 @@ TEST_F(TestInodeWrapper, TestUpdateInodeAttrIncrementally) {
         wrapper.UpdateTimestampLocked(kAccessTime);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _, _))
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .WillOnce(Invoke([](uint32_t /*fsId*/, uint64_t /*inodeId*/,
                             const InodeAttr& attr,
-                            InodeOpenStatusChange /*statusChange*/,
                             S3ChunkInfoMap* /*s3info*/, bool /*internal*/
                          ) {
             EXPECT_FALSE(attr.has_length());
