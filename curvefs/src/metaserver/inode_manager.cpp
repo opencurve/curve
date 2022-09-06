@@ -437,13 +437,6 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
         }
     }
 
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inode.set_ctime(now.tv_sec);
-    inode.set_ctime_ns(now.tv_nsec);
-    inode.set_mtime(now.tv_sec);
-    inode.set_mtime_ns(now.tv_nsec);
-
     ret = inodeStorage_->Update(inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "UpdateInode fail, " << inode.ShortDebugString()
