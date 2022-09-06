@@ -173,7 +173,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
         fsMetric_->userWrite.bps.count << size;
         fsMetric_->userWrite.qps.count << 1;
         fsMetric_->userWrite.latency << timer.u_elapsed();
-        fsMetric_->userWriteIoSize << size;
+        fsMetric_->userWriteIoSize.set_value(size);
     }
 
     VLOG(9) << "write end, ino: " << ino << ", offset: " << off
@@ -219,7 +219,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
         fsMetric_->userRead.bps.count << size;
         fsMetric_->userRead.qps.count << 1;
         fsMetric_->userRead.latency << timer.u_elapsed();
-        fsMetric_->userReadIoSize << size;
+        fsMetric_->userReadIoSize.set_value(size);
     }
 
     *rSize = size;

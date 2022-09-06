@@ -25,6 +25,7 @@
 #define CURVEFS_SRC_CLIENT_METRIC_CLIENT_METRIC_H_
 
 #include <bvar/bvar.h>
+#include <cstdint>
 #include <string>
 #include "src/client/client_metric.h"
 
@@ -222,16 +223,16 @@ struct FSMetric {
 
     InterfaceMetric userWrite;
     InterfaceMetric userRead;
-    bvar::LatencyRecorder userWriteIoSize;
-    bvar::LatencyRecorder userReadIoSize;
+    bvar::Status<uint32_t> userWriteIoSize;
+    bvar::Status<uint32_t> userReadIoSize;
 
     explicit FSMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           userWrite(prefix, fsName + "_userWrite"),
           userRead(prefix, fsName + "_userRead"),
-          userWriteIoSize(prefix, fsName + "_userWriteIoSize"),
-          userReadIoSize(prefix, fsName + "_userReadIoSize") {}
+          userWriteIoSize(prefix, fsName + "_userWriteIoSize", 0),
+          userReadIoSize(prefix, fsName + "_userReadIoSize", 0) {}
 };
 
 struct S3Metric {
@@ -244,8 +245,8 @@ struct S3Metric {
     InterfaceMetric adaptorWriteDiskCache;
     InterfaceMetric adaptorReadS3;
     InterfaceMetric adaptorReadDiskCache;
-    bvar::LatencyRecorder readSize;
-    bvar::LatencyRecorder writeSize;
+    bvar::Status<uint32_t> readSize;
+    bvar::Status<uint32_t> writeSize;
 
     explicit S3Metric(const std::string &name = "")
         : fsName(!name.empty() ? name
@@ -256,8 +257,8 @@ struct S3Metric {
           adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
           adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
           adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache"),
-          readSize(prefix, fsName + "_adaptor_read_size"),
-          writeSize(prefix, fsName + "_adaptor_write_size") {}
+          readSize(prefix, fsName + "_adaptor_read_size", 0),
+          writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
 };
 
 struct DiskCacheMetric {
