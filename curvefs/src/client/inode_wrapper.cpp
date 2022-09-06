@@ -50,6 +50,14 @@ using rpcclient::DataIndices;
 
 bvar::Adder<int64_t> g_alive_inode_count{"alive_inode_count"};
 
+#define REFRESH_NLINK                       \
+do {                                        \
+    CURVEFS_ERROR ret = RefreshNlink();     \
+    if (ret != CURVEFS_ERROR::OK) {         \
+        return ret;                         \
+    }                                       \
+} while (0)
+
 std::ostream &operator<<(std::ostream &os, const struct stat &attr) {
     os << "{ st_ino = " << attr.st_ino << ", st_mode = " << attr.st_mode
        << ", st_nlink = " << attr.st_nlink << ", st_uid = " << attr.st_uid
@@ -135,6 +143,42 @@ class GetOrModifyS3ChunkInfoAsyncDone : public MetaServerClientDone {
  private:
     std::shared_ptr<InodeWrapper> inodeWrapper_;
 };
+
+CURVEFS_ERROR InodeWrapper::GetInodeAttrLocked(InodeAttr *attr) {
+    attr->set_inodeid(inode_.inodeid());
+    attr->set_fsid(inode_.fsid());
+    attr->set_length(inode_.length());
+    attr->set_ctime(inode_.ctime());
+    attr->set_ctime_ns(inode_.ctime_ns());
+    attr->set_mtime(inode_.mtime());
+    attr->set_mtime_ns(inode_.mtime_ns());
+    attr->set_atime(inode_.atime());
+    attr->set_atime_ns(inode_.atime_ns());
+    attr->set_uid(inode_.uid());
+    attr->set_gid(inode_.gid());
+    attr->set_mode(inode_.mode());
+    attr->set_nlink(inode_.nlink());
+    attr->set_type(inode_.type());
+    *(attr->mutable_parent()) = inode_.parent();
+    if (inode_.has_symlink()) {
+        attr->set_symlink(inode_.symlink());
+    }
+    if (inode_.has_rdev()) {
+        attr->set_rdev(inode_.rdev());
+    }
+    if (inode_.has_dtime()) {
+        attr->set_dtime(inode_.dtime());
+    }
+    if (inode_.xattr_size() > 0) {
+        *(attr->mutable_xattr()) = inode_.xattr();
+    }
+    return CURVEFS_ERROR::OK;
+}
+
+void InodeWrapper::GetInodeAttr(InodeAttr *attr) {
+    curve::common::UniqueLock lg(mtx_);
+    GetInodeAttrLocked(attr);
+}
 
 CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
     curve::common::UniqueLock lock = GetSyncingInodeUniqueLock();
@@ -263,7 +307,7 @@ CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
 
 CURVEFS_ERROR InodeWrapper::Link(uint64_t parent) {
     curve::common::UniqueLock lg(mtx_);
-    REFRESH_NLINK_IF_NEED;
+    REFRESH_NLINK;
     uint32_t old = inode_.nlink();
     inode_.set_nlink(old + 1);
     dirtyAttr_.set_nlink(inode_.nlink());
@@ -294,7 +338,7 @@ CURVEFS_ERROR InodeWrapper::Link(uint64_t parent) {
 
 CURVEFS_ERROR InodeWrapper::UnLink(uint64_t parent) {
     curve::common::UniqueLock lg(mtx_);
-    REFRESH_NLINK_IF_NEED;
+    REFRESH_NLINK;
     uint32_t old = inode_.nlink();
     VLOG(1) << "Unlink inode = " << inode_.DebugString();
     if (old > 0) {
@@ -567,7 +611,6 @@ CURVEFS_ERROR InodeWrapper::RefreshNlink() {
     }
     inode_.set_nlink(attr.nlink());
     VLOG(3) << "RefreshNlink from metaserver, newnlink: " << attr.nlink();
-    ResetNlinkValid();
     return CURVEFS_ERROR::OK;
 }
 

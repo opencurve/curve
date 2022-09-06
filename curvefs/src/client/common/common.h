@@ -87,6 +87,11 @@ enum class FileHandle : uint64_t {
     kKeepCache = 1,
 };
 
+enum class NlinkChange : int32_t {
+    kAddOne = 1,
+    kSubOne = -1,
+};
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
