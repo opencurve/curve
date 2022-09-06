@@ -52,16 +52,6 @@ constexpr int kAccessTime = 1 << 0;
 constexpr int kChangeTime = 1 << 1;
 constexpr int kModifyTime = 1 << 2;
 
-#define REFRESH_NLINK_IF_NEED               \
-do {                                        \
-    if (!isNlinkValid_) {                   \
-        CURVEFS_ERROR ret = RefreshNlink(); \
-        if (ret != CURVEFS_ERROR::OK) {     \
-            return ret;                     \
-        }                                   \
-    }                                       \
-} while (0)
-
 using ::curvefs::metaserver::VolumeExtentList;
 
 enum class InodeStatus {
@@ -76,6 +66,7 @@ using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 using rpcclient::MetaServerClientDone;
 using metric::S3ChunkInfoMetric;
+using common::NlinkChange;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
@@ -96,7 +87,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           maxDataSize_(maxDataSize),
           refreshDataInterval_(refreshDataInterval),
           lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
-          isNlinkValid_(true),
           s3ChunkInfoAddSize_(0),
           metaClient_(std::move(metaClient)),
           s3ChunkInfoMetric_(std::move(s3ChunkInfoMetric)),
@@ -196,43 +186,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     void MergeXAttrLocked(
         const google::protobuf::Map<std::string, std::string>& xattrs);
 
-    CURVEFS_ERROR GetInodeAttrLocked(InodeAttr *attr) {
-        REFRESH_NLINK_IF_NEED;
+    CURVEFS_ERROR GetInodeAttrLocked(InodeAttr *attr);
 
-        attr->set_inodeid(inode_.inodeid());
-        attr->set_fsid(inode_.fsid());
-        attr->set_length(inode_.length());
-        attr->set_ctime(inode_.ctime());
-        attr->set_ctime_ns(inode_.ctime_ns());
-        attr->set_mtime(inode_.mtime());
-        attr->set_mtime_ns(inode_.mtime_ns());
-        attr->set_atime(inode_.atime());
-        attr->set_atime_ns(inode_.atime_ns());
-        attr->set_uid(inode_.uid());
-        attr->set_gid(inode_.gid());
-        attr->set_mode(inode_.mode());
-        attr->set_nlink(inode_.nlink());
-        attr->set_type(inode_.type());
-        *(attr->mutable_parent()) = inode_.parent();
-        if (inode_.has_symlink()) {
-            attr->set_symlink(inode_.symlink());
-        }
-        if (inode_.has_rdev()) {
-            attr->set_rdev(inode_.rdev());
-        }
-        if (inode_.has_dtime()) {
-            attr->set_dtime(inode_.dtime());
-        }
-        if (inode_.xattr_size() > 0) {
-            *(attr->mutable_xattr()) = inode_.xattr();
-        }
-        return CURVEFS_ERROR::OK;
-    }
-
-    void GetInodeAttr(InodeAttr *attr) {
-        curve::common::UniqueLock lg(mtx_);
-        GetInodeAttrLocked(attr);
-    }
+    void GetInodeAttr(InodeAttr *attr);
 
     XAttr GetXattr() const {
         XAttr ret;
@@ -253,19 +209,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     CURVEFS_ERROR Link(uint64_t parent = 0);
 
     CURVEFS_ERROR UnLink(uint64_t parent = 0);
-
-    // mark nlink invalid, need to refresh from metaserver
-    void InvalidateNlink() {
-        isNlinkValid_ = false;
-    }
-
-    void ResetNlinkValid() {
-        isNlinkValid_ = true;
-    }
-
-    bool IsNlinkValid() {
-        return isNlinkValid_;
-    }
 
     CURVEFS_ERROR RefreshNlink();
 
@@ -310,6 +253,14 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     bool S3ChunkInfoEmptyNolock() {
         return s3ChunkInfoAdd_.empty();
+    }
+
+    uint32_t GetNlinkLocked() {
+        return inode_.nlink();
+    }
+
+    void UpdateNlinkLocked(NlinkChange nlink) {
+        inode_.set_nlink(inode_.nlink() + static_cast<int32_t>(nlink));
     }
 
     void AppendS3ChunkInfo(uint64_t chunkIndex, const S3ChunkInfo &info) {
@@ -437,8 +388,6 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
     uint64_t maxDataSize_;
     uint32_t refreshDataInterval_;
     uint64_t lastRefreshTime_;
-
-    bool isNlinkValid_;
 
     google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd_;
     int64_t s3ChunkInfoAddSize_;
