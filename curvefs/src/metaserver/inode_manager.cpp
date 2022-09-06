@@ -27,6 +27,7 @@
 #include <list>
 #include <unordered_set>
 #include <utility>
+#include <ctime>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/common/define.h"
@@ -112,14 +113,23 @@ void InodeManager::GenerateInodeInternal(uint64_t inodeId,
     inode->set_rdev(param.rdev);
     inode->add_parent(param.parent);
 
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inode->set_mtime(now.tv_sec);
-    inode->set_mtime_ns(now.tv_nsec);
-    inode->set_atime(now.tv_sec);
-    inode->set_atime_ns(now.tv_nsec);
-    inode->set_ctime(now.tv_sec);
-    inode->set_ctime_ns(now.tv_nsec);
+    if (param.timestamp.has_value()) {
+        inode->set_mtime(param.timestamp->tv_sec);
+        inode->set_mtime_ns(param.timestamp->tv_nsec);
+        inode->set_atime(param.timestamp->tv_sec);
+        inode->set_atime_ns(param.timestamp->tv_nsec);
+        inode->set_ctime(param.timestamp->tv_sec);
+        inode->set_ctime_ns(param.timestamp->tv_nsec);
+    } else {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        inode->set_mtime(now.tv_sec);
+        inode->set_mtime_ns(now.tv_nsec);
+        inode->set_atime(now.tv_sec);
+        inode->set_atime_ns(now.tv_nsec);
+        inode->set_ctime(now.tv_sec);
+        inode->set_ctime_ns(now.tv_nsec);
+    }
 
     if (FsFileType::TYPE_DIRECTORY == param.type) {
         inode->set_nlink(2);
