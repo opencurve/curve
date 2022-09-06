@@ -142,7 +142,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
     std::shared_ptr<InodeWrapper> inodeWrapper;
     bool ok = iCache_->Get(inodeId, &inodeWrapper);
     if (ok) {
-        inodeWrapper->GetInodeAttrLocked(out);
+        inodeWrapper->GetInodeAttr(out);
         return CURVEFS_ERROR::OK;
     }
 
@@ -180,7 +180,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         bool ok = iCache_->Get(*iter, &inodeWrapper);
         if (ok) {
             InodeAttr tmpAttr;
-            inodeWrapper->GetInodeAttrLocked(&tmpAttr);
+            inodeWrapper->GetInodeAttr(&tmpAttr);
             attr->emplace_back(tmpAttr);
             iter = inodeIds->erase(iter);
         } else {

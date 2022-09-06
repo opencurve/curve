@@ -479,7 +479,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     }
 
     InodeAttr attr;
-    inodeWrapper->GetInodeAttrLocked(&attr);
+    inodeWrapper->GetInodeAttr(&attr);
     GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
@@ -1075,7 +1075,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
     }
 
     InodeAttr attr;
-    inodeWrapper->GetInodeAttrLocked(&attr);
+    inodeWrapper->GetInodeAttr(&attr);
     GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
@@ -1146,7 +1146,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     }
 
     InodeAttr attr;
-    inodeWrapper->GetInodeAttrLocked(&attr);
+    inodeWrapper->GetInodeAttr(&attr);
     GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
