@@ -45,6 +45,7 @@ cc_test(
             "//curvefs/src/metaserver:metaserver_s3_lib",
             "//curvefs/test/metaserver/storage:metaserver_storage_test_utils",
             "//curvefs/test/metaserver/mock:metaserver_test_mock",
+            "@com_google_absl//absl/types:optional",
     ],
 )
 

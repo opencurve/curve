@@ -33,6 +33,7 @@
 #include "rocksdb/utilities/options_util.h"
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/types/optional.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/partition_clean_manager.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
@@ -453,7 +454,12 @@ MetaStatusCode MetaStoreImpl::CreateInode(const CreateInodeRequest* request,
     param.type = request->type();
     param.parent = request->parent();
     param.rdev = request->rdev();
+    if (request->has_create()) {
+        param.timestamp = absl::make_optional<struct timespec>(
+            {request->create().sec(), request->create().nsec()});
+    }
     param.symlink = "";
+
     if (param.type == FsFileType::TYPE_SYM_LINK) {
         if (!request->has_symlink()) {
             response->set_statuscode(MetaStatusCode::SYM_LINK_EMPTY);
@@ -494,6 +500,10 @@ MetaStatusCode MetaStoreImpl::CreateRootInode(
     param.type = FsFileType::TYPE_DIRECTORY;
     param.rdev = 0;
     param.parent = 0;
+    if (request->has_create()) {
+        param.timestamp = absl::make_optional<struct timespec>(
+            {request->create().sec(), request->create().nsec()});
+    }
 
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition = GetPartition(request->partitionid());

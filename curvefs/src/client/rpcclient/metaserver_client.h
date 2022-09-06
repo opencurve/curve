@@ -52,6 +52,7 @@ using ::curvefs::metaserver::S3ChunkInfoList;
 using ::curvefs::common::StreamStatus;
 using ::curvefs::common::StreamClient;
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
+using ::curvefs::metaserver::Time;
 
 namespace curvefs {
 namespace client {
