@@ -24,6 +24,7 @@
 #include <brpc/closure_guard.h>
 #include <butil/iobuf.h>
 #include <glog/logging.h>
+#include <time.h>
 
 #include <cstddef>
 #include <memory>
@@ -1245,6 +1246,12 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         request.set_rdev(param.rdev);
         request.set_symlink(param.symlink);
         request.set_parent(param.parent);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        Time* tm = new Time();
+        tm->set_sec(now.tv_sec);
+        tm->set_nsec(now.tv_nsec);
+        request.set_allocated_create(tm);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateInode(cntl, &request, &response, nullptr);
 

@@ -20,6 +20,7 @@
  * @Author: chenwei
  */
 
+#include <time.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
@@ -32,6 +33,7 @@
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "absl/types/optional.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 using ::testing::_;
@@ -215,6 +217,14 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_EQ(inode4.inodeid(), 5);
     ASSERT_EQ(inode4.type(), FsFileType::TYPE_S3);
 
+    // test struct timespec
+    Inode inode5;
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    param_.timestamp = absl::make_optional<struct timespec>(now);
+    ASSERT_EQ(manager->CreateInode(6, param_, &inode5),
+              MetaStatusCode::OK);
+
     // GET
     Inode temp1;
     ASSERT_EQ(manager->GetInode(fsId, inode1.inodeid(), &temp1),
@@ -258,6 +268,11 @@ TEST_F(InodeManagerTest, test1) {
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(temp5, temp2));
     ASSERT_FALSE(CompareInode(inode2, temp2));
+
+    Inode temp6;
+    ASSERT_EQ(manager->GetInode(fsId, inode5.inodeid(), &temp6),
+              MetaStatusCode::OK);
+    ASSERT_TRUE(CompareInode(inode5, temp6));
 }
 
 TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {

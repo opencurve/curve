@@ -410,6 +410,11 @@ TEST_F(MetastoreTest, test_inode) {
     uint32_t gid = 200;
     uint32_t mode = 777;
     FsFileType type = FsFileType::TYPE_DIRECTORY;
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    Time* tm = new Time();
+    tm->set_sec(now.tv_sec);
+    tm->set_nsec(now.tv_nsec);
 
     createRequest.set_poolid(poolId);
     createRequest.set_copysetid(copysetId);
@@ -420,7 +425,7 @@ TEST_F(MetastoreTest, test_inode) {
     createRequest.set_gid(gid);
     createRequest.set_mode(mode);
     createRequest.set_type(type);
-
+    createRequest.set_allocated_create(tm);
     // CreateInde wrong partitionid
     ret = metastore.CreateInode(&createRequest, &createResponse);
     ASSERT_EQ(createResponse.statuscode(), ret);
@@ -450,6 +455,12 @@ TEST_F(MetastoreTest, test_inode) {
     ASSERT_EQ(createResponse2.inode().gid(), gid);
     ASSERT_EQ(createResponse2.inode().mode(), mode);
     ASSERT_EQ(createResponse2.inode().type(), FsFileType::TYPE_S3);
+    ASSERT_EQ(createResponse2.inode().ctime(), now.tv_sec);
+    ASSERT_EQ(createResponse2.inode().ctime_ns(), now.tv_nsec);
+    ASSERT_EQ(createResponse2.inode().mtime(), now.tv_sec);
+    ASSERT_EQ(createResponse2.inode().mtime_ns(), now.tv_nsec);
+    ASSERT_EQ(createResponse2.inode().atime(), now.tv_sec);
+    ASSERT_EQ(createResponse2.inode().atime_ns(), now.tv_nsec);
 
     // type symlink
     createRequest.set_type(FsFileType::TYPE_SYM_LINK);

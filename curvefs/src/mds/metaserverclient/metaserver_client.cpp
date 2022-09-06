@@ -23,9 +23,12 @@
 #include "curvefs/src/mds/metaserverclient/metaserver_client.h"
 #include <bthread/bthread.h>
 
+#include <ctime>
+
 namespace curvefs {
 namespace mds {
 
+using curvefs::metaserver::Time;
 using curvefs::metaserver::CreateRootInodeRequest;
 using curvefs::metaserver::CreateRootInodeResponse;
 using curvefs::metaserver::DeleteInodeRequest;
@@ -162,7 +165,12 @@ FSStatusCode MetaserverClient::CreateRootInode(
     request.set_uid(uid);
     request.set_gid(gid);
     request.set_mode(mode);
-
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    Time* tm = new Time();
+    tm->set_sec(now.tv_sec);
+    tm->set_nsec(now.tv_nsec);
+    request.set_allocated_create(tm);
     auto fp = &MetaServerService_Stub::CreateRootInode;
     LeaderCtx ctx;
     ctx.addrs = addrs;

@@ -23,6 +23,8 @@
 #ifndef CURVEFS_SRC_METASERVER_INODE_MANAGER_H_
 #define CURVEFS_SRC_METASERVER_INODE_MANAGER_H_
 
+#include <time.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -32,6 +34,7 @@
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/trash.h"
 #include "src/common/concurrent/name_lock.h"
+
 
 using ::curve::common::NameLock;
 using ::curvefs::metaserver::S3ChunkInfoList;
@@ -49,6 +52,7 @@ struct InodeParam {
     std::string symlink;
     uint64_t rdev;
     uint64_t parent;
+    absl::optional<struct timespec> timestamp;
 };
 
 class InodeManager {
