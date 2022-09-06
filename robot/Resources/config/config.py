@@ -96,10 +96,12 @@ fs_etcd = ["10.182.26.34","10.182.26.35","10.182.26.36"]
 md5_check = []
 fs_md5check_thread = ""
 fs_mount_thread = ""
+fs_pjdtest_thread = ""
 fs_use_curvebs = False
 thrash_fs_mount = True
 thrash_fs_mdtest = True
 thrash_mount_host = "pubbeta2-nova48-3"
+pjdtest_source_path = "/var/lib/jenkins/workspace/pjdfstest"
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
 cs_1 = curve_workspace + "1"

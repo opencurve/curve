@@ -17,6 +17,12 @@ ${vm_iops_limit}   8000
 ${chunk_num}   0
 
 *** Test Cases ***
+begin pjdtest
+    [Tags]   P2  base    interface    pjdtest
+    ${pjdfs}    evaluate    str("pjdtest")
+    mount test dir   ${pjdfs}
+    start pjdtest    ${pjdfs}
+
 inject kill one mds
     [Tags]    P0    base    first release   failover
     ${num}   evaluate  int(1)
@@ -150,6 +156,10 @@ test ipmitool restart metaserver node
    check fuse mount success
    check fuse iops
    [Teardown]   wait fs cluster ok
+
+test check pjdtest result
+    [Tags]   P2  base    interface    pjdtest
+    check pjdtest result
 
 test loop mount umount
     [Tags]    P0    base    first release   failover

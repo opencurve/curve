@@ -619,3 +619,37 @@ def stop_cto_file_md5check():
         assert result  == config.md5_check[0],"cto md5 check fail,ont mount ponit is %s,other is %s"%(config.md5_check[0],result)
     except:
         raise
+
+def start_pjdtest_cmd(pjd_path):
+    try:
+        test_dir = config.fs_mount_path
+        workspace = test_dir + pjd_path
+        test_client = config.fs_test_client[0]
+        ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
+        ori_cmd = "cd %s && sudo prove -r %s > result.txt"%(workspace,pjdtest_source_path)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.info("pjdtest result is %s"%rs[1])
+        assert rs[3] == 0,"pjdtest fail,result is %s"%rs[2]
+        ori_cmd = "cd %s && cat result.txt |grep 'Failed:'"%workspace
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.debug("pjdtest result is %s"%rs[1])
+        return rs[1]
+    except:
+        raise
+
+def start_pjdtest(pjdfs):
+    thread = mythread.runThread(start_pjdtest_cmd,pjdfs)
+    logger.debug("start pjdtest")
+    config.fs_pjdtest_thread = thread
+    thread.start()
+
+def check_pjdtest_result():
+    try:
+        if config.fs_pjdtest_thread == []:
+            assert False," pjdtest not up"
+        t = config.fs_pjdtest_thread
+        assert t.exitcode == 0,"pjdtest fail"
+        result = t.get_result()
+        assert result == [],"pjdtest have some failure cases,%s"%result
+    except:
+        raise
