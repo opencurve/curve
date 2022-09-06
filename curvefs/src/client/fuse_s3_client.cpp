@@ -363,7 +363,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userWrite.qps.count << 1;
         uint64_t duration = butil::cpuwide_time_us() - start;
         fsMetric_->userWrite.latency << duration;
-        fsMetric_->userWriteIoSize << wRet;
+        fsMetric_->userWriteIoSize.set_value(wRet);
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -453,7 +453,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userRead.qps.count << 1;
         uint64_t duration = butil::cpuwide_time_us() - start;
         fsMetric_->userRead.latency << duration;
-        fsMetric_->userReadIoSize << rRet;
+        fsMetric_->userReadIoSize.set_value(rRet);
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
