@@ -348,8 +348,8 @@ class FuseClient {
 
     virtual void FlushData() = 0;
 
-    CURVEFS_ERROR UpdateParentInodeMCTimeAndInvalidNlink(
-        fuse_ino_t parent, FsFileType type);
+    CURVEFS_ERROR UpdateParentMCTimeAndNlink(
+        fuse_ino_t parent, FsFileType type,  NlinkChange nlink);
 
     void WarmUpTask();
 
