@@ -179,5 +179,9 @@ elif [ $1 == "curvefs" ];then
 ./check_coverage.sh "curvefs"
 fi
 cp -r coverage ${WORKSPACE}
+if [ $1 == "curvebs" ];then
 gcovr -x -r src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/bazel_out/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
+elif [ $1 == "curvefs" ];then
+gcovr -x -r curvefs/src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/bazel_out/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
+fi
 cp coverage.xml ${WORKSPACE}
