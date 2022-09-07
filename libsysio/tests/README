@@ -1,0 +1,184 @@
+To run the tests, just do a "make check" in the tests subdirectory.   
+On the CPlant alpha systems, 3 of the 7 tests in test_all.pl are excluded 
+due to known problems (problems as of the date of writing this; they
+may have since been fixed).  You can also manually run the individual
+tests or ./test_all.pl.  If you are running on CPlant, you need to 
+run test_all.pl with a -alpha argument. Either "make check" or 
+test_all.pl  will run the 7 basic functionality tests (explained 
+below) and report the total number of passes and failures.
+number of passes and failures.  
+
+-----------------------SCRIPTS---------------------------------
+
+There are a total of 8 scripts: test_copy.pl, test_list.pl, 
+test_getcwd.pl, test_stats.pl, test_stdfd.pl, test_path.pl,
+populator.pl, and verifier.pl.  All but the last two scripts
+are ran with the test_all.pl script.  Here is an explanation
+of the scripts.  All scripts take an optional "-alpha" arg
+for running the scripts in an alpha/cplant environment.  The
+alpha arg makes certain assumptions about the running of the
+environment; for example, it does not do initilization.
+
+test_copy.pl <src> <dest> : This copies a file from src to dest.
+                          : It runs a system cmp to verify that
+                          : the two files are equivalent
+
+test_list.pl [-p] <dir>               : This comes in two forms. 
+test_list.pl [-p] <fstype:mdir> <dir> : In the first form, it will
+                                      : parse through the getdirentries
+                                      : result in order to generate a
+                                      : a listing. If the -p option is
+                                      : given, it will print out the 
+                                      : listing.  In the second form, it
+                                      : mounts mdir into dir and then does
+                                      : the listing
+
+test_getcwd.pl <dir> : Tests getcwd by verifying that setting the current
+                     : working directory to dir and then calling getcwd 
+                     : returns dir    
+
+test_stats.pl <file> : Verifies that the set of stat calls (stat, fstat, 
+                     : fstatvfs, statvfs) return the same set of stats for file 
+                     : and that the calls return the same items as Perl's stat 
+                     : call (which would use a native library and not libsysio)
+
+test_stdfd.pl <file> : Verified that stdin, stdout, and stderr can be opened and 
+                     : either written to or read from
+
+test_path.pl <path1> <path2> ... : Print each path listed and its type.  
+                                 : If no paths are given, paths are read
+                                 : from stdin until a "quit" is given
+
+populator.pl [-seed seed]     : Create a file and populate with random numbers.
+             [-file filename] : Will use the given seed for the random number
+             [-bytes bytes]   : generator if it is given, otherwise it uses the
+                              : the current time as a seed.  The seed used is 
+                              : returned.  If no filename is given, the file
+                              : will be named randfile.seed.procnum, where seed
+                              : is the seed used and procnum is the process number
+                              : of the script.  If no bytes are given, 1024 bytes
+                              : are written.  All write commands use libsysio 
+             
+             
+verifier.pl <-seed seed> <-file fname> : Verifies that all bytes in the file fname
+                                       : (which was created with populator) match the
+                                       : random numbers which would have been used with
+                                       : the populator, using the given seed.
+
+
+
+-----------------------------TEST DRIVER---------------------------------
+   
+
+There are 6 basic commands for the test driver, CALL, PRINT,
+ALLOC, FREE, HELP, and exit (EXIT, quit, or QUIT will also work).
+
+CALL is the main command for running libsysio calls.  The format
+will depend on the particular libsysio command being ran.  
+Basically, the format is CALL cmd args.  The available commands
+used with CALL are (in no particular order):
+
+fstat           iwrite          read            chdir           
+fstatvfs        iwritev         readv           chmod           
+fsync           list            rmdir           chown           
+ftruncate       lseek           sizeof          close           
+getcwd          lstat           stat            cmpstr          
+getdirentries   mkdir           statvfs         creat           
+init            mknod           symlink         debug           
+ioctl           mount           truncate        dup             
+iodone          open            umask           dup2            
+iowait          umount          endian          ipread          
+printline       unlink          ipreadv         pread           
+write           fcntl           ipwrite         preadv          
+writev          fdatasync       ipwritev        pwritev         
+fill            iread           pwrite          ireadv         
+
+The specifics of the commands are explained later.
+
+The return value from a command can be saved and referenced later
+by using a syntax similar to $foo = x.  Commands can be combined, such
+as: 
+
+CALL fstat ( $fd = CALL open foo ) ( $buf = ALLOC 128 ), 
+
+with some cautionary notes.  First, everything needs to be 
+seperated by a space.  File names with spaces in them need to be quoted, 
+as in: 
+
+$fd = CALL open "file with spaces" O_RDONLY
+
+Second, any value that is used needs to be identified with an identifier.
+In other words, the command:
+
+$buf = ALLOC ( CALL sizeof stat )
+
+will not work, but the command
+
+$buf = ALLOC ( $size = CALL sizeof stat )
+
+will.
+
+
+All commands return a 4 digit status code.  The codes are:
+
+0000  : Success.  This does NOT necessarily mean that the libsysio
+      : command returned success, only that there were no errors
+      : in issuing the command to libsysio.  To get the result of
+      : the libsysio command, use PRINT $$ .  PRINT $errno will return
+      : the last error code.
+0x001 : Invalid arguments given to command
+0x002 : Invalid command issued
+0x004 : Invalid variable identifier given
+
+
+ALLOC takes a size argument and an optional alignment argument.
+FREE takes the variable to free as an argument.
+HELP without any arguments displays the list of commands.  
+HELP <cmd> will give information on the specific command
+
+PRINT take several forms.  To just print out a variable, type
+PRINT $var-name.  If the variable is an integer, it will return
+the integer.  If it is a string, it will print out the string.
+If it is a buffer, it will print out the buffer as a series of 
+hex digits.  Note for most buffers, the test driver will not
+know what it contains--just because it should contain a string
+does not mean that the driver will know that.
+
+The other form of PRINT is:
+
+PRINT $var_name <offset> <length> <type>
+
+which will print out length units of the given type starting at
+the given offset.  The length is the total length in bytes, so
+for an integer, a length of 4 would only print out one integer.
+The length argument is ignored for strings.  Allowable types are
+INT SHORT CHAR and LONG.  
+
+For most of the CALL commands, their format is similar to the 
+related sysio call.  The ones that do not have a corresponding
+sysio call are listed below:
+
+init:  This MUST be called prior to any sysio calls.  It initilizes
+    :  libsysio
+
+printline: If debugging is turned on, this will print a line number
+         : with any debug lines
+
+fill <val> <type> <size> <offset> <buf>: Fills buffer buf with size
+                                       : bytes of val starting at
+                                       : buf+offset.  The type of val
+                                       : can be UINT. STR, or PTR and
+                                       : is given by the type arg
+
+list <dir>: Lists contents of dir.  If no dir is given, uses cwd
+
+debug <num>: Sets debug level to num
+
+sizeof <obj>: Gives the size of the obj.  Valid objs are char, int,
+            : long, flock, stat, and statvfs
+
+endian: returns 0 if the machine is little endian, one otherwise
+
+cmpstr <buf1> <buf2>: Issues a strcmp call on the two buffers to 
+                    : see if they are the same.  Returns 0 for a 
+                    : match

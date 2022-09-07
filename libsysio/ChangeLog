@@ -1,0 +1,31 @@
+Sat Feb 22 10:32:10 EST 2003
+	Created <lee@sandia.gov>
+---
+
+*Added mount() api call to support sub-mounts.
+
+*Added rudimentary automounts per the namespace chapter in the "Lustre
+Architecture Reference". Note, full URI support is not implemented. See
+the README for details.
+
+Think I have it going for simultaneous 32/64 bit support. Together with
+the nagging build for test_stat.
+
+*Miscellaneous bugs fixed.
+
+---
+Lee -- Sat Mar 22 15:01:45 EST 2003
+
+*Added "incore" file system. An in-memory file system solving boot-strap
+and other annoying little chicken-and-the-egg problems.
+
+*Added support for devices
+
+*Added support for accessing the pre-opened standard file descriptors 0, 1,
+and 2 via the stdfd device driver (major number 0, minor 0, 1, and 2).
+
+---
+Lee -- Mon Jan 26 11:26:14 EST 2004
+
+*Altered the internal interface to pass the xtvec (see .../include/xtio.h) in
+order to support strided-io.

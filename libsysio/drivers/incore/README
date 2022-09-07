@@ -1,0 +1,27 @@
+This "incore" file system driver is a self-contained file system. It does
+not use any resource external to the node.
+
+It is primarily intended for enabling an efficient compute-node bootstrap. It
+might also be useful for a very small scratch file system, holding device
+files, and the like.
+
+The root directory i-node is manufactured on the fly. The source specification
+for the mount() call should be something like:
+
+	<perms>+<uid>+<gid>
+
+Where:
+	<perms>		are the directory permissions masked by 0777
+			Note -- no umask is applied.
+	<uid>		should be the owner's uid
+	<gid>		should be the owner's gid
+
+Most operations are supported, with the notable exception of symbolic
+links.
+
+In the implementation, the driver is really set up to export most
+useful symbols without polluting the name space or contending with
+other public symbols. However, the symbols are not yet exported. If
+we ever require a proc-fs style file system, this could be very useful
+provided a little extra work is done to allow other drivers to overload
+some operations. Particularly the file ops, I would think.

@@ -1,0 +1,127 @@
+#    This Cplant(TM) source code is the property of Sandia National
+#    Laboratories.
+#
+#    This Cplant(TM) source code is copyrighted by Sandia National
+#    Laboratories.
+#
+#    The redistribution of this Cplant(TM) source code is subject to the
+#    terms of the GNU Lesser General Public License
+#    (see cit/LGPL or http://www.gnu.org/licenses/lgpl.html)
+#
+#    Cplant(TM) Copyright 1998-2003 Sandia Corporation. 
+#    Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
+#    license for use of this work by or on behalf of the US Government.
+#    Export of this program may require a license from the United States
+#    Government.
+
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+# 
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+# 
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+#
+# Questions or comments about this library should be sent to:
+#
+# Lee Ward
+# Sandia National Laboratories, New Mexico
+# P.O. Box 5800
+# Albuquerque, NM 87185-1110
+#
+# lee@sandia.gov
+
+#
+# Useful commands for debugging libsysio in gdb
+#
+
+define x_dump_pbnode
+	printf "%p: ", $arg0
+	if $arg0->pb_name.name
+		printf " \"%s\"", \
+		  $arg0->pb_name.name
+	else
+		printf " <NULL>"
+	end
+	printf " aliases:["
+	set $x_p = $arg0->pb_aliases.lh_first
+	while $x_p
+		printf "<%p r:%d mnt:%p>", \
+		  $x_p, \
+		  $x_p->p_ref, \
+		  $x_p->p_mount
+		set $x_p = $x_p->p_links.le_next
+	end
+	printf "]\n"
+end
+document x_dump_pbnode
+Dump path-base node and it's aliases
+
+Usage: x_dump_pbnode <pbnode>
+end
+
+define __x_dump_pnode
+	printf "%spnode %p, mount %p, base: ", $arg0, $arg1, $arg1->p_mount
+	x_dump_pbnode $arg1->p_base
+end
+
+define x_dump_pnode
+	__x_dump_pnode "" $arg0
+end
+document x_dump_pnode
+Dump path node information
+
+Usage: x_dump_pnode <pnode>
+end
+
+define x_dump_mount
+	printf "MOUNT %p: root pnode %p, covers %p\n", \
+	    $arg0, $arg0->mnt_root, $arg0->mnt_covers
+	set $_x_dump_mount_var_pno = _sysio_pnodes->tqh_first
+	while $_x_dump_mount_var_pno != 0
+printf "%p, %p\n", $_x_dump_mount_var_pno, $arg0
+		if $_x_dump_mount_var_pno->p_mount == $arg0
+			__x_dump_pnode " " $_x_dump_mount_var_pno
+		end
+		set $_x_dump_mount_var_pno = \
+		    $_x_dump_mount_var_pno->p_nodes.tqe_next
+	end
+end
+document x_dump_mount
+Dump single mount record information
+
+Usage: x_dump_mount <mnt>
+end
+
+define x_dump_mounts
+	set $__x_dump_mounts_var_mnt = mounts.lh_first
+	while $__x_dump_mounts_var_mnt
+		x_dump_mount $__x_dump_mounts_var_mnt
+		set $__x_dump_mounts_var_mnt = \
+		    $__x_dump_mounts_var_mnt->mnt_link.le_next
+	end
+end
+document x_dump_mounts
+Dump the contents of the libsysio mount table
+
+Usage: x_dump_mounts
+end
+
+define x_dump_pnodes
+	set $_x_dump_pnodes_var_pno = _sysio_pnodes.tqh_first
+	while $_x_dump_pnodes_var_pno
+		x_dump_pnode $_x_dump_pnodes_var_pno
+		set $_x_dump_pnodes_var_pno = \
+		    $_x_dump_pnodes_var_pno->p_nodes.tqe_next
+	end
+end
+
+br _sysio_unmount_all
+run -r /tmp/lee foo bar
+x_dump_pnodes

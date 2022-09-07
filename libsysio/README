@@ -1,0 +1,76 @@
+Build
+-----
+
+To bootstrap configuration:
+
+sh autogen.sh
+./configure [options]
+
+Without the supported "--with" options only the core sysio library is
+built.
+
+Option --with-native-driver=yes will cause the "native" host name space test
+driver to be enabled and made available in drivers/native/libsysio_native.a
+when built. This is set by default; Use "no" to disable.
+
+Option --with-tests=yes will cause the test programs in the tests directory
+to be enabled. This is set by default; Use "no" to disable.
+
+Option --with-automount=<automount-file-name> will cause automount support
+to be included. If <automount-file-name> is not supplied, a default value
+of ".mount" will be used, matching the Lustre documentation.
+
+To build:
+
+Just `make' it.
+
+Automounts
+----------
+
+For a full description of this see the "Lustre Book" at:
+	<http://www.lustre.org/docs/lustre.pdf>
+
+In short, though, whenever a component is being looked up in a directory and
+that directory has the "set-UID" bit set, then the directory is
+searched for a special file. By default, that file is called ".mount" but
+you may set it to any name using the --with-automount option described
+earlier.
+
+If the content of that file has something formatted, exactly:
+
+<file-system-type>:<source>
+
+Then the <source> description is mounted on the directory containing the
+special automount file and being used as the parent in the lookup. If the
+mount is successful, the parent is replaced with the newly mounted directory
+and processing continues. If the mount fails, or the automount file
+does not exist or cannot be read, everything continues as though the operation
+had never been attempted.
+
+File systems, or volumes, or file-sets, or whatever they are called, that
+have been automounted may also be automatically unmounted when resource
+is required. They are not on a timer, unless the file system driver implements
+one for them. They just disappear as resource is needed elsewhere. As they
+were automatically mounted to begin with, they should re-establish as needed,
+transparently.
+
+REDSTORM
+--------
+
+The following works for me:
+
+#!/bin/sh
+
+export CFLAGS="-DREDSTORM -nostdinc -isystem /home/lee/REDSTORM/catamount/computeincs/i386 -isystem /home/lee/REDSTORM/catamount/include -g -W -Wall -ansi"
+
+sh configure --with-autmount=".mount" --with-native=yes --with-incore-yes --with-stdfd=yes --with-tests=yes
+
+/* just switch for debug include file sysio-cmn.h */
+#define CURVEFS_SYSIO_TRACING
+
+/* just switch for debug of ./test include file curvefs_test.h */
+#define CURVEFS_TEST_DEBUG
+
+/* switch for the poll */
+#define CURVEFS_SERVER_CO_POOL
+
