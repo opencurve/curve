@@ -102,6 +102,7 @@ void FuseS3Client::GetWarmUpFileList(const WarmUpFileContext_t&warmUpFile,
 
 void FuseS3Client::BackGroundFetch() {
     while (!bgFetchStop_.load(std::memory_order_acquire)) {
+        usleep(WARMUP_CHECKINTERVAL_US);
         LOG_EVERY_N(WARNING, 100)
             << "fetch thread start.";
         if (hasWarmUpTask()) {  // new warmup task
@@ -119,6 +120,13 @@ void FuseS3Client::BackGroundFetch() {
         {   // file need warmup
             std::list<fuse_ino_t> readAheadFiles;
             readAheadFiles.swap(GetReadAheadFiles());
+            ClearReadAheadFiles();
+            if (readAheadFiles.empty()) {
+                continue;
+            }
+            LOG(INFO) << "num of files is need loaded is: "
+                    << readAheadFiles.size();
+            remainDownloads_.fetch_add(readAheadFiles.size());
             for (auto iter : readAheadFiles) {
                 VLOG(9) << "BackGroundFetch: " << iter;
                 fetchDataEnqueue(iter);
@@ -126,7 +134,6 @@ void FuseS3Client::BackGroundFetch() {
         }
         LOG_EVERY_N(WARNING, 100)
             << "fetch thread end.";
-        usleep(WARMUP_CHECKINTERVAL_US);
     }
     return;
 }
@@ -271,7 +278,9 @@ void FuseS3Client::WarmUpAllObjs(
                     "write read directly failed, key: " << context->key;
                 }
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
-                    VLOG(6) << "pendingReq is over";
+                    VLOG(9) << "file is loaded: " << context->key;
+                    if (1 == remainDownloads_.fetch_sub(1))
+                        LOG(INFO) << "all file is loaded.";
                     cond.Signal();
                 }
                 delete []context->buf;

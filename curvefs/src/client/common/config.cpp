@@ -279,6 +279,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("fuseClient.disableXattr",
                               &clientOption->disableXattr);
     conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
+    conf->GetValueFatalIfFail("fuseClient.warmupThreads",
+                              &clientOption->warmupThreads);
 
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))

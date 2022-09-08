@@ -55,7 +55,6 @@
 
 #define DirectIOAlignment 512
 #define WARMUP_CHECKINTERVAL_US 1000*1000
-#define WARMUP_THREADS 10
 
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
@@ -268,7 +267,10 @@ class FuseClient {
         std::unique_lock<std::mutex> lck(fetchMtx_);
         return readAheadFiles_;
     }
-
+    void ClearReadAheadFiles() {
+        std::unique_lock<std::mutex> lck(fetchMtx_);
+        readAheadFiles_.clear();
+    }
     void GetWarmUpFile(WarmUpFileContext_t* warmUpFile) {
         std::unique_lock<std::mutex> lck(warmUpFileMtx_);
         *warmUpFile = std::move(warmUpFile_);

@@ -121,6 +121,7 @@ class FuseS3Client : public FuseClient {
     Thread bgFetchThread_;
     std::atomic<bool> bgFetchStop_;
     std::mutex fetchMtx_;
+    std::atomic<uint64_t> remainDownloads_;
 };
 
 
