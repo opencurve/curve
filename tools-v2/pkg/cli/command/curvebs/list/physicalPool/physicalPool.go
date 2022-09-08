@@ -79,7 +79,7 @@ func (pCmd *PhysicalPoolCommand) AddFlags() {
 }
 
 func (pCmd *PhysicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
-	mdsAddrs, err := config.GetBsAddrSlice(pCmd.Cmd, config.CURVEBS_MDSADDR)
+	mdsAddrs, err := config.GetBsMdsAddrSlice(pCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}

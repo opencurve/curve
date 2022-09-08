@@ -40,8 +40,19 @@ A tool for CurveFS & CurveBs.
         - [usage inode](#usage-inode)
         - [usage metadata](#usage-metadata)
       - [warmup](#warmup)
+      - [warmup add](#warmup-add)
+  - [bs](#bs)
+    - [list](#list-1)
+        - [list logical-pool](#list-logical-pool)
+        - [list server](#list-server)
+    - [query](#query-1)
+        - [query file](#query-file)
+    - [status](#status-1)
+      - [staus etcd](#staus-etcd)
+      - [staus mds](#staus-mds)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
+    - [curve bs](#curve-bs)
 
 ## How to use curve tool
 
@@ -61,7 +72,7 @@ set configure file
 wget https://raw.githubusercontent.com/opencurve/curve/master/tools-v2/pkg/config/template.yaml
 ```
 
-or 
+or
 
 ```
 wget https://curve-tool.nos-eastchina1.126.net/config/template.yaml
@@ -768,7 +779,9 @@ Output:
 ```
 
 #### warmup
-#### add
+
+#### warmup add
+
 warmup a file(directory), or given a list file contains a list of files(directories) that you want to warmup.
 
 Usage:
@@ -779,11 +792,11 @@ curve fs warmup add --filelist /mnt/curvefs/warmup.list
 ```
 
 > `curve fs warmup add /mnt/curvefs/warmup` will warmup a file(directory).
-> /mnt/curvefs/warmup.list 
+> /mnt/curvefs/warmup.list
 
-### bs
+## bs
 
-#### list
+### list
 
 ##### list logical-pool
 
@@ -791,10 +804,118 @@ list all logical pool information
 
 Usage:
 
-```
+```bash
 curve bs list logical-pool
 ```
 
+Output:
+
+```bash
++----+-------+-----------+----------+-------+------+--------+------+--------+---------+
+| ID | NAME  | PHYPOOLID |   TYPE   | ALLOC | SCAN | TOTAL  | USED |  LEFT  | RECYCLE |
++----+-------+-----------+----------+-------+------+--------+------+--------+---------+
+| 1  | pool1 | 1         | PAGEFILE | ALLOW | true | 44 GiB | 0 B  | 44 GiB | 0 B     |
++----+-------+-----------+----------+-------+------+--------+------+--------+---------+
+```
+
+##### list server
+
+list all server information in curvebs
+
+Usage:
+
+```bash
+curve bs list server
+```
+
+Output:
+
+```bash
++----+---------------------+------+---------+-------------------+-------------------+
+| ID |      HOSTNAME       | ZONE | PHYPOOL |   INTERNALADDR    |   EXTERNALADDR    |
++----+---------------------+------+---------+-------------------+-------------------+
+| 1  | ***************_0_0 | 1    | 1       | **.***.**.**:**** | **.***.**.**:**** |
++----+---------------------+------+         +-------------------+-------------------+
+| 2  | ***************_1_0 | 2    |         | **.***.**.**:**** | **.***.**.**:**** |
++----+---------------------+------+         +-------------------+-------------------+
+| 3  | ***************_2_0 | 3    |         | **.***.**.**:**** | **.***.**.**:**** |
++----+---------------------+------+---------+-------------------+-------------------+
+```
+
+### query
+
+##### query file
+
+query the file info and actual space
+
+Usage:
+
+```bash
+curve bs query file --path=/test
+```
+
+Output:
+
+```bash
++------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
+|  ID  | NAME |      TYPE      | OWNER | CHUNK  | SEGMENT | LENGTH | SEQ |        CTIME        |    STATUS    | STRIPE  |    THROTTLE     |  ALLOC   |
++------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
+| 1003 | test | INODE_PAGEFILE | test  | 16 MiB | 1.0 GiB | 10 GiB | 1   | 2022-08-29 17:00:55 | kFileCreated | count:0 | type:IOPS_TOTAL | size:0 B |
+|      |      |                |       |        |         |        |     |                     |              | uint:0  | limit:2000      |          |
+|      |      |                |       |        |         |        |     |                     |              |         | type:BPS_TOTAL  |          |
+|      |      |                |       |        |         |        |     |                     |              |         | limit:125829120 |          |
++------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
+```
+
+### status
+
+#### staus etcd
+
+get the etcd status of curvefs
+
+Usage:
+
+```bash
+curve bs status etcd
+```
+
+Output:
+
+```bash
++---------------------+---------+----------+
+|        ADDR         | VERSION |  STATUS  |
++---------------------+---------+----------+
+| ***.***.*.***:***** | 3.4.10  | follower |
++---------------------+         +          +
+| ***.***.*.***:***** |         |          |
++---------------------+         +----------+
+| ***.***.*.***:***** |         | leader   |
++---------------------+---------+----------+
+```
+
+#### staus mds
+
+get the mds status of curvefs
+
+Usage:
+
+```bash
+curve bs status mds
+```
+
+Output:
+
+```bash
++-------------------+-------------------+-------------------+----------+
+|       ADDR        |     DUMMYADDR     |      VERSION      |  STATUS  |
++-------------------+-------------------+-------------------+----------+
+| **.***.**.**:**** | **.***.**.**:**** | ci+562296c7+debug | follower |
++-------------------+-------------------+                   +          +
+| **.***.**.**:**** | **.***.**.**:**** |                   |          |
++-------------------+-------------------+                   +----------+
+| **.***.**.**:**** | **.***.**.**:**** |                   | leader   |
++-------------------+-------------------+-------------------+----------+
+```
 
 ## Comparison of old and new commands
 
@@ -824,3 +945,43 @@ curve bs list logical-pool
 | curvefs_tool usage-inode  | curve fs usage inode |
 | curvefs_tool usage-metadata  | curve fs usage metadata |
 
+### curve bs
+
+|  old   | new  |
+|  ----  | ----  |
+| curve_ops_tool logical-pool-list | curve bs list logical-pool |
+| curve_ops_tool get -fileName= | curve bs query file -path |
+| curve_ops_tool etcd-status | curve bs status etcd |
+| curve_ops_tool mds-status | curve bs status mds |
+| curve_ops_tool server-list | curve bs list server |
+| space | |
+| status | |
+| chunkserver-status | |
+| client-status | |
+| client-list | |
+| snapshot-clone-status | |
+| copysets-status | |
+| chunkserver-list | |
+| cluster-status | |
+| list | |
+| seginfo | |
+| delete | |
+| clean-recycle |
+| create | |
+| chunk-location | |
+| check-consistency | |
+| remove-peer | |
+| transfer-leader | |
+| reset-peer | |
+| do-snapshot | |
+| do-snapshot-all | |
+| check-chunkserver | |
+| check-copyset | |
+| check-server ||
+| check-operator |
+| list-may-broken-vol | |
+| set-copyset-availflag | |
+| update-throttle | |
+| rapid-leader-schedule | |
+| set-scan-state | |
+| scan-status | |

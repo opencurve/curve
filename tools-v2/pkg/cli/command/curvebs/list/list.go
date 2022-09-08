@@ -25,6 +25,7 @@ package list
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/server"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,7 @@ var _ basecmd.MidCurveCmdFunc = (*ListCommand)(nil) // check interface
 func (listCmd *ListCommand) AddSubCommands() {
 	listCmd.Cmd.AddCommand(
 		logicalpool.NewLogicalPoolCommand(),
+		server.NewServerCommand(),
 	)
 }
 

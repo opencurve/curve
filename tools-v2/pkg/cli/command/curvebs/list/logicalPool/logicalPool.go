@@ -31,7 +31,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	physicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool/physicalPool"
+	physicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/physicalPool"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -100,7 +100,7 @@ func (lCmd *LogicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	mdsAddrs, err := config.GetBsAddrSlice(lCmd.Cmd, config.CURVEBS_MDSADDR)
+	mdsAddrs, err := config.GetBsMdsAddrSlice(lCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
@@ -116,13 +116,13 @@ func (lCmd *LogicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 		lCmd.Rpc = append(lCmd.Rpc, rpc)
 	}
 	header := []string{cobrautil.ROW_ID, cobrautil.ROW_NAME,
-		cobrautil.ROW_PHYPOOLID, cobrautil.ROW_TYPE, cobrautil.ROW_ALLOC,
+		cobrautil.ROW_PHYPOOL, cobrautil.ROW_TYPE, cobrautil.ROW_ALLOC,
 		cobrautil.ROW_SCAN, cobrautil.ROW_TOTAL, cobrautil.ROW_USED,
 		cobrautil.ROW_LEFT, cobrautil.ROW_RECYCLE,
 	}
 	lCmd.SetHeader(header)
 	lCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		lCmd.Header, []string{cobrautil.ROW_PHYPOOLID},
+		lCmd.Header, []string{cobrautil.ROW_PHYPOOL},
 	))
 	lCmd.Cmd.Flags().String(config.CURVEBS_PATH, RECYCLEBINDIR, "file path")
 	lCmd.Cmd.Flag(config.CURVEBS_PATH).Changed = true
@@ -159,7 +159,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			row := make(map[string]string)
 			row[cobrautil.ROW_ID] = fmt.Sprintf("%d", loPoolInfo.GetLogicalPoolID())
 			row[cobrautil.ROW_NAME] = loPoolInfo.GetLogicalPoolName()
-			row[cobrautil.ROW_PHYPOOLID] = fmt.Sprintf("%d", loPoolInfo.GetPhysicalPoolID())
+			row[cobrautil.ROW_PHYPOOL] = fmt.Sprintf("%d", loPoolInfo.GetPhysicalPoolID())
 			row[cobrautil.ROW_TYPE] = loPoolInfo.GetType().String()
 			row[cobrautil.ROW_ALLOC] = loPoolInfo.GetAllocateStatus().String()
 			row[cobrautil.ROW_SCAN] = fmt.Sprintf("%t", loPoolInfo.GetScanEnable())
@@ -214,7 +214,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 		}
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, lCmd.Header, []string{
-		cobrautil.ROW_PHYPOOLID, cobrautil.ROW_ID,
+		cobrautil.ROW_PHYPOOL, cobrautil.ROW_ID,
 	})
 	lCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)

@@ -64,7 +64,7 @@ func newCurveCommand() *cobra.Command {
 		},
 	}
 
-	cmd.PersistentFlags().BoolP("version", "v", false, "print curve version")
+	cmd.Flags().BoolP("version", "v", false, "print curve version")
 	cmd.PersistentFlags().BoolP("help", "h", false, "print help")
 	cmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
 	config.AddShowErrorPFlag(cmd)
