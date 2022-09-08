@@ -19,6 +19,7 @@ curvefs:
 curvebs:
   mdsAddr: 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702
   mdsDummyAddr: 127.0.0.1:7700 127.0.0.1:7701,127.0.0.1:7702
+  etcdAddr: 127.0.0.1:8700,127.0.0.1:8701,127.0.0.1:8702
   root:
     user: root
     password: root_password

@@ -33,16 +33,20 @@ import (
 
 const (
 	// curvebs
-	CURVEBS_MDSADDR          = "mdsaddr"
-	VIPER_CURVEBS_MDSADDR    = "curvebs.mdsAddr"
-	CURVEBS_PATH             = "path"
-	VIPER_CURVEBS_PATH       = "curvebs.path"
-	CURVEBS_USER             = "user"
-	VIPER_CURVEBS_USER       = "curvebs.root.user"
-	CURVEBS_DEFAULT_USER     = "root"
-	CURVEBS_PASSWORD         = "password"
-	VIPER_CURVEBS_PASSWORD   = "curvebs.root.password"
-	CURVEBS_DEFAULT_PASSWORD = "root_password"
+	CURVEBS_MDSADDR            = "mdsaddr"
+	VIPER_CURVEBS_MDSADDR      = "curvebs.mdsAddr"
+	CURVEBS_MDSDUMMYADDR       = "mdsdummyaddr"
+	VIPER_CURVEBS_MDSDUMMYADDR = "curvebs.mdsDummyAddr"
+	CURVEBS_ETCDADDR           = "etcdaddr"
+	VIPER_CURVEBS_ETCDADDR     = "curvebs.etcdAddr"
+	CURVEBS_PATH               = "path"
+	VIPER_CURVEBS_PATH         = "curvebs.path"
+	CURVEBS_USER               = "user"
+	VIPER_CURVEBS_USER         = "curvebs.root.user"
+	CURVEBS_DEFAULT_USER       = "root"
+	CURVEBS_PASSWORD           = "password"
+	VIPER_CURVEBS_PASSWORD     = "curvebs.root.password"
+	CURVEBS_DEFAULT_PASSWORD   = "root_password"
 )
 
 var (
@@ -52,14 +56,15 @@ var (
 		RPCRETRYTIMES: VIPER_GLOBALE_RPCRETRYTIMES,
 
 		// bs
-		CURVEBS_MDSADDR:  VIPER_CURVEBS_MDSADDR,
-		CURVEBS_PATH:     VIPER_CURVEBS_PATH,
-		CURVEBS_USER:     VIPER_CURVEBS_USER,
-		CURVEBS_PASSWORD: VIPER_CURVEBS_PASSWORD,
+		CURVEBS_MDSADDR:      VIPER_CURVEBS_MDSADDR,
+		CURVEBS_MDSDUMMYADDR: VIPER_CURVEBS_MDSDUMMYADDR,
+		CURVEBS_PATH:         VIPER_CURVEBS_PATH,
+		CURVEBS_USER:         VIPER_CURVEBS_USER,
+		CURVEBS_PASSWORD:     VIPER_CURVEBS_PASSWORD,
+		CURVEBS_ETCDADDR:     VIPER_CURVEBS_ETCDADDR,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
-		
 		// bs
 		CURVEBS_USER:     CURVEBS_DEFAULT_USER,
 		CURVEBS_PASSWORD: CURVEBS_DEFAULT_PASSWORD,
@@ -107,6 +112,9 @@ func AddBsStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
 func AddBsMdsFlagOption(cmd *cobra.Command) {
 	AddBsStringSliceOptionFlag(cmd, CURVEBS_MDSADDR, "mds address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
 }
+func AddBsMdsDummyFlagOption(cmd *cobra.Command) {
+	AddBsStringSliceOptionFlag(cmd, CURVEBS_MDSDUMMYADDR, "mds dummy address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
+}
 
 // user
 func AddBsUserOptionFlag(cmd *cobra.Command) {
@@ -116,6 +124,11 @@ func AddBsUserOptionFlag(cmd *cobra.Command) {
 // password
 func AddBsPasswordOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PASSWORD, "user password")
+}
+
+// etcd
+func AddBsEtcdAddrFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_ETCDADDR, "etcd address, should be like 127.0.0.1:8700,127.0.0.1:8701,127.0.0.1:8702")
 }
 
 // add flag required
@@ -163,4 +176,15 @@ func GetBsAddrSlice(cmd *cobra.Command, addrType string) ([]string, *cmderror.Cm
 		}
 	}
 	return addrslice, cmderror.ErrSuccess()
+}
+
+func GetBsEtcdAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
+	return GetBsAddrSlice(cmd, CURVEBS_ETCDADDR)
+}
+func GetBsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
+	return GetBsAddrSlice(cmd, CURVEBS_MDSADDR)
+}
+
+func GetBsMdsDummyAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
+	return GetBsAddrSlice(cmd, CURVEBS_MDSDUMMYADDR)
 }

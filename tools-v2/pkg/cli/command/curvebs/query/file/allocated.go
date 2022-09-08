@@ -79,7 +79,7 @@ func (gCmd *GetAllocatedSizeCommand) AddFlags() {
 }
 
 func (gCmd *GetAllocatedSizeCommand) Init(cmd *cobra.Command, args []string) error {
-	mdsAddrs, err := config.GetBsAddrSlice(gCmd.Cmd, config.CURVEBS_MDSADDR)
+	mdsAddrs, err := config.GetBsMdsAddrSlice(gCmd.Cmd)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}

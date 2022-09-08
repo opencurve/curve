@@ -16,40 +16,38 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-08-24
+ * Created Date: 2022-09-08
  * Author: chengyi (Cyber-SiKu)
  */
 
-package curvebs
+package status
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/etcd"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/mds"
 	"github.com/spf13/cobra"
 )
 
-type CurveBsCommand struct {
+type StatusCommand struct {
 	basecmd.MidCurveCmd
 }
 
-var _ basecmd.MidCurveCmdFunc = (*CurveBsCommand)(nil) // check interface
+var _ basecmd.MidCurveCmdFunc = (*StatusCommand)(nil) // check interface
 
-func (bsCmd *CurveBsCommand) AddSubCommands() {
-	bsCmd.Cmd.AddCommand(
-		list.NewListCommand(),
-		query.NewQueryCommand(),
-		status.NewStatusCommand(),
+func (statusCmd *StatusCommand) AddSubCommands() {
+	statusCmd.Cmd.AddCommand(
+		etcd.NewEtcdCommand(),
+		mds.NewMdsCommand(),
 	)
 }
 
-func NewCurveBsCommand() *cobra.Command {
-	bsCmd := &CurveBsCommand{
+func NewStatusCommand() *cobra.Command {
+	statusCmd := &StatusCommand{
 		basecmd.MidCurveCmd{
-			Use:   "bs",
-			Short: "Manage curvebs cluster",
+			Use:   "status",
+			Short: "get the status of curvebs",
 		},
 	}
-	return basecmd.NewMidCurveCli(&bsCmd.MidCurveCmd, bsCmd)
+	return basecmd.NewMidCurveCli(&statusCmd.MidCurveCmd, statusCmd)
 }

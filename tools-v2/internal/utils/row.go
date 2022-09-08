@@ -68,7 +68,7 @@ const (
 	ROW_PEER_ADDR       = "peerAddr"
 	ROW_PEER_ID         = "peerId"
 	ROW_PEER_NUMBER     = "peerNumber"
-	ROW_PHYPOOLID       = "phyPoolID"
+	ROW_PHYPOOL         = "phyPool"
 	ROW_POOL            = "pool"
 	ROW_POOL_ID         = "poolId"
 	ROW_READONLY        = "readonly"

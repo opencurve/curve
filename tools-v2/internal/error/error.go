@@ -240,7 +240,7 @@ var (
 		return NewInternalCmdError(2, "data: %s is not as expected, the error is: %s")
 	}
 	ErrHttpClient = func() *CmdError {
-		return NewInternalCmdError(3, "http client gets error: %s")
+		return NewInternalCmdError(3, "http client get error: %s")
 	}
 	ErrRpcDial = func() *CmdError {
 		return NewInternalCmdError(4, "dial to rpc server %s failed, the error is: %s")
@@ -360,7 +360,10 @@ var (
 		return NewInternalCmdError(37, "get file info fail, the error is: %s")
 	}
 	ErrBsGetFileSize = func() *CmdError {
-		return NewInternalCmdError(37, "get file size fail, the error is: %s")
+		return NewInternalCmdError(38, "get file size fail, the error is: %s")
+	}
+	ErrBsListZone = func() *CmdError {
+		return NewInternalCmdError(39, "lsit zone fail. the error is %s")
 	}
 
 	// http error
@@ -537,6 +540,10 @@ var (
 	}
 	ErrBsGetFileSizeRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
 		message := fmt.Sprintf("Rpc[GetFileSize] for [%s] status code: %s", file, statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+	ErrBsListPoolZoneRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[ListPoolZone] faild status code: %s", statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
 	}
 )
