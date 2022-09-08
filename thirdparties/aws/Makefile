@@ -8,7 +8,7 @@ build: clean download
 
 download: clean
 ifeq ($(tarball), 1)
-	@wget https://curve-build.nos-eastchina1.126.net/aws-sdk-cpp-b765205.tar.gz && tar -zxf aws-sdk-cpp-b765205.tar.gz
+	@wget https://curve-build.nos-eastchina1.126.net/aws-sdk-cpp-a2c1674.tar.gz && tar -zxf aws-sdk-cpp-a2c1674.tar.gz
 else
 	@git submodule update --init --recursive --recommend-shallow --progress -- aws-sdk-cpp
 endif
