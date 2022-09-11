@@ -56,6 +56,7 @@ func (cCmd *CopysetCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 	config.AddFsMdsAddrFlag(cCmd.Cmd)
+	config.AddMarginOptionFlag(cCmd.Cmd)
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {

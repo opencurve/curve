@@ -69,12 +69,12 @@ butil::AtExitManager atExitManager;
 
 TEST_F(BraftCliServiceTest, basic) {
     const char *ip = "127.0.0.1";
-    int port = 9010;
-    const char *confs = "127.0.0.1:9010:0,127.0.0.1:9011:0,127.0.0.1:9012:0";
+    int port = 9015;
+    const char *confs = "127.0.0.1:9015:0,127.0.0.1:9016:0,127.0.0.1:9017:0";
     int snapshotInterval = 600;
-    PeerId peer1("127.0.0.1:9010:0");
-    PeerId peer2("127.0.0.1:9011:0");
-    PeerId peer3("127.0.0.1:9012:0");
+    PeerId peer1("127.0.0.1:9015:0");
+    PeerId peer2("127.0.0.1:9016:0");
+    PeerId peer3("127.0.0.1:9017:0");
 
     /* default election timeout */
     int electionTimeoutMs = 3000;

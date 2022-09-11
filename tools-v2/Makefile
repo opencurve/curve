@@ -11,7 +11,7 @@ build: proto
 		-X github.com/opencurve/curve/tools-v2/pkg/cli/command/version.Version=${version}" \
 		-o sbin/curve $(PWD)/cmd/curvecli/main.go;\
 	else\
-		go build -ldflags \
+		go build -gcflags "-N -l" -ldflags \
 		"-X github.com/opencurve/curve/tools-v2/pkg/cli/command/version.Version=${version}" \
 		-o sbin/curve $(PWD)/cmd/curvecli/main.go;\
 	fi

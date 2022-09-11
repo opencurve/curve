@@ -54,6 +54,8 @@ class MockDiskCacheManager : public DiskCacheManager {
     MOCK_METHOD3(WriteReadDirect,
                   int(const std::string fileName,
                       const char* buf, uint64_t length));
+    MOCK_METHOD0(IsDiskUsedInited,
+                 bool());
 };
 
 class MockDiskCacheManager2 : public DiskCacheManager {

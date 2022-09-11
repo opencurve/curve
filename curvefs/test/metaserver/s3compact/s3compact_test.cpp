@@ -22,6 +22,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/s3compact_worker.h"
@@ -90,7 +91,9 @@ class S3CompactTest : public ::testing::Test {
         inodeStorage_ =
             std::make_shared<InodeStorage>(kvStorage_, nameGenerator, 0);
         trash_ = std::make_shared<TrashImpl>(inodeStorage_);
-        inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
+        filetype2InodeNum_ = std::make_shared<FileType2InodeNumMap>();
+        inodeManager_ = std::make_shared<InodeManager>(
+            inodeStorage_, trash_, filetype2InodeNum_.get());
 
         workerOptions_.s3adapterManager = s3adapterManager_.get();
         workerOptions_.s3infoCache = s3infoCache_.get();
@@ -125,6 +128,7 @@ class S3CompactTest : public ::testing::Test {
     std::unique_ptr<MockCopysetNodeWrapper> mockCopysetNodeWrapper_;
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<FileType2InodeNumMap> filetype2InodeNum_;
 };
 
 TEST_F(S3CompactTest, test_CopysetNodeWrapper) {

@@ -41,7 +41,9 @@ const (
 	FORMAT = "format"
 	// global
 	VIPER_GLOBALE_SHOWERROR     = "global.showError"
+	HTTPTIMEOUT                 = "httptimeout"
 	VIPER_GLOBALE_HTTPTIMEOUT   = "global.httpTimeout"
+	DEFAULT_HTTPTIMEOUT         = 500 * time.Millisecond
 	RPCTIMEOUT                  = "rpctimeout"
 	VIPER_GLOBALE_RPCTIMEOUT    = "global.rpcTimeout"
 	DEFAULT_RPCTIMEOUT          = 10000 * time.Millisecond
@@ -95,6 +97,12 @@ const (
 	CURVEFS_CLUSTERMAP           = "clustermap"
 	VIPER_CURVEFS_CLUSTERMAP     = "curvefs.clustermap"
 	CURVEFS_DEFAULT_CLUSTERMAP   = "topo_example.json"
+	CURVEFS_MARGIN               = "margin"
+	VIPER_CURVEFS_MARGIN         = "curvefs.margin"
+	CURVEFS_DEFAULT_MARGIN       = uint64(1000)
+	CURVEFS_FILELIST             = "filelist"
+	VIPER_CURVEFS_FILELIST       = "curvefs.filelist"
+
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
 	VIPER_CURVEFS_S3_AK           = "curvefs.s3.ak"
@@ -165,6 +173,8 @@ var (
 		CURVEFS_DETAIL:         VIPER_CURVEFS_DETAIL,
 		CURVEFS_INODEID:        VIPER_CURVEFS_INODEID,
 		CURVEFS_CLUSTERMAP:     VIPER_CURVEFS_CLUSTERMAP,
+		CURVEFS_MARGIN:         VIPER_CURVEFS_MARGIN,
+
 		// S3
 		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
 		CURVEFS_S3_SK:         VIPER_CURVEFS_S3_SK,
@@ -172,6 +182,7 @@ var (
 		CURVEFS_S3_BUCKETNAME: VIPER_CURVEFS_S3_BUCKETNAME,
 		CURVEFS_S3_BLOCKSIZE:  VIPER_CURVEFS_S3_BLOCKSIZE,
 		CURVEFS_S3_CHUNKSIZE:  VIPER_CURVEFS_S3CHUNKSIZE,
+
 		// Volume
 		CURVEFS_VOLUME_SIZE:           VIPER_CURVEFS_VOLUME_SIZE,
 		CURVEFS_VOLUME_BLOCKGROUPSIZE: VIPER_CURVEFS_VOLUME_BLOCKGROUPSIZE,
@@ -189,6 +200,8 @@ var (
 		CURVEFS_SUMINDIR:   CURVEFS_DEFAULT_SUMINDIR,
 		CURVEFS_DETAIL:     CURVEFS_DEFAULT_DETAIL,
 		CURVEFS_CLUSTERMAP: CURVEFS_DEFAULT_CLUSTERMAP,
+		CURVEFS_MARGIN:     CURVEFS_DEFAULT_MARGIN,
+
 		// S3
 		CURVEFS_S3_AK:         CURVEFS_DEFAULT_S3_AK,
 		CURVEFS_S3_SK:         CURVEFS_DEFAULT_S3_SK,
@@ -196,6 +209,7 @@ var (
 		CURVEFS_S3_BUCKETNAME: CURVEFS_DEFAULT_S3_BUCKETNAME,
 		CURVEFS_S3_BLOCKSIZE:  CURVEFS_DEFAULT_S3_BLOCKSIZE,
 		CURVEFS_S3_CHUNKSIZE:  CURVEFS_DEFAULT_S3_CHUNKSIZE,
+
 		// Volume
 		CURVEFS_VOLUME_SIZE:           CURVEFS_DEFAULT_VOLUME_SIZE,
 		CURVEFS_VOLUME_BLOCKGROUPSIZE: CURVEFS_DEFAULT_VOLUME_BLOCKGROUPSIZE,
@@ -331,7 +345,7 @@ func AddDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
 func AddInt32OptionFlag(cmd *cobra.Command, name string, usage string) {
 	defaultValue := FLAG2DEFAULT[name]
 	if defaultValue == nil {
-		defaultValue = 0
+		defaultValue = int32(0)
 	}
 	cmd.Flags().Int32(name, defaultValue.(int32), usage)
 	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
@@ -373,7 +387,7 @@ const (
 )
 
 func AddFormatFlag(cmd *cobra.Command) {
-	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "Output format (json|plain)")
+	cmd.Flags().StringP("format", "f", FORMAT_PLAIN, "output format (json|plain)")
 	err := viper.BindPFlag("format", cmd.Flags().Lookup("format"))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -523,6 +537,10 @@ func GetFlagInt32(cmd *cobra.Command, flagName string) int32 {
 
 func GetFsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetAddrSlice(cmd, CURVEFS_MDSADDR)
+}
+
+func GetRpcTimeout(cmd *cobra.Command) time.Duration {
+	return GetFlagDuration(cmd, RPCTIMEOUT)
 }
 
 // mds dummy addr
@@ -775,6 +793,25 @@ func AddDetailOptionFlag(cmd *cobra.Command) {
 	AddBoolOptionFlag(cmd, CURVEFS_DETAIL, "show more infomation")
 }
 
+// margin [option]
+func AddMarginOptionFlag(cmd *cobra.Command) {
+	AddUint64OptionFlag(cmd, CURVEFS_MARGIN, "the maximum gap between peers")
+}
+
+func GetMarginOptionFlag(cmd *cobra.Command) uint64 {
+	return GetFlagUint64(cmd, CURVEFS_MARGIN)
+}
+
+// filelist [option]
+func AddFileListOptionFlag(cmd *cobra.Command) {
+	AddStringOptionFlag(cmd, CURVEFS_FILELIST,
+		"filelist path, save the files(dir) to warmup absPath, and should be in curvefs")
+}
+
+func GetFileListOptionFlag(cmd *cobra.Command) string {
+	return GetFlagString(cmd, CURVEFS_FILELIST)
+}
+
 /* required */
 
 // copysetid [required]
@@ -800,4 +837,9 @@ func AddFsIdRequiredFlag(cmd *cobra.Command) {
 // cluserMap [required]
 func AddClusterMapRequiredFlag(cmd *cobra.Command) {
 	AddStringRequiredFlag(cmd, CURVEFS_CLUSTERMAP, "clusterMap")
+}
+
+// mountpoint [required]
+func AddMountpointRequiredFlag(cmd *cobra.Command) {
+	AddStringRequiredFlag(cmd, CURVEFS_MOUNTPOINT, "curvefs mountpoint path")
 }

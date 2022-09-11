@@ -218,6 +218,12 @@ int CopySetScheduler::CheckAndBalanceZoneByMetaserverUsage(ZoneIdType zoneId) {
 
         std::vector<CopySetInfo> copysetVector =
             topo_->GetCopySetInfosInMetaServer(sourceId);
+
+        // TODO(chenwei): select copyset which uses less disk
+        thread_local static std::random_device rd;
+        thread_local static std::mt19937 randomGenerator(rd());
+        std::shuffle(copysetVector.begin(), copysetVector.end(),
+                     randomGenerator);
         for (const auto &copyset : copysetVector) {
             if (!IsCopysetCanTransfer(copyset)) {
                 continue;
@@ -276,6 +282,12 @@ int CopySetScheduler::CheckAndBalanceZoneByCopysetNum(ZoneIdType zoneId) {
 
         std::vector<CopySetInfo> copysetVector =
             topo_->GetCopySetInfosInMetaServer(sourceId);
+
+        // TODO(chenwei): select copyset which uses less disk
+        thread_local static std::random_device rd;
+        thread_local static std::mt19937 randomGenerator(rd());
+        std::shuffle(copysetVector.begin(), copysetVector.end(),
+                     randomGenerator);
         for (const auto &copyset : copysetVector) {
             if (!IsCopysetCanTransfer(copyset)) {
                 continue;

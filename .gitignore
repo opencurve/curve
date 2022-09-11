@@ -119,6 +119,7 @@ thirdparties/rocksdb/lib/
 thirdparties/rocksdb/include/
 thirdparties/rocksdb/rocksdb/
 thirdparties/rocksdb/*.tar.gz
+thirdparties/aws/*.tar.gz
 
 /external
 /bazel-*

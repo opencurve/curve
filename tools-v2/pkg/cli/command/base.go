@@ -109,6 +109,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 		Long:    cli.Long,
 		Example: cli.Example,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
 			err := funcs.Init(cmd, args)
 			if err != nil {
 				return err
@@ -119,7 +120,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 			}
 			return funcs.Print(cmd, args)
 		},
-		SilenceUsage: true,
+		SilenceUsage: false,
 	}
 	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
@@ -167,7 +168,7 @@ func NewMetric(addrs []string, subUri string, timeout time.Duration) *Metric {
 	}
 }
 
-func QueryMetric(m Metric) (string, *cmderror.CmdError) {
+func QueryMetric(m *Metric) (string, *cmderror.CmdError) {
 	response := make(chan string, 1)
 	size := len(m.Addrs)
 	if size > config.MaxChannelSize() {

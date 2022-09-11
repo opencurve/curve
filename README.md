@@ -1,9 +1,14 @@
-[中文版](README_cn.md)
 
 
-<img src="docs/images/curve-logo1.png"/>
+<div align=center> <img src="docs/images/curve-logo1.png"/>
 
 # CURVE
+  
+**A could-native distributed storage system**
+
+#### English | [简体中文](README_cn.md)
+
+<div align=left>
 
 [![Docs](https://img.shields.io/badge/docs-latest-green.svg)](https://github.com/opencurve/curve/tree/master/docs)
 [![Releases](https://img.shields.io/github/v/release/opencurve/curve?include_prereleases)](https://github.com/opencurve/curve/releases)
@@ -11,7 +16,12 @@
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/6136/badge)](https://bestpractices.coreinfrastructure.org/projects/6136)
 
 
-Curve is a high-performance, lightweight-operation, cloud-native open source distributed storage system. Can be applied to mainstream cloud-native infrastructure platforms: connect to OpenStack platform to provide high-performance block storage services for cloud VM; connect to Kubernetes to provide RWO, RWX and other types of persistent volumes; connect to PolarFS as a high-performance storage for cloud-native databases, perfectly supports the storage-computing separation architecture of cloud-native databases. Curve can also be used as a cloud storage middleware using S3-compatible object storage as a data storage engine, providing cost-effective shared file storage for public cloud users.
+Curve is a high-performance, lightweight-operation, cloud-native open source distributed storage system. It can be applied to mainstream cloud-native infrastructure platforms:
+- connect to OpenStack platform to provide high-performance block storage services for cloud VM;
+- connect to Kubernetes to provide RWO, RWX and other types of persistent volumes;
+- connect to PolarFS as a high-performance storage for cloud-native databases, perfectly supports the storage-computing separation architecture of cloud-native databases.
+
+Curve can also be used as a cloud storage middleware using S3-compatible object storage as a data storage engine, providing cost-effective shared file storage for public cloud users.
 
 Curve has hosted by the Cloud Native Computing Foundation (CNCF) as a sandbox project.
 
@@ -121,7 +131,10 @@ How to participate in the Curve project development is detailed in [Curve Commun
 [test cases compiling and running](docs/en/build_and_run_en.md#test-case-compilation-and-execution)
 
 ### FIO curve block storage engine
-Fio curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example: `./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+Fio curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example: 
+```bash
+$ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test`
+```
 
 ## Release Cycle
 - CURVE release cycle：Half a year for major version, 1~2 months for minor version

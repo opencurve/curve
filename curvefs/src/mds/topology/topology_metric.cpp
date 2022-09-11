@@ -161,6 +161,17 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             totalDiskUsed += ix->second->diskUsed.get_value();
             totalMemoryThreshold += ix->second->memoryThreshold.get_value();
             totalMemoryUsed += ix->second->memoryUsed.get_value();
+
+            // process the metric of metaserver which has no copyset
+            if (metaServerMetricInfo.find(msId) == metaServerMetricInfo.end()) {
+                auto ix = gMetaServerMetrics.find(msId);
+                if (ix != gMetaServerMetrics.end()) {
+                    ix->second->scatterWidth.set_value(0);
+                    ix->second->copysetNum.set_value(0);
+                    ix->second->leaderNum.set_value(0);
+                    ix->second->partitionNum.set_value(0);
+                }
+            }
         }
 
         it->second->metaServerNum.set_value(msIdInPool.size());

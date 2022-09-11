@@ -98,7 +98,9 @@ TEST_F(S3CompactWorkerTest, TestCancelCompact) {
     auto nameGen = std::make_shared<NameGenerator>(1);
     auto inodeStorage =
         std::make_shared<InodeStorage>(mockKvStorage, nameGen, 0);
-    auto inodeManager = std::make_shared<InodeManager>(inodeStorage, nullptr);
+    FileType2InodeNumMap filetype2InodeNum;
+    auto inodeManager = std::make_shared<InodeManager>(inodeStorage, nullptr,
+                                                       &filetype2InodeNum);
     auto copysetNode = std::make_shared<copyset::MockCopysetNode>();
     auto kvs = PrepareInodeList();
 

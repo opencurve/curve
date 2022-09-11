@@ -55,7 +55,7 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     releasedir : FuseOpReleaseDir,
     fsyncdir : 0,
     statfs : FuseOpStatFs,
-    setxattr : 0,
+    setxattr : FuseOpSetXattr,
     getxattr : FuseOpGetXattr,
     listxattr : FuseOpListXattr,
     removexattr : 0,
