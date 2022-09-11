@@ -104,13 +104,13 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      *
      * @retval true if succeeded
      * @retval false if failed
-     */  
+     */
     bool AllocateChunkRoundRobinInSingleLogicalPool(
         curve::mds::FileType fileType,
         uint32_t chunkNumber,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
-        
+
     uint64_t GetpoolUsagelimit() override {
         return poolUsagePercentLimit_;
     }

@@ -65,8 +65,8 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
     bool AllocateChunkSegment(FileType type,
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
         offset_t offset, PageFileSegment *segment) override;
-    
-    uint64_t GetpoolUsagelimit(){
+
+    uint64_t GetpoolUsagelimit() {
         return topologyChunkAllocator_-> GetpoolUsagelimit();
     }
 

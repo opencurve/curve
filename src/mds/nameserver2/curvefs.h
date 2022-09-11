@@ -802,6 +802,7 @@ class CurveFS {
 
     bool IsDefaultThrottleParams(const FileThrottleParams &params,
                                  uint64_t length) const;
+
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
