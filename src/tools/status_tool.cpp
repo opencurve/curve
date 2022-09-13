@@ -208,6 +208,17 @@ int StatusTool::SpaceCmd() {
               << ", created file size = "
               << spaceInfo.currentFileSize / mds::kGB
               << "GB(" << createdFileRatio * 100 << "%)" << std::endl;
+
+    std::cout << "Every Logicalpool Space info:" << std::endl;
+    for (const auto &i : spaceInfo.lpoolspaceinfo) {
+    std::cout << "logicalPool: name = "<< i.second.poolName
+              << ", poolid = " << i.first
+              << ", total = "<< i.second.totalCapacity / mds::kGB << "GB"
+              << ", used = " << i.second.allocatedSize / mds::kGB << "GB"
+              << ", left = " << (i.second.totalCapacity -
+                                i.second.allocatedSize) / mds::kGB
+              << "GB"<< std::endl;
+    }
     return 0;
 }
 
@@ -998,7 +1009,9 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
     }
     // 从metric获取space信息
     for (const auto& lgPool : lgPools) {
+        LogicalpoolSpaceInfo   lpinfo;
         std::string poolName = lgPool.logicalpoolname();
+        lpinfo.poolName = poolName;
         std::string metricName = GetPoolTotalChunkSizeName(poolName);
         uint64_t size;
         int res = mdsClient_->GetMetric(metricName, &size);
@@ -1007,6 +1020,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
             return -1;
         }
         spaceInfo->totalChunkSize += size;
+        lpinfo.totalChunkSize +=size;
         metricName = GetPoolUsedChunkSizeName(poolName);
         res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
@@ -1014,6 +1028,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
             return -1;
         }
         spaceInfo->usedChunkSize += size;
+        lpinfo.usedChunkSize += size;
         metricName = GetPoolLogicalCapacityName(poolName);
         res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
@@ -1021,6 +1036,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
             return -1;
         }
         spaceInfo->totalCapacity += size;
+        lpinfo.totalCapacity += size;
         metricName = GetPoolLogicalAllocName(poolName);
         res = mdsClient_->GetMetric(metricName, &size);
         if (res != 0) {
@@ -1028,6 +1044,10 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
             return -1;
         }
         spaceInfo->allocatedSize += size;
+        lpinfo.allocatedSize += size;
+        spaceInfo->lpoolspaceinfo.insert(
+                std::pair<uint32_t, LogicalpoolSpaceInfo>(
+                    lgPool.logicalpoolid(), lpinfo));
     }
     // 获取RecycleBin的分配大小
     res = mdsClient_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,

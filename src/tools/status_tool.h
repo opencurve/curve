@@ -32,6 +32,7 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include "proto/topology.pb.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
@@ -58,6 +59,16 @@ using curve::mds::topology::ChunkServerInfo;
 
 namespace curve {
 namespace tool {
+struct LogicalpoolSpaceInfo {
+    std::string poolName = "";
+    uint64_t totalChunkSize = 0;
+    uint64_t usedChunkSize = 0;
+    // 总体能容纳的文件大小
+    uint64_t totalCapacity = 0;
+    // 分配大小
+    uint64_t allocatedSize = 0;
+};
+
 struct SpaceInfo {
     uint64_t totalChunkSize = 0;
     uint64_t usedChunkSize = 0;
@@ -69,6 +80,7 @@ struct SpaceInfo {
     uint64_t recycleAllocSize = 0;
     // 系统中存在的文件大小
     uint64_t currentFileSize = 0;
+    std::unordered_map<uint32_t, LogicalpoolSpaceInfo> lpoolspaceinfo;
 };
 
 enum class ServiceName {
