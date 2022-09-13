@@ -33,9 +33,11 @@
 #include <utility>
 
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/common/define.h"
 #include "src/common/net_common.h"
@@ -50,6 +52,7 @@ using ::curvefs::common::Volume;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::mds::FSStatusCode_Name;
 using ::curvefs::client::common::MAXXATTRLENGTH;
+using ::curvefs::client::common::FileHandle;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -520,21 +523,15 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
-            Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
-            uint64_t length = inode->length();
-            CURVEFS_ERROR tRet = Truncate(inode, 0);
+            uint64_t length = inodeWrapper->GetLengthLocked();
+            CURVEFS_ERROR tRet = Truncate(inodeWrapper.get(), 0);
             if (tRet != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
                            << ", inodeid = " << ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
-            inode->set_length(0);
-            struct timespec now;
-            clock_gettime(CLOCK_REALTIME, &now);
-            inode->set_ctime(now.tv_sec);
-            inode->set_ctime_ns(now.tv_nsec);
-            inode->set_mtime(now.tv_sec);
-            inode->set_mtime_ns(now.tv_nsec);
+            inodeWrapper->SetLengthLocked(0);
+            inodeWrapper->UpdateTimestampLocked(kChangeTime | kModifyTime);
             if (length != 0) {
                 ret = inodeWrapper->Sync();
                 if (ret != CURVEFS_ERROR::OK) {
@@ -546,6 +543,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
 
             if (enableSumInDir_ && length != 0) {
                 // update parent summary info
+                const Inode *inode = inodeWrapper->GetInodeLocked();
                 XAttr xattr;
                 xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
                     std::to_string(length)});
@@ -567,8 +565,8 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
-CURVEFS_ERROR FuseClient::UpdateParentInodeMCTimeAndInvalidNlink(
-    fuse_ino_t parent, FsFileType type) {
+CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
+    fuse_ino_t parent, FsFileType type, NlinkChange nlink) {
     std::shared_ptr<InodeWrapper> parentInodeWrapper;
     auto ret = inodeManager_->GetInode(parent, parentInodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
@@ -579,15 +577,13 @@ CURVEFS_ERROR FuseClient::UpdateParentInodeMCTimeAndInvalidNlink(
 
     {
         curve::common::UniqueLock lk = parentInodeWrapper->GetUniqueLock();
-        struct timespec now;
-        clock_gettime(CLOCK_REALTIME, &now);
-        parentInodeWrapper->SetMTime(now.tv_sec, now.tv_nsec);
-        parentInodeWrapper->SetCTime(now.tv_sec, now.tv_nsec);
+        parentInodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
         if (FsFileType::TYPE_DIRECTORY == type) {
-            parentInodeWrapper->InvalidateNlink();
+            parentInodeWrapper->UpdateNlinkLocked(nlink);
         }
     }
+    inodeManager_->ShipToFlush(parentInodeWrapper);
     return CURVEFS_ERROR::OK;
 }
 
@@ -652,9 +648,9 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    ret = UpdateParentInodeMCTimeAndInvalidNlink(parent, type);
+    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kAddOne);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
                    << ", parent: " << parent
                    << ", name: " << name
                    << ", type: " << type;
@@ -685,7 +681,7 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
     }
 
     InodeAttr attr;
-    inodeWrapper->GetInodeAttrLocked(&attr);
+    inodeWrapper->GetInodeAttr(&attr);
     GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
@@ -743,9 +739,9 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    ret = UpdateParentInodeMCTimeAndInvalidNlink(parent, type);
+    ret = UpdateParentMCTimeAndNlink(parent, type, NlinkChange::kSubOne);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
                    << ", parent: " << parent
                    << ", name: " << name
                    << ", type: " << type;
@@ -760,7 +756,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
         return ret;
     }
 
-    ret = inodeWrapper->UnLinkLocked(parent);
+    ret = inodeWrapper->UnLink(parent);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "UnLink failed, ret = " << ret << ", inodeid = " << ino
                    << ", parent = " << parent << ", name = " << name;
@@ -935,6 +931,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
 
     curve::common::LockGuard lg(renameMutex_);
     CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
+    VLOG(3) << "FuseOpRename [start]: " << renameOp.DebugString();
     RETURN_IF_UNSUCCESS(GetTxId);
     RETURN_IF_UNSUCCESS(Precheck);
     RETURN_IF_UNSUCCESS(RecordOldInodeInfo);
@@ -943,6 +940,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     RETURN_IF_UNSUCCESS(LinkDestParentInode);
     RETURN_IF_UNSUCCESS(PrepareTx);
     RETURN_IF_UNSUCCESS(CommitTx);
+    VLOG(3) << "FuseOpRename [success]: " << renameOp.DebugString();
     // Do not check UnlinkSrcParentInode, beause rename is already success
     renameOp.UnlinkSrcParentInode();
     renameOp.UnlinkOldInode();
@@ -962,11 +960,14 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct stat *attr) {
     VLOG(1) << "FuseOpGetAttr ino = " << ino;
     if (FLAGS_enableCto) {
-        CURVEFS_ERROR ret = inodeManager_->RefreshInode(ino);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                       << ", inodeid = " << ino;
-            return ret;
+        if (fi == nullptr ||
+            fi->fh != static_cast<uint64_t>(FileHandle::kKeepCache)) {
+            CURVEFS_ERROR ret = inodeManager_->RefreshInode(ino);
+            if (ret != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                        << ", inodeid = " << ino;
+                return ret;
+            }
         }
     }
 
@@ -996,62 +997,59 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
+    if (to_set & FUSE_SET_ATTR_MODE) {
+        inodeWrapper->SetMode(attr->st_mode);
+    }
+    if (to_set & FUSE_SET_ATTR_UID) {
+        inodeWrapper->SetUid(attr->st_uid);
+    }
+    if (to_set & FUSE_SET_ATTR_GID) {
+        inodeWrapper->SetGid(attr->st_gid);
+    }
 
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
 
-    if (to_set & FUSE_SET_ATTR_MODE) {
-        inode->set_mode(attr->st_mode);
-    }
-    if (to_set & FUSE_SET_ATTR_UID) {
-        inode->set_uid(attr->st_uid);
-    }
-    if (to_set & FUSE_SET_ATTR_GID) {
-        inode->set_gid(attr->st_gid);
-    }
     if (to_set & FUSE_SET_ATTR_ATIME) {
-        inode->set_atime(attr->st_atim.tv_sec);
-        inode->set_atime_ns(attr->st_atim.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(attr->st_atim, kAccessTime);
     }
     if (to_set & FUSE_SET_ATTR_ATIME_NOW) {
-        inode->set_atime(now.tv_sec);
-        inode->set_atime_ns(now.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(now, kAccessTime);
     }
     if (to_set & FUSE_SET_ATTR_MTIME) {
-        inode->set_mtime(attr->st_mtim.tv_sec);
-        inode->set_mtime_ns(attr->st_mtim.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(attr->st_mtim, kModifyTime);
     }
     if (to_set & FUSE_SET_ATTR_MTIME_NOW) {
-        inode->set_mtime(now.tv_sec);
-        inode->set_mtime_ns(now.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(now, kModifyTime);
     }
     if (to_set & FUSE_SET_ATTR_CTIME) {
-        inode->set_ctime(attr->st_ctim.tv_sec);
-        inode->set_ctime_ns(attr->st_ctim.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(attr->st_ctim, kChangeTime);
     } else {
-        inode->set_ctime(now.tv_sec);
-        inode->set_ctime_ns(now.tv_nsec);
+        inodeWrapper->UpdateTimestampLocked(now, kChangeTime);
     }
+
     if (to_set & FUSE_SET_ATTR_SIZE) {
-        int64_t changeSize =  attr->st_size - inode->length();
-        CURVEFS_ERROR tRet = Truncate(inode, attr->st_size);
+        int64_t changeSize =
+            attr->st_size -
+            static_cast<int64_t>(inodeWrapper->GetLengthLocked());
+        CURVEFS_ERROR tRet = Truncate(inodeWrapper.get(), attr->st_size);
         if (tRet != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "truncate file fail, ret = " << ret
                        << ", inodeid = " << ino;
             return tRet;
         }
-        inode->set_length(attr->st_size);
+        inodeWrapper->SetLengthLocked(attr->st_size);
         ret = inodeWrapper->Sync();
         if (ret != CURVEFS_ERROR::OK) {
             return ret;
         }
         InodeAttr inodeAttr;
-        inodeWrapper->GetInodeAttrUnlocked(&inodeAttr);
+        inodeWrapper->GetInodeAttrLocked(&inodeAttr);
         InodeAttr2ParamAttr(inodeAttr, attrOut);
 
         if (enableSumInDir_ && changeSize != 0) {
             // update parent summary info
+            const Inode* inode = inodeWrapper->GetInodeLocked();
             XAttr xattr;
             xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
                 std::to_string(std::abs(changeSize))});
@@ -1073,10 +1071,12 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
     InodeAttr inodeAttr;
-    inodeWrapper->GetInodeAttrUnlocked(&inodeAttr);
+    inodeWrapper->GetInodeAttrLocked(&inodeAttr);
     InodeAttr2ParamAttr(inodeAttr, attrOut);
     return ret;
 }
+
+namespace {
 
 bool IsSummaryInfo(const char *name) {
     return std::strstr(name, SUMMARYPREFIX);
@@ -1091,6 +1091,8 @@ bool IsOneLayer(const char *name) {
     }
     return false;
 }
+
+}  // namespace
 
 CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, void* value,
@@ -1248,10 +1250,10 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         return ret;
     }
 
-    ret = UpdateParentInodeMCTimeAndInvalidNlink(
-        parent, FsFileType::TYPE_SYM_LINK);
+    ret = UpdateParentMCTimeAndNlink(parent, FsFileType::TYPE_SYM_LINK,
+        NlinkChange::kAddOne);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
                    << ", link:" << link
                    << ", parent: " << parent
                    << ", name: " << name
@@ -1275,7 +1277,7 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
     }
 
     InodeAttr attr;
-    inodeWrapper->GetInodeAttrLocked(&attr);
+    inodeWrapper->GetInodeAttr(&attr);
     GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
@@ -1294,7 +1296,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    ret = inodeWrapper->LinkLocked(newparent);
+    ret = inodeWrapper->Link(newparent);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Link Inode fail, ret = " << ret << ", inodeid = " << ino
                    << ", newparent = " << newparent
@@ -1312,7 +1314,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << newparent << ", name = " << newname;
 
-        CURVEFS_ERROR ret2 = inodeWrapper->UnLinkLocked(newparent);
+        CURVEFS_ERROR ret2 = inodeWrapper->UnLink(newparent);
         if (ret2 != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "Also unlink inode failed, ret = " << ret2
                        << ", inodeid = " << inodeWrapper->GetInodeId();
@@ -1320,9 +1322,9 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ret = UpdateParentInodeMCTimeAndInvalidNlink(newparent, type);
+    ret = UpdateParentMCTimeAndNlink(newparent, type, NlinkChange::kAddOne);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "UpdateParentInodeMCTimeAndInvalidNlink failed"
+        LOG(ERROR) << "UpdateParentMCTimeAndNlink failed"
                    << ", parent: " << newparent
                    << ", name: " << newname
                    << ", type: " << type;
@@ -1346,7 +1348,7 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
     }
 
     InodeAttr attr;
-    inodeWrapper->GetInodeAttrLocked(&attr);
+    inodeWrapper->GetInodeAttr(&attr);
     GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }

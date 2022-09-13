@@ -59,6 +59,7 @@
 
 #include "src/common/configuration.h"
 #include "src/common/throttle.h"
+#include "src/common/concurrent/task_thread_pool.h"
 
 namespace curve {
 namespace common {
@@ -332,6 +333,19 @@ class S3Adapter {
         std::condition_variable cond_;
     };
 
+    class AsyncCallbackThreadPool : public TaskThreadPool<> {
+     protected:
+        void ThreadFunc() override {
+            while (running_.load(std::memory_order_acquire) ||
+                   !queue_.empty()) {
+                Task task(Take());
+                if (task) {
+                    task();
+                }
+            }
+        }
+    };
+
  private:
     // S3服务器地址
     Aws::String s3Address_;
@@ -348,6 +362,7 @@ class S3Adapter {
     Throttle *throttle_;
 
     std::unique_ptr<AsyncRequestInflightBytesThrottle> inflightBytesThrottle_;
+    AsyncCallbackThreadPool asyncCallbackTP_;
 };
 
 class FakeS3Adapter : public S3Adapter {

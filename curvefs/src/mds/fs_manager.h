@@ -102,6 +102,8 @@ class FsManager {
     void BackEndFunc();
     void ScanFs(const FsInfoWrapper& wrapper);
 
+    static bool CheckFsName(const std::string& fsName);
+
     /**
      * @brief create fs, the fs name can not repeat
      *

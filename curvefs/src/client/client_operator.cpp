@@ -279,7 +279,7 @@ CURVEFS_ERROR RenameOperator::LinkInode(uint64_t inodeId, uint64_t parent) {
         return rc;
     }
 
-    rc = inodeWrapper->LinkLocked(parent);
+    rc = inodeWrapper->Link(parent);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("Link", rc);
         return rc;
@@ -297,7 +297,7 @@ CURVEFS_ERROR RenameOperator::UnLinkInode(uint64_t inodeId, uint64_t parent) {
         return rc;
     }
 
-    rc = inodeWrapper->UnLinkLocked(parent);
+    rc = inodeWrapper->UnLink(parent);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("UnLink", rc);
         return rc;
@@ -316,10 +316,7 @@ CURVEFS_ERROR RenameOperator::UpdateMCTime(uint64_t inodeId) {
     }
 
     curve::common::UniqueLock lk = inodeWrapper->GetUniqueLock();
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inodeWrapper->SetMTime(now.tv_sec, now.tv_nsec);
-    inodeWrapper->SetCTime(now.tv_sec, now.tv_nsec);
+    inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
     rc = inodeWrapper->SyncAttr();
     if (rc != CURVEFS_ERROR::OK) {
@@ -388,7 +385,7 @@ CURVEFS_ERROR RenameOperator::UpdateInodeParent() {
         return rc;
     }
 
-    rc = inodeWrapper->UpdateParentLocked(parentId_, newParentId_);
+    rc = inodeWrapper->UpdateParent(parentId_, newParentId_);
     if (rc != CURVEFS_ERROR::OK) {
         LOG_ERROR("UpdateInodeParent", rc);
         return rc;

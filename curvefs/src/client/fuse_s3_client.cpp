@@ -82,7 +82,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
 
 void FuseS3Client::GetWarmUpFileList(const WarmUpFileContext_t&warmUpFile,
   std::vector<std::string>& warmUpFilelist) {
-        struct fuse_file_info fi;
+        struct fuse_file_info fi{};
         fi.flags &= ~O_DIRECT;
         size_t rSize = 0;
         std::unique_ptr<char[]> data(new char[warmUpFile.fileLen+1]);
@@ -304,7 +304,8 @@ void FuseS3Client::WarmUpAllObjs(
             context->cb = cb;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
         }
-        cond.Wait();
+        if (pendingReq.load())
+            cond.Wait();
     }
 }
 
@@ -362,7 +363,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userWrite.qps.count << 1;
         uint64_t duration = butil::cpuwide_time_us() - start;
         fsMetric_->userWrite.latency << duration;
-        fsMetric_->userWriteIoSize << wRet;
+        fsMetric_->userWriteIoSize.set_value(wRet);
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -374,21 +375,16 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
     *wSize = wRet;
     size_t changeSize = 0;
     // update file len
-    if (inode->length() < off + *wSize) {
-        changeSize = off + *wSize - inode->length();
-        inode->set_length(off + *wSize);
+    if (inodeWrapper->GetLengthLocked() < off + *wSize) {
+        changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
+        inodeWrapper->SetLengthLocked(off + *wSize);
     }
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inode->set_mtime(now.tv_sec);
-    inode->set_mtime_ns(now.tv_nsec);
-    inode->set_ctime(now.tv_sec);
-    inode->set_ctime_ns(now.tv_nsec);
+
+    inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
     inodeManager_->ShipToFlush(inodeWrapper);
 
@@ -397,6 +393,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     if (enableSumInDir_ && changeSize != 0) {
+        const Inode* inode = inodeWrapper->GetInodeLocked();
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(changeSize)});
@@ -456,17 +453,11 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userRead.qps.count << 1;
         uint64_t duration = butil::cpuwide_time_us() - start;
         fsMetric_->userRead.latency << duration;
-        fsMetric_->userReadIoSize << rRet;
+        fsMetric_->userReadIoSize.set_value(rRet);
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *newInode = inodeWrapper->GetMutableInodeUnlocked();
-
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    newInode->set_atime(now.tv_sec);
-    newInode->set_atime_ns(now.tv_nsec);
-
+    inodeWrapper->UpdateTimestampLocked(kAccessTime);
     inodeManager_->ShipToFlush(inodeWrapper);
 
     VLOG(9) << "read end, read size = " << *rSize;
@@ -535,7 +526,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
     return inodeWrapper->Sync();
 }
 
-CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
+CURVEFS_ERROR FuseS3Client::Truncate(InodeWrapper *inode, uint64_t length) {
     return s3Adaptor_->Truncate(inode, length);
 }
 

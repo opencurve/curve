@@ -24,6 +24,9 @@ package cobrautil
 
 import (
 	"bufio"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"regexp"
@@ -36,12 +39,20 @@ import (
 
 const (
 	IP_PORT_REGEX = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
-
-	PATH_REGEX = `^(/[^/ ]*)+/?$`
+	PATH_REGEX    = `^(/[^/ ]*)+/?$`
+	FS_NAME_REGEX = "^([a-z0-9]+\\-?)+$"
 )
 
 func IsValidAddr(addr string) bool {
 	matched, err := regexp.MatchString(IP_PORT_REGEX, addr)
+	if err != nil || !matched {
+		return false
+	}
+	return true
+}
+
+func IsValidFsname(fsName string) bool {
+	matched, err := regexp.MatchString(FS_NAME_REGEX, fsName)
 	if err != nil || !matched {
 		return false
 	}
@@ -103,4 +114,47 @@ func SplitMountpoint(mountpoint string) ([]string, *cmderror.CmdError) {
 		return nil, err
 	}
 	return mountpointSlice, cmderror.ErrSuccess()
-} 
+}
+
+func GetString2Signature(date uint64, owner string) string {
+	return fmt.Sprintf("%d:%s", date, owner)
+}
+
+func CalcString2Signature(in string, secretKet string) string {
+	h := hmac.New(sha256.New, []byte(secretKet))
+	h.Write([]byte(in))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+func IsDigit(r rune) bool {
+	return '0' <= r && r <= '9'
+}
+
+func IsAlpha(r rune) bool {
+	return ('a' <= r && r <= 'z') || IsUpper(r)
+}
+
+func IsUpper(r rune) bool {
+	return 'A' <= r && r <= 'Z'
+}
+
+func ToUnderscoredName(src string) string {
+	var ret string
+	for i, c := range src {
+		if IsAlpha(c) {
+			if c < 'a' { // upper cases
+				if i != 0 && !IsUpper(rune(src[i-1])) && ret[len(ret)-1] != '-' {
+					ret += "_"
+				}
+				ret += string(c-'A'+'a')
+			} else {
+				ret += string(c)
+			}
+		} else if IsDigit(c) {
+			ret += string(c)
+		} else if len(ret) == 0 || ret[len(ret)-1] != '_' {
+			ret += "_"
+		}
+	}
+	return ret
+}

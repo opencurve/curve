@@ -55,6 +55,7 @@ using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::client::metric::InflightGuard;
+using ::curvefs::client::common::FileHandle;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
@@ -244,6 +245,9 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
     case CURVEFS_ERROR::NODATA:
         fuse_reply_err(req, ENODATA);
         break;
+    case CURVEFS_ERROR::EXISTS:
+        fuse_reply_err(req, EEXIST);
+        break;
     default:
         fuse_reply_err(req, EIO);
         break;
@@ -414,6 +418,8 @@ void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
         FuseReplyErrByErrCode(req, ret);
         return;
     }
+    // set fh to 1 to indicate needn't refresh inode when file is still opened
+    fi->fh = static_cast<uint64_t>(FileHandle::kKeepCache);
     fuse_reply_open(req, fi);
 }
 

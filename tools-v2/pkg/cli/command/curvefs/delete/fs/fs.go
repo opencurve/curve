@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	fsExample = `$ curvefs fs delete --fsname test1`
+	fsExample = `$ curve fs delete fs --fsname test1`
 )
 
 type DeleteFsRpc struct {

@@ -36,6 +36,21 @@ cc_library(
     linkopts = ["-L/usr/local/lib/x86_64-linux-gnu"],
 )
 
+cc_library(
+    name = "client_test_utils",
+    srcs = [
+        "utils.cpp",
+    ],
+    hdrs = [
+        "utils.h",
+    ],
+    copts = CURVE_TEST_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//curvefs/proto:metaserver_cc_proto",
+    ],
+)
+
 cc_test(
     name = "client_s3_test",
     srcs = glob([

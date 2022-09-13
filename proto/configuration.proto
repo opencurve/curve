@@ -17,6 +17,7 @@
 syntax="proto2";
 package curve.chunkserver;
 option cc_generic_services = true;
+option go_package = "proto/configuration";
 
 // Config service
 message ConfigRequest {

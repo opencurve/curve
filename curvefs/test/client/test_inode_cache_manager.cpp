@@ -136,7 +136,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    Inode out = inodeWrapper->GetInodeUnlocked();
+    Inode out = inodeWrapper->GetInode();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
@@ -144,7 +144,7 @@ TEST_F(TestInodeCacheManager, GetInode) {
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    out = inodeWrapper->GetInodeUnlocked();
+    out = inodeWrapper->GetInode();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
@@ -303,7 +303,7 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
     ASSERT_EQ(CURVEFS_ERROR::UNKNOWN, ret);
 
     ret = iCacheManager_->CreateInode(param, inodeWrapper);
-    Inode out = inodeWrapper->GetInodeUnlocked();
+    Inode out = inodeWrapper->GetInode();
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
@@ -312,7 +312,7 @@ TEST_F(TestInodeCacheManager, CreateAndGetInode) {
     ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
-    out = inodeWrapper->GetInodeUnlocked();
+    out = inodeWrapper->GetInode();
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
@@ -352,13 +352,15 @@ TEST_F(TestInodeCacheManager, ShipToFlushAndFlushAll) {
 
     iCacheManager_->ShipToFlush(inodeWrapper);
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
-        .WillOnce(Invoke([](const Inode &inode, MetaServerClientDone *done,
-                            InodeOpenStatusChange statusChange,
-                            DataIndices /*indices*/) {
-            done->SetMetaStatusCode(MetaStatusCode::OK);
-            done->Run();
-        }));
+    EXPECT_CALL(*metaClient_,
+                UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _, _))
+        .WillOnce(Invoke(
+            [](uint32_t /*fsId*/, uint64_t /*inodeId*/,
+               const InodeAttr& /*attr*/, MetaServerClientDone* done,
+               DataIndices /*indices*/) {
+                done->SetMetaStatusCode(MetaStatusCode::OK);
+                done->Run();
+            }));
 
     iCacheManager_->FlushAll();
 }
@@ -465,10 +467,11 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
         inodeMap.emplace(inodeId + i, inodeWrapper);
     }
 
-    EXPECT_CALL(*metaClient_, UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _))
+    EXPECT_CALL(*metaClient_,
+                UpdateInodeWithOutNlinkAsync_rvr(_, _, _, _, _))
         .WillRepeatedly(
-            Invoke([](const Inode& inode, MetaServerClientDone* done,
-                      InodeOpenStatusChange statusChange,
+            Invoke([](uint32_t /*fsId*/, uint64_t /*inodeId*/,
+                      const InodeAttr& /*attr*/, MetaServerClientDone* done,
                       DataIndices /*dataIndices*/) {
                 // run closure in a separate thread
                 std::thread th{[done]() {

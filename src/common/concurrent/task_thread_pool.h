@@ -73,6 +73,7 @@ class TaskThreadPool : public Uncopyable {
         }
 
         if (!running_.exchange(true, std::memory_order_acq_rel)) {
+            threads_.clear();
             threads_.reserve(numThreads);
             for (int i = 0; i < numThreads; ++i) {
                 threads_.emplace_back(new std::thread(

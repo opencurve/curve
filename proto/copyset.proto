@@ -21,6 +21,7 @@ import "proto/common.proto";
 package curve.chunkserver;
 
 option cc_generic_services = true;
+option go_package = "proto/copyset";
 
 // copyset epoch message，用于epoch序列化和反序列化
 message ConfEpoch {

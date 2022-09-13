@@ -267,7 +267,7 @@ init failover cluster
      check fs cluster ok
      sleep  30
      mount test dir
-     sleep  10
+     sleep  40
      check fuse mount success
      write check data
      cp check data

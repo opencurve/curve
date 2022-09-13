@@ -20,6 +20,7 @@
  * Author: Jingli Chen (Wine93)
  */
 
+#include <inttypes.h>
 #include <glog/logging.h>
 
 #include <cstring>
@@ -31,6 +32,7 @@
 #include <iterator>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 
@@ -84,12 +86,11 @@ size_t NameGenerator::GetFixedLength() {
 }
 
 std::string NameGenerator::Format(KEY_TYPE type, uint32_t partitionId) {
-    char buffer[sizeof(uint32_t)];
-    std::memcpy(buffer, reinterpret_cast<char*>(&partitionId),
-                sizeof(uint32_t));
-    std::ostringstream oss;
-    oss << type << kDelimiter << std::string(buffer, sizeof(uint32_t));
-    return oss.str();
+    char buf[sizeof(partitionId)];
+    std::memcpy(buf, reinterpret_cast<char*>(&partitionId),
+        sizeof(buf));
+    return absl::StrCat(type, kDelimiter,
+        absl::string_view(buf, sizeof(buf)));
 }
 
 Key4Inode::Key4Inode()
@@ -106,9 +107,7 @@ bool Key4Inode::operator==(const Key4Inode& rhs) {
 }
 
 std::string Key4Inode::SerializeToString() const {
-    std::ostringstream oss;
-    oss << keyType_ << ":" << fsId << ":" << inodeId;
-    return oss.str();
+    return absl::StrCat(keyType_, ":", fsId, ":", inodeId);
 }
 
 bool Key4Inode::ParseFromString(const std::string& value) {
@@ -119,9 +118,7 @@ bool Key4Inode::ParseFromString(const std::string& value) {
 }
 
 std::string Prefix4AllInode::SerializeToString() const {
-    std::ostringstream oss;
-    oss << keyType_ << ":";
-    return oss.str();
+    return absl::StrCat(keyType_, ":");
 }
 
 bool Prefix4AllInode::ParseFromString(const std::string& value) {
@@ -155,14 +152,9 @@ Key4S3ChunkInfoList::Key4S3ChunkInfoList(uint32_t fsId,
       size(size) {}
 
 std::string Key4S3ChunkInfoList::SerializeToString() const {
-    std::ostringstream oss;
-    oss << keyType_ << ":" << fsId << ":"
-        << inodeId << ":" << chunkIndex << ":"
-        << std::setw(kMaxUint64Length_) << std::setfill('0') << firstChunkId
-        << ":"
-        << std::setw(kMaxUint64Length_) << std::setfill('0') << lastChunkId
-        << ":" << size;
-    return oss.str();
+    return absl::StrCat(keyType_, ":", fsId, ":", inodeId, ":",
+        chunkIndex, ":", absl::StrFormat("%020" PRIu64"", firstChunkId), ":",
+        absl::StrFormat("%020" PRIu64"", lastChunkId), ":", size);
 }
 
 bool Key4S3ChunkInfoList::ParseFromString(const std::string& value) {
@@ -186,10 +178,8 @@ Prefix4ChunkIndexS3ChunkInfoList::Prefix4ChunkIndexS3ChunkInfoList(
     : fsId(fsId), inodeId(inodeId), chunkIndex(chunkIndex) {}
 
 std::string Prefix4ChunkIndexS3ChunkInfoList::SerializeToString() const {
-    std::ostringstream oss;
-    oss << keyType_ << ":" << fsId << ":" << inodeId << ":"
-        << chunkIndex << ":";
-    return oss.str();
+    return absl::StrCat(keyType_, ":", fsId, ":", inodeId, ":",
+        chunkIndex, ":");
 }
 
 bool Prefix4ChunkIndexS3ChunkInfoList::ParseFromString(
@@ -209,9 +199,7 @@ Prefix4InodeS3ChunkInfoList::Prefix4InodeS3ChunkInfoList(uint32_t fsId,
     : fsId(fsId), inodeId(inodeId) {}
 
 std::string Prefix4InodeS3ChunkInfoList::SerializeToString() const {
-    std::ostringstream oss;
-    oss << keyType_ << ":" << fsId << ":" << inodeId << ":";
-    return oss.str();
+    return absl::StrCat(keyType_, ":", fsId, ":", inodeId, ":");
 }
 
 bool Prefix4InodeS3ChunkInfoList::ParseFromString(const std::string& value) {
@@ -222,9 +210,7 @@ bool Prefix4InodeS3ChunkInfoList::ParseFromString(const std::string& value) {
 }
 
 std::string Prefix4AllS3ChunkInfoList::SerializeToString() const {
-    std::ostringstream oss;
-    oss << kTypeS3ChunkInfo << ":";
-    return oss.str();
+    return absl::StrCat(kTypeS3ChunkInfo, ":");
 }
 
 bool Prefix4AllS3ChunkInfoList::ParseFromString(const std::string& value) {
@@ -283,9 +269,7 @@ bool Prefix4SameParentDentry::ParseFromString(const std::string& value) {
 }
 
 std::string Prefix4AllDentry::SerializeToString() const {
-    std::ostringstream oss;
-    oss << keyType_ << ":";
-    return oss.str();
+    return absl::StrCat(keyType_, ":");
 }
 
 bool Prefix4AllDentry::ParseFromString(const std::string& value) {

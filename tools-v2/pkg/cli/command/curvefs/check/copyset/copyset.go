@@ -77,7 +77,7 @@ func GetCopysetsStatus(caller *cobra.Command, copysetIds string, poolIds string)
 		fmt.Sprintf("--%s", config.CURVEFS_POOLID), poolIds,
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, checkCopyset.Cmd, []string{
+	config.AlignFlagsValue(caller, checkCopyset.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 		config.CURVEFS_MARGIN,
 	})

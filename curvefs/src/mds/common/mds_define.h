@@ -25,6 +25,7 @@
 
 namespace curvefs {
 namespace mds {
+
 namespace topology {
 
 typedef uint32_t FsIdType;

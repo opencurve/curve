@@ -147,7 +147,7 @@ int S3ClientAdaptorImpl::Write(uint64_t inodeId, uint64_t offset,
     fsCacheManager_->DataCacheByteDec(length);
     if (s3Metric_.get() != nullptr) {
         CollectMetrics(&s3Metric_->adaptorWrite, ret, start);
-        s3Metric_->writeSize << length;
+        s3Metric_->writeSize.set_value(length);
     }
     VLOG(6) << "write end inodeId:" << inodeId << ",ret:" << ret
             << ", pendingReq_ is: " << pendingReq_;
@@ -169,14 +169,16 @@ int S3ClientAdaptorImpl::Read(uint64_t inodeId, uint64_t offset,
     }
     if (s3Metric_.get() != nullptr) {
         CollectMetrics(&s3Metric_->adaptorRead, ret, start);
-        s3Metric_->readSize << length;
+        s3Metric_->readSize.set_value(length);
     }
     VLOG(6) << "read end offset:" << offset << ", len:" << length
             << ", fsId:" << fsId_ << ", inodeId:" << inodeId;
     return ret;
 }
 
-CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
+CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(InodeWrapper *inodeWrapper,
+                                            uint64_t size) {
+    const auto *inode = inodeWrapper->GetInodeLocked();
     uint64_t fileSize = inode->length();
 
     if (size < fileSize) {
@@ -215,7 +217,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::Truncate(Inode *inode, uint64_t size) {
             }
             assert(chunkId <= (beginChunkId + chunkIdNum - 1));
             S3ChunkInfo *tmp;
-            auto s3ChunkInfoMap = inode->mutable_s3chunkinfomap();
+            auto* s3ChunkInfoMap = inodeWrapper->GetChunkInfoMap();
             auto s3chunkInfoListIter = s3ChunkInfoMap->find(index);
             if (s3chunkInfoListIter == s3ChunkInfoMap->end()) {
                 S3ChunkInfoList s3chunkInfoList;

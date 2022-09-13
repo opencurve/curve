@@ -82,6 +82,16 @@ enum class WarmupType {
 
 WarmupType GetWarmupType(const std::string& type);
 
+enum class FileHandle : uint64_t {
+    kDefaultValue = 0,
+    kKeepCache = 1,
+};
+
+enum class NlinkChange : int32_t {
+    kAddOne = 1,
+    kSubOne = -1,
+};
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs

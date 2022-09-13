@@ -42,6 +42,7 @@ const (
 type MountpointCommand struct {
 	basecmd.FinalCurveCmd
 	fsInfo *mds.ListClusterFsInfoResponse
+	number uint64
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*MountpointCommand)(nil) // check interface
@@ -96,6 +97,7 @@ func (mpCmd *MountpointCommand) updateTable() {
 			continue
 		}
 		for _, mountpoint := range fsInfo.GetMountpoints() {
+			mpCmd.number++
 			row := make(map[string]string)
 			row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
 			row[cobrautil.ROW_FS_NAME] = fsInfo.GetFsName()
@@ -110,5 +112,8 @@ func (mpCmd *MountpointCommand) updateTable() {
 }
 
 func (mpCmd *MountpointCommand) ResultPlainOutput() error {
+	if mpCmd.number == 0 {
+		fmt.Println("no mountpoint in curvefs")
+	}
 	return output.FinalCmdOutputPlain(&mpCmd.FinalCurveCmd)
 }

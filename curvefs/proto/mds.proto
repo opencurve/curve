@@ -55,6 +55,7 @@ enum FSStatusCode {
     COMMIT_TX_SEQUENCE_MISMATCH = 30;
     VOLUME_INFO_ERROR = 31;
     MOUNT_POINT_CONFLICT = 32;
+    FSNAME_INVALID = 33;
 }
 
 // fs interface

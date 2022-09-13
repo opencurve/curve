@@ -163,7 +163,7 @@ InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
     if (!ok) {
         PUT_INODE_CACHE(inodeId, out);
     } else {
-        out->SetLength(inode.length());
+        out->SetLengthLocked(inode.length());
     }
 
     return CURVEFS_ERROR::OK;
@@ -176,7 +176,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
     std::shared_ptr<InodeWrapper> inodeWrapper;
     bool ok = iCache_->Get(inodeId, &inodeWrapper);
     if (ok) {
-        inodeWrapper->GetInodeAttrLocked(out);
+        inodeWrapper->GetInodeAttr(out);
         return CURVEFS_ERROR::OK;
     }
 
@@ -214,7 +214,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         bool ok = iCache_->Get(*iter, &inodeWrapper);
         if (ok) {
             InodeAttr tmpAttr;
-            inodeWrapper->GetInodeAttrLocked(&tmpAttr);
+            inodeWrapper->GetInodeAttr(&tmpAttr);
             attr->emplace_back(tmpAttr);
             iter = inodeIds->erase(iter);
         } else {
@@ -290,9 +290,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
         NameLockGuard lock(nameLock_, std::to_string(*iter));
         bool ok = iCache_->Get(*iter, &inodeWrapper);
         if (ok) {
-            XAttr tmpXattr;
-            inodeWrapper->GetXattrLocked(&tmpXattr);
-            xattr->emplace_back(tmpXattr);
+            xattr->emplace_back(inodeWrapper->GetXattr());
             iter = inodeIds->erase(iter);
         } else {
             ++iter;

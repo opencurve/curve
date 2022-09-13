@@ -86,6 +86,11 @@ fi
 
 set -e
 
+################################################################ __GCC VERSION__
+if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -gt 6 ]; then
+    g_build_opts+=("--config=gcc7-later")
+fi
+
 bazel build ... -c dbg --collect_code_coverage --copt -DHAVE_ZLIB=1 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX ${g_build_opts[@]}
 
 #test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
@@ -109,13 +114,13 @@ for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep
 
 count=2
 check=0
-while [ $count -gt 1 ]
+while [ $count -gt 0 ]
 do
     sleep 60
-    count=`ps -ef | grep test | wc -l`
+    count=`ps -ef | grep test | grep -v 'test[0-9]' | grep -v grep | wc -l`
     echo "==========================================================================================================================================="
 
-    process=`ps -ef  | grep test`
+    process=`ps -ef | grep test | grep -v 'test[0-9]' `
     echo $process
     echo ${count}
     echo "==========================================================================================================================================="
@@ -127,7 +132,7 @@ do
     f2=""
     f1_file=""
     f2_file=""
-    now_test=`ps -ef | grep '\-test' | grep -v grep | awk '{print $8}'`
+    now_test=`ps -ef | grep test | grep -v 'test[0-9]' | grep -v grep | awk '{print $8}'`
     echo "now_test case is "$now_test
 
     for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_client_workflow|curve_fake_mds' | awk -F":" '{print $1'}`;do a=`cat $i.log | grep "FAILED  ]" | wc -l`;if [ $a -gt 0 ];then f1=`cat $i.log | grep "FAILED  ]"`;f1_file="${i}.log"; echo "fail test is $i"; check=1; fi;done
@@ -174,5 +179,9 @@ elif [ $1 == "curvefs" ];then
 ./check_coverage.sh "curvefs"
 fi
 cp -r coverage ${WORKSPACE}
+if [ $1 == "curvebs" ];then
 gcovr -x -r src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/bazel_out/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
+elif [ $1 == "curvefs" ];then
+gcovr -x -r curvefs/src -e ".*test/.*" -e ".*\.h" -e ".*usr/include/.*" -e ".*/thirdparties/*" -e "/usr/lib/*" -e ".*/external/*" -e ".*/bazel_out/*" -e "/usr/local/include/*" -e "test/*" -e ".*main\.cpp" -e ".*/_objs/snapshotcloneserver/*" -e ".*/_objs/mds/*" --output coverage.xml
+fi
 cp coverage.xml ${WORKSPACE}

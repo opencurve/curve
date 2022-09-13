@@ -310,7 +310,6 @@ TEST_F(FsManagerTest2, CreateFoundUnCompleteOperation) {
 
     EXPECT_CALL(*storage_, Update(_))
         .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
     CreateFsRequest req;
     req.set_fsname(fsname);
@@ -390,7 +389,6 @@ TEST_F(FsManagerTest2, createHybridFs) {
             }));
 
     EXPECT_CALL(*storage_, Update(_)).WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
 
     CreateFsRequest req;
     req.set_fsname(fsname);
@@ -404,6 +402,14 @@ TEST_F(FsManagerTest2, createHybridFs) {
     EXPECT_EQ(FSStatusCode::OK, fsManager_->CreateFs(&req, &resultInfo));
 
     EXPECT_EQ(FsStatus::INITED, resultInfo.status());
+}
+
+TEST_F(FsManagerTest2, checkFsName) {
+    EXPECT_FALSE(FsManager::CheckFsName("/hello"));
+    EXPECT_TRUE(FsManager::CheckFsName("curve-test-01"));
+    EXPECT_FALSE(FsManager::CheckFsName("-"));
+    EXPECT_FALSE(FsManager::CheckFsName("--"));
+    EXPECT_FALSE(FsManager::CheckFsName("curve-test--01"));
 }
 
 }  // namespace mds

@@ -27,6 +27,7 @@ import (
 	"os"
 
 	cobraUtil "github.com/opencurve/curve/tools-v2/internal/utils"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
@@ -35,7 +36,7 @@ import (
 )
 
 func addSubCommands(cmd *cobra.Command) {
-	cmd.AddCommand(curvefs.NewCurveFsCommand())
+	cmd.AddCommand(curvefs.NewCurveFsCommand(), curvebs.NewCurveBsCommand())
 }
 
 func setupRootCommand(cmd *cobra.Command) {
@@ -63,10 +64,11 @@ func newCurveCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolP("version", "v", false, "print curve version")
-	cmd.PersistentFlags().BoolP("help", "h", false, "print usage")
+	cmd.PersistentFlags().BoolP("version", "v", false, "print curve version")
+	cmd.PersistentFlags().BoolP("help", "h", false, "print help")
 	cmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
 	config.AddShowErrorPFlag(cmd)
+	cmd.PersistentFlags().BoolP("verbose", "", false, "show some log")
 	viper.BindPFlag("useViper", cmd.PersistentFlags().Lookup("viper"))
 
 	addSubCommands(cmd)
