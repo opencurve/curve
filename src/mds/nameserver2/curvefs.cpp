@@ -282,48 +282,48 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         }
     }
 
-        std::vector<PoolIdType> logicalPools =
-                    topology_->GetLogicalPoolInCluster();
-        logicalPools = topology_->GetLogicalPoolInCluster();
-        if (0 == logicalPools.size()) {
-            LOG(ERROR) << "[ChooseSingleLogicalPool]:"
-                   << " Does not have any available logicalPools.";
-            return StatusCode::kFileLengthNotSupported;
-        }
+    std::vector<PoolIdType> logicalPools =
+                topology_->GetLogicalPoolInCluster();
+    logicalPools = topology_->GetLogicalPoolInCluster();
+    if (0 == logicalPools.size()) {
+        LOG(ERROR) << "[ChooseSingleLogicalPool]:"
+                << " Does not have any available logicalPools.";
+        return StatusCode::kFileLengthNotSupported;
+    }
 
-        uint64_t MaxLeftSize = 0;
-        bool EnoughFlag = false;
-        for (auto pid : logicalPools) {
-        LogicalPool lPool;
-        if (!topology_->GetLogicalPool(pid, &lPool)) {
-            continue;
-        }
-        PhysicalPool pPool;
-        if (!topology_->GetPhysicalPool(lPool.GetPhysicalPoolId(), &pPool)) {
-            continue;
-        }
-        uint64_t diskCapacity = pPool.GetDiskCapacity();
-        uint64_t poolUsagePercentLimit =
-                    chunkSegAllocator_->GetpoolUsagelimit();
-        diskCapacity = diskCapacity *poolUsagePercentLimit  / 100;
+    bool EnoughFlag = false;
+    for (auto pid : logicalPools) {
+    LogicalPool lPool;
+    if (!topology_->GetLogicalPool(pid, &lPool)) {
+        continue;
+    }
+    PhysicalPool pPool;
+    if (!topology_->GetPhysicalPool(lPool.GetPhysicalPoolId(), &pPool)) {
+        continue;
+    }
+    uint64_t diskCapacity = pPool.GetDiskCapacity();
+    uint64_t poolUsagePercentLimit =
+                chunkSegAllocator_->GetpoolUsagelimit();
+    diskCapacity = diskCapacity *poolUsagePercentLimit  / 100;
 
-        int64_t alloc = 0;
-        allocStatistic_->GetAllocByLogicalPool(pid, &alloc);
+    int64_t alloc = 0;
+    allocStatistic_->GetAllocByLogicalPool(pid, &alloc);
 
-        alloc *= lPool.GetReplicaNum();
+    alloc *= lPool.GetReplicaNum();
 
-        uint64_t diskRemainning =
-            (diskCapacity > alloc) ? diskCapacity - alloc : 0;
-            if (length <= diskRemainning) {
-                EnoughFlag = true;
-                break;
-            }
+    uint64_t diskRemainning =
+        (diskCapacity > alloc) ? diskCapacity - alloc : 0;
+        if (length <= diskRemainning) {
+            EnoughFlag = true;
+            break;
         }
-        if (!EnoughFlag) {
-            LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
-                       << fileName << ", length = " << length;
-            return StatusCode::kFileLengthNotSupported;
-        }
+    }
+
+    if (!EnoughFlag) {
+        LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
+                    << fileName << ", length = " << length;
+        return StatusCode::kFileLengthNotSupported;
+    }
     auto ret = CheckStripeParam(stripeUnit, stripeCount);
     if (ret != StatusCode::kOK) {
         return ret;
