@@ -1,4 +1,4 @@
-FROM debian:11
+FROM opencurvedocker/curve-base:debian11
 
 RUN echo "deb http://mirrors.163.com/debian/ bullseye main non-free contrib\n" \
          "deb http://mirrors.163.com/debian/ bullseye-updates main non-free contrib\n" \
@@ -31,6 +31,9 @@ RUN echo "deb http://mirrors.163.com/debian/ bullseye main non-free contrib\n" \
         libnl-3-200 \
         libnl-genl-3-200 \
         libjemalloc2 \
-    && ln -s /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so
+        libsnappy1v5 \
+        liblz4-1 \
+        zlib1g
+    && ln -sf /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so
 
 COPY libetcdclient.so /usr/lib/
