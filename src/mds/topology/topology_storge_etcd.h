@@ -47,7 +47,6 @@ class TopologyStorageEtcd : public TopologyStorage {
         std::shared_ptr<TopologyStorageCodec> codec)
     : client_(client),
       codec_(codec) {}
-
     bool LoadLogicalPool(
         std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
         PoolIdType *maxLogicalPoolId) override;
@@ -67,6 +66,7 @@ class TopologyStorageEtcd : public TopologyStorage {
         std::map<CopySetKey, CopySetInfo> *copySetMap,
         std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) override;
 
+    bool StoragePoolset(const Poolset &data) override;
     bool StorageLogicalPool(const LogicalPool &data) override;
     bool StoragePhysicalPool(const PhysicalPool &data) override;
     bool StorageZone(const Zone &data) override;
@@ -74,6 +74,7 @@ class TopologyStorageEtcd : public TopologyStorage {
     bool StorageChunkServer(const ChunkServer &data) override;
     bool StorageCopySet(const CopySetInfo &data) override;
 
+    bool DeletePoolset(PoolsetIdType id) override;
     bool DeleteLogicalPool(PoolIdType id) override;
     bool DeletePhysicalPool(PoolIdType id) override;
     bool DeleteZone(ZoneIdType id) override;

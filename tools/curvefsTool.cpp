@@ -21,6 +21,7 @@
  */
 
 #include "tools/curvefsTool.h"
+#include <unordered_map>
 
 DEFINE_string(mds_addr, "127.0.0.1:6666",
     "mds ip and port list, separated by \",\"");
@@ -30,7 +31,8 @@ DEFINE_string(op,
     "operation: create_logicalpool, "
                "create_physicalpool, "
                "set_chunkserver, "
-               "set_logicalpool");
+               "set_logicalpool, "
+               "upgrade_physicalpools");
 
 DEFINE_string(cluster_map, "/etc/curve/topo.json", "cluster topology map.");
 
@@ -64,6 +66,9 @@ const char kScatterWidth[] = "scatterwidth";
 const char kAllocStatus[] = "allocstatus";
 const char kAllocStatusAllow[] = "allow";
 const char kAllocStatusDeny[] = "deny";
+const char kPoolsets[] = "poolsets";
+const char kPoolsetName[] = "poolsetname";
+
 
 using ::curve::common::SplitString;
 
@@ -256,6 +261,10 @@ int CurvefsTools::HandleBuildCluster() {
     if (ret < 0) {
         return DealFailedRet(ret, "read cluster map");
     }
+    ret = InitPoolsetData();
+    if (ret < 0) {
+        return DealFailedRet(ret, "init poolset data");
+    }
     ret = InitServerData();
     if (ret < 0) {
         return DealFailedRet(ret, "init server data");
@@ -276,6 +285,14 @@ int CurvefsTools::HandleBuildCluster() {
     if (ret < 0) {
         return DealFailedRet(ret, "clear physicalpool");
     }
+     ret = ClearPoolset();
+    if (ret < 0) {
+        return DealFailedRet(ret, "clear poolset");
+    }
+    ret = CreatePoolset();
+    if (ret < 0) {
+        return DealFailedRet(ret, "create Poolset");
+    }
     ret = CreatePhysicalPool();
     if (ret < 0) {
         return DealFailedRet(ret, "create physicalpool");
@@ -290,6 +307,7 @@ int CurvefsTools::HandleBuildCluster() {
     }
     return ret;
 }
+
 
 int CurvefsTools::ReadClusterMap() {
     std::ifstream fin;
@@ -308,6 +326,38 @@ int CurvefsTools::ReadClusterMap() {
         LOG(ERROR) << "open cluster map file : "
                    << FLAGS_cluster_map << " fail.";
         return -1;
+    }
+    return 0;
+}
+int CurvefsTools::InitPoolsetData() {
+    if (clusterMap_[kPoolsets].isNull()) {
+        LOG(ERROR) << "No poolsets in cluster map";
+        return -1;
+    }
+    for (const auto poolset : clusterMap_[kPoolsets]) {
+        CurvePoolsetData poolsetData;
+        if (!poolset[kName].isString()) {
+            LOG(ERROR) <<"poolset name must be string" <<  poolset[kName];
+            return -1;
+        }
+        poolsetData.poolsetName = poolset[kName].asString();
+
+        if (!poolset[kType].isString()) {
+            LOG(ERROR) << "poolset type must be string";
+            return -1;
+        }
+        std::string s = poolset[kType].asString();
+        if (s == "ssd") {
+            poolsetData.type = PoolsetType::SSD;
+        } else if (s == "hdd") {
+            poolsetData.type = PoolsetType::HDD;
+        } else if (s == "nvme") {
+            poolsetData.type = PoolsetType::NVME;
+        } else {
+            poolsetData.type = PoolsetType::SSD;
+        }
+
+        poolsetDatas.emplace_back(poolsetData);
     }
     return 0;
 }
@@ -354,6 +404,19 @@ int CurvefsTools::InitServerData() {
             return -1;
         }
         serverData.physicalPoolName = server[kPhysicalPool].asString();
+
+        if (!server[kPhysicalPool].isString()) {
+            LOG(ERROR) << "server physicalpool must be string";
+            return -1;
+        }
+        serverData.physicalPoolName = server[kPhysicalPool].asString();
+
+        if (!server[kPoolsetName].isString()) {
+            LOG(ERROR) << "server poolsetname must be string";
+            return -1;
+        }
+        serverData.poolsetName = server[kPoolsetName].asString();
+
         serverDatas.emplace_back(serverData);
     }
     return 0;
@@ -420,6 +483,45 @@ int CurvefsTools::InitLogicalPoolData() {
     return 0;
 }
 
+int CurvefsTools::ListPoolset(
+    std::list<PoolsetInfo> *poolsetInfos) {
+    TopologyService_Stub stub(&channel_);
+    ListPoolsetRequest request;
+    ListPoolsetResponse response;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+    cntl.set_log_id(1);
+
+    LOG(INFO) << "ListPoolset send request: "
+              << request.DebugString();
+
+    stub.ListPoolset(&cntl,
+        &request,
+        &response,
+        nullptr);
+
+    if (cntl.Failed()) {
+        return kRetCodeRedirectMds;
+    }
+    if (response.statuscode() != kTopoErrCodeSuccess) {
+        LOG(ERROR) << "ListPoolset Rpc response fail. "
+                   << "Message is :"
+                   << response.DebugString();
+        return response.statuscode();
+    } else {
+        LOG(INFO) << "Received ListPoolset Rpc response success, "
+                  << response.DebugString();
+    }
+
+    for (int i = 0;
+            i < response.poolsetinfos_size();
+            i++) {
+        poolsetInfos->push_back(
+            response.poolsetinfos(i));
+    }
+    return 0;
+}
+
 int CurvefsTools::ListPhysicalPool(
     std::list<PhysicalPoolInfo> *physicalPoolInfos) {
     TopologyService_Stub stub(&channel_);
@@ -458,6 +560,43 @@ int CurvefsTools::ListPhysicalPool(
     }
     return 0;
 }
+
+int CurvefsTools::AddPhysicalPoolsInPoolset(PoolsetIdType poolsetid,
+    std::list<PhysicalPoolInfo> *physicalPoolInfos) {
+    TopologyService_Stub stub(&channel_);
+    ListPhyPoolsInPoolsetRequest request;
+    ListPhysicalPoolResponse response;
+    request.add_poolsetid(poolsetid);
+
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+    cntl.set_log_id(1);
+
+    LOG(INFO) << "ListPhysicalPoolsInPoolset, send request: "
+              << request.DebugString();
+
+    stub.ListPhyPoolsInPoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        return kRetCodeRedirectMds;
+    }
+    if (response.statuscode() != kTopoErrCodeSuccess) {
+        LOG(ERROR) << "ListPhysicalPoolsInPoolset Rpc response fail. "
+                   << "Message is :"
+                   << response.DebugString()
+                   << " , poolsetid = "
+                   << poolsetid;
+        return response.statuscode();
+    } else {
+        LOG(INFO) << "Received ListPhyPoolsInPoolset Rpc resp success,"
+                  << response.DebugString();
+    }
+
+    for (int i = 0; i < response.physicalpoolinfos_size(); i++) {
+        physicalPoolInfos->push_back(response.physicalpoolinfos(i));
+    }
+    return 0;
+    }
 
 int CurvefsTools::AddListPoolZone(PoolIdType poolid,
     std::list<ZoneInfo> *zoneInfos) {
@@ -533,43 +672,103 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
 }
 
 int CurvefsTools::ScanCluster() {
+    // get all poolsets and compare
+    // De-duplication
+    for (auto poolset : poolsetDatas) {
+         if (std::find_if(poolsetToAdd.begin(),
+            poolsetToAdd.end(),
+            [poolset](CurvePoolsetData& data) {
+            return data.poolsetName ==
+            poolset.poolsetName;
+        }) != poolsetToAdd.end()) {
+            continue;
+        }
+        CurvePoolsetData poolsetData;
+        poolsetData.poolsetName = poolset.poolsetName;
+        poolsetData.type = poolset.type;
+        poolsetToAdd.push_back(poolsetData);
+    }
+    std::list<PoolsetInfo> poolsetInfos;
+    int ret = ListPoolset(&poolsetInfos);
+    if (ret < 0) {
+        return ret;
+    }
+    for (auto it = poolsetInfos.begin();
+            it != poolsetInfos.end();) {
+            auto ix = std::find_if(poolsetToAdd.begin(),
+                poolsetToAdd.end(),
+                [it] (CurvePoolsetData& data) {
+                    return data.poolsetName == it->poolsetname();
+                });
+            if (ix != poolsetToAdd.end()) {
+                poolsetToAdd.erase(ix);
+                it++;
+            } else {
+                poolsetToDel.push_back(it->poolsetid());
+                it = poolsetInfos.erase(it);
+            }
+    }
+
     // get all phsicalpool and compare
     // De-duplication
     for (auto server : serverDatas) {
         if (std::find_if(physicalPoolToAdd.begin(),
             physicalPoolToAdd.end(),
             [server](CurvePhysicalPoolData& data) {
-            return data.physicalPoolName ==
-            server.physicalPoolName;
+            return (data.poolsetName == server.poolsetName) &&
+            (data.physicalPoolName == server.physicalPoolName);
         }) != physicalPoolToAdd.end()) {
             continue;
         }
         CurvePhysicalPoolData poolData;
         poolData.physicalPoolName = server.physicalPoolName;
+        poolData.poolsetName = server.poolsetName;
         physicalPoolToAdd.push_back(poolData);
     }
 
     std::list<PhysicalPoolInfo> physicalPoolInfos;
-    int ret = ListPhysicalPool(&physicalPoolInfos);
-    if (ret < 0) {
-        return ret;
+     for (auto poolsetid : poolsetToDel) {
+        ret = AddPhysicalPoolsInPoolset(poolsetid, &physicalPoolInfos);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
-    for (auto it = physicalPoolInfos.begin();
-            it != physicalPoolInfos.end();) {
-            auto ix = std::find_if(physicalPoolToAdd.begin(),
-                physicalPoolToAdd.end(),
-                [it] (CurvePhysicalPoolData& data) {
-                    return data.physicalPoolName == it->physicalpoolname();
-                });
-            if (ix != physicalPoolToAdd.end()) {
-                physicalPoolToAdd.erase(ix);
-                it++;
-            } else {
-                physicalPoolToDel.push_back(it->physicalpoolid());
-                it = physicalPoolInfos.erase(it);
-            }
+    for (auto phyPoolinfo : physicalPoolInfos) {
+        physicalPoolToDel.push_back(phyPoolinfo.physicalpoolid());
     }
+
+    physicalPoolInfos.clear();
+
+     for (auto it = poolsetInfos.begin();
+            it != poolsetInfos.end();
+            it++) {
+        PoolsetIdType poolsetid = it->poolsetid();
+        ret = AddPhysicalPoolsInPoolset(poolsetid, &physicalPoolInfos);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+     for (auto it = physicalPoolInfos.begin();
+            it != physicalPoolInfos.end();) {
+        auto ix = std::find_if(physicalPoolToAdd.begin(),
+            physicalPoolToAdd.end(),
+            [it] (CurvePhysicalPoolData &data) {
+                return (data.poolsetName ==
+                    it->poolsetname()) &&
+                       (data.physicalPoolName ==
+                    it->physicalpoolname());
+            });
+        if (ix != physicalPoolToAdd.end()) {
+            physicalPoolToAdd.erase(ix);
+            it++;
+        } else {
+            physicalPoolToDel.push_back(it->physicalpoolid());
+            it = physicalPoolInfos.erase(it);
+        }
+    }
+
 
     // get zone and compare
     // De-duplication
@@ -692,12 +891,52 @@ int CurvefsTools::ScanCluster() {
     return 0;
 }
 
+int CurvefsTools::CreatePoolset() {
+    TopologyService_Stub stub(&channel_);
+    for (auto it : poolsetToAdd) {
+        PoolsetRequest request;
+        request.set_poolsetname(it.poolsetName);
+        request.set_type(it.type);
+        request.set_desc("");
+
+        PoolsetResponse response;
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+        cntl.set_log_id(1);
+
+        LOG(INFO) << "CreatePoolset, send request: "
+                  << request.DebugString();
+
+        stub.CreatePoolset(&cntl, &request, &response, nullptr);
+
+        if (cntl.Failed()) {
+            LOG(WARNING) << "send rpc get cntl Failed, error context:"
+                       << cntl.ErrorText();
+            return kRetCodeRedirectMds;
+        }
+        if (response.statuscode() != kTopoErrCodeSuccess) {
+            LOG(ERROR) << "CreatePoolset Rpc response fail. "
+                       << "Message is :"
+                       << response.DebugString()
+                       << " , poolsetName ="
+                       << it.poolsetName;
+            return response.statuscode();
+        } else {
+            LOG(INFO) << "Received CreatePoolset response success, "
+                      << response.DebugString();
+        }
+    }
+    return 0;
+}
+
 int CurvefsTools::CreatePhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToAdd) {
         PhysicalPoolRequest request;
         request.set_physicalpoolname(it.physicalPoolName);
         request.set_desc("");
+        request.set_poolsetname(it.poolsetName);
 
         PhysicalPoolResponse response;
 
@@ -787,6 +1026,7 @@ int CurvefsTools::CreateServer() {
         request.set_externalport(it.externalPort);
         request.set_zonename(it.zoneName);
         request.set_physicalpoolname(it.physicalPoolName);
+        request.set_poolsetname(it.poolsetName);
         request.set_desc("");
 
         ServerRegistResponse response;
@@ -868,6 +1108,52 @@ int CurvefsTools::ClearPhysicalPool() {
         } else {
             LOG(INFO) << "Received DeletePhysicalPool Rpc response success, "
                       << response.statuscode();
+        }
+    }
+    return 0;
+}
+
+int CurvefsTools::ClearPoolset() {
+    TopologyService_Stub stub(&channel_);
+    for (auto it : poolsetToDel) {
+        PoolsetRequest request;
+        request.set_poolsetid(it);
+
+        PoolsetResponse response;
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+        cntl.set_log_id(1);
+
+        LOG(INFO) << "DeletePoolset, send request: "
+                  << request.DebugString();
+
+        stub.DeletePoolset(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
+            LOG(ERROR) << "DeletePoolset, errcorde = "
+                       << response.statuscode()
+                       << ", error content:"
+                       << cntl.ErrorText()
+                       << " , PoolsetId = "
+                       << it;
+            return kRetCodeCommonErr;
+        } else {
+            break;
+        }
+        if (response.statuscode() != kTopoErrCodeSuccess) {
+            LOG(ERROR) << "DeletePoolset Rpc response fail. "
+                       << "Message is :"
+                       << response.DebugString()
+                       << " , PoolsetId = "
+                       << it;
+            return response.statuscode();
+        } else {
+            LOG(INFO) << "Received DeletePoolset Rpc success, "
+                      << response.DebugString();
         }
     }
     return 0;
@@ -1012,6 +1298,110 @@ int CurvefsTools::SetChunkServer() {
     return 0;
 }
 
+int CurvefsTools::ScanPoolset() {
+    for (auto poolset : poolsetDatas) {
+         if (std::find_if(poolsetToAdd.begin(),
+            poolsetToAdd.end(),
+            [poolset](CurvePoolsetData& data) {
+            return data.poolsetName ==
+            poolset.poolsetName;
+        }) != poolsetToAdd.end()) {
+            continue;
+        }
+        CurvePoolsetData poolsetData;
+        poolsetData.poolsetName = poolset.poolsetName;
+        poolsetToAdd.push_back(poolsetData);
+    }
+    std::list<PoolsetInfo> poolsetInfos;
+    int ret = ListPoolset(&poolsetInfos);
+    if (ret < 0) {
+        return ret;
+    }
+    for (auto it = poolsetInfos.begin();
+            it != poolsetInfos.end();) {
+            auto ix = std::find_if(poolsetToAdd.begin(),
+                poolsetToAdd.end(),
+                [it] (CurvePoolsetData& data) {
+                    return data.poolsetName == it->poolsetname();
+                });
+            if (ix != poolsetToAdd.end()) {
+                poolsetToAdd.erase(ix);
+                it++;
+            } else {
+                poolsetToDel.push_back(it->poolsetid());
+                it = poolsetInfos.erase(it);
+            }
+    }
+    return 0;
+}
+
+int CurvefsTools::UpgradePhysicalPools() {
+    int ret = ReadClusterMap();
+    if (ret < 0) {
+        return DealFailedRet(ret, "read cluster map");
+    }
+    ret = InitServerData();
+    if (ret < 0) {
+        return DealFailedRet(ret, "init server data");
+    }
+    std::unordered_map<std::string, std::string> dic;
+    for (auto it = serverDatas.begin(); it != serverDatas.end(); it++) {
+        dic[it->physicalPoolName] = it->poolsetName;
+    }
+    ret = InitPoolsetData();
+    if (ret < 0) {
+        return DealFailedRet(ret, "init poolset data");
+    }
+    ret = ScanPoolset();
+    if (ret < 0) {
+        return DealFailedRet(ret, "scan poolset");
+    }
+    ret = CreatePoolset();
+    if (ret < 0) {
+        return DealFailedRet(ret, "create poolset");
+    }
+
+    std::list<PhysicalPoolInfo> physicalPoolInfos;
+    ret = ListPhysicalPool(&physicalPoolInfos);
+    if (ret < 0) {
+        return ret;
+    }
+    for (auto it = physicalPoolInfos.begin();
+            it != physicalPoolInfos.end(); it++) {
+        if (it->poolsetname() == "") {
+            TopologyService_Stub stub(&channel_);
+            UpgradePhysicalPoolRequest request;
+            request.set_physicalpoolname(it->physicalpoolname());
+            request.set_poolsetname(dic[it->physicalpoolname()]);
+            UpgradePhysicalPoolResponse response;
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
+            cntl.set_log_id(1);
+
+            LOG(INFO) << "UpgradePhysicalPool, send request: "
+                  << request.DebugString();
+
+            stub.UpgradePhysicalPool(&cntl, &request, &response, nullptr);
+
+            if (cntl.Failed()) {
+            LOG(WARNING) << "send rpc get cntl Failed, error context:"
+                       << cntl.ErrorText();
+            return kRetCodeRedirectMds;
+            }
+            if (response.statuscode() != kTopoErrCodeSuccess) {
+                LOG(ERROR) << "UpgradePhysicalPool Rpc response fail. "
+                       << "Message is :"
+                       << response.DebugString();
+                return response.statuscode();
+            } else {
+                LOG(INFO) << "Received UpgradePhysicalPool response success, "
+                      << response.DebugString();
+            }
+        }
+    }
+    return 0;
+}
+
 int CurvefsTools::SetLogicalPool() {
     SetLogicalPoolRequest request;
     request.set_logicalpoolid(FLAGS_logicalpool_id);
@@ -1091,6 +1481,8 @@ int main(int argc, char **argv) {
             ret = tools.SetChunkServer();
         } else if (operation == "set_logicalpool") {
             ret = tools.SetLogicalPool();
+        } else if (operation == "upgrade_physicalpools") {
+            ret = tools.UpgradePhysicalPools();
         } else {
             LOG(ERROR) << "undefined op.";
             ret = kRetCodeCommonErr;

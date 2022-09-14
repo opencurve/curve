@@ -55,6 +55,7 @@ struct CurveServerData {
     uint32_t externalPort;
     std::string zoneName;
     std::string physicalPoolName;
+    std::string poolsetName;
 };
 
 struct CurveLogicalPoolData {
@@ -76,6 +77,12 @@ struct CurveZoneData {
 
 struct CurvePhysicalPoolData {
     std::string physicalPoolName;
+    std::string poolsetName;
+};
+
+struct CurvePoolsetData{
+    std::string poolsetName;
+    PoolsetType type;
 };
 
 class CurvefsTools {
@@ -89,6 +96,7 @@ class CurvefsTools {
     int HandleBuildCluster();
     int SetChunkServer();
     int SetLogicalPool();
+    int UpgradePhysicalPools();
 
     int GetMaxTry() {
         return mdsAddressStr_.size();
@@ -102,7 +110,11 @@ class CurvefsTools {
     int ReadClusterMap();
     int InitServerData();
     int InitLogicalPoolData();
+    int InitPoolsetData();
     int ScanCluster();
+    int ScanPoolset();
+
+    int CreatePoolset();
     int ScanLogicalPool();
     int CreatePhysicalPool();
     int CreateZone();
@@ -111,10 +123,13 @@ class CurvefsTools {
     int ClearPhysicalPool();
     int ClearZone();
     int ClearServer();
+    int ClearPoolset();
 
     int DealFailedRet(int ret, std::string operation);
 
-    int ListPhysicalPool(
+    int ListPoolset(std::list<PoolsetInfo> *poolsetInfos);
+    int ListPhysicalPool(std::list<PhysicalPoolInfo> *physicalPoolInfos);
+    int AddPhysicalPoolsInPoolset(PoolsetIdType poolsetid,
         std::list<PhysicalPoolInfo> *physicalPoolInfos);
 
     int ListLogicalPool(const std::string& phyPoolName,
@@ -129,10 +144,13 @@ class CurvefsTools {
  private:
     std::list<CurveServerData> serverDatas;
     std::list<CurveLogicalPoolData> lgPoolDatas;
+    std::list<CurvePoolsetData> poolsetDatas;
     std::list<CurvePhysicalPoolData> physicalPoolToAdd;
     std::list<CurveZoneData> zoneToAdd;
     std::list<CurveServerData> serverToAdd;
+    std::list<CurvePoolsetData> poolsetToAdd;
 
+    std::list<PoolsetIdType> poolsetToDel;
     std::list<PoolIdType> physicalPoolToDel;
     std::list<ZoneIdType> zoneToDel;
     std::list<ServerIdType> serverToDel;

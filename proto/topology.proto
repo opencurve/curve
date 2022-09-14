@@ -56,9 +56,22 @@ enum OnlineState {
     UNSTABLE = 2;
 }
 
+enum PoolsetType{
+    SSD = 0;
+    HDD = 1;
+    NVME = 2;
+}
+
 // etcd struct defination
 message ClusterInfoData {
     required string clusterId = 1;
+}
+
+message PoolsetData {
+    required uint32 poolsetId = 1;
+    required string poolsetName = 2;
+    required PoolsetType type = 3;
+    required string desc = 4;
 }
 
 message LogicalPoolData {
@@ -79,6 +92,7 @@ message PhysicalPoolData {
     required uint32 physicalPoolId = 1;
     required string physicalPoolName = 2;
     required string desc = 3;
+    required uint32 poolsetId = 4;
 }
 
 message ZoneData {
@@ -233,6 +247,7 @@ message ServerRegistRequest {
     optional uint32 physicalPoolID = 8;
     optional string physicalPoolName = 9; //physicalPoolName is unique
     required string desc = 10;
+    required string poolsetName = 11; 
 }
 
 message ServerRegistResponse {
@@ -314,6 +329,8 @@ message PhysicalPoolInfo {
     required uint32 physicalPoolID = 1;
     required string physicalPoolName = 2;
     optional string desc = 3;
+    optional uint32 poolsetId = 4;
+    optional string poolsetName = 5;
 }
 
 message PhysicalPoolRequest {
@@ -321,6 +338,7 @@ message PhysicalPoolRequest {
     optional uint32 physicalPoolID = 1;
     optional string physicalPoolName = 2;
     optional string desc = 3;
+    optional string poolsetName = 4;
 }
 
 message PhysicalPoolResponse {
@@ -331,9 +349,67 @@ message PhysicalPoolResponse {
 message ListPhysicalPoolRequest {
 }
 
+message ListPhyPoolsInPoolsetRequest {
+    repeated uint32 poolsetId = 1;
+}
+
 message ListPhysicalPoolResponse {
     required sint32 statusCode = 1;
     repeated PhysicalPoolInfo physicalPoolInfos = 2;
+}
+
+//poolset message
+message PoolsetRequest{
+    //use either  poolsetID or poolsetName
+    optional uint32 poolsetID = 1;
+    optional string poolsetName = 2;
+    optional PoolsetType type = 3;
+    optional string desc = 4;
+}
+
+message PoolsetInfo {
+    required uint32 poolsetID = 1;
+    required string poolsetName = 2;
+    required PoolsetType type = 3;
+    required uint32 poolsNum = 4;
+    optional string desc = 5;
+}
+
+message PoolsetResponse {
+    required sint32 statusCode = 1;
+    optional PoolsetInfo poolsetInfo = 2;
+}
+
+
+
+message ListPoolsetRequest{
+
+}
+
+message ListPoolsetResponse{
+    required sint32 statusCode = 1;
+    repeated PoolsetInfo poolsetInfos = 2;
+}
+
+//UpgradePhysicalPool message
+
+message UpgradePhysicalPoolRequest{
+    required string physicalPoolName = 1;
+    required string poolsetName = 2;
+}
+
+message UpgradePhysicalPoolInfo{
+    required uint32 physicalPoolId = 1;
+    required string physicalPoolName = 2;
+    required uint32 poolsetId = 3;
+    optional string poolsetName = 4;
+    optional string desc = 5;
+}
+
+
+message UpgradePhysicalPoolResponse{
+    required sint32 statusCode = 1;
+    optional UpgradePhysicalPoolInfo upgradePhysicalPoolInfo = 2;
 }
 
 //logicalpool message
@@ -510,11 +586,17 @@ service TopologyService {
     rpc GetZone(ZoneRequest)                  returns (ZoneResponse);
     rpc ListPoolZone(ListPoolZoneRequest)     returns (ListPoolZoneResponse);
 
+    rpc CreatePhysicalPool(PhysicalPoolRequest)                        returns (PhysicalPoolResponse);
+    rpc DeletePhysicalPool(PhysicalPoolRequest)                        returns (PhysicalPoolResponse);
+    rpc GetPhysicalPool(PhysicalPoolRequest)                           returns (PhysicalPoolResponse);
+    rpc ListPhysicalPool(ListPhysicalPoolRequest)                      returns (ListPhysicalPoolResponse);
+    rpc ListPhyPoolsInPoolset(ListPhyPoolsInPoolsetRequest)            returns (ListPhysicalPoolResponse);
+    rpc UpgradePhysicalPool(UpgradePhysicalPoolRequest)                returns (UpgradePhysicalPoolResponse);
 
-    rpc CreatePhysicalPool(PhysicalPoolRequest)     returns (PhysicalPoolResponse);
-    rpc DeletePhysicalPool(PhysicalPoolRequest)     returns (PhysicalPoolResponse);
-    rpc GetPhysicalPool(PhysicalPoolRequest)        returns (PhysicalPoolResponse);
-    rpc ListPhysicalPool(ListPhysicalPoolRequest)   returns (ListPhysicalPoolResponse);
+    rpc CreatePoolset(PoolsetRequest)          returns (PoolsetResponse);
+    rpc DeletePoolset(PoolsetRequest)          returns (PoolsetResponse);
+    rpc GetPoolset(PoolsetRequest)             returns (PoolsetResponse);
+    rpc ListPoolset(ListPoolsetRequest)        returns (ListPoolsetResponse);
 
     rpc CreateLogicalPool(CreateLogicalPoolRequest)       returns (CreateLogicalPoolResponse);
     rpc DeleteLogicalPool(DeleteLogicalPoolRequest)    returns (DeleteLogicalPoolResponse);

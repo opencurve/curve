@@ -48,6 +48,7 @@ class TopologyIdGenerator {
     virtual void initCopySetIdGenerator(
         const std::map<PoolIdType, CopySetIdType> &idMaxMap) = 0;
 
+    virtual PoolsetIdType GenPoolsetId() = 0;
     virtual PoolIdType GenLogicalPoolId() = 0;
     virtual PoolIdType GenPhysicalPoolId() = 0;
     virtual ZoneIdType GenZoneId() = 0;
@@ -69,7 +70,7 @@ class DefaultIdGenerator : public TopologyIdGenerator {
     virtual void initChunkServerIdGenerator(ChunkServerIdType idMax);
     virtual void initCopySetIdGenerator(const std::map<PoolIdType,
         CopySetIdType> &idMaxMap);
-
+    virtual PoolsetIdType GenPoolsetId();
     virtual PoolIdType GenLogicalPoolId();
     virtual PoolIdType GenPhysicalPoolId();
     virtual ZoneIdType GenZoneId();
@@ -97,6 +98,7 @@ class DefaultIdGenerator : public TopologyIdGenerator {
         std::atomic<T> idMax_;
     };
 
+    IdGenerator<PoolsetIdType> poolsetIdGentor_;
     IdGenerator<PoolIdType> logicPoolIdGentor_;
     IdGenerator<PoolIdType> physicalPoolIdGentor_;
     IdGenerator<ZoneIdType> zoneIdGentor_;

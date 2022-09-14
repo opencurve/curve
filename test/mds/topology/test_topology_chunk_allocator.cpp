@@ -73,6 +73,21 @@ class TestTopologyChunkAllocator : public ::testing::Test {
         testObj_ = nullptr;
     }
 
+    void PrepareAddPoolset(PoolsetIdType pid = 0x61,
+                 const std::string &name = "testPoolset",
+                 const PoolsetType type = PoolsetType::SSD,
+                 const std::string &desc = "descPoolset") {
+        Poolset poolset(pid,
+                name,
+                type,
+                desc);
+        EXPECT_CALL(*storage_, StoragePoolset(_))
+            .WillOnce(Return(true));
+
+        int ret = topology_->AddPoolset(poolset);
+        ASSERT_EQ(kTopoErrCodeSuccess, ret);
+    }
+
     void PrepareAddLogicalPool(PoolIdType id = 0x01,
             const std::string &name = "testLogicalPool",
             PoolIdType phyPoolId = 0x11,
@@ -103,17 +118,20 @@ class TestTopologyChunkAllocator : public ::testing::Test {
 
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
                  const std::string &name = "testPhysicalPool",
+                 PoolsetIdType pid = 0x61,
                  const std::string &desc = "descPhysicalPool",
                  uint64_t diskCapacity = 10240) {
         PhysicalPool pool(id,
                 name,
+                pid,
                 desc);
         pool.SetDiskCapacity(diskCapacity);
         EXPECT_CALL(*storage_, StoragePhysicalPool(_))
             .WillOnce(Return(true));
 
         int ret = topology_->AddPhysicalPool(pool);
-        ASSERT_EQ(kTopoErrCodeSuccess, ret);
+        ASSERT_EQ(kTopoErrCodeSuccess, ret)
+            << "should have PrepareAddPoolset()";
     }
 
     void PrepareAddZone(ZoneIdType id = 0x21,
@@ -204,6 +222,7 @@ TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRandomInSingleLogicalPool_success) {
     std::vector<CopysetIdInfo> infos;
 
+    PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     CopySetIdType copysetId = 0x51;
@@ -261,6 +280,7 @@ TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRoundRobinInSingleLogicalPool_success) {
     std::vector<CopysetIdInfo> infos;
 
+    PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
 
@@ -368,6 +388,7 @@ TEST_F(TestTopologyChunkAllocator,
 TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRoundRobinInSingleLogicalPool_copysetEmpty) {
     std::vector<CopysetIdInfo> infos;
+    PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
 
@@ -385,7 +406,7 @@ TEST_F(TestTopologyChunkAllocator,
 TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolIsDENY) {
     std::vector<CopysetIdInfo> infos;
-
+    PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
 

@@ -31,6 +31,26 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+
+std::string TopologyStorageCodec::EncodePoolsetKey(PoolsetIdType id) {
+    std::string key = POOLSETKEYPREFIX;
+    size_t prefixLen = key.size();
+    key.resize(prefixLen + sizeof(uint64_t));
+    ::curve::common::EncodeBigEndian(&(key[prefixLen]), id);
+    return key;
+}
+
+bool TopologyStorageCodec::EncodePoolsetData(
+    const Poolset &data, std::string *value) {
+    return data.SerializeToString(value);
+}
+
+bool TopologyStorageCodec::DecodePoolsetData(
+    const std::string &value, Poolset *data) {
+    return data->ParseFromString(value);
+}
+
+
 std::string TopologyStorageCodec::EncodeLogicalPoolKey(
     LogicalPoolIdType id) {
     std::string key = LOGICALPOOLKEYPREFIX;

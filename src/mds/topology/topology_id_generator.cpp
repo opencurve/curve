@@ -51,6 +51,9 @@ void DefaultIdGenerator::initCopySetIdGenerator(
     copySetIdGentor_[it.first].init(it.second);
   }
 }
+PoolsetIdType DefaultIdGenerator::GenPoolsetId() {
+    return poolsetIdGentor_.GenId();
+}
 
 PoolIdType DefaultIdGenerator::GenLogicalPoolId() {
   return logicPoolIdGentor_.GenId();

@@ -161,7 +161,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadLogicalPool_IdDuplicated) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success) {
-    PhysicalPool data(0x21, "pPool", "desc");
+    PhysicalPool data(0x21, "pPool", 0x61, "desc");
 
     std::string key = codec_->EncodePhysicalPoolKey(data.GetId());
     std::string value;
@@ -214,7 +214,7 @@ TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_success_decodeError) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_LoadPhysicalPool_IdDuplicated) {
-    PhysicalPool data(0x21, "pPool", "desc");
+    PhysicalPool data(0x21, "pPool", 0x61, "desc");
 
     std::string key = codec_->EncodePhysicalPoolKey(data.GetId());
     std::string value;
@@ -565,6 +565,42 @@ TEST_F(TestTopologyStorageEtcd, test_LoadCopyset_IdDuplicated) {
     ASSERT_FALSE(ret);
 }
 
+TEST_F(TestTopologyStorageEtcd, test_StoragePoolset_success) {
+    Poolset data(0x21, "ssdPoolset1", PoolsetType::SSD, "desc");
+
+    EXPECT_CALL(*kvStorageClient_, Put(_, _))
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
+
+    bool ret = storage_->StoragePoolset(data);
+    ASSERT_TRUE(ret);
+}
+
+TEST_F(TestTopologyStorageEtcd, test_StoragePoolset_putInfoEtcdFail) {
+     Poolset data(0x21, "ssdPoolset1", PoolsetType::SSD, "desc");
+
+    EXPECT_CALL(*kvStorageClient_, Put(_, _))
+        .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+
+    bool ret = storage_->StoragePoolset(data);
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyStorageEtcd, test_DeletePoolset_success) {
+    EXPECT_CALL(*kvStorageClient_, Delete(_))
+        .WillOnce(Return(EtcdErrCode::EtcdOK));
+
+    bool ret = storage_->DeletePoolset(0x61);
+    ASSERT_TRUE(ret);
+}
+
+TEST_F(TestTopologyStorageEtcd, test_DeletePoolset_fail) {
+    EXPECT_CALL(*kvStorageClient_, Delete(_))
+        .WillOnce(Return(EtcdErrCode::EtcdUnknown));
+
+    bool ret = storage_->DeletePoolset(0x61);
+    ASSERT_FALSE(ret);
+}
+
 TEST_F(TestTopologyStorageEtcd, test_StotageLogicalPool_success) {
     LogicalPool::RedundanceAndPlaceMentPolicy rap;
     rap.pageFileRAP.replicaNum = 3;
@@ -602,7 +638,7 @@ TEST_F(TestTopologyStorageEtcd, test_StotageLogicalPool_putInfoEtcdFail) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_StotagePhysicalPool_success) {
-    PhysicalPool data(0x21, "pPool", "desc");
+    PhysicalPool data(0x21, "pPool", 0x61, "desc");
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdOK));
@@ -612,7 +648,7 @@ TEST_F(TestTopologyStorageEtcd, test_StotagePhysicalPool_success) {
 }
 
 TEST_F(TestTopologyStorageEtcd, test_StotagePhysicalPool_putInfoEtcdFail) {
-    PhysicalPool data(0x21, "pPool", "desc");
+    PhysicalPool data(0x21, "pPool", 0x61, "desc");
 
     EXPECT_CALL(*kvStorageClient_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::EtcdUnknown));

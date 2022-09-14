@@ -114,6 +114,11 @@ class TopologyServiceImpl : public TopologyService {
                       PhysicalPoolResponse* response,
                       google::protobuf::Closure* done);
 
+    virtual void UpgradePhysicalPool(google::protobuf::RpcController* cntl_base,
+                      const UpgradePhysicalPoolRequest* request,
+                      UpgradePhysicalPoolResponse* response,
+                      google::protobuf::Closure* done);
+
     virtual void DeletePhysicalPool(google::protobuf::RpcController* cntl_base,
                       const PhysicalPoolRequest* request,
                       PhysicalPoolResponse* response,
@@ -127,6 +132,32 @@ class TopologyServiceImpl : public TopologyService {
     virtual void ListPhysicalPool(google::protobuf::RpcController* cntl_base,
                       const ListPhysicalPoolRequest* request,
                       ListPhysicalPoolResponse* response,
+                      google::protobuf::Closure* done);
+
+     virtual void ListPhyPoolsInPoolset(
+                      google::protobuf::RpcController* cntl_base,
+                      const ListPhyPoolsInPoolsetRequest* request,
+                      ListPhysicalPoolResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void CreatePoolset(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void ListPoolset(google::protobuf::RpcController* cntl_base,
+                      const ListPoolsetRequest* request,
+                      ListPoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void DeletePoolset(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void GetPoolset(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
                       google::protobuf::Closure* done);
 
     virtual void CreateLogicalPool(google::protobuf::RpcController* cntl_base,

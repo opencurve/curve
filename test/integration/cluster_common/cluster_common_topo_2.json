@@ -1,4 +1,18 @@
 {
+    "poolsets":[
+        {
+            "name": "ssdPoolset1",
+            "type": "ssd"
+        },
+        {
+            "name": "hddPoolset1",
+            "type": "hdd"
+        },
+        {
+            "name": "nvmePoolset1",
+            "type": "nvme"
+        }
+    ],
     "logicalpools": [
         {
             "copysetnum": 20,
@@ -18,7 +32,8 @@
             "internalport": 2001,
             "name": "server1",
             "physicalpool": "pool1",
-            "zone": "zone1"
+            "zone": "zone1",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -27,7 +42,8 @@
             "internalport": 2002,
             "name": "server2",
             "physicalpool": "pool1",
-            "zone": "zone2"
+            "zone": "zone2",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -36,7 +52,8 @@
             "internalport": 2003,
             "name": "server3",
             "physicalpool": "pool1",
-            "zone": "zone3"
+            "zone": "zone3",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -45,7 +62,8 @@
             "internalport": 2004,
             "name": "server4",
             "physicalpool": "pool1",
-            "zone": "zone4"
+            "zone": "zone4",
+            "poolsetname": "ssdPoolset1"
         }
     ]
 }

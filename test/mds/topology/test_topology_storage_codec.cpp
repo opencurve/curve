@@ -66,8 +66,22 @@ TEST(TestTopologyStorageCodec,
 }
 
 TEST(TestTopologyStorageCodec,
+    TestPoolsetEncodeDecodeEqual) {
+    Poolset data(0x61, "ssdPoolset1", PoolsetType::SSD, "desc");
+
+    TopologyStorageCodec testObj;
+    std::string value;
+    ASSERT_TRUE(testObj.EncodePoolsetData(data, &value));
+
+    Poolset out;
+    ASSERT_TRUE(testObj.DecodePoolsetData(value, &out));
+
+    ASSERT_TRUE(JudgePoolsetEqual(data, out));
+}
+
+TEST(TestTopologyStorageCodec,
     TestPhysicalPoolEncodeDecodeEqual) {
-    PhysicalPool data(0x21, "pPool", "desc");
+    PhysicalPool data(0x21, "pPool", 0x61, "desc");
 
     TopologyStorageCodec testObj;
     std::string value;

@@ -418,6 +418,7 @@ TEST_F(TestTopologyService, test_RegistServer_success) {
     request.set_internalip("2");
     request.set_externalip("3");
     request.set_desc("4");
+    request.set_poolsetname("ssdPoolset1");
 
     ServerRegistResponse response;
 
@@ -450,6 +451,7 @@ TEST_F(TestTopologyService, test_RegistServer_fail) {
     request.set_internalip("2");
     request.set_externalip("3");
     request.set_desc("4");
+    request.set_poolsetname("ssdPoolset1");
 
     ServerRegistResponse response;
 
@@ -885,6 +887,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
     brpc::Controller cntl;
     PhysicalPoolRequest request;
     request.set_physicalpoolid(1);
+    request.set_poolsetname("ssdPoolset1");
 
     PhysicalPoolResponse response;
 
@@ -914,6 +917,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
     brpc::Controller cntl;
     PhysicalPoolRequest request;
     request.set_physicalpoolid(1);
+    request.set_poolsetname("ssdPoolset1");
 
     PhysicalPoolResponse response;
 
@@ -1047,6 +1051,39 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
 }
 
+TEST_F(TestTopologyService, test_UpgradePhysicalPool_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+
+    UpgradePhysicalPoolRequest request;
+    UpgradePhysicalPoolResponse response;
+
+    request.set_poolsetname("ssd1");
+    request.set_physicalpoolname("pool1");
+
+    UpgradePhysicalPoolResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+
+    EXPECT_CALL(*manager_, UpgradePhysicalPool(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+     stub.UpgradePhysicalPool(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        response.statuscode()) << response.DebugString();
+}
+
 TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
     brpc::Channel channel;
     if (channel.Init(listenAddr_, NULL) != 0) {
@@ -1101,6 +1138,37 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_ListPhysicalPoolsInPoolset_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    ListPhyPoolsInPoolsetRequest request;
+    request.add_poolsetid(1);
+    request.add_poolsetid(2);
+    request.add_poolsetid(3);
+
+    ListPhysicalPoolResponse response;
+
+    ListPhysicalPoolResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, ListPhyPoolsInPoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.ListPhyPoolsInPoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
 }
 
 TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
@@ -1441,6 +1509,184 @@ TEST_F(TestTopologyService, TestSetLogicalPoolScanState) {
         ASSERT_EQ(response.statuscode(), kTopoErrCodeLogicalPoolNotFound);
     }
 }
+
+TEST_F(TestTopologyService, test_CreatePoolset_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    PoolsetRequest request;
+    request.set_poolsetname("ssdPoolset1");
+
+    PoolsetResponse response;
+
+    PoolsetResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, CreatePoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.CreatePoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+
+TEST_F(TestTopologyService, test_CreatePoolset_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    PoolsetRequest request;
+    request.set_poolsetname("ssdPoolset1");
+
+    PoolsetResponse response;
+
+    PoolsetResponse reps;
+    reps.set_statuscode(kTopoErrCodeInvalidParam);
+    EXPECT_CALL(*manager_, CreatePoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.CreatePoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_DeletePoolset_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    PoolsetRequest request;
+    request.set_poolsetname("ssdPoolset1");
+
+    PoolsetResponse response;
+
+    PoolsetResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, DeletePoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.DeletePoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+
+TEST_F(TestTopologyService, test_DeletePoolset_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    PoolsetRequest request;
+    request.set_poolsetname("ssdPoolset1");
+
+    PoolsetResponse response;
+
+    PoolsetResponse reps;
+    reps.set_statuscode(kTopoErrCodeInvalidParam);
+    EXPECT_CALL(*manager_, DeletePoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.DeletePoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_GetPoolset_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    PoolsetRequest request;
+    request.set_poolsetname("ssdPoolset1");
+
+    PoolsetResponse response;
+
+    PoolsetResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, GetPoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.GetPoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+
+TEST_F(TestTopologyService, test_ListPoolset_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    ListPoolsetRequest request;
+
+    ListPoolsetResponse response;
+
+    ListPoolsetResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, ListPoolset(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.ListPoolset(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+
 
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     brpc::Channel channel;

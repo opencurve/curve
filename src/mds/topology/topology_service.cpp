@@ -490,6 +490,39 @@ void TopologyServiceImpl::CreatePhysicalPool(
     }
 }
 
+void  TopologyServiceImpl::UpgradePhysicalPool(
+        google::protobuf::RpcController* cntl_base,
+        const UpgradePhysicalPoolRequest* request,
+        UpgradePhysicalPoolResponse* response,
+        google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+
+        LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [UpgradePhysicalPoolRequest] "
+              << request->DebugString();
+
+        topology_->UpgradePhysicalPool(request, response);
+
+        if (kTopoErrCodeSuccess != response->statuscode()) {
+            LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [UpgradePhysicalPool_UpgradePhysicalPoolResponse] "
+                   << response->DebugString();
+        } else {
+            LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [UpgradePhysicalPool_UpgradePhysicalPoolResponse] "
+                  << response->DebugString();
+        }
+}
+
 void TopologyServiceImpl::DeletePhysicalPool(
     google::protobuf::RpcController* cntl_base,
     const PhysicalPoolRequest* request,
@@ -556,6 +589,38 @@ void TopologyServiceImpl::GetPhysicalPool(
     }
 }
 
+void TopologyServiceImpl::ListPhyPoolsInPoolset(
+    google::protobuf::RpcController* cntl_base,
+    const ListPhyPoolsInPoolsetRequest* request,
+    ListPhysicalPoolResponse* response, google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [ListPhysicalPoolInPoolsetRequest] "
+              << request->DebugString();
+
+    topology_->ListPhyPoolsInPoolset(request, response);
+
+    if (kTopoErrCodeSuccess != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [ListPhysicalPoolResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [ListPhysicalPoolResponse] "
+                  << response->DebugString();
+    }
+    }
+
 void TopologyServiceImpl::ListPhysicalPool(
     google::protobuf::RpcController* cntl_base,
     const ListPhysicalPoolRequest* request,
@@ -585,6 +650,137 @@ void TopologyServiceImpl::ListPhysicalPool(
                   << "] from " << cntl->local_side()
                   << " to " << cntl->remote_side()
                   << ". [ListPhysicalPoolResponse] "
+                  << response->DebugString();
+    }
+}
+
+void TopologyServiceImpl::CreatePoolset(
+    google::protobuf::RpcController* cntl_base,
+    const PoolsetRequest* request,
+    PoolsetResponse* response,
+    google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        brpc::Controller* cntl =
+            static_cast<brpc::Controller*>(cntl_base);
+
+        LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [CreatePoolset_PoolsetRequest] "
+              << request->DebugString();
+
+        topology_->CreatePoolset(request, response);
+
+        if (kTopoErrCodeSuccess != response->statuscode()) {
+            LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [CreatePoolset_PoolsetResponse] "
+                   << response->DebugString();
+        } else {
+            LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [CreatePoolset_PoolsetResponse] "
+                  << response->DebugString();
+        }
+    }
+
+void TopologyServiceImpl::ListPoolset(
+    google::protobuf::RpcController* cntl_base,
+    const ListPoolsetRequest* request,
+    ListPoolsetResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [ListpoolsetRequest] "
+              << request->DebugString();
+
+    topology_->ListPoolset(request, response);
+
+    if (kTopoErrCodeSuccess != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [ListpoolsetResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [ListpoolsetResponse] "
+                  << response->DebugString();
+    }
+}
+
+void TopologyServiceImpl::GetPoolset(
+    google::protobuf::RpcController* cntl_base,
+    const PoolsetRequest* request, PoolsetResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [GetPoolset_PoolsetRequest] "
+              << request->DebugString();
+
+    topology_->GetPoolset(request, response);
+
+    if (kTopoErrCodeSuccess != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [GetPoolset_PoolsetResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [GetPoolset_PoolsetResponse] "
+                  << response->DebugString();
+    }
+}
+
+void TopologyServiceImpl::DeletePoolset(
+    google::protobuf::RpcController* cntl_base,
+    const PoolsetRequest* request,
+    PoolsetResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [DeletePoolset_PoolsetRequest] "
+              << request->DebugString();
+
+    topology_->DeletePoolset(request, response);
+
+    if (kTopoErrCodeSuccess != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [DeletePoolset_PoolsetResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [DeletePoolset_PoolsetlResponse] "
                   << response->DebugString();
     }
 }

@@ -27,6 +27,17 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+bool JudgePoolsetEqual(const Poolset &lh, const Poolset &rh) {
+    if (lh.GetId() == rh.GetId() &&
+    lh.GetName() == rh.GetName() &&
+    lh.GetType() == rh.GetType() &&
+    lh.GetPoolsNum() == rh.GetPoolsNum() &&
+    lh.GetDesc() == rh.GetDesc()) {
+        return true;
+    }
+    return false;
+}
+
 bool JudgeLogicalPoolEqual(const LogicalPool &lh, const LogicalPool &rh) {
     if (lh.GetId() == rh.GetId() &&
         lh.GetName() == rh.GetName() &&

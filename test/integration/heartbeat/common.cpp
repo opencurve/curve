@@ -26,6 +26,12 @@
 namespace curve {
 namespace mds {
 
+void HeartbeatIntegrationCommon::PrepareAddPoolset(
+    const Poolset &poolset) {
+    int ret = topology_->AddPoolset(poolset);
+    EXPECT_EQ(topology::kTopoErrCodeSuccess, ret);
+}
+
 void HeartbeatIntegrationCommon::PrepareAddLogicalPool(
     const LogicalPool &lpool) {
     int ret = topology_->AddLogicalPool(lpool);
@@ -186,10 +192,14 @@ void HeartbeatIntegrationCommon::RemoveOperatorFromOpController(
 
 void HeartbeatIntegrationCommon::PrepareBasicCluseter() {
     assert(topology_ != nullptr);
+    // add poolset
+    PoolsetIdType poolsetId = 1;
+    Poolset poolset(1, "testPoolset", PoolsetType::SSD, "descPoolset");
+    PrepareAddPoolset(poolset);
 
     // add physical pool
     PoolIdType physicalPoolId = 1;
-    PhysicalPool ppool(1, "testPhysicalPool", "descPhysicalPool");
+    PhysicalPool ppool(1, "testPhysicalPool", poolsetId, "descPhysicalPool");
     PrepareAddPhysicalPool(ppool);
 
     // add logical pool

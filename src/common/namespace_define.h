@@ -53,6 +53,8 @@ const char CHUNKSERVERKEYEND[] = "1006";
 const char CLUSTERINFOKEY[] = "1007";
 const char COPYSETKEYPREFIX[] = "1008";
 const char COPYSETKEYEND[] = "1009";
+const char POOLSETKEYPREFIX[] = "1010";
+const char POOLSETKEYEND[] = "1011";
 
 const char SNAPINFOKEYPREFIX[] = "11";
 const char SNAPINFOKEYEND[] = "12";

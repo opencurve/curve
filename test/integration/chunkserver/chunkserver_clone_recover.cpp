@@ -256,6 +256,7 @@ class CSCloneRecoverTest : public ::testing::Test {
             server["name"] = std::string("server") + std::to_string(i);
             server["physicalpool"] = PHYSICAL_POOL_NAME;
             server["zone"] = std::string("zone") + std::to_string(i);
+            server["poolsetname"] = std::string("ssdPoolset1");
             servers.append(server);
         }
         topo["servers"] = servers;
@@ -270,6 +271,21 @@ class CSCloneRecoverTest : public ::testing::Test {
         logicalPool["zonenum"] = 3;
         logicalPools.append(logicalPool);
         topo["logicalpools"] = logicalPools;
+
+        Json::Value poolsets;
+        Json::Value poolset1;
+        Json::Value poolset2;
+        Json::Value poolset3;
+        poolset1["name"] = std::string("ssdPoolset1");
+        poolset1["type"] = std::string("ssd");
+        topo["poolsets"].append(poolset1);
+        poolset2["name"] = std::string("hddPoolset1");
+        poolset2["type"] = std::string("hdd");
+        topo["poolsets"].append(poolset2);
+        poolset3["name"] = std::string("nvmePoolset1");
+        poolset3["type"] = std::string("nvme");
+        topo["poolsets"].append(poolset3);
+
         std::ofstream topoConf(CSCLONE_BASE_DIR + "/topo.json");
         topoConf << topo.toStyledString();
         topoConf.close();

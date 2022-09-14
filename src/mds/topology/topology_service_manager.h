@@ -106,6 +106,9 @@ class TopologyServiceManager {
     virtual void CreatePhysicalPool(const PhysicalPoolRequest *request,
                                     PhysicalPoolResponse *response);
 
+    virtual void UpgradePhysicalPool(const UpgradePhysicalPoolRequest *request,
+                                    UpgradePhysicalPoolResponse *response);
+
     virtual void DeletePhysicalPool(const PhysicalPoolRequest *request,
                                     PhysicalPoolResponse *response);
 
@@ -114,6 +117,22 @@ class TopologyServiceManager {
 
     virtual void ListPhysicalPool(const ListPhysicalPoolRequest *request,
                                   ListPhysicalPoolResponse *response);
+
+    virtual void ListPhyPoolsInPoolset(
+                                const ListPhyPoolsInPoolsetRequest *request,
+                                ListPhysicalPoolResponse *response);
+
+    virtual void CreatePoolset(const PoolsetRequest *request,
+                                PoolsetResponse *response);
+
+    virtual void GetPoolset(const PoolsetRequest *request,
+                             PoolsetResponse *response);
+
+    virtual void ListPoolset(const ListPoolsetRequest *request,
+                             ListPoolsetResponse *response);
+
+    virtual void DeletePoolset(const PoolsetRequest *request,
+                                PoolsetResponse *response);
 
     virtual void CreateLogicalPool(const CreateLogicalPoolRequest *request,
                                    CreateLogicalPoolResponse *response);

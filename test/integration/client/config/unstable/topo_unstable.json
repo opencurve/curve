@@ -1,4 +1,18 @@
 {
+    "poolsets":[
+        {
+            "name": "ssdPoolset1",
+            "type": "ssd"
+        },
+        {
+            "name": "hddPoolset1",
+            "type": "hdd"
+        },
+        {
+            "name": "nvmePoolset1",
+            "type": "nvme"
+        }
+    ],
     "logicalpools": [
         {
             "copysetnum": 30,
@@ -18,7 +32,8 @@
             "internalport": 31000,
             "name": "server4",
             "physicalpool": "pool1",
-            "zone": "zone4"
+            "zone": "zone4",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -27,7 +42,8 @@
             "internalport": 31001,
             "name": "server5",
             "physicalpool": "pool1",
-            "zone": "zone4"
+            "zone": "zone4",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -36,7 +52,8 @@
             "internalport": 31010,
             "name": "server7",
             "physicalpool": "pool1",
-            "zone": "zone5"
+            "zone": "zone5",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -45,7 +62,8 @@
             "internalport": 31011,
             "name": "server8",
             "physicalpool": "pool1",
-            "zone": "zone5"
+            "zone": "zone5",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -54,7 +72,8 @@
             "internalport": 31020,
             "name": "server10",
             "physicalpool": "pool1",
-            "zone": "zone6"
+            "zone": "zone6",
+            "poolsetname": "ssdPoolset1"
         },
         {
             "externalip": "127.0.0.1",
@@ -63,7 +82,8 @@
             "internalport": 31021,
             "name": "server11",
             "physicalpool": "pool1",
-            "zone": "zone6"
+            "zone": "zone6",
+            "poolsetname": "ssdPoolset1"
         }
     ]
 }

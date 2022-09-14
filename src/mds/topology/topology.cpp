@@ -32,6 +32,10 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+PoolsetIdType TopologyImpl::AllocatePoolsetId() {
+    return idGenerator_->GenPoolsetId();
+}
+
 PoolIdType TopologyImpl::AllocateLogicalPoolId() {
     return idGenerator_->GenLogicalPoolId();
 }
@@ -56,6 +60,19 @@ std::string TopologyImpl::AllocateToken() {
     return tokenGenerator_->GenToken();
 }
 
+int TopologyImpl::AddPoolset(const Poolset &data) {
+    WriteLockGuard wlockPoolset(poolsetMutex_);
+    if (poolsetMap_.find(data.GetId()) == poolsetMap_.end()) {
+        if (!storage_->StoragePoolset(data)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        poolsetMap_[data.GetId()] = data;
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeIdDuplicated;
+    }
+}
+
 int TopologyImpl::AddLogicalPool(const LogicalPool &data) {
     ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
@@ -75,16 +92,38 @@ int TopologyImpl::AddLogicalPool(const LogicalPool &data) {
     }
 }
 
-int TopologyImpl::AddPhysicalPool(const PhysicalPool &data) {
+int TopologyImpl::AddPhysicalPoolJustForTest(const PhysicalPool &data) {
+    ReadLockGuard rlockPoolset(poolsetMutex_);
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     if (physicalPoolMap_.find(data.GetId()) == physicalPoolMap_.end()) {
         if (!storage_->StoragePhysicalPool(data)) {
             return kTopoErrCodeStorgeFail;
         }
+        // it->second.AddPhysicalPool(data.GetId());
         physicalPoolMap_[data.GetId()] = data;
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeIdDuplicated;
+    }
+}
+
+int TopologyImpl::AddPhysicalPool(const PhysicalPool &data) {
+    ReadLockGuard rlockPoolset(poolsetMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    auto it = poolsetMap_.find(data.GetPoolsetId());
+    if (it != poolsetMap_.end()) {
+        if (physicalPoolMap_.find(data.GetId()) == physicalPoolMap_.end()) {
+            if (!storage_->StoragePhysicalPool(data)) {
+                return kTopoErrCodeStorgeFail;
+            }
+            it->second.AddPhysicalPool(data.GetId());
+            physicalPoolMap_[data.GetId()] = data;
+            return kTopoErrCodeSuccess;
+        } else {
+            return kTopoErrCodeIdDuplicated;
+        }
+    } else {
+        return kTopoErrCodePoolsetNotFound;
     }
 }
 
@@ -184,7 +223,24 @@ int TopologyImpl::RemoveLogicalPool(PoolIdType id) {
     }
 }
 
-int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
+int TopologyImpl::RemovePoolset(PoolsetIdType id) {
+    WriteLockGuard wlockPoolset(poolsetMutex_);
+    auto it = poolsetMap_.find(id);
+    if (it != poolsetMap_.end()) {
+        if (it->second.GetPhysicalPoolList().size() != 0) {
+            return kTopoErrCodeCannotRemoveWhenNotEmpty;
+        }
+        if (!storage_->DeletePoolset(id)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        poolsetMap_.erase(it);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodePoolsetNotFound;
+    }
+}
+
+int TopologyImpl::RemovePhysicalPoolNotInPoolset(PoolIdType id) {
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(id);
     if (it != physicalPoolMap_.end()) {
@@ -194,6 +250,29 @@ int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
         if (!storage_->DeletePhysicalPool(id)) {
             return kTopoErrCodeStorgeFail;
         }
+        physicalPoolMap_.erase(it);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodePhysicalPoolNotFound;
+    }
+}
+
+int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
+    WriteLockGuard wlockPoolset(poolsetMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    auto it = physicalPoolMap_.find(id);
+    if (it != physicalPoolMap_.end()) {
+        if (it->second.GetZoneList().size() != 0) {
+            return kTopoErrCodeCannotRemoveWhenNotEmpty;
+        }
+        if (!storage_->DeletePhysicalPool(id)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        auto ix = poolsetMap_.find(it->second.GetPoolsetId());
+        if (ix != poolsetMap_.end()) {
+            ix->second.RemovePhysicalPool(id);
+        }
+
         physicalPoolMap_.erase(it);
         return kTopoErrCodeSuccess;
     } else {
@@ -543,6 +622,18 @@ int TopologyImpl::UpdateChunkServerStartUpTime(uint64_t time,
         return kTopoErrCodeChunkServerNotFound;
     }
 }
+PoolsetIdType TopologyImpl::FindPoolset(
+    const std::string &poolsetName) const {
+    ReadLockGuard rlockPoolset(poolsetMutex_);
+    for (auto it = poolsetMap_.begin();
+         it != poolsetMap_.end();
+         it++) {
+        if (it->second.GetName() == poolsetName) {
+            return it->first;
+        }
+    }
+    return static_cast<PoolsetIdType>(UNINTIALIZE_ID);
+}
 
 PoolIdType TopologyImpl::FindLogicalPool(
     const std::string &logicalPoolName,
@@ -560,18 +651,38 @@ PoolIdType TopologyImpl::FindLogicalPool(
     return static_cast<PoolIdType>(UNINTIALIZE_ID);
 }
 
+
 PoolIdType TopologyImpl::FindPhysicalPool(
     const std::string &physicalPoolName) const {
     ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
     for (auto it = physicalPoolMap_.begin();
-         it != physicalPoolMap_.end();
-         it++) {
+    it != physicalPoolMap_.end(); it++) {
         if (it->second.GetName() == physicalPoolName) {
             return it->first;
         }
     }
     return static_cast<PoolIdType>(UNINTIALIZE_ID);
 }
+
+PoolIdType TopologyImpl::FindPhysicalPool(const std::string &poolName,
+    PoolsetIdType poolsetId) const {
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
+    for (auto it = physicalPoolMap_.begin();
+       it != physicalPoolMap_.end(); it++) {
+        if ((it->second.GetPoolsetId() == poolsetId) &&
+            (it->second.GetName() == poolName)) {
+            return it->first;
+        }
+    }
+    return static_cast<PoolIdType>(UNINTIALIZE_ID);
+}
+
+PoolIdType TopologyImpl::FindPhysicalPool(const std::string &poolName,
+    const std::string &poolsetName) const {
+    PoolsetIdType poolsetId = FindPoolset(poolsetName);
+    return FindPhysicalPool(poolName, poolsetId);
+}
+
 
 ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
                                   const std::string &physicalPoolName) const {
@@ -640,6 +751,15 @@ ChunkServerIdType TopologyImpl::FindChunkServerNotRetired(
         }
     }
     return static_cast<ChunkServerIdType>(UNINTIALIZE_ID);
+}
+bool TopologyImpl::GetPoolset(PoolsetIdType poolsetId, Poolset *out) const {
+    ReadLockGuard rlockPoolset(poolsetMutex_);
+    auto it = poolsetMap_.find(poolsetId);
+    if (it != poolsetMap_.end()) {
+        *out = it->second;
+        return true;
+    }
+    return false;
 }
 
 bool TopologyImpl::GetLogicalPool(PoolIdType poolId, LogicalPool *out) const {
@@ -730,6 +850,19 @@ std::vector<ZoneIdType> TopologyImpl::GetZoneInCluster(
     std::vector<ZoneIdType> ret;
     ReadLockGuard rlockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
+        if (filter(it->second)) {
+            ret.push_back(it->first);
+        }
+    }
+    return ret;
+}
+std::vector<PoolsetIdType> TopologyImpl::GetPoolsetInCluster(
+    PoolsetFilter filter) const {
+    std::vector<PoolsetIdType> ret;
+    ReadLockGuard rlockPoolset(poolsetMutex_);
+    for (auto it = poolsetMap_.begin();
+         it != poolsetMap_.end();
+         it++) {
         if (filter(it->second)) {
             ret.push_back(it->first);
         }
@@ -829,6 +962,19 @@ std::list<ServerIdType> TopologyImpl::GetServerInPhysicalPool(
     return ret;
 }
 
+std::list<PoolIdType> TopologyImpl::GetPhysicalPoolInPoolset(
+    PoolsetIdType id, PhysicalPoolFilter filter) const {
+     std::list<PoolIdType> ret;
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
+    for (auto it = physicalPoolMap_.begin();
+        it != physicalPoolMap_.end(); it++) {
+        if (filter(it->second) && it->second.GetPoolsetId() == id) {
+            ret.push_back(it->first);
+        }
+    }
+    return ret;
+}
+
 std::list<ZoneIdType> TopologyImpl::GetZoneInPhysicalPool(PoolIdType id,
     ZoneFilter filter) const {
     std::list<ZoneIdType> ret;
@@ -892,6 +1038,7 @@ int TopologyImpl::Init(const TopologyOption &option) {
         return ret;
     }
 
+    WriteLockGuard wlockPoolset(poolsetMutex_);
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     WriteLockGuard wlockZone(zoneMutex_);
