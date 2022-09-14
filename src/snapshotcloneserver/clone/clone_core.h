@@ -58,6 +58,7 @@ class CloneCore {
      * @param destination 克隆或恢复的目标文件名
      * @param lazyFlag 是否lazy
      * @param taskType 克隆或恢复
+     * @param poolset 克隆时目标文件的poolset
      * @param[out] info 克隆或恢复任务信息
      *
      * @return 错误码
@@ -67,6 +68,7 @@ class CloneCore {
                          const std::string &destination,
                          bool lazyFlag,
                          CloneTaskType taskType,
+                         std::string poolset,
                          CloneInfo *info) = 0;
 
     /**
@@ -249,6 +251,7 @@ class CloneCoreImpl : public CloneCore {
          const std::string &destination,
          bool lazyFlag,
          CloneTaskType taskType,
+         std::string poolset,
          CloneInfo *info) override;
 
     void HandleCloneOrRecoverTask(std::shared_ptr<CloneTaskInfo> task) override;

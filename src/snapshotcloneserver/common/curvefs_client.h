@@ -234,6 +234,7 @@ class CurveFsClient {
         uint32_t chunkSize,
         uint64_t stripeUnit,
         uint64_t stripeCount,
+        const std::string& poolset,
         FInfo* fileInfo) = 0;
 
     /**
@@ -458,6 +459,7 @@ class CurveFsClientImpl : public CurveFsClient {
         uint32_t chunkSize,
         uint64_t stripeUnit,
         uint64_t stripeCount,
+        const std::string& poolset,
         FInfo* fileInfo) override;
 
     int CreateCloneChunk(
@@ -540,4 +542,3 @@ class CurveFsClientImpl : public CurveFsClient {
 }  // namespace snapshotcloneserver
 }  // namespace curve
 #endif  // SRC_SNAPSHOTCLONESERVER_COMMON_CURVEFS_CLIENT_H_
-

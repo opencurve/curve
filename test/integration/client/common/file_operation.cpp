@@ -20,26 +20,25 @@
  * Author: tongguangxun
  */
 
+#include "test/integration/client/common/file_operation.h"
+
 #include <glog/logging.h>
 
-#include <map>
-#include <cmath>
-#include <numeric>
-#include <chrono>   //  NOLINT
-#include <atomic>
-#include <thread>   //  NOLINT
-#include <algorithm>
-#include <functional>
-
-#include "src/common/timeutility.h"
 #include "include/client/libcurve.h"
-#include "src/client/inflight_controller.h"
-#include "test/integration/client/common/file_operation.h"
+#include "src/client/client_common.h"
+#include "src/client/libcurve_file.h"
+
+extern curve::client::FileClient* globalclient;
 
 namespace curve {
 namespace test {
+
+using curve::client::CreateFileContext;
+
 int FileCommonOperation::Open(const std::string& filename,
                               const std::string& owner) {
+    assert(globalclient != nullptr);
+
     C_UserInfo_t userinfo;
     memset(userinfo.owner, 0, 256);
     memcpy(userinfo.owner, owner.c_str(), owner.size());
@@ -63,19 +62,30 @@ int FileCommonOperation::Open(const std::string& filename,
 }
 
 void FileCommonOperation::Close(int fd) {
+    assert(globalclient != nullptr);
+
     ::Close(fd);
 }
 
 int FileCommonOperation::Open(const std::string& filename,
                               const std::string& owner,
                               uint64_t stripeUnit, uint64_t stripeCount) {
+    assert(globalclient != nullptr);
+
     C_UserInfo_t userinfo;
     memset(userinfo.owner, 0, 256);
     memcpy(userinfo.owner, owner.c_str(), owner.size());
 
+    CreateFileContext context;
+    context.pagefile = true;
+    context.name = filename;
+    context.user.owner = owner;
+    context.length = 100 * 1024 * 1024 * 1024ul;
+    context.stripeUnit = stripeUnit;
+    context.stripeCount = stripeCount;
+
     // 先创建文件
-    int ret = ::Create2(filename.c_str(), &userinfo,
-               100*1024*1024*1024ul, stripeUnit, stripeCount);
+    int ret = globalclient->Create2(context);
     if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
         LOG(ERROR) << "file create failed! " << ret
                    << ", filename = " << filename;

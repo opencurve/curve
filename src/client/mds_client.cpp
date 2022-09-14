@@ -263,9 +263,9 @@ int MDSClient::MDSRPCExcutor::ExcuteTask(int mdsindex,
     return task(mdsindex, rpcTimeOutMS, &channel, &cntl);
 }
 
-#define RPCTaskDefine                                                \
-    [&](int mdsindex, uint64_t rpctimeoutMS, brpc::Channel* channel, \
-        brpc::Controller* cntl) -> int
+#define RPCTaskDefine                                                   \
+    [&](CURVE_UNUSED int addrindex, CURVE_UNUSED uint64_t rpctimeoutMS, \
+        brpc::Channel* channel, brpc::Controller* cntl) -> int
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
                                    const UserInfo_t& userinfo,
@@ -330,18 +330,12 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
-                                     const UserInfo_t& userinfo,
-                                     size_t size,
-                                     bool normalFile,
-                                     uint64_t stripeUnit,
-                                     uint64_t stripeCount) {
+LIBCURVE_ERROR MDSClient::CreateFile(const CreateFileContext& context) {
     auto task = RPCTaskDefine {
         CreateFileResponse response;
         mdsClientMetric_.createFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-        MDSClientBase::CreateFile(filename, userinfo, size, normalFile,
-        stripeUnit, stripeCount, &response, cntl, channel);
+        MDSClientBase::CreateFile(context, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
@@ -355,10 +349,10 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
-            << "CreateFile: filename = " << filename
-            << ", owner = " << userinfo.owner
-            << ", is nomalfile: " << normalFile
-            << ", errocde = " << retcode
+            << "CreateFile: filename = " << context.name
+            << ", owner = " << context.user.owner
+            << ", is pagefile: " << context.pagefile
+            << ", errcode = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
         return retcode;
@@ -883,19 +877,51 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
+LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
+    assert(out != nullptr);
+
+    auto task = RPCTaskDefine {
+        ListPoolsetResponse response;
+        MDSClientBase::ListPoolset(&response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "Failed to list poolset, error: "
+                         << cntl->ErrorText();
+            return -cntl->ErrorCode();
+        }
+
+        const bool succ = (response.statuscode() == 0);
+        if (!succ) {
+            LOG(WARNING) << "Failed to list poolset, response error: "
+                         << response.statuscode();
+            return LIBCURVE_ERROR::FAILED;
+        }
+
+        for (const auto& p : response.poolsetinfos()) {
+            out->emplace_back(p.poolsetname());
+        }
+
+        return LIBCURVE_ERROR::OK;
+    };
+
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
 LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
                                           const std::string& destination,
                                           const UserInfo_t& userinfo,
-                                          uint64_t size, uint64_t sn,
+                                          uint64_t size,
+                                          uint64_t sn,
                                           uint32_t chunksize,
                                           uint64_t stripeUnit,
                                           uint64_t stripeCount,
+                                          const std::string& poolset,
                                           FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         CreateCloneFileResponse response;
         MDSClientBase::CreateCloneFile(source, destination, userinfo, size, sn,
                                        chunksize, stripeUnit, stripeCount,
-                                       &response, cntl, channel);
+                                       poolset, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
                          << cntl->ErrorCode()
@@ -1159,7 +1185,7 @@ LIBCURVE_ERROR MDSClient::RecoverFile(const std::string& filename,
         RecoverFileResponse response;
         mdsClientMetric_.recoverFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.recoverFile.latency);
-        mdsClientBase_.RecoverFile(filename, userinfo, fileid,
+        MDSClientBase::RecoverFile(filename, userinfo, fileid,
                                    &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.recoverFile.eps.count << 1;
@@ -1377,74 +1403,75 @@ LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
 void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status,
                                             LIBCURVE_ERROR* errcode) {
     switch (status) {
-        case StatusCode::kOK:
-            *errcode = LIBCURVE_ERROR::OK;
-            break;
-        case StatusCode::kFileExists:
-            *errcode = LIBCURVE_ERROR::EXISTS;
-            break;
-        case StatusCode::kSnapshotFileNotExists:
-        case StatusCode::kFileNotExists:
-        case StatusCode::kDirNotExist:
-            *errcode = LIBCURVE_ERROR::NOTEXIST;
-            break;
-        case StatusCode::kSegmentNotAllocated:
-            *errcode = LIBCURVE_ERROR::NOT_ALLOCATE;
-            break;
-        case StatusCode::kShrinkBiggerFile:
-            *errcode = LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE;
-            break;
-        case StatusCode::kNotSupported:
-            *errcode = LIBCURVE_ERROR::NOT_SUPPORT;
-            break;
-        case StatusCode::kOwnerAuthFail:
-            *errcode = LIBCURVE_ERROR::AUTHFAIL;
-            break;
-        case StatusCode::kSnapshotFileDeleteError:
-            *errcode = LIBCURVE_ERROR::DELETE_ERROR;
-            break;
-        case StatusCode::kFileUnderSnapShot:
-            *errcode = LIBCURVE_ERROR::UNDER_SNAPSHOT;
-            break;
-        case StatusCode::kFileNotUnderSnapShot:
-            *errcode = LIBCURVE_ERROR::NOT_UNDERSNAPSHOT;
-            break;
-        case StatusCode::kSnapshotDeleting:
-            *errcode = LIBCURVE_ERROR::DELETING;
-            break;
-        case StatusCode::kDirNotEmpty:
-            *errcode = LIBCURVE_ERROR::NOT_EMPTY;
-            break;
-        case StatusCode::kFileOccupied:
-            *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
-            break;
-        case StatusCode::kSessionNotExist:
-            *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
-            break;
-        case StatusCode::kParaError:
-            *errcode = LIBCURVE_ERROR::PARAM_ERROR;
-            break;
-        case StatusCode::kStorageError:
-            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
-            break;
-        case StatusCode::kFileLengthNotSupported:
-            *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
-            break;
-        case ::curve::mds::StatusCode::kCloneStatusNotMatch:
-            *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
-            break;
-        case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
-            *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
-            break;
-        case ::curve::mds::StatusCode::kClientVersionNotMatch:
-            *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
-            break;
-        case ::curve::mds::StatusCode::kSnapshotFrozen:
-            *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
-            break;
-        default:
-            *errcode = LIBCURVE_ERROR::UNKNOWN;
-            break;
+    case StatusCode::kOK:
+        *errcode = LIBCURVE_ERROR::OK;
+        break;
+    case StatusCode::kFileExists:
+        *errcode = LIBCURVE_ERROR::EXISTS;
+        break;
+    case StatusCode::kSnapshotFileNotExists:
+    case StatusCode::kFileNotExists:
+    case StatusCode::kDirNotExist:
+    case StatusCode::kPoolsetNotExist:
+        *errcode = LIBCURVE_ERROR::NOTEXIST;
+        break;
+    case StatusCode::kSegmentNotAllocated:
+        *errcode = LIBCURVE_ERROR::NOT_ALLOCATE;
+        break;
+    case StatusCode::kShrinkBiggerFile:
+        *errcode = LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE;
+        break;
+    case StatusCode::kNotSupported:
+        *errcode = LIBCURVE_ERROR::NOT_SUPPORT;
+        break;
+    case StatusCode::kOwnerAuthFail:
+        *errcode = LIBCURVE_ERROR::AUTHFAIL;
+        break;
+    case StatusCode::kSnapshotFileDeleteError:
+        *errcode = LIBCURVE_ERROR::DELETE_ERROR;
+        break;
+    case StatusCode::kFileUnderSnapShot:
+        *errcode = LIBCURVE_ERROR::UNDER_SNAPSHOT;
+        break;
+    case StatusCode::kFileNotUnderSnapShot:
+        *errcode = LIBCURVE_ERROR::NOT_UNDERSNAPSHOT;
+        break;
+    case StatusCode::kSnapshotDeleting:
+        *errcode = LIBCURVE_ERROR::DELETING;
+        break;
+    case StatusCode::kDirNotEmpty:
+        *errcode = LIBCURVE_ERROR::NOT_EMPTY;
+        break;
+    case StatusCode::kFileOccupied:
+        *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
+        break;
+    case StatusCode::kSessionNotExist:
+        *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
+        break;
+    case StatusCode::kParaError:
+        *errcode = LIBCURVE_ERROR::PARAM_ERROR;
+        break;
+    case StatusCode::kStorageError:
+        *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+        break;
+    case StatusCode::kFileLengthNotSupported:
+        *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
+        break;
+    case ::curve::mds::StatusCode::kCloneStatusNotMatch:
+        *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
+        break;
+    case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
+        *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
+        break;
+    case ::curve::mds::StatusCode::kClientVersionNotMatch:
+        *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
+        break;
+    case ::curve::mds::StatusCode::kSnapshotFrozen:
+        *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
+        break;
+    default:
+        *errcode = LIBCURVE_ERROR::UNKNOWN;
+        break;
     }
 }
 

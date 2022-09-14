@@ -980,13 +980,24 @@ TEST(TestLibcurveInterface, InterfaceStripeTest) {
     FakeReturn* fakeret
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    int ret = fc.Create2(filename, userinfo, size, 0, 0);
+    CreateFileContext context;
+    context.pagefile = true;
+    context.name = filename;
+    context.user = userinfo;
+    context.length = size;
+    int ret = fc.Create2(context);
     ASSERT_EQ(LIBCURVE_ERROR::OK, ret);
 
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
     fakeret = new FakeReturn(nullptr, static_cast<void*>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    ret = fc.Create2(filename2, userinfo, size, 1024*1024, 4);
+    context.pagefile = true;
+    context.name = filename2;
+    context.user = userinfo;
+    context.length = size;
+    context.stripeUnit = 1024 * 1024;
+    context.stripeCount = 4;
+    ret = fc.Create2(context);
     ASSERT_EQ(LIBCURVE_ERROR::EXISTS, -ret);
 
     FileStatInfo_t fsinfo;

@@ -197,11 +197,35 @@ bool LogicalPool::ParseFromString(const std::string &value) {
     return ret;
 }
 
+bool Poolset::SerializeToString(std::string *value) const {
+    PoolsetData data;
+    data.set_poolsetid(id_);
+    data.set_poolsetname(name_);
+    data.set_type(type_);
+    data.set_desc(desc_);
+    return data.SerializeToString(value);
+}
+
+bool Poolset::ParseFromString(const std::string &value) {
+    PoolsetData data;
+    bool ret = data.ParseFromString(value);
+    id_ = data.poolsetid();
+    name_ = std::move(*data.mutable_poolsetname());
+    type_ = std::move(*data.mutable_type());
+    desc_ = std::move(*data.mutable_desc());
+    return ret;
+}
+
 bool PhysicalPool::SerializeToString(std::string *value) const {
     PhysicalPoolData data;
     data.set_physicalpoolid(id_);
     data.set_physicalpoolname(name_);
     data.set_desc(desc_);
+
+    if (poolsetId_ != UNINTIALIZE_ID) {
+        data.set_poolsetid(poolsetId_);
+    }
+
     return data.SerializeToString(value);
 }
 
@@ -211,6 +235,13 @@ bool PhysicalPool::ParseFromString(const std::string &value) {
     id_ = data.physicalpoolid();
     name_ = data.physicalpoolname();
     desc_ = data.desc();
+
+    if (data.has_poolsetid()) {
+        poolsetId_ = data.poolsetid();
+    } else {
+        poolsetId_ = UNINTIALIZE_ID;
+    }
+
     return ret;
 }
 

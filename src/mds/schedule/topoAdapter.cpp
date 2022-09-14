@@ -314,7 +314,8 @@ bool TopoAdapterImpl::GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo) {
     ::curve::mds::topology::ChunkServer cs;
     ::curve::mds::topology::Server server;
 
-    bool canGetChunkServer, canGetServer;
+    bool canGetChunkServer = false;
+    bool canGetServer = false;
     if ((canGetChunkServer = topo_->GetChunkServer(id, &cs)) &&
         (canGetServer = topo_->GetServer(cs.GetServerId(), &server))) {
         *peerInfo = PeerInfo(

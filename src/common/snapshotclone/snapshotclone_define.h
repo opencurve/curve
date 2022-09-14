@@ -56,6 +56,7 @@ extern const char* kOffsetStr;
 extern const char* kSourceStr;
 extern const char* kDestinationStr;
 extern const char* kLazyStr;
+extern const char* kPoolset;
 extern const char* kStatusStr;
 extern const char* kTypeStr;
 extern const char* kInodeStr;

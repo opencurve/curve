@@ -53,6 +53,7 @@ using ServerFilter = std::function<bool (const Server&)>;
 using ZoneFilter = std::function<bool (const Zone&)>;
 using PhysicalPoolFilter = std::function<bool (const PhysicalPool&)>;
 using LogicalPoolFilter = std::function<bool(const LogicalPool&)>;
+using PoolsetFilter = std::function<bool (const Poolset&)>;
 using CopySetFilter = std::function<bool (const CopySetInfo&)>;
 
 class Topology {
@@ -62,6 +63,7 @@ class Topology {
 
     virtual bool GetClusterInfo(ClusterInformation *info) = 0;
 
+    virtual PoolsetIdType AllocatePoolsetId() = 0;
     virtual PoolIdType AllocateLogicalPoolId() = 0;
     virtual PoolIdType AllocatePhysicalPoolId() = 0;
     virtual ZoneIdType AllocateZoneId() = 0;
@@ -71,6 +73,7 @@ class Topology {
 
     virtual std::string AllocateToken() = 0;
 
+    virtual int AddPoolset(const Poolset &data) = 0;
     virtual int AddLogicalPool(const LogicalPool &data) = 0;
     virtual int AddPhysicalPool(const PhysicalPool &data) = 0;
     virtual int AddZone(const Zone &data) = 0;
@@ -78,6 +81,7 @@ class Topology {
     virtual int AddChunkServer(const ChunkServer &data) = 0;
     virtual int AddCopySet(const CopySetInfo &data) = 0;
 
+    virtual int RemovePoolset(PoolsetIdType id) = 0;
     virtual int RemoveLogicalPool(PoolIdType id) = 0;
     virtual int RemovePhysicalPool(PoolIdType id) = 0;
     virtual int RemoveZone(ZoneIdType id) = 0;
@@ -189,11 +193,20 @@ class Topology {
      */
     virtual int UpdateCopySetTopo(const CopySetInfo &data) = 0;
 
-    virtual PoolIdType
-        FindLogicalPool(const std::string &logicalPoolName,
-                        const std::string &physicalPoolName) const = 0;
+    virtual PoolsetIdType FindPoolset(const std::string &poolsetName) const = 0;
+
+    virtual PoolIdType FindLogicalPool(const std::string &logicalPoolName,
+        const std::string &physicalPoolName) const = 0;
+
     virtual PoolIdType FindPhysicalPool(
         const std::string &physicalPoolName) const = 0;
+
+    virtual PoolIdType FindPhysicalPool(const std::string &physicalPoolName,
+        const std::string &poolsetName) const = 0;
+
+    virtual PoolIdType FindPhysicalPool(const std::string &physicalPoolName,
+        PoolsetIdType poolsetid) const = 0;
+
     virtual ZoneIdType FindZone(const std::string &zoneName,
                                 const std::string &physicalPoolName) const = 0;
     virtual ZoneIdType FindZone(const std::string &zoneName,
@@ -206,10 +219,10 @@ class Topology {
         const std::string &hostIp,
         uint32_t port) const = 0;
 
+    virtual bool GetPoolset(PoolsetIdType poolsetId, Poolset *out) const = 0;
+
     virtual bool GetLogicalPool(PoolIdType poolId,
                                 LogicalPool *out) const = 0;
-    virtual bool GetPhysicalPool(PoolIdType poolId,
-                                 PhysicalPool *out) const = 0;
     virtual bool GetZone(ZoneIdType zoneId,
                          Zone *out) const = 0;
     virtual bool GetServer(ServerIdType serverId,
@@ -219,11 +232,24 @@ class Topology {
 
     virtual bool GetCopySet(CopySetKey key, CopySetInfo *out) const = 0;
 
+    virtual bool GetPoolset(const std::string &poolsetName,
+        Poolset *out) const = 0;
+
     virtual bool GetLogicalPool(const std::string &logicalPoolName,
-                                const std::string &physicalPoolName,
-                                LogicalPool *out) const = 0;
+        const std::string &physicalPoolName,
+        LogicalPool *out) const = 0;
+    virtual bool GetPhysicalPool(PoolIdType poolId,
+        PhysicalPool *out) const = 0;
 
     virtual bool GetPhysicalPool(const std::string &physicalPoolName,
+         PhysicalPool *out) const = 0;
+
+    virtual bool GetPhysicalPool(const std::string &poolName,
+                                 const std::string &poolsetName,
+                                 PhysicalPool *out) const = 0;
+
+    virtual bool GetPhysicalPool(const std::string &poolName,
+                                 PoolsetIdType poolsetId,
                                  PhysicalPool *out) const = 0;
 
     virtual bool GetZone(const std::string &zoneName,
@@ -266,6 +292,15 @@ class Topology {
         LogicalPoolFilter filter = [](const LogicalPool&) {
             return true;}) const = 0;
 
+    virtual std::vector<PoolsetIdType> GetPoolsetInCluster(
+        PoolsetFilter filter = [](const Poolset&) {
+            return true;}) const = 0;
+
+    virtual std::vector<std::string> GetPoolsetNameInCluster(
+            PoolsetFilter filter = [](const Poolset&) {
+                return true;
+            }) const = 0;
+
     virtual std::vector<CopySetKey> GetCopySetsInCluster(
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
@@ -300,6 +335,13 @@ class Topology {
         PoolIdType id,
         ServerFilter filter = [](const Server&) {
             return true;}) const = 0;
+
+    // get physicalPool List
+    virtual std::list<PoolIdType> GetPhysicalPoolInPoolset(
+        PoolsetIdType id,
+        PhysicalPoolFilter filter = [](const PhysicalPool&) {
+            return true;
+        }) const = 0;
 
     // get zone list
     virtual std::list<ZoneIdType> GetZoneInPhysicalPool(
@@ -356,6 +398,7 @@ class TopologyImpl : public Topology {
 
     bool GetClusterInfo(ClusterInformation *info) override;
 
+    PoolIdType AllocatePoolsetId() override;
     PoolIdType AllocateLogicalPoolId() override;
     PoolIdType AllocatePhysicalPoolId() override;
     ZoneIdType AllocateZoneId() override;
@@ -365,8 +408,10 @@ class TopologyImpl : public Topology {
 
     std::string AllocateToken() override;
 
+    int AddPoolset(const Poolset &data) override;
     int AddLogicalPool(const LogicalPool &data) override;
     int AddPhysicalPool(const PhysicalPool &data) override;
+    // int AddPhysicalPoolJustForTest(const PhysicalPool &data) override;
     int AddZone(const Zone &data) override;
     int AddServer(const Server &data) override;
     int AddChunkServer(const ChunkServer &data) override;
@@ -374,6 +419,7 @@ class TopologyImpl : public Topology {
 
     int RemoveLogicalPool(PoolIdType id) override;
     int RemovePhysicalPool(PoolIdType id) override;
+    int RemovePoolset(PoolsetIdType id) override;
     int RemoveZone(ZoneIdType id) override;
     int RemoveServer(ServerIdType id) override;
     int RemoveChunkServer(ChunkServerIdType id) override;
@@ -400,10 +446,19 @@ class TopologyImpl : public Topology {
 
     int UpdateCopySetTopo(const CopySetInfo &data) override;
 
+    PoolsetIdType FindPoolset(const std::string &poolsetName) const override;
+
     PoolIdType FindLogicalPool(const std::string &logicalPoolName,
         const std::string &physicalPoolName) const override;
+
     PoolIdType FindPhysicalPool(
         const std::string &physicalPoolName) const override;
+    PoolIdType FindPhysicalPool(const std::string &physicalPoolName,
+        const std::string &poolsetName) const override;
+
+    PoolIdType FindPhysicalPool(const std::string &physicalPoolName,
+        PoolsetIdType poolsetid) const override;
+
     ZoneIdType FindZone(const std::string &zoneName,
         const std::string &physicalPoolName) const override;
     ZoneIdType FindZone(const std::string &zoneName,
@@ -415,8 +470,8 @@ class TopologyImpl : public Topology {
     ChunkServerIdType FindChunkServerNotRetired(const std::string &hostIp,
                                       uint32_t port) const override;
 
+    bool GetPoolset(PoolsetIdType poolsetId, Poolset *out) const override;
     bool GetLogicalPool(PoolIdType poolId, LogicalPool *out) const override;
-    bool GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const override;
     bool GetZone(ZoneIdType zoneId, Zone *out) const override;
     bool GetServer(ServerIdType serverId, Server *out) const override;
     bool GetChunkServer(ChunkServerIdType chunkserverId,
@@ -424,16 +479,34 @@ class TopologyImpl : public Topology {
 
     bool GetCopySet(CopySetKey key, CopySetInfo *out) const override;
 
+    bool GetPoolset(const std::string &poolsetName,
+        Poolset *out) const override {
+        return GetPoolset(FindPoolset(poolsetName), out);
+    }
     bool GetLogicalPool(const std::string &logicalPoolName,
                         const std::string &physicalPoolName,
                         LogicalPool *out) const override {
         return GetLogicalPool(
             FindLogicalPool(logicalPoolName, physicalPoolName), out);
     }
+
+    bool GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const override;
+
     bool GetPhysicalPool(const std::string &physicalPoolName,
                          PhysicalPool *out) const override {
         return GetPhysicalPool(FindPhysicalPool(physicalPoolName), out);
     }
+
+    bool GetPhysicalPool(const std::string &poolName,
+        const std::string &poolsetName, PhysicalPool *out) const override {
+        return GetPhysicalPool(FindPhysicalPool(poolName, poolsetName), out);
+    }
+
+    bool GetPhysicalPool(const std::string &poolName,
+        PoolsetIdType poolsetId, PhysicalPool *out) const override {
+         return GetPhysicalPool(FindPhysicalPool(poolName, poolsetId), out);
+    }
+
     bool GetZone(const std::string &zoneName,
                  const std::string &physicalPoolName,
                  Zone *out) const override {
@@ -479,6 +552,15 @@ class TopologyImpl : public Topology {
         LogicalPoolFilter filter = [](const LogicalPool&) {
             return true;}) const override;
 
+    std::vector<PoolsetIdType> GetPoolsetInCluster(
+        PoolsetFilter filter = [](const Poolset&) {
+            return true;}) const override;
+
+    std::vector<std::string> GetPoolsetNameInCluster(
+            PoolsetFilter filter = [](const Poolset&) {
+                return true;
+            }) const override;
+
     std::vector<CopySetKey> GetCopySetsInCluster(
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
@@ -514,6 +596,13 @@ class TopologyImpl : public Topology {
         GetServerInLogicalPool(PoolIdType id,
             ServerFilter filter = [](const Server&) {
                 return true;}) const override;
+
+    // get physicalPool list
+    std::list<PoolIdType> GetPhysicalPoolInPoolset(
+            PoolsetIdType id,
+            PhysicalPoolFilter filter = [](const PhysicalPool&) {
+                return true;
+            }) const override;
 
     // get zone list
     std::list<ZoneIdType>
@@ -582,7 +671,10 @@ class TopologyImpl : public Topology {
 
     void SetChunkServerExternalIp();
 
+    bool CreateDefaultPoolset();
+
  private:
+    std::unordered_map<PoolsetIdType, Poolset> poolsetMap_;
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap_;
     std::unordered_map<ZoneIdType, Zone> zoneMap_;
@@ -599,6 +691,7 @@ class TopologyImpl : public Topology {
     std::shared_ptr<TopologyStorage> storage_;
 
     // fetch lock in the order below to avoid deadlock
+    mutable curve::common::RWLock poolsetMutex_;
     mutable curve::common::RWLock logicalPoolMutex_;
     mutable curve::common::RWLock physicalPoolMutex_;
     mutable curve::common::RWLock zoneMutex_;

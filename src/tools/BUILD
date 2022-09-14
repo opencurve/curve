@@ -124,5 +124,6 @@ cc_library(
         "//src/client:curve_client",
         "//include/client:include_client",
         "//include/chunkserver:include-chunkserver",
+         "@com_google_absl//absl/strings:str_format",
     ],
 )

@@ -1430,8 +1430,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
-                                         0, 0,
-                                         &finfo));
+                                         0, 0, "default", &finfo));
     // 认证失败
     curve::mds::CreateCloneFileResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -1444,8 +1443,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
-                                         0, 0,
-                                         &finfo));
+                                         0, 0, "default", &finfo));
     // 请求成功
     info->set_id(5);
     curve::mds::CreateCloneFileResponse response2;
@@ -1464,8 +1462,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               mdsclient_.CreateCloneFile("source", "destination", userinfo,
                                          10 * 1024 * 1024, 0, 4 * 1024 * 1024,
-                                         0, 0,
-                                         &finfo));
+                                         0, 0, "default", &finfo));
     ASSERT_EQ(5, finfo.id);
     ASSERT_EQ(cloneSource, finfo.sourceInfo.name);
     ASSERT_EQ(cloneLength, finfo.sourceInfo.length);
@@ -2251,7 +2248,8 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
     void SetUp() override {
         ASSERT_EQ(0, server_.AddService(&curveFsService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
-        ASSERT_EQ(0, server_.Start(kServerAddress, nullptr));
+        ASSERT_EQ(0, server_.Start(0, nullptr));
+        serverAddress_ = butil::endpoint2str(server_.listen_address()).c_str();
     }
 
     void TearDown() override {
@@ -2260,7 +2258,8 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
     }
 
  protected:
-    const char* kServerAddress = "127.0.0.1:21000";
+    std::string serverAddress_;
+    const std::string kLocalIp = "127.0.0.1";
     const uint32_t kTestPort = 1234;
 
     brpc::Server server_;
@@ -2270,11 +2269,11 @@ class MDSClientRefreshSessionTest : public ::testing::Test {
 TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
     curve::client::ClientDummyServerInfo::GetInstance().SetRegister(true);
     curve::client::ClientDummyServerInfo::GetInstance().SetPort(kTestPort);
-    curve::client::ClientDummyServerInfo::GetInstance().SetIP(kServerAddress);
+    curve::client::ClientDummyServerInfo::GetInstance().SetIP(kLocalIp);
 
     MDSClient mdsClient;
     MetaServerOption opt;
-    opt.mdsAddrs.push_back(kServerAddress);
+    opt.mdsAddrs.push_back(serverAddress_);
     ASSERT_EQ(0, mdsClient.Initialize(opt));
 
     curve::mds::ReFreshSessionRequest request;
@@ -2294,7 +2293,7 @@ TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
     ASSERT_TRUE(request.has_clientport());
     ASSERT_TRUE(request.has_clientip());
     ASSERT_EQ(request.clientport(), kTestPort);
-    ASSERT_EQ(request.clientip(), kServerAddress);
+    ASSERT_EQ(request.clientip(), kLocalIp);
 }
 
 TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
@@ -2302,7 +2301,7 @@ TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
 
     MDSClient mdsClient;
     MetaServerOption opt;
-    opt.mdsAddrs.push_back(kServerAddress);
+    opt.mdsAddrs.push_back(serverAddress_);
     ASSERT_EQ(0, mdsClient.Initialize(opt));
 
     curve::mds::ReFreshSessionRequest request;

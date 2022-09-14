@@ -28,6 +28,7 @@
 namespace curve {
 namespace mds {
 namespace topology {
+bool JudgePoolsetEqual(const Poolset &lh, const Poolset &rh);
 
 bool JudgeLogicalPoolEqual(const LogicalPool &lh, const LogicalPool &rh);
 

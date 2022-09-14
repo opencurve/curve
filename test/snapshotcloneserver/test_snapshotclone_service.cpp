@@ -43,6 +43,8 @@ using ::testing::DoAll;
 namespace curve {
 namespace snapshotcloneserver {
 
+static const char* kDefaultPoolset = "poolset";
+
 class TestSnapshotCloneServiceImpl : public ::testing::Test {
  protected:
     TestSnapshotCloneServiceImpl() {}
@@ -207,6 +209,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
          2048,
          0,
          0,
+         "default",
          100,
          Status::pending);
     info.SetSnapshotInfo(sinfo);
@@ -346,6 +349,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotListSuccess) {
          2048,
          0,
          0,
+         "default",
          100,
          Status::pending);
     info.SetSnapshotInfo(sinfo);
@@ -882,10 +886,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
     bool lazyFlag = false;
 
     EXPECT_CALL(*cloneManager_, CloneFile(
-        source, user, destination, lazyFlag, _, _))
+        source, user, destination, "", lazyFlag, _, _))
         .WillOnce(Invoke([](const UUID &source,
         const std::string &user,
         const std::string &destination,
+        const std::string &poolset,
         bool lazyFlag,
         std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId){
@@ -920,6 +925,44 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
         LOG(ERROR) << cntl.ErrorText();
     }
     LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingPoolset) {
+    UUID uuid = "uuid1";
+    std::string user = "user1";
+    std::string source = "abc";
+    std::string destination = "file1";
+    bool lazyFlag = false;
+
+    EXPECT_CALL(*cloneManager_, CloneFile(
+        source, user, destination, _, lazyFlag, _, _))
+        .Times(0);
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/" + kServiceName + "?"
+                    + kActionStr + "=" +kCloneAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + source + "&"
+                    + kDestinationStr + "=" + destination + "&"
+                    + kLazyStr + "=" + (lazyFlag ? "True" : "False")
+                    + kPoolset + "=";
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    ASSERT_TRUE(cntl.Failed()) << cntl.ErrorText();
 }
 
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
@@ -981,6 +1024,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
         CloneTaskType::kClone,
         "source",
         "dest",
+        kDefaultPoolset,
         100,
         200,
         100,
@@ -1336,10 +1380,11 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
     bool lazyFlag = false;
 
     EXPECT_CALL(*cloneManager_, CloneFile(
-        source, user, destination, lazyFlag, _, _))
+        source, user, destination, "", lazyFlag, _, _))
         .WillOnce(Invoke([](const UUID &source,
         const std::string &user,
         const std::string &destination,
+        const std::string &poolset,
         bool lazyFlag,
         std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId){
@@ -2008,4 +2053,3 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneRefStatusFail) {
 }
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

@@ -26,6 +26,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <vector>
+#include <map>
+#include <string>
 #include "src/mds/topology/topology_chunk_allocator.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;
@@ -38,12 +40,12 @@ class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
      using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
 
     ~MockTopologyChunkAllocator() {}
-    MOCK_METHOD4(AllocateChunkRandomInSingleLogicalPool,
-        bool(FileType, uint32_t,
+    MOCK_METHOD5(AllocateChunkRandomInSingleLogicalPool,
+        bool(FileType, const std::string&, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
 
-    MOCK_METHOD4(AllocateChunkRoundRobinInSingleLogicalPool,
-        bool(FileType, uint32_t,
+    MOCK_METHOD5(AllocateChunkRoundRobinInSingleLogicalPool,
+        bool(FileType, const std::string&, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
 };
 

@@ -49,6 +49,7 @@ message SnapshotInfoData {
     required int32 status = 10;
     optional uint64 stripeUnit = 11;
     optional uint64 stripeCount = 12;
+    optional string poolset = 13;
 };
 
 message CloneInfoData {
@@ -64,6 +65,7 @@ message CloneInfoData {
     required bool isLazy = 10;
     required int32 nextStep = 11;
     required int32 status = 12;
+    optional string poolset = 13;
 };
 
 message HttpRequest {};
@@ -73,4 +75,3 @@ message HttpResponse {};
 service SnapshotCloneService{
     rpc default_method(HttpRequest) returns (HttpResponse);
 };
-

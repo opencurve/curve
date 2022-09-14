@@ -313,6 +313,48 @@ class DirInfos_t(_object):
 DirInfos_t_swigregister = _curvefs.DirInfos_t_swigregister
 DirInfos_t_swigregister(DirInfos_t)
 
+class CreateContext(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, CreateContext, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, CreateContext, name)
+    __repr__ = _swig_repr
+    __swig_setmethods__["name"] = _curvefs.CreateContext_name_set
+    __swig_getmethods__["name"] = _curvefs.CreateContext_name_get
+    if _newclass:
+        name = _swig_property(_curvefs.CreateContext_name_get, _curvefs.CreateContext_name_set)
+    __swig_setmethods__["length"] = _curvefs.CreateContext_length_set
+    __swig_getmethods__["length"] = _curvefs.CreateContext_length_get
+    if _newclass:
+        length = _swig_property(_curvefs.CreateContext_length_get, _curvefs.CreateContext_length_set)
+    __swig_setmethods__["user"] = _curvefs.CreateContext_user_set
+    __swig_getmethods__["user"] = _curvefs.CreateContext_user_get
+    if _newclass:
+        user = _swig_property(_curvefs.CreateContext_user_get, _curvefs.CreateContext_user_set)
+    __swig_setmethods__["poolset"] = _curvefs.CreateContext_poolset_set
+    __swig_getmethods__["poolset"] = _curvefs.CreateContext_poolset_get
+    if _newclass:
+        poolset = _swig_property(_curvefs.CreateContext_poolset_get, _curvefs.CreateContext_poolset_set)
+    __swig_setmethods__["stripeUnit"] = _curvefs.CreateContext_stripeUnit_set
+    __swig_getmethods__["stripeUnit"] = _curvefs.CreateContext_stripeUnit_get
+    if _newclass:
+        stripeUnit = _swig_property(_curvefs.CreateContext_stripeUnit_get, _curvefs.CreateContext_stripeUnit_set)
+    __swig_setmethods__["stripeCount"] = _curvefs.CreateContext_stripeCount_set
+    __swig_getmethods__["stripeCount"] = _curvefs.CreateContext_stripeCount_get
+    if _newclass:
+        stripeCount = _swig_property(_curvefs.CreateContext_stripeCount_get, _curvefs.CreateContext_stripeCount_set)
+
+    def __init__(self):
+        this = _curvefs.new_CreateContext()
+        try:
+            self.this.append(this)
+        except __builtin__.Exception:
+            self.this = this
+    __swig_destroy__ = _curvefs.delete_CreateContext
+    __del__ = lambda self: None
+CreateContext_swigregister = _curvefs.CreateContext_swigregister
+CreateContext_swigregister(CreateContext)
+
 
 def Init(path):
     return _curvefs.Init(path)
@@ -374,13 +416,13 @@ def Unlink(filename, info):
     return _curvefs.Unlink(filename, info)
 Unlink = _curvefs.Unlink
 
-def DeleteForce(filename, info):
-    return _curvefs.DeleteForce(filename, info)
-DeleteForce = _curvefs.DeleteForce
-
 def Recover(filename, info, fileId):
     return _curvefs.Recover(filename, info, fileId)
 Recover = _curvefs.Recover
+
+def DeleteForce(filename, info):
+    return _curvefs.DeleteForce(filename, info)
+DeleteForce = _curvefs.DeleteForce
 
 def Listdir(dirpath, info):
     return _curvefs.Listdir(dirpath, info)
@@ -432,8 +474,8 @@ class CBDClient(_object):
     def Create(self, filename, userInfo, size):
         return _curvefs.CBDClient_Create(self, filename, userInfo, size)
 
-    def Create2(self, filename, userInfo, size, stripeUnit, stripeCount):
-        return _curvefs.CBDClient_Create2(self, filename, userInfo, size, stripeUnit, stripeCount)
+    def Create2(self, context):
+        return _curvefs.CBDClient_Create2(self, context)
 
     def Unlink(self, filename, info):
         return _curvefs.CBDClient_Unlink(self, filename, info)
@@ -479,6 +521,9 @@ class CBDClient(_object):
 
     def GetClusterId(self):
         return _curvefs.CBDClient_GetClusterId(self)
+
+    def ListPoolset(self):
+        return _curvefs.CBDClient_ListPoolset(self)
 CBDClient_swigregister = _curvefs.CBDClient_swigregister
 CBDClient_swigregister(CBDClient)
 

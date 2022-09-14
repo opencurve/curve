@@ -104,3 +104,17 @@ curvefs/docker/base/*
 curvefs/BUILD_MODE
 
 .BUILD_MODE
+
+/external
+/bazel-*
+/compile_commands.json
+/.cache/
+
+test/integration/*.conf
+test/integration/client/config/client.conf*
+test/integration/snapshotcloneserver/config/*.conf
+
+.pre-commit-config.yaml
+
+*.deb
+*.whl

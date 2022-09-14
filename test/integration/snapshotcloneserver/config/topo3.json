@@ -10,6 +10,12 @@
             "zonenum": 3
         }
     ],
+    "poolsets": [
+        {
+            "name": "default",
+            "type": "ssd"
+        }
+    ],
     "servers": [
         {
             "externalip": "127.0.0.1",
@@ -18,7 +24,8 @@
             "internalport": 10024,
             "name": "server1",
             "physicalpool": "pool1",
-            "zone": "zone1"
+            "zone": "zone1",
+            "poolset": "default"
         },
         {
             "externalip": "127.0.0.1",
@@ -27,7 +34,8 @@
             "internalport": 10025,
             "name": "server2",
             "physicalpool": "pool1",
-            "zone": "zone2"
+            "zone": "zone2",
+            "poolset": "default"
         },
         {
             "externalip": "127.0.0.1",
@@ -36,9 +44,8 @@
             "internalport": 10026,
             "name": "server3",
             "physicalpool": "pool1",
-            "zone": "zone3"
+            "zone": "zone3",
+            "poolset": "default"
         }
     ]
 }
-
-

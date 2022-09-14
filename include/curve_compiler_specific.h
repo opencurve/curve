@@ -27,25 +27,20 @@
 #define CURVE_CACHELINE_SIZE 64
 #define CURVE_CACHELINE_ALIGNMENT alignas(CURVE_CACHELINE_SIZE)
 
-
-// branch predict
-#if defined(COMPILER_GCC)
-#  if defined(__cplusplus)
-#    define CURVE_LIKELY(expr) (__builtin_expect(static_cast<bool>(expr), true))    //NOLINT
-#    define CURVE_UNLIKELY(expr) (__builtin_expect(static_cast<bool>(expr), false)) //NOLINT
-#  else
-#    define CURVE_LIKELY(expr) (__builtin_expect(!!(expr), 1))
-#    define CURVE_UNLIKELY(expr) (__builtin_expect(!!(expr), 0))
-#  endif
+#if defined(__GNUC__) || defined(__clang__)
+#define CURVE_LIKELY(expr) (__builtin_expect(!!(expr), 1))
+#define CURVE_UNLIKELY(expr) (__builtin_expect(!!(expr), 0))
 #else
-#  define CURVE_LIKELY(expr) (expr)
-#  define CURVE_UNLIKELY(expr) (expr)
-#endif  // INCLUDE_CURVE_COMPILER_SPECIFIC_H_
+#define CURVE_LIKELY(expr) (expr)
+#define CURVE_UNLIKELY(expr) (expr)
+#endif  // defined(__GNUC__) || defined(__clang__)
 
 #ifdef UNIT_TEST
 #define CURVE_MOCK virtual
 #else
 #define CURVE_MOCK
 #endif  // INCLUDE_CURVE_COMPILER_SPECIFIC_H_
+
+#define CURVE_UNUSED __attribute__((__unused__))
 
 #endif  // INCLUDE_CURVE_COMPILER_SPECIFIC_H_

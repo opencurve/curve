@@ -55,9 +55,7 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     }
 
     LOG(INFO) << "logid = " << cntl->log_id()
-        << ", CreateFile request, filename = " << request->filename()
-        << ", filetype = " << request->filetype()
-        << ", filelength = " << request->filelength();
+              << ", CreateFile request: " << request->ShortDebugString();
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
@@ -85,9 +83,9 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    retCode = kCurveFS.CreateFile(request->filename(), request->owner(),
-            request->filetype(), request->filelength(), request->stripeunit(),
-                                              request->stripecount());
+    retCode = kCurveFS.CreateFile(request->filename(), request->poolset(),
+            request->owner(), request->filetype(), request->filelength(),
+            request->stripeunit(), request->stripecount());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         // TODO(hzsunjianliang): check if we should really print error here
@@ -1769,6 +1767,7 @@ void NameSpaceService::CreateCloneFile(
                             request->chunksize(),
                             request->stripeunit(),
                             request->stripecount(),
+                            request->poolset(),
                             response->mutable_fileinfo(),
                             request->clonesource(),
                             request->filelength());

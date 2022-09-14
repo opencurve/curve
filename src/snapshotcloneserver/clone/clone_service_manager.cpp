@@ -61,6 +61,7 @@ void CloneServiceManager::Stop() {
 int CloneServiceManager::CloneFile(const UUID &source,
     const std::string &user,
     const std::string &destination,
+    const std::string &poolset,
     bool lazyFlag,
     std::shared_ptr<CloneClosure> closure,
     TaskIdType *taskId) {
@@ -73,7 +74,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfo);
+        CloneTaskType::kClone, poolset, &cloneInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
             // 任务已存在的情况下返回成功，使接口幂等
@@ -87,7 +88,8 @@ int CloneServiceManager::CloneFile(const UUID &source,
                    << ", source = " << source
                    << ", user = " << user
                    << ", destination = " << destination
-                   << ", lazyFlag = " << lazyFlag;
+                   << ", lazyFlag = " << lazyFlag
+                   << ", poolset = " << poolset;
         closure->SetErrCode(ret);
         return ret;
     }
@@ -117,7 +119,7 @@ int CloneServiceManager::RecoverFile(const UUID &source,
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kRecover, &cloneInfo);
+        CloneTaskType::kRecover, "", &cloneInfo);
     if (ret < 0) {
         if (kErrCodeTaskExist == ret) {
             // 任务已存在的情况下返回成功，使接口幂等

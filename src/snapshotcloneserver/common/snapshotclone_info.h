@@ -79,6 +79,7 @@ class CloneInfo {
         CloneTaskType type,
         const std::string &source,
         const std::string &destination,
+        const std::string &poolset,
         CloneFileType fileType,
         bool isLazy)
         : taskId_(taskId),
@@ -86,6 +87,7 @@ class CloneInfo {
           type_(type),
           source_(source),
           destination_(destination),
+          poolset_(poolset),
           originId_(0),
           destinationId_(0),
           time_(0),
@@ -99,6 +101,7 @@ class CloneInfo {
         CloneTaskType type,
         const std::string &source,
         const std::string &destination,
+        const std::string &poolset,
         uint64_t originId,
         uint64_t destinationId,
         uint64_t time,
@@ -111,6 +114,7 @@ class CloneInfo {
           type_(type),
           source_(source),
           destination_(destination),
+          poolset_(poolset),
           originId_(originId),
           destinationId_(destinationId),
           time_(time),
@@ -157,6 +161,14 @@ class CloneInfo {
 
   void SetDest(const std::string &dest) {
       destination_ = dest;
+  }
+
+  std::string GetPoolset() const {
+      return poolset_;
+  }
+
+  void SetPoolset(const std::string &poolset) {
+      poolset_ = poolset;
   }
 
   uint64_t GetOriginId() const {
@@ -229,6 +241,8 @@ class CloneInfo {
     std::string source_;
     // 目标文件名
     std::string destination_;
+    // 目标文件所在的poolset
+    std::string poolset_;
     // 被恢复的原始文件id, 仅用于恢复
     uint64_t originId_;
     // 目标文件id
@@ -297,6 +311,7 @@ class SnapshotInfo {
             uint64_t filelength,
             uint64_t stripeUnit,
             uint64_t stripeCount,
+            const std::string& poolset,
             uint64_t time,
             Status status)
         :uuid_(uuid),
@@ -309,6 +324,7 @@ class SnapshotInfo {
         fileLength_(filelength),
         stripeUnit_(stripeUnit),
         stripeCount_(stripeCount),
+        poolset_(poolset),
         time_(time),
         status_(status) {}
 
@@ -392,6 +408,14 @@ class SnapshotInfo {
         return stripeCount_;
     }
 
+    void SetPoolset(const std::string& poolset) {
+        poolset_ = poolset;
+    }
+
+    const std::string& GetPoolset() const {
+        return poolset_;
+    }
+
     void SetCreateTime(uint64_t createTime) {
         time_ = createTime;
     }
@@ -433,6 +457,8 @@ class SnapshotInfo {
     uint64_t stripeUnit_;
     // stripe count
     uint64_t stripeCount_;
+    // poolset
+    std::string poolset_;
     // 快照创建时间
     uint64_t time_;
     // 快照处理的状态

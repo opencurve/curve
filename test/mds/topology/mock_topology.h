@@ -55,7 +55,8 @@ class MockIdGenerator : public TopologyIdGenerator {
  public:
     MockIdGenerator() {}
     ~MockIdGenerator() {}
-
+    MOCK_METHOD1(initPoolsetIdGenerator, void(PoolsetIdType
+                  idMax));
     MOCK_METHOD1(initLogicalPoolIdGenerator, void(PoolIdType
                  idMax));
     MOCK_METHOD1(initPhysicalPoolIdGenerator, void(PoolIdType
@@ -69,6 +70,7 @@ class MockIdGenerator : public TopologyIdGenerator {
     MOCK_METHOD1(initCopySetIdGenerator, void(
                      const std::map<PoolIdType, CopySetIdType> &idMaxMap));
 
+    MOCK_METHOD0(GenPoolsetId, PoolsetIdType());
     MOCK_METHOD0(GenLogicalPoolId, PoolIdType());
     MOCK_METHOD0(GenPhysicalPoolId, PoolIdType());
     MOCK_METHOD0(GenZoneId, ZoneIdType());
@@ -91,6 +93,9 @@ class MockStorage : public TopologyStorage {
     MockStorage() {}
     ~MockStorage() {}
 
+    MOCK_METHOD2(LoadPoolset,
+        bool(std::unordered_map<PoolsetIdType, Poolset>
+            *poolsetMap, PoolsetIdType * maxPoolsetId));
     MOCK_METHOD2(LoadLogicalPool,
         bool(std::unordered_map<PoolIdType, LogicalPool>
             *logicalPoolMap, PoolIdType * maxLogicalPoolId));
@@ -108,6 +113,8 @@ class MockStorage : public TopologyStorage {
         bool(std::map<CopySetKey, CopySetInfo>
         *copySetMap, std::map<PoolIdType, CopySetIdType> * copySetIdMaxMap));
 
+    MOCK_METHOD1(StoragePoolset, bool(
+                     const Poolset &data));
     MOCK_METHOD1(StorageLogicalPool, bool(
                      const LogicalPool &data));
     MOCK_METHOD1(StoragePhysicalPool, bool(
@@ -121,6 +128,9 @@ class MockStorage : public TopologyStorage {
     MOCK_METHOD1(StorageCopySet, bool(
                      const CopySetInfo &data));
 
+
+    MOCK_METHOD1(DeletePoolset, bool(PoolsetIdType
+                                         id));
     MOCK_METHOD1(DeleteLogicalPool, bool(PoolIdType
                                          id));
     MOCK_METHOD1(DeletePhysicalPool, bool(PoolIdType
@@ -145,7 +155,7 @@ class MockStorage : public TopologyStorage {
     MOCK_METHOD1(UpdateChunkServer, bool(
                      const ChunkServer &data));
     MOCK_METHOD1(UpdateCopySet, bool(
-                     const CopySetInfo &data));
+                const CopySetInfo &data));
 
     MOCK_METHOD1(LoadClusterInfo,
                  bool(std::vector<ClusterInformation> *info));
@@ -240,6 +250,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
                      const ListPhysicalPoolRequest *request,
                      ListPhysicalPoolResponse *response));
 
+    MOCK_METHOD2(ListPhysicalPoolsInPoolset,
+                 void(const ListPhysicalPoolsInPoolsetRequest* request,
+                      ListPhysicalPoolResponse* response));
+
     MOCK_METHOD2(CreateLogicalPool, void(
                      const CreateLogicalPoolRequest *request,
                      CreateLogicalPoolResponse *response));
@@ -258,6 +272,22 @@ class MockTopologyServiceManager : public TopologyServiceManager {
 
     MOCK_METHOD2(SetLogicalPool, void(const SetLogicalPoolRequest *request,
                                 SetLogicalPoolResponse *response));
+
+    MOCK_METHOD2(CreatePoolset, void(
+                     const PoolsetRequest *request,
+                     PoolsetResponse *response));
+
+     MOCK_METHOD2(DeletePoolset, void(
+                     const PoolsetRequest *request,
+                     PoolsetResponse *response));
+
+    MOCK_METHOD2(GetPoolset,
+        void(const PoolsetRequest *request,
+            PoolsetResponse *response));
+
+    MOCK_METHOD2(ListPoolset,
+        void(const ListPoolsetRequest *request,
+            ListPoolsetResponse *response));
 
     MOCK_METHOD2(GetChunkServerListInCopySets, void(
         const GetChunkServerListInCopySetsRequest *request,
@@ -295,6 +325,12 @@ class MockTopologyServiceImpl : public TopologyService {
                  void(google::protobuf::RpcController* cntl_base,
                       const PhysicalPoolRequest* request,
                       PhysicalPoolResponse* response,
+                      google::protobuf::Closure* done));
+
+    MOCK_METHOD4(CreatePoolset,
+                 void(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
                       google::protobuf::Closure* done));
 };
 
