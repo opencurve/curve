@@ -24,9 +24,9 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
         lsof \
         nginx \
         less \
-        zlib1g-dev \
-        libsnappy-dev \
-        liblz4-dev \
+        zlib1g \
+        libsnappy1v5 \
+        liblz4-1 \
         python \
         wget \
         python3 \

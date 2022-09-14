@@ -1,4 +1,4 @@
-FROM debian:11
+FROM opencurvedocker/curve-base:build-debian11 
 
 RUN echo "deb http://mirrors.163.com/debian/ bullseye main non-free contrib\n" \
          "deb http://mirrors.163.com/debian/ bullseye-updates main non-free contrib\n" \
@@ -27,9 +27,24 @@ RUN echo "deb http://mirrors.163.com/debian/ bullseye main non-free contrib\n" \
         make \
         openjdk-11-jdk \
         sudo \
+        libsnappy-dev \
+        liblz4-dev \
+        cmake \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release \
+        curl \
+        git \
+    && mkdir -p /etc/apt/keyrings \
+    # && curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && echo  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce docker-ce-cli containerd.io \
     && wget https://github.com/bazelbuild/bazelisk/releases/download/v1.11.0/bazelisk-linux-amd64 \
     && mv bazelisk-linux-amd64 /usr/bin/bazelisk \
-    && ln -s /usr/bin/bazelisk /usr/bin/bazel \
+    && ln -sf /usr/bin/bazelisk /usr/bin/bazel \
     && wget https://github.com/bazelbuild/bazel/releases/download/4.2.2/bazel-4.2.2-linux-x86_64 \
     && mkdir -p /root/.cache/bazelisk/downloads/bazelbuild/bazel-4.2.2-linux-x86_64/bin \
     && mv bazel-4.2.2-linux-x86_64 /root/.cache/bazelisk/downloads/bazelbuild/bazel-4.2.2-linux-x86_64/bin/bazel \
