@@ -164,15 +164,19 @@ int SnapshotClient::CheckSnapShotStatus(const std::string &filename,
     return -ret;
 }
 
-int SnapshotClient::CreateCloneFile(const std::string &source,
-                                    const std::string &destination,
-                                    const UserInfo_t &userinfo, uint64_t size,
-                                    uint64_t sn, uint32_t chunksize,
-                                    uint64_t stripeUnit, uint64_t stripeCount,
-                                    FInfo *finfo) {
-    LIBCURVE_ERROR ret =
-        mdsclient_.CreateCloneFile(source, destination, userinfo, size, sn,
-                                   chunksize, stripeUnit, stripeCount, finfo);
+int SnapshotClient::CreateCloneFile(const std::string& source,
+                                    const std::string& destination,
+                                    const UserInfo_t& userinfo,
+                                    uint64_t size,
+                                    uint64_t sn,
+                                    uint32_t chunksize,
+                                    uint64_t stripeUnit,
+                                    uint64_t stripeCount,
+                                    const std::string& poolset,
+                                    FInfo* finfo) {
+    LIBCURVE_ERROR ret = mdsclient_.CreateCloneFile(
+            source, destination, userinfo, size, sn, chunksize, stripeUnit,
+            stripeCount, poolset, finfo);
     return -ret;
 }
 

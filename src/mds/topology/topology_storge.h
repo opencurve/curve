@@ -42,6 +42,9 @@ class TopologyStorage {
     TopologyStorage() {}
     virtual ~TopologyStorage() {}
 
+    virtual bool LoadPoolset(
+        std::unordered_map<PoolsetIdType, Poolset> *poolsetMap,
+        PoolsetIdType *maxPoolsetId) = 0;
     virtual bool LoadLogicalPool(
         std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
         PoolIdType *maxLogicalPoolId) = 0;
@@ -61,6 +64,7 @@ class TopologyStorage {
         std::map<CopySetKey, CopySetInfo> *copySetMap,
         std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) = 0;
 
+    virtual bool StoragePoolset(const Poolset &data) = 0;
     virtual bool StorageLogicalPool(const LogicalPool &data) = 0;
     virtual bool StoragePhysicalPool(const PhysicalPool &data) = 0;
     virtual bool StorageZone(const Zone &data) = 0;
@@ -68,6 +72,7 @@ class TopologyStorage {
     virtual bool StorageChunkServer(const ChunkServer &data) = 0;
     virtual bool StorageCopySet(const CopySetInfo &data) = 0;
 
+    virtual bool DeletePoolset(PoolsetIdType id) = 0;
     virtual bool DeleteLogicalPool(PoolIdType id) = 0;
     virtual bool DeletePhysicalPool(PoolIdType id) = 0;
     virtual bool DeleteZone(ZoneIdType id) = 0;

@@ -63,7 +63,7 @@ enum LIBCURVE_ERROR {
     // parameter error
     PARAM_ERROR             = 16,
     // internal error
-    INTERNAL_ERROR           = 17,
+    INTERNAL_ERROR          = 17,
     // CRC error
     CRC_ERROR               = 18,
     // parameter invalid

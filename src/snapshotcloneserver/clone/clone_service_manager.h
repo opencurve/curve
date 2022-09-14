@@ -249,6 +249,7 @@ class CloneServiceManager {
     virtual int CloneFile(const UUID &source,
         const std::string &user,
         const std::string &destination,
+        const std::string &poolset,
         bool lazyFlag,
         std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId);

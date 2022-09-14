@@ -182,13 +182,15 @@ int CurveFsClientImpl::CreateCloneFile(
     uint32_t chunkSize,
     uint64_t stripeUnit,
     uint64_t stripeCount,
+    const std::string& poolset,
     FInfo* fileInfo) {
     UserInfo userInfo = GetUserInfo(user);
     RetryMethod method = [this, &source, &filename,
-        userInfo, size, sn, chunkSize, stripeUnit, stripeCount, fileInfo] () {
+        userInfo, size, sn, chunkSize, stripeUnit, stripeCount, fileInfo,
+        poolset] () {
             return snapClient_->CreateCloneFile(source, filename,
                 userInfo, size,
-                sn, chunkSize, stripeUnit, stripeCount, fileInfo);
+                sn, chunkSize, stripeUnit, stripeCount, poolset, fileInfo);
     };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
@@ -402,4 +404,3 @@ int CurveFsClientImpl::ChangeOwner(const std::string& filename,
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

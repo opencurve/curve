@@ -171,19 +171,13 @@ class MDSClient : public MDSClientBase,
 
     /**
      * 创建文件
-     * @param: filename创建文件的文件名
-     * @param: userinfo为user信息
-     * @param: size文件长度
-     * @param: normalFile表示创建的是普通文件还是目录文件，如果是目录则忽略size
+     * @param: context创建文件信息
      * @return: 成功返回LIBCURVE_ERROR::OK
      *          文件已存在返回LIBCURVE_ERROR::EXIST
      *          否则返回LIBCURVE_ERROR::FAILED
      *          如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      */
-    LIBCURVE_ERROR CreateFile(const std::string &filename,
-                              const UserInfo_t &userinfo, size_t size = 0,
-                              bool normalFile = true, uint64_t stripeUnit = 0,
-                              uint64_t stripeCount = 0);
+    LIBCURVE_ERROR CreateFile(const CreateFileContext& context);
     /**
      * open file
      * @param: filename  file name
@@ -219,6 +213,8 @@ class MDSClient : public MDSClientBase,
      * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetClusterInfo(ClusterContext *clsctx);
+
+    LIBCURVE_ERROR ListPoolset(std::vector<std::string>* out);
 
     /**
      * Get or Alloc SegmentInfo，and update to Metacache
@@ -421,6 +417,7 @@ class MDSClient : public MDSClientBase,
                                    const UserInfo_t &userinfo, uint64_t size,
                                    uint64_t sn, uint32_t chunksize,
                                    uint64_t stripeUnit, uint64_t stripeCount,
+                                   const std::string& poolset,
                                    FInfo *fileinfo);
 
     /**

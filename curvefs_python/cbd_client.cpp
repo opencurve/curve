@@ -26,8 +26,11 @@
 
 #include "src/client/libcurve_file.h"
 
-inline curve::client::UserInfo ToCurveClientUserInfo(UserInfo_t* userInfo) {
+namespace {
+inline curve::client::UserInfo ToCurveClientUserInfo(
+        const UserInfo_t* userInfo) {
     return curve::client::UserInfo(userInfo->owner, userInfo->password);
+}
 }
 
 CBDClient::CBDClient() : client_(new curve::client::FileClient()) {}
@@ -54,10 +57,17 @@ int CBDClient::Create(const char* filename, UserInfo_t* userInfo, size_t size) {
     return client_->Create(filename, ToCurveClientUserInfo(userInfo), size);
 }
 
-int CBDClient::Create2(const char* filename, UserInfo_t* userInfo, size_t size,
-                                    uint64_t stripeUnit, uint64_t stripeCount) {
-    return client_->Create2(filename, ToCurveClientUserInfo(userInfo),
-                                                 size, stripeUnit, stripeCount);
+int CBDClient::Create2(const CreateContext* context) {
+    curve::client::CreateFileContext internal;
+    internal.pagefile = true;
+    internal.name = context->name;
+    internal.user = ToCurveClientUserInfo(&context->user);
+    internal.length = context->length;
+    internal.poolset = context->poolset;
+    internal.stripeUnit = context->stripeUnit;
+    internal.stripeCount = context->stripeCount;
+
+    return client_->Create2(internal);
 }
 
 int CBDClient::Unlink(const char* filename, UserInfo_t* userInfo) {
@@ -165,4 +175,8 @@ int CBDClient::Rmdir(const char* dirpath, UserInfo_t* userInfo) {
 
 std::string CBDClient::GetClusterId() {
     return client_->GetClusterId();
+}
+
+std::vector<std::string> CBDClient::ListPoolset() {
+    return client_->ListPoolset();
 }

@@ -53,6 +53,7 @@ const char* kOffsetStr = "Offset";
 const char* kSourceStr = "Source";
 const char* kDestinationStr = "Destination";
 const char* kLazyStr = "Lazy";
+const char* kPoolset = "Poolset";
 const char* kStatusStr = "Status";
 const char* kTypeStr = "Type";
 const char* kInodeStr = "Inode";
@@ -105,5 +106,3 @@ std::string BuildErrorMessage(
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-
-

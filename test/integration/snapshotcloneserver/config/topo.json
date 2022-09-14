@@ -18,7 +18,8 @@
             "internalport": 10004,
             "name": "server1",
             "physicalpool": "pool1",
-            "zone": "zone1"
+            "zone": "zone1",
+            "poolset": "default"
         },
         {
             "externalip": "127.0.0.1",
@@ -27,7 +28,8 @@
             "internalport": 10005,
             "name": "server2",
             "physicalpool": "pool1",
-            "zone": "zone2"
+            "zone": "zone2",
+            "poolset": "default"
         },
         {
             "externalip": "127.0.0.1",
@@ -36,9 +38,8 @@
             "internalport": 10006,
             "name": "server3",
             "physicalpool": "pool1",
-            "zone": "zone3"
+            "zone": "zone3",
+            "poolset": "default"
         }
     ]
 }
-
-

@@ -157,3 +157,12 @@ GPATH
 GRTAGS
 GTAGS
 core.*
+
+test/integration/*.conf
+test/integration/client/config/client.conf*
+test/integration/snapshotcloneserver/config/*.conf
+
+.pre-commit-config.yaml
+
+*.deb
+*.whl

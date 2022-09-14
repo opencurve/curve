@@ -61,13 +61,11 @@ namespace mds {
 namespace topology {
 class MockTopology : public Topology {
  public:
-    MockTopology() {}
-    ~MockTopology() {}
-
     MOCK_METHOD1(GetClusterInfo,
         bool(ClusterInformation *info));
 
     // allocate id & token
+    MOCK_METHOD0(AllocatePoolsetId, PoolsetIdType());
     MOCK_METHOD0(AllocateLogicalPoolId, PoolIdType());
     MOCK_METHOD0(AllocatePhysicalPoolId, PoolIdType());
     MOCK_METHOD0(AllocateZoneId, ZoneIdType());
@@ -78,8 +76,10 @@ class MockTopology : public Topology {
     MOCK_METHOD0(AllocateToken, std::string());
 
     // add
+    MOCK_METHOD1(AddPoolset, int(const Poolset &data));
     MOCK_METHOD1(AddLogicalPool, int(const LogicalPool &data));
     MOCK_METHOD1(AddPhysicalPool, int(const PhysicalPool &data));
+    MOCK_METHOD1(AddPhysicalPoolJustForTest, int(const PhysicalPool &data));
     MOCK_METHOD1(AddZone, int(const Zone &data));
     MOCK_METHOD1(AddServer, int(const Server &data));
     MOCK_METHOD1(AddChunkServer, int(const ChunkServer &data));
@@ -90,6 +90,7 @@ class MockTopology : public Topology {
             &copysets));
 
     // remove
+    MOCK_METHOD1(RemovePoolset, int(PoolsetIdType id));
     MOCK_METHOD1(RemoveLogicalPool, int(PoolIdType id));
     MOCK_METHOD1(RemovePhysicalPool, int(PoolIdType id));
     MOCK_METHOD1(RemoveZone, int(ZoneIdType id));
@@ -108,6 +109,8 @@ class MockTopology : public Topology {
                      bool scanEnable));
 
     MOCK_METHOD1(UpdatePhysicalPool, int(const PhysicalPool &data));
+    MOCK_METHOD2(UpgradePhysicalPool, int(PoolIdType poolId,
+                  PoolsetIdType pstId));
     MOCK_METHOD1(UpdateZone, int(const Zone &data));
     MOCK_METHOD1(UpdateServer, int(const Server &data));
 
@@ -138,11 +141,19 @@ class MockTopology : public Topology {
         int(CopySetKey key, uint32_t allocChunkNum, uint64_t allocSize));
 
     // find
+    MOCK_CONST_METHOD1(FindPoolset,
+        PoolsetIdType(const std::string &poolsetName));
     MOCK_CONST_METHOD2(FindLogicalPool,
         PoolIdType(const std::string &logicalPoolName,
             const std::string &physicalPoolName));
     MOCK_CONST_METHOD1(FindPhysicalPool,
         PoolIdType(const std::string &physicalPoolName));
+    MOCK_CONST_METHOD2(FindPhysicalPool,
+        PoolIdType(const std::string &physicalPoolName,
+        const std::string &poolsetName));
+    MOCK_CONST_METHOD2(FindPhysicalPool,
+        PoolIdType(const std::string &physicalPoolName,
+        PoolsetIdType poolsetid));
     MOCK_CONST_METHOD2(FindZone,
         ZoneIdType(const std::string &zoneName,
             const std::string &physicalPoolName));
@@ -157,10 +168,20 @@ class MockTopology : public Topology {
         ChunkServerIdType(const std::string &hostIp,
             uint32_t port));
     // get
+    MOCK_CONST_METHOD2(GetPoolset,
+        bool(PoolsetIdType poolsetId, Poolset *out));
     MOCK_CONST_METHOD2(GetLogicalPool,
         bool(PoolIdType poolId, LogicalPool *out));
+
     MOCK_CONST_METHOD2(GetPhysicalPool,
         bool(PoolIdType poolId, PhysicalPool *out));
+    MOCK_CONST_METHOD3(GetPhysicalPool, bool(const std::string &poolName,
+        const std::string &poolsetName, PhysicalPool *out));
+    MOCK_CONST_METHOD3(GetPhysicalPool, bool(const std::string &poolName,
+        PoolsetIdType poolsetId, PhysicalPool *out));
+    MOCK_CONST_METHOD2(GetPhysicalPoolInPoolset,
+        std::list<PoolIdType>(PoolsetIdType id, PhysicalPoolFilter filter));
+
     MOCK_CONST_METHOD2(GetZone, bool(ZoneIdType zoneId, Zone *out));
     MOCK_CONST_METHOD2(GetServer, bool(ServerIdType serverId, Server *out));
     MOCK_CONST_METHOD2(GetChunkServer,
@@ -176,6 +197,9 @@ class MockTopology : public Topology {
             const std::string &physicalPoolName,
             LogicalPool *out));
 
+     MOCK_CONST_METHOD2(GetPoolset,
+        bool(const std::string &poolsetName,
+            Poolset *out));
     MOCK_CONST_METHOD2(GetPhysicalPool,
         bool(const std::string &physicalPoolName,
             PhysicalPool *out));
@@ -212,6 +236,10 @@ class MockTopology : public Topology {
         std::vector<PoolIdType>(PhysicalPoolFilter filter));
     MOCK_CONST_METHOD1(GetLogicalPoolInCluster,
         std::vector<PoolIdType>(LogicalPoolFilter filter));
+    MOCK_CONST_METHOD1(GetPoolsetInCluster,
+                       std::vector<PoolsetIdType>(PoolsetFilter filter));
+    MOCK_CONST_METHOD1(GetPoolsetNameInCluster,
+                       std::vector<std::string>(PoolsetFilter filter));
     MOCK_CONST_METHOD1(GetCopySetsInCluster,
         std::vector<CopySetKey>(CopySetFilter filter));
 

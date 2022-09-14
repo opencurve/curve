@@ -43,6 +43,9 @@ using ::curve::kvstorage::EtcdClientImp;
 using ::curve::snapshotcloneserver::SnapshotCloneCodec;
 
 namespace curve {
+
+using ::curve::client::CreateFileContext;
+
 int CurveCluster::InitMdsClient(const curve::client::MetaServerOption &op) {
     mdsClient_ = std::make_shared<MDSClient>();
     return mdsClient_->Initialize(op);
@@ -737,12 +740,19 @@ bool CurveCluster::CurrentServiceMDS(int *curId) {
 
 int CurveCluster::CreateFile(const std::string &user, const std::string &pwd,
                              const std::string &fileName, uint64_t fileSize,
-                             bool normalFile) {
+                             bool normalFile, const std::string& poolset) {
     LOG(INFO) << "create file: " << fileName << ", size: " << fileSize
               << " begin...";
     UserInfo_t info(user, pwd);
+    CreateFileContext context;
+    context.pagefile = true;
+    context.name = fileName;
+    context.user = info;
+    context.length = fileSize;
+    context.poolset = poolset;
+
     RETURN_IF_NOT_ZERO(
-        mdsClient_->CreateFile(fileName, info, fileSize, normalFile));
+        mdsClient_->CreateFile(context));
     LOG(INFO) << "success create file";
     return 0;
 }

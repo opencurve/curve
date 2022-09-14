@@ -159,6 +159,7 @@ typedef struct FInfo {
     uint64_t cloneLength{0};
     uint64_t stripeUnit;
     uint64_t stripeCount;
+    std::string poolset;
 
     OpenFlags       openflags;
     common::ReadWriteThrottleParams throttleParams;
@@ -343,6 +344,19 @@ inline std::ostream& operator<<(std::ostream& os, const OpenFlags& flags) {
 
 // default flags for readonly open
 OpenFlags DefaultReadonlyOpenFlags();
+
+struct CreateFileContext {
+    // pagefile or directory
+    bool pagefile;
+    std::string name;
+    UserInfo user;
+
+    // used for creating pagefile
+    size_t length;
+    uint64_t stripeUnit = 0;
+    uint64_t stripeCount = 0;
+    std::string poolset;
+};
 
 }   // namespace client
 }   // namespace curve

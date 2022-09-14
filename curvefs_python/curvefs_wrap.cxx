@@ -3022,22 +3022,24 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 
 #define SWIGTYPE_p_AioContext swig_types[0]
 #define SWIGTYPE_p_CBDClient swig_types[1]
-#define SWIGTYPE_p_DirInfos swig_types[2]
-#define SWIGTYPE_p_FileInfo swig_types[3]
-#define SWIGTYPE_p_UserInfo swig_types[4]
-#define SWIGTYPE_p_char swig_types[5]
-#define SWIGTYPE_p_f_p_AioContext__void swig_types[6]
-#define SWIGTYPE_p_int swig_types[7]
-#define SWIGTYPE_p_long_long swig_types[8]
-#define SWIGTYPE_p_short swig_types[9]
-#define SWIGTYPE_p_signed_char swig_types[10]
-#define SWIGTYPE_p_unsigned_char swig_types[11]
-#define SWIGTYPE_p_unsigned_int swig_types[12]
-#define SWIGTYPE_p_unsigned_long_long swig_types[13]
-#define SWIGTYPE_p_unsigned_short swig_types[14]
-#define SWIGTYPE_p_void swig_types[15]
-static swig_type_info *swig_types[17];
-static swig_module_info swig_module = {swig_types, 16, 0, 0, 0, 0};
+#define SWIGTYPE_p_CreateContext swig_types[2]
+#define SWIGTYPE_p_DirInfos swig_types[3]
+#define SWIGTYPE_p_FileInfo swig_types[4]
+#define SWIGTYPE_p_UserInfo swig_types[5]
+#define SWIGTYPE_p_char swig_types[6]
+#define SWIGTYPE_p_f_p_AioContext__void swig_types[7]
+#define SWIGTYPE_p_int swig_types[8]
+#define SWIGTYPE_p_long_long swig_types[9]
+#define SWIGTYPE_p_short swig_types[10]
+#define SWIGTYPE_p_signed_char swig_types[11]
+#define SWIGTYPE_p_std__vectorT_std__string_t swig_types[12]
+#define SWIGTYPE_p_unsigned_char swig_types[13]
+#define SWIGTYPE_p_unsigned_int swig_types[14]
+#define SWIGTYPE_p_unsigned_long_long swig_types[15]
+#define SWIGTYPE_p_unsigned_short swig_types[16]
+#define SWIGTYPE_p_void swig_types[17]
+static swig_type_info *swig_types[19];
+static swig_module_info swig_module = {swig_types, 18, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3615,29 +3617,6 @@ SWIG_From_unsigned_SS_long_SS_long  (unsigned long long value)
 #endif
 
 
-SWIGINTERN int
-SWIG_AsVal_unsigned_SS_int (PyObject * obj, unsigned int *val)
-{
-  unsigned long v;
-  int res = SWIG_AsVal_unsigned_SS_long (obj, &v);
-  if (SWIG_IsOK(res)) {
-    if ((v > UINT_MAX)) {
-      return SWIG_OverflowError;
-    } else {
-      if (val) *val = static_cast< unsigned int >(v);
-    }
-  }
-  return res;
-}
-
-
-SWIGINTERNINLINE PyObject*
-  SWIG_From_unsigned_SS_int  (unsigned int value)
-{
-  return PyInt_FromSize_t((size_t) value);
-}
-
-
 
 
 
@@ -3645,6 +3624,44 @@ SWIGINTERNINLINE PyObject *
 SWIG_FromCharPtr(const char *cptr)
 { 
   return SWIG_FromCharPtrAndSize(cptr, (cptr ? strlen(cptr) : 0));
+}
+
+
+SWIGINTERN int
+SWIG_AsPtr_std_string (PyObject * obj, std::string **val) 
+{
+  char* buf = 0 ; size_t size = 0; int alloc = SWIG_OLDOBJ;
+  if (SWIG_IsOK((SWIG_AsCharPtrAndSize(obj, &buf, &size, &alloc)))) {
+    if (buf) {
+      if (val) *val = new std::string(buf, size - 1);
+      if (alloc == SWIG_NEWOBJ) delete[] buf;
+      return SWIG_NEWOBJ;
+    } else {
+      if (val) *val = 0;
+      return SWIG_OLDOBJ;
+    }
+  } else {
+    static int init = 0;
+    static swig_type_info* descriptor = 0;
+    if (!init) {
+      descriptor = SWIG_TypeQuery("std::string" " *");
+      init = 1;
+    }
+    if (descriptor) {
+      std::string *vptr;
+      int res = SWIG_ConvertPtr(obj, (void**)&vptr, descriptor, 0);
+      if (SWIG_IsOK(res) && val) *val = vptr;
+      return res;
+    }
+  }
+  return SWIG_ERROR;
+}
+
+
+SWIGINTERNINLINE PyObject *
+SWIG_From_std_string  (const std::string& s)
+{
+  return SWIG_FromCharPtrAndSize(s.data(), s.size());
 }
 
 
@@ -3670,9 +3687,18 @@ SWIG_AsVal_size_t (PyObject * obj, size_t *val)
 
 
 SWIGINTERNINLINE PyObject *
-SWIG_From_std_string  (const std::string& s)
-{
-  return SWIG_FromCharPtrAndSize(s.data(), s.size());
+SWIG_From_size_t  (size_t value)
+{    
+#ifdef SWIG_LONG_LONG_AVAILABLE
+  if (sizeof(size_t) <= sizeof(unsigned long)) {
+#endif
+    return SWIG_From_unsigned_SS_long  (static_cast< unsigned long >(value));
+#ifdef SWIG_LONG_LONG_AVAILABLE
+  } else {
+    /* assume sizeof(size_t) <= sizeof(unsigned long long) */
+    return SWIG_From_unsigned_SS_long_SS_long  (static_cast< unsigned long long >(value));
+  }
+#endif
 }
 
 #ifdef __cplusplus
@@ -4602,11 +4628,11 @@ SWIGINTERN PyObject *_wrap_FileInfo_t_fileStatus_get(PyObject *SWIGUNUSEDPARM(se
   int res1 = 0 ;
   PyObject * obj0 = 0 ;
   int result;
-
+  
   if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_fileStatus_get",&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_fileStatus_get" "', argument " "1"" of type '" "FileInfo *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_fileStatus_get" "', argument " "1"" of type '" "FileInfo *""'"); 
   }
   arg1 = reinterpret_cast< FileInfo * >(argp1);
   result = (int) ((arg1)->fileStatus);
@@ -4620,25 +4646,25 @@ fail:
 SWIGINTERN PyObject *_wrap_FileInfo_t_stripeUnit_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   FileInfo *arg1 = (FileInfo *) 0 ;
-  uint32_t arg2 ;
+  uint64_t arg2 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  unsigned int val2 ;
+  unsigned long long val2 ;
   int ecode2 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-
+  
   if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_stripeUnit_set",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeUnit_set" "', argument " "1"" of type '" "FileInfo *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeUnit_set" "', argument " "1"" of type '" "FileInfo *""'"); 
   }
   arg1 = reinterpret_cast< FileInfo * >(argp1);
-  ecode2 = SWIG_AsVal_unsigned_SS_int(obj1, &val2);
+  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_stripeUnit_set" "', argument " "2"" of type '" "uint32_t""'");
-  }
-  arg2 = static_cast< uint32_t >(val2);
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_stripeUnit_set" "', argument " "2"" of type '" "uint64_t""'");
+  } 
+  arg2 = static_cast< uint64_t >(val2);
   if (arg1) (arg1)->stripeUnit = arg2;
   resultobj = SWIG_Py_Void();
   return resultobj;
@@ -4653,16 +4679,16 @@ SWIGINTERN PyObject *_wrap_FileInfo_t_stripeUnit_get(PyObject *SWIGUNUSEDPARM(se
   void *argp1 = 0 ;
   int res1 = 0 ;
   PyObject * obj0 = 0 ;
-  uint32_t result;
-
+  uint64_t result;
+  
   if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_stripeUnit_get",&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeUnit_get" "', argument " "1"" of type '" "FileInfo *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeUnit_get" "', argument " "1"" of type '" "FileInfo *""'"); 
   }
   arg1 = reinterpret_cast< FileInfo * >(argp1);
   result = (uint64_t) ((arg1)->stripeUnit);
-  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
+  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
   return resultobj;
 fail:
   return NULL;
@@ -4672,25 +4698,25 @@ fail:
 SWIGINTERN PyObject *_wrap_FileInfo_t_stripeCount_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   FileInfo *arg1 = (FileInfo *) 0 ;
-  uint32_t arg2 ;
+  uint64_t arg2 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  unsigned int val2 ;
+  unsigned long long val2 ;
   int ecode2 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-
+  
   if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_stripeCount_set",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeCount_set" "', argument " "1"" of type '" "FileInfo *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeCount_set" "', argument " "1"" of type '" "FileInfo *""'"); 
   }
   arg1 = reinterpret_cast< FileInfo * >(argp1);
-  ecode2 = SWIG_AsVal_unsigned_SS_int(obj1, &val2);
+  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_stripeCount_set" "', argument " "2"" of type '" "uint32_t""'");
-  }
-  arg2 = static_cast< uint32_t >(val2);
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "FileInfo_t_stripeCount_set" "', argument " "2"" of type '" "uint64_t""'");
+  } 
+  arg2 = static_cast< uint64_t >(val2);
   if (arg1) (arg1)->stripeCount = arg2;
   resultobj = SWIG_Py_Void();
   return resultobj;
@@ -4705,16 +4731,16 @@ SWIGINTERN PyObject *_wrap_FileInfo_t_stripeCount_get(PyObject *SWIGUNUSEDPARM(s
   void *argp1 = 0 ;
   int res1 = 0 ;
   PyObject * obj0 = 0 ;
-  uint32_t result;
-
+  uint64_t result;
+  
   if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_stripeCount_get",&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeCount_get" "', argument " "1"" of type '" "FileInfo *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_stripeCount_get" "', argument " "1"" of type '" "FileInfo *""'"); 
   }
   arg1 = reinterpret_cast< FileInfo * >(argp1);
   result = (uint64_t) ((arg1)->stripeCount);
-  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
+  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
   return resultobj;
 fail:
   return NULL;
@@ -5017,6 +5043,373 @@ SWIGINTERN PyObject *DirInfos_t_swigregister(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *obj;
   if (!PyArg_ParseTuple(args,(char*)"O:swigregister", &obj)) return NULL;
   SWIG_TypeNewClientData(SWIGTYPE_p_DirInfos, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *_wrap_CreateContext_name_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  std::string *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 = SWIG_OLDOBJ ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CreateContext_name_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_name_set" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    res2 = SWIG_AsPtr_std_string(obj1, &ptr);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CreateContext_name_set" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "CreateContext_name_set" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    arg2 = ptr;
+  }
+  if (arg1) (arg1)->name = *arg2;
+  resultobj = SWIG_Py_Void();
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_name_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  std::string *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CreateContext_name_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_name_get" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  result = (std::string *) & ((arg1)->name);
+  resultobj = SWIG_From_std_string(static_cast< std::string >(*result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_length_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  size_t arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CreateContext_length_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_length_set" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  ecode2 = SWIG_AsVal_size_t(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "CreateContext_length_set" "', argument " "2"" of type '" "size_t""'");
+  } 
+  arg2 = static_cast< size_t >(val2);
+  if (arg1) (arg1)->length = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_length_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  size_t result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CreateContext_length_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_length_get" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  result =  ((arg1)->length);
+  resultobj = SWIG_From_size_t(static_cast< size_t >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_user_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  UserInfo *arg2 = (UserInfo *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CreateContext_user_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_user_set" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CreateContext_user_set" "', argument " "2"" of type '" "UserInfo *""'"); 
+  }
+  arg2 = reinterpret_cast< UserInfo * >(argp2);
+  if (arg1) (arg1)->user = *arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_user_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  UserInfo *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CreateContext_user_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_user_get" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  result = (UserInfo *)& ((arg1)->user);
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_UserInfo, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_poolset_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  std::string *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 = SWIG_OLDOBJ ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CreateContext_poolset_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_poolset_set" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    res2 = SWIG_AsPtr_std_string(obj1, &ptr);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CreateContext_poolset_set" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "CreateContext_poolset_set" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    arg2 = ptr;
+  }
+  if (arg1) (arg1)->poolset = *arg2;
+  resultobj = SWIG_Py_Void();
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_poolset_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  std::string *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CreateContext_poolset_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_poolset_get" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  result = (std::string *) & ((arg1)->poolset);
+  resultobj = SWIG_From_std_string(static_cast< std::string >(*result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_stripeUnit_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  uint64_t arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  unsigned long long val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CreateContext_stripeUnit_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_stripeUnit_set" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "CreateContext_stripeUnit_set" "', argument " "2"" of type '" "uint64_t""'");
+  } 
+  arg2 = static_cast< uint64_t >(val2);
+  if (arg1) (arg1)->stripeUnit = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_stripeUnit_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  uint64_t result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CreateContext_stripeUnit_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_stripeUnit_get" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  result = (uint64_t) ((arg1)->stripeUnit);
+  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_stripeCount_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  uint64_t arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  unsigned long long val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CreateContext_stripeCount_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_stripeCount_set" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "CreateContext_stripeCount_set" "', argument " "2"" of type '" "uint64_t""'");
+  } 
+  arg2 = static_cast< uint64_t >(val2);
+  if (arg1) (arg1)->stripeCount = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CreateContext_stripeCount_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  uint64_t result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CreateContext_stripeCount_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CreateContext_stripeCount_get" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  result = (uint64_t) ((arg1)->stripeCount);
+  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_CreateContext(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)":new_CreateContext")) SWIG_fail;
+  result = (CreateContext *)new CreateContext();
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CreateContext, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_CreateContext(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CreateContext *arg1 = (CreateContext *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:delete_CreateContext",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CreateContext, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_CreateContext" "', argument " "1"" of type '" "CreateContext *""'"); 
+  }
+  arg1 = reinterpret_cast< CreateContext * >(argp1);
+  delete arg1;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *CreateContext_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!PyArg_ParseTuple(args,(char*)"O:swigregister", &obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_CreateContext, SWIG_NewClientData(obj));
   return SWIG_Py_Void();
 }
 
@@ -5606,7 +5999,7 @@ SWIGINTERN PyObject *_wrap_Recover(PyObject *SWIGUNUSEDPARM(self), PyObject *arg
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
   int result;
-
+  
   if (!PyArg_ParseTuple(args,(char *)"OOO:Recover",&obj0,&obj1,&obj2)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
@@ -5615,13 +6008,13 @@ SWIGINTERN PyObject *_wrap_Recover(PyObject *SWIGUNUSEDPARM(self), PyObject *arg
   arg1 = reinterpret_cast< char * >(buf1);
   res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Recover" "', argument " "2"" of type '" "UserInfo_t *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Recover" "', argument " "2"" of type '" "UserInfo_t *""'"); 
   }
   arg2 = reinterpret_cast< UserInfo_t * >(argp2);
   ecode3 = SWIG_AsVal_unsigned_SS_long_SS_long(obj2, &val3);
   if (!SWIG_IsOK(ecode3)) {
     SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Recover" "', argument " "3"" of type '" "uint64_t""'");
-  }
+  } 
   arg3 = static_cast< uint64_t >(val3);
   result = (int)Recover((char const *)arg1,arg2,arg3);
   resultobj = SWIG_From_int(static_cast< int >(result));
@@ -6010,7 +6403,7 @@ SWIGINTERN PyObject *_wrap_CBDClient_Open(PyObject *SWIGUNUSEDPARM(self), PyObje
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
   int result;
-
+  
   if (!PyArg_ParseTuple(args,(char *)"OOO:CBDClient_Open",&obj0,&obj1,&obj2)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
@@ -6108,7 +6501,7 @@ SWIGINTERN PyObject *_wrap_CBDClient_Create(PyObject *SWIGUNUSEDPARM(self), PyOb
   ecode4 = SWIG_AsVal_size_t(obj3, &val4);
   if (!SWIG_IsOK(ecode4)) {
     SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "CBDClient_Create" "', argument " "4"" of type '" "size_t""'");
-  }
+  } 
   arg4 = static_cast< size_t >(val4);
   result = (int)(arg1)->Create((char const *)arg2,arg3,arg4);
   resultobj = SWIG_From_int(static_cast< int >(result));
@@ -6123,69 +6516,30 @@ fail:
 SWIGINTERN PyObject *_wrap_CBDClient_Create2(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   CBDClient *arg1 = (CBDClient *) 0 ;
-  char *arg2 = (char *) 0 ;
-  UserInfo_t *arg3 = (UserInfo_t *) 0 ;
-  size_t arg4 ;
-  uint32_t arg5 ;
-  uint32_t arg6 ;
+  CreateContext *arg2 = (CreateContext *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  int res2 ;
-  char *buf2 = 0 ;
-  int alloc2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  size_t val4 ;
-  int ecode4 = 0 ;
-  unsigned int val5 ;
-  int ecode5 = 0 ;
-  unsigned int val6 ;
-  int ecode6 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
-  PyObject * obj3 = 0 ;
-  PyObject * obj4 = 0 ;
-  PyObject * obj5 = 0 ;
   int result;
-
-  if (!PyArg_ParseTuple(args,(char *)"OOOOOO:CBDClient_Create2",&obj0,&obj1,&obj2,&obj3,&obj4,&obj5)) SWIG_fail;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CBDClient_Create2",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Create2" "', argument " "1"" of type '" "CBDClient *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Create2" "', argument " "1"" of type '" "CBDClient *""'"); 
   }
   arg1 = reinterpret_cast< CBDClient * >(argp1);
-  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_CreateContext, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CBDClient_Create2" "', argument " "2"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "CBDClient_Create2" "', argument " "2"" of type '" "CreateContext const *""'"); 
   }
-  arg2 = reinterpret_cast< char * >(buf2);
-  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_UserInfo, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CBDClient_Create2" "', argument " "3"" of type '" "UserInfo_t *""'");
-  }
-  arg3 = reinterpret_cast< UserInfo_t * >(argp3);
-  ecode4 = SWIG_AsVal_size_t(obj3, &val4);
-  if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "CBDClient_Create2" "', argument " "4"" of type '" "size_t""'");
-  }
-  arg4 = static_cast< size_t >(val4);
-  ecode5 = SWIG_AsVal_unsigned_SS_int(obj4, &val5);
-  if (!SWIG_IsOK(ecode5)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "CBDClient_Create2" "', argument " "5"" of type '" "uint32_t""'");
-  }
-  arg5 = static_cast< uint32_t >(val5);
-  ecode6 = SWIG_AsVal_unsigned_SS_int(obj5, &val6);
-  if (!SWIG_IsOK(ecode6)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "CBDClient_Create2" "', argument " "6"" of type '" "uint32_t""'");
-  }
-  arg6 = static_cast< uint32_t >(val6);
-  result = (int)(arg1)->Create2((char const *)arg2,arg3,arg4,arg5,arg6);
+  arg2 = reinterpret_cast< CreateContext * >(argp2);
+  result = (int)(arg1)->Create2((CreateContext const *)arg2);
   resultobj = SWIG_From_int(static_cast< int >(result));
-  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return resultobj;
 fail:
-  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return NULL;
 }
 
@@ -6275,6 +6629,7 @@ fail:
   return NULL;
 }
 
+
 SWIGINTERN PyObject *_wrap_CBDClient_Recover(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   CBDClient *arg1 = (CBDClient *) 0 ;
@@ -6295,11 +6650,11 @@ SWIGINTERN PyObject *_wrap_CBDClient_Recover(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject * obj2 = 0 ;
   PyObject * obj3 = 0 ;
   int result;
-
+  
   if (!PyArg_ParseTuple(args,(char *)"OOOO:CBDClient_Recover",&obj0,&obj1,&obj2,&obj3)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Recover" "', argument " "1"" of type '" "CBDClient *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_Recover" "', argument " "1"" of type '" "CBDClient *""'"); 
   }
   arg1 = reinterpret_cast< CBDClient * >(argp1);
   res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
@@ -6309,13 +6664,13 @@ SWIGINTERN PyObject *_wrap_CBDClient_Recover(PyObject *SWIGUNUSEDPARM(self), PyO
   arg2 = reinterpret_cast< char * >(buf2);
   res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_UserInfo, 0 |  0 );
   if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CBDClient_Recover" "', argument " "3"" of type '" "UserInfo_t *""'");
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "CBDClient_Recover" "', argument " "3"" of type '" "UserInfo_t *""'"); 
   }
   arg3 = reinterpret_cast< UserInfo_t * >(argp3);
   ecode4 = SWIG_AsVal_unsigned_SS_long_SS_long(obj3, &val4);
   if (!SWIG_IsOK(ecode4)) {
     SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "CBDClient_Recover" "', argument " "4"" of type '" "uint64_t""'");
-  }
+  } 
   arg4 = static_cast< uint64_t >(val4);
   result = (int)(arg1)->Recover((char const *)arg2,arg3,arg4);
   resultobj = SWIG_From_int(static_cast< int >(result));
@@ -6325,6 +6680,7 @@ fail:
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   return NULL;
 }
+
 
 SWIGINTERN PyObject *_wrap_CBDClient_Rename(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
@@ -7005,6 +7361,34 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_CBDClient_ListPoolset(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CBDClient *arg1 = (CBDClient *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  std::vector< std::string > result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CBDClient_ListPoolset",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CBDClient, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CBDClient_ListPoolset" "', argument " "1"" of type '" "CBDClient *""'"); 
+  }
+  arg1 = reinterpret_cast< CBDClient * >(argp1);
+  result = (arg1)->ListPoolset();
+  resultobj = PyList_New(result.size());
+  if (resultobj == nullptr) {
+    SWIG_exception_fail(-1, "memory alloc failed"); 
+  }
+  for (size_t i = 0; i < result.size(); ++i) {
+    PyList_SetItem(resultobj, i, SWIG_From_std_string(result[i]));
+  }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *CBDClient_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *obj;
   if (!PyArg_ParseTuple(args,(char*)"O:swigregister", &obj)) return NULL;
@@ -7070,6 +7454,21 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"new_DirInfos_t", _wrap_new_DirInfos_t, METH_VARARGS, NULL},
 	 { (char *)"delete_DirInfos_t", _wrap_delete_DirInfos_t, METH_VARARGS, NULL},
 	 { (char *)"DirInfos_t_swigregister", DirInfos_t_swigregister, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_name_set", _wrap_CreateContext_name_set, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_name_get", _wrap_CreateContext_name_get, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_length_set", _wrap_CreateContext_length_set, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_length_get", _wrap_CreateContext_length_get, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_user_set", _wrap_CreateContext_user_set, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_user_get", _wrap_CreateContext_user_get, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_poolset_set", _wrap_CreateContext_poolset_set, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_poolset_get", _wrap_CreateContext_poolset_get, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_stripeUnit_set", _wrap_CreateContext_stripeUnit_set, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_stripeUnit_get", _wrap_CreateContext_stripeUnit_get, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_stripeCount_set", _wrap_CreateContext_stripeCount_set, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_stripeCount_get", _wrap_CreateContext_stripeCount_get, METH_VARARGS, NULL},
+	 { (char *)"new_CreateContext", _wrap_new_CreateContext, METH_VARARGS, NULL},
+	 { (char *)"delete_CreateContext", _wrap_delete_CreateContext, METH_VARARGS, NULL},
+	 { (char *)"CreateContext_swigregister", CreateContext_swigregister, METH_VARARGS, NULL},
 	 { (char *)"Init", _wrap_Init, METH_VARARGS, NULL},
 	 { (char *)"Open4Qemu", _wrap_Open4Qemu, METH_VARARGS, NULL},
 	 { (char *)"Open", _wrap_Open, METH_VARARGS, NULL},
@@ -7085,8 +7484,8 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"Rename", _wrap_Rename, METH_VARARGS, NULL},
 	 { (char *)"Extend", _wrap_Extend, METH_VARARGS, NULL},
 	 { (char *)"Unlink", _wrap_Unlink, METH_VARARGS, NULL},
-	 { (char *)"DeleteForce", _wrap_DeleteForce, METH_VARARGS, NULL},
 	 { (char *)"Recover", _wrap_Recover, METH_VARARGS, NULL},
+	 { (char *)"DeleteForce", _wrap_DeleteForce, METH_VARARGS, NULL},
 	 { (char *)"OpenDir", _wrap_OpenDir, METH_VARARGS, NULL},
 	 { (char *)"CloseDir", _wrap_CloseDir, METH_VARARGS, NULL},
 	 { (char *)"Listdir", _wrap_Listdir, METH_VARARGS, NULL},
@@ -7119,6 +7518,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"CBDClient_Mkdir", _wrap_CBDClient_Mkdir, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_Rmdir", _wrap_CBDClient_Rmdir, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_GetClusterId", _wrap_CBDClient_GetClusterId, METH_VARARGS, NULL},
+	 { (char *)"CBDClient_ListPoolset", _wrap_CBDClient_ListPoolset, METH_VARARGS, NULL},
 	 { (char *)"CBDClient_swigregister", CBDClient_swigregister, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }
 };
@@ -7128,6 +7528,7 @@ static PyMethodDef SwigMethods[] = {
 
 static swig_type_info _swigt__p_AioContext = {"_p_AioContext", "AioContext *|AioContext_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_CBDClient = {"_p_CBDClient", "CBDClient *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_CreateContext = {"_p_CreateContext", "CreateContext *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_DirInfos = {"_p_DirInfos", "DirInfos_t *|DirInfos *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_FileInfo = {"_p_FileInfo", "FileInfo *|FileInfo_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_UserInfo = {"_p_UserInfo", "UserInfo *|UserInfo_t *", 0, 0, (void*)0, 0};
@@ -7137,6 +7538,7 @@ static swig_type_info _swigt__p_int = {"_p_int", "intptr_t *|int *|int_least32_t
 static swig_type_info _swigt__p_long_long = {"_p_long_long", "int_least64_t *|int_fast64_t *|int64_t *|long long *|intmax_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_short = {"_p_short", "short *|int_least16_t *|int16_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_signed_char = {"_p_signed_char", "signed char *|int_least8_t *|int_fast8_t *|int8_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__vectorT_std__string_t = {"_p_std__vectorT_std__string_t", "std::vector< std::string > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_char = {"_p_unsigned_char", "unsigned char *|uint_least8_t *|uint_fast8_t *|uint8_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_int = {"_p_unsigned_int", "uintptr_t *|uint_least32_t *|uint_fast32_t *|uint32_t *|unsigned int *|uint_fast16_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_long_long = {"_p_unsigned_long_long", "uint_least64_t *|uint_fast64_t *|uint64_t *|unsigned long long *|uintmax_t *", 0, 0, (void*)0, 0};
@@ -7146,6 +7548,7 @@ static swig_type_info _swigt__p_void = {"_p_void", "void *", 0, 0, (void*)0, 0};
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_AioContext,
   &_swigt__p_CBDClient,
+  &_swigt__p_CreateContext,
   &_swigt__p_DirInfos,
   &_swigt__p_FileInfo,
   &_swigt__p_UserInfo,
@@ -7155,6 +7558,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_long_long,
   &_swigt__p_short,
   &_swigt__p_signed_char,
+  &_swigt__p_std__vectorT_std__string_t,
   &_swigt__p_unsigned_char,
   &_swigt__p_unsigned_int,
   &_swigt__p_unsigned_long_long,
@@ -7164,6 +7568,7 @@ static swig_type_info *swig_type_initial[] = {
 
 static swig_cast_info _swigc__p_AioContext[] = {  {&_swigt__p_AioContext, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_CBDClient[] = {  {&_swigt__p_CBDClient, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_CreateContext[] = {  {&_swigt__p_CreateContext, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_DirInfos[] = {  {&_swigt__p_DirInfos, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_FileInfo[] = {  {&_swigt__p_FileInfo, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_UserInfo[] = {  {&_swigt__p_UserInfo, 0, 0, 0},{0, 0, 0, 0}};
@@ -7173,6 +7578,7 @@ static swig_cast_info _swigc__p_int[] = {  {&_swigt__p_int, 0, 0, 0},{0, 0, 0, 0
 static swig_cast_info _swigc__p_long_long[] = {  {&_swigt__p_long_long, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_short[] = {  {&_swigt__p_short, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_signed_char[] = {  {&_swigt__p_signed_char, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__vectorT_std__string_t[] = {  {&_swigt__p_std__vectorT_std__string_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_unsigned_char[] = {  {&_swigt__p_unsigned_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_unsigned_int[] = {  {&_swigt__p_unsigned_int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_unsigned_long_long[] = {  {&_swigt__p_unsigned_long_long, 0, 0, 0},{0, 0, 0, 0}};
@@ -7182,6 +7588,7 @@ static swig_cast_info _swigc__p_void[] = {  {&_swigt__p_void, 0, 0, 0},{0, 0, 0,
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_AioContext,
   _swigc__p_CBDClient,
+  _swigc__p_CreateContext,
   _swigc__p_DirInfos,
   _swigc__p_FileInfo,
   _swigc__p_UserInfo,
@@ -7191,6 +7598,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_long_long,
   _swigc__p_short,
   _swigc__p_signed_char,
+  _swigc__p_std__vectorT_std__string_t,
   _swigc__p_unsigned_char,
   _swigc__p_unsigned_int,
   _swigc__p_unsigned_long_long,

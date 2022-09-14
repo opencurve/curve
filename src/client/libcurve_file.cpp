@@ -308,11 +308,18 @@ int FileClient::IncreaseEpoch(const std::string &filename,
     return ret2;
 }
 
-int FileClient::Create(const std::string &filename, const UserInfo_t &userinfo,
+int FileClient::Create(const std::string& filename,
+                       const UserInfo& userinfo,
                        size_t size) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->CreateFile(filename, userinfo, size);
+        CreateFileContext ctx;
+        ctx.pagefile = true;
+        ctx.name = filename;
+        ctx.user = userinfo;
+        ctx.length = size;
+
+        ret = mdsClient_->CreateFile(ctx);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
             << "Create file failed, filename: " << filename << ", ret: " << ret;
     } else {
@@ -322,15 +329,13 @@ int FileClient::Create(const std::string &filename, const UserInfo_t &userinfo,
     return -ret;
 }
 
-int FileClient::Create2(const std::string &filename, const UserInfo_t &userinfo,
-                        size_t size, uint64_t stripeUnit,
-                        uint64_t stripeCount) {
+int FileClient::Create2(const CreateFileContext& context) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->CreateFile(filename, userinfo, size, true, stripeUnit,
-                                     stripeCount);
+        ret = mdsClient_->CreateFile(context);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
-            << "Create file failed, filename: " << filename << ", ret: " << ret;
+                << "Create file failed, filename: " << context.name
+                << ", ret: " << ret;
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -564,7 +569,11 @@ int FileClient::Listdir(const std::string &dirpath, const UserInfo_t &userinfo,
 int FileClient::Mkdir(const std::string &dirpath, const UserInfo_t &userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->CreateFile(dirpath, userinfo, 0, false);
+        CreateFileContext context;
+        context.pagefile = false;
+        context.user = userinfo;
+        context.name = dirpath;
+        ret = mdsClient_->CreateFile(context);
         if (ret != LIBCURVE_ERROR::OK) {
             if (ret == LIBCURVE_ERROR::EXISTS) {
                 LOG(WARNING) << "Create directory failed, " << dirpath
@@ -690,6 +699,19 @@ int FileClient::GetFileInfo(int fd, FInfo *finfo) {
     }
 
     return ret;
+}
+
+std::vector<std::string> FileClient::ListPoolset() {
+    std::vector<std::string> out;
+    if (CURVE_UNLIKELY(mdsClient_ == nullptr)) {
+        LOG(WARNING) << "global mds client not inited!";
+        return out;
+    }
+
+    const auto ret = mdsClient_->ListPoolset(&out);
+    LOG_IF(WARNING, ret != LIBCURVE_ERROR::OK)
+            << "Failed to list poolset, error: " << ret;
+    return out;
 }
 
 bool FileClient::StartDummyServer() {
@@ -882,20 +904,8 @@ int Create(const char *filename, const C_UserInfo_t *userinfo, size_t size) {
         filename, UserInfo(userinfo->owner, userinfo->password), size);
 }
 
-int Create2(const char *filename, const C_UserInfo_t *userinfo, size_t size,
-            uint64_t stripeUnit, uint64_t stripeCount) {
-    if (globalclient == nullptr) {
-        LOG(ERROR) << "not inited!";
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    return globalclient->Create2(filename,
-                                 UserInfo(userinfo->owner, userinfo->password),
-                                 size, stripeUnit, stripeCount);
-}
-
-int Rename(const C_UserInfo_t *userinfo, const char *oldpath,
-           const char *newpath) {
+int Rename(const C_UserInfo_t* userinfo,
+    const char* oldpath, const char* newpath) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;

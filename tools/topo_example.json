@@ -1,4 +1,14 @@
 {
+    "poolsets": [
+        {
+            "name": "SSD",
+            "type": "SSD"
+        },
+        {
+            "name": "HDD",
+            "type": "HDD"
+        }
+    ],
     "servers": [{
         "name": "server1",
         "internalip": "127.0.0.1",
@@ -6,7 +16,8 @@
         "externalip": "127.0.0.1",
         "externalport": 8200,
         "zone": "zone1",
-        "physicalpool": "pool1"
+        "physicalpool": "pool1",
+        "poolset": "SSD"
     }, {
         "name": "server2",
         "internalip": "127.0.0.1",
@@ -14,7 +25,8 @@
         "externalip": "127.0.0.1",
         "externalport": 8201,
         "zone": "zone2",
-        "physicalpool": "pool1"
+        "physicalpool": "pool1",
+        "poolset": "SSD"
     }, {
         "name": "server3",
         "internalip": "127.0.0.1",
@@ -22,7 +34,8 @@
         "externalip": "127.0.0.1",
         "externalport": 8202,
         "zone": "zone3",
-        "physicalpool": "pool1"
+        "physicalpool": "pool1",
+        "poolset": "SSD"
     }],
     "logicalpools": [{
         "name": "logicalPool1",

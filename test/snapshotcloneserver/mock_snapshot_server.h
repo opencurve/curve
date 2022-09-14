@@ -195,7 +195,7 @@ class MockCurveFsClient : public CurveFsClient {
         int(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo));
 
-    MOCK_METHOD9(CreateCloneFile,
+    MOCK_METHOD10(CreateCloneFile,
         int(const std::string &source,
         const std::string &filename,
         const std::string &user,
@@ -204,6 +204,7 @@ class MockCurveFsClient : public CurveFsClient {
         uint32_t chunkSize,
         uint64_t stripeUnit,
         uint64_t stripeCount,
+        const std::string& poolset,
         FInfo* fileInfo));
 
     MOCK_METHOD6(CreateCloneChunk,
@@ -309,10 +310,11 @@ class MockCloneServiceManager : public CloneServiceManager {
         CloneServiceManager(nullptr, nullptr, nullptr) {}
     ~MockCloneServiceManager() {}
 
-    MOCK_METHOD6(CloneFile,
+    MOCK_METHOD7(CloneFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
+        const std::string &poolset,
         bool lazyFlag,
         std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
@@ -362,12 +364,13 @@ class MockCloneServiceManager : public CloneServiceManager {
 
 class MockCloneCore : public CloneCore {
  public:
-    MOCK_METHOD6(CloneOrRecoverPre,
+    MOCK_METHOD7(CloneOrRecoverPre,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
         CloneTaskType taskType,
+        std::string poolset,
         CloneInfo *info));
 
     MOCK_METHOD1(HandleCloneOrRecoverTask,

@@ -124,6 +124,9 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
         fi->throttleParams =
             ProtoFileThrottleParamsToLocal(finfo.throttleparams());
     }
+    if (finfo.has_poolset()) {
+        fi->poolset = finfo.poolset();
+    }
 
     fEpoch->fileId = finfo.id();
     if (finfo.has_epoch()) {

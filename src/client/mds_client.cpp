@@ -243,9 +243,9 @@ void MDSClient::UnInitialize() {
     inited_ = false;
 }
 
-#define RPCTaskDefine                                                          \
-    [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
-        brpc::Controller *cntl) -> int
+#define RPCTaskDefine                                                   \
+    [&](CURVE_UNUSED int addrindex, CURVE_UNUSED uint64_t rpctimeoutMS, \
+        brpc::Channel* channel, brpc::Controller* cntl) -> int
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
                                    const UserInfo_t &userinfo, FInfo_t *fi,
@@ -311,19 +311,14 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CreateFile(const std::string &filename,
-                                     const UserInfo_t &userinfo, size_t size,
-                                     bool normalFile, uint64_t stripeUnit,
-                                     uint64_t stripeCount) {
+LIBCURVE_ERROR MDSClient::CreateFile(const CreateFileContext& context) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
         CreateFileResponse response;
         mdsClientMetric_.createFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-        MDSClientBase::CreateFile(filename, userinfo, size, normalFile,
-                                  stripeUnit, stripeCount, &response, cntl,
-                                  channel);
+        MDSClientBase::CreateFile(context, &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
@@ -338,9 +333,10 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string &filename,
         StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
         LOG_IF(WARNING, retcode != LIBCURVE_ERROR::OK)
-            << "CreateFile: filename = " << filename
-            << ", owner = " << userinfo.owner
-            << ", is nomalfile: " << normalFile << ", errocde = " << retcode
+            << "CreateFile: filename = " << context.name
+            << ", owner = " << context.user.owner
+            << ", is pagefile: " << context.pagefile
+            << ", errcode = " << retcode
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
         return retcode;
@@ -897,17 +893,54 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext *clsctx) {
         rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
 }
 
-LIBCURVE_ERROR MDSClient::CreateCloneFile(
-    const std::string &source, const std::string &destination,
-    const UserInfo_t &userinfo, uint64_t size, uint64_t sn, uint32_t chunksize,
-    uint64_t stripeUnit, uint64_t stripeCount, FInfo *fileinfo) {
+LIBCURVE_ERROR MDSClient::ListPoolset(std::vector<std::string>* out) {
+    assert(out != nullptr);
+
+    auto task = RPCTaskDefine {
+        ListPoolsetResponse response;
+        MDSClientBase::ListPoolset(&response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "Failed to list poolset, error: "
+                         << cntl->ErrorText();
+            return -cntl->ErrorCode();
+        }
+
+        const bool succ = (response.statuscode() == 0);
+        if (!succ) {
+            LOG(WARNING) << "Failed to list poolset, response error: "
+                         << response.statuscode();
+            return LIBCURVE_ERROR::FAILED;
+        }
+
+        for (const auto& p : response.poolsetinfos()) {
+            out->emplace_back(p.poolsetname());
+        }
+
+        return LIBCURVE_ERROR::OK;
+    };
+
+    return ReturnError(
+            rpcExcutor_.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS));
+}
+
+LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string& source,
+                                          const std::string& destination,
+                                          const UserInfo_t& userinfo,
+                                          uint64_t size,
+                                          uint64_t sn,
+                                          uint32_t chunksize,
+                                          uint64_t stripeUnit,
+                                          uint64_t stripeCount,
+                                          const std::string& poolset,
+                                          FInfo* fileinfo) {
     auto task = RPCTaskDefine {
         (void)addrindex;
         (void)rpctimeoutMS;
         CreateCloneFileResponse response;
         MDSClientBase::CreateCloneFile(source, destination, userinfo, size, sn,
                                        chunksize, stripeUnit, stripeCount,
-                                       &response, cntl, channel);
+                                       poolset, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
                          << cntl->ErrorCode()
@@ -1470,6 +1503,7 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode &status,
     case StatusCode::kSnapshotFileNotExists:
     case StatusCode::kFileNotExists:
     case StatusCode::kDirNotExist:
+    case StatusCode::kPoolsetNotExist:
         *errcode = LIBCURVE_ERROR::NOTEXIST;
         break;
     case StatusCode::kSegmentNotAllocated:

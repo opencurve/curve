@@ -43,6 +43,8 @@ using ::testing::DoAll;
 namespace curve {
 namespace snapshotcloneserver {
 
+static const char* kDefaultPoolset = "poolset";
+
 class TestCloneCoreImpl : public ::testing::Test {
  public:
     TestCloneCoreImpl() {}
@@ -178,7 +180,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapSuccess) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     ASSERT_EQ(1, core_->GetSnapshotRef()->GetSnapshotRef(source));
@@ -198,6 +200,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapTaskExist) {
         CloneTaskType::kClone,
         source,
         destination,
+        kDefaultPoolset,
         100,
         101,
         0,
@@ -213,7 +216,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapTaskExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeTaskExist, ret);
 
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
@@ -233,6 +236,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapFailOnFileExist) {
         CloneTaskType::kRecover,
         source,
         destination,
+        "",
         100,
         101,
         0,
@@ -248,7 +252,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapFailOnFileExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeFileExist, ret);
 
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
@@ -277,6 +281,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSuccess) {
     fInfo.owner = "user1";
     fInfo.filename = "file1";
     fInfo.filestatus = FileStatus::Created;
+    fInfo.poolset = kDefaultPoolset;
     EXPECT_CALL(*client_, GetFileInfo(source, option.mdsRootUser, _))
         .WillOnce(DoAll(SetArgPointee<2>(fInfo),
                     Return(LIBCURVE_ERROR::OK)));
@@ -286,7 +291,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSuccess) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
@@ -312,7 +317,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapInvalidSnapshot) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
@@ -337,7 +342,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapInvalidUser) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -364,7 +369,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreAddCloneInfoFail) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeInternalError, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -387,7 +392,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileNotExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -410,7 +415,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileFail) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeInternalError, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -428,7 +433,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeFileExist, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -448,6 +453,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationAndTaskExist) {
         CloneTaskType::kClone,
         source,
         destination,
+        kDefaultPoolset,
         100,
         destId,
         0,
@@ -470,7 +476,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationAndTaskExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeTaskExist, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -490,6 +496,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationExistButInodeidNotEqual) {
         CloneTaskType::kClone,
         source,
         destination,
+        kDefaultPoolset,
         100,
         destId,
         0,
@@ -512,7 +519,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationExistButInodeidNotEqual) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeFileExist, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -530,7 +537,7 @@ TEST_F(TestCloneCoreImpl, TestRecoverPreDestinationNotExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kRecover, &cloneInfoOut);
+        CloneTaskType::kRecover, "", &cloneInfoOut);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -558,7 +565,7 @@ TEST_F(TestCloneCoreImpl, TestRecoverPreForSnapSuccess) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kRecover, &cloneInfoOut);
+        CloneTaskType::kRecover, "", &cloneInfoOut);
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(1, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -583,7 +590,7 @@ TEST_F(TestCloneCoreImpl, TestRecoverPreForSnapDestNotMatch) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kRecover, &cloneInfoOut);
+        CloneTaskType::kRecover, "", &cloneInfoOut);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -601,7 +608,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreDestinationFileInternalError) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeInternalError, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -626,7 +633,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSourceFileStatusInvalid) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeFileStatusInvalid, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(0, core_->GetCloneRef()->GetRef(source));
@@ -668,7 +675,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSetCloneFileStatusReturnNotExist) {
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
-        CloneTaskType::kClone, &cloneInfoOut);
+        CloneTaskType::kClone, kDefaultPoolset, &cloneInfoOut);
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(0, core_->GetSnapshotRef()->GetSnapshotRef(source));
     ASSERT_EQ(1, core_->GetCloneRef()->GetRef(source));
@@ -677,7 +684,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSetCloneFileStatusReturnNotExist) {
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStage1SuccessForCloneBySnapshot) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -699,9 +706,9 @@ TEST_F(TestCloneCoreImpl,
 
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStage2SuccessForCloneBySnapshot) {
-    CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
-    CloneStep::kRecoverChunk, CloneStatus::cloning);
+    CloneInfo info("id1", "user1", CloneTaskType::kClone, "snapid1", "file1",
+                   kDefaultPoolset, 1, 2, 100, CloneFileType::kSnapshot, true,
+                   CloneStep::kRecoverChunk, CloneStatus::cloning);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -720,8 +727,8 @@ TEST_F(TestCloneCoreImpl,
 
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskSuccessForCloneBySnapshotNotLazy) {
-    CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    CloneInfo info("id1", "user1", CloneTaskType::kClone, "snapid1", "file1",
+                   kDefaultPoolset, CloneFileType::kSnapshot, false);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -747,7 +754,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskFailOnBuildFileInfoFromSnapshot) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -765,7 +772,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskFailOnGetSnapshotInfo) {
     CloneInfo cinfo("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     cinfo.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -786,7 +793,8 @@ TEST_F(TestCloneCoreImpl,
     uint64_t time = 100;
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
-        seqnum, chunksize, segmentsize, filelength, 0, 0, time, status);
+        seqnum, chunksize, segmentsize, filelength, 0, 0, "default",
+        time, status);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -799,7 +807,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStage1SuccessForRecoverBySnapshot) {
     CloneInfo info("id1", "user1", CloneTaskType::kRecover,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::recovering);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -820,9 +828,9 @@ TEST_F(TestCloneCoreImpl,
 
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStage2SuccessForRecoverBySnapshot) {
-    CloneInfo info("id1", "user1", CloneTaskType::kRecover,
-    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
-    CloneStep::kRecoverChunk, CloneStatus::recovering);
+    CloneInfo info("id1", "user1", CloneTaskType::kRecover, "snapid1", "file1",
+                   kDefaultPoolset, 1, 2, 100, CloneFileType::kSnapshot, true,
+                   CloneStep::kRecoverChunk, CloneStatus::recovering);
     info.SetStatus(CloneStatus::recovering);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -842,7 +850,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskFailOnCreateCloneFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -860,7 +868,7 @@ TEST_F(TestCloneCoreImpl,
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCloneMeta) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -879,7 +887,7 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCloneMeta) {
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCreateCloneChunk) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -899,7 +907,7 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCreateCloneChunk) {
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneMeta) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -920,7 +928,7 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneMeta) {
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnChangeOwner) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -942,7 +950,7 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnChangeOwner) {
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRenameCloneFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -963,9 +971,9 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRenameCloneFile) {
 }
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
-    CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
-    CloneStep::kRecoverChunk, CloneStatus::cloning);
+    CloneInfo info("id1", "user1", CloneTaskType::kClone, "snapid1", "file1",
+                   kDefaultPoolset, 1, 2, 100, CloneFileType::kSnapshot, true,
+                   CloneStep::kRecoverChunk, CloneStatus::cloning);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -983,9 +991,9 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
 }
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneFail) {
-    CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", 1, 2, 100, CloneFileType::kSnapshot, true,
-    CloneStep::kRecoverChunk, CloneStatus::cloning);
+    CloneInfo info("id1", "user1", CloneTaskType::kClone, "snapid1", "file1",
+                   kDefaultPoolset, 1, 2, 100, CloneFileType::kSnapshot, true,
+                   CloneStep::kRecoverChunk, CloneStatus::cloning);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1005,8 +1013,8 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneFail) {
 
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStage1SuccessForCloneByFile) {
-    CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kFile, true);
+    CloneInfo info("id1", "user1", CloneTaskType::kClone, "snapid1", "file1",
+                   kDefaultPoolset, CloneFileType::kFile, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1029,7 +1037,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStage2SuccessForCloneByFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", 1, 2, 100, CloneFileType::kFile, true,
+    "snapid1", "file1", kDefaultPoolset, 1, 2, 100, CloneFileType::kFile, true,
     CloneStep::kRecoverChunk, CloneStatus::cloning);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
@@ -1050,7 +1058,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskForCloneByFileFailOnBuildFileInfoFromFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kFile, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kFile, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1068,7 +1076,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskForCloneByFileFailOnInvalidSegmentSize) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kFile, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kFile, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1097,7 +1105,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskForCloneByFileFailOnInvalidFileLen) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kFile, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kFile, true);
     info.SetStatus(CloneStatus::cloning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1126,7 +1134,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskStepUnknown) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::cloning);
     info.SetNextStep(static_cast<CloneStep>(8));
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
@@ -1156,7 +1164,8 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
     uint64_t time = 100;
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
-        seqnum, chunksize, segmentsize, filelength, 0, 0, time, status);
+        seqnum, chunksize, segmentsize, filelength, 0, 0, kDefaultPoolset,
+        time, status);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1167,6 +1176,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
         FInfo fInfo;
         fInfo.id = 100;
         fInfo.seqnum = 100;
+        fInfo.poolset = kDefaultPoolset;
         EXPECT_CALL(*client_, GetFileInfo(_, _, _))
             .WillRepeatedly(DoAll(
                     SetArgPointee<2>(fInfo),
@@ -1188,6 +1198,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
     FInfo fInfo;
     fInfo.id = 100;
     fInfo.seqnum = 100;
+    fInfo.poolset = kDefaultPoolset;
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillRepeatedly(DoAll(
                 SetArgPointee<2>(fInfo),
@@ -1214,8 +1225,8 @@ void TestCloneCoreImpl::MockCreateCloneFileSuccess(
     std::shared_ptr<CloneTaskInfo> task) {
     FInfo fInfoOut;
     fInfoOut.id = 100;
-    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<8>(fInfoOut),
+    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<9>(fInfoOut),
                 Return(LIBCURVE_ERROR::OK)));
 }
 
@@ -1328,7 +1339,8 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotFail(
     uint64_t time = 100;
     Status status = Status::done;
     SnapshotInfo info(uuid, user, fileName, desc,
-        seqnum, chunksize, segmentsize, filelength, 0, 0, time, status);
+        seqnum, chunksize, segmentsize, filelength, 0, 0, "default",
+        time, status);
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(_, _))
         .WillRepeatedly(DoAll(
@@ -1375,8 +1387,8 @@ void TestCloneCoreImpl::MockCreateCloneFileFail(
     std::shared_ptr<CloneTaskInfo> task) {
     FInfo fInfoOut;
     fInfoOut.id = 100;
-    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<8>(fInfoOut),
+    EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<9>(fInfoOut),
             Return(-LIBCURVE_ERROR::FAILED)));
 }
 
@@ -1567,7 +1579,7 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreUpdateCloneInfoFail) {
 
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, false);
     info.SetStatus(CloneStatus::errorCleaning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1584,7 +1596,7 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess) {
 
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess2) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, false);
     info.SetStatus(CloneStatus::errorCleaning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1601,7 +1613,7 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess2) {
 
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskLazySuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, true);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, true);
     info.SetStatus(CloneStatus::errorCleaning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1619,7 +1631,7 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskLazySuccess) {
 
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskFail1) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, false);
     info.SetStatus(CloneStatus::errorCleaning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1639,7 +1651,7 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskFail1) {
 TEST_F(TestCloneCoreImpl,
     TestHandleCleanCloneOrRecoverTaskCleanNotErrorSuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, false);
     info.SetStatus(CloneStatus::cleaning);
     auto cloneMetric = std::make_shared<CloneInfoMetric>("id1");
     auto cloneClosure = std::make_shared<CloneClosure>();
@@ -1684,7 +1696,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     TestHandleDeleteCloneInfoSnapDeleteCloneInfoFail) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, false);
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
         .WillOnce(Return(-1));
     snapshotRef_->IncrementSnapshotRef("snapid1");
@@ -1695,7 +1707,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     TestHandleDeleteCloneInfoSnapSuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    "snapid1", "file1", kDefaultPoolset, CloneFileType::kSnapshot, false);
     info.SetStatus(CloneStatus::metaInstalled);
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
         .WillOnce(Return(0));
@@ -1707,7 +1719,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     TestHandleDeleteCloneInfoFileRefReturnMetainstalledNotTo0) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "source1", "file1", CloneFileType::kFile, false);
+    "source1", "file1", kDefaultPoolset, CloneFileType::kFile, false);
     info.SetStatus(CloneStatus::metaInstalled);
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
         .WillOnce(Return(0));
@@ -1721,7 +1733,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     TestHandleDeleteCloneInfoFileSetStatusFail) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "source1", "file1", CloneFileType::kFile, false);
+    "source1", "file1", kDefaultPoolset, CloneFileType::kFile, false);
     info.SetStatus(CloneStatus::metaInstalled);
     cloneRef_->IncrementRef("source1");
     ASSERT_EQ(cloneRef_->GetRef("source1"), 1);
@@ -1734,7 +1746,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     TestHandleDeleteCloneInfoFileDeleteCloneInfoFail) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "source1", "file1", CloneFileType::kFile, false);
+    "source1", "file1", kDefaultPoolset, CloneFileType::kFile, false);
     info.SetStatus(CloneStatus::metaInstalled);
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
         .WillOnce(Return(-1));
@@ -1749,7 +1761,7 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl,
     TestHandleDeleteCloneInfoFileSuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
-    "source1", "file1", CloneFileType::kFile, false);
+    "source1", "file1", kDefaultPoolset, CloneFileType::kFile, false);
     info.SetStatus(CloneStatus::metaInstalled);
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
         .WillOnce(Return(0));
@@ -1763,4 +1775,3 @@ TEST_F(TestCloneCoreImpl,
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

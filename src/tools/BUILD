@@ -99,5 +99,6 @@ cc_library(
         "//src/common:curve_common",
         "//src/mds/common:mds_common",
         "//src/mds/nameserver2",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )

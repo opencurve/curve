@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include <string>
+
 #define CURVE_INODE_DIRECTORY 0
 #define CURVE_INODE_PAGEFILE 1
 #define CURVEINODE_APPENDFILE 2
@@ -133,5 +135,14 @@ typedef struct DirInfos {
     uint64_t      dirsize;
     FileInfo_t*   fileinfo;
 } DirInfos_t;
+
+struct CreateContext {
+    std::string     name;
+    size_t          length;
+    UserInfo        user;
+    std::string     poolset;
+    uint64_t        stripeUnit;
+    uint64_t        stripeCount;
+};
 
 #endif  // CURVEFS_PYTHON_CURVE_TYPE_H_

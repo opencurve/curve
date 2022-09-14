@@ -68,6 +68,7 @@ const char kExtendCmd[] = "extend";
 const char kCleanRecycleCmd[] = "clean-recycle";
 const char kChunkLocatitonCmd[] = "chunk-location";
 const char kUpdateThrottle[] = "update-throttle";
+const char kListPoolsets[] = "list-poolsets";
 
 // CopysetCheck相关命令
 const char kCheckCopysetCmd[] = "check-copyset";
