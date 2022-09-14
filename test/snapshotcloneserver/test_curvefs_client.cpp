@@ -128,11 +128,11 @@ TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
     ASSERT_LT(ret, 0);
 
     ret = client_->CreateCloneFile(
-        "source1", "file1", "user1", 1024, 1, 1024, 0, 0, &fInfo);
+        "source1", "file1", "user1", 1024, 1, 1024, 0, 0, "default", &fInfo);
     ASSERT_LT(ret, 0);
     ret = client_->CreateCloneFile(
         "source1", "file1", clientOption_.mdsRootUser, 1024, 1, 1024,
-        0, 0, &fInfo);
+        0, 0, "default", &fInfo);
     ASSERT_LT(ret, 0);
 
     TestClosure *cb = new TestClosure();
@@ -191,4 +191,3 @@ TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

@@ -230,18 +230,76 @@ class LogicalPool {
     bool scanEnable_;
 };
 
+class Poolset {
+ public:
+    Poolset() : id_(UNINTIALIZE_ID) {}
+
+    Poolset(PoolsetIdType id,
+            const std::string& name,
+            const std::string& type,
+            const std::string& desc)
+        : id_(id), name_(name), type_(type), desc_(desc) {}
+
+    PoolsetIdType GetId() const {
+        return id_;
+    }
+
+    std::string GetName() const {
+        return name_;
+    }
+
+    std::string GetType() const {
+        return type_;
+    }
+
+    void SetDesc(const std::string &desc) {
+        desc_ = desc;
+    }
+
+    std::string GetDesc() const {
+        return desc_;
+    }
+
+    void AddPhysicalPool(PhysicalPoolIdType id) {
+        physicalPoolList_.push_back(id);
+    }
+
+    void RemovePhysicalPool(PhysicalPoolIdType id) {
+        physicalPoolList_.remove(id);
+    }
+
+    const std::list<PhysicalPoolIdType>& GetPhysicalPoolList() const {
+        return physicalPoolList_;
+    }
+
+    bool SerializeToString(std::string *value) const;
+
+    bool ParseFromString(const std::string &value);
+
+ private:
+    PoolsetIdType id_;
+    std::string name_;
+    std::string type_;
+    std::string desc_;
+
+    std::list<PhysicalPoolIdType> physicalPoolList_;
+};
+
 class PhysicalPool {
  public:
     PhysicalPool()
         : id_(UNINTIALIZE_ID),
           name_(""),
+          poolsetId_(UNINTIALIZE_ID),
           desc_(""),
           diskCapacity_(0) {}
     PhysicalPool(PoolIdType id,
                  const std::string &name,
+                 const PoolsetIdType poolsetId,
                  const std::string &desc)
         : id_(id),
           name_(name),
+          poolsetId_(poolsetId),
           desc_(desc),
           diskCapacity_(0) {}
 
@@ -252,9 +310,18 @@ class PhysicalPool {
         return name_;
     }
 
+    PoolsetIdType GetPoolsetId() const {
+        return poolsetId_;
+    }
+
+    void SetPoolsetId(PoolsetIdType id) {
+        poolsetId_ = id;
+    }
+
     void SetDesc(const std::string &desc) {
         desc_ = desc;
     }
+
     std::string GetDesc() const {
         return desc_;
     }
@@ -283,6 +350,7 @@ class PhysicalPool {
  private:
     PoolIdType id_;
     std::string name_;
+    PoolsetIdType poolsetId_;
     std::string desc_;
 
     // logical total capacity

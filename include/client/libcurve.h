@@ -127,20 +127,6 @@ int Create(const char* filename,
            size_t size);
 
 /**
- * create file with stripe
- * @param: filename  file name
- * @param: userinfo  user info
- * @param: size      file size
- * @param: stripeUnit block in stripe size
- * @param: stripeCount stripe count in one stripe
- *
- * @return: success return 0, fail return less than 0
- */
-int Create2(const char* filename,
-           const C_UserInfo_t* userinfo,
-           size_t size, uint64_t stripeUnit, uint64_t stripeCount);
-
-/**
  * 同步模式读
  * @param: fd为当前open返回的文件描述符
  * @param: buf为当前待读取的缓冲区

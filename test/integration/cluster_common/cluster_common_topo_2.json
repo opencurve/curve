@@ -1,4 +1,10 @@
 {
+    "poolsets":[
+        {
+            "name": "SSD_2",
+            "type": "SSD"
+        }
+    ],
     "logicalpools": [
         {
             "copysetnum": 20,
@@ -18,7 +24,8 @@
             "internalport": 2001,
             "name": "server1",
             "physicalpool": "pool1",
-            "zone": "zone1"
+            "zone": "zone1",
+            "poolset": "SSD_2"
         },
         {
             "externalip": "127.0.0.1",
@@ -27,7 +34,8 @@
             "internalport": 2002,
             "name": "server2",
             "physicalpool": "pool1",
-            "zone": "zone2"
+            "zone": "zone2",
+            "poolset": "SSD_2"
         },
         {
             "externalip": "127.0.0.1",
@@ -36,7 +44,8 @@
             "internalport": 2003,
             "name": "server3",
             "physicalpool": "pool1",
-            "zone": "zone3"
+            "zone": "zone3",
+            "poolset": "SSD_2"
         },
         {
             "externalip": "127.0.0.1",
@@ -45,7 +54,8 @@
             "internalport": 2004,
             "name": "server4",
             "physicalpool": "pool1",
-            "zone": "zone4"
+            "zone": "zone4",
+            "poolset": "SSD_2"
         }
     ]
 }

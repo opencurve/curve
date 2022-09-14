@@ -52,6 +52,7 @@ int FakeCurveFsClient::Init(const CurveClientOptions &options) {
     fileInfo.filename = shortTestFile1Name;
     fileInfo.fullPathName = testFile1;
     fileInfo.filestatus = FileStatus::Created;
+    fileInfo.poolset = "ssdPoolset1";
 
     fileMap_.emplace(testFile1, fileInfo);
 
@@ -173,6 +174,7 @@ int FakeCurveFsClient::CreateCloneFile(
     uint32_t chunkSize,
     uint64_t stripeUnit,
     uint64_t stripeCount,
+    const std::string& poolset,
     FInfo* fileInfo) {
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile", -LIBCURVE_ERROR::FAILED);  // NOLINT
@@ -192,6 +194,7 @@ int FakeCurveFsClient::CreateCloneFile(
     fileInfo->filestatus = FileStatus::Cloning;
     fileInfo->stripeUnit = stripeUnit;
     fileInfo->stripeCount = stripeCount;
+    fileInfo->poolset = poolset;
 
     LOG(INFO) << "CreateCloneFile " << filename;
     fileMap_.emplace(filename, *fileInfo);

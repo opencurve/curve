@@ -43,6 +43,8 @@ using ::testing::Property;
 namespace curve {
 namespace snapshotcloneserver {
 
+static const char* kDefaultPoolset = "poolset";
+
 class TestCloneServiceManager : public ::testing::Test {
  public:
     TestCloneServiceManager() {}
@@ -114,12 +116,13 @@ TEST_F(TestCloneServiceManager,
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, "", CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(2);
@@ -138,6 +141,7 @@ TEST_F(TestCloneServiceManager,
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -174,9 +178,10 @@ TEST_F(TestCloneServiceManager,
     CloneInfo cloneInfo;
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeInternalError)));
 
     TaskIdType taskId;
@@ -185,6 +190,7 @@ TEST_F(TestCloneServiceManager,
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -217,9 +223,10 @@ TEST_F(TestCloneServiceManager, TestCloneFileSuccessByTaskExist) {
     cloneInfo.SetTaskId(expectUuid);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeTaskExist)));
 
     TaskIdType taskId;
@@ -228,6 +235,7 @@ TEST_F(TestCloneServiceManager, TestCloneFileSuccessByTaskExist) {
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -246,12 +254,14 @@ TEST_F(TestCloneServiceManager,
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillRepeatedly(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
@@ -269,6 +279,7 @@ TEST_F(TestCloneServiceManager,
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -278,6 +289,7 @@ TEST_F(TestCloneServiceManager,
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -300,12 +312,13 @@ TEST_F(TestCloneServiceManager,
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kRecover,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, "", CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kRecover, _))
+            source, user, destination, lazyFlag, CloneTaskType::kRecover,
+            "", _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(2);
@@ -357,9 +370,10 @@ TEST_F(TestCloneServiceManager,
     CloneInfo cloneInfo;
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kRecover, _))
+            source, user, destination, lazyFlag, CloneTaskType::kRecover,
+            "", _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeInternalError)));
 
     TaskIdType taskId;
@@ -386,9 +400,10 @@ TEST_F(TestCloneServiceManager,
     cloneInfo.SetTaskId(expectUuid);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kRecover, _))
+            source, user, destination, lazyFlag, CloneTaskType::kRecover,
+            "", _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeTaskExist)));
 
     TaskIdType taskId;
@@ -415,12 +430,14 @@ TEST_F(TestCloneServiceManager,
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kRecover,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, "",
+        CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kRecover, _))
+            source, user, destination, lazyFlag, CloneTaskType::kRecover,
+            "", _))
         .WillRepeatedly(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
@@ -468,12 +485,14 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
@@ -493,6 +512,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -530,7 +550,8 @@ TEST_F(TestCloneServiceManager, GetCloneTaskInfoByFilterSuccess) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::done);
 
     std::vector<CloneInfo> cloneInfos;
@@ -564,7 +585,8 @@ TEST_F(TestCloneServiceManager, GetCloneTaskInfoByFilterFail) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::done);
 
     std::vector<CloneInfo> cloneInfos;
@@ -605,12 +627,14 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByUUIDSuccess) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo(uuid, user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
@@ -630,6 +654,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByUUIDSuccess) {
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -665,12 +690,14 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByFileNameSuccess) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
@@ -690,6 +717,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoByFileNameSuccess) {
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -763,11 +791,13 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
     const std::string destination = "file1";
     bool lazyFlag = true;
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     // for Flatten
     CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
-        source, destination, 1, 1, 1, CloneFileType::kSnapshot, lazyFlag,
+        source, destination, kDefaultPoolset,
+        1, 1, 1, CloneFileType::kSnapshot, lazyFlag,
         CloneStep::kRecoverChunk, CloneStatus::cloning);
 
     std::vector<CloneInfo> cloneInfos;
@@ -813,12 +843,14 @@ TEST_F(TestCloneServiceManager, TestCloneServiceNotStart) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
-            source, user, destination, lazyFlag, CloneTaskType::kClone, _))
+            source, user, destination, lazyFlag, CloneTaskType::kClone,
+            kDefaultPoolset, _))
         .WillOnce(DoAll(
-            SetArgPointee<5>(cloneInfo),
+            SetArgPointee<6>(cloneInfo),
             Return(kErrCodeSuccess)));
 
     TaskIdType taskId;
@@ -827,6 +859,7 @@ TEST_F(TestCloneServiceManager, TestCloneServiceNotStart) {
         source,
         user,
         destination,
+        kDefaultPoolset,
         lazyFlag,
         closure,
         &taskId);
@@ -840,7 +873,8 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskDone) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::done);
 
     std::vector<CloneInfo> cloneInfos;
@@ -872,7 +906,8 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskError) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::error);
 
     std::vector<CloneInfo> cloneInfos;
@@ -904,7 +939,8 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskDone2) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::cloning);
 
     std::vector<CloneInfo> cloneInfos;
@@ -941,7 +977,8 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskError2) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::cloning);
 
     std::vector<CloneInfo> cloneInfos;
@@ -978,7 +1015,8 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailCanNotReach) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::cloning);
 
     std::vector<CloneInfo> cloneInfos;
@@ -1004,7 +1042,8 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailOnGetCloneInfo) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::cloning);
 
     std::vector<CloneInfo> cloneInfos;
@@ -1029,7 +1068,8 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskGetCloneInfoListFail) {
     const std::string destination = "file1";
     bool lazyFlag = true;
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo);
@@ -1047,7 +1087,8 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskPushTaskFail) {
     const std::string destination = "file1";
     bool lazyFlag = true;
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
 
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo);
@@ -1078,7 +1119,8 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskDefaultSuccess) {
     const std::string destination = "file1";
     bool lazyFlag = true;
     CloneInfo cloneInfo("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kSnapshot, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kSnapshot, lazyFlag);
     cloneInfo.SetStatus(CloneStatus::done);
 
     std::vector<CloneInfo> cloneInfos;
@@ -1100,10 +1142,12 @@ TEST_F(TestCloneServiceManager, TestGetCloneRefStatusSuccessNoRef) {
 
     // only done record
     CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kFile, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo1.SetStatus(CloneStatus::done);
     CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
-        source2, destination, CloneFileType::kFile, lazyFlag);
+        source2, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo2.SetStatus(CloneStatus::metaInstalled);
 
     std::vector<CloneInfo> list;
@@ -1138,13 +1182,16 @@ TEST_F(TestCloneServiceManager, TestGetCloneRefStatusSuccessHasRef) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kFile, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo1.SetStatus(CloneStatus::done);
     CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kFile, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo2.SetStatus(CloneStatus::cloning);
     CloneInfo cloneInfo3("uuid3", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kFile, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo3.SetStatus(CloneStatus::metaInstalled);
 
     std::vector<CloneInfo> list;
@@ -1172,13 +1219,16 @@ TEST_F(TestCloneServiceManager, TestGetCloneRefStatusSuccessNeedCheck) {
     bool lazyFlag = true;
 
     CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
-        source , destination, CloneFileType::kFile, lazyFlag);
+        source , destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo1.SetStatus(CloneStatus::done);
     CloneInfo cloneInfo2("uuid2", user, CloneTaskType::kClone,
-        source2, destination, CloneFileType::kFile, lazyFlag);
+        source2, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo2.SetStatus(CloneStatus::cloning);
     CloneInfo cloneInfo3("uuid3", user, CloneTaskType::kClone,
-        source, destination, CloneFileType::kFile, lazyFlag);
+        source, destination, kDefaultPoolset,
+        CloneFileType::kFile, lazyFlag);
     cloneInfo3.SetStatus(CloneStatus::metaInstalled);
 
     std::vector<CloneInfo> list;
@@ -1264,9 +1314,11 @@ TEST_F(TestCloneServiceManagerBackend,
 TEST_F(TestCloneServiceManagerBackend,
     TestNoMetaInstalledClone) {
     CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
-        "source1", "destination1", CloneFileType::kSnapshot, true);
+        "source1", "destination1", kDefaultPoolset,
+        CloneFileType::kSnapshot, true);
     CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
-        "source2", "destination2", CloneFileType::kFile, false);
+        "source2", "destination2", kDefaultPoolset,
+        CloneFileType::kFile, false);
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo1);
     cloneInfos.push_back(cloneInfo2);
@@ -1288,9 +1340,11 @@ TEST_F(TestCloneServiceManagerBackend,
 TEST_F(TestCloneServiceManagerBackend,
     TestMetaInstalledCloneNotExist) {
     CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
-        "source1", "destination1", CloneFileType::kSnapshot, true);
+        "source1", "destination1", kDefaultPoolset,
+        CloneFileType::kSnapshot, true);
     CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
-        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        "source2", "destination2", "",
+        0, 0, 0, CloneFileType::kFile, false,
         CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo1);
@@ -1315,9 +1369,11 @@ TEST_F(TestCloneServiceManagerBackend,
 TEST_F(TestCloneServiceManagerBackend,
     TestMetaInstalledCloneNotMetaInstalled) {
     CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
-        "source1", "destination1", CloneFileType::kSnapshot, true);
+        "source1", "destination1", kDefaultPoolset,
+        CloneFileType::kSnapshot, true);
     CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
-        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        "source2", "destination2", "",
+        0, 0, 0, CloneFileType::kFile, false,
         CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo1);
@@ -1343,9 +1399,11 @@ TEST_F(TestCloneServiceManagerBackend,
 TEST_F(TestCloneServiceManagerBackend,
     TestMetaInstalledCloneFileExist) {
     CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
-        "source1", "destination1", CloneFileType::kSnapshot, true);
+        "source1", "destination1", kDefaultPoolset,
+        CloneFileType::kSnapshot, true);
     CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
-        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        "source2", "destination2", "",
+        0, 0, 0, CloneFileType::kFile, false,
         CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo1);
@@ -1373,9 +1431,11 @@ TEST_F(TestCloneServiceManagerBackend,
 TEST_F(TestCloneServiceManagerBackend,
     TestMetaInstalledCloneDeleteFail) {
     CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
-        "source1", "destination1", CloneFileType::kSnapshot, true);
+        "source1", "destination1", kDefaultPoolset,
+        CloneFileType::kSnapshot, true);
     CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
-        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        "source2", "destination2", "",
+        0, 0, 0, CloneFileType::kFile, false,
         CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo1);
@@ -1405,9 +1465,11 @@ TEST_F(TestCloneServiceManagerBackend,
 TEST_F(TestCloneServiceManagerBackend,
     TestMetaInstalledCloneDeleteSuccess) {
     CloneInfo cloneInfo1("taskId1", "user1", CloneTaskType::kClone,
-        "source1", "destination1", CloneFileType::kSnapshot, true);
+        "source1", "destination1", kDefaultPoolset,
+        CloneFileType::kSnapshot, true);
     CloneInfo cloneInfo2("taskId2", "user2", CloneTaskType::kRecover,
-        "source2", "destination2", 0, 0, 0, CloneFileType::kFile, false,
+        "source2", "destination2", "",
+        0, 0, 0, CloneFileType::kFile, false,
         CloneStep::kRecoverChunk, CloneStatus::metaInstalled);
     std::vector<CloneInfo> cloneInfos;
     cloneInfos.push_back(cloneInfo1);
@@ -1436,4 +1498,3 @@ TEST_F(TestCloneServiceManagerBackend,
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

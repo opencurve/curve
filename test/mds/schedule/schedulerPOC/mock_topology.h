@@ -41,11 +41,13 @@
 using ::testing::Return;
 using ::testing::_;
 
+using ::curve::mds::topology::PoolsetIdType;
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::ZoneIdType;
 using ::curve::mds::topology::ServerIdType;
 using ::curve::mds::topology::ChunkServerIdType;
 using ::curve::mds::topology::CopySetIdType;
+using ::curve::mds::topology::Poolset;
 using ::curve::mds::topology::LogicalPool;
 using ::curve::mds::topology::PhysicalPool;
 using ::curve::mds::topology::Zone;
@@ -63,11 +65,14 @@ using ::curve::mds::topology::ClusterInformation;
 namespace curve {
 namespace mds {
 namespace schedule {
+
 class MockIdGenerator : public TopologyIdGenerator {
  public:
     MockIdGenerator() {}
     ~MockIdGenerator() {}
 
+    MOCK_METHOD1(initPoolsetIdGenerator, void(PoolsetIdType
+        idMax));
     MOCK_METHOD1(initLogicalPoolIdGenerator, void(PoolIdType
         idMax));
     MOCK_METHOD1(initPhysicalPoolIdGenerator, void(PoolIdType
@@ -83,6 +88,7 @@ class MockIdGenerator : public TopologyIdGenerator {
 
     MOCK_METHOD0(GenLogicalPoolId, PoolIdType());
     MOCK_METHOD0(GenPhysicalPoolId, PoolIdType());
+    MOCK_METHOD0(GenPoolsetId, PoolsetIdType());
     MOCK_METHOD0(GenZoneId, ZoneIdType());
     MOCK_METHOD0(GenServerId, ServerIdType());
     MOCK_METHOD0(GenChunkServerId, ChunkServerIdType());
@@ -109,6 +115,9 @@ class MockStorage : public TopologyStorage {
         const std::string &url,
         const std::string &password));
 
+    MOCK_METHOD2(LoadPoolset,
+        bool(std::unordered_map<PoolsetIdType, Poolset>
+        *poolsetMap, PoolsetIdType * maxPoolsetId));
     MOCK_METHOD2(LoadLogicalPool,
         bool(std::unordered_map<PoolIdType, LogicalPool>
         *logicalPoolMap, PoolIdType * maxLogicalPoolId));
@@ -126,6 +135,8 @@ class MockStorage : public TopologyStorage {
         std::map<CopySetKey, ::curve::mds::topology::CopySetInfo> *copySetMap,
         std::map<PoolIdType, CopySetIdType> * copySetIdMaxMap));
 
+    MOCK_METHOD1(StoragePoolset, bool(
+        const Poolset &data));
     MOCK_METHOD1(StorageLogicalPool, bool(
         const LogicalPool &data));
     MOCK_METHOD1(StoragePhysicalPool, bool(
@@ -139,6 +150,8 @@ class MockStorage : public TopologyStorage {
     MOCK_METHOD1(StorageCopySet, bool(
         const ::curve::mds::topology::CopySetInfo &data));
 
+    MOCK_METHOD1(DeletePoolset, bool(PoolsetIdType
+        id));
     MOCK_METHOD1(DeleteLogicalPool, bool(PoolIdType
         id));
     MOCK_METHOD1(DeletePhysicalPool, bool(PoolIdType

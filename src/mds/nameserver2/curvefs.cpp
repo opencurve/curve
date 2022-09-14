@@ -37,6 +37,7 @@
 #include "src/common/math_util.h"
 
 using curve::common::TimeUtility;
+using curve::common::kDefaultPoolsetName;
 using curve::mds::topology::LogicalPool;
 using curve::mds::topology::LogicalPoolIdType;
 using curve::mds::topology::PhysicalPool;
@@ -45,6 +46,7 @@ using curve::mds::topology::CopySetIdType;
 using curve::mds::topology::ChunkServer;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::OnlineState;
+using curve::mds::topology::Poolset;
 
 namespace curve {
 namespace mds {
@@ -244,10 +246,13 @@ StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
     }
 }
 
-StatusCode CurveFS::CreateFile(const std::string & fileName,
+StatusCode CurveFS::CreateFile(const std::string& fileName,
+                               std::string poolset,
                                const std::string& owner,
-                               FileType filetype, uint64_t length,
-                               uint64_t stripeUnit, uint64_t stripeCount) {
+                               FileType filetype,
+                               uint64_t length,
+                               uint64_t stripeUnit,
+                               uint64_t stripeCount) {
     FileInfo parentFileInfo;
     std::string lastEntry;
 
@@ -260,6 +265,11 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
     // check param
     if (filetype == FileType::INODE_PAGEFILE) {
+        StatusCode retCode = CheckOrAssignPoolset(&poolset);
+        if (retCode != StatusCode::kOK) {
+            return retCode;
+        }
+
         if  (length < minFileLength_) {
             LOG(ERROR) << "file Length < MinFileLength " << minFileLength_
                        << ", length = " << length;
@@ -286,8 +296,9 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
                 topology_->GetLogicalPoolInCluster();
     std::map<PoolIdType, double> remianingSpace;
     uint64_t allRemianingSpace = 0;
+
     chunkSegAllocator_->GetRemainingSpaceInLogicalPool(logicalPools,
-                                &remianingSpace);
+                                &remianingSpace, poolset);
 
     for (auto it = remianingSpace.begin(); it != remianingSpace.end(); it++) {
         allRemianingSpace +=it->second;
@@ -328,6 +339,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
         fileInfo.set_id(inodeID);
         fileInfo.set_filename(lastEntry);
+        fileInfo.set_poolset(poolset);
         fileInfo.set_parentid(parentFileInfo.id());
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
@@ -771,6 +783,28 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                    << ", fileType = " << fileInfo.filetype();
         return kNotSupported;
     }
+}
+
+StatusCode CurveFS::CheckOrAssignPoolset(std::string* poolset) const {
+    const auto names = topology_->GetPoolsetNameInCluster();
+    if (names.empty()) {
+        LOG(WARNING) << "Cluster doesn't have poolsets";
+        return StatusCode::kPoolsetNotExist;
+    }
+
+    if (poolset->empty()) {
+        *poolset = kDefaultPoolsetName;
+        LOG(INFO) << "Poolset is empty, set to: " << kDefaultPoolsetName;
+        return StatusCode::kOK;
+    }
+
+    auto it = std::find(names.begin(), names.end(), *poolset);
+    if (it == names.end()) {
+        LOG(WARNING) << "Poolset `" << *poolset << "` not found";
+        return StatusCode::kPoolsetNotExist;
+    }
+
+    return StatusCode::kOK;
 }
 
 StatusCode CurveFS::RecoverFile(const std::string & originFileName,
@@ -1255,8 +1289,11 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         } else {
             // TODO(hzsunjianliang): check the user and define the logical pool
             auto ifok = chunkSegAllocator_->AllocateChunkSegment(
-                            fileInfo.filetype(), fileInfo.segmentsize(),
-                            fileInfo.chunksize(), offset, segment);
+                    fileInfo.filetype(), fileInfo.segmentsize(),
+                    fileInfo.chunksize(),
+                    fileInfo.has_poolset() ? fileInfo.poolset()
+                                           : kDefaultPoolsetName,
+                    offset, segment);
             if (ifok == false) {
                 LOG(ERROR) << "AllocateChunkSegment error";
                 return StatusCode::kSegmentAllocateError;
@@ -1787,6 +1824,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             ChunkSizeType chunksize,
                             uint64_t stripeUnit,
                             uint64_t stripeCount,
+                            std::string poolset,
                             FileInfo *retFileInfo,
                             const std::string & cloneSource,
                             uint64_t cloneLength) {
@@ -1806,6 +1844,11 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
 
     auto ret = CheckStripeParam(defaultSegmentSize_, defaultChunkSize_,
                                 stripeUnit, stripeCount);
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+
+    ret = CheckOrAssignPoolset(&poolset);
     if (ret != StatusCode::kOK) {
         return ret;
     }
@@ -1857,6 +1900,7 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_filestatus(FileStatus::kFileCloning);
         fileInfo.set_stripeunit(stripeUnit);
         fileInfo.set_stripecount(stripeCount);
+        fileInfo.set_poolset(poolset);
 
         fileInfo.set_allocated_throttleparams(
             new FileThrottleParams(GenerateDefaultThrottleParams(length)));

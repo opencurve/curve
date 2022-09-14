@@ -52,6 +52,8 @@ using curve::common::ChunkServerLocation;
 namespace curve {
 namespace tool {
 
+using curve::mds::topology::PoolsetInfo;
+
 class NameSpaceToolCore {
  public:
     explicit NameSpaceToolCore(std::shared_ptr<MDSClient> client);
@@ -110,9 +112,7 @@ class NameSpaceToolCore {
      *  @param stripeCount the amount of stripes
      *  @return 成功返回0，失败返回-1
      */
-    virtual int CreateFile(const std::string& fileName, uint64_t length,
-                           bool normalFile = true, uint64_t stripeUnit = 0,
-                           uint64_t stripeCount = 0);
+    virtual int CreateFile(const CreateFileContext& ctx);
 
    /**
      *  @brief 扩容卷
@@ -177,6 +177,8 @@ class NameSpaceToolCore {
                                    const uint64_t limit,
                                    const int64_t burst,
                                    const int64_t burstLength);
+
+    virtual int ListPoolset(std::vector<PoolsetInfo>* poolsets);
 
  private:
     /**

@@ -132,4 +132,3 @@ int main(int argc, char **argv) {
     google::ShutdownGoogleLogging();
     return 0;
 }
-

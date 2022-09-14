@@ -43,6 +43,7 @@ bool CloneInfo::SerializeToString(std::string *value) const {
     data.set_islazy(isLazy_);
     data.set_nextstep(static_cast<int>(nextStep_));
     data.set_status(static_cast<int>(status_));
+    data.set_poolset(poolset_);
     return data.SerializeToString(value);
 }
 
@@ -61,6 +62,7 @@ bool CloneInfo::ParseFromString(const std::string &value) {
     isLazy_ = data.islazy();
     nextStep_ = static_cast<CloneStep>(data.nextstep());
     status_ = static_cast<CloneStatus>(data.status());
+    poolset_ = data.poolset();
     return ret;
 }
 
@@ -71,6 +73,7 @@ std::ostream& operator<<(std::ostream& os, const CloneInfo &cloneInfo) {
        << static_cast<int> (cloneInfo.GetTaskType());
     os << ", source : " << cloneInfo.GetSrc();
     os << ", destination : " << cloneInfo.GetDest();
+    os << ", poolset : " << cloneInfo.GetPoolset();
     os << ", originId : " << cloneInfo.GetOriginId();
     os << ", destId : " << cloneInfo.GetDestId();
     os << ", time : " << cloneInfo.GetTime();
@@ -94,6 +97,7 @@ bool SnapshotInfo::SerializeToString(std::string *value) const {
     data.set_filelength(fileLength_);
     data.set_stripeunit(stripeUnit_);
     data.set_stripecount(stripeCount_);
+    data.set_poolset(poolset_);
     data.set_time(time_);
     data.set_status(static_cast<int>(status_));
     return data.SerializeToString(value);
@@ -120,6 +124,7 @@ bool SnapshotInfo::ParseFromString(const std::string &value) {
     } else {
         stripeCount_ = 0;
     }
+    poolset_ = data.poolset();
     time_ = data.time();
     status_ = static_cast<Status>(data.status());
     return ret;
@@ -136,6 +141,7 @@ std::ostream& operator<<(std::ostream& os, const SnapshotInfo &snapshotInfo) {
     os << ", fileLength : " << snapshotInfo.GetFileLength();
     os << ", stripeUnit :" << snapshotInfo.GetStripeUnit();
     os << ", stripeCount :" << snapshotInfo.GetStripeCount();
+    os << ", poolset: " << snapshotInfo.GetPoolset();
     os << ", time : " << snapshotInfo.GetCreateTime();
     os << ", status : " << static_cast<int>(snapshotInfo.GetStatus());
     os << " }";

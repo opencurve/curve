@@ -57,6 +57,8 @@ const int kMdsDummyPort = 10008;
 const char* kSnapshotCloneServerDummyServerPort = "12000";
 const char* kLeaderCampaginPrefix = "snapshotcloneserverleaderlock3";
 
+static const char* kDefaultPoolset = "default";
+
 const std::string kLogPath = "./runlog/" + kTestPrefix + "Log";  // NOLINT
 const std::string kMdsDbName = kTestPrefix + "DB";               // NOLINT
 const std::string kMdsConfigPath =                               // NOLINT
@@ -914,7 +916,7 @@ TEST_F(SnapshotCloneServerTest, TestImageNotLazyClone) {
 TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
     std::string snapId = "errorSnapUuid";
     SnapshotInfo snapInfo(snapId, testUser1_, testFile4_, "snapxxx", 0, 0, 0, 0,
-                        0, 0, 0, Status::error);
+                        0, 0, kDefaultPoolset, 0, Status::error);
 
     cluster_->metaStore_->AddSnapshot(snapInfo);
 

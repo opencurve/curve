@@ -63,20 +63,20 @@ TEST_F(ChunkAllocatorTest, testcase1) {
     // test segment pointer == nullptr
     ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
                                          DefaultSegmentSize, DefaultChunkSize,
-                                         0, nullptr),
+                                         "ssdPoolset1", 0, nullptr),
               false);
 
     // test offset not align with segmentsize
     PageFileSegment segment;
     ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
                                          DefaultSegmentSize, DefaultChunkSize,
-                                         1, &segment),
+                                         "", 1, &segment),
               false);
 
     // test  chunkSize not align with segmentsize
-    ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                         DefaultSegmentSize,
-                                         DefaultChunkSize - 1, 0, &segment),
+    ASSERT_EQ(impl->AllocateChunkSegment(
+                      FileType::INODE_PAGEFILE, DefaultSegmentSize,
+                      DefaultChunkSize - 1, "ssdPoolset1", 0, &segment),
               false);
 
     // test  topologyAdmin_AllocateChunkRoundRobinInSingleLogicalPool
@@ -85,13 +85,13 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         PageFileSegment segment;
 
         EXPECT_CALL(*mockTopologyChunkAllocator_,
-                    AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _, _))
             .Times(1)
             .WillOnce(Return(false));
 
-        ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                             DefaultSegmentSize,
-                                             DefaultChunkSize, 0, &segment),
+        ASSERT_EQ(impl->AllocateChunkSegment(
+                          FileType::INODE_PAGEFILE, DefaultSegmentSize,
+                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
                   false);
     }
 
@@ -101,13 +101,14 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         std::vector<CopysetIdInfo> copysetInfos;
         EXPECT_CALL(*mockTopologyChunkAllocator_,
-                    AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<4>(copysetInfos),
+            Return(true)));
 
-        ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                             DefaultSegmentSize,
-                                             DefaultChunkSize, 0, &segment),
+        ASSERT_EQ(impl->AllocateChunkSegment(
+                          FileType::INODE_PAGEFILE, DefaultSegmentSize,
+                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
                   false);
     }
 
@@ -123,17 +124,18 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyChunkAllocator_,
-                    AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<4>(copysetInfos),
+            Return(true)));
 
         EXPECT_CALL(*mockChunkIDGenerator_, GenChunkID(_))
             .Times(1)
             .WillOnce(Return(false));
 
-        ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                             DefaultSegmentSize,
-                                             DefaultChunkSize, 0, &segment),
+        ASSERT_EQ(impl->AllocateChunkSegment(
+                          FileType::INODE_PAGEFILE, DefaultSegmentSize,
+                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
                   false);
     }
 
@@ -149,17 +151,18 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyChunkAllocator_,
-                    AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<4>(copysetInfos),
+            Return(true)));
 
         EXPECT_CALL(*mockChunkIDGenerator_, GenChunkID(_))
             .Times(1)
             .WillOnce(Return(false));
 
-        ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                             DefaultSegmentSize,
-                                             DefaultChunkSize, 0, &segment),
+        ASSERT_EQ(impl->AllocateChunkSegment(
+                          FileType::INODE_PAGEFILE, DefaultSegmentSize,
+                          DefaultChunkSize, "ssdPoolset1", 0, &segment),
                   false);
     }
 
@@ -177,13 +180,14 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyChunkAllocator_,
-                    AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<4>(copysetInfos),
+            Return(true)));
 
         ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                             segmentSize, DefaultChunkSize, 0,
-                                             &segment),
+                                             segmentSize, DefaultChunkSize,
+                                             "ssdPoolset1", 0, &segment),
                   false);
     }
 
@@ -203,17 +207,18 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyChunkAllocator_,
-                    AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _, _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos), Return(true)));
+            .WillOnce(DoAll(SetArgPointee<4>(copysetInfos),
+            Return(true)));
 
         EXPECT_CALL(*mockChunkIDGenerator_, GenChunkID(_))
             .Times(AtLeast(segmentSize / DefaultChunkSize))
             .WillRepeatedly(DoAll(SetArgPointee<0>(1), Return(true)));
 
         ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
-                                             segmentSize, DefaultChunkSize, 0,
-                                             &segment),
+                                             segmentSize, DefaultChunkSize,
+                                             "ssdPoolset1", 0, &segment),
                   true);
 
         PageFileSegment expectSegment;

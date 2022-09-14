@@ -53,6 +53,8 @@ const char CHUNKSERVERKEYEND[] = "1006";
 const char CLUSTERINFOKEY[] = "1007";
 const char COPYSETKEYPREFIX[] = "1008";
 const char COPYSETKEYEND[] = "1009";
+const char POOLSETKEYPREFIX[] = "1010";
+const char POOLSETKEYEND[] = "1011";
 
 const char SNAPINFOKEYPREFIX[] = "11";
 const char SNAPINFOKEYEND[] = "12";
@@ -68,9 +70,10 @@ const int LEADER_PREFIX_LENGTH = 8;
 const int SEGMENTKEYLEN = 18;
 const int DISCARDSEGMENTKEYLEN = 26;
 
+constexpr int kDefaultPoolsetId = 1;
+constexpr char kDefaultPoolsetName[] = "default";
+
 }  // namespace common
 }  // namespace curve
 
 #endif  // SRC_COMMON_NAMESPACE_DEFINE_H_
-
-

@@ -30,6 +30,7 @@
 #include <string>
 
 #include "test/client/mock/mock_namespace_service.h"
+#include "test/client/mock/mock_topology_service.h"
 
 namespace curve {
 namespace client {
@@ -42,17 +43,23 @@ using ::testing::SetArgPointee;
 
 constexpr uint64_t kGiB = 1024ull * 1024 * 1024;
 
-template <typename RpcRequestType, typename RpcResponseType,
-          bool RpcFailed = false>
-void FakeRpcService(google::protobuf::RpcController* cntl_base,
-                    const RpcRequestType* request, RpcResponseType* response,
-                    google::protobuf::Closure* done) {
-    if (RpcFailed) {
-        brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-        cntl->SetFailed(112, "Not connected to");
+namespace {
+template <bool FAIL>
+struct FakeRpcService {
+    template <typename Request, typename Response>
+    void operator()(google::protobuf::RpcController* cntl_base,
+                    const Request* /*request*/,
+                    Response* /*response*/,
+                    google::protobuf::Closure* done) const {
+        if (FAIL) {
+            brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+            cntl->SetFailed(112, "Not connected to");
+        }
+
+        done->Run();
     }
-    done->Run();
-}
+};
+}  // namespace
 
 class MDSClientTest : public testing::Test {
  protected:
@@ -61,6 +68,8 @@ class MDSClientTest : public testing::Test {
         const std::string mdsAddr2 = "127.0.0.1:9601";
 
         ASSERT_EQ(0, server_.AddService(&mockNameService_,
+                                        brpc::SERVER_DOESNT_OWN_SERVICE));
+        ASSERT_EQ(0, server_.AddService(&mockTopoService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
 
         // only start mds on mdsAddr1
@@ -86,6 +95,7 @@ class MDSClientTest : public testing::Test {
  protected:
     brpc::Server server_;
     curve::mds::MockNameService mockNameService_;
+    curve::client::MockTopologyService mockTopoService_;
     MDSClient mdsClient_;
     MetaServerOption option_;
 };
@@ -102,7 +112,7 @@ TEST_F(MDSClientTest, TestRenameFile) {
         EXPECT_CALL(mockNameService_, RenameFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<RenameFileRequest, RenameFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         auto startMs = TimeUtility::GetTimeofDayMs();
         ASSERT_EQ(LIBCURVE_ERROR::NOT_SUPPORT,
@@ -119,7 +129,7 @@ TEST_F(MDSClientTest, TestRenameFile) {
         EXPECT_CALL(mockNameService_, RenameFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<RenameFileRequest, RenameFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::FILE_OCCUPIED,
                   mdsClient_.RenameFile(userInfo, srcName, destName));
@@ -136,10 +146,10 @@ TEST_F(MDSClientTest, TestRenameFile) {
         EXPECT_CALL(mockNameService_, RenameFile(_, _, _, _))
             .WillOnce(DoAll(
                 SetArgPointee<2>(responseNotSupport),
-                Invoke(FakeRpcService<RenameFileRequest, RenameFileResponse>)))
+                Invoke(FakeRpcService<false>{})))
             .WillOnce(DoAll(
                 SetArgPointee<2>(responseOK),
-                Invoke(FakeRpcService<RenameFileRequest, RenameFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.RenameFile(userInfo, srcName, destName));
@@ -157,7 +167,7 @@ TEST_F(MDSClientTest, TestDeleteFile) {
         EXPECT_CALL(mockNameService_, DeleteFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<DeleteFileRequest, DeleteFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         auto startMs = TimeUtility::GetTimeofDayMs();
         ASSERT_EQ(LIBCURVE_ERROR::NOT_SUPPORT,
@@ -174,7 +184,7 @@ TEST_F(MDSClientTest, TestDeleteFile) {
         EXPECT_CALL(mockNameService_, DeleteFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<DeleteFileRequest, DeleteFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::FILE_OCCUPIED,
                   mdsClient_.DeleteFile(fileName, userInfo));
@@ -191,10 +201,10 @@ TEST_F(MDSClientTest, TestDeleteFile) {
         EXPECT_CALL(mockNameService_, DeleteFile(_, _, _, _))
             .WillOnce(DoAll(
                 SetArgPointee<2>(responseNotSupport),
-                Invoke(FakeRpcService<DeleteFileRequest, DeleteFileResponse>)))
+                Invoke(FakeRpcService<false>{})))
             .WillOnce(DoAll(
                 SetArgPointee<2>(responseOK),
-                Invoke(FakeRpcService<DeleteFileRequest, DeleteFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.DeleteFile(fileName, userInfo));
@@ -214,7 +224,7 @@ TEST_F(MDSClientTest, TestChangeOwner) {
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
                 Invoke(
-                    FakeRpcService<ChangeOwnerRequest, ChangeOwnerResponse>)));
+                    FakeRpcService<false>{})));
 
         auto startMs = TimeUtility::GetTimeofDayMs();
         ASSERT_EQ(LIBCURVE_ERROR::NOT_SUPPORT,
@@ -232,7 +242,7 @@ TEST_F(MDSClientTest, TestChangeOwner) {
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
                 Invoke(
-                    FakeRpcService<ChangeOwnerRequest, ChangeOwnerResponse>)));
+                    FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::FILE_OCCUPIED,
                   mdsClient_.ChangeOwner(fileName, newUser, userInfo));
@@ -250,11 +260,11 @@ TEST_F(MDSClientTest, TestChangeOwner) {
             .WillOnce(DoAll(
                 SetArgPointee<2>(responseNotSupport),
                 Invoke(
-                    FakeRpcService<ChangeOwnerRequest, ChangeOwnerResponse>)))
+                    FakeRpcService<false>{})))
             .WillOnce(DoAll(
                 SetArgPointee<2>(responseOK),
                 Invoke(
-                    FakeRpcService<ChangeOwnerRequest, ChangeOwnerResponse>)));
+                    FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.ChangeOwner(fileName, newUser, userInfo));
@@ -274,7 +284,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
     {
         EXPECT_CALL(mockNameService_, OpenFile(_, _, _, _))
             .WillRepeatedly(Invoke(
-                FakeRpcService<OpenFileRequest, OpenFileResponse, true>));
+                FakeRpcService<true>{}));
 
         auto startMs = TimeUtility::GetTimeofDayMs();
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
@@ -292,7 +302,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
         EXPECT_CALL(mockNameService_, OpenFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
                   mdsClient_.OpenFile(fileName, userInfo,
@@ -316,7 +326,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
         EXPECT_CALL(mockNameService_, OpenFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.OpenFile(fileName, userInfo,
@@ -344,7 +354,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
         EXPECT_CALL(mockNameService_, OpenFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.OpenFile(fileName, userInfo,
@@ -373,7 +383,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
         EXPECT_CALL(mockNameService_, OpenFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.OpenFile(fileName, userInfo,
@@ -410,7 +420,7 @@ TEST_F(MDSClientTest, TestOpenFile) {
         EXPECT_CALL(mockNameService_, OpenFile(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<OpenFileRequest, OpenFileResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.OpenFile(fileName, userInfo,
@@ -437,8 +447,7 @@ TEST_F(MDSClientTest, TestIncreaseEpoch) {
     {
         EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
             .WillRepeatedly(Invoke(
-                FakeRpcService<IncreaseFileEpochRequest,
-                               IncreaseFileEpochResponse, true>));
+                FakeRpcService<true>{}));
 
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
                   mdsClient_.IncreaseEpoch(fileName, userInfo,
@@ -452,8 +461,7 @@ TEST_F(MDSClientTest, TestIncreaseEpoch) {
         EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<IncreaseFileEpochRequest,
-                    IncreaseFileEpochResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
 
         ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
@@ -468,8 +476,7 @@ TEST_F(MDSClientTest, TestIncreaseEpoch) {
         EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<IncreaseFileEpochRequest,
-                    IncreaseFileEpochResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
 
         ASSERT_EQ(LIBCURVE_ERROR::FAILED,
@@ -499,8 +506,7 @@ TEST_F(MDSClientTest, TestIncreaseEpoch) {
         EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<IncreaseFileEpochRequest,
-                    IncreaseFileEpochResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.IncreaseEpoch(fileName, userInfo,
@@ -542,8 +548,7 @@ TEST_F(MDSClientTest, TestIncreaseEpoch) {
         EXPECT_CALL(mockNameService_, IncreaseFileEpoch(_, _, _, _))
             .WillRepeatedly(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(FakeRpcService<IncreaseFileEpochRequest,
-                    IncreaseFileEpochResponse>)));
+                Invoke(FakeRpcService<false>{})));
 
         ASSERT_EQ(LIBCURVE_ERROR::OK,
                   mdsClient_.IncreaseEpoch(fileName, userInfo,
@@ -562,6 +567,52 @@ TEST_F(MDSClientTest, TestIncreaseEpoch) {
             ASSERT_EQ(8200 + i, it->internalAddr.addr_.port);
             i++;
         }
+    }
+}
+
+TEST_F(MDSClientTest, TestListPoolset) {
+    std::vector<std::string> out;
+    mds::topology::ListPoolsetResponse response;
+
+    // controller failed
+    {
+        EXPECT_CALL(mockTopoService_, ListPoolset(_, _, _, _))
+            .WillRepeatedly(Invoke(FakeRpcService<true>{}));
+
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsClient_.ListPoolset(&out));
+    }
+
+    // request failed
+    {
+        response.set_statuscode(-1);
+        EXPECT_CALL(mockTopoService_, ListPoolset(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(response),
+                            Invoke(FakeRpcService<false>{})));
+
+        ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsClient_.ListPoolset(&out));
+    }
+
+    // request success
+    {
+        response.set_statuscode(0);
+        auto* poolset = response.add_poolsetinfos();
+        poolset->set_poolsetid(1);
+        poolset->set_poolsetname("default");
+        poolset->set_type("default");
+        poolset = response.add_poolsetinfos();
+        poolset->set_poolsetid(2);
+        poolset->set_poolsetname("system");
+        poolset->set_type("SSD");
+
+        EXPECT_CALL(mockTopoService_, ListPoolset(_, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(response),
+                            Invoke(FakeRpcService<false>{})));
+
+        out.clear();
+        ASSERT_EQ(LIBCURVE_ERROR::OK, mdsClient_.ListPoolset(&out));
+        ASSERT_EQ(2, out.size());
+        ASSERT_EQ("default", out[0]);
+        ASSERT_EQ("system", out[1]);
     }
 }
 

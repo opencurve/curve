@@ -24,6 +24,11 @@
 namespace curve {
 namespace mds {
 namespace topology {
+
+void DefaultIdGenerator::initPoolsetIdGenerator(PoolsetIdType idMax) {
+    poolsetIdGentor_.init(idMax);
+}
+
 void DefaultIdGenerator::initLogicalPoolIdGenerator(PoolIdType idMax) {
   logicPoolIdGentor_.init(idMax);
 }
@@ -50,6 +55,9 @@ void DefaultIdGenerator::initCopySetIdGenerator(
   for (auto it : idMaxMap) {
     copySetIdGentor_[it.first].init(it.second);
   }
+}
+PoolsetIdType DefaultIdGenerator::GenPoolsetId() {
+    return poolsetIdGentor_.GenId();
 }
 
 PoolIdType DefaultIdGenerator::GenLogicalPoolId() {
@@ -79,4 +87,3 @@ CopySetIdType DefaultIdGenerator::GenCopySetId(PoolIdType logicalPoolId) {
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-
