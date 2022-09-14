@@ -271,18 +271,18 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
     return -1;
 }
 
-int MDSClient::CreateFile(const std::string& fileName, uint64_t length,
-                          bool normalFile, uint64_t stripeUnit,
-                          uint64_t stripeCount) {
+int MDSClient::CreateFile(const CreateFileContext& context) {
     curve::mds::CreateFileRequest request;
     curve::mds::CreateFileResponse response;
-    request.set_filename(fileName);
-    if (normalFile) {
+    request.set_filename(context.name);
+    if (context.type == curve::mds::FileType::INODE_PAGEFILE) {
         request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-        request.set_filelength(length);
-        request.set_stripeunit(stripeUnit);
-        request.set_stripecount(stripeCount);
+        request.set_filelength(context.length);
+        request.set_poolset(context.poolset);
+        request.set_stripeunit(context.stripeUnit);
+        request.set_stripecount(context.stripeCount);
     } else {
+        assert(context.type == curve::mds::FileType::INODE_DIRECTORY);
         request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
     }
 
@@ -300,7 +300,7 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length,
         return 0;
     }
     std::cout << "CreateFile fail with errCode: "
-              << response.statuscode() << std::endl;
+              << StatusCode_Name(response.statuscode()) << std::endl;
     return -1;
 }
 
@@ -1021,5 +1021,30 @@ void MDSClient::FillUserInfo(T* request) {
         request->set_signature(sig);
     }
 }
+
+int MDSClient::ListPoolset(std::vector<PoolsetInfo>* poolsets) {
+    assert(poolsets != nullptr);
+    curve::mds::topology::ListPoolsetRequest request;
+    curve::mds::topology::ListPoolsetResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    auto fp = &curve::mds::topology::TopologyService_Stub::ListPoolset;
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "ListPoolset fail" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() == curve::mds::topology::kTopoErrCodeSuccess) {
+        auto* mut = response.mutable_poolsetinfos();
+        poolsets->insert(poolsets->end(), std::make_move_iterator(mut->begin()),
+                         std::make_move_iterator(mut->end()));
+        return 0;
+    }
+
+    std::cout << "ListPoolset fail with errCode: " << response.statuscode()
+              << std::endl;
+    return -1;
+}
+
 }  // namespace tool
 }  // namespace curve

@@ -61,6 +61,7 @@ namespace topology {
 typedef uint16_t LogicalPoolIdType;
 typedef uint16_t PhysicalPoolIdType;
 typedef uint16_t PoolIdType;
+typedef uint16_t PoolsetIdType;
 typedef uint32_t ZoneIdType;
 typedef uint32_t ServerIdType;
 typedef uint32_t ChunkServerIdType;
@@ -92,6 +93,8 @@ const int kTopoErrCodeNameDuplicated = -16;
 const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
 const int kTopoErrCodeCannotRemoveNotRetired = -18;
 const int kTopoErrCodeLogicalPoolExist = -19;
+const int kTopoErrCodePoolsetNotFound = -20;
+const int kTopoErrCodeCannotDeleteDefaultPoolset = -21;
 
 }  // namespace topology
 }  // namespace mds

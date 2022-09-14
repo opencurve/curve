@@ -24,7 +24,7 @@
 #include "src/common/curve_version.h"
 #include "src/tools/curve_tool_factory.h"
 
-const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
+static const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "COMMANDS:\n"
         "space : show curve all disk type space, include total space and used space\n"  //NOLINT
         "status : show the total status of the cluster\n"
@@ -59,8 +59,8 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "check-operator : check the operators\n"
         "list-may-broken-vol: list all volumes on majority offline copysets\n"
         "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n\n"  //NOLINT
+        "list-poolsets: list all poolsets in cluster\n\n"
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
-
 
 DEFINE_bool(example, false, "print the example of usage");
 DEFINE_string(confPath, "/etc/curve/tools.conf", "config file path of tools");
@@ -125,7 +125,7 @@ bool LoadRootUserNameAndPassword(curve::common::Configuration* conf) {
     rc = conf->GetStringValue("rootUserPassword",
                               &curve::tool::rootUserPassword);
     if (!rc) {
-        std::cerr << "Mising rootUserPassword in '" << FLAGS_confPath << "'\n";
+        std::cerr << "Missing rootUserPassword in '" << FLAGS_confPath << "'\n";
         return false;
     }
 

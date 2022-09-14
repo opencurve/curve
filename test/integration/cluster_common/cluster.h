@@ -367,7 +367,7 @@ class CurveCluster {
      */
     int CreateFile(const std::string &user, const std::string &pwd,
                    const std::string &fileName, uint64_t fileSize = 0,
-                   bool normalFile = true);
+                   bool normalFile = true, const std::string& poolset = "");
 
  private:
     /**

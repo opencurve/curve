@@ -38,17 +38,17 @@ namespace topology {
 // logical pool is not designated when calling this function. When executing,
 // a logical will be chosen following the policy (randomly or weighted)
 bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
-    curve::mds::FileType fileType,
-    uint32_t chunkNumber,
-    ChunkSizeType chunkSize,
+    curve::mds::FileType fileType, const std::string& pstName,
+    uint32_t chunkNumber, ChunkSizeType chunkSize,
     std::vector<CopysetIdInfo> *infos) {
+    (void)chunkSize;
     if (fileType != INODE_PAGEFILE) {
         LOG(ERROR) << "Invalid FileType, fileType = "
                    << fileType;
         return false;
     }
     PoolIdType logicalPoolChosenId = 0;
-    bool ret = ChooseSingleLogicalPool(fileType, &logicalPoolChosenId);
+    bool ret = ChooseSingleLogicalPool(fileType, pstName, &logicalPoolChosenId);
     if (!ret) {
         LOG(ERROR) << "ChooseSingleLogicalPool fail, ret =  " << ret;
         return false;
@@ -72,17 +72,17 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
 }
 
 bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
-    curve::mds::FileType fileType,
-    uint32_t chunkNumber,
-    ChunkSizeType chunkSize,
+    curve::mds::FileType fileType, const std::string& pstName,
+    uint32_t chunkNumber, ChunkSizeType chunkSize,
     std::vector<CopysetIdInfo> *infos) {
+    (void)chunkSize;
     if (fileType != INODE_PAGEFILE) {
         LOG(ERROR) << "Invalid FileType, fileType = "
                    << fileType;
         return false;
     }
     PoolIdType logicalPoolChosenId = 0;
-    bool ret = ChooseSingleLogicalPool(fileType, &logicalPoolChosenId);
+    bool ret = ChooseSingleLogicalPool(fileType, pstName, &logicalPoolChosenId);
     if (!ret) {
         LOG(ERROR) << "ChooseSingleLogicalPool fail, ret = false.";
         return false;
@@ -126,7 +126,7 @@ bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
 }
 
 bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
-    curve::mds::FileType fileType,
+    curve::mds::FileType fileType, const std::string& pstName,
     PoolIdType *poolOut) {
     std::vector<PoolIdType> logicalPools;
 
@@ -169,6 +169,15 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
         if (!topology_->GetPhysicalPool(lPool.GetPhysicalPoolId(), &pPool)) {
             continue;
         }
+        Poolset poolset;
+        if (!topology_->GetPoolset(pPool.GetPoolsetId(), &poolset)) {
+            continue;
+        }
+
+        if (poolset.GetName() != pstName) {
+            continue;
+        }
+
         uint64_t diskCapacity = pPool.GetDiskCapacity();
         // calculate actual capacity available
         diskCapacity = diskCapacity * poolUsagePercentLimit_ / 100;

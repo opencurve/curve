@@ -135,6 +135,32 @@ class TopologyServiceImpl : public TopologyService {
                       ListPhysicalPoolResponse* response,
                       google::protobuf::Closure* done);
 
+     virtual void ListPhysicalPoolsInPoolset(
+                      google::protobuf::RpcController* cntl_base,
+                      const ListPhysicalPoolsInPoolsetRequest* request,
+                      ListPhysicalPoolResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void CreatePoolset(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void ListPoolset(google::protobuf::RpcController* cntl_base,
+                      const ListPoolsetRequest* request,
+                      ListPoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void DeletePoolset(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void GetPoolset(google::protobuf::RpcController* cntl_base,
+                      const PoolsetRequest* request,
+                      PoolsetResponse* response,
+                      google::protobuf::Closure* done);
+
     virtual void CreateLogicalPool(google::protobuf::RpcController* cntl_base,
                       const CreateLogicalPoolRequest* request,
                       CreateLogicalPoolResponse* response,

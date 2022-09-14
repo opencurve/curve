@@ -114,19 +114,10 @@ class FileClient {
                        size_t size);
 
     /**
-     * create file with stripe
-     * @param: filename file name
-     * @param: userinfo user info
-     * @param: size file size
-     * @param: stripeUnit block in stripe size
-     * @param  stripeCount stripe count in one stripe
+     * Create file with parameters
      * @return: success return 0,  fail return less than 0
-     *
      */
-    virtual int Create2(const std::string& filename,
-                        const UserInfo_t& userinfo,
-                        size_t size, uint64_t stripeUnit,
-                        uint64_t stripeCount);
+    virtual int Create2(const CreateFileContext& context);
 
     /**
      * 同步模式读
@@ -287,6 +278,9 @@ class FileClient {
      * @return 成功返回0，失败返回-LIBCURVE_ERROR::FAILED
      */
     int GetFileInfo(int fd, FInfo* finfo);
+
+    // List all poolsets' name in cluster
+    std::vector<std::string> ListPoolset();
 
     /**
      * 测试使用，获取当前挂载文件数量

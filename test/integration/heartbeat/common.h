@@ -70,7 +70,9 @@ using ::curve::mds::topology::DefaultTokenGenerator;
 using ::curve::mds::topology::kTopoErrCodeSuccess;
 using ::curve::mds::topology::LogicalPool;
 using ::curve::mds::topology::LogicalPoolType;
+using ::curve::mds::topology::Poolset;
 using ::curve::mds::topology::PhysicalPool;
+using ::curve::mds::topology::PoolsetIdType;
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::ServerIdType;
 using ::curve::mds::topology::TopologyImpl;
@@ -117,6 +119,11 @@ class FakeTopologyStorage : public TopologyStorage {
     FakeTopologyStorage() {}
 
     bool
+    LoadPoolset(std::unordered_map<PoolsetIdType, Poolset> *PoolsetMap,
+                    PoolsetIdType *maxPoolsetId) {
+        return true;
+    }
+    bool
     LoadLogicalPool(std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
                     PoolIdType *maxLogicalPoolId) {
         return true;
@@ -144,6 +151,9 @@ class FakeTopologyStorage : public TopologyStorage {
         return true;
     }
 
+    bool StoragePoolset(const Poolset &data) {
+        return true;
+    }
     bool StorageLogicalPool(const LogicalPool &data) {
         return true;
     }
@@ -163,6 +173,9 @@ class FakeTopologyStorage : public TopologyStorage {
         return true;
     }
 
+    bool DeletePoolset(PoolsetIdType id) {
+        return true;
+    }
     bool DeleteLogicalPool(PoolIdType id) {
         return true;
     }
@@ -219,6 +232,12 @@ class HeartbeatIntegrationCommon {
     explicit HeartbeatIntegrationCommon(const Configuration &conf) {
         conf_ = conf;
     }
+
+    /* PrepareAddPoolset 在集群中添加物理池集合
+     *
+     * @param[in] poolset 物理池集合（池组）
+     */
+    void PrepareAddPoolset(const Poolset &poolset);
 
     /* PrepareAddLogicalPool 在集群中添加逻辑池
      *

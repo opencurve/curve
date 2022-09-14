@@ -229,7 +229,8 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
 
     // 创建文件
     ASSERT_EQ(0, curveCluster_->CreateFile("test", "test", "/basic_test",
-                                           10 * 1024 * 1024 * 1024UL));
+                                           10 * 1024 * 1024 * 1024UL,
+                                           /*normalFile=*/true, "SSD_2"));
 
     // 获取当前正在服务的mds
     int curMds;
@@ -240,12 +241,14 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_EQ(0, curveCluster_->HangMDS(1));
     // 创建文件失败
     ASSERT_NE(0, curveCluster_->CreateFile("test1", "test1", "/basic_test1",
-                                           10 * 1024 * 1024 * 1024UL));
+                                           10 * 1024 * 1024 * 1024UL,
+                                           /*normalFile=*/true, "SSD_2"));
     // 恢复mds进程
     ASSERT_EQ(0, curveCluster_->RecoverHangMDS(1));
     // 创建文件成功
     ASSERT_EQ(0, curveCluster_->CreateFile("test2", "test2", "/basic_test2",
-                                           10 * 1024 * 1024 * 1024UL));
+                                           10 * 1024 * 1024 * 1024UL,
+                                           /*normalFile=*/true, "SSD_2"));
 
     // 停掉chunkserver
     ASSERT_EQ(0, curveCluster_->StopChunkServer(1));

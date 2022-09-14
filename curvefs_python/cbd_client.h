@@ -25,6 +25,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "curvefs_python/curve_type.h"
 
@@ -48,8 +49,7 @@ class CBDClient {
     int Close(int fd);
 
     int Create(const char* filename, UserInfo_t* userInfo, size_t size);
-    int Create2(const char* filename, UserInfo_t* userInfo, size_t size,
-                                uint64_t stripeUnit, uint64_t stripeCount);
+    int Create2(const CreateContext* context);
     int Unlink(const char* filename, UserInfo_t* info);
     int DeleteForce(const char* filename, UserInfo_t* info);
     int Recover(const char* filename, UserInfo_t* info, uint64_t fileId);
@@ -75,6 +75,8 @@ class CBDClient {
     int Rmdir(const char* dirpath, UserInfo_t* info);
 
     std::string GetClusterId();
+
+    std::vector<std::string> ListPoolset();
 
  private:
     std::unique_ptr<curve::client::FileClient> client_;

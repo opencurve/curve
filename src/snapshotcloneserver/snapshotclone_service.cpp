@@ -347,6 +347,8 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
         bcntl->http_request().uri().GetQuery(kDestinationStr);
     const std::string *lazy =
         bcntl->http_request().uri().GetQuery(kLazyStr);
+    const std::string *poolset =
+        bcntl->http_request().uri().GetQuery(kPoolset);
     if ((version == nullptr) ||
         (user == nullptr) ||
         (source == nullptr) ||
@@ -356,7 +358,9 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
         (user->empty()) ||
         (source->empty()) ||
         (destination->empty()) ||
-        (lazy->empty())) {
+        (lazy->empty()) ||
+        // poolset is optional, but if it exists, it should not be empty
+        (poolset != nullptr && poolset->empty())) {
         HandleBadRequestError(bcntl, requestId);
         LOG(INFO) << "SnapshotCloneServiceImpl Return : "
                   << "action = Clone"
@@ -380,14 +384,16 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
               << ", Source = " << *source
               << ", Destination = " << *destination
               << ", Lazy = " << *lazy
+              << ", Poolset = " << (poolset != nullptr ? *poolset : "")
               << ", requestId = " << requestId;
 
 
     TaskIdType taskId;
     auto closure = std::make_shared<CloneClosure>(bcntl, done);
     closure->SetRequestId(requestId);
-    cloneManager_->CloneFile(
-    *source, *user, *destination, lazyFlag, closure, &taskId);
+    cloneManager_->CloneFile(*source, *user, *destination,
+                             (poolset != nullptr ? *poolset : ""), lazyFlag,
+                             closure, &taskId);
     done_guard.release();
     return;
 }
@@ -955,5 +961,3 @@ void SnapshotCloneServiceImpl::HandleBadRequestError(brpc::Controller* bcntl,
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-
-

@@ -111,6 +111,8 @@ class NameSpaceTool : public CurveTool {
     // 目前curve mds不支持/test/格式的文件名，需要把末尾的/去掉
     void TrimEndingSlash(std::string* fileName);
 
+    int PrintPoolsets();
+
  private:
     // 核心逻辑
     std::shared_ptr<NameSpaceToolCore> core_;

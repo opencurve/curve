@@ -137,6 +137,8 @@ class ToolMDSClientTest : public ::testing::Test {
         pool->set_physicalpoolid(id);
         pool->set_physicalpoolname("testPool");
         pool->set_desc("physical pool for test");
+        pool->set_poolsetid(1);
+        pool->set_poolsetname("default");
     }
 
     void GetLogicalPoolForTest(PoolIdType id,
@@ -490,6 +492,15 @@ TEST_F(ToolMDSClientTest, CreateFile) {
     uint64_t length = 10 * DefaultSegmentSize;
     uint64_t stripeUnit = 32 * 1024 *1024;
     uint64_t stripeCount = 32;
+
+    CreateFileContext context;
+    context.type = curve::mds::FileType::INODE_PAGEFILE;
+    context.name = fileName;
+    context.length = length;
+    context.stripeUnit = stripeUnit;
+    context.stripeCount = stripeCount;
+    context.poolset = "";
+
     // 发送RPC失败
     EXPECT_CALL(*nameService, CreateFile(_, _, _, _))
         .Times(6)
@@ -502,8 +513,7 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                             dynamic_cast<brpc::Controller *>(controller);
                         cntl->SetFailed("test");
                     }));
-    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length,
-                             stripeUnit, stripeCount));
+    ASSERT_EQ(-1, mdsClient.CreateFile(context));
 
     // 返回码不为OK
     curve::mds::CreateFileResponse response;
@@ -516,8 +526,7 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                         Closure *done){
                         brpc::ClosureGuard doneGuard(done);
                     })));
-    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length,
-                                       stripeUnit, stripeCount));
+    ASSERT_EQ(-1, mdsClient.CreateFile(context));
 
     // 正常情况
     response.set_statuscode(curve::mds::StatusCode::kOK);
@@ -529,8 +538,7 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                         Closure *done){
                         brpc::ClosureGuard doneGuard(done);
                     })));
-    ASSERT_EQ(0, mdsClient.CreateFile(fileName, length,
-                                     stripeUnit, stripeCount));
+    ASSERT_EQ(0, mdsClient.CreateFile(context));
 }
 
 TEST_F(ToolMDSClientTest, ExtendVolume_success) {

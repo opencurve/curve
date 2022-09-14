@@ -76,6 +76,8 @@ using curve::common::Authenticator;
 namespace curve {
 namespace tool {
 
+using curve::mds::topology::PoolsetInfo;
+
 enum class GetSegmentRes {
     kOK = 0,   // 获取segment成功
     kSegmentNotAllocated = -1,  // segment不存在
@@ -84,6 +86,15 @@ enum class GetSegmentRes {
 };
 
 using AllocMap = std::unordered_map<PoolIdType, uint64_t>;
+
+struct CreateFileContext {
+    curve::mds::FileType type;
+    std::string name;
+    uint64_t length;
+    uint64_t stripeUnit;
+    uint64_t stripeCount;
+    std::string poolset;
+};
 
 class MDSClient {
  public:
@@ -175,11 +186,7 @@ class MDSClient {
      *  @param stripeCount the amount of stripes
      *  @return 成功返回0，失败返回-1
      */
-    virtual int CreateFile(const std::string& fileName,
-                           uint64_t length = 0,
-                           bool normalFile = true,
-                           uint64_t stripeUnit = 0,
-                           uint64_t stripeCount = 0);
+    virtual int CreateFile(const CreateFileContext& context);
 
     /**
      *  @brief List all volumes on copysets
@@ -430,6 +437,8 @@ class MDSClient {
     int QueryChunkServerRecoverStatus(
         const std::vector<ChunkServerIdType>& cs,
         std::map<ChunkServerIdType, bool> *statusMap);
+
+    int ListPoolset(std::vector<PoolsetInfo>* poolsets);
 
  private:
     /**

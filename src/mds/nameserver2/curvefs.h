@@ -130,6 +130,7 @@ class CurveFS {
      *  @return return StatusCode::kOK if succeeded
      */
     StatusCode CreateFile(const std::string & fileName,
+                          std::string poolset,
                           const std::string& owner,
                           FileType filetype,
                           uint64_t length,
@@ -215,6 +216,13 @@ class CurveFS {
     StatusCode RecoverFile(const std::string & originFileName,
                            const std::string & recycleFileName,
                            uint64_t fileId);
+
+    /**
+     *  @brief check or assign poolset name
+     *  @param[in|out] poolset: poolset name
+     *  @return StatusCode::kOK if success
+     */
+    StatusCode CheckOrAssignPoolset(std::string* poolset) const;
 
     /**
      *  @brief get information of all files in the directory
@@ -422,6 +430,7 @@ class CurveFS {
                             ChunkSizeType chunksize,
                             uint64_t stripeUnit,
                             uint64_t stripeCount,
+                            std::string poolset,
                             FileInfo *fileInfo,
                             const std::string & cloneSource = "",
                             uint64_t cloneLength = 0);

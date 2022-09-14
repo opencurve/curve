@@ -25,9 +25,6 @@
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
-#include <braft/configuration.h>
-#include <unistd.h>
-
 
 namespace curve {
 namespace common {

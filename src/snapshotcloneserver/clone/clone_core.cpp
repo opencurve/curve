@@ -56,6 +56,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     const std::string &destination,
     bool lazyFlag,
     CloneTaskType taskType,
+    std::string poolset,
     CloneInfo *cloneInfo) {
     // 查询数据库中是否有任务正在执行
     std::vector<CloneInfo> cloneInfoList;
@@ -67,6 +68,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                   << ", source = " << source
                   << ", user = " << user
                   << ", destination = " << destination
+                  << ", poolset = " << poolset
                   << ", Exist CloneInfo : " << info;
         // is clone
         if (taskType == CloneTaskType::kClone) {
@@ -144,7 +146,8 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                                    << "but task not match! "
                                    << "source = " << source
                                    << ", user = " << user
-                                   << ", destination = " << destination;
+                                   << ", destination = " << destination
+                                   << ", poolset = " << poolset;
                         return kErrCodeFileExist;
                     }
                 } else {
@@ -152,9 +155,15 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                     LOG(ERROR) << "Clone dest file must not exist"
                                << ", source = " << source
                                << ", user = " << user
-                               << ", destination = " << destination;
+                               << ", destination = " << destination
+                               << ", poolset = " << poolset;
                     return kErrCodeFileExist;
                 }
+            } else if (CloneTaskType::kRecover == taskType) {
+                // recover任务，卷的poolset信息不变
+                poolset = destFInfo.poolset;
+            } else {
+                assert(false);
             }
             break;
         case -LIBCURVE_ERROR::NOTEXIST:
@@ -192,6 +201,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                            << ", source = " << source
                            << ", user = " << user
                            << ", destination = " << destination
+                           << ", poolset = " << poolset
                            << ", snapshot.user = " << snapInfo.GetUser();
                 return kErrCodeInvalidUser;
             }
@@ -211,7 +221,8 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                 LOG(ERROR) << "Clone source file not exist"
                            << ", source = " << source
                            << ", user = " << user
-                           << ", destination = " << destination;
+                           << ", destination = " << destination
+                           << ", poolset = " << poolset;
                 return kErrCodeFileNotExist;
             default:
                 LOG(ERROR) << "GetFileInfo encounter an error"
@@ -233,7 +244,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
 
     UUID uuid = UUIDGenerator().GenerateUUID();
     CloneInfo info(uuid, user, taskType,
-        source, destination, fileType, lazyFlag);
+        source, destination, poolset, fileType, lazyFlag);
     if (CloneTaskType::kClone == taskType) {
         info.SetStatus(CloneStatus::cloning);
     } else {
@@ -249,7 +260,8 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                    << ", taskId = " << uuid
                    << ", user = " << user
                    << ", source = " << source
-                   << ", destination = " << destination;
+                   << ", destination = " << destination
+                   << ", poolset = " << poolset;
         if (CloneFileType::kSnapshot == fileType) {
             snapshotRef_->DecrementSnapshotRef(source);
         }
@@ -451,6 +463,16 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
     newFileInfo->length = snapInfo.GetFileLength();
     newFileInfo->stripeUnit = snapInfo.GetStripeUnit();
     newFileInfo->stripeCount = snapInfo.GetStripeCount();
+
+    if (task->GetCloneInfo().GetTaskType() == CloneTaskType::kRecover &&
+        task->GetCloneInfo().GetPoolset().empty()) {
+        LOG(ERROR) << "Recover task's poolset should not be empty";
+        return kErrCodeInternalError;
+    }
+    newFileInfo->poolset = !task->GetCloneInfo().GetPoolset().empty()
+                                   ? task->GetCloneInfo().GetPoolset()
+                                   : snapInfo.GetPoolset();
+
     if (IsRecover(task)) {
         FInfo fInfo;
         std::string destination = task->GetCloneInfo().GetDest();
@@ -556,6 +578,15 @@ int CloneCoreImpl::BuildFileInfoFromFile(
     newFileInfo->stripeUnit = fInfo.stripeUnit;
     newFileInfo->stripeCount = fInfo.stripeCount;
 
+    if (task->GetCloneInfo().GetTaskType() == CloneTaskType::kRecover &&
+        task->GetCloneInfo().GetPoolset().empty()) {
+        LOG(ERROR) << "Recover task's poolset should not be empty";
+        return kErrCodeInternalError;
+    }
+    newFileInfo->poolset = !task->GetCloneInfo().GetPoolset().empty()
+                                   ? task->GetCloneInfo().GetPoolset()
+                                   : fInfo.poolset;
+
     uint64_t fileLength = fInfo.length;
     uint64_t segmentSize = fInfo.segmentsize;
     uint64_t chunkSize = fInfo.chunksize;
@@ -616,6 +647,7 @@ int CloneCoreImpl::CreateCloneFile(
     uint32_t chunkSize = fInfo.chunksize;
     uint64_t stripeUnit = fInfo.stripeUnit;
     uint64_t stripeCount = fInfo.stripeCount;
+    const auto& poolset = fInfo.poolset;
 
     std::string source = "";
     // 只有从文件克隆才带clone source
@@ -626,7 +658,7 @@ int CloneCoreImpl::CreateCloneFile(
     FInfo fInfoOut;
     int ret = client_->CreateCloneFile(source, fileName,
         mdsRootUser_, fileLength, seqNum, chunkSize,
-        stripeUnit, stripeCount, &fInfoOut);
+        stripeUnit, stripeCount, poolset, &fInfoOut);
     if (ret == LIBCURVE_ERROR::OK) {
         // nothing
     } else if (ret == -LIBCURVE_ERROR::EXISTS) {
@@ -1675,4 +1707,3 @@ int CloneCoreImpl::HandleDeleteCloneInfo(const CloneInfo &cloneInfo) {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-
