@@ -326,8 +326,8 @@ void FuseS3Client::travelChunks(fuse_ino_t ino, google::protobuf::Map<uint64_t,
 void FuseS3Client::UnInit() {
     bgFetchStop_.store(true, std::memory_order_release);
     bgFetchThread_.join();
-    s3Adaptor_->Stop();
     FuseClient::UnInit();
+    s3Adaptor_->Stop();
     curve::common::S3Adapter::Shutdown();
 }
 
