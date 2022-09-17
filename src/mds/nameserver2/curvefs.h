@@ -206,7 +206,7 @@ class CurveFS {
     StatusCode IncreaseFileEpoch(const std::string &filename,
         FileInfo *fileinfo,
         ::google::protobuf::RepeatedPtrField<ChunkServerLocation> *cslocs);
-    
+
     /**
      *  @brief recover file
      *  @param[in] originFilename: filename before delete

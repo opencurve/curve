@@ -47,6 +47,11 @@ class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
     MOCK_METHOD5(AllocateChunkRoundRobinInSingleLogicalPool,
         bool(FileType, const std::string&, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
+
+    MOCK_METHOD3(GetRemainingSpaceInLogicalPool,
+                 void(const std::vector<PoolIdType>&,
+                      std::map<PoolIdType, double>*,
+                      const std::string&));
 };
 
 }  // namespace mds

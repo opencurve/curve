@@ -62,6 +62,10 @@ class TopologyChunkAllocator {
         uint32_t chunkNumer,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) = 0;
+    virtual void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace,
+        const std::string& pstName) = 0;
 };
 
 class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
@@ -114,6 +118,10 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
         uint32_t chunkNumber,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
+    void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace,
+        const std::string& pstName) override;
 
  private:
     /**

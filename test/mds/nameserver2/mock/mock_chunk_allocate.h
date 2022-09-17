@@ -42,6 +42,11 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
                       const std::string&,
                       offset_t,
                       PageFileSegment*));
+
+    MOCK_METHOD3(GetRemainingSpaceInLogicalPool,
+                 void(const std::vector<PoolIdType>&,
+                      std::map<PoolIdType, double>*,
+                      const std::string&));
 };
 }  // namespace mds
 }  // namespace curve
