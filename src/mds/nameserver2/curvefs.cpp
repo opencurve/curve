@@ -285,7 +285,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
     std::vector<PoolIdType> logicalPools =
                 topology_->GetLogicalPoolInCluster();
     logicalPools = topology_->GetLogicalPoolInCluster();
-    if (0 == logicalPools.size()) {
+    if (0 == logicalPools.size() && length != 0) {
         LOG(ERROR) << "[ChooseSingleLogicalPool]:"
                 << " Does not have any available logicalPools.";
         return StatusCode::kFileLengthNotSupported;
@@ -319,7 +319,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         }
     }
 
-    if (!EnoughFlag) {
+    if (!EnoughFlag && length != 0) {
         LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
                     << fileName << ", length = " << length;
         return StatusCode::kFileLengthNotSupported;
