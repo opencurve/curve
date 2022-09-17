@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <vector>
+#include <map>
 #include "src/mds/topology/topology_chunk_allocator.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;
@@ -45,6 +46,9 @@ class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
     MOCK_METHOD4(AllocateChunkRoundRobinInSingleLogicalPool,
         bool(FileType, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
+    MOCK_METHOD2(GetRemainingSpaceInLogicalPool,
+        void(const std::vector <PoolIdType>&,
+        std::map<PoolIdType, double>*));
 };
 
 }  // namespace mds

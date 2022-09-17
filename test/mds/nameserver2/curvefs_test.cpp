@@ -26,7 +26,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
-
+#include "src/mds/topology/topology_item.h"
 
 #include "test/mds/nameserver2/mock/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
@@ -90,8 +90,8 @@ class CurveFSTest: public ::testing::Test {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         fileInfo.set_owner(authOptions_.rootOwner);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-            .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            .Times(AtLeast(1))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
                 Return(StoreStatus::OK)));
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
@@ -131,6 +131,13 @@ class CurveFSTest: public ::testing::Test {
 
 TEST_F(CurveFSTest, testCreateFile1) {
     // test parm error
+    std::map<PoolIdType, double> spacePools;
+    spacePools.insert(std::pair<PoolIdType, double>(1,
+            kMaxFileLength - kMiniFileLength));
+    EXPECT_CALL(*mockChunkAllocator_,
+        GetRemainingSpaceInLogicalPool(_, _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
     ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
                     kMiniFileLength - 1, 0, 0),
                     StatusCode::kFileLengthNotSupported);
@@ -141,6 +148,10 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
     ASSERT_EQ(curvefs_->CreateFile("/flie1", "owner1", FileType::INODE_PAGEFILE,
                                    kMiniFileLength + 1, 0, 0),
+              StatusCode::kFileLengthNotSupported);
+
+    ASSERT_EQ(curvefs_->CreateFile("/flie1", "owner1", FileType::INODE_PAGEFILE,
+                kMaxFileLength - kMiniFileLength + DefaultSegmentSize, 0, 0),
               StatusCode::kFileLengthNotSupported);
 
     ASSERT_EQ(curvefs_->CreateFile("/", "", FileType::INODE_DIRECTORY, 0, 0, 0),
@@ -271,6 +282,13 @@ TEST_F(CurveFSTest, testCreateFile1) {
 TEST_F(CurveFSTest, testCreateStripeFile) {
     {
         // test create ok
+        std::map<PoolIdType, double> spacePools;
+        spacePools.insert(std::pair<PoolIdType, double>(1, kMaxFileLength));
+        spacePools.insert(std::pair<PoolIdType, double>(2, kMaxFileLength));
+        EXPECT_CALL(*mockChunkAllocator_,
+            GetRemainingSpaceInLogicalPool(_, _))
+         .Times(AtLeast(1))
+         .WillRepeatedly(DoAll(SetArgPointee<1>(spacePools), Return()));
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::KeyNotExist));

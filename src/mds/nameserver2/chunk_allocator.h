@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <map>
 #include <memory>
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
@@ -42,6 +43,9 @@ class ChunkSegmentAllocator {
     virtual bool AllocateChunkSegment(FileType type,
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
         offset_t offset, PageFileSegment *segment) = 0;
+    virtual void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace) = 0;
 };
 
 
@@ -64,6 +68,13 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
     bool AllocateChunkSegment(FileType type,
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
         offset_t offset, PageFileSegment *segment) override;
+
+    void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace) {
+            return topologyChunkAllocator_->GetRemainingSpaceInLogicalPool(
+                            logicalPools, remianingSpace);
+        }
 
  private:
     std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
