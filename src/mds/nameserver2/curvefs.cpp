@@ -40,6 +40,8 @@ using curve::common::TimeUtility;
 using curve::common::kDefaultPoolsetName;
 using curve::mds::topology::LogicalPool;
 using curve::mds::topology::LogicalPoolIdType;
+using curve::mds::topology::PhysicalPool;
+using curve::mds::topology::PhysicalPoolIdType;
 using curve::mds::topology::CopySetIdType;
 using curve::mds::topology::ChunkServer;
 using curve::mds::topology::ChunkServerStatus;
@@ -273,6 +275,22 @@ StatusCode CurveFS::CreateFile(const std::string& fileName,
                        << ", segment size = " << defaultSegmentSize_;
             return StatusCode::kFileLengthNotSupported;
         }
+    }
+
+    std::vector<PoolIdType> logicalPools =
+                topology_->GetLogicalPoolInCluster();
+    std::map<PoolIdType, double> remianingSpace;
+    uint64_t allRemianingSpace = 0;
+    chunkSegAllocator_->GetRemainingSpaceInLogicalPool(
+        logicalPools, &remianingSpace, poolset);
+
+    for (auto it = remianingSpace.begin(); it != remianingSpace.end(); it++) {
+        allRemianingSpace +=it->second;
+    }
+    if (allRemianingSpace < length) {
+        LOG(ERROR) << "CreateFile file length > LeftSize, fileName = "
+                    << fileName << ", length = " << length;
+        return StatusCode::kFileLengthNotSupported;
     }
 
     auto ret = CheckStripeParam(defaultSegmentSize_, defaultChunkSize_,

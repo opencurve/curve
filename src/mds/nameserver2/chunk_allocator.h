@@ -42,9 +42,16 @@ class ChunkSegmentAllocator {
     virtual ~ChunkSegmentAllocator() {}
 
     virtual bool AllocateChunkSegment(FileType type,
-        SegmentSizeType segmentSize, ChunkSizeType chunkSize,
-        const std::string& pstName, offset_t offset,
-        PageFileSegment *segment) = 0;
+                                      SegmentSizeType segmentSize,
+                                      ChunkSizeType chunkSize,
+                                      const std::string& pstName,
+                                      offset_t offset,
+                                      PageFileSegment* segment) = 0;
+
+    virtual void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace,
+        const std::string& pstName) = 0;
 };
 
 class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
@@ -62,6 +69,14 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
         const std::string& pstName, offset_t offset,
         PageFileSegment *segment) override;
+
+    void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* remianingSpace,
+        const std::string& pstName) override {
+            return topologyChunkAllocator_->GetRemainingSpaceInLogicalPool(
+                            logicalPools, remianingSpace, pstName);
+        }
 
  private:
     std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
