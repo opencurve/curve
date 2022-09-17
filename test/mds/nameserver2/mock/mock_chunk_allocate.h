@@ -24,6 +24,8 @@
 #define  TEST_MDS_NAMESERVER2_MOCK_MOCK_CHUNK_ALLOCATE_H_
 
 #include <gmock/gmock.h>
+#include <vector>
+#include <map>
 #include "src/mds/nameserver2/chunk_allocator.h"
 
 namespace curve {
@@ -36,6 +38,9 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
 
     MOCK_METHOD5(AllocateChunkSegment, bool(FileType, SegmentSizeType,
       ChunkSizeType, offset_t, PageFileSegment*));
+    MOCK_METHOD2(GetRemainingSpaceInLogicalPool,
+    void(const std::vector <PoolIdType>&,
+    std::map<PoolIdType, double>*));
 };
 }  // namespace mds
 }  // namespace curve

@@ -41,6 +41,7 @@ using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
 
 const uint64_t FACK_INODE_INITIALIZE = 0;
 const uint64_t FACK_CHUNKID_INITIALIZE = 0;
+const uint64_t FACK_FILE_INTTIALIZE = 10737418240;
 
 namespace curve {
 namespace mds {
@@ -97,6 +98,14 @@ class FackTopologyChunkAllocator: public TopologyChunkAllocator {
         }
         return true;
     }
+    void GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* enoughSpacePools) override {
+            for (auto i = logicalPools.begin(); i != logicalPools.end(); i++){
+                enoughSpacePools->insert(std::pair<PoolIdType,
+                    double>(*i, 10*FACK_FILE_INTTIALIZE));
+            }
+        }
 };
 
 class FakeNameServerStorage : public NameServerStorage {

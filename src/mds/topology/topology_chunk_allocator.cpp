@@ -166,7 +166,30 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
 
     std::map<PoolIdType, double> poolWeightMap;
     std::vector<PoolIdType> poolToChoose;
-    for (auto pid : logicalPools) {
+    std::map<PoolIdType, double> poolsEnough;
+    GetRemainingSpaceInLogicalPool(logicalPools, &poolsEnough);
+    for (auto pool : poolsEnough) {
+        // choose logical pool according to its weight
+        if (ChoosePoolPolicy::kWeight == policy_) {
+            // record capacity remaining as the weight of this logicalpool
+            poolWeightMap.emplace(pool.first, pool.second);
+        } else {
+            poolToChoose.push_back(pool.first);
+        }
+    }
+    if (ChoosePoolPolicy::kWeight == policy_) {
+        return AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
+            poolWeightMap, poolOut);
+    } else {
+        return AllocateChunkPolicy::ChooseSingleLogicalPoolRandom(
+            poolToChoose, poolOut);
+    }
+}
+
+void TopologyChunkAllocatorImpl::GetRemainingSpaceInLogicalPool(
+        const std::vector<PoolIdType>& logicalPools,
+        std::map<PoolIdType, double>* enoughSpacePools) {
+        for (auto pid : logicalPools) {
         LogicalPool lPool;
         if (!topology_->GetLogicalPool(pid, &lPool)) {
             continue;
@@ -196,25 +219,11 @@ bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
                   << ", diskAlloc:" << alloc
                   << ", diskRemainning:" << diskRemainning
                   << "}";
-        // choose logical pool according to its weight
-        if (ChoosePoolPolicy::kWeight == policy_) {
-            // record capacity remaining as the weight of this logicalpool
-            poolWeightMap.emplace(pid, diskRemainning);
-        } else {
-            if (diskRemainning > 0) {
-                poolToChoose.push_back(pid);
-            }
+        if (diskRemainning > 0) {
+            (*enoughSpacePools)[pid] = diskRemainning;
         }
     }
-    if (ChoosePoolPolicy::kWeight == policy_) {
-        return AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
-            poolWeightMap, poolOut);
-    } else {
-        return AllocateChunkPolicy::ChooseSingleLogicalPoolRandom(
-            poolToChoose, poolOut);
-    }
 }
-
 bool AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
     std::vector<CopySetIdType> copySetIds,
     PoolIdType logicalPoolId,
