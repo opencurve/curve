@@ -89,7 +89,8 @@ butil::Status CurveCli::DeleteBrokenCopyset(braft::PeerId peerId,
 
     if (cntl.Failed()) {
         return butil::Status(cntl.ErrorCode(), cntl.ErrorText());
-    } else if (response.status() != COPYSET_OP_STATUS_SUCCESS) {
+    } else if (response.status() != curve::chunkserver::COPYSET_OP_STATUS::
+                                        COPYSET_OP_STATUS_SUCCESS) {
         return butil::Status(-1, COPYSET_OP_STATUS_Name(response.status()));
     }
 

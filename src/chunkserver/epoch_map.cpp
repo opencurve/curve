@@ -66,7 +66,9 @@ bool EpochMap::UpdateEpoch(uint64_t fileId, uint64_t epoch) {
                 return false;
             }
         } else {
-            internalMap_.emplace(fileId, epoch);
+            internalMap_.emplace(std::piecewise_construct,
+                                 std::forward_as_tuple(fileId),
+                                 std::forward_as_tuple(epoch));
             return true;
         }
     }

@@ -49,8 +49,6 @@ using ::curve::chunkserver::CopysetID;
 using ::curve::chunkserver::CopysetRequest;
 using ::curve::chunkserver::CopysetResponse;
 using ::curve::chunkserver::CopysetService_Stub;
-using ::curve::chunkserver::COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS;
-using ::curve::chunkserver::COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN;  // NOLINT
 
 class CurveCli : public CurveTool {
  public:
