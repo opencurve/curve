@@ -255,7 +255,7 @@ TEST_F(MDSClientTest, Closefile) {
 
     LOG(INFO) << "now create file!";
     LIBCURVE_ERROR ret =
-        mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid");
+        mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid", {});
     ASSERT_EQ(ret, LIBCURVE_ERROR::NOTEXIST);
 
 
@@ -268,7 +268,7 @@ TEST_F(MDSClientTest, Closefile) {
     curvefsservice.SetCloseFile(fakeret1);
 
     LOG(INFO) << "now create file!";
-    ret = mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid");
+    ret = mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid", {});
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     // 设置rpc失败，触发重试
@@ -281,7 +281,7 @@ TEST_F(MDSClientTest, Closefile) {
     curvefsservice.CleanRetryTimes();
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-              mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid"));
+              mdsclient_.CloseFile(filename.c_str(), userinfo, "sessid", {}));
 
     delete fakeret;
     delete fakeret2;
@@ -2333,7 +2333,8 @@ TEST_F(MDSClientRefreshSessionTest, StartDummyServerTest) {
     UserInfo userInfo;
     userInfo.owner = "test";
     LeaseRefreshResult result;
-    ASSERT_EQ(0, mdsClient.RefreshSession("/filename", userInfo, "", &result));
+    ASSERT_EQ(0, mdsClient.RefreshSession("/filename", userInfo,
+        "", {}, &result));
 
     ASSERT_TRUE(request.has_clientport());
     ASSERT_TRUE(request.has_clientip());
@@ -2360,7 +2361,8 @@ TEST_F(MDSClientRefreshSessionTest, NoStartDummyServerTest) {
     UserInfo userInfo;
     userInfo.owner = "test";
     LeaseRefreshResult result;
-    ASSERT_EQ(0, mdsClient.RefreshSession("/filename", userInfo, "", &result));
+    ASSERT_EQ(0, mdsClient.RefreshSession("/filename", userInfo,
+        "", {}, &result));
 
     ASSERT_FALSE(request.has_clientport());
     ASSERT_FALSE(request.has_clientip());

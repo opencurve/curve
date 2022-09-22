@@ -35,9 +35,11 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
 #include "src/mds/topology/topology_chunk_allocator.h"
+#include "src/common/timeutility.h"
 
 using ::curve::mds::topology::TopologyChunkAllocator;
 using ::curve::common::SNAPSHOTFILEINFOKEYPREFIX;
+using ::curve::common::TimeUtility;
 
 const uint64_t FACK_INODE_INITIALIZE = 0;
 const uint64_t FACK_CHUNKID_INITIALIZE = 0;
@@ -475,6 +477,51 @@ class FakeNameServerStorage : public NameServerStorage {
 
     StoreStatus ListDiscardSegment(
         std::map<std::string, DiscardSegmentInfo>* out) override {
+        return StoreStatus::OK;
+    }
+
+    StoreStatus PutFilePermInfo(const uint64_t fileid,
+                                const WriterLockInfo& info) override {
+        auto key = NameSpaceStorageCodec::EncodePermStoreKey(fileid);
+        std::string value;
+        if (!info.SerializeToString(&value)) {
+            LOG(ERROR) << "writerlockinfo serializetostring fail" <<
+                "fileid = " << fileid << "uuid = " <<
+                info.clientuuid() << "time = " << info.lastreceive();
+            return StoreStatus::InternalError;
+        }
+        std::lock_guard<std::mutex> guard(lock_);
+        memKvMap_[key] = value;
+        return StoreStatus::OK;
+    }
+
+    StoreStatus GetFilePermInfo(const uint64_t fileid,
+                                WriterLockInfo* info) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        auto key = NameSpaceStorageCodec::EncodePermStoreKey(fileid);
+        std::string value;
+        auto iter = memKvMap_.find(key);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        value = iter->second;
+        if (!info->ParseFromString(value)) {
+            LOG(ERROR) << "writerlockinfo parsefromstring fail" <<
+                "fileid = " << fileid << "uuid = " << info->clientuuid()
+                << "time = " << info->lastreceive();
+            return StoreStatus::InternalError;
+        }
+        return StoreStatus::OK;
+    }
+
+    StoreStatus ClearPermInfo(const uint64_t fileid) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        auto key = NameSpaceStorageCodec::EncodePermStoreKey(fileid);
+        auto iter = memKvMap_.find(key);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter);
         return StoreStatus::OK;
     }
 

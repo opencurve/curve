@@ -21,6 +21,7 @@
  */
 
 #include <glog/logging.h>
+#include "src/mds/nameserver2/writerlock.h"
 #include "src/mds/server/mds.h"
 #include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/mds/topology/topology_storge_etcd.h"
@@ -454,13 +455,17 @@ void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {
 
     // init snapshotCloneClient
     InitSnapshotCloneClient();
-
+    // init writerlock
+    InitLockTimeoutOpt(&(options_.writerlocktimeoutopt));
+    auto writerlock = std::make_shared<WriterLock>(nameServerStorage_,
+        options_.writerlocktimeoutopt);
     LOG_IF(FATAL, !kCurveFS.Init(nameServerStorage_, inodeIdGenerator,
                   chunkSegmentAllocate, cleanManager_,
                   fileRecordManager,
                   segmentAllocStatistic_,
                   curveFSOptions, topology_,
-                  snapshotCloneClient_))
+                  snapshotCloneClient_,
+                  writerlock))
         << "init FileRecordManager fail";
     LOG(INFO) << "init FileRecordManager success.";
 
@@ -651,5 +656,10 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
     conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
                         &heartbeatOption->cleanFollowerAfterMs);
 }
+
+void MDS::InitLockTimeoutOpt(WriterLockTimeoutOption* timeopt) {
+    conf_->GetValueFatalIfFail("mds.file.expiredTimeUs", &(timeopt->timeoutus));
+}
+
 }  // namespace mds
 }  // namespace curve

@@ -223,8 +223,16 @@ void FileClient::UnInit() {
 
 int FileClient::Open(const std::string& filename,
                      const UserInfo_t& userinfo,
-                     const OpenFlags& openflags) {
-    LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
+                     const int openflags) {
+    if (!CheckFlags(openflags)) {
+        LOG(WARNING) << "Opening filename: " << filename <<
+            ", flags: " << TransformFlags(openflags);
+        return -LIBCURVE_ERROR::PERMISSION_DENY;
+    } else {
+        LOG(INFO) << "Opening filename: " << filename <<
+            ", flags: " << TransformFlags(openflags);
+    }
+
     FileInstance* fileserv = FileInstance::NewInitedFileInstance(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo,
         openflags, false);
@@ -234,6 +242,7 @@ int FileClient::Open(const std::string& filename,
     }
 
     int ret = fileserv->Open(filename, userinfo);
+
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Open file failed, filename: " << filename
                    << ", retCode: " << ret;
@@ -822,7 +831,16 @@ int Open(const char* filename, const C_UserInfo_t* userinfo) {
     }
 
     return globalclient->Open(filename,
-            UserInfo(userinfo->owner, userinfo->password));
+    UserInfo(userinfo->owner, userinfo->password));
+}
+
+int Open2(const char* filename, C_UserInfo_t* userinfo, int flags) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return globalclient->Open(filename,
+    UserInfo(userinfo->owner, userinfo->password), flags);
 }
 
 int Read(int fd, char* buf, off_t offset, size_t length) {
@@ -1212,6 +1230,8 @@ const char* LibCurveErrorName(LIBCURVE_ERROR err) {
             return "RETRY_UNTIL_SUCCESS";
         case LIBCURVE_ERROR::EPOCH_TOO_OLD:
             return "EPOCH_TOO_OLD";
+        case LIBCURVE_ERROR::PERMISSION_DENY:
+            return "PERMISSION_DENY";
         case LIBCURVE_ERROR::UNKNOWN:
             break;
     }

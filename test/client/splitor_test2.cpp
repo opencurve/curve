@@ -50,13 +50,13 @@ TEST(SplitorTest, NeedGetOrAllocateSegmentTest_ChunkAllocatedButInvalid) {
 
     // read request with exclusive open return false
     FInfo finfo;
-    finfo.openflags.exclusive = true;
+    finfo.context.openflags = CURVE_FORCE_WRITE;
     metaCache.UpdateFileInfo(finfo);
     EXPECT_FALSE(Splitor::NeedGetOrAllocateSegment(
         MetaCacheErrorType::OK, OpType::READ, chunkInfo, &metaCache));
 
     // read request with non-exclusive open return false
-    finfo.openflags.exclusive = false;
+    finfo.context.openflags &= ~(CURVE_EXCLUSIVE);
     metaCache.UpdateFileInfo(finfo);
     EXPECT_TRUE(Splitor::NeedGetOrAllocateSegment(
         MetaCacheErrorType::OK, OpType::READ, chunkInfo, &metaCache));

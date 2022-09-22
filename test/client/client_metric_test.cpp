@@ -101,7 +101,8 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     auto opt = cc.GetFileServiceOption();
 
     FileInstance fi;
-    ASSERT_TRUE(fi.Initialize(filename, mdsclient, userinfo, OpenFlags{}, opt));
+    ASSERT_TRUE(fi.Initialize(filename, mdsclient, userinfo,
+        CURVE_FORCE_WRITE, opt));
 
     FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 
@@ -216,7 +217,8 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 50;
 
     FileInstance fi;
-    ASSERT_TRUE(fi.Initialize(filename, mdsclient, userinfo, OpenFlags{}, opt));
+    ASSERT_TRUE(fi.Initialize(filename, mdsclient, userinfo,
+        CURVE_FORCE_WRITE, opt));
 
     FileMetric* fm = fi.GetIOManager4File()->GetMetric();
 

@@ -72,7 +72,7 @@ void BlockDeviceClientImpl::UnInit() {
 bool BlockDeviceClientImpl::Open(const std::string& filename,
                                  const std::string& owner) {
     UserInfo userInfo(owner);
-    curve::client::OpenFlags flags;
+    int flags = CURVE_EXCLUSIVE | CURVE_RDWR;
     auto retCode = fileClient_->Open(filename, userInfo, flags);
     if (retCode < 0) {
         LOG(ERROR) << "Open file failed, filename = " << filename

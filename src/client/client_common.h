@@ -32,6 +32,7 @@
 #include <unordered_set>
 
 #include "include/client/libcurve.h"
+#include "include/client/libcurve_define.h"
 #include "src/common/throttle.h"
 
 namespace curve {
@@ -137,6 +138,46 @@ struct CloneSourceInfo {
     bool IsSegmentAllocated(uint64_t offset) const;
 };
 
+struct OpenContext {
+    int openflags;
+    std::string uuid;
+    OpenContext()
+        : openflags(CurveOpenFlags::CURVE_FORCE_WRITE) {}
+};
+
+inline const std::string TransformFlags(const int openflags) noexcept {
+    switch (openflags) {
+        case CURVE_EXCLUSIVE | CURVE_FORCE_WRITE:
+            return "CURVE_EXCLUSIVE | CURVE_FORCE_WRITE";
+        case CURVE_EXCLUSIVE | CURVE_RDONLY:
+            return "CURVE_EXCLUSIVE | CURVE_RDONLY";
+        case CURVE_EXCLUSIVE | CURVE_RDWR:
+            return "CURVE_EXCLUSIVE | CURVE_RDWR";
+        case CURVE_SHARED | CURVE_RDWR:
+            return "CURVE_SHARED | CURVE_RDWR";
+        case CURVE_SHARED | CURVE_FORCE_WRITE:
+            return "CURVE_SHARED | CURVE_FORCE_WRITE";
+        case CURVE_SHARED | CURVE_RDONLY:
+            return "CURVE_SHARED | CURVE_RDONLY";
+        default:
+            return "CURVE_FLAG_ERROR";
+    }
+}
+
+inline bool CheckFlags(const int openflags) noexcept {
+    switch (openflags) {
+        case CURVE_EXCLUSIVE | CURVE_FORCE_WRITE:
+        case CURVE_EXCLUSIVE | CURVE_RDONLY:
+        case CURVE_EXCLUSIVE | CURVE_RDWR:
+        case CURVE_SHARED | CURVE_RDWR:
+        case CURVE_SHARED | CURVE_FORCE_WRITE:
+        case CURVE_SHARED | CURVE_RDONLY:
+            return true;
+        default:
+            return false;
+    }
+}
+
 typedef struct FInfo {
     uint64_t id;
     uint64_t parentid;
@@ -159,8 +200,7 @@ typedef struct FInfo {
     uint64_t cloneLength{0};
     uint64_t stripeUnit;
     uint64_t stripeCount;
-
-    OpenFlags       openflags;
+    OpenContext context;
     common::ReadWriteThrottleParams throttleParams;
 
     FInfo() {
@@ -335,15 +375,10 @@ inline bool CloneSourceInfo::IsSegmentAllocated(uint64_t offset) const {
     return allocatedSegmentOffsets.count(segmentOffset) != 0;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const OpenFlags& flags) {
-    os << "[exclusive: " << std::boolalpha << flags.exclusive << "]";
-
-    return os;
-}
-
 // default flags for readonly open
-OpenFlags DefaultReadonlyOpenFlags();
-
+inline int DefaultReadonlyOpenFlags() {
+    return CURVE_EXCLUSIVE | CURVE_RDONLY;
+}
 }   // namespace client
 }   // namespace curve
 

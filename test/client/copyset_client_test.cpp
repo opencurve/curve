@@ -3599,7 +3599,8 @@ TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
               mdsclient->Initialize(cc.GetFileServiceOption().metaServerOpt));
     ASSERT_TRUE(fileinstance.Initialize(
-        "/test", mdsclient, userinfo, OpenFlags{}, cc.GetFileServiceOption()));
+        "/test", mdsclient, userinfo,
+        CURVE_FORCE_WRITE, cc.GetFileServiceOption()));
 
     // create fake chunkserver service
     FakeChunkServerService fakechunkservice;

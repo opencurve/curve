@@ -41,5 +41,6 @@ cc_library(
         "//src/mds/nameserver2/idgenerator:nameserver_idgenerator",
         "//src/mds/snapshotcloneclient",
         "//src/mds/topology",
+        "//include/client:include_client",
     ],
 )

@@ -57,6 +57,7 @@
 #include "src/common/channel_pool.h"
 #include "src/mds/schedule/scheduleService/scheduleService.h"
 #include "src/common/concurrent/dlock.h"
+#include "src/mds/nameserver2/writerlock.h"
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -82,6 +83,7 @@ using ::curve::election::LeaderElectionOptions;
 using ::curve::election::LeaderElection;
 using ::curve::common::Configuration;
 using ::curve::common::DLockOpts;
+using ::curve::mds::WriterLock;
 
 namespace curve {
 namespace mds {
@@ -107,6 +109,7 @@ struct MDSOptions {
     CopysetOption copysetOption;
     ChunkServerClientOption chunkServerClientOption;
     SnapshotCloneClientOption snapshotCloneClientOption;
+    WriterLockTimeoutOption writerlocktimeoutopt;
 };
 
 class MDS {
@@ -208,6 +211,8 @@ class MDS {
     void InitThrottleOption(ThrottleOption* option);
 
     void InitDLockOption(std::shared_ptr<DLockOpts> dlockOpts);
+
+    void InitLockTimeoutOpt(WriterLockTimeoutOption* timeopt);
 
  private:
     // mds configuration items

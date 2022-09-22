@@ -23,6 +23,7 @@
 #include "include/client/libcurve.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/source_reader.h"
+#include "src/common/uuid.h"
 
 namespace curve {
 namespace client {
@@ -56,7 +57,7 @@ int CurveClient::IncreaseEpoch(const std::string& filename) {
 }
 
 int CurveClient::Open(const std::string& filename,
-                      const OpenFlags& openflags) {
+                      const int openflags) {
     curve::client::UserInfo userInfo;
     std::string realFileName;
     bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(
@@ -71,7 +72,7 @@ int CurveClient::Open(const std::string& filename,
 }
 
 int CurveClient::ReOpen(const std::string& filename,
-                        const OpenFlags& openflags) {
+                        const int openflags) {
     return Open(filename, openflags);
 }
 

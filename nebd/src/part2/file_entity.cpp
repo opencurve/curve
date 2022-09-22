@@ -44,15 +44,6 @@ bool IsOpenFlagsExactlySame(const OpenFlags* lhs, const OpenFlags* rhs) {
     return google::protobuf::util::MessageDifferencer::Equals(*lhs, *rhs);
 }
 
-std::ostream& operator<<(std::ostream& os, const OpenFlags* flags) {
-    if (!flags) {
-        os << "[empty]";
-    } else {
-        os << "[exclusive: " << flags->exclusive() << "]";
-    }
-
-    return os;
-}
 
 NebdFileEntity::NebdFileEntity()
     : fd_(0)

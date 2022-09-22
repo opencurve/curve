@@ -105,3 +105,34 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "client_rwpermission_test",
+    srcs = glob([
+        "*.h",
+        "client_rwpermission_test.cpp"
+        ],
+    ),
+    copts = CURVE_TEST_COPTS,
+    defines = ["FIU_ENABLE"],
+    linkopts = ["-lfiu",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "//test/integration/client/common:client_integration_common_lib",
+        "//test/integration/cluster_common:integration_cluster_common",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)

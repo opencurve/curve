@@ -27,6 +27,7 @@
 #include <utility>
 #include <algorithm>
 
+#include "include/client/libcurve.h"
 #include "src/client/lease_executor.h"
 #include "src/common/net_common.h"
 #include "src/common/string_util.h"
@@ -253,7 +254,8 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
         OpenFileResponse response;
         mdsClientMetric_.openFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.openFile.latency);
-        MDSClientBase::OpenFile(filename, userinfo, &response, cntl, channel);
+        MDSClientBase::OpenFile(filename, userinfo, fi->context, &response,
+             cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.openFile.eps.count << 1;
@@ -272,13 +274,15 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
             << ", error msg = " << StatusCode_Name(stcode)
             << ", log id = " << cntl->log_id();
 
+        if (retcode == LIBCURVE_ERROR::PERMISSION_DENY) {
+            return retcode;
+        }
         bool flag = response.has_protosession() && response.has_fileinfo();
         if (flag) {
             ProtoSession leasesession = response.protosession();
             lease->sessionID = leasesession.sessionid();
             lease->leaseTime = leasesession.leasetime();
             lease->createTime = leasesession.createtime();
-
             const curve::mds::FileInfo &protoFileInfo = response.fileinfo();
             ServiceHelper::ProtoFileInfo2Local(protoFileInfo, fi, fEpoch);
 
@@ -345,13 +349,14 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string &filename,
 
 LIBCURVE_ERROR MDSClient::CloseFile(const std::string &filename,
                                     const UserInfo_t &userinfo,
-                                    const std::string &sessionid) {
+                                    const std::string &sessionid,
+                                    const OpenContext& cont) {
     auto task = RPCTaskDefine {
         CloseFileResponse response;
         mdsClientMetric_.closeFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.closeFile.latency);
-        MDSClientBase::CloseFile(filename, userinfo, sessionid, &response, cntl,
-                                 channel);
+        MDSClientBase::CloseFile(filename, userinfo, sessionid, cont,
+            &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.closeFile.eps.count << 1;
@@ -674,14 +679,15 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string &filename,
 LIBCURVE_ERROR MDSClient::RefreshSession(const std::string &filename,
                                          const UserInfo_t &userinfo,
                                          const std::string &sessionid,
+                                         const OpenContext& cont,
                                          LeaseRefreshResult *resp,
                                          LeaseSession *lease) {
     auto task = RPCTaskDefine {
         ReFreshSessionResponse response;
         mdsClientMetric_.refreshSession.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
-        MDSClientBase::RefreshSession(filename, userinfo, sessionid, &response,
-                                      cntl, channel);
+        MDSClientBase::RefreshSession(filename, userinfo, sessionid, cont,
+                &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.refreshSession.eps.count << 1;
             LOG(WARNING) << "Fail to send ReFreshSessionRequest, "
@@ -1473,6 +1479,9 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode &status,
         break;
     case ::curve::mds::StatusCode::kSnapshotFrozen:
         *errcode = LIBCURVE_ERROR::SNAPSTHO_FROZEN;
+        break;
+    case ::curve::mds::StatusCode::kPermissionDeny:
+        *errcode = LIBCURVE_ERROR::PERMISSION_DENY;
         break;
     default:
         *errcode = LIBCURVE_ERROR::UNKNOWN;

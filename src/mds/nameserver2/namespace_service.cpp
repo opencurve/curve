@@ -1492,7 +1492,9 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                                 clientIP,
                                 protoSession,
                                 fileInfo,
-                                cloneSourceSegment);
+                                cloneSourceSegment,
+                                request->has_opencontext() ?
+                                &(request->opencontext()) : nullptr);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1595,7 +1597,8 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
     retCode = kCurveFS.CloseFile(
         request->filename(), request->sessionid(),
         request->has_clientip() ? request->clientip() : clientIP,
-        request->has_clientport() ? request->clientport() : kInvalidPort);
+        request->has_clientport() ? request->clientport() : kInvalidPort,
+        request->has_opencontext() ? &(request->opencontext()) : nullptr);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         if (google::ERROR != GetMdsLogLevel(retCode)) {
@@ -1705,7 +1708,9 @@ void NameSpaceService::RefreshSession(
         request->has_clientip() ? request->clientip() : clientIP,
         request->has_clientport() ? request->clientport() : kInvalidPort,
         clientVersion,
-        fileInfo);
+        fileInfo,
+        request->has_opencontext()
+        ? &(request->opencontext()) : nullptr);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());

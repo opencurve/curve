@@ -92,7 +92,8 @@ enum LIBCURVE_ERROR {
     RETRY_UNTIL_SUCCESS = 30,
     // EPOCH_TOO_OLD
     EPOCH_TOO_OLD = 31,
-
+    // permission error use open2
+    PERMISSION_DENY = 32,
     // unknown error
     UNKNOWN                 = 100
 };
@@ -115,5 +116,15 @@ typedef struct CurveAioContext {
     LibCurveAioCallBack cb;
     void*               buf;
 } CurveAioContext;
+
+
+// default exclusive = true
+enum CurveOpenFlags {
+    CURVE_EXCLUSIVE = 1 << 0,
+    CURVE_SHARED = 1 << 1,
+    CURVE_RDWR = 1 << 2,
+    CURVE_RDONLY = 1 << 3,
+    CURVE_FORCE_WRITE = 1 << 4,
+};
 
 #endif  // INCLUDE_CLIENT_LIBCURVE_DEFINE_H_

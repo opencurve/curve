@@ -92,6 +92,10 @@ class MockNameServerStorage : public NameServerStorage {
                  StoreStatus(uint64_t, const std::string&, int64_t*));
     MOCK_METHOD1(ListDiscardSegment,
                  StoreStatus(std::map<std::string, DiscardSegmentInfo>*));
+    MOCK_METHOD2(PutFilePermInfo, StoreStatus(const uint64_t,
+                 const WriterLockInfo&));
+    MOCK_METHOD2(GetFilePermInfo, StoreStatus(const uint64_t, WriterLockInfo*));
+    MOCK_METHOD1(ClearPermInfo, StoreStatus(const uint64_t));
 };
 
 }  // namespace mds

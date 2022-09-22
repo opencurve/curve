@@ -17,7 +17,7 @@
 load("//:copts.bzl", "CURVE_TEST_COPTS")
 
 cc_test(
-    name = "curvefs_test",
+    name = "curvebs_test",
     srcs = glob(["*.cpp", "*.h"]),
     copts = CURVE_TEST_COPTS,
     deps = [

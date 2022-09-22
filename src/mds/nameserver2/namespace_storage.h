@@ -22,6 +22,7 @@
 #ifndef SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_H_
 #define SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_H_
 
+#include <sys/types.h>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -275,6 +276,12 @@ class NameServerStorage {
      */
     virtual StoreStatus LoadSnapShotFile(
                                     std::vector<FileInfo> *snapShotFiles) = 0;
+
+    virtual StoreStatus PutFilePermInfo(const uint64_t fileid,
+                                        const WriterLockInfo& info) = 0;
+    virtual StoreStatus GetFilePermInfo(const uint64_t fileid,
+                                        WriterLockInfo* info) = 0;
+    virtual StoreStatus ClearPermInfo(const uint64_t fileid) = 0;
 };
 
 class NameServerStorageImp : public NameServerStorage {
@@ -343,6 +350,14 @@ class NameServerStorageImp : public NameServerStorage {
                             const FileInfo * snapshotFileInfo) override;
 
     StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles) override;
+
+    StoreStatus PutFilePermInfo(const uint64_t fileid,
+                                const WriterLockInfo& info) override;
+
+    StoreStatus GetFilePermInfo(const uint64_t fileid,
+                                WriterLockInfo* value) override;
+
+    StoreStatus ClearPermInfo(const uint64_t fileid) override;
 
  private:
     StoreStatus ListFileInternal(const std::string& startStoreKey,

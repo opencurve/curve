@@ -685,7 +685,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
 
     mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
-        "/UnstableChunkserverTest", mdsclient_, userinfo, OpenFlags{}, fopt);
+        "/UnstableChunkserverTest", mdsclient_,
+        userinfo, CURVE_FORCE_WRITE, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -874,7 +875,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     mdsclient_->Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/ResumeTimeoutBackoff", mdsclient_, userinfo,
-                             OpenFlags{}, fopt);
+                             CURVE_FORCE_WRITE, fopt);
 
     // 设置leaderid
     EndPoint ep;

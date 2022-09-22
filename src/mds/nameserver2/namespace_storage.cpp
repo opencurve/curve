@@ -739,5 +739,58 @@ StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype,
     return StoreStatus::OK;
 }
 
+StoreStatus NameServerStorageImp::PutFilePermInfo(const uint64_t fileid,
+                                                  const WriterLockInfo& info) {
+    auto key = NameSpaceStorageCodec::EncodePermStoreKey(fileid);
+    std::string value;
+    if (!info.SerializeToString(&value)) {
+        LOG(ERROR) << "writerlockinfo serializetostring fail" <<
+            "fileid = " << fileid << "uuid = " <<
+            info.clientuuid() << "time = " << info.lastreceive();
+        return StoreStatus::InternalError;
+    }
+    auto errcode = client_->Put(key, value);
+    if (errcode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "save etcd error fileid: " <<
+            fileid;
+        return StoreStatus::InternalError;
+    }
+    cache_->Put(key, value);
+    return StoreStatus::OK;
+}
+
+StoreStatus NameServerStorageImp::GetFilePermInfo(const uint64_t fileid,
+                                                  WriterLockInfo* info) {
+    auto key = NameSpaceStorageCodec::EncodePermStoreKey(fileid);
+    std::string value;
+    int errcode = EtcdErrCode::EtcdOK;
+    if (!cache_->Get(key, &value)) {
+        errcode = client_->Get(key, &value);
+        if (errcode == EtcdErrCode::EtcdOK) {
+            cache_->Put(key, value);
+        } else {
+            return StoreStatus::KeyNotExist;
+        }
+    }
+
+    if (errcode == EtcdErrCode::EtcdOK &&
+        !info->ParseFromString(value)) {
+            LOG(ERROR) << "writerlockinfo parsefromstring fail" <<
+                "fileid = " << fileid << "uuid = " << info->clientuuid()
+                << "time = " << info->lastreceive();
+        return StoreStatus::InternalError;
+    }
+    return StoreStatus::OK;
+}
+
+StoreStatus NameServerStorageImp::ClearPermInfo(const uint64_t fileid) {
+    auto key = NameSpaceStorageCodec::EncodePermStoreKey(fileid);
+    cache_->Remove(key);
+    auto errcode = client_->Delete(key);
+    if (errcode == EtcdErrCode::EtcdOK) {
+        return StoreStatus::OK;
+    }
+    return StoreStatus::KeyNotExist;
+}
 }  // namespace mds
 }  // namespace curve

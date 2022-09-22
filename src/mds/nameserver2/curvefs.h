@@ -42,6 +42,9 @@
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include "src/mds/topology/topology_service_manager.h"
+#include "src/mds/nameserver2/writerlock.h"
+#include "include/client/libcurve_define.h"
+
 
 using curve::common::Authenticator;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
@@ -113,7 +116,8 @@ class CurveFS {
               std::shared_ptr<AllocStatistic> allocStatistic,
               const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<Topology> topology,
-              std::shared_ptr<SnapshotCloneClient> snapshotCloneClient);
+              std::shared_ptr<SnapshotCloneClient> snapshotCloneClient,
+              const std::shared_ptr<WriterLock>& writerlock = {});
 
     /**
      *  @brief Run session manager
@@ -385,7 +389,8 @@ class CurveFS {
                         const std::string &clientIP,
                         ProtoSession *protoSession,
                         FileInfo  *fileInfo,
-                        CloneSourceSegment* cloneSourceSegment = nullptr);
+                        CloneSourceSegment* cloneSourceSegment = nullptr,
+                        const OpenFileContext* context = nullptr);
 
     /**
      *  @brief close file
@@ -395,7 +400,9 @@ class CurveFS {
      */
     StatusCode CloseFile(const std::string &fileName,
                          const std::string &sessionID,
-                         const std::string &clientIP, uint32_t clientPort);
+                         const std::string &clientIP,
+                         uint32_t clientPort,
+                         const OpenFileContext* context = nullptr);
 
     /**
      *  @brief update the valid period of the session
@@ -416,7 +423,8 @@ class CurveFS {
                               const std::string &clientIP,
                               uint32_t clientPort,
                               const std::string &clientVersion,
-                              FileInfo  *fileInfo);
+                              FileInfo  *fileInfo,
+                              const OpenFileContext* context = nullptr);
 
     /**
      * @brief Clone a file. Clone file can only be created by the root user currently //NOLINT
@@ -803,6 +811,12 @@ class CurveFS {
     bool IsDefaultThrottleParams(const FileThrottleParams &params,
                                  uint64_t length) const;
 
+    static bool IsLock(const OpenFileContext* cont) {
+        return nullptr != cont && (cont->openflags()
+            & CurveOpenFlags::CURVE_RDWR) &&
+            (cont->openflags() & CurveOpenFlags::CURVE_SHARED);
+    }
+
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
@@ -813,6 +827,7 @@ class CurveFS {
     std::shared_ptr<AllocStatistic> allocStatistic_;
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<SnapshotCloneClient> snapshotCloneClient_;
+    std::shared_ptr<WriterLock> writerlock_;
     struct RootAuthOption       rootAuthOptions_;
     ThrottleOption throttleOption_;
 

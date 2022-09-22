@@ -493,7 +493,8 @@ bool Splitor::NeedGetOrAllocateSegment(MetaCacheErrorType error, OpType opType,
     } else if (error == MetaCacheErrorType::OK && !chunkInfo.chunkExist) {
         return (opType == OpType::WRITE) ||
                (opType == OpType::READ &&
-                !metaCache->GetFileInfo()->openflags.exclusive);
+                !static_cast<bool>((metaCache->GetFileInfo()->context.openflags)
+                    & CURVE_EXCLUSIVE));
     }
 
     return false;

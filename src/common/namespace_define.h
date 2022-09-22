@@ -67,7 +67,9 @@ const int COMMON_PREFIX_LENGTH = 2;
 const int LEADER_PREFIX_LENGTH = 8;
 const int SEGMENTKEYLEN = 18;
 const int DISCARDSEGMENTKEYLEN = 26;
-
+// save info for file with permission
+const int PERM_PREFIX_LENGTH = 2;
+const char PERMINFOPREFIX[] = "15";
 }  // namespace common
 }  // namespace curve
 

@@ -51,8 +51,8 @@ LeaseExecutor::~LeaseExecutor() {
 
 bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t& lease) {
     fullFileName_ = fi.fullPathName;
-
     leasesession_ = lease;
+    context_ = fi.context;
     if (leasesession_.leaseTime <= 0) {
         LOG(ERROR) << "Invalid lease time, filename = " << fullFileName_;
         return false;
@@ -63,7 +63,6 @@ bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t& lease) {
                    << fullFileName_;
         return false;
     }
-
     iomanager_->UpdateFileInfo(fi);
 
     auto interval =
@@ -93,7 +92,8 @@ bool LeaseExecutor::RefreshLease() {
 
     LeaseRefreshResult response;
     LIBCURVE_ERROR ret = mdsclient_->RefreshSession(
-        fullFileName_, userinfo_, leasesession_.sessionID, &response);
+        fullFileName_, userinfo_, leasesession_.sessionID, context_,
+        &response, nullptr);
 
     if (LIBCURVE_ERROR::FAILED == ret) {
         LOG(WARNING) << "Refresh session rpc failed, filename = "

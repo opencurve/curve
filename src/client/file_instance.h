@@ -54,18 +54,19 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     bool Initialize(const std::string& filename,
                     std::shared_ptr<MDSClient> mdsclient,
                     const UserInfo_t& userinfo,
-                    const OpenFlags& openflags,
+                    const int openflags,
                     const FileServiceOption& fileservicopt,
                     bool readonly = false);
+
     /**
-     * 打开文件
-     * @param: filename为文件名
-     * @param: userinfo为user信息
-     * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+     * open file success get file descriptor
+     * @param: curveOpenFlags: client open2 the way
+     * @return: success return the file descriptor
+     *          otherwise return LIBCURVE_ERROR::FAILED
      */
     int Open(const std::string& filename,
-             const UserInfo& userinfo,
-             std::string* sessionId = nullptr);
+              const UserInfo& userinfo,
+              std::string* sessionId = nullptr);
 
     /**
      * 重新打开文件
@@ -161,16 +162,27 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
         std::shared_ptr<MDSClient> mdsClient,
         const std::string& filename,
         const UserInfo& userInfo,
-        const OpenFlags& openflags,
+        const int openflags,
         bool readonly);
 
     static FileInstance* Open4Readonly(
         const FileServiceOption& opt, std::shared_ptr<MDSClient> mdsclient,
         const std::string& filename, const UserInfo& userInfo,
-        const OpenFlags& openflags = DefaultReadonlyOpenFlags());
+        const int openflags = DefaultReadonlyOpenFlags());
 
  private:
     void StopLease();
+
+        /**
+     * design for Open2.
+     * 1. if you use CurveOpenFlags::CURVE_RDONLY to open, then
+     *    the OpenFileContext stored in FInfo. So you can not get
+     *    the write permission in this case.
+     * 2. use CurveOpenFlags::CURVE_RDONLY to open, Open Success will
+     *    get the file descriptor. So the client can get the write permission
+     *    Open Fail will get a error, Of course, it can't use the client function.
+     */
+    bool CanWrite() const;
 
  private:
     // 保存当前file的文件信息

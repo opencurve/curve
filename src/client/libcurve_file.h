@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "include/client/libcurve.h"
+#include "include/client/libcurve_define.h"
 #include "src/client/client_common.h"
 #include "src/client/file_instance.h"
 #include "src/common/concurrent/rw_lock.h"
@@ -61,7 +62,8 @@ class FileClient {
      */
     virtual int Open(const std::string& filename,
                      const UserInfo_t& userinfo,
-                     const OpenFlags& openflags = {});
+                     const int openflags =
+                       CURVE_RDWR | CURVE_EXCLUSIVE);
 
     /**
      * 打开文件，这个打开只是创建了一个fd，并不与mds交互，没有session续约

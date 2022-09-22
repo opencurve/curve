@@ -28,6 +28,7 @@
 #include <set>
 #include <utility>
 #include <map>
+#include "include/client/libcurve.h"
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
@@ -122,7 +123,8 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
                 std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<Topology> topology,
-                std::shared_ptr<SnapshotCloneClient> snapshotCloneClient) {
+                std::shared_ptr<SnapshotCloneClient> snapshotCloneClient,
+                const std::shared_ptr<WriterLock>& writerlock) {
     startTime_ = std::chrono::steady_clock::now();
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
@@ -138,7 +140,7 @@ bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
     maxFileLength_ = curveFSOptions.maxFileLength;
     topology_ = topology;
     snapshotCloneClient_ = snapshotCloneClient;
-
+    writerlock_ = writerlock;
     InitRootFile();
     bool ret = InitRecycleBinDir();
     if (!ret) {
@@ -1652,7 +1654,8 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
                              const std::string &clientIP,
                              ProtoSession *protoSession,
                              FileInfo  *fileInfo,
-                             CloneSourceSegment* cloneSourceSegment) {
+                             CloneSourceSegment* cloneSourceSegment,
+                             const OpenFileContext* context) {
     // check the existence of the file
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
@@ -1672,6 +1675,19 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
 
     LOG(INFO) << "FileInfo, " << fileInfo->DebugString();
 
+    if (IsLock(context)) {
+        auto re = writerlock_->Lock(fileInfo->id(), context->uuid());
+        if (re) {
+            LOG(INFO) << "ip = " << clientIP << " get filename = " <<
+                fileName << " openflags = " << context->openflags()
+                << " uuid = " << context->uuid() << "lock success";
+        } else {
+            LOG(WARNING) << "ip = " << clientIP << " get filename = " <<
+                fileName << " openflags = " << context->openflags() <<
+                " uuid = " << context->uuid() << "lock fail";
+            return StatusCode::kPermissionDeny;
+        }
+    }
     if (fileInfo->filetype() != FileType::INODE_PAGEFILE) {
         LOG(ERROR) << "OpenFile file type not support, fileName = " << fileName
                    << ", clientIP = " << clientIP
@@ -1685,14 +1701,14 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
     if (fileInfo->has_clonesource() && isPathValid(fileInfo->clonesource())) {
         return ListCloneSourceFileSegments(fileInfo, cloneSourceSegment);
     }
-
     return StatusCode::kOK;
 }
 
 StatusCode CurveFS::CloseFile(const std::string &fileName,
                               const std::string &sessionID,
                               const std::string &clientIP,
-                              uint32_t clientPort) {
+                              uint32_t clientPort,
+                              const OpenFileContext* context) {
     // check the existence of the file
     FileInfo  fileInfo;
     StatusCode ret;
@@ -1713,7 +1729,18 @@ StatusCode CurveFS::CloseFile(const std::string &fileName,
 
     // remove file record
     fileRecordManager_->RemoveFileRecord(fileName, clientIP, clientPort);
-
+    if (IsLock(context)) {
+        auto re =  writerlock_->Unlock(fileInfo.id(), context->uuid());
+        if (re) {
+            LOG(INFO) << "ip = " << clientIP << " get filename = " << fileName
+                  << " openflags = " << context->openflags() << " uuid = "
+                  << context->uuid() << "unlock success";
+        } else {
+            LOG(WARNING) << "ip = " << clientIP << " get filename = " <<
+                fileName << " openflags = " << context->openflags()
+                << " uuid = " << context->uuid() << "unlock fail";
+        }
+    }
     return StatusCode::kOK;
 }
 
@@ -1724,7 +1751,8 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const std::string &clientIP,
                             uint32_t clientPort,
                             const std::string &clientVersion,
-                            FileInfo  *fileInfo) {
+                            FileInfo  *fileInfo,
+                            const OpenFileContext* context) {
     // check the existence of the file
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
@@ -1751,6 +1779,14 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
         return  ret;
     }
 
+    if (IsLock(context)) {
+        if (!writerlock_->UpdateLockTime(fileInfo->id(),
+            context->uuid())) {
+            LOG(WARNING) << "ip = " << clientIP << " getfilename = "
+                << fileName << "openflags = " << context->openflags() <<
+                " uuid = " << context->uuid() << " updatelock fail";
+        }
+    }
     // update file records
     fileRecordManager_->UpdateFileRecord(fileName, clientVersion, clientIP,
                                          clientPort);

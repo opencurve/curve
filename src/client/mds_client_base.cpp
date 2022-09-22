@@ -44,17 +44,23 @@ void FillClienIpPortIfRegistered(T* request) {
 
 void MDSClientBase::OpenFile(const std::string& filename,
                              const UserInfo_t& userinfo,
+                             const OpenContext& cont,
                              OpenFileResponse* response,
                              brpc::Controller* cntl,
                              brpc::Channel* channel) {
     OpenFileRequest request;
     request.set_filename(filename);
     request.set_clientversion(curve::common::CurveVersion());
+    OpenFileContext* pcont = new OpenFileContext();
+    pcont->set_openflags(cont.openflags);
+    pcont->set_uuid(cont.uuid);
+    request.set_allocated_opencontext(pcont);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "OpenFile: filename = " << filename
               << ", owner = " << userinfo.owner
-              << ", log id = " << cntl->log_id();
+              << ", log id = " << cntl->log_id()
+              << " openflags = " << cont.openflags;
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.OpenFile(cntl, &request, response, nullptr);
@@ -96,12 +102,17 @@ void MDSClientBase::CreateFile(const std::string& filename,
 void MDSClientBase::CloseFile(const std::string& filename,
                               const UserInfo_t& userinfo,
                               const std::string& sessionid,
+                              const OpenContext& context,
                               CloseFileResponse* response,
                               brpc::Controller* cntl,
                               brpc::Channel* channel) {
     CloseFileRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
+    OpenFileContext* pcont = new OpenFileContext();
+    pcont->set_openflags(context.openflags);
+    pcont->set_uuid(context.uuid);
+    request.set_allocated_opencontext(pcont);
     FillUserInfo(&request, userinfo);
     FillClienIpPortIfRegistered(&request);
 
@@ -243,6 +254,7 @@ void MDSClientBase::GetSnapshotSegmentInfo(
 void MDSClientBase::RefreshSession(const std::string& filename,
                                    const UserInfo_t& userinfo,
                                    const std::string& sessionid,
+                                   const OpenContext& context,
                                    ReFreshSessionResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
@@ -250,6 +262,10 @@ void MDSClientBase::RefreshSession(const std::string& filename,
     request.set_filename(filename);
     request.set_sessionid(sessionid);
     request.set_clientversion(curve::common::CurveVersion());
+    OpenFileContext* pcont = new OpenFileContext();
+    pcont->set_openflags(context.openflags);
+    pcont->set_uuid(context.uuid);
+    request.set_allocated_opencontext(pcont);
     FillUserInfo(&request, userinfo);
     FillClienIpPortIfRegistered(&request);
 

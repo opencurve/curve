@@ -384,6 +384,7 @@ class MDSClient : public MDSClientBase,
     LIBCURVE_ERROR RefreshSession(const std::string &filename,
                                   const UserInfo_t &userinfo,
                                   const std::string &sessionid,
+                                  const OpenContext& cont,
                                   LeaseRefreshResult *resp,
                                   LeaseSession *lease = nullptr);
     /**
@@ -396,7 +397,8 @@ class MDSClient : public MDSClientBase,
      */
     LIBCURVE_ERROR CloseFile(const std::string &filename,
                              const UserInfo_t &userinfo,
-                             const std::string &sessionid);
+                             const std::string &sessionid,
+                             const OpenContext& cont);
 
     /**
      * @brief 创建clone文件

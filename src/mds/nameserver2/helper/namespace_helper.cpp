@@ -35,6 +35,8 @@ using ::curve::common::SEGMENTALLOCSIZEKEY;
 using ::curve::common::DISCARDSEGMENTKEYLEN;
 using ::curve::common::DISCARDSEGMENTKEYPREFIX;
 using ::curve::common::DISCARDSEGMENTKEYEND;
+using ::curve::common::PERM_PREFIX_LENGTH;
+using ::curve::common::PERMINFOPREFIX;
 
 namespace curve {
 namespace mds {
@@ -157,6 +159,14 @@ bool NameSpaceStorageCodec::EncodeDiscardSegment(const DiscardSegmentInfo& info,
 bool NameSpaceStorageCodec::DecodeDiscardSegment(
     const std::string& info, DiscardSegmentInfo* discardSegmentInfo) {
     return discardSegmentInfo->ParseFromString(info);
+}
+
+std::string NameSpaceStorageCodec::EncodePermStoreKey(const uint64_t fileid) {
+    std::string storekey;
+    storekey.resize(PERM_PREFIX_LENGTH + sizeof(fileid));
+    memcpy(&(storekey[0]), PERMINFOPREFIX, PERM_PREFIX_LENGTH);
+    ::curve::common::EncodeBigEndian(&(storekey[2]), fileid);
+    return storekey;
 }
 
 }   // namespace mds

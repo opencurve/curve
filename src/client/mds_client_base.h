@@ -87,6 +87,7 @@ using curve::mds::topology::GetChunkServerInfoResponse;
 using curve::mds::topology::ListChunkServerResponse;
 using curve::mds::IncreaseFileEpochRequest;
 using curve::mds::IncreaseFileEpochResponse;
+using curve::mds::OpenFileContext;
 
 extern const char* kRootUserName;
 
@@ -105,6 +106,7 @@ class MDSClientBase {
      */
     void OpenFile(const std::string& filename,
                   const UserInfo_t& userinfo,
+                  const OpenContext& context,
                   OpenFileResponse* response,
                   brpc::Controller* cntl,
                   brpc::Channel* channel);
@@ -140,6 +142,7 @@ class MDSClientBase {
     void CloseFile(const std::string& filename,
                    const UserInfo_t& userinfo,
                    const std::string& sessionid,
+                   const OpenContext& context,
                    CloseFileResponse* response,
                    brpc::Controller* cntl,
                    brpc::Channel* channel);
@@ -246,6 +249,7 @@ class MDSClientBase {
     void RefreshSession(const std::string& filename,
                         const UserInfo_t& userinfo,
                         const std::string& sessionid,
+                        const OpenContext& context,
                         ReFreshSessionResponse* response,
                         brpc::Controller* cntl,
                         brpc::Channel* channel);

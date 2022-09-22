@@ -26,10 +26,12 @@
 #include <glog/logging.h>
 #include <utility>
 
+#include "include/client/libcurve.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
 #include "src/common/curve_define.h"
+#include "src/common/uuid.h"
 
 namespace curve {
 namespace client {
@@ -49,7 +51,7 @@ FileInstance::FileInstance()
 bool FileInstance::Initialize(const std::string& filename,
                               std::shared_ptr<MDSClient> mdsclient,
                               const UserInfo_t& userinfo,
-                              const OpenFlags& openflags,
+                              const int openflags,
                               const FileServiceOption& fileservicopt,
                               bool readonly) {
     readonly_ = readonly;
@@ -66,7 +68,7 @@ bool FileInstance::Initialize(const std::string& filename,
             break;
         }
 
-        finfo_.openflags = openflags;
+        finfo_.context.openflags = openflags;
         finfo_.userinfo = userinfo;
         mdsclient_ = std::move(mdsclient);
 
@@ -117,6 +119,9 @@ int FileInstance::Write(const char* buf, off_t offset, size_t len) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
     }
+    if (!CanWrite()) {
+        return LIBCURVE_ERROR::PERMISSION_DENY;
+    }
     DLOG_EVERY_SECOND(INFO) << "begin write " << finfo_.fullPathName
                             << ", offset = " << offset
                             << ", len = " << len;
@@ -134,6 +139,9 @@ int FileInstance::AioWrite(CurveAioContext* aioctx, UserDataType dataType) {
     if (readonly_) {
         DVLOG(9) << "open with read only, do not support write!";
         return -1;
+    }
+    if (!CanWrite()) {
+        return LIBCURVE_ERROR::PERMISSION_DENY;
     }
     DLOG_EVERY_SECOND(INFO) << "begin AioWrite " << finfo_.fullPathName
                             << ", offset = " << aioctx->offset
@@ -168,11 +176,11 @@ int FileInstance::AioDiscard(CurveAioContext* aioctx) {
 //    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
 //    等待一段时间再去Open，如果依然失败，就向上层返回失败。
 int FileInstance::Open(const std::string& filename,
-                       const UserInfo& userinfo,
-                       std::string* sessionId) {
+                        const UserInfo& userinfo,
+                        std::string* sessionId) {
     LeaseSession_t  lease;
     int ret = LIBCURVE_ERROR::FAILED;
-
+    finfo_.context.uuid = curve::common::UUIDGenerator().GenerateUUID();
     FileEpoch_t fEpoch;
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo,
         &finfo_, &fEpoch, &lease);
@@ -211,7 +219,8 @@ int FileInstance::Close() {
     StopLease();
 
     LIBCURVE_ERROR ret =
-        mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo, "");
+        mdsclient_->CloseFile(finfo_.fullPathName, finfo_.userinfo,
+            "", finfo_.context);
     return -ret;
 }
 
@@ -220,7 +229,7 @@ FileInstance* FileInstance::NewInitedFileInstance(
     std::shared_ptr<MDSClient> mdsClient,
     const std::string& filename,
     const UserInfo& userInfo,
-    const OpenFlags& openflags,  // TODO(all): maybe we can put userinfo and readonly into openflags  // NOLINT
+    const int openflags,  // TODO(all): maybe we can put userinfo and readonly into openflags  // NOLINT
     bool readonly) {
     FileInstance* instance = new (std::nothrow) FileInstance();
     if (instance == nullptr) {
@@ -246,7 +255,7 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
                                           std::shared_ptr<MDSClient> mdsclient,
                                           const std::string& filename,
                                           const UserInfo& userInfo,
-                                          const OpenFlags& openflags) {
+                                          const int openflags) {
     FileInstance* instance = FileInstance::NewInitedFileInstance(
         opt, std::move(mdsclient), filename, userInfo, openflags, true);
     if (instance == nullptr) {
@@ -264,7 +273,7 @@ FileInstance* FileInstance::Open4Readonly(const FileServiceOption& opt,
         return nullptr;
     }
 
-    fileInfo.openflags = openflags;
+    fileInfo.context.openflags = openflags;
     fileInfo.userinfo = userInfo;
     fileInfo.fullPathName = filename;
     instance->GetIOManager4File()->UpdateFileInfo(fileInfo);
@@ -279,6 +288,12 @@ void FileInstance::StopLease() {
         leaseExecutor_.reset();
     }
 }
+
+bool FileInstance::CanWrite() const {
+    return finfo_.context.openflags & CurveOpenFlags::CURVE_FORCE_WRITE
+        || finfo_.context.openflags & CurveOpenFlags::CURVE_RDWR;
+}
+
 
 }   // namespace client
 }   // namespace curve

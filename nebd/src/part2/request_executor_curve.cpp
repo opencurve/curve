@@ -24,6 +24,7 @@
 
 #include <glog/logging.h>
 
+#include "include/client/libcurve_define.h"
 #include "nebd/proto/client.pb.h"
 
 namespace nebd {
@@ -34,14 +35,16 @@ using ::curve::client::UserInfo_t;
 const char* kSessionAttrKey = "session";
 const char* kOpenFlagsAttrKey = "openflags";
 
-curve::client::OpenFlags ConverToCurveOpenFlags(const OpenFlags* flags) {
-    curve::client::OpenFlags curveflags;
+int ConverToCurveOpenFlags(const OpenFlags* flags) {
+    int curveflags = CURVE_EXCLUSIVE | CURVE_RDWR;
 
     if (!flags) {
         return curveflags;
     } else {
         if (flags->has_exclusive()) {
-            curveflags.exclusive = flags->exclusive();
+            if (!flags->exclusive()) {
+                curveflags &= ~(CURVE_EXCLUSIVE);
+            }
         }
 
         return curveflags;

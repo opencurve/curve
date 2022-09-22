@@ -40,7 +40,7 @@ class MockFileClient : public FileClient {
     MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD0(UnInit, void());
     MOCK_METHOD3(Open,
-                 int(const std::string&, const UserInfo&, const OpenFlags&));
+                 int(const std::string&, const UserInfo&, const int));
     MOCK_METHOD3(Open4ReadOnly,
                  int(const std::string&, const UserInfo_t&, bool));
     MOCK_METHOD4(Read, int(int, char*, off_t, size_t));

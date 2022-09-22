@@ -161,6 +161,8 @@ class LeaseExecutor : public LeaseExecutorBase {
 
     // refresh session定时任务，会间隔固定时间执行一次
     std::unique_ptr<RefreshSessionTask> task_;
+    // open 信息
+    OpenContext context_;
 };
 
 // RefreshSessin定期任务

@@ -116,6 +116,34 @@ int IncreaseEpoch(const char* filename);
 int Open(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
+ * openfile the basic effect is as same as Open
+ * but at the same time, only one client can hold
+ * the write permission.
+ * if you use error permission open you will get the
+ * CURVE_ERROR::PERMISSION_DENY: -32.
+ * you must choose CURVE_EXCLUSIVE or CURVE_SHARED.
+ * CURVE_EXCLUSIVE: others can't open the same file in the same time.
+ * CURVE_SHARED: as the shared says.
+ * CURVE_RDONLY: open with read only mode. It's always success. And if you want to
+ *               write the fd in read only mode. It will get you a error.
+ * CURVE_RDWR | CURVE_SHARED : open with write mode.
+ *   In here some cases, you will successfuly:
+ *     1. The file has no current writer(client).
+ *     2. The file current writer hearbeat with mds is timeout.
+ *        (default expired time is in conf/mds.conf mds.file.expiredTimeUs)
+ *     3. The file current writer has close the file.
+ * CURVE_FORCE_WRITE: open with write mode. Ignore the CURVE_RDWR influences.
+ *    It is always successful.
+ * a example like:
+ *     int fd = Open2("I love Curve", &userinfo, CURVE_RDWR | CURVE_SHARED);
+ * means open the file in shared mode and want to be the writer of the block.
+ * Successfully return the file descriptors. Failingly return errno code.
+ * @param: flags: see it in include/client/libcurve_define.h
+ * @return: open success get file descriptor, fail get error
+ */
+int Open2(const char* filename, C_UserInfo_t* userinfo, int flags);
+
+/**
  * 创建文件
  * @param: filename文件名
  * @param: userinfo是当前打开或创建时携带的user信息
@@ -380,12 +408,6 @@ inline bool operator==(const UserInfo& lhs, const UserInfo& rhs) {
     return lhs.owner == rhs.owner && lhs.password == rhs.password;
 }
 
-struct OpenFlags {
-    bool exclusive;
-
-    OpenFlags() : exclusive(true) {}
-};
-
 class CurveClient {
  public:
     CurveClient();
@@ -418,7 +440,7 @@ class CurveClient {
      * @return 成功返回fd，失败返回-1
      */
     virtual int Open(const std::string& filename,
-                     const OpenFlags& openflags);
+                     const int openflags);
 
     /**
      * 重新打开文件
@@ -428,7 +450,7 @@ class CurveClient {
      * @return 成功返回fd，失败返回-1
      */
     virtual int ReOpen(const std::string& filename,
-                       const OpenFlags& openflags);
+                       const int openflags);
 
     /**
      * 关闭文件
