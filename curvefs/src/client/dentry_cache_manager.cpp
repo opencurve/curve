@@ -78,7 +78,6 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
             << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-
     if (!curvefs::client::common::FLAGS_enableCto) {
         dCache_->Put(key, *out);
     }

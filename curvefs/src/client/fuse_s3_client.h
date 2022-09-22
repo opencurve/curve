@@ -109,11 +109,9 @@ class FuseS3Client : public FuseClient {
         fuse_ino_t ino,
         const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoMap);
     // travel and download all objs belong to the chunk
-    void travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
-      std::list<std::pair<std::string, uint64_t>>* prefetchObjs);
+    void travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo);
     // warmup all the prefetchObjs
-    void WarmUpAllObjs(const std::list<
-      std::pair<std::string, uint64_t>> &prefetchObjs);
+    void WarmUpAllObjs();
 
  private:
     // s3 adaptor
@@ -122,8 +120,10 @@ class FuseS3Client : public FuseClient {
     bool initbgFetchThread_;
     Thread bgFetchThread_;
     std::atomic<bool> bgFetchStop_;
-    std::mutex fetchMtx_;
     uint32_t downloadMaxRetryTimes_;
+    std::mutex warmupObjsMtx_;
+    std::atomic<bool> isWarmUping_;
+    std::list<std::pair<std::string, uint64_t>> needWarmupObjs_;
 };
 
 
