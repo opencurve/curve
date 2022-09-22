@@ -91,6 +91,15 @@ class TestFuseS3Client : public ::testing::Test {
                                                  s3ClientAdaptor_);
         InitOptionBasic(&fuseClientOption_);
         InitFSInfo(client_);
+        fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
+        fuseClientOption_.dummyServerStartPort = 5000;
+        fuseClientOption_.maxNameLength = 20u;
+        fuseClientOption_.listDentryThreads = 2;
+        fuseClientOption_.warmupThreadsNum = 10;
+        auto fsInfo = std::make_shared<FsInfo>();
+        fsInfo->set_fsid(fsId);
+        fsInfo->set_fsname("s3fs");
+        client_->SetFsInfo(fsInfo);
         client_->Init(fuseClientOption_);
         PrepareFsInfo();
     }

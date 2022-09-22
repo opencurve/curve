@@ -92,7 +92,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
                                inodeManager_, mdsClient_, fsCacheManager,
                                nullptr, true);
     }
-
+    isWarmUping_.store(false);
     bgFetchStop_.store(false, std::memory_order_release);
     bgFetchThread_ = Thread(&FuseS3Client::BackGroundFetch, this);
     initbgFetchThread_ = true;
@@ -151,8 +151,7 @@ void FuseS3Client::GetWarmUpFileList(const WarmUpFileContext_t&warmUpFile,
 
 void FuseS3Client::BackGroundFetch() {
     while (!bgFetchStop_.load(std::memory_order_acquire)) {
-        LOG_EVERY_N(WARNING, 100)
-            << "fetch thread start.";
+        usleep(WARMUP_CHECKINTERVAL_US);
         if (hasWarmUpTask()) {  // new warmup task
             WarmUpFileContext_t warmUpFile;
             GetWarmUpFile(&warmUpFile);
@@ -167,15 +166,30 @@ void FuseS3Client::BackGroundFetch() {
         }
         {   // file need warmup
             std::list<fuse_ino_t> readAheadFiles;
-            readAheadFiles.swap(GetReadAheadFiles());
-            for (auto iter : readAheadFiles) {
-                VLOG(9) << "BackGroundFetch: " << iter;
-                fetchDataEnqueue(iter);
+            GetReadAheadFiles(&readAheadFiles);
+            if (!readAheadFiles.empty()) {
+                LOG(INFO) << "num of files is need loaded is: "
+                        << readAheadFiles.size();
+                for (auto iter : readAheadFiles) {
+                    VLOG(9) << "BackGroundFetch: " << iter;
+                    fetchDataEnqueue(iter);
+                }
             }
         }
-        LOG_EVERY_N(WARNING, 100)
-            << "fetch thread end.";
-        usleep(WARMUP_CHECKINTERVAL_US);
+        {  // objs will be downloaded
+            {
+                std::unique_lock<std::mutex> lck(warmupObjsMtx_);
+                if (needWarmupObjs_.empty()) {
+                    continue;
+                }
+            }
+            if (isWarmUping_.exchange(true)) {
+                continue;
+            }
+            std::thread downloadThread =
+              std::thread(&FuseS3Client::WarmUpAllObjs, this);
+            downloadThread.detach();
+        }
     }
     return;
 }
@@ -204,8 +218,7 @@ void FuseS3Client::fetchDataEnqueue(fuse_ino_t ino) {
 }
 
 // travel and download all objs belong to the chunk
-void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
-  std::list<std::pair<std::string, uint64_t>>* prefetchObjs) {
+void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo) {
     uint64_t blockSize = s3Adaptor_->GetBlockSize();
     uint64_t chunkSize = s3Adaptor_->GetChunkSize();
     uint64_t offset, len, chunkid, compaction;
@@ -226,7 +239,8 @@ void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
         if (len < blockSize) {  // just one block
             auto objectName = curvefs::common::s3util::GenObjName(
                 chunkid, blockIndexBegin, compaction, fsId, ino);
-            prefetchObjs->push_back(std::make_pair(objectName, len));
+            std::unique_lock<std::mutex> lck(warmupObjsMtx_);
+            needWarmupObjs_.push_back(std::make_pair(objectName, len));
         } else {
             // the offset in the block
             uint64_t blockPos = chunkPos % blockSize;
@@ -257,7 +271,8 @@ void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
                 travelStartIndex = blockIndexBegin + 1;
                 auto objectName = curvefs::common::s3util::GenObjName(
                   chunkid, blockIndexBegin, compaction, fsId, ino);
-                prefetchObjs->push_back(std::make_pair(
+                std::unique_lock<std::mutex> lck(warmupObjsMtx_);
+                needWarmupObjs_.push_back(std::make_pair(
                   objectName, firstBlockSize));
             } else {
                 travelStartIndex = blockIndexBegin;
@@ -270,7 +285,8 @@ void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
                   chunkid, blockIndexEnd, compaction, fsId, ino);
                 // there is no need to care about the order
                 // in which objects are downloaded
-                prefetchObjs->push_back(
+                std::unique_lock<std::mutex> lck(warmupObjsMtx_);
+                needWarmupObjs_.push_back(
                   std::make_pair(objectName, lastBlockSize));
             } else {
                 travelEndIndex = blockIndexEnd;
@@ -293,7 +309,11 @@ void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
               blockIndex <= travelEndIndex ; blockIndex++) {
                 auto objectName = curvefs::common::s3util::GenObjName(
                     chunkid, blockIndex, compaction, fsId, ino);
-                prefetchObjs->push_back(std::make_pair(objectName, blockSize));
+                {
+                    std::unique_lock<std::mutex> lck(warmupObjsMtx_);
+                    needWarmupObjs_.push_back(
+                      std::make_pair(objectName, blockSize));
+                }
             }
         }
     }
@@ -301,14 +321,24 @@ void FuseS3Client::travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
 
 // TODO(hzwuhongsong): These logics are very similar to other place,
 // try to merge it
-void FuseS3Client::WarmUpAllObjs(
-  const std::list<std::pair<std::string, uint64_t>> &prefetchObjs) {
+void FuseS3Client::WarmUpAllObjs() {
+    std::list<std::pair<std::string, uint64_t>> needWarmupObjs;
+    {
+        std::unique_lock<std::mutex> lck(warmupObjsMtx_);
+        LOG(INFO) << "num of objs need loaded is: " << needWarmupObjs_.size();
+        needWarmupObjs = std::move(needWarmupObjs_);
+    }
     std::atomic<uint64_t> pendingReq(0);
     curve::common::CountDownEvent cond(1);
     // callback function
     GetObjectAsyncCallBack cb =
         [&](const S3Adapter *adapter,
             const std::shared_ptr<GetObjectAsyncContext> &context) {
+            if (bgFetchStop_.load()) {
+                LOG(INFO) << "need stop warmup";
+                cond.Signal();
+                return;
+            }
             if (context->retCode == 0) {
                 VLOG(9) << "Get Object success: " << context->key;
                 int ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(
@@ -341,10 +371,10 @@ void FuseS3Client::WarmUpAllObjs(
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
     };
 
-    pendingReq.fetch_add(prefetchObjs.size(), std::memory_order_seq_cst);
-    if (pendingReq.load(std::memory_order_seq_cst)) {
-        VLOG(9) << "wait for pendingReq";
-        for (auto iter : prefetchObjs) {
+    pendingReq.fetch_add(needWarmupObjs.size(), std::memory_order_seq_cst);
+    if (pendingReq.load()) {
+        VLOG(9) << "wait for pendingReq" << pendingReq.load();
+        for (auto iter : needWarmupObjs) {
             VLOG(9) << "download start: " << iter.first;
             std::string name = iter.first;
             uint64_t readLen = iter.second;
@@ -366,6 +396,8 @@ void FuseS3Client::WarmUpAllObjs(
         if (pendingReq.load())
             cond.Wait();
     }
+    isWarmUping_.exchange(false);
+    LOG(INFO) << "num of objs is loaded over ";
 }
 
 void FuseS3Client::travelChunks(
@@ -373,12 +405,10 @@ void FuseS3Client::travelChunks(
     const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoMap) {
     VLOG(9) << "travel chunk start: " << ino
             << ", size: " << s3ChunkInfoMap.size();
-    std::list<std::pair<std::string, uint64_t>> prefetchObjs;
     for (auto const& iter : s3ChunkInfoMap) {
         VLOG(9) << "travel chunk: " << iter.first;
-        travelChunk(ino, iter.second, &prefetchObjs);
+        travelChunk(ino, iter.second);
     }
-    WarmUpAllObjs(prefetchObjs);
     VLOG(9) << "travel chunks end";
 }
 
