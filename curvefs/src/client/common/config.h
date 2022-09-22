@@ -197,6 +197,7 @@ struct FuseClientOption {
     bool enableMultiMountPointRename = false;
     bool enableFuseSplice = false;
     bool disableXattr = false;
+    uint32_t warmupThreadsNum;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
