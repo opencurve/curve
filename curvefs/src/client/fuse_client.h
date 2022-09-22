@@ -55,7 +55,6 @@
 
 #define DirectIOAlignment 512
 #define WARMUP_CHECKINTERVAL_US 1000*1000
-#define WARMUP_THREADS 10
 
 using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
@@ -269,9 +268,9 @@ class FuseClient {
     void SetEnableSumInDir(bool enable) {
         enableSumInDir_ = enable;
     }
-    std::list<fuse_ino_t>& GetReadAheadFiles() {
+    void GetReadAheadFiles(std::list<fuse_ino_t>* readAheadFiles) {
         std::unique_lock<std::mutex> lck(fetchMtx_);
-        return readAheadFiles_;
+        *readAheadFiles = std::move(readAheadFiles_);
     }
 
     void GetWarmUpFile(WarmUpFileContext_t* warmUpFile) {

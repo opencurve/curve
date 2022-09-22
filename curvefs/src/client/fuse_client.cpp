@@ -138,7 +138,7 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     warmUpFile_.exist = false;
     bgCmdStop_.store(false, std::memory_order_release);
     bgCmdTaskThread_ = Thread(&FuseClient::WarmUpTask, this);
-    taskFetchMetaPool_.Start(WARMUP_THREADS);
+    taskFetchMetaPool_.Start(option_.warmupThreadsNum);
     return ret3;
 }
 
