@@ -103,23 +103,7 @@ void S3CompactWorkQueueOption::Init(std::shared_ptr<Configuration> conf) {
     s3opts.sk = "";
     s3opts.s3Address = "";
     s3opts.bucketName = "";
-    conf->GetValueFatalIfFail("s3.loglevel", &s3opts.loglevel);
-    conf->GetStringValue("s3.logPrefix", &s3opts.logPrefix);
-    conf->GetValueFatalIfFail("s3.http_scheme", &s3opts.scheme);
-    conf->GetValueFatalIfFail("s3.verify_SSL", &s3opts.verifySsl);
-    conf->GetValueFatalIfFail("s3.max_connections", &s3opts.maxConnections);
-    conf->GetValueFatalIfFail("s3.connect_timeout", &s3opts.connectTimeout);
-    conf->GetValueFatalIfFail("s3.request_timeout", &s3opts.requestTimeout);
-    conf->GetValueFatalIfFail("s3.async_thread_num", &s3opts.asyncThreadNum);
-    conf->GetValueFatalIfFail("s3.throttle.iopsTotalLimit",
-                              &s3opts.iopsTotalLimit);
-    conf->GetValueFatalIfFail("s3.throttle.iopsReadLimit",
-                              &s3opts.iopsReadLimit);
-    conf->GetValueFatalIfFail("s3.throttle.iopsWriteLimit",
-                              &s3opts.iopsWriteLimit);
-    conf->GetValueFatalIfFail("s3.throttle.bpsTotalMB", &s3opts.bpsTotalMB);
-    conf->GetValueFatalIfFail("s3.throttle.bpsReadMB", &s3opts.bpsReadMB);
-    conf->GetValueFatalIfFail("s3.throttle.bpsWriteMB", &s3opts.bpsWriteMB);
+    InitS3AdaptorOptionExceptS3InfoOption(conf.get(), &s3opts);
     conf->GetValueFatalIfFail("s3compactwq.enable", &enable);
     conf->GetValueFatalIfFail("s3compactwq.thread_num", &threadNum);
     conf->GetValueFatalIfFail("s3compactwq.fragment_threshold",

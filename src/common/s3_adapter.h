@@ -73,6 +73,7 @@ struct S3AdapterOption {
     std::string sk;
     std::string s3Address;
     std::string bucketName;
+    std::string region;
     int loglevel;
     std::string logPrefix;
     int scheme;
