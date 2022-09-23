@@ -322,17 +322,21 @@ int Warmup(const std::string& name, const std::string& value) {
 
 void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char* name,
                     const char* value, size_t size, int flags) {
-    // only support "curvefs.warmup.op" xattr
     std::string xattrValue(value, size);
     VLOG(9) << "FuseOpSetXattr"
             << " ino " << ino << " name " << name << " value " << xattrValue
             << " flags " << flags;
-    int code = ENOTSUP;
     if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
         // warmup
-        code = Warmup(name, xattrValue);
+        int code = Warmup(name, xattrValue);
+        fuse_reply_err(req, code);
+    } else {
+        // set xattr
+        CURVEFS_ERROR ret = g_ClientInstance->FuseOpSetXattr(req, ino, name,
+            value, size, flags);
+        FuseReplyErrByErrCode(req, ret);
     }
-    fuse_reply_err(req, code);
+
     VLOG(9) << "FuseOpSetXattr done";
 }
 
