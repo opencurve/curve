@@ -31,6 +31,21 @@ namespace client {
 using ::curve::common::StringToUll;
 using ::curve::common::Thread;
 
+
+bool IsSummaryInfo(const char *name) {
+    return std::strstr(name, SUMMARYPREFIX);
+}
+
+bool IsOneLayer(const char *name) {
+    if (std::strcmp(name, XATTRFILES) == 0 ||
+        std::strcmp(name, XATTRSUBDIRS) == 0 ||
+        std::strcmp(name, XATTRENTRIES) == 0 ||
+        std::strcmp(name, XATTRFBYTES) == 0) {
+        return true;
+    }
+    return false;
+}
+
 // if direction is true means '+', false means '-'
 bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction) {
     uint64_t firstNum = 0;
@@ -440,6 +455,43 @@ CURVEFS_ERROR XattrManager::FastCalAllLayerSumInfo(InodeAttr *attr) {
 
     return CURVEFS_ERROR::OK;
 }
+
+CURVEFS_ERROR XattrManager::GetXattr(const char* name, std::string *value,
+    InodeAttr *attr, bool enableSumInDir) {
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    // get summary info if the xattr name is summary type
+    if (IsSummaryInfo(name) && attr->type() == FsFileType::TYPE_DIRECTORY) {
+        // if not enable record summary info in dir xattr,
+        // need recursive computation all files;
+        // otherwise only recursive computation all dirs.
+        if (!enableSumInDir) {
+            if (IsOneLayer(name)) {
+                ret = CalOneLayerSumInfo(attr);
+            } else {
+                ret = CalAllLayerSumInfo(attr);
+            }
+        } else {
+            if (IsOneLayer(name)) {
+                ret = FastCalOneLayerSumInfo(attr);
+            } else {
+                ret = FastCalAllLayerSumInfo(attr);
+            }
+        }
+
+        if (CURVEFS_ERROR::OK != ret) {
+            return ret;
+        }
+        LOG(INFO) << "After calculate summary info:\n"
+                  << attr->DebugString();
+    }
+
+    auto it = attr->xattr().find(name);
+    if (it != attr->xattr().end()) {
+        *value = it->second;
+    }
+    return ret;
+}
+
 
 CURVEFS_ERROR XattrManager::UpdateParentInodeXattr(uint64_t parentId,
     const XAttr &xattr, bool direction) {

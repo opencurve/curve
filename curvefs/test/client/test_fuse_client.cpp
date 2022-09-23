@@ -189,7 +189,6 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
 
     EXPECT_CALL(*blockDeviceClient_, Open(_, _))
         .WillOnce(Return(true));
-
     CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
@@ -3483,6 +3482,59 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
         req, ino, buf, expected, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
+
+TEST_F(TestFuseS3Client, FuseOpSetXattr_TooLong) {
+    // in
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    const char name[] = "security.selinux";
+    size_t size = 300;
+    char value[300];
+    std::memset(value, 0, 300);
+
+    CURVEFS_ERROR ret = client_->FuseOpSetXattr(
+        req, ino, name, value, size, 0);
+    ASSERT_EQ(CURVEFS_ERROR::OUT_OF_RANGE, ret);
+}
+
+TEST_F(TestFuseS3Client, FuseOpSetXattr) {
+    // in
+    fuse_req_t req;
+    fuse_ino_t ino = 1;
+    const char name[] = "security.selinux";
+    size_t size = 100;
+    char value[100];
+    std::memset(value, 0, 100);
+
+    // get inode failed
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+    CURVEFS_ERROR ret = client_->FuseOpSetXattr(
+        req, ino, name, value, size, 0);
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
+
+    // updateInode failed
+    auto inodeWrapper = std::make_shared<InodeWrapper>(Inode(), metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
+        .WillOnce(Return(MetaStatusCode::NOT_FOUND));
+    ret = client_->FuseOpSetXattr(
+        req, ino, name, value, size, 0);
+    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, ret);
+
+    // success
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
+        .WillOnce(Return(MetaStatusCode::OK));
+    ret = client_->FuseOpSetXattr(
+        req, ino, name, value, size, 0);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+}
+
 
 }  // namespace client
 }  // namespace curvefs
