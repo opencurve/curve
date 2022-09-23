@@ -385,8 +385,7 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     dentryManager_->SetFsId(fsInfo_->fsid());
     enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
     LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
-              << " success!"
-              << " enableSumInDir = " << enableSumInDir_;
+              << " success!" << " enableSumInDir = " << enableSumInDir_;
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
 
@@ -1064,24 +1063,6 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
     return ret;
 }
 
-namespace {
-
-bool IsSummaryInfo(const char *name) {
-    return std::strstr(name, SUMMARYPREFIX);
-}
-
-bool IsOneLayer(const char *name) {
-    if (std::strcmp(name, XATTRFILES) == 0 ||
-        std::strcmp(name, XATTRSUBDIRS) == 0 ||
-        std::strcmp(name, XATTRENTRIES) == 0 ||
-        std::strcmp(name, XATTRFBYTES) == 0) {
-        return true;
-    }
-    return false;
-}
-
-}  // namespace
-
 CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, void* value,
                                          size_t size) {
@@ -1092,49 +1073,24 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
     }
 
     std::string xValue;
-    // get summary info
-    if (IsSummaryInfo(name)) {
-        InodeAttr inodeAttr;
-        CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &inodeAttr);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
-                       << ", inodeid = " << ino;
-            return ret;
-        }
-
-        if (inodeAttr.type() == FsFileType::TYPE_DIRECTORY) {
-            // not enable record summary info in dir xattr,
-            // need recursive computation all files
-            if (!enableSumInDir_) {
-                if (IsOneLayer(name)) {
-                    ret = xattrManager_->CalOneLayerSumInfo(&inodeAttr);
-                } else {
-                    ret = xattrManager_->CalAllLayerSumInfo(&inodeAttr);
-                }
-            } else {
-                if (IsOneLayer(name)) {
-                    ret = xattrManager_->FastCalOneLayerSumInfo(&inodeAttr);
-                } else {
-                    ret = xattrManager_->FastCalAllLayerSumInfo(&inodeAttr);
-                }
-            }
-
-            if (CURVEFS_ERROR::OK != ret) {
-                return ret;
-            }
-            LOG(INFO) << "After calculate summary info:\n"
-                      << inodeAttr.DebugString();
-            auto it = inodeAttr.xattr().find(name);
-            if (it != inodeAttr.xattr().end()) {
-                xValue = it->second;
-            }
-        }
+    InodeAttr inodeAttr;
+    CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &inodeAttr);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
+                    << ", inodeid = " << ino;
+        return ret;
     }
 
-    CURVEFS_ERROR ret = CURVEFS_ERROR::NODATA;
+    ret = xattrManager_->GetXattr(name, &xValue, &inodeAttr, enableSumInDir_);
+    if (CURVEFS_ERROR::OK != ret) {
+        LOG(ERROR) << "xattrManager get xattr failed, name = " << name;
+        return ret;
+    }
+
+    ret = CURVEFS_ERROR::NODATA;
     if (xValue.length() > 0) {
         if ((size == 0 && xValue.length() <= MAXXATTRLENGTH) ||
-            (size >= xValue.length() && size <= MAXXATTRLENGTH)) {
+            (size >= xValue.length() && xValue.length() <= MAXXATTRLENGTH)) {
             memcpy(value, xValue.c_str(), xValue.length());
             ret = CURVEFS_ERROR::OK;
         } else {
@@ -1142,6 +1098,44 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         }
     }
     return ret;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
+                                         const char* name, const char* value,
+                                         size_t size, int flags) {
+    VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
+            << ", value: " << value;
+    if (option_.disableXattr) {
+        return CURVEFS_ERROR::NOTSUPPORT;
+    }
+
+    std::string strname(name);
+    std::string strvalue(value, size);
+    if (strname.length() > MAXXATTRLENGTH  || size > MAXXATTRLENGTH) {
+        LOG(ERROR) << "xattr length is too long, name = " << name
+                   << ", name length = " << strname.length()
+                   << ", value length = " << size;
+        return CURVEFS_ERROR::OUT_OF_RANGE;
+    }
+
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << ino;
+        return ret;
+    }
+
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    inodeWrapper->SetXattrLocked(strname, strvalue);
+    ret = inodeWrapper->SyncAttr();
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "set xattr fail, ret = " << ret << ", inodeid = " << ino
+                   << ", name = " << strname << ", value = " << strvalue;
+        return ret;
+    }
+    VLOG(1) << "FuseOpSetXattr end";
+    return CURVEFS_ERROR::OK;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,

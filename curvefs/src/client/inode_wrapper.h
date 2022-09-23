@@ -199,6 +199,12 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return ret;
     }
 
+    void SetXattrLocked(const std::string &key, const std::string &value) {
+        (*inode_.mutable_xattr())[key] = value;
+        (*dirtyAttr_.mutable_xattr()) = inode_.xattr();
+        dirty_ = true;
+    }
+
     curve::common::UniqueLock GetUniqueLock() {
         return curve::common::UniqueLock(mtx_);
     }
