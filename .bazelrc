@@ -1,0 +1,1 @@
+build:gcc7-later --cxxopt -faligned-new
