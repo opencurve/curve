@@ -104,6 +104,7 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
         &s3Opt->bpsWriteMB));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.useVirtualAddressing",
         &s3Opt->useVirtualAddressing));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.region", &s3Opt->region));
 
     if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
                               &s3Opt->maxAsyncRequestInflightBytes)) {
@@ -160,6 +161,7 @@ void S3Adapter::Init(const S3AdapterOption& option) {
     clientCfg_->endpointOverride = s3Address_;
     clientCfg_->maxActiveConnectionsOverride = option.maxConnections;
     clientCfg_->userAgent = "S3 Browser";
+    clientCfg_->region = option.region.c_str();
     s3Client_ = Aws::New<Aws::S3Crt::S3CrtClient>(
         AWS_ALLOCATE_TAG, Aws::Auth::AWSCredentials(s3Ak_, s3Sk_), *clientCfg_,
         Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
