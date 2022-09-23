@@ -242,7 +242,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
     std::map<uint64_t, InodeAttr> *attrs) {
     NameLockGuard lg(asyncNameLock_, std::to_string(parentId));
     std::map<uint64_t, InodeAttr> cachedAttr;
-    bool ok  = iAttrCache_->Get(parentId, &cachedAttr);
+    bool cache  = iAttrCache_->Get(parentId, &cachedAttr);
 
     // get some inode attr in icache
     for (auto iter = inodeIds->begin(); iter != inodeIds->end();) {
@@ -254,7 +254,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
             inodeWrapper->GetInodeAttr(&tmpAttr);
             attrs->emplace(*iter, tmpAttr);
             iter = inodeIds->erase(iter);
-        } else if (ok && cachedAttr.find(*iter) != cachedAttr.end()) {
+        } else if (cache && cachedAttr.find(*iter) != cachedAttr.end()) {
             attrs->emplace(*iter, cachedAttr[*iter]);
             iter = inodeIds->erase(iter);
         } else {
@@ -291,7 +291,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
     // wait for all sudrequest finished
     cond->Wait();
 
-    ok  = iAttrCache_->Get(parentId, attrs);
+    bool ok  = iAttrCache_->Get(parentId, attrs);
     if (!ok) {
         LOG(WARNING) << "get attrs form iAttrCache_ failed.";
     }
