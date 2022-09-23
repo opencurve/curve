@@ -258,5 +258,13 @@ TEST_F(TestInodeWrapper, TestUpdateInodeAttrIncrementally) {
     ASSERT_FALSE(wrapper.dirtyAttr_.has_atime_ns());
 }
 
+TEST_F(TestInodeWrapper, TestSetXattr) {
+    inodeWrapper_->SetXattrLocked("name", "value");
+    XAttr xattr = inodeWrapper_->GetXattr();
+    ASSERT_TRUE(xattr.xattrinfos().find("name") != xattr.xattrinfos().end());
+    ASSERT_EQ((*xattr.mutable_xattrinfos())["name"], "value");
+    ASSERT_TRUE(inodeWrapper_->IsDirty());
+}
+
 }  // namespace client
 }  // namespace curvefs

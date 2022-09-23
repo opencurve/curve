@@ -277,6 +277,19 @@ void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     fuse_reply_attr(req, &attr, g_fuseClientOption->attrTimeOut);
 }
 
+void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char* name,
+                    const char* value, size_t size, int flags) {
+    std::string xattrValue(value, size);
+    VLOG(9) << "FuseOpSetXattr"
+            << " ino " << ino << " name " << name << " value " << xattrValue
+            << " flags " << flags;
+    // set xattr
+    CURVEFS_ERROR ret = g_ClientInstance->FuseOpSetXattr(req, ino, name,
+        value, size, flags);
+    FuseReplyErrByErrCode(req, ret);
+    VLOG(9) << "FuseOpSetXattr done";
+}
+
 void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     size_t size) {
     InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
