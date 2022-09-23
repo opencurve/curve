@@ -19,7 +19,7 @@ ${chunk_num}   0
 *** Test Cases ***
 begin pjdtest
     [Tags]   P2  base    interface    pjdtest
-    ${pjdfs}    evaluate    str("pjdtest")
+    ${pjdfs}    evaluate    str("failover-pjdtest")
     mount test dir   ${pjdfs}
     start pjdtest    ${pjdfs}
 
