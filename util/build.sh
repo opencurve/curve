@@ -121,6 +121,10 @@ build_target() {
     fi
     g_build_opts+=("--copt -DCURVEVERSION=${version}")
 
+    if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -gt 6 ]; then
+        g_build_opts+=("--config=gcc7-later")
+    fi
+
     for target in `get_target`
     do
         bazel build ${g_build_opts[@]} $target
