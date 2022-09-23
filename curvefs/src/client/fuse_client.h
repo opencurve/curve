@@ -183,6 +183,10 @@ class FuseClient {
                                          const char* name, void* value,
                                          size_t size);
 
+    virtual CURVEFS_ERROR FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
+                                         const char* name, const char* value,
+                                         size_t size, int flags);
+
     virtual CURVEFS_ERROR FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
                             char *value, size_t size, size_t *realSize);
 
