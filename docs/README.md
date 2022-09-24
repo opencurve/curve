@@ -68,18 +68,18 @@ Curve支持部署在私有云和公有云环境，也可以以混合云方式使
 ### 设计文档
 - 通过 [Curve概述](https://opencurve.github.io/) 可以了解 Curve 架构
 - CurveBS相关文档
-  - [NEBD](docs/cn/nebd.md)
-  - [MDS](docs/cn/mds.md)
-  - [Chunkserver](docs/cn/chunkserver_design.md)
-  - [Snapshotcloneserver](docs/cn/snapshotcloneserver.md)
-  - [Curve质量体系介绍](docs/cn/quality.md)
-  - [Curve监控体系介绍](docs/cn/monitor.md)
-  - [Client](docs/cn/curve-client.md)
-  - [Client Python API](docs/cn/curve-client-python-api.md)
+  - [NEBD](cn/nebd.md)
+  - [MDS](cn/mds.md)
+  - [Chunkserver](cn/chunkserver_design.md)
+  - [Snapshotcloneserver](cn/snapshotcloneserver.md)
+  - [Curve质量体系介绍](cn/quality.md)
+  - [Curve监控体系介绍](cn/monitor.md)
+  - [Client](cn/curve-client.md)
+  - [Client Python API](cn/curve-client-python-api.md)
 - CurveFS相关文档
-  - [架构设计](docs/cn/curvefs_architecture.md)
-  - [Client概要设计](docs/cn/curvefs-client-design.md)
-  - [元数据管理](docs/cn/curvefs-metaserver-overview.md)
+  - [架构设计](cn/curvefs_architecture.md)
+  - [Client概要设计](cn/curvefs-client-design.md)
+  - [元数据管理](cn/curvefs-metaserver-overview.md)
   - [数据缓存方案](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%94%AF%E6%8C%81S3%20%E6%95%B0%E6%8D%AE%E7%BC%93%E5%AD%98%E6%96%B9%E6%A1%88.pdf)
   - [空间分配方案](https://github.com/opencurve/curve-meetup-slides/blob/main/CurveFS/Curve%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88.pdf)
 - 更多文档可查阅子目录
