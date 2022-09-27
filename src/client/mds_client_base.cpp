@@ -61,6 +61,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
 }
 
 void MDSClientBase::CreateFile(const std::string& filename,
+                               const std::string& poolsetName,
                                const UserInfo_t& userinfo,
                                size_t size,
                                bool normalFile,
@@ -80,6 +81,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
 
     request.set_stripeunit(stripeUnit);
     request.set_stripecount(stripeCount);
+    request.set_poolsetname(poolsetName);
     FillUserInfo(&request, userinfo);
 
     LOG(INFO) << "CreateFile: filename = " << filename
@@ -87,7 +89,8 @@ void MDSClientBase::CreateFile(const std::string& filename,
                 << ", is normalfile: " << normalFile
                 << ", log id = " << cntl->log_id()
                 << ", stripeUnit = " << stripeUnit
-                << ", stripeCount = " << stripeCount;
+                << ", stripeCount = " << stripeCount
+                << ", poolsetName = " << poolsetName;
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateFile(cntl, &request, response, NULL);

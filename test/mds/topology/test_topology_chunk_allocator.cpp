@@ -251,6 +251,7 @@ TEST_F(TestTopologyChunkAllocator,
 
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             2,
             1024,
             &infos);
@@ -269,6 +270,7 @@ TEST_F(TestTopologyChunkAllocator,
     std::vector<CopysetIdInfo> infos;
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             1,
             1024,
             &infos);
@@ -312,6 +314,7 @@ TEST_F(TestTopologyChunkAllocator,
 
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             3,
             1024,
             &infos);
@@ -327,6 +330,7 @@ TEST_F(TestTopologyChunkAllocator,
     std::vector<CopysetIdInfo> infos2;
     ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             3,
             1024,
             &infos2);
@@ -378,6 +382,7 @@ TEST_F(TestTopologyChunkAllocator,
     std::vector<CopysetIdInfo> infos;
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             1,
             1024,
             &infos);
@@ -396,6 +401,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddLogicalPool(logicalPoolId);
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             1,
             1024,
             &infos);
@@ -443,6 +449,7 @@ TEST_F(TestTopologyChunkAllocator,
 
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            PoolsetType::SSD,
             3,
             1024,
             &infos);

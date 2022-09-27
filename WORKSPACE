@@ -33,7 +33,7 @@ bazel_skylib_workspace()
 
 git_repository(
     name = "com_github_baidu_braft",
-    remote = "https://gitee.com/baidu/braft",
+    remote = "https://github.com/baidu/braft",
     commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
 )
 
@@ -52,7 +52,7 @@ http_archive(
     build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
     sha256 = "c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1",
     strip_prefix = "zlib-1.2.11",
-    urls = ["https://curve-build.nos-eastchina1.126.net/zlib-1.2.11.tar.gz"],
+    urls = ["https://zlib.net/zlib-1.2.11.tar.gz"],
 )
 
 bind(
@@ -66,7 +66,7 @@ http_archive(
     patch_args = ["-p1"],
     patches = ["//:thirdparties/protobuf/protobuf.patch"],
     sha256 = "9510dd2afc29e7245e9e884336f848c8a6600a14ae726adb6befdb4f786f0be2",
-    urls = ["https://curve-build.nos-eastchina1.126.net/protobuf-3.6.1.3.zip"],
+    urls = ["https://github.com/google/protobuf/archive/v3.6.1.3.zip"],
 )
 
 bind(
@@ -78,7 +78,7 @@ bind(
 new_git_repository(
     name = "com_google_googletest",
     build_file = "//:thirdparties/gmock.BUILD",
-    remote = "https://gitee.com/mirrors/googletest",
+    remote = "https://github.com/google/googletest",
     tag = "release-1.8.0",
 )
 
@@ -91,7 +91,7 @@ bind(
 # brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
 git_repository(
     name = "com_github_google_glog",
-    remote = "https://gitee.com/mirrors/glog",
+    remote = "https://github.com/google/glog",
     commit = "4cc89c9e2b452db579397887c37f302fb28f6ca1",
     patch_args = ["-p1"],
     patches = ["//:thirdparties/glog/glog.patch"],
@@ -106,7 +106,7 @@ bind(
 http_archive(
     name = "com_github_gflags_gflags",
     strip_prefix = "gflags-2.2.2",
-    urls = ["https://curve-build.nos-eastchina1.126.net/gflags-2.2.2.tar.gz"],
+    urls = ["https://github.com/gflags/gflags/archive/v2.2.2.tar.gz"],
 )
 
 bind(
@@ -118,7 +118,7 @@ http_archive(
     name = "com_github_google_leveldb",
     build_file = "@com_github_apache_brpc//:leveldb.BUILD",
     strip_prefix = "leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6",
-    urls = ["https://curve-build.nos-eastchina1.126.net/leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
+    urls = ["https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
 )
 
 bind(
@@ -128,7 +128,7 @@ bind(
 
 git_repository(
     name = "com_github_apache_brpc",
-    remote = "https://gitee.com/baidu/BRPC",
+    remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
     patches = ["//:thirdparties/brpc/brpc.patch"],
     patch_args = ["-p1"],
@@ -158,7 +158,7 @@ bind(
 new_git_repository(
     name = "jsoncpp",
     build_file = "//:thirdparties/jsoncpp.BUILD",
-    remote = "https://gitee.com/mirrors/jsoncpp",
+    remote = "https://github.com/open-source-parsers/jsoncpp.git",
     tag = "1.8.4",
 )
 
@@ -191,7 +191,7 @@ http_archive(
 # abseil-cpp
 http_archive(
   name = "com_google_absl",
-  urls = ["https://curve-build.nos-eastchina1.126.net/abseil-cpp-20210324.2.tar.gz"],
+  urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20210324.2.tar.gz"],
   strip_prefix = "abseil-cpp-20210324.2",
   sha256 = "59b862f50e710277f8ede96f083a5bb8d7c9595376146838b9580be90374ee1f",
 )
@@ -201,7 +201,7 @@ http_archive(
     name = "platforms",
     sha256 = "b601beaf841244de5c5a50d2b2eddd34839788000fa1be4260ce6603ca0d8eb7",
     strip_prefix = "platforms-98939346da932eef0b54cf808622f5bb0928f00b",
-    urls = ["https://curve-build.nos-eastchina1.126.net/platforms-98939346da932eef0b54cf808622f5bb0928f00b.zip"],
+    urls = ["https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf808622f5bb0928f00b.zip"],
 )
 
 # RocksDB

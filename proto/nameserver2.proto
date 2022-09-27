@@ -93,6 +93,7 @@ message FileInfo {
 
     optional    FileThrottleParams throttleParams = 17;
     optional    uint64      epoch = 18;
+    optional    string      poolsetName = 19;
 }
 
 // status code
@@ -202,6 +203,7 @@ message CreateFileRequest {
     required uint64     date = 6;
     optional uint64     stripeUnit = 7;
     optional uint64     stripeCount = 8;
+    optional string     poolsetName = 9;
 };
 
 message CreateFileResponse {

@@ -120,6 +120,7 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void CreateFile(const std::string& filename,
+                    const std::string& poolsetName,
                     const UserInfo_t& userinfo,
                     size_t size,
                     bool normalFile,

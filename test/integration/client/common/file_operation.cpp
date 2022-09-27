@@ -75,7 +75,7 @@ int FileCommonOperation::Open(const std::string& filename,
 
     // 先创建文件
     int ret = ::Create2(filename.c_str(), &userinfo,
-               100*1024*1024*1024ul, stripeUnit, stripeCount);
+               100*1024*1024*1024ul, stripeUnit, stripeCount, "ssdPoolset1");
     if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
         LOG(ERROR) << "file create failed! " << ret
                    << ", filename = " << filename;

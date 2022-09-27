@@ -308,16 +308,18 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string &filename,
 }
 
 LIBCURVE_ERROR MDSClient::CreateFile(const std::string &filename,
-                                     const UserInfo_t &userinfo, size_t size,
+                                     const UserInfo_t &userinfo,
+                                     const std::string &poolsetName,
+                                     size_t size,
                                      bool normalFile, uint64_t stripeUnit,
                                      uint64_t stripeCount) {
     auto task = RPCTaskDefine {
         CreateFileResponse response;
         mdsClientMetric_.createFile.qps.count << 1;
         LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-        MDSClientBase::CreateFile(filename, userinfo, size, normalFile,
-                                  stripeUnit, stripeCount, &response, cntl,
-                                  channel);
+        MDSClientBase::CreateFile(filename, poolsetName, userinfo, size,
+                                  normalFile, stripeUnit, stripeCount,
+                                  &response, cntl, channel);
 
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;

@@ -742,7 +742,7 @@ int CurveCluster::CreateFile(const std::string &user, const std::string &pwd,
               << " begin...";
     UserInfo_t info(user, pwd);
     RETURN_IF_NOT_ZERO(
-        mdsClient_->CreateFile(fileName, info, fileSize, normalFile));
+        mdsClient_->CreateFile(fileName, info, "", fileSize, normalFile));
     LOG(INFO) << "success create file";
     return 0;
 }

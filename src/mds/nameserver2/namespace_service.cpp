@@ -85,9 +85,9 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    retCode = kCurveFS.CreateFile(request->filename(), request->owner(),
-            request->filetype(), request->filelength(), request->stripeunit(),
-                                              request->stripecount());
+    retCode = kCurveFS.CreateFile(request->filename(), request->poolsetname(),
+            request->owner(), request->filetype(), request->filelength(),
+            request->stripeunit(), request->stripecount());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         // TODO(hzsunjianliang): check if we should really print error here

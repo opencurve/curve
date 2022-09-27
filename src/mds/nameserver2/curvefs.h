@@ -31,6 +31,7 @@
 #include <chrono>  //NOLINT
 #include <unordered_map>
 #include "proto/nameserver2.pb.h"
+// #include "proto/topology.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
@@ -43,6 +44,7 @@
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include "src/mds/topology/topology_service_manager.h"
 
+using curve::mds::topology::PoolsetType;
 using curve::common::Authenticator;
 using curve::mds::snapshotcloneclient::SnapshotCloneClient;
 using curve::common::ChunkServerLocation;
@@ -141,6 +143,7 @@ class CurveFS {
      *  @return return StatusCode::kOK if succeeded
      */
     StatusCode CreateFile(const std::string & fileName,
+                          const std::string & poolsetName,
                           const std::string& owner,
                           FileType filetype,
                           uint64_t length,

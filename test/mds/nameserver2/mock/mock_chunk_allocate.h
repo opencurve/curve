@@ -30,12 +30,14 @@ namespace curve {
 namespace mds {
 class MockChunkAllocator: public ChunkSegmentAllocator {
  public:
+    using PoolsetType = ::curve::mds::topology::PoolsetType;
+
     ~MockChunkAllocator() {}
     MOCK_METHOD4(AllocateChunkSegment, bool(SegmentSizeType,
       ChunkSizeType, offset_t, PageFileSegment*));
 
-    MOCK_METHOD5(AllocateChunkSegment, bool(FileType, SegmentSizeType,
-      ChunkSizeType, offset_t, PageFileSegment*));
+    MOCK_METHOD6(AllocateChunkSegment, bool(FileType, SegmentSizeType,
+      ChunkSizeType, PoolsetType, offset_t, PageFileSegment*));
 };
 }  // namespace mds
 }  // namespace curve

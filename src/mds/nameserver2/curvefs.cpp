@@ -43,6 +43,7 @@ using curve::mds::topology::CopySetIdType;
 using curve::mds::topology::ChunkServer;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::OnlineState;
+using curve::mds::topology::Poolset;
 
 namespace curve {
 namespace mds {
@@ -243,6 +244,7 @@ StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
 }
 
 StatusCode CurveFS::CreateFile(const std::string & fileName,
+                               const std::string & poolsetName,
                                const std::string& owner,
                                FileType filetype, uint64_t length,
                                uint64_t stripeUnit, uint64_t stripeCount) {
@@ -309,6 +311,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
 
         fileInfo.set_id(inodeID);
         fileInfo.set_filename(lastEntry);
+        fileInfo.set_poolsetname(poolsetName);
         fileInfo.set_parentid(parentFileInfo.id());
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
@@ -1233,9 +1236,15 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
             return  StatusCode::kSegmentNotAllocated;
         } else {
             // TODO(hzsunjianliang): check the user and define the logical pool
+            if (!fileInfo.has_poolsetname()) {
+                fileInfo.set_poolsetname("ssdPoolset1");
+            }
+            Poolset poolset;
+            topology_->GetPoolset(fileInfo.poolsetname(), &poolset);
             auto ifok = chunkSegAllocator_->AllocateChunkSegment(
                             fileInfo.filetype(), fileInfo.segmentsize(),
-                            fileInfo.chunksize(), offset, segment);
+                            fileInfo.chunksize(), poolset.GetType(),
+                            offset, segment);
             if (ifok == false) {
                 LOG(ERROR) << "AllocateChunkSegment error";
                 return StatusCode::kSegmentAllocateError;

@@ -216,7 +216,8 @@ class Topology {
         const std::string &hostIp,
         uint32_t port) const = 0;
 
-    virtual bool GetPoolset(PoolsetIdType poolsetId, Poolset *out) const = 0;
+    virtual bool GetPoolset(PoolsetIdType poolsetId,
+        Poolset *out) const = 0;
 
     virtual bool GetLogicalPool(PoolIdType poolId,
                                 LogicalPool *out) const = 0;

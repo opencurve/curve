@@ -29,7 +29,8 @@ namespace curve {
 namespace mds {
 bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
         SegmentSizeType segmentSize, ChunkSizeType chunkSize,
-        offset_t offset, PageFileSegment *segment)  {
+        PoolsetType pType, offset_t offset,
+        PageFileSegment *segment)  {
         if (segment == nullptr) {
             LOG(ERROR) << "segment pointer is null";
             return false;
@@ -54,7 +55,7 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
         std::vector<CopysetIdInfo> copysets;
         if (!topologyChunkAllocator_->
                 AllocateChunkRoundRobinInSingleLogicalPool(
-                type, chunkNum, chunkSize, &copysets)) {
+                type, pType, chunkNum, chunkSize, &copysets)) {
             LOG(ERROR) << "AllocateChunkRoundRobinInSingleLogicalPool error";
             return false;
         }

@@ -987,13 +987,13 @@ TEST(TestLibcurveInterface, InterfaceStripeTest) {
     FakeReturn *fakeret =
         new FakeReturn(nullptr, static_cast<void *>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    int ret = fc.Create2(filename, userinfo, size, 0, 0);
+    int ret = fc.Create2(filename, userinfo, size, 0, 0, "");
     ASSERT_EQ(LIBCURVE_ERROR::OK, ret);
 
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
     fakeret = new FakeReturn(nullptr, static_cast<void *>(&response));
     service->SetCreateFileFakeReturn(fakeret);
-    ret = fc.Create2(filename2, userinfo, size, 1024 * 1024, 4);
+    ret = fc.Create2(filename2, userinfo, size, 1024 * 1024, 4, "");
     ASSERT_EQ(LIBCURVE_ERROR::EXISTS, -ret);
 
     FileStatInfo_t fsinfo;

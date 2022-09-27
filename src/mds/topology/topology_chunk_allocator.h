@@ -51,11 +51,13 @@ class TopologyChunkAllocator {
     virtual ~TopologyChunkAllocator() {}
     virtual bool AllocateChunkRandomInSingleLogicalPool(
         ::curve::mds::FileType fileType,
+        ::curve::mds::topology::PoolsetType pType,
         uint32_t chunkNumer,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) = 0;
     virtual bool AllocateChunkRoundRobinInSingleLogicalPool(
         ::curve::mds::FileType fileType,
+        ::curve::mds::topology::PoolsetType pType,
         uint32_t chunkNumer,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) = 0;
@@ -89,6 +91,7 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      */
     bool AllocateChunkRandomInSingleLogicalPool(
         curve::mds::FileType fileType,
+        curve::mds::topology::PoolsetType pType,
         uint32_t chunkNumber,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
@@ -106,6 +109,7 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      */
     bool AllocateChunkRoundRobinInSingleLogicalPool(
         curve::mds::FileType fileType,
+        curve::mds::topology::PoolsetType pType,
         uint32_t chunkNumber,
         ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
@@ -121,6 +125,7 @@ class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
      * @retval false if failed
      */
     bool ChooseSingleLogicalPool(curve::mds::FileType fileType,
+        curve::mds::topology::PoolsetType pType,
         PoolIdType *poolOut);
 
  private:

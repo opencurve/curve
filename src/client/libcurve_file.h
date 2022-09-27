@@ -41,6 +41,7 @@ namespace curve {
 namespace client {
 
 using curve::common::BthreadRWLock;
+using PoolsetType = ::curve::mds::topology::PoolsetType;
 
 class FileClient {
  public:
@@ -111,7 +112,8 @@ class FileClient {
     virtual int Create2(const std::string& filename,
                         const UserInfo_t& userinfo,
                         size_t size, uint64_t stripeUnit,
-                        uint64_t stripeCount);
+                        uint64_t stripeCount,
+                        const std::string& poolsetName);
 
     /**
      * 同步模式读

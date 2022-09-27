@@ -36,15 +36,16 @@ namespace mds {
 class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
  public:
      using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
+     using PoolsetType = ::curve::mds::topology::PoolsetType;
 
     ~MockTopologyChunkAllocator() {}
-    MOCK_METHOD4(AllocateChunkRandomInSingleLogicalPool,
-        bool(FileType, uint32_t,
-            ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
+    MOCK_METHOD5(AllocateChunkRandomInSingleLogicalPool,
+        bool(FileType, PoolsetType, uint32_t,
+            ChunkSizeType chunkSize, std::vector<CopysetIdInfo>*));
 
-    MOCK_METHOD4(AllocateChunkRoundRobinInSingleLogicalPool,
-        bool(FileType, uint32_t,
-            ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
+    MOCK_METHOD5(AllocateChunkRoundRobinInSingleLogicalPool,
+        bool(FileType, PoolsetType, uint32_t,
+            ChunkSizeType chunkSize, std::vector<CopysetIdInfo>*));
 };
 
 }  // namespace mds

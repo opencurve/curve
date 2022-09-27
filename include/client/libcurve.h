@@ -138,7 +138,8 @@ int Create(const char* filename,
  */
 int Create2(const char* filename,
            const C_UserInfo_t* userinfo,
-           size_t size, uint64_t stripeUnit, uint64_t stripeCount);
+           size_t size, uint64_t stripeUnit,
+           uint64_t stripeCount, const char* poolsetName);
 
 /**
  * 同步模式读
