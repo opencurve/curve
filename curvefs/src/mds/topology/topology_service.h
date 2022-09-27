@@ -63,6 +63,11 @@ class TopologyServiceImpl : public TopologyService {
                                   DeleteMetaServerResponse* response,
                                   google::protobuf::Closure* done);
 
+    virtual void OfflineMetaServer(google::protobuf::RpcController* cntl_base,
+                                  const OfflineMetaServerRequest* request,
+                                  OfflineMetaServerResponse* response,
+                                  google::protobuf::Closure* done);
+
     virtual void RegistServer(google::protobuf::RpcController* cntl_base,
                               const ServerRegistRequest* request,
                               ServerRegistResponse* response,

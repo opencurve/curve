@@ -34,6 +34,7 @@
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 #include "curvefs/src/mds/topology/topology_storge.h"
@@ -284,6 +285,8 @@ class Topology {
     virtual std::string GetHostNameAndPortById(MetaServerIdType msId) = 0;
 
     virtual bool IsCopysetCreating(const CopySetKey &key) const = 0;
+
+    virtual bool IsMetaServerReRegistered(MetaServerIdType msId) = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -528,6 +531,8 @@ class TopologyImpl : public Topology {
     std::string GetHostNameAndPortById(MetaServerIdType msId) override;
 
     bool IsCopysetCreating(const CopySetKey &key) const override;
+
+    bool IsMetaServerReRegistered(MetaServerIdType msId) override;
 
  private:
     TopoStatusCode LoadClusterInfo();

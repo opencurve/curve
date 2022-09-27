@@ -70,6 +70,9 @@ class TopologyManager {
     virtual void DeleteMetaServer(const DeleteMetaServerRequest *request,
                                   DeleteMetaServerResponse *response);
 
+    virtual void OfflineMetaServer(const OfflineMetaServerRequest *request,
+                                  OfflineMetaServerResponse *response);
+
     virtual void RegistServer(const ServerRegistRequest *request,
                               ServerRegistResponse *response);
 

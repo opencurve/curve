@@ -458,12 +458,21 @@ message ListTopologyResponse {
     required ListMetaServerResponse metaservers = 5;
 }
 
+message OfflineMetaServerRequest {
+    required uint32 metaServerID = 1;
+}
+
+message OfflineMetaServerResponse {
+    required TopoStatusCode statusCode = 1;
+}
+
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
     // TODO(chengyi): mv to GetMateservers
     rpc GetMetaServer(GetMetaServerInfoRequest)         returns (GetMetaServerInfoResponse);
     rpc DeleteMetaServer(DeleteMetaServerRequest)       returns (DeleteMetaServerResponse);
+    rpc OfflineMetaServer(OfflineMetaServerRequest)     returns (OfflineMetaServerResponse);
 
     rpc RegistServer(ServerRegistRequest)       returns (ServerRegistResponse);
     rpc GetServer(GetServerRequest)             returns (GetServerResponse);

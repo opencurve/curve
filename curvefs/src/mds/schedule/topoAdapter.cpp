@@ -334,6 +334,14 @@ bool TopoAdapterImpl::ChooseNewMetaServerForCopyset(
     return ret == TopoStatusCode::TOPO_OK;
 }
 
+bool TopoAdapterImpl::IsMetaServerReRegistered(MetaServerIdType msId) {
+    return topo_->IsMetaServerReRegistered(msId);
+}
+
+void TopoAdapterImpl::RemoveMetaServer(MetaServerIdType msId) {
+    topo_->RemoveMetaServer(msId);
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

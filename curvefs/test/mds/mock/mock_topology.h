@@ -248,6 +248,7 @@ class MockTopology : public TopologyImpl {
     MOCK_METHOD2(UpdatePartitionStatistic,
                  TopoStatusCode(uint32_t partitionId,
                                 PartitionStatistic statistic));
+    MOCK_METHOD1(IsMetaServerReRegistered, bool(MetaServerIdType msId));
 
     // find
     MOCK_CONST_METHOD1(FindPool, PoolIdType(const std::string &poolName));

@@ -86,6 +86,8 @@ const char kCopysetInfoListCmd[] = "list-copysetInfo";
 const char kTopologyListCmd[] = "list-topology";
 // list-partition
 const char kPartitionListCmd[] = "list-partition";
+// offline-metaserver
+const char kMetaserverOfflineCmd[] = "offline-metaserver";
 // no-invoke Used for commands that are not directly invoked
 const char kNoInvokeCmd[] = "no-invoke";
 
@@ -118,6 +120,7 @@ const char kHelpStr[] =
     "query-metaserver:  query metaserver by metaserverId or metaserverName\n"
     "query-fs:          query fs by fsId or fsName\n"
     "query-inode:       query inode\n"
+    "offline-metaserver: set metaserver to offline\n"
     "You can specify the config path by -confPath to avoid typing too many "
     "options\n";  // NOLINT
 

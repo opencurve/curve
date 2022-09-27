@@ -85,7 +85,12 @@ class MockTopoAdapter : public TopoAdapter {
                       const std::set<ZoneIdType> &excludeZones,
                       const std::set<MetaServerIdType> &excludeMetaservers,
                       MetaServerIdType *target));
+
+    MOCK_METHOD1(IsMetaServerReRegistered, bool(MetaServerIdType id));
+
+    MOCK_METHOD1(RemoveMetaServer, void(MetaServerIdType id));
 };
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs

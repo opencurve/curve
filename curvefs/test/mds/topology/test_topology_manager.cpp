@@ -2842,6 +2842,26 @@ TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
     ASSERT_THAT(*addrs.begin(), AnyOf("ip2:8887", "ip2:8888", "ip2:8889"));
 }
 
+TEST_F(TestTopologyManager, test_OfflineMetaServer) {
+    PoolIdType poolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    MetaServerIdType msId = 0x41;
+    PrepareAddPool(poolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId, "hostname1", "ip1", 0, "ip2", 0, zoneId, poolId);
+    PrepareAddMetaServer(msId, "ms1", "token1", serverId, "127.0.0.1", 7777,
+        "ip2", 8887);
+
+    OfflineMetaServerRequest request;
+    request.set_metaserverid(msId);
+
+    OfflineMetaServerResponse response;
+
+    serviceManager_->OfflineMetaServer(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

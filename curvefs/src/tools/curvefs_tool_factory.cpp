@@ -46,6 +46,7 @@
 #include "curvefs/src/tools/version/curvefs_version_tool.h"
 #include "curvefs/src/tools/list/curvefs_partition_list.h"
 #include "curvefs/src/tools/delete/curvefs_delete_partition_tool.h"
+#include "curvefs/src/tools/offline/curvefs_offline_metaserver_tool.h"
 
 namespace curvefs {
 namespace tools {
@@ -137,6 +138,10 @@ CurvefsToolFactory::CurvefsToolFactory() {
     // check-copyset
     RegisterCurvefsTool(std::string(kCopysetCheckCmd),
                         CurvefsToolCreator<check::CopysetCheckTool>::Create);
+
+    // offline-metaserver
+    RegisterCurvefsTool(std::string(kMetaserverOfflineCmd),
+        CurvefsToolCreator<offline::OfflineMetaserverTool>::Create);
 }
 
 std::shared_ptr<CurvefsTool> CurvefsToolFactory::GenerateCurvefsTool(

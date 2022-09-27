@@ -2340,6 +2340,29 @@ TEST_F(TestTopology, GenCopysetAddrBatch_2pool) {
     ASSERT_EQ(pool1Count, 3);
     ASSERT_EQ(pool2Count, 12);
 }
+
+TEST_F(TestTopology, IsMetaServerReRegistered) {
+    PoolIdType poolId = 0x11;
+
+    PrepareAddPool(poolId);
+    PrepareAddZone(0x21, "zone1", poolId);
+    PrepareAddZone(0x22, "zone2", poolId);
+    PrepareAddZone(0x23, "zone3", poolId);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.2" , 0, "127.0.0.2" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.3" , 0, "127.0.0.3" , 0, 0x23, 0x11);
+    PrepareAddMetaServer(0x41, "metaserver1", "token1", 0x31,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
+    PrepareAddMetaServer(0x42, "metaserver2", "token2", 0x31,
+                        "127.0.0.1", 8200, "127.0.0.1", 8200);
+
+    CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->IsMetaServerReRegistered(0x42));
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

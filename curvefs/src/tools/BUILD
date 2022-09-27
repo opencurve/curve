@@ -42,6 +42,7 @@ cc_library(
         "copyset/*.cpp",
         "delete/*.cpp",
         "umount/*.cpp",
+        "offline/*.cpp",
     ]),
     hdrs = glob([
         "*.h",
@@ -55,6 +56,7 @@ cc_library(
         "copyset/*.h",
         "delete/*.h",
         "umount/*.h",
+        "offline/*.h",
     ]),
     copts = CURVE_DEFAULT_COPTS,
     visibility = ["//visibility:public"],

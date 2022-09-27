@@ -60,7 +60,15 @@ void CopySetScheduler::GetCopySetDistribution(
     // remove offline metaserver
     for (auto item : metaserverList) {
         if (item.IsOffline()) {
-            out->erase(item.info.id);
+            // if no copysets on it and have been reregistered, remove it
+            if (out->find(item.info.id) == out->end() &&
+                topo_->IsMetaServerReRegistered(item.info.id)) {
+                LOG(INFO) << "remove offline metaserver " << item.info.id
+                          << ", which has no copyset and has been reregistered";
+                topo_->RemoveMetaServer(item.info.id);
+            } else {
+                out->erase(item.info.id);
+            }
             continue;
         }
     }

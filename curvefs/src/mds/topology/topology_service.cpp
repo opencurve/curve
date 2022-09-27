@@ -156,6 +156,38 @@ void TopologyServiceImpl::DeleteMetaServer(
     }
 }
 
+void TopologyServiceImpl::OfflineMetaServer(
+    google::protobuf::RpcController* cntl_base,
+    const OfflineMetaServerRequest* request,
+    OfflineMetaServerResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+              << "] from " << cntl->remote_side()
+              << " to " << cntl->local_side()
+              << ". [OfflineMetaServerRequest] "
+              << request->DebugString();
+
+    topologyManager_->OfflineMetaServer(request, response);
+
+    if (TopoStatusCode::TOPO_OK != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [OfflineMetaServerResponse] "
+                   << response->DebugString();
+    } else {
+        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
+                  << "] from " << cntl->local_side()
+                  << " to " << cntl->remote_side()
+                  << ". [OfflineMetaServerResponse] "
+                  << response->DebugString();
+    }
+}
+
 void TopologyServiceImpl::RegistServer(
     google::protobuf::RpcController* cntl_base,
     const ServerRegistRequest* request,

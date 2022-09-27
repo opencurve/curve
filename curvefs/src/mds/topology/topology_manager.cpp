@@ -206,6 +206,13 @@ void TopologyManager::DeleteMetaServer(const DeleteMetaServerRequest *request,
     response->set_statuscode(errcode);
 }
 
+void TopologyManager::OfflineMetaServer(const OfflineMetaServerRequest *request,
+                                        OfflineMetaServerResponse *response) {
+    TopoStatusCode errcode = topology_->UpdateMetaServerOnlineState(
+        OnlineState::OFFLINE, request->metaserverid());
+    response->set_statuscode(errcode);
+}
+
 void TopologyManager::RegistServer(const ServerRegistRequest *request,
                                    ServerRegistResponse *response) {
     Pool pPool;

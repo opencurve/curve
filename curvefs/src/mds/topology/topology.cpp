@@ -536,6 +536,23 @@ bool TopologyImpl::GetMetaServer(const std::string &hostIp, uint32_t port,
     return false;
 }
 
+bool TopologyImpl::IsMetaServerReRegistered(MetaServerIdType msId) {
+    MetaServer ms;
+    if (GetMetaServer(msId, &ms)) {
+        ReadLockGuard rlockMetaServerMap(metaServerMutex_);
+        for (auto it = metaServerMap_.begin(); it != metaServerMap_.end();
+            it++) {
+            ReadLockGuard rlockMetaServer(it->second.GetRWLockRef());
+            if (it->second.GetInternalIp() == ms.GetInternalIp() &&
+                it->second.GetInternalPort() == ms.GetInternalPort() &&
+                it->second.GetId() != ms.GetId()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 TopoStatusCode TopologyImpl::AddPartition(const Partition &data) {
     WriteLockGuard wlockCluster(clusterMutex_);
     ReadLockGuard rlockPool(poolMutex_);

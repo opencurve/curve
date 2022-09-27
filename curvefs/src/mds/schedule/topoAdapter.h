@@ -275,6 +275,10 @@ class TopoAdapter {
         PoolIdType poolId, const std::set<ZoneIdType> &excludeZones,
         const std::set<MetaServerIdType> &excludeMetaservers,
         MetaServerIdType *target) = 0;
+
+    virtual bool IsMetaServerReRegistered(MetaServerIdType msId) = 0;
+
+    virtual void RemoveMetaServer(MetaServerIdType msId) = 0;
 };
 
 // implementation of virtual class TopoAdapter
@@ -325,6 +329,10 @@ class TopoAdapterImpl : public TopoAdapter {
         PoolIdType poolId, const std::set<ZoneIdType> &excludeZones,
         const std::set<MetaServerIdType> &excludeMetaservers,
         MetaServerIdType *target) override;
+
+    bool IsMetaServerReRegistered(MetaServerIdType msId) override;
+
+    void RemoveMetaServer(MetaServerIdType msId) override;
 
  private:
     bool GetPeerInfo(MetaServerIdType id, PeerInfo *peerInfo);

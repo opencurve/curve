@@ -20,7 +20,9 @@
  * @Author: chenwei
  */
 
+#include <gmock/gmock-spec-builders.h>
 #include <gtest/gtest.h>
+#include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/test/mds/schedule/common.h"
 
@@ -609,6 +611,24 @@ TEST(TestMetaServerInfo, test_IsMetaserverResourceAvailable) {
         ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
     }
 }
+
+TEST_F(TestTopoAdapterImpl, test_IsMetaServerReRegistered) {
+    MetaServerIdType msId = 1;
+
+    EXPECT_CALL(*mockTopo_, IsMetaServerReRegistered(msId))
+        .WillOnce(Return(true));
+    ASSERT_TRUE(topoAdapter_->IsMetaServerReRegistered(msId));
+}
+
+
+TEST_F(TestTopoAdapterImpl, test_RemoveMetaServer) {
+    MetaServerIdType msId = 1;
+
+    EXPECT_CALL(*mockTopo_, RemoveMetaServer(msId))
+        .Times(1);
+    topoAdapter_->RemoveMetaServer(msId);
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curvefs
