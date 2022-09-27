@@ -678,7 +678,7 @@ CURVEFS_ERROR FuseClient::FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
                 inodeIds.emplace(dentry.inodeid());
             }
             VLOG(3) << "batch get inode size = " << inodeIds.size();
-            ret = inodeManager_->BatchGetInodeAttrAsync(ino, inodeIds,
+            ret = inodeManager_->BatchGetInodeAttrAsync(ino, &inodeIds,
                                                         &inodeAttrMap);
             if (ret != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "BatchGetInodeAttr failed when FuseOpReadDir"
