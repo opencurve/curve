@@ -172,8 +172,8 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
 
 CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
     std::set<uint64_t> *inodeIds,
-    std::list<InodeAttr> *attr) {
-    // get some inode in icache
+    std::list<InodeAttr> *attrs) {
+    // get some inode attr in icache
     for (auto iter = inodeIds->begin(); iter != inodeIds->end();) {
         std::shared_ptr<InodeWrapper> inodeWrapper;
         NameLockGuard lock(nameLock_, std::to_string(*iter));
@@ -181,7 +181,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         if (ok) {
             InodeAttr tmpAttr;
             inodeWrapper->GetInodeAttr(&tmpAttr);
-            attr->emplace_back(tmpAttr);
+            attrs->emplace_back(tmpAttr);
             iter = inodeIds->erase(iter);
         } else {
             ++iter;
@@ -192,7 +192,8 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         return CURVEFS_ERROR::OK;
     }
 
-    MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, *inodeIds, attr);
+    MetaStatusCode ret = metaClient_->BatchGetInodeAttr(fsId_, *inodeIds,
+        attrs);
     if (MetaStatusCode::OK != ret) {
         LOG(ERROR) << "metaClient BatchGetInodeAttr failed, MetaStatusCode = "
                    << ret << ", MetaStatusCode_Name = "
@@ -203,21 +204,37 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
 
 CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
     uint64_t parentId,
-    const std::set<uint64_t> &inodeIds,
+    std::set<uint64_t> *inodeIds,
     std::map<uint64_t, InodeAttr> *attrs) {
-    if (inodeIds.empty()) {
-        return CURVEFS_ERROR::OK;
+    NameLockGuard lg(asyncNameLock_, std::to_string(parentId));
+    std::map<uint64_t, InodeAttr> cachedAttr;
+    bool cache  = iAttrCache_->Get(parentId, &cachedAttr);
+
+    // get some inode attr in icache
+    for (auto iter = inodeIds->begin(); iter != inodeIds->end();) {
+        std::shared_ptr<InodeWrapper> inodeWrapper;
+        NameLockGuard lock(nameLock_, std::to_string(*iter));
+        bool ok = iCache_->Get(*iter, &inodeWrapper);
+        if (ok) {
+            InodeAttr tmpAttr;
+            inodeWrapper->GetInodeAttr(&tmpAttr);
+            attrs->emplace(*iter, tmpAttr);
+            iter = inodeIds->erase(iter);
+        } else if (cache && cachedAttr.find(*iter) != cachedAttr.end()) {
+            attrs->emplace(*iter, cachedAttr[*iter]);
+            iter = inodeIds->erase(iter);
+        } else {
+            ++iter;
+        }
     }
 
-    NameLockGuard lg(asyncNameLock_, std::to_string(parentId));
-    bool ok  = iAttrCache_->Get(parentId, attrs);
-    if (ok) {
+    if (inodeIds->empty()) {
         return CURVEFS_ERROR::OK;
     }
 
     // split inodeIds by partitionId and batch limit
     std::vector<std::vector<uint64_t>> inodeGroups;
-    if (!metaClient_->SplitRequestInodes(fsId_, inodeIds, &inodeGroups)) {
+    if (!metaClient_->SplitRequestInodes(fsId_, *inodeIds, &inodeGroups)) {
         return CURVEFS_ERROR::NOTEXIST;
     }
 
@@ -240,7 +257,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
     // wait for all sudrequest finished
     cond->Wait();
 
-    ok  = iAttrCache_->Get(parentId, attrs);
+    bool ok  = iAttrCache_->Get(parentId, attrs);
     if (!ok) {
         LOG(WARNING) << "get attrs form iAttrCache_ failed.";
     }
@@ -387,6 +404,12 @@ void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
                         << " from iCache";
                 iCache_->Remove(inodeId);
                 trimSize--;
+            }
+            trimSize--;
+            // remove the attr of the inode in iattrcache
+            auto parents = inodeWrapper->GetParentLocked();
+            for (uint64_t parent : parents) {
+                iAttrCache_->Remove(parent, inodeId);
             }
         } else {
             VLOG(9) << "iCache size " << iCache_->Size() << " wait inode flush";

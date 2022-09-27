@@ -60,7 +60,7 @@ class MockInodeCacheManager : public InodeCacheManager {
         std::set<uint64_t> *inodeIds, std::list<InodeAttr> *attrs));
 
     MOCK_METHOD3(BatchGetInodeAttrAsync,
-        CURVEFS_ERROR(uint64_t parentId, const std::set<uint64_t> &inodeIds,
+        CURVEFS_ERROR(uint64_t parentId, std::set<uint64_t> *inodeIds,
         std::map<uint64_t, InodeAttr> *attrs));
 
     MOCK_METHOD2(BatchGetXAttr, CURVEFS_ERROR(

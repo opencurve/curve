@@ -71,7 +71,7 @@ class InodeAttrCache {
         curve::common::LockGuard lg(iAttrCacheMutex_);
         auto iter = iAttrCache_.find(parentId);
         if (iter != iAttrCache_.end()) {
-            *imap = iter->second;
+            imap->insert(iter->second.begin(), iter->second.end());
             return true;
         }
         return false;
@@ -97,6 +97,14 @@ class InodeAttrCache {
         VLOG(1) << "inodeId = " << parentId
                 << ", inode attr cache release, before = "
                 << size << ", after = " << iAttrCache_.size();
+    }
+
+    void Remove(uint64_t parentId, uint64_t inodeId) {
+        curve::common::LockGuard lg(iAttrCacheMutex_);
+        auto iter = iAttrCache_.find(parentId);
+        if (iter != iAttrCache_.end()) {
+            iter->second.erase(inodeId);
+        }
     }
 
  private:
@@ -136,7 +144,7 @@ class InodeCacheManager {
 
     virtual CURVEFS_ERROR BatchGetInodeAttrAsync(
         uint64_t parentId,
-        const std::set<uint64_t> &inodeIds,
+        std::set<uint64_t> *inodeIds,
         std::map<uint64_t, InodeAttr> *attrs) = 0;
 
     virtual CURVEFS_ERROR BatchGetXAttr(std::set<uint64_t> *inodeIds,
@@ -226,7 +234,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         std::list<InodeAttr> *attrs) override;
 
     CURVEFS_ERROR BatchGetInodeAttrAsync(uint64_t parentId,
-        const std::set<uint64_t> &inodeIds,
+        std::set<uint64_t> *inodeIds,
         std::map<uint64_t, InodeAttr> *attrs = nullptr) override;
 
     CURVEFS_ERROR BatchGetXAttr(std::set<uint64_t> *inodeIds,

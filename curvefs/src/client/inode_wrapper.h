@@ -225,6 +225,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return curve::common::UniqueLock(mtx_);
     }
 
+    const google::protobuf::RepeatedField<uint64_t>& GetParentLocked() {
+        return inode_.parent();
+    }
+
     CURVEFS_ERROR UpdateParent(uint64_t oldParent, uint64_t newParent);
 
     // dir will not update parent

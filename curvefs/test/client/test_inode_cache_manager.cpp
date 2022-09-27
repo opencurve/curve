@@ -20,10 +20,12 @@
  * Author: xuchaojie
  */
 
+#include <gmock/gmock-spec-builders.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstdint>
-
+#include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
 #include "curvefs/src/client/inode_cache_manager.h"
 #include "curvefs/src/common/define.h"
@@ -381,6 +383,58 @@ TEST_F(TestInodeCacheManager, BatchGetInodeAttr) {
     ASSERT_THAT(getAttrs.begin()->inodeid(), AnyOf(inodeId1, inodeId2));
     ASSERT_EQ(getAttrs.begin()->fsid(), fsId_);
     ASSERT_EQ(getAttrs.begin()->length(), fileLength);
+}
+
+TEST_F(TestInodeCacheManager, BatchGetInodeAttrAsync) {
+    uint64_t parentId = 1;
+    uint64_t inodeId1 = 100;
+    uint64_t inodeId2 = 200;
+
+    // in
+    std::set<uint64_t> inodeIds;
+    inodeIds.emplace(inodeId1);
+    inodeIds.emplace(inodeId2);
+
+    // out
+    Inode inode;
+    inode.set_inodeid(inodeId1);
+
+    std::vector<std::vector<uint64_t>> inodeGroups;
+    inodeGroups.emplace_back(std::vector<uint64_t>{inodeId2});
+
+    std::map<uint64_t, InodeAttr> attrs;
+
+    RepeatedPtrField<InodeAttr> inodeAttrs;
+    inodeAttrs.Add()->set_inodeid(inodeId2);
+
+    // fill icache
+    EXPECT_CALL(*metaClient_, GetInode(_, inodeId1, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(inode),
+                Return(MetaStatusCode::OK)));
+    std::shared_ptr<InodeWrapper> wrapper;
+    iCacheManager_->GetInode(inodeId1, wrapper);
+
+    EXPECT_CALL(*metaClient_, SplitRequestInodes(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(inodeGroups),
+                Return(true)));
+    EXPECT_CALL(*metaClient_, BatchGetInodeAttrAsync(_, _, _))
+        .WillOnce(Invoke([inodeAttrs](uint32_t fsId,
+            const std::vector<uint64_t> &inodeIds,
+            MetaServerClientDone *done) {
+                done->SetMetaStatusCode(MetaStatusCode::OK);
+                static_cast<BatchGetInodeAttrDone *>(done)
+                    ->SetInodeAttrs(inodeAttrs);
+                done->Run();
+                return MetaStatusCode::OK;
+            }));
+
+    CURVEFS_ERROR ret = iCacheManager_->BatchGetInodeAttrAsync(parentId,
+        &inodeIds, &attrs);
+
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(attrs.size(), 2);
+    ASSERT_TRUE(attrs.find(inodeId1) != attrs.end());
+    ASSERT_TRUE(attrs.find(inodeId2) != attrs.end());
 }
 
 TEST_F(TestInodeCacheManager, BatchGetXAttr) {
