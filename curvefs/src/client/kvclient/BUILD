@@ -19,7 +19,7 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 
 cc_library(
-    name = "memcache_client_lib",
+    name = "memcached_client_lib",
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
     copts = CURVE_DEFAULT_COPTS,

@@ -56,15 +56,11 @@ struct SetKvCacheTask {
     const char* value;
     const size_t len;
     SetKvCacheCallBack cb;
-    SetKvCacheTask(const std::string& k, const char* val, const size_t length)
-        : key(k), value(val), len(length) {}
 };
 
 struct GetKvCacheContext {
     const std::string& key;
     std::string* value;
-    GetKvCacheContext(const std::string& k, std::string* v)
-        : key(k), value(v) {}
 };
 
 

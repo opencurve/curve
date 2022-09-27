@@ -105,7 +105,7 @@ echo $test_bin_dirs
 for i in 0 1 2 3; do mkdir -p $i/{copysets,recycler}; done
 
 # run all unittests background
-for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds|curvefs_client_memcache_test' | awk -F":" '{print $1}' | sed -n '1,40p' ` ;do sudo $i 2>&1 | tee $i.log  & done
+for i in `find ${test_bin_dirs} -type f -executable -exec file -i '{}' \; | grep  -E 'x-executable|x-sharedlib' | grep "charset=binary" | grep -v ".so"|grep test | grep -Ev 'snapshot-server|snapshot_dummy_server|client-test|server-test|multi|topology_dummy|curve_client_workflow|curve_fake_mds|curvefs_client_memcached_test' | awk -F":" '{print $1}' | sed -n '1,40p' ` ;do sudo $i 2>&1 | tee $i.log  & done
 if [ $1 == "curvebs" ];then
 sleep 360
 fi

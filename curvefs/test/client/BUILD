@@ -94,7 +94,11 @@ cc_test(
                    "chunk_cache_manager_test.cpp",
                    "data_cache_test.cpp",
                    "client_s3_adaptor_Integration.cpp",
+<<<<<<< HEAD
                    "client_memcache_test.cpp"],
+=======
+                   "client_memcached_test.cpp"],
+>>>>>>> 1f250367 (curvefs: add global cache client like memcached)
    ),
    copts = CURVE_TEST_COPTS + ["-I/usr/local/include/fuse3"],
    deps = [
@@ -143,12 +147,21 @@ cc_library(
 )
 
 cc_test(
+<<<<<<< HEAD
     name = "curvefs_client_memcache_test",
     srcs = [
         "client_memcache_test.cpp",
     ],
     deps = [
         "//curvefs/src/client/kvclient:memcache_client_lib",
+=======
+    name = "curvefs_client_memcached_test",
+    srcs = [
+        "client_memcached_test.cpp",
+    ],
+    deps = [
+        "//curvefs/src/client/kvclient:memcached_client_lib",
+>>>>>>> 1f250367 (curvefs: add global cache client like memcached)
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
         "//external:gtest",
