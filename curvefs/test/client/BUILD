@@ -93,7 +93,7 @@ cc_test(
                    "file_cache_manager_test.cpp",
                    "chunk_cache_manager_test.cpp",
                    "data_cache_test.cpp",
-                   "client_s3_adaptor_Integration.cpp"]
+                   "client_s3_adaptor_Integration.cpp",],
    ),
    copts = CURVE_TEST_COPTS + ["-I/usr/local/include/fuse3"],
    deps = [
@@ -140,3 +140,20 @@ cc_library(
     copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
 )
+
+# cc_test(
+#     name = "curvefs_client_memcache_test",
+#     srcs = [
+#         "client_memcache_test.cpp",
+#     ],
+#     deps = [
+#         "//curvefs/src/client/kvclient:memcache_client_lib",
+#         "@com_google_absl//absl/strings",
+#         "@com_google_googletest//:gtest_main",
+#         "//external:gtest",
+#         "//external:glog",
+#     ],
+#     linkopts = ["-lmemcached"],
+#     copts = CURVE_TEST_COPTS,
+#     visibility = ["//visibility:public"],
+# )
