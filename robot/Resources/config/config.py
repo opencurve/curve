@@ -86,20 +86,22 @@ snap_sql = "./src/repo/curve_snapshot.sql"
 
 #fs test cfg
 fs_cfg_path = "/var/lib/jenkins/workspace/ansibe-conf-fs"
-fs_test_client = ["10.182.2.26"]
+fs_test_client = ["10.182.4.48"]
 fs_mount_path = "/home/nbs/failover/"
 fs_mount_dir = ["test1","test2"]
 fs_md5check_dir = ["test1"]
-fs_mds = ["10.182.2.89","10.182.2.40","10.182.2.90"]
-fs_metaserver = ["10.182.2.89","10.182.2.40","10.182.2.90"]
-fs_etcd = ["10.182.2.89","10.182.2.40","10.182.2.90"]
+fs_mds = ["10.182.26.34","10.182.26.35","10.182.26.36"]
+fs_metaserver = ["10.182.26.34","10.182.26.35","10.182.26.36"]
+fs_etcd = ["10.182.26.34","10.182.26.35","10.182.26.36"]
 md5_check = []
 fs_md5check_thread = ""
 fs_mount_thread = ""
+fs_pjdtest_thread = ""
 fs_use_curvebs = False
 thrash_fs_mount = True
 thrash_fs_mdtest = True
 thrash_mount_host = "pubbeta2-nova48-3"
+pjdtest_source_path = "/var/lib/jenkins/workspace/pjdfstest"
 # chunkserver mount point
 cs_0 = curve_workspace + "0"
 cs_1 = curve_workspace + "1"

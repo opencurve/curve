@@ -1,0 +1,21 @@
+*** Settings ***
+Library			  Collections
+#Library           RequestsLibrary
+Library           Process
+#Library           SSHLibrary
+
+Suite Setup       init
+Suite Teardown    clean
+
+
+*** Test Cases ***
+inject cases
+    [Tags]    P0    base   init
+     log  hello word
+
+*** Keywords ***
+init 
+     log  init cluster
+
+clean
+     log   clean
