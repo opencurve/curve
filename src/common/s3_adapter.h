@@ -116,6 +116,7 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     GetObjectAsyncCallBack cb;
     int retCode;
     int retry;
+    size_t getActualLen;
 };
 
 /*
@@ -251,7 +252,6 @@ class S3Adapter {
      * @param context 异步上下文
      */
     virtual void GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context);
-
     /**
      * 删除对象
      * @param 对象名
