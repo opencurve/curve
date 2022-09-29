@@ -466,7 +466,7 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
                 << "GetObjectAsync error: "
                 << response.GetError().GetExceptionName()
                 << response.GetError().GetMessage();
-
+            ctx->actualLen = response.GetResult().GetContentLength();
             ctx->retCode = (response.IsSuccess() ? 0 : -1);
             ctx->cb(this, ctx);
         };
