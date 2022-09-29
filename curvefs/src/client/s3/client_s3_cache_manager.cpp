@@ -616,8 +616,8 @@ class AsyncPrefetchCallback {
 
     void operator()(const S3Adapter *,
                     const std::shared_ptr<GetObjectAsyncContext> &context) {
-        VLOG(9) << "prefetch end: " << context->key << ", len " << context->len;
-
+        VLOG(9) << "prefetch end: " << context->key << ", len " << context->len
+                << "actual len: " <<  context->getActualLen;
         std::unique_ptr<char[]> guard(context->buf);
         auto fileCache =
             s3Client_->GetFsCacheManager()->FindFileCacheManager(inode_);
@@ -635,7 +635,7 @@ class AsyncPrefetchCallback {
         }
 
         int ret = s3Client_->GetDiskCacheManager()->WriteReadDirect(
-            context->key, context->buf, context->len);
+            context->key, context->buf, context->getActualLen);
         if (ret < 0) {
             LOG_EVERY_SECOND(INFO) <<
               "write read directly failed, key: " << context->key;
