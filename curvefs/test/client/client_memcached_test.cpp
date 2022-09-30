@@ -53,7 +53,7 @@ class MemCachedTest : public ::testing::Test {
             exit(0);
         }
         // wait memcached server start
-        std::this_thread::sleep_for(std::chrono::seconds(4));
+        std::this_thread::sleep_for(std::chrono::seconds(8));
         std::unique_ptr<MemCachedClient> client(new MemCachedClient());
         ASSERT_EQ(true, client->AddServer(hostname, port));
         ASSERT_EQ(true, client->PushServer());
@@ -93,7 +93,7 @@ TEST_F(MemCachedTest, MultiThreadGetSetTest) {
     for (auto& iter : workers) {
         iter.join();
     }
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(4));
     i = 0;
     for (; i < 5; i++) {
         workers.emplace_back([&, i]() {
