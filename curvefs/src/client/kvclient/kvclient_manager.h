@@ -38,6 +38,18 @@ namespace curvefs {
 namespace client {
 
 using ::curve::common::TaskThreadPool;
+class SetKVCacheTask;
+
+
+typedef std::function<void(const std::shared_ptr<SetKVCacheTask> &)>
+    SetKVCacheDone;
+
+struct SetKVCacheTask {
+    std::string key;
+    char *value;
+    size_t vlen;
+    SetKVCacheDone done;
+};
 
 template <typename CacheClient>
 struct KvClientManagerConfig {
@@ -84,6 +96,8 @@ class KvClientManager {
             }
         });
     }
+
+    void Enqueue(std::shared_ptr<SetKVCacheTask> task) {}
 
     /**
      * get value by key.
