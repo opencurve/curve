@@ -34,13 +34,6 @@
 namespace curvefs {
 
 namespace client {
-
-/**
- * only the threadpool will operate the kvclient,
- * for threadsafe and fast, we can make every thread has a client.
- */
-thread_local memcached_st* tcli = nullptr;
-
 /**
  * MemCachedClient is a client to memcached cluster. You'd better
  * don't use it directly.
@@ -101,43 +94,11 @@ class MemCachedClient : public KvClient<MemCachedClient> {
     bool SetImp(const std::string& key,
                 const char* value,
                 const int value_len,
-                std::string* errorlog) {
-        if (nullptr == tcli) {
-            tcli = memcached_clone(nullptr, client_);
-        }
-        auto res = memcached_set(tcli, key.c_str(),
-                      key.length(), value,
-                                 value_len, 0, 0);
-        if (MEMCACHED_SUCCESS == res) {
-            return true;
-        }
-        *errorlog = ResError(res);
-        return false;
-    }
+                std::string* errorlog);
 
     bool GetImp(const std::string& key,
                 std::string* value,
-                std::string* errorlog) {
-        if (nullptr == tcli) {
-            // multi thread use a memcached_st* client is unsafe.
-            // should clone it or use memcached_st_pool.
-            tcli = memcached_clone(nullptr, client_);
-        }
-        uint32_t flags = 0;
-        size_t value_length = 0;
-        memcached_return_t ue;
-        char* res = memcached_get(tcli, key.c_str(), key.length(),
-                                  &value_length, &flags, &ue);
-        if (res != nullptr && value->empty()) {
-            value->reserve(value_length + 1);
-            value->assign(res, res + value_length + 1);
-            value->resize(value_length);
-            free(res);
-            return true;
-        }
-        *errorlog = ResError(ue);
-        return false;
-    }
+                std::string* errorlog);
 
     // transform the res to a error string
     const std::string ResError(const memcached_return_t res) {

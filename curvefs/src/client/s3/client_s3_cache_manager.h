@@ -40,6 +40,8 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
+#include "curvefs/src/client/kvclient/kvclient.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::RWLock;
@@ -56,6 +58,7 @@ class DataCache;
 class S3ReadRequest;
 using FileCacheManagerPtr = std::shared_ptr<FileCacheManager>;
 using ChunkCacheManagerPtr = std::shared_ptr<ChunkCacheManager>;
+using KvClientManagerPtr = std::unique_ptr<KvClientManager<KvClient>>;
 using DataCachePtr = std::shared_ptr<DataCache>;
 using WeakDataCachePtr = std::weak_ptr<DataCache>;
 using curve::common::GetObjectAsyncCallBack;
@@ -103,6 +106,7 @@ enum DataCacheStatus {
 class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
+              KvClientManagerPtr kvClientManagerPtr,
               ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
               uint64_t len, const char *data);
     virtual ~DataCache() {
@@ -176,8 +180,20 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
                              const char *data);
     void AddDataBefore(uint64_t len, const char *data);
 
+    CURVEFS_ERROR PrepareFlushTasks(
+        uint64_t inodeId, char *data,
+        std::vector<std::shared_ptr<PutObjectAsyncContext>> *s3Tasks,
+        std::vector<std::shared_ptr<SetKVCacheTask>> *kvCacheTasks,
+        uint64_t *chunkId, uint64_t *writeOffset);
+
+    void FlushTaskExecute(
+        bool useDiskCache,
+        std::vector<std::shared_ptr<PutObjectAsyncContext>> &s3Tasks,
+        std::vector<std::shared_ptr<SetKVCacheTask>> &kvCacheTasks);
+
  private:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
+    KvClientManagerPtr kvCacheClientManager_;
     ChunkCacheManagerPtr chunkCacheManager_;
     uint64_t chunkPos_;  // useful chunkPos
     uint64_t len_;  // useful len
@@ -279,8 +295,10 @@ class ChunkCacheManager
 class FileCacheManager {
  public:
     FileCacheManager(uint32_t fsid, uint64_t inode,
-                     S3ClientAdaptorImpl *s3ClientAdaptor)
-        : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
+                     S3ClientAdaptorImpl *s3ClientAdaptor,
+                     KvClientManagerPtr kvClientManagerPtr)
+        : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor),
+          kvClientManagerPtr_(kvClientManagerPtr) {}
     FileCacheManager() {}
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
     void ReleaseCache();
@@ -331,6 +349,7 @@ class FileCacheManager {
     RWLock rwLock_;
     curve::common::Mutex mtx_;
     S3ClientAdaptorImpl *s3ClientAdaptor_;
+    KvClientManagerPtr kvClientManagerPtr_;
     curve::common::Mutex downloadMtx_;
     std::set<std::string> downloadingObj_;
 };
@@ -338,11 +357,13 @@ class FileCacheManager {
 class FsCacheManager {
  public:
     FsCacheManager(S3ClientAdaptorImpl *s3ClientAdaptor,
+                   KvClientManagerPtr kvClientManagerPtr,
                    uint64_t readCacheMaxByte, uint64_t writeCacheMaxByte)
         : lruByte_(0), wDataCacheNum_(0), wDataCacheByte_(0),
           readCacheMaxByte_(readCacheMaxByte),
           writeCacheMaxByte_(writeCacheMaxByte),
-          s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false) {}
+          s3ClientAdaptor_(s3ClientAdaptor),
+          kvCacheClientManager_(kvClientManagerPtr), isWaiting_(false) {}
     FsCacheManager() {}
     virtual FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
     virtual FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
@@ -445,6 +466,7 @@ class FsCacheManager {
     uint64_t readCacheMaxByte_;
     uint64_t writeCacheMaxByte_;
     S3ClientAdaptorImpl *s3ClientAdaptor_;
+    KvClientManagerPtr kvCacheClientManager_;
     bool isWaiting_;
     std::mutex mutex_;
     std::condition_variable cond_;

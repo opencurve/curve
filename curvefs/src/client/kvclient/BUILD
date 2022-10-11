@@ -20,14 +20,12 @@ load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
 cc_library(
     name = "memcached_client_lib",
-    srcs = glob([
-        "kvclient.h",
-        "kvclient_manager.h",
-        "memcache_client.h",
-    ]),
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
     copts = CURVE_DEFAULT_COPTS,
     linkopts = [
         "-lmemcached",
+        "-L/usr/local/lib",
     ],
     visibility = ["//visibility:public"],
     deps = [
