@@ -1,16 +1,16 @@
-name: PR assignment
+name: Issue assignment
 
 on:
-    pull_request:
-        types: [opened, edited, synchronize, reopened]
+    issues:
+        types: [opened]
 
 jobs:
     auto-assign:
         runs-on: ubuntu-latest
         steps:
-            - name: 'Auto-assign PR'
-              uses: pozil/auto-assign-issue@v1
+            - name: 'Auto-assign issue'
+              uses: pozil/auto-assign-issue@v1.10.1
               with:
-                  repo-token: ${{ secrets.MY_PERSONAL_ACCESS_TOKEN }}
-                  teams: reviewer
+                  assignees: cw123,ilixiaocui,wuhongsong,Cyber-SiKu,jolly-sy
                   numOfAssignee: 1
+                  allowSelfAssign: true
