@@ -12,6 +12,6 @@ jobs:
               uses: pozil/auto-assign-issue@v1.10.1
               with:
                   repo-token: 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
-                  teams: reviewer
+                  assignees: cw123,ilixiaocui,wuhongsong,Cyber-SiKu,jolly-sy
                   numOfAssignee: 1
           
