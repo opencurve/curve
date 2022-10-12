@@ -1,4 +1,4 @@
-curve-ansile项目当前已经不进行维护，请使用最新工具curveadm进行部署：https://github.com/opencurve/curveadm
+**curve-ansile项目当前已经不进行维护，请使用最新工具curveadm进行部署：https://github.com/opencurve/curveadm**
 
 curve-ansible是用ansible编写的curve高性能存储系统远程部署升级工具，可以很方便的在一台主控机上做到部署升级集群所有节点。
 
