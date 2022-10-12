@@ -8,7 +8,7 @@ jobs:
     auto-assign:
         runs-on: ubuntu-latest
         steps:
-            - name: 'Auto-assign issue'
+            - name: 'Auto-assign PR'
               uses: pozil/auto-assign-issue@v1.10.1
               with:
                   assignees: cw123,ilixiaocui,wuhongsong,Cyber-SiKu,jolly-sy
