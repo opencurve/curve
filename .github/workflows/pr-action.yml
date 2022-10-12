@@ -7,22 +7,23 @@ jobs:
   add-reviews:
     runs-on: ubuntu-latest
     steps:
-      - uses: kentaro-m/auto-assign-action@v1.2.3
+      - name: Auto Assign Action
+        uses: kentaro-m/auto-assign-action@v1.2.3
         with:
-          # Set to true to add reviewers to pull requests
-          addReviewers: true
+            # Set to true to add reviewers to pull requests
+            addReviewers: true
 
-          # Set to true to add assignees to pull requests
-          addAssignees: false
+            # Set to true to add assignees to pull requests
+            addAssignees: false
 
-          # A list of reviewers to be added to pull requests (GitHub user name)
-          reviewers:
-            - cw123
-            - ilixiaocui
-            - wuhongsong
-            - Cyber-SiKu
-            - jolly-sy
-            
-          # A number of reviewers added to the pull request
-          # Set 0 to add all the reviewers (default: 0)
-          numberOfReviewers: 1
+            # A list of reviewers to be added to pull requests (GitHub user name)
+            reviewers:
+              - cw123
+              - ilixiaocui
+              - wuhongsong
+              - Cyber-SiKu
+              - jolly-sy
+
+            # A number of reviewers added to the pull request
+            # Set 0 to add all the reviewers (default: 0)
+            numberOfReviewers: 1
