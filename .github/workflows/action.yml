@@ -12,5 +12,5 @@ jobs:
               uses: pozil/auto-assign-issue@v1.10.1
               with:
                   assignees: cw123,ilixiaocui,wuhongsong,Cyber-SiKu,jolly-sy
-                  numOfAssignee: 5
+                  numOfAssignee: 1
                   allowSelfAssign: true
