@@ -1,21 +1,17 @@
-name: 'Auto Assign'
+name: PR assignment
+
 on:
-  pull_request_target:
-    types: [opened, reopened, ready_for_review]
+    pull_request:
+        types: [opened, edited, synchronize, reopened]
 
 jobs:
-  add-reviews:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Auto Assign Action'
-        uses: kentaro-m/auto-assign-action@v1.1.1
-        with:
-          addReviewers: true
-          addAssignees: false
-          reviewers:
-            - cw123
-            - ilixiaocui
-            - wuhongsong
-            - Cyber-SiKu
-            - jolly-sy
-          numberOfReviewers: 1
+    auto-assign:
+        runs-on: ubuntu-latest
+        steps:
+            - name: 'Auto-assign PR'
+              uses: pozil/auto-assign-issue@v1
+              with:
+                  repo-token: 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
+                  teams: reviewer
+                  numOfAssignee: 1
+          
