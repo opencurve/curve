@@ -504,6 +504,8 @@ TEST_F(ToolMDSClientTest, DeleteFile) {
 TEST_F(ToolMDSClientTest, CreateFile) {
     std::string fileName = "/test";
     uint64_t length = 10 * DefaultSegmentSize;
+    uint64_t stripeUnit = 32 * 1024 *1024;
+    uint64_t stripeCount = 32;
 
     // 发送RPC失败
     EXPECT_CALL(*nameService, CreateFile(_, _, _, _))
@@ -517,7 +519,8 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                             dynamic_cast<brpc::Controller *>(controller);
                         cntl->SetFailed("test");
                     }));
-    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length));
+    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length,
+                             stripeUnit, stripeCount));
 
     // 返回码不为OK
     curve::mds::CreateFileResponse response;
@@ -530,7 +533,8 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                         Closure *done){
                         brpc::ClosureGuard doneGuard(done);
                     })));
-    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length));
+    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length,
+                                       stripeUnit, stripeCount));
 
     // 正常情况
     response.set_statuscode(curve::mds::StatusCode::kOK);
@@ -542,7 +546,8 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                         Closure *done){
                         brpc::ClosureGuard doneGuard(done);
                     })));
-    ASSERT_EQ(0, mdsClient.CreateFile(fileName, length));
+    ASSERT_EQ(0, mdsClient.CreateFile(fileName, length,
+                                     stripeUnit, stripeCount));
 }
 
 TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {

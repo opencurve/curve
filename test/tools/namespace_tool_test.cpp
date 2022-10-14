@@ -298,13 +298,13 @@ TEST_F(NameSpaceToolTest, CreateFile) {
         .WillOnce(Return(0));
 
     // 1、正常情况
-    EXPECT_CALL(*core_, CreateFile(_, _))
+    EXPECT_CALL(*core_, CreateFile(_, _, _, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.RunCommand("create"));
 
     // 2、创建失败
-    EXPECT_CALL(*core_, CreateFile(_, _))
+    EXPECT_CALL(*core_, CreateFile(_, _, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.RunCommand("create"));
