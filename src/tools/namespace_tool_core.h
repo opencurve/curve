@@ -107,7 +107,8 @@ class NameSpaceToolCore {
      *  @param length 文件长度
      *  @return 成功返回0，失败返回-1
      */
-    virtual int CreateFile(const std::string& fileName, uint64_t length);
+    virtual int CreateFile(const std::string& fileName, uint64_t length,
+                          uint64_t stripeUnit, uint64_t stripeCount);
 
     /**
      *  @brief 计算文件或目录实际分配的空间

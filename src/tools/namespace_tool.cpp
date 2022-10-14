@@ -40,6 +40,8 @@ DEFINE_string(throttleType, "", "throttle type");
 DEFINE_uint64(limit, 0, "throttle limit");
 DEFINE_int64(burst, -1, "throttle burst");
 DEFINE_int64(burstLength, -1, "throttle burst length");
+DEFINE_uint64(stripeUnit, 32 * 1024, "stripe unit size");
+DEFINE_uint64(stripeCount, 32, "strip count");
 
 namespace curve {
 namespace tool {
@@ -118,7 +120,8 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             return 0;
         }
     } else if (cmd == kCreateCmd) {
-        return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB);
+        return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB,
+                             FLAGS_stripeUnit, FLAGS_stripeCount);
     } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
     } else if (cmd == kUpdateThrottle) {
@@ -143,7 +146,7 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
         std::cout << "expireTime: s=second, m=minute, h=hour, d=day, M=month, y=year" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20‬  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20 -stripeUnit=32768 -stripeCount=32  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {

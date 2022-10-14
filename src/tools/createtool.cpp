@@ -33,6 +33,8 @@
 DEFINE_string(mds_addr, "127.0.0.1:9000", "mds addr");
 DEFINE_string(file_name, "vdisk_001", "file name");
 DEFINE_uint64(file_size, 1 * 1024 * 1024 * 1024, "file size");
+DEFINE_uint64(stripe_Unit, 32 * 1024, "stripe unit size");
+DEFINE_uint64(stripe_Count, 32, "stripe count");
 
 using curve::mds::CurveFSService;
 using curve::mds::topology::TopologyService;
@@ -56,6 +58,8 @@ int main(int argc, char** argv) {
     request.set_filename(FLAGS_file_name);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_filelength(FLAGS_file_size);
+    request.set_stripeUnit(FLAGS_stripe_Unit);
+    request.set_stripeCount(FLAGS_stripe_Count);
 
     cntl.set_log_id(1);  // TODO(tongguangxun) : specify the log id usage
     stub.CreateFile(&cntl, &request, &response, NULL);
