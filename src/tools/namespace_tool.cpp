@@ -35,6 +35,9 @@ DECLARE_string(mdsAddr);
 DEFINE_bool(showAllocMap, false, "If specified, the allocated size in each"
                                  " logical pool will be print");
 
+DEFINE_uint64(stripeUnit, 0, "stripe unit size");
+DEFINE_uint64(stripeCount, 0, "strip count");
+
 namespace curve {
 namespace tool {
 
@@ -104,8 +107,9 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             return 0;
         }
     } else if (cmd == kCreateCmd) {
-        return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB);
-    } else if (cmd == kExtendCmd) {
+        return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB,
+                             FLAGS_stripeUnit, FLAGS_stripeCount);
+    }  else if (cmd == kExtendCmd) {
         return core_->ExtendVolume(fileName, FLAGS_newSize * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
