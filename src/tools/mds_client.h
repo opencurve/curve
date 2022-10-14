@@ -170,9 +170,12 @@ class MDSClient {
      *  @brief 创建pageFile文件
      *  @param fileName 文件名
      *  @param length 文件长度
+     *  @param stripeUnit stripe unit size
+     *  @param stripeCount the amount of stripes
      *  @return 成功返回0，失败返回-1
      */
-    virtual int CreateFile(const std::string& fileName, uint64_t length);
+    virtual int CreateFile(const std::string& fileName, uint64_t length,
+                           uint64_t stripeUnit, uint64_t stripeCount);
 
     /**
      *  @brief List all volumes on copysets
