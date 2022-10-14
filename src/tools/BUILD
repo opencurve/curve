@@ -36,28 +36,6 @@ COPTS = [
     "-std=c++11",
 ]
 
-cc_test(
-    name = "createFile",
-    srcs = ["createtool.cpp"],
-    copts = COPTS,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
 cc_binary(
     name = "curve_format",
     srcs = [

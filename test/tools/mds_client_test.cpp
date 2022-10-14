@@ -502,7 +502,8 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                             dynamic_cast<brpc::Controller *>(controller);
                         cntl->SetFailed("test");
                     }));
-    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length));
+    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length,
+                             stripeUnit, stripeCount));
 
     // 返回码不为OK
     curve::mds::CreateFileResponse response;
@@ -515,7 +516,8 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                         Closure *done){
                         brpc::ClosureGuard doneGuard(done);
                     })));
-    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length));
+    ASSERT_EQ(-1, mdsClient.CreateFile(fileName, length,
+                                       stripeUnit, stripeCount));
 
     // 正常情况
     response.set_statuscode(curve::mds::StatusCode::kOK);
@@ -527,7 +529,8 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                         Closure *done){
                         brpc::ClosureGuard doneGuard(done);
                     })));
-    ASSERT_EQ(0, mdsClient.CreateFile(fileName, length));
+    ASSERT_EQ(0, mdsClient.CreateFile(fileName, length,
+                                     stripeUnit, stripeCount));
 }
 
 TEST_F(ToolMDSClientTest, ExtendVolume_success) {
