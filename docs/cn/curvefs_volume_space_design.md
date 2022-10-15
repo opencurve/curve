@@ -312,7 +312,7 @@ message StatSpaceRequest {
 message SpaceInfo {
     required uint64 size = 1;
     required uint64 used = 2;
-    required uint64 avilable = 3;
+    required uint64 available = 3;
 }
 
 message StatSpaceResponse {
