@@ -626,7 +626,7 @@ def start_pjdtest_cmd(pjd_path):
         workspace = test_dir + pjd_path
         test_client = config.fs_test_client[0]
         ssh = shell_operator.create_ssh_connect(test_client, 1046, config.abnormal_user)
-        ori_cmd = "cd %s && sudo prove -r %s > result.txt"%(workspace,pjdtest_source_path)
+        ori_cmd = "cd %s && sudo prove -r %s > result.txt"%(workspace,config.pjdtest_source_path)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.info("pjdtest result is %s"%rs[1])
         assert rs[3] == 0,"pjdtest fail,result is %s"%rs[2]
