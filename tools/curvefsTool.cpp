@@ -67,7 +67,7 @@ const char kAllocStatus[] = "allocstatus";
 const char kAllocStatusAllow[] = "allow";
 const char kAllocStatusDeny[] = "deny";
 const char kPoolsets[] = "poolsets";
-const char kPoolsetName[] = "poolsetname";
+const char kPoolsetName[] = "poolsetName";
 
 
 using ::curve::common::SplitString;
@@ -412,7 +412,7 @@ int CurvefsTools::InitServerData() {
         serverData.physicalPoolName = server[kPhysicalPool].asString();
 
         if (!server[kPoolsetName].isString()) {
-            LOG(ERROR) << "server poolsetname must be string";
+            LOG(ERROR) << "server poolsetName must be string, poolsetName is " << server[kPoolsetName];
             return -1;
         }
         serverData.poolsetName = server[kPoolsetName].asString();
