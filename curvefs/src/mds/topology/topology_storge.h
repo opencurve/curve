@@ -55,8 +55,8 @@ class TopologyStorage {
         std::map<CopySetKey, CopySetInfo> *copySetMap,
         std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) = 0;
     virtual bool LoadPartition(
-        std::unordered_map<PartitionIdType, Partition> *partitionMap,
-        PartitionIdType *maxPartitionId) = 0;
+        std::unordered_map<PartitionIdType, Partition>* partitionMap,
+        PartitionIdType* maxPartitionId) = 0;
 
     virtual bool StoragePool(const Pool &data) = 0;
     virtual bool StorageZone(const Zone &data) = 0;
@@ -81,7 +81,13 @@ class TopologyStorage {
     virtual bool UpdatePartitions(const std::vector<Partition> &datas) = 0;
 
     virtual bool LoadClusterInfo(std::vector<ClusterInformation> *info) = 0;
-    virtual bool StorageClusterInfo(const ClusterInformation &info) = 0;
+    virtual bool StorageClusterInfo(const ClusterInformation& info) = 0;
+
+    virtual bool LoadMemcacheCluster(
+        std::unordered_map<MemcacheClusterIdType, MemcacheCluster>*
+            memcacheCluster,
+        MemcacheClusterIdType* maxMemcacheClusterId) = 0;
+    virtual bool StorageMemcacheCluster(const MemcacheCluster& cluster) = 0;
 };
 
 }  // namespace topology

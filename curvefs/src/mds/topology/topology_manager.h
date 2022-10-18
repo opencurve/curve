@@ -166,6 +166,12 @@ class TopologyManager {
 
     virtual void ListMetaserverOfCluster(ListMetaServerResponse* response);
 
+    virtual void RegistMemcacheCluster(
+        const RegistMemcacheClusterRequest* request,
+        RegistMemcacheClusterResponse* response);
+
+    virtual void ListMemcacheCluster(ListMemcacheClusterResponse* response);
+
  private:
     TopoStatusCode CreateEnoughCopyset(int32_t createNum);
 
@@ -190,6 +196,13 @@ class TopologyManager {
      *        in concurrent scenario
      */
     NameLock registMsMutex;
+
+    /**
+     * @brief register mutex for memcachecluster,
+     *           preventing duplicate registration
+     *        in concurrent scenario
+     */
+    NameLock registMemcacheClusterMutex_;
 
     NameLock createPartitionMutex_;
 

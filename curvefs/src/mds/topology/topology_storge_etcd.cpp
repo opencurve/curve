@@ -25,6 +25,8 @@
 #include <vector>
 #include <map>
 #include <utility>
+#include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/common/storage_key.h"
 
 namespace curvefs {
 namespace mds {
@@ -514,7 +516,7 @@ bool TopologyStorageEtcd::LoadClusterInfo(
         return false;
     }
     ClusterInformation data;
-    errCode = codec_->DecodeCluserInfoData(value, &data);
+    errCode = codec_->DecodeClusterInfoData(value, &data);
     if (!errCode) {
         LOG(ERROR) << "DecodeCluserInfoData err";
         return false;
@@ -538,6 +540,62 @@ bool TopologyStorageEtcd::StorageClusterInfo(const ClusterInformation &info) {
         return false;
     }
     return true;
+}
+
+bool TopologyStorageEtcd::LoadMemcacheCluster(
+    std::unordered_map<MemcacheClusterIdType, MemcacheCluster>*
+        memcacheClusterMap,
+    MemcacheClusterIdType* maxMemCacheClusterId) {
+    std::vector<std::string> out;
+    memcacheClusterMap->clear();
+    *maxMemCacheClusterId = 0;
+    int errCode =
+        client_->List(MEMCACHECLUSTERKEYPREFIX, MEMCACHECLUSTERKEYEND, &out);
+    if (errCode == EtcdErrCode::EtcdKeyNotExist) {
+        return true;
+    }
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "etcd list err:" << errCode;
+        return false;
+    }
+    for (uint32_t i = 0; i < out.size(); i++) {
+        MemcacheCluster data;
+        errCode = codec_->DecodeMemcacheClusterData(out[i], &data);
+        if (!errCode) {
+            LOG(ERROR) << "DecodeMemcacheData err";
+            return false;
+        }
+
+        MemcacheClusterIdType id = data.GetId();
+        auto ret = memcacheClusterMap->emplace(id, std::move(data));
+        if (!ret.second) {
+            LOG(ERROR) << "LoadMemcacheCluster: "
+                       << "MemcacheClusterId duplicated, MemcacheId = " << id;
+            return false;
+        }
+        if (*maxMemCacheClusterId < id) {
+            *maxMemCacheClusterId = id;
+        }
+    }
+    return true;
+}
+
+bool TopologyStorageEtcd::StorageMemcacheCluster(const MemcacheCluster& data) {
+    std::string key = codec_->EncodeMemcacheClusterKey(data.GetId());
+    std::string value;
+    bool ret = codec_->EncodeMemcacheClusterData(data, &value);
+    if (!ret) {
+        LOG(ERROR) << "EncodeMemcacheCLusterData err, clusterId = "
+                   << data.GetId();
+    } else {
+        int errCode = client_->Put(key, value);
+        if (errCode != EtcdErrCode::EtcdOK) {
+            LOG(ERROR) << "Put MemcacheCLuster info to etcd error. errCode = "
+                       << errCode << ", clusterId = " << data.GetId();
+            ret = false;
+        }
+    }
+    return ret;
 }
 
 }  // namespace topology

@@ -34,8 +34,10 @@
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/topology.pb.h"
+#include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/mds/topology/deal_peerid.h"
 #include "curvefs/src/mds/topology/topology_id_generator.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "curvefs/src/mds/topology/topology_storge.h"
 #include "curvefs/src/mds/topology/topology_token_generator.h"
 #include "src/common/concurrent/concurrent.h"
@@ -95,6 +97,7 @@ class Topology {
     virtual MetaServerIdType AllocateMetaServerId() = 0;
     virtual CopySetIdType AllocateCopySetId(PoolIdType poolId) = 0;
     virtual PartitionIdType AllocatePartitionId() = 0;
+    virtual MemcacheClusterIdType AllocateMemCacheClusterId() = 0;
 
     virtual std::string AllocateToken() = 0;
 
@@ -105,6 +108,8 @@ class Topology {
     virtual TopoStatusCode AddCopySet(const CopySetInfo &data) = 0;
     virtual TopoStatusCode AddCopySetCreating(const CopySetKey &key) = 0;
     virtual TopoStatusCode AddPartition(const Partition &data) = 0;
+    virtual TopoStatusCode AddMemcacheCluster(const MemcacheCluster& data) = 0;
+    virtual TopoStatusCode AddMemcacheCluster(MemcacheCluster&& data) = 0;
 
     virtual TopoStatusCode RemovePool(PoolIdType id) = 0;
     virtual TopoStatusCode RemoveZone(ZoneIdType id) = 0;
@@ -283,7 +288,10 @@ class Topology {
 
     virtual std::string GetHostNameAndPortById(MetaServerIdType msId) = 0;
 
-    virtual bool IsCopysetCreating(const CopySetKey &key) const = 0;
+    virtual bool IsCopysetCreating(const CopySetKey& key) const = 0;
+
+    virtual std::list<MemcacheServer> ListMemcacheServers() const = 0;
+    virtual std::list<MemcacheCluster> ListMemcacheClusters() const = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -311,6 +319,7 @@ class TopologyImpl : public Topology {
     MetaServerIdType AllocateMetaServerId() override;
     CopySetIdType AllocateCopySetId(PoolIdType poolId) override;
     PartitionIdType AllocatePartitionId() override;
+    MemcacheClusterIdType AllocateMemCacheClusterId() override;
 
     std::string AllocateToken() override;
 
@@ -320,7 +329,9 @@ class TopologyImpl : public Topology {
     TopoStatusCode AddMetaServer(const MetaServer &data) override;
     TopoStatusCode AddCopySet(const CopySetInfo &data) override;
     TopoStatusCode AddCopySetCreating(const CopySetKey &key) override;
-    TopoStatusCode AddPartition(const Partition &data) override;
+    TopoStatusCode AddPartition(const Partition& data) override;
+    TopoStatusCode AddMemcacheCluster(const MemcacheCluster& data) override;
+    TopoStatusCode AddMemcacheCluster(MemcacheCluster&& data) override;
 
     TopoStatusCode RemovePool(PoolIdType id) override;
     TopoStatusCode RemoveZone(ZoneIdType id) override;
@@ -529,6 +540,9 @@ class TopologyImpl : public Topology {
 
     bool IsCopysetCreating(const CopySetKey &key) const override;
 
+    std::list<MemcacheServer> ListMemcacheServers() const override;
+    std::list<MemcacheCluster> ListMemcacheClusters() const override;
+
  private:
     TopoStatusCode LoadClusterInfo();
 
@@ -554,6 +568,7 @@ class TopologyImpl : public Topology {
     std::map<CopySetKey, CopySetInfo> copySetMap_;
     std::unordered_map<PartitionIdType, Partition> partitionMap_;
     std::set<CopySetKey> copySetCreating_;
+    std::unordered_map<MemcacheClusterIdType, MemcacheCluster> memClusterMap_;
 
     // cluster info
     ClusterInformation clusterInfo_;
@@ -571,6 +586,7 @@ class TopologyImpl : public Topology {
     mutable RWLock copySetMutex_;
     mutable RWLock partitionMutex_;
     mutable RWLock copySetCreatingMutex_;
+    mutable RWLock memcacheClusterMutex_;
 
     TopologyOption option_;
     curve::common::Thread backEndThread_;

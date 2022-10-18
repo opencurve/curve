@@ -139,7 +139,7 @@ TEST_F(TopologyStorageCodecTest, TestClusterInfoEncodeDecodeEqual) {
     ASSERT_TRUE(testObj.EncodeClusterInfoData(data, &value));
 
     ClusterInformation out;
-    ASSERT_TRUE(testObj.DecodeCluserInfoData(value, &out));
+    ASSERT_TRUE(testObj.DecodeClusterInfoData(value, &out));
 
     ASSERT_EQ(data.clusterId, out.clusterId);
 }

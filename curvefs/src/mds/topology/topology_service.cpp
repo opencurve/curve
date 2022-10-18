@@ -780,6 +780,47 @@ void TopologyServiceImpl::ListTopology(
               << ". [ListTopologyRequest] " << response->DebugString();
 }
 
+void TopologyServiceImpl::RegistMemcacheCluster(
+    ::google::protobuf::RpcController* controller,
+    const RegistMemcacheClusterRequest* request,
+    RegistMemcacheClusterResponse* response,
+    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    auto* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [RegistMemcacheCluster] " << request->DebugString();
+    if (request->servers_size() == 0) {
+        // no server
+        response->set_statuscode(TOPO_INVALID_PARAM);
+    } else {
+        topologyManager_->RegistMemcacheCluster(request, response);
+    }
+
+    LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+              << cntl->local_side() << " to " << cntl->remote_side()
+              << ". [RegistMemcacheCluster] " << response->DebugString();
+}
+
+void TopologyServiceImpl::ListMemcacheCluster(
+    ::google::protobuf::RpcController* controller,
+    const ListMemcacheClusterRequest* request,
+    ListMemcacheClusterResponse* response, ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    auto* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id() << "] from "
+              << cntl->remote_side() << " to " << cntl->local_side()
+              << ". [ListMemcacheCluster] " << request->DebugString();
+
+    topologyManager_->ListMemcacheCluster(response);
+
+    LOG(INFO) << "Send response[log_id=" << cntl->log_id() << "] from "
+              << cntl->local_side() << " to " << cntl->remote_side()
+              << ". [ListMemcacheCluster] " << response->DebugString();
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

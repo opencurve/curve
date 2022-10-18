@@ -525,6 +525,38 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
+	ErrCreateCacheClusterRpc = func(statusCode topology.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "success"
+		case topology.TopoStatusCode_TOPO_INVALID_PARAM:
+			message = "no server in request"
+		case topology.TopoStatusCode_TOPO_IP_PORT_DUPLICATED:
+			message = "some servers are already in other cluster"
+		case topology.TopoStatusCode_TOPO_ALLOCATE_ID_FAIL:
+			message = "allocate cluster id failed"
+		case topology.TopoStatusCode_TOPO_STORGE_FAIL:
+			message = "storage cluster info to etcd(or other thing failed)"
+		default:
+			message = "unknown error"
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListMemcacheCluster = func(statusCode topology.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case topology.TopoStatusCode_TOPO_OK:
+			message = "success"
+		case topology.TopoStatusCode_TOPO_MEMCACHECLUSTER_NOT_FOUND:
+			message = "no memcacheCluster in the curvefs"
+		default:
+			message = "unknown error"
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 	ErrBsListPhysicalPoolRpc = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
 		code := int32(statusCode)
 		message := fmt.Sprintf("Rpc[ListPhysicalPool] status code: %s", bs_topo_statuscode.TopoStatusCode_name[code])

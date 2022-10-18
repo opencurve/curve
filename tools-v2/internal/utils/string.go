@@ -158,3 +158,19 @@ func ToUnderscoredName(src string) string {
 	}
 	return ret
 }
+
+func Addr2IpPort(addr string) (string, uint32, *cmderror.CmdError) {
+	ipPort := strings.Split(addr, ":")
+	if len(ipPort) != 2 {
+		err := cmderror.ErrGetAddr()
+		err.Format("server", addr)
+		return "", 0, err
+	}
+	u64Port, err := strconv.ParseUint(ipPort[1], 10, 32)
+	if err != nil {
+		pErr := cmderror.ErrGetAddr()
+		pErr.Format("server", addr)
+		return "", 0, pErr
+	}
+	return ipPort[0], uint32(u64Port), cmderror.Success()
+}

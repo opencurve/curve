@@ -219,6 +219,15 @@ void MDSBaseClient::ReleaseVolumeBlockGroup(
     stub.ReleaseBlockGroup(cntl, &request, response, nullptr);
 }
 
+void MDSBaseClient::ListMemcacheCluster(ListMemcacheClusterResponse* response,
+                                        brpc::Controller* cntl,
+                                        brpc::Channel* channel) {
+    ListMemcacheClusterRequest request;
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.ListMemcacheCluster(cntl, &request, response, nullptr);
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs

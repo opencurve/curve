@@ -26,6 +26,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <brpc/server.h>
+#include <google/protobuf/service.h>
+#include <google/protobuf/stubs/callback.h>
 #include <memory>
 
 #include "curvefs/src/mds/topology/topology_manager.h"
@@ -175,6 +177,45 @@ class TopologyServiceImpl : public TopologyService {
                               const ListTopologyRequest* request,
                               ListTopologyResponse* response,
                               ::google::protobuf::Closure* done);
+
+    /**
+     * @brief
+     *
+     * @param controller
+     * @param request
+     * @param response
+            statusCode:
+                1. TOPO_OK : success
+                2. TOPO_INVALID_PARAM: no servers in request
+                3. TOPO_IP_PORT_DUPLICATED: The server to be registered has
+     already been registered
+                4. TOPO_ALLOCATE_ID_FAIL: Failed to assign to cluster id
+                5. TOPO_STORGE_FAIL: Fail to storage Cluster to etcd(or other
+     thing)
+     * @param done
+     */
+    virtual void RegistMemcacheCluster(
+        ::google::protobuf::RpcController* controller,
+        const RegistMemcacheClusterRequest* request,
+        RegistMemcacheClusterResponse* response,
+        ::google::protobuf::Closure* done);
+
+    /**
+     * @brief
+     *
+     * @param controller
+     * @param request
+     * @param response
+            statusCode:
+                1. TOPO_OK : success
+                2. TOPO_MEMCACHECLUSTER_NOT_FOUND: no memcacheCluster
+     * @param done
+     */
+    virtual void ListMemcacheCluster(
+        ::google::protobuf::RpcController* controller,
+        const ListMemcacheClusterRequest* request,
+        ListMemcacheClusterResponse* response,
+        ::google::protobuf::Closure* done);
 
  private:
     std::shared_ptr<TopologyManager> topologyManager_;

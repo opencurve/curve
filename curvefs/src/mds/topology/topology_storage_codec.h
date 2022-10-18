@@ -25,6 +25,7 @@
 
 #include <string>
 
+#include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/mds/common/storage_key.h"
 #include "curvefs/src/mds/topology/topology_item.h"
 #include "src/common/encode.h"
@@ -44,6 +45,8 @@ using curvefs::mds::METASERVERKEYEND;
 using curvefs::mds::CLUSTERINFOKEY;
 using curvefs::mds::COPYSETKEYPREFIX;
 using curvefs::mds::COPYSETKEYEND;
+using curvefs::mds::MEMCACHECLUSTERKEYPREFIX;
+using curvefs::mds::MEMCACHECLUSTERKEYEND;
 using curve::common::EncodeBigEndian;
 
 class TopologyStorageCodec {
@@ -78,8 +81,14 @@ class TopologyStorageCodec {
 
     bool EncodeClusterInfoData(const ClusterInformation &data,
                                std::string *value);
-    bool DecodeCluserInfoData(const std::string &value,
+    bool DecodeClusterInfoData(const std::string &value,
                               ClusterInformation *data);
+
+    std::string EncodeMemcacheClusterKey(MetaServerIdType id);
+    bool EncodeMemcacheClusterData(const MemcacheCluster& data,
+                                   std::string* value);
+    bool DecodeMemcacheClusterData(const std::string& value,
+                                  MemcacheCluster* data);
 };
 
 

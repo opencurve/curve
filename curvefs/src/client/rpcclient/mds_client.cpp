@@ -413,6 +413,40 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
 }
 
+bool MdsClientImpl::AllocOrGetMemcacheCluster(MemcacheClusterInfo* cluster) {
+    auto task = RPCTask {
+        mds::topology::ListMemcacheClusterResponse response;
+        mdsbasecli_->ListMemcacheCluster(&response, cntl, channel);
+        if (cntl->Failed()) {
+            LOG(WARNING)
+                << "ListMemcacheCluster from mds failed, error is "
+                << cntl->ErrorText() << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "ListMemcacheCluster fail, errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret);
+            return ret;
+        }
+
+        ::google::protobuf::RepeatedPtrField<MemcacheClusterInfo> clusters =
+            response.memclusters();
+        if (!clusters.empty()) {
+            int randId =
+                (static_cast<int>(butil::fast_rand()) % clusters.size()) + 1;
+            (*cluster) = clusters[randId];
+        } else {
+            ret = mds::topology::TOPO_MEMCACHECLUSTER_NOT_FOUND;
+        }
+
+        return ret;
+    };
+
+    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
 FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                            uint64_t *chunkId) {
     auto task = RPCTask {

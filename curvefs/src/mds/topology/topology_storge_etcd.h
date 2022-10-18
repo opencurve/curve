@@ -86,6 +86,12 @@ class TopologyStorageEtcd : public TopologyStorage {
     bool LoadClusterInfo(std::vector<ClusterInformation> *info) override;
     bool StorageClusterInfo(const ClusterInformation &info) override;
 
+    bool LoadMemcacheCluster(
+        std::unordered_map<MemcacheClusterIdType, MemcacheCluster>*
+            memcacheClusterMap,
+        MemcacheClusterIdType* maxMemCacheClusterId) override;
+    bool StorageMemcacheCluster(const MemcacheCluster& data) override;
+
  private:
     // underlying storage media
     std::shared_ptr<KVStorageClient> client_;

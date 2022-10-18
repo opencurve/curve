@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <chrono>  //NOLINT
 #include <list>
 #include <set>
@@ -32,11 +33,12 @@
 #include <thread>  //NOLINT
 #include <utility>
 #include <vector>
-#include <algorithm>
 
 #include "brpc/channel.h"
 #include "brpc/controller.h"
 #include "brpc/server.h"
+#include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 
@@ -1316,6 +1318,61 @@ void TopologyManager::ListMetaserverOfCluster(
 TopoStatusCode TopologyManager::UpdatePartitionStatus(
     PartitionIdType partitionId, PartitionStatus status) {
     return topology_->UpdatePartitionStatus(partitionId, status);
+}
+
+void TopologyManager::RegistMemcacheCluster(
+    const RegistMemcacheClusterRequest* request,
+    RegistMemcacheClusterResponse* response) {
+    response->set_statuscode(TopoStatusCode::TOPO_OK);
+    // register memcacheCluster as server
+    curve::common::NameLockGuard lock(registMemcacheClusterMutex_,
+                                      request->ShortDebugString());
+
+    // Guarantee the uniqueness of memcacheServer
+    std::list<MemcacheServer> serverRegisted = topology_->ListMemcacheServers();
+    std::list<MemcacheServer> serverList;
+    for (auto const& server : request->servers()) {
+        auto cmp = [server](const MemcacheServer& ms) {
+            return ms == server;
+        };
+        if (std::find_if(serverRegisted.begin(), serverRegisted.end(), cmp) !=
+            serverRegisted.end()) {
+            LOG(ERROR) << "Regist MemcacheCluster failed! Server["
+                       << server.ShortDebugString()
+                       << "] already existsin another cluster";
+            response->set_statuscode(TopoStatusCode::TOPO_IP_PORT_DUPLICATED);
+            break;
+        }
+        serverList.emplace_back(server);
+    }
+
+    if (response->statuscode() == TopoStatusCode::TOPO_OK) {
+        // add new cluster
+        MemcacheClusterIdType id = topology_->AllocateMemCacheClusterId();
+        if (id == static_cast<MemcacheClusterIdType>(UNINITIALIZE_ID)) {
+            response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
+        } else {
+            MemcacheCluster cluster(id, std::move(serverList));
+            TopoStatusCode errorCode =
+                topology_->AddMemcacheCluster(std::move(cluster));
+            response->set_statuscode(errorCode);
+            response->set_clusterid(id);
+        }
+    }
+}
+
+void TopologyManager::ListMemcacheCluster(
+    ListMemcacheClusterResponse* response) {
+    std::list<MemcacheCluster> clusterList = topology_->ListMemcacheClusters();
+    if (clusterList.empty()) {
+        response->set_statuscode(TopoStatusCode::TOPO_OK);
+        for (auto& cluster : clusterList) {
+            (*response->add_memclusters()) = std::move(cluster);
+        }
+    } else {
+        response->set_statuscode(
+            TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND);
+    }
 }
 
 }  // namespace topology
