@@ -25,13 +25,16 @@ cc_library(
     copts = CURVE_DEFAULT_COPTS,
     linkopts = [
         "-lmemcached",
+        "-L/usr/local/lib",
     ],
     visibility = ["//visibility:public"],
     deps = [
+         "//curvefs/proto:curvefs_topology_cc_proto",
         "@com_google_absl//absl/strings",
         "//external:glog",
         "//external:bthread",
         "//src/common:curve_common",
         "//src/common:curve_s3_adapter",
+        "@libmemcached",
     ],
 )

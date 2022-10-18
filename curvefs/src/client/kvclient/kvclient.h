@@ -36,9 +36,10 @@ class KvClient {
  public:
     KvClient() = default;
     ~KvClient() = default;
-    virtual bool Init() = 0;
 
-    virtual void UnInit() = 0;
+    virtual void Init() {}
+
+    virtual void UnInit() {}
 
     /**
      * @param: errorlog: if error occurred, the errorlog will take

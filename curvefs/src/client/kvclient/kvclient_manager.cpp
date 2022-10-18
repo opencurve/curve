@@ -16,16 +16,16 @@
 
 /*
  * Project: curve
- * Created Date: 2022-10-08
- * Author: YangFan (fansehep)
+ * Created Date: 2022-10-18
+ * Author: lixiaocui
  */
 
-#include "curvefs/src/client/kvclient/memcache_client.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
 
 namespace curvefs {
 namespace client {
 
-thread_local memcached_st* tcli = nullptr;
+KvClientManager *g_kvClientManager = nullptr;
 
 }  // namespace client
 }  // namespace curvefs

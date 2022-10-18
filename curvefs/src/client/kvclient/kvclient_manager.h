@@ -39,28 +39,35 @@ namespace curvefs {
 
 namespace client {
 
+class KvClientManager;
+class SetKVCacheTask;
 using ::curve::common::TaskThreadPool;
+
+extern KvClientManager *g_kvClientManager;
+
+typedef std::function<void(const std::shared_ptr<SetKVCacheTask> &)>
+    SetKVCacheDone;
+
+struct SetKVCacheTask {
+    std::string key;
+    const char *value;
+    size_t vlen;
+    SetKVCacheDone done;
+    SetKVCacheTask() = default;
+    SetKVCacheTask(const std::string &k, const char *val, const size_t length)
+        : key(k), value(val), vlen(length) {}
+};
 
 struct KvClientManagerConfig {
     std::unique_ptr<KvClient> kvclient;
     int threadPooln;
 };
 
-struct SetKvCacheTask;
-
-using SetKvCacheCallBack =
-    std::function<void(std::shared_ptr<SetKvCacheTask>)>;
-
-struct SetKvCacheTask {
-    const std::string& key;
-    const char* value;
-    const size_t len;
-    SetKvCacheCallBack cb;
-};
-
 struct GetKvCacheContext {
     const std::string& key;
     std::string* value;
+    GetKvCacheContext(const std::string &k, std::string *v)
+        : key(k), value(v) {}
 };
 
 
@@ -69,7 +76,7 @@ class KvClientManager {
     KvClientManager() = default;
     ~KvClientManager() { Uninit(); }
 
-    bool Init(KvClientManagerConfig* config) {
+    bool Init(KvClientManagerConfig *config) {
         client_ = std::move(config->kvclient);
         return threadPool_.Start(config->threadPooln) == 0;
     }
@@ -103,24 +110,25 @@ class KvClientManager {
         });
     }
 
-    void Enqueue(std::shared_ptr<SetKvCacheTask> task) {
+    void Enqueue(std::shared_ptr<SetKVCacheTask> task) {
         threadPool_.Enqueue([task, this](){
             std::string error_log;
-            auto res = client_->Set(task->key, task->value, task->len,
+            auto res = client_->Set(task->key, task->value, task->vlen,
                 &error_log);
             if (!res) {
                 auto val_view = absl::string_view(task->value,
-                    task->len);
+                    task->vlen);
                 LOG(ERROR) << "Set key = " << task->key << " value = "
                            << val_view << " " << "vallen = " <<
-                           task->len << " " << error_log;
+                           task->vlen << " " << error_log;
                 return;
             }
-            if (task->cb) {
-                task->cb(task);
+            if (task->done) {
+                task->done(task);
             }
         });
     }
+
 
     bool Get(std::shared_ptr<GetKvCacheContext> task) {
         std::string error_log;

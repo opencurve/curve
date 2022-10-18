@@ -40,6 +40,8 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
+#include "curvefs/src/client/kvclient/kvclient.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::RWLock;
@@ -176,6 +178,17 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
                              const char *data);
     void AddDataBefore(uint64_t len, const char *data);
 
+    CURVEFS_ERROR PrepareFlushTasks(
+        uint64_t inodeId, char *data,
+        std::vector<std::shared_ptr<PutObjectAsyncContext>> *s3Tasks,
+        std::vector<std::shared_ptr<SetKVCacheTask>> *kvCacheTasks,
+        uint64_t *chunkId, uint64_t *writeOffset);
+
+    void FlushTaskExecute(
+        bool useDiskCache,
+        std::vector<std::shared_ptr<PutObjectAsyncContext>> &s3Tasks,
+        std::vector<std::shared_ptr<SetKVCacheTask>> &kvCacheTasks);
+
  private:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     ChunkCacheManagerPtr chunkCacheManager_;
@@ -215,8 +228,8 @@ class ChunkCacheManager
                    char *dataBuf, uint64_t dataBufOffset,
                    std::vector<ReadRequest> *requests);
     virtual void WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
-                                      uint32_t chunkPos, uint32_t len,
-                                      const char *data);
+                                   uint32_t chunkPos, uint32_t len,
+                                   const char *data);
     virtual void AddReadDataCache(DataCachePtr dataCache);
     virtual DataCachePtr
     FindWriteableDataCache(uint64_t pos, uint64_t len,

@@ -30,10 +30,13 @@
 #include <string>
 
 #include "curvefs/src/client/kvclient/kvclient.h"
+#include "curvefs/proto/topology.pb.h"
 
 namespace curvefs {
 
 namespace client {
+
+using curvefs::mds::topology::MemcacheCluster;
 
 /**
  * only the threadpool will operate the kvclient,
@@ -80,9 +83,17 @@ class MemCachedClient : public KvClient {
     explicit MemCachedClient(memcached_st* cli) : client_(cli) {}
     ~MemCachedClient() { UnInit(); }
 
-    bool Init() override {
+    bool Init(const MemcacheCluster &kvcachecluster) {
         client_ = memcached(nullptr, 0);
-        return client_ != nullptr;
+
+        for (int i = 0; i < kvcachecluster.servers_size(); i++) {
+            if (!AddServer(kvcachecluster.servers(i).ip(),
+                           kvcachecluster.servers(i).port())) {
+                return false;
+            }
+        }
+
+       return PushServer(); 
     }
 
     void UnInit() override {
