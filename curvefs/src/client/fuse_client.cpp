@@ -67,6 +67,7 @@ namespace curvefs {
 namespace client {
 namespace common {
 DECLARE_bool(enableCto);
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs

@@ -195,6 +195,8 @@ build_requirements() {
     (cd ${g_aws_sdk_root} && make)
     g_etcdclient_root="$(dirname ${PWD})/thirdparties/etcdclient"
     (cd ${g_etcdclient_root} && make clean && make all)
+    g_memcache_root="$(dirname ${PWD})/thirdparties/memcache"
+    (cd ${g_memcache_root} && make build)
 }
 
 main() {

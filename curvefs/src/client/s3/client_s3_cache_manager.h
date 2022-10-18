@@ -40,6 +40,9 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
+#include "curvefs/src/client/kvclient/kvclient.h"
+#include "curvefs/src/client/inode_wrapper.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::RWLock;
@@ -71,6 +74,13 @@ struct ReadRequest {
     uint64_t chunkPos;
     uint64_t len;
     uint64_t bufOffset;
+
+    std::string DebugString() const {
+        std::ostringstream os;
+        os << "ReadRequest ( index = " << index << ", chunkPos = " << chunkPos
+           << ", len = " << len << ", bufOffset = " << bufOffset << " )";
+        return os.str();
+    }
 };
 
 struct S3ReadRequest {
@@ -82,7 +92,25 @@ struct S3ReadRequest {
     uint64_t fsId;
     uint64_t inodeId;
     uint64_t compaction;
+
+    std::string DebugString() const {
+        std::ostringstream os;
+        os << "S3ReadRequest ( chunkId = " << chunkId << ", offset = " << offset
+           << ", len = " << len << ", objectOffset = " << objectOffset
+           << ", readOffset = " << readOffset << ", fsId = " << fsId
+           << ", inodeId = " << inodeId << ", compaction = " << compaction
+           << " )";
+        return os.str();
+    }
 };
+
+inline std::string
+S3ReadRequestVecDebugString(const std::vector<S3ReadRequest> &reqs) {
+    std::ostringstream os;
+    for_each(reqs.begin(), reqs.end(),
+             [&](const S3ReadRequest &req) { os << req.DebugString() << " "; });
+    return os.str();
+}
 
 struct ObjectChunkInfo {
     S3ChunkInfo s3ChunkInfo;
@@ -176,6 +204,17 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
                              const char *data);
     void AddDataBefore(uint64_t len, const char *data);
 
+    CURVEFS_ERROR PrepareFlushTasks(
+        uint64_t inodeId, char *data,
+        std::vector<std::shared_ptr<PutObjectAsyncContext>> *s3Tasks,
+        std::vector<std::shared_ptr<SetKVCacheTask>> *kvCacheTasks,
+        uint64_t *chunkId, uint64_t *writeOffset);
+
+    void FlushTaskExecute(
+        bool useDiskCache,
+        std::vector<std::shared_ptr<PutObjectAsyncContext>> &s3Tasks,
+        std::vector<std::shared_ptr<SetKVCacheTask>> &kvCacheTasks);
+
  private:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     ChunkCacheManagerPtr chunkCacheManager_;
@@ -215,8 +254,8 @@ class ChunkCacheManager
                    char *dataBuf, uint64_t dataBufOffset,
                    std::vector<ReadRequest> *requests);
     virtual void WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
-                                      uint32_t chunkPos, uint32_t len,
-                                      const char *data);
+                                   uint32_t chunkPos, uint32_t len,
+                                   const char *data);
     virtual void AddReadDataCache(DataCachePtr dataCache);
     virtual DataCachePtr
     FindWriteableDataCache(uint64_t pos, uint64_t len,
@@ -282,15 +321,28 @@ class FileCacheManager {
                      S3ClientAdaptorImpl *s3ClientAdaptor)
         : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
     FileCacheManager() {}
+
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
+
     void ReleaseCache();
+
     virtual void TruncateCache(uint64_t offset, uint64_t fileSize);
+
     virtual CURVEFS_ERROR Flush(bool force, bool toS3 = false);
+
     virtual int Write(uint64_t offset, uint64_t length, const char *dataBuf);
+
+    // depracated
     virtual int Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                      char *dataBuf);
+
+    // int Read2(uint64_t inodeId, uint64_t offset, uint64_t length,
+    //           char *dataBuf);
+
     bool IsEmpty() { return chunkCacheMap_.empty(); }
+
     uint64_t GetInodeId() const { return inode_; }
+
     void SetChunkCacheManagerForTest(uint64_t index,
                                      ChunkCacheManagerPtr chunkCacheManager) {
         WriteLockGuard writeLockGuard(rwLock_);
@@ -307,9 +359,9 @@ class FileCacheManager {
                            const S3ChunkInfoList &s3ChunkInfoList,
                            char *dataBuf, std::vector<S3ReadRequest> *requests,
                            uint64_t fsId, uint64_t inodeId);
-    int ReadFromS3(const std::vector<S3ReadRequest> &requests,
-                            std::vector<S3ReadResponse> *responses,
-                            char* dataBuf, uint64_t fileLen);
+    // int ReadFromS3(const std::vector<S3ReadRequest> &requests,
+    //                         std::vector<S3ReadResponse> *responses,
+    //                         char* dataBuf, uint64_t fileLen);
     void PrefetchS3Objs(
         const std::vector<std::pair<std::string, uint64_t>> &prefetchObjs);
     void HandleReadRequest(const ReadRequest &request,
@@ -321,6 +373,49 @@ class FileCacheManager {
     int HandleReadRequest(const std::vector<S3ReadRequest> &requests,
                           std::vector<S3ReadResponse> *responses,
                           uint64_t fileLen);
+
+    // GetChunkLoc: get chunk info according to offset
+    void GetChunkLoc(uint64_t offset, uint64_t *index, uint64_t *chunkPos,
+                     uint64_t *chunkSize);
+
+    // GetBlockLoc: get block info according to offset
+    void GetBlockLoc(uint64_t offset, uint64_t *chunkIndex, uint64_t *chunkPos,
+                     uint64_t *blockIndex, uint64_t *blockPos);
+
+    // read data from memory read/write cache
+    void ReadFromMemCache(uint64_t offset, uint64_t length, char *dataBuf,
+                          uint64_t *actualReadLen,
+                          std::vector<ReadRequest> *memCacheMissRequest);
+
+    // miss read from memory read/write cache, need read from
+    // kv(localdisk/remote cache/s3)
+    int GenerateKVReuqest(const std::shared_ptr<InodeWrapper> &inodeWrapper,
+                          const std::vector<ReadRequest> &readRequest,
+                          char *dataBuf, std::vector<S3ReadRequest> *kvRequest);
+
+    // read kv request, need 
+    int ReadKVRequest(const std::vector<S3ReadRequest> &kvRequests,
+                      char *dataBuf, uint64_t fileLen);
+
+    // read kv request from local disk cache
+    bool ReadKVRequestFromLocalCache(const std::string &name, char *databuf,
+                                     uint64_t offset, uint64_t len);
+
+    // read kv reuqest from remote cache like memcached
+    bool ReadKVRequestFromRemoteCache();
+
+    // read kv request from s3
+    bool ReadKVRequestFromS3(const std::string &name, char *databuf,
+                             uint64_t offset, uint64_t length, int *ret);
+
+    // read retry policy when read from s3 occur not exist error
+    int HandleReadS3NotExist(int ret, uint32_t retry,
+                             const std::shared_ptr<InodeWrapper> &inodeWrapper);
+
+    // prefetch for block
+    void PrefetchForBlock(const S3ReadRequest &req, uint64_t fileLen,
+                         uint64_t blockSize, uint64_t chunkSize,
+                         uint64_t startBlockIndex);
 
  private:
     friend class AsyncPrefetchCallback;

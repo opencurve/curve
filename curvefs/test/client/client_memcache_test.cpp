@@ -36,7 +36,7 @@ using ::curvefs::client::GetKvCacheContext;
 using ::curvefs::client::KvClientManager;
 using ::curvefs::client::KvClientManagerConfig;
 using ::curvefs::client::MemCachedClient;
-using ::curvefs::client::SetKvCacheTask;
+using ::curvefs::client::SetKVCacheTask;
 
 class MemCachedTest : public ::testing::Test {
  public:
@@ -124,7 +124,7 @@ TEST_F(MemCachedTest, MultiThreadTask) {
     i = 0;
     for (; i < 5; i++) {
         workers.emplace_back([&, i]() {
-            auto task = std::make_shared<SetKvCacheTask>(
+            auto task = std::make_shared<SetKVCacheTask>(
                 kvstr[i].first, kvstr[i].second.c_str(),
                 kvstr[i].second.length());
             manager_.Enqueue(task);

@@ -59,6 +59,7 @@ cc_library(
         "//curvefs/src/client/rpcclient",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/client/lease:curvefs_lease",
+        "//curvefs/src/client/kvclient:memcached_client_lib",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",

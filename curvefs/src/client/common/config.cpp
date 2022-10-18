@@ -49,6 +49,7 @@ namespace common {
 DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
+DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
 
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
@@ -279,6 +280,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("fuseClient.disableXattr",
                               &clientOption->disableXattr);
     conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
+    conf->GetValueFatalIfFail("fuseClient.supportKVcache",
+                              &FLAGS_supportKVcache);
 
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))
