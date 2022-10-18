@@ -59,6 +59,10 @@ const char COPYSETKEYPREFIX[] = "fs_1007";
 const char COPYSETKEYEND[] = "fs_1008";
 const char PARTITIONKEYPREFIX[] = "fs_1008";
 const char PARTITIONKEYEND[] = "fs_1009";
+const char MEMCACHECLUSTERKEYPREFIX[] = "fs_1009";
+const char MEMCACHECLUSTERKEYEND[] = "fs_1010";
+const char FS2MEMCACHECLUSTERKEYPREFIX[] = "fs_1010";
+const char FS2MEMCACHECLUSTERKEYEND[] = "fs_1011";
 
 constexpr uint32_t TOPOLOGY_PREFIX_LENGTH = 7;
 

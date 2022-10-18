@@ -22,10 +22,15 @@
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
 
 #include <string>
+#include "curvefs/src/mds/common/storage_key.h"
 
 namespace curvefs {
 namespace mds {
 namespace topology {
+
+using curvefs::mds::FS2MEMCACHECLUSTERKEYPREFIX;
+using curvefs::mds::MEMCACHECLUSTERKEYEND;
+using curvefs::mds::MEMCACHECLUSTERKEYPREFIX;
 
 std::string TopologyStorageCodec::EncodePoolKey(PoolIdType id) {
     std::string key = POOLKEYPREFIX;
@@ -141,9 +146,36 @@ bool TopologyStorageCodec::EncodeClusterInfoData(const ClusterInformation &data,
     return data.SerializeToString(value);
 }
 
-bool TopologyStorageCodec::DecodeCluserInfoData(const std::string &value,
+bool TopologyStorageCodec::DecodeClusterInfoData(const std::string &value,
                                                 ClusterInformation *data) {
     return data->ParseFromString(value);
+}
+
+std::string TopologyStorageCodec::EncodeMemcacheClusterKey(
+    MetaServerIdType id) {
+    std::string key = MEMCACHECLUSTERKEYPREFIX;
+    size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
+    key.resize(prefixLen + sizeof(uint64_t));
+    EncodeBigEndian(&(key[prefixLen]), id);
+    return key;
+}
+
+bool TopologyStorageCodec::EncodeMemcacheClusterData(
+    const MemcacheCluster& data, std::string* value) {
+    return data.SerializeToString(value);
+}
+
+bool TopologyStorageCodec::DecodeMemcacheClusterData(const std::string& value,
+                                                     MemcacheCluster* data) {
+    return data->ParseFromString(value);
+}
+
+std::string TopologyStorageCodec::EncodeFs2MemcacheClusterKey(FsIdType fsId) {
+    std::string key = FS2MEMCACHECLUSTERKEYPREFIX;
+    size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
+    key.resize(prefixLen + sizeof(uint64_t));
+    EncodeBigEndian(&(key[prefixLen]), fsId);
+    return key;
 }
 
 }  // namespace topology

@@ -413,6 +413,37 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
 }
 
+bool MdsClientImpl::AllocOrGetMemcacheCluster(uint32_t fsId,
+                                              MemcacheClusterInfo* cluster) {
+    auto task = RPCTask {
+        mdsClientMetric_.allocOrGetMemcacheCluster.qps.count << 1;
+        LatencyUpdater updater(
+            &mdsClientMetric_.allocOrGetMemcacheCluster.latency);
+        mds::topology::AllocOrGetMemcacheClusterResponse response;
+        mdsbasecli_->AllocOrGetMemcacheCluster(fsId, &response, cntl, channel);
+        if (cntl->Failed()) {
+            mdsClientMetric_.allocOrGetMemcacheCluster.eps.count << 1;
+            LOG(WARNING)
+                << "AllocOrGetMemcacheCluster from mds failed, error is "
+                << cntl->ErrorText() << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "AllocOrGetMemcacheCluster fail, errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret);
+            return ret;
+        }
+
+        *cluster = std::move(*response.mutable_cluster());
+
+        return ret;
+    };
+
+    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
 FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                            uint64_t *chunkId) {
     auto task = RPCTask {
@@ -604,13 +635,6 @@ FSStatusCode MdsClientImpl::CommitTxWithLock(
     request.set_txsequence(sequence);
     *request.mutable_partitiontxids() = { txIds.begin(), txIds.end() };
     return CommitTx(request);
-}
-
-
-bool MdsClientImpl::AllocOrGetMemcacheCluster(
-    uint32_t fsId, curvefs::mds::topology::MemcacheCluster *cluster) {
-    // TODO(@Cyber-SiKu): implement me
-    return false;
 }
 
 FSStatusCode MdsClientImpl::ReturnError(int retcode) {

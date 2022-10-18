@@ -64,6 +64,7 @@ using curvefs::mds::GetLatestTxIdResponse;
 using curvefs::mds::CommitTxRequest;
 using curvefs::mds::CommitTxResponse;
 using curvefs::mds::Mountpoint;
+using curvefs::mds::topology::MemcacheClusterInfo;
 
 class MdsClient {
  public:
@@ -103,6 +104,10 @@ class MdsClient {
 
     virtual bool ListPartition(uint32_t fsID,
                                std::vector<PartitionInfo> *partitionInfos) = 0;
+
+    virtual bool AllocOrGetMemcacheCluster(uint32_t fsId,
+                                           MemcacheClusterInfo* cluster) = 0;
+
     virtual FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                         uint64_t *chunkId) = 0;
 
@@ -130,10 +135,6 @@ class MdsClient {
                      const std::string& fsName,
                      const std::string& uuid,
                      uint64_t sequence) = 0;
-
-    // get memcache cluster config
-    virtual bool AllocOrGetMemcacheCluster(
-        uint32_t fsId, curvefs::mds::topology::MemcacheCluster *cluster) = 0;
 
     // allocate block group
     virtual SpaceErrCode AllocateVolumeBlockGroup(
@@ -193,6 +194,9 @@ class MdsClientImpl : public MdsClient {
     bool ListPartition(uint32_t fsID,
                        std::vector<PartitionInfo> *partitionInfos) override;
 
+    bool AllocOrGetMemcacheCluster(uint32_t fsId,
+                                   MemcacheClusterInfo* cluster) override;
+
     FSStatusCode AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                 uint64_t *chunkId) override;
 
@@ -218,11 +222,6 @@ class MdsClientImpl : public MdsClient {
                      const std::string& fsName,
                      const std::string& uuid,
                      uint64_t sequence) override;
-
-    // get memcache cluster config
-    bool
-    AllocOrGetMemcacheCluster(uint32_t fsId,
-                              curvefs::mds::topology::MemcacheCluster *cluster);
 
     // allocate block group
     SpaceErrCode AllocateVolumeBlockGroup(

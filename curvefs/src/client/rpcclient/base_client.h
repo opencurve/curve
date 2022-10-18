@@ -87,6 +87,8 @@ using curvefs::mds::UmountFsResponse;
 using ::curve::client::CopysetID;
 using ::curve::client::LogicPoolID;
 
+using curvefs::mds::topology::AllocOrGetMemcacheClusterRequest;
+using curvefs::mds::topology::AllocOrGetMemcacheClusterResponse;
 using curvefs::mds::topology::Copyset;
 using curvefs::mds::topology::CreatePartitionRequest;
 using curvefs::mds::topology::CreatePartitionResponse;
@@ -212,6 +214,10 @@ class MDSBaseClient {
         ReleaseBlockGroupResponse* response,
         brpc::Controller* cntl,
         brpc::Channel* channel);
+
+    virtual void AllocOrGetMemcacheCluster(
+        uint32_t fsId, AllocOrGetMemcacheClusterResponse* response,
+        brpc::Controller* cntl, brpc::Channel* channel);
 };
 
 }  // namespace rpcclient

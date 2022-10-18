@@ -818,6 +818,92 @@ class Partition {
     mutable ::curve::common::RWLock mutex_;
 };
 
+class MemcacheServer {
+ public:
+    MemcacheServer() : port_(0) {}
+    explicit MemcacheServer(const MemcacheServerInfo& info)
+        : ip_(info.ip()), port_(info.port()) {}
+
+    MemcacheServer& operator=(const MemcacheServerInfo& info) {
+        ip_ = info.ip();
+        port_ = info.port();
+        return *this;
+    }
+
+    operator MemcacheServerInfo() const {
+        MemcacheServerInfo info;
+        info.set_ip(ip_);
+        info.set_port(port_);
+        return info;
+    }
+
+    bool operator==(const MemcacheServerInfo& server) const {
+        return ip_ == server.ip() && port_ == server.port();
+    }
+
+    std::string GetIp() const {
+        return ip_;
+    }
+
+    uint32_t GetPort() const {
+        return port_;
+    }
+
+ private:
+    std::string ip_;
+    uint32_t port_;
+};
+
+class MemcacheCluster {
+ public:
+    MemcacheCluster() : id_(UNINITIALIZE_ID) {}
+    explicit MemcacheCluster(const MemcacheClusterInfo& info)
+        : id_(info.clusterid()) {
+        for (auto const& server : info.servers()) {
+            servers_.emplace_back(server);
+        }
+    }
+
+    MemcacheCluster(MetaServerIdType id, std::list<MemcacheServer>&& servers)
+        : id_(id), servers_(servers) {}
+
+    MemcacheCluster(MetaServerIdType id,
+                    const std::list<MemcacheServer>& servers)
+        : id_(id), servers_(servers) {}
+
+    MemcacheCluster& operator=(const MemcacheClusterInfo& info) {
+        id_ = info.clusterid();
+        for (auto const& server : info.servers()) {
+            servers_.emplace_back(server);
+        }
+        return *this;
+    }
+
+    operator MemcacheClusterInfo() const {
+        MemcacheClusterInfo info;
+        info.set_clusterid(id_);
+        for (auto const& server : servers_) {
+            (*info.add_servers()) = static_cast<MemcacheServerInfo>(server);
+        }
+        return info;
+    }
+
+    std::list<MemcacheServer> GetServers() const {
+        return servers_;
+    }
+
+    MetaServerIdType GetId() const {
+        return id_;
+    }
+
+    bool ParseFromString(const std::string& value);
+    bool SerializeToString(std::string* value) const;
+
+ private:
+    MetaServerIdType id_;
+    std::list<MemcacheServer> servers_;
+};
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

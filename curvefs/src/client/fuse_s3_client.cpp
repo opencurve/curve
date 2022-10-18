@@ -43,8 +43,8 @@ namespace client {
 
 using curvefs::client::common::FLAGS_supportKVcache;
 using curvefs::client::common::FLAGS_enableCto;
-using curvefs::mds::topology::MemcacheCluster;
-using curvefs::mds::topology::MemcachedServer;
+using curvefs::mds::topology::MemcacheClusterInfo;
+using curvefs::mds::topology::MemcacheServerInfo;
 
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     FuseClientOption opt(option);
@@ -99,7 +99,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
 
 bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
      // get kvcache cluster
-    MemcacheCluster kvcachecluster;
+    MemcacheClusterInfo kvcachecluster;
     if (!mdsClient_->AllocOrGetMemcacheCluster(fsInfo_->fsid(),
                                                &kvcachecluster)) {
         LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache

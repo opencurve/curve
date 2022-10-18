@@ -192,6 +192,9 @@ TEST_F(TestTopology, test_init_success) {
         DoAll(SetArgPointee<0>(copySetMap_), Return(true)));
     EXPECT_CALL(*storage_, LoadPartition(_, _)).WillOnce(
         DoAll(SetArgPointee<0>(partitionMap_), Return(true)));
+    EXPECT_CALL(*storage_, LoadMemcacheCluster(_, _))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, LoadFs2MemcacheCluster(_)).WillOnce(Return(true));
 
     EXPECT_CALL(*idGenerator_, initPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));

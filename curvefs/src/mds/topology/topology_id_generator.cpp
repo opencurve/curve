@@ -21,6 +21,8 @@
  */
 #include "curvefs/src/mds/topology/topology_id_generator.h"
 
+#include "curvefs/src/mds/common/mds_define.h"
+
 namespace curvefs {
 namespace mds {
 namespace topology {
@@ -52,6 +54,11 @@ void DefaultIdGenerator::initPartitionIdGenerator(PartitionIdType idMax) {
   PartitionIdGentor_.init(idMax);
 }
 
+void DefaultIdGenerator::initMemcacheClusterIdGenerator(
+    MemcacheClusterIdType idMax) {
+  memcacheClusterIdGentor_.init(idMax);
+}
+
 PoolIdType DefaultIdGenerator::GenPoolId() {
   return PoolIdGentor_.GenId();
 }
@@ -74,6 +81,10 @@ CopySetIdType DefaultIdGenerator::GenCopySetId(PoolIdType poolId) {
 
 PartitionIdType DefaultIdGenerator::GenPartitionId() {
   return PartitionIdGentor_.GenId();
+}
+
+MemcacheClusterIdType DefaultIdGenerator::GenMemCacheClusterId() {
+  return memcacheClusterIdGentor_.GenId();
 }
 
 }  // namespace topology

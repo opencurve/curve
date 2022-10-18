@@ -118,6 +118,10 @@ class MetaserverBalancePOC : public ::testing::Test {
         EXPECT_CALL(*storage_, LoadCopySet(_, _)).WillRepeatedly(Return(true));
         EXPECT_CALL(*storage_, LoadPartition(_, _))
                                 .WillRepeatedly(Return(true));
+        EXPECT_CALL(*storage_, LoadMemcacheCluster(_, _))
+            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, LoadFs2MemcacheCluster(_))
+            .WillOnce(Return(true));
 
         ASSERT_EQ(topology_->Init(topologyOption), TopoStatusCode::TOPO_OK);
 

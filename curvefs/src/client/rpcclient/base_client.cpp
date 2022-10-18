@@ -21,6 +21,7 @@
  */
 
 #include "curvefs/src/client/rpcclient/base_client.h"
+#include <cstdint>
 
 namespace curvefs {
 namespace client {
@@ -217,6 +218,16 @@ void MDSBaseClient::ReleaseVolumeBlockGroup(
 
     SpaceService_Stub stub(channel);
     stub.ReleaseBlockGroup(cntl, &request, response, nullptr);
+}
+
+void MDSBaseClient::AllocOrGetMemcacheCluster(
+    uint32_t fsId, AllocOrGetMemcacheClusterResponse* response,
+    brpc::Controller* cntl, brpc::Channel* channel) {
+    AllocOrGetMemcacheClusterRequest request;
+    request.set_fsid(fsId);
+
+    curvefs::mds::topology::TopologyService_Stub stub(channel);
+    stub.AllocOrGetMemcacheCluster(cntl, &request, response, nullptr);
 }
 
 }  // namespace rpcclient
