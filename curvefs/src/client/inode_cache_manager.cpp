@@ -46,6 +46,7 @@ namespace curvefs {
 namespace client {
 
 using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
+using common::FLAGS_enableCto;
 
 bool IsNotDirtyInode(const std::shared_ptr<InodeWrapper> &inode) {
     return !inode->IsDirty() && inode->S3ChunkInfoEmpty();
@@ -79,7 +80,8 @@ bool IsNotDirtyInode(const std::shared_ptr<InodeWrapper> &inode) {
 
 CURVEFS_ERROR
 InodeCacheManagerImpl::GetInode(uint64_t inodeId,
-                                std::shared_ptr<InodeWrapper> &out) {
+                                std::shared_ptr<InodeWrapper> &out,
+                                bool ctoCached) {
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
     // get inode from cache
     bool ok = iCache_->Get(inodeId, &out);
@@ -97,41 +99,9 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     REFRESH_DATA_REMOTE(out, streaming);
 
     // put to cache
-    PUT_INODE_CACHE(inodeId, out);
-
-    return CURVEFS_ERROR::OK;
-}
-
-CURVEFS_ERROR
-InodeCacheManagerImpl::RefreshInode(uint64_t inodeId) {
-    NameLockGuard lock(nameLock_, std::to_string(inodeId));
-
-    // get inode from metaserver
-    Inode inode;
-    bool streaming = false;
-    GET_INODE_REMOTE(fsId_, inodeId, &inode, &streaming);
-
-    // get inode from cache
-    std::shared_ptr<InodeWrapper> out;
-    bool ok = iCache_->Get(inodeId, &out);
-    curve::common::UniqueLock lgGuard;
-    if (!ok) {
-        out = std::make_shared<InodeWrapper>(std::move(inode), metaClient_);
-    } else {
-        lgGuard = out->GetUniqueLock();
-        streaming = true;
-    }
-
-    // refresh data
-    REFRESH_DATA_REMOTE(out, streaming);
-
-    // put to cache or refresh length
-    if (!ok) {
+    if (!FLAGS_enableCto || ctoCached) {
         PUT_INODE_CACHE(inodeId, out);
-    } else {
-        out->SetLengthLocked(inode.length());
     }
-
     return CURVEFS_ERROR::OK;
 }
 
@@ -307,14 +277,16 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     out = std::make_shared<InodeWrapper>(
         std::move(inode), metaClient_);
 
-    std::shared_ptr<InodeWrapper> eliminatedOne;
-    bool eliminated = false;
-    {
-        NameLockGuard lock(nameLock_, std::to_string(inodeid));
-        eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
-    }
-    if (eliminated) {
-        eliminatedOne->FlushAsync();
+    if (!FLAGS_enableCto) {
+        std::shared_ptr<InodeWrapper> eliminatedOne;
+        bool eliminated = false;
+        {
+            NameLockGuard lock(nameLock_, std::to_string(inodeid));
+            eliminated = iCache_->Put(inodeid, out, &eliminatedOne);
+        }
+        if (eliminated) {
+            eliminatedOne->FlushAsync();
+        }
     }
     return CURVEFS_ERROR::OK;
 }
@@ -341,6 +313,7 @@ void InodeCacheManagerImpl::AddInodeAttrs(
 }
 
 void InodeCacheManagerImpl::ClearInodeCache(uint64_t inodeId) {
+    VLOG(1) << "ClearInodeCache inodeId = " << inodeId;
     {
         NameLockGuard lock(nameLock_, std::to_string(inodeId));
         iCache_->Remove(inodeId);

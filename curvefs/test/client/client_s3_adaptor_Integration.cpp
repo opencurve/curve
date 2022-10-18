@@ -359,7 +359,7 @@ TEST_F(ClientS3IntegrationTest, test_read_one_chunk) {
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<1>(*tmpbuf), Return(1 * 1024 * 1024)))
         .WillOnce(Return(-1));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -653,7 +653,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole1) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
@@ -701,7 +701,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole2) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf);
@@ -743,7 +743,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole3) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf);
@@ -785,7 +785,7 @@ TEST_F(ClientS3IntegrationTest, test_read_hole4) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf);
@@ -835,7 +835,7 @@ TEST_F(ClientS3IntegrationTest, test_read_more_write) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf);
@@ -1057,7 +1057,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_small3) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1117,7 +1117,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big1) {
     CURVEFS_ERROR ret;
     uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     ret = s3ClientAdaptor_->Truncate(inode.get(), len);
@@ -1162,7 +1162,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big2) {
     memset(buf, 'a', len);
     uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
 
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     s3ClientAdaptor_->Write(inode->GetInodeId(), offset, len, buf);
@@ -1210,7 +1210,7 @@ TEST_F(ClientS3IntegrationTest, test_truncate_big3) {
     CURVEFS_ERROR ret;
     uint64_t chunkIndex = offset / s3ClientAdaptor_->GetChunkSize();
     //  mock
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
 
@@ -1333,7 +1333,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_first_write) {
                 context->retCode = 0;
                 context->cb(context);
             }));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     CURVEFS_ERROR ret = s3ClientAdaptor_->Flush(inode->GetInodeId());
@@ -1385,7 +1385,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write) {
             DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1439,7 +1439,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_overlap_write2) {
     EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _))
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1498,7 +1498,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_hole_write) {
             DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1557,7 +1557,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_more_chunk) {
             DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1625,7 +1625,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read1) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1705,7 +1705,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read2) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1788,7 +1788,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read3) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1892,7 +1892,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read4) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -1971,7 +1971,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read5) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2064,7 +2064,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read6) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2156,7 +2156,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read7) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2251,7 +2251,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read8) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2344,7 +2344,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read9) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2446,7 +2446,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read10) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2560,7 +2560,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read11) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2644,7 +2644,7 @@ TEST_F(ClientS3IntegrationTest, test_flush_write_and_read12) {
         .WillRepeatedly(Invoke(S3Upload));
     EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
         .WillRepeatedly(Invoke(S3Download));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillRepeatedly(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
@@ -2722,7 +2722,7 @@ TEST_F(ClientS3IntegrationTest, test_fssync_success_and_fail) {
         .WillRepeatedly(
             DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
 
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgReferee<1>(inode),
@@ -2784,7 +2784,7 @@ TEST_F(ClientS3IntegrationTest, test_fssync_overlap_write) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkId), Return(FSStatusCode::OK)));
     EXPECT_CALL(mockS3Client_, Upload(_, _, _))
         .WillRepeatedly(Return(1 * 1024 * 1024));
-    EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(mockS3Client_, UploadAsync(_))
