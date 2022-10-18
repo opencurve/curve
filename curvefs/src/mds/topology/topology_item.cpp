@@ -299,6 +299,17 @@ common::PartitionInfo Partition::ToPartitionInfo() {
     return info;
 }
 
+bool MemcacheCluster::ParseFromString(const std::string& value) {
+    MemcacheClusterInfo data;
+    bool ret = data.ParseFromString(value);
+    (*this) = static_cast<MemcacheCluster>(data);
+    return ret;
+}
+
+bool MemcacheCluster::SerializeToString(std::string* value) const {
+    return static_cast<MemcacheClusterInfo>(*this).SerializeToString(value);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

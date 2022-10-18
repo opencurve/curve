@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <chrono>  // NOLINT
 #include <utility>
+#include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/timeutility.h"
@@ -58,6 +60,10 @@ PartitionIdType TopologyImpl::AllocatePartitionId() {
 
 std::string TopologyImpl::AllocateToken() {
     return tokenGenerator_->GenToken();
+}
+
+MemcacheClusterIdType TopologyImpl::AllocateMemCacheClusterId() {
+    return idGenerator_->GenMemCacheClusterId();
 }
 
 TopoStatusCode TopologyImpl::AddPool(const Pool &data) {
@@ -1030,6 +1036,21 @@ TopoStatusCode TopologyImpl::Init(const TopologyOption &option) {
     }
     idGenerator_->initPartitionIdGenerator(maxPartitionId);
 
+    // MemcacheCluster
+    MemcacheClusterIdType maxMemcacheClusterId;
+    if (!storage_->LoadMemcacheCluster(&memcacheClusterMap_,
+                                       &maxMemcacheClusterId)) {
+        LOG(ERROR) << "[TopologyImpl::init], LoadMemcacheCluster fail.";
+        return TopoStatusCode::TOPO_STORGE_FAIL;
+    }
+    idGenerator_->initMemcacheClusterIdGenerator(maxMemcacheClusterId);
+
+    // Fs2MemcacheCLuster
+    if (!storage_->LoadFs2MemcacheCluster(&fs2MemcacheCluster_)) {
+        LOG(ERROR) << "[TopologyImpl::init], LoadFs2MemcacheCluster fail.";
+        return TopoStatusCode::TOPO_STORGE_FAIL;
+    }
+
     // for upgrade and keep compatibility
     // the old version have no partitionIndex in etcd, so need update here of upgrade  // NOLINT
     // if the fs in old cluster already delete some partitions, it is incompatible.    // NOLINT
@@ -1654,6 +1675,75 @@ bool TopologyImpl::RefreshPartitionIndexOfFS(
         clusterInfo_.UpdatePartitionIndexOfFs(it.first, it.second);
     }
     return storage_->StorageClusterInfo(clusterInfo_);
+}
+
+std::list<MemcacheServer> TopologyImpl::ListMemcacheServers() const {
+    ReadLockGuard rlockMemcacheCluster(memcacheClusterMutex_);
+    std::list<MemcacheServer> ret;
+    for (auto const& cluster : memcacheClusterMap_) {
+        auto const& servers = cluster.second.GetServers();
+        ret.insert(ret.begin(), servers.cbegin(), servers.cend());
+    }
+    return ret;
+}
+
+TopoStatusCode TopologyImpl::AddMemcacheCluster(const MemcacheCluster& data) {
+    WriteLockGuard wlockMemcacheCluster(memcacheClusterMutex_);
+    // storage_ to storage
+    TopoStatusCode ret = TopoStatusCode::TOPO_OK;
+    if (!storage_->StorageMemcacheCluster(data)) {
+        ret = TopoStatusCode::TOPO_STORGE_FAIL;
+    } else {
+        memcacheClusterMap_[data.GetId()] = data;
+    }
+
+    return ret;
+}
+
+TopoStatusCode TopologyImpl::AddMemcacheCluster(MemcacheCluster&& data) {
+    WriteLockGuard wlockMemcacheCluster(memcacheClusterMutex_);
+    // storage_ to storage
+    TopoStatusCode ret = TopoStatusCode::TOPO_OK;
+    if (!storage_->StorageMemcacheCluster(data)) {
+        ret = TopoStatusCode::TOPO_STORGE_FAIL;
+    } else {
+        memcacheClusterMap_.insert(
+            std::make_pair(data.GetId(), std::move(data)));
+    }
+    return ret;
+}
+
+std::list<MemcacheCluster> TopologyImpl::ListMemcacheClusters() const {
+    std::list<MemcacheCluster> ret;
+    ReadLockGuard rlockMemcacheCluster(memcacheClusterMutex_);
+    for (auto const& cluster : memcacheClusterMap_) {
+        ret.emplace_back(cluster.second);
+    }
+    return ret;
+}
+
+TopoStatusCode TopologyImpl::AllocOrGetMemcacheCluster(
+    FsIdType fsId, MemcacheClusterInfo* cluster) {
+    TopoStatusCode ret = TopoStatusCode::TOPO_OK;
+    WriteLockGuard wlockFs2MemcacheCluster(fs2MemcacheClusterMutex_);
+    ReadLockGuard rlockMemcacheCluster(memcacheClusterMutex_);
+    if (fs2MemcacheCluster_.find(fsId) != fs2MemcacheCluster_.end()) {
+        *cluster = memcacheClusterMap_[fs2MemcacheCluster_[fsId]];
+    } else if (memcacheClusterMap_.empty()) {
+        ret = TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND;
+    } else {
+        int randId =
+            static_cast<int>(butil::fast_rand()) % memcacheClusterMap_.size();
+        auto iter = memcacheClusterMap_.cbegin();
+        for (int i = 0; i < randId; ++i, ++iter) continue;
+        *cluster = iter->second;
+        if (!storage_->StorageFs2MemcacheCluster(fsId, cluster->clusterid())) {
+            ret = TopoStatusCode::TOPO_STORGE_FAIL;
+        } else {
+            fs2MemcacheCluster_[fsId] = cluster->clusterid();
+        }
+    }
+    return ret;
 }
 
 }  // namespace topology

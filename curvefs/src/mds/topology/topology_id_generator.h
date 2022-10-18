@@ -47,6 +47,8 @@ class TopologyIdGenerator {
     virtual void initCopySetIdGenerator(
         const std::map<PoolIdType, CopySetIdType> &idMaxMap) = 0;
     virtual void initPartitionIdGenerator(PartitionIdType idMax) = 0;
+    virtual void initMemcacheClusterIdGenerator(
+        MemcacheClusterIdType idMax) = 0;
 
     virtual PoolIdType GenPoolId() = 0;
     virtual ZoneIdType GenZoneId() = 0;
@@ -54,6 +56,7 @@ class TopologyIdGenerator {
     virtual MetaServerIdType GenMetaServerId() = 0;
     virtual CopySetIdType GenCopySetId(PoolIdType PoolId) = 0;
     virtual PartitionIdType GenPartitionId() = 0;
+    virtual MemcacheClusterIdType GenMemCacheClusterId() = 0;
 };
 
 
@@ -69,6 +72,7 @@ class DefaultIdGenerator : public TopologyIdGenerator {
     virtual void initCopySetIdGenerator(const std::map<PoolIdType,
         CopySetIdType> &idMaxMap);
     virtual void initPartitionIdGenerator(PartitionIdType idMax);
+    virtual void initMemcacheClusterIdGenerator(MemcacheClusterIdType idMax);
 
     virtual PoolIdType GenPoolId();
     virtual ZoneIdType GenZoneId();
@@ -76,6 +80,7 @@ class DefaultIdGenerator : public TopologyIdGenerator {
     virtual MetaServerIdType GenMetaServerId();
     virtual CopySetIdType GenCopySetId(PoolIdType PoolId);
     virtual PartitionIdType GenPartitionId();
+    virtual MemcacheClusterIdType GenMemCacheClusterId();
 
  private:
     template <typename T>
@@ -102,6 +107,7 @@ class DefaultIdGenerator : public TopologyIdGenerator {
     IdGenerator<MetaServerIdType> metaserverIdGentor_;
     std::map<PoolIdType, IdGenerator<CopySetIdType> > copySetIdGentor_;
     IdGenerator<PartitionIdType> PartitionIdGentor_;
+    IdGenerator<MemcacheClusterIdType> memcacheClusterIdGentor_;
 };
 
 }  // namespace topology

@@ -24,6 +24,7 @@ package create
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create/cache"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/create/topology"
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ func (createCmd *CreateCommand) AddSubCommands() {
 	createCmd.Cmd.AddCommand(
 		fs.NewFsCommand(),
 		topology.NewTopologyCommand(),
+		cache.NewCacheCommand(),
 	)
 }
 

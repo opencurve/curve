@@ -141,7 +141,7 @@ class TestFuseS3Client : public ::testing::Test {
 
 TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
     curvefs::client::common::FLAGS_supportKVcache = true;
-    curvefs::mds::topology::MemcacheCluster memcacheCluster;
+    curvefs::mds::topology::MemcacheClusterInfo memcacheCluster;
     memcacheCluster.set_clusterid(1);
     auto testclient =
         std::make_shared<FuseS3Client>(mdsClient_, metaClient_, inodeManager_,

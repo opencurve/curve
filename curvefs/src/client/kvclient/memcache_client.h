@@ -36,7 +36,7 @@ namespace curvefs {
 
 namespace client {
 
-using curvefs::mds::topology::MemcacheCluster;
+using curvefs::mds::topology::MemcacheClusterInfo;
 
 /**
  * only the threadpool will operate the kvclient,
@@ -83,7 +83,7 @@ class MemCachedClient : public KVClient {
     explicit MemCachedClient(memcached_st *cli) : client_(cli) {}
     ~MemCachedClient() { UnInit(); }
 
-    bool Init(const MemcacheCluster &kvcachecluster) {
+    bool Init(const MemcacheClusterInfo &kvcachecluster) {
         client_ = memcached(nullptr, 0);
 
         for (int i = 0; i < kvcachecluster.servers_size(); i++) {

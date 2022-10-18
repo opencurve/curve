@@ -33,7 +33,7 @@ RUN echo "deb http://mirrors.163.com/debian/ buster main non-free contrib\n" \
         libjemalloc2 \
         libsnappy1v5 \
         liblz4-1 \
-        zlib1g
+        zlib1g \
     && ln -sf /usr/lib/x86_64-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so
 
 COPY libetcdclient.so /usr/lib/

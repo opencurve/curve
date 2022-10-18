@@ -47,6 +47,7 @@ enum TopoStatusCode {
     TOPO_METASERVER_EXIST = 22;
     TOPO_GET_AVAILABLE_COPYSET_ERROR = 23;
     TOPO_DELETE_PARTITION_ON_METASERVER_FAIL = 24;
+    TOPO_MEMCACHECLUSTER_NOT_FOUND = 25;
 }
 
 enum OnlineState {
@@ -458,30 +459,31 @@ message ListTopologyResponse {
     required ListMetaServerResponse metaservers = 5;
 }
 
-message MemcachedServer {
+message MemcacheServerInfo {
     required string ip = 1;
     required uint32 port = 2;
 }
 
 message RegistMemcacheClusterRequest {
-    repeated MemcachedServer servers = 1;
+    repeated MemcacheServerInfo servers = 1;
 }
 
 message RegistMemcacheClusterResponse {
     required TopoStatusCode statusCode = 1;
+    optional uint32 clusterId = 2;
 }
 
 message ListMemcacheClusterRequest {
 }
 
-message MemcacheCluster {
+message MemcacheClusterInfo {
     required uint32 clusterId = 1;
-    repeated MemcachedServer servers = 2;
+    repeated MemcacheServerInfo servers = 2;
 }
 
 message ListMemcacheClusterResponse {
     required TopoStatusCode statusCode = 1;
-    repeated MemcacheCluster memClusters = 2;
+    repeated MemcacheClusterInfo memcacheClusters = 2;
 }
 
 message AllocOrGetMemcacheClusterRequest {
@@ -490,7 +492,7 @@ message AllocOrGetMemcacheClusterRequest {
 
 message AllocOrGetMemcacheClusterResponse {
     required TopoStatusCode statusCode = 1;
-    optional MemcacheCluster cluster = 2;
+    optional MemcacheClusterInfo cluster = 2;
 }
 
 service TopologyService {

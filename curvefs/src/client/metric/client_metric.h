@@ -51,11 +51,12 @@ struct MDSClientMetric {
     InterfaceMetric refreshSession;
     InterfaceMetric getLatestTxId;
     InterfaceMetric commitTx;
+    InterfaceMetric allocOrGetMemcacheCluster;
 
-    explicit MDSClientMetric(const std::string &prefix_ = "")
+    explicit MDSClientMetric(const std::string& prefix_ = "")
         : prefix(!prefix_.empty() ? prefix_
                                   : "curvefs_mds_client_" +
-                                    curve::common::ToHexString(this)),
+                                        curve::common::ToHexString(this)),
           mountFs(prefix, "mountFs"),
           umountFs(prefix, "umountFs"),
           getFsInfo(prefix, "getFsInfo"),
@@ -67,7 +68,8 @@ struct MDSClientMetric {
           allocS3ChunkId(prefix, "allocS3ChunkId"),
           refreshSession(prefix, "refreshSession"),
           getLatestTxId(prefix, "getLatestTxId"),
-          commitTx(prefix, "commitTx") {}
+          commitTx(prefix, "commitTx"),
+          allocOrGetMemcacheCluster(prefix, "allocOrGetMemcacheCluster") {}
 };
 
 struct MetaServerClientMetric {

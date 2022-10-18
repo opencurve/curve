@@ -84,6 +84,9 @@ const (
 	CURVEFS_DEFAULT_MARGIN       = uint64(1000)
 	CURVEFS_FILELIST             = "filelist"
 	VIPER_CURVEFS_FILELIST       = "curvefs.filelist"
+	CURVEFS_SERVERS              = "servers"
+	VIPER_CURVEFS_SERVERS        = "curvefs.servers"
+	CURVEFS_DEFAULT_SERVERS      = "127.0.0.1:7001,127.0.0.1:7002"
 
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
@@ -156,6 +159,7 @@ var (
 		CURVEFS_INODEID:        VIPER_CURVEFS_INODEID,
 		CURVEFS_CLUSTERMAP:     VIPER_CURVEFS_CLUSTERMAP,
 		CURVEFS_MARGIN:         VIPER_CURVEFS_MARGIN,
+		CURVEFS_SERVERS:        VIPER_CURVEFS_SERVERS,
 
 		// S3
 		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
@@ -182,6 +186,7 @@ var (
 		CURVEFS_DETAIL:     CURVEFS_DEFAULT_DETAIL,
 		CURVEFS_CLUSTERMAP: CURVEFS_DEFAULT_CLUSTERMAP,
 		CURVEFS_MARGIN:     CURVEFS_DEFAULT_MARGIN,
+		CURVEFS_SERVERS:	CURVEFS_DEFAULT_SERVERS,
 
 		// S3
 		CURVEFS_S3_AK:         CURVEFS_DEFAULT_S3_AK,
@@ -738,4 +743,9 @@ func AddClusterMapRequiredFlag(cmd *cobra.Command) {
 // mountpoint [required]
 func AddMountpointRequiredFlag(cmd *cobra.Command) {
 	AddStringRequiredFlag(cmd, CURVEFS_MOUNTPOINT, "curvefs mountpoint path")
+}
+
+// servers [required]
+func AddFsServersRequiredFlag(cmd *cobra.Command) {
+	AddStringRequiredFlag(cmd, CURVEFS_SERVERS, "curvefs memcache servers")
 }

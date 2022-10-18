@@ -123,6 +123,8 @@ thirdparties/rocksdb/*.tar.gz
 thirdparties/aws/*.tar.gz
 thirdparties/etcdclient/tmp/
 thirdparties/etcdclient/*.h
+thirdparties/memcache/*.tar.gz
+thirdparties/memcache/libmemcached-*/
 
 /external
 /bazel-*

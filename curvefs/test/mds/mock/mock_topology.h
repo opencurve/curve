@@ -102,6 +102,8 @@ class MockIdGenerator : public TopologyIdGenerator {
     MOCK_METHOD1(initCopySetIdGenerator,
                  void(const std::map<PoolIdType, CopySetIdType> &idMaxMap));
     MOCK_METHOD1(initPartitionIdGenerator, void(PartitionIdType idMax));
+    MOCK_METHOD1(initMemcacheClusterIdGenerator,
+                 void(MemcacheClusterIdType idMax));
 
     MOCK_METHOD0(GenPoolId, PoolIdType());
     MOCK_METHOD0(GenZoneId, ZoneIdType());
@@ -109,6 +111,7 @@ class MockIdGenerator : public TopologyIdGenerator {
     MOCK_METHOD0(GenMetaServerId, MetaServerIdType());
     MOCK_METHOD1(GenCopySetId, CopySetIdType(PoolIdType poolId));
     MOCK_METHOD0(GenPartitionId, PartitionIdType());
+    MOCK_METHOD0(GenMemCacheClusterId, MemcacheClusterIdType());
 };
 
 class MockTokenGenerator : public TopologyTokenGenerator {
@@ -140,15 +143,21 @@ class MockStorage : public TopologyStorage {
                       std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap));
     MOCK_METHOD2(
         LoadPartition,
-        bool(std::unordered_map<PartitionIdType, Partition> *partitionMap,
-             PartitionIdType *maxPartitionId));
+        bool(std::unordered_map<PartitionIdType, Partition>* partitionMap,
+             PartitionIdType* maxPartitionId));
+    MOCK_METHOD2(LoadMemcacheCluster,
+                 bool(std::unordered_map<MemcacheClusterIdType,
+                                         MemcacheCluster>* memcacheclusterMap,
+                      MemcacheClusterIdType* maxMemcacheClusterId));
 
     MOCK_METHOD1(StoragePool, bool(const Pool &data));
     MOCK_METHOD1(StorageZone, bool(const Zone &data));
     MOCK_METHOD1(StorageServer, bool(const Server &data));
     MOCK_METHOD1(StorageMetaServer, bool(const MetaServer &data));
     MOCK_METHOD1(StorageCopySet, bool(const CopySetInfo &data));
-    MOCK_METHOD1(StoragePartition, bool(const Partition &data));
+    MOCK_METHOD1(StoragePartition, bool(const Partition& data));
+    MOCK_METHOD1(StorageMemcacheCluster,
+                 bool((const MemcacheCluster& cluster)));
 
     MOCK_METHOD1(DeletePool, bool(PoolIdType id));
     MOCK_METHOD1(DeleteZone, bool(ZoneIdType id));
@@ -168,7 +177,11 @@ class MockStorage : public TopologyStorage {
         PartitionIdType partitionId, PartitionStatus status));
 
     MOCK_METHOD1(LoadClusterInfo, bool(std::vector<ClusterInformation> *info));
-    MOCK_METHOD1(StorageClusterInfo, bool(const ClusterInformation &info));
+    MOCK_METHOD1(StorageClusterInfo, bool(const ClusterInformation& info));
+    MOCK_METHOD2(StorageFs2MemcacheCluster,
+                 bool(FsIdType, MemcacheClusterIdType));
+    MOCK_METHOD1(LoadFs2MemcacheCluster,
+                 bool(std::unordered_map<FsIdType, MemcacheClusterIdType>*));
 };
 
 class MockEtcdClient : public EtcdClientImp {
