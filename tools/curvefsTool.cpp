@@ -412,7 +412,8 @@ int CurvefsTools::InitServerData() {
         serverData.physicalPoolName = server[kPhysicalPool].asString();
 
         if (!server[kPoolsetName].isString()) {
-            LOG(ERROR) << "server poolsetName must be string, poolsetName is " << server[kPoolsetName];
+            LOG(ERROR) << "server poolsetName must be string, poolsetName is "
+                       << server[kPoolsetName];
             return -1;
         }
         serverData.poolsetName = server[kPoolsetName].asString();
