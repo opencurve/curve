@@ -138,8 +138,6 @@ class InodeCacheManager {
     GetInode(uint64_t inodeId,
              std::shared_ptr<InodeWrapper> &out) = 0;  // NOLINT
 
-    virtual CURVEFS_ERROR RefreshInode(uint64_t inodeId) = 0;
-
     virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) = 0;
 
     virtual CURVEFS_ERROR BatchGetInodeAttr(
@@ -172,6 +170,10 @@ class InodeCacheManager {
     virtual void FlushInodeOnce() = 0;
 
     virtual void ReleaseCache(uint64_t parentId) = 0;
+
+    virtual void AddOpenedInode(uint64_t inodeId) = 0;
+
+    virtual void RemoveOpenedInode(uint64_t inodeId) = 0;
 
  protected:
     uint32_t fsId_;
@@ -233,8 +235,6 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     CURVEFS_ERROR GetInode(uint64_t inodeId,
                            std::shared_ptr<InodeWrapper> &out) override;
 
-    CURVEFS_ERROR RefreshInode(uint64_t inodeId) override;
-
     CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) override;
 
     CURVEFS_ERROR BatchGetInodeAttr(std::set<uint64_t> *inodeIds,
@@ -268,11 +268,18 @@ class InodeCacheManagerImpl : public InodeCacheManager,
 
     void RemoveICache(const std::shared_ptr<InodeWrapper> &inode);
 
+    void AddOpenedInode(uint64_t inodeId) override;
+
+    void RemoveOpenedInode(uint64_t inodeId) override;
+
+    bool NeedUseCahce(uint64_t inodeId, bool IsDirty);
+
  private:
     virtual void FlushInodeBackground();
     void TrimIcache(uint64_t trimSize);
     CURVEFS_ERROR RefreshData(std::shared_ptr<InodeWrapper> &inode,  // NOLINT
                               bool streaming = true);
+    bool OpenInodeCached(uint64_t inodeId);
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
@@ -284,6 +291,10 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     // dirty map, key is inodeid
     std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
     curve::common::Mutex dirtyMapMutex_;
+
+    // record opened inode
+    std::multiset<uint64_t> openedInodes_;
+    curve::common::Mutex openInodesMutex_;
 
     curve::common::GenericNameLock<Mutex> nameLock_;
 
