@@ -66,7 +66,7 @@ class DefaultVolumeStorageTest : public ::testing::Test {
 };
 
 TEST_F(DefaultVolumeStorageTest, WriteAndReadTest_InodeNotFound) {
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
         .Times(2)
         .WillRepeatedly(Return(CURVEFS_ERROR::NOTEXIST));
 
@@ -105,8 +105,9 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadError) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper->RefreshVolumeExtent());
 
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
-        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out) {
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
+        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out,
+                             bool) {
             out = inodeWrapper;
             return CURVEFS_ERROR::OK;
         }));
@@ -147,8 +148,9 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadSuccess) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper->RefreshVolumeExtent());
 
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
-        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out) {
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
+        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out,
+                             bool) {
             out = inodeWrapper;
             return CURVEFS_ERROR::OK;
         }));
@@ -191,8 +193,9 @@ TEST_F(DefaultVolumeStorageTest, ReadTest_BlockDevReadHoleSuccess) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper->RefreshVolumeExtent());
 
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
-        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out) {
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
+        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out,
+                             bool) {
             out = inodeWrapper;
             return CURVEFS_ERROR::OK;
         }));
@@ -232,8 +235,9 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_PrepareError) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper->RefreshVolumeExtent());
 
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
-        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out) {
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
+        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out,
+                             bool) {
             out = inodeWrapper;
             return CURVEFS_ERROR::OK;
         }));
@@ -265,8 +269,9 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteError) {
 
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper->RefreshVolumeExtent());
 
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
-        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out) {
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
+        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out,
+                             bool) {
             out = inodeWrapper;
             return CURVEFS_ERROR::OK;
         }));
@@ -310,8 +315,9 @@ TEST_F(DefaultVolumeStorageTest, WriteTest_BlockDevWriteSuccess) {
     ASSERT_EQ(CURVEFS_ERROR::OK, inodeWrapper->RefreshVolumeExtent());
 
 
-    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _))
-        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out) {
+    EXPECT_CALL(inodeCacheMgr_, GetInode(_, _, _))
+        .WillOnce(Invoke([&](uint64_t, std::shared_ptr<InodeWrapper>& out,
+                             bool) {
             out = inodeWrapper;
             return CURVEFS_ERROR::OK;
         }));

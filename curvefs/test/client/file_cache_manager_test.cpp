@@ -196,7 +196,7 @@ TEST_F(FileCacheManagerTest, test_read_getinode_fail) {
     EXPECT_CALL(*mockChunkCacheManager_, ReadByReadCache(_, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
-    EXPECT_CALL(*mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(*mockInodeManager_, GetInode(_, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
     ASSERT_EQ(-1, fileCacheManager_->Read(inodeId, offset, len, buf));
 }
@@ -239,7 +239,7 @@ TEST_F(FileCacheManagerTest, test_read_s3) {
     s3ChunkInfo->set_zero(false);
     s3ChunkInfoMap->insert({0, *s3ChunkInfoList});
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
-    EXPECT_CALL(*mockInodeManager_, GetInode(_, _))
+    EXPECT_CALL(*mockInodeManager_, GetInode(_, _, _))
         .WillOnce(
             DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(

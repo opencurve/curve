@@ -134,11 +134,9 @@ class InodeCacheManager {
 
     virtual void Stop() = 0;
 
-    virtual CURVEFS_ERROR
-    GetInode(uint64_t inodeId,
-             std::shared_ptr<InodeWrapper> &out) = 0;  // NOLINT
-
-    virtual CURVEFS_ERROR RefreshInode(uint64_t inodeId) = 0;
+    virtual CURVEFS_ERROR GetInode(uint64_t inodeId,
+             std::shared_ptr<InodeWrapper> &out,  // NOLINT
+             bool ctoCached = false) = 0;
 
     virtual CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) = 0;
 
@@ -231,9 +229,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     }
 
     CURVEFS_ERROR GetInode(uint64_t inodeId,
-                           std::shared_ptr<InodeWrapper> &out) override;
-
-    CURVEFS_ERROR RefreshInode(uint64_t inodeId) override;
+                           std::shared_ptr<InodeWrapper> &out,
+                           bool ctoCached = false) override;
 
     CURVEFS_ERROR GetInodeAttr(uint64_t inodeId, InodeAttr *out) override;
 
