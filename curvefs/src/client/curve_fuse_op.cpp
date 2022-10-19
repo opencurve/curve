@@ -418,8 +418,6 @@ void FuseOpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
         FuseReplyErrByErrCode(req, ret);
         return;
     }
-    // set fh to 1 to indicate needn't refresh inode when file is still opened
-    fi->fh = static_cast<uint64_t>(FileHandle::kKeepCache);
     fuse_reply_open(req, fi);
 }
 
