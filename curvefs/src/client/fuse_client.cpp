@@ -360,7 +360,9 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
             return CURVEFS_ERROR::NOPERMISSION;
         }
     }
-
+    if (FLAGS_enableCto) {
+        inodeManager_->AddOpenedInode(ino);
+    }
     return ret;
 }
 
@@ -756,18 +758,6 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi,
                                         struct stat *attr) {
     VLOG(1) << "FuseOpGetAttr ino = " << ino;
-    if (FLAGS_enableCto) {
-        if (fi == nullptr ||
-            fi->fh != static_cast<uint64_t>(FileHandle::kKeepCache)) {
-            CURVEFS_ERROR ret = inodeManager_->RefreshInode(ino);
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                        << ", inodeid = " << ino;
-                return ret;
-            }
-        }
-    }
-
     InodeAttr inodeAttr;
     CURVEFS_ERROR ret =
         inodeManager_->GetInodeAttr(ino, &inodeAttr);
@@ -1168,6 +1158,9 @@ CURVEFS_ERROR FuseClient::FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
     VLOG(1) << "FuseOpRelease, ino: " << ino;
+    if (FLAGS_enableCto) {
+        inodeManager_->RemoveOpenedInode(ino);
+    }
     return CURVEFS_ERROR::OK;
 }
 

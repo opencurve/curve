@@ -1285,20 +1285,10 @@ TEST_F(TestFuseVolumeClient, FuseOpGetAttrEnableCto) {
     inode.set_inodeid(ino);
     inode.set_length(0);
 
-    // RefreshInode OK
-    EXPECT_CALL(*inodeManager_, RefreshInode(ino))
-        .WillOnce(Return(CURVEFS_ERROR::OK));
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
 
     ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpGetAttr(req, ino, &fi, &attr));
-
-    // RefreshInode Fail
-    EXPECT_CALL(*inodeManager_, RefreshInode(ino))
-        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
-
-    ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
-              client_->FuseOpGetAttr(req, ino, &fi, &attr));
 
     // need not refresh inode
     fi.fh = static_cast<uint64_t>(FileHandle::kKeepCache);
