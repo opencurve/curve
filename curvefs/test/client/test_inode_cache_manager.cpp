@@ -150,88 +150,28 @@ TEST_F(TestInodeCacheManager, GetInode) {
     ASSERT_EQ(inodeId, out.inodeid());
     ASSERT_EQ(fsId_, out.fsid());
     ASSERT_EQ(fileLength, out.length());
-}
 
-TEST_F(TestInodeCacheManager, RefreshInode) {
-    uint64_t inodeId = 100;
-    uint64_t fileLength = 100;
-
-    Inode inode;
-    inode.set_inodeid(inodeId);
-    inode.set_fsid(fsId_);
-    inode.set_length(fileLength);
-    inode.set_type(FsFileType::TYPE_S3);
-    auto s3ChunkInfoMap = inode.mutable_s3chunkinfomap();
-    S3ChunkInfoList *s3ChunkInfoList = new S3ChunkInfoList();
-    S3ChunkInfo *s3ChunkInfo = s3ChunkInfoList->add_s3chunks();
-    s3ChunkInfo->set_chunkid(1);
-    s3ChunkInfo->set_compaction(1);
-    s3ChunkInfo->set_offset(0);
-    s3ChunkInfo->set_len(1024);
-    s3ChunkInfo->set_size(65536);
-    s3ChunkInfo->set_zero(true);
-    s3ChunkInfoMap->insert({1, *s3ChunkInfoList});
-
-    // cache miss, get s3-inode from metaserver failed
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
-        .WillOnce(Return(MetaStatusCode::NOT_FOUND));
-    ASSERT_EQ(CURVEFS_ERROR::NOTEXIST, iCacheManager_->RefreshInode(inodeId));
-
-    // cache miss, get s3-inode from metaserver ok, do not need streaming
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(inode), SetArgPointee<3>(false),
-                        Return(MetaStatusCode::OK)));
-    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodeId));
-
-    // cache miss, get s3-inode from metaserver, need streaming
-    uint64_t inodeId2 = 200;
-    Inode inode2 = inode;
-    inode2.set_inodeid(inodeId2);
+    // enable cto and not opened and not dirty
+    curvefs::client::common::FLAGS_enableCto = true;
     EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId2, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(inode2), SetArgPointee<3>(true),
                         Return(MetaStatusCode::OK)));
     EXPECT_CALL(*metaClient_,
                 GetOrModifyS3ChunkInfo(fsId_, inodeId2, _, true, _, _))
         .WillOnce(Return(MetaStatusCode::OK));
-    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodeId2));
-
-    // cache hit, refresh s3-inode from metaserver, do not need streaming
-    Inode inodenew = inode;
-    inodenew.set_length(fileLength * 3);
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(inodenew), SetArgPointee<3>(false),
-                        Return(MetaStatusCode::OK)));
-    EXPECT_CALL(*metaClient_,
-                GetOrModifyS3ChunkInfo(fsId_, inodeId, _, true, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodeId));
-    std::shared_ptr<InodeWrapper> inodeWrapper;
     ASSERT_EQ(CURVEFS_ERROR::OK,
-              iCacheManager_->GetInode(inodeId, inodeWrapper));
-    ASSERT_EQ(inodenew.length(), inodeWrapper->GetLength());
+              iCacheManager_->GetInode(inodeId2, inodeWrapper));
 
-    // cache hit, refresh s3-inode from metaserver, need streaming
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(inodenew), SetArgPointee<3>(true),
-                        Return(MetaStatusCode::OK)));
-    EXPECT_CALL(*metaClient_,
-                GetOrModifyS3ChunkInfo(fsId_, inodeId, _, true, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodeId));
+    // enable cto and opened will hit cache
+    iCacheManager_->AddOpenedInode(inodeId2);
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+              iCacheManager_->GetInode(inodeId2, inodeWrapper));
 
-    // cache miss, get file-inode from metaserver
-    Inode inodefile;
-    uint64_t inodefileid = 300;
-    inodefile.set_inodeid(inodefileid);
-    inodefile.set_fsid(fsId_);
-    inodefile.set_type(FsFileType::TYPE_FILE);
-    inodefile.set_length(1);
-    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodefileid, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(inodefile), SetArgPointee<3>(false),
-                        Return(MetaStatusCode::OK)));
-    EXPECT_CALL(*metaClient_, GetVolumeExtent(fsId_, inodefileid, _, _))
-        .WillOnce(Return(MetaStatusCode::OK));
-    ASSERT_EQ(CURVEFS_ERROR::OK, iCacheManager_->RefreshInode(inodefileid));
+    // enable cto and not opened and inode dirty will hit cache
+    iCacheManager_->RemoveOpenedInode(inodeId2);
+    inodeWrapper->MarkDirty();
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+              iCacheManager_->GetInode(inodeId2, inodeWrapper));
 }
 
 TEST_F(TestInodeCacheManager, GetInodeAttr) {
@@ -277,6 +217,35 @@ TEST_F(TestInodeCacheManager, GetInodeAttr) {
     ret = iCacheManager_->CreateInode(param, inodeWrapper);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
+    ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeId + 1, out.inodeid());
+    ASSERT_EQ(fsId_ + 1, out.fsid());
+    ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
+
+    // enable cto will get from metaserver
+    curvefs::client::common::FLAGS_enableCto = true;
+    EXPECT_CALL(*metaClient_, BatchGetInodeAttr(fsId_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(attrs), Return(MetaStatusCode::OK)));
+    ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeId, out.inodeid());
+    ASSERT_EQ(fsId_, out.fsid());
+    ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
+
+    // set this inode open
+    curvefs::client::common::FLAGS_enableCto = false;
+    iCacheManager_->AddOpenedInode(inodeId + 1);
+    ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeId + 1, out.inodeid());
+    ASSERT_EQ(fsId_ + 1, out.fsid());
+    ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
+
+    // set this inode dirty
+    curvefs::client::common::FLAGS_enableCto = false;
+    iCacheManager_->RemoveOpenedInode(inodeId + 1);
+    inodeWrapper->MarkDirty();
     ret = iCacheManager_->GetInodeAttr(inodeId + 1, &out);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     ASSERT_EQ(inodeId + 1, out.inodeid());
