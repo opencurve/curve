@@ -159,6 +159,7 @@ int DiskCacheWrite::UploadFile(const std::string &name,
                 return;
             }
             LOG(WARNING) << "upload object failed: " << context->key;
+            usleep(context->retryIntervalUS);
             client_->UploadAsync(context);
         };
     auto context = std::make_shared<PutObjectAsyncContext>();
@@ -377,6 +378,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
                 return;
             }
             LOG(WARNING) << "upload object failed: " << context->key;
+            usleep(context->retryIntervalUS);
             client_->UploadAsync(context);
         };
         auto context = std::make_shared<PutObjectAsyncContext>();

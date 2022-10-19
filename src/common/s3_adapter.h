@@ -83,6 +83,7 @@ struct S3AdapterOption {
     int requestTimeout;
     int asyncThreadNum;
     uint64_t maxAsyncRequestInflightBytes;
+    uint32_t retryIntervalUS;
     uint64_t iopsTotalLimit;
     uint64_t iopsReadLimit;
     uint64_t iopsWriteLimit;
@@ -118,6 +119,8 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     size_t len;
     GetObjectAsyncCallBack cb;
     int retCode;
+    // retry interval of download to s3 failed
+    int retryIntervalUS = 0;
 };
 
 /*
@@ -135,6 +138,8 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     PutObjectAsyncCallBack cb;
     uint64_t startTime;
     int retCode;
+    // retry interval of upload to s3 failed
+    int retryIntervalUS = 0;
 };
 
 class S3Adapter {
@@ -323,7 +328,7 @@ class S3Adapter {
             : maxInflightBytes_(maxInflightBytes), inflightBytes_(0), mtx_(),
               cond_() {}
 
-        void OnStart(uint64_t len);
+        int32_t OnStart(uint64_t len);
         void OnComplete(uint64_t len);
 
      private:
@@ -364,6 +369,8 @@ class S3Adapter {
 
     std::unique_ptr<AsyncRequestInflightBytesThrottle> inflightBytesThrottle_;
     AsyncCallbackThreadPool asyncCallbackTP_;
+    // retry interval of download/upload to s3 failed
+    int retryIntervalUS_ = 0;
 };
 
 class FakeS3Adapter : public S3Adapter {
