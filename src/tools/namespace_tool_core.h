@@ -109,6 +109,14 @@ class NameSpaceToolCore {
      */
     virtual int CreateFile(const std::string& fileName, uint64_t length);
 
+   /**
+     *  @brief 扩容卷
+     *  @param fileName 文件名
+     *  @param newSize 扩容后的文件长度
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int ExpandVolume(const std::string& fileName, uint64_t newSize);
+
     /**
      *  @brief 计算文件或目录实际分配的空间
      *  @param fileName 文件名
