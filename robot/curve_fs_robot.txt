@@ -275,8 +275,8 @@ init failover cluster
      destroy curvefs
      clean log
      deploy all servers
-     check fs cluster ok
      sleep  30
+     check fs cluster ok
      mount test dir
      sleep  40
      check fuse mount success

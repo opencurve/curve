@@ -17,6 +17,17 @@ import mythread
 import deploy
 
 def check_fs_cluster_ok():
+    cmd = "curve fs status cluster | grep health"
+    rs = shell_operator.run_exec2(cmd)
+    logger.info("status is %s"%rs)
+    if rs.strip() == 'Cluster health is: ok':
+        logger.info("cluster is healthy")
+        return True
+    else:
+        logger.info("cluster is unhealthy,status is %s"%rs)
+        return False
+
+def check_fs_cluster_ok_remote():
     mds = config.fs_mds[0]
     ssh = shell_operator.create_ssh_connect(mds, 1046, config.abnormal_user)
     ori_cmd = "sudo docker ps |grep curvefs | awk '{print $1}'"
@@ -37,6 +48,21 @@ def check_fs_cluster_ok():
         return False
 
 def wait_fs_cluster_ok():
+    cmd = "curve fs status cluster | grep health"
+    starttime = time.time()
+    while time.time() - starttime < 1200:
+        rs = shell_operator.run_exec2(cmd)
+        logger.info("status is %s"%rs)
+        if rs.strip() == 'Cluster health is: ok':
+            logger.info("cluster is healthy")
+            return True
+        else:
+            logger.info("cluster is unhealthy,status is %s"%rs)
+            time.sleep(60)
+    logger.debug("cluster is %s"%rs)
+    assert False,"cluster metaserver not recover finish in %d"%(120)
+
+def wait_fs_cluster_ok_remote():
     mds = config.fs_mds[0]
     ssh = shell_operator.create_ssh_connect(mds, 1046, config.abnormal_user)
     ori_cmd = "sudo docker ps |grep curvefs | awk '{print $1}'"
