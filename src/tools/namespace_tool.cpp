@@ -25,6 +25,7 @@
 DEFINE_string(fileName, "", "file name");
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
+DEFINE_uint64(newSize, 30, "the new size of expanded volume(GB)");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
@@ -54,6 +55,7 @@ bool NameSpaceTool::SupportCommand(const std::string& command) {
                                || command == kSegInfoCmd
                                || command == kDeleteCmd
                                || command == kCreateCmd
+                               || command == kExtendCmd
                                || command == kCleanRecycleCmd
                                || command == kChunkLocatitonCmd);
 }
@@ -103,6 +105,8 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
         }
     } else if (cmd == kCreateCmd) {
         return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB);
+    } else if (cmd == kExtendCmd) {
+        return core_->ExtendVolume(fileName, FLAGS_newSize * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
     } else {
@@ -122,7 +126,9 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20‬  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -filelength=20 -stripeUnit=32768 -stripeCount=32  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+    } else if (cmd == kExtendCmd) {
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -newSize=30  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {

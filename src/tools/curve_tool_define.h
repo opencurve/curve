@@ -55,12 +55,13 @@ const char kClientListCmd[] = "client-list";
 const char kSnapshotCloneStatusCmd[] = "snapshot-clone-status";
 const char kClusterStatusCmd[] = "cluster-status";
 
-// NamesPaceTool相关命令
+// NameSpaceTool相关命令
 const char kGetCmd[] = "get";
 const char kListCmd[] = "list";
 const char kSegInfoCmd[] = "seginfo";
 const char kDeleteCmd[] = "delete";
 const char kCreateCmd[] = "create";
+const char kExtendCmd[] = "extend";
 const char kCleanRecycleCmd[] = "clean-recycle";
 const char kChunkLocatitonCmd[] = "chunk-location";
 
