@@ -27,6 +27,7 @@ DEFINE_string(expireTime, "7d", "Time for file in recyclebin exceed expire time 
                                 "will be deleted (default: 7d)");
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
+DEFINE_uint64(newSize, 30, "the new size of expanded volume(GB)");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
@@ -40,7 +41,7 @@ DEFINE_string(throttleType, "", "throttle type");
 DEFINE_uint64(limit, 0, "throttle limit");
 DEFINE_int64(burst, -1, "throttle burst");
 DEFINE_int64(burstLength, -1, "throttle burst length");
-DEFINE_uint64(stripeUnit, 32 * 1024, "stripe unit size");
+DEFINE_uint64(stripeUnit, 32768, "stripe unit size");
 DEFINE_uint64(stripeCount, 32, "strip count");
 
 namespace curve {
@@ -63,6 +64,7 @@ bool NameSpaceTool::SupportCommand(const std::string& command) {
                                || command == kSegInfoCmd
                                || command == kDeleteCmd
                                || command == kCreateCmd
+                               || command == kExpandCmd
                                || command == kCleanRecycleCmd
                                || command == kChunkLocatitonCmd
                                || command == kUpdateThrottle);
@@ -122,6 +124,8 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
     } else if (cmd == kCreateCmd) {
         return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB,
                              FLAGS_stripeUnit, FLAGS_stripeCount);
+    } else if (cmd == kExpandCmd) {
+        return core_->ExpandVolume(fileName, FLAGS_newSize * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
     } else if (cmd == kUpdateThrottle) {
@@ -147,6 +151,8 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "expireTime: s=second, m=minute, h=hour, d=day, M=month, y=year" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20 -stripeUnit=32768 -stripeCount=32  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+    } else if (cmd == kExpandCmd) {
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -newSize=30  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -forcedelete=true  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kChunkLocatitonCmd) {

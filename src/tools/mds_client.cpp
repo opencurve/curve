@@ -298,6 +298,28 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length,
     return -1;
 }
 
+int MDSClient::ExpandVolume(const std::string& fileName, uint64_t newSize) {
+    curve::mds::ExtendFileRequest request;
+    curve::mds::ExtendFileResponse response;
+    request.set_filename(fileName);
+    request.set_newsize(newSize);
+    FillUserInfo(&request);
+    curve::mds::CurveFSService_Stub stub(&channel_);
+    auto fp = &curve::mds::CurveFSService_Stub::ExtendFile;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "extendFile(expandVolume) from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == StatusCode::kOK) {
+        return 0;
+    }
+    std::cout << "extendFile(expandVolume) fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
 int MDSClient::ListVolumesOnCopyset(
                         const std::vector<common::CopysetInfo>& copysets,
                         std::vector<std::string>* fileNames) {

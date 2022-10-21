@@ -504,7 +504,7 @@ TEST_F(ToolMDSClientTest, DeleteFile) {
 TEST_F(ToolMDSClientTest, CreateFile) {
     std::string fileName = "/test";
     uint64_t length = 10 * DefaultSegmentSize;
-    uint64_t stripeUnit = 32 * 1024 *1024;
+    uint64_t stripeUnit = 32 * 1024;
     uint64_t stripeCount = 32;
 
     // 发送RPC失败
@@ -548,6 +548,56 @@ TEST_F(ToolMDSClientTest, CreateFile) {
                     })));
     ASSERT_EQ(0, mdsClient.CreateFile(fileName, length,
                                      stripeUnit, stripeCount));
+}
+
+TEST_F(ToolMDSClientTest, ExpandVolume_success) {
+    std::string fileName = "/test";
+    uint64_t length = 10 * DefaultSegmentSize;
+    curve::mds::ExtendFileResponse response;
+    response.set_statuscode(curve::mds::StatusCode::kOK);
+    EXPECT_CALL(*nameService, ExtendFile(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const curve::mds::ExtendFileRequest *request,
+                        curve::mds::ExtendFileResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(0, mdsClient.ExpandVolume(fileName, length));
+}
+
+TEST_F(ToolMDSClientTest, ExpandVolume_Fail) {
+    std::string fileName = "/test";
+    uint64_t length = 10 * DefaultSegmentSize;
+
+    // 发送RPC失败
+    EXPECT_CALL(*nameService, ExtendFile(_, _, _, _))
+        .Times(6)
+        .WillRepeatedly(Invoke([](RpcController *controller,
+                        const curve::mds::ExtendFileRequest *request,
+                        curve::mds::ExtendFileResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                        brpc::Controller *cntl =
+                            dynamic_cast<brpc::Controller *>(controller);
+                        cntl->SetFailed("test");
+                    }));
+    ASSERT_EQ(-1, mdsClient.ExpandVolume(fileName, length));
+
+    return;
+
+    // 返回码不为OK
+    curve::mds::ExtendFileResponse response;
+    response.set_statuscode(curve::mds::StatusCode::kParaError);
+    EXPECT_CALL(*nameService, ExtendFile(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                        Invoke([](RpcController *controller,
+                        const curve::mds::ExtendFileRequest *request,
+                        curve::mds::ExtendFileResponse *response,
+                        Closure *done){
+                        brpc::ClosureGuard doneGuard(done);
+                    })));
+    ASSERT_EQ(-1, mdsClient.ExpandVolume(fileName, length));
 }
 
 TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {

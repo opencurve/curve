@@ -50,6 +50,7 @@ class MockMDSClient : public MDSClient {
     MOCK_METHOD2(DeleteFile, int(const std::string&, bool));
     MOCK_METHOD4(CreateFile, int(const std::string&, uint64_t,
                                  uint64_t, uint64_t));
+    MOCK_METHOD2(ExpandVolume, int(const std::string&, uint64_t));
     MOCK_METHOD3(GetChunkServerListInCopySet, int(const PoolIdType&,
                     const CopySetIdType&, std::vector<ChunkServerLocation>*));
     MOCK_METHOD3(GetChunkServerListInCopySets, int(const PoolIdType&,
