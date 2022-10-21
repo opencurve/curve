@@ -67,7 +67,10 @@ int NameSpaceToolCore::CreateFile(const std::string& fileName,
     return client_->CreateFile(fileName, length,
                                stripeUnit, stripeCount);
 }
-
+int NameSpaceToolCore::ExtendVolume(const std::string& fileName,
+                                     uint64_t newSize) {
+    return client_->ExtendVolume(fileName, newSize);
+}
 int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
                                         uint64_t* allocSize,
                                         AllocMap* allocMap) {
