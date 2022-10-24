@@ -122,6 +122,9 @@ Curve支持部署在私有云和公有云环境，也可以以混合云方式使
 ### 测试用例编译及运行
 [测试用例编译及运行](cn/build_and_run.md#%E6%B5%8B%E8%AF%95%E7%94%A8%E4%BE%8B%E7%BC%96%E8%AF%91%E5%8F%8A%E6%89%A7%E8%A1%8C)
 
+### 最佳实践
+- [CurveBS+NFS搭建共享存储](practical/curvebs_nfs.md)
+
 ## 联系社区
 - [Github Issues](https://github.com/openCURVE/CURVE/issues)：欢迎提交BUG、建议，使用中如遇到问题可参考FAQ或加入我们的User group进行咨询
 - [FAQ](https://github.com/openCURVE/CURVE/wiki/CURVE-FAQ)：主要根据User group中常见问题整理，还在逐步完善中

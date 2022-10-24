@@ -203,6 +203,9 @@ $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest
 ##  CurveFS quick start
 Please use [CurveAdm](https://github.com/opencurve/curveadm/wiki) tool to deploy CurveFS，see [CurveFS Deployment Process](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), and the [CurveFS Command Instructions](curvefs/src/tools#readme).
 
+## Practical
+- [CurveBS+NFS Build NFS Server](docs/practical/curvebs_nfs.md)
+
 ## Governance
 See [Governance](https://github.com/opencurve/community/blob/master/GOVERNANCE.md).
 
