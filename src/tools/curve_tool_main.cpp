@@ -45,6 +45,7 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "delete : delete the file, to force delete, should specify the --forcedelete=true\n"  //NOLINT
         "clean-recycle : clean the RecycleBin\n"
         "create : create file, file length unit is GB\n"
+        "expand : expand volume of file\n"
         "chunk-location : query the location of the chunk corresponding to the offset\n"  //NOLINT
         "check-consistency : check the consistency of three copies\n"
         "remove-peer : remove the peer from the copyset\n"
