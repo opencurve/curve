@@ -214,7 +214,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(indexSlice)
 
 	list := cobrautil.ListMap2ListSortByKeys(cCmd.Rows, cCmd.Header, []string{
-		cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, 
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER,
 		cobrautil.ROW_COPYSET_ID,
 	})
 	cCmd.TableNew.AppendBulk(list)
@@ -293,53 +293,56 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 	// update row & copysetInfoStatus
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	results := GetCopysetsStatus(&addr2Request, timeout, retrytimes)
-	for _, result := range results {
-		ret = append(ret, result.Error)
-		copysets := result.Request.GetCopysets()
-		copysetsStatus := result.Status.GetStatus()
-		for i := range copysets {
+	var results []*StatusResult
+	if len(addr2Request) != 0 {
+		results = GetCopysetsStatus(&addr2Request, timeout, retrytimes)
+		for _, result := range results {
 			ret = append(ret, result.Error)
-			copysetInfo := copysets[i]
-			poolId := copysetInfo.GetPoolId()
-			copysetId := copysetInfo.GetCopysetId()
-			copysetKey := cobrautil.GetCopysetKey(uint64(poolId), uint64(copysetId))
+			copysets := result.Request.GetCopysets()
+			copysetsStatus := result.Status.GetStatus()
+			for i := range copysets {
+				ret = append(ret, result.Error)
+				copysetInfo := copysets[i]
+				poolId := copysetInfo.GetPoolId()
+				copysetId := copysetInfo.GetCopysetId()
+				copysetKey := cobrautil.GetCopysetKey(uint64(poolId), uint64(copysetId))
 
-			copysetInfoStatus := cCmd.key2Copyset[copysetKey]
-			var status *copyset.CopysetStatusResponse
-			if copysetsStatus != nil {
-				status = copysetsStatus[i]
-			}
-			if copysetInfoStatus.Peer2Status == nil {
-				copysetInfoStatus.Peer2Status = make(map[string]*copyset.CopysetStatusResponse)
-			}
-			copysetInfoStatus.Peer2Status[result.Addr] = status
+				copysetInfoStatus := cCmd.key2Copyset[copysetKey]
+				var status *copyset.CopysetStatusResponse
+				if copysetsStatus != nil {
+					status = copysetsStatus[i]
+				}
+				if copysetInfoStatus.Peer2Status == nil {
+					copysetInfoStatus.Peer2Status = make(map[string]*copyset.CopysetStatusResponse)
+				}
+				copysetInfoStatus.Peer2Status[result.Addr] = status
 
-			rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
-				peerAddr := row[cobrautil.ROW_PEER_ADDR]
-				addr := result.Addr
-				return (row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)) && (peerAddr == addr)
-			})
+				rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
+					peerAddr := row[cobrautil.ROW_PEER_ADDR]
+					addr := result.Addr
+					return (row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)) && (peerAddr == addr)
+				})
 
-			if rowIndex == -1 {
-				errIndex := cmderror.ErrCopysetKey()
-				errIndex.Format(copysetKey, result.Addr)
-				ret = append(ret, errIndex)
-				continue
-			}
+				if rowIndex == -1 {
+					errIndex := cmderror.ErrCopysetKey()
+					errIndex.Format(copysetKey, result.Addr)
+					ret = append(ret, errIndex)
+					continue
+				}
 
-			row := cCmd.Rows[rowIndex]
-			row[cobrautil.ROW_STATUS] = status.GetStatus().String()
-			if status.GetStatus() != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
-				row[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
-				row[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
-				row[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
-				continue
+				row := cCmd.Rows[rowIndex]
+				row[cobrautil.ROW_STATUS] = status.GetStatus().String()
+				if status.GetStatus() != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
+					row[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
+					row[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
+					row[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
+					continue
+				}
+				copysetStatus := status.GetCopysetStatus()
+				row[cobrautil.ROW_STATE] = fmt.Sprintf("%d", copysetStatus.GetState())
+				row[cobrautil.ROW_TERM] = fmt.Sprintf("%d", copysetStatus.GetTerm())
+				row[cobrautil.ROW_READONLY] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
 			}
-			copysetStatus := status.GetCopysetStatus()
-			row[cobrautil.ROW_STATE] = fmt.Sprintf("%d", copysetStatus.GetState())
-			row[cobrautil.ROW_TERM] = fmt.Sprintf("%d", copysetStatus.GetTerm())
-			row[cobrautil.ROW_READONLY] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
 		}
 	}
 	return ret
