@@ -56,6 +56,7 @@ func PeerAddressToAddr(peer string) (string, *cmderror.CmdError) {
 	items := strings.Split(peer, ":")
 	if len(items) != 3 {
 		err := cmderror.ErrSplitPeer()
+		err.Format(peer)
 		return "", err
 	}
 	return items[0] + ":" + items[1], cmderror.ErrSuccess()

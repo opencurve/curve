@@ -126,7 +126,9 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 		leader := copysetInfo.Info.GetLeaderPeer()
 		addr, err := cobrautil.PeertoAddr(leader)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			return err.ToError()
+			err := cmderror.ErrCopysetInfo()
+			err.Format(copysetInfo.Info.CopysetId)
+			continue
 		}
 		cCmd.leaderAddr.Add(addr)
 	}
@@ -173,7 +175,9 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 			}
 			magrin := config.GetMarginOptionFlag(cCmd.Cmd)
 			leaderInfo := (*cCmd.copysetKey2LeaderInfo)[k]
-			if leaderInfo.Snapshot {
+			if leaderInfo == nil {
+				explain = "no leader peer"
+			} else if leaderInfo.Snapshot {
 				installSnapshot := "installing snapshot"
 				if len(explain) > 0 {
 					explain += "\n"
