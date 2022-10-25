@@ -655,8 +655,6 @@ CURVEFS_ERROR FuseClient::FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-
     uint64_t dindex = fi->fh;
     DirBufferHead *bufHead = dirBuf_->DirBufferGet(dindex);
     if (!bufHead->wasRead) {
