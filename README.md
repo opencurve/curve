@@ -37,7 +37,9 @@
     - [Deploy an All-in-one experience environment](#-deploy-an-all-in-one-experience-environment)
     - [FIO curve block storage engine](#fio-curve-block-storage-engine)
   - [CurveFS quick start](#-curvefs-quick-start)
+  - [Governance](#-Governance)
   - [Contribute us](#-contribute-us)
+  - [Code of Conduct](#-Code-of-Conduct)
   - [LICENSE](#-license)
   - [Release Cycle](#-release-cycle)
   - [Branch](#-branch)
@@ -201,10 +203,15 @@ $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest
 ##  CurveFS quick start
 Please use [CurveAdm](https://github.com/opencurve/curveadm/wiki) tool to deploy CurveFS，see [CurveFS Deployment Process](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), and the [CurveFS Command Instructions](curvefs/src/tools#readme).
 
+## Governance
+See [Governance](https://github.com/opencurve/community/blob/master/GOVERNANCE.md).
 
 ##  Contribute us
 Participation in the Curve project is described in the [Curve Open Source Community Guidelines](Community_Guidelines.md) and is subject to a [contributor contract](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md).
 We welcome your contribution!
+
+## Code of Conduct
+Curve follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 ## LICENSE
 Curve is distributed under the [**Apache 2.0 LICENSE**](LICENSE).
