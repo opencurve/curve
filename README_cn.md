@@ -37,7 +37,9 @@
     - [部署All-in-one体验环境](#-部署all-in-one体验环境)
     - [FIO curve块存储引擎](#fio-curve块存储引擎)
   - [CurveFS 快速体验](#-curvefs-快速体验)
+  - [社区治理](#-社区治理)
   - [贡献我们](#-贡献我们)
+  - [行为守则](#-行为守则)
   - [LICENSE](#-license)
   - [版本发布周期](#-版本发布周期)
   - [分支规则](#-分支规则)
@@ -198,10 +200,15 @@ $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest
 ##  CurveFS 快速体验
 请使用 [CurveAdm](https://github.com/opencurve/curveadm/wiki) 工具进行 CurveFS 的部署，具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), 以及[CurveFS命令行工具说明](curvefs/src/tools#readme)。
 
+##  社区治理
+请参考[社区治理](https://github.com/opencurve/community/blob/master/GOVERNANCE.md)。
 
 ##  贡献我们
 
 参与 Curve 项目开发详见[Curve 开源社区指南](Community_Guidelines_cn.md)并且请遵循[贡献者准则](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md), 我们期待您的贡献!
+
+##  行为守则
+Curve 的行为守则遵循[CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md)。
 
 ## LICENSE
 Curve 在 [Apache 2.0](LICENSE) 协议下进行分发。
