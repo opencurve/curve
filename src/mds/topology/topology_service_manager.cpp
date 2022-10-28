@@ -76,6 +76,11 @@ void TopologyServiceManager::RegistChunkServer(
         useChunkFilePoolAsWalPoolReserve =
             request->usechunkfilepoolaswalpoolreserve();
     } else if (useChunkFilePoolAsWalPool) {
+        // Error occurs if usechunkfilepoolaswalpool is used,
+        // but no reserve percentage is set
+        LOG(WARNING) << "Received RegistChunkServer request from "
+                             << "parameter setting error, "
+                             << "chunkserverid: " << request->chunkserverid();
         response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
