@@ -376,6 +376,9 @@ var (
 	ErrBsDeleteFile = func() *CmdError {
 		return NewInternalCmdError(40, "delete file fail. the error is %s")
 	}
+	ErrCheckPoolsetTopology = func() *CmdError {
+		return NewInternalCmdError(40, "poolset[%s] is not in cluster nor in json file")
+	}
 
 	ErrRespTypeNoExpected = func() *CmdError {
 		return NewInternalCmdError(41, "the response type is not as expected, should be: %s")
@@ -596,5 +599,111 @@ var (
 	ErrBsListPoolZoneRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
 		message := fmt.Sprintf("Rpc[ListPoolZone] faild status code: %s", statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
+	}
+
+	// bs
+	ErrCreateBsTopology = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("create %s[%s], err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListPhyPoolsInPst = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "list physicalpools successfully"
+		default:
+			message = fmt.Sprintf("list physicalpools in poolset err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListZonesInPhyPool = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "list zones successfully"
+		default:
+			message = fmt.Sprintf("list zones in physicalpool err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListServers = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "list servers successfully"
+		default:
+			message = fmt.Sprintf("list servers err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrListZones = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "ok"
+		default:
+			message = fmt.Sprintf("list topology err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrDelServer = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "delete servers successfully"
+		default:
+			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrDelZone = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "list zones successfully"
+		default:
+			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrDelPhyPool = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "list physicalpools successfully"
+		default:
+			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrDelPoolset = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_topo_statuscode.TopoStatusCode_Success:
+			message = "delete poolset successfully"
+		default:
+			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
 	}
 )

@@ -189,26 +189,26 @@ func (eCmd *EtcdCommand) ResultPlainOutput() error {
 }
 
 func NewStatusEtcdCommand() *EtcdCommand {
-	etcdCmd := &EtcdCommand{
+	etcctCmd := &EtcdCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "etcd",
 			Short:   "get the etcd status of curvebs",
 			Example: etcdExample,
 		},
 	}
-	basecmd.NewFinalCurveCli(&etcdCmd.FinalCurveCmd, etcdCmd)
-	return etcdCmd
+	basecmd.NewFinalCurveCli(&etcctCmd.FinalCurveCmd, etcctCmd)
+	return etcctCmd
 }
 
 func GetEtcdStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
-	etcdCmd := NewStatusEtcdCommand()
-	etcdCmd.Cmd.SetArgs([]string{
+	etcctCmd := NewStatusEtcdCommand()
+	etcctCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	config.AlignFlagsValue(caller, etcdCmd.Cmd, []string{
+	config.AlignFlagsValue(caller, etcctCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
-	etcdCmd.Cmd.SilenceErrors = true
-	etcdCmd.Cmd.Execute()
-	return &etcdCmd.Result, etcdCmd.TableNew, etcdCmd.Error, etcdCmd.health
+	etcctCmd.Cmd.SilenceErrors = true
+	etcctCmd.Cmd.Execute()
+	return &etcctCmd.Result, etcctCmd.TableNew, etcctCmd.Error, etcctCmd.health
 }

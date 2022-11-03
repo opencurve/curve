@@ -23,6 +23,7 @@ package config
 
 import (
 	"strings"
+	"time"
 
 	"strconv"
 
@@ -49,6 +50,8 @@ const (
 	CURVEBS_PASSWORD            = "password"
 	VIPER_CURVEBS_PASSWORD      = "curvebs.root.password"
 	CURVEBS_DEFAULT_PASSWORD    = "root_password"
+	CURVEBS_CLUSTERMAP          = "bsClusterMap"
+	VIPER_CURVEBS_CLUSTERMAP    = "curvebs.clustermap"
 	CURVEBS_FILENAME            = "filename"
 	VIPER_CURVEBS_FILENAME      = "curvebs.filename"
 	CURVEBS_FORCEDELETE         = "forcedelete"
@@ -80,6 +83,7 @@ var (
 		CURVEBS_LOGIC_POOL_ID: VIPER_CURVEBS_LOGIC_POOL_ID,
 		CURVEBS_COPYSET_ID:    VIPER_CURVEBS_COPYSET_ID,
 		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
+		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -289,6 +293,30 @@ func GetBsFlagBool(cmd *cobra.Command, flagName string) bool {
 		value, _ = cmd.Flags().GetBool(flagName)
 	} else {
 		value = viper.GetBool(BSFLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func AddBsClusterMapRequiredFlag(cmd *cobra.Command) {
+	AddStringRequiredFlag(cmd, CURVEBS_CLUSTERMAP, "bsClusterMap")
+}
+
+func GetBsFlagDuration(cmd *cobra.Command, flagName string) time.Duration {
+	var value time.Duration
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetDuration(flagName)
+	} else {
+		value = viper.GetDuration(BSFLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetBsFlagInt32(cmd *cobra.Command, flagName string) int32 {
+	var value int32
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetInt32(flagName)
+	} else {
+		value = viper.GetInt32(BSFLAG2VIPER[flagName])
 	}
 	return value
 }

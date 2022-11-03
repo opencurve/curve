@@ -73,6 +73,7 @@ const (
 	ROW_PEER_ID         = "peerId"
 	ROW_PEER_NUMBER     = "peerNumber"
 	ROW_PHYPOOL         = "phyPool"
+	ROW_POOLSET         = "poolset"
 	ROW_POOL            = "pool"
 	ROW_POOL_ID         = "poolId"
 	ROW_READONLY        = "readonly"
@@ -119,7 +120,10 @@ const (
 
 // topology type
 const (
-	TYPE_POOL   = "pool"
-	TYPE_SERVER = "server"
-	TYPE_ZONE   = "zone"
+	TYPE_POOLSET = "poolset"
+	TYPE_POOL    = "pool"
+	TYPE_SERVER  = "server"
+	TYPE_ZONE    = "zone"
+	TYPE_PHYPOOL = "physicalpool"
+	TYPE_LgPOOL  = "logicalpool"
 )
