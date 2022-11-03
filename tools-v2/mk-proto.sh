@@ -1,6 +1,6 @@
 # proto
-protoc --go_out=proto --proto_path=proto \
-    proto/topology/statuscode.proto
+protoc --go_out=proto --proto_path=internal/proto \
+    internal/proto/curvebs/topology/statuscode.proto
 ## curvebs
 ### proto/chunk.proto
 protoc --go_out=proto --proto_path=.. \
