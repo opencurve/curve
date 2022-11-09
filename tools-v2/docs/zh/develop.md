@@ -3,6 +3,21 @@
 curve 工具是 Curve 团队为了提高系统的易用性，解决旧工具种类多输出繁琐等问题而设计的工具，
 主要用于对 Curve 块存储集群和 Curve 文件存储集群进行运维的工具。
 
+
+## 目录
+
+- [curve tool 开发者指南](#curve-tool-开发者指南)
+  - [目录](#目录)
+  - [整体设计](#整体设计)
+  - [项目组织结构](#项目组织结构)
+  - [Curve 命令的实现（添加）](#curve-命令的实现添加)
+  - [Curve 命令开发调试](#curve-命令开发调试)
+    - [部署 Curve 集群](#部署-curve-集群)
+    - [编译和调试 tools-v2](#编译和调试-tools-v2)
+    - [环境准备](#环境准备)
+    - [编译](#编译)
+    - [调试](#调试)
+
 ## 整体设计
 
 用户可以通过以下文档来了解 Curve 工具的整体设计：
@@ -217,4 +232,76 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
  pCmd.Error = &errRet
  pCmd.Result = results
  return nil
+```
+
+## Curve 命令开发调试
+
+### 部署 Curve 集群
+
+首先你需要部署一个 Curve 集群，curve集群拉起方式如下：
+
+1. 安装curveadm:
+
+```shell
+CURVEADM_VERSION=v0.1.12-dev bash -c "$(curl -fsSL https://curveadm.nos-eastchina1.126.net/script/install.sh)"
+```
+
+2. 执行 playground 命令时得确保当前用户有 root 权限，或者给 docker 的 socket 加上任意用户读写权限，或者将用户加入 docker 用户组：
+
+```shell
+ curveadm playground run --kind curvebs --container_image harbor.cloud.netease.com/curve/curvebs:playground
+# ls -la /var/run/docker.sock
+srwxrwxrwx 1 root docker 0 Oct 26 17:57 /var/run/docker.sock
+
+# 加入用户组
+sudo usermod -aG docker $USER
+```
+
+> 相关文档可参考：
+>
+> 1. [Post-installation steps for Linux](https://docs.docker.com/engine/install/linux-postinstall/)
+>
+> 2. [Run the Docker daemon as a non-root user (Rootless mode)](https://docs.docker.com/engine/security/rootless/)
+
+### 编译和调试 tools-v2
+
+### 环境准备
+
+1. 安装 [golang 1.19](https://go.dev/doc/install) 版本及以上
+2. 安装 [protoc-v21.8](https://github.com/protocolbuffers/protobuf/releases/tag/v21.8)，请保证命令 `protoc` 可执行
+3. 安装 grpc 及相关插件（也可以在项目目录 `tools-v2` 下执行 `make install_grpc_protobuf`）
+
+```shell
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
+> 以上过程可能安装缓慢，需要设置代理：
+> ```shell
+> go env -w  GOPROXY=https://goproxy.io,direct
+> ```
+
+1. 准备配置文件，将项目目录下的 `tools-v2/pkg/config/template.yaml` 复制到 `$(HOME)/.curve/curve.yaml`。
+
+### 编译
+
+在 tools-v2 目录下执行 `make debug` 即可完成编译：
+
+```shell
+make
+```
+
+生成的二进制文件保存为 `tools-v2/sbin/curve`。
+
+### 调试
+
+你可以通过一下两种方式来对生成的二进制文件进行调试：
+
+1. gdb
+2. [delve](https://github.com/go-delve/delve)。
+
+可以通过以下命令使用 delve 来对二进制程序 `sbin/curve` 来调试：
+
+```shell
+dlv exec sbin/curve --${命令行参数}
 ```
