@@ -28,22 +28,21 @@
 ✨ Contents
 ========
 
-  - [About Curve](#-about-curve)
-  - [Curve Architecture](#️-curve-architecture)
-  - [Curve Deployment](#-curve-deployment)
-  - [Curve Contrast](#️-curve-contrast)
-  - [Design Documentation](#-design-documentation)
-  - [CurveBS quick start](#-curvebs-quick-start)
-    - [Deploy an All-in-one experience environment](#-deploy-an-all-in-one-experience-environment)
+  - [About Curve](#about-curve)
+  - [Curve Architecture](#curve-architecture)
+  - [Design Documentation](#design-documentation)
+  - [CurveBS quick start](#curvebs-quick-start)
+    - [Deploy an All-in-one experience environment](#deploy-an-all-in-one-experience-environment)
     - [FIO curve block storage engine](#fio-curve-block-storage-engine)
-  - [CurveFS quick start](#-curvefs-quick-start)
-  - [Governance](#-Governance)
-  - [Contribute us](#-contribute-us)
-  - [Code of Conduct](#-Code-of-Conduct)
-  - [LICENSE](#-license)
-  - [Release Cycle](#-release-cycle)
-  - [Branch](#-branch)
-  - [Feedback & Contact](#-feedback--contact)
+  - [CurveFS quick start](#curvefs-quick-start)
+  - [Test environment configuration](#test-environment-configuration)
+  - [Governance](#governance)
+  - [Contribute us](#contribute-us)
+  - [Code of Conduct](#code-of-conduct)
+  - [LICENSE](#license)
+  - [Release Cycle](#release-cycle)
+  - [Branch](#branch)
+  - [Feedback & Contact](#feedback--contact)
 
 ##  About Curve
 
@@ -195,13 +194,17 @@ Please refer to the [CurveBS cluster deployment steps](https://github.com/opencu
 
 [The command tools' instructions](docs/cn/curve_ops_tool.md)
 ### FIO Curve block storage engine
-Fio Curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example: 
+Fio Curve engine is added, you can clone https://github.com/opencurve/fio and compile the fio tool with our engine(depend on nebd lib), fio command line example:
 ```bash
 $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test
 ```
 
 ##  CurveFS quick start
 Please use [CurveAdm](https://github.com/opencurve/curveadm/wiki) tool to deploy CurveFS，see [CurveFS Deployment Process](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), and the [CurveFS Command Instructions](curvefs/src/tools#readme).
+
+## Test environment configuration
+
+Please refer to the [Test environment configuration](docs/cn/测试环境配置信息.md)
 
 ## Practical
 - [CurveBS+NFS Build NFS Server](docs/practical/curvebs_nfs.md)
