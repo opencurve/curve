@@ -260,6 +260,7 @@ check umount date consistency
     sleep  60
     get test dir file md5
     umount test dir   test2
+    sleep  120
     wait fuse exit   failover/test2
     mount test dir   test2
     sleep  60
