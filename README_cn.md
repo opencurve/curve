@@ -28,22 +28,21 @@
 ✨ 目录
 ========
 
-  - [关于 Curve](#-关于-curve)
-  - [Curve Architecture](#️-curve-architecture)
-  - [Curve 部署](#-curve-部署)
-  - [测试对比](#️-测试对比)
-  - [设计文档](#-设计文档)
-  - [CurveBS 快速体验](#-curvebs-快速体验)
-    - [部署All-in-one体验环境](#-部署all-in-one体验环境)
+  - [关于 Curve](#关于-curve)
+  - [Curve 架构](#curve-架构)
+  - [设计文档](#设计文档)
+  - [CurveBS 快速体验](#curvebs-快速体验)
+    - [部署All-in-one体验环境](#部署all-in-one体验环境)
     - [FIO curve块存储引擎](#fio-curve块存储引擎)
-  - [CurveFS 快速体验](#-curvefs-快速体验)
-  - [社区治理](#-社区治理)
-  - [贡献我们](#-贡献我们)
-  - [行为守则](#-行为守则)
-  - [LICENSE](#-license)
-  - [版本发布周期](#-版本发布周期)
-  - [分支规则](#-分支规则)
-  - [反馈及交流](#-反馈及交流)
+  - [CurveFS 快速体验](#curvefs-快速体验)
+  - [测试环境配置](#测试环境配置)
+  - [社区治理](#社区治理)
+  - [贡献我们](#贡献我们)
+  - [行为守则](#行为守则)
+  - [LICENSE](#license)
+  - [版本发布周期](#版本发布周期)
+  - [分支规则](#分支规则)
+  - [反馈及交流](#反馈及交流)
 
 
 ##  关于 Curve
@@ -200,6 +199,9 @@ $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest
 ##  CurveFS 快速体验
 请使用 [CurveAdm](https://github.com/opencurve/curveadm/wiki) 工具进行 CurveFS 的部署，具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), 以及[CurveFS命令行工具说明](curvefs/src/tools#readme)。
 
+## 测试环境配置
+
+请参考 [测试环境配置](docs/cn/测试环境配置信息.md)
 ##  社区治理
 请参考[社区治理](https://github.com/opencurve/community/blob/master/GOVERNANCE.md)。
 
