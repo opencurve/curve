@@ -179,6 +179,14 @@ install_curvebs() {
     done
 }
 
+install_playground() {
+    for role in {"etcd","mds","chunkserver"}; do
+        for ((i=0;i<3;i++)); do
+            mkdir -p "${g_prefix}"/playground/"${role}""${i}"/{conf,data,logs}
+        done
+    done
+}
+
 download_etcd() {
     local now=`date +"%s%6N"`
     local nos_url="https://curve-build.nos-eastchina1.126.net"
@@ -250,6 +258,7 @@ main() {
         install_monitor
     else
         install_curvebs
+        install_playground
     fi
 }
 
