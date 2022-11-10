@@ -111,6 +111,11 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
         LOG(WARNING) << "Not found s3.max_async_request_inflight_bytes in conf";
         s3Opt->maxAsyncRequestInflightBytes = 0;
     }
+    if (!conf->GetUInt32Value("s3.retryIntervalUS",
+                              &s3Opt->retryIntervalUS)) {
+        LOG(WARNING) << "Not found s3.retryIntervalUS in conf";
+        s3Opt->retryIntervalUS = 1000;
+    }
 }
 
 void S3Adapter::Init(const std::string& path) {
@@ -182,6 +187,7 @@ void S3Adapter::Init(const S3AdapterOption& option) {
         option.maxAsyncRequestInflightBytes == 0
             ? UINT64_MAX
             : option.maxAsyncRequestInflightBytes));
+    retryIntervalUS_ = option.retryIntervalUS;
     asyncCallbackTP_.Start(option.asyncThreadNum);
 }
 
@@ -379,7 +385,12 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
         throttle_->Add(false, context->bufferSize);
     }
 
-    inflightBytesThrottle_->OnStart(context->bufferSize);
+    if (inflightBytesThrottle_->OnStart(context->bufferSize) < 0) {
+        context->retCode = -1;
+        context->retryIntervalUS = retryIntervalUS_;
+        asyncCallbackTP_.Enqueue(context->cb, context);
+        return;
+    }
     context->cb = std::move(throttledCallback);
     s3Client_->PutObjectAsync(request, handler, context);
 }
@@ -478,7 +489,12 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
         throttle_->Add(true, context->len);
     }
 
-    inflightBytesThrottle_->OnStart(context->len);
+    if (inflightBytesThrottle_->OnStart(context->len) < 0) {
+        context->retCode = -1;
+        context->retryIntervalUS = retryIntervalUS_;
+        asyncCallbackTP_.Enqueue(context->cb, this, context);
+        return;
+    }
     context->cb = std::move(throttledCallback);
     s3Client_->GetObjectAsync(request, handler, context);
 }
@@ -674,13 +690,12 @@ int S3Adapter::AbortMultiUpload(const Aws::String &key,
     }
 }
 
-void S3Adapter::AsyncRequestInflightBytesThrottle::OnStart(uint64_t len) {
+int32_t S3Adapter::AsyncRequestInflightBytesThrottle::OnStart(uint64_t len) {
     std::unique_lock<std::mutex> lock(mtx_);
-    while (inflightBytes_ + len > maxInflightBytes_) {
-        cond_.wait(lock);
-    }
-
+    if (inflightBytes_ + len > maxInflightBytes_)
+        return -1;
     inflightBytes_ += len;
+    return 0;
 }
 
 void S3Adapter::AsyncRequestInflightBytesThrottle::OnComplete(uint64_t len) {

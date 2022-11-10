@@ -280,6 +280,7 @@ void FuseS3Client::WarmUpAllObjs(
             // todo: retry
             LOG(WARNING) << "Get Object failed, key: " << context->key
                          << ", offset: " << context->offset;
+            usleep(context->retryIntervalUS);
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
     };
 

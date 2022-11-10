@@ -466,6 +466,7 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
 
             LOG(WARNING) << "Get Object failed, key: " << context->key
                          << ", offset: " << context->offset;
+            usleep(context->retryIntervalUS);
             s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
         };
 
@@ -2246,6 +2247,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
                 return;
             }
             LOG(WARNING) << "Put object failed, key: " << context->key;
+            usleep(context->retryIntervalUS);
             s3ClientAdaptor_->GetS3Client()->UploadAsync(context);
         };
 
