@@ -43,7 +43,7 @@ TEST(TestInitVolumeOption, Common) {
     conf.SetStringValue("volume.allocator.type", "bitmap");
     conf.SetUInt64Value("volume.bitmapAllocator.size_per_bit",
                         4ULL * 1024 * 1024);
-    conf.SetDoubleValue("volume.bitmapallocator.small_alloc_proportion", 0.0);
+    conf.SetDoubleValue("volume.bitmapAllocator.small_alloc_proportion", 0.0);
 
     ASSERT_NO_FATAL_FAILURE({ InitVolumeOption(&conf, &volopt); });
 }
@@ -59,7 +59,7 @@ TEST(TestInitVolumeOption, TypeError) {
     conf.SetStringValue("volume.allocator.type", "xxx");
     conf.SetUInt64Value("volume.bitmapAllocator.size_per_bit",
                         4ULL * 1024 * 1024);
-    conf.SetDoubleValue("volume.bitmapallocator.small_alloc_proportion", 0.0);
+    conf.SetDoubleValue("volume.bitmapAllocator.small_alloc_proportion", 0.0);
 
     ASSERT_DEATH({ InitVolumeOption(&conf, &volopt); }, "");
 }
