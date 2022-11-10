@@ -112,7 +112,7 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts, bool internal) {
 
 void InitBlockDeviceOption(Configuration *conf,
                            BlockDeviceClientOptions *bdevOpt) {
-    conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
+    conf->GetValueFatalIfFail("bdev.confPath", &bdevOpt->configPath);
 }
 
 void InitDiskCacheOption(Configuration *conf,
@@ -158,15 +158,15 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
     conf->GetValueFatalIfFail("s3.fakeS3", &FLAGS_useFakeS3);
     conf->GetValueFatalIfFail("s3.fuseMaxSize",
                               &s3Opt->s3ClientAdaptorOpt.fuseMaxSize);
-    conf->GetValueFatalIfFail("s3.pagesize",
+    conf->GetValueFatalIfFail("s3.pageSize",
                               &s3Opt->s3ClientAdaptorOpt.pageSize);
     conf->GetValueFatalIfFail("s3.prefetchBlocks",
                               &s3Opt->s3ClientAdaptorOpt.prefetchBlocks);
     conf->GetValueFatalIfFail("s3.prefetchExecQueueNum",
                               &s3Opt->s3ClientAdaptorOpt.prefetchExecQueueNum);
-    conf->GetValueFatalIfFail("s3.intervalSec",
+    conf->GetValueFatalIfFail("s3.threadScheduleInterval",
                               &s3Opt->s3ClientAdaptorOpt.intervalSec);
-    conf->GetValueFatalIfFail("s3.flushIntervalSec",
+    conf->GetValueFatalIfFail("s3.cacheFlushIntervalSec",
                               &s3Opt->s3ClientAdaptorOpt.flushIntervalSec);
     conf->GetValueFatalIfFail("s3.chunkFlushThreads",
                               &s3Opt->s3ClientAdaptorOpt.chunkFlushThreads);
@@ -196,12 +196,12 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
                               &volumeOpt->allocatorOption.type);
 
     conf->GetValueFatalIfFail(
-        "volume.blockgroup.allocate_once",
+        "volume.blockGroup.allocate_once",
         &volumeOpt->allocatorOption.blockGroupOption.allocateOnce);
 
     if (volumeOpt->allocatorOption.type == "bitmap") {
         conf->GetValueFatalIfFail(
-            "volume.bitmapallocator.size_per_bit",
+            "volume.bitmapAllocator.size_per_bit",
             &volumeOpt->allocatorOption.bitmapAllocatorOption.sizePerBit);
         conf->GetValueFatalIfFail(
             "volume.bitmapallocator.small_alloc_proportion",
@@ -272,7 +272,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->enableICacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
-    conf->GetValueFatalIfFail("client.dummyserver.startport",
+    conf->GetValueFatalIfFail("client.dummyServer.startPort",
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
