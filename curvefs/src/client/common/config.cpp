@@ -204,7 +204,7 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
             "volume.bitmapAllocator.size_per_bit",
             &volumeOpt->allocatorOption.bitmapAllocatorOption.sizePerBit);
         conf->GetValueFatalIfFail(
-            "volume.bitmapallocator.small_alloc_proportion",
+            "volume.bitmapAllocator.small_alloc_proportion",
             &volumeOpt->allocatorOption.bitmapAllocatorOption
                  .smallAllocProportion);
     } else {
