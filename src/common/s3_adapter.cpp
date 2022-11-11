@@ -78,17 +78,17 @@ void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt) {
 
 void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
                                            S3AdapterOption* s3Opt) {
-    LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.logLevel", &s3Opt->loglevel));
     LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
     LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.max_connections",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.maxConnections",
         &s3Opt->maxConnections));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.connect_timeout",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.connectTimeout",
         &s3Opt->connectTimeout));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.request_timeout",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.requestTimeout",
         &s3Opt->requestTimeout));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.async_thread_num",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.asyncThreadNum",
         &s3Opt->asyncThreadNum));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsTotalLimit",
         &s3Opt->iopsTotalLimit));
@@ -106,9 +106,9 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
         &s3Opt->useVirtualAddressing));
     LOG_IF(FATAL, !conf->GetStringValue("s3.region", &s3Opt->region));
 
-    if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
+    if (!conf->GetUInt64Value("s3.maxAsyncRequestInflightBytes",
                               &s3Opt->maxAsyncRequestInflightBytes)) {
-        LOG(WARNING) << "Not found s3.max_async_request_inflight_bytes in conf";
+        LOG(WARNING) << "Not found s3.maxAsyncRequestInflightBytes in conf";
         s3Opt->maxAsyncRequestInflightBytes = 0;
     }
 }
