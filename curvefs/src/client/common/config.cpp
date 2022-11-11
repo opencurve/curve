@@ -85,26 +85,26 @@ void InitMetaCacheOption(Configuration *conf, MetaCacheOpt *opts) {
 
 void InitExcutorOption(Configuration *conf, ExcutorOpt *opts, bool internal) {
     if (internal) {
-        conf->GetValueFatalIfFail("excutorOpt.maxInternalRetry",
+        conf->GetValueFatalIfFail("executorOpt.maxInternalRetry",
                                   &opts->maxRetry);
     } else {
-        conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
+        conf->GetValueFatalIfFail("executorOpt.maxRetry", &opts->maxRetry);
     }
 
-    conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
+    conf->GetValueFatalIfFail("executorOpt.retryIntervalUS",
                               &opts->retryIntervalUS);
-    conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
-    conf->GetValueFatalIfFail("excutorOpt.rpcStreamIdleTimeoutMS",
+    conf->GetValueFatalIfFail("executorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
+    conf->GetValueFatalIfFail("executorOpt.rpcStreamIdleTimeoutMS",
                               &opts->rpcStreamIdleTimeoutMS);
-    conf->GetValueFatalIfFail("excutorOpt.maxRPCTimeoutMS",
+    conf->GetValueFatalIfFail("executorOpt.maxRPCTimeoutMS",
                               &opts->maxRPCTimeoutMS);
-    conf->GetValueFatalIfFail("excutorOpt.maxRetrySleepIntervalUS",
+    conf->GetValueFatalIfFail("executorOpt.maxRetrySleepIntervalUS",
                               &opts->maxRetrySleepIntervalUS);
-    conf->GetValueFatalIfFail("excutorOpt.minRetryTimesForceTimeoutBackoff",
+    conf->GetValueFatalIfFail("executorOpt.minRetryTimesForceTimeoutBackoff",
                               &opts->minRetryTimesForceTimeoutBackoff);
-    conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
+    conf->GetValueFatalIfFail("executorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
-    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
+    conf->GetValueFatalIfFail("executorOpt.batchInodeAttrLimit",
                               &opts->batchInodeAttrLimit);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &opts->enableRenameParallel);
@@ -196,15 +196,15 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
                               &volumeOpt->allocatorOption.type);
 
     conf->GetValueFatalIfFail(
-        "volume.blockGroup.allocate_once",
+        "volume.blockGroup.allocateOnce",
         &volumeOpt->allocatorOption.blockGroupOption.allocateOnce);
 
     if (volumeOpt->allocatorOption.type == "bitmap") {
         conf->GetValueFatalIfFail(
-            "volume.bitmapAllocator.size_per_bit",
+            "volume.bitmapAllocator.sizePerBit",
             &volumeOpt->allocatorOption.bitmapAllocatorOption.sizePerBit);
         conf->GetValueFatalIfFail(
-            "volume.bitmapAllocator.small_alloc_proportion",
+            "volume.bitmapAllocator.smallAllocProportion",
             &volumeOpt->allocatorOption.bitmapAllocatorOption
                  .smallAllocProportion);
     } else {
