@@ -363,7 +363,7 @@ var (
 		return NewInternalCmdError(38, "get file size fail, the error is: %s")
 	}
 	ErrBsListZone = func() *CmdError {
-		return NewInternalCmdError(39, "lsit zone fail. the error is %s")
+		return NewInternalCmdError(39, "list zone fail. the error is %s")
 	}
 
 	// http error
