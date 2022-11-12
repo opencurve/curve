@@ -117,7 +117,8 @@ class DiskCacheManagerImpl {
 
     virtual int ClearReadCache(const std::list<std::string> &files);
 
-    void Enqueue(std::shared_ptr<PutObjectAsyncContext> context);
+    void Enqueue(std::shared_ptr<PutObjectAsyncContext> context,
+                bool isReadCacheOnly  = false);
 
  private:
     int WriteDiskFile(const std::string name, const char *buf, uint64_t length);
@@ -128,6 +129,8 @@ class DiskCacheManagerImpl {
     std::shared_ptr<S3Client> client_;
 
     int WriteClosure(std::shared_ptr<PutObjectAsyncContext> context);
+
+    int WriteReadDirectClosure(std::shared_ptr<PutObjectAsyncContext> context);
     // threads for disk cache
     uint32_t threads_;
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>

@@ -39,7 +39,6 @@
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
 #include "curvefs/src/client/s3/disk_cache_read.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/s3/disk_cache_base.h"
@@ -135,6 +134,7 @@ class DiskCacheWrite : public DiskCacheBase {
     }
 
  private:
+    using DiskCacheBase::Init;
     int AsyncUploadFunc();
     void UploadFile(const std::list<std::string> &toUpload,
                     std::shared_ptr<SynchronizationTask> syncTask = nullptr);

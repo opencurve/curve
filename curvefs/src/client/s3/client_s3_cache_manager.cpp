@@ -2197,6 +2197,11 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
     curve::common::CountDownEvent cond(1);
     std::atomic<uint64_t> pendingReq(0);
     FSStatusCode ret;
+    enum class cachePoily {
+        NCache,
+        RCache,
+        WRCache,
+    } cachePoily = cachePoily::NCache;
 
     VLOG(9) << "DataCache::Flush : now:" << now << ",createTime:" << createTime_
             << ",flushIntervalSec:" << flushIntervalSec
@@ -2225,8 +2230,22 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
             << ", inodeId:" << inodeId
             << ",Len:" << tmpLen << ",blockPos:" << blockPos
             << ",blockIndex:" << blockIndex;
+
+    const bool mayCache = s3ClientAdaptor_->HasDiskCache() &&
+                        !s3ClientAdaptor_->GetDiskCacheManager()
+                        ->IsDiskCacheFull() && !toS3;
+
+    if (s3ClientAdaptor_->IsReadCache() && mayCache) {
+        cachePoily = cachePoily::RCache;
+    } else if (s3ClientAdaptor_->IsReadWriteCache() && mayCache) {
+        cachePoily = cachePoily::WRCache;
+    } else {
+        cachePoily = cachePoily::NCache;
+    }
+
     PutObjectAsyncCallBack cb =
-        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+        [&, cachePoily]
+        (const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
                 if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
                     s3ClientAdaptor_->CollectMetrics(
@@ -2243,6 +2262,11 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
                 }
                 VLOG(9) << "PutObjectAsyncCallBack: " << context->key
                         << " pendingReq is: " << pendingReq;
+                if (cachePoily::RCache == cachePoily) {
+                    VLOG(9) << "Write to read cache, name: " << context->key;
+                    s3ClientAdaptor_->GetDiskCacheManager()
+                                    ->Enqueue(context, true);
+                }
                 return;
             }
             LOG(WARNING) << "Put object failed, key: " << context->key;
@@ -2250,10 +2274,7 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
         };
 
     std::vector<std::shared_ptr<PutObjectAsyncContext>> uploadTasks;
-    bool useDiskCache =
-        s3ClientAdaptor_->IsReadWriteCache() &&
-        !s3ClientAdaptor_->GetDiskCacheManager()->IsDiskCacheFull() &&
-        !toS3;
+
     while (tmpLen > 0) {
         if (blockPos + tmpLen > blockSize) {
             n = blockSize - blockPos;
@@ -2288,10 +2309,10 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
              ++iter) {
             VLOG(9) << "upload start: " << (*iter)->key
                     << " len : " << (*iter)->bufferSize;
-            if (!useDiskCache) {
-                s3ClientAdaptor_->GetS3Client()->UploadAsync(*iter);
-            } else {
+            if (cachePoily::WRCache == cachePoily) {
                 s3ClientAdaptor_->GetDiskCacheManager()->Enqueue(*iter);
+            } else {
+                s3ClientAdaptor_->GetS3Client()->UploadAsync(*iter);
             }
         }
         cond.Wait();
