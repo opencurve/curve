@@ -118,8 +118,11 @@ __not_found__
 thirdparties/rocksdb/lib/
 thirdparties/rocksdb/include/
 thirdparties/rocksdb/rocksdb/
+thirdparties/rocksdb/*log
 thirdparties/rocksdb/*.tar.gz
 thirdparties/aws/*.tar.gz
+thirdparties/etcdclient/tmp/
+thirdparties/etcdclient/*.h
 
 /external
 /bazel-*
