@@ -56,11 +56,30 @@ int DiskCacheManagerImpl::Init(const S3ClientAdaptorOption option) {
 }
 
 void DiskCacheManagerImpl::Enqueue(
-  std::shared_ptr<PutObjectAsyncContext> context) {
+    std::shared_ptr<PutObjectAsyncContext> context, bool isReadCacheOnly) {
+    if ( isReadCacheOnly ) {
+        auto task = [this, context]() {
+            this->WriteReadDirectClosure(context);
+        };
+        taskPool_.Enqueue(task);
+        return;
+    }
     auto task = [this, context]() {
         this->WriteClosure(context);
     };
     taskPool_.Enqueue(task);
+}
+
+
+
+int DiskCacheManagerImpl::WriteReadDirectClosure(
+    std::shared_ptr<PutObjectAsyncContext> context) {
+        VLOG(9) << "WriteReadClosure start, name: " << context->key;
+        // Write to read cache, we don't care if the cache wirte success
+        int ret = WriteReadDirect(context->key,
+                            context->buffer, context->bufferSize);
+        VLOG(9) << "WriteReadClosure end, name: " << context->key;
+        return ret;
 }
 
 int DiskCacheManagerImpl::WriteClosure(

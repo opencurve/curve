@@ -23,6 +23,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/test/client/mock_disk_cache_write.h"
 #include "curvefs/test/client/mock_disk_cache_read.h"
 #include "curvefs/test/client/mock_disk_cache_manager.h"
@@ -135,6 +136,35 @@ TEST_F(TestDiskCacheManagerImpl, WriteClosure) {
     EXPECT_CALL(*diskCacheRead_, LinkWriteToRead(_, _, _)).WillOnce(Return(0));
     EXPECT_CALL(*diskCacheWrite_, AsyncUploadEnqueue(_)).WillOnce(Return());
     diskCacheManagerImpl_->Enqueue(context);
+    sleep(5);
+}
+
+TEST_F(TestDiskCacheManagerImpl, WriteReadClosure) {
+    PutObjectAsyncCallBack cb =
+        [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+    };
+    auto context = std::make_shared<PutObjectAsyncContext>();
+    context->key = "objectName";
+    char data[5] = "gggg";
+    context->buffer = data + 0;
+    context->bufferSize = 2;
+    context->cb = cb;
+    context->startTime = butil::cpuwide_time_us();
+
+    S3ClientAdaptorOption s3AdaptorOption;
+    s3AdaptorOption.diskCacheOpt.threads = 5;
+    s3AdaptorOption.diskCacheOpt.diskCacheType = DiskCacheType::OnlyRead;
+    EXPECT_CALL(*diskCacheManager_, Init(_, _)).WillOnce(Return(0));
+    diskCacheManagerImpl_->Init(s3AdaptorOption);
+    std::string fileName = "test";
+    std::string buf = "test";
+
+    // If the mode is read cache, will call WriteReadDirect
+    EXPECT_CALL(*diskCacheManager_, IsDiskUsedInited()).WillOnce(Return(true));
+    EXPECT_CALL(*diskCacheManager_, IsDiskCacheFull()).WillOnce(Return(false));
+    EXPECT_CALL(*diskCacheManager_, WriteReadDirect(_, _, _))
+        .WillOnce(Return(context->bufferSize));
+    diskCacheManagerImpl_->Enqueue(context, true);
     sleep(5);
 }
 
