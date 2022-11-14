@@ -27,36 +27,37 @@
 #include <memory>
 
 #include "curvefs/src/client/fuse_client.h"
-#include "curvefs/src/client/space_client.h"
-#include "curvefs/src/client/extent_manager.h"
+#include "curvefs/src/client/volume/volume_storage.h"
+#include "curvefs/src/volume/block_device_client.h"
+#include "curvefs/src/volume/space_manager.h"
+#include "src/common/throttle.h"
 
 namespace curvefs {
 namespace client {
 
 using common::VolumeOption;
+using ::curvefs::volume::BlockDeviceClient;
+using ::curvefs::volume::BlockDeviceClientImpl;
+using ::curvefs::volume::SpaceManager;
+using curve::common::ReadWriteThrottleParams;
+using curve::common::Throttle;
+using curve::common::ThrottleParams;
 
 class FuseVolumeClient : public FuseClient {
  public:
     FuseVolumeClient()
-      : FuseClient(),
-    spaceClient_(std::make_shared<SpaceAllocServerClientImpl>()),
-    extManager_(std::make_shared<SimpleExtentManager>()),
-    blockDeviceClient_(std::make_shared<BlockDeviceClientImpl>()),
-    spaceBase_(nullptr) {}
+        : FuseClient(),
+          blockDeviceClient_(std::make_shared<BlockDeviceClientImpl>()) {}
 
-    FuseVolumeClient(const std::shared_ptr<MdsClient> &mdsClient,
+    // for UNIT_TEST
+    FuseVolumeClient(
+        const std::shared_ptr<MdsClient> &mdsClient,
         const std::shared_ptr<MetaServerClient> &metaClient,
         const std::shared_ptr<InodeCacheManager> &inodeManager,
         const std::shared_ptr<DentryCacheManager> &dentryManager,
-        const std::shared_ptr<SpaceClient> &spaceClient,
-        const std::shared_ptr<ExtentManager> &extManager,
         const std::shared_ptr<BlockDeviceClient> &blockDeviceClient)
-    : FuseClient(mdsClient, metaClient,
-        inodeManager, dentryManager),
-      spaceClient_(spaceClient),
-      extManager_(extManager),
-      blockDeviceClient_(blockDeviceClient),
-      spaceBase_(nullptr) {}
+        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager),
+          blockDeviceClient_(blockDeviceClient) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
@@ -64,8 +65,6 @@ class FuseVolumeClient : public FuseClient {
 
     CURVEFS_ERROR FuseOpInit(
         void *userdata, struct fuse_conn_info *conn) override;
-
-    void FuseOpDestroy(void *userdata) override;
 
     CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         const char *buf, size_t size, off_t off,
@@ -76,7 +75,6 @@ class FuseVolumeClient : public FuseClient {
             struct fuse_file_info *fi,
             char *buffer,
             size_t *rSize) override;
-
     CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, struct fuse_file_info *fi,
         fuse_entry_param *e) override;
@@ -85,30 +83,36 @@ class FuseVolumeClient : public FuseClient {
         const char *name, mode_t mode, dev_t rdev,
         fuse_entry_param *e) override;
 
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
+        fuse_ino_t newparent, const char *newname,
+        fuse_entry_param *e) override;
+
+    CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
+                               const char *name) override;
+
     CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino, int datasync,
-           struct fuse_file_info *fi) override;
+                              struct fuse_file_info *fi) override;
+
+    CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
+                              struct fuse_file_info *fi) override;
+
+    void SetSpaceManagerForTesting(SpaceManager *manager);
+
+    void SetVolumeStorageForTesting(VolumeStorage *storage);
 
  private:
-    CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
+    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
-
-    CURVEFS_ERROR CreateFs(
-        void *userdata, FsInfo *fsInfo) override;
+    void InitQosParam();
 
  private:
-    // space client
-    std::shared_ptr<SpaceClient> spaceClient_;
-
-    // extent manager
-    std::shared_ptr<ExtentManager> extManager_;
-
-    // curve client
     std::shared_ptr<BlockDeviceClient> blockDeviceClient_;
-
-    std::shared_ptr<SpaceBaseClient> spaceBase_;
+    std::unique_ptr<SpaceManager> spaceManager_;
+    std::unique_ptr<VolumeStorage> storage_;
 
     VolumeOption volOpts_;
+    Throttle fuseVolumeThrottle_;
 };
 
 }  // namespace client
