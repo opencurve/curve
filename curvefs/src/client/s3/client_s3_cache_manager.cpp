@@ -452,7 +452,7 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
     std::vector<S3ReadRequest>::const_iterator iter = requests.begin();
     std::atomic<uint64_t> pendingReq(0);
     curve::common::CountDownEvent cond(1);
-    bool async = false;
+    bool async = true;
     // first is chunkIndex, second is vector chunkPos
     std::map<uint64_t, std::vector<uint64_t>> dataCacheMap;
     GetObjectAsyncCallBack cb =
