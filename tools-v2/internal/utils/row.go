@@ -91,6 +91,8 @@ const (
 	ROW_USED            = "used"
 	ROW_VERSION         = "version"
 	ROW_ZONE            = "zone"
+	ROW_IP              = "ip"
+	ROW_PORT            = "port"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
