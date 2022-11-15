@@ -110,10 +110,10 @@ func AddBsStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
 // add flag option
 // bs mds[option]
 func AddBsMdsFlagOption(cmd *cobra.Command) {
-	AddBsStringSliceOptionFlag(cmd, CURVEBS_MDSADDR, "mds address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
+	AddBsStringOptionFlag(cmd, CURVEBS_MDSADDR, "mds address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
 }
 func AddBsMdsDummyFlagOption(cmd *cobra.Command) {
-	AddBsStringSliceOptionFlag(cmd, CURVEBS_MDSDUMMYADDR, "mds dummy address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
+	AddBsStringOptionFlag(cmd, CURVEBS_MDSDUMMYADDR, "mds dummy address, should be like 127.0.0.1:6700,127.0.0.1:6701,127.0.0.1:6702")
 }
 
 // user
