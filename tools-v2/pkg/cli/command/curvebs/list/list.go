@@ -24,6 +24,7 @@ package list
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/client"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/server"
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 	listCmd.Cmd.AddCommand(
 		logicalpool.NewLogicalPoolCommand(),
 		server.NewServerCommand(),
+		client.NewClientCommand(),
 	)
 }
 

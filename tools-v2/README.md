@@ -45,6 +45,7 @@ A tool for CurveFS & CurveBs.
     - [list](#list-1)
         - [list logical-pool](#list-logical-pool)
         - [list server](#list-server)
+        - [list client](#list-client)
     - [query](#query-1)
         - [query file](#query-file)
     - [status](#status-1)
@@ -842,6 +843,24 @@ Output:
 +----+---------------------+------+---------+-------------------+-------------------+
 ```
 
+##### list client
+
+list all client information in curvebs
+
+```bash
+curve bs list client
+```
+
+Output:
+
+```bash
++------------+------+
+|     IP     | PORT |
++------------+------+
+| 172.17.0.2 | 9000 |
++------------+------+
+```
+
 ### query
 
 ##### query file
@@ -958,7 +977,7 @@ Output:
 | status | |
 | chunkserver-status | |
 | client-status | |
-| client-list | |
+| client-list | curve bs list client |
 | snapshot-clone-status | |
 | copysets-status | |
 | chunkserver-list | |
