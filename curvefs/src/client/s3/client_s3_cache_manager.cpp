@@ -532,14 +532,36 @@ int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
             uint64_t start = butil::cpuwide_time_us();
             if (async) {
                 VLOG(9) << "async read s3";
-                auto context = std::make_shared<GetObjectAsyncContext>();
-                context->key = name;
-                context->buf = response.GetDataBuf() + readOffset;
-                context->offset = blockPos - objectOffset;
-                context->len = n;
-                context->cb = cb;
-                pendingReq.fetch_add(1, std::memory_order_relaxed);
-                s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
+                int ret = 0;
+                if (s3ClientAdaptor_->HasDiskCache() &&
+                    s3ClientAdaptor_->GetDiskCacheManager()->IsCached(name)) {
+                    VLOG(9) << "cached in disk: " << name;
+                    ret = s3ClientAdaptor_->GetDiskCacheManager()->Read(
+                            name, response.GetDataBuf() + readOffset,
+                            blockPos - objectOffset, n);
+                    if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
+                        s3ClientAdaptor_->CollectMetrics(
+                                &s3ClientAdaptor_->s3Metric_->adaptorReadDiskCache,
+                                n, start);
+                    }
+                } else {
+                    VLOG(9) << "not cached in disk: " << name;
+                    auto context = std::make_shared<GetObjectAsyncContext>();
+                    context->key = name;
+                    context->buf = response.GetDataBuf() + readOffset;
+                    context->offset = blockPos - objectOffset;
+                    context->len = n;
+                    context->cb = cb;
+                    pendingReq.fetch_add(1, std::memory_order_relaxed);
+                    s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
+                }
+                if (ret < 0) {
+                    LOG(ERROR) << "get obj failed, name is: " << name
+                        << ", offset is: " << blockPos
+                        << ", objoffset is: " << objectOffset
+                        << ", len: " << n << ", ret is: " << ret;
+                    return ret;
+                }
             } else {
                 VLOG(9) << "sync read s3";
                 int ret = 0;
