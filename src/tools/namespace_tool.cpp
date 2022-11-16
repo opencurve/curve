@@ -23,6 +23,12 @@
 #include "src/tools/namespace_tool.h"
 
 DEFINE_string(fileName, "", "file name");
+<<<<<<< HEAD
+=======
+DEFINE_string(dirName, "", "directory name");
+DEFINE_string(expireTime, "7d", "Time for file in recyclebin exceed expire time "  // NOLINT
+                                "will be deleted (default: 7d)");
+>>>>>>> 81b57146 (support create volume directory by curve_ops_tool)
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20, "file length (GB)");
 DEFINE_uint64(newSize, 30, "the new size of expanded volume(GB)");
@@ -107,8 +113,16 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             return 0;
         }
     } else if (cmd == kCreateCmd) {
-        return core_->CreateFile(fileName, FLAGS_fileLength * mds::kGB,
-                             FLAGS_stripeUnit, FLAGS_stripeCount);
+        if (!FLAGS_dirName.empty() && !FLAGS_fileName.empty()) {
+            std::cout << "Parameter error: dirName and fileName "
+                      << "can't be set at the same time!" << std::endl;
+            return -1;
+        }
+        bool normalFile = FLAGS_dirName.empty();
+        std::string name = normalFile ? FLAGS_fileName : FLAGS_dirName;
+        return core_->CreateFile(name, FLAGS_fileLength * mds::kGB,
+                                 normalFile, FLAGS_stripeUnit,
+                                 FLAGS_stripeCount);
     }  else if (cmd == kExtendCmd) {
         return core_->ExtendVolume(fileName, FLAGS_newSize * mds::kGB);
     } else if (cmd == kChunkLocatitonCmd) {
@@ -130,7 +144,9 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
         std::cout << "curve_ops_tool " << cmd << " [-fileName=/cinder] [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
     } else if (cmd == kCreateCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -filelength=20 -stripeUnit=32768 -stripeCount=32  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -fileLength=20 [-stripeUnit=32768] [-stripeCount=32]  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -dirName=/dir -userName=test -password=123 [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
+        std::cout << "The first example can create a volume and the second create a directory." << std::endl;  // NOLINT
     } else if (cmd == kExtendCmd) {
         std::cout << "curve_ops_tool " << cmd << " -fileName=/test -userName=test -password=123 -newSize=30  [-mdsAddr=127.0.0.1:6666] [-confPath=/etc/curve/tools.conf]" << std::endl;  // NOLINT
     } else if (cmd == kDeleteCmd) {
