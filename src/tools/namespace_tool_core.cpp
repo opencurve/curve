@@ -62,9 +62,10 @@ int NameSpaceToolCore::DeleteFile(const std::string& fileName,
 
 int NameSpaceToolCore::CreateFile(const std::string& fileName,
                                   uint64_t length,
+                                  bool normalFile,
                                   uint64_t stripeUnit,
                                   uint64_t stripeCount) {
-    return client_->CreateFile(fileName, length,
+    return client_->CreateFile(fileName, length, normalFile,
                                stripeUnit, stripeCount);
 }
 int NameSpaceToolCore::ExtendVolume(const std::string& fileName,
