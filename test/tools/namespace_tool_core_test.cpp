@@ -143,18 +143,18 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
     uint64_t stripeCount = 32;
 
     // 1、正常情况
-    EXPECT_CALL(*client_, CreateFile(_, _, _, _))
+    EXPECT_CALL(*client_, CreateFile(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, namespaceTool.CreateFile(fileName, length,
-                               stripeUnit, stripeCount));
+                               true, stripeUnit, stripeCount));
 
     // 2、创建失败
-    EXPECT_CALL(*client_, CreateFile(_, _, _, _))
+    EXPECT_CALL(*client_, CreateFile(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, namespaceTool.CreateFile(fileName, length,
-                               stripeUnit, stripeCount));
+                               true, stripeUnit, stripeCount));
 }
 
 TEST_F(NameSpaceToolCoreTest, ExtendVolume) {
