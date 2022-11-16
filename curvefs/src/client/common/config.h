@@ -199,6 +199,7 @@ struct FuseClientOption {
     uint64_t dCacheLruSize;
     bool enableICacheMetrics;
     bool enableDCacheMetrics;
+    uint32_t lruTimeOutSec;
     uint32_t dummyServerStartPort;
     bool enableMultiMountPointRename = false;
     bool enableFuseSplice = false;

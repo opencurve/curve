@@ -67,6 +67,7 @@ using rpcclient::MetaServerClientImpl;
 using rpcclient::MetaServerClientDone;
 using metric::S3ChunkInfoMetric;
 using common::NlinkChange;
+using curve::common::TimeUtility;
 
 std::ostream &operator<<(std::ostream &os, const struct stat &attr);
 void AppendS3ChunkInfoToMap(uint64_t chunkIndex, const S3ChunkInfo &info,
@@ -86,11 +87,12 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
           baseMaxDataSize_(maxDataSize),
           maxDataSize_(maxDataSize),
           refreshDataInterval_(refreshDataInterval),
-          lastRefreshTime_(::curve::common::TimeUtility::GetTimeofDaySec()),
+          lastRefreshTime_(TimeUtility::GetTimeofDaySec()),
           s3ChunkInfoAddSize_(0),
           metaClient_(std::move(metaClient)),
           s3ChunkInfoMetric_(std::move(s3ChunkInfoMetric)),
-          dirty_(false) {
+          dirty_(false),
+          time_(TimeUtility::GetTimeofDaySec()) {
         UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize());
         g_alive_inode_count << 1;
     }
@@ -339,6 +341,10 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
         return false;
     }
 
+    uint32_t GetCachedTime() const {
+        return time_;
+    }
+
  private:
     CURVEFS_ERROR SyncS3ChunkInfo(bool internal = false);
 
@@ -413,6 +419,9 @@ class InodeWrapper : public std::enable_shared_from_this<InodeWrapper> {
 
     mutable ::curve::common::Mutex syncingVolumeExtentsMtx_;
     ExtentCache extentCache_;
+
+    // timestamp when put in cache
+    uint64_t time_;
 };
 
 }  // namespace client

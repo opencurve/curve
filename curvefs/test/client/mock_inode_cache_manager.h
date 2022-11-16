@@ -40,10 +40,11 @@ class MockInodeCacheManager : public InodeCacheManager {
     MockInodeCacheManager() {}
     ~MockInodeCacheManager() {}
 
-    MOCK_METHOD4(Init, CURVEFS_ERROR(uint64_t cacheSize,
+    MOCK_METHOD5(Init, CURVEFS_ERROR(uint64_t cacheSize,
                                      bool enableCacheMetrics,
                                      uint32_t flushPeriodSec,
-                                     RefreshDataOption option));
+                                     RefreshDataOption option,
+                                     uint32_t cacheTimeOutSec));
 
     MOCK_METHOD0(Run, void());
 

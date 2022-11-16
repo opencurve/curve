@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <glog/logging.h>
+#include <cstdint>
 
 #include "src/common/lru_cache.h"
 #include "src/common/timeutility.h"
@@ -299,6 +300,57 @@ TEST(SglCaCheTest, TestCacheHitAndMissMetric) {
 
     ASSERT_EQ(15, cache->GetCacheMetrics()->cacheHit.get_value());
     ASSERT_EQ(10, cache->GetCacheMetrics()->cacheMiss.get_value());
+}
+
+TEST(TimedCaCheTest, test_base) {
+    int maxCount = 5;
+    int timeOutSec = 0;
+    auto cache = std::make_shared<TimedLRUCache<std::string, std::string>>(
+        timeOutSec, maxCount, std::make_shared<CacheMetrics>("LruCache"));
+
+    for (int i = 1; i <= maxCount + 1; i++) {
+        std::string eliminated;
+        cache->Put(std::to_string(i), std::to_string(i), &eliminated);
+        if (i <= maxCount) {
+            ASSERT_EQ(i, cache->GetCacheMetrics()->cacheCount.get_value());
+        } else {
+            ASSERT_EQ(maxCount,
+                cache->GetCacheMetrics()->cacheCount.get_value());
+        }
+        std::string res;
+        ASSERT_TRUE(cache->Get(std::to_string(i), &res));
+        ASSERT_EQ(std::to_string(i), res);
+    }
+
+    std::string res;
+    ASSERT_FALSE(cache->Get(std::to_string(1), &res));
+    for (int i = 2; i <= maxCount + 1; i++) {
+        ASSERT_TRUE(cache->Get(std::to_string(i), &res));
+        ASSERT_EQ(std::to_string(i), res);
+    }
+}
+
+TEST(TimedCaCheTest, test_timeout) {
+    int maxCount = 0;
+    int timeOutSec = 1;
+    auto cache = std::make_shared<TimedLRUCache<std::string, std::string>>(
+        timeOutSec, maxCount, std::make_shared<CacheMetrics>("LruCache"));
+
+    std::string res;
+    ASSERT_FALSE(cache->Get("k", &res));
+    ASSERT_EQ(1, cache->GetCacheMetrics()->cacheMiss.get_value());
+    cache->Put("k", "v");
+    ASSERT_EQ(1, cache->Size());
+    ASSERT_EQ(1, cache->GetCacheMetrics()->cacheCount.get_value());
+
+    ASSERT_TRUE(cache->Get("k", &res));
+    ASSERT_EQ(1, cache->GetCacheMetrics()->cacheHit.get_value());
+    sleep(1);
+    ASSERT_FALSE(cache->Get("k", &res));
+    ASSERT_EQ(2, cache->GetCacheMetrics()->cacheMiss.get_value());
+    ASSERT_EQ(0, cache->GetCacheMetrics()->cacheCount.get_value());
+    ASSERT_EQ(0, cache->GetCacheMetrics()->cacheBytes.get_value());
+    ASSERT_EQ(0, cache->Size());
 }
 
 }  // namespace common

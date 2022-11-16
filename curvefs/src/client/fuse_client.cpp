@@ -123,12 +123,14 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
 
     CURVEFS_ERROR ret3 =
         inodeManager_->Init(option.iCacheLruSize, option.enableICacheMetrics,
-                            option.flushPeriodSec, option.refreshDataOption);
+                            option.flushPeriodSec, option.refreshDataOption,
+                            option.lruTimeOutSec);
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
     ret3 =
-        dentryManager_->Init(option.dCacheLruSize, option.enableDCacheMetrics);
+        dentryManager_->Init(option.dCacheLruSize, option.enableDCacheMetrics,
+            option.lruTimeOutSec);
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
