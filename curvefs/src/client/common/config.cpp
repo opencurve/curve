@@ -284,6 +284,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->enableICacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
+    conf->GetValueFatalIfFail("fuseClient.lruTimeOutSec",
+                              &clientOption->lruTimeOutSec);
     conf->GetValueFatalIfFail("client.dummyServer.startPort",
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",

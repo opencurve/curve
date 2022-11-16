@@ -128,7 +128,8 @@ class InodeCacheManager {
 
     virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
                                uint32_t flushPeriodSec,
-                               RefreshDataOption option) = 0;
+                               RefreshDataOption option,
+                               uint32_t cacheTimeOutSec) = 0;
 
     virtual void Run() = 0;
 
@@ -186,17 +187,20 @@ class InodeCacheManagerImpl : public InodeCacheManager,
       : metaClient_(std::make_shared<MetaServerClientImpl>()),
         iCache_(nullptr),
         iAttrCache_(nullptr),
-        isStop_(true) {}
+        isStop_(true),
+        cacheTimeOutSec_(0) {}
 
     explicit InodeCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
       : metaClient_(metaClient),
         iCache_(nullptr),
-        iAttrCache_(nullptr) {}
+        iAttrCache_(nullptr),
+        cacheTimeOutSec_(0) {}
 
     CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
                        uint32_t flushPeriodSec,
-                       RefreshDataOption option) override {
+                       RefreshDataOption option,
+                       uint32_t cacheTimeOutSec) override {
         if (enableCacheMetrics) {
             iCache_ = std::make_shared<
                 LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0,
@@ -208,6 +212,7 @@ class InodeCacheManagerImpl : public InodeCacheManager,
         maxCacheSize_ = cacheSize;
         option_ = option;
         flushPeriodSec_ = flushPeriodSec;
+        cacheTimeOutSec_ = cacheTimeOutSec;
         iAttrCache_ = std::make_shared<InodeAttrCache>();
         s3ChunkInfoMetric_ = std::make_shared<S3ChunkInfoMetric>();
         return CURVEFS_ERROR::OK;
@@ -272,7 +277,11 @@ class InodeCacheManagerImpl : public InodeCacheManager,
 
     void RemoveOpenedInode(uint64_t inodeId) override;
 
-    bool NeedUseCahce(uint64_t inodeId, bool IsDirty);
+    bool NeedUseCache(uint64_t inodeId,
+        const std::shared_ptr<InodeWrapper> &inodeWrapper,
+        bool onlyAttr);
+
+    bool IsTimeOut(const std::shared_ptr<InodeWrapper> &inodeWrapper) const;
 
  private:
     virtual void FlushInodeBackground();
@@ -283,7 +292,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-    std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>> iCache_;
+    std::shared_ptr<LRUCache<uint64_t,
+        std::shared_ptr<InodeWrapper>>> iCache_;
     std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
 
     std::shared_ptr<InodeAttrCache> iAttrCache_;
@@ -306,6 +316,8 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     Thread flushThread_;
     InterruptibleSleeper sleeper_;
     Atomic<bool> isStop_;
+    // cache timeout seconds, 0 means never timeout
+    uint32_t cacheTimeOutSec_;
 };
 
 class BatchGetInodeAttrAsyncDone : public BatchGetInodeAttrDone {

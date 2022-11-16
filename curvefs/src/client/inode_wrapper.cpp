@@ -107,6 +107,7 @@ class UpdateInodeAsyncDone : public MetaServerClientDone {
                        << ", inodeid: " << inodeWrapper_->GetInodeId();
             inodeWrapper_->MarkInodeError();
         }
+        inodeWrapper_->ClearDirty();
         inodeWrapper_->ReleaseSyncingInode();
 
         if (parent_ != nullptr) {
@@ -226,7 +227,6 @@ void InodeWrapper::AsyncFlushAttr(MetaServerClientDone* done,
         metaClient_->UpdateInodeWithOutNlinkAsync(
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
             new UpdateInodeAsyncDone(shared_from_this(), done));
-        dirty_ = false;
         dirtyAttr_.Clear();
         return;
     }
@@ -301,7 +301,7 @@ CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
     UpdateS3ChunkInfoMetric(CalS3ChunkInfoSize() - before);
     ClearS3ChunkInfoAdd();
     UpdateMaxS3ChunkInfoSize();
-    lastRefreshTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
+    lastRefreshTime_ = TimeUtility::GetTimeofDaySec();
     return CURVEFS_ERROR::OK;
 }
 
@@ -489,7 +489,6 @@ void InodeWrapper::AsyncFlushAttrAndExtents(MetaServerClientDone *done,
             new UpdateInodeAttrAndExtentClosure{shared_from_this(), done},
             std::move(indices));
 
-        dirty_ = false;
         dirtyAttr_.Clear();
         return;
     }
@@ -543,6 +542,7 @@ class UpdateInodeAsyncS3Done : public MetaServerClientDone {
             inodeWrapper_->MarkInodeError();
         }
         VLOG(9) << "inode " << inodeWrapper_->GetInodeId() << " async success.";
+        inodeWrapper_->ClearDirty();
         inodeWrapper_->ReleaseSyncingInode();
         inodeWrapper_->ReleaseSyncingS3ChunkInfo();
 
@@ -570,7 +570,6 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
             inode_.fsid(), inode_.inodeid(), dirtyAttr_,
             new UpdateInodeAsyncS3Done{shared_from_this(), done},
             std::move(indices));
-        dirty_ = false;
         dirtyAttr_.Clear();
         ClearS3ChunkInfoAdd();
         return;

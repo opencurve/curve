@@ -70,7 +70,7 @@ class TestInodeCacheManager : public ::testing::Test {
         RefreshDataOption option;
         option.maxDataSize = 1;
         option.refreshDataIntervalSec = 0;
-        iCacheManager_->Init(3, true, 1, option);
+        iCacheManager_->Init(3, true, 1, option, timeout_);
     }
 
     virtual void TearDown() {
@@ -82,6 +82,7 @@ class TestInodeCacheManager : public ::testing::Test {
     std::shared_ptr<InodeCacheManagerImpl> iCacheManager_;
     std::shared_ptr<MockMetaServerClient> metaClient_;
     uint32_t fsId_ = 888;
+    uint32_t timeout_ = 3;
 };
 
 TEST_F(TestInodeCacheManager, GetInode) {
@@ -524,6 +525,46 @@ TEST_F(TestInodeCacheManager, TestFlushInodeBackground) {
     iter = inodeMap.find(102);
     ASSERT_EQ(false, iter->second->IsDirty());
     iCacheManager_->Stop();
+}
+
+TEST_F(TestInodeCacheManager, CreateAndGetInodeWhenTimeout) {
+    curvefs::client::common::FLAGS_enableCto = false;
+    uint64_t inodeId = 100;
+
+    InodeParam param;
+    param.fsId = fsId_;
+    param.type = FsFileType::TYPE_FILE;
+
+    Inode inode;
+    inode.set_inodeid(inodeId);
+    inode.set_fsid(fsId_);
+    inode.set_type(FsFileType::TYPE_FILE);
+    EXPECT_CALL(*metaClient_, CreateInode(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(inode), Return(MetaStatusCode::OK)));
+
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = iCacheManager_->CreateInode(param, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    Inode out = inodeWrapper->GetInode();
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ASSERT_EQ(inodeId, out.inodeid());
+    ASSERT_EQ(fsId_, out.fsid());
+    ASSERT_EQ(FsFileType::TYPE_FILE, out.type());
+
+    sleep(timeout_);
+    // 1. inode dirty, get from icache
+    inodeWrapper->MarkDirty();
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+
+    // 2. not dirty get from metaserver
+    inodeWrapper->ClearDirty();
+    EXPECT_CALL(*metaClient_, GetInode(fsId_, inodeId, _, _))
+    .WillOnce(DoAll(SetArgPointee<2>(inode), SetArgPointee<3>(false),
+                    Return(MetaStatusCode::OK)));
+    ret = iCacheManager_->GetInode(inodeId, inodeWrapper);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 }
 }  // namespace client
 }  // namespace curvefs

@@ -101,7 +101,7 @@ void UpdateInodeAttrAndExtentClosure::Run() {
                    << ", inode: " << inode_->GetInodeId();
         inode_->MarkInodeError();
     }
-
+    inode_->ClearDirty();
     inode_->syncingVolumeExtentsMtx_.unlock();
     inode_->ReleaseSyncingInode();
 

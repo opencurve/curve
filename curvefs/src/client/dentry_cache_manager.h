@@ -39,7 +39,7 @@
 #include "src/common/concurrent/name_lock.h"
 
 using ::curvefs::metaserver::Dentry;
-using ::curve::common::LRUCache;
+using ::curve::common::TimedLRUCache;
 using ::curve::common::CacheMetrics;
 
 namespace curvefs {
@@ -59,7 +59,8 @@ class DentryCacheManager {
         fsId_ = fsId;
     }
 
-    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) = 0;
+    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
+        uint32_t cacheTimeOutSec) = 0;
 
     virtual void InsertOrReplaceCache(const Dentry& dentry) = 0;
 
@@ -93,14 +94,15 @@ class DentryCacheManagerImpl : public DentryCacheManager {
       : metaClient_(metaClient),
         dCache_(nullptr) {}
 
-    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics) override {
+    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
+        uint32_t cacheTimeOutSec) override {
         if (enableCacheMetrics) {
             dCache_ = std::make_shared<
-                LRUCache<std::string, Dentry>>(cacheSize,
+                TimedLRUCache<std::string, Dentry>>(cacheTimeOutSec, cacheSize,
                     std::make_shared<CacheMetrics>("dcache"));
         } else {
             dCache_ = std::make_shared<
-                LRUCache<std::string, Dentry>>(cacheSize);
+                TimedLRUCache<std::string, Dentry>>(cacheTimeOutSec, cacheSize);
         }
         return CURVEFS_ERROR::OK;
     }
@@ -129,7 +131,7 @@ class DentryCacheManagerImpl : public DentryCacheManager {
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
     // key is parentId + name
-    std::shared_ptr<LRUCache<std::string, Dentry>> dCache_;
+    std::shared_ptr<TimedLRUCache<std::string, Dentry>> dCache_;
     curve::common::GenericNameLock<Mutex> nameLock_;
 };
 

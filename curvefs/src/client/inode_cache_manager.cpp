@@ -108,7 +108,7 @@ InodeCacheManagerImpl::GetInode(uint64_t inodeId,
     NameLockGuard lock(nameLock_, std::to_string(inodeId));
     // get inode from cache
     bool ok = iCache_->Get(inodeId, &out);
-    if (ok && NeedUseCahce(inodeId, out->IsDirty())) {
+    if (ok && NeedUseCache(inodeId, out, false)) {
         curve::common::UniqueLock lgGuard = out->GetUniqueLock();
         if (out->GetType() == FsFileType::TYPE_FILE) {
             return CURVEFS_ERROR::OK;
@@ -141,7 +141,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::GetInodeAttr(uint64_t inodeId,
     // 1. find in icache
     std::shared_ptr<InodeWrapper> inodeWrapper;
     bool ok = iCache_->Get(inodeId, &inodeWrapper);
-    if (ok && NeedUseCahce(inodeId, inodeWrapper->IsDirty())) {
+    if (ok && NeedUseCache(inodeId, inodeWrapper, true)) {
         inodeWrapper->GetInodeAttr(out);
         return CURVEFS_ERROR::OK;
     }
@@ -178,7 +178,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttr(
         std::shared_ptr<InodeWrapper> inodeWrapper;
         NameLockGuard lock(nameLock_, std::to_string(*iter));
         bool ok = iCache_->Get(*iter, &inodeWrapper);
-        if (ok && NeedUseCahce(*iter, inodeWrapper->IsDirty())) {
+        if (ok && NeedUseCache(*iter, inodeWrapper, true)) {
             InodeAttr tmpAttr;
             inodeWrapper->GetInodeAttr(&tmpAttr);
             attrs->emplace_back(std::move(tmpAttr));
@@ -215,7 +215,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetInodeAttrAsync(
         std::shared_ptr<InodeWrapper> inodeWrapper;
         NameLockGuard lock(nameLock_, std::to_string(*iter));
         bool ok = iCache_->Get(*iter, &inodeWrapper);
-        if (ok && NeedUseCahce(*iter, inodeWrapper->IsDirty())) {
+        if (ok && NeedUseCache(*iter, inodeWrapper, true)) {
             InodeAttr tmpAttr;
             inodeWrapper->GetInodeAttr(&tmpAttr);
             attrs->emplace(*iter, std::move(tmpAttr));
@@ -272,7 +272,7 @@ CURVEFS_ERROR InodeCacheManagerImpl::BatchGetXAttr(
         std::shared_ptr<InodeWrapper> inodeWrapper;
         NameLockGuard lock(nameLock_, std::to_string(*iter));
         bool ok = iCache_->Get(*iter, &inodeWrapper);
-        if (ok && NeedUseCahce(*iter, inodeWrapper->IsDirty())) {
+        if (ok && NeedUseCache(*iter, inodeWrapper, true)) {
             xattr->emplace_back(inodeWrapper->GetXattr());
             iter = inodeIds->erase(iter);
         } else {
@@ -511,8 +511,32 @@ bool InodeCacheManagerImpl::OpenInodeCached(uint64_t inodeId) {
     return iter != openedInodes_.end();
 }
 
-bool InodeCacheManagerImpl::NeedUseCahce(uint64_t inodeId, bool IsDirty) {
-    if (!FLAGS_enableCto || OpenInodeCached(inodeId) || IsDirty) {
+bool InodeCacheManagerImpl::NeedUseCache(uint64_t inodeId,
+    const std::shared_ptr<InodeWrapper> &inodeWrapper,
+    bool onlyAttr) {
+    auto lock = inodeWrapper->GetUniqueLock();
+    if (onlyAttr) {
+        if (inodeWrapper->IsDirty()) {
+            return true;
+        }
+    } else {
+        if (IsDirtyInode(inodeWrapper.get(), false)) {
+            return true;
+        }
+    }
+
+    if (((FLAGS_enableCto && OpenInodeCached(inodeId)) || !FLAGS_enableCto)
+        && !IsTimeOut(inodeWrapper)) {
+        return true;
+    }
+    return false;
+}
+
+bool InodeCacheManagerImpl::IsTimeOut(
+    const std::shared_ptr<InodeWrapper> &inodeWrapper) const {
+    uint32_t time = inodeWrapper->GetCachedTime();
+    if (cacheTimeOutSec_ > 0 &&
+        TimeUtility::GetTimeofDaySec() - time >= cacheTimeOutSec_) {
         return true;
     }
     return false;
