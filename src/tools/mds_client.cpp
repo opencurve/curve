@@ -272,14 +272,20 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
 }
 
 int MDSClient::CreateFile(const std::string& fileName, uint64_t length,
-                   uint64_t stripeUnit, uint64_t stripeCount) {
+                          bool normalFile, uint64_t stripeUnit,
+                          uint64_t stripeCount) {
     curve::mds::CreateFileRequest request;
     curve::mds::CreateFileResponse response;
     request.set_filename(fileName);
-    request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-    request.set_filelength(length);
-    request.set_stripeunit(stripeUnit);
-    request.set_stripecount(stripeCount);
+    if (normalFile) {
+        request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+        request.set_filelength(length);
+        request.set_stripeunit(stripeUnit);
+        request.set_stripecount(stripeCount);
+    } else {
+        request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
+    }
+
     FillUserInfo(&request);
     curve::mds::CurveFSService_Stub stub(&channel_);
 
