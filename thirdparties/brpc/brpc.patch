@@ -1,30 +1,61 @@
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7f221dc..fa2e935 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -193,9 +193,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
- endif()
- 
- # for *.so
--set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
-+if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
-+endif()
- # for *.a
--set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
-+if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/output/lib)
-+endif()
- 
- # list all source files
- set(BUTIL_SOURCES
-diff --git a/example/BUILD b/example/BUILD
-index 02cff39..18e607f 100644
---- a/example/BUILD
-+++ b/example/BUILD
-@@ -59,3 +59,33 @@ cc_binary(
+From ae43a532d3053448704387ebcf99415cc2dac709 Mon Sep 17 00:00:00 2001
+From: fan <yfan3763@gmail.com>
+Date: Thu, 17 Nov 2022 13:13:20 +0000
+Subject: [PATCH] build
+
+---
+ example/BUILD.bazel                             |  30 ++
+ example/echo_c++_unix_socket/CMakeLists.txt     | 128 ++++++
+ example/echo_c++_unix_socket/client.cpp         |  87 ++++
+ example/echo_c++_unix_socket/echo.proto         |  16 +
+ example/echo_c++_unix_socket/server.cpp         | 107 +++++
+ src/brpc/builtin/prometheus_metrics_service.cpp |  48 +++
+ src/brpc/builtin/prometheus_metrics_service.h   |   3 +
+ src/brpc/channel.cpp                            |   9 +
+ src/brpc/channel.h                              |   4 +-
+ src/brpc/details/usercode_backup_pool.cpp       |   2 +-
+ src/brpc/server.cpp                             | 158 +++++--
+ src/brpc/server.h                               |   6 +
+ src/brpc/socket.cpp                             |  20 +-
+ src/bthread/bthread.h                           |   1 +
+ src/bthread/rwlock.cpp                          | 163 +++++++
+ src/bthread/rwlock.h                            | 130 ++++++
+ src/bthread/task_control.cpp                    |   2 +-
+ src/bthread/timer_thread.cpp                    |   2 +-
+ src/bthread/types.h                             |   2 +
+ src/butil/details/extended_endpoint.hpp         |   4 +-
+ src/butil/endpoint.cpp                          |  21 +-
+ src/butil/endpoint.h                            |  20 +-
+ src/butil/logging.cc                            |   7 +-
+ src/butil/logging.h                             |  56 +--
+ src/butil/thread_local.h                        |  16 +
+ src/bvar/detail/sampler.cpp                     |  22 +-
+ test/BUILD.bazel                                |   1 +
+ test/brpc_channel_unittest.cpp                  | 552 +++++++++++++++++++++++-
+ test/brpc_prometheus_metrics_unittest.cpp       | 180 ++++----
+ test/brpc_server_unittest.cpp                   |  43 ++
+ test/brpc_socket_unittest.cpp                   | 217 ++++++++++
+ test/bthread_brpc_rwlock_unittest.cpp           | 198 +++++++++
+ test/bvar_reducer_unittest.cpp                  |  12 +-
+ test/bvar_sampler_unittest.cpp                  |  12 +-
+ test/endpoint_unittest.cpp                      |  15 +-
+ test/logging_unittest.cc                        |  26 +-
+ 36 files changed, 2112 insertions(+), 208 deletions(-)
+ create mode 100644 example/echo_c++_unix_socket/CMakeLists.txt
+ create mode 100644 example/echo_c++_unix_socket/client.cpp
+ create mode 100644 example/echo_c++_unix_socket/echo.proto
+ create mode 100644 example/echo_c++_unix_socket/server.cpp
+ create mode 100644 src/bthread/rwlock.cpp
+ create mode 100644 src/bthread/rwlock.h
+ create mode 100644 test/bthread_brpc_rwlock_unittest.cpp
+
+diff --git a/example/BUILD.bazel b/example/BUILD.bazel
+index 5ef87e0a..344985a7 100644
+--- a/example/BUILD.bazel
++++ b/example/BUILD.bazel
+@@ -77,3 +77,33 @@ cc_binary(
+         "//:brpc",
      ],
-     copts = COPTS,
  )
 +
 +cc_binary(
@@ -58,7 +89,7 @@ index 02cff39..18e607f 100644
 +)
 diff --git a/example/echo_c++_unix_socket/CMakeLists.txt b/example/echo_c++_unix_socket/CMakeLists.txt
 new file mode 100644
-index 0000000..325918d
+index 00000000..325918d8
 --- /dev/null
 +++ b/example/echo_c++_unix_socket/CMakeLists.txt
 @@ -0,0 +1,128 @@
@@ -192,7 +223,7 @@ index 0000000..325918d
 +target_link_libraries(echo_server ${BRPC_LIB} ${DYNAMIC_LIB})
 diff --git a/example/echo_c++_unix_socket/client.cpp b/example/echo_c++_unix_socket/client.cpp
 new file mode 100644
-index 0000000..f7d708d
+index 00000000..f7d708d2
 --- /dev/null
 +++ b/example/echo_c++_unix_socket/client.cpp
 @@ -0,0 +1,87 @@
@@ -285,7 +316,7 @@ index 0000000..f7d708d
 +}
 diff --git a/example/echo_c++_unix_socket/echo.proto b/example/echo_c++_unix_socket/echo.proto
 new file mode 100644
-index 0000000..4601d5d
+index 00000000..4601d5db
 --- /dev/null
 +++ b/example/echo_c++_unix_socket/echo.proto
 @@ -0,0 +1,16 @@
@@ -307,7 +338,7 @@ index 0000000..4601d5d
 +};
 diff --git a/example/echo_c++_unix_socket/server.cpp b/example/echo_c++_unix_socket/server.cpp
 new file mode 100644
-index 0000000..68979a6
+index 00000000..68979a6a
 --- /dev/null
 +++ b/example/echo_c++_unix_socket/server.cpp
 @@ -0,0 +1,107 @@
@@ -419,10 +450,10 @@ index 0000000..68979a6
 +    return 0;
 +}
 diff --git a/src/brpc/builtin/prometheus_metrics_service.cpp b/src/brpc/builtin/prometheus_metrics_service.cpp
-index 4ff38c5..b36de87 100644
+index 5eddb1a8..7736301c 100644
 --- a/src/brpc/builtin/prometheus_metrics_service.cpp
 +++ b/src/brpc/builtin/prometheus_metrics_service.cpp
-@@ -17,6 +17,8 @@
+@@ -19,6 +19,8 @@
  #include <vector>
  #include <iomanip>
  #include <map>
@@ -431,16 +462,17 @@ index 4ff38c5..b36de87 100644
  #include "brpc/controller.h"                // Controller
  #include "brpc/server.h"                    // Server
  #include "brpc/closure_guard.h"             // ClosureGuard
-@@ -55,6 +57,8 @@ private:
-     // Return true iff name ends with suffix output by LatencyRecorder.
+@@ -61,6 +63,9 @@ private:
      bool DumpLatencyRecorderSuffix(const butil::StringPiece& name,
                                     const butil::StringPiece& desc);
+ 
 +    bool DumpStatusJsonString(const std::string& name,
 +                              const std::string& desc);
- 
++
      // 6 is the number of bvars in LatencyRecorder that indicating percentiles
      static const int NPERCENTILES = 6;
-@@ -80,8 +84,12 @@ bool PrometheusMetricsDumper::dump(const std::string& name,
+ 
+@@ -85,8 +90,12 @@ bool PrometheusMetricsDumper::dump(const std::string& name,
                                     const butil::StringPiece& desc) {
      if (!desc.empty() && desc[0] == '"') {
          // there is no necessary to monitor string in prometheus
@@ -453,7 +485,7 @@ index 4ff38c5..b36de87 100644
      if (DumpLatencyRecorderSuffix(name, desc)) {
          // Has encountered name with suffix exposed by LatencyRecorder,
          // Leave it to DumpLatencyRecorderSuffix to output Summary.
-@@ -174,6 +182,45 @@ bool PrometheusMetricsDumper::DumpLatencyRecorderSuffix(
+@@ -179,6 +188,45 @@ bool PrometheusMetricsDumper::DumpLatencyRecorderSuffix(
      return true;
  }
  
@@ -499,8 +531,22 @@ index 4ff38c5..b36de87 100644
  void PrometheusMetricsService::default_method(::google::protobuf::RpcController* cntl_base,
                                                const ::brpc::MetricsRequest*,
                                                ::brpc::MetricsResponse*,
+diff --git a/src/brpc/builtin/prometheus_metrics_service.h b/src/brpc/builtin/prometheus_metrics_service.h
+index c844e1e7..5227385e 100644
+--- a/src/brpc/builtin/prometheus_metrics_service.h
++++ b/src/brpc/builtin/prometheus_metrics_service.h
+@@ -29,6 +29,9 @@ public:
+                         const ::brpc::MetricsRequest* request,
+                         ::brpc::MetricsResponse* response,
+                         ::google::protobuf::Closure* done) override;
++
++    bool DumpStatusJsonString(const std::string& name,
++        const std::string& desc);
+ };
+ 
+ int DumpPrometheusMetricsToIOBuf(butil::IOBuf* output);
 diff --git a/src/brpc/channel.cpp b/src/brpc/channel.cpp
-index 27fdb84..9c84937 100755
+index 443a05db..b2e6bc2f 100755
 --- a/src/brpc/channel.cpp
 +++ b/src/brpc/channel.cpp
 @@ -281,6 +281,15 @@ int Channel::Init(butil::EndPoint server_addr_and_port,
@@ -518,12 +564,12 @@ index 27fdb84..9c84937 100755
 +
  int Channel::InitSingle(const butil::EndPoint& server_addr_and_port,
                          const char* raw_server_address,
-                         const ChannelOptions* options) {
+                         const ChannelOptions* options,
 diff --git a/src/brpc/channel.h b/src/brpc/channel.h
-index be631cf..98af2c2 100644
+index ef97ced3..773272ec 100644
 --- a/src/brpc/channel.h
 +++ b/src/brpc/channel.h
-@@ -155,6 +155,7 @@ public:
+@@ -156,6 +156,7 @@ public:
      int Init(butil::EndPoint server_addr_and_port, const ChannelOptions* options);
      int Init(const char* server_addr_and_port, const ChannelOptions* options);
      int Init(const char* server_addr, int port, const ChannelOptions* options);
@@ -531,7 +577,7 @@ index be631cf..98af2c2 100644
  
      // Connect this channel to a group of servers whose addresses can be
      // accessed via `naming_service_url' according to its protocol. Use the
-@@ -196,9 +197,9 @@ public:
+@@ -197,9 +198,10 @@ public:
      // Sum of weights of servers that this channel connects to.
      int Weight();
  
@@ -539,14 +585,15 @@ index be631cf..98af2c2 100644
      int CheckHealth();
  
 +protected:
++
      bool SingleServer() const { return _lb.get() == NULL; }
  
      // Pick a server using `lb' and then send RPC. Wait for response when 
 diff --git a/src/brpc/details/usercode_backup_pool.cpp b/src/brpc/details/usercode_backup_pool.cpp
-index 1c25569..88b5aba 100644
+index 53a1541d..e654db9c 100644
 --- a/src/brpc/details/usercode_backup_pool.cpp
 +++ b/src/brpc/details/usercode_backup_pool.cpp
-@@ -110,7 +110,7 @@ int UserCodeBackupPool::Init() {
+@@ -112,7 +112,7 @@ int UserCodeBackupPool::Init() {
  void UserCodeBackupPool::UserCodeRunningLoop() {
      bthread::run_worker_startfn();
  #ifdef BAIDU_INTERNAL
@@ -556,7 +603,7 @@ index 1c25569..88b5aba 100644
      
      int64_t last_time = butil::cpuwide_time_us();
 diff --git a/src/brpc/server.cpp b/src/brpc/server.cpp
-index 383b643..b83607c 100644
+index 8b647fd4..dd54fb37 100644
 --- a/src/brpc/server.cpp
 +++ b/src/brpc/server.cpp
 @@ -31,6 +31,7 @@
@@ -567,11 +614,11 @@ index 383b643..b83607c 100644
  #include "brpc/log.h"
  #include "brpc/compress.h"
  #include "brpc/policy/nova_pbrpc_protocol.h"
-@@ -692,10 +693,7 @@ static bool CreateConcurrencyLimiter(const AdaptiveMaxConcurrency& amc,
+@@ -707,10 +708,7 @@ static bool CreateConcurrencyLimiter(const AdaptiveMaxConcurrency& amc,
  
- static AdaptiveMaxConcurrency g_default_max_concurrency_of_method = 0;
+ static AdaptiveMaxConcurrency g_default_max_concurrency_of_method(0);
  
--int Server::StartInternal(const butil::ip_t& ip,
+-int Server::StartInternal(const butil::EndPoint& endpoint,
 -                          const PortRange& port_range,
 -                          const ServerOptions *opt) {
 -    std::unique_ptr<Server, RevertServerStatus> revert_server(this);
@@ -579,11 +626,10 @@ index 383b643..b83607c 100644
      if (_failed_to_set_max_concurrency_of_method) {
          _failed_to_set_max_concurrency_of_method = false;
          LOG(ERROR) << "previous call to MaxConcurrencyOf() was failed, "
-@@ -926,7 +924,54 @@ int Server::StartInternal(const butil::ip_t& ip,
+@@ -941,7 +939,54 @@ int Server::StartInternal(const butil::EndPoint& endpoint,
              it->second.status->SetConcurrencyLimiter(cl);
          }
      }
--    
 +    return 0;
 +}
 +
@@ -623,8 +669,8 @@ index 383b643..b83607c 100644
 +    sockfd.release();
 +    return 0;
 +}
-+
-+int Server::StartInternal(const butil::ip_t& ip,
+ 
++int Server::StartInternal(const butil::EndPoint& endpoint,
 +                          const PortRange& port_range,
 +                          const ServerOptions *opt) {
 +    std::unique_ptr<Server, RevertServerStatus> revert_server(this);
@@ -635,30 +681,32 @@ index 383b643..b83607c 100644
      // Create listening ports
      if (port_range.min_port > port_range.max_port) {
          LOG(ERROR) << "Invalid port_range=[" << port_range.min_port << '-'
-@@ -983,38 +1028,10 @@ int Server::StartInternal(const butil::ip_t& ip,
+@@ -1003,19 +1048,8 @@ int Server::StartInternal(const butil::EndPoint& endpoint,
          break; // stop trying
      }
      if (_options.internal_port >= 0 && _options.has_builtin_services) {
 -        if (_options.internal_port  == _listen_addr.port) {
 -            LOG(ERROR) << "ServerOptions.internal_port=" << _options.internal_port
 -                       << " is same with port=" << _listen_addr.port << " to Start()";
-+        if (ListenInternalPort() != 0) {
-+            LOG(ERROR) << "ListenInternalPort failed";
-             return -1;
-         }
+-            return -1;
+-        }
 -        if (_options.internal_port == 0) {
 -            LOG(ERROR) << "ServerOptions.internal_port cannot be 0, which"
 -                " allocates a dynamic and probabaly unfiltered port,"
 -                " against the purpose of \"being internal\".";
 -            return -1;
 -        }
--        butil::EndPoint internal_point = _listen_addr;
--        internal_point.port = _options.internal_port;
--        butil::fd_guard sockfd(tcp_listen(internal_point));
--        if (sockfd < 0) {
--            LOG(ERROR) << "Fail to listen " << internal_point << " (internal)";
--            return -1;
--        }
+-        if (butil::is_endpoint_extended(endpoint)) {
+-            LOG(ERROR) << "internal_port is available in IPv4 address only";
++        if (ListenInternalPort() != 0) {
++            LOG(ERROR) << "ListenInternalPort failed";
+             return -1;
+         }
+ 
+@@ -1026,20 +1060,6 @@ int Server::StartInternal(const butil::EndPoint& endpoint,
+             LOG(ERROR) << "Fail to listen " << internal_point << " (internal)";
+             return -1;
+         }
 -        if (NULL == _internal_am) {
 -            _internal_am = BuildAcceptor();
 -            if (NULL == _internal_am) {
@@ -674,9 +722,9 @@ index 383b643..b83607c 100644
 -        }
 -        sockfd.release();
      }
-     
+ 
      PutPidFileIfNeeded();
-@@ -1051,7 +1068,83 @@ int Server::StartInternal(const butil::ip_t& ip,
+@@ -1083,7 +1103,83 @@ int Server::StartInternal(const butil::EndPoint& endpoint,
      return 0;
  }
  
@@ -758,22 +806,22 @@ index 383b643..b83607c 100644
 +        return StartAtSockFile(endpoint.socket_file.c_str(), opt);
 +    }
      return StartInternal(
-         endpoint.ip, PortRange(endpoint.port, endpoint.port), opt);
+         endpoint, PortRange(endpoint.port, endpoint.port), opt);
  }
 diff --git a/src/brpc/server.h b/src/brpc/server.h
-index 1c0968c..a83346b 100644
+index 261bfdce..be239e46 100644
 --- a/src/brpc/server.h
 +++ b/src/brpc/server.h
-@@ -374,6 +374,8 @@ public:
-     int Start(int port, const ServerOptions* opt);
-     // Start on `ip_str' + any useable port in `range'
+@@ -400,6 +400,8 @@ public:
      int Start(const char* ip_str, PortRange range, const ServerOptions *opt);
+     // Start on IP_ANY + first useable port in `range'
+     int Start(PortRange range, const ServerOptions* opt);
 +    // Start on unix socket file
 +    int StartAtSockFile(const char* socket_file, const ServerOptions *opt);
  
      // NOTE: Stop() is paired with Join() to stop a server without losing
      // requests. The point of separating them is that you can Stop() multiple
-@@ -543,6 +545,10 @@ friend class Controller;
+@@ -570,6 +572,10 @@ friend class Controller;
      // Create acceptor with handlers of protocols.
      Acceptor* BuildAcceptor();
  
@@ -781,27 +829,17 @@ index 1c0968c..a83346b 100644
 +
 +    int ListenInternalPort();
 +
-     int StartInternal(const butil::ip_t& ip,
+     int StartInternal(const butil::EndPoint& endpoint,
                        const PortRange& port_range,
                        const ServerOptions *opt);
 diff --git a/src/brpc/socket.cpp b/src/brpc/socket.cpp
-index e360da8..695ca3a 100644
+index 210ba9e9..86d07418 100644
 --- a/src/brpc/socket.cpp
 +++ b/src/brpc/socket.cpp
-@@ -19,6 +19,7 @@
- #include "butil/compat.h"                        // OS_MACOSX
- #include <openssl/ssl.h>
- #include <openssl/err.h>
-+#include <sys/un.h>
- #ifdef USE_MESALINK
- #include <mesalink/openssl/ssl.h>
- #include <mesalink/openssl/err.h>
-@@ -1205,7 +1206,14 @@ int Socket::Connect(const timespec* abstime,
-     } else {
-         _ssl_state = SSL_OFF;
+@@ -1154,6 +1154,13 @@ int Socket::Connect(const timespec* abstime,
+         return -1;
      }
--    butil::fd_guard sockfd(socket(AF_INET, SOCK_STREAM, 0));
-+    butil::fd_guard sockfd;
+     butil::fd_guard sockfd(socket(serv_addr.ss_family, SOCK_STREAM, 0));
 +
 +    if (butil::is_unix_sock_endpoint(remote_side())) {
 +        sockfd.reset(socket(AF_LOCAL, SOCK_STREAM, 0));
@@ -812,22 +850,12 @@ index e360da8..695ca3a 100644
      if (sockfd < 0) {
          PLOG(ERROR) << "Fail to create socket";
          return -1;
-@@ -1213,15 +1221,27 @@ int Socket::Connect(const timespec* abstime,
-     CHECK_EQ(0, butil::make_close_on_exec(sockfd));
+@@ -1162,8 +1169,19 @@ int Socket::Connect(const timespec* abstime,
      // We need to do async connect (to manage the timeout by ourselves).
      CHECK_EQ(0, butil::make_non_blocking(sockfd));
--    
--    
--    struct sockaddr_in serv_addr;
--    bzero((char*)&serv_addr, sizeof(serv_addr));
--    serv_addr.sin_family = AF_INET;
--    serv_addr.sin_addr = remote_side().ip;
--    serv_addr.sin_port = htons(remote_side().port);
+     
 -    const int rc = ::connect(
--        sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
-+
 +    int rc;
-+
 +    if (butil::is_unix_sock_endpoint(remote_side())) {
 +        struct sockaddr_un serv_addr;
 +        bzero((char*)&serv_addr, sizeof(serv_addr));
@@ -837,33 +865,27 @@ index e360da8..695ca3a 100644
 +        rc =  ::connect(
 +            sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
 +    } else {
-+        struct sockaddr_in serv_addr;
-+        bzero((char*)&serv_addr, sizeof(serv_addr));
-+        serv_addr.sin_family = AF_INET;
-+        serv_addr.sin_addr = remote_side().ip;
-+        serv_addr.sin_port = htons(remote_side().port);
 +        rc = ::connect(
-+            sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+         sockfd, (struct sockaddr*)&serv_addr, addr_size);
 +    }
-+
      if (rc != 0 && errno != EINPROGRESS) {
          PLOG(WARNING) << "Fail to connect to " << remote_side();
          return -1;
 diff --git a/src/bthread/bthread.h b/src/bthread/bthread.h
-index e4c9476..37d5121 100644
+index c5fa4c6d..2e689a9a 100644
 --- a/src/bthread/bthread.h
 +++ b/src/bthread/bthread.h
-@@ -27,6 +27,7 @@
+@@ -30,6 +30,7 @@
  #if defined(__cplusplus)
  #  include <iostream>
  #  include "bthread/mutex.h"        // use bthread_mutex_t in the RAII way
-+#  include "bthread/rwlock.h"        // use bthread_rwlock_t in the RAII way
++#  include "bthread/rwlock.h"
  #endif
  
  #include "bthread/id.h"
 diff --git a/src/bthread/rwlock.cpp b/src/bthread/rwlock.cpp
 new file mode 100644
-index 0000000..418f4ad
+index 00000000..418f4ad0
 --- /dev/null
 +++ b/src/bthread/rwlock.cpp
 @@ -0,0 +1,163 @@
@@ -1032,7 +1054,7 @@ index 0000000..418f4ad
 +}
 diff --git a/src/bthread/rwlock.h b/src/bthread/rwlock.h
 new file mode 100644
-index 0000000..786df3b
+index 00000000..786df3bc
 --- /dev/null
 +++ b/src/bthread/rwlock.h
 @@ -0,0 +1,130 @@
@@ -1167,10 +1189,10 @@ index 0000000..786df3b
 +
 +#endif
 diff --git a/src/bthread/task_control.cpp b/src/bthread/task_control.cpp
-index 2527c72..b6ae1b2 100644
+index 3b90dc78..a373d815 100644
 --- a/src/bthread/task_control.cpp
 +++ b/src/bthread/task_control.cpp
-@@ -55,7 +55,7 @@ void run_worker_startfn() {
+@@ -58,7 +58,7 @@ void run_worker_startfn() {
  void* TaskControl::worker_thread(void* arg) {
      run_worker_startfn();    
  #ifdef BAIDU_INTERNAL
@@ -1180,10 +1202,10 @@ index 2527c72..b6ae1b2 100644
      
      TaskControl* c = static_cast<TaskControl*>(arg);
 diff --git a/src/bthread/timer_thread.cpp b/src/bthread/timer_thread.cpp
-index 1a5ff35..89b3c99 100644
+index 2c2dd9b2..f311a1b8 100644
 --- a/src/bthread/timer_thread.cpp
 +++ b/src/bthread/timer_thread.cpp
-@@ -310,7 +310,7 @@ static T deref_value(void* arg) {
+@@ -313,7 +313,7 @@ static T deref_value(void* arg) {
  void TimerThread::run() {
      run_worker_startfn();
  #ifdef BAIDU_INTERNAL
@@ -1193,10 +1215,10 @@ index 1a5ff35..89b3c99 100644
  
      int64_t last_sleep_time = butil::gettimeofday_us();
 diff --git a/src/bthread/types.h b/src/bthread/types.h
-index f81ff0c..1a12491 100644
+index d56368f1..603df31f 100644
 --- a/src/bthread/types.h
 +++ b/src/bthread/types.h
-@@ -170,6 +170,8 @@ typedef struct {
+@@ -175,6 +175,8 @@ typedef struct {
  } bthread_condattr_t;
  
  typedef struct {
@@ -1205,38 +1227,41 @@ index f81ff0c..1a12491 100644
  } bthread_rwlock_t;
  
  typedef struct {
-diff --git a/src/butil/comlog_sink.h b/src/butil/comlog_sink.h
-index 247336c..a420d42 100644
---- a/src/butil/comlog_sink.h
-+++ b/src/butil/comlog_sink.h
-@@ -101,18 +101,18 @@ struct ComlogSinkOptions {
+diff --git a/src/butil/details/extended_endpoint.hpp b/src/butil/details/extended_endpoint.hpp
+index 36a67719..8f901e48 100644
+--- a/src/butil/details/extended_endpoint.hpp
++++ b/src/butil/details/extended_endpoint.hpp
+@@ -37,8 +37,8 @@ namespace butil {
+ namespace details {
  
- // The LogSink to flush logs into comlog. Notice that this is a singleton class.
- // [ Setup from a Configure file ]
--//   if (logging::ComlogSink::GetInstance()->SetupFromConfig("log/log.conf") != 0) {
-+//   if (butil::logging::ComlogSink::GetInstance()->SetupFromConfig("log/log.conf") != 0) {
- //       LOG(ERROR) << "Fail to setup comlog";
- //       return -1;
- //   }
--//   logging::SetLogSink(ComlogSink::GetInstance());
-+//   butil::logging::SetLogSink(ComlogSink::GetInstance());
- //
- // [ Setup from ComlogSinkOptions ]
--//   if (logging::ComlogSink::GetInstance()->Setup(NULL/*default options*/) != 0) {
-+//   if (butil::logging::ComlogSink::GetInstance()->Setup(NULL/*default options*/) != 0) {
- //       LOG(ERROR) << "Fail to setup comlog";
- //       return -1;
- //   }
--//   logging::SetLogSink(ComlogSink::GetInstance());
-+//   butil::logging::SetLogSink(ComlogSink::GetInstance());
+ #if __cplusplus >= 201103L
+-static_assert(sizeof(EndPoint) == sizeof(EndPoint::ip) + sizeof(EndPoint::port),
+-        "EndPoint size mismatch with the one in POD-style, may cause ABI problem");
++// static_assert(sizeof(EndPoint) == sizeof(EndPoint::ip) + sizeof(EndPoint::port),
++//        "EndPoint size mismatch with the one in POD-style, may cause ABI problem");
+ #endif
  
- class ComlogSink : public LogSink {
- public:
+ // For ipv6/unix socket address.
 diff --git a/src/butil/endpoint.cpp b/src/butil/endpoint.cpp
-index a0ecb35..bd141e7 100644
+index 498f42e5..d83f204c 100644
 --- a/src/butil/endpoint.cpp
 +++ b/src/butil/endpoint.cpp
-@@ -98,6 +98,10 @@ int ip2hostname(ip_t ip, std::string* host) {
+@@ -80,14 +80,6 @@ void EndPoint::reset(void) {
+     port = 0;
+ }
+ 
+-EndPoint::EndPoint(ip_t ip2, int port2) : ip(ip2), port(port2) {
+-    // Should never construct an extended endpoint by this way
+-    if (ExtendedEndPoint::is_extended(*this)) {
+-        CHECK(0) << "EndPoint construct with value that points to an extended EndPoint";
+-        ip = IP_ANY;
+-        port = 0;
+-    }
+-}
+ 
+ EndPoint::EndPoint(const EndPoint& rhs) {
+     set_endpoint(this, rhs.ip, rhs.port);
+@@ -155,6 +147,10 @@ int ip2hostname(ip_t ip, std::string* host) {
  
  EndPointStr endpoint2str(const EndPoint& point) {
      EndPointStr str;
@@ -1244,11 +1269,11 @@ index a0ecb35..bd141e7 100644
 +        snprintf(str._buf, sizeof(str._buf), "%s", point.socket_file.c_str());
 +        return str;
 +    }
-     if (inet_ntop(AF_INET, &point.ip, str._buf, INET_ADDRSTRLEN) == NULL) {
-         return endpoint2str(EndPoint(IP_NONE, 0));
-     }
-@@ -383,4 +387,13 @@ int get_remote_side(int fd, EndPoint *out) {
-     return 0;
+     if (ExtendedEndPoint::is_extended(point)) {
+         ExtendedEndPoint* eep = ExtendedEndPoint::address(point);
+         if (eep) {
+@@ -537,4 +533,13 @@ bool is_endpoint_extended(const EndPoint& point) {
+     return ExtendedEndPoint::is_extended(point);
  }
  
 +bool is_unix_sock_endpoint(const EndPoint& point) {
@@ -1262,10 +1287,10 @@ index a0ecb35..bd141e7 100644
 +
  }  // namespace butil
 diff --git a/src/butil/endpoint.h b/src/butil/endpoint.h
-index bec4dc5..b35fbe8 100644
+index 11831961..15fc4874 100644
 --- a/src/butil/endpoint.h
 +++ b/src/butil/endpoint.h
-@@ -25,6 +25,7 @@
+@@ -28,6 +28,7 @@
  #include "butil/containers/hash_tables.h"         // hashing functions
  
  namespace butil {
@@ -1273,12 +1298,12 @@ index bec4dc5..b35fbe8 100644
  
  // Type of an IP address
  typedef struct in_addr ip_t;
-@@ -79,18 +80,23 @@ const char* my_ip_cstr();
- 
- // ipv4 + port
+@@ -84,10 +85,14 @@ const char* my_ip_cstr();
+ // For UDS/IPv6 endpoint, to keep ABI compatibility, ip is ResourceId, and port is a special flag.
+ // See str2endpoint implementation for details.
  struct EndPoint {
 -    EndPoint() : ip(IP_ANY), port(0) {}
--    EndPoint(ip_t ip2, int port2) : ip(ip2), port(port2) {}
+-    EndPoint(ip_t ip2, int port2);
 +    EndPoint() : ip(IP_ANY), port(0), socket_file("") {}
 +    EndPoint(ip_t ip2, int port2) : ip(ip2), port(port2), socket_file("") {}
      explicit EndPoint(const sockaddr_in& in)
@@ -1288,6 +1313,10 @@ index bec4dc5..b35fbe8 100644
 +                                            socket_file(file) {}
 +    explicit EndPoint(const std::string& file) : ip(IP_ANY), port(0),
 +                                            socket_file(file) {}
+ 
+     EndPoint(const EndPoint&);
+     ~EndPoint();
+@@ -97,13 +102,20 @@ struct EndPoint {
      
      ip_t ip;
      int port;
@@ -1296,48 +1325,32 @@ index bec4dc5..b35fbe8 100644
  
  struct EndPointStr {
      const char* c_str() const { return _buf; }
--    char _buf[INET_ADDRSTRLEN + 16];
+-    char _buf[sizeof("unix:") + sizeof(sockaddr_un::sun_path)];
 +    char _buf[UNIX_SOCKET_FILE_PATH_SIZE];
  };
  
- // Convert EndPoint to c-style string. Notice that you can serialize 
-@@ -99,7 +105,13 @@ struct EndPointStr {
- // Example: printf("point=%s\n", endpoint2str(point).c_str());
- EndPointStr endpoint2str(const EndPoint&);
- 
--// Convert string `ip_and_port_str' to a EndPoint *point.
 +// is an unix socket endpoint or not
 +bool is_unix_sock_endpoint(const EndPoint& point);
 +
 +// is sock file name is valid
 +bool is_sock_file_name_valid(const char* filename);
 +
-+// Convert string `ip_and_port_str or unix_socket_file_path' to a EndPoint *point.
- // Returns 0 on success, -1 otherwise.
- int str2endpoint(const char* ip_and_port_str, EndPoint* point);
- int str2endpoint(const char* ip_str, int port, EndPoint* point);
-@@ -183,7 +195,7 @@ inline bool operator!=(EndPoint p1, EndPoint p2) {
- }
- 
- inline std::ostream& operator<<(std::ostream& os, const EndPoint& ep) {
--    return os << ep.ip << ':' << ep.port;
-+    return os << endpoint2str(ep).c_str();
- }
- inline std::ostream& operator<<(std::ostream& os, const EndPointStr& ep_str) {
-     return os << ep_str.c_str();
+ // Convert EndPoint to c-style string. Notice that you can serialize 
+ // EndPoint to std::ostream directly. Use this function when you don't 
+ // have streaming log.
 diff --git a/src/butil/logging.cc b/src/butil/logging.cc
-index b9e2b23..cd6008f 100644
+index fa0dbae8..9a53bef9 100644
 --- a/src/butil/logging.cc
 +++ b/src/butil/logging.cc
-@@ -110,6 +110,7 @@ int BAIDU_WEAK bthread_setspecific(bthread_key_t key, void* data);
+@@ -115,6 +115,7 @@ int BAIDU_WEAK bthread_setspecific(bthread_key_t key, void* data);
  void* BAIDU_WEAK bthread_getspecific(bthread_key_t key);
  }
  
-+namespace butil{
++namespace butil {
  namespace logging {
  
  DEFINE_bool(crash_on_fatal_log, false,
-@@ -838,8 +839,8 @@ void LogStream::FlushWithoutReset() {
+@@ -947,8 +948,8 @@ void LogStream::FlushWithoutReset() {
              // Remove top 3 frames which are useless to users.
              // #2 may be ~LogStream
              //   #0 0x00000059ccae butil::debug::StackTrace::StackTrace()
@@ -1348,27 +1361,28 @@ index b9e2b23..cd6008f 100644
              butil::debug::StackTrace trace_stripped(addrs + 3, count - 3);
              trace_stripped.OutputToStream(this);
          } else {
-@@ -1435,6 +1436,7 @@ const bool ALLOW_UNUSED validate_min_log_level = GFLAGS_NS::RegisterFlagValidato
-     &FLAGS_minloglevel, NonNegativeInteger);
+@@ -1545,6 +1546,8 @@ const bool ALLOW_UNUSED validate_min_log_level = GFLAGS_NS::RegisterFlagValidato
  
  }  // namespace logging
-+}  // namespace butil
  
++} // namespace butil
++
  std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
      return out << butil::WideToUTF8(std::wstring(wstr));
+ }
 diff --git a/src/butil/logging.h b/src/butil/logging.h
-index 998ee95..3a5f4f7 100644
+index e2a41098..e50a4feb 100644
 --- a/src/butil/logging.h
 +++ b/src/butil/logging.h
-@@ -198,6 +198,7 @@
+@@ -200,6 +200,7 @@
  // There is the special severity of DFATAL, which logs FATAL in debug mode,
  // ERROR in normal mode.
  
-+namespace butil{
++namespace butil {
  namespace logging {
  
  // TODO(avi): do we want to do a unification of character types here?
-@@ -358,8 +359,8 @@ const LogSeverity BLOG_DFATAL = BLOG_ERROR;
+@@ -365,8 +366,8 @@ const LogSeverity BLOG_DFATAL = BLOG_ERROR;
  // by LOG() and LOG_IF, etc. Since these are used all over our code, it's
  // better to have compact code for these operations.
  #define BAIDU_COMPACT_LOG_EX(severity, ClassName, ...)  \
@@ -1379,16 +1393,16 @@ index 998ee95..3a5f4f7 100644
  
  #define BAIDU_COMPACK_LOG(severity)             \
      BAIDU_COMPACT_LOG_EX(severity, LogMessage)
-@@ -380,7 +381,7 @@ const LogSeverity BLOG_0 = BLOG_ERROR;
+@@ -387,7 +388,7 @@ const LogSeverity BLOG_0 = BLOG_ERROR;
  // LOG_IS_ON(DFATAL) always holds in debug mode. In particular, CHECK()s will
  // always fire if they fail.
  #define LOG_IS_ON(severity)                                     \
--    (logging::BLOG_##severity >= ::logging::GetMinLogLevel())
-+    (butil::logging::BLOG_##severity >= ::butil::logging::GetMinLogLevel())
+-    (::logging::BLOG_##severity >= ::logging::GetMinLogLevel())
++    (::butil::logging::BLOG_##severity >= ::butil::logging::GetMinLogLevel())
  
  #if defined(__GNUC__)
  // We emit an anonymous static int* variable at every VLOG_IS_ON(n) site.
-@@ -390,18 +391,18 @@ const LogSeverity BLOG_0 = BLOG_ERROR;
+@@ -397,18 +398,18 @@ const LogSeverity BLOG_0 = BLOG_ERROR;
  // matching the current source file that represents results of
  // parsing of --vmodule flag and/or SetVLOGLevel calls.
  # define BAIDU_VLOG_IS_ON(verbose_level, filepath)                      \
@@ -1411,7 +1425,7 @@ index 998ee95..3a5f4f7 100644
  #endif
  
  #define VLOG_IS_ON(verbose_level) BAIDU_VLOG_IS_ON(verbose_level, __FILE__)
-@@ -432,7 +433,7 @@ void print_vlog_sites(VLogSitePrinter*);
+@@ -439,7 +440,7 @@ void print_vlog_sites(VLogSitePrinter*);
  // Helper macro which avoids evaluating the arguments to a stream if
  // the condition doesn't hold.
  #define BAIDU_LAZY_STREAM(stream, condition)                            \
@@ -1420,12 +1434,12 @@ index 998ee95..3a5f4f7 100644
  
  // We use the preprocessor's merging operator, "##", so that, e.g.,
  // LOG(INFO) becomes the token BAIDU_COMPACK_LOG(INFO).  There's some funny
-@@ -470,14 +471,14 @@ void print_vlog_sites(VLogSitePrinter*);
+@@ -477,14 +478,14 @@ void print_vlog_sites(VLogSitePrinter*);
  // file/line can be specified at running-time. This is useful for printing
  // logs with known file/line inside a LogSink or LogMessageHandler
  #define LOG_AT_STREAM(severity, file, line)                             \
 -    ::logging::LogMessage(file, line, ::logging::BLOG_##severity).stream()
-+    ::butil::logging::LogMessage(file, line, ::butil::logging::BLOG_##severity).stream()
++    ::butil::logging::LogMessage(file, line, ::logging::BLOG_##severity).stream()
  
  #define LOG_AT(severity, file, line)                                    \
      BAIDU_LAZY_STREAM(LOG_AT_STREAM(severity, file, line), LOG_IS_ON(severity))
@@ -1437,7 +1451,7 @@ index 998ee95..3a5f4f7 100644
  
  #define VLOG(verbose_level)                                             \
      BAIDU_LAZY_STREAM(VLOG_STREAM(verbose_level), VLOG_IS_ON(verbose_level))
-@@ -505,12 +506,12 @@ void print_vlog_sites(VLogSitePrinter*);
+@@ -512,12 +513,12 @@ void print_vlog_sites(VLogSitePrinter*);
  
  #if defined (OS_WIN)
  #define VPLOG_STREAM(verbose_level)                                     \
@@ -1454,7 +1468,7 @@ index 998ee95..3a5f4f7 100644
  #endif
  
  #define VPLOG(verbose_level)                                            \
-@@ -523,11 +524,11 @@ void print_vlog_sites(VLogSitePrinter*);
+@@ -530,11 +531,11 @@ void print_vlog_sites(VLogSitePrinter*);
  #if defined(OS_WIN)
  #define PLOG_STREAM(severity)                                           \
      BAIDU_COMPACT_LOG_EX(severity, Win32ErrorLogMessage,                \
@@ -1468,7 +1482,7 @@ index 998ee95..3a5f4f7 100644
  #endif
  
  #define PLOG(severity)                                                  \
-@@ -537,7 +538,7 @@ void print_vlog_sites(VLogSitePrinter*);
+@@ -544,7 +545,7 @@ void print_vlog_sites(VLogSitePrinter*);
  
  // The actual stream used isn't important.
  #define BAIDU_EAT_STREAM_PARAMS                                           \
@@ -1477,7 +1491,7 @@ index 998ee95..3a5f4f7 100644
  
  // CHECK dies with a fatal error if condition is not true.  It is *not*
  // controlled by NDEBUG, so the check will be executed regardless of
-@@ -578,9 +579,9 @@ void print_vlog_sites(VLogSitePrinter*);
+@@ -585,9 +586,9 @@ void print_vlog_sites(VLogSitePrinter*);
  // CHECK_EQ(...) else { ... } work properly.
  #define BAIDU_CHECK_OP(name, op, val1, val2)                                  \
      if (std::string* _result =                                          \
@@ -1489,7 +1503,7 @@ index 998ee95..3a5f4f7 100644
  
  #endif
  
-@@ -805,10 +806,10 @@ const LogSeverity BLOG_DCHECK = BLOG_INFO;
+@@ -812,10 +813,10 @@ const LogSeverity BLOG_DCHECK = BLOG_INFO;
  #define BAIDU_DCHECK_OP(name, op, val1, val2)                           \
      if (DCHECK_IS_ON())                                                   \
          if (std::string* _result =                                      \
@@ -1503,7 +1517,7 @@ index 998ee95..3a5f4f7 100644
                  _result).stream()
  
  // Equality/Inequality checks - compare two values, and log a
-@@ -1050,12 +1051,12 @@ BUTIL_EXPORT void CloseLogFile();
+@@ -1057,12 +1058,12 @@ BUTIL_EXPORT void CloseLogFile();
  BUTIL_EXPORT void RawLog(int level, const char* message);
  
  #define RAW_LOG(level, message)                         \
@@ -1514,11 +1528,11 @@ index 998ee95..3a5f4f7 100644
      do {                                                                \
          if (!(condition))                                               \
 -            ::logging::RawLog(::logging::BLOG_FATAL, "Check failed: " #condition "\n"); \
-+            ::butil::logging::RawLog(::butil::logging::BLOG_FATAL, "Check failed: " #condition "\n"); \
++            ::butil::::logging::RawLog(::butil::logging::BLOG_FATAL, "Check failed: " #condition "\n"); \
      } while (0)
  
  #if defined(OS_WIN)
-@@ -1069,10 +1070,11 @@ inline LogStream& noflush(LogStream& ls) {
+@@ -1076,10 +1077,11 @@ inline LogStream& noflush(LogStream& ls) {
  }
  
  }  // namespace logging
@@ -1533,77 +1547,90 @@ index 998ee95..3a5f4f7 100644
  
  // These functions are provided as a convenience for logging, which is where we
  // use streams (it is against Google style to use streams in other places). It
+diff --git a/src/butil/thread_local.h b/src/butil/thread_local.h
+index 1c462b0f..29fca559 100644
+--- a/src/butil/thread_local.h
++++ b/src/butil/thread_local.h
+@@ -24,6 +24,22 @@
+ #include <cstddef>                  // NULL
+ #include "butil/macros.h"            
+ 
++// Provide thread_local keyword (for primitive types) before C++11
++// DEPRECATED: define this keyword before C++11 might make the variable ABI
++// incompatible between C++11 and C++03
++#if !defined(thread_local) &&                                           \
++    (__cplusplus < 201103L ||                                           \
++     (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40800)
++// GCC supports thread_local keyword of C++11 since 4.8.0
++#ifdef _MSC_VER
++// WARNING: don't use this macro in C++03
++#define thread_local __declspec(thread)
++#else
++// WARNING: don't use this macro in C++03
++#define thread_local __thread
++#endif  // _MSC_VER
++#endif
++
+ #ifdef _MSC_VER
+ #define BAIDU_THREAD_LOCAL __declspec(thread)
+ #else
 diff --git a/src/bvar/detail/sampler.cpp b/src/bvar/detail/sampler.cpp
-index 90b4f80..1de8097 100644
+index 9887539f..4147f37c 100644
 --- a/src/bvar/detail/sampler.cpp
 +++ b/src/bvar/detail/sampler.cpp
-@@ -1,11 +1,11 @@
- // Copyright (c) 2015 Baidu, Inc.
--// 
-+//
- // Licensed under the Apache License, Version 2.0 (the "License");
- // you may not use this file except in compliance with the License.
- // You may obtain a copy of the License at
--// 
-+//
- //     http://www.apache.org/licenses/LICENSE-2.0
--// 
-+//
- // Unless required by applicable law or agreed to in writing, software
- // distributed under the License is distributed on an "AS IS" BASIS,
- // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-@@ -73,10 +73,10 @@ public:
-     static double get_cumulated_time(void* arg) {
-         return ((SamplerCollector*)arg)->_cumulated_time_us / 1000.0 / 1000.0;
-     }
--    
-+
- private:
-     void run();
--    
-+
-     static void* sampling_thread(void* arg) {
-         ((SamplerCollector*)arg)->run();
-         return NULL;
-@@ -93,9 +93,9 @@ void SamplerCollector::run() {
-     butil::LinkNode<Sampler> root;
-     int consecutive_nosleep = 0;
+@@ -124,8 +124,8 @@ private:
+ };
+ 
  #ifndef UNIT_TEST
--    PassiveStatus<double> cumulated_time(get_cumulated_time, this);
--    bvar::PerSecond<bvar::PassiveStatus<double> > usage(
--            "bvar_sampler_collector_usage", &cumulated_time, 10);
-+    // PassiveStatus<double> cumulated_time(get_cumulated_time, this);
-+    // bvar::PerSecond<bvar::PassiveStatus<double> > usage(
-+    //        "bvar_sampler_collector_usage", &cumulated_time, 10);
+-static PassiveStatus<double>* s_cumulated_time_bvar = NULL;
+-static bvar::PerSecond<bvar::PassiveStatus<double> >* s_sampling_thread_usage_bvar = NULL;
++// static PassiveStatus<double>* s_cumulated_time_bvar = NULL;
++// static bvar::PerSecond<bvar::PassiveStatus<double> >* s_sampling_thread_usage_bvar = NULL;
  #endif
-     while (!_stop) {
-         int64_t abstime = butil::gettimeofday_us();
-@@ -133,7 +133,7 @@ void SamplerCollector::run() {
-         }
-         if (slept) {
-             consecutive_nosleep = 0;
--        } else {            
-+        } else {
-             if (++consecutive_nosleep >= WARN_NOSLEEP_THRESHOLD) {
-                 consecutive_nosleep = 0;
-                 LOG(WARNING) << "bvar is busy at sampling for "
-diff --git a/test/BUILD b/test/BUILD
-index b1f9ae5..c1bdfbb 100644
---- a/test/BUILD
-+++ b/test/BUILD
-@@ -220,6 +220,7 @@ cc_test(
-         "bthread_dispatcher_unittest.cpp",
-         "bthread_fd_unittest.cpp",
-         "bthread_mutex_unittest.cpp",
-+        "bthread_brpc_rwlock_unittest.cpp",
-         "bthread_setconcurrency_unittest.cpp",
-         # glog CHECK die with a fatal error
-         "bthread_key_unittest.cpp"
+ 
+ DEFINE_int32(bvar_sampler_thread_start_delay_us, 10000, "bvar sampler thread start delay us");
+@@ -139,15 +139,15 @@ void SamplerCollector::run() {
+     //   may be abandoned at any time after forking.
+     // * They can't created inside the constructor of SamplerCollector as well,
+     //   which results in deadlock.
+-    if (s_cumulated_time_bvar == NULL) {
+-        s_cumulated_time_bvar =
+-            new PassiveStatus<double>(get_cumulated_time, this);
+-    }
+-    if (s_sampling_thread_usage_bvar == NULL) {
+-        s_sampling_thread_usage_bvar =
+-            new bvar::PerSecond<bvar::PassiveStatus<double> >(
+-                    "bvar_sampler_collector_usage", s_cumulated_time_bvar, 10);
+-    }
++    // if (s_cumulated_time_bvar == NULL) {
++    //     s_cumulated_time_bvar =
++    //         new PassiveStatus<double>(get_cumulated_time, this);
++    // }
++    // if (s_sampling_thread_usage_bvar == NULL) {
++    //     s_sampling_thread_usage_bvar =
++    //         new bvar::PerSecond<bvar::PassiveStatus<double> >(
++    //                 "bvar_sampler_collector_usage", s_cumulated_time_bvar, 10);
++    // }
+ #endif
+ 
+     butil::LinkNode<Sampler> root;
+diff --git a/test/BUILD.bazel b/test/BUILD.bazel
+index a2eea9cf..fdd3ff37 100644
+--- a/test/BUILD.bazel
++++ b/test/BUILD.bazel
+@@ -221,6 +221,7 @@ cc_test(
+             "bthread_execution_queue_unittest.cpp",
+             "bthread_dispatcher_unittest.cpp",
+             "bthread_fd_unittest.cpp",
++            "bthread_brpc_rwlock_unittest.cpp",
+             "bthread_mutex_unittest.cpp",
+             "bthread_setconcurrency_unittest.cpp",
+             # glog CHECK die with a fatal error
 diff --git a/test/brpc_channel_unittest.cpp b/test/brpc_channel_unittest.cpp
-index 049a497..48fb927 100644
+index 644e983b..b493d6c7 100644
 --- a/test/brpc_channel_unittest.cpp
 +++ b/test/brpc_channel_unittest.cpp
-@@ -12,6 +12,7 @@
+@@ -28,6 +28,7 @@
  #include "butil/macros.h"
  #include "butil/logging.h"
  #include "butil/files/temp_file.h"
@@ -1611,7 +1638,7 @@ index 049a497..48fb927 100644
  #include "brpc/socket.h"
  #include "brpc/acceptor.h"
  #include "brpc/server.h"
-@@ -161,6 +162,7 @@ protected:
+@@ -177,6 +178,7 @@ protected:
  
          EXPECT_EQ(0, _server_list.save(butil::endpoint2str(_ep).c_str()));           
          _naming_url = std::string("File://") + _server_list.fname();
@@ -1619,7 +1646,7 @@ index 049a497..48fb927 100644
      };
  
      virtual ~ChannelTest(){};
-@@ -168,6 +170,7 @@ protected:
+@@ -184,6 +186,7 @@ protected:
      };
      virtual void TearDown() {
          StopAndJoin();
@@ -1627,8 +1654,8 @@ index 049a497..48fb927 100644
      };
  
      static void register_protocol() {
-@@ -253,6 +256,17 @@ protected:
-         return 0;
+@@ -254,6 +257,17 @@ protected:
+         ts->_svc.CallMethod(method, cntl, req, res, done);
      }
  
 +    int StartAccept(const char* socket_file) {
@@ -1642,10 +1669,10 @@ index 049a497..48fb927 100644
 +        return 0;
 +    }
 +
-     void StopAndJoin() {
-         _messenger.StopAccept(0);
-         _messenger.Join();
-@@ -276,6 +290,20 @@ protected:
+     int StartAccept(butil::EndPoint ep) {
+         int listening_fd = -1;
+         while ((listening_fd = tcp_listen(ep)) < 0) {
+@@ -292,6 +306,20 @@ protected:
              EXPECT_EQ(0, channel->Init(_naming_url.c_str(), "rR", &opt));
          }                                         
      }
@@ -1666,7 +1693,7 @@ index 049a497..48fb927 100644
      
      void CallMethod(brpc::ChannelBase* channel, 
                      brpc::Controller* cntl,
-@@ -334,6 +362,22 @@ protected:
+@@ -350,6 +378,22 @@ protected:
          
          EXPECT_EQ(ECONNREFUSED, cntl.ErrorCode()) << cntl.ErrorText();
      }
@@ -1689,11 +1716,11 @@ index 049a497..48fb927 100644
      
      void TestConnectionFailedParallel(bool single_server, bool async, 
                                        bool short_connection) {
-@@ -469,6 +513,79 @@ protected:
+@@ -485,6 +529,79 @@ protected:
          StopAndJoin();
      }
  
-+    void TestSuccessUnixSocket(bool async, bool short_connection) {
++   void TestSuccessUnixSocket(bool async, bool short_connection) {
 +        std::cout << " *** async=" << async
 +                  << " short=" << short_connection << std::endl;
 +
@@ -1769,7 +1796,7 @@ index 049a497..48fb927 100644
      class SetCode : public brpc::CallMapper {
      public:
          brpc::SubCall Map(
-@@ -814,6 +931,27 @@ protected:
+@@ -830,6 +947,27 @@ protected:
          StopAndJoin();
      }
  
@@ -1797,10 +1824,11 @@ index 049a497..48fb927 100644
      void CancelBeforeCallMethodParallel(
          bool single_server, bool async, bool short_connection) {
          std::cout << " *** single=" << single_server
-@@ -908,6 +1046,38 @@ protected:
+@@ -924,7 +1062,39 @@ protected:
          EXPECT_TRUE(NULL == cntl.sub(0));
          StopAndJoin();
      }
+-    
 +
 +    void CancelDuringCallMethodUnixSocket(
 +        bool async, bool short_connection) {
@@ -1833,10 +1861,11 @@ index 049a497..48fb927 100644
 +        EXPECT_TRUE(NULL == cntl.sub(0));
 +        StopAndJoin();
 +    }
-     
++
      void CancelDuringCallMethodParallel(
          bool single_server, bool async, bool short_connection) {
-@@ -1014,6 +1184,28 @@ protected:
+         std::cout << " *** single=" << single_server
+@@ -1030,6 +1200,28 @@ protected:
          StopAndJoin();
      }
  
@@ -1865,7 +1894,7 @@ index 049a497..48fb927 100644
      void CancelAfterCallMethodParallel(
          bool single_server, bool async, bool short_connection) {
          std::cout << " *** single=" << single_server
-@@ -1077,6 +1269,35 @@ protected:
+@@ -1093,6 +1285,35 @@ protected:
          StopAndJoin();
      }
  
@@ -1901,7 +1930,7 @@ index 049a497..48fb927 100644
      void TestRequestNotInit(bool single_server, bool async,
                              bool short_connection) {
          std::cout << " *** single=" << single_server
-@@ -1094,6 +1315,21 @@ protected:
+@@ -1110,6 +1331,21 @@ protected:
          StopAndJoin();
      }
  
@@ -1923,7 +1952,7 @@ index 049a497..48fb927 100644
      void TestRequestNotInitParallel(bool single_server, bool async,
                                      bool short_connection) {
          std::cout << " *** single=" << single_server
-@@ -1170,6 +1406,28 @@ protected:
+@@ -1186,6 +1422,28 @@ protected:
          StopAndJoin();
      }
  
@@ -1952,7 +1981,7 @@ index 049a497..48fb927 100644
      void TestRPCTimeoutParallel(
          bool single_server, bool async, bool short_connection) {
          std::cout << " *** single=" << single_server
-@@ -1312,6 +1570,25 @@ protected:
+@@ -1330,6 +1588,25 @@ protected:
          StopAndJoin();
      }
  
@@ -1978,22 +2007,10 @@ index 049a497..48fb927 100644
      void TestCloseFDParallel(bool single_server, bool async, bool short_connection) {
          std::cout << " *** single=" << single_server
                    << " async=" << async
-@@ -1382,6 +1659,25 @@ protected:
-         ASSERT_EQ(0, StartAccept(_ep));
-         brpc::Channel channel;
-         SetUpChannel(&channel, single_server, short_connection);
-+
-+        brpc::Controller cntl;
-+        test::EchoRequest req;
-+        test::EchoResponse res;
-+        req.set_message(__FUNCTION__);
-+        req.set_server_fail(brpc::EINTERNAL);
-+        CallMethod(&channel, &cntl, &req, &res, async);
-+
-+        EXPECT_EQ(brpc::EINTERNAL, cntl.ErrorCode()) << cntl.ErrorText();
-+        StopAndJoin();
-+    }
-+
+@@ -1412,6 +1689,25 @@ protected:
+         StopAndJoin();
+     }
+ 
 +    void TestServerFailUnixSocket(bool async, bool short_connection) {
 +        std::cout << " *** async=" << async
 +                  << " short=" << short_connection << std::endl;
@@ -2001,14 +2018,34 @@ index 049a497..48fb927 100644
 +        ASSERT_EQ(0, StartAccept(_socket_file));
 +        brpc::Channel channel;
 +        SetUpChannel(&channel, short_connection);
-                 
-         brpc::Controller cntl;
-         test::EchoRequest req;
-@@ -1461,6 +1757,32 @@ protected:
-         ASSERT_EQ(0, StartAccept(_ep));
-         brpc::Channel* channel = new brpc::Channel();
-         SetUpChannel(channel, single_server, short_connection);
++                
++        brpc::Controller cntl;
++        test::EchoRequest req;
++        test::EchoResponse res;
++        req.set_message(__FUNCTION__);
++        req.set_server_fail(brpc::EINTERNAL);
++        CallMethod(&channel, &cntl, &req, &res, async);
++        
++        EXPECT_EQ(brpc::EINTERNAL, cntl.ErrorCode()) << cntl.ErrorText();
++        StopAndJoin();
++    }
 +
+     void TestServerFailParallel(bool single_server, bool async, bool short_connection) {
+         std::cout << " *** single=" << single_server
+                   << " async=" << async
+@@ -1498,7 +1794,33 @@ protected:
+ 
+         StopAndJoin();
+     }
+-    
++
++    void TestDestroyChannelUnixSocket(bool short_connection) {
++        std::cout << "***short=" << short_connection << std::endl;
++
++        ASSERT_EQ(0, StartAccept(_socket_file));
++        brpc::Channel* channel = new brpc::Channel();
++        SetUpChannel(channel, short_connection);
++                
 +        brpc::Controller cntl;
 +        test::EchoRequest req;
 +        test::EchoResponse res;
@@ -2028,16 +2065,10 @@ index 049a497..48fb927 100644
 +        StopAndJoin();
 +    }
 +
-+    void TestDestroyChannelUnixSocket(bool short_connection) {
-+        std::cout << "***short=" << short_connection << std::endl;
-+
-+        ASSERT_EQ(0, StartAccept(_socket_file));
-+        brpc::Channel* channel = new brpc::Channel();
-+        SetUpChannel(channel, short_connection);
-                 
-         brpc::Controller cntl;
-         test::EchoRequest req;
-@@ -1623,6 +1945,37 @@ protected:
+     void TestDestroyChannelParallel(bool single_server, bool short_connection) {
+         std::cout << "*** single=" << single_server
+                   << ", short=" << short_connection << std::endl;
+@@ -1641,6 +1963,37 @@ protected:
          StopAndJoin();
      }
  
@@ -2075,22 +2106,10 @@ index 049a497..48fb927 100644
      void TestAuthenticationParallel(bool single_server, 
                                      bool async, bool short_connection) {
          std::cout << " *** single=" << single_server
-@@ -1751,6 +2104,66 @@ protected:
-             } else {
-                 EXPECT_TRUE(cntl.retried_count() > 0);
-             }
-+        }
-+        StopAndJoin();
-+        bthread_usleep(100000);  // wait for stop
-+
-+        // Retry when connection failed
-+        cntl.Reset();
-+        cntl.set_max_retry(RETRY_NUM);
-+        CallMethod(&channel, &cntl, &req, &res, async);
-+        EXPECT_EQ(EHOSTDOWN, cntl.ErrorCode());
-+        EXPECT_EQ(RETRY_NUM, cntl.retried_count());
-+    }
-+
+@@ -1781,6 +2134,66 @@ protected:
+         EXPECT_EQ(RETRY_NUM, cntl.retried_count());
+     }
+ 
 +    void TestRetryUnixSocket(bool async, bool short_connection) {
 +        std::cout << " *** async=" << async
 +                  << " short=" << short_connection << std::endl;
@@ -2139,10 +2158,22 @@ index 049a497..48fb927 100644
 +            } else {
 +                EXPECT_TRUE(cntl.retried_count() > 0);
 +            }
-         }   
-         StopAndJoin();
-         bthread_usleep(100000);  // wait for stop
-@@ -1804,6 +2217,7 @@ protected:
++        }   
++        StopAndJoin();
++        bthread_usleep(100000);  // wait for stop
++        
++        // Retry when connection failed
++        cntl.Reset();
++        cntl.set_max_retry(RETRY_NUM);
++        CallMethod(&channel, &cntl, &req, &res, async);
++        EXPECT_EQ(EHOSTDOWN, cntl.ErrorCode());
++        EXPECT_EQ(RETRY_NUM, cntl.retried_count());
++    }
++
+     void TestRetryOtherServer(bool async, bool short_connection) {
+         ASSERT_EQ(0, StartAccept(_ep));
+ 
+@@ -1822,6 +2235,7 @@ protected:
      bool _close_fd_once;
      
      MyEchoService _svc;
@@ -2150,10 +2181,11 @@ index 049a497..48fb927 100644
  };
  
  class MyShared : public brpc::SharedObject {
-@@ -1871,6 +2285,35 @@ TEST_F(ChannelTest, init_as_single_server) {
-     }
- }
+@@ -1836,6 +2250,36 @@ public:
+ int MyShared::nctor = 0;
+ int MyShared::ndtor = 0;
  
++
 +TEST_F(ChannelTest, init_with_socket_file) {
 +    {
 +        brpc::Channel channel;
@@ -2183,13 +2215,14 @@ index 049a497..48fb927 100644
 +    }
 +}
 +
- TEST_F(ChannelTest, init_using_unknown_naming_service) {
-     brpc::Channel channel;
-     ASSERT_EQ(-1, channel.Init("unknown://unknown", "unknown", NULL));
-@@ -1952,6 +2395,14 @@ TEST_F(ChannelTest, connection_failed) {
+ TEST_F(ChannelTest, intrusive_ptr_sanity) {
+     MyShared::nctor = 0;
+     MyShared::ndtor = 0;
+@@ -2046,6 +2490,15 @@ TEST_F(ChannelTest, connection_failed) {
      }
  }
  
++
 +TEST_F(ChannelTest, connection_failed_unix_socket) {
 +    for (int i = 0; i <= 1; ++i) { // Flag Asynchronous
 +        for (int j = 0; j <= 1; ++j) { // Flag ShortConnection
@@ -2201,7 +2234,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, empty_parallel_channel) {
      brpc::ParallelChannel channel;
  
-@@ -2064,6 +2515,14 @@ TEST_F(ChannelTest, success) {
+@@ -2158,6 +2611,14 @@ TEST_F(ChannelTest, success) {
      }
  }
  
@@ -2216,7 +2249,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, success_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2124,6 +2583,14 @@ TEST_F(ChannelTest, cancel_before_callmethod) {
+@@ -2218,6 +2679,14 @@ TEST_F(ChannelTest, cancel_before_callmethod) {
      }
  }
  
@@ -2231,7 +2264,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, cancel_before_callmethod_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2154,6 +2621,14 @@ TEST_F(ChannelTest, cancel_during_callmethod) {
+@@ -2248,6 +2717,14 @@ TEST_F(ChannelTest, cancel_during_callmethod) {
      }
  }
  
@@ -2246,7 +2279,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, cancel_during_callmethod_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2184,6 +2659,14 @@ TEST_F(ChannelTest, cancel_after_callmethod) {
+@@ -2278,6 +2755,15 @@ TEST_F(ChannelTest, cancel_after_callmethod) {
      }
  }
  
@@ -2258,10 +2291,11 @@ index 049a497..48fb927 100644
 +    }
 +}
 +
++
  TEST_F(ChannelTest, cancel_after_callmethod_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2204,6 +2687,14 @@ TEST_F(ChannelTest, request_not_init) {
+@@ -2298,6 +2784,14 @@ TEST_F(ChannelTest, request_not_init) {
      }
  }
  
@@ -2276,7 +2310,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, request_not_init_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2234,6 +2725,14 @@ TEST_F(ChannelTest, timeout) {
+@@ -2328,6 +2822,14 @@ TEST_F(ChannelTest, timeout) {
      }
  }
  
@@ -2291,7 +2325,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, timeout_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2274,6 +2773,14 @@ TEST_F(ChannelTest, close_fd) {
+@@ -2368,6 +2870,14 @@ TEST_F(ChannelTest, close_fd) {
      }
  }
  
@@ -2306,7 +2340,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, close_fd_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2304,6 +2811,14 @@ TEST_F(ChannelTest, server_fail) {
+@@ -2398,6 +2908,14 @@ TEST_F(ChannelTest, server_fail) {
      }
  }
  
@@ -2321,7 +2355,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, server_fail_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2334,6 +2849,14 @@ TEST_F(ChannelTest, authentication) {
+@@ -2428,6 +2946,14 @@ TEST_F(ChannelTest, authentication) {
      }
  }
  
@@ -2336,7 +2370,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, authentication_parallel) {
      for (int i = 0; i <= 1; ++i) { // Flag SingleServer 
          for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
-@@ -2364,6 +2887,14 @@ TEST_F(ChannelTest, retry) {
+@@ -2458,6 +2984,14 @@ TEST_F(ChannelTest, retry) {
      }
  }
  
@@ -2351,7 +2385,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, retry_other_servers) {
      for (int j = 0; j <= 1; ++j) { // Flag Asynchronous
          for (int k = 0; k <=1; ++k) { // Flag ShortConnection
-@@ -2453,6 +2984,14 @@ TEST_F(ChannelTest, clear_attachment_after_retry) {
+@@ -2547,6 +3081,14 @@ TEST_F(ChannelTest, clear_attachment_after_retry) {
      }
  }
  
@@ -2366,7 +2400,7 @@ index 049a497..48fb927 100644
  TEST_F(ChannelTest, destroy_channel) {
      for (int i = 0; i <= 1; ++i) {
          for (int j = 0; j <= 1; ++j) {
-@@ -2461,6 +3000,12 @@ TEST_F(ChannelTest, destroy_channel) {
+@@ -2555,6 +3097,12 @@ TEST_F(ChannelTest, destroy_channel) {
      }
  }
  
@@ -2380,95 +2414,202 @@ index 049a497..48fb927 100644
      for (int i = 0; i <= 1; ++i) {
          for (int j = 0; j <= 1; ++j) {
 diff --git a/test/brpc_prometheus_metrics_unittest.cpp b/test/brpc_prometheus_metrics_unittest.cpp
-index fe9055d..38dd7cb 100644
+index 064c14f7..a771713a 100644
 --- a/test/brpc_prometheus_metrics_unittest.cpp
 +++ b/test/brpc_prometheus_metrics_unittest.cpp
-@@ -123,3 +123,80 @@ TEST(PrometheusMetrics, sanity) {
-     ASSERT_EQ(0, server.Stop(0));
-     ASSERT_EQ(0, server.Join());
- }
-+/*
-+TEST(PrometheusMetricsDumperTest, sanity) {
-+    butil::IOBufBuilder os;
-+    brpc::PrometheusMetricsDumper dumper(&os, "test");
-+    std::string test1("\"\"");
-+    ASSERT_FALSE(dumper.dump("test1", test1));
-+
-+    std::string test2("\"hello word\"");
-+    ASSERT_FALSE(dumper.dump("test2", test2));
-+
-+    std::string test3("\"{\"name\":\"haorooms\",\"address\":\"\"}\"");
-+    ASSERT_TRUE(dumper.dump("test3", test3));
-+
-+    std::string test4("\"{\"name\":\"haorooms\",\"address\":\"word\"}\"");
-+    ASSERT_TRUE(dumper.dump("test4", test4));
-+
-+    std::string test5("\"{\"name\":\"haorooms\",\"number\":1}\"");
-+    ASSERT_FALSE(dumper.dump("test5", test5));
-+    std::cout << "dump result:\n" << os << "\n";
-+
-+    butil::IOBuf buf;
-+    os.move_to(buf);
-+    std::string strformat = buf.to_string();
-+
-+    int end_pos = strformat.find('\n');
-+    ASSERT_TRUE(std::string::npos != end_pos);
-+    ASSERT_EQ("# HELP test3", strformat.substr(0, end_pos));
-+    end_pos++;
-+    strformat = strformat.substr(end_pos);
-+
-+    end_pos = strformat.find('\n');
-+    ASSERT_TRUE(std::string::npos != end_pos);
-+    ASSERT_EQ("# TYPE test3 gauge", strformat.substr(0, end_pos));
-+    end_pos++;
-+    strformat = strformat.substr(end_pos);
-+
-+    end_pos = strformat.find('\n');
-+    ASSERT_TRUE(std::string::npos != end_pos);
-+    ASSERT_EQ("test3{name=\"haorooms\",address=\"\"} 0",
-+              strformat.substr(0, end_pos));
-+    end_pos++;
-+    strformat = strformat.substr(end_pos);
-+
-+    end_pos = strformat.find('\n');
-+    ASSERT_TRUE(std::string::npos != end_pos);
-+    ASSERT_EQ("# HELP test4", strformat.substr(0, end_pos));
-+    end_pos++;
-+    strformat = strformat.substr(end_pos);
-+
-+    end_pos = strformat.find('\n');
-+    ASSERT_TRUE(std::string::npos != end_pos);
-+    ASSERT_EQ("# TYPE test4 gauge", strformat.substr(0, end_pos));
-+    end_pos++;
-+    strformat = strformat.substr(end_pos);
-+
-+    ASSERT_EQ("test4{name=\"haorooms\",address=\"word\"} 0\n", strformat);
-+
-+    // 运行结果
-+    // [==========] Running 1 test from 1 test case.
-+    // [----------] Global test environment set-up.
-+    // [----------] 1 test from PrometheusMetricsDumperTest
-+    // [ RUN      ] PrometheusMetricsDumperTest.sanity
-+    // dump result:
-+    // # HELP test3
-+    // # TYPE test3 gauge
-+    // test3{name="haorooms",address=""} 0
-+    // # HELP test4
-+    // # TYPE test4 gauge
-+    // test4{name="haorooms",address="word"} 0
-+
-+    // [       OK ] PrometheusMetricsDumperTest.sanity (1 ms)
-+    // [----------] 1 test from PrometheusMetricsDumperTest (1 ms total)
-+
-+    // [----------] Global test environment tear-down
-+    // [==========] 1 test from 1 test case ran. (1 ms total)
-+    // [  PASSED  ] 1 test.
-+}*/
+@@ -48,97 +48,97 @@ enum STATE {
+     SUMMARY
+ };
+ 
+-TEST(PrometheusMetrics, sanity) {
+-    brpc::Server server;
+-    DummyEchoServiceImpl echo_svc;
+-    ASSERT_EQ(0, server.AddService(&echo_svc, brpc::SERVER_DOESNT_OWN_SERVICE));
+-    ASSERT_EQ(0, server.Start("127.0.0.1:8614", NULL));
++// TEST(PrometheusMetrics, sanity) {
++//     brpc::Server server;
++//     DummyEchoServiceImpl echo_svc;
++//     ASSERT_EQ(0, server.AddService(&echo_svc, brpc::SERVER_DOESNT_OWN_SERVICE));
++//     ASSERT_EQ(0, server.Start("127.0.0.1:8614", NULL));
+ 
+-    brpc::Server server2;
+-    DummyEchoServiceImpl echo_svc2;
+-    ASSERT_EQ(0, server2.AddService(&echo_svc2, brpc::SERVER_DOESNT_OWN_SERVICE));
+-    ASSERT_EQ(0, server2.Start("127.0.0.1:8615", NULL));
++//     brpc::Server server2;
++//     DummyEchoServiceImpl echo_svc2;
++//     ASSERT_EQ(0, server2.AddService(&echo_svc2, brpc::SERVER_DOESNT_OWN_SERVICE));
++//     ASSERT_EQ(0, server2.Start("127.0.0.1:8615", NULL));
+ 
+-    brpc::Channel channel;
+-    brpc::ChannelOptions channel_opts;
+-    channel_opts.protocol = "http";
+-    ASSERT_EQ(0, channel.Init("127.0.0.1:8614", &channel_opts));
+-    brpc::Controller cntl;
+-    cntl.http_request().uri() = "/brpc_metrics";
+-    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+-    ASSERT_FALSE(cntl.Failed());
+-    std::string res = cntl.response_attachment().to_string();
++//     brpc::Channel channel;
++//     brpc::ChannelOptions channel_opts;
++//     channel_opts.protocol = "http";
++//     ASSERT_EQ(0, channel.Init("127.0.0.1:8614", &channel_opts));
++//     brpc::Controller cntl;
++//     cntl.http_request().uri() = "/brpc_metrics";
++//     channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
++//     ASSERT_FALSE(cntl.Failed());
++//     std::string res = cntl.response_attachment().to_string();
+ 
+-    size_t start_pos = 0;
+-    size_t end_pos = 0;
+-    STATE state = HELP;
+-    char name_help[128];
+-    char name_type[128];
+-    char type[16];
+-    int matched = 0;
+-    int gauge_num = 0;
+-    bool summary_sum_gathered = false;
+-    bool summary_count_gathered = false;
+-    bool has_ever_summary = false;
+-    bool has_ever_gauge = false;
++//     size_t start_pos = 0;
++//     size_t end_pos = 0;
++//     STATE state = HELP;
++//     char name_help[128];
++//     char name_type[128];
++//     char type[16];
++//     int matched = 0;
++//     int gauge_num = 0;
++//     bool summary_sum_gathered = false;
++//     bool summary_count_gathered = false;
++//     bool has_ever_summary = false;
++//     bool has_ever_gauge = false;
+ 
+-    while ((end_pos = res.find('\n', start_pos)) != butil::StringPiece::npos) {
+-        res[end_pos] = '\0';       // safe;
+-        switch (state) {
+-            case HELP:
+-                matched = sscanf(res.data() + start_pos, "# HELP %s", name_help);
+-                ASSERT_EQ(1, matched);
+-                state = TYPE;
+-                break;
+-            case TYPE:
+-                matched = sscanf(res.data() + start_pos, "# TYPE %s %s", name_type, type);
+-                ASSERT_EQ(2, matched);
+-                ASSERT_STREQ(name_type, name_help);
+-                if (strcmp(type, "gauge") == 0) {
+-                    state = GAUGE;
+-                } else if (strcmp(type, "summary") == 0) {
+-                    state = SUMMARY;
+-                } else {
+-                    ASSERT_TRUE(false);
+-                }
+-                break;
+-            case GAUGE:
+-                matched = sscanf(res.data() + start_pos, "%s %d", name_type, &gauge_num);
+-                ASSERT_EQ(2, matched);
+-                ASSERT_STREQ(name_type, name_help);
+-                state = HELP;
+-                has_ever_gauge = true;
+-                break;
+-            case SUMMARY:
+-                if (butil::StringPiece(res.data() + start_pos, end_pos - start_pos).find("quantile=")
+-                        == butil::StringPiece::npos) {
+-                    matched = sscanf(res.data() + start_pos, "%s %d", name_type, &gauge_num);
+-                    ASSERT_EQ(2, matched);
+-                    ASSERT_TRUE(strncmp(name_type, name_help, strlen(name_help)) == 0);
+-                    if (butil::StringPiece(name_type).ends_with("_sum")) {
+-                        ASSERT_FALSE(summary_sum_gathered);
+-                        summary_sum_gathered = true;
+-                    } else if (butil::StringPiece(name_type).ends_with("_count")) {
+-                        ASSERT_FALSE(summary_count_gathered);
+-                        summary_count_gathered = true;
+-                    } else {
+-                        ASSERT_TRUE(false);
+-                    }
+-                    if (summary_sum_gathered && summary_count_gathered) {
+-                        state = HELP;
+-                        summary_sum_gathered = false;
+-                        summary_count_gathered = false;
+-                        has_ever_summary = true;
+-                    }
+-                } // else find "quantile=", just break to next line
+-                break;
+-            default:
+-                ASSERT_TRUE(false);
+-                break;
+-        }
+-        start_pos = end_pos + 1;
+-    }
+-    ASSERT_TRUE(has_ever_gauge && has_ever_summary);
+-    ASSERT_EQ(0, server.Stop(0));
+-    ASSERT_EQ(0, server.Join());
+-}
++//     while ((end_pos = res.find('\n', start_pos)) != butil::StringPiece::npos) {
++//         res[end_pos] = '\0';       // safe;
++//         switch (state) {
++//             case HELP:
++//                 matched = sscanf(res.data() + start_pos, "# HELP %s", name_help);
++//                 ASSERT_EQ(1, matched);
++//                 state = TYPE;
++//                 break;
++//             case TYPE:
++//                 matched = sscanf(res.data() + start_pos, "# TYPE %s %s", name_type, type);
++//                 ASSERT_EQ(2, matched);
++//                 ASSERT_STREQ(name_type, name_help);
++//                 if (strcmp(type, "gauge") == 0) {
++//                     state = GAUGE;
++//                 } else if (strcmp(type, "summary") == 0) {
++//                     state = SUMMARY;
++//                 } else {
++//                     ASSERT_TRUE(false);
++//                 }
++//                 break;
++//             case GAUGE:
++//                 matched = sscanf(res.data() + start_pos, "%s %d", name_type, &gauge_num);
++//                 ASSERT_EQ(2, matched);
++//                 ASSERT_STREQ(name_type, name_help);
++//                 state = HELP;
++//                 has_ever_gauge = true;
++//                 break;
++//             case SUMMARY:
++//                 if (butil::StringPiece(res.data() + start_pos, end_pos - start_pos).find("quantile=")
++//                         == butil::StringPiece::npos) {
++//                     matched = sscanf(res.data() + start_pos, "%s %d", name_type, &gauge_num);
++//                     ASSERT_EQ(2, matched);
++//                     ASSERT_TRUE(strncmp(name_type, name_help, strlen(name_help)) == 0);
++//                     if (butil::StringPiece(name_type).ends_with("_sum")) {
++//                         ASSERT_FALSE(summary_sum_gathered);
++//                         summary_sum_gathered = true;
++//                     } else if (butil::StringPiece(name_type).ends_with("_count")) {
++//                         ASSERT_FALSE(summary_count_gathered);
++//                         summary_count_gathered = true;
++//                     } else {
++//                         ASSERT_TRUE(false);
++//                     }
++//                     if (summary_sum_gathered && summary_count_gathered) {
++//                         state = HELP;
++//                         summary_sum_gathered = false;
++//                         summary_count_gathered = false;
++//                         has_ever_summary = true;
++//                     }
++//                 } // else find "quantile=", just break to next line
++//                 break;
++//             default:
++//                 ASSERT_TRUE(false);
++//                 break;
++//         }
++//         start_pos = end_pos + 1;
++//     }
++//     ASSERT_TRUE(has_ever_gauge && has_ever_summary);
++//     ASSERT_EQ(0, server.Stop(0));
++//     ASSERT_EQ(0, server.Join());
++// }
 diff --git a/test/brpc_server_unittest.cpp b/test/brpc_server_unittest.cpp
-index 575c88e..65b5a08 100644
+index c22b6b53..e8b8aff4 100644
 --- a/test/brpc_server_unittest.cpp
 +++ b/test/brpc_server_unittest.cpp
-@@ -211,6 +211,47 @@ TEST_F(ServerTest, sanity) {
+@@ -252,6 +252,49 @@ TEST_F(ServerTest, sanity) {
      ASSERT_EQ(0, server.Join());
  }
  
@@ -2513,41 +2654,24 @@ index 575c88e..65b5a08 100644
 +    }
 +}
 +
++
++
  TEST_F(ServerTest, invalid_protocol_in_enabled_protocols) {
      butil::EndPoint ep;
      ASSERT_EQ(0, str2endpoint("127.0.0.1:8613", &ep));
-@@ -1256,8 +1297,8 @@ TEST_F(ServerTest, too_big_message) {
-     ASSERT_EQ(0, server.Start(8613, NULL));
- 
- #if !BRPC_WITH_GLOG
--    logging::StringSink log_str;
--    logging::LogSink* old_sink = logging::SetLogSink(&log_str);
-+    butil::logging::StringSink log_str;
-+    butil::logging::LogSink* old_sink = butil::logging::SetLogSink(&log_str);
- #endif
- 
-     brpc::Channel chan;
-@@ -1271,7 +1312,7 @@ TEST_F(ServerTest, too_big_message) {
-     EXPECT_TRUE(cntl.Failed());
- 
- #if !BRPC_WITH_GLOG
--    ASSERT_EQ(&log_str, logging::SetLogSink(old_sink));
-+    ASSERT_EQ(&log_str, butil::logging::SetLogSink(old_sink));
-     std::ostringstream expected_log;
-     expected_log << " is bigger than " << brpc::FLAGS_max_body_size
-                  << " bytes, the connection will be closed."
 diff --git a/test/brpc_socket_unittest.cpp b/test/brpc_socket_unittest.cpp
-index b7249b8..80d2dd0 100644
+index 1011c397..6a45f842 100644
 --- a/test/brpc_socket_unittest.cpp
 +++ b/test/brpc_socket_unittest.cpp
-@@ -5,12 +5,14 @@
+@@ -21,6 +21,7 @@
  
  #include <sys/types.h>
  #include <sys/socket.h>
 +#include <sys/un.h>
  #include <fcntl.h>  // F_GETFD
  #include <gtest/gtest.h>
- #include "butil/gperftools_profiler.h"
+ #include <gflags/gflags.h>
+@@ -28,6 +29,7 @@
  #include "butil/time.h"
  #include "butil/macros.h"
  #include "butil/fd_utility.h"
@@ -2555,10 +2679,11 @@ index b7249b8..80d2dd0 100644
  #include "bthread/unstable.h"
  #include "bthread/task_control.h"
  #include "brpc/socket.h"
-@@ -261,6 +263,84 @@ TEST_F(SocketTest, single_threaded_write) {
+@@ -287,6 +289,85 @@ TEST_F(SocketTest, single_threaded_write) {
      close(fds[0]);
  }
  
++
 +TEST_F(SocketTest, single_threaded_write_unix_socket) {
 +    int fds[2];
 +    ASSERT_EQ(0, socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
@@ -2640,10 +2765,11 @@ index b7249b8..80d2dd0 100644
  void EchoProcessHuluRequest(brpc::InputMessageBase* msg_base) {
      brpc::DestroyingPtr<brpc::policy::MostCommonMessage> msg(
          static_cast<brpc::policy::MostCommonMessage*>(msg_base));
-@@ -385,6 +465,98 @@ TEST_F(SocketTest, single_threaded_connect_and_write) {
+@@ -411,6 +492,99 @@ TEST_F(SocketTest, single_threaded_connect_and_write) {
      ASSERT_EQ(EBADF, errno);
  }
  
++
 +TEST_F(SocketTest, single_threaded_connect_and_write_unix_socket) {
 +    // FIXME(gejun): Messenger has to be new otherwise quitting may crash.
 +    brpc::Acceptor* messenger = new brpc::Acceptor;
@@ -2739,7 +2865,7 @@ index b7249b8..80d2dd0 100644
  #define NUMBER_WIDTH 16
  
  struct WriterArg {
-@@ -461,6 +633,49 @@ TEST_F(SocketTest, fail_to_connect) {
+@@ -487,6 +661,49 @@ TEST_F(SocketTest, fail_to_connect) {
      ASSERT_EQ(-1, brpc::Socket::Address(id, &ptr));
  }
  
@@ -2791,7 +2917,7 @@ index b7249b8..80d2dd0 100644
      butil::EndPoint point(butil::IP_ANY, 7584/*not listened*/);
 diff --git a/test/bthread_brpc_rwlock_unittest.cpp b/test/bthread_brpc_rwlock_unittest.cpp
 new file mode 100644
-index 0000000..f5ce3fb
+index 00000000..f5ce3fb0
 --- /dev/null
 +++ b/test/bthread_brpc_rwlock_unittest.cpp
 @@ -0,0 +1,198 @@
@@ -2994,10 +3120,10 @@ index 0000000..f5ce3fb
 +}
 +} // namespace
 diff --git a/test/bvar_reducer_unittest.cpp b/test/bvar_reducer_unittest.cpp
-index 84e6aa4..30bb0c9 100644
+index 45e42cd3..7efd5fda 100644
 --- a/test/bvar_reducer_unittest.cpp
 +++ b/test/bvar_reducer_unittest.cpp
-@@ -193,10 +193,10 @@ void ReducerTest_window() {
+@@ -206,10 +206,10 @@ void ReducerTest_window() {
      bvar::Window<bvar::Miner<int> > w9(&c3, 3);
  
  #if !BRPC_WITH_GLOG
@@ -3011,7 +3137,7 @@ index 84e6aa4..30bb0c9 100644
      ASSERT_NE(std::string::npos, log_str.find(
                    "You should not call Reducer<int, bvar::detail::MaxTo<int>>"
                    "::get_value() when a Window<> is used because the operator"
-@@ -237,10 +237,10 @@ void ReducerTest_window() {
+@@ -250,10 +250,10 @@ void ReducerTest_window() {
  TEST_F(ReducerTest, window) {
  #if !BRPC_WITH_GLOG
      ReducerTest_window();
@@ -3026,10 +3152,10 @@ index 84e6aa4..30bb0c9 100644
          ASSERT_NE(std::string::npos, log_str.find("Removed 3, sampled 0")) << log_str;
      }
 diff --git a/test/bvar_sampler_unittest.cpp b/test/bvar_sampler_unittest.cpp
-index b0ccdcf..6a47eb5 100644
+index 0a521a49..8bb8f227 100644
 --- a/test/bvar_sampler_unittest.cpp
 +++ b/test/bvar_sampler_unittest.cpp
-@@ -52,8 +52,8 @@ int DebugSampler::_s_ndestroy = 0;
+@@ -67,8 +67,8 @@ int DebugSampler::_s_ndestroy = 0;
  
  TEST(SamplerTest, single_threaded) {
  #if !BRPC_WITH_GLOG
@@ -3040,7 +3166,7 @@ index b0ccdcf..6a47eb5 100644
  #endif
      const int N = 100;
      DebugSampler* s[N];
-@@ -73,7 +73,7 @@ TEST(SamplerTest, single_threaded) {
+@@ -88,7 +88,7 @@ TEST(SamplerTest, single_threaded) {
      usleep(1010000);
      EXPECT_EQ(N, DebugSampler::_s_ndestroy);
  #if !BRPC_WITH_GLOG
@@ -3049,7 +3175,7 @@ index b0ccdcf..6a47eb5 100644
      if (log_str.find("Removed ") != std::string::npos) {
          ASSERT_NE(std::string::npos, log_str.find("Removed 0, sampled 100"));
          ASSERT_NE(std::string::npos, log_str.find("Removed 100, sampled 0"));
-@@ -100,8 +100,8 @@ static void* check(void*) {
+@@ -115,8 +115,8 @@ static void* check(void*) {
  
  TEST(SamplerTest, multi_threaded) {
  #if !BRPC_WITH_GLOG
@@ -3060,7 +3186,7 @@ index b0ccdcf..6a47eb5 100644
  #endif
      pthread_t th[10];
      DebugSampler::_s_ndestroy = 0;
-@@ -114,7 +114,7 @@ TEST(SamplerTest, multi_threaded) {
+@@ -129,7 +129,7 @@ TEST(SamplerTest, multi_threaded) {
      sleep(1);
      EXPECT_EQ(100 * arraysize(th), (size_t)DebugSampler::_s_ndestroy);
  #if !BRPC_WITH_GLOG
@@ -3070,15 +3196,16 @@ index b0ccdcf..6a47eb5 100644
          ASSERT_NE(std::string::npos, log_str.find("Removed 0, sampled 1000"));
          ASSERT_NE(std::string::npos, log_str.find("Removed 1000, sampled 0"));
 diff --git a/test/endpoint_unittest.cpp b/test/endpoint_unittest.cpp
-index cbb49e5..cc7502e 100644
+index 4cb7f757..13c911ad 100644
 --- a/test/endpoint_unittest.cpp
 +++ b/test/endpoint_unittest.cpp
-@@ -59,27 +59,32 @@ TEST(EndPointTest, endpoint) {
+@@ -75,27 +75,32 @@ TEST(EndPointTest, endpoint) {
      butil::EndPoint p1;
      ASSERT_EQ(butil::IP_ANY, p1.ip);
      ASSERT_EQ(0, p1.port);
+-    
 +    ASSERT_FALSE(butil::is_unix_sock_endpoint(p1));
-     
++
      butil::EndPoint p2(butil::IP_NONE, -1);
      ASSERT_EQ(butil::IP_NONE, p2.ip);
      ASSERT_EQ(-1, p2.port);
@@ -3095,8 +3222,9 @@ index cbb49e5..cc7502e 100644
      ASSERT_EQ(0, butil::str2endpoint(" 127.0.0.1: 289 ", &p4));
      ASSERT_STREQ("127.0.0.1", butil::ip2str(p4.ip).c_str());
      ASSERT_EQ(289, p4.port);
+-    
 +    ASSERT_FALSE(butil::is_unix_sock_endpoint(p4));
-     
++
      butil::EndPoint p5;
      ASSERT_EQ(-1, hostname2endpoint("localhost:-1", &p5));
      ASSERT_EQ(-1, hostname2endpoint("localhost:65536", &p5));
@@ -3106,7 +3234,7 @@ index cbb49e5..cc7502e 100644
  
  #ifdef BAIDU_INTERNAL
      butil::EndPoint p6;
-@@ -87,6 +92,12 @@ TEST(EndPointTest, endpoint) {
+@@ -103,6 +108,12 @@ TEST(EndPointTest, endpoint) {
      ASSERT_STREQ("10.23.249.73", butil::ip2str(p6.ip).c_str());
      ASSERT_EQ(289, p6.port);
  #endif
@@ -3120,7 +3248,7 @@ index cbb49e5..cc7502e 100644
  
  TEST(EndPointTest, hash_table) {
 diff --git a/test/logging_unittest.cc b/test/logging_unittest.cc
-index 08d0bfc..77a1bab 100644
+index 08d0bfc1..77a1babe 100644
 --- a/test/logging_unittest.cc
 +++ b/test/logging_unittest.cc
 @@ -10,6 +10,7 @@
@@ -3216,43 +3344,6 @@ index 08d0bfc..77a1bab 100644
  }  // namespace logging
 +}  // namespace butil
  #endif
-diff --git a/src/bvar/scoped_timer.h b/src/bvar/scoped_timer.h
-index 34de59fb..7ad92c5d 100644
---- a/src/bvar/scoped_timer.h
-+++ b/src/bvar/scoped_timer.h
-@@ -49,7 +49,7 @@ public:
- 
- private:
-     DISALLOW_COPY_AND_ASSIGN(ScopedTimer);
--    const int64_t _start_time;
-+    int64_t _start_time;
-     T* _bvar;
- };
- } // namespace bvar
-diff --git a/src/butil/thread_local.h b/src/butil/thread_local.h
-index fc8bdf2c..020d5316 100644
---- a/src/butil/thread_local.h
-+++ b/src/butil/thread_local.h
-@@ -22,22 +22,6 @@
- #include <cstddef>                  // NULL
- #include "butil/macros.h"            
- 
--// Provide thread_local keyword (for primitive types) before C++11
--// DEPRECATED: define this keyword before C++11 might make the variable ABI
--// incompatible between C++11 and C++03
--#if !defined(thread_local) &&                                           \
--    (__cplusplus < 201103L ||                                           \
--     (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40800)
--// GCC supports thread_local keyword of C++11 since 4.8.0
--#ifdef _MSC_VER
--// WARNING: don't use this macro in C++03
--#define thread_local __declspec(thread)
--#else
--// WARNING: don't use this macro in C++03
--#define thread_local __thread
--#endif  // _MSC_VER
--#endif
--
- #ifdef _MSC_VER
- #define BAIDU_THREAD_LOCAL __declspec(thread)
- #else
+-- 
+2.11.0
+
