@@ -33,22 +33,26 @@ import (
 
 const (
 	// curvebs
-	CURVEBS_MDSADDR            = "mdsaddr"
-	VIPER_CURVEBS_MDSADDR      = "curvebs.mdsAddr"
-	CURVEBS_MDSDUMMYADDR       = "mdsdummyaddr"
-	VIPER_CURVEBS_MDSDUMMYADDR = "curvebs.mdsDummyAddr"
-	CURVEBS_ETCDADDR           = "etcdaddr"
-	VIPER_CURVEBS_ETCDADDR     = "curvebs.etcdAddr"
-	CURVEBS_PATH               = "path"
-	VIPER_CURVEBS_PATH         = "curvebs.path"
-	CURVEBS_USER               = "user"
-	VIPER_CURVEBS_USER         = "curvebs.root.user"
-	CURVEBS_DEFAULT_USER       = "root"
-	CURVEBS_PASSWORD           = "password"
-	VIPER_CURVEBS_PASSWORD     = "curvebs.root.password"
-	CURVEBS_DEFAULT_PASSWORD   = "root_password"
-	CURVEBS_DIR                = "dir"
-	VIPER_CURVEBS_DIR          = "curvebs.dir"
+	CURVEBS_MDSADDR             = "mdsaddr"
+	VIPER_CURVEBS_MDSADDR       = "curvebs.mdsAddr"
+	CURVEBS_MDSDUMMYADDR        = "mdsdummyaddr"
+	VIPER_CURVEBS_MDSDUMMYADDR  = "curvebs.mdsDummyAddr"
+	CURVEBS_ETCDADDR            = "etcdaddr"
+	VIPER_CURVEBS_ETCDADDR      = "curvebs.etcdAddr"
+	CURVEBS_PATH                = "path"
+	VIPER_CURVEBS_PATH          = "curvebs.path"
+	CURVEBS_USER                = "user"
+	VIPER_CURVEBS_USER          = "curvebs.root.user"
+	CURVEBS_DEFAULT_USER        = "root"
+	CURVEBS_PASSWORD            = "password"
+	VIPER_CURVEBS_PASSWORD      = "curvebs.root.password"
+	CURVEBS_DEFAULT_PASSWORD    = "root_password"
+	CURVEBS_FILENAME            = "filename"
+	VIPER_CURVEBS_FILENAME      = "curvebs.filename"
+	CURVEBS_FORCEDELETE         = "forcedelete"
+	CURVEBS_DEFAULT_FORCEDELETE = "false"
+	CURVEBS_DIR                 = "dir"
+	VIPER_CURVEBS_DIR           = "curvebs.dir"
 )
 
 var (
@@ -69,8 +73,9 @@ var (
 
 	BSFLAG2DEFAULT = map[string]interface{}{
 		// bs
-		CURVEBS_USER:     CURVEBS_DEFAULT_USER,
-		CURVEBS_PASSWORD: CURVEBS_DEFAULT_PASSWORD,
+		CURVEBS_USER:        CURVEBS_DEFAULT_USER,
+		CURVEBS_PASSWORD:    CURVEBS_DEFAULT_PASSWORD,
+		CURVEBS_FORCEDELETE: CURVEBS_DEFAULT_FORCEDELETE,
 	}
 )
 
@@ -110,6 +115,18 @@ func AddBsStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
+func AddBsBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := FLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = false
+	}
+	cmd.Flags().Bool(name, defaultValue.(bool), usage)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 // add flag option
 // bs mds[option]
 func AddBsMdsFlagOption(cmd *cobra.Command) {
@@ -143,6 +160,18 @@ func AddBsEtcdAddrFlag(cmd *cobra.Command) {
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_PATH, "file path")
+}
+
+func AddBsUsernameRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_USER, "username")
+}
+
+func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "the full path of file")
+}
+
+func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
+	AddBsBoolOptionFlag(cmd, CURVEBS_FORCEDELETE, "whether to force delete the file")
 }
 
 // get stingslice flag
