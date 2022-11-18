@@ -97,6 +97,7 @@ const (
 	ROW_ZONE            = "zone"
 	ROW_IP              = "ip"
 	ROW_PORT            = "port"
+	ROW_REASON          = "reason"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"
