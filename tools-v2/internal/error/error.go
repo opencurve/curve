@@ -366,6 +366,10 @@ var (
 		return NewInternalCmdError(39, "list zone fail. the error is %s")
 	}
 
+	ErrBsDeleteFile = func() *CmdError {
+		return NewInternalCmdError(40, "delete file fail. the error is %s")
+	}
+
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
@@ -433,7 +437,7 @@ var (
 		case mds.FSStatusCode_S3_INFO_ERROR:
 			message = "s3 info is not available"
 		case mds.FSStatusCode_FSNAME_INVALID:
-			message = "fsname should match regex: ^([a-z0-9]+\\-?)+$" 
+			message = "fsname should match regex: ^([a-z0-9]+\\-?)+$"
 		default:
 			message = fmt.Sprintf("delete fs failed!, error is %s", mds.FSStatusCode_name[int32(code)])
 		}
