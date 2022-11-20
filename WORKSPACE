@@ -34,7 +34,7 @@ bazel_skylib_workspace()
 git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
-    commit = "d0277bf2aea66908d1fd7376d191bd098371966e",
+    commit = "d12de388c97998f5ccd5cb97ed0da728815ef438",
 )
 
 bind(
