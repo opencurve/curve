@@ -79,6 +79,7 @@ class CurveSegmentLogStorageTest : public testing::Test {
     }
     void append_entries(std::shared_ptr<braft::LogStorage> storage,
                         int m, int n) {
+        braft::IOMetric metric;
         for (int i = 0; i < m; i++) {
             std::vector<braft::LogEntry*> entries;
             for (int j = 0; j < n; j++) {
@@ -95,7 +96,7 @@ class CurveSegmentLogStorageTest : public testing::Test {
                 entries.push_back(entry);
             }
 
-            ASSERT_EQ(n, storage->append_entries(entries));
+            ASSERT_EQ(n, storage->append_entries(entries, &metric));
         }
     }
     void read_entries(std::shared_ptr<CurveSegmentLogStorage> storage,
@@ -294,6 +295,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
     path = kRaftLogDataDir;
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 4097);
     ASSERT_EQ(0,  prepare_segment(path));
+    braft::IOMetric metric;
     for (int i = 600; i < 1000; i++) {
         std::vector<braft::LogEntry*> entries;
         for (int j = 0; j < 5; j++) {
@@ -310,7 +312,7 @@ TEST_F(CurveSegmentLogStorageTest, append_close_load_append) {
             entries.push_back(entry);
         }
 
-        ASSERT_EQ(5, storage->append_entries(entries));
+        ASSERT_EQ(5, storage->append_entries(entries, &metric));
     }
 
     // check and read
@@ -393,6 +395,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
     std::string path = kRaftLogDataDir;
     butil::string_appendf(&path, "/" CURVE_SEGMENT_OPEN_PATTERN, 3001);
     ASSERT_EQ(0,  prepare_segment(path));
+    braft::IOMetric metric;
     for (int i = 600; i < 1000; i++) {
         std::vector<braft::LogEntry*> entries;
         for (int j = 0; j < 5; j++) {
@@ -409,7 +412,7 @@ TEST_F(CurveSegmentLogStorageTest, compatibility) {
             entries.push_back(entry);
         }
 
-        ASSERT_EQ(5, storage2->append_entries(entries));
+        ASSERT_EQ(5, storage2->append_entries(entries, &metric));
     }
     // check and read
     ASSERT_EQ(storage2->first_log_index(), 1);

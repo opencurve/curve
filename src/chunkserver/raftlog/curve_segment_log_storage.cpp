@@ -422,7 +422,8 @@ int CurveSegmentLogStorage::append_entry(const braft::LogEntry* entry) {
 }
 
 int CurveSegmentLogStorage::append_entries(
-                    const std::vector<braft::LogEntry*>& entries) {
+                    const std::vector<braft::LogEntry*>& entries,
+                    braft::IOMetric* metric) {
     if (entries.empty()) {
         return 0;
     }
