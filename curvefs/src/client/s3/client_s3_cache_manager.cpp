@@ -2202,8 +2202,6 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
         RCache,
         WRCache,
     } cachePoily = cachePoily::NCache;
-    bool mayCache = !s3ClientAdaptor_->GetDiskCacheManager()
-                    ->IsDiskCacheFull() && !toS3;
 
     VLOG(9) << "DataCache::Flush : now:" << now << ",createTime:" << createTime_
             << ",flushIntervalSec:" << flushIntervalSec
@@ -2233,9 +2231,13 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
             << ",Len:" << tmpLen << ",blockPos:" << blockPos
             << ",blockIndex:" << blockIndex;
 
-    if (s3ClientAdaptor_->IsReadCache() && mayCache) {
+    if (s3ClientAdaptor_->IsReadCache() &&
+                    !s3ClientAdaptor_->GetDiskCacheManager()
+                    ->IsDiskCacheFull() && !toS3) {
         cachePoily = cachePoily::RCache;
-    } else if (s3ClientAdaptor_->IsReadWriteCache() && mayCache) {
+    } else if (s3ClientAdaptor_->IsReadWriteCache() &&
+                    !s3ClientAdaptor_->GetDiskCacheManager()
+                    ->IsDiskCacheFull() && !toS3) {
         cachePoily = cachePoily::WRCache;
     } else {
         cachePoily = cachePoily::NCache;
