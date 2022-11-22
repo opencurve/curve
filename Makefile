@@ -1,7 +1,8 @@
-# Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
+git # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
-.PHONY: list build install image
+.PHONY: list build dep install image
 
+stor?=""
 prefix?= "$(PWD)/projects"
 release?= 0
 only?= "*"
@@ -10,13 +11,16 @@ case?= "*"
 os?= "debian9"
 
 list:
-	@bash util/build.sh --list
+	@bash util/build.sh --stor=${stor} --list
 
 build:
-	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os)
+	@bash util/build.sh --stor=${stor} --only=$(only) --dep=$(dep) --release=$(release) --os=$(os)
+
+dep:
+	@bash util/build.sh --stor=${stor} --only="" --dep=1
 
 install:
-	@bash util/install.sh --prefix=$(prefix) --only=$(only)
+	@bash util/install.sh --stor=${stor} --prefix=$(prefix) --only=$(only)
 
 image:
-	@bash util/image.sh $(tag) $(os)
+	@bash util/image.sh ${stor} $(tag) $(os)

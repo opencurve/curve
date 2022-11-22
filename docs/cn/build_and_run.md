@@ -33,7 +33,12 @@ docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
 cd <workspace>
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
 # （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
-bash mk-tar.sh
+# curve v2.0 之前
+bash mk-tar.sh （编译 curvebs 并打tar包）
+bash mk-deb.sh （编译 curvebs 并打debian包）
+# curve v2.0 及之后
+编译 curvebs: cd curve && make build stor=bs dep=1
+编译 curvefs: cd curve && make build stor=fs dep=1
 ```
 
 基于tar包的安装部署流程可参考：[集群部署](deploy.md)
@@ -59,22 +64,12 @@ CURVE提供一键编译脚本，mk-tar.sh 生成所需的全部tar二进制包�
 
 ```
 # （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
-bash ./mk-tar.sh
-```
-
-基于tar包的安装部署流程可参考：[集群部署](deploy.md)
-
-特别的，由于CURVE内部版本使用在debian系统上，因此特别提供debian的版本，命令如下：
-
-```
-bash ./mk-deb.sh
-```
-注意：基于deb包的安装部署流程正在整理中，目前不推荐使用deb包安装部署
-
-仅编译全部模块，不进行打包，可以执行命令：
-
-```
-bash ./build.sh
+# curve v2.0 之前
+bash mk-tar.sh （编译 curvebs 并打tar包）
+bash mk-deb.sh （编译 curvebs 并打debian包）
+# curve v2.0 及之后
+编译 curvebs: cd curve && make build stor=bs dep=1
+编译 curvefs: cd curve && make build stor=fs dep=1
 ```
 
 ## 测试用例编译及执行
