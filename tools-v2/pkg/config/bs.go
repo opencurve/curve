@@ -47,6 +47,8 @@ const (
 	CURVEBS_PASSWORD           = "password"
 	VIPER_CURVEBS_PASSWORD     = "curvebs.root.password"
 	CURVEBS_DEFAULT_PASSWORD   = "root_password"
+	CURVEBS_DIR                = "dir"
+	VIPER_CURVEBS_DIR          = "curvebs.dir"
 )
 
 var (
@@ -62,6 +64,7 @@ var (
 		CURVEBS_USER:         VIPER_CURVEBS_USER,
 		CURVEBS_PASSWORD:     VIPER_CURVEBS_PASSWORD,
 		CURVEBS_ETCDADDR:     VIPER_CURVEBS_ETCDADDR,
+		CURVEBS_DIR:          VIPER_CURVEBS_DIR,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -124,6 +127,11 @@ func AddBsUserOptionFlag(cmd *cobra.Command) {
 // password
 func AddBsPasswordOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PASSWORD, "user password")
+}
+
+// dir
+func AddBsDirOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_DIR, "directory path")
 }
 
 // etcd

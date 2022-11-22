@@ -46,6 +46,7 @@ A tool for CurveFS & CurveBs.
         - [list logical-pool](#list-logical-pool)
         - [list server](#list-server)
         - [list client](#list-client)
+        - [list dir](#list-dir)
     - [query](#query-1)
         - [query file](#query-file)
     - [status](#status-1)
@@ -859,6 +860,24 @@ Output:
 +------------+------+
 | 172.17.0.2 | 9000 |
 +------------+------+
+```
+
+##### list dir
+
+list dir information in curvebs
+
+```bash
+curve bs list dir --dir /
+```
+
+Output:
+
+```bash
++------+-------------+----------+-----------------+------------+---------------------+---------------+-------------+
+|  ID  |  FILENAME   | PARENTID |    FILETYPE     |   OWNER    |        CTIME        | ALLOCATEDSIZE |  FILESIZE   |
++------+-------------+----------+-----------------+------------+---------------------+---------------+-------------+
+| 1    | /RecycleBin | 0        | INODE_DIRECTORY | root       | 2022-11-12 16:38:25 |      0 B      |     0 B     |
++------+-------------+----------+-----------------+------------+---------------------+---------------+-------------+
 ```
 
 ### query
