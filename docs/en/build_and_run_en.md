@@ -30,9 +30,15 @@ Note: The above operations are not recommended to be performed in the CURVE proj
 
 ```bash
 docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
-$ cd <workspace>
-$ git clone https://github.com/opencurve/curve.git
-$ bash mk-tar.sh
+cd <workspace>
+git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/mirrors/curve.git
+# (Optional step) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
+# before curve v2.0
+bash mk-tar.sh （compile curvebs and make tar package）
+bash mk-deb.sh （compile curvebs and make debian package）
+# after curve v2.0
+compile curvebs: cd curve && make build stor=bs dep=1
+compile curvefs: cd curve && make build stor=fs dep=1
 ```
 
 For the installation and deployment process based on the tar package, please refer to: [Cluster Deployment](deploy_en.md).
@@ -53,28 +59,15 @@ Other dependencies of CURVE are managed by bazel and do not need to be installed
 For dependencies, you can refer to the installation steps in [dockerfile](../../docker/debian9/compile/Dockerfile).
 
 ### One-click compilation and packaging
-
-CURVE provides a one-click compilation script, [mk-tar.sh](https://github.com/opencurve/curve/blob/master/mk-tar.sh) generates all the required tar binary packages, the command is as follows:
-
-```
-$ bash ./mk-tar.sh
-```
-
-For the installation and deployment process based on the tar package, please refer to: [Cluster Deployment](deploy_md.md).
-
-In particular, since the internal version of CURVE is used on the Debian system, the Debian version is specially provided. The command is as follows:
-
-```
-$ bash ./mk-deb.sh
-```
-
-Note: The installation and deployment process based on the deb package is being sorted out. Currently, it is not recommended to use the deb package to install and deploy.
-
-
-Only compile all modules without packaging, you can execute the command:
-
-```
-$ bash ./build.sh
+```bash
+git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/mirrors/curve.git
+# (Optional step) Replace external dependencies with domestic download points or mirror warehouses, which can speed up compilation： bash replace-curve-repo.sh
+# before curve v2.0
+bash mk-tar.sh （compile curvebs and make tar package）
+bash mk-deb.sh （compile curvebs and make debian package）
+# after curve v2.0
+compile curvebs: cd curve && make build stor=bs dep=1
+compile curvefs: cd curve && make build stor=fs dep=1
 ```
 
 ## Test case compilation and execution
