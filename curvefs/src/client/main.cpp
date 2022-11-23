@@ -47,11 +47,13 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     release : FuseOpRelease,
     fsync : FuseOpFsync,
     opendir : FuseOpOpenDir,
-    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
-    readdir : 0,
-    #else
+    // TODO(wuhongsong): readdirplus is problematic,
+    // resulting in inconsistent metadata
+    // #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    // readdir : 0,
+    // #else
     readdir : FuseOpReadDir,
-    #endif
+    // #endif
     releasedir : FuseOpReleaseDir,
     fsyncdir : 0,
     statfs : FuseOpStatFs,
@@ -75,9 +77,11 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     flock : 0,
     fallocate : 0,
     #endif
-    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
-    readdirplus : FuseOpReadDirPlus,
-    #endif
+    // TODO(wuhongsong): The current implementation is problematic,
+    // resulting in inconsistent metadata
+    // #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdirplus : 0,
+    // #endif
     #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 4)
     copy_file_range : 0,
     #endif
