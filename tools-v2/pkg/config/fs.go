@@ -280,6 +280,15 @@ func AddBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
+func AddBoolRequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Bool(name, false, usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 func AddDurationOptionFlag(cmd *cobra.Command, name string, usage string) {
 	defaultValue := FLAG2DEFAULT[name]
 	if defaultValue == nil {

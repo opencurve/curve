@@ -1,0 +1,51 @@
+{
+    "logicalpools": [
+        {
+            "copysetnum": 50,
+            "name": "logicalPool1",
+            "physicalpool": "pool1",
+            "replicasnum": 3,
+            "scatterwidth": 0,
+            "type": 0,
+            "zonenum": 3
+        }
+    ],
+    "poolsets":[
+            {
+                    "name": "ssdPoolset1",
+                    "type":"SSD"
+            }
+    ],
+    "servers": [
+        {
+            "externalip": "10.182.2.46",
+            "externalport": 0,
+            "internalip": "10.182.2.46",
+            "internalport": 0,
+            "name": "pubbeta2-curve7.dg.163.org",
+            "physicalpool": "pool1",
+            "zone": "zone0",
+            "poolsetName":"ssdPoolset1"
+        },
+        {
+            "externalip": "10.182.2.47",
+            "externalport": 0,
+            "internalip": "10.182.2.47",
+            "internalport": 0,
+            "name": "pubbeta2-curve8.dg.163.org",
+            "physicalpool": "pool1",
+            "zone": "zone1",
+            "poolsetName":"ssdPoolset1"
+        },
+        {
+            "externalip": "10.182.2.48",
+            "externalport": 0,
+            "internalip": "10.182.2.48",
+            "internalport": 0,
+            "name": "pubbeta2-curve9.dg.163.org",
+            "physicalpool": "pool1",
+            "zone": "zone2",
+            "poolsetName":"ssdPoolset1"
+        }
+    ]
+}

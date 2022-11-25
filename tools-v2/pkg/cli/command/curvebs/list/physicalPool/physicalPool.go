@@ -92,10 +92,6 @@ func (pCmd *PhysicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (pCmd *PhysicalPoolCommand) Print(cmd *cobra.Command, args []string) error {
-	return output.FinalCmdOutput(&pCmd.FinalCurveCmd, pCmd)
-}
-
 func (pCmd *PhysicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	response, errCmd := basecmd.GetRpcResponse(pCmd.Rpc.Info, pCmd.Rpc)
 	if errCmd.TypeCode() != cmderror.CODE_SUCCESS {
@@ -108,10 +104,6 @@ func (pCmd *PhysicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) e
 		return cmderror.ErrBsListPhysicalPoolRpc(code).ToError()
 	}
 	return nil
-}
-
-func (pCmd *PhysicalPoolCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd)
 }
 
 func GetPhysicalPool(caller *cobra.Command) ([]*topology.PhysicalPoolInfo, *cmderror.CmdError) {
@@ -128,4 +120,12 @@ func GetPhysicalPool(caller *cobra.Command) ([]*topology.PhysicalPoolInfo, *cmde
 		return nil, retErr
 	}
 	return listPhysicalPool.response.PhysicalPoolInfos, cmderror.ErrSuccess()
+}
+
+func (pCmd *PhysicalPoolCommand) Print(cmd *cobra.Command, args []string) error {
+	return output.FinalCmdOutput(&pCmd.FinalCurveCmd, pCmd)
+}
+
+func (pCmd *PhysicalPoolCommand) ResultPlainOutput() error {
+	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd)
 }

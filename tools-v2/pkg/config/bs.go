@@ -64,6 +64,12 @@ const (
 	VIPER_CURVEBS_COPYSET_ID    = "curvebs.copysetid"
 	CURVEBS_PEERS_ADDRESS       = "peers"
 	VIPER_CURVEBS_PEERS_ADDRESS = "curvebs.peers"
+	CURVEBS_HASH_CHECK          = "hashcheck"
+	VIPER_CURVEBS_HASH_CHECK    = "curvebs.hashcheck"
+	CURVEBS_CHUNK_SIZE          = "chunkSize"
+	VIPER_CURVEBS_CHUNK_SIZE    = "curvebs.chunkSize"
+	CURVEBS_PORT                = "port"
+	VIPER_CURVEBS_PORT          = "curvebs.port"
 )
 
 var (
@@ -84,6 +90,19 @@ var (
 		CURVEBS_COPYSET_ID:    VIPER_CURVEBS_COPYSET_ID,
 		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
 		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
+
+		CURVEBS_MDSADDR:      VIPER_CURVEBS_MDSADDR,
+		CURVEBS_MDSDUMMYADDR: VIPER_CURVEBS_MDSDUMMYADDR,
+		CURVEBS_PATH:         VIPER_CURVEBS_PATH,
+		CURVEBS_USER:         VIPER_CURVEBS_USER,
+		CURVEBS_PASSWORD:     VIPER_CURVEBS_PASSWORD,
+		CURVEBS_ETCDADDR:     VIPER_CURVEBS_ETCDADDR,
+		CURVEBS_DIR:          VIPER_CURVEBS_DIR,
+		CURVEBS_CLUSTERMAP:   VIPER_CURVEBS_CLUSTERMAP,
+		CURVEBS_FILENAME:     VIPER_CURVEBS_FILENAME,
+		CURVEBS_HASH_CHECK:   VIPER_CURVEBS_HASH_CHECK,
+		CURVEBS_CHUNK_SIZE:   VIPER_CURVEBS_CHUNK_SIZE,
+		CURVEBS_PORT:         VIPER_CURVEBS_PORT,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -165,6 +184,11 @@ func AddBsUserOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_USER, "user name")
 }
 
+// port
+func AddBsPortOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_PORT, "port")
+}
+
 // password
 func AddBsPasswordOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PASSWORD, "user password")
@@ -181,6 +205,15 @@ func AddBsEtcdAddrFlag(cmd *cobra.Command) {
 }
 
 // add flag required
+func AddBsBoolRequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Bool(name, false, usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 // add path[required]
 func AddBsPathRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_PATH, "file path")
@@ -253,8 +286,19 @@ func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	return uint32(val), nil
+}
+
+// get bool flag
+
+func GetBsFlagBool(cmd *cobra.Command, flagName string) bool {
+	var value bool
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetBool(flagName)
+	} else {
+		value = viper.GetBool(BSFLAG2VIPER[flagName])
+	}
+	return value
 }
 
 // get mdsaddr
@@ -287,18 +331,16 @@ func GetBsMdsDummyAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetBsAddrSlice(cmd, CURVEBS_MDSDUMMYADDR)
 }
 
-func GetBsFlagBool(cmd *cobra.Command, flagName string) bool {
-	var value bool
-	if cmd.Flag(flagName).Changed {
-		value, _ = cmd.Flags().GetBool(flagName)
-	} else {
-		value = viper.GetBool(BSFLAG2VIPER[flagName])
-	}
-	return value
+func AddBsClusterMapRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_CLUSTERMAP, "bsClusterMap")
 }
 
-func AddBsClusterMapRequiredFlag(cmd *cobra.Command) {
-	AddStringRequiredFlag(cmd, CURVEBS_CLUSTERMAP, "bsClusterMap")
+func AddBsFileNameRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "file name")
+}
+
+func AddBsHashCheckRequiredFlag(cmd *cobra.Command) {
+	AddBsBoolRequiredFlag(cmd, CURVEBS_HASH_CHECK, "hash_check")
 }
 
 func GetBsFlagDuration(cmd *cobra.Command, flagName string) time.Duration {
@@ -317,6 +359,16 @@ func GetBsFlagInt32(cmd *cobra.Command, flagName string) int32 {
 		value, _ = cmd.Flags().GetInt32(flagName)
 	} else {
 		value = viper.GetInt32(BSFLAG2VIPER[flagName])
+	}
+	return value
+}
+
+func GetBsFlagUint64(cmd *cobra.Command, flagName string) uint64 {
+	var value uint64
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetUint64(flagName)
+	} else {
+		value = viper.GetUint64(BSFLAG2VIPER[flagName])
 	}
 	return value
 }

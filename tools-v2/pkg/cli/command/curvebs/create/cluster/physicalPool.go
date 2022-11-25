@@ -72,7 +72,7 @@ func (ctCmd *ClusterTopoCmd) CheckPhysicalPool(poolName string) *cmderror.CmdErr
 		return poolInfo.GetPhysicalPoolName() == poolName
 	})
 	if indexPool == -1 && indexCluster == -1 {
-		err := cmderror.ErrCheckPoolTopology()
+		err := cmderror.ErrCheckPhyPoolTopology()
 		err.Format(poolName)
 		return err
 	}
@@ -112,9 +112,9 @@ func (ctCmd *ClusterTopoCmd) scanPhyPools() *cmderror.CmdError {
 	response, err := ctCmd.listPhyPoolsInPoolset(pstIds)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err
-		if response.GetStatusCode() != 0 {
-			return cmderror.ErrListPhyPoolsInPst(statuscode.TopoStatusCode(response.GetStatusCode()))
-		}
+	}
+	if response.GetStatusCode() != 0 {
+		return cmderror.ErrListPhyPoolsInPst(statuscode.TopoStatusCode(response.GetStatusCode()))
 	}
 	ctCmd.clusterPhyPoolsInfo = append(ctCmd.clusterPhyPoolsInfo, response.GetPhysicalPoolInfos()...)
 	// update delete physical pool
@@ -161,7 +161,7 @@ func (ctCmd *ClusterTopoCmd) scanPhyPools() *cmderror.CmdError {
 			row[cobrautil.ROW_NAME] = phyPool.Name
 			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_PHYPOOL
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
-			row[cobrautil.ROW_PARENT] = ""
+			row[cobrautil.ROW_PARENT] = phyPool.Poolset
 			ctCmd.rows = append(ctCmd.rows, row)
 			ctCmd.TableNew.Append(cobrautil.Map2List(row, ctCmd.Header))
 		}

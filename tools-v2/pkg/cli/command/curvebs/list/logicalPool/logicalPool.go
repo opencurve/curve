@@ -57,9 +57,9 @@ var _ basecmd.RpcFunc = (*ListLogicalPoolRpc)(nil) // check interface
 
 type LogicalPoolCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc            []*ListLogicalPoolRpc
-	Metric *basecmd.Metric
-	RecycleAlloc   *nameserver2.GetAllocatedSizeResponse
+	Rpc          []*ListLogicalPoolRpc
+	Metric       *basecmd.Metric
+	RecycleAlloc *nameserver2.GetAllocatedSizeResponse
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*LogicalPoolCommand)(nil) // check interface
@@ -163,7 +163,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			row[cobrautil.ROW_TYPE] = loPoolInfo.GetType().String()
 			row[cobrautil.ROW_ALLOC] = loPoolInfo.GetAllocateStatus().String()
 			row[cobrautil.ROW_SCAN] = fmt.Sprintf("%t", loPoolInfo.GetScanEnable())
-			
+
 			total := uint64(0)
 			// capacity
 			metricName := cobrautil.GetPoolLogicalCapacitySubUri(loPoolInfo.GetLogicalPoolName())

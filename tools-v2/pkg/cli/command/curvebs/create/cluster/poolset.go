@@ -44,7 +44,7 @@ func (ctCmd *ClusterTopoCmd) CheckPoolset(pstName string) *cmderror.CmdError {
 		return pstInfo.GetPoolsetName() == pstName
 	})
 	if indexPst == -1 && indexCluster == -1 {
-		err := cmderror.ErrCheckPoolsetTopology()
+		err := cmderror.ErrBsCheckPoolsetTopology()
 		err.Format(pstName)
 		return err
 	}
@@ -79,7 +79,7 @@ func (ctCmd *ClusterTopoCmd) scanPoolsets() *cmderror.CmdError {
 		return err
 	}
 	if response.GetStatusCode() != 0 {
-		return cmderror.ErrListPhyPoolsInPst(statuscode.TopoStatusCode(response.GetStatusCode()))
+		return cmderror.ErrListPoolsets(statuscode.TopoStatusCode(response.GetStatusCode()))
 	}
 	ctCmd.clusterPoolsetsInfo = append(ctCmd.clusterPoolsetsInfo, response.GetPoolsetInfos()...)
 

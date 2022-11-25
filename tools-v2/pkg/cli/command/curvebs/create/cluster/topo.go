@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	deployExample = `$ curve bs deploy cluster --clustermap /path/to/clustermap.json`
+	deployExample = `$ curve bs create physicalpool --bsClusterMap $<filePath>`
 )
 
 type Topology struct {
@@ -95,8 +95,8 @@ type ClusterTopoCmd struct {
 func NewClusterTopoCmd() *cobra.Command {
 	cluCmd := &ClusterTopoCmd{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
-			Use:     "topology",
-			Short:   "deploy curve bs cluster topo",
+			Use:     "physicalpool",
+			Short:   "create physicalpools",
 			Example: deployExample,
 		},
 	}
@@ -251,7 +251,8 @@ func (ctCmd *ClusterTopoCmd) updateTopology() *cmderror.CmdError {
 func (ctCmd *ClusterTopoCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	err := ctCmd.updateTopology()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return fmt.Errorf(err.Message)
+		//return fmt.Errorf(err.Message)
+		return err.ToError()
 	}
 
 	ctCmd.Result = ctCmd.rows
@@ -261,7 +262,6 @@ func (ctCmd *ClusterTopoCmd) RunCommand(cmd *cobra.Command, args []string) error
 
 func (ctCmd *ClusterTopoCmd) Print(cmd *cobra.Command, args []string) error {
 	return output.FinalCmdOutput(&ctCmd.FinalCurveCmd, ctCmd)
-	return nil
 }
 
 func (ctCmd *ClusterTopoCmd) ResultPlainOutput() error {
@@ -273,5 +273,4 @@ func (ctCmd *ClusterTopoCmd) ResultPlainOutput() error {
 		return nil
 	}
 	return output.FinalCmdOutputPlain(&ctCmd.FinalCurveCmd)
-	return nil
 }

@@ -146,7 +146,7 @@ func ToUnderscoredName(src string) string {
 				if i != 0 && !IsUpper(rune(src[i-1])) && ret[len(ret)-1] != '-' {
 					ret += "_"
 				}
-				ret += string(c-'A'+'a')
+				ret += string(c - 'A' + 'a')
 			} else {
 				ret += string(c)
 			}

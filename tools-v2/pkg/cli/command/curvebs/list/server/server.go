@@ -108,7 +108,7 @@ func (pCmd *ServerCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 	}
-	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME, 
+	header := []string{cobrautil.ROW_ID, cobrautil.ROW_HOSTNAME,
 		cobrautil.ROW_ZONE, cobrautil.ROW_PHYPOOL, cobrautil.ROW_INTERNAL_ADDR,
 		cobrautil.ROW_EXTERNAL_ADDR,
 	}
@@ -145,14 +145,14 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			row[cobrautil.ROW_HOSTNAME] = info.GetHostName()
 			row[cobrautil.ROW_ZONE] = fmt.Sprintf("%d", info.GetZoneID())
 			row[cobrautil.ROW_PHYPOOL] = fmt.Sprintf("%d", info.GetPhysicalPoolID())
-			row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d", 
+			row[cobrautil.ROW_INTERNAL_ADDR] = fmt.Sprintf("%s:%d",
 				info.GetInternalIp(), info.GetInternalPort())
 			row[cobrautil.ROW_EXTERNAL_ADDR] = fmt.Sprintf("%s:%d",
 				info.GetExternalIp(), info.GetExternalPort())
 			rows = append(rows, row)
 		}
 	}
-	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string {
+	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{
 		cobrautil.ROW_PHYPOOL, cobrautil.ROW_ZONE,
 	})
 	pCmd.TableNew.AppendBulk(list)

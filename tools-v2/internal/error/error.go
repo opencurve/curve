@@ -30,7 +30,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
-	bs_topo_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
+	bs_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 )
 
 // It is considered here that the importance of the error is related to the
@@ -315,8 +315,8 @@ var (
 	ErrMetaserverOffline = func() *CmdError {
 		return NewInternalCmdError(25, "metaserver[%s] is offline")
 	}
-	ErrCheckPoolTopology = func() *CmdError {
-		return NewInternalCmdError(26, "pool[%s] is not in cluster nor in json file")
+	ErrCheckPhyPoolTopology = func() *CmdError {
+		return NewInternalCmdError(26, "phypool[%s] is not in cluster nor in json file")
 	}
 	ErrReadFile = func() *CmdError {
 		return NewInternalCmdError(27, "read file[%s] failed! the error is: %s")
@@ -364,7 +364,7 @@ var (
 		return NewInternalCmdError(36, "get time of day fail, the error is: %s")
 	}
 	ErrBsGetFileInfo = func() *CmdError {
-		return NewInternalCmdError(37, "get file info fail, the error is: %s")
+		return NewInternalCmdError(37, "%s")
 	}
 	ErrBsGetFileSize = func() *CmdError {
 		return NewInternalCmdError(38, "get file size fail, the error is: %s")
@@ -376,8 +376,28 @@ var (
 	ErrBsDeleteFile = func() *CmdError {
 		return NewInternalCmdError(40, "delete file fail. the error is %s")
 	}
-	ErrCheckPoolsetTopology = func() *CmdError {
+	ErrBsCheckPoolsetTopology = func() *CmdError {
 		return NewInternalCmdError(40, "poolset[%s] is not in cluster nor in json file")
+	}
+	ErrBsGetFileType = func() *CmdError {
+		return NewInternalCmdError(41, "It is not a page file! the error is: %s")
+	}
+	ErrBsSegmentInfo = func() *CmdError {
+		return NewInternalCmdError(42, "get segment info fail! the error is: %s")
+	}
+	ErrBsChunkServerListInCopySets = func() *CmdError {
+		return NewInternalCmdError(43, "list chunk servers in copyset fail! the error is: %s")
+	}
+	ErrBsFileNotExist = func() *CmdError {
+		return NewInternalCmdError(44, "file doesn't exist, the error is: \n%s")
+	}
+
+	ErrCheckCopysetConsistency = func() *CmdError {
+		return NewInternalCmdError(46, "Check Copyset Consistency")
+	}
+
+	ErrCheckPoolTopology = func() *CmdError {
+		return NewInternalCmdError(47, "phypool[%s] is not in cluster nor in json file")
 	}
 
 	ErrRespTypeNoExpected = func() *CmdError {
@@ -386,6 +406,22 @@ var (
 
 	ErrGetPeer = func() *CmdError {
 		return NewInternalCmdError(42, "invalid peer args, err: %s")
+	}
+
+	ErrBsChunkHashNotEqual = func() *CmdError {
+		return NewInternalCmdError(48, "chunks hash are not equal prehash is %s, curhash is %s, chunkid is %d")
+	}
+
+	ErrBsChunkHash = func() *CmdError {
+		return NewInternalCmdError(49, "chunks hash are not consistency")
+	}
+
+	ErrBsApplyIndexNotEqual = func() *CmdError {
+		return NewInternalCmdError(50, "Apply index not equal, previous apply index is %d, current index is %d, copyset id is %d")
+	}
+
+	ErrBsApplyIndex = func() *CmdError {
+		return NewInternalCmdError(51, "apply index are not consistency")
 	}
 
 	// http error
@@ -579,9 +615,10 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrBsListPhysicalPoolRpc = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+
+	ErrBsListPhysicalPoolRpc = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
 		code := int32(statusCode)
-		message := fmt.Sprintf("Rpc[ListPhysicalPool] status code: %s", bs_topo_statuscode.TopoStatusCode_name[code])
+		message := fmt.Sprintf("Rpc[ListPhysicalPool] status code: %s", bs_statuscode.TopoStatusCode_name[code])
 		return NewRpcReultCmdError(int(-code), message)
 	}
 	ErrBsGetAllocatedSizeRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
@@ -589,57 +626,117 @@ var (
 		return NewInternalCmdError(int(statuscode), message)
 	}
 	ErrBsGetFileInfoRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
-		message := fmt.Sprintf("Rpc[GetFileInfo] for [%s] status code: %s", file, statuscode.String())
+		message := fmt.Sprintf("Rpc[GetFileInfo] for file: %s fail , error status code: %s", file, statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
 	}
 	ErrBsGetFileSizeRpc = func(statuscode nameserver2.StatusCode, file string) *CmdError {
 		message := fmt.Sprintf("Rpc[GetFileSize] for [%s] status code: %s", file, statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
 	}
-	ErrBsListPoolZoneRpc = func(statuscode bs_topo_statuscode.TopoStatusCode) *CmdError {
+	ErrBsListPoolZoneRpc = func(statuscode bs_statuscode.TopoStatusCode) *CmdError {
 		message := fmt.Sprintf("Rpc[ListPoolZone] faild status code: %s", statuscode.String())
 		return NewInternalCmdError(int(statuscode), message)
 	}
 
+	ErrBsGetSegInfoRpc = func(statuscode bs_statuscode.TopoStatusCode) *CmdError {
+		message := fmt.Sprintf("Rpc[GetOrAllocateSegment] faild status code: %s", statuscode.String())
+		return NewInternalCmdError(int(statuscode), message)
+	}
+
 	// bs
-	ErrCreateBsTopology = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+	ErrCreateBsTopology = func(statusCode bs_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "ok"
 		default:
 			message = fmt.Sprintf("create %s[%s], err: %s", topoType, name, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrListPhyPoolsInPst = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+	ErrListVolsOnDamagedCps = func(statusCode nameserver2.StatusCode) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case nameserver2.StatusCode_kOK:
+			message = "list volumes on copysets successfully"
+		default:
+			message = fmt.Sprintf("list volumes on copysets fail errCode: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrGetCopySetsInChunkServer = func(statusCode bs_statuscode.TopoStatusCode, csAddr string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.TopoStatusCode_Success:
+			message = "get copysets in chunk server successfully"
+		default:
+			message = fmt.Sprintf("get copysets in chunk server fail errCode: %s, chunkserver addr is %s", statusCode.String(), csAddr)
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrGetChunkServerListInCopySets = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.TopoStatusCode_Success:
+			message = "Get chunk server list in copysets successfully"
+		default:
+			message = fmt.Sprintf("Get chunk server list in copysets fail errCode: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListChunkServers = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.TopoStatusCode_Success:
+			message = "list chunk servers successfully"
+		default:
+			message = fmt.Sprintf("list chunk servers fail errCode: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListPoolsets = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.TopoStatusCode_Success:
+			message = "list poolsets successfully"
+		default:
+			message = fmt.Sprintf("list poolsets err: %s", statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+	ErrListPhyPoolsInPst = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "list physicalpools successfully"
 		default:
 			message = fmt.Sprintf("list physicalpools in poolset err: %s", statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrListZonesInPhyPool = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+	ErrListZonesInPhyPool = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "list zones successfully"
 		default:
 			message = fmt.Sprintf("list zones in physicalpool err: %s", statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrListServers = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+	ErrListServers = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "list servers successfully"
 		default:
 			message = fmt.Sprintf("list servers err: %s", statusCode.String())
@@ -647,11 +744,11 @@ var (
 		return NewRpcReultCmdError(code, message)
 	}
 
-	ErrListZones = func(statusCode bs_topo_statuscode.TopoStatusCode) *CmdError {
+	ErrListZones = func(statusCode bs_statuscode.TopoStatusCode) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "ok"
 		default:
 			message = fmt.Sprintf("list topology err: %s", statusCode.String())
@@ -659,11 +756,11 @@ var (
 		return NewRpcReultCmdError(code, message)
 	}
 
-	ErrDelServer = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+	ErrDelServer = func(statusCode bs_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "delete servers successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
@@ -671,11 +768,11 @@ var (
 		return NewRpcReultCmdError(code, message)
 	}
 
-	ErrDelZone = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+	ErrDelZone = func(statusCode bs_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "list zones successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
@@ -683,11 +780,11 @@ var (
 		return NewRpcReultCmdError(code, message)
 	}
 
-	ErrDelPhyPool = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+	ErrDelPhyPool = func(statusCode bs_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "list physicalpools successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
@@ -695,14 +792,97 @@ var (
 		return NewRpcReultCmdError(code, message)
 	}
 
-	ErrDelPoolset = func(statusCode bs_topo_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+	ErrGetChunkServerListInCopySetsRpc = func(statusCode bs_statuscode.TopoStatusCode, logicalpoolId uint32) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case bs_topo_statuscode.TopoStatusCode_Success:
+		case bs_statuscode.TopoStatusCode_Success:
+			message = "get chunk server List in copysets successfully"
+		default:
+			message = fmt.Sprintf("the logicalpool id of copysets is %d, err: %s", logicalpoolId, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrBsGetChunkHash = func(scode bs_statuscode.ChunkStatusCode) *CmdError {
+		var message string
+		code := int(scode)
+		switch scode {
+		case bs_statuscode.ChunkStatusCode_ChunkSuccess:
+			message = "get chunk hash successfully"
+		default:
+			message = fmt.Sprintf("get chunk hash fail, errCode is %s", scode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrBsGetChunk = func(scode bs_statuscode.ChunkStatusCode, chunkId uint64, copysetid uint32, lpid uint32) *CmdError {
+		var message string
+		code := int(scode)
+		switch scode {
+		case bs_statuscode.ChunkStatusCode_ChunkSuccess:
+			message = "get chunk status successfully"
+		case bs_statuscode.ChunkStatusCode_Backward:
+			message = "The requested version is behind the current version"
+		case bs_statuscode.ChunkStatusCode_ChunkExist:
+			message = "the chunk has existed"
+		case bs_statuscode.ChunkStatusCode_ChunkNotExist:
+			message = fmt.Sprintf("the chunk (id is %d ) doesn't exist, err: %s", chunkId, scode.String())
+		case bs_statuscode.ChunkStatusCode_CopysetNotExist:
+			message = fmt.Sprintf("the copyset(id is %d) doesn't exist,  err: %s", copysetid, scode.String())
+
+		default:
+			message = fmt.Sprintf("get chunk err, chunkid is %d, copyset id is %d, logicalpool id is %d, err: %s",
+				chunkId, copysetid, lpid, scode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrBsGetCopysetStatus = func(scode bs_statuscode.CopysetStatusCode, copysetid uint32, lpid uint32) *CmdError {
+		var message string
+		code := int(scode)
+		switch scode {
+		case bs_statuscode.CopysetStatusCode_CopysetSuccess:
+			message = "get copyset status successfully"
+		case bs_statuscode.CopysetStatusCode_Exist:
+			message = fmt.Sprintf("the copyset (id is %d ) has exist, err is %s", copysetid, scode.String())
+		case bs_statuscode.CopysetStatusCode_Healthy:
+			message = fmt.Sprintf("the copyset(id is %d, logicalpoolid is %d) is healthy", copysetid, lpid)
+		case bs_statuscode.CopysetStatusCode_NotExist:
+			message = fmt.Sprintf("the copyset (id is %d ) doesn't exist, err is %s", copysetid, scode.String())
+		default:
+			message = fmt.Sprintf("unknow error copyset id is %d, lpid is %d, err: %s",
+				copysetid, lpid, scode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrDelPoolset = func(statusCode bs_statuscode.TopoStatusCode, topoType string, name string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.TopoStatusCode_Success:
 			message = "delete poolset successfully"
 		default:
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrBsGetSegInfo = func(statusCode bs_statuscode.GetSegmentRes) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case bs_statuscode.GetSegmentRes_OK:
+			message = "ok"
+		case bs_statuscode.GetSegmentRes_SegmentNotAllocated:
+			message = fmt.Sprintf("the segments of file haven't been allcated, errCode: %s", statusCode.String())
+		case bs_statuscode.GetSegmentRes_FileNotExists:
+			message = fmt.Sprintf("the file doesn't exist, errCode: %d(%s)", code, statusCode.String())
+		case bs_statuscode.GetSegmentRes_OtherError:
+			message = "other error"
+		default:
+			message = fmt.Sprintf("get segment info fail, err: %s", statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}

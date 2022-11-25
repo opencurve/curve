@@ -39,3 +39,36 @@ enum TopoStatusCode {
     CannotRemoveNotRetired = -18;
     LogicalPoolExist = -19;
 }
+
+enum GetSegmentRes {
+    OK = 0;  // 获取segment成功
+    SegmentNotAllocated = 107; // segment不存在
+    FileNotExists = 102;  // 文件不存在
+    OtherError = -3;  // 其他错误
+}
+
+enum CopysetStatusCode{
+    CopysetSuccess = 0;
+    Exist = 1;     // copyset node 已经存在
+    NotExist = 2;
+    UnknowErr = 3;
+    Healthy = 4;
+}
+
+enum ChunkStatusCode{
+    ChunkSuccess = 0;
+    Redirect = 1;                     //不是leader,重定向
+    DiskErr = 2;                     //磁盘返回错误
+    CrcFail = 3;                    //Crc校验错误
+    InvalidReqParam = 4;           //请求参数错误
+    NoEnoughSpace = 5;            //空间不够
+    CopysetNotExist = 6;         //copyset不存在
+    ChunkNotExist = 7;          //chunk或其快照文件不存在
+    UnknowFailure = 8;          //未知错误
+    OverLoad = 9;               //服务端过载
+    Backward = 10;             // 请求的版本落后当前chunk的版本
+    ChunkExist = 11;           //chunk已存在
+    EpochOld = 12;             // 请求中的epoch太老了
+}
+
+
