@@ -30,6 +30,47 @@ After you have a certain understanding of the Curve project, if you are interest
 - In addition to the existing issues, you are also welcome to submit issues that you have discovered or new features you hope for and resolve them.
 - You can pay attention to the *TODO* in the existing Curve code, most of which are code logic optimization and features to be supplemented, choose the ones you are interested in and raise relevant issues to follow up and try to solve.
 
+For commit messages:
+
+A good commit message needs to contain the following elements:
+
+1. What is your change? (required)
+2. Why this change was made? (required)
+3. What effect does the commit have? (Optional)
+
+The footer is optional and is used to record issues that can be closed due to these changes, such as `Close issue-12345`
+
+Explain what changes have been made to the submitted PR: performance optimization? Fix bugs? add feature? and why. Finally, describe the impact of the following modifications, including performance and so on. Of course, for some simple modifications, the reasons and effects of the modifications can be ignored. Try to follow the following principles in the message:
+
+- Summarize the function and role of PR
+- Use short sentences and simple verbs
+- Avoid long compound words and abbreviations
+
+Please follow the following format as much as possible when submitting:
+
+```
+[type]<scope>:<description>
+<BLANK LINE>
+[body]
+<BLANK LINE>
+[footer]
+```
+
+type can be one of the following types:
+
+- build: Affects system builds and external dependencies
+- ci: Affects continuous inheritance related functions
+- docs: Documentation related changes
+- feat: Add new features
+- fix: A bug fix
+- perf: Performance improvement
+- refactor: Refactor related code without adding functionality or fixing bugs
+- style: Modifications that do not affect the meaning of the code, only modify the code style
+- test: Modifications related to unit testing
+
+The first line indicates that the title should be kept within 70 characters as much as possible, explaining the modified module and content, multiple modules can be represented by `*`, and the modified module is explained in the text stage.
+
+The footer is optional and is used to record issues that can be closed due to these changes, such as `Close #12345`
 
 ## How to submit a proposal
 
