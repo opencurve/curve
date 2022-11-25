@@ -62,6 +62,46 @@ Curve 社区有多个[沟通渠道](#社区交流)，每两周还会有线上的
 - CI 通过之后可开始进行 review，每个 PR 在合并之前都需要至少得到两个 Committer/Maintainer 的 LGTM。
 - PR 代码需要一定量的注释来使代码容易理解，且所有注释和 review 意见和回复均要求使用英语。
 
+对于 commit message：
+
+一条好的 commit message 需要包含以下要素：
+
+1. What is your change?（必须）
+2. Why this change was made?（必须）
+3. What effect does the commit have? (可选)
+
+说明提交的 PR 做了那些修改：性能优化？修复bug？增加功能？以及这么做的原因。最后描述以下这样修改带来的影响，包括性能等等。当然对一些简单的修改，修改的原因和影响可以忽略。在 message中尽量遵循以下原则：
+
+- 总结说明 PR 的功能和作用
+- 使用短句和简单的动词
+- 避免长的复合词和缩写
+
+在提交时请尽可能的遵循以下格式：
+
+```
+[type]<scope>: <description>
+<BLANK LINE>
+[body]
+<BLANK LINE>
+[footer]
+```
+
+type 可以是以下类型之一：
+
+- build: 影响系统构建以及外部依赖
+- ci: 影响持续继承相关的功能
+- docs: 文档相关的修改
+- feat: 增加新的特性
+- fix: bug 修复
+- perf: 性能提升
+- refactor: 重构相关的代码，不增加功能也不修复错误
+- style: 不影响代码的的含义的修改，仅仅是修改代码风格
+- test: 单元测试相关的修改
+
+第一行表示标题应尽可能保持 70 个字符以内，阐述修改的模块以及内容，多模块可以使用 `*` 来表示，并在正文阶段说明修改的模块。
+
+footer 是可选的，用来记录对应因为这些更改而可以关闭的 issue，如 `Close #12345`
+
 ## 社区交流
 
 目前 Curve 社区有多个沟通交流的渠道，请根据自己的需求选择合适高效的沟通方式：
