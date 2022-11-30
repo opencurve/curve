@@ -943,7 +943,9 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     // Do not check UnlinkSrcParentInode, beause rename is already success
     renameOp.UnlinkSrcParentInode();
     renameOp.UnlinkOldInode();
-    renameOp.UpdateInodeParent();
+    if (parent != newparent) {
+        renameOp.UpdateInodeParent();
+    }
     renameOp.UpdateCache();
 
     if (enableSumInDir_) {

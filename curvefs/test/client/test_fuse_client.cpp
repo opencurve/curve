@@ -1245,7 +1245,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
-        .Times(times * 2)
+        .Times(times)
         .WillRepeatedly(Return(MetaStatusCode::OK));
 
     // step6: unlink old inode
@@ -1259,7 +1259,7 @@ TEST_F(TestFuseVolumeClient, FuseOpRenameParallel) {
     oldAttr.set_type(FsFileType::TYPE_FILE);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*inodeManager_, GetInode(inode.inodeid(), _))
-        .Times(2 * times)
+        .Times(times)
         .WillRepeatedly(DoAll(SetArgReferee<1>(inodeWrapper),
                               Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*metaClient_, GetInodeAttr(_, 10, _))
