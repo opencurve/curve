@@ -243,9 +243,11 @@ class MdsClientImpl : public MdsClient {
                                GetLatestTxIdResponse* response);
 
     FSStatusCode CommitTx(const CommitTxRequest& request);
+    bool AllocOrGetMemcacheCluster() {
+        return true;
+    }
 
- private:
-    MDSBaseClient *mdsbasecli_;
+        private : MDSBaseClient* mdsbasecli_;
     ::curve::client::RPCExcutorRetryPolicy rpcexcutor_;
     ::curve::client::MetaServerOption mdsOpt_;
 
