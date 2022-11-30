@@ -79,6 +79,7 @@ int main(int argc, char **argv) {
     }
     LoadConfigFromCmdline(conf.get());
     conf->PrintConfig();
+    conf->ExposeMetric("snapshot_clone_server_config");
     google::InitGoogleLogging(argv[0]);
     snapshotcloneserver_main(conf);
 }
