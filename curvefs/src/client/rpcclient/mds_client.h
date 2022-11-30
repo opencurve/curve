@@ -131,6 +131,10 @@ class MdsClient {
                      const std::string& uuid,
                      uint64_t sequence) = 0;
 
+    // get memcache cluster config
+    virtual bool AllocOrGetMemcacheCluster(
+        uint32_t fsId, curvefs::mds::topology::MemcacheCluster *cluster) = 0;
+
     // allocate block group
     virtual SpaceErrCode AllocateVolumeBlockGroup(
         uint32_t fsId,
@@ -214,6 +218,11 @@ class MdsClientImpl : public MdsClient {
                      const std::string& fsName,
                      const std::string& uuid,
                      uint64_t sequence) override;
+
+    // get memcache cluster config
+    bool
+    AllocOrGetMemcacheCluster(uint32_t fsId,
+                              curvefs::mds::topology::MemcacheCluster *cluster);
 
     // allocate block group
     SpaceErrCode AllocateVolumeBlockGroup(

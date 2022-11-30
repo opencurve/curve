@@ -30,16 +30,19 @@
 #include <string>
 
 #include "curvefs/src/client/kvclient/kvclient.h"
+#include "curvefs/proto/topology.pb.h"
 
 namespace curvefs {
 
 namespace client {
 
+using curvefs::mds::topology::MemcacheCluster;
+
 /**
  * only the threadpool will operate the kvclient,
  * for threadsafe and fast, we can make every thread has a client.
  */
-extern thread_local memcached_st* tcli;
+extern thread_local memcached_st *tcli;
 
 /**
  * MemCachedClient is a client to memcached cluster. You'd better
@@ -56,7 +59,7 @@ extern thread_local memcached_st* tcli;
  * uint64_t data;
  * client->SetClientAttr(MEMCACHED_BEHAVIOR_NO_BLOCK, data);
  * client->SetClientAttr(MEMCACHED_BEHAVIOR_TCP_NODELAY, data);
- * KvClientManager manager;
+ * KVClientManager manager;
  * config.kvclient = std::move(client_);
  * config.threadPooln = n;
  * manager.Init(&conf);
@@ -72,17 +75,31 @@ extern thread_local memcached_st* tcli;
  * manager.Unint();
  */
 
-class MemCachedClient : public KvClient {
+class MemCachedClient : public KVClient {
  public:
     MemCachedClient() : server_(nullptr) {
         client_ = memcached_create(nullptr);
     }
-    explicit MemCachedClient(memcached_st* cli) : client_(cli) {}
+    explicit MemCachedClient(memcached_st *cli) : client_(cli) {}
     ~MemCachedClient() { UnInit(); }
 
-    bool Init() override {
+    bool Init(const MemcacheCluster &kvcachecluster) {
         client_ = memcached(nullptr, 0);
-        return client_ != nullptr;
+
+        for (int i = 0; i < kvcachecluster.servers_size(); i++) {
+            if (!AddServer(kvcachecluster.servers(i).ip(),
+                           kvcachecluster.servers(i).port())) {
+                return false;
+            }
+        }
+
+        memcached_behavior_set(client_, MEMCACHED_BEHAVIOR_DISTRIBUTION,
+                               MEMCACHED_DISTRIBUTION_CONSISTENT);
+        memcached_behavior_set(client_, MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, 5);
+        memcached_behavior_set(client_,
+                               MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, 1);
+
+        return PushServer();
     }
 
     void UnInit() override {
@@ -92,15 +109,12 @@ class MemCachedClient : public KvClient {
         }
     }
 
-    bool Set(const std::string& key,
-                const char* value,
-                const int value_len,
-                std::string* errorlog) override {
+    bool Set(const std::string &key, const char *value,
+             const uint64_t value_len, std::string *errorlog) override {
         if (nullptr == tcli) {
             tcli = memcached_clone(nullptr, client_);
         }
-        auto res = memcached_set(tcli, key.c_str(),
-                      key.length(), value,
+        auto res = memcached_set(tcli, key.c_str(), key.length(), value,
                                  value_len, 0, 0);
         if (MEMCACHED_SUCCESS == res) {
             return true;
@@ -109,9 +123,8 @@ class MemCachedClient : public KvClient {
         return false;
     }
 
-    bool Get(const std::string& key,
-                std::string* value,
-                std::string* errorlog) override {
+    bool Get(const std::string &key, char *value, uint64_t offset,
+             uint64_t length, std::string *errorlog) override {
         if (nullptr == tcli) {
             // multi thread use a memcached_st* client is unsafe.
             // should clone it or use memcached_st_pool.
@@ -120,15 +133,14 @@ class MemCachedClient : public KvClient {
         uint32_t flags = 0;
         size_t value_length = 0;
         memcached_return_t ue;
-        char* res = memcached_get(tcli, key.c_str(), key.length(),
+        char *res = memcached_get(tcli, key.c_str(), key.length(),
                                   &value_length, &flags, &ue);
-        if (res != nullptr && value->empty()) {
-            value->reserve(value_length + 1);
-            value->assign(res, res + value_length + 1);
-            value->resize(value_length);
+        if (res != nullptr && value) {
+            memcpy(value, res + offset, length);
             free(res);
             return true;
         }
+
         *errorlog = ResError(ue);
         return false;
     }
@@ -139,34 +151,10 @@ class MemCachedClient : public KvClient {
     }
 
     /**
-     * for memcached client, you can set some attribute to it.
-     * @param: flag: the memcached offical doc indicates some attribute
-     *   is not keep maintain. here only give some commonly used.
-     *   more details here
-     * http://docs.libmemcached.org/memcached_behavior.html#memcached_behavior_set
-     * MEMCACHED_BEHAVIOR_NO_BLOCK: Causes libmemcached(3) to use asychronous
-     * IO. This is the fastest transport available for storage functions.
-     * MEMCACHED_BEHAVIOR_TCP_NODELAY: Turns on the no-delay feature for
-     *       connecting sockets (may be faster in some environments).
-     */
-    bool SetClientAttr(memcached_behavior_t flag, uint64_t data) {
-        auto res = memcached_behavior_set(client_, flag, data);
-        if (MEMCACHED_SUCCESS == res) {
-            return true;
-        }
-        LOG(ERROR) << "client setattr " << ResError(res);
-        return false;
-    }
-
-    uint64_t GetClientAttr(memcached_behavior_t flag) {
-        return memcached_behavior_get(client_, flag);
-    }
-
-    /**
      * @brief: add a remote memcache server to client,
      * this means just add, you must use push after all server add.
      */
-    bool AddServer(const std::string& hostname, const uint32_t port) {
+    bool AddServer(const std::string &hostname, const uint32_t port) {
         memcached_return_t res;
         server_ =
             memcached_server_list_append(server_, hostname.c_str(), port, &res);
@@ -198,8 +186,8 @@ class MemCachedClient : public KvClient {
     }
 
  private:
-    memcached_server_st* server_;
-    memcached_st* client_;
+    memcached_server_st *server_;
+    memcached_st *client_;
 };
 
 }  //  namespace client

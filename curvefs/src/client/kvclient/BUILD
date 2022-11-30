@@ -14,24 +14,26 @@
 #  limitations under the License.
 #
 
-# load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
+load("//:copts.bzl", "CURVE_DEFAULT_COPTS")
 
-
-
-# cc_library(
-#     name = "memcache_client_lib",
-#     srcs = glob(["*.cpp"]),
-#     hdrs = glob(["*.h"]),
-#     copts = CURVE_DEFAULT_COPTS,
-#     linkopts = [
-#         "-lmemcached",
-#     ],
-#     visibility = ["//visibility:public"],
-#     deps = [
-#         "@com_google_absl//absl/strings",
-#         "//external:glog",
-#         "//external:bthread",
-#         "//src/common:curve_common",
-#         "//src/common:curve_s3_adapter",
-#     ],
-# )
+cc_library(
+    name = "memcached_client_lib",
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*.h"]),
+    copts = CURVE_DEFAULT_COPTS,
+    linkopts = [
+        "-L/usr/local/lib",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//curvefs/proto:curvefs_topology_cc_proto",
+        "//curvefs/src/client/common:common",
+        "//curvefs/src/client/metric:client_metric",
+        "@com_google_absl//absl/strings",
+        "//external:glog",
+        "//external:bthread",
+        "//src/common:curve_common",
+        "//src/common:curve_s3_adapter",
+        "@libmemcached",
+    ],
+)

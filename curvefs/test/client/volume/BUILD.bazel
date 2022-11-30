@@ -25,6 +25,7 @@ cc_test(
     copts = CURVE_TEST_COPTS,
     deps = [
         "//curvefs/src/client:fuse_client_lib",
+        "//curvefs/src/client/kvclient:memcached_client_lib",
         "//curvefs/test/volume/mock",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest",

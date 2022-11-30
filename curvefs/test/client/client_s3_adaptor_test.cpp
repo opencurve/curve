@@ -47,6 +47,8 @@ using ::testing::WithArg;
 
 using rpcclient::MockMdsClient;
 
+extern KVClientManager *g_kvClientManager;
+
 class ClientS3AdaptorTest : public testing::Test {
  protected:
     ClientS3AdaptorTest() {}
@@ -73,6 +75,7 @@ class ClientS3AdaptorTest : public testing::Test {
         s3ClientAdaptor_->Init(option, mockS3Client_, mockInodeManager_,
                                mockMdsClient_, mockFsCacheManager_,
                                mockDiskcacheManagerImpl_);
+        g_kvClientManager = nullptr;
     }
 
     void TearDown() override {
@@ -262,7 +265,7 @@ TEST_F(ClientS3AdaptorTest, FlushAllCache_with_no_cache) {
 }
 
 TEST_F(ClientS3AdaptorTest, FlushAllCache_with_cache) {
-    s3ClientAdaptor_->SetDiskCache(DiskCacheType::ReadWrite);
+     s3ClientAdaptor_->SetDiskCache(DiskCacheType::ReadWrite);
 
     LOG(INFO) << "############ case1: clear write cache fail";
     auto filecache = std::make_shared<MockFileCacheManager>();

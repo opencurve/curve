@@ -20,14 +20,20 @@
  * Author: xuchaojie
  */
 
-#include "curvefs/src/client/fuse_s3_client.h"
 
 #include <memory>
 #include <vector>
+
+#include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/kvclient/memcache_client.h"
+
 namespace curvefs {
 namespace client {
 namespace common {
+
 DECLARE_bool(enableCto);
+DECLARE_bool(supportKVcache);
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -35,14 +41,24 @@ DECLARE_bool(enableCto);
 namespace curvefs {
 namespace client {
 
+using curvefs::client::common::FLAGS_supportKVcache;
+using curvefs::client::common::FLAGS_enableCto;
+using curvefs::mds::topology::MemcacheCluster;
+using curvefs::mds::topology::MemcachedServer;
+
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     FuseClientOption opt(option);
+    // init kvcache
+    if (FLAGS_supportKVcache && !InitKVCache(option.kvClientManagerOpt)) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
     CURVEFS_ERROR ret = FuseClient::Init(opt);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
 
-    // set fsS3Option
+    // set fs S3Option
     const auto& s3Info = fsInfo_->detail().s3info();
     ::curve::common::S3InfoOption fsS3Option;
     ::curvefs::client::common::S3Info2FsS3Option(s3Info, &fsS3Option);
@@ -78,6 +94,35 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     bgFetchThread_ = Thread(&FuseS3Client::BackGroundFetch, this);
     GetTaskFetchPool();
     return ret;
+}
+
+
+bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
+     // get kvcache cluster
+    MemcacheCluster kvcachecluster;
+    if (!mdsClient_->AllocOrGetMemcacheCluster(fsInfo_->fsid(),
+                                               &kvcachecluster)) {
+        LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
+                   << ", but AllocOrGetMemcacheCluster fail";
+        return false;
+    }
+
+    // init kvcache client
+    auto memcacheClient = std::make_shared<MemCachedClient>();
+    if (!memcacheClient->Init(kvcachecluster)) {
+        LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
+                   << ", but init memcache client fail";
+        return false;
+    }
+
+    g_kvClientManager = new KVClientManager();
+    if (!g_kvClientManager->Init(opt, memcacheClient)) {
+        LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
+                   << ", but init kvClientManager fail";
+        return false;
+    }
+
+    return true;
 }
 
 void FuseS3Client::GetWarmUpFileList(const WarmUpFileContext_t&warmUpFile,
@@ -536,7 +581,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
 
     // if enableCto, flush all write cache both in memory cache and disk cache
-    if (curvefs::client::common::FLAGS_enableCto) {
+    if (FLAGS_enableCto) {
         ret = s3Adaptor_->FlushAllCache(ino);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "FuseOpFlush, flush all cache fail, ret = " << ret

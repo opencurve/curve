@@ -372,7 +372,9 @@ CURVEFS_ERROR S3ClientAdaptorImpl::FlushAllCache(uint64_t inodeId) {
     }
 
     // force flush data in diskcache to s3
-    if (HasDiskCache()) {
+    if (!g_kvClientManager && HasDiskCache()) {
+        VLOG(6) << "FlushAllCache, wait inodeId:" << inodeId
+                << "related chunk upload to s3";
         if (ClearDiskCache(inodeId) < 0) {
             return CURVEFS_ERROR::INTERNAL;
         }

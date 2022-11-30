@@ -80,6 +80,11 @@ struct SpaceAllocServerOption {
     uint64_t rpcTimeoutMs;
 };
 
+struct KVClientManagerOpt {
+    int setThreadPooln = 4;
+    int getThreadPooln = 4;
+};
+
 struct DiskCacheOption {
     DiskCacheType diskCacheType;
     // cache disk dir
@@ -182,6 +187,7 @@ struct FuseClientOption {
     VolumeOption volumeOpt;
     LeaseOpt leaseOpt;
     RefreshDataOption refreshDataOption;
+    KVClientManagerOpt kvClientManagerOpt;
 
     double attrTimeOut;
     double entryTimeOut;
