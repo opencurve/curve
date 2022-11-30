@@ -1,4 +1,4 @@
-git # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
+# Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
 .PHONY: list build dep install image
 
