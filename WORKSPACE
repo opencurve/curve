@@ -179,6 +179,12 @@ new_local_repository(
     path = "thirdparties/aws/aws-sdk-cpp",
 )
 
+new_local_repository(
+    name = "libmemcached",
+    build_file = "//:thirdparties/memcache/memcache.BUILD",
+    path = "thirdparties/memcache/libmemcached-1.1.2",
+)
+
 
 # C++ rules for Bazel.
 http_archive(

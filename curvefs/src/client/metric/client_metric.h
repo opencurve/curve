@@ -275,6 +275,15 @@ struct DiskCacheMetric {
           diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
 };
 
+struct KVClientMetric {
+    const std::string prefix = "curvefs_kvclient";
+    InterfaceMetric kvClientSet;
+    InterfaceMetric kvClientGet;
+
+    KVClientMetric()
+        : kvClientGet(prefix, "get"), kvClientSet(prefix, "set") {}
+};
+
 struct S3ChunkInfoMetric {
     const std::string prefix = "inode_s3_chunk_info";
 

@@ -9,6 +9,7 @@ g_list=0
 g_depend=0
 g_target=""
 g_release=0
+g_ci=0
 g_build_rocksdb=0
 g_build_opts=(
     "--define=with_glog=true"
@@ -76,7 +77,7 @@ _EOC_
 }
 
 get_options() {
-    local args=`getopt -o ldorh --long stor:,list,dep:,only:,os:,release:,build_rocksdb: -n "$0" -- "$@"`
+    local args=`getopt -o ldorh --long stor:,list,dep:,only:,os:,release:,ci:,build_rocksdb: -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
     do
@@ -99,6 +100,10 @@ get_options() {
                 ;;
             -r|--release)
                 g_release=$2
+                shift 2
+                ;;
+            -c|--ci)
+                g_ci=$2
                 shift 2
                 ;;
             --os)
@@ -181,6 +186,10 @@ build_target() {
         g_build_opts+=("--config=gcc7-later")
     fi
 
+    if [ $g_ci -eq 1 ]; then
+        g_build_opts+=("--collect_code_coverage")
+    fi
+
     for target in `get_target`
     do
         bazel build ${g_build_opts[@]} $target
@@ -213,6 +222,8 @@ build_requirements() {
         fi
         g_rocksdb_root="${PWD}/thirdparties/rocksdb"
         (cd ${g_rocksdb_root} && make build from_source=${g_build_rocksdb} && make install prefix=${g_rocksdb_root})
+        g_memcache_root="${PWD}/thirdparties/memcache"
+        (cd ${g_memcache_root} && make build)
     fi
     g_aws_sdk_root="thirdparties/aws"
     (cd ${g_aws_sdk_root} && make)

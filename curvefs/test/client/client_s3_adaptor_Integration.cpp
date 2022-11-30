@@ -26,11 +26,13 @@
 
 #include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
+#include "src/common/curve_define.h"
 #include "curvefs/test/client/mock_client_s3.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_metaserver_service.h"
+#include "curvefs/test/client/mock_kvclient.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
-#include "src/common/curve_define.h"
 
 namespace curvefs {
 namespace client {
@@ -49,6 +51,8 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
+using ::testing::SetArrayArgument;
+using ::testing::AtLeast;
 using ::testing::WithArg;
 
 using rpcclient::MockMdsClient;
@@ -113,7 +117,6 @@ std::shared_ptr<InodeWrapper> InitInodeForIntegration() {
 
     return std::make_shared<InodeWrapper>(std::move(inode), nullptr);
 }
-
 }  // namespace
 
 class ClientS3IntegrationTest : public testing::Test {
@@ -153,12 +156,21 @@ class ClientS3IntegrationTest : public testing::Test {
         server_.Join();
     }
 
+    void InitKVClientManager() {
+        g_kvClientManager = new KVClientManager();
+
+        KVClientManagerOpt opt;
+        std::shared_ptr<MockKVClient> mockKVClient(&mockKVClient_);
+        g_kvClientManager->Init(opt, mockKVClient);
+    }
+
  protected:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     MockMetaServerService mockMetaServerService_;
     MockS3Client mockS3Client_;
     MockInodeCacheManager mockInodeManager_;
     MockMdsClient mockMdsClient_;
+    MockKVClient mockKVClient_;
     std::string addr_ = "127.0.0.1:5630";
     brpc::Server server_;
     Aws::SDKOptions awsOptions_;
@@ -2819,6 +2831,101 @@ TEST_F(ClientS3IntegrationTest, test_fssync_overlap_write) {
         iter->second.buf = NULL;
     }
     gObjectDataMaps.clear();
+}
+
+TEST_F(ClientS3IntegrationTest, test_write_read_remotekvcache) {
+    InitKVClientManager();
+
+    curvefs::client::common::FLAGS_enableCto = true;
+
+    uint64_t offset_0 = 0, offset_4M = (4 << 20), chunkId = 10;
+    uint64_t inodeId = inode->GetInodeId();
+    uint64_t len = 128 * 1024;  // 128K
+    char *buf = new char[len];
+    memset(buf, 'b', len);
+
+    // write data and prepare for flush
+    {
+        EXPECT_CALL(mockS3Client_, UploadAsync(_))
+            .Times(2)
+            .WillRepeatedly(Invoke(
+                [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                    context->retCode = 0;
+                    context->cb(context);
+                }));
+        EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+            .Times(2)
+            .WillRepeatedly(
+                DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
+
+        int ret =
+            s3ClientAdaptor_->Write(inodeId, offset_0, len, buf);
+        ASSERT_EQ(len, ret);
+        ret = s3ClientAdaptor_->Write(inodeId, offset_4M, len, buf);
+        ASSERT_EQ(len, ret);
+    }
+
+    // flush data
+    {
+        EXPECT_CALL(mockMdsClient_, AllocS3ChunkId(_, _, _))
+            .Times(2)
+            .WillOnce(
+                DoAll(SetArgPointee<2>(chunkId), Return(FSStatusCode::OK)))
+            .WillOnce(
+                DoAll(SetArgPointee<2>(chunkId + 1), Return(FSStatusCode::OK)));
+        EXPECT_CALL(mockKVClient_, Set(_, _, _, _))
+            .Times(2)
+            .WillOnce(Return(true))
+            .WillOnce(Return(false));
+        EXPECT_CALL(mockInodeManager_, ShipToFlush(_)).Times(2);
+
+        CURVEFS_ERROR res = s3ClientAdaptor_->Flush(inodeId);
+        ASSERT_EQ(CURVEFS_ERROR::OK, res);
+    }
+
+    // read (offset_0, len)
+    {
+        char *readBuf = new char[len];
+        memset(readBuf, 0, len);
+        EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+            .WillOnce(
+                DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _))
+            .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + len), Return(true)));
+        int readLen = s3ClientAdaptor_->Read(inodeId, offset_0, len, readBuf);
+        EXPECT_EQ(readLen, len);
+        ASSERT_EQ(0, memcmp(buf, readBuf, len));
+    }
+
+    // read (offset_4M, len)
+    {
+        char *readBuf = new char[len];
+        memset(readBuf, 0, len);
+        EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+            .WillOnce(
+                DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _))
+            .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + len), Return(true)));
+        int readLen = s3ClientAdaptor_->Read(inodeId, offset_4M, len, readBuf);
+        EXPECT_EQ(readLen, len);
+        ASSERT_EQ(0, memcmp(buf, readBuf, len));
+    }
+
+    // read (offset_0, len), remote cache fail
+    {
+        char *readBuf = new char[len];
+        memset(readBuf, 0, len);
+        EXPECT_CALL(mockInodeManager_, GetInode(_, _))
+            .WillOnce(
+                DoAll(SetArgReferee<1>(inode), Return(CURVEFS_ERROR::OK)));
+        EXPECT_CALL(mockKVClient_, Get(_, _, 0, len, _))
+            .WillOnce(Return(false));
+        EXPECT_CALL(mockS3Client_, Download(_, _, _, _))
+            .WillOnce(DoAll(SetArrayArgument<1>(buf, buf + len), Return(true)));
+        int readLen = s3ClientAdaptor_->Read(inodeId, offset_0, len, readBuf);
+        EXPECT_EQ(readLen, len);
+        ASSERT_EQ(0, memcmp(buf, readBuf, len));
+    }
 }
 
 }  // namespace client

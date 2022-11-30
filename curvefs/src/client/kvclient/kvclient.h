@@ -32,32 +32,25 @@ namespace client {
  * Single client to kv interface.
  */
 
-class KvClient {
+class KVClient {
  public:
-    KvClient() = default;
-    ~KvClient() = default;
-    virtual bool Init() = 0;
+    KVClient() = default;
+    ~KVClient() = default;
 
-    virtual void UnInit() = 0;
+    virtual void Init() {}
+
+    virtual void UnInit() {}
 
     /**
      * @param: errorlog: if error occurred, the errorlog will take
      *         the error info and log.
      * @return: success return true, else return false;
      */
-    virtual bool Set(const std::string& key,
-             const char* value,
-             const int value_len,
-             std::string* errorlog) = 0;
+    virtual bool Set(const std::string &key, const char *value,
+                     const uint64_t value_len, std::string *errorlog) = 0;
 
-    /**
-     * @param: errorlog: if return is false the errorlog
-     *         will take the info.
-     * @return: success return the value and true.
-     */
-    virtual bool Get(const std::string& key,
-             std::string* value,
-             std::string* errorlog) = 0;
+    virtual bool Get(const std::string &key, char *value, uint64_t offset,
+                     uint64_t length, std::string *errorlog) = 0;
 };
 
 }  // namespace client

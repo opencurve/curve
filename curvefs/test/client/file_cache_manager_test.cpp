@@ -31,6 +31,15 @@
 
 namespace curvefs {
 namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+DECLARE_bool(supportKVcache);
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
+namespace curvefs {
+namespace client {
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -38,6 +47,8 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::WithArg;
+
+extern KVClientManager *g_kvClientManager;
 
 class FileCacheManagerTest : public testing::Test {
  protected:
@@ -68,6 +79,8 @@ class FileCacheManagerTest : public testing::Test {
         fileCacheManager_ =
             std::make_shared<FileCacheManager>(fsId, inodeId, s3ClientAdaptor_);
         mockChunkCacheManager_ = std::make_shared<MockChunkCacheManager>();
+        curvefs::client::common::FLAGS_enableCto = false;
+        g_kvClientManager = nullptr;
     }
 
     void TearDown() override {

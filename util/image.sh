@@ -75,8 +75,10 @@ install_pkg $1 $prefix
 install_pkg $1 $prefix etcd
 install_pkg $1 $prefix monitor
 copy_file ./thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-core/libaws-cpp-sdk-core.so $docker_prefix
-copy_file ./thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-core/libaws-cpp-sdk-core.so $docker_prefix
 copy_file ./thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-s3-crt/libaws-cpp-sdk-s3-crt.so $docker_prefix
+copy_file ./thirdparties/memcache/libmemcached-1.1.2/build-libmemcached/src/libmemcached/libmemcached.so $docker_prefix
+copy_file ./thirdparties/memcache/libmemcached-1.1.2/build-libmemcached/src/libmemcached/libmemcached.so.11 $docker_prefix
+copy_file ./thirdparties/memcache/libmemcached-1.1.2/build-libmemcached/src/libhashkit/libhashkit.so.2 $docker_prefix
 
 if [ "$1" == "bs" ]; then
     paths=`ls conf/* nebd/etc/nebd/*`

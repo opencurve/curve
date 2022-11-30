@@ -32,127 +32,72 @@
 
 #include "absl/strings/string_view.h"
 #include "curvefs/src/client/kvclient/kvclient.h"
+#include "curvefs/src/client/common/config.h"
+#include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/thread_pool.h"
 #include "src/common/s3_adapter.h"
 
-namespace curvefs {
+using curvefs::client::metric::KVClientMetric;
 
+namespace curvefs {
 namespace client {
 
-using ::curve::common::TaskThreadPool;
+class KVClientManager;
+class SetKVCacheTask;
+using curve::common::TaskThreadPool;
+using curvefs::client::common::KVClientManagerOpt;
 
-struct KvClientManagerConfig {
-    std::unique_ptr<KvClient> kvclient;
-    int threadPooln;
-};
+extern KVClientManager *g_kvClientManager;
+extern KVClientMetric *g_kvClientMetric;
 
-struct SetKvCacheTask;
+typedef std::function<void(const std::shared_ptr<SetKVCacheTask> &)>
+    SetKVCacheDone;
 
-using SetKvCacheCallBack =
-    std::function<void(std::shared_ptr<SetKvCacheTask>)>;
-
-struct SetKvCacheTask {
-    const std::string& key;
-    const char* value;
-    const size_t len;
-    SetKvCacheCallBack cb;
-    SetKvCacheTask(const std::string& k, const char* val, const size_t length)
-        : key(k), value(val), len(length) {}
+struct SetKVCacheTask {
+    std::string key;
+    const char *value;
+    uint64_t length;
+    SetKVCacheDone done;
+    SetKVCacheTask() = default;
+    SetKVCacheTask(const std::string &k, const char *val, const uint64_t len)
+        : key(k), value(val), length(len) {}
 };
 
 struct GetKvCacheContext {
-    const std::string& key;
-    std::string* value;
-    GetKvCacheContext(const std::string& k, std::string* v)
-        : key(k), value(v) {}
+    const std::string &key;
+    char *value;
+    uint64_t offset;
+    uint64_t length;
+    GetKvCacheContext(const std::string &k, char *v, uint64_t off, uint64_t len)
+        : key(k), value(v), offset(off), length(len) {}
 };
 
-
-class KvClientManager {
+class KVClientManager {
  public:
-    KvClientManager() = default;
-    ~KvClientManager() { Uninit(); }
+    KVClientManager() = default;
+    ~KVClientManager() { Uninit(); }
 
-    bool Init(KvClientManagerConfig* config) {
-        client_ = std::move(config->kvclient);
-        return threadPool_.Start(config->threadPooln) == 0;
-    }
-
-    /**
-     * close the connection with kv
-     */
-    void Uninit() {
-        client_->UnInit();
-        threadPool_.Stop();
-    }
+    bool Init(const KVClientManagerOpt &config,
+              const std::shared_ptr<KVClient> &kvclient);
 
     /**
      * It will get a db client and set the key value asynchronusly.
      * The set task will push threadpool, you'd better
      * don't get the key immediately.
      */
-    void Set(const std::string& key,
-             const char* value,
-             const size_t value_len) {
-        threadPool_.Enqueue([=]() {
-            std::string error_log;
-            auto res = client_->Set(key, value, value_len, &error_log);
-            if (!res) {
-                auto val_view = absl::string_view(value,
-                    value_len);
-                LOG(ERROR) << "Set key = " << key << " value = " << val_view
-                           << " " << "vallen = " << value_len <<
-                           " " << error_log;
-            }
-        });
-    }
+    void Set(std::shared_ptr<SetKVCacheTask> task);
 
-    void Enqueue(std::shared_ptr<SetKvCacheTask> task) {
-        threadPool_.Enqueue([task, this](){
-            std::string error_log;
-            auto res = client_->Set(task->key, task->value, task->len,
-                &error_log);
-            if (!res) {
-                auto val_view = absl::string_view(task->value,
-                    task->len);
-                LOG(ERROR) << "Set key = " << task->key << " value = "
-                           << val_view << " " << "vallen = " <<
-                           task->len << " " << error_log;
-                return;
-            }
-            if (task->cb) {
-                task->cb(task);
-            }
-        });
-    }
+    bool Get(const std::string &key, char *value, uint64_t offset,
+             uint64_t length);
 
-    bool Get(std::shared_ptr<GetKvCacheContext> task) {
-        std::string error_log;
-        assert(nullptr != task->value);
-        auto res = client_->Get(task->key, task->value, &error_log);
-        if (!res) {
-            VLOG(9) << "Get Key = " << task->key << " " << error_log;
-        }
-        return res;
-    }
+    bool Get(std::shared_ptr<GetKvCacheContext> task);
 
-    /**
-     * get value by key.
-     * the value must be empty.
-     */
-    bool Get(const std::string& key, std::string* value) {
-        std::string error_log;
-        auto res = client_->Get(key, value, &error_log);
-        if (!res) {
-            VLOG(9) << "Get Key = " << key << " " << error_log;
-        }
-        return res;
-    }
-
+ private:
+    void Uninit();
 
  private:
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable> threadPool_;
-    std::unique_ptr<KvClient> client_;
+    std::shared_ptr<KVClient> client_;
 };
 
 }  // namespace client

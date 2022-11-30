@@ -10,6 +10,7 @@ only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
 os?= "debian9"
+ci?=0
 
 define help_msg
 ## list
@@ -59,7 +60,7 @@ list:
 	@bash util/build.sh --stor=$(stor) --list
 
 build:
-	@bash util/build.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --os=$(os)
+	@bash util/build.sh --stor=${stor} --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
 
 dep:
 	@bash util/build.sh --stor=$(stor) --only="" --dep=1

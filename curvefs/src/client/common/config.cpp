@@ -49,6 +49,7 @@ namespace common {
 DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
+DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
 
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
@@ -232,6 +233,16 @@ void InitRefreshDataOpt(Configuration *conf,
                               &opt->refreshDataIntervalSec);
 }
 
+void InitKVClientManagerOpt(Configuration *conf,
+                               KVClientManagerOpt *config) {
+    conf->GetValueFatalIfFail("fuseClient.supportKVcache",
+                              &FLAGS_supportKVcache);
+    conf->GetValueFatalIfFail("fuseClient.setThreadPool",
+                              &config->setThreadPooln);
+    conf->GetValueFatalIfFail("fuseClient.getThreadPool",
+                              &config->getThreadPooln);
+}
+
 void SetBrpcOpt(Configuration *conf) {
     curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
     dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
@@ -251,6 +262,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitVolumeOption(conf, &clientOption->volumeOpt);
     InitLeaseOpt(conf, &clientOption->leaseOpt);
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
+    InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
 
     conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
                               &clientOption->attrTimeOut);
@@ -279,6 +291,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("fuseClient.disableXattr",
                               &clientOption->disableXattr);
     conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
+
 
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))

@@ -94,6 +94,8 @@ class FuseS3Client : public FuseClient {
         struct fuse_file_info *fi) override;
 
  private:
+    bool InitKVCache(const KVClientManagerOpt &opt);
+
     CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;

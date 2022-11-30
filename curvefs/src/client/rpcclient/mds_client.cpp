@@ -606,6 +606,13 @@ FSStatusCode MdsClientImpl::CommitTxWithLock(
     return CommitTx(request);
 }
 
+
+bool MdsClientImpl::AllocOrGetMemcacheCluster(
+    uint32_t fsId, curvefs::mds::topology::MemcacheCluster *cluster) {
+    // TODO(@Cyber-SiKu): implement me
+    return false;
+}
+
 FSStatusCode MdsClientImpl::ReturnError(int retcode) {
     // rpc error convert to FSStatusCode::RPC_ERROR
     if (retcode < 0) {

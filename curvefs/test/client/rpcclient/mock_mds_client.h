@@ -124,9 +124,11 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD3(
         ReleaseVolumeBlockGroup,
-        SpaceErrCode(uint32_t,
-                     const std::string&,
-                     const std::vector<curvefs::mds::space::BlockGroup>&));
+        SpaceErrCode(uint32_t, const std::string &,
+                     const std::vector<curvefs::mds::space::BlockGroup> &));
+
+    MOCK_METHOD2(AllocOrGetMemcacheCluster,
+                 bool(uint32_t, curvefs::mds::topology::MemcacheCluster *));
 };
 }  // namespace rpcclient
 }  // namespace client
