@@ -6,6 +6,7 @@
 
 g_stor=""
 g_list=0
+g_depend=0
 g_target=""
 g_release=0
 g_build_rocksdb=0
@@ -87,6 +88,10 @@ get_options() {
             -l|--list)
                 g_list=1
                 shift 1
+                ;;
+            -d|--dep)
+                g_depend=$2
+                shift 2
                 ;;
             -o|--only)
                 g_target=$2
@@ -170,7 +175,6 @@ build_target() {
         g_build_opts+=("--compilation_mode=dbg")
         echo "debug" > .BUILD_MODE
     fi
-
     g_build_opts+=("--copt -DCURVEVERSION=${curve_version}")
 
     if [ `gcc -dumpversion | awk -F'.' '{print $1}'` -gt 6 ]; then
@@ -200,6 +204,7 @@ build_target() {
     done
 }
 
+
 build_requirements() {
     if [ "$g_stor" == "fs" ]; then
         kernel_version=`uname -r | awk -F . '{print $1 * 1000 + $2}'`
@@ -226,7 +231,7 @@ main() {
 
     if [ "$g_list" -eq 1 ]; then
         list_target
-    elif [ "$g_target" == "" ]; then
+    elif [[ "$g_target" == "" && "$g_depend" -ne 1 ]]; then
         usage
         exit 1
     else
@@ -241,3 +246,4 @@ main() {
 
 ############################  MAIN()
 main "$@"
+
