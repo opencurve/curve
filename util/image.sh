@@ -81,7 +81,7 @@ copy_file ./thirdparties/aws/aws-sdk-cpp/build/aws-cpp-sdk-s3-crt/libaws-cpp-sdk
 if [ "$1" == "bs" ]; then
     paths=`ls conf/* nebd/etc/nebd/*`
 else
-    paths=`ls conf/*`
+    paths=`ls curvefs/conf/*`
 fi
 for path in $paths;
 do
