@@ -278,6 +278,19 @@ void FuseS3Client::WarmUpAllObjs(
                 return;
             }
             // todo: retry
+            if (context->retry >= MAX_RETRY_TIME) {
+                if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
+                    VLOG(6) << "pendingReq is over";
+                    cond.Signal();
+                } else {
+                    LOG(WARNING) << "Up to max retry times";
+                }
+                delete []context->buf;
+                return;
+            }
+            context->retry++;
+
+
             LOG(WARNING) << "Get Object failed, key: " << context->key
                          << ", offset: " << context->offset;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);

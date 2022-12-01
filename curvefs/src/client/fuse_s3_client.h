@@ -34,6 +34,8 @@
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "src/common/s3_adapter.h"
 
+const int MAX_RETRY_TIME = 3;
+
 namespace curvefs {
 namespace client {
 
