@@ -142,10 +142,15 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     return CSErrorCode::Success;
 }
 
+uint64_t CSChunkFile::syncChunkLimits_ = 2 * 1024 * 1024;
+uint64_t CSChunkFile::syncThreshold_ = 64 * 1024;
+
 CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
                          std::shared_ptr<FilePool> chunkFilePool,
                          const ChunkOptions& options)
-    : fd_(-1),
+    : cvar_(nullptr),
+      chunkrate_(nullptr),
+      fd_(-1),
       size_(options.chunkSize),
       pageSize_(options.pageSize),
       chunkId_(options.id),
@@ -416,6 +421,18 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                    << ",request sn: " << sn
                    << ",chunk sn: " << metaPage_.sn;
         return errorCode;
+    }
+
+    if (chunkrate_.get() && cvar_.get()) {
+        *chunkrate_ += length;
+        uint64_t res = *chunkrate_;
+        // if single write size > syncThreshold, for cache friend to
+        // delay to sync.
+        auto actualSyncChunkLimits = MayUpdateWriteLimits(res);
+        if (*chunkrate_ >= actualSyncChunkLimits &&
+                chunkrate_->compare_exchange_weak(res, 0)) {
+            cvar_->notify_one();
+        }
     }
     return CSErrorCode::Success;
 }
