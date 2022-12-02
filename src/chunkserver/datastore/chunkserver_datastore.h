@@ -30,6 +30,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <condition_variable>
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"
@@ -95,7 +96,8 @@ using ChunkMap = std::unordered_map<ChunkID, CSChunkFilePtr>;
 // use read-write lock to protect the map operation
 class CSMetaCache {
  public:
-    CSMetaCache() {}
+    CSMetaCache() : cvar_(nullptr),
+        sumChunkRate_(std::make_shared<std::atomic<uint64_t>>()) {}
     virtual ~CSMetaCache() {}
 
     ChunkMap GetMap() {
@@ -116,6 +118,7 @@ class CSMetaCache {
        // When two write requests are concurrently created to create a chunk
        // file, return the first set chunkFile
         if (chunkMap_.find(id) == chunkMap_.end()) {
+            chunkFile->SetSyncInfo(sumChunkRate_, cvar_);
             chunkMap_[id] = chunkFile;
         }
         return chunkMap_[id];
@@ -133,7 +136,19 @@ class CSMetaCache {
         chunkMap_.clear();
     }
 
+    void SetCondPtr(std::shared_ptr<std::condition_variable> cond) {
+        cvar_ = cond;
+    }
+
+    void SetSyncChunkLimits(const uint64_t limits, const uint64_t threshold) {
+        CSChunkFile::syncChunkLimits_ = limits;
+        CSChunkFile::syncThreshold_ = threshold;
+    }
+
  private:
+    std::shared_ptr<std::condition_variable> cvar_;
+    // sum of all chunks rate
+    std::shared_ptr<std::atomic<uint64_t>> sumChunkRate_;
     RWLock      rwLock_;
     ChunkMap    chunkMap_;
 };
@@ -310,6 +325,14 @@ class CSDataStore {
     virtual DataStoreStatus GetStatus();
 
     virtual ChunkMap GetChunkMap();
+
+    void SetCacheCondPtr(std::shared_ptr<std::condition_variable> cond) {
+        metaCache_.SetCondPtr(cond);
+    }
+
+    void SetCacheLimits(const uint64_t limit, const uint64_t threshold) {
+        metaCache_.SetSyncChunkLimits(limit, threshold);
+    }
 
  private:
     CSErrorCode loadChunkFile(ChunkID id);
