@@ -35,6 +35,7 @@
 #include <string>
 #include <utility>
 
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/crc32.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
@@ -283,7 +284,6 @@ int TestCluster::StartPeer(const PeerId &peerId,
     options.snapshotIntervalS = snapshotIntervalS_;
     options.electionTimeoutMs = electionTimeoutMs_;
     options.catchupMargin = catchupMargin_;
-
     peer->options = options;
 
     pid_t pid = ::fork();

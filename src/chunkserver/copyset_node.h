@@ -25,7 +25,9 @@
 
 #include <butil/memory/ref_counted.h>
 #include <braft/repeated_timer_task.h>
+#include <bthread/condition_variable.h>
 
+#include <condition_variable>
 #include <string>
 #include <vector>
 #include <climits>
@@ -41,6 +43,7 @@
 #include "src/chunkserver/raftsnapshot/define.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_writer.h"
 #include "src/common/string_util.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/chunkserver/raft_node.h"
 #include "proto/heartbeat.pb.h"
 #include "proto/chunk.pb.h"
@@ -53,6 +56,7 @@ using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curve::common::Peer;
+using ::curve::common::TaskThreadPool;
 
 class CopysetNodeManager;
 
@@ -103,18 +107,20 @@ class ConfigurationChangeDone : public braft::Closure {
 
 class CopysetNode;
 
-class SyncTimer : public braft::RepeatedTimerTask {
+class SyncChunkThread : public curve::common::Uncopyable {
  public:
-    SyncTimer() : node_(nullptr) {}
-    virtual ~SyncTimer() {}
-
-    int init(CopysetNode *node, int timeoutMs);
-
-    void run() override;
-
- protected:
-    void on_destroy() override {}
-    CopysetNode *node_;
+    friend class CopysetNode;
+    SyncChunkThread() = default;
+    ~SyncChunkThread();
+    void Run();
+    void Init(CopysetNode* node);
+    void Stop();
+ private:
+    bool running_;
+    std::mutex mtx_;
+    std::shared_ptr<std::condition_variable> cond_;
+    std::thread syncThread_;
+    CopysetNode* node_;
 };
 
 /**
@@ -388,6 +394,10 @@ class CopysetNode : public braft::StateMachine,
      * better for test
      */
  public:
+    // sync trigger seconds
+    static uint32_t syncTriggerSeconds_;
+    // shared to sync pool
+    static std::shared_ptr<TaskThreadPool<>> copysetSyncPool_;
     /**
      * 从文件中解析copyset配置版本信息
      * @param filePath:文件路径
@@ -476,10 +486,8 @@ class CopysetNode : public braft::StateMachine,
     int64_t lastSnapshotIndex_;
     // enable O_DSYNC when open file
     bool enableOdsyncWhenOpenChunkFile_;
-    // sync chunk timer
-    SyncTimer syncTimer_;
-    // sync timer timeout interval
-    uint32_t syncTimerIntervalMs_;
+    // sync chunk thread
+    SyncChunkThread syncThread_;
     // chunkIds need to sync
     std::deque<ChunkID> chunkIdsToSync_;
     // lock for chunkIdsToSync_

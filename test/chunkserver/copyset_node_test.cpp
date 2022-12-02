@@ -131,6 +131,7 @@ class CopysetNodeTest : public ::testing::Test {
         defaultOptions_.raftMetaUri = copysetUri;
         defaultOptions_.raftSnapshotUri = copysetUri;
         defaultOptions_.loadConcurrency = 5;
+        defaultOptions_.syncConcurrency = 20;
         defaultOptions_.checkRetryTimes = 3;
         defaultOptions_.finishLoadMargin = 1000;
 
@@ -274,7 +275,9 @@ TEST_F(CopysetNodeTest, error_test) {
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         defaultOptions_.enableOdsyncWhenOpenChunkFile = false;
-        defaultOptions_.syncTimerIntervalMs = 1000;
+        defaultOptions_.syncConcurrency = 20;
+        defaultOptions_.syncChunkLimit = 2 * 1024 * 1024;
+        defaultOptions_.syncThreshold = 65536;
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
         FakeClosure closure;
         FakeSnapshotWriter writer;
@@ -304,7 +307,9 @@ TEST_F(CopysetNodeTest, error_test) {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
 
         defaultOptions_.enableOdsyncWhenOpenChunkFile = false;
-        defaultOptions_.syncTimerIntervalMs = 1000;
+        defaultOptions_.syncConcurrency = 20;
+        defaultOptions_.syncChunkLimit = 2 * 1024 * 1024;
+        defaultOptions_.syncThreshold = 65536;
         ASSERT_EQ(0, copysetNode.Init(defaultOptions_));
 
         ChunkID id1 = 100;
