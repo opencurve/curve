@@ -111,6 +111,10 @@ struct CopysetNodeOptions {
 
     // 限制chunkserver启动时copyset并发恢复加载的数量,为0表示不限制
     uint32_t loadConcurrency = 0;
+    // chunkserver sync_thread_pool number of threads.
+    uint32_t syncConcurrency = 20;
+    // copyset trigger sync timeout
+    uint32_t syncTriggerSeconds = 25;
     // 检查copyset是否加载完成出现异常时的最大重试次数
     // 可能的异常：1.当前大多数副本还没起来；2.网络问题等导致无法获取leader
     // 3.其他的原因导致无法获取到leader的committed index
@@ -123,8 +127,10 @@ struct CopysetNodeOptions {
 
     // enable O_DSYNC when open chunkfile
     bool enableOdsyncWhenOpenChunkFile = false;
-    // sync timer timeout interval
-    uint32_t syncTimerIntervalMs = 30000u;
+    // syncChunkLimit default limit
+    uint64_t syncChunkLimit = 2 * 1024 * 1024;
+    // syncHighChunkLimit default limit = 64k
+    uint64_t syncThreshold = 64 * 1024;
     // check syncing interval
     uint32_t checkSyncingIntervalMs = 500u;
 

@@ -1,1 +1,4 @@
+build --define=with_glog=true --define=libunwind=true
+build --copt -DHAVE_ZLIB=1 --copt -DGFLAGS_NS=google --copt -DUSE_BTHREAD_MUTEX
+build --cxxopt -Wno-error=format-security
 build:gcc7-later --cxxopt -faligned-new

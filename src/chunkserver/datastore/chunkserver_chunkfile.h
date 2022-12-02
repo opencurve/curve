@@ -30,11 +30,13 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <condition_variable>
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/crc32.h"
+#include "src/common/timeutility.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/filename_operator.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
@@ -51,6 +53,7 @@ using curve::common::RWLock;
 using curve::common::WriteLockGuard;
 using curve::common::ReadLockGuard;
 using curve::common::BitRange;
+using curve::common::TimeUtility;
 
 class FilePool;
 class CSSnapshot;
@@ -241,6 +244,17 @@ class CSChunkFile {
                         size_t length,
                         std::string *hash);
 
+    void SetSyncInfo(std::shared_ptr<std::atomic<uint64_t>> rate,
+        std::shared_ptr<std::condition_variable> cond) {
+        chunkrate_ = rate;
+        cvar_ = cond;
+    }
+
+    // default synclimit
+    static uint64_t syncChunkLimits_;
+    // high threshold limit
+    static uint64_t syncThreshold_;
+
  private:
     /**
      * Determine whether you need to create a new snapshot
@@ -357,7 +371,18 @@ class CSChunkFile {
                common::is_aligned(len, align);
     }
 
+    uint64_t MayUpdateWriteLimits(uint64_t write_len) {
+        if (write_len > syncThreshold_) {
+            return syncChunkLimits_ * 2;
+        }
+        return syncChunkLimits_;
+    }
+
  private:
+    // to notify syncThread
+    std::shared_ptr<std::condition_variable> cvar_;
+    // the sum of every chunkfile length
+    std::shared_ptr<std::atomic<uint64_t>> chunkrate_;
     // file descriptor of chunk file
     int fd_;
     // The logical size of the chunk, not including metapage

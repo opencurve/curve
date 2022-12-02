@@ -30,6 +30,9 @@
 #include <string>
 #include <utility>
 
+#include "src/chunkserver/config_info.h"
+#include "src/chunkserver/copyset_node.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "src/chunkserver/chunk_service.h"
@@ -50,6 +53,9 @@ std::once_flag addServiceFlag;
 
 int CopysetNodeManager::Init(const CopysetNodeOptions &copysetNodeOptions) {
     copysetNodeOptions_ = copysetNodeOptions;
+    CopysetNode::syncTriggerSeconds_ = copysetNodeOptions.syncTriggerSeconds;
+    CopysetNode::copysetSyncPool_ =
+        std::make_shared<common::TaskThreadPool<>>();
     if (copysetNodeOptions_.loadConcurrency > 0) {
         copysetLoader_ = std::make_shared<TaskThreadPool<>>();
     } else {
@@ -62,7 +68,8 @@ int CopysetNodeManager::Run() {
     if (running_.exchange(true, std::memory_order_acq_rel)) {
         return 0;
     }
-
+    CopysetNode::copysetSyncPool_->Start(copysetNodeOptions_.syncConcurrency);
+    assert(copysetNodeOptions_.syncConcurrency > 0);
     int ret = 0;
     // 启动线程池
     if (copysetLoader_ != nullptr) {
@@ -89,7 +96,7 @@ int CopysetNodeManager::Fini() {
         return 0;
     }
     loadFinished_.exchange(false, std::memory_order_acq_rel);
-
+    CopysetNode::copysetSyncPool_->Stop();
     if (copysetLoader_ != nullptr) {
         copysetLoader_->Stop();
         copysetLoader_ = nullptr;
@@ -317,7 +324,6 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                        << " run failed";
             return false;
         }
-
         copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
             groupId,
             copysetNode));
@@ -360,7 +366,6 @@ std::shared_ptr<CopysetNode> CopysetNodeManager::CreateCopysetNodeUnlocked(
                    << " run failed";
         return nullptr;
     }
-
     return copysetNode;
 }
 

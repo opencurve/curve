@@ -63,6 +63,7 @@ class CopysetNodeManagerTest : public ::testing::Test {
         defaultOptions_.raftMetaUri = copysetUri;
         defaultOptions_.raftSnapshotUri = copysetUri;
         defaultOptions_.loadConcurrency = 5;
+        defaultOptions_.syncConcurrency = 10;
         defaultOptions_.checkRetryTimes = 3;
         defaultOptions_.finishLoadMargin = 1000;
 

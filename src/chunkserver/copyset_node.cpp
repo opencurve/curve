@@ -35,10 +35,13 @@
 #include <future>
 #include <deque>
 #include <set>
+#include <chrono>
+#include <condition_variable>
 
 #include "src/chunkserver/raftsnapshot/curve_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/fs/fs_common.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/define.h"
@@ -53,6 +56,10 @@ namespace chunkserver {
 using curve::fs::FileSystemInfo;
 
 const char *kCurveConfEpochFilename = "conf.epoch";
+
+uint32_t CopysetNode::syncTriggerSeconds_ = 25;
+std::shared_ptr<common::TaskThreadPool<>>
+    CopysetNode::copysetSyncPool_ = nullptr;
 
 CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
                          const CopysetID &copysetId,
@@ -71,7 +78,6 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     lastSnapshotIndex_(0),
     configChange_(std::make_shared<ConfigurationChange>()),
     enableOdsyncWhenOpenChunkFile_(false),
-    syncTimerIntervalMs_(30000),
     isSyncing_(false),
     checkSyncingIntervalMs_(500) {
 }
@@ -131,6 +137,16 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         LOG(ERROR) << "data store init failed. "
                    << "Copyset: " << GroupIdString();
         return -1;
+    }
+    enableOdsyncWhenOpenChunkFile_ = options.enableOdsyncWhenOpenChunkFile;
+    if (!enableOdsyncWhenOpenChunkFile_) {
+        syncThread_.Init(this);
+        dataStore_->SetCacheCondPtr(syncThread_.cond_);
+        dataStore_->SetCacheLimits(options.syncChunkLimit,
+            options.syncThreshold);
+        LOG(INFO) << "init sync thread success limit = "
+                  << options.syncChunkLimit <<
+                  "syncthreshold = " << options.syncThreshold;
     }
 
     recyclerUri_ = options.recyclerUri;
@@ -209,9 +225,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     // without using global variables.
     StoreOptForCurveSegmentLogStorage(lsOptions);
 
-    syncTimerIntervalMs_ = options.syncTimerIntervalMs;
     checkSyncingIntervalMs_ = options.checkSyncingIntervalMs;
-    enableOdsyncWhenOpenChunkFile_ = options.enableOdsyncWhenOpenChunkFile;
 
     return 0;
 }
@@ -223,14 +237,7 @@ int CopysetNode::Run() {
                    << "Copyset: " << GroupIdString();
         return -1;
     }
-
-    if (!enableOdsyncWhenOpenChunkFile_) {
-        CHECK_EQ(0, syncTimer_.init(this, syncTimerIntervalMs_));
-        LOG(INFO) << "Init sync timer success, interval = "
-                  << syncTimerIntervalMs_;
-
-        syncTimer_.start();
-    }
+    syncThread_.Run();
 
     LOG(INFO) << "Run copyset success."
               << "Copyset: " << GroupIdString();
@@ -239,7 +246,7 @@ int CopysetNode::Run() {
 
 void CopysetNode::Fini() {
     if (!enableOdsyncWhenOpenChunkFile_) {
-        syncTimer_.destroy();
+        syncThread_.Stop();
     }
 
     WaitSnapshotDone();
@@ -982,32 +989,50 @@ void CopysetNode::SyncAllChunks() {
         curve::common::LockGuard lg(chunkIdsLock_);
         temp.swap(chunkIdsToSync_);
     }
-    size_t total = temp.size();
     std::set<ChunkID> chunkIds;
     for (auto chunkId : temp) {
         chunkIds.insert(chunkId);
     }
     for (ChunkID chunk : chunkIds) {
-        CSErrorCode r = dataStore_->SyncChunk(chunk);
-        if (r != CSErrorCode::Success) {
-            LOG(FATAL) << "Sync Chunk failed in Copyset: "
+        copysetSyncPool_->Enqueue([=]() {
+            CSErrorCode r = dataStore_->SyncChunk(chunk);
+            if (r != CSErrorCode::Success) {
+                LOG(FATAL) << "Sync Chunk failed in Copyset: "
                        << GroupIdString()
                        << ", chunkid: " << chunk
                        << " data store return: " << r;
-        }
+            }
+        });
     }
 }
 
-int SyncTimer::init(CopysetNode *node, int timeoutMs) {
-    if (RepeatedTimerTask::init(timeoutMs) != 0) {
-        return -1;
-    }
+void SyncChunkThread::Init(CopysetNode* node) {
+    running_ = true;
     node_ = node;
-    return 0;
+    cond_ = std::make_shared<std::condition_variable>();
 }
 
-void SyncTimer::run() {
-    node_->HandleSyncTimerOut();
+void SyncChunkThread::Run() {
+    syncThread_ = std::thread([this](){
+        while (running_) {
+            std::unique_lock<std::mutex> lock(mtx_);
+            cond_->wait_for(lock,
+                std::chrono::seconds(CopysetNode::syncTriggerSeconds_));
+            node_->SyncAllChunks();
+        }
+    });
+}
+
+void SyncChunkThread::Stop() {
+    running_ = false;
+    if (syncThread_.joinable()) {
+        cond_->notify_one();
+        syncThread_.join();
+    }
+}
+
+SyncChunkThread::~SyncChunkThread() {
+    Stop();
 }
 
 }  // namespace chunkserver
