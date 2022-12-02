@@ -2,7 +2,6 @@ package maydamagedvolumes
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -42,7 +41,6 @@ func (ciRpc *GetChunkInfoRpc) Stub_Func(ctx context.Context) (interface{}, error
 }
 
 func (mdvCmd *MayDamVolCmd) ListChunkServersOnServers() *cmderror.CmdError {
-	// fmt.Println("ListChunkServersOnServers() in")
 	for _, server := range mdvCmd.clusterServersInfo {
 		sid := server.GetServerID()
 		request := &topology.ListChunkServerRequest{
@@ -54,7 +52,6 @@ func (mdvCmd *MayDamVolCmd) ListChunkServersOnServers() *cmderror.CmdError {
 		mdvCmd.listChunkServersRpc.Info = basecmd.NewRpc(mdvCmd.addrs, mdvCmd.timeout, mdvCmd.retryTimes, "ListChunkServer")
 		result, err := basecmd.GetRpcResponse(mdvCmd.listChunkServersRpc.Info, mdvCmd.listChunkServersRpc)
 		if err.TypeCode() != cmderror.CODE_SUCCESS {
-			fmt.Println("listChunkServersRpc fail")
 			return err
 		}
 		response := result.(*topology.ListChunkServerResponse)
@@ -67,7 +64,6 @@ func (mdvCmd *MayDamVolCmd) ListChunkServersOnServers() *cmderror.CmdError {
 				mdvCmd.isRetired = true
 				continue
 			}
-			//fmt.Println(chunkServer)
 			mdvCmd.chunkServerInfos = append(mdvCmd.chunkServerInfos, chunkServer)
 		}
 	}
@@ -75,7 +71,6 @@ func (mdvCmd *MayDamVolCmd) ListChunkServersOnServers() *cmderror.CmdError {
 }
 
 func (mdvCmd *MayDamVolCmd) CheckIfChunkServerOnline(csAddr string) bool {
-	// fmt.Printf("CheckIfChunkServerOnline() in, csAddr is csAddr %s", csAddr)
 	lpid := uint32(1)
 	cid := uint32(1)
 	chunkid := uint64(1)
@@ -95,7 +90,6 @@ func (mdvCmd *MayDamVolCmd) CheckIfChunkServerOnline(csAddr string) bool {
 }
 
 func (mdvCmd *MayDamVolCmd) FindOffLineChunkServers() *cmderror.CmdError {
-	// fmt.Println("FindOffLineChunkServers() in")
 	for _, cs := range mdvCmd.chunkServerInfos {
 		csAddr := cs.GetHostIp() + ":" + strconv.FormatUint(uint64(cs.GetPort()), 10)
 		if !mdvCmd.CheckIfChunkServerOnline(csAddr) {

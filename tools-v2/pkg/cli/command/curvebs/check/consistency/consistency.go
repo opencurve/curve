@@ -28,7 +28,6 @@ import (
 	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
@@ -65,7 +64,7 @@ type ConsistencyCmd struct {
 	cpId2lpId           map[uint32]uint32
 	csAddr2Copyset      map[string]uint32
 	copyset2csAddrs     map[uint32][]string
-	chunksInCopyset     map[uint32][]uint64 //一个copyset里的多个chunkid
+	chunksInCopyset     map[uint32][]uint64 //Many chunkIds in one copyset
 
 	//copysetStatus
 	getCopysetStatusRpc *GetCopysetStatusRpc
@@ -73,7 +72,6 @@ type ConsistencyCmd struct {
 	//chunkHash
 	getChunkHashRpc *GetChunkHashRpc
 
-	errIdxRows  []map[string]string
 	errHashRows []map[string]string
 }
 
@@ -127,8 +125,7 @@ func (csCmd *ConsistencyCmd) GenCopysetMappings(filename string) (*Set, map[uint
 			copysetId := ck.GetCopysetID()
 			// mapping of copyset id to chunk ids
 			csCmd.chunksInCopyset[copysetId] = append(csCmd.chunksInCopyset[copysetId], ck.GetChunkID())
-
-			// copyset去重, 因为多个chunkserver的copysetId值可能相同,避免重复查询copyset
+			// deduplicate copyset.Some chunkservers may have same copysetId so we need avoid requesting copysets repeatly
 			index := slices.Index(cpIds, copysetId)
 			if index == -1 {
 				cpIds = append(cpIds, copysetId)
@@ -155,11 +152,8 @@ func (csCmd *ConsistencyCmd) Init(cmd *cobra.Command, args []string) error {
 
 	res, err1 := file.GetFileInfo(csCmd.Cmd)
 	if err1.TypeCode() != cmderror.CODE_SUCCESS {
-		retErr := cmderror.ErrBsGetFileInfo()
-		retErr.Format(err1.Message)
-		return retErr.ToError()
+		return err1.ToError()
 	}
-	//csCmd.fileInfo = res.GetFileInfo()
 	pfSegs, err1 := csCmd.GetFileSegments(csCmd.filename, res.GetFileInfo())
 	if err1.TypeCode() != cmderror.CODE_SUCCESS {
 		return err1.ToError()
@@ -168,9 +162,6 @@ func (csCmd *ConsistencyCmd) Init(cmd *cobra.Command, args []string) error {
 	csCmd.lpid2cpIds, csCmd.cpId2lpId = csCmd.GenCopysetMappings(csCmd.filename)
 	header := []string{"host", "chunkserver", "copysetId", "groupId", "logicalpoolId", "chunkId"}
 	csCmd.SetHeader(header)
-	csCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		csCmd.Header, []string{"host", "chunkserver", "copysetId", "groupId"},
-	))
 	return err1.ToError()
 }
 

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
-	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/proto/proto/chunk"
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
@@ -76,11 +75,6 @@ func (csCmd *ConsistencyCmd) CheckChunkHash(csAddrs []string, lpid uint32, cid u
 		}
 		if curHash != preHash {
 			chunkhash = false
-			// err := cmderror.ErrBsChunkHashNotEqual()
-			// err.Format(preHash, curHash, chunkid)
-			// csCmd.hashErr = append(csCmd.hashErr, err)
-			row := make(map[string]string)
-			//row["host"] = csAddr
 			var addrs []string
 			var chunkserverIds []string
 			base, _ := strconv.ParseInt(csCmd.port, 10, 64)
@@ -91,23 +85,13 @@ func (csCmd *ConsistencyCmd) CheckChunkHash(csAddrs []string, lpid uint32, cid u
 				cksid := strconv.FormatUint(uint64(port-base), 10)
 				chunkserverIds = append(chunkserverIds, cksid)
 			}
-			row["copysetId"] = strconv.FormatUint(uint64(cid), 10)
-			row["groupId"] = strconv.FormatUint(gid, 10)
-			row["logicalpoolId"] = strconv.FormatUint(uint64(lpid), 10)
-			row["chunkId"] = strconv.FormatUint(chunkid, 10)
-			csCmd.errHashRows = append(csCmd.errHashRows, row)
-
-			list := cobrautil.ListMap2ListSortByKeys(csCmd.errHashRows, csCmd.Header, []string{
-				"host", "chunkserver", "copysetId", "groupId",
-			})
-			csCmd.TableNew.AppendBulk(list)
-			// fmt.Println(cid, gid, lpid, chunkid)
-			fmt.Println("copysetId: ", cid)
-			fmt.Println("groupId: ", gid)
-			fmt.Println("logicalPoolId: ", lpid)
-			fmt.Println("chunkId: ", chunkid)
-			fmt.Println("hosts: ", addrs)
-			fmt.Println("chunkserversId: ", chunkserverIds)
+			cksShow := "chunkserver" + chunkserverIds[0] + "," + "chunkserver" + chunkserverIds[1] + "," + "chunkserver" + chunkserverIds[2]
+			fmt.Println("copysetId:", cid)
+			fmt.Println("groupId:", gid)
+			fmt.Println("logicalPoolId:", lpid)
+			fmt.Println("chunkId:", chunkid)
+			fmt.Println("hosts:", addrs)
+			fmt.Println("chunkservers:", cksShow)
 			fmt.Println()
 			break
 		}
@@ -121,7 +105,6 @@ func (csCmd *ConsistencyCmd) CheckChunkHash(csAddrs []string, lpid uint32, cid u
 }
 
 func (csCmd *ConsistencyCmd) CheckCopysetHash(cpid uint32, csAddrs []string) (*cmderror.CmdError, bool) {
-	//fmt.Println("CheckCopysetHash in")
 	cpsHash := true
 	err := &cmderror.CmdError{
 		Code:    0,
@@ -129,8 +112,6 @@ func (csCmd *ConsistencyCmd) CheckCopysetHash(cpid uint32, csAddrs []string) (*c
 	}
 	for _, chunkid := range csCmd.chunksInCopyset[cpid] {
 		lpid := csCmd.cpId2lpId[cpid]
-		//fmt.Println("csaddr in")
-
 		err1, chunkHash := csCmd.CheckChunkHash(csAddrs, lpid, cpid, chunkid)
 		cpsHash = chunkHash
 		if err1.TypeCode() != cmderror.CODE_SUCCESS && chunkHash {

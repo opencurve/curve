@@ -251,7 +251,6 @@ func (ctCmd *ClusterTopoCmd) updateTopology() *cmderror.CmdError {
 func (ctCmd *ClusterTopoCmd) RunCommand(cmd *cobra.Command, args []string) error {
 	err := ctCmd.updateTopology()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		//return fmt.Errorf(err.Message)
 		return err.ToError()
 	}
 

@@ -89,31 +89,30 @@ func (mdvCmd *MayDamVolCmd) Init(cmd *cobra.Command, args []string) error {
 	mdvCmd.isRetired = false
 	mdvCmd.copysetsCnt = make(map[uint32]int)
 	mdvCmd.InitRpcCall()
-	// 列出集群中所有的server
+	// list all servers in cluster
 	err := mdvCmd.GetServersInfo()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	// 列出每台server上所有的chunkserver
+	// list all chunkservers on each servers
 	err1 := mdvCmd.ListChunkServersOnServers()
 	if err1.TypeCode() != cmderror.CODE_SUCCESS {
 		return err1.ToError()
 	}
-	// 找出所有离线的chunkserver并记录这些chunkserver的地址到mdvCmd.offLineCsAddrs
+	// find all offline chunkservers and record them in mdvCmd.offLineCsAddrs
 	err = mdvCmd.FindOffLineChunkServers()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
 	if len(mdvCmd.offLineCsAddrs) == 0 {
-		// fmt.Println("len(mdvCmd.offLineCsAddrs) == 0")
 		return err.ToError()
 	}
-	// 获取所有离线server上的copysets
+	// get all copysets on offline servers
 	err = mdvCmd.GetCopySetsOnOffLineCs()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
-	//统计各个copysets出现的次数,2次及以上的视为损坏的copyset，记录进mdvCmd.damagedCps
+	// Count the number of occurrences of each copyset, and 2 or more times are regarded as damaged copysets
 	if !mdvCmd.CountOffLineCopysets() {
 		fmt.Println("copysets are avaliable, no damaged volumes")
 	}
@@ -128,7 +127,7 @@ func (mdvCmd *MayDamVolCmd) Init(cmd *cobra.Command, args []string) error {
 }
 
 func (mdvCmd *MayDamVolCmd) RunCommand(cmd *cobra.Command, args []string) error {
-	// 列出所有损坏的copyset上的volumes
+	// List all volumes on damaged copysets
 	err := mdvCmd.ListVolsOnDamagedCps()
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
@@ -155,7 +154,7 @@ func (mdvCmd *MayDamVolCmd) ResultPlainOutput() error {
 		return nil
 	}
 	if len(mdvCmd.offLineCsAddrs) == 0 {
-		fmt.Println("there is no off line chunkserver")
+		fmt.Println("There is no off line chunkserver")
 		return nil
 	}
 	return output.FinalCmdOutputPlain(&mdvCmd.FinalCurveCmd)

@@ -57,18 +57,23 @@ enum CopysetStatusCode{
 
 enum ChunkStatusCode{
     ChunkSuccess = 0;
-    Redirect = 1;                     //不是leader,重定向
-    DiskErr = 2;                     //磁盘返回错误
-    CrcFail = 3;                    //Crc校验错误
-    InvalidReqParam = 4;           //请求参数错误
-    NoEnoughSpace = 5;            //空间不够
-    CopysetNotExist = 6;         //copyset不存在
-    ChunkNotExist = 7;          //chunk或其快照文件不存在
-    UnknowFailure = 8;          //未知错误
-    OverLoad = 9;               //服务端过载
-    Backward = 10;             // 请求的版本落后当前chunk的版本
-    ChunkExist = 11;           //chunk已存在
-    EpochOld = 12;             // 请求中的epoch太老了
+    Redirect = 1;                      // not leader,Redirect
+    DiskErr = 2;                       // disk error
+    CrcFail = 3;                       // Crc check error
+    InvalidReqParam = 4;               // request param error
+    NoEnoughSpace = 5;                 // space not enough
+    CopysetNotExist = 6;               // copyset doesn't exist
+    ChunkNotExist = 7;                 // chunk or snapshot doesn't exist
+    UnknowFailure = 8;                 // Unknow failure
+    OverLoad = 9;                      // server overload
+    Backward = 10;                     // the requested version behind current chunk version
+    ChunkExist = 11;                   // chunk has exist
+    EpochOld = 12;                     // requested Epoch is old
 }
 
-
+// chunkserver health status
+enum CsHealthStatus{
+    CpsHealthy = 0;      // chunkserver上的所有copyset健康
+    CpsNotHealthy = -1;  //chunkserver上的所有copyset不健康
+    CsNotOnline  = -2;  //chunkserver 不在线
+}

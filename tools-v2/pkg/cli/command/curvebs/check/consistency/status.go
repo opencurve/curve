@@ -78,37 +78,3 @@ func (csCmd *ConsistencyCmd) CheckApplyIndex(cpid uint32, csAddrs []string) *cmd
 	}
 	return cmderror.ErrSuccess()
 }
-
-// var preIndex uint64
-// var curIndex uint64
-// first := true
-// 	message := "check Apply index successfully"
-// 	ret := &cmderror.CmdError{
-// 		Code:    0,
-// 		Message: message,
-// 	}
-// 	for csAddr, cpId := range csCmd.csAddr2Copyset {
-// 		lpid := csCmd.cpId2lpId[cpId]
-// 		res, err := csCmd.GetCopysetStatus(csAddr, lpid, cpId)
-// 		if err.TypeCode() != cmderror.CODE_SUCCESS {
-// 			return err
-// 		}
-// 		curIndex = uint64(res.GetKnownAppliedIndex())
-// 		if first {
-// 			preIndex = curIndex
-// 			first = false
-// 			continue
-// 		}
-// 		if curIndex != preIndex {
-// 			err := cmderror.ErrBsApplyIndexNotEqual()
-// 			err.Format(preIndex, curIndex, cpId)
-// 			csCmd.applyIndex = false
-// 			csCmd.applyIndexErr = append(csCmd.applyIndexErr, err)
-// 		}
-// 		if !csCmd.applyIndex {
-// 			return cmderror.ErrBsApplyIndex()
-// 		}
-
-// 	}
-// 	return ret
-// }

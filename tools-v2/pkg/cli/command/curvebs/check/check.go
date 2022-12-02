@@ -24,6 +24,7 @@ package check
 
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/chunkserver"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/consistency"
 	"github.com/spf13/cobra"
 )
@@ -37,6 +38,9 @@ var _ basecmd.MidCurveCmdFunc = (*CheckCmd)(nil) // check interface
 func (checkCmd *CheckCmd) AddSubCommands() {
 	checkCmd.Cmd.AddCommand(
 		consistency.NewConsistencyCmd(),
+	)
+	checkCmd.Cmd.AddCommand(
+		chunkserver.NewChunkServerCmd(),
 	)
 }
 

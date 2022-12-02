@@ -48,7 +48,7 @@ func setupRootCommand(cmd *cobra.Command) {
 }
 
 func newCurveCommand() *cobra.Command {
-	rootCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "curve fs|bs [OPTIONS] COMMAND [ARGS...]",
 		Short:   "curve is a tool for managing curvefs ands curvebs",
 		Version: version.Version,
@@ -65,17 +65,17 @@ func newCurveCommand() *cobra.Command {
 		},
 	}
 
-	rootCmd.Flags().BoolP("version", "v", false, "print curve version")
-	rootCmd.PersistentFlags().BoolP("help", "h", false, "print help")
-	rootCmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
-	config.AddShowErrorPFlag(rootCmd)
-	rootCmd.PersistentFlags().BoolP("verbose", "", false, "show some log")
-	viper.BindPFlag("useViper", rootCmd.PersistentFlags().Lookup("viper"))
+	cmd.Flags().BoolP("version", "v", false, "print curve version")
+	cmd.PersistentFlags().BoolP("help", "h", false, "print help")
+	cmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
+	config.AddShowErrorPFlag(cmd)
+	cmd.PersistentFlags().BoolP("verbose", "", false, "show some log")
+	viper.BindPFlag("useViper", cmd.PersistentFlags().Lookup("viper"))
 
-	addSubCommands(rootCmd)
-	setupRootCommand(rootCmd)
+	addSubCommands(cmd)
+	setupRootCommand(cmd)
 
-	return rootCmd
+	return cmd
 }
 
 func Execute() {

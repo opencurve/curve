@@ -163,3 +163,20 @@ func CopysetKey2PoolidCopysetid(copysetKey uint64) (uint32, uint32) {
 	copysetid := copysetKey & (1<<32 - 1)
 	return uint32(poolid), uint32(copysetid)
 }
+
+// use poolId and copysetId to caculate groupId
+func GenGroupId(poolId uint32, copysetId uint32) uint64 {
+	res := (uint64(poolId) << 32) | uint64(copysetId)
+	return res
+}
+
+// use groupId to caculate poolId
+func GetPoolIdFromGid(gid uint64) uint32 {
+	return uint32(gid >> 32)
+}
+
+// use groupId to caculate copysetId
+func GetCpsIdFromGid(gid uint64) uint32 {
+	res := gid & ((uint64(1) << 32) - 1)
+	return uint32(res)
+}

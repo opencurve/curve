@@ -189,15 +189,15 @@ func (eCmd *EtcdCommand) ResultPlainOutput() error {
 }
 
 func NewStatusEtcdCommand() *EtcdCommand {
-	etcctCmd := &EtcdCommand{
+	etcdCmd := &EtcdCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "etcd",
 			Short:   "get the etcd status of curvebs",
 			Example: etcdExample,
 		},
 	}
-	basecmd.NewFinalCurveCli(&etcctCmd.FinalCurveCmd, etcctCmd)
-	return etcctCmd
+	basecmd.NewFinalCurveCli(&etcdCmd.FinalCurveCmd, etcdCmd)
+	return etcdCmd
 }
 
 func GetEtcdStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {

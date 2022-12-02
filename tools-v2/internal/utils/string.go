@@ -39,6 +39,7 @@ import (
 
 const (
 	IP_PORT_REGEX = "((\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5]):([0-9]|[1-9]\\d{1,3}|[1-5]\\d{4}|6[0-4]\\d{4}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5]))|(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])\\.(\\d|[1-9]\\d|1\\d{2}|2[0-4]\\d|25[0-5])"
+	IP_REGEX      = "^(1\\d{2}|2[0-4]\\d|25[0-5]|[1-9]\\d|[1-9])\\.(1\\d{2}|2[0-4]\\d|25[0-5]|[1-9]\\d|\\d)\\.(1\\d{2}|2[0-4]\\d|25[0-5]|[1-9]\\d|\\d)\\.(1\\d{2}|2[0-4]\\d|25[0-5]|[1-9]\\d|\\d)$"
 	PATH_REGEX    = `^(/[^/ ]*)+/?$`
 	FS_NAME_REGEX = "^([a-z0-9]+\\-?)+$"
 )
@@ -49,6 +50,19 @@ func IsValidAddr(addr string) bool {
 		return false
 	}
 	return true
+}
+
+func IsValidIp(ip string) bool {
+	isMatch, err := regexp.MatchString(IP_REGEX, ip)
+	if err != nil {
+		return false
+	}
+	return isMatch
+}
+
+func IsValidPort(port string) bool {
+	p, _ := strconv.ParseInt(port, 10, 32)
+	return p >= 0 && p <= 65535
 }
 
 func IsValidFsname(fsName string) bool {
