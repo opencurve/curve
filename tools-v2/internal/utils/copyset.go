@@ -44,9 +44,9 @@ const (
 )
 
 const (
-	COPYSET_OK_STR = "ok"
-	COPYSET_WARN_STR = "warn"
-	COPYSET_ERROR_STR = "error"
+	COPYSET_OK_STR       = "ok"
+	COPYSET_WARN_STR     = "warn"
+	COPYSET_ERROR_STR    = "error"
 	COPYSET_NOTEXIST_STR = "not exist"
 )
 

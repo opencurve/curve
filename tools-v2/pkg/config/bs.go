@@ -24,6 +24,8 @@ package config
 import (
 	"strings"
 
+	"strconv"
+
 	"github.com/gookit/color"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -50,9 +52,15 @@ const (
 	CURVEBS_FILENAME            = "filename"
 	VIPER_CURVEBS_FILENAME      = "curvebs.filename"
 	CURVEBS_FORCEDELETE         = "forcedelete"
-	CURVEBS_DEFAULT_FORCEDELETE = "false"
+	CURVEBS_DEFAULT_FORCEDELETE = false
 	CURVEBS_DIR                 = "dir"
 	VIPER_CURVEBS_DIR           = "curvebs.dir"
+	CURVEBS_LOGIC_POOL_ID       = "logicalpoolid"
+	VIPER_CURVEBS_LOGIC_POOL_ID = "curvebs.logicalpoolid"
+	CURVEBS_COPYSET_ID          = "copysetid"
+	VIPER_CURVEBS_COPYSET_ID    = "curvebs.copysetid"
+	CURVEBS_PEERS_ADDRESS       = "peers"
+	VIPER_CURVEBS_PEERS_ADDRESS = "curvebs.peers"
 )
 
 var (
@@ -62,13 +70,16 @@ var (
 		RPCRETRYTIMES: VIPER_GLOBALE_RPCRETRYTIMES,
 
 		// bs
-		CURVEBS_MDSADDR:      VIPER_CURVEBS_MDSADDR,
-		CURVEBS_MDSDUMMYADDR: VIPER_CURVEBS_MDSDUMMYADDR,
-		CURVEBS_PATH:         VIPER_CURVEBS_PATH,
-		CURVEBS_USER:         VIPER_CURVEBS_USER,
-		CURVEBS_PASSWORD:     VIPER_CURVEBS_PASSWORD,
-		CURVEBS_ETCDADDR:     VIPER_CURVEBS_ETCDADDR,
-		CURVEBS_DIR:          VIPER_CURVEBS_DIR,
+		CURVEBS_MDSADDR:       VIPER_CURVEBS_MDSADDR,
+		CURVEBS_MDSDUMMYADDR:  VIPER_CURVEBS_MDSDUMMYADDR,
+		CURVEBS_PATH:          VIPER_CURVEBS_PATH,
+		CURVEBS_USER:          VIPER_CURVEBS_USER,
+		CURVEBS_PASSWORD:      VIPER_CURVEBS_PASSWORD,
+		CURVEBS_ETCDADDR:      VIPER_CURVEBS_ETCDADDR,
+		CURVEBS_DIR:           VIPER_CURVEBS_DIR,
+		CURVEBS_LOGIC_POOL_ID: VIPER_CURVEBS_LOGIC_POOL_ID,
+		CURVEBS_COPYSET_ID:    VIPER_CURVEBS_COPYSET_ID,
+		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -87,6 +98,15 @@ func AddBsStringSliceOptionFlag(cmd *cobra.Command, name string, usage string) {
 		defaultValue = []string{}
 	}
 	cmd.Flags().StringSlice(name, defaultValue.([]string), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsStringSliceRequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().StringSlice(name, nil, usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -116,12 +136,12 @@ func AddBsStringRequiredFlag(cmd *cobra.Command, name string, usage string) {
 }
 
 func AddBsBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
-	defaultValue := FLAG2DEFAULT[name]
+	defaultValue := BSFLAG2DEFAULT[name]
 	if defaultValue == nil {
 		defaultValue = false
 	}
 	cmd.Flags().Bool(name, defaultValue.(bool), usage)
-	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -170,8 +190,29 @@ func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "the full path of file")
 }
 
+func AddBSLogicalPoolIdFlag(cmd *cobra.Command) {
+	AddBSUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
+}
+
+func AddBSCopysetIdFlag(cmd *cobra.Command) {
+	AddBSUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
+}
+
+func AddBSPeersConfFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_PEERS_ADDRESS, "peers info.")
+}
+
 func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FORCEDELETE, "whether to force delete the file")
+}
+
+func AddBSUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Uint32(name, uint32(0), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
 }
 
 // get stingslice flag
@@ -194,6 +235,22 @@ func GetBsFlagString(cmd *cobra.Command, flagName string) string {
 		value = viper.GetString(BSFLAG2VIPER[flagName])
 	}
 	return value
+}
+
+// GetBsFlagUint32 get uint32 flag
+func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
+	var value string
+	if cmd.Flag(flagName).Changed {
+		value = cmd.Flag(flagName).Value.String()
+	} else {
+		value = viper.GetString(BSFLAG2VIPER[flagName])
+	}
+	val, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(val), nil
 }
 
 // get mdsaddr
@@ -224,4 +281,14 @@ func GetBsMdsAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 
 func GetBsMdsDummyAddrSlice(cmd *cobra.Command) ([]string, *cmderror.CmdError) {
 	return GetBsAddrSlice(cmd, CURVEBS_MDSDUMMYADDR)
+}
+
+func GetBsFlagBool(cmd *cobra.Command, flagName string) bool {
+	var value bool
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetBool(flagName)
+	} else {
+		value = viper.GetBool(BSFLAG2VIPER[flagName])
+	}
+	return value
 }
