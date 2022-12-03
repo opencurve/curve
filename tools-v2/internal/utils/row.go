@@ -98,6 +98,9 @@ const (
 	ROW_IP              = "ip"
 	ROW_PORT            = "port"
 	ROW_REASON          = "reason"
+	ROW_PEER            = "peer"
+	ROW_COPYSET         = "copyset"
+	ROW_LEADER          = "leader"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"

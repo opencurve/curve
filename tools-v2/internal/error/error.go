@@ -25,9 +25,10 @@ package cmderror
 import (
 	"fmt"
 
-	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
+	fscopyset "github.com/opencurve/curve/tools-v2/proto/curvefs/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/mds"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
+	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
 	bs_topo_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 )
@@ -60,6 +61,9 @@ func init() {
 }
 
 func (ce *CmdError) ToError() error {
+	if ce == nil {
+		return nil
+	}
 	if ce.Code == CODE_SUCCESS {
 		return nil
 	}
@@ -237,7 +241,7 @@ var (
 		return NewInternalCmdError(1, "create http get request failed, the error is: %s")
 	}
 	ErrDataNoExpected = func() *CmdError {
-		return NewInternalCmdError(2, "data: %s is not as expected, the error is: %s")
+		return NewInternalCmdError(2, "data: %v is not as expected, the error is: %s")
 	}
 	ErrHttpClient = func() *CmdError {
 		return NewInternalCmdError(3, "http client get error: %s")
@@ -370,6 +374,14 @@ var (
 		return NewInternalCmdError(40, "delete file fail. the error is %s")
 	}
 
+	ErrRespTypeNoExpected = func() *CmdError {
+		return NewInternalCmdError(41, "the response type is not as expected, should be: %s")
+	}
+
+	ErrGetPeer = func() *CmdError {
+		return NewInternalCmdError(42, "invalid peer args, err: %s")
+	}
+
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
@@ -448,7 +460,7 @@ var (
 		message := fmt.Sprintf("get copysets info failed: status code is %s", code.String())
 		return NewRpcReultCmdError(statusCode, message)
 	}
-	ErrCopysetOpSatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
+	ErrBsCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
@@ -516,13 +528,13 @@ var (
 		}
 		return NewRpcReultCmdError(code, message)
 	}
-	ErrCopysetOpStatus = func(statusCode copyset.COPYSET_OP_STATUS, addr string) *CmdError {
+	ErrCopysetOpStatus = func(statusCode fscopyset.COPYSET_OP_STATUS, addr string) *CmdError {
 		var message string
 		code := int(statusCode)
 		switch statusCode {
-		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
+		case fscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_COPYSET_NOTEXIST:
 			message = fmt.Sprintf("not exist in %s", addr)
-		case copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
+		case fscopyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS:
 			message = "ok"
 		default:
 			message = fmt.Sprintf("op status: %s in %s", statusCode.String(), addr)
