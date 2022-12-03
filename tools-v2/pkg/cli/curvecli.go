@@ -26,13 +26,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	cobraUtil "github.com/opencurve/curve/tools-v2/internal/utils"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func addSubCommands(cmd *cobra.Command) {
