@@ -316,13 +316,11 @@ main() {
     get_build_mode
 
     if [[ -n "$g_stor" && "$g_stor" != "bs" && "$g_stor" != "fs" ]]; then
-        usage
         die "stor option must be either bs or fs\n"
     fi
 
     if [[ $g_prefix == "" || $g_only == "" ]]; then
-        usage
-        exit 1
+        die "prefix option and only option must not be empty\n"
     elif [ "$g_only" == "etcd" ]; then
         install_etcd
     elif [ "$g_only" == "monitor" ]; then

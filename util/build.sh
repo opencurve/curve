@@ -225,15 +225,13 @@ main() {
     get_version
 
     if [[ "$g_stor" != "bs" && "$g_stor" != "fs" ]]; then
-        usage
         die "stor option must be either bs or fs\n"
     fi
 
     if [ "$g_list" -eq 1 ]; then
         list_target
     elif [[ "$g_target" == "" && "$g_depend" -ne 1 ]]; then
-        usage
-        exit 1
+        die "must not disable both only option or dep option\n"
     else
         if [ "$g_depend" -eq 1 ]; then
             build_requirements
