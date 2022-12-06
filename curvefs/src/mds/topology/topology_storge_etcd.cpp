@@ -28,6 +28,7 @@
 #include <utility>
 #include "curvefs/src/mds/common/mds_define.h"
 #include "curvefs/src/mds/common/storage_key.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace mds {
@@ -632,10 +633,10 @@ bool TopologyStorageEtcd::LoadFs2MemcacheCluster(
             // Duplicated id
             return false;
         }
-        try {
-            fs2MemcacheCluster->emplace(id, std::stoul(data.second));
-        } catch (std::exception) {
-            // for std::stoul(data.second) exceptions
+        FsIdType fsId;
+        if (curve::common::StringToUl(data.second, &fsId)) {
+            fs2MemcacheCluster->emplace(id, fsId);
+        } else {
             return false;
         }
     }

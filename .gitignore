@@ -90,6 +90,7 @@ test/client/configs/*
 projects/*
 docker/curvebs
 docker/base/*
+docker/debian*/*so*
 !docker/base/Dockerfile
 !docker/base/Makefile
 
@@ -107,6 +108,7 @@ curvefs/monitor/prometheus/target.json
 curvefs/docker/*/curvefs
 curvefs/docker/curvefs
 curvefs/docker/base/*
+curvefs/docker/debian*/*so*
 !curvefs/docker/base/Dockerfile
 !curvefs/docker/base/Makefile
 curvefs/BUILD_MODE

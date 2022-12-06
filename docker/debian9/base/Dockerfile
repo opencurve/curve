@@ -24,16 +24,22 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
         lsof \
         nginx \
         less \
-        zlib1g-dev \
-        libsnappy-dev \
-        liblz4-dev \
+        zlib1g \
+        libsnappy1v5 \
+        liblz4-1 \
         python \
         wget \
         python3 \
+        libevent-dev \
+    && wget https://curve-build.nos-eastchina1.126.net/memcache/memcached-1.6.17.tar.gz \
+    && tar xvf memcached-1.6.17.tar.gz && cd memcached-1.6.17/ \
+    && ./configure && make && make install \
+    && cd / && rm -rf memcached-1.6.17/ memcached-1.6.17.tar.gz \
+    && mkdir -p /memcached/data \
     && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
-    && tar -xzvf curve-base.tar.gz
-
-COPY fusermount3 /usr/local/bin
-COPY libetcdclient.so /usr/lib/
-COPY libfuse3.so libfuse3.so.3 libfuse3.so.3.10.5 libnl-3.so.200 libnl-genl-3.so.200 /usr/lib/x86_64-linux-gnu/
-COPY libjemalloc.so libjemalloc.so.1 libjemalloc.so.2 /usr/local/lib/
+    && tar -xzvf curve-base.tar.gz \
+    && mv fusermount3 /usr/local/bin \
+    && mv libetcdclient.so /usr/lib/ \
+    && mv libfuse3.so libfuse3.so.3 libfuse3.so.3.10.5 libnl-3.so.200 libnl-genl-3.so.200 /usr/lib/x86_64-linux-gnu/ \
+    && mv libjemalloc.so libjemalloc.so.1 libjemalloc.so.2 /usr/local/lib/ \
+    && rm curve-base.tar.gz

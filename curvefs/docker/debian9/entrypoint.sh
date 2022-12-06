@@ -91,6 +91,10 @@ function prepare() {
             g_binary="python3"
             g_start_args="target_json.py"
             ;;
+        memcached)
+            g_prefix="/memcached"
+            g_binary="memcached"
+            ;;
         *)
             usage
             exit 1
