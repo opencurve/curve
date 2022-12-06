@@ -21,7 +21,9 @@
  * Author: xuchaojie
  */
 
+#include <string>
 #include <unordered_map>
+
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_common.h"
 
