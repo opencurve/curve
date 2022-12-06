@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <memory>
 #include <list>
+#include <unordered_map>
 
 #include "src/common/configuration.h"
 #include "src/common/concurrent/concurrent.h"
@@ -116,6 +117,7 @@ class TrashImpl : public Trash {
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<MdsClient> mdsClient_;
+    std::unordered_map<uint32_t, FsInfo> fsInfoMap_;
 
     std::list<TrashItem> trashItems_;
 
