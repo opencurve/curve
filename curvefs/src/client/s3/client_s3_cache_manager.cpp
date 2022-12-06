@@ -243,17 +243,18 @@ int FileCacheManager::Write(uint64_t offset, uint64_t length,
     uint64_t chunkPos = offset % chunkSize;
     uint64_t writeLen = 0;
     uint64_t writeOffset = 0;
+    int64_t len = length;
 
-    while (length > 0) {
-        if (chunkPos + length > chunkSize) {
+    while (len > 0) {
+        if (chunkPos + len > chunkSize) {
             writeLen = chunkSize - chunkPos;
         } else {
-            writeLen = length;
+            writeLen = len;
         }
 
         WriteChunk(index, chunkPos, writeLen, (dataBuf + writeOffset));
 
-        length -= writeLen;
+        len -= writeLen;
         index++;
         writeOffset += writeLen;
         chunkPos = (chunkPos + writeLen) % chunkSize;
@@ -308,16 +309,17 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
     uint64_t readLen = 0;
     int ret = 0;
     uint64_t readOffset = 0;
+    int64_t len = length;
     std::vector<ReadRequest> totalRequests;
 
     //  Find offset~len in the write and read cache,
     //  and The parts that are not in the cache are placed in the totalRequests
-    while (length > 0) {
+    while (len > 0) {
         std::vector<ReadRequest> requests;
-        if (chunkPos + length > chunkSize) {
+        if (chunkPos + len > chunkSize) {
             readLen = chunkSize - chunkPos;
         } else {
-            readLen = length;
+            readLen = len;
         }
         ChunkCacheManagerPtr chunkCacheManager =
         FindOrCreateChunkCacheManager(index);
@@ -325,7 +327,7 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
                                      readOffset, &requests);
         totalRequests.insert(totalRequests.end(), requests.begin(),
                              requests.end());
-        length -= readLen;
+        len -= readLen;
         index++;
         readOffset += readLen;
         chunkPos = (chunkPos + readLen) % chunkSize;
