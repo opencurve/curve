@@ -142,18 +142,23 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
     } else if (FsFileType::TYPE_S3 == inode.type()) {
         // get s3info from mds
         FsInfo fsInfo;
-        auto ret = mdsClient_->GetFsInfo(item.fsId, &fsInfo);
-        if (ret != FSStatusCode::OK) {
-            if (FSStatusCode::NOT_FOUND == ret) {
-                LOG(ERROR) << "The fsName not exist, fsId = " << item.fsId;
-                return MetaStatusCode::S3_DELETE_ERR;
-            } else {
-                LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
-                        << ", FSStatusCode_Name = "
-                        << FSStatusCode_Name(ret)
+        if (fsInfoMap_.find(item.fsId) == fsInfoMap_.end()) {
+            auto ret = mdsClient_->GetFsInfo(item.fsId, &fsInfo);
+            if (ret != FSStatusCode::OK) {
+                if (FSStatusCode::NOT_FOUND == ret) {
+                    LOG(ERROR) << "The fsName not exist, fsId = " << item.fsId;
+                    return MetaStatusCode::S3_DELETE_ERR;
+                } else {
+                    LOG(ERROR)
+                        << "GetFsInfo failed, FSStatusCode = " << ret
+                        << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
                         << ", fsId = " << item.fsId;
-                return MetaStatusCode::S3_DELETE_ERR;
+                    return MetaStatusCode::S3_DELETE_ERR;
+                }
             }
+            fsInfoMap_.insert({item.fsId, fsInfo});
+        } else {
+            fsInfo = fsInfoMap_.find(item.fsId)->second;
         }
         const auto& s3Info = fsInfo.detail().s3info();
         // reinit s3 adaptor
