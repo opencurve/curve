@@ -19,16 +19,15 @@
  * @Date: 2021-12-15 10:54:37
  * @Author: chenwei
  */
-
 #include "curvefs/src/metaserver/partition_cleaner.h"
+
 #include <list>
+
 #include "curvefs/src/metaserver/copyset/meta_operator.h"
-#include "curvefs/proto/mds.pb.h"
 
 namespace curvefs {
 namespace metaserver {
 
-using ::curvefs::mds::FsInfo;
 using ::curvefs::mds::FSStatusCode;
 using ::curvefs::mds::FSStatusCode_Name;
 
@@ -89,18 +88,24 @@ MetaStatusCode PartitionCleaner::CleanDataAndDeleteInode(const Inode& inode) {
     if (FsFileType::TYPE_S3 == inode.type()) {
          // get s3info from mds
         FsInfo fsInfo;
-        auto ret = mdsClient_->GetFsInfo(inode.fsid(), &fsInfo);
-        if (ret != FSStatusCode::OK) {
-            if (FSStatusCode::NOT_FOUND == ret) {
-                LOG(ERROR) << "The fsName not exist, fsId = " << inode.fsid();
-                return MetaStatusCode::S3_DELETE_ERR;
-            } else {
-                LOG(ERROR) << "GetFsInfo failed, FSStatusCode = " << ret
-                        << ", FSStatusCode_Name = "
-                        << FSStatusCode_Name(ret)
+        if (fsInfoMap_.find(inode.fsid()) == fsInfoMap_.end()) {
+            auto ret = mdsClient_->GetFsInfo(inode.fsid(), &fsInfo);
+            if (ret != FSStatusCode::OK) {
+                if (FSStatusCode::NOT_FOUND == ret) {
+                    LOG(ERROR)
+                        << "The fsName not exist, fsId = " << inode.fsid();
+                    return MetaStatusCode::S3_DELETE_ERR;
+                } else {
+                    LOG(ERROR)
+                        << "GetFsInfo failed, FSStatusCode = " << ret
+                        << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
                         << ", fsId = " << inode.fsid();
-                return MetaStatusCode::S3_DELETE_ERR;
+                    return MetaStatusCode::S3_DELETE_ERR;
+                }
             }
+            fsInfoMap_.insert({inode.fsid(), fsInfo});
+        } else {
+            fsInfo = fsInfoMap_.find(inode.fsid())->second;
         }
         const auto& s3Info = fsInfo.detail().s3info();
         // reinit s3 adaptor
