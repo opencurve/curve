@@ -24,15 +24,19 @@
 #define CURVEFS_SRC_METASERVER_PARTITION_CLEANER_H_
 
 #include <memory>
+#include <unordered_map>
+
+#include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "curvefs/src/metaserver/partition.h"
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
-#include "curvefs/src/client/rpcclient/mds_client.h"
 
 namespace curvefs {
 namespace metaserver {
 
 using ::curvefs::client::rpcclient::MdsClient;
+using ::curvefs::mds::FsInfo;
 
 class PartitionCleaner {
  public:
@@ -79,6 +83,7 @@ class PartitionCleaner {
     std::shared_ptr<MdsClient> mdsClient_;
     bool isStop_;
     uint32_t inodeDeletePeriodMs_;
+    std::unordered_map<uint32_t, FsInfo> fsInfoMap_;
 };
 
 class PartitionCleanerClosure : public google::protobuf::Closure {
