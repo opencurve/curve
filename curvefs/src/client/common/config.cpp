@@ -281,6 +281,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
     conf->GetValueFatalIfFail("fuseClient.warmupThreadsNum",
                               &clientOption->warmupThreadsNum);
+    conf->GetValueFatalIfFail("fuseClient.downloadMaxRetryTimes",
+                              &clientOption->downloadMaxRetryTimes);
 
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))
