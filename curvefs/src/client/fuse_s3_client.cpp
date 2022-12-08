@@ -57,6 +57,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
+    downloadMaxRetryTimes_ = option.downloadMaxRetryTimes;
 
     // set fs S3Option
     const auto& s3Info = fsInfo_->detail().s3info();
@@ -322,7 +323,18 @@ void FuseS3Client::WarmUpAllObjs(
                 delete []context->buf;
                 return;
             }
-            // todo: retry
+            if (++context->retry >= downloadMaxRetryTimes_) {
+                if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
+                    VLOG(6) << "pendingReq is over";
+                    cond.Signal();
+                }
+                LOG(WARNING) << "Up to max retry times, "
+                             << "download object failed, key: "
+                             << context->key;
+                delete []context->buf;
+                return;
+            }
+
             LOG(WARNING) << "Get Object failed, key: " << context->key
                          << ", offset: " << context->offset;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
@@ -347,6 +359,7 @@ void FuseS3Client::WarmUpAllObjs(
             context->offset = 0;
             context->len = readLen;
             context->cb = cb;
+            context->retry = 0;
             s3Adaptor_->GetS3Client()->DownloadAsync(context);
         }
         if (pendingReq.load())
