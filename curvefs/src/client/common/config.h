@@ -198,6 +198,7 @@ struct FuseClientOption {
     bool enableFuseSplice = false;
     bool disableXattr = false;
     uint32_t warmupThreadsNum;
+    uint32_t downloadMaxRetryTimes;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);
