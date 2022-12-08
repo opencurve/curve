@@ -6,6 +6,7 @@
 
 g_stor=""
 g_list=0
+g_depend=0
 g_target=""
 g_release=0
 g_build_rocksdb=0
@@ -87,6 +88,10 @@ get_options() {
             -l|--list)
                 g_list=1
                 shift 1
+                ;;
+            -d|--dep)
+                g_depend=$2
+                shift 2
                 ;;
             -o|--only)
                 g_target=$2
@@ -226,9 +231,8 @@ main() {
 
     if [ "$g_list" -eq 1 ]; then
         list_target
-    elif [ "$g_target" == "" ]; then
-        usage
-        exit 1
+    elif [[ "$g_target" == "" && "$g_depend" -ne 1 ]]; then
+        die "must not disable both only option or dep option\n"
     else
         if [ "$g_depend" -eq 1 ]; then
             build_requirements
