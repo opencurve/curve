@@ -5,6 +5,7 @@
 stor?=""
 prefix?= "$(PWD)/projects"
 release?= 0
+dep?= 0
 only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
@@ -14,7 +15,7 @@ list:
 	@bash util/build.sh --stor=${stor} --list
 
 build:
-	@bash util/build.sh --only=$(only) --release=$(release) --os=$(os)
+	@bash util/build.sh --stor=${stor} --only=$(only) --dep=$(dep) --release=$(release) --os=$(os)
 
 dep:
 	@bash util/build.sh --stor=${stor} --only="" --dep=1
