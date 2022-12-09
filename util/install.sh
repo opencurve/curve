@@ -205,6 +205,13 @@ install_curvebs() {
     done
 }
 
+install_playground() {
+    for role in {"etcd","mds","chunkserver"}; do
+        for ((i=0;i<3;i++)); do
+            mkdir -p "${g_prefix}"/playground/"${role}""${i}"/{conf,data,logs}
+        done
+    done
+}
 
 install_curvefs() {
     for target in `get_targets`
@@ -285,6 +292,21 @@ install_etcd() {
         "$project_prefix/sbin"
 
     rm -rf "$dst"
+    success "install $project_name success\n"
+}
+
+install_monitor() {
+    local project_name="monitor"
+    g_project_name=$project_name
+
+    local project_prefix="$g_prefix/monitor"
+    local dst="monitor"
+    mkdir -p $project_prefix
+    mkdir -p "$project_prefix/prometheus"
+    mkdir -p "$project_prefix/data"
+    copy_file "$dst/target_json.py" "$project_prefix"
+    copy_file "$dst/target.ini" "$project_prefix"
+
     success "install $project_name success\n"
 }
 
