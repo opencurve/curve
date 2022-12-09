@@ -5,6 +5,7 @@
 stor?=""
 prefix?= "$(PWD)/projects"
 release?= 0
+dep?= 0
 only?= "*"
 tag?= "curvebs:unknown"
 case?= "*"
