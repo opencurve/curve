@@ -191,8 +191,6 @@ build_requirements() {
     fi
     g_rocksdb_root="$(dirname ${PWD})/thirdparties/rocksdb"
     (cd ${g_rocksdb_root} && make build from_source=${g_build_rocksdb} && make install prefix=${g_rocksdb_root})
-    g_aws_sdk_root="$(dirname ${PWD})/thirdparties/aws"
-    (cd ${g_aws_sdk_root} && make)
 }
 
 main() {
