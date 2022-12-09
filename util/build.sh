@@ -209,8 +209,6 @@ build_requirements() {
         g_rocksdb_root="${PWD}/thirdparties/rocksdb"
         (cd ${g_rocksdb_root} && make build from_source=${g_build_rocksdb} && make install prefix=${g_rocksdb_root})
     fi
-    g_aws_sdk_root="thirdparties/aws"
-    (cd ${g_aws_sdk_root} && make)
     g_etcdclient_root="thirdparties/etcdclient"
     (cd ${g_etcdclient_root} && make clean && make all)
 }
