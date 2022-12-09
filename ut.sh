@@ -20,7 +20,7 @@ bash replace-curve-repo.sh
 mkdir runlog storage
 bazel clean --async
 sleep 5
-git submodule update --init -- nbd
+git submodule update --init
 
 set +e
 
