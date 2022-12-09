@@ -225,8 +225,6 @@ build_requirements() {
         g_memcache_root="${PWD}/thirdparties/memcache"
         (cd ${g_memcache_root} && make build)
     fi
-    g_aws_sdk_root="thirdparties/aws"
-    (cd ${g_aws_sdk_root} && make)
     g_etcdclient_root="thirdparties/etcdclient"
     (cd ${g_etcdclient_root} && make clean && make all)
 }

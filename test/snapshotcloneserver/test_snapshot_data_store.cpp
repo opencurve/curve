@@ -150,11 +150,10 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAddPart) {
     std::shared_ptr<TransferTask> task = std::make_shared<TransferTask>();
     char* buf = new char[1024*1024];
     memset(buf, 0, 1024*1024);
-    Aws::S3Crt::Model::CompletedPart cp =
-        Aws::S3Crt::Model::CompletedPart().WithETag("mytest").WithPartNumber(1);
-    Aws::S3Crt::Model::CompletedPart cp_err = Aws::S3Crt::Model::CompletedPart()
-                                                  .WithETag("errorTag")
-                                                  .WithPartNumber(-1);
+    Aws::S3::Model::CompletedPart cp =
+        Aws::S3::Model::CompletedPart().WithETag("mytest").WithPartNumber(1);
+    Aws::S3::Model::CompletedPart cp_err =
+        Aws::S3::Model::CompletedPart().WithETag("errorTag").WithPartNumber(-1);
     EXPECT_CALL(*adapter4Data_, UploadOnePart(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(cp))

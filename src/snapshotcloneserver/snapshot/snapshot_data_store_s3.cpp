@@ -164,7 +164,7 @@ int S3SnapshotDataStore::DataChunkTranferAddPart(const ChunkDataName &name,
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
-    Aws::S3Crt::Model::CompletedPart cp =
+    Aws::S3::Model::CompletedPart cp =
         s3Adapter4Data_->UploadOnePart(
             aws_key, uploadId, partNum + 1, partSize, buf);
     std::string etag(cp.GetETag().c_str(), cp.GetETag().size());
@@ -182,10 +182,10 @@ int S3SnapshotDataStore::DataChunkTranferComplete(const ChunkDataName &name,
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
-    Aws::Vector<Aws::S3Crt::Model::CompletedPart> cp_v;
+    Aws::Vector<Aws::S3::Model::CompletedPart> cp_v;
     for (auto &v : task->GetPartInfo()) {
         Aws::String str(v.second.c_str(), v.second.size());
-        cp_v.push_back(Aws::S3Crt::Model::CompletedPart()
+        cp_v.push_back(Aws::S3::Model::CompletedPart()
                        .WithETag(str)
                        .WithPartNumber(v.first));
     }
