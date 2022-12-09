@@ -419,6 +419,7 @@ FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
         mdsClientMetric_.allocS3ChunkId.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.allocS3ChunkId.latency);
         AllocateS3ChunkResponse response;
+        
         mdsbasecli_->AllocS3ChunkId(fsId, idNum, &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.allocS3ChunkId.eps.count << 1;
