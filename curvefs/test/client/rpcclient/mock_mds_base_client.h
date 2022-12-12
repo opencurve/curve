@@ -118,6 +118,11 @@ class MockMDSBaseClient : public MDSBaseClient {
              ReleaseBlockGroupResponse *response,
              brpc::Controller *cntl,
              brpc::Channel *channel));
+
+    MOCK_METHOD4(AllocOrGetMemcacheCluster,
+                 void(uint32_t fsId,
+                      AllocOrGetMemcacheClusterResponse* response,
+                      brpc::Controller* cntl, brpc::Channel* channel));
 };
 }  // namespace rpcclient
 }  // namespace client

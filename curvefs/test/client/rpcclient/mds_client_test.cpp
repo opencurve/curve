@@ -24,6 +24,7 @@
 #include <gmock/gmock-more-actions.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <cstdint>
 
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/test/client/rpcclient/mock_mds_base_client.h"
@@ -54,6 +55,12 @@ void MountFsRpcFailed(const std::string &fsName, const Mountpoint &mountPt,
 void UmountFsRpcFailed(const std::string &fsName, const Mountpoint &mountPt,
                        UmountFsResponse *response, brpc::Controller *cntl,
                        brpc::Channel *channel) {
+    cntl->SetFailed(112, "Not connected to");
+}
+
+void AllocOrGetMemcacheClusterRpcFailed(
+    uint32_t fsId, AllocOrGetMemcacheClusterResponse* response,
+    brpc::Controller* cntl, brpc::Channel* channel) {
     cntl->SetFailed(112, "Not connected to");
 }
 
@@ -996,6 +1003,41 @@ TEST_F(MdsClientImplTest, TestReleaseVolumeBlockGroup) {
                                                               blockGroups));
         }
     }
+}
+
+TEST_F(MdsClientImplTest, test_AllocOrGetMemcacheCluster) {
+    AllocOrGetMemcacheClusterResponse response;
+    MemcacheClusterInfo cluster1;
+    cluster1.set_clusterid(1);
+    mds::topology::MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *cluster1.add_servers() = server;
+    response.set_allocated_cluster(new MemcacheClusterInfo(cluster1));
+
+    // 1. ok
+    response.set_statuscode(curvefs::mds::topology::TOPO_OK);
+    EXPECT_CALL(mockmdsbasecli_, AllocOrGetMemcacheCluster(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    MemcacheClusterInfo cluster2;
+    ASSERT_EQ(true,
+              mdsclient_.AllocOrGetMemcacheCluster(1, &cluster2));
+
+    // 2. no memcached
+    response.set_statuscode(
+        curvefs::mds::topology::TOPO_MEMCACHECLUSTER_NOT_FOUND);
+    EXPECT_CALL(mockmdsbasecli_, AllocOrGetMemcacheCluster(_, _, _, _))
+        .WillOnce(SetArgPointee<1>(response));
+    ASSERT_EQ(false,
+              mdsclient_.AllocOrGetMemcacheCluster(1, &cluster2));
+
+    // 3. rpc error
+    brpc::Controller cntl;
+    cntl.SetFailed(ECONNRESET, "error connect reset");
+    EXPECT_CALL(mockmdsbasecli_, AllocOrGetMemcacheCluster(_, _, _, _))
+        .WillRepeatedly(Invoke(AllocOrGetMemcacheClusterRpcFailed));
+    ASSERT_EQ(false,
+              mdsclient_.AllocOrGetMemcacheCluster(1, &cluster2));
 }
 
 }  // namespace rpcclient

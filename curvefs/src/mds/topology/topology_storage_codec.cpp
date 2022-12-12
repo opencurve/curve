@@ -22,7 +22,9 @@
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
 
 #include <string>
+#include <utility>
 #include "curvefs/src/mds/common/storage_key.h"
+#include "src/common/encode.h"
 
 namespace curvefs {
 namespace mds {
@@ -176,6 +178,13 @@ std::string TopologyStorageCodec::EncodeFs2MemcacheClusterKey(FsIdType fsId) {
     key.resize(prefixLen + sizeof(uint64_t));
     EncodeBigEndian(&(key[prefixLen]), fsId);
     return key;
+}
+
+bool TopologyStorageCodec::DecodeFs2MemcacheClusterKey(const std::string& value,
+                                                       FsIdType* data) {
+    size_t prefixLen = TOPOLOGY_PREFIX_LENGTH;
+    *data = curve::common::DecodeBigEndian(&(value[prefixLen]));
+    return true;
 }
 
 }  // namespace topology

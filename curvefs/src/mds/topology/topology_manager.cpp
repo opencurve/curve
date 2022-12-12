@@ -1327,6 +1327,20 @@ void TopologyManager::RegistMemcacheCluster(
     // register memcacheCluster as server
     WriteLockGuard lock(registMemcacheClusterMutex_);
 
+    // idempotence
+    std::list<MemcacheCluster> clusterList = topology_->ListMemcacheClusters();
+    MemcacheCluster mCluster(
+        0, std::list<MemcacheServer>(request->servers().begin(),
+                                     request->servers().end()));
+    for (auto const& cluster : clusterList) {
+        mCluster.SetId(cluster.GetId());
+        if (cluster == mCluster) {
+            // has registered memcache cluster
+            response->set_clusterid(cluster.GetId());
+            return;
+        }
+    }
+
     // Guarantee the uniqueness of memcacheServer
     std::list<MemcacheServer> serverRegisted = topology_->ListMemcacheServers();
     std::list<MemcacheServer> serverList;
