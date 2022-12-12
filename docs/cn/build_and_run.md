@@ -57,6 +57,9 @@ CURVE编译依赖的包括：
 
 CURVE的其他依赖项，均由bazel去管理，不可单独安装。
 
+**注意** 4.* 版本的 bazel 均可以成功编译 curve 项目，其他版本不兼容。
+4.2.2 为推荐版本。
+
 ### 安装依赖
 
 编译相关的软件依赖可以参考 [dockerfile](../../docker/debian9/compile/Dockerfile) 中的安装步骤。

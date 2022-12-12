@@ -52,6 +52,9 @@ CURVE compilation depends on:
 
 Other dependencies of CURVE are managed by bazel and do not need to be installed separately.
 
+**Note** The 4.* version of bazel can successfully compile the curve project, other versions are not compatible.
+4.2.2 is the recommended version.
+
 ### Installation dependency
 
 For dependencies, you can refer to the installation steps in [dockerfile](../../docker/debian9/compile/Dockerfile).
