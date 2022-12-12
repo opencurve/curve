@@ -34,7 +34,7 @@
 #include "curvefs/src/client/kvclient/kvclient.h"
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/metric/client_metric.h"
-#include "src/common/concurrent/thread_pool.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/s3_adapter.h"
 
 using curvefs::client::metric::KVClientMetric;
