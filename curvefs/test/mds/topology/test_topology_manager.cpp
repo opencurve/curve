@@ -23,12 +23,17 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <algorithm>
+#include <iostream>
+#include <vector>
 
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_metaserver_client.h"
@@ -216,6 +221,14 @@ class TestTopologyManager : public ::testing::Test {
         PrepareAddPartition(fsId, poolId, copysetId, pId1, 1, 100, 2);
         PrepareAddPartition(fsId, poolId, copysetId, pId2, 1, 100, 2);
         PrepareAddPartition(fsId + 1, poolId, copysetId, pId3, 1, 100, 2);
+    }
+
+    void PrepareAddMemcacheCluster(MemcacheClusterIdType id,
+                                   const std::list<MemcacheServer>& servers) {
+        MemcacheCluster cluster(id, servers);
+        EXPECT_CALL(*storage_, StorageMemcacheCluster(_))
+            .WillOnce(Return(true));
+        topology_->AddMemcacheCluster(cluster);
     }
 
  protected:
@@ -2840,6 +2853,175 @@ TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
     ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
     ASSERT_EQ(3, addrs.size());
     ASSERT_THAT(*addrs.begin(), AnyOf("ip2:8887", "ip2:8888", "ip2:8889"));
+}
+
+TEST_F(TestTopologyManager, test_RegistMemcacheCluster_Success) {
+    RegistMemcacheClusterRequest request;
+    RegistMemcacheClusterResponse response;
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *request.add_servers() = server;
+
+    MemcacheClusterIdType mcCId(1);
+
+    EXPECT_CALL(*idGenerator_, GenMemCacheClusterId()).WillOnce(Return(mcCId));
+    EXPECT_CALL(*storage_, StorageMemcacheCluster(_)).WillOnce(Return(true));
+
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_clusterid());
+    ASSERT_EQ(mcCId, response.clusterid());
+
+    // test register same cluster
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+
+    // test register register server
+    server.set_port(2);
+    *request.add_servers() = server;
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_IP_PORT_DUPLICATED, response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_RegistMemcacheCluster_AllocateIdFail) {
+    RegistMemcacheClusterRequest request;
+    RegistMemcacheClusterResponse response;
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *request.add_servers() = server;
+
+    MemcacheClusterIdType mcCId(1);
+
+    EXPECT_CALL(*idGenerator_, GenMemCacheClusterId())
+        .WillOnce(Return(UNINITIALIZE_ID));
+
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL, response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_ListMemcacheCluster_Success) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    clusters.emplace_back(MemcacheCluster(
+        2, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 4),
+                                     MemcacheServer("127.0.0.1", 5),
+                                     MemcacheServer("127.0.0.1", 6)}));
+    for (auto const & cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    ListMemcacheClusterResponse response;
+    serviceManager_->ListMemcacheCluster(&response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    auto clusterList = response.memcacheclusters();
+    ASSERT_EQ(clusterList.size(), clusters.size());
+    for (auto const& cluster : clusterList) {
+        ASSERT_TRUE(std::find(clusters.cbegin(), clusters.cend(),
+                              static_cast<MemcacheCluster>(cluster)) !=
+                    clusters.cend());
+    }
+}
+
+TEST_F(TestTopologyManager, test_ListMemcacheCluster_NotFound) {
+    ListMemcacheClusterResponse response;
+    serviceManager_->ListMemcacheCluster(&response);
+    ASSERT_EQ(TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND,
+              response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_1_Success) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    for (auto const& cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    EXPECT_CALL(*storage_, StorageFs2MemcacheCluster(_, _))
+        .WillOnce(Return(true));
+
+    AllocOrGetMemcacheClusterRequest request;
+    AllocOrGetMemcacheClusterResponse response;
+    serviceManager_->AllocOrGetMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_cluster());
+    ASSERT_EQ(clusters[0],
+              static_cast<MemcacheCluster>(response.cluster()));
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_Success) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    clusters.emplace_back(MemcacheCluster(
+        2, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 4),
+                                     MemcacheServer("127.0.0.1", 5),
+                                     MemcacheServer("127.0.0.1", 6)}));
+    for (auto const& cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    EXPECT_CALL(*storage_, StorageFs2MemcacheCluster(_, _))
+        .WillOnce(Return(true));
+
+    AllocOrGetMemcacheClusterRequest request1;
+    request1.set_fsid(1);
+    AllocOrGetMemcacheClusterResponse response1;
+    serviceManager_->AllocOrGetMemcacheCluster(&request1, &response1);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response1.statuscode());
+    ASSERT_TRUE(response1.has_cluster());
+
+
+    // same fsid
+    AllocOrGetMemcacheClusterResponse response2;
+    serviceManager_->AllocOrGetMemcacheCluster(&request1, &response2);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response2.statuscode());
+    ASSERT_TRUE(response2.has_cluster());
+    ASSERT_EQ(static_cast<MemcacheCluster>(response1.cluster()),
+              static_cast<MemcacheCluster>(response2.cluster()));
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_NotFound) {
+    AllocOrGetMemcacheClusterRequest request;
+    AllocOrGetMemcacheClusterResponse response;
+    serviceManager_->AllocOrGetMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND,
+              response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_StorageFail) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    clusters.emplace_back(MemcacheCluster(
+        2, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 4),
+                                     MemcacheServer("127.0.0.1", 5),
+                                     MemcacheServer("127.0.0.1", 6)}));
+    for (auto const& cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    AllocOrGetMemcacheClusterRequest request;
+    request.set_fsid(1);
+    AllocOrGetMemcacheClusterResponse response;
+
+    EXPECT_CALL(*storage_, StorageFs2MemcacheCluster(_, _))
+        .WillOnce(Return(false));
+    serviceManager_->AllocOrGetMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_STORGE_FAIL, response.statuscode());
 }
 
 }  // namespace topology

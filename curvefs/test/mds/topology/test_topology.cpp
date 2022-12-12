@@ -2343,6 +2343,35 @@ TEST_F(TestTopology, GenCopysetAddrBatch_2pool) {
     ASSERT_EQ(pool1Count, 3);
     ASSERT_EQ(pool2Count, 12);
 }
+
+TEST_F(TestTopology, test_AddMemcacheCluster_success) {
+    MemcacheCluster data(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)});
+
+    EXPECT_CALL(*storage_, StorageMemcacheCluster(_)).WillOnce(Return(true));
+
+    int ret = topology_->AddMemcacheCluster(data);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
+
+    ASSERT_EQ(*topology_->ListMemcacheClusters().begin(), data);
+}
+
+TEST_F(TestTopology, test_AddMemcacheCluster_fail) {
+    MemcacheCluster data(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)});
+
+    EXPECT_CALL(*storage_, StorageMemcacheCluster(_)).WillOnce(Return(false));
+
+    int ret = topology_->AddMemcacheCluster(data);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_STORGE_FAIL, ret);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curvefs

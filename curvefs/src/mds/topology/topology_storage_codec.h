@@ -89,6 +89,7 @@ class TopologyStorageCodec {
                                   MemcacheCluster* data);
 
     std::string EncodeFs2MemcacheClusterKey(FsIdType fsId);
+    bool DecodeFs2MemcacheClusterKey(const std::string& value, FsIdType* data);
 };
 
 
