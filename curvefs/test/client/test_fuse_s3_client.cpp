@@ -167,6 +167,7 @@ TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
             .WillOnce(DoAll(SetArgPointee<1>(memcacheCluster), Return(false)));
 
         ASSERT_EQ(CURVEFS_ERROR::INTERNAL, testclient->Init(opt));
+        testclient->UnInit();
     }
     curvefs::client::common::FLAGS_supportKVcache = false;
 }

@@ -441,7 +441,7 @@ bool MdsClientImpl::AllocOrGetMemcacheCluster(uint32_t fsId,
         return ret;
     };
 
-    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+    return 0 == ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
 }
 
 FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,

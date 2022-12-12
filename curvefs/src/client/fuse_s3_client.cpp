@@ -48,14 +48,16 @@ using curvefs::mds::topology::MemcacheServerInfo;
 
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     FuseClientOption opt(option);
-    // init kvcache
-    if (FLAGS_supportKVcache && !InitKVCache(option.kvClientManagerOpt)) {
-        return CURVEFS_ERROR::INTERNAL;
-    }
+    initbgFetchThread_ = false;
 
     CURVEFS_ERROR ret = FuseClient::Init(opt);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
+    }
+
+    // init kvcache
+    if (FLAGS_supportKVcache && !InitKVCache(option.kvClientManagerOpt)) {
+        return CURVEFS_ERROR::INTERNAL;
     }
 
     // set fs S3Option
@@ -92,6 +94,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
 
     bgFetchStop_.store(false, std::memory_order_release);
     bgFetchThread_ = Thread(&FuseS3Client::BackGroundFetch, this);
+    initbgFetchThread_ = true;
     GetTaskFetchPool();
     return ret;
 }
@@ -370,7 +373,9 @@ void FuseS3Client::travelChunks(fuse_ino_t ino, google::protobuf::Map<uint64_t,
 
 void FuseS3Client::UnInit() {
     bgFetchStop_.store(true, std::memory_order_release);
-    bgFetchThread_.join();
+    if (initbgFetchThread_) {
+        bgFetchThread_.join();
+    }
     FuseClient::UnInit();
     s3Adaptor_->Stop();
     curve::common::S3Adapter::Shutdown();
