@@ -23,6 +23,7 @@
 #define SRC_COMMON_ENCODE_H_
 
 #include <stdint.h>
+#include <cstdint>
 
 namespace curve {
 namespace common {
@@ -37,6 +38,13 @@ static inline void EncodeBigEndian(char* buf, uint64_t value) {
     buf[5] = (value >> 16) & 0xff;
     buf[6] = (value >> 8) & 0xff;
     buf[7] = value & 0xff;
+}
+
+inline uint64_t DecodeBigEndian(const char* buf) {
+    return (uint64_t(buf[0]) << 56) | (uint64_t(buf[1]) << 48) |
+           (uint64_t(buf[2]) << 40) | (uint64_t(buf[3]) << 32) |
+           (uint64_t(buf[4]) << 24) | (uint64_t(buf[5]) << 16) |
+           (uint64_t(buf[6]) << 8) | uint64_t(buf[7]);
 }
 
 inline void EncodeBigEndian_uint32(char* buf, uint32_t value) {

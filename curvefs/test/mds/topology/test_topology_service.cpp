@@ -28,6 +28,7 @@
 #include <brpc/server.h>
 #include <memory>
 
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "curvefs/test/mds/mock/mock_topology.h"
 #include "curvefs/src/mds/topology/topology_service.h"
 #include "curvefs/src/mds/topology/topology_storge.h"
@@ -1127,6 +1128,120 @@ TEST_F(TestTopologyService, test_GetCopysetOfPartition_fail) {
     ASSERT_EQ(TopoStatusCode::TOPO_COPYSET_NOT_FOUND, response.statuscode());
 }
 
+TEST_F(TestTopologyService, test_RegistMemcache_success) {
+    TopologyService_Stub stub(&channel_);
+    brpc::Controller cntl;
+    RegistMemcacheClusterRequest request;
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *request.add_servers() = server;
+    server.set_port(2);
+    *request.add_servers() = server;
+
+    RegistMemcacheClusterResponse response;
+
+    RegistMemcacheClusterResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_OK);
+    EXPECT_CALL(*manager_, RegistMemcacheCluster(_, _))
+        .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.RegistMemcacheCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_RegistMemcache_fail) {
+    TopologyService_Stub stub(&channel_);
+    brpc::Controller cntl;
+    RegistMemcacheClusterRequest request;
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *request.add_servers() = server;
+    server.set_port(2);
+    *request.add_servers() = server;
+
+    RegistMemcacheClusterResponse response;
+
+    RegistMemcacheClusterResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_IP_PORT_DUPLICATED);
+    EXPECT_CALL(*manager_, RegistMemcacheCluster(_, _))
+        .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.RegistMemcacheCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_IP_PORT_DUPLICATED, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_ListMemcache_success) {
+    TopologyService_Stub stub(&channel_);
+    brpc::Controller cntl;
+    ListMemcacheClusterRequest request;
+    ListMemcacheClusterResponse response;
+
+    ListMemcacheClusterResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_OK);
+    MemcacheClusterInfo cluster;
+    cluster.set_clusterid(1);
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *cluster.add_servers() = server;
+    *reps.add_memcacheclusters() = cluster;
+    EXPECT_CALL(*manager_, ListMemcacheCluster(_))
+        .WillRepeatedly(SetArgPointee<0>(reps));
+
+    stub.ListMemcacheCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+
+    auto memcacheclusters1 = response.memcacheclusters();
+    auto memcacheclusters2 = reps.memcacheclusters();
+    ASSERT_EQ(memcacheclusters1.size(), memcacheclusters2.size());
+    for (auto const& cluster1 : memcacheclusters1) {
+        ASSERT_NE(
+            std::find_if(memcacheclusters2.cbegin(), memcacheclusters2.cend(),
+                         [=](const MemcacheClusterInfo& cluster2) {
+                             return static_cast<MemcacheCluster>(cluster1) ==
+                                    static_cast<MemcacheCluster>(cluster2);
+                         }),
+            memcacheclusters2.cend());
+    }
+}
+
+TEST_F(TestTopologyService, test_ListMemcache_fail) {
+    TopologyService_Stub stub(&channel_);
+    brpc::Controller cntl;
+    ListMemcacheClusterRequest request;
+    ListMemcacheClusterResponse response;
+
+    ListMemcacheClusterResponse reps;
+    reps.set_statuscode(TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND);
+    EXPECT_CALL(*manager_, ListMemcacheCluster(_))
+        .WillRepeatedly(SetArgPointee<0>(reps));
+
+    stub.ListMemcacheCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND,
+              response.statuscode());
+}
 
 }  // namespace topology
 }  // namespace mds

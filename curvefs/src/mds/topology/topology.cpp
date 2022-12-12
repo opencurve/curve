@@ -1735,12 +1735,12 @@ TopoStatusCode TopologyImpl::AllocOrGetMemcacheCluster(
         int randId =
             static_cast<int>(butil::fast_rand()) % memcacheClusterMap_.size();
         auto iter = memcacheClusterMap_.cbegin();
-        for (int i = 0; i < randId; ++i, ++iter) continue;
-        *cluster = iter->second;
-        if (!storage_->StorageFs2MemcacheCluster(fsId, cluster->clusterid())) {
+        std::advance(iter, randId);
+        if (!storage_->StorageFs2MemcacheCluster(fsId, iter->first)) {
             ret = TopoStatusCode::TOPO_STORGE_FAIL;
         } else {
-            fs2MemcacheCluster_[fsId] = cluster->clusterid();
+            fs2MemcacheCluster_[fsId] = iter->first;
+            *cluster = iter->second;
         }
     }
     return ret;

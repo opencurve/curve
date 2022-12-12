@@ -823,6 +823,8 @@ class MemcacheServer {
     MemcacheServer() : port_(0) {}
     explicit MemcacheServer(const MemcacheServerInfo& info)
         : ip_(info.ip()), port_(info.port()) {}
+    explicit MemcacheServer(const std::string&& ip, uint32_t port)
+        : ip_(ip), port_(port) {}
 
     MemcacheServer& operator=(const MemcacheServerInfo& info) {
         ip_ = info.ip();
@@ -888,6 +890,19 @@ class MemcacheCluster {
         return info;
     }
 
+    bool operator==(const MemcacheCluster& rhs) const {
+        if (rhs.id_ != id_ || rhs.servers_.size() != servers_.size()) {
+            return false;
+        }
+        for (auto const& server : servers_) {
+            if (std::find(rhs.servers_.cbegin(), rhs.servers_.cend(), server) ==
+                rhs.servers_.cend()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     std::list<MemcacheServer> GetServers() const {
         return servers_;
     }
@@ -898,6 +913,10 @@ class MemcacheCluster {
 
     bool ParseFromString(const std::string& value);
     bool SerializeToString(std::string* value) const;
+
+    void SetId(MetaServerIdType id) {
+        id_ = id;
+    }
 
  private:
     MetaServerIdType id_;
