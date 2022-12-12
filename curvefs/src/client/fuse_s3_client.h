@@ -43,16 +43,14 @@ using curve::common::GetObjectAsyncCallBack;
 class FuseS3Client : public FuseClient {
  public:
     FuseS3Client()
-      : FuseClient(),
-        s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {}
+        : FuseClient(), s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {}
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,
-        const std::shared_ptr<MetaServerClient> &metaClient,
-        const std::shared_ptr<InodeCacheManager> &inodeManager,
-        const std::shared_ptr<DentryCacheManager> &dentryManager,
-        const std::shared_ptr<S3ClientAdaptor> &s3Adaptor)
-        : FuseClient(mdsClient, metaClient,
-            inodeManager, dentryManager),
+                 const std::shared_ptr<MetaServerClient> &metaClient,
+                 const std::shared_ptr<InodeCacheManager> &inodeManager,
+                 const std::shared_ptr<DentryCacheManager> &dentryManager,
+                 const std::shared_ptr<S3ClientAdaptor> &s3Adaptor)
+        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager),
           s3Adaptor_(s3Adaptor) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
@@ -120,6 +118,7 @@ class FuseS3Client : public FuseClient {
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
 
+    bool initbgFetchThread_;
     Thread bgFetchThread_;
     std::atomic<bool> bgFetchStop_;
     std::mutex fetchMtx_;
