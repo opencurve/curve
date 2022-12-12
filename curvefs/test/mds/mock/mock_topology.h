@@ -446,6 +446,12 @@ class MockTopologyManager : public TopologyManager {
     MOCK_METHOD2(GetLatestPartitionsTxId,
                  void(const std::vector<PartitionTxId> &txIds,
                       std::vector<PartitionTxId> *needUpdate));
+
+    MOCK_METHOD2(RegistMemcacheCluster,
+                 void(const RegistMemcacheClusterRequest*,
+                      RegistMemcacheClusterResponse*));
+
+    MOCK_METHOD1(ListMemcacheCluster, void(ListMemcacheClusterResponse*));
 };
 
 }  // namespace topology

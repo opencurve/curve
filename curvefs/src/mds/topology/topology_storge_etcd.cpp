@@ -21,6 +21,7 @@
  */
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
 
+#include <exception>
 #include <string>
 #include <vector>
 #include <map>
@@ -625,8 +626,18 @@ bool TopologyStorageEtcd::LoadFs2MemcacheCluster(
         return false;
     }
     for (auto const& data : out) {
-        fs2MemcacheCluster->emplace(
-            std::make_pair(std::stoul(data.first), std::stoul(data.second)));
+        FsIdType id;
+        codec_->DecodeFs2MemcacheClusterKey(data.first, &id);
+        if (fs2MemcacheCluster->find(id) != fs2MemcacheCluster->end()) {
+            // Duplicated id
+            return false;
+        }
+        try {
+            fs2MemcacheCluster->emplace(id, std::stoul(data.second));
+        } catch (std::exception) {
+            // for std::stoul(data.second) exceptions
+            return false;
+        }
     }
     return true;
 }
