@@ -36,12 +36,10 @@ using ::curve::common::Bitmap;
 using ::curve::common::BITMAP_UNIT_SIZE;
 using ::curve::common::BitRange;
 using ::curvefs::common::BitmapLocation;
-using ::curvefs::mds::space::BlockGroup;
 using ::curvefs::mds::space::SpaceErrCode_Name;
 
 BlockGroupManagerImpl::BlockGroupManagerImpl(
-    SpaceManager* spaceManager,
-    const std::shared_ptr<MdsClient>& mdsClient,
+    SpaceManager* spaceManager, const std::shared_ptr<MdsClient>& mdsClient,
     const std::shared_ptr<BlockDeviceClient>& blockDevice,
     const BlockGroupManagerOption& managerOption,
     const AllocatorOption& allocatorOption)
@@ -70,10 +68,9 @@ bool BlockGroupManagerImpl::AllocateBlockGroup(
         VLOG(9) << "load group: " << group.ShortDebugString();
         AllocatorAndBitmapUpdater res;
         res.blockGroupOffset = group.offset();
-        BlockGroupBitmapLoader loader(
-            blockDeviceClient_.get(), option_.blockSize, group.offset(),
-            group.size(), group.bitmaplocation(),
-            group.size() == group.available(), allocatorOption_);
+        BlockGroupBitmapLoader loader(blockDeviceClient_.get(),
+                                      option_.blockSize, allocatorOption_,
+                                      group);
         auto ret = loader.Load(&res);
         if (!ret) {
             LOG(ERROR) << "Create allocator for block group failed";
@@ -86,12 +83,58 @@ bool BlockGroupManagerImpl::AllocateBlockGroup(
     return true;
 }
 
-// TODO(wuhanqing): implement this function
-bool BlockGroupManagerImpl::ReleaseAllBlockGroups() {
+bool BlockGroupManagerImpl::ReleaseAllBlockGroups(
+    const std::vector<BlockGroup>& blockGroups) {
+    SpaceErrCode err = mdsClient_->ReleaseVolumeBlockGroup(
+        option_.fsId, option_.owner, blockGroups);
+    if (err != SpaceErrCode::SpaceOk) {
+        LOG(ERROR) << "Release volume block group failed, err: "
+                   << SpaceErrCode_Name(err);
+        return false;
+    }
+
+    return true;
+}
+
+bool BlockGroupManagerImpl::ReleaseBlockGroup(const BlockGroup& blockGroup) {
+    SpaceErrCode err = mdsClient_->ReleaseVolumeBlockGroup(
+        option_.fsId, option_.owner, {blockGroup});
+    if (err != SpaceErrCode::SpaceOk) {
+        LOG(ERROR) << "Release volume block group failed, err: "
+                   << SpaceErrCode_Name(err);
+        return false;
+    }
+
     return true;
 }
 
 void BlockGroupManagerImpl::AllocateBlockGroupAsync() {}
+
+bool BlockGroupManagerImpl::AcquireBlockGroup(uint64_t offset,
+                                              AllocatorAndBitmapUpdater* out) {
+    BlockGroup group;
+    SpaceErrCode err = mdsClient_->AcquireVolumeBlockGroup(
+        option_.fsId, offset, option_.owner, &group);
+    if (err != SpaceErrCode::SpaceOk) {
+        LOG(WARNING) << "Acquire volume block group failed, err: "
+                     << SpaceErrCode_Name(err);
+        return false;
+    }
+
+    AllocatorAndBitmapUpdater res;
+    res.blockGroupOffset = group.offset();
+    BlockGroupBitmapLoader loader(blockDeviceClient_.get(), option_.blockSize,
+                                  allocatorOption_, group);
+    auto ret = loader.Load(&res);
+    if (!ret) {
+        LOG(ERROR) << "Create allocator for block group failed";
+        return false;
+    }
+
+    *out = std::move(res);
+
+    return true;
+}
 
 }  // namespace volume
 }  // namespace curvefs

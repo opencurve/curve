@@ -189,6 +189,8 @@ class Partition {
         }
     }
 
+    bool GetFsInfo(FsInfo *fsInfo);
+
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
@@ -196,7 +198,7 @@ class Partition {
     std::shared_ptr<TrashImpl> trash_;
     std::shared_ptr<DentryManager> dentryManager_;
     std::shared_ptr<TxManager> txManager_;
-
+    std::shared_ptr<FsInfo> fsInfo_;
     PartitionInfo partitionInfo_;
 };
 }  // namespace metaserver

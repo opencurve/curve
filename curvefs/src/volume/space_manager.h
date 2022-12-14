@@ -48,7 +48,8 @@ class SpaceManager {
                        const AllocateHint& hint,
                        std::vector<Extent>* extents) = 0;
 
-    virtual bool DeAlloc(const std::vector<Extent>& extents) = 0;
+    virtual bool DeAlloc(uint64_t blockGroupOffset,
+                         const std::vector<Extent>& extents) = 0;
 
     virtual bool Shutdown() = 0;
 };
@@ -67,7 +68,8 @@ class SpaceManagerImpl final : public SpaceManager {
                const AllocateHint& hint,
                std::vector<Extent>* extents) override;
 
-    bool DeAlloc(const std::vector<Extent>& extents) override;
+    bool DeAlloc(uint64_t blockGroupOffset,
+                 const std::vector<Extent>& extents) override;
 
     /**
      * @brief Shutdown space manager, release all blockgroups' rights
@@ -87,7 +89,8 @@ class SpaceManagerImpl final : public SpaceManager {
      */
     BlockGroupBitmapUpdater* FindBitmapUpdater(const Extent& ext);
 
-    bool UpdateBitmap(const std::vector<Extent>& exts);
+    bool UpdateBitmap(const std::vector<Extent>& exts,
+            BlockGroupBitmapUpdater::Op op = BlockGroupBitmapUpdater::Op::Set);
 
  private:
     bool AllocateBlockGroup(uint64_t hint);
@@ -101,6 +104,8 @@ class SpaceManagerImpl final : public SpaceManager {
     curve::common::RWLock updatersLock_;
     std::map<uint64_t, std::unique_ptr<BlockGroupBitmapUpdater>>
         bitmapUpdaters_;
+
+    std::map<uint64_t, std::shared_ptr<BlockGroup>> blockGroups_;
 
     std::atomic<uint64_t> totalBytes_;
     std::atomic<uint64_t> availableBytes_;
@@ -118,11 +123,13 @@ class SpaceManagerImpl final : public SpaceManager {
  private:
     struct Metric {
         bvar::LatencyRecorder allocLatency;
+        bvar::LatencyRecorder deallocLatency;
         bvar::LatencyRecorder allocSize;
         bvar::Adder<uint64_t> errorCount;
 
         Metric()
             : allocLatency("space_alloc_latency"),
+              deallocLatency("space_dealloc_latency"),
               allocSize("space_alloc_size"),
               errorCount("space_alloc_error") {}
     };

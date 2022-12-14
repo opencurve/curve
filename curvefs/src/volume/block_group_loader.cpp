@@ -104,6 +104,7 @@ bool BlockGroupBitmapLoader::Load(AllocatorAndBitmapUpdater* out) {
     out->bitmapUpdater = absl::make_unique<BlockGroupBitmapUpdater>(
         std::move(*bitmap), blockSize_, blockGroupSize_, offset_, range,
         blockDev_);
+    out->blockGroup = blockGroup_;
 
     return true;
 }

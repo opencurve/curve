@@ -33,6 +33,7 @@
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/s3compact.h"
+#include "curvefs/src/metaserver/fsinfo_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -521,6 +522,10 @@ void Partition::StartS3Compact() {
 
 void Partition::CancelS3Compact() {
     S3CompactManager::GetInstance().Cancel(partitionInfo_.partitionid());
+}
+
+bool Partition::GetFsInfo(FsInfo *fsInfo) {
+    return FsInfoManager::GetInstance().GetFsInfo(GetFsId(), fsInfo);
 }
 
 }  // namespace metaserver
