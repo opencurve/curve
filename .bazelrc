@@ -3,3 +3,5 @@ build --copt -DHAVE_ZLIB=1 --copt -DGFLAGS_NS=google --copt -DUSE_BTHREAD_MUTEX
 build --cxxopt -Wno-error=format-security
 build:gcc7-later --cxxopt -faligned-new
 build --incompatible_blacklisted_protos_requires_proto_info=false
+build --copt=-fdiagnostics-color=always
+run --copt=-fdiagnostics-color=always
