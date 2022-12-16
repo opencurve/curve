@@ -62,8 +62,7 @@ set -e
 
 #test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/ bazel-bin/curvefs/test/"
 if [ $1 == "curvebs" ];then
-make build stor=bs ci=1 dep=1 only=test/*
-make build stor=bs ci=1 only=nebd/test/*
+make build stor=bs ci=1 dep=1
 test_bin_dirs="bazel-bin/test/ bazel-bin/nebd/test/"
 elif [ $1 == "curvefs" ];then
 make build stor=fs ci=1 dep=1 only=curvefs/test/*
