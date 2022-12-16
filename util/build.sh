@@ -186,11 +186,13 @@ build_target() {
         g_build_opts+=("--config=gcc7-later")
     fi
 
+    alltarget=`get_target`
     if [ $g_ci -eq 1 ]; then
         g_build_opts+=("--collect_code_coverage")
+        alltarget=...
     fi
 
-    for target in `get_target`
+    for target in $alltarget
     do
         bazel build ${g_build_opts[@]} $target
         local ret="$?"
@@ -215,7 +217,7 @@ build_target() {
 
 
 build_requirements() {
-    if [ "$g_stor" == "fs" ]; then
+    if [[ "$g_stor" == "fs" || $g_ci -eq 1 ]]; then
         kernel_version=`uname -r | awk -F . '{print $1 * 1000 + $2}'`
         if [ $kernel_version -gt 5001 ]; then
             g_build_opts+=("--define IO_URING_SUPPORT=1")
