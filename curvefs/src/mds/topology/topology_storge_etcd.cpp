@@ -634,7 +634,7 @@ bool TopologyStorageEtcd::LoadFs2MemcacheCluster(
         }
         try {
             fs2MemcacheCluster->emplace(id, std::stoul(data.second));
-        } catch (std::exception) {
+        } catch (std::exception&) {
             // for std::stoul(data.second) exceptions
             return false;
         }
