@@ -256,8 +256,50 @@ struct LogicalPoolMetric {
 };
 using LogicalPoolMetricPtr = std::unique_ptr<LogicalPoolMetric>;
 
+struct ClusterMetric {
+    const std::string kTopologyClusterMetricPrefix =
+        "topology_metric_cluster_";
+
+    // server number
+    bvar::Status<uint32_t> serverNum;
+    // chunkserver number
+    bvar::Status<uint32_t> chunkServerNum;
+    // copyset number
+    bvar::Status<uint32_t> copysetNum;
+    // logical pool number
+    bvar::Status<uint32_t> logicalPoolNum;
+    // bandwidth of reading
+    bvar::Status<uint64_t> readRate;
+    // bandwidth of writing
+    bvar::Status<uint64_t> writeRate;
+    // IOPS of reading
+    bvar::Status<uint64_t> readIOPS;
+    // IOPS of writing
+    bvar::Status<uint64_t> writeIOPS;
+
+    ClusterMetric() :
+        serverNum(kTopologyClusterMetricPrefix,
+            + "_server_num", 0),
+        chunkServerNum(kTopologyClusterMetricPrefix,
+            + "_chunkserver_num", 0),
+        copysetNum(kTopologyClusterMetricPrefix,
+            + "_copyset_num", 0),
+        logicalPoolNum(kTopologyClusterMetricPrefix,
+            + "_logicalpool_num", 0),
+        readRate(kTopologyClusterMetricPrefix,
+            + "_readRate", 0),
+        writeRate(kTopologyClusterMetricPrefix,
+            + "_writeRate", 0),
+        readIOPS(kTopologyClusterMetricPrefix,
+            + "_readIOPS", 0),
+        writeIOPS(kTopologyClusterMetricPrefix,
+            + "_writeIOPS", 0) {}
+};
+using ClusterMetricPtr = std::unique_ptr<ClusterMetric>;
+
 extern std::map<PoolIdType, LogicalPoolMetricPtr> gLogicalPoolMetrics;
 extern std::map<ChunkServerIdType, ChunkServerMetricPtr> gChunkServerMetrics;
+extern ClusterMetricPtr gClusterMetrics;
 
 class TopologyMetricService {
  public:

@@ -344,6 +344,10 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->writeIOPS.get_value());
     ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->readRate.get_value());
     ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->writeRate.get_value());
+    ASSERT_EQ(3, gClusterMetrics->readIOPS.get_value());
+    ASSERT_EQ(3, gClusterMetrics->writeIOPS.get_value());
+    ASSERT_EQ(3, gClusterMetrics->readRate.get_value());
+    ASSERT_EQ(3, gClusterMetrics->writeRate.get_value());
 }
 
 TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
