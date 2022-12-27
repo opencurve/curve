@@ -48,11 +48,10 @@ class MemCachedTest : public ::testing::Test {
         if (0 > memcached_pid) {
             ASSERT_FALSE(true);
         } else if (0 == memcached_pid) {
-            std::string memcached_config =
-                "memcached -u root -p " + std::to_string(port);
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", memcached_config.c_str(),
-                               nullptr));
-            exit(0);
+            std::string memcached_port =
+                "-p " + std::to_string(port);
+            ASSERT_EQ(0, execlp("memcached", "memcached", "-u root",
+                                memcached_port.c_str(), nullptr));
         }
 
         std::shared_ptr<MemCachedClient> client(new MemCachedClient());
