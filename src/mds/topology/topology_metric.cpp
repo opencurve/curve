@@ -35,6 +35,8 @@ namespace topology {
 
 std::map<PoolIdType, LogicalPoolMetricPtr> gLogicalPoolMetrics;
 std::map<ChunkServerIdType, ChunkServerMetricPtr> gChunkServerMetrics;
+ClusterMetricPtr gClusterMetrics =
+  std::unique_ptr<ClusterMetric>(new ClusterMetric);
 
 void TopologyMetricService::UpdateTopologyMetrics() {
     // process chunkserver
@@ -232,6 +234,44 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
+    // cluster io
+    uint64_t clusterReadIOPS = 0, clusterWriteIOPS = 0,
+        clusterReadRate = 0, clusterWriteRate = 0, copysetNum = 0;
+    for (auto metricIter = gLogicalPoolMetrics.begin();
+        metricIter != gLogicalPoolMetrics.end(); metricIter++) {
+        clusterReadIOPS += metricIter->second->readIOPS.get_value();
+        clusterWriteIOPS +=  metricIter->second->writeIOPS.get_value();
+        clusterReadRate +=  metricIter->second->readRate.get_value();
+        clusterWriteRate +=  metricIter->second->writeRate.get_value();
+        copysetNum += metricIter->second->copysetNum.get_value();
+    }
+
+    auto servers = topo_->GetServerInCluster();
+    gClusterMetrics->serverNum.set_value(servers.size());
+    gClusterMetrics->chunkServerNum.set_value(chunkservers.size());
+    gClusterMetrics->copysetNum.set_value(copysetNum);
+    gClusterMetrics->logicalPoolNum.set_value(lPools.size());
+    gClusterMetrics->readIOPS.set_value(clusterReadIOPS);
+    gClusterMetrics->writeIOPS.set_value(clusterWriteIOPS);
+    gClusterMetrics->readRate.set_value(clusterReadRate);
+    gClusterMetrics->writeRate.set_value(clusterWriteRate);
+
+
+
+    DVLOG(6) << "cluster metrics, logical pool num: "
+            << gClusterMetrics->logicalPoolNum.get_value()
+            << ", cluster chunkserver num: "
+            << gClusterMetrics->chunkServerNum.get_value()
+            << ", cluster copyset num: "
+            << gClusterMetrics->copysetNum.get_value()
+            << ", cluster readiops: "
+            << gClusterMetrics->readIOPS.get_value()
+            << ", cluster writeiops: "
+            << gClusterMetrics->writeIOPS.get_value()
+            << ", cluster readbps: "
+            << gClusterMetrics->readRate.get_value()
+            << ", cluster writebps: "
+            << gClusterMetrics->writeRate.get_value();
     return;
 }
 

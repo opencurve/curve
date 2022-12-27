@@ -337,6 +337,15 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
         gLogicalPoolMetrics[logicalPoolId]->chunkSizeTrashedBytes.get_value());
     ASSERT_EQ(1024 * 9,
         gLogicalPoolMetrics[logicalPoolId]->chunkSizeTotalBytes.get_value());
+
+    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->readIOPS.get_value());
+    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->writeIOPS.get_value());
+    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->readRate.get_value());
+    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->writeRate.get_value());
+    ASSERT_EQ(3, gClusterMetrics->readIOPS.get_value());
+    ASSERT_EQ(3, gClusterMetrics->writeIOPS.get_value());
+    ASSERT_EQ(3, gClusterMetrics->readRate.get_value());
+    ASSERT_EQ(3, gClusterMetrics->writeRate.get_value());
 }
 
 TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
