@@ -35,6 +35,7 @@
 #include "proto/copyset.pb.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/fs/fs_common.h"
+#include "proto/cli2.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -211,6 +212,49 @@ int PeerCluster::SignalPeer(const Peer &peer) {
     }
 }
 
+int PeerCluster:: ConfirmLeader(const LogicPoolID &logicPoolId,
+                        const CopysetID &copysetId,
+                        const std::string& leaderAddr,
+                        Peer *leader) {
+    brpc::Channel channel;
+    auto pos = leaderAddr.rfind(":");
+    std::string addr = leaderAddr.substr(0, pos);
+    if (channel.Init(addr.c_str(), NULL) != 0) {
+        LOG(ERROR) <<"Fail to init channel to " << leaderAddr.c_str();
+        return -1;
+    }
+    Peer *peer = new Peer();
+    CliService2_Stub stub(&channel);
+    GetLeaderRequest2 request;
+    GetLeaderResponse2 response;
+    brpc::Controller cntl;
+    request.set_logicpoolid(logicPoolId);
+    request.set_copysetid(copysetId);
+    request.set_allocated_peer(peer);
+    peer->set_address(addr);
+
+    stub.GetLeader(&cntl, &request, &response, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) <<"confirm leader fail";
+        return -1;
+    }
+    Peer leader2 = response.leader();
+    PeerId leaderId2;
+    leaderId2.parse(leader2.address());
+    PeerId leaderId1;
+    leaderId1.parse(leader->address());
+    if (leaderId2.is_empty()) {
+        LOG(ERROR) <<"Confirmed leaderId is null";
+        return -1;
+    }
+    if (leaderId2 != leaderId1) {
+        LOG(INFO) << "twice leaderId is inconsistent, first is "
+                    << leaderId1 << " second is " << leaderId2;
+        return -1;
+    }
+    return 0;
+}
+
 int PeerCluster::WaitLeader(Peer *leaderPeer) {
     butil::Status status;
     /**
@@ -229,7 +273,12 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
             usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderPeer->address();
-            return 0;
+            std::string leaderAddr = leaderPeer->address();
+            int ret = ConfirmLeader(logicPoolID_, copysetID_,
+                                    leaderAddr, leaderPeer);
+            if (ret == 0) {
+                return ret;
+            }
         } else {
             LOG(WARNING) << "Get leader failed, error: " << status.error_str()
                          << ", retry " << i + 1 << "th time.";
