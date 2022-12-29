@@ -46,6 +46,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                     return cs.GetStatus() != ChunkServerStatus::RETIRED;
                 });
 
+    std::vector<CopysetStat> copysetStatsCs, copysetStatsCluster;
     for (auto csId : chunkservers) {
         auto it = gChunkServerMetrics.find(csId);
         if (it == gChunkServerMetrics.end()) {
@@ -86,6 +87,11 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                 csStat.chunkSizeLeftBytes +
                 csStat.chunkSizeTrashedBytes);
         }
+
+        copysetStatsCs = csStat.copysetStats;
+        copysetStatsCluster.insert(copysetStatsCluster.end(),
+          copysetStatsCs.begin(), copysetStatsCs.end());
+        copysetStatsCs.clear();
     }
 
     // process logical pool
@@ -211,7 +217,36 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             it->second->logicalCapacity.set_value(
                 totalChunkSizeBytes / pool.GetReplicaNum());
         }
+
+        uint64_t readRate = 0, writeRate = 0,
+          readIOPS = 0, writeIOPS = 0;
+        for (auto iterCsStat : copysetStatsCluster) {
+            if (iterCsStat.logicalPoolId == pid) {
+                readRate += iterCsStat.readRate;
+                writeRate += iterCsStat.writeRate;
+                readIOPS += iterCsStat.readIOPS;
+                writeIOPS += iterCsStat.writeIOPS;
+            }
+            DVLOG(6) << "copyset Metrics, csid is: "
+                  << iterCsStat.copysetId << ", write iops: "
+                  << iterCsStat.writeIOPS << ", write bps: "
+                  << iterCsStat.writeRate << ", read bps: "
+                  << iterCsStat.readRate  << ", read iops: "
+                  << iterCsStat.readIOPS;
+        }
+        it->second->writeIOPS.set_value(writeIOPS);
+        it->second->writeRate.set_value(writeRate);
+        it->second->readRate.set_value(readRate);
+        it->second->readIOPS.set_value(readIOPS);
+
+        DVLOG(6) << "pool metrics, pid is: "
+            << pid << ", write iops: "
+            << writeIOPS << ", write bps: "
+            << writeRate << ", read bps: "
+            << readRate  << ", read iops: "
+            << readIOPS;
     }
+
     // remove logical pool metrics that no longer exist
     for (auto iy = gLogicalPoolMetrics.begin();
         iy != gLogicalPoolMetrics.end();) {
