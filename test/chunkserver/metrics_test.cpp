@@ -584,9 +584,9 @@ TEST_F(CSMetricTest, CountTest) {
     // clone chunk被覆盖写一遍,clone chun转成普通chunk
     char* buf2 = new char[CHUNK_SIZE];
     butil::IOBuf dataBuf2;
-    dataBuf.append(buf2, CHUNK_SIZE);
+    dataBuf2.append(buf2, CHUNK_SIZE);
     ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id2, 1, dataBuf, 0, CHUNK_SIZE, nullptr));
+              datastore->WriteChunk(id2, 1, dataBuf2, 0, CHUNK_SIZE, nullptr));
     delete[] buf2;
     ASSERT_EQ(3, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());

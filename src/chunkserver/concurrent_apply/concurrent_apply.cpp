@@ -23,7 +23,6 @@
 #include <glog/logging.h>
 
 #include <algorithm>
-#include <vector>
 #include "src/chunkserver/concurrent_apply/concurrent_apply.h"
 #include "src/common/concurrent/count_down_event.h"
 
@@ -78,9 +77,9 @@ bool ConcurrentApplyModule::checkOptAndInit(
 
 
 void ConcurrentApplyModule::InitThreadPool(
-    ThreadPoolType type, int concorrent, int depth) {
-    for (int i = 0; i < concorrent; i++) {
-        auto asyncth = new (std::nothrow) taskthread(depth);
+    ThreadPoolType type, int concurrent, int depth) {
+    for (int i = 0; i < concurrent; i++) {
+        auto asyncth = new (std::nothrow) TaskThread(depth);
         CHECK(asyncth != nullptr) << "allocate failed!";
 
         switch (type) {
@@ -94,16 +93,16 @@ void ConcurrentApplyModule::InitThreadPool(
         }
     }
 
-    for (int i = 0; i < concorrent; i++) {
+    for (int i = 0; i < concurrent; i++) {
         switch (type) {
         case ThreadPoolType::READ:
-            rapplyMap_[i]->th = std::move(
-                std::thread(&ConcurrentApplyModule::Run, this, type, i));
+            rapplyMap_[i]->th =
+                    std::thread(&ConcurrentApplyModule::Run, this, type, i);
             break;
 
         case ThreadPoolType::WRITE:
             wapplyMap_[i]->th =
-                std::thread(&ConcurrentApplyModule::Run, this, type, i);
+                    std::thread(&ConcurrentApplyModule::Run, this, type, i);
             break;
         }
     }

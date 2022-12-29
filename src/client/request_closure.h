@@ -32,11 +32,11 @@
 namespace curve {
 namespace client {
 
-class FileMetric;
 class IOTracker;
 class IOManager;
-class RequestContext;
 class RequestScheduler;
+struct FileMetric;
+struct RequestContext;
 
 class CURVE_CACHELINE_ALIGNMENT RequestClosure
     : public ::google::protobuf::Closure {

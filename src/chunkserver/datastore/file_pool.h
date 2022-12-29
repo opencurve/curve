@@ -151,8 +151,9 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * @param: metapage is the metapage information of the new chunk
      * @param: needClean is whether chunk need fill zero
      */
-    virtual int GetFile(const std::string& chunkpath, char* metapage,
-        bool needClean = false);
+    virtual int GetFile(const std::string& chunkpath,
+                        const char* metapage,
+                        bool needClean = false);
     /**
      * Datastore deletes chunks and recycles directly, not really deleted
      * @param: chunkpath is the chunk path that needs to be recycled
@@ -217,7 +218,7 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * @param: page is the metapage information to be written
      * @return: returns true if successful, otherwise false
      */
-    bool WriteMetaPage(const std::string& sourcepath, char* page);
+    bool WriteMetaPage(const std::string& sourcepath, const char* page);
     /**
      * Directly allocate chunks, not from FilePool
      * @param: chunkpath is the path of the chunk file in the datastore

@@ -41,7 +41,7 @@ using curve::common::BoundedBlockingDeque;
 using curve::common::BBQItem;
 using curve::common::Uncopyable;
 
-class RequestContext;
+struct RequestContext;
 /**
  * 请求调度器，上层拆分的I/O会交给Scheduler的线程池
  * 分发到具体的ChunkServer，后期QoS也会放在这里处理

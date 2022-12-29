@@ -43,13 +43,13 @@
 #undef OPENSSL_NO_SHA256
 #endif
 
-#include <glog/logging.h>
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
-
-#include <string.h>
-
 #include "src/common/authenticator.h"
+
+#include <glog/logging.h>
+#include <openssl/hmac.h>
+#include <openssl/sha.h>
+#include <openssl/x509.h>
+#include <string.h>
 
 // Older openssl does not have EVP_sha256. To make the code always compile,
 // we mark the symbol as weak. If the runtime does not have the function,
@@ -60,6 +60,11 @@ const EVP_MD* __attribute__((weak)) EVP_sha256(void);
 
 namespace curve {
 namespace common {
+
+static char b[] =
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+/* 0000000000111111111122222222223333333333444444444455555555556666 */
+/* 0123456789012345678901234567890123456789012345678901234567890123 */
 
 std::string Authenticator::CalcString2Signature(const std::string& in,
                                     const std::string& secretKey) {

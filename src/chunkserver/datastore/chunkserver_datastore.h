@@ -47,7 +47,7 @@ using curve::fs::LocalFileSystem;
 using ::curve::common::Atomic;
 using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
 
-inline void TrivialDeleter(void* ptr) {}
+inline void TrivialDeleter(void* /*ptr*/) {}
 
 /**
  * DataStore configuration parameters

@@ -468,6 +468,20 @@ TEST_F(Ext4LocalFileSystemTest, WriteIOBufTest) {
     }
 
     {
+        int fd = posixWrapper->open("/dev/null", O_WRONLY, 0644);
+        ASSERT_GE(fd, 0);
+
+        for (auto sz : {0, 4095, 4097}) {
+            butil::IOBuf data;
+            data.resize(sz);
+
+            ASSERT_EQ(-EINVAL, lfs->Write(fd, data, 0, 4096));
+        }
+
+        posixWrapper->close(fd);
+    }
+
+    {
         const char* filename = "ext4_write_iobuf_test.data";
 
         int fd = posixWrapper->open(filename, O_RDWR | O_CREAT | O_TRUNC, 0644);

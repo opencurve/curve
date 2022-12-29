@@ -27,6 +27,7 @@
 #include <butil/sys_byteorder.h>
 #include <brpc/closure_guard.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 
@@ -173,6 +174,14 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
     }
 }
 
+namespace {
+uint64_t MaxAppliedIndex(
+        const std::shared_ptr<curve::chunkserver::CopysetNode>& node,
+        uint64_t current) {
+    return std::max(current, node->GetAppliedIndex());
+}
+}  // namespace
+
 void DeleteChunkRequest::OnApply(uint64_t index,
                                  ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
@@ -184,22 +193,16 @@ void DeleteChunkRequest::OnApply(uint64_t index,
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete chunk failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
     } else {
         LOG(ERROR) << "delete chunk failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-    auto maxIndex =
-        (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
@@ -213,16 +216,12 @@ void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 
     if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete failed: "
-                   << request.logicpoolid() << ", "
-                   << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     } else {
         LOG(ERROR) << "delete failed: "
-                   << request.logicpoolid() << ", "
-                   << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     }
 }
 
@@ -318,9 +317,8 @@ void ReadChunkRequest::OnApply(uint64_t index,
             }
         } else if (CSErrorCode::Success != errorCode) {
             LOG(ERROR) << "get chunkinfo failed: "
-                       << " logic pool id: " << request_->logicpoolid()
-                       << " copyset id: " << request_->copysetid()
-                       << " chunkid: " << request_->chunkid();
+                       << " data store return: " << errorCode
+                       << ", request: " << request_->ShortDebugString();
             response_->set_status(
                 CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
             break;
@@ -336,9 +334,7 @@ void ReadChunkRequest::OnApply(uint64_t index,
             bool result = cloneMgr_->IssueCloneTask(cloneTask);
             if (!result) {
                 LOG(ERROR) << "issue clone task failed: "
-                           << " logic pool id: " << request_->logicpoolid()
-                           << " copyset id: " << request_->copysetid()
-                           << " chunkid: " << request_->chunkid();
+                           << ", request: " << request_->ShortDebugString();
                 response_->set_status(
                     CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
                 break;
@@ -361,9 +357,7 @@ void ReadChunkRequest::OnApply(uint64_t index,
     }
 
     brpc::ClosureGuard doneGuard(done);
-    auto maxIndex =
-        (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void ReadChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
@@ -417,20 +411,12 @@ void ReadChunkRequest::ReadChunk() {
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "read failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data size: " << request_->size()
-                   << " read len :" << size
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
     } else {
         LOG(ERROR) << "read failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data size: " << request_->size()
-                   << " read len :" << size
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
@@ -463,11 +449,8 @@ void WriteChunkRequest::OnApply(uint64_t index,
         // 打快照那一刻是有可能出现旧版本的请求
         // 返回错误给客户端，让客户端带新版本来重试
         LOG(WARNING) << "write failed: "
-                     << " logic pool id: " << request_->logicpoolid()
-                     << " copyset id: " << request_->copysetid()
-                     << " chunkid: " << request_->chunkid()
-                     << " data size: " << request_->size()
-                     << " data store return: " << ret;
+                     << " data store return: " << ret
+                     << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
     } else if (CSErrorCode::InternalError == ret ||
@@ -479,24 +462,17 @@ void WriteChunkRequest::OnApply(uint64_t index,
          * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
         */
         LOG(FATAL) << "write failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data size: " << request_->size()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
     } else {
         LOG(ERROR) << "write failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data size: " << request_->size()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-    auto maxIndex =
-        (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
     node_->ShipToSync(request_->chunkid());
 }
 
@@ -512,7 +488,6 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                             request.clonefileoffset());
     }
 
-
     auto ret = datastore->WriteChunk(request.chunkid(),
                                      request.sn(),
                                      data,
@@ -524,27 +499,18 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
          return;
      } else if (CSErrorCode::BackwardRequestError == ret) {
         LOG(WARNING) << "write failed: "
-                     << " logic pool id: " << request.logicpoolid()
-                     << " copyset id: " << request.copysetid()
-                     << " chunkid: " << request.chunkid()
-                     << " data size: " << request.size()
-                     << " data store return: " << ret;
+                     << " data store return: " << ret
+                     << ", request: " << request.ShortDebugString();
     } else if (CSErrorCode::InternalError == ret ||
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         LOG(FATAL) << "write failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " data size: " << request.size()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     } else {
         LOG(ERROR) << "write failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " data size: " << request.size()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     }
 }
 
@@ -586,34 +552,20 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
          */
         if (CSErrorCode::InternalError == ret) {
             LOG(FATAL) << "read snapshot failed: "
-                       << " logic pool id: " << request_->logicpoolid()
-                       << " copyset id: " << request_->copysetid()
-                       << " chunkid: " << request_->chunkid()
-                       << " sn: " << request_->sn()
-                       << " data size: " << request_->size()
-                       << " read len :" << size
-                       << " offset: " << request_->offset()
-                       << " data store return: " << ret;
+                       << " data store return: " << ret
+                       << ", request: " << request_->ShortDebugString();
         }
         /**
          * 4.其他错误
          */
         LOG(ERROR) << "read snapshot failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " sn: " << request_->sn()
-                   << " data size: " << request_->size()
-                   << " read len :" << size
-                   << " offset: " << request_->offset()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } while (0);
 
-    auto maxIndex =
-        (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
@@ -633,33 +585,23 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::BackwardRequestError == ret) {
         LOG(WARNING) << "delete snapshot or correct sn failed: "
-                     << " logic pool id: " << request_->logicpoolid()
-                     << " copyset id: " << request_->copysetid()
-                     << " chunkid: " << request_->chunkid()
-                     << " correctedSn: " << request_->correctedsn()
-                     << " data store return: " << ret;
+                     << " data store return: " << ret
+                     << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete snapshot or correct sn failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " correctedSn: " << request_->correctedsn()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
     } else {
         LOG(ERROR) << "delete snapshot or correct sn failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " correctedSn: " << request_->correctedsn()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-    auto maxIndex =
-        (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
@@ -672,25 +614,16 @@ void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastor
         return;
     } else if (CSErrorCode::BackwardRequestError == ret) {
         LOG(WARNING) << "delete snapshot or correct sn failed: "
-                     << request.logicpoolid() << ", "
-                     << request.copysetid()
-                     << " chunkid: " << request.chunkid()
-                     << " correctedSn: " << request.correctedsn()
-                     << " data store return: " << ret;
+                     << " data store return: " << ret
+                     << ", request: " << request.ShortDebugString();
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete snapshot or correct sn failed: "
-                   << request.logicpoolid() << ", "
-                   << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " correctedSn: " << request.correctedsn()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     } else {
         LOG(ERROR) << "delete snapshot or correct sn failed: "
-                   << request.logicpoolid() << ", "
-                   << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " correctedSn: " << request.correctedsn()
-                   << " data store return: " << ret;
+                   << " data store return: " << ret
+                   << ", request: " << request.ShortDebugString();
     }
 }
 
@@ -715,38 +648,22 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
          * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
          */
         LOG(FATAL) << "create clone failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " sn " << request_->sn()
-                   << " correctedSn: " << request_->correctedsn()
-                   << " location: " << request_->location();
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } else if (CSErrorCode::ChunkConflictError == ret) {
         LOG(WARNING) << "create clone chunk exist: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " sn " << request_->sn()
-                   << " correctedSn: " << request_->correctedsn()
-                   << " location: " << request_->location();
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST);
     } else {
         LOG(ERROR) << "create clone failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " sn " << request_->sn()
-                   << " correctedSn: " << request_->correctedsn()
-                   << " location: " << request_->location();
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-    auto maxIndex =
-        (index > node_->GetAppliedIndex() ? index : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
@@ -763,12 +680,7 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
 
     if (CSErrorCode::ChunkConflictError == ret) {
         LOG(WARNING) << "create clone chunk exist: "
-                << " logic pool id: " << request.logicpoolid()
-                << " copyset id: " << request.copysetid()
-                << " chunkid: " << request.chunkid()
-                << " sn " << request.sn()
-                << " correctedSn: " << request.correctedsn()
-                << " location: " << request.location();
+                << ", request: " << request.ShortDebugString();
         return;
     }
 
@@ -776,20 +688,10 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
         CSErrorCode::CrcCheckError == ret ||
         CSErrorCode::FileFormatError == ret) {
         LOG(FATAL) << "create clone failed:"
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " sn " << request.sn()
-                   << " correctedSn: " << request.correctedsn()
-                   << " location: " << request.location();
+                   << ", request: " << request.ShortDebugString();
     } else {
         LOG(ERROR) << "create clone failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " sn " << request.sn()
-                   << " correctedSn: " << request.correctedsn()
-                   << " location: " << request.location();
+                   << ", request: " << request.ShortDebugString();
     }
 }
 
@@ -818,25 +720,14 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "paste chunk failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " offset: " << request_->offset()
-                   << " length: " << request_->size();
+                   << ", request: " << request_->ShortDebugString();
     } else {
         LOG(ERROR) << "paste chunk failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " offset: " << request_->offset()
-                   << " length: " << request_->size();
+                   << ", request: " << request_->ShortDebugString();
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
 
-    auto maxIndex = (index > node_->GetAppliedIndex()
-                    ? index
-                    : node_->GetAppliedIndex());
-    response_->set_appliedindex(maxIndex);
+    response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
@@ -852,18 +743,10 @@ void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> data
 
     if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "paste chunk failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " offset: " << request.offset()
-                   << " length: " << request.size();
+                   << ", request: " << request.ShortDebugString();
     } else {
         LOG(ERROR) << "paste chunk failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " offset: " << request.offset()
-                   << " length: " << request.size();
+                   << ", request: " << request.ShortDebugString();
     }
 }
 
@@ -913,11 +796,7 @@ void ScanChunkRequest::OnApply(uint64_t index,
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "scan chunk failed, read chunk internal error"
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " offset: " << request_->offset()
-                   << " read len :" << request_->size();
+                   << ", request: " << request_->ShortDebugString();
     } else {
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -952,28 +831,16 @@ void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  /
         BuildAndSendScanMap(request, index_, crc);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
         LOG(ERROR) << "scan failed: chunk not exist, "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " offset: " << request.offset()
-                   << " read len :" << size
-                   << " datastore return: " << ret;
+                   << " datastore return: " << ret
+                   << ", request: " << request.ShortDebugString();
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "scan failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " offset: " << request.offset()
-                   << " read len :" << size
-                   << " datastore return: " << ret;
+                   << " datastore return: " << ret
+                   << ", request: " << request.ShortDebugString();
     } else {
         LOG(ERROR) << "scan failed: "
-                   << " logic pool id: " << request.logicpoolid()
-                   << " copyset id: " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " offset: " << request.offset()
-                   << " read len :" << size
-                   << " datastore return: " << ret;
+                   << " datastore return: " << ret
+                   << ", request: " << request.ShortDebugString();
     }
 }
 
