@@ -140,7 +140,6 @@ int CopysetClient::WriteChunk(const ChunkIDInfo& idinfo,
                               const RequestSourceInfo& sourceInfo,
                               google::protobuf::Closure* done) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
-    ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
     RequestClosure* reqclosure = static_cast<RequestClosure*>(done);

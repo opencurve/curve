@@ -217,6 +217,8 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
 
     if (_is_open) {
         _last_index = actual_last_index;
+    } else {
+        _offset_and_term.shrink_to_fit();
     }
 
     // seek to end, for opening segment
@@ -436,7 +438,9 @@ int CurveSegment::append(const braft::LogEntry* entry) {
         int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
         free(write_buf);
         if (ret != to_write) {
-            LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd;
+            LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd
+                       << ", buf=" << write_buf << ", size=" << to_write
+                       << ", offset=" << _meta.bytes << ", error=" << berror();
             return -1;
         }
     } else {
@@ -607,6 +611,9 @@ int CurveSegment::close(bool will_sync) {
             ret = braft::raft_fsync(_fd);
         }
     }
+
+    _offset_and_term.shrink_to_fit();
+
     if (ret == 0) {
         _is_open = false;
         const int rc = ::rename(old_path.c_str(), new_path.c_str());

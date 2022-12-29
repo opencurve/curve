@@ -288,13 +288,10 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
                 *chunkClosure = dynamic_cast<ChunkClosure *>(iter.done());
             CHECK(nullptr != chunkClosure)
                 << "ChunkClosure dynamic cast failed";
-            std::shared_ptr<ChunkOpRequest> opRequest = chunkClosure->request_;
-            auto task = std::bind(&ChunkOpRequest::OnApply,
-                                  opRequest,
-                                  iter.index(),
-                                  doneGuard.release());
-            concurrentapply_->Push(
-                opRequest->ChunkId(), opRequest->OpType(), task);
+            std::shared_ptr<ChunkOpRequest>& opRequest = chunkClosure->request_;
+            concurrentapply_->Push(opRequest->ChunkId(), opRequest->OpType(),
+                                   &ChunkOpRequest::OnApply, opRequest,
+                                   iter.index(), doneGuard.release());
         } else {
             // 获取log entry
             butil::IOBuf log = iter.data();
@@ -309,12 +306,9 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
             auto opReq = ChunkOpRequest::Decode(log, &request, &data,
                                                 iter.index(), GetLeaderId());
             auto chunkId = request.chunkid();
-            auto task = std::bind(&ChunkOpRequest::OnApplyFromLog,
-                                  opReq,
-                                  dataStore_,
-                                  std::move(request),
-                                  data);
-            concurrentapply_->Push(chunkId, request.optype(), task);
+            concurrentapply_->Push(chunkId, request.optype(),
+                                   &ChunkOpRequest::OnApplyFromLog, opReq,
+                                   dataStore_, std::move(request), data);
         }
     }
 }

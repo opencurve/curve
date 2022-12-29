@@ -33,7 +33,7 @@ namespace chunkserver {
 
 namespace {
 
-bool ValidMinIoAlignment(const char* flagname, uint32_t value) {
+bool ValidMinIoAlignment(const char* /*flagname*/, uint32_t value) {
     return common::is_aligned(value, 512);
 }
 

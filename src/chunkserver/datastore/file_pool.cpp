@@ -408,7 +408,7 @@ bool FilePool::GetChunk(bool needClean, uint64_t* chunkid, bool* isCleaned) {
 }
 
 int FilePool::GetFile(const std::string& targetpath,
-                      char* metapage,
+                      const char* metapage,
                       bool needClean) {
     int ret = -1;
     int retry = 0;
@@ -513,7 +513,7 @@ int FilePool::AllocateChunk(const std::string& chunkpath) {
     return ret;
 }
 
-bool FilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
+bool FilePool::WriteMetaPage(const std::string& sourcepath, const char* page) {
     int fd = -1;
     int ret = -1;
 

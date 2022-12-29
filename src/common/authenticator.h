@@ -22,18 +22,10 @@
 #ifndef SRC_COMMON_AUTHENTICATOR_H_
 #define SRC_COMMON_AUTHENTICATOR_H_
 
-#include <openssl/hmac.h>
-#include <openssl/x509.h>
-
 #include <string>
 
 namespace curve {
 namespace common {
-
-static char b[] =
-"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-/* 0000000000111111111122222222223333333333444444444455555555556666 */
-/* 0123456789012345678901234567890123456789012345678901234567890123 */
 
 class Authenticator {
  public:

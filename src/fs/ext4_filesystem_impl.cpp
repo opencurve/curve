@@ -25,7 +25,6 @@
 #include <sys/utsname.h>
 #include <linux/version.h>
 #include <dirent.h>
-#include <brpc/server.h>
 
 #include "src/common/string_util.h"
 #include "src/fs/ext4_filesystem_impl.h"
@@ -293,7 +292,9 @@ int Ext4FileSystemImpl::Read(int fd,
                 ++retryTimes;
                 continue;
             }
-            LOG(ERROR) << "pread failed: " << strerror(errno);
+            LOG(ERROR) << "pread failed, fd: " << fd
+                       << ", size: " << remainLength << ", offset: " << offset
+                       << ", error: " << strerror(errno);
             return -errno;
         }
         remainLength -= ret;
@@ -320,7 +321,9 @@ int Ext4FileSystemImpl::Write(int fd,
                 ++retryTimes;
                 continue;
             }
-            LOG(ERROR) << "pwrite failed: " << strerror(errno);
+            LOG(ERROR) << "pwrite failed, fd: " << fd
+                       << ", size: " << remainLength << ", offset: " << offset
+                       << ", error: " << strerror(errno);
             return -errno;
         }
         remainLength -= ret;
@@ -334,6 +337,13 @@ int Ext4FileSystemImpl::Write(int fd,
                               butil::IOBuf buf,
                               uint64_t offset,
                               int length) {
+    if (length != buf.size()) {
+        LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed, fd: " << fd
+                   << ", data size doesn't equal to length, data size: "
+                   << buf.size() << ", length: " << length;
+        return -EINVAL;
+    }
+
     int remainLength = length;
     int relativeOffset = 0;
     int retryTimes = 0;
@@ -345,8 +355,9 @@ int Ext4FileSystemImpl::Write(int fd,
                 ++retryTimes;
                 continue;
             }
-            LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed: "
-                       << strerror(errno);
+            LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed, fd: " << fd
+                       << ", size: " << remainLength << ", offset: " << offset
+                       << ", error: " << strerror(errno);
             return -errno;
         }
 

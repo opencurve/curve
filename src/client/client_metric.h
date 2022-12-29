@@ -37,7 +37,7 @@ using curve::common::TimeUtility;
 namespace curve {
 namespace client {
 
-static void GetStringValue(std::ostream& os, void* arg) {
+inline void GetStringValue(std::ostream& os, void* arg) {
     os << *static_cast<std::string*>(arg);
 }
 

@@ -23,27 +23,30 @@
 #ifndef SRC_CHUNKSERVER_CONCURRENT_APPLY_CONCURRENT_APPLY_H_
 #define SRC_CHUNKSERVER_CONCURRENT_APPLY_CONCURRENT_APPLY_H_
 
+#include <bthread/condition_variable.h>
+#include <bthread/mutex.h>
 #include <glog/logging.h>
-#include <unistd.h>
+
 #include <atomic>
-#include <mutex>    // NOLINT
-#include <thread>    // NOLINT
+#include <condition_variable>  // NOLINT
+#include <mutex>               // NOLINT
+#include <thread>              // NOLINT
 #include <unordered_map>
 #include <utility>
-#include <condition_variable>    // NOLINT
 
-#include "src/common/concurrent/task_queue.h"
-#include "src/common/concurrent/count_down_event.h"
-#include "proto/chunk.pb.h"
 #include "include/curve_compiler_specific.h"
+#include "proto/chunk.pb.h"
+#include "src/common/concurrent/count_down_event.h"
+#include "src/common/concurrent/task_queue.h"
 
-using curve::common::TaskQueue;
 using curve::common::CountDownEvent;
 using curve::chunkserver::CHUNK_OP_TYPE;
 
 namespace curve {
 namespace chunkserver {
 namespace concurrent {
+
+using ::curve::common::GenericTaskQueue;
 
 struct ConcurrentApplyOption {
     int wconcurrentsize;
@@ -62,7 +65,6 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
                              rqueuedepth_(0),
                              wqueuedepth_(0),
                              cond_(0) {}
-    ~ConcurrentApplyModule() {}
 
     /**
      * Init: initialize ConcurrentApplyModule
@@ -80,15 +82,16 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
      * @param[in] f: task
      * @param[in] args: param to excute task
      */
-    template<class F, class... Args>
+    template <class F, class... Args>
     bool Push(uint64_t key, CHUNK_OP_TYPE optype, F&& f, Args&&... args) {
-        auto task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
         switch (Schedule(optype)) {
             case ThreadPoolType::READ:
-                rapplyMap_[Hash(key, rconcurrentsize_)]->tq.Push(task);
+                rapplyMap_[Hash(key, rconcurrentsize_)]->tq.Push(
+                        std::forward<F>(f), std::forward<Args>(args)...);
                 break;
             case ThreadPoolType::WRITE:
-                wapplyMap_[Hash(key, wconcurrentsize_)]->tq.Push(task);
+                wapplyMap_[Hash(key, wconcurrentsize_)]->tq.Push(
+                        std::forward<F>(f), std::forward<Args>(args)...);
                 break;
         }
 
@@ -107,22 +110,20 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
 
     void Run(ThreadPoolType type, int index);
 
-    ThreadPoolType Schedule(CHUNK_OP_TYPE optype);
+    static ThreadPoolType Schedule(CHUNK_OP_TYPE optype);
 
     void InitThreadPool(ThreadPoolType type, int concorrent, int depth);
 
-    int Hash(uint64_t key, int concurrent) {
+    static int Hash(uint64_t key, int concurrent) {
         return key % concurrent;
     }
 
  private:
-    typedef uint8_t threadIndex;
-    typedef struct taskthread {
+    struct TaskThread {
         std::thread th;
-        TaskQueue tq;
-        taskthread(size_t capacity):tq(capacity) {}
-        ~taskthread() = default;
-    } taskthread_t;
+        GenericTaskQueue<bthread::Mutex, bthread::ConditionVariable> tq;
+        explicit TaskThread(size_t capacity) : tq(capacity) {}
+    };
 
     bool start_;
     int rconcurrentsize_;
@@ -130,8 +131,8 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
     int wconcurrentsize_;
     int wqueuedepth_;
     CountDownEvent cond_;
-    CURVE_CACHELINE_ALIGNMENT std::unordered_map<threadIndex, taskthread_t*> wapplyMap_; // NOLINT
-    CURVE_CACHELINE_ALIGNMENT std::unordered_map<threadIndex, taskthread_t*> rapplyMap_;   // NOLINT
+    CURVE_CACHELINE_ALIGNMENT std::unordered_map<int, TaskThread*> wapplyMap_;
+    CURVE_CACHELINE_ALIGNMENT std::unordered_map<int, TaskThread*> rapplyMap_;
 };
 }   // namespace concurrent
 }   // namespace chunkserver

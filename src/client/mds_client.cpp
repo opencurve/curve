@@ -66,7 +66,6 @@ int RPCExcutorRetryPolicy::DoRPCTask(RPCFunc rpctask, uint64_t maxRetryTimeMS) {
     uint64_t normalRetryCount = 0;
 
     int retcode = -1;
-    bool needChangeMDS = false;
     bool retryUnlimit = (maxRetryTimeMS == 0);
     while (GoOnRetry(startTime, maxRetryTimeMS)) {
         // 1. 创建当前rpc需要使用的channel和controller，执行rpc任务
