@@ -176,6 +176,15 @@ struct LogicalPoolMetric {
     // bytes have alloced
     bvar::Status<uint64_t> logicalAlloc;
 
+    // bandwidth of reading
+    bvar::Status<uint64_t> readRate;
+    // bandwidth of writing
+    bvar::Status<uint64_t> writeRate;
+    // IOPS of reading
+    bvar::Status<uint64_t> readIOPS;
+    // IOPS of writing
+    bvar::Status<uint64_t> writeIOPS;
+
     explicit LogicalPoolMetric(const std::string &logicalPoolName) :
         chunkServerNum(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_chunkserver_num", 0),
@@ -234,7 +243,16 @@ struct LogicalPoolMetric {
         logicalCapacity(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_logicalCapacity", 0),
         logicalAlloc(kTopologyLogicalPoolMetricPrefix,
-            logicalPoolName + "_logicalAlloc", 0) {}
+            logicalPoolName + "_logicalAlloc", 0),
+        readRate(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_readRate", 0),
+        writeRate(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_writeRate", 0),
+        readIOPS(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_readIOPS", 0),
+        writeIOPS(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_writeIOPS", 0)
+            {}
 };
 using LogicalPoolMetricPtr = std::unique_ptr<LogicalPoolMetric>;
 
