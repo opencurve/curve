@@ -199,6 +199,8 @@ Fio Curve engine is added, you can clone https://github.com/opencurve/fio and co
 $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test
 ```
 
+If you have any questions during performance testing, please check the [Curve block storage performance tuning guide](docs/cn/Curve%E5%9D%97%E5%AD%98%E5%82%A8%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%8C%87%E5%8D%97.md).
+
 ##  CurveFS quick start
 Please use [CurveAdm](https://github.com/opencurve/curveadm/wiki) tool to deploy CurveFS，see [CurveFS Deployment Process](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), and the [CurveFS Command Instructions](curvefs/src/tools#readme).
 
