@@ -196,6 +196,8 @@ fio的Curve块存储引擎代码已经上传到 https://github.com/opencurve/fio
 $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest_test_ --iodepth=10 --runtime=120 --numjobs=10 --time_based --group_reporting --name=curve-fio-test
 ```
 
+在性能测试过程中有任何问题，请查看[Curve块存储性能调优指南](docs/cn/Curve%E5%9D%97%E5%AD%98%E5%82%A8%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98%E6%8C%87%E5%8D%97.md)
+
 ##  CurveFS 快速体验
 请使用 [CurveAdm](https://github.com/opencurve/curveadm/wiki) 工具进行 CurveFS 的部署，具体流程见：[CurveFS部署流程](https://github.com/opencurve/curveadm/wiki/curvefs-cluster-deployment), 以及[CurveFS命令行工具说明](curvefs/src/tools#readme)。
 
