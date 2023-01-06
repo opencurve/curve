@@ -1,4 +1,4 @@
-FROM opencurvedocker/curve-base:debian9
+FROM debian:9
 
 RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
          "deb http://mirrors.163.com/debian/ stretch-updates main non-free contrib\n" \
@@ -30,12 +30,6 @@ RUN echo "deb http://mirrors.163.com/debian/ stretch main\n" \
         python \
         wget \
         python3 \
-        libevent-dev \
-    && wget https://curve-build.nos-eastchina1.126.net/memcache/memcached-1.6.17.tar.gz \
-    && tar xvf memcached-1.6.17.tar.gz && cd memcached-1.6.17/ \
-    && ./configure && make && make install \
-    && cd / && rm -rf memcached-1.6.17/ memcached-1.6.17.tar.gz \
-    && mkdir -p /memcached/data \
     && wget https://curve-build.nos-eastchina1.126.net/curve-base.tar.gz \
     && tar -xzvf curve-base.tar.gz \
     && mv fusermount3 /usr/local/bin \
