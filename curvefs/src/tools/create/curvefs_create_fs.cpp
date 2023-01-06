@@ -122,6 +122,7 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetVolumePassword);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeBlockSize);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeBitmapLocation);
+    AddUpdateFlagsFunc(curvefs::tools::SetVolumeCluster);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_ak);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_endpoint);
