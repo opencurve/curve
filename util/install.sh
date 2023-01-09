@@ -344,6 +344,7 @@ main() {
     else
         install_curvefs
     fi
+    install_tools-v2
 }
 
 ############################  MAIN()

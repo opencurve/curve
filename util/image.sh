@@ -80,6 +80,7 @@ if [ "$1" == "bs" ]; then
 else
     paths=`ls curvefs/conf/*`
 fi
+paths="$paths tools-v2/pkg/config/curve.yaml"
 for path in $paths;
 do
     dir=`dirname $path`
@@ -87,7 +88,7 @@ do
 
     # delimiter
     dsv="="
-    if [ $file = "etcd.conf" ]; then
+    if [ $file = "etcd.conf" -o $file = "curve.yaml" ]; then
         dsv=": "
     fi
 
