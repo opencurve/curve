@@ -73,13 +73,13 @@ mv curve-latest /usr/bin/curve
 set configure file
 
 ```bash
-wget https://raw.githubusercontent.com/opencurve/curve/master/tools-v2/pkg/config/template.yaml
+wget https://raw.githubusercontent.com/opencurve/curve/master/tools-v2/pkg/config/curve.yaml
 ```
 
 or
 
 ```
-wget https://curve-tool.nos-eastchina1.126.net/config/template.yaml
+wget https://curve-tool.nos-eastchina1.126.net/config/curve.yaml
 ```
 
 Please modify the `mdsAddr, mdsDummyAddr, etcdAddr` under `curvefs/bs` in the template.yaml file as required
