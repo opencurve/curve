@@ -1,3 +1,4 @@
+mkdir -p proto
 # proto
 ## curvebs
 ### proto/common.proto
