@@ -211,6 +211,15 @@ build_target() {
             die "$target ${version}\n"
         fi
     done
+
+    # build tools-v2
+    g_toolsv2_root="tools-v2"
+    if [ $g_release -eq 1 ]
+    then 
+        (cd ${g_toolsv2_root} && make build version=${curve_version})
+    else
+        (cd ${g_toolsv2_root} && make debug version=${curve_version})
+    fi
 }
 
 
