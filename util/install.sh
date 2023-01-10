@@ -301,7 +301,11 @@ install_monitor() {
     g_project_name=$project_name
 
     local project_prefix="$g_prefix/monitor"
-    local dst="monitor"
+    if [ "$g_stor" == "bs" ]; then
+        local dst="monitor"
+    else
+        local dst="curvefs/monitor"
+    fi
     mkdir -p $project_prefix
     mkdir -p "$project_prefix/prometheus"
     mkdir -p "$project_prefix/data"
