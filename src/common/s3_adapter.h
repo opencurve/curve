@@ -116,7 +116,7 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     GetObjectAsyncCallBack cb;
     int retCode;
     int retry;
-    size_t getActualLen;
+    size_t actualLen;
 };
 
 /*
