@@ -218,7 +218,7 @@ message Inode {
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
-    map<string, string> xattr = 21;
+    map<string, bytes> xattr = 21;
     repeated uint64 parent = 22;
 }
 
@@ -314,7 +314,7 @@ message UpdateInodeRequest {
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
     // field 19 is left for compatibility
-    map<string, string> xattr = 20;
+    map<string, bytes> xattr = 20;
     repeated uint64 parent = 21;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
     optional VolumeExtentList volumeExtents = 23;
@@ -407,7 +407,7 @@ message InodeAttr {
     optional uint64 rdev = 16;
     optional uint32 dtime = 17;
     optional uint32 openmpcount = 18;
-    map<string, string> xattr = 19;
+    map<string, bytes> xattr = 19;
     repeated uint64 parent = 20;
 }
 
@@ -438,7 +438,7 @@ message BatchGetXAttrRequest {
 message XAttr {
     required uint64 inodeId = 1;
     required uint32 fsId = 2;
-    map<string, string> xAttrInfos = 3;
+    map<string, bytes> xAttrInfos = 3;
 }
 
 message BatchGetXAttrResponse {

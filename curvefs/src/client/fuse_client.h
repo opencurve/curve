@@ -192,7 +192,7 @@ class FuseClient {
                                         struct stat* attrOut);
 
     virtual CURVEFS_ERROR FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
-                                         const char* name, void* value,
+                                         const char* name, std::string* value,
                                          size_t size);
 
     virtual CURVEFS_ERROR FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
