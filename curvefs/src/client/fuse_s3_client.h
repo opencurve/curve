@@ -105,8 +105,9 @@ class FuseS3Client : public FuseClient {
     // then can downlaod the objs belong to it
     void fetchDataEnqueue(fuse_ino_t ino);
     // travel all chunks
-    void travelChunks(fuse_ino_t ino, google::protobuf::Map<uint64_t,
-      S3ChunkInfoList> *s3ChunkInfoMap);
+    void travelChunks(
+        fuse_ino_t ino,
+        const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoMap);
     // travel and download all objs belong to the chunk
     void travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo,
       std::list<std::pair<std::string, uint64_t>>* prefetchObjs);
