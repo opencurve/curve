@@ -189,14 +189,12 @@ void FuseS3Client::fetchDataEnqueue(fuse_ino_t ino) {
                     << ", inodeid = " << ino;
             return;
         }
-        google::protobuf::Map<uint64_t, S3ChunkInfoList> *s3ChunkInfoMap
-          = nullptr;
+        google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoMap;
         {
             ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-            s3ChunkInfoMap = inodeWrapper->GetChunkInfoMap();
+            s3ChunkInfoMap = *inodeWrapper->GetChunkInfoMap();
         }
-        if (nullptr == s3ChunkInfoMap ||
-          s3ChunkInfoMap->empty()) {
+        if (s3ChunkInfoMap.empty()) {
             return;
         }
         travelChunks(ino, s3ChunkInfoMap);
@@ -357,18 +355,18 @@ void FuseS3Client::WarmUpAllObjs(
     }
 }
 
-void FuseS3Client::travelChunks(fuse_ino_t ino, google::protobuf::Map<uint64_t,
-    S3ChunkInfoList> *s3ChunkInfoMap) {
+void FuseS3Client::travelChunks(
+    fuse_ino_t ino,
+    const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoMap) {
     VLOG(9) << "travel chunk start: " << ino
-            << ", size: " << s3ChunkInfoMap->size();
+            << ", size: " << s3ChunkInfoMap.size();
     std::list<std::pair<std::string, uint64_t>> prefetchObjs;
-    for (auto &iter : *s3ChunkInfoMap) {
+    for (auto const& iter : s3ChunkInfoMap) {
         VLOG(9) << "travel chunk: " << iter.first;
         travelChunk(ino, iter.second, &prefetchObjs);
     }
     WarmUpAllObjs(prefetchObjs);
     VLOG(9) << "travel chunks end";
-    return;
 }
 
 void FuseS3Client::UnInit() {
