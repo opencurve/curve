@@ -120,6 +120,8 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                 pid, std::move(lptr)).first;
         }
 
+        auto servers = topo_->GetServerInLogicalPool(pid);
+        it->second->serverNum.set_value(servers.size());
         it->second->chunkServerNum.set_value(
             chunkServerMetricInfo.size());
         it->second->copysetNum.set_value(
@@ -269,9 +271,11 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
-    // cluster io
+    // cluster metric
     uint64_t clusterReadIOPS = 0, clusterWriteIOPS = 0,
         clusterReadRate = 0, clusterWriteRate = 0, copysetNum = 0;
+    uint32_t serverNum = 0;
+    uint64_t logicalCapacity = 0, logicalAlloc = 0;
     for (auto metricIter = gLogicalPoolMetrics.begin();
         metricIter != gLogicalPoolMetrics.end(); metricIter++) {
         clusterReadIOPS += metricIter->second->readIOPS.get_value();
@@ -279,10 +283,12 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         clusterReadRate +=  metricIter->second->readRate.get_value();
         clusterWriteRate +=  metricIter->second->writeRate.get_value();
         copysetNum += metricIter->second->copysetNum.get_value();
+        serverNum += metricIter->second->serverNum.get_value();
+        logicalCapacity += metricIter->second->logicalCapacity.get_value();
+        logicalAlloc += metricIter->second->logicalAlloc.get_value();
     }
 
-    auto servers = topo_->GetServerInCluster();
-    gClusterMetrics->serverNum.set_value(servers.size());
+    gClusterMetrics->serverNum.set_value(serverNum);
     gClusterMetrics->chunkServerNum.set_value(chunkservers.size());
     gClusterMetrics->copysetNum.set_value(copysetNum);
     gClusterMetrics->logicalPoolNum.set_value(lPools.size());
@@ -290,6 +296,8 @@ void TopologyMetricService::UpdateTopologyMetrics() {
     gClusterMetrics->writeIOPS.set_value(clusterWriteIOPS);
     gClusterMetrics->readRate.set_value(clusterReadRate);
     gClusterMetrics->writeRate.set_value(clusterWriteRate);
+    gClusterMetrics->logicalCapacity.set_value(logicalCapacity);
+    gClusterMetrics->logicalAlloc.set_value(logicalAlloc);
 
 
 
