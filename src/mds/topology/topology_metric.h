@@ -114,6 +114,8 @@ using ChunkServerMetricPtr = std::unique_ptr<ChunkServerMetric>;
 struct LogicalPoolMetric {
     const std::string kTopologyLogicalPoolMetricPrefix =
         "topology_metric_logicalPool_";
+    // server number
+    bvar::Status<uint32_t> serverNum;
     // chunkserver number
     bvar::Status<uint32_t> chunkServerNum;
     // copyset number
@@ -186,6 +188,8 @@ struct LogicalPoolMetric {
     bvar::Status<uint64_t> writeIOPS;
 
     explicit LogicalPoolMetric(const std::string &logicalPoolName) :
+        serverNum(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_server_num", 0),
         chunkServerNum(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_chunkserver_num", 0),
         copysetNum(kTopologyLogicalPoolMetricPrefix,
@@ -276,24 +280,32 @@ struct ClusterMetric {
     bvar::Status<uint64_t> readIOPS;
     // IOPS of writing
     bvar::Status<uint64_t> writeIOPS;
+    // logical total capacity
+    bvar::Status<uint64_t> logicalCapacity;
+    // bytes have alloced
+    bvar::Status<uint64_t> logicalAlloc;
 
     ClusterMetric() :
         serverNum(kTopologyClusterMetricPrefix,
-            + "_server_num", 0),
+            + "server_num", 0),
         chunkServerNum(kTopologyClusterMetricPrefix,
-            + "_chunkserver_num", 0),
+            + "chunkserver_num", 0),
         copysetNum(kTopologyClusterMetricPrefix,
-            + "_copyset_num", 0),
+            + "copyset_num", 0),
         logicalPoolNum(kTopologyClusterMetricPrefix,
-            + "_logicalpool_num", 0),
+            + "logicalpool_num", 0),
         readRate(kTopologyClusterMetricPrefix,
-            + "_readRate", 0),
+            + "readRate", 0),
         writeRate(kTopologyClusterMetricPrefix,
-            + "_writeRate", 0),
+            + "writeRate", 0),
         readIOPS(kTopologyClusterMetricPrefix,
-            + "_readIOPS", 0),
+            + "readIOPS", 0),
         writeIOPS(kTopologyClusterMetricPrefix,
-            + "_writeIOPS", 0) {}
+            + "writeIOPS", 0),
+        logicalCapacity(kTopologyClusterMetricPrefix,
+            + "logicalCapacity", 0),
+        logicalAlloc(kTopologyClusterMetricPrefix,
+            + "logicalAlloc", 0) {}
 };
 using ClusterMetricPtr = std::unique_ptr<ClusterMetric>;
 
