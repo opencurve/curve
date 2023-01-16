@@ -49,7 +49,8 @@ using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::mds::FSStatusCode_Name;
-using ::curvefs::client::common::MAXXATTRLENGTH;
+using ::curvefs::client::common::MAX_XATTR_NAME_LENGTH;
+using ::curvefs::client::common::MAX_XATTR_VALUE_LENGTH;
 using ::curvefs::client::common::FileHandle;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
@@ -862,7 +863,7 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
 }
 
 CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
-                                         const char* name, void* value,
+                                         const char* name, std::string* value,
                                          size_t size) {
     VLOG(9) << "FuseOpGetXattr, ino: " << ino
             << ", name: " << name << ", size = " << size;
@@ -870,7 +871,6 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return CURVEFS_ERROR::NOTSUPPORT;
     }
 
-    std::string xValue;
     InodeAttr inodeAttr;
     CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &inodeAttr);
     if (ret != CURVEFS_ERROR::OK) {
@@ -879,17 +879,20 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         return ret;
     }
 
-    ret = xattrManager_->GetXattr(name, &xValue, &inodeAttr, enableSumInDir_);
+    ret = xattrManager_->GetXattr(name, value, &inodeAttr, enableSumInDir_);
     if (CURVEFS_ERROR::OK != ret) {
         LOG(ERROR) << "xattrManager get xattr failed, name = " << name;
         return ret;
     }
 
     ret = CURVEFS_ERROR::NODATA;
-    if (xValue.length() > 0) {
-        if ((size == 0 && xValue.length() <= MAXXATTRLENGTH) ||
-            (size >= xValue.length() && xValue.length() <= MAXXATTRLENGTH)) {
-            memcpy(value, xValue.c_str(), xValue.length());
+    if (value->length() > 0) {
+        if ((size == 0 && value->length() <= MAX_XATTR_VALUE_LENGTH) ||
+            (size >= value->length() &&
+                value->length() <= MAX_XATTR_VALUE_LENGTH)) {
+            VLOG(1) << "FuseOpGetXattr name = " << name
+                    << ", length = " << value->length()
+                    << ", value = " << *value;
             ret = CURVEFS_ERROR::OK;
         } else {
             ret = CURVEFS_ERROR::OUT_OF_RANGE;
@@ -901,15 +904,17 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseClient::FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, const char* value,
                                          size_t size, int flags) {
-    VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
-            << ", value: " << value;
     if (option_.disableXattr) {
         return CURVEFS_ERROR::NOTSUPPORT;
     }
 
     std::string strname(name);
     std::string strvalue(value, size);
-    if (strname.length() > MAXXATTRLENGTH  || size > MAXXATTRLENGTH) {
+    VLOG(1) << "FuseOpSetXattr ino: " << ino << ", name: " << name
+            << ", size = " << size
+            << ", strvalue: " << strvalue;
+    if (strname.length() > MAX_XATTR_NAME_LENGTH  ||
+        size > MAX_XATTR_VALUE_LENGTH) {
         LOG(ERROR) << "xattr length is too long, name = " << name
                    << ", name length = " << strname.length()
                    << ", value length = " << size;
