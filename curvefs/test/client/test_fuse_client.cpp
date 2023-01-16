@@ -2636,11 +2636,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotSummaryInfo) {
     fuse_ino_t ino = 1;
     const char name[] = "security.selinux";
     size_t size = 100;
-    char value[100];
-    std::memset(value, 0, 100);
+    std::string value;
 
-    CURVEFS_ERROR ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::NODATA, ret);
 }
 
@@ -2651,8 +2649,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
     const char rname[] = "curve.dir.rfbytes";
     const char name[] = "curve.dir.fbytes";
     size_t size = 100;
-    char value[100];
-    std::memset(value, 0, 100);
+    std::string value;
 
     // out
     uint32_t fsId = 1;
@@ -2728,10 +2725,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs1), Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(std::string(value), "4596");
+    ASSERT_EQ(value, "4596");
 
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(
@@ -2743,10 +2739,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir) {
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
 
-    ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(std::string(value), "4396");
+    ASSERT_EQ(value, "4396");
 }
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
@@ -2756,8 +2751,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     const char rname[] = "curve.dir.rfbytes";
     const char name[] = "curve.dir.fbytes";
     size_t size = 100;
-    char value[100];
-    std::memset(value, 0, 100);
+    std::string value;
 
     // out
     uint32_t fsId = 1;
@@ -2794,8 +2788,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(DoAll(SetArgPointee<1>(inode),
                         Return(CURVEFS_ERROR::INTERNAL)));
-    CURVEFS_ERROR ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // list dentry failed
@@ -2804,8 +2797,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // BatchGetInodeAttr failed
@@ -2817,8 +2809,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRFILES failed
@@ -2831,8 +2822,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRSUBDIRS failed
@@ -2847,8 +2837,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRENTRIES failed
@@ -2863,8 +2852,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRFBYTES failed
@@ -2879,8 +2867,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_NotEnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetInodeAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(attrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
@@ -2891,8 +2878,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
     fuse_ino_t ino = 1;
     const char name[] = "curve.dir.rentries";
     size_t size = 100;
-    char value[100];
-    std::memset(value, 0, 100);
+    std::string value;
 
     // out
     uint32_t fsId = 1;
@@ -2948,10 +2934,9 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir) {
         .WillOnce(
             DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
 
-    CURVEFS_ERROR ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    ASSERT_EQ(std::string(value), "6");
+    ASSERT_EQ(value, "6");
 }
 
 TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
@@ -2962,8 +2947,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     const char name[] = "curve.dir.entries";
     const char rname[] = "curve.dir.rentries";
     size_t size = 100;
-    char value[100];
-    std::memset(value, 0, 100);
+    std::string value;
 
     // out
     uint32_t fsId = 1;
@@ -3005,16 +2989,14 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     // get inode failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
-    CURVEFS_ERROR ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    CURVEFS_ERROR ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst failed
     EXPECT_CALL(*inodeManager_, GetInodeAttr(ino, _))
         .WillOnce(DoAll(SetArgPointee<1>(inode),
                         Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, name, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, name, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
     inode.mutable_xattr()->find(XATTRFBYTES)->second = "100";
 
@@ -3025,8 +3007,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
             DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // BatchGetInodeAttr failed
@@ -3041,8 +3022,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
             DoAll(SetArgPointee<1>(emptyDlist), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRFILES failed
@@ -3059,8 +3039,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRSUBDIRS failed
@@ -3078,8 +3057,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 
     // AddUllStringToFirst  XATTRENTRIES failed
@@ -3097,8 +3075,7 @@ TEST_F(TestFuseS3Client, FuseOpGetXattr_EnableSumInDir_Failed) {
     EXPECT_CALL(*inodeManager_, BatchGetXAttr(_, _))
         .WillOnce(
             DoAll(SetArgPointee<1>(xattrs), Return(CURVEFS_ERROR::OK)));
-    ret = client_->FuseOpGetXattr(
-        req, ino, rname, static_cast<void*>(value), size);
+    ret = client_->FuseOpGetXattr(req, ino, rname, &value, size);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, ret);
 }
 
@@ -3479,9 +3456,9 @@ TEST_F(TestFuseS3Client, FuseOpSetXattr_TooLong) {
     fuse_req_t req;
     fuse_ino_t ino = 1;
     const char name[] = "security.selinux";
-    size_t size = 300;
-    char value[300];
-    std::memset(value, 0, 300);
+    size_t size = 64 * 1024 + 1;
+    char value[64 * 1024 + 1];
+    std::memset(value, 0, size);
 
     CURVEFS_ERROR ret = client_->FuseOpSetXattr(
         req, ino, name, value, size, 0);
