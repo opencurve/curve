@@ -183,6 +183,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
                      const GetChunkServerInfoRequest *request,
                      GetChunkServerInfoResponse *response));
 
+    MOCK_METHOD2(GetChunkServerInCluster, void(
+                     const GetChunkServerInClusterRequest *request,
+                     GetChunkServerInClusterResponse *response));
+
     MOCK_METHOD2(DeleteChunkServer, void(
                      const DeleteChunkServerRequest *request,
                      DeleteChunkServerResponse *response));
