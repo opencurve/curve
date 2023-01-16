@@ -59,6 +59,12 @@ class TopologyServiceImpl : public TopologyService {
                       GetChunkServerInfoResponse* response,
                       google::protobuf::Closure* done);
 
+    void GetChunkServerInCluster(
+        google::protobuf::RpcController* cntl_base,
+        const GetChunkServerInClusterRequest* request,
+        GetChunkServerInClusterResponse* response,
+        google::protobuf::Closure* done) override;
+
     virtual void DeleteChunkServer(google::protobuf::RpcController* cntl_base,
                       const DeleteChunkServerRequest* request,
                       DeleteChunkServerResponse* response,

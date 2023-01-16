@@ -637,6 +637,25 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_InvalidParam) {
     ASSERT_FALSE(response.has_chunkserverinfo());
 }
 
+TEST_F(TestTopologyServiceManager, test_GetChunkServerInCluster_Success) {
+    ChunkServerIdType csId1 = 0x41, csId2 = 0x42;
+    ServerIdType serverId1 = 0x31, serverId2 = 0x32;
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId1, "server1", "ip1", "ip2");
+    PrepareAddServer(serverId2, "server2", "ip3", "ip4");
+    PrepareAddChunkServer(csId1, "token", "nvme", serverId1, "ip1", "ip2", 100);
+    PrepareAddChunkServer(csId2, "token", "nvme", serverId2, "ip3", "ip4", 100);
+
+    GetChunkServerInClusterRequest request;
+    GetChunkServerInClusterResponse response;
+    serviceManager_->GetChunkServerInCluster(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_EQ(2, response.chunkserverinfos_size());
+}
+
 TEST_F(TestTopologyServiceManager, test_DeleteChunkServer_success) {
     ChunkServerIdType csId1 = 0x41;
     ServerIdType serverId = 0x31;

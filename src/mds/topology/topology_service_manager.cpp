@@ -39,6 +39,7 @@
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
+#include "src/mds/common/mds_define.h"
 
 namespace curve {
 namespace mds {
@@ -302,6 +303,34 @@ void TopologyServiceManager::GetChunkServer(
     csInfo->set_diskcapacity(st.GetDiskCapacity());
     csInfo->set_diskused(st.GetDiskUsed());
     response->set_allocated_chunkserverinfo(csInfo);
+}
+
+void TopologyServiceManager::GetChunkServerInCluster(
+    const GetChunkServerInClusterRequest *request,
+    GetChunkServerInClusterResponse *response) {
+    response->set_statuscode(kTopoErrCodeSuccess);
+    auto chunkserverIds = topology_->GetChunkServerInCluster();
+    for (const auto id : chunkserverIds) {
+        ChunkServer cs;
+        if (!topology_->GetChunkServer(id, &cs)) {
+            response->set_statuscode(kTopoErrCodeChunkServerNotFound);
+            return;
+        }
+        auto *csInfo = response->add_chunkserverinfos();
+        csInfo->set_chunkserverid(cs.GetId());
+        csInfo->set_disktype(cs.GetDiskType());
+        csInfo->set_hostip(cs.GetHostIp());
+        csInfo->set_externalip(cs.GetExternalHostIp());
+        csInfo->set_port(cs.GetPort());
+        csInfo->set_status(cs.GetStatus());
+        csInfo->set_onlinestate(cs.GetOnlineState());
+
+        ChunkServerState st = cs.GetChunkServerState();
+        csInfo->set_diskstatus(st.GetDiskState());
+        csInfo->set_mountpoint(cs.GetMountPoint());
+        csInfo->set_diskcapacity(st.GetDiskCapacity());
+        csInfo->set_diskused(st.GetDiskUsed());
+    }
 }
 
 void TopologyServiceManager::DeleteChunkServer(

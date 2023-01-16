@@ -73,6 +73,10 @@ class TopologyServiceManager {
     virtual void GetChunkServer(const GetChunkServerInfoRequest *request,
                                 GetChunkServerInfoResponse *response);
 
+    virtual void GetChunkServerInCluster(
+        const GetChunkServerInClusterRequest *request,
+        GetChunkServerInClusterResponse *response);
+
     virtual void DeleteChunkServer(const DeleteChunkServerRequest *request,
                                    DeleteChunkServerResponse *response);
 
