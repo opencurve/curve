@@ -563,6 +563,7 @@ void CompactInodeJob::CompactChunks(const S3CompactTask& task) {
         GetNeedCompact(inode.s3chunkinfomap(), inode.length(), chunkSize);
     if (needCompact.empty()) {
         VLOG(6) << "s3compact: no need to compact " << inode.inodeid();
+        opts_->s3adapterManager->ReleaseS3Adapter(s3adapterIndex);
         return;
     }
 
