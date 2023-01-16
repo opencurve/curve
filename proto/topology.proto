@@ -191,6 +191,14 @@ message GetChunkServerInfoResponse {
     optional ChunkServerInfo chunkServerInfo = 2;
 }
 
+message GetChunkServerInClusterRequest {
+}
+
+message GetChunkServerInClusterResponse {
+    required sint32 statusCode = 1;
+    repeated ChunkServerInfo chunkServerInfos = 2;
+}
+
 message DeleteChunkServerRequest {
     required uint32 chunkServerID = 1;
 }
@@ -500,6 +508,7 @@ service TopologyService {
     rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
     rpc ListChunkServer(ListChunkServerRequest) returns (ListChunkServerResponse);
     rpc GetChunkServer(GetChunkServerInfoRequest) returns (GetChunkServerInfoResponse);
+    rpc GetChunkServerInCluster(GetChunkServerInClusterRequest) returns (GetChunkServerInClusterResponse);
     rpc DeleteChunkServer(DeleteChunkServerRequest) returns (DeleteChunkServerResponse);
     rpc SetChunkServer(SetChunkServerStatusRequest) returns (SetChunkServerStatusResponse);
 
