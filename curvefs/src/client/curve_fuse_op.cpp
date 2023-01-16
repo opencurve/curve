@@ -49,7 +49,6 @@ using ::curvefs::client::FuseClient;
 using ::curvefs::client::FuseS3Client;
 using ::curvefs::client::FuseVolumeClient;
 using ::curvefs::client::common::FuseClientOption;
-using ::curvefs::client::common::MAXXATTRLENGTH;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::metric::ClientOpMetric;
@@ -341,9 +340,9 @@ void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     size_t size) {
     InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opGetXattr.latency);
-    char buf[MAXXATTRLENGTH] = {0};
+    std::string buf;
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
-                                                         buf, size);
+                                                         &buf, size);
     if (ret != CURVEFS_ERROR::OK) {
         g_clientOpMetric->opGetXattr.ecount << 1;
         FuseReplyErrByErrCode(req, ret);
@@ -351,9 +350,9 @@ void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     }
 
     if (size == 0) {
-        fuse_reply_xattr(req, strlen(buf));
+        fuse_reply_xattr(req, buf.length());
     } else {
-        fuse_reply_buf(req, buf, strlen(buf));
+        fuse_reply_buf(req, buf.data(), buf.length());
     }
 }
 
