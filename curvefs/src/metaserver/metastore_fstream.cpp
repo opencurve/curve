@@ -73,10 +73,10 @@ std::shared_ptr<Partition> MetaStoreFStream::GetPartition(
 }
 
 bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
-                                     const std::string& key,
-                                     const std::string& value) {
+                                     absl::string_view key,
+                                     absl::string_view value) {
     PartitionInfo partitionInfo;
-    if (!conv_->ParseFromString(value, &partitionInfo)) {
+    if (!conv_->ParseFromArray(value, &partitionInfo)) {
         LOG(ERROR) << "Decode PartitionInfo failed";
         return false;
     }
@@ -98,8 +98,8 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
 }
 
 bool MetaStoreFStream::LoadInode(uint32_t partitionId,
-                                 const std::string& key,
-                                 const std::string& value) {
+                                 absl::string_view key,
+                                 absl::string_view value) {
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -107,7 +107,7 @@ bool MetaStoreFStream::LoadInode(uint32_t partitionId,
     }
 
     Inode inode;
-    if (!conv_->ParseFromString(value, &inode)) {
+    if (!conv_->ParseFromArray(value, &inode)) {
         LOG(ERROR) << "Decode inode failed";
         return false;
     }
@@ -123,8 +123,8 @@ bool MetaStoreFStream::LoadInode(uint32_t partitionId,
 
 bool MetaStoreFStream::LoadDentry(uint8_t version,
                                   uint32_t partitionId,
-                                  const std::string& key,
-                                  const std::string& value) {
+                                  absl::string_view key,
+                                  absl::string_view value) {
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -134,12 +134,12 @@ bool MetaStoreFStream::LoadDentry(uint8_t version,
     DentryVec vec;
     if (version == 1) {
         Dentry dentry;
-        if (!conv_->ParseFromString(value, &dentry)) {
+        if (!conv_->ParseFromArray(value, &dentry)) {
             LOG(ERROR) << "Decode dentry failed";
             return false;
         }
         *vec.add_dentrys() = dentry;
-    } else if (!conv_->ParseFromString(value, &vec)) {
+    } else if (!conv_->ParseFromArray(value, &vec)) {
         LOG(ERROR) << "Decode dentry vector failed";
         return false;
     }
@@ -154,8 +154,8 @@ bool MetaStoreFStream::LoadDentry(uint8_t version,
 }
 
 bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
-                                     const std::string& key,
-                                     const std::string& value) {
+                                     absl::string_view key,
+                                     absl::string_view value) {
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -163,7 +163,7 @@ bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
     }
 
     PrepareRenameTxRequest pendingTx;
-    if (!conv_->ParseFromString(value, &pendingTx)) {
+    if (!conv_->ParseFromArray(value, &pendingTx)) {
         LOG(ERROR) << "Decode pending tx failed";
         return false;
     }
@@ -176,8 +176,8 @@ bool MetaStoreFStream::LoadPendingTx(uint32_t partitionId,
 }
 
 bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
-                                                const std::string& key,
-                                                const std::string& value) {
+                                                absl::string_view key,
+                                                absl::string_view value) {
     auto partition = GetPartition(partitionId);
     if (nullptr == partition) {
         LOG(ERROR) << "Partition not found, partitionId = " << partitionId;
@@ -186,10 +186,10 @@ bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
 
     S3ChunkInfoList list;
     Key4S3ChunkInfoList key4list;
-    if (!conv_->ParseFromString(key, &key4list)) {
+    if (!conv_->ParseFromStringView(key, &key4list)) {
         LOG(ERROR) << "Decode Key4S3ChunkInfoList failed";
         return false;
-    } else if (!conv_->ParseFromString(value, &list)) {
+    } else if (!conv_->ParseFromArray(value, &list)) {
         LOG(ERROR) << "Decode S3ChunkInfoList failed";
         return false;
     }
@@ -209,8 +209,8 @@ bool MetaStoreFStream::LoadInodeS3ChunkInfoList(uint32_t partitionId,
 }
 
 bool MetaStoreFStream::LoadVolumeExtentList(uint32_t partitionId,
-                                            const std::string& key,
-                                            const std::string& value) {
+                                            absl::string_view key,
+                                            absl::string_view value) {
     auto partition = GetPartition(partitionId);
     if (!partition) {
         LOG(ERROR) << "Partition not found, partitionId: " << partitionId;
@@ -220,13 +220,13 @@ bool MetaStoreFStream::LoadVolumeExtentList(uint32_t partitionId,
     Key4VolumeExtentSlice sliceKey;
     VolumeExtentSlice slice;
 
-    if (!sliceKey.ParseFromString(key)) {
+    if (!sliceKey.ParseFromStringView(key)) {
         LOG(ERROR) << "Fail to decode Key4VolumeExtentSlice, key: `" << key
                    << "`";
         return false;
     }
 
-    if (!conv_->ParseFromString(value, &slice)) {
+    if (!conv_->ParseFromArray(value, &slice)) {
         LOG(ERROR) << "Decode VolumeExtentSlice failed";
         return false;
     }
@@ -337,8 +337,8 @@ bool MetaStoreFStream::Load(const std::string& pathname, uint8_t* version) {
     auto callback = [&](uint8_t version,
                         ENTRY_TYPE entryType,
                         uint32_t partitionId,
-                        const std::string& key,
-                        const std::string& value) -> bool {
+                        absl::string_view key,
+                        absl::string_view value) -> bool {
         switch (entryType) {
             case ENTRY_TYPE::PARTITION:
                 ++totalPartition;

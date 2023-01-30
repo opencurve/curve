@@ -738,11 +738,18 @@ MetaStatusCode MetaStoreImpl::GetOrModifyS3ChunkInfo(
 
 void MetaStoreImpl::PrepareStreamBuffer(butil::IOBuf* buffer,
                                         uint64_t chunkIndex,
-                                        const std::string& value) {
+                                        absl::string_view value) {
     buffer->clear();
+    /*
     buffer->append(std::to_string(chunkIndex));
     buffer->append(":");
     buffer->append(value);
+    */
+    butil::IOBufAppender append_buffer;
+    append_buffer.append(std::to_string(chunkIndex));
+    append_buffer.push_back(':');
+    append_buffer.append(value.data(), value.size());
+    append_buffer.move_to(*buffer);
 }
 
 MetaStatusCode MetaStoreImpl::SendS3ChunkInfoByStream(
@@ -752,8 +759,8 @@ MetaStatusCode MetaStoreImpl::SendS3ChunkInfoByStream(
     Key4S3ChunkInfoList key;
     Converter conv;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-        std::string skey = iterator->Key();
-        if (!conv.ParseFromString(skey, &key)) {
+        absl::string_view skey = iterator->Key();
+        if (!conv.ParseFromStringView(skey, &key)) {
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
         }
 

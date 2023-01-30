@@ -58,29 +58,29 @@ class MetaStoreFStream {
 
  private:
     bool LoadPartition(uint32_t partitionId,
-                       const std::string& key,
-                       const std::string& value);
+                       absl::string_view key,
+                       absl::string_view value);
 
     bool LoadInode(uint32_t partitionId,
-                   const std::string& key,
-                   const std::string& value);
+                   absl::string_view key,
+                   absl::string_view value);
 
     bool LoadDentry(uint8_t version,
                     uint32_t partitionId,
-                    const std::string& key,
-                    const std::string& value);
+                    absl::string_view key,
+                    absl::string_view value);
 
     bool LoadPendingTx(uint32_t partitionId,
-                       const std::string& key,
-                       const std::string& value);
+                       absl::string_view key,
+                       absl::string_view value);
 
     bool LoadInodeS3ChunkInfoList(uint32_t partitionId,
-                                  const std::string& key,
-                                  const std::string& value);
+                                  absl::string_view key,
+                                  absl::string_view value);
 
     bool LoadVolumeExtentList(uint32_t partitionId,
-                              const std::string& key,
-                              const std::string& value);
+                              absl::string_view key,
+                              absl::string_view value);
 
     std::shared_ptr<Iterator> NewPartitionIterator();
 

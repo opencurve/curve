@@ -144,7 +144,7 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
                               const std::string& key,
                               bool ordered);
 
-    std::string ToUserKey(const std::string& ikey);
+    absl::string_view ToUserKey(absl::string_view ikey_view);
 
     Status Get(const std::string& name,
                const std::string& key,
@@ -343,17 +343,17 @@ class RocksDBStorageIterator : public Iterator {
         iter_->Next();
     }
 
-    std::string Key() {
+    absl::string_view Key() {
         RocksDBPerfGuard guard(OP_ITERATOR_GET_KEY);
         auto slice = iter_->key();
-        auto ikey = std::string(slice.data(), slice.size());
-        return storage_->ToUserKey(ikey);
+        absl::string_view ikey_view(slice.data(), slice.size());
+        return storage_->ToUserKey(ikey_view);
     }
 
-    std::string Value() {
+    absl::string_view Value() {
         RocksDBPerfGuard guard(OP_ITERATOR_GET_VALUE);
         auto slice = iter_->value();
-        return std::string(slice.data(), slice.size());
+        return absl::string_view(slice.data(), slice.size());
     }
 
     bool ParseFromValue(ValueType* value) override {

@@ -30,6 +30,7 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "src/common/string_util.h"
 #include "curvefs/src/metaserver/storage/dumpfile.h"
 
@@ -71,7 +72,7 @@ static std::string Type2Str(ENTRY_TYPE t) {
     return "";
 }
 
-static ENTRY_TYPE Str2Type(const std::string& s) {
+static ENTRY_TYPE Str2Type(absl::string_view s) {
     for (const auto& pair : pairs) {
         if (pair.second == s) {
             return pair.first;
@@ -82,14 +83,14 @@ static ENTRY_TYPE Str2Type(const std::string& s) {
 
 static std::string InternalKey(ENTRY_TYPE t,
                                uint32_t partitionId,
-                               const std::string& ukey) {
+                               absl::string_view ukey) {
     return absl::StrCat(Type2Str(t), partitionId, ":", ukey);
 }
 
-static std::pair<std::string, std::string> UserKey(const std::string& ikey) {
-    std::string prefix, ukey;
-    std::vector<std::string> items;
-    SplitString(ikey, ":", &items);
+static std::pair<absl::string_view, absl::string_view> UserKey(absl::string_view ikey) {
+    absl::string_view prefix, ukey;
+    std::vector<absl::string_view> items = absl::StrSplit(ikey, ":");
+    //SplitString(ikey, ":", &items);
     if (items.size() >= 2) {
         prefix = items[0];
         ukey = ikey.substr(prefix.size() + 1);
@@ -99,19 +100,19 @@ static std::pair<std::string, std::string> UserKey(const std::string& ikey) {
     return std::make_pair(prefix, ukey);
 }
 
-static std::pair<ENTRY_TYPE, uint32_t> Extract(const std::string& prefix) {
+static std::pair<ENTRY_TYPE, uint32_t> Extract(absl::string_view prefix) {
     if (prefix.size() == 0) {
         return std::make_pair(ENTRY_TYPE::UNKNOWN, 0);
     }
 
-    std::vector<std::string> items{
+    std::vector<absl::string_view> items{
         prefix.substr(0, 1),  // eg: i
         prefix.substr(1),  // eg: 100
     };
 
     ENTRY_TYPE entryType = Str2Type(items[0]);
     uint32_t partitionId = 0;
-    if (!StringToUl(items[1], &partitionId)) {
+    if (!StringToUl(std::string(items[1]), &partitionId)) {
         partitionId = 0;
     }
     return std::make_pair(entryType, partitionId);
@@ -148,8 +149,8 @@ template<typename Callback>
 inline bool InvokeCallback(uint8_t version,
                            ENTRY_TYPE entryType,
                            uint32_t partitionId,
-                           const std::string& key,
-                           const std::string& value,
+                           absl::string_view key,
+                           absl::string_view value,
                            Callback&& callback) {
     bool succ = std::forward<Callback>(callback)(
         version, entryType, partitionId, key, value);
@@ -185,8 +186,8 @@ inline bool LoadFromFile(const std::string& pathname, uint8_t* version,
 
         ENTRY_TYPE entryType = pair.first;
         uint32_t partitionId = pair.second;
-        std::string key = ukey.second;
-        std::string value = iter->Value();
+        absl::string_view key = ukey.second;
+        absl::string_view value = iter->Value();
         uint8_t version = dumpfile.GetVersion();
         switch (entryType) {
             CASE_TYPE_CALLBACK(INODE);
@@ -232,12 +233,13 @@ class IteratorWrapper : public Iterator {
         iterator_->Next();
     }
 
-    std::string Key() override {
+    absl::string_view Key() override {
         auto key = iterator_->Key();
-        return InternalKey(entryType_, partitionId_, key);
+        last_key_ = InternalKey(entryType_, partitionId_, key);
+        return last_key_;
     }
 
-    std::string Value() override {
+    absl::string_view Value() override {
         return iterator_->Value();
     }
 
@@ -253,6 +255,7 @@ class IteratorWrapper : public Iterator {
     ENTRY_TYPE entryType_;
     uint32_t partitionId_;
     std::shared_ptr<Iterator> iterator_;
+    std::string last_key_;
 };
 
 }  // namespace storage

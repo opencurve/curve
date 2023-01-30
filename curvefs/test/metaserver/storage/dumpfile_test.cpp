@@ -47,8 +47,8 @@ class HashIterator : public Iterator {
     bool Valid() override { return iter_ != hash_->end(); }
     void SeekToFirst() override { iter_ = hash_->begin(); }
     void Next() override { iter_++; }
-    std::string Key() override { return iter_->first; }
-    std::string Value() override { return iter_->second; }
+    absl::string_view Key() override { return iter_->first; }
+    absl::string_view Value() override { return iter_->second; }
     int Status() override { return 0; }
 
  private:
@@ -93,8 +93,8 @@ class DumpFileTest : public ::testing::Test {
             auto key = iter->Key();
             auto value = iter->Value();
             ASSERT_EQ(key, value);
-            ASSERT_TRUE(hash->find(key) != hash->end());
-            hash->erase(key);
+            ASSERT_TRUE(hash->find(std::string(key)) != hash->end());
+            hash->erase(std::string(key));
         }
 
         ASSERT_EQ(hash->size(), 0);

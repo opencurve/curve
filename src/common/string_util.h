@@ -37,6 +37,8 @@
 #include <vector>
 #include <stdexcept>
 
+#include "absl/strings/string_view.h"
+
 namespace curve {
 namespace common {
 
@@ -116,6 +118,11 @@ inline bool StringToInt(const std::string &value, int32_t *out) noexcept {
 
 inline bool StringStartWith(const std::string& value,
                             const std::string& starting) {
+    return value.rfind(starting, 0) == 0;
+}
+
+inline bool StringStartWith(absl::string_view value,
+                            absl::string_view starting) {
     return value.rfind(starting, 0) == 0;
 }
 

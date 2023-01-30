@@ -53,6 +53,7 @@ cc_library(
         "//external:glog",
         "//src/common/concurrent:curve_concurrent",
         ":macros",
+        "@com_google_absl//absl/strings",
     ],
     linkopts = [
         "-luuid",

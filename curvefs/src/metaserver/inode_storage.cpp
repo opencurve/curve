@@ -209,7 +209,7 @@ bool InodeStorage::GetAllInodeId(std::list<uint64_t>* ids) {
 
     Key4Inode key;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-        if (!conv_.ParseFromString(iterator->Key(), &key)) {
+        if (!conv_.ParseFromStringView(iterator->Key(), &key)) {
             return false;
         }
         ids->push_back(key.inodeId);
@@ -372,12 +372,12 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
     }
 
     Key4S3ChunkInfoList key;
-    std::vector<std::string> key2del;
+    std::vector<absl::string_view> key2del;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-        std::string skey = iterator->Key();
+        absl::string_view skey = iterator->Key();
         if (!StringStartWith(skey, sprefix)) {
             break;
-        } else if (!conv_.ParseFromString(skey, &key)) {
+        } else if (!conv_.ParseFromStringView(skey, &key)) {
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
         }
 
@@ -397,8 +397,9 @@ MetaStatusCode InodeStorage::DelS3ChunkInfoList(
         }
     }
 
-    for (const auto& skey : key2del) {
-        if (!txn->SDel(table4S3ChunkInfo_, skey).ok()) {
+    // TODO: how to avoid copy here?
+    for (auto skey : key2del) {
+        if (!txn->SDel(std::string(table4S3ChunkInfo_), std::string(skey)).ok()) {
             LOG(ERROR) << "Delete key failed, skey=" << skey;
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
@@ -475,9 +476,8 @@ MetaStatusCode InodeStorage::PaddingInodeS3ChunkInfo(int32_t fsId,
     Key4S3ChunkInfoList key;
     S3ChunkInfoList list;
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
-        std::string skey = iterator->Key();
-        std::string svalue = iterator->Value();
-        if (!conv_.ParseFromString(skey, &key)) {
+        absl::string_view skey = iterator->Key();
+        if (!conv_.ParseFromStringView(skey, &key)) {
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
         } else if (!iterator->ParseFromValue(&list)) {
             return MetaStatusCode::PARSE_FROM_STRING_FAILED;
@@ -541,7 +541,8 @@ MetaStatusCode InodeStorage::GetAllVolumeExtent(uint32_t fsId,
             continue;
         }
 
-        if (!slice->ParseFromString(iter->Value())) {
+        absl::string_view val = iter->Value();
+        if (!slice->ParseFromArray(val.data(), val.size())) {
             LOG(ERROR) << "Parse ExtentSlice failed, fsId: " << fsId
                        << ", inodeId: " << inodeId;
             extents->Clear();
