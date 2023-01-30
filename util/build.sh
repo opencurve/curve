@@ -2,6 +2,8 @@
 
 # Copyright (C) 2021 Jingli Chen (Wine93), NetEase Inc.
 
+set -e
+
 ############################  GLOBAL VARIABLES
 
 g_stor=""
