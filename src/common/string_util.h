@@ -40,10 +40,9 @@
 namespace curve {
 namespace common {
 
-inline void SplitString(const std::string& full,
-                               const std::string& delim,
-                               std::vector<std::string>* result) {
-    result->clear();
+inline void AddSplitStringToResult(const std::string &full,
+                                   const std::string &delim,
+                                   std::vector<std::string> *result) {
     if (full.empty()) {
         return;
     }
@@ -67,6 +66,13 @@ inline void SplitString(const std::string& full,
             tmp.clear();
         }
     }
+}
+
+inline void SplitString(const std::string& full,
+                               const std::string& delim,
+                               std::vector<std::string>* result) {
+    result->clear();
+    AddSplitStringToResult(full, delim, result);
 }
 
 inline bool StringToUl(const std::string &value, uint32_t *out) noexcept {
