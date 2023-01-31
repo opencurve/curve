@@ -370,6 +370,17 @@ var (
 		return NewInternalCmdError(40, "delete file fail. the error is %s")
 	}
 
+	ErrRespTypeNoExpected = func() *CmdError {
+		return NewInternalCmdError(41, "the response type is not as expected, should be: %s")
+	}
+
+	ErrGetPeer = func() *CmdError {
+		return NewInternalCmdError(42, "invalid peer args, err: %s")
+	}
+	ErrQueryWarmup = func() *CmdError {
+		return NewInternalCmdError(43, "query warmup progress fail, err: %s")
+	}
+
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")

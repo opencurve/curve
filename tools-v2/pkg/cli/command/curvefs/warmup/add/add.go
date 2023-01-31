@@ -34,6 +34,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/query"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
@@ -62,7 +63,7 @@ type AddCommand struct {
 
 var _ basecmd.FinalCurveCmdFunc = (*AddCommand)(nil) // check interface
 
-func NewAddCommandCommand() *cobra.Command {
+func NewAddWarmupCommand() *AddCommand {
 	aCmd := &AddCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "add",
@@ -71,11 +72,16 @@ func NewAddCommandCommand() *cobra.Command {
 		},
 	}
 	basecmd.NewFinalCurveCli(&aCmd.FinalCurveCmd, aCmd)
-	return aCmd.Cmd
+	return aCmd
+}
+
+func NewAddCommand() *cobra.Command {
+	return NewAddWarmupCommand().Cmd
 }
 
 func (aCmd *AddCommand) AddFlags() {
 	config.AddFileListOptionFlag(aCmd.Cmd)
+	config.AddDaemonOptionPFlag(aCmd.Cmd)
 }
 
 func (aCmd *AddCommand) Init(cmd *cobra.Command, args []string) error {
@@ -187,6 +193,9 @@ func (aCmd *AddCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		setErr := cmderror.ErrSetxattr()
 		setErr.Format(CURVEFS_WARMUP_OP_XATTR, err.Error())
 		return setErr.ToError()
+	}
+	if config.GetDaemonFlag(aCmd.Cmd) {
+		query.GetWarmupProgress(aCmd.Cmd, aCmd.Path)
 	}
 	return nil
 }
