@@ -77,6 +77,7 @@ std::ostream &operator<<(std::ostream &os, MetaServerOpType optype) {
 }
 
 const char kCurveFsWarmupOpAdd[] = "add";
+const char kCurveFsWarmupOpQuery[] = "query";
 const char kCurveFsWarmupTypeList[] = "list";
 const char kCurveFsWarmupTypeSingle[] = "single";
 
@@ -84,6 +85,9 @@ WarmupOpType GetWarmupOpType(const std::string& op) {
     auto ret = WarmupOpType::kWarmupOpUnknown;
     if (op == kCurveFsWarmupOpAdd) {
         ret = WarmupOpType::kWarmupOpAdd;
+    }
+    if (op == kCurveFsWarmupOpQuery) {
+        ret = WarmupOpType::kWarmupOpQuery;
     }
     return ret;
 }

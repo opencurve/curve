@@ -52,7 +52,8 @@ class FuseVolumeClient : public FuseClient {
         const std::shared_ptr<InodeCacheManager> &inodeManager,
         const std::shared_ptr<DentryCacheManager> &dentryManager,
         const std::shared_ptr<BlockDeviceClient> &blockDeviceClient)
-        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager),
+        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager,
+                     nullptr),
           blockDeviceClient_(blockDeviceClient) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
