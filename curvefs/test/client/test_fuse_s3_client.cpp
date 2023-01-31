@@ -20,19 +20,30 @@
  * Author: xuchaojie
  */
 
+
+#include <gmock/gmock-generated-actions.h>
+#include <gmock/gmock-more-actions.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "curvefs/src/client/common/common.h"
+#include <memory>
+#include <unordered_map>
+
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/rpcclient/metaserver_client.h"
+#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
+#include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/test/client/mock_client_s3.h"
 #include "curvefs/test/client/mock_client_s3_adaptor.h"
 #include "curvefs/test/client/mock_dentry_cache_mamager.h"
+#include "curvefs/test/client/mock_disk_cache_manager.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
-#include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/client/mock_metaserver_client.h"
+#include "curvefs/test/client/rpcclient/mock_mds_client.h"
 
 struct fuse_req {
     struct fuse_ctx *ctx;
@@ -54,18 +65,18 @@ namespace client {
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::testing::_;
+using ::testing::AtLeast;
 using ::testing::Contains;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
-using ::testing::AtLeast;
 using ::testing::SetArrayArgument;
 
+using curvefs::client::common::FileHandle;
+using rpcclient::MetaServerClientDone;
 using rpcclient::MockMdsClient;
 using rpcclient::MockMetaServerClient;
-using rpcclient::MetaServerClientDone;
-using curvefs::client::common::FileHandle;
 
 #define EQUAL(a) (lhs.a() == rhs.a())
 
@@ -86,9 +97,20 @@ class TestFuseS3Client : public ::testing::Test {
         s3ClientAdaptor_ = std::make_shared<MockS3ClientAdaptor>();
         inodeManager_ = std::make_shared<MockInodeCacheManager>();
         dentryManager_ = std::make_shared<MockDentryCacheManager>();
-        client_ = std::make_shared<FuseS3Client>(mdsClient_, metaClient_,
-                                                 inodeManager_, dentryManager_,
-                                                 s3ClientAdaptor_);
+        warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
+            metaClient_, inodeManager_, dentryManager_, nullptr, nullptr,
+            s3ClientAdaptor_);
+        client_ = std::make_shared<FuseS3Client>(
+            mdsClient_, metaClient_, inodeManager_, dentryManager_,
+            s3ClientAdaptor_, warmupManager_);
+
+        auto readFunc = [this](fuse_req_t req, fuse_ino_t ino, size_t size,
+                               off_t off, struct fuse_file_info *fi,
+                               char *buffer, size_t *rSize) {
+            return client_->FuseOpRead(req, ino, size, off, fi, buffer, rSize);
+        };
+        warmupManager_->SetFuseOpRead(readFunc);
+
         InitOptionBasic(&fuseClientOption_);
         InitFSInfo(client_);
         fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
@@ -119,6 +141,8 @@ class TestFuseS3Client : public ::testing::Test {
 
         client_->SetFsInfo(fsInfo);
         client_->SetMounted(true);
+
+        warmupManager_->SetFsInfo(fsInfo);
     }
 
     void InitOptionBasic(FuseClientOption *opt) {
@@ -146,19 +170,20 @@ class TestFuseS3Client : public ::testing::Test {
     std::shared_ptr<FuseS3Client> client_;
     FuseClientOption fuseClientOption_;
     Aws::SDKOptions awsOptions_;
+    std::shared_ptr<warmup::WarmupManager> warmupManager_;
 };
 
 TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
     curvefs::client::common::FLAGS_supportKVcache = true;
     curvefs::mds::topology::MemcacheClusterInfo memcacheCluster;
     memcacheCluster.set_clusterid(1);
-    auto testclient =
-        std::make_shared<FuseS3Client>(mdsClient_, metaClient_, inodeManager_,
-                                       dentryManager_, s3ClientAdaptor_);
+    auto testclient = std::make_shared<FuseS3Client>(
+        mdsClient_, metaClient_, inodeManager_, dentryManager_,
+        s3ClientAdaptor_, nullptr);
     FuseClientOption opt;
     InitOptionBasic(&opt);
     InitFSInfo(testclient);
-    testclient->SetMounted(true);
+    // testclient->SetMounted(true);
 
     // test init kvcache success
     {
@@ -181,67 +206,12 @@ TEST_F(TestFuseS3Client, test_Init_with_KVCache) {
     curvefs::client::common::FLAGS_supportKVcache = false;
 }
 
-// GetDentry failed; dentry not exist
-TEST_F(TestFuseS3Client, warmUp_dentryNotexist) {
-    // wait init
-    sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
-    fuse_ino_t parent = 1;
-    std::string name = "test";
-    fuse_ino_t inodeid = 2;
-
-    Dentry dentry;
-    dentry.set_fsid(fsId);
-    dentry.set_name(name);
-    dentry.set_parentinodeid(parent);
-    dentry.set_inodeid(inodeid);
-    dentry.set_type(FsFileType::TYPE_S3);
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-          Return(CURVEFS_ERROR::NOTEXIST)));
-    client_->PutWarmTask(warmUpPath);
-    sleep(5);
-}
-
-// GetDentry failed; bad fd
-TEST_F(TestFuseS3Client, warmUp_dentryBadFd) {
-    sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
-    fuse_ino_t parent = 1;
-    std::string name = "test";
-    fuse_ino_t inodeid = 2;
-
-    Dentry dentry;
-    dentry.set_fsid(fsId);
-    dentry.set_name(name);
-    dentry.set_parentinodeid(parent);
-    dentry.set_inodeid(inodeid);
-    dentry.set_type(FsFileType::TYPE_S3);
-
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-          Return(CURVEFS_ERROR::BAD_FD)));
-    client_->PutWarmTask(warmUpPath);
-    sleep(5);
-}
-
 // GetInode failed; bad fd
 TEST_F(TestFuseS3Client, warmUp_inodeBadFd) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
-
-    Dentry dentry;
-    dentry.set_fsid(fsId);
-    dentry.set_name(name);
-    dentry.set_parentinodeid(parent);
-    dentry.set_inodeid(inodeid);
-    dentry.set_type(FsFileType::TYPE_S3);
 
     Inode inode;
     inode.set_fsid(fsId);
@@ -250,21 +220,26 @@ TEST_F(TestFuseS3Client, warmUp_inodeBadFd) {
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
 
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-              Return(CURVEFS_ERROR::BAD_FD)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                        Return(CURVEFS_ERROR::BAD_FD)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
     sleep(5);
+    client_->GetFsInfo()->set_fstype(old);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // single file (parent is root)
 TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry01) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -283,16 +258,13 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry01) {
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-          Return(CURVEFS_ERROR::BAD_FD)));
-     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::BAD_FD)));
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
@@ -303,17 +275,28 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry01) {
     tmpbuf[3] = '\n';
 
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
     sleep(5);
+    client_->GetFsInfo()->set_fstype(old);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // warmup failed because of GetDentry failed
 TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry02) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -332,16 +315,13 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry02) {
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry),
-          Return(CURVEFS_ERROR::NOTEXIST)));
-     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::NOTEXIST)));
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
@@ -352,17 +332,27 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry02) {
     tmpbuf[3] = '\n';
 
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
+    client_->GetFsInfo()->set_fstype(old);
 }
 
 // warmup failed because of Getinode failed
 TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue__error_getinode) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -381,18 +371,14 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue__error_getinode) {
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
-     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::NOTEXIST)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgReferee<1>(inodeWrapper),
+                        Return(CURVEFS_ERROR::NOTEXIST)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
@@ -402,17 +388,27 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue__error_getinode) {
     tmpbuf[2] = 'e';
     tmpbuf[3] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // chunk is empty
 TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue_chunkempty) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -431,18 +427,14 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue_chunkempty) {
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
-     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
@@ -452,17 +444,27 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue_chunkempty) {
     tmpbuf[2] = 'e';
     tmpbuf[3] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // single file (parent is root); FetchDentry
 TEST_F(TestFuseS3Client, warmUp_FetchDentry_TYPE_SYM_LINK) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -488,15 +490,13 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_TYPE_SYM_LINK) {
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(dentry1), Return(CURVEFS_ERROR::OK)));
-     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
     size_t len = 20;
     char *tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
@@ -505,17 +505,28 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_TYPE_SYM_LINK) {
     tmpbuf[2] = 'e';
     tmpbuf[3] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
+    client_->GetFsInfo()->set_fstype(old);
 }
 
 // fetch dentry failed
 TEST_F(TestFuseS3Client, warmUp_FetchDentry_error_TYPE_DIRECTORY) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -541,19 +552,14 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_error_TYPE_DIRECTORY) {
 
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(dentry1), Return(CURVEFS_ERROR::OK)));
-     EXPECT_CALL(*inodeManager_, GetInode(_, _))
+    EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+
     std::list<Dentry> dlist;
-    EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::NOTEXIST)));
     size_t len = 20;
     char *tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
@@ -562,17 +568,27 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_error_TYPE_DIRECTORY) {
     tmpbuf[2] = 'e';
     tmpbuf[3] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // lookpath
 TEST_F(TestFuseS3Client, warmUp_lookpath_multilevel) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -593,19 +609,15 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_multilevel) {
     EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)))
         .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
@@ -618,17 +630,27 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_multilevel) {
     tmpbuf[5] = 'c';
     tmpbuf[6] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // lookpath failed; unknown path
 TEST_F(TestFuseS3Client, warmUp_lookpath_unkown) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -646,32 +668,38 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_unkown) {
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // i am root
 TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 2;
@@ -689,8 +717,6 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     std::list<Dentry> dlist;
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
@@ -699,28 +725,36 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
     size_t len = 20;
     char *tmpbuf = new char[len];
     memset(tmpbuf, '\n', len);
     tmpbuf[0] = '/';
     tmpbuf[1] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 // success
 TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     sleep(1);
-    std::string warmUpPath = "/test";
-    fuse_req_t req;
     fuse_ino_t parent = 1;
     std::string name = "test";
     fuse_ino_t inodeid = 5;
@@ -738,11 +772,8 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     inode.set_length(4096);
     inode.set_type(FsFileType::TYPE_S3);
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
-    EXPECT_CALL(*dentryManager_, GetDentry(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(dentry), Return(CURVEFS_ERROR::OK)));
 
     std::list<Dentry> dlist;
-    std::list<Dentry> dlist1;
     Dentry dentry1;
     dentry1.set_fsid(fsId);
     dentry1.set_inodeid(inodeid);
@@ -755,35 +786,33 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     dentry.set_name("2");
     dentry.set_type(FsFileType::TYPE_S3);
     dlist.emplace_back(dentry);
+
     Dentry dentry2;
     dentry2.set_inodeid(3);
     dentry2.set_parentinodeid(parent);
     dentry2.set_name("3");
     dentry2.set_type(FsFileType::TYPE_SYM_LINK);
     dlist.emplace_back(dentry2);
+
     Dentry dentry3;
     dentry3.set_inodeid(4);
     dentry3.set_parentinodeid(parent);
     dentry3.set_name("4");
-    dentry3.set_type(FsFileType::TYPE_FILE);
+    dentry3.set_type(FsFileType::TYPE_FILE);  // unknown type
     dlist.emplace_back(dentry3);
 
     EXPECT_CALL(*dentryManager_, ListDentry(_, _, _, _, _))
-        .WillOnce(
-            DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
             DoAll(SetArgPointee<1>(dlist), Return(CURVEFS_ERROR::NOTEXIST)));
 
     EXPECT_CALL(*inodeManager_, GetInode(_, _))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)))
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
         .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper),
-                Return(CURVEFS_ERROR::OK)));
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
 
     size_t len = 20;
     char *tmpbuf = new char[len];
@@ -791,10 +820,22 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     tmpbuf[0] = '/';
     tmpbuf[1] = '\n';
     EXPECT_CALL(*s3ClientAdaptor_, Read(_, _, _, _))
-        .WillOnce(DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len),
-                        Return(len)));
-    client_->PutWarmTask(warmUpPath);
+        .WillOnce(
+            DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
+    auto old = client_->GetFsInfo()->fstype();
+    client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
+    client_->PutWarmFilelistTask(inodeid);
+
+    warmup::WarmupProgress progress;
+    bool ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    ASSERT_TRUE(ret);
+    client_->GetFsInfo()->set_fstype(old);
     sleep(5);
+    ret = client_->GetWarmupProgress(inodeid, &progress);
+    LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
+    // After sleeping for 5s, the scan should be completed
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {

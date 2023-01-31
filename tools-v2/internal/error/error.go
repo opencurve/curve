@@ -384,6 +384,9 @@ var (
 	ErrGetPeer = func() *CmdError {
 		return NewInternalCmdError(42, "invalid peer args, err: %s")
 	}
+	ErrQueryWarmup = func() *CmdError {
+		return NewInternalCmdError(43, "query warmup progress fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
