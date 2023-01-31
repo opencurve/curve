@@ -26,6 +26,7 @@
 #include <list>
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 #include <set>
@@ -38,6 +39,7 @@
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/common/define.h"
 #include "src/common/net_common.h"
@@ -135,210 +137,20 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     if (ret3 != CURVEFS_ERROR::OK) {
         return ret3;
     }
-    warmUpFile_.exist = false;
-    bgCmdStop_.store(false, std::memory_order_release);
-    bgCmdTaskThread_ = Thread(&FuseClient::WarmUpTask, this);
-    taskFetchMetaPool_.Start(option_.warmupThreadsNum);
+
+    if (warmupManager_ != nullptr) {
+        warmupManager_->Init(option);
+        warmupManager_->SetFsInfo(fsInfo_);
+    }
+
     return ret3;
 }
 
-void FuseClient::WarmUpTask() {
-    // TODO(hzwuhongsong): Maybe we can start the warmup thread after mount
-    while (!mounted_.load(std::memory_order_acquire)) {
-        usleep(WARMUP_CHECKINTERVAL_US);
-        VLOG(6) << "wait mount success.";
-        continue;
-    }
-    while (!bgCmdStop_.load(std::memory_order_acquire)) {
-        std::list<std::string> readAheadPaths;
-        WaitWarmUp();
-        while (hasWarmTask()) {
-            std::string warmUpTask;
-            GetwarmTask(&warmUpTask);
-            VLOG(9) << "warmup task is: " << warmUpTask;
-            std::string pDelimiter = "/";
-            char* pToken = nullptr;
-            char* pSave = nullptr;
-            pToken = strtok_r(const_cast<char*>(warmUpTask.c_str()),
-              const_cast<char*>(pDelimiter.c_str()), &pSave);
-            if (nullptr == pToken) {
-                VLOG(6) << "warmUpTask nullptr";
-                continue;
-            }
-            Dentry dentry;
-            CURVEFS_ERROR ret = dentryManager_->GetDentry(
-              fsInfo_->rootinodeid(), pToken, &dentry);
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(WARNING) << "FetchDentry error: " << ret
-                             << ", name: " << warmUpTask;
-                return;
-            }
-            if (FsFileType::TYPE_S3 != dentry.type()) {
-                LOG(WARNING) << "not a file: " << warmUpTask
-                        << "type is: " << dentry.type();
-                return;
-            }
-            fuse_ino_t  ino = dentry.inodeid();
-            std::shared_ptr<InodeWrapper> inodeWrapper;
-            ret = inodeManager_->GetInode(ino, inodeWrapper);
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "inodeManager get inode fail, ret = "
-                           << ret << ", inodeid = " << ino;
-                return;
-            }
-            uint64_t len = inodeWrapper->GetLength();
-            VLOG(9) << "ino is: " << ino << ", len is: " << len;
-            WarmUpFileContext_t warmUpFile{ino, len, true};
-            SetWarmUpFile(warmUpFile);
-        }
-    }
-}
-
-void FuseClient::FetchDentryEnqueue(std::string file) {
-    VLOG(9) << "FetchDentryEnqueue start: " << file;
-    auto task = [this, file]() {
-        LookPath(file);
-    };
-    taskFetchMetaPool_.Enqueue(task);
-}
-
-void FuseClient::LookPath(std::string file) {
-    VLOG(9) << "LookPath start: " << file;
-    std::vector<std::string> splitPath;
-    // remove enter, newline, blank
-    std::string blanks("\r\n ");
-    file.erase(0, file.find_first_not_of(blanks));
-    file.erase(file.find_last_not_of(blanks) + 1);
-    if (file.empty()) {
-        VLOG(9) << "empty path";
-        return;
-    }
-    bool isRoot = false;
-    if (file == "/") {
-        splitPath.push_back(file);
-        isRoot = true;
-    } else {
-        splitStr(file, "/", &splitPath);
-    }
-    VLOG(6) << "splitPath size is: " << splitPath.size();
-    if (splitPath.size() == 1 && isRoot) {
-        VLOG(9) << "i am root";
-        FetchChildDentryEnqueue(fsInfo_->rootinodeid());
-        return;
-    } else if (splitPath.size() == 1) {
-        VLOG(9) << "parent is root: " << fsInfo_->rootinodeid()
-                << ", path is: " << splitPath[0];
-        this->FetchDentry(fsInfo_->rootinodeid(), splitPath[0]);
-        return;
-    } else if (splitPath.size() > 1) {  // travel path
-        VLOG(9) << "traverse path start: " << splitPath.size();
-        std::string lastName = splitPath.back();
-        splitPath.pop_back();
-        fuse_ino_t ino = fsInfo_->rootinodeid();
-        for (auto iter : splitPath) {
-            VLOG(9) << "traverse path: " << iter
-                    << "ino is: " << ino;
-            Dentry dentry;
-            std::string pathName = iter;
-            CURVEFS_ERROR ret = dentryManager_->GetDentry(
-              ino, pathName, &dentry);
-            if (ret != CURVEFS_ERROR::OK) {
-                if (ret != CURVEFS_ERROR::NOTEXIST) {
-                  LOG(WARNING) << "dentryManager_ get dentry fail, ret = "
-                    << ret << ", parent inodeid = " << ino
-                    << ", name = " << file;
-                }
-                VLOG(9) << "FetchDentry error: " << ret;
-                return;
-            }
-            ino = dentry.inodeid();
-        }
-        this->FetchDentry(ino, lastName);
-        VLOG(9) << "ino is: " << ino
-                << "lastname is: " << lastName;
-        return;
-    } else {
-        VLOG(3) << "unknown path";
-    }
-    return;
-}
-
-void FuseClient::FetchChildDentryEnqueue(fuse_ino_t  ino) {
-    auto task = [this, ino]() {
-       // reverse from root
-       this->FetchChildDentry(ino);
-    };
-    taskFetchMetaPool_.Enqueue(task);
-}
-
-void FuseClient::FetchChildDentry(fuse_ino_t ino) {
-    VLOG(9) << "FetchChildDentry start: " <<  ino;
-    std::list<Dentry> dentryList;
-    auto limit = option_.listDentryLimit;
-    CURVEFS_ERROR ret = dentryManager_->ListDentry(
-      ino, &dentryList, limit);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
-                    << ", parent = " << ino;
-        return;
-    }
-    for (auto iter : dentryList) {
-        VLOG(9) << "FetchChildDentry: " <<  iter.name();
-        if (FsFileType::TYPE_S3 == iter.type()) {
-            std::unique_lock<std::mutex> lck(fetchMtx_);
-            readAheadFiles_.push_front(iter.inodeid());
-            VLOG(9) << "FetchChildDentry: " << iter.inodeid();;
-        } else if (FsFileType::TYPE_DIRECTORY == iter.type()) {
-            FetchChildDentryEnqueue(iter.inodeid());
-            VLOG(9) << "FetchChildDentry: " << iter.inodeid();
-        } else if (FsFileType::TYPE_SYM_LINK == iter.type()) {  // need todo
-        } else {
-            VLOG(9) << "unknown type";
-        }
-    }
-    return;
-}
-
-void FuseClient::FetchDentry(fuse_ino_t ino, std::string file) {
-    VLOG(9) << "FetchDentry start: " << file
-            << ", ino: " << ino;
-    Dentry dentry;
-    CURVEFS_ERROR ret = dentryManager_->GetDentry(ino, file, &dentry);
-    if (ret != CURVEFS_ERROR::OK) {
-        if (ret != CURVEFS_ERROR::NOTEXIST) {
-            LOG(WARNING) << "dentryManager_ get dentry fail, ret = " << ret
-                         << ", parent inodeid = " << ino
-                         << ", name = " << file;
-        }
-        VLOG(1) << "FetchDentry error: " << ret;
-        return;
-    }
-    if (FsFileType::TYPE_S3 == dentry.type()) {
-        std::unique_lock<std::mutex> lck(fetchMtx_);
-        readAheadFiles_.push_front(dentry.inodeid());
-        return;
-    } else if (FsFileType::TYPE_DIRECTORY == dentry.type()) {
-        FetchChildDentryEnqueue(dentry.inodeid());
-        VLOG(9) << "FetchDentry: " << dentry.inodeid();
-        return;
-
-    } else if (FsFileType::TYPE_SYM_LINK == dentry.type()) {
-    } else {
-        VLOG(3) << "unkown, file: " << file
-                << ", ino: " << ino;
-    }
-    VLOG(9) << "FetchDentry end: " << file
-            << ", ino: " << ino;
-    return;
-}
-
 void FuseClient::UnInit() {
-    bgCmdStop_.store(true, std::memory_order_release);
-    WarmUpRun();
-    if (bgCmdTaskThread_.joinable()) {
-        bgCmdTaskThread_.join();
+    if (warmupManager_ != nullptr) {
+        warmupManager_->UnInit();
     }
-    taskFetchMetaPool_.Stop();
+
     delete mdsBase_;
     mdsBase_ = nullptr;
 }
@@ -404,7 +216,9 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     }
 
     init_ = true;
-    mounted_.store(true, std::memory_order_release);
+    if (warmupManager_ != nullptr) {
+        warmupManager_->SetMounted(true);
+    }
     return CURVEFS_ERROR::OK;
 }
 
