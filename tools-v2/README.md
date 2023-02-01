@@ -960,14 +960,17 @@ Output:
 ### delete
 
 #### delete peer
+
 delete the peer from the copyset
 
 Usage:
+
 ```bash
 curve bs delete peer
 ```
 
 Output:
+
 ```bash
 +------------------+------------------+---------+---------+--------+
 |      LEADER      |       PEER       | COPYSET | RESULT  | REASON |
@@ -977,7 +980,6 @@ Output:
 
 
 ```
-
 
 ## Comparison of old and new commands
 
@@ -1020,14 +1022,14 @@ Output:
 | status | |
 | chunkserver-status | |
 | client-status | |
-| client-list | curve bs list client |
+| curve_ops_tool client-list | curve bs list client |
 | snapshot-clone-status | |
 | copysets-status | |
 | chunkserver-list | |
 | cluster-status | |
-| list | |
+| curve_ops_tool list | curve bs list dir |
 | seginfo | |
-| delete | |
+| curve_ops_tool delete | curve bs delete file |
 | clean-recycle | |
 | create | |
 | chunk-location | |
