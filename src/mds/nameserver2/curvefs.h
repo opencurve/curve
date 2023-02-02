@@ -765,10 +765,6 @@ class CurveFS {
     StatusCode ListCloneSourceFileSegments(
         const FileInfo* fileInfo, CloneSourceSegment* cloneSourceSegment) const;
 
-    StatusCode CheckStripeParam(uint64_t stripeUnit,
-                           uint64_t stripeCount);
-
-
  private:
     FileInfo rootFileInfo_;
     std::shared_ptr<NameServerStorage> storage_;
@@ -802,6 +798,11 @@ class ChunkServerRegistInfoBuilderImpl : public ChunkServerRegistInfoBuilder {
  private:
     CurveFS *cfs_;
 };
+
+StatusCode CheckStripeParam(uint64_t segmentSize,
+                            uint64_t chunkSize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount);
 
 }   // namespace mds
 }   // namespace curve
