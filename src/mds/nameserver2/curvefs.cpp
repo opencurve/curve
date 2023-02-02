@@ -262,7 +262,8 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         }
     }
 
-    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    auto ret = CheckStripeParam(defaultSegmentSize_, defaultChunkSize_,
+                                stripeUnit, stripeCount);
     if (ret != StatusCode::kOK) {
         return ret;
     }
@@ -1681,7 +1682,8 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         return StatusCode::kParaError;
     }
 
-    auto ret = CheckStripeParam(stripeUnit, stripeCount);
+    auto ret = CheckStripeParam(defaultSegmentSize_, defaultChunkSize_,
+                                stripeUnit, stripeCount);
     if (ret != StatusCode::kOK) {
         return ret;
     }
@@ -2354,37 +2356,55 @@ uint64_t CurveFS::GetMaxFileLength() {
     return maxFileLength_;
 }
 
-StatusCode CurveFS::CheckStripeParam(uint64_t stripeUnit,
-                           uint64_t stripeCount) {
-    if ((stripeUnit == 0) && (stripeCount == 0 )) {
+StatusCode CheckStripeParam(uint64_t segmentSize,
+                            uint64_t chunkSize,
+                            uint64_t stripeUnit,
+                            uint64_t stripeCount) {
+    if ((stripeUnit == 0) && (stripeCount == 0)) {
         return StatusCode::kOK;
     }
 
-    if ((stripeUnit && !stripeCount) ||
-    (!stripeUnit && stripeCount)) {
-        LOG(ERROR) << "can't just one is zero. stripeUnit:"
-        << stripeUnit << ",stripeCount:" << stripeCount;
+    if ((stripeUnit && !stripeCount) || (!stripeUnit && stripeCount)) {
+        LOG(WARNING) << "stripe unit/count should specify both or neither, "
+                        "stripe unit: "
+                     << stripeUnit << ", stripe count: " << stripeCount;
         return StatusCode::kParaError;
     }
 
-    if (stripeUnit > defaultChunkSize_) {
-        LOG(ERROR) << "stripeUnit more than chunksize.stripeUnit:"
-                                                   << stripeUnit;
+    if (stripeUnit > chunkSize) {
+        LOG(WARNING) << "stripe unit cannot exceed chunk size, stripe unit: "
+                     << stripeUnit << ", chunk size: " << chunkSize;
         return StatusCode::kParaError;
     }
 
-    if ((defaultChunkSize_ % stripeUnit != 0) ||
-                 (defaultChunkSize_ % stripeCount != 0)) {
-        LOG(ERROR) << "is not divisible by chunksize. stripeUnit:"
-           << stripeUnit << ",stripeCount:" << stripeCount;
+    if ((chunkSize % stripeUnit != 0) || (chunkSize % stripeCount != 0)) {
+        LOG(WARNING) << "stripe unit/count is not divisible by chunksize. "
+                        "stripe unit: "
+                     << stripeUnit << ", stripe count: " << stripeCount
+                     << ", chunk size: " << chunkSize;
         return StatusCode::kParaError;
     }
 
-     // chunkserver check req offset and len align as 4k,
-     // such as ChunkServiceImpl::CheckRequestOffsetAndLength
+    // chunkserver check req offset and len align as 4k,
+    // such as ChunkServiceImpl::CheckRequestOffsetAndLength
     if (stripeUnit % 4096 != 0) {
-        LOG(ERROR) << "stripeUnit is not aligned as 4k. stripeUnit:"
-           << stripeUnit << ",stripeCount:" << stripeCount;
+        LOG(WARNING) << "stripe unit is not aligned as 4k, stripe unit:"
+                     << stripeUnit;
+        return StatusCode::kParaError;
+    }
+
+    // constrains stripe in one segment
+    if (stripeCount > (segmentSize / chunkSize)) {
+        LOG(WARNING) << "stripe count is too large, maximum is "
+                     << (segmentSize / chunkSize) << ", current stripe count: "
+                     << stripeCount;
+        return StatusCode::kParaError;
+    }
+
+    if (stripeCount == 1 && stripeUnit != chunkSize) {
+        LOG(WARNING) << "when stripe count is 1, stripe unit must equals to "
+                        "chunk size, current stripe unit: "
+                     << stripeUnit << ", chunk size: " << chunkSize;
         return StatusCode::kParaError;
     }
 

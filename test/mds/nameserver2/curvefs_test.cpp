@@ -4055,11 +4055,19 @@ TEST_F(CurveFSTest, ListAllVolumesOnCopyset) {
     }
 }
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::InitGoogleMock(&argc, argv);
+TEST(StripeParamTest, Test) {
+    constexpr uint64_t segmentSize = 1ULL * 1024 * 1024 * 1024;  // 1GiB
+    constexpr uint64_t chunkSize = 16ULL * 1024 * 1024;          // 16MiB
 
-    return RUN_ALL_TESTS();
+    auto rc = CheckStripeParam(segmentSize, chunkSize, 4096, 1);
+    EXPECT_EQ(StatusCode::kParaError, rc);
+
+    rc = CheckStripeParam(segmentSize, chunkSize, 4096, 128);
+    EXPECT_EQ(StatusCode::kParaError, rc);
+
+    rc = CheckStripeParam(segmentSize, chunkSize, 4096,
+                          segmentSize / chunkSize);
+    EXPECT_EQ(StatusCode::kOK, rc);
 }
 
 }  // namespace mds
