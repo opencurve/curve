@@ -31,6 +31,7 @@
 #include <list>
 #include <utility>
 #include <regex> // NOLINT
+#include <unordered_map>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -349,11 +350,96 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     uint32_t gid = 0;                 // TODO(cw123)
     uint32_t mode = S_IFDIR | 01777;  // TODO(cw123)
 
+    PartitionInfo partition;
     std::set<std::string> addrs;
+
+    // handle create fs error
+    bool isValidTime =
+        (request->has_recycletimehour() && request->recycletimehour() != 0);
+    std::unordered_map<FSStatusCode, std::string> errorMap{
+        {FSStatusCode::INSERT_ROOT_INODE_ERROR, "insert root inode fail"},
+        {FSStatusCode::INSERT_MANAGE_INODE_FAIL, "insert trash inode fail"},
+        {FSStatusCode::INSERT_DENTRY_FAIL, "insert trash dentry fail"},
+        {FSStatusCode::UPDATE_FS_FAIL, "create trash inode fail"}};
+
+    auto cleanUpOnCreateFsFailure =
+        [&](FSStatusCode rootStatus,
+            FSStatusCode failureStage) -> FSStatusCode {
+        if (errorMap.find(failureStage) == errorMap.end()) {
+            return rootStatus;
+        }
+
+        FSStatusCode childStatus = FSStatusCode::OK;
+        switch (failureStage) {
+        case FSStatusCode::UPDATE_FS_FAIL:
+            if (isValidTime) {
+                childStatus = metaserverClient_->DeleteDentry(
+                    wrapper.GetFsId(), partition.poolid(),
+                    partition.copysetid(), partition.partitionid(), ROOTINODEID,
+                    RECYCLENAME, addrs);
+                if (childStatus != FSStatusCode::OK) {
+                    LOG(ERROR) << "CreateFs fail, " << errorMap[failureStage]
+                               << ", then delete recycle dentry fail"
+                               << ", fsName = " << fsName
+                               << ", ret = " << FSStatusCode_Name(childStatus);
+                    return childStatus;
+                }
+            }
+            FALLTHROUGH_INTENDED;
+        case FSStatusCode::INSERT_DENTRY_FAIL:
+            if (isValidTime) {
+                childStatus = metaserverClient_->DeleteInode(wrapper.GetFsId(),
+                                                             RECYCLEINODEID);
+                if (childStatus != FSStatusCode::OK) {
+                    LOG(ERROR) << "CreateFs fail, " << errorMap[failureStage]
+                               << ", then delete recycle inode fail"
+                               << ", fsName = " << fsName
+                               << ", ret = " << FSStatusCode_Name(childStatus);
+                    return childStatus;
+                }
+            }
+            FALLTHROUGH_INTENDED;
+        case FSStatusCode::INSERT_MANAGE_INODE_FAIL:
+            childStatus =
+                metaserverClient_->DeleteInode(wrapper.GetFsId(), GetRootId());
+            if (childStatus != FSStatusCode::OK) {
+                LOG(ERROR) << "CreateFs fail, " << errorMap[failureStage]
+                           << ", then delete root inode fail"
+                           << ", fsName = " << fsName
+                           << ", ret = " << FSStatusCode_Name(childStatus);
+                return childStatus;
+            }
+            FALLTHROUGH_INTENDED;
+        case FSStatusCode::INSERT_ROOT_INODE_ERROR:
+            if (FSStatusCode::CREATE_PARTITION_ERROR != rootStatus) {
+                if (TopoStatusCode::TOPO_OK !=
+                    topoManager_->DeletePartition(partition.partitionid())) {
+                    LOG(ERROR) << "CreateFs fail, " << errorMap[failureStage]
+                               << ", then delete partition fail"
+                               << ", fsName = " << fsName << ", ret = "
+                               << FSStatusCode_Name(
+                                      FSStatusCode::DELETE_PARTITION_ERROR);
+                    return FSStatusCode::DELETE_PARTITION_ERROR;
+                }
+            }
+
+            childStatus = fsStorage_->Delete(fsName);
+            if (childStatus != FSStatusCode::OK) {
+                LOG(ERROR) << "CreateFs fail, " << errorMap[failureStage]
+                           << ", then delete fs fail"
+                           << ", fsName = " << fsName
+                           << ", ret = " << FSStatusCode_Name(childStatus);
+                return childStatus;
+            }
+            break;
+        default:
+            return rootStatus;
+        }
+    return rootStatus;
+    };
 
     // create partition
     FSStatusCode ret = FSStatusCode::OK;
-    PartitionInfo partition;
     TopoStatusCode topoRet = topoManager_->CreatePartitionsAndGetMinPartition(
         wrapper.GetFsId(), &partition);
     if (TopoStatusCode::TOPO_OK != topoRet) {
@@ -377,32 +463,28 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
         }
     }
     if (ret != FSStatusCode::OK && ret != FSStatusCode::INODE_EXIST) {
-        LOG(ERROR) << "CreateFs fail, insert root inode fail"
+        LOG(ERROR) << "CreateFs fail, "
+                   << errorMap[FSStatusCode::INSERT_ROOT_INODE_ERROR]
                    << ", fsName = " << fsName
                    << ", ret = " << FSStatusCode_Name(ret);
-        // TODO(wanghai): need delete partition if created
-        FSStatusCode ret2 = fsStorage_->Delete(fsName);
-        if (ret2 != FSStatusCode::OK) {
-            LOG(ERROR) << "CreateFs fail, insert root inode fail,"
-                       << " then delete fs fail, fsName = " << fsName
-                       << ", errCode = " << ret2;
-            return ret2;
-        }
-        return ret;
+        // delete partition if created
+        return cleanUpOnCreateFsFailure(ret,
+                                        FSStatusCode::INSERT_ROOT_INODE_ERROR);
     }
 
     // if trash time is not 0, create trash inode and dentry for fs
-    if (request->has_recycletimehour() && request->recycletimehour() != 0) {
+    if (isValidTime) {
         ret = metaserverClient_->CreateManageInode(
             wrapper.GetFsId(), partition.poolid(), partition.copysetid(),
             partition.partitionid(), uid, gid, mode,
             ManageInodeType::TYPE_RECYCLE, addrs);
         if (ret != FSStatusCode::OK && ret != FSStatusCode::INODE_EXIST) {
-            LOG(ERROR) << "CreateFs fail, create trash inode fail"
-                    << ", fsName = " << fsName
-                    << ", ret = " << FSStatusCode_Name(ret);
-            // TODO(chenwei): delete root inode, delete fs
-            return ret;
+            LOG(ERROR) << "CreateFs fail, "
+                       << errorMap[FSStatusCode::INSERT_MANAGE_INODE_FAIL]
+                       << ", fsName = " << fsName
+                       << ", ret = " << FSStatusCode_Name(ret);
+            return cleanUpOnCreateFsFailure(
+                ret, FSStatusCode::INSERT_MANAGE_INODE_FAIL);
         }
 
         ret = metaserverClient_->CreateDentry(
@@ -410,11 +492,12 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
             partition.partitionid(), ROOTINODEID, RECYCLENAME, RECYCLEINODEID,
             addrs);
         if (ret != FSStatusCode::OK) {
-            LOG(ERROR) << "CreateFs fail, insert trash dentry fail"
-                    << ", fsName = " << fsName
-                    << ", ret = " << FSStatusCode_Name(ret);
-            // TODO(chenwei): delete fs
-            return ret;
+            LOG(ERROR) << "CreateFs fail, "
+                       << errorMap[FSStatusCode::INSERT_DENTRY_FAIL]
+                       << ", fsName = " << fsName
+                       << ", ret = " << FSStatusCode_Name(ret);
+            return cleanUpOnCreateFsFailure(ret,
+                                            FSStatusCode::INSERT_DENTRY_FAIL);
         }
     }
 
@@ -423,26 +506,12 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     // for persistence consider
     ret = fsStorage_->Update(wrapper);
     if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "CreateFs fail, update fs to inited fail"
+        LOG(ERROR) << "CreateFs fail, "
+                   << errorMap[FSStatusCode::UPDATE_FS_FAIL]
                    << ", fsName = " << fsName
                    << ", ret = " << FSStatusCode_Name(ret);
-        // TODO(wanghai): delete partiton and inode
-        // ret = metaserverClient_->DeleteInode(wrapper.GetFsId(), GetRootId());
-        // if (ret != FSStatusCode::OK) {
-        //     LOG(ERROR) << "CreateFs fail, update fs status to inited fail"
-        //                << ", then delete root inode fail"
-        //                << ", fsName = " << fsName
-        //                << ", ret = " << FSStatusCode_Name(ret);
-        //     return ret;
-        // }
-
-        // ret = fsStorage_->Delete(fsName);
-        // if (ret != FSStatusCode::OK) {
-        //     LOG(ERROR) << "CreateFs fail, insert root inode fail, "
-        //                << "then delete fs fail, fsName = " << fsName
-        //                << ", errCode = " << FSStatusCode_Name(ret);
-        // }
-        return ret;
+        // delete recycle dentry and recyle inode if created
+        return cleanUpOnCreateFsFailure(ret, FSStatusCode::UPDATE_FS_FAIL);
     }
 
     *fsInfo = std::move(wrapper).ProtoFsInfo();
