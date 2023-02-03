@@ -87,6 +87,12 @@ If the work to be done is more complicated, you need to write a detailed design 
 It is also recommended to communicate with us before starting the plan writing. If you are not sure about the feasibility of the plan, you can provide a simple plan description first, and then refine and develop it after our evaluation.
 
 
+## How to start a document contribution
+
+The curve docs path is in [curve/docs/](https://github.com/opencurve/curve/tree/master/docs), please use markdown format about the docs contribution except ppt.
+
+Document contribution don't need to trigger CI. please add ```[skipci]``` in your github pr title.
+
 ## How to submit a PR
 
 Once you've finished writing the code, you can submit a PR. Of course, if the development has not been completed, you can submit PR first in some cases. For example, if you want to let the community take a look at the general solution, you can raise the price of PR after completing the code framework.
@@ -95,13 +101,44 @@ Once you've finished writing the code, you can submit a PR. Of course, if the de
 
 [Build and run Curve tests](https://github.com/opencurve/curve/blob/master/docs/en/build_and_run_en.md#test-case-compilation-and-execution)
 
+Please use clangd for your code completions. More details is in [curve_clangd.md](https://github.com/opencurve/curve/blob/master/docs/cn/clangd.md).
+
+Curve Ci use ```cpplint``` check what your changed.
+
+- install ``cpplint``` (need root)
+  ```bash
+  $ pip install cpplint
+  ```
+
+- check your changed local
+  ```bash
+  $ cpplint --filter=-build/c++11 --quiet --recursive your_path
+  ```
+
 For PR we have the following requirements:
 
-- The CURVE coding standard strictly follows the [Google C++ Open Source Project Coding Guide](https://google.github.io/styleguide/cppguide.html), please follow this guide as well Submit your code.
+- The CURVE coding standard strictly follows the [Google C++ Open Source Project Coding Guide](https://google.github.io/styleguide/cppguide.html), but we use 4 spaces to indent, Clang-format will more helpful for you. Of course, CI will check what your changed. 
 - The code must have test cases, excluding documentation, unit tests (incremental lines cover more than 80%, and incremental branches cover more than 70%); integration tests (merge statistics with unit tests, and meet the unit test coverage requirements).
 - Please fill in the description of the PR as detailed as possible,  associate with the relevant issues, and the PR commit message can clearly see the resolved issues. After submitting to the Curve master branch, Curve CI will be triggered automatically. It is necessary to ensure that the CI is passed, and the Jenkins username and password of the CI is netease/netease, if the CI fails to run, you can log in to the Jenkins platform to view the reason for the failure.
 - After the CI is passed, the review can start, and each PR needs to get at least two LGTMs of Committer/Maintainer before merging.
 - PR code requires a certain amount of comments to make the code easy to understand, and all comments and review comments and replies are required to be in English.
+
+- Please make sure your changed can pass the compile locally.
+
+- We usually merge only one commit after you rebase.
+
+- Trigger CI please comment ```cicheck```.
+  
+  CI checkpoints:
+    
+    1. The changed code style check(cpplint).
+    2. Branch test coverage testing.
+    3. Unit tests(If failed, run the failed tests locally).
+    4. Chaos tests.
+
+Repush will trigger CI, If github page have no reaction. Please wait.
+
+If CI is not stabled, comment ```recheck``` will trigger CI.
 
 ## Comminication
 

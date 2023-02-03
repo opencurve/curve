@@ -20,12 +20,16 @@ mk-tar.sh 和 mk-deb.sh 用于 curve v2.0 之前版本的编译打包，v2.0 版
 docker pull opencurvedocker/curve-base:build-debian9
 ```
 
+```bash
+docker pull opencurvedocker/curve-base:build-debian9
+```
+
 方法二：手动构建docker镜像
 
 使用工程目录下的 docker/debian9/compile/Dockerfile 进行构建，命令如下：
 
 ```bash
-docker build -t opencurvedocker/curve-base:build-debian9 .
+docker build -t opencurvedocker/curve-base:build-debian9
 ```
 
 注意：上述操作不建议在CURVE工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
@@ -97,6 +101,44 @@ bazel build test/common:common-test --copt -DHAVE_ZLIB=1 --define=with_glog=true
 ### 执行测试
 
 执行测试前需要先准备好测试用例运行所需的依赖：
+
+运行单元测试:
+- 构建对应的模块测试:
+  ```bash
+  $ bazel build xxx/...//:xxx_test
+  ```
+- 运行对应的模块测试:
+  ```bash
+  $ bazel run xxx/...//:xxx_test
+  # 或者
+  $ ./bazel-bin/xxx/.../xxx_test
+  ```
+- 编译全部测试及文件
+  ```bash
+  $ bazel build "..."
+  ```
+- bazel 默认自带缓存编译, 但有时可能会失效.
+  
+  清除项目构建缓存:
+  ```bash
+  $ bazel clean
+  ```
+  
+  清除项目依赖缓存(bazel 会将WORKSPACE 文件中的指定依赖项自行编译, 这部分同样也会缓存):
+  ```bash
+  $ bazel clean --expunge
+  ```
+- debug 模式编译(-c 指定向bazel 传递参数), 该模式会在默认构建文件中加入调试符号, 及减少优化等级.
+  ```bash
+  $ bazel build xxx//:xxx_test -c dbg
+  ```
+- 优化模式编译
+  ```bash
+  $ bazel build xxx//:xxx_test -c opt
+  # 优化模式下加入调试符号
+  $ bazel build xxx//:xxx_test -c opt --copt -g
+  ```
+- 更多文档, 详见 [bazel docs](https://bazel.build/docs).
 
 #### 动态库
 
