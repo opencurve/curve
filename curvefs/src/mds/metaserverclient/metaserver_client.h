@@ -88,6 +88,12 @@ class MetaserverClient {
                                       const std::string &name, uint64_t inodeId,
                                       const std::set<std::string> &addrs);
 
+    virtual FSStatusCode DeleteDentry(uint32_t poolId, uint32_t copysetId,
+                                      uint32_t partitionId, uint32_t fsId,
+                                      uint64_t parentInodeId,
+                                      const std::string &name,
+                                      const std::set<std::string> &addrs);
+
     virtual FSStatusCode CreatePartition(uint32_t fsId, uint32_t poolId,
                                          uint32_t copysetId,
                                          uint32_t partitionId, uint64_t idStart,

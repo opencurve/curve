@@ -411,6 +411,8 @@ class MockTopologyManager : public TopologyManager {
     MOCK_METHOD2(DeletePartition, void(const DeletePartitionRequest *request,
                                        DeletePartitionResponse *response));
 
+    MOCK_METHOD1(DeletePartition, TopoStatusCode(uint32_t partitionId));
+
     MOCK_METHOD2(CreatePartitionsAndGetMinPartition,
                  TopoStatusCode(FsIdType fsId, PartitionInfo *partition));
 

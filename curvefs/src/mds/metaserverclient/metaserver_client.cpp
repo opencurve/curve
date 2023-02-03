@@ -35,6 +35,8 @@ using curvefs::metaserver::CreateManageInodeRequest;
 using curvefs::metaserver::CreateManageInodeResponse;
 using curvefs::metaserver::CreateDentryRequest;
 using curvefs::metaserver::CreateDentryResponse;
+using curvefs::metaserver::DeleteDentryRequest;
+using curvefs::metaserver::DeleteDentryResponse;
 using curvefs::metaserver::DeleteInodeRequest;
 using curvefs::metaserver::DeleteInodeResponse;
 using curvefs::metaserver::MetaServerService_Stub;
@@ -298,6 +300,50 @@ FSStatusCode MetaserverClient::CreateDentry(
                            << ", response statuscode = "
                            << response.statuscode();
                 return FSStatusCode::INSERT_DENTRY_FAIL;
+        }
+    }
+}
+
+FSStatusCode
+MetaserverClient::DeleteDentry(uint32_t poolId, uint32_t copysetId,
+                               uint32_t partitionId, uint32_t fsId,
+                               uint64_t parentInodeId, const std::string &name,
+                               const std::set<std::string> &addrs) {
+    DeleteDentryRequest request;
+    DeleteDentryResponse response;
+    request.set_poolid(poolId);
+    request.set_copysetid(copysetId);
+    request.set_partitionid(partitionId);
+    request.set_fsid(fsId);
+    request.set_txid(0);
+    request.set_parentinodeid(parentInodeId);
+    request.set_name(name);
+    request.set_type(FsFileType::TYPE_DIRECTORY);
+
+    auto fp = &MetaServerService_Stub::DeleteDentry;
+    LeaderCtx ctx;
+    ctx.addrs = addrs;
+    ctx.poolId = request.poolid();
+    ctx.copysetId = request.copysetid();
+    auto ret = SendRpc2MetaServer(&request, &response, ctx, fp);
+
+    if (FSStatusCode::RPC_ERROR == ret) {
+        LOG(ERROR) << "DeleteDentry failed, rpc error. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else if (FSStatusCode::NOT_FOUND == ret) {
+        LOG(ERROR) << "DeleteDentry failed, get leader failed. request = "
+                   << request.ShortDebugString();
+        return ret;
+    } else {
+        switch (response.statuscode()) {
+        case MetaStatusCode::OK:
+            return FSStatusCode::OK;
+        default:
+            LOG(ERROR) << "DeleteDentry failed, request = "
+                       << request.ShortDebugString()
+                       << ", response statuscode = " << response.statuscode();
+            return FSStatusCode::DELETE_DENTRY_FAIL;
         }
     }
 }

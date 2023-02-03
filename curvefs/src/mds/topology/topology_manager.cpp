@@ -751,6 +751,19 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
     }
 }
 
+TopoStatusCode TopologyManager::DeletePartition(uint32_t partitionId) {
+    DeletePartitionRequest request;
+    DeletePartitionResponse response;
+    request.set_partitionid(partitionId);
+    DeletePartition(&request, &response);
+
+    if (TopoStatusCode::TOPO_OK != response.statuscode()) {
+        return TopoStatusCode::TOPO_DELETE_PARTITION_ON_METASERVER_FAIL;
+    }
+
+    return TopoStatusCode::TOPO_OK;
+}
+
 void TopologyManager::DeletePartition(
     const DeletePartitionRequest *request,
     DeletePartitionResponse *response) {

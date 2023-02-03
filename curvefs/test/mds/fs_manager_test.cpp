@@ -45,11 +45,17 @@ using ::testing::SaveArg;
 using ::testing::Mock;
 using ::testing::Invoke;
 using ::curvefs::metaserver::MockMetaserverService;
-using curvefs::metaserver::CreateRootInodeRequest;
-using curvefs::metaserver::CreateRootInodeResponse;
-using curvefs::metaserver::DeletePartitionRequest;
-using curvefs::metaserver::DeletePartitionResponse;
-using curvefs::metaserver::MetaStatusCode;
+using ::curvefs::metaserver::CreateRootInodeRequest;
+using ::curvefs::metaserver::CreateRootInodeResponse;
+using ::curvefs::metaserver::CreateManageInodeRequest;
+using ::curvefs::metaserver::CreateManageInodeResponse;
+using ::curvefs::metaserver::CreateDentryRequest;
+using ::curvefs::metaserver::CreateDentryResponse;
+using ::curvefs::metaserver::DeletePartitionRequest;
+using ::curvefs::metaserver::DeletePartitionResponse;
+using ::curvefs::metaserver::DeleteInodeRequest;
+using ::curvefs::metaserver::DeleteInodeResponse;
+using ::curvefs::metaserver::MetaStatusCode;
 using ::google::protobuf::util::MessageDifferencer;
 using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
@@ -82,6 +88,7 @@ namespace mds {
 class FSManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
+        addr_ = "127.0.0.1:6704";
         MetaserverOptions metaserverOptions;
         metaserverOptions.metaserverAddr = addr_;
         metaserverOptions.rpcTimeoutMs = 500;
@@ -122,8 +129,7 @@ class FSManagerTest : public ::testing::Test {
         ASSERT_EQ(0, server_.AddService(&fakeCurveFsService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
 
-        ASSERT_EQ(0, server_.Start("127.0.0.1:0", nullptr));
-        addr_ = butil::endpoint2str(server_.listen_address()).c_str();
+        ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
     }
 
     void TearDown() override {
@@ -189,6 +195,118 @@ void RpcService(google::protobuf::RpcController* cntl_base,
     done->Run();
 }
 
+TEST_F(FSManagerTest, CleanUpWhenCreateFsFail) {
+    std::string addr = addr_;
+    std::string leader = addr_ + ":0";
+    std::set<std::string> addrs{addr};
+    std::string fsName = "fs";
+    uint64_t blockSize = 4096;
+    bool enableSumInDir = false;
+    Volume volume;
+    volume.set_blocksize(blockSize);
+    volume.set_volumename("volume");
+    volume.set_user("user");
+    volume.add_cluster(addr_);
+
+    FsInfo fsInfo;
+    FsDetail fsDetail;
+    fsDetail.set_allocated_volume(new Volume(volume));
+
+    CreateFsRequest req;
+    req.set_fsname(fsName);
+    req.set_blocksize(blockSize);
+    req.set_fstype(FSType::TYPE_VOLUME);
+    req.set_allocated_fsdetail(new FsDetail(fsDetail));
+    req.set_enablesumindir(enableSumInDir);
+    req.set_owner("test");
+    req.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+    req.set_recycletimehour(10);
+
+    FsInfoWrapper wrapper;
+
+    // case1: create volume fs create recycle inode fail
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(addrs), Return(TopoStatusCode::TOPO_OK)));
+    GetLeaderResponse2 getLeaderResponse;
+    getLeaderResponse.mutable_leader()->set_address(leader);
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .Times(2)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(getLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    CreateRootInodeResponse createRootInodeResponse;
+    createRootInodeResponse.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(createRootInodeResponse),
+            Invoke(
+                RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
+
+    CreateManageInodeResponse createManageInodeResponse;
+    createManageInodeResponse.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockMetaserverService_, CreateManageInode(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(createManageInodeResponse),
+                        Invoke(RpcService<CreateManageInodeRequest,
+                                          CreateManageInodeResponse>)));
+    // delete inode, partition and fs in order
+    DeleteInodeResponse deleteInodeResponse;
+    deleteInodeResponse.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaserverService_, DeleteInode(_, _, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(deleteInodeResponse),
+                  Invoke(RpcService<DeleteInodeRequest, DeleteInodeResponse>)));
+    EXPECT_CALL(*topoManager_, DeletePartition(_))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
+
+    ASSERT_EQ(FSStatusCode::INSERT_MANAGE_INODE_FAIL,
+              fsManager_->CreateFs(&req, &fsInfo));
+    ASSERT_EQ(FSStatusCode::NOT_FOUND, fsStorage_->Get(fsName, &wrapper));
+
+    // case2: create volume fs create recycle dentry fail
+    EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
+    EXPECT_CALL(*topoManager_, GetCopysetMembers(_, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(addrs), Return(TopoStatusCode::TOPO_OK)));
+    EXPECT_CALL(mockCliService2_, GetLeader(_, _, _, _))
+        .Times(3)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(getLeaderResponse),
+                  Invoke(RpcService<GetLeaderRequest2, GetLeaderResponse2>)));
+    EXPECT_CALL(mockMetaserverService_, CreateRootInode(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(createRootInodeResponse),
+            Invoke(
+                RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
+    createManageInodeResponse.set_statuscode(MetaStatusCode::OK);
+    EXPECT_CALL(mockMetaserverService_, CreateManageInode(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(createManageInodeResponse),
+                        Invoke(RpcService<CreateManageInodeRequest,
+                                          CreateManageInodeResponse>)));
+
+    CreateDentryResponse createDentryResponse;
+    createDentryResponse.set_statuscode(MetaStatusCode::UNKNOWN_ERROR);
+    EXPECT_CALL(mockMetaserverService_, CreateDentry(_, _, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(createDentryResponse),
+            Invoke(RpcService<CreateDentryRequest, CreateDentryResponse>)));
+    // delete inode, partition and fs in order
+    EXPECT_CALL(mockMetaserverService_, DeleteInode(_, _, _, _))
+        .Times(2)
+        .WillRepeatedly(
+            DoAll(SetArgPointee<2>(deleteInodeResponse),
+                  Invoke(RpcService<DeleteInodeRequest, DeleteInodeResponse>)));
+    EXPECT_CALL(*topoManager_, DeletePartition(_))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
+
+    ASSERT_EQ(FSStatusCode::INSERT_DENTRY_FAIL,
+              fsManager_->CreateFs(&req, &fsInfo));
+    ASSERT_EQ(FSStatusCode::NOT_FOUND, fsStorage_->Get(fsName, &wrapper));
+}
+
 TEST_F(FSManagerTest, test1) {
     std::string addr = addr_;
     std::string leader = addr_ + ":0";
@@ -222,6 +340,8 @@ TEST_F(FSManagerTest, test1) {
 
     ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::CREATE_PARTITION_ERROR);
+    FsInfoWrapper wrapper;
+    ASSERT_EQ(fsStorage_->Get(fsName1, &wrapper), FSStatusCode::NOT_FOUND);
 
     // create volume fs create root inode fail
     EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
@@ -245,8 +365,11 @@ TEST_F(FSManagerTest, test1) {
             SetArgPointee<2>(response),
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
+    EXPECT_CALL(*topoManager_, DeletePartition(_))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     ret = fsManager_->CreateFs(&req, &volumeFsInfo1);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
+    ASSERT_EQ(fsStorage_->Get(fsName1, &wrapper), FSStatusCode::NOT_FOUND);
 
     // create volume fs ok
     EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
@@ -314,12 +437,14 @@ TEST_F(FSManagerTest, test1) {
             Invoke(
                 RpcService<CreateRootInodeRequest, CreateRootInodeResponse>)));
     EXPECT_CALL(*s3Adapter_, BucketExist()).WillOnce(Return(true));
-
+    EXPECT_CALL(*topoManager_, DeletePartition(_))
+        .WillOnce(Return(TopoStatusCode::TOPO_OK));
     req.set_fsname(fsName2);
     req.set_allocated_fsdetail(new FsDetail(detail2));
     req.set_fstype(FSType::TYPE_S3);
     ret = fsManager_->CreateFs(&req, &s3FsInfo);
     ASSERT_EQ(ret, FSStatusCode::INSERT_ROOT_INODE_ERROR);
+    ASSERT_EQ(fsStorage_->Get(fsName2, &wrapper), FSStatusCode::NOT_FOUND);
 
     // create s3 fs ok
     EXPECT_CALL(*topoManager_, CreatePartitionsAndGetMinPartition(_, _))
