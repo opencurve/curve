@@ -45,6 +45,11 @@ Curve 社区有多个[沟通渠道](#社区交流)，每两周还会有线上的
 
 在开始方案撰写之前同样建议先与我们进行沟通，对方案的可行性不太确定的可以先提供简单的方案描述，经过我们评估后再进行细化和开发。
 
+## 如何进行文档贡献
+
+Curve 的文档位于 [curve/docs/](https://github.com/opencurve/curve/tree/master/docs), 贡献请使用 markdown 格式(除了ppt).
+
+文档贡献无需触发 CI, 请在 github pull request 标题头部加上 ```[skipci]```.
 
 ## 如何提交PR
 
@@ -54,9 +59,21 @@ Curve 社区有多个[沟通渠道](#社区交流)，每两周还会有线上的
 
 [Curve 测试用例编译及执行](https://github.com/opencurve/curve/blob/master/docs/cn/build_and_run.md#测试用例编译及执行)
 
+代码补全: 请使用 clangd 作为代码补全, 请见 [curve_clangd.md](https://github.com/opencurve/curve/blob/master/docs/cn/clangd.md).
+
+Curve CI 使用```cpplint```检查更改的代码,
+- 安装```cpplint``` (需要root):
+  ```bash
+  $ pip install cpplint
+  ```
+- 本地进行代码检查:
+  ```bash
+  $ cpplint --filter=-build/c++11 --quiet --recursive your_path
+  ```
+
 对于 PR 我们有如下要求：
 
-- CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，请您也遵循这一指南来提交您的代码。
+- CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，但使用 4 空格进行缩进, 可使用 clang-format 进行格式化, CI 会检查相关更改代码是否符合规则.
 - 代码必须有测试，文档除外，单元测试（增量行覆盖80%以上，增量分支覆盖70%以上）；集成测试（与单元测试合并统计，满足单元测试覆盖率要求即可）
 - 请尽可能详细的填写 PR 的描述，关联相关问题的 issuse，PR commit message 能清晰看出解决的问题，提交到 Curve master 分支之后会自动触发Curve CI，需保证 CI 通过，CI 的 Jenkins 用户名密码为 netease/netease，如遇到 CI 运行失败可以登录 Jenkins 平台查看失败原因。
 - CI 通过之后可开始进行 review，每个 PR 在合并之前都需要至少得到两个 Committer/Maintainer 的 LGTM。
@@ -101,6 +118,25 @@ type 可以是以下类型之一：
 第一行表示标题应尽可能保持 70 个字符以内，阐述修改的模块以及内容，多模块可以使用 `*` 来表示，并在正文阶段说明修改的模块。
 
 footer 是可选的，用来记录对应因为这些更改而可以关闭的 issue，如 `Close #12345`
+
+提交 PR 之前, 请确保你的更改可以成功在本地编译.
+
+与大多数项目一样, review 通过之后请将你诸多commits rebase 成为一个 commit.
+
+触发 CI 请 comment ```cicheck```.
+  
+若发现测试错误, 可查看 CI 对应错误测试.
+
+CI 检查点有:
+  
+  1. 更改代码风格检查(cpplint)
+  2. 分支覆盖率检查(可能会失败)
+  3. 单元测试 (若失败请先尝试在本地运行对应失败测试)
+  4. 混沌测试
+  
+重新 push 会触发 CI, 若暂时无反应, 请耐心等待, 测试处于排队中.
+
+若 CI 不稳定, 可 comment ```recheck```, 重新触发 CI.
 
 ## 社区交流
 

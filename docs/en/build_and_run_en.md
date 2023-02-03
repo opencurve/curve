@@ -21,7 +21,7 @@ Method 2: Build docker image manually
 Use the Dockerfile in the project directory to build. The command is as follows:
 
 ```bash
-docker build -t opencurvedocker/curve-base:build-debian9.
+docker build -t opencurvedocker/curve-base:build-debian9
 ```
 
 Note: The above operations are not recommended to be performed in the CURVE project directory, otherwise the files in the current directory will be copied to the docker image when building the image. It is recommended to copy the Dockerfile to the newly created clean directory to build the docker image.
@@ -95,6 +95,48 @@ $    --define=libunwind=true
 ### Perform the test
 
 Before executing the test, you need to prepare the dependencies required for the test case to run:
+
+execute unit tests:
+- build module tests:
+  ```bash
+  $ bazel build xxx/...//:xxx_test
+  ```
+
+- run module tests:
+
+  ```bash
+  $ bazel run xxx/xxx//:xxx_test
+  ```
+
+- compile all tests
+
+  ```bash
+  $ bazel build "..."
+  ```
+
+- sometimes the bazel compiling cache will be failure.
+
+  clean the project cache:
+  ```bash
+  $ bazel clean
+  ```
+
+  clean the project cache and deps cache.(bazel will also save project cache).
+  ```bash
+  $ bazel clean --expunge
+  ```
+
+- debug mode build:
+  ```bash
+  $ bazel build xxx//:xxx_test -c dbg
+  ```
+
+- releases mode build
+  ```bash
+  $ bazel build xxx//:xxx_test -c opt
+  ```
+
+- more about bazel docs, please go [bazel docs](https://bazel.build/docs).
 
 #### Dynamic library
 
