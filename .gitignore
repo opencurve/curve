@@ -78,6 +78,7 @@ runlog/
 .gdb_history
 
 .clang-format
+.clangd
 !curve-snapshotcloneserver-nginx/app/lib
 !nebd/nebd-package/usr/bin
 
