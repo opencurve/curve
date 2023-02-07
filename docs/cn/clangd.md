@@ -46,13 +46,13 @@
           readability-identifier-naming.VariableCase: camelBack
      UnusedIncludes: Strict
    
-   # 下面几个可以设置为True，可以在对应的地方显示函数形参名称和auto推导出的类型
+   # 下面几个可以设置为Yes，可以在对应的地方显示函数形参名称和auto推导出的类型
    InlayHints:
-     Enabled: False
-     ParameterNames: False
-     DeducedTypes: False
+     Enabled: No
+     ParameterNames: No
+     DeducedTypes: No
    ```
-
+配置文件功能是clangd 11新增的，请升级您的clangd版本
 ### clangd 官网
 
 https://clangd.llvm.org/installation
