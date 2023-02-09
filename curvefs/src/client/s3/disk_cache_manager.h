@@ -174,6 +174,7 @@ class DiskCacheManager {
     uint32_t safeRatio_;
     uint64_t maxUsableSpaceBytes_;
     uint64_t maxFileNums_;
+    uint32_t objectPrefix_;
     // used bytes of disk cache
     std::atomic<int64_t> usedBytes_;
     // used ratio of the file system in disk cache

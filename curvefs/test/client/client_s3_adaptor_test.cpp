@@ -71,6 +71,7 @@ class ClientS3AdaptorTest : public testing::Test {
         option.writeCacheMaxByte = 10485760000;
         option.fuseMaxSize = 131072;
         option.chunkFlushThreads = 5;
+        option.objectPrefix = 0;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         kvClientManager_ = nullptr;
         s3ClientAdaptor_->Init(option, mockS3Client_, mockInodeManager_,

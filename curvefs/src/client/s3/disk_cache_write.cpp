@@ -27,7 +27,6 @@
 #include <dirent.h>
 
 #include <vector>
-
 #include "curvefs/src/client/s3/disk_cache_write.h"
 #include "curvefs/src/common/s3util.h"
 
@@ -38,6 +37,7 @@ namespace client {
 void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
                           std::shared_ptr<PosixWrapper> posixWrapper,
                           const std::string cacheDir,
+                          uint32_t objectPrefix,
                           uint64_t asyncLoadPeriodMs,
                           std::shared_ptr<SglLRUCache<
                             std::string>> cachedObjName) {
@@ -45,7 +45,7 @@ void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
     posixWrapper_ = posixWrapper;
     asyncLoadPeriodMs_ = asyncLoadPeriodMs;
     cachedObjName_ = cachedObjName;
-    DiskCacheBase::Init(posixWrapper, cacheDir);
+    DiskCacheBase::Init(posixWrapper, cacheDir, objectPrefix);
 }
 
 void DiskCacheWrite::AsyncUploadEnqueue(const std::string objName) {
@@ -195,8 +195,8 @@ int DiskCacheWrite::GetUploadFile(const std::string &inode,
         return toUpload->size();
     }
     waitUpload_.remove_if([&](const std::string &filename) {
-        bool inodeFile =
-            curvefs::common::s3util::ValidNameOfInode(inode, filename);
+        bool inodeFile = curvefs::common::s3util::ValidNameOfInode(
+                inode, filename, objectPrefix_);
         if (inodeFile) {
             toUpload->emplace_back(filename);
         }
@@ -217,7 +217,8 @@ int DiskCacheWrite::FileExist(const std::string &inode) {
     }
 
     for (auto iter = cachedObj.begin(); iter != cachedObj.end(); iter++) {
-        bool exist = curvefs::common::s3util::ValidNameOfInode(inode, *iter);
+        bool exist = curvefs::common::s3util::ValidNameOfInode(
+                        inode, *iter, objectPrefix_);
         if (exist) {
             return 1;
         }
@@ -337,31 +338,50 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     bool ret;
     DIR *cacheWriteDir = NULL;
     struct dirent *cacheWriteDirent = NULL;
+    int doRet;
     fileFullPath = GetCacheIoFullDir();
     ret = IsFileExist(fileFullPath);
     if (!ret) {
         LOG(ERROR) << "cache write dir is not exist.";
         return -1;
     }
-    cacheWriteDir = posixWrapper_->opendir(fileFullPath.c_str());
-    if (!cacheWriteDir) {
-        LOG(ERROR) << "opendir error, errno = " << errno;
-        return -1;
-    }
-    int doRet;
     std::vector<std::string> uploadObjs;
-    while ((cacheWriteDirent = posixWrapper_->readdir(cacheWriteDir)) != NULL) {
-        if ((!strncmp(cacheWriteDirent->d_name, ".", 1)) ||
-            (!strncmp(cacheWriteDirent->d_name, "..", 2)))
-            continue;
-
-        std::string fileName = cacheWriteDirent->d_name;
-        uploadObjs.push_back(fileName);
-    }
-    doRet = posixWrapper_->closedir(cacheWriteDir);
-    if (doRet < 0) {
-        LOG(ERROR) << "close error， errno = " << errno;
-        return doRet;
+    std::function<bool(const std::string &path,
+                       std::vector<std::string> *cacheObj)> listDir;
+    listDir = [&listDir, this](const std::string &path,
+                               std::vector<std::string> *cacheObj) -> bool {
+        DIR *dir;
+        struct dirent *ent;
+        std::string fileName, nextdir;
+        if ((dir = posixWrapper_->opendir(path.c_str())) != NULL) {
+            while ((ent = posixWrapper_->readdir(dir)) != NULL) {
+                if (strncmp(ent->d_name, ".", 1) == 0 ||
+                        strncmp(ent->d_name, "..", 2) == 0) {
+                    continue;
+                } else if (ent->d_type == 8) {
+                    fileName = std::string(ent->d_name);
+                    VLOG(9) << "LoadAllCacheFile obj, name = " << fileName;
+                    cacheObj->emplace_back(fileName);
+                } else {
+                    nextdir = std::string(ent->d_name);
+                    nextdir = path + '/' + nextdir;
+                    if (!listDir(nextdir, cacheObj)) {
+                        return false;
+                    }
+                }
+            }
+            int ret = posixWrapper_->closedir(dir);
+            if (ret < 0) {
+                LOG(ERROR) << "close dir "  << dir << ", error = " << errno;
+            }
+            return ret >= 0;
+        }
+        LOG(ERROR) << "cache write dir open failed, path: " << path;
+        return false;
+    };
+    ret = listDir(fileFullPath, &uploadObjs);
+    if (!ret) {
+        return -1;
     }
     if (uploadObjs.empty()) {
         return 0;
@@ -396,7 +416,8 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
             client_->UploadAsync(context);
         };
         auto context = std::make_shared<PutObjectAsyncContext>();
-        context->key = *iter;
+        context->key = curvefs::common::s3util::GenPathByObjName(
+                                *iter, objectPrefix_);
         context->buffer = buffer;
         context->bufferSize = fileSize;
         context->cb = cb;
@@ -436,6 +457,14 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
     std::string fileFullPath;
     int fd, ret;
     fileFullPath = GetCacheIoFullDir() + "/" + fileName;
+    if (objectPrefix_ != 0) {
+        ret = CreateDir(fileFullPath);
+        if (ret < 0) {
+            LOG(ERROR) << "create dirpath error. errno = " << errno
+                    << ", file = " << fileFullPath;
+            return -1;
+        }
+    }
     fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno

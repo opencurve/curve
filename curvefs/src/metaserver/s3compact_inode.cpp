@@ -195,7 +195,8 @@ void CompactInodeJob::GenS3ReadRequests(
              beginRoundDown + index * blockSize <= curr->end; index++) {
             // read the block obj
             std::string objName = curvefs::common::s3util::GenObjName(
-                curr->chunkid, index, curr->compaction, ctx.fsId, ctx.inodeId);
+                curr->chunkid, index, curr->compaction, ctx.fsId,
+                ctx.inodeId, ctx.objectPrefix);
             uint64_t s3objBegin =
                 std::max(curr->chunkoff, beginRoundDown + index * blockSize);
             uint64_t s3objEnd =
@@ -349,7 +350,7 @@ int CompactInodeJob::WriteFullChunk(
          index * blockSize + offRoundDown < newOff + chunkLen; index += 1) {
         std::string objName = curvefs::common::s3util::GenObjName(
             newChunkInfo.newChunkId, index, newChunkInfo.newCompaction,
-            ctx.fsId, ctx.inodeId);
+            ctx.fsId, ctx.inodeId, ctx.objectPrefix);
         const Aws::String aws_key(objName.c_str(), objName.size());
         int ret;
         uint64_t s3objBegin =
@@ -407,7 +408,8 @@ bool CompactInodeJob::CompactPrecheck(const struct S3CompactTask& task,
 S3Adapter* CompactInodeJob::SetupS3Adapter(uint64_t fsId,
                                                   uint64_t* s3adapterIndex,
                                                   uint64_t* blockSize,
-                                                  uint64_t* chunkSize) {
+                                                  uint64_t* chunkSize,
+                                                  uint32_t* objectPrefix) {
     auto pairResult = opts_->s3adapterManager->GetS3Adapter();
     *s3adapterIndex = pairResult.first;
     auto s3adapter = pairResult.second;
@@ -421,6 +423,7 @@ S3Adapter* CompactInodeJob::SetupS3Adapter(uint64_t fsId,
     if (status == 0) {
         *blockSize = s3info.blocksize();
         *chunkSize = s3info.chunksize();
+        *objectPrefix = s3info.objectprefix();
         if (s3adapter->GetS3Ak() != s3info.ak() ||
             s3adapter->GetS3Sk() != s3info.sk() ||
             s3adapter->GetS3Endpoint() != s3info.endpoint()) {
@@ -528,7 +531,7 @@ void CompactInodeJob::DeleteObjsOfS3ChunkInfoList(
              offRoundDown + index * ctx.blockSize < off + len; index++) {
             std::string objName = curvefs::common::s3util::GenObjName(
                 chunkinfo.chunkid(), index, chunkinfo.compaction(), ctx.fsId,
-                ctx.inodeId);
+                ctx.inodeId, ctx.objectPrefix);
             VLOG(6) << "s3compact: delete " << objName;
             const Aws::String aws_key(objName.c_str(), objName.size());
             int r = ctx.s3adapter->DeleteObject(
@@ -555,8 +558,9 @@ void CompactInodeJob::CompactChunks(const S3CompactTask& task) {
     uint64_t blockSize;
     uint64_t chunkSize;
     uint64_t s3adapterIndex;
+    uint32_t objectPrefix;
     S3Adapter* s3adapter = SetupS3Adapter(task.inodeKey.fsId, &s3adapterIndex,
-                                          &blockSize, &chunkSize);
+                                        &blockSize, &chunkSize, &objectPrefix);
     if (s3adapter == nullptr) return;
     // need compact?
     std::vector<uint64_t> needCompact =
@@ -570,7 +574,7 @@ void CompactInodeJob::CompactChunks(const S3CompactTask& task) {
     // 1. read full chunk & write new objs, each chunk one by one
     struct S3CompactCtx compactCtx {
         task.inodeKey.inodeId, task.inodeKey.fsId, task.pinfo, blockSize,
-            chunkSize, s3adapterIndex, s3adapter
+            chunkSize, s3adapterIndex, objectPrefix, s3adapter
     };
     std::unordered_map<uint64_t, std::vector<std::string>> objsAddedMap;
     ::google::protobuf::Map<uint64_t, S3ChunkInfoList> s3ChunkInfoAdd;

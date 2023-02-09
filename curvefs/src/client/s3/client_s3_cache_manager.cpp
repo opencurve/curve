@@ -553,6 +553,7 @@ int FileCacheManager::ReadKVRequest(
         uint64_t chunkIndex = 0, chunkPos = 0, blockIndex = 0, blockPos = 0;
         uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
         uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+        uint32_t objectPrefix = s3ClientAdaptor_->GetObjectPrefix();
         GetBlockLoc(req->offset, &chunkIndex, &chunkPos, &blockIndex,
                     &blockPos);
 
@@ -580,7 +581,7 @@ int FileCacheManager::ReadKVRequest(
             assert(blockPos >= objectOffset);
             std::string name = curvefs::common::s3util::GenObjName(
                 req->chunkId, blockIndex, req->compaction, req->fsId,
-                req->inodeId);
+                req->inodeId, objectPrefix);
             char *currentBuf = dataBuf + req->readOffset + readBufOffset;
 
             // read from localcache -> remotecache -> s3
@@ -630,12 +631,14 @@ void FileCacheManager::PrefetchForBlock(const S3ReadRequest &req,
                                        uint64_t chunkSize,
                                        uint64_t startBlockIndex) {
     uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
+    uint32_t objectPrefix = s3ClientAdaptor_->GetObjectPrefix();
     std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
 
     uint64_t blockIndex = startBlockIndex;
     for (uint32_t i = 0; i < prefetchBlocks; i++) {
         std::string name = curvefs::common::s3util::GenObjName(
-            req.chunkId, blockIndex, req.compaction, req.fsId, req.inodeId);
+            req.chunkId, blockIndex, req.compaction,
+            req.fsId, req.inodeId, objectPrefix);
         uint64_t maxReadLen = (blockIndex + 1) * blockSize;
         uint64_t needReadLen = maxReadLen > fileLen
                                    ? fileLen - blockIndex * blockSize
@@ -2297,6 +2300,7 @@ CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
     // generate flush task
     uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    uint32_t objectPrefix = s3ClientAdaptor_->GetObjectPrefix();
     uint64_t blockPos = chunkPos_ % blockSize;
     uint64_t blockIndex = chunkPos_ / blockSize;
     uint64_t remainLen = len_;
@@ -2306,7 +2310,7 @@ CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
 
         // generate flush to disk or s3 task
         std::string objectName = curvefs::common::s3util::GenObjName(
-            *chunkId, blockIndex, 0, fsId, inodeId);
+            *chunkId, blockIndex, 0, fsId, inodeId, objectPrefix);
         int ret = 0;
         uint64_t start = butil::cpuwide_time_us();
         auto context = std::make_shared<PutObjectAsyncContext>();

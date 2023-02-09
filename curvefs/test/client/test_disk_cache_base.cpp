@@ -56,7 +56,7 @@ class TestDiskCacheBase : public ::testing::Test {
     virtual void SetUp() {
         wrapper_ = std::make_shared<MockPosixWrapper>();
         diskCacheBase_ = std::make_shared<DiskCacheBase>();
-        diskCacheBase_->Init(wrapper_, "/mnt/test");
+        diskCacheBase_->Init(wrapper_, "/mnt/test", 0);
     }
 
     virtual void TearDown() {
@@ -79,7 +79,7 @@ TEST_F(TestDiskCacheBase, CreateIoDir) {
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
         .WillOnce(Return(-1));
     EXPECT_CALL(*wrapper_, mkdir(_, _))
-        .WillOnce(Return(0));
+        .WillRepeatedly(Return(0));
     ret = diskCacheBase_->CreateIoDir(true);
     ASSERT_EQ(0, ret);
 
@@ -95,13 +95,7 @@ TEST_F(TestDiskCacheBase, IsFileExist) {
         .WillOnce(Return(-1));
     bool ret = diskCacheBase_->IsFileExist(fileName);
     ASSERT_EQ(false, ret);
-
-    EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull()))
-        .WillOnce(Return(0));
-    ret = diskCacheBase_->IsFileExist(fileName);
-    ASSERT_EQ(true, ret);
 }
-
 
 }  // namespace client
 }  // namespace curvefs

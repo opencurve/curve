@@ -98,6 +98,7 @@ class S3ClientAdaptor {
     virtual std::shared_ptr<S3Client> GetS3Client() = 0;
     virtual uint64_t GetBlockSize() = 0;
     virtual uint64_t GetChunkSize() = 0;
+    virtual uint32_t GetObjectPrefix() = 0;
     virtual bool HasDiskCache() = 0;
 };
 
@@ -150,6 +151,10 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint64_t GetChunkSize() {
         return chunkSize_;
     }
+    uint32_t GetObjectPrefix() {
+        return objectPrefix_;
+    }
+
     std::shared_ptr<FsCacheManager> GetFsCacheManager() {
         return fsCacheManager_;
     }
@@ -254,6 +259,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint32_t throttleBaseSleepUs_;
     uint32_t maxReadRetryIntervalMs_;
     uint32_t readRetryIntervalMs_;
+    uint32_t objectPrefix_;
     Thread bgFlushThread_;
     std::atomic<bool> toStop_;
     std::mutex mtx_;

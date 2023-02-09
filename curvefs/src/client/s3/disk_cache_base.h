@@ -28,6 +28,7 @@
 #include <string>
 #include <list>
 #include <set>
+#include <vector>
 #include <memory>
 
 #include "curvefs/src/common/wrap_posix.h"
@@ -45,23 +46,24 @@ class DiskCacheBase {
     DiskCacheBase() {}
     virtual ~DiskCacheBase() {}
     virtual void Init(std::shared_ptr<PosixWrapper> wrapper,
-                      const std::string cacheDir);
+                      const std::string cacheDir, uint32_t objectPrefix);
     /**
      * @brief Create Read/Write Cache Dir.
     */
     virtual int CreateIoDir(bool writreDir);
     virtual bool IsFileExist(const std::string file);
+    virtual int CreateDir(const std::string name);
     /**
      * @brief Get Read/Write Cache full Dir(include CacheDir_).
     */
     virtual std::string GetCacheIoFullDir();
 
     virtual int LoadAllCacheFile(std::set<std::string> *cachedObj);
+    uint32_t objectPrefix_;
 
  private:
     std::string cacheIoDir_;
     std::string cacheDir_;
-
     // file system operation encapsulation
     std::shared_ptr<PosixWrapper> posixWrapper_;
 };

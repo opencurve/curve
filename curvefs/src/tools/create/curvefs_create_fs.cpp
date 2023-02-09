@@ -57,6 +57,7 @@ DECLARE_string(s3_endpoint);
 DECLARE_string(s3_bucket_name);
 DECLARE_uint64(s3_blocksize);
 DECLARE_uint64(s3_chunksize);
+DECLARE_uint32(s3_objectPrefix);
 DECLARE_uint32(rpcTimeoutMs);
 DECLARE_uint32(rpcRetryTimes);
 DECLARE_bool(enableSumInDir);
@@ -98,6 +99,7 @@ void CreateFsTool::PrintHelp() {
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
               << " -s3_chunksize=" << FLAGS_s3_chunksize
+              << " -s3_objectPrefix=" << FLAGS_s3_objectPrefix
               << "]\n[-fsType=hybrid -volumeBlockGroupSize="
               << FLAGS_volumeBlockGroupSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
@@ -109,7 +111,9 @@ void CreateFsTool::PrintHelp() {
               << " -s3_endpoint=" << FLAGS_s3_endpoint
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
-              << " -s3_chunksize=" << FLAGS_s3_chunksize << "]" << std::endl;
+              << " -s3_chunksize=" << FLAGS_s3_chunksize
+              << " -s3_objectPrefix=" << FLAGS_s3_objectPrefix
+              << "]" << std::endl;
 }
 
 void CreateFsTool::AddUpdateFlags() {
@@ -129,6 +133,7 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetS3_bucket_name);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_blocksize);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_chunksize);
+    AddUpdateFlagsFunc(curvefs::tools::SetS3_objectPrefix);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
     AddUpdateFlagsFunc(curvefs::tools::SetEnableSumInDir);
@@ -173,6 +178,7 @@ int CreateFsTool::Init() {
         s3->set_bucketname(FLAGS_s3_bucket_name);
         s3->set_blocksize(FLAGS_s3_blocksize);
         s3->set_chunksize(FLAGS_s3_chunksize);
+        s3->set_objectprefix(FLAGS_s3_objectPrefix);
         request.mutable_fsdetail()->set_allocated_s3info(s3);
         return 0;
     };
