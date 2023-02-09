@@ -37,13 +37,13 @@ namespace client {
 #define CACHE_READ_DIR  "cacheread"
 
 void DiskCacheBase::Init(std::shared_ptr<PosixWrapper> wrapper,
-                         const std::string cacheDir) {
+                         const std::string cacheDir, uint32_t objectPrefix) {
     cacheDir_ = cacheDir;
     posixWrapper_ = wrapper;
+    objectPrefix_ = objectPrefix;
 }
 
 int DiskCacheBase::CreateIoDir(bool writreDir) {
-    struct stat statFile;
     bool ret;
     std::string FullDirPath;
 
@@ -85,6 +85,37 @@ std::string DiskCacheBase::GetCacheIoFullDir() {
     return fullPath;
 }
 
+int DiskCacheBase::CreateDir(const std::string dir) {
+    size_t p = dir.find_last_of('/');
+    std::string dirPath = dir;
+    if (p != -1) {
+        dirPath.erase(dirPath.begin()+p, dirPath.end());
+    }
+    std::vector<std::string> names;
+    ::curve::common::SplitString(dirPath, "/", &names);
+    // root dir must exists
+    if (0 == names.size())
+        return 0;
+
+    std::string path;
+    for (size_t i = 0; i < names.size(); ++i) {
+        if (0 == i && dirPath[0] != '/')
+            path = path + names[i];
+        else
+            path = path + "/" + names[i];
+
+        if (IsFileExist(path)) {
+            continue;
+        }
+        // dir needs 755 permission，or “Permission denied”
+        if (posixWrapper_->mkdir(path.c_str(), 0755) < 0) {
+            LOG(WARNING) << "mkdir " << path << " failed. "<< strerror(errno);
+            return -errno;
+        }
+    }
+    return 0;
+}
+
 int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
     std::string cachePath = GetCacheIoFullDir();
     bool ret = IsFileExist(cachePath);
@@ -94,26 +125,44 @@ int DiskCacheBase::LoadAllCacheFile(std::set<std::string> *cachedObj) {
     }
 
     VLOG(3) << "LoadAllCacheFile start, dir: " << cachePath;
-    DIR *cacheDir = NULL;
-    struct dirent *cacheDirent = NULL;
-    cacheDir = posixWrapper_->opendir(cachePath.c_str());
-    if (!cacheDir) {
-        LOG(ERROR) << "LoadAllCacheFile, opendir error, errno = " << errno;
-        return -1;
-    }
-    while ((cacheDirent = posixWrapper_->readdir(cacheDir)) != NULL) {
-        if ((!strncmp(cacheDirent->d_name, ".", 1)) ||
-            (!strncmp(cacheDirent->d_name, "..", 2)))
-            continue;
-        std::string fileName = cacheDirent->d_name;
-        cachedObj->emplace(fileName);
-        VLOG(9) << "LoadAllCacheFile obj, name = " << fileName;
-    }
+    std::function<bool(const std::string &path,
+                       std::set<std::string> *cacheObj)> listDir;
 
-    int rc = posixWrapper_->closedir(cacheDir);
-    if (rc < 0) {
-        LOG(ERROR) << "LoadAllCacheFile, opendir error, errno = " << errno;
-        return rc;
+    listDir = [&listDir, this](const std::string &path,
+                               std::set<std::string> *cacheObj) -> bool {
+        DIR *dir;
+        struct dirent *ent;
+        std::string fileName, nextdir;
+        if ((dir = posixWrapper_->opendir(path.c_str())) != NULL) {
+            while ((ent = posixWrapper_->readdir(dir)) != NULL) {
+                VLOG(9) << "LoadAllCacheFile obj, name = " << ent->d_name;
+                if (strncmp(ent->d_name, ".", 1) == 0 ||
+                        strncmp(ent->d_name, "..", 2) == 0) {
+                    continue;
+                } else if (ent->d_type == 8) {
+                    fileName = std::string(ent->d_name);
+                    VLOG(9) << "LoadAllCacheFile obj, name = " << fileName;
+                    cacheObj->emplace(fileName);
+                } else {
+                    nextdir = std::string(ent->d_name);
+                    nextdir = path + '/' + nextdir;
+                    if (!listDir(nextdir, cacheObj)) {
+                        return false;
+                    }
+                }
+            }
+            int ret = posixWrapper_->closedir(dir);
+            if (ret < 0) {
+                LOG(ERROR) << "close dir "  << dir << ", error = " << errno;
+            }
+            return ret >= 0;
+        }
+        LOG(ERROR) << "LoadAllCacheFile Opendir error, path =" << path;
+        return false;
+    };
+    ret = listDir(cachePath, cachedObj);
+    if (!ret) {
+        return -1;
     }
     VLOG(3) << "LoadAllCacheReadFile end, dir: " << cachePath;
     return 0;

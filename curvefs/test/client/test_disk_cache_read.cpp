@@ -59,7 +59,7 @@ class TestDiskCacheRead : public ::testing::Test {
         diskCacheRead_ = std::make_shared<DiskCacheRead>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
 
-        diskCacheRead_->Init(wrapper_, "test");
+        diskCacheRead_->Init(wrapper_, "test", 0);
     }
 
     virtual void TearDown() {
@@ -149,14 +149,18 @@ TEST_F(TestDiskCacheRead, LoadAllCacheFile) {
     ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);
     ASSERT_EQ(0, ret);
 
-    struct dirent *dirent;
     dir = opendir(".");
-    dirent = readdir(dir);
+    EXPECT_NE(dir, nullptr);
+
+    struct dirent fake;
+    fake.d_type = 8;
+    strcpy(fake.d_name, "fake");  // NOLINT
+
     EXPECT_CALL(*wrapper_, stat(NotNull(), NotNull())).WillOnce(Return(0));
     EXPECT_CALL(*wrapper_, opendir(NotNull())).WillOnce(Return(dir));
     EXPECT_CALL(*wrapper_, readdir(NotNull()))
         .Times(2)
-        .WillOnce(Return(dirent))
+        .WillOnce(Return(&fake))
         .WillOnce(ReturnNull());
     EXPECT_CALL(*wrapper_, closedir(NotNull())).WillOnce(Return(0));
     ret = diskCacheRead_->LoadAllCacheReadFile(cachedObj);

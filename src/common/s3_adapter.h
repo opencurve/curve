@@ -97,6 +97,7 @@ struct S3InfoOption {
     std::string bucketName;
     uint64_t blockSize;
     uint64_t chunkSize;
+    uint32_t objectPrefix;
 };
 
 void InitS3AdaptorOptionExceptS3InfoOption(Configuration *conf,

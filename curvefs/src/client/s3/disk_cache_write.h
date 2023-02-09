@@ -82,7 +82,8 @@ class DiskCacheWrite : public DiskCacheBase {
     }
     void Init(std::shared_ptr<S3Client> client,
               std::shared_ptr<PosixWrapper> posixWrapper,
-              const std::string cacheDir, uint64_t asyncLoadPeriodMs,
+              const std::string cacheDir, uint32_t objectPrefix,
+              uint64_t asyncLoadPeriodMs,
               std::shared_ptr<SglLRUCache<std::string>> cachedObjName);
     /**
      * @brief write obj to write cache disk

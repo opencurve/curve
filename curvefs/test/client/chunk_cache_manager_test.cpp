@@ -47,6 +47,7 @@ class ChunkCacheManagerTest : public testing::Test {
         S3ClientAdaptorOption option;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
+        option.objectPrefix = 0;
         option.pageSize = 64 * 1024;
         option.intervalSec = 5000;
         option.flushIntervalSec = 5000;

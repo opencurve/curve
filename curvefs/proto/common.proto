@@ -58,6 +58,7 @@ message S3Info {
     required string bucketname = 4;
     required uint64 blockSize = 5;
     required uint64 chunkSize = 6;
+    optional uint32 objectPrefix = 7;
 }
 
 enum PartitionStatus {

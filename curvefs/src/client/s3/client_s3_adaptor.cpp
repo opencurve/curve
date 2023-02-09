@@ -62,6 +62,7 @@ S3ClientAdaptorImpl::Init(
     chunkFlushThreads_ = option.chunkFlushThreads;
     maxReadRetryIntervalMs_ = option.maxReadRetryIntervalMs;
     readRetryIntervalMs_ = option.readRetryIntervalMs;
+    objectPrefix_ = option.objectPrefix;
     client_ = client;
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;
