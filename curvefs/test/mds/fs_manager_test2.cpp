@@ -339,6 +339,7 @@ TEST_F(FsManagerTest2, createHybridFs) {
     s3Info->set_bucketname("hello");
     s3Info->set_blocksize(4 * 1024);
     s3Info->set_chunksize(16 * 1024 * 1024);
+    s3Info->set_objectprefix(0);
 
     FsInfo fsinfo;
     fsinfo.set_status(FsStatus::NEW);

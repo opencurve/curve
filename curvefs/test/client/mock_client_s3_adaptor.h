@@ -69,6 +69,7 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     MOCK_METHOD0(GetS3Client, std::shared_ptr<S3Client>());
     MOCK_METHOD0(GetBlockSize, uint64_t());
     MOCK_METHOD0(GetChunkSize, uint64_t());
+    MOCK_METHOD0(GetObjectPrefix, uint32_t());
     MOCK_METHOD0(HasDiskCache, bool());
 };
 

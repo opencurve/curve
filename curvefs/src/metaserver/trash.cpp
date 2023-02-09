@@ -205,6 +205,7 @@ MetaStatusCode TrashImpl::DeleteInodeAndData(const TrashItem &item) {
         s3Adaptor_->GetS3ClientAdaptorOption(&clientAdaptorOption);
         clientAdaptorOption.blockSize = s3Info.blocksize();
         clientAdaptorOption.chunkSize = s3Info.chunksize();
+        clientAdaptorOption.objectPrefix = s3Info.objectprefix();
         s3Adaptor_->Reinit(clientAdaptorOption, s3Info.ak(), s3Info.sk(),
             s3Info.endpoint(), s3Info.bucketname());
         int retVal = s3Adaptor_->Delete(inode);

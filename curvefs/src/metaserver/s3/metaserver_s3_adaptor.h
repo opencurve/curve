@@ -35,6 +35,7 @@ struct S3ClientAdaptorOption {
     uint64_t blockSize;
     uint64_t chunkSize;
     uint64_t batchSize;
+    uint32_t objectPrefix;
     bool enableDeleteObjects;
 };
 
@@ -148,6 +149,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
     uint64_t blockSize_;
     uint64_t chunkSize_;
     uint64_t batchSize_;
+    uint32_t objectPrefix_;
     bool enableDeleteObjects_;
 };
 }  // namespace metaserver
