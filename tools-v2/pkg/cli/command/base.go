@@ -325,7 +325,7 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 						err:    cmderror.ErrSuccess(),
 						result: res,
 					}
-					log.Printf("%s: get rpc[%s] request successfully", address, rpc.RpcFuncName)
+					log.Printf("%s: get rpc [%s] response successfully", address, rpc.RpcFuncName)
 				}
 			}
 		}(addr)
