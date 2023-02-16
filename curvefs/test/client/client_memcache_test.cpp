@@ -72,6 +72,7 @@ class MemCachedTest : public ::testing::Test {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             retry++;
         } while (1);
+        LOG(INFO) << "=============== memcache start ok";
     }
 
     void TearDown() {
@@ -115,11 +116,18 @@ TEST_F(MemCachedTest, MultiThreadTask) {
     // get
     for (int i = 0; i < 5; i++) {
         workers.emplace_back([&, i]() {
+            CountDownEvent taskEnvent(1);
             char *result = new char[4];
-            auto context = std::make_shared<GetKvCacheContext>(kvstr[i].first,
-                                                               result, 0, 4);
-            ASSERT_EQ(true, manager_.Get(context));
+            auto task =
+                std::make_shared<GetKVCacheTask>(kvstr[i].first, result, 0, 4);
+            task->done =
+                [&taskEnvent](const std::shared_ptr<GetKVCacheTask> &task) {
+                    taskEnvent.Signal();
+                };
+            manager_.Get(task);
+            taskEnvent.Wait();
             ASSERT_EQ(0, memcmp(result, kvstr[i].second.c_str(), 4));
+            ASSERT_TRUE(task->res);
         });
     }
     for (auto &iter : workers) {

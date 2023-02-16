@@ -513,7 +513,16 @@ bool FileCacheManager::ReadKVRequestFromRemoteCache(const std::string &name,
         return false;
     }
 
-    return g_kvClientManager->Get(name, databuf, offset, length);
+    auto task = std::make_shared<GetKVCacheTask>(name, databuf, offset, length);
+    CountDownEvent event(1);
+    task->done = [&](const std::shared_ptr<GetKVCacheTask> &task) {
+        event.Signal();
+        return;
+    };
+    g_kvClientManager->Get(task);
+    event.Wait();
+
+    return task->res;
 }
 
 bool FileCacheManager::ReadKVRequestFromS3(const std::string &name,
