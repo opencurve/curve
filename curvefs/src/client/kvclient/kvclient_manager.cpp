@@ -34,13 +34,11 @@ namespace client {
 KVClientManager *g_kvClientManager = nullptr;
 KVClientMetric *g_kvClientMetric = nullptr;
 
-#define ONRETURN(TYPE, RES, KEY, ERRORLOG)                                     \
+#define ONRETURN(TYPE, RES)                                                    \
     if (RES) {                                                                 \
         g_kvClientMetric->kvClient##TYPE.qps.count << 1;                       \
-        VLOG(9) << "##TYPE key = " << KEY << " OK";                            \
     } else {                                                                   \
         g_kvClientMetric->kvClient##TYPE.eps.count << 1;                       \
-        LOG(ERROR) << "##TYPE key = " << KEY << " error = " << ERRORLOG;       \
     }
 
 bool KVClientManager::Init(const KVClientManagerOpt &config,
@@ -63,27 +61,23 @@ void KVClientManager::Set(std::shared_ptr<SetKVCacheTask> task) {
         std::string error_log;
         auto res =
             client_->Set(task->key, task->value, task->length, &error_log);
-        ONRETURN(Set, res, task->key, error_log);
+        ONRETURN(Set, res);
 
         task->done(task);
     });
 }
 
-bool KVClientManager::Get(std::shared_ptr<GetKvCacheContext> task) {
-    assert(nullptr != task->value);
-    return Get(task->key, task->value, task->offset, task->length);
-}
+void KVClientManager::Get(std::shared_ptr<GetKVCacheTask> task) {
+    threadPool_.Enqueue([task, this]() {
+        LatencyGuard guard(&g_kvClientMetric->kvClientGet.latency);
 
+        std::string error_log;
+        task->res = client_->Get(task->key, task->value, task->offset,
+                                task->length, &error_log);
+        ONRETURN(Get, task->res);
 
-bool KVClientManager::Get(const std::string &key, char *value, uint64_t offset,
-                          uint64_t length) {
-    LatencyGuard guard(&g_kvClientMetric->kvClientGet.latency);
-
-    assert(nullptr != value);
-    std::string error_log;
-    auto res = client_->Get(key, value, offset, length, &error_log);
-    ONRETURN(Get, res, key, error_log);
-    return res;
+        task->done(task);
+    });
 }
 
 }  // namespace client
