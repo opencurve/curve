@@ -50,6 +50,8 @@ const (
 	VIPER_CURVEBS_PASSWORD      = "curvebs.root.password"
 	CURVEBS_DEFAULT_PASSWORD    = "root_password"
 	CURVEBS_FILENAME            = "filename"
+	CURVEBS_FILETYPE            = "filetype"
+	CURVEBS_FILELENGTH          = "filelength"
 	VIPER_CURVEBS_FILENAME      = "curvebs.filename"
 	CURVEBS_FORCEDELETE         = "forcedelete"
 	CURVEBS_DEFAULT_FORCEDELETE = false
@@ -87,6 +89,7 @@ var (
 		CURVEBS_USER:        CURVEBS_DEFAULT_USER,
 		CURVEBS_PASSWORD:    CURVEBS_DEFAULT_PASSWORD,
 		CURVEBS_FORCEDELETE: CURVEBS_DEFAULT_FORCEDELETE,
+		CURVEBS_FILELENGTH:  20,
 	}
 )
 
@@ -113,12 +116,33 @@ func AddBsStringSliceRequiredFlag(cmd *cobra.Command, name string, usage string)
 	}
 }
 
+func AddBsFileTypeRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_FILETYPE, "directory,pagefile,appendfile,appendecfile,snapshot_pagefile")
+}
+
+// Filelength [option]
+func AddBsFileLengthOptionFlag(cmd *cobra.Command) {
+	AddBsIntOptionFlag(cmd, CURVEBS_FILELENGTH, "curve bs file length")
+}
+
 func AddBsStringOptionFlag(cmd *cobra.Command, name string, usage string) {
 	defaultValue := FLAG2DEFAULT[name]
 	if defaultValue == nil {
 		defaultValue = ""
 	}
 	cmd.Flags().String(name, defaultValue.(string), usage)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+func AddBsIntOptionFlag(cmd *cobra.Command, name string, usage string) {
+	defaultValue := BSFLAG2DEFAULT[name]
+	if defaultValue == nil {
+		defaultValue = ""
+	}
+	cmd.Flags().Int(name, defaultValue.(int), usage)
 	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)

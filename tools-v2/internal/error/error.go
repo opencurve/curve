@@ -372,7 +372,9 @@ var (
 	ErrBsListZone = func() *CmdError {
 		return NewInternalCmdError(39, "list zone fail. the error is %s")
 	}
-
+	ErrBsCreateFile = func() *CmdError {
+		return NewInternalCmdError(40, "create file fail. the error is %s")
+	}
 	ErrBsDeleteFile = func() *CmdError {
 		return NewInternalCmdError(40, "delete file fail. the error is %s")
 	}

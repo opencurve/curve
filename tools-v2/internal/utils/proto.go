@@ -29,6 +29,7 @@ import (
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/common"
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
+	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
 )
 
 func TranslateFsType(fsType string) (common.FSType, *cmderror.CmdError) {
@@ -40,6 +41,17 @@ func TranslateFsType(fsType string) (common.FSType, *cmderror.CmdError) {
 		retErr.Format(fsType)
 	}
 	return common.FSType(value), &retErr
+}
+
+func TranslateFileType(fileType string) (nameserver2.FileType, *cmderror.CmdError) {
+	fs := strings.ToUpper("INODE_" + fileType)
+	value := nameserver2.FileType_value[fs]
+	var retErr cmderror.CmdError
+	if value == 0 {
+		retErr = *cmderror.ErrUnknownFsType()
+		retErr.Format(fileType)
+	}
+	return nameserver2.FileType(value), &retErr
 }
 
 func TranslateBitmapLocation(bitmapLocation string) (common.BitmapLocation, *cmderror.CmdError) {
