@@ -553,7 +553,7 @@ bool WarmupManagerS3Impl::ProgressDone(fuse_ino_t key) {
     }
 
     {
-        ReadLockGuard lockList(inode2FetchDentryPoolMutex_);
+        ReadLockGuard lockDentry(inode2FetchDentryPoolMutex_);
         ret = ret && (FindKeyFetchDentryPoolLocked(key) ==
                       inode2FetchDentryPool_.end());
     }
@@ -566,7 +566,7 @@ bool WarmupManagerS3Impl::ProgressDone(fuse_ino_t key) {
 
 
     {
-        ReadLockGuard lockList(inode2FetchDentryPoolMutex_);
+        ReadLockGuard lockS3Objects(inode2FetchS3ObjectsPoolMutex_);
         ret = ret && (FindKeyFetchS3ObjectsPoolLocked(key) ==
                       inode2FetchS3ObjectsPool_.end());
     }
@@ -575,7 +575,7 @@ bool WarmupManagerS3Impl::ProgressDone(fuse_ino_t key) {
 
 void WarmupManagerS3Impl::ScanCleanFetchDentryPool() {
     // clean inode2FetchDentryPool_
-    WriteLockGuard lockList(inode2FetchDentryPoolMutex_);
+    WriteLockGuard lock(inode2FetchDentryPoolMutex_);
     for (auto iter = inode2FetchDentryPool_.begin();
          iter != inode2FetchDentryPool_.end();) {
         std::deque<WarmupInodes>::iterator iterInode;
@@ -591,7 +591,7 @@ void WarmupManagerS3Impl::ScanCleanFetchDentryPool() {
 
 void WarmupManagerS3Impl::ScanCleanFetchS3ObjectsPool() {
     // clean inode2FetchS3ObjectsPool_
-    WriteLockGuard lockList(inode2FetchDentryPoolMutex_);
+    WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
     for (auto iter = inode2FetchS3ObjectsPool_.begin();
          iter != inode2FetchS3ObjectsPool_.end();) {
         if (iter->second->QueueSize() == 0) {
@@ -606,20 +606,15 @@ void WarmupManagerS3Impl::ScanCleanFetchS3ObjectsPool() {
 
 void WarmupManagerS3Impl::ScanCleanWarmupProgress() {
     // clean done warmupProgress
-    inode2ProgressMutex_.RDLock();
+    ReadLockGuard lock(inode2ProgressMutex_);
     for (auto iter = inode2Progress_.begin(); iter != inode2Progress_.end();) {
         if (ProgressDone(iter->first)) {
             VLOG(9) << "warmup key: " << iter->first << " done!";
-            inode2ProgressMutex_.Unlock();
-            inode2ProgressMutex_.WRLock();
             iter = inode2Progress_.erase(iter);
-            inode2ProgressMutex_.Unlock();
-            inode2ProgressMutex_.RDLock();
         } else {
             ++iter;
         }
     }
-    inode2ProgressMutex_.Unlock();
 }
 
 void WarmupManagerS3Impl::ScanWarmupFiles() {
@@ -656,7 +651,7 @@ void WarmupManagerS3Impl::ScanWarmupFilelist() {
 void WarmupManagerS3Impl::AddFetchDentryTask(fuse_ino_t key,
                                              std::function<void()> task) {
     VLOG(9) << "add fetchDentry task: " << key;
-    WriteLockGuard lockList(inode2FetchDentryPoolMutex_);
+    WriteLockGuard lock(inode2FetchDentryPoolMutex_);
     auto iter = inode2FetchDentryPool_.find(key);
     if (iter == inode2FetchDentryPool_.end()) {
         std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
@@ -673,7 +668,7 @@ void WarmupManagerS3Impl::AddFetchDentryTask(fuse_ino_t key,
 void WarmupManagerS3Impl::AddFetchS3objectsTask(fuse_ino_t key,
                                                 std::function<void()> task) {
     VLOG(9) << "add fetchS3Objects task: " << key;
-    WriteLockGuard lockList(inode2FetchDentryPoolMutex_);
+    WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
     auto iter = inode2FetchS3ObjectsPool_.find(key);
     if (iter == inode2FetchS3ObjectsPool_.end()) {
         std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
