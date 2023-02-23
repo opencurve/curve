@@ -48,7 +48,7 @@ using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::WithArg;
 
-extern KVClientManager *g_kvClientManager;
+// extern KVClientManager *g_kvClientManager;
 
 class FileCacheManagerTest : public testing::Test {
  protected:
@@ -69,18 +69,18 @@ class FileCacheManagerTest : public testing::Test {
         option.chunkFlushThreads = 5;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager_ = std::make_shared<FsCacheManager>(
-            s3ClientAdaptor_, option.readCacheMaxByte,
-            option.writeCacheMaxByte);
+            s3ClientAdaptor_, option.readCacheMaxByte, option.writeCacheMaxByte,
+            nullptr);
         mockInodeManager_ = std::make_shared<MockInodeCacheManager>();
         mockS3Client_ = std::make_shared<MockS3Client>();
         s3ClientAdaptor_->Init(option, mockS3Client_, mockInodeManager_,
-                               nullptr, fsCacheManager_, nullptr);
+                               nullptr, fsCacheManager_, nullptr, nullptr);
         s3ClientAdaptor_->SetFsId(fsId);
-        fileCacheManager_ =
-            std::make_shared<FileCacheManager>(fsId, inodeId, s3ClientAdaptor_);
+        fileCacheManager_ = std::make_shared<FileCacheManager>(
+            fsId, inodeId, s3ClientAdaptor_, nullptr);
         mockChunkCacheManager_ = std::make_shared<MockChunkCacheManager>();
         curvefs::client::common::FLAGS_enableCto = false;
-        g_kvClientManager = nullptr;
+        kvClientManager_ = nullptr;
     }
 
     void TearDown() override {
@@ -95,6 +95,7 @@ class FileCacheManagerTest : public testing::Test {
     std::shared_ptr<MockChunkCacheManager> mockChunkCacheManager_;
     std::shared_ptr<MockInodeCacheManager> mockInodeManager_;
     std::shared_ptr<MockS3Client> mockS3Client_;
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 TEST_F(FileCacheManagerTest, test_FindOrCreateChunkCacheManager) {
@@ -159,8 +160,8 @@ TEST_F(FileCacheManagerTest, test_old_write) {
     uint64_t len = 1024;
     char buf[len] = {0};
 
-    auto dataCache = std::make_shared<MockDataCache>(s3ClientAdaptor_, nullptr,
-                                                     offset, 0, nullptr);
+    auto dataCache = std::make_shared<MockDataCache>(
+        s3ClientAdaptor_, nullptr, offset, 0, nullptr, nullptr);
     EXPECT_CALL(*dataCache, Write(_, _, _, _)).WillOnce(Return());
     EXPECT_CALL(*mockChunkCacheManager_, FindWriteableDataCache(_, _, _, _))
         .WillOnce(Return(dataCache));

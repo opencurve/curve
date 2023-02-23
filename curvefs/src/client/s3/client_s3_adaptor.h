@@ -71,6 +71,7 @@ class S3ClientAdaptor {
          std::shared_ptr<MdsClient> mdsClient,
          std::shared_ptr<FsCacheManager> fsCacheManager,
          std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
+         std::shared_ptr<KVClientManager> kvClientManager,
          bool startBackGround = false) = 0;
     /**
      * @brief write data to s3
@@ -128,6 +129,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
          std::shared_ptr<MdsClient> mdsClient,
          std::shared_ptr<FsCacheManager> fsCacheManager,
          std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
+         std::shared_ptr<KVClientManager> kvClientManager,
          bool startBackGround = false);
     /**
      * @brief write data to s3
@@ -274,6 +276,8 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
 
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
         taskPool_;
+
+    std::shared_ptr<KVClientManager> kvClientManager_ = nullptr;
 };
 
 }  // namespace client

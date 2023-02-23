@@ -57,7 +57,7 @@ class FuseS3Client : public FuseClient {
         };
         warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
             metaClient_, inodeManager_, dentryManager_, fsInfo_, readFunc,
-            s3Adaptor_);
+            s3Adaptor_, nullptr);
     }
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,
@@ -118,6 +118,7 @@ class FuseS3Client : public FuseClient {
  private:
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 

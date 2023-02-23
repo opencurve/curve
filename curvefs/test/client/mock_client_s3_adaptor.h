@@ -36,7 +36,7 @@ namespace client {
 
 class MockS3ClientAdaptor : public S3ClientAdaptor {
  public:
-    MOCK_METHOD7(Init,
+    MOCK_METHOD8(Init,
                  CURVEFS_ERROR(const S3ClientAdaptorOption &option,
                                std::shared_ptr<S3Client> client,
                                std::shared_ptr<InodeCacheManager> inodeManager,
@@ -44,6 +44,8 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
                                std::shared_ptr<FsCacheManager> fsCacheManager,
                                std::shared_ptr<DiskCacheManagerImpl>
                                    diskCacheManagerImpl,
+                                std::shared_ptr<KVClientManager>
+                                    kvClientManager,
                                bool startBackGround));
 
     MOCK_METHOD4(Write, int(uint64_t inodeId, uint64_t offset, uint64_t length,

@@ -29,9 +29,9 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <set>
-#include <utility>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
@@ -139,7 +139,8 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
  public:
     DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
               ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
-              uint64_t len, const char *data);
+              uint64_t len, const char *data,
+              std::shared_ptr<KVClientManager> kvClientManager);
     virtual ~DataCache() {
         auto iter = dataMap_.begin();
         for (; iter != dataMap_.end(); iter++) {
@@ -236,6 +237,8 @@ class DataCache : public std::enable_shared_from_this<DataCache> {
     std::atomic<int> status_;
     std::atomic<bool> inReadCache_;
     std::map<uint64_t, PageDataMap> dataMap_;  // first is block index
+
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 class S3ReadResponse {
@@ -255,9 +258,11 @@ class S3ReadResponse {
 class ChunkCacheManager
     : public std::enable_shared_from_this<ChunkCacheManager> {
  public:
-    ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl *s3ClientAdaptor)
+    ChunkCacheManager(uint64_t index, S3ClientAdaptorImpl *s3ClientAdaptor,
+                      std::shared_ptr<KVClientManager> kvClientManager)
         : index_(index), s3ClientAdaptor_(s3ClientAdaptor),
-          flushingDataCache_(nullptr) {}
+          flushingDataCache_(nullptr),
+          kvClientManager_(std::move(kvClientManager)) {}
     virtual ~ChunkCacheManager() = default;
     void ReadChunk(uint64_t index, uint64_t chunkPos, uint64_t readLen,
                    char *dataBuf, uint64_t dataBufOffset,
@@ -322,13 +327,17 @@ class ChunkCacheManager
     curve::common::Mutex flushMtx_;
     DataCachePtr flushingDataCache_;
     curve::common::Mutex flushingDataCacheMtx_;
+
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 class FileCacheManager {
  public:
     FileCacheManager(uint32_t fsid, uint64_t inode,
-                     S3ClientAdaptorImpl *s3ClientAdaptor)
-        : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor) {}
+                     S3ClientAdaptorImpl *s3ClientAdaptor,
+                     std::shared_ptr<KVClientManager> kvClientManager)
+        : fsId_(fsid), inode_(inode), s3ClientAdaptor_(s3ClientAdaptor),
+          kvClientManager_(std::move(kvClientManager)) {}
     FileCacheManager() {}
 
     ChunkCacheManagerPtr FindOrCreateChunkCacheManager(uint64_t index);
@@ -434,16 +443,20 @@ class FileCacheManager {
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     curve::common::Mutex downloadMtx_;
     std::set<std::string> downloadingObj_;
+
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 class FsCacheManager {
  public:
     FsCacheManager(S3ClientAdaptorImpl *s3ClientAdaptor,
-                   uint64_t readCacheMaxByte, uint64_t writeCacheMaxByte)
+                   uint64_t readCacheMaxByte, uint64_t writeCacheMaxByte,
+                   std::shared_ptr<KVClientManager> kvClientManager)
         : lruByte_(0), wDataCacheNum_(0), wDataCacheByte_(0),
           readCacheMaxByte_(readCacheMaxByte),
           writeCacheMaxByte_(writeCacheMaxByte),
-          s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false) {}
+          s3ClientAdaptor_(s3ClientAdaptor), isWaiting_(false),
+          kvClientManager_(std::move(kvClientManager)) {}
     FsCacheManager() {}
     virtual FileCacheManagerPtr FindFileCacheManager(uint64_t inodeId);
     virtual FileCacheManagerPtr FindOrCreateFileCacheManager(uint64_t fsId,
@@ -551,6 +564,8 @@ class FsCacheManager {
     std::condition_variable cond_;
 
     ReadCacheReleaseExecutor releaseReadCache_;
+
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 }  // namespace client
