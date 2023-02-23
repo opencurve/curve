@@ -70,7 +70,7 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     auto fsCacheManager = std::make_shared<FsCacheManager>(
         dynamic_cast<S3ClientAdaptorImpl *>(s3Adaptor_.get()),
         opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
-        opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte);
+        opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte, kvClientManager_);
     if (opt.s3Opt.s3ClientAdaptorOpt.diskCacheOpt.diskCacheType !=
         DiskCacheType::Disable) {
         auto s3DiskCacheClient = std::make_shared<S3ClientImpl>();
@@ -84,11 +84,11 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
             diskCacheManager, s3DiskCacheClient);
         ret = s3Adaptor_->Init(opt.s3Opt.s3ClientAdaptorOpt, s3Client,
                                inodeManager_, mdsClient_, fsCacheManager,
-                               diskCacheManagerImpl, true);
+                               diskCacheManagerImpl, kvClientManager_, true);
     } else {
         ret = s3Adaptor_->Init(opt.s3Opt.s3ClientAdaptorOpt, s3Client,
                                inodeManager_, mdsClient_, fsCacheManager,
-                               nullptr, true);
+                               nullptr, kvClientManager_, true);
     }
     return ret;
 }
@@ -112,11 +112,15 @@ bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
         return false;
     }
 
-    g_kvClientManager = new KVClientManager();
-    if (!g_kvClientManager->Init(opt, memcacheClient)) {
+    kvClientManager_ = std::make_shared<KVClientManager>();
+    if (!kvClientManager_->Init(opt, memcacheClient)) {
         LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
                    << ", but init kvClientManager fail";
         return false;
+    }
+
+    if (warmupManager_ != nullptr) {
+        warmupManager_->SetKVClientManager(kvClientManager_);
     }
 
     return true;

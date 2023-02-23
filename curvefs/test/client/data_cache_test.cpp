@@ -54,15 +54,16 @@ class DataCacheTest : public testing::Test {
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte,
-            option.writeCacheMaxByte);
+            option.writeCacheMaxByte, nullptr);
         s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
-                               fsCacheManager, nullptr);
+                               fsCacheManager, nullptr, nullptr);
         mockChunkCacheManager_ = std::make_shared<MockChunkCacheManager>();
         uint64_t offset = 512 * 1024;
         uint64_t len = 1024 * 1024;
         char *buf = new char[len];
-        dataCache_ = std::make_shared<DataCache>(
-            s3ClientAdaptor_, mockChunkCacheManager_, offset, len, buf);
+        dataCache_ = std::make_shared<DataCache>(s3ClientAdaptor_,
+                                                 mockChunkCacheManager_, offset,
+                                                 len, buf, nullptr);
         delete buf;
     }
     void TearDown() override {}
@@ -102,7 +103,7 @@ TEST_F(DataCacheTest, test_write3) {
     std::vector<DataCachePtr> mergeDataCacheVer;
     uint64_t offset1 = len;
     auto dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor_, mockChunkCacheManager_, offset1, len, buf);
+        s3ClientAdaptor_, mockChunkCacheManager_, offset1, len, buf, nullptr);
     mergeDataCacheVer.push_back(dataCache);
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(0, dataCache_->GetChunkPos());
@@ -139,7 +140,7 @@ TEST_F(DataCacheTest, test_write6) {
     std::vector<DataCachePtr> mergeDataCacheVer;
     uint64_t offset1 = offset + len;
     auto dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor_, mockChunkCacheManager_, offset1, len, buf);
+        s3ClientAdaptor_, mockChunkCacheManager_, offset1, len, buf, nullptr);
     mergeDataCacheVer.push_back(dataCache);
     dataCache_->Write(offset, len, buf, mergeDataCacheVer);
     ASSERT_EQ(512 * 1024, dataCache_->GetChunkPos());

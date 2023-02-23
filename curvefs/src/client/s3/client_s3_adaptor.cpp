@@ -24,6 +24,7 @@
 #include <brpc/controller.h>
 #include <algorithm>
 #include <list>
+#include <utility>
 
 #include "absl/memory/memory.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
@@ -39,6 +40,7 @@ S3ClientAdaptorImpl::Init(
     std::shared_ptr<MdsClient> mdsClient,
     std::shared_ptr<FsCacheManager> fsCacheManager,
     std::shared_ptr<DiskCacheManagerImpl> diskCacheManagerImpl,
+    std::shared_ptr<KVClientManager> kvClientManager,
     bool startBackGround) {
     pendingReq_ = 0;
     blockSize_ = option.blockSize;
@@ -66,6 +68,7 @@ S3ClientAdaptorImpl::Init(
     fsCacheManager_ = fsCacheManager;
     waitInterval_.Init(option.intervalSec * 1000);
     diskCacheManagerImpl_ = diskCacheManagerImpl;
+    kvClientManager_ = std::move(kvClientManager);
     if (HasDiskCache()) {
         diskCacheManagerImpl_ = diskCacheManagerImpl;
         if (diskCacheManagerImpl_->Init(option) < 0) {
@@ -372,7 +375,7 @@ CURVEFS_ERROR S3ClientAdaptorImpl::FlushAllCache(uint64_t inodeId) {
     }
 
     // force flush data in diskcache to s3
-    if (!g_kvClientManager && HasDiskCache()) {
+    if (!kvClientManager_ && HasDiskCache()) {
         VLOG(6) << "FlushAllCache, wait inodeId:" << inodeId
                 << "related chunk upload to s3";
         if (ClearDiskCache(inodeId) < 0) {

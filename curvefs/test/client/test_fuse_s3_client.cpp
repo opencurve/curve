@@ -99,7 +99,7 @@ class TestFuseS3Client : public ::testing::Test {
         dentryManager_ = std::make_shared<MockDentryCacheManager>();
         warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
             metaClient_, inodeManager_, dentryManager_, nullptr, nullptr,
-            s3ClientAdaptor_);
+            s3ClientAdaptor_, nullptr);
         client_ = std::make_shared<FuseS3Client>(
             mdsClient_, metaClient_, inodeManager_, dentryManager_,
             s3ClientAdaptor_, warmupManager_);

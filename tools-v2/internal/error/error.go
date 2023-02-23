@@ -196,13 +196,15 @@ func MergeCmdErrorExceptSuccess(err []*CmdError) CmdError {
 	ret.Message = ""
 	countSuccess := 0
 	for _, e := range err {
-		if e.Code == CODE_SUCCESS {
-			countSuccess++
-			continue
-		} else if e.Code < ret.Code {
-			ret.Code = e.Code
+		if e != nil {
+			if e.Code == CODE_SUCCESS {
+				countSuccess++
+				continue
+			} else if e.Code < ret.Code {
+				ret.Code = e.Code
+			}
+			ret.Message = e.Message + "\n" + ret.Message
 		}
-		ret.Message = e.Message + "\n" + ret.Message
 	}
 	if countSuccess == len(err) {
 		return *NewSucessCmdError()

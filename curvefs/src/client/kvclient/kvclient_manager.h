@@ -48,9 +48,6 @@ class GetKVCacheTask;
 using curve::common::TaskThreadPool;
 using curvefs::client::common::KVClientManagerOpt;
 
-extern KVClientManager *g_kvClientManager;
-extern KVClientMetric *g_kvClientMetric;
-
 typedef std::function<void(const std::shared_ptr<SetKVCacheTask> &)>
     SetKVCacheDone;
 typedef std::function<void(const std::shared_ptr<GetKVCacheTask> &)>
@@ -62,10 +59,10 @@ struct SetKVCacheTask {
     uint64_t length;
     SetKVCacheDone done;
     SetKVCacheTask() = default;
-    SetKVCacheTask(const std::string &k, const char *val, const uint64_t len)
-        : key(k), value(val), length(len) {
-        done = [](const std::shared_ptr<SetKVCacheTask> &) {};
-    }
+    SetKVCacheTask(
+        const std::string &k, const char *val, const uint64_t len,
+        SetKVCacheDone done = [](const std::shared_ptr<SetKVCacheTask> &) {})
+        : key(k), value(val), length(len), done(std::move(done)) {}
 };
 
 struct GetKVCacheTask {
@@ -98,12 +95,15 @@ class KVClientManager {
 
     void Get(std::shared_ptr<GetKVCacheTask> task);
 
+    KVClientMetric *GetClientMetricForTesting() { return &kvClientMetric_; }
+
  private:
     void Uninit();
 
  private:
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable> threadPool_;
     std::shared_ptr<KVClient> client_;
+    KVClientMetric kvClientMetric_;
 };
 
 }  // namespace client

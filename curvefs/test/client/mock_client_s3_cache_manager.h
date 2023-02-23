@@ -24,6 +24,7 @@
 #define CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_CACHE_MANAGER_H_
 
 #include <gmock/gmock.h>
+#include <utility>
 #include <vector>
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 
@@ -56,7 +57,7 @@ class MockFileCacheManager : public FileCacheManager {
 
 class MockChunkCacheManager : public ChunkCacheManager {
  public:
-    MockChunkCacheManager() : ChunkCacheManager(0, nullptr) {}
+    MockChunkCacheManager() : ChunkCacheManager(0, nullptr, nullptr) {}
     ~MockChunkCacheManager() = default;
 
     MOCK_METHOD1(ReleaseReadDataCache, void(uint64_t));
@@ -82,8 +83,10 @@ class MockDataCache : public DataCache {
  public:
     MockDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                   ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
-                  uint64_t len, const char *data)
-        : DataCache(s3ClientAdaptor, chunkCacheManager, chunkPos, len, data) {}
+                  uint64_t len, const char *data,
+                  std::shared_ptr<KVClientManager> kvClientManager)
+        : DataCache(s3ClientAdaptor, chunkCacheManager, chunkPos, len, data,
+                    std::move(kvClientManager)) {}
     ~MockDataCache() = default;
 
     MOCK_METHOD4(Write,
