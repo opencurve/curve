@@ -92,31 +92,23 @@ void WarmupManagerS3Impl::UnInit() {
         bgFetchThread_.join();
     }
 
-    {
-        WriteLockGuard lock(inode2FetchDentryPoolMutex_);
-        for (auto &task : inode2FetchDentryPool_) {
-            task.second->Stop();
-        }
-        inode2FetchDentryPool_.clear();
+    for (auto &task : inode2FetchDentryPool_) {
+        task.second->Stop();
     }
+    WriteLockGuard lockDentry(inode2FetchDentryPoolMutex_);
+    inode2FetchDentryPool_.clear();
 
-    {
-        WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
-        for (auto &task : inode2FetchS3ObjectsPool_) {
-            task.second->Stop();
-        }
-        inode2FetchS3ObjectsPool_.clear();
+    for (auto &task : inode2FetchS3ObjectsPool_) {
+        task.second->Stop();
     }
+    WriteLockGuard lockS3Objects(inode2FetchS3ObjectsPoolMutex_);
+    inode2FetchS3ObjectsPool_.clear();
 
-    {
-        WriteLockGuard lock(warmupInodesDequeMutex_);
-        warmupInodesDeque_.clear();
-    }
+    WriteLockGuard lockInodes(warmupInodesDequeMutex_);
+    warmupInodesDeque_.clear();
 
-    {
-        WriteLockGuard lock(warmupInodesDequeMutex_);
-        warmupInodesDeque_.clear();
-    }
+    WriteLockGuard lockFileList(warmupFilelistDequeMutex_);
+    warmupFilelistDeque_.clear();
 
     WarmupManager::UnInit();
 }
@@ -134,7 +126,7 @@ void WarmupManagerS3Impl::BackGroundFetch() {
     while (!bgFetchStop_.load(std::memory_order_acquire)) {
         usleep(WARMUP_CHECKINTERVAL_US);
         ScanWarmupFilelist();
-        ScanWarmupFiles();
+        ScanWarmupInodes();
         ScanCleanFetchS3ObjectsPool();
         ScanCleanFetchDentryPool();
         ScanCleanWarmupProgress();
@@ -472,7 +464,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
     GetObjectAsyncCallBack cb =
         [&](const S3Adapter *adapter,
             const std::shared_ptr<GetObjectAsyncContext> &context) {
-            if (bgFetchStop_.load()) {
+            if (bgFetchStop_.load(std::memory_order_acquire)) {
                 VLOG(9) << "need stop warmup";
                 cond.Signal();
                 return;
@@ -617,7 +609,7 @@ void WarmupManagerS3Impl::ScanCleanWarmupProgress() {
     }
 }
 
-void WarmupManagerS3Impl::ScanWarmupFiles() {
+void WarmupManagerS3Impl::ScanWarmupInodes() {
     // file need warmup
     WriteLockGuard lock(warmupInodesDequeMutex_);
     if (!warmupInodesDeque_.empty()) {
@@ -626,8 +618,8 @@ void WarmupManagerS3Impl::ScanWarmupFiles() {
             VLOG(9) << "BackGroundFetch: key: " << inodes.GetKey()
                     << " inode:" << iter;
             FetchDataEnqueue(inodes.GetKey(), iter);
-            warmupInodesDeque_.pop_front();
         }
+        warmupInodesDeque_.pop_front();
     }
 }
 
@@ -651,35 +643,39 @@ void WarmupManagerS3Impl::ScanWarmupFilelist() {
 void WarmupManagerS3Impl::AddFetchDentryTask(fuse_ino_t key,
                                              std::function<void()> task) {
     VLOG(9) << "add fetchDentry task: " << key;
-    WriteLockGuard lock(inode2FetchDentryPoolMutex_);
-    auto iter = inode2FetchDentryPool_.find(key);
-    if (iter == inode2FetchDentryPool_.end()) {
-        std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
-        tp->Start(warmupThreadsNum_);
-        iter = inode2FetchDentryPool_.emplace(key, std::move(tp)).first;
+    if (!bgFetchStop_.load(std::memory_order_acquire)) {
+        WriteLockGuard lock(inode2FetchDentryPoolMutex_);
+        auto iter = inode2FetchDentryPool_.find(key);
+        if (iter == inode2FetchDentryPool_.end()) {
+            std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
+            tp->Start(warmupThreadsNum_);
+            iter = inode2FetchDentryPool_.emplace(key, std::move(tp)).first;
+        }
+        if (!iter->second->Enqueue(task)) {
+            LOG(ERROR) << "key:" << key
+                       << " fetch dentry thread pool has been stoped!";
+        }
+        VLOG(9) << "add fetchDentry task: " << key << " finished";
     }
-    if (!iter->second->Enqueue(task)) {
-        LOG(ERROR) << "key:" << key
-                   << " fetch dentry thread pool has been stoped!";
-    }
-    VLOG(9) << "add fetchDentry task: " << key << " finished";
 }
 
 void WarmupManagerS3Impl::AddFetchS3objectsTask(fuse_ino_t key,
                                                 std::function<void()> task) {
     VLOG(9) << "add fetchS3Objects task: " << key;
-    WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
-    auto iter = inode2FetchS3ObjectsPool_.find(key);
-    if (iter == inode2FetchS3ObjectsPool_.end()) {
-        std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
-        tp->Start(warmupThreadsNum_);
-        iter = inode2FetchS3ObjectsPool_.emplace(key, std::move(tp)).first;
+    if (!bgFetchStop_.load(std::memory_order_acquire)) {
+        WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
+        auto iter = inode2FetchS3ObjectsPool_.find(key);
+        if (iter == inode2FetchS3ObjectsPool_.end()) {
+            std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
+            tp->Start(warmupThreadsNum_);
+            iter = inode2FetchS3ObjectsPool_.emplace(key, std::move(tp)).first;
+        }
+        if (!iter->second->Enqueue(task)) {
+            LOG(ERROR) << "key:" << key
+                       << " fetch s3 objects thread pool has been stoped!";
+        }
+        VLOG(9) << "add fetchS3Objects task: " << key << " finished";
     }
-    if (!iter->second->Enqueue(task)) {
-        LOG(ERROR) << "key:" << key
-                   << " fetch s3 objects thread pool has been stoped!";
-    }
-    VLOG(9) << "add fetchS3Objects task: " << key << " finished";
 }
 
 }  // namespace warmup
