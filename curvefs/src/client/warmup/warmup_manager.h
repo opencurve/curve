@@ -376,7 +376,7 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     void ScanCleanWarmupProgress();
 
-    void ScanWarmupFiles();
+    void ScanWarmupInodes();
 
     void ScanWarmupFilelist();
 
