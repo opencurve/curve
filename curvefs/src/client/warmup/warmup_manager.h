@@ -42,6 +42,7 @@
 #include "curvefs/src/client/dentry_cache_manager.h"
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/inode_cache_manager.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
@@ -105,7 +106,7 @@ class WarmupProgress {
     explicit WarmupProgress(uint64_t total = 0, uint64_t finished = 0)
         : total_(total), finished_(finished) {}
 
-    WarmupProgress(const WarmupProgress& wp)
+    WarmupProgress(const WarmupProgress &wp)
         : total_(wp.total_), finished_(wp.finished_) {}
 
     void AddTotal(uint64_t add) {
@@ -155,19 +156,25 @@ class WarmupManager {
           metaClient_(std::make_shared<MetaServerClientImpl>()),
           inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
           dentryManager_(
-              std::make_shared<DentryCacheManagerImpl>(metaClient_)) {}
+              std::make_shared<DentryCacheManagerImpl>(metaClient_)) {
+        kvClientManager_ = nullptr;
+    }
 
     explicit WarmupManager(std::shared_ptr<MetaServerClient> metaClient,
                            std::shared_ptr<InodeCacheManager> inodeManager,
                            std::shared_ptr<DentryCacheManager> dentryManager,
                            std::shared_ptr<FsInfo> fsInfo,
-                           FuseOpReadFunctionType readFunc)
+                           FuseOpReadFunctionType readFunc,
+                           std::shared_ptr<KVClientManager> kvClientManager)
         : mounted_(false), metaClient_(std::move(metaClient)),
           inodeManager_(std::move(inodeManager)),
           dentryManager_(std::move(dentryManager)), fsInfo_(std::move(fsInfo)),
-          fuseOpRead_(std::move(readFunc)) {}
+          fuseOpRead_(std::move(readFunc)),
+          kvClientManager_(std::move(kvClientManager)) {}
 
-    virtual void Init(const FuseClientOption &option) = 0;
+    virtual void Init(const FuseClientOption &option) {
+        option_ = option;
+    }
     virtual void UnInit() { ClearWarmupProcess(); }
 
     virtual bool AddWarmupFilelist(fuse_ino_t key) = 0;
@@ -181,6 +188,10 @@ class WarmupManager {
 
     void SetFuseOpRead(const FuseOpReadFunctionType &read) {
         fuseOpRead_ = read;
+    }
+
+    void SetKVClientManager(std::shared_ptr<KVClientManager> kvClientManager) {
+        kvClientManager_ = std::move(kvClientManager);
     }
 
     /**
@@ -212,8 +223,7 @@ class WarmupManager {
      */
     virtual bool AddWarmupProcess(fuse_ino_t key) {
         WriteLockGuard lock(inode2ProgressMutex_);
-        auto ret =
-            inode2Progress_.emplace(key, WarmupProgress());
+        auto ret = inode2Progress_.emplace(key, WarmupProgress());
         return ret.second;
     }
 
@@ -252,9 +262,12 @@ class WarmupManager {
     FuseOpReadFunctionType fuseOpRead_;
 
     // warmup progress
-    std::unordered_map<fuse_ino_t, WarmupProgress>
-        inode2Progress_;
+    std::unordered_map<fuse_ino_t, WarmupProgress> inode2Progress_;
     BthreadRWLock inode2ProgressMutex_;
+
+    std::shared_ptr<KVClientManager> kvClientManager_ = nullptr;
+
+    FuseClientOption option_;
 };
 
 class WarmupManagerS3Impl : public WarmupManager {
@@ -264,10 +277,11 @@ class WarmupManagerS3Impl : public WarmupManager {
         std::shared_ptr<InodeCacheManager> inodeManager,
         std::shared_ptr<DentryCacheManager> dentryManager,
         std::shared_ptr<FsInfo> fsInfo, FuseOpReadFunctionType readFunc,
-        std::shared_ptr<S3ClientAdaptor> s3Adaptor)
+        std::shared_ptr<S3ClientAdaptor> s3Adaptor,
+        std::shared_ptr<KVClientManager> kvClientManager)
         : WarmupManager(std::move(metaClient), std::move(inodeManager),
                         std::move(dentryManager), std::move(fsInfo),
-                        std::move(readFunc)),
+                        std::move(readFunc), std::move(kvClientManager)),
           s3Adaptor_(std::move(s3Adaptor)) {}
 
     bool AddWarmupFilelist(fuse_ino_t key) override;
@@ -384,6 +398,9 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     void AddFetchS3objectsTask(fuse_ino_t key, std::function<void()> task);
 
+    void PutObjectToCache(const std::string &filename, const char *data,
+                          uint64_t len);
+
  protected:
     std::deque<WarmupFilelist> warmupFilelistDeque_;
     mutable RWLock warmupFilelistDequeMutex_;
@@ -407,10 +424,6 @@ class WarmupManagerS3Impl : public WarmupManager {
     std::unordered_map<fuse_ino_t, std::unique_ptr<ThreadPool>>
         inode2FetchS3ObjectsPool_;
     mutable RWLock inode2FetchS3ObjectsPoolMutex_;
-
-    uint32_t listDentryLimit_;
-    uint32_t downloadMaxRetryTimes_;
-    uint32_t warmupThreadsNum_;
 };
 
 }  // namespace warmup

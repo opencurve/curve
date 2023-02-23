@@ -112,7 +112,8 @@ TEST_F(MemCachedTest, MultiThreadTask) {
         });
     }
     taskEnvent.Wait();
-    ASSERT_EQ(5, g_kvClientMetric->kvClientSet.latency.count());
+    ASSERT_EQ(
+        5, manager_.GetClientMetricForTesting()->kvClientSet.latency.count());
 
     // get
     for (int i = 0; i < 5; i++) {

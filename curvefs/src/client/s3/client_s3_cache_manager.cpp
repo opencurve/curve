@@ -96,7 +96,7 @@ FsCacheManager::FindOrCreateFileCacheManager(uint64_t fsId, uint64_t inodeId) {
     }
 
     FileCacheManagerPtr fileCacheManager = std::make_shared<FileCacheManager>(
-        fsId, inodeId, s3ClientAdaptor_);
+        fsId, inodeId, s3ClientAdaptor_, kvClientManager_);
     auto ret = fileCacheManagerMap_.emplace(inodeId, fileCacheManager);
     g_s3MultiManagerMetric->fileManagerNum << 1;
     assert(ret.second);
@@ -293,7 +293,8 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
     }
 
     ChunkCacheManagerPtr chunkCacheManager =
-        std::make_shared<ChunkCacheManager>(index, s3ClientAdaptor_);
+        std::make_shared<ChunkCacheManager>(index, s3ClientAdaptor_,
+                                            kvClientManager_);
     auto ret = chunkCacheMap_.emplace(index, chunkCacheManager);
     g_s3MultiManagerMetric->chunkManagerNum << 1;
     assert(ret.second);
@@ -509,7 +510,7 @@ bool FileCacheManager::ReadKVRequestFromRemoteCache(const std::string &name,
                                                     char *databuf,
                                                     uint64_t offset,
                                                     uint64_t length) {
-    if (!g_kvClientManager) {
+    if (!kvClientManager_) {
         return false;
     }
 
@@ -519,7 +520,7 @@ bool FileCacheManager::ReadKVRequestFromRemoteCache(const std::string &name,
         event.Signal();
         return;
     };
-    g_kvClientManager->Get(task);
+    kvClientManager_->Get(task);
     event.Wait();
 
     return task->res;
@@ -616,7 +617,7 @@ int FileCacheManager::ReadKVRequest(
             WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
             DataCachePtr dataCache = std::make_shared<DataCache>(
                 s3ClientAdaptor_, chunkCacheManager, chunkPos, req->len,
-                dataBuf + req->readOffset);
+                dataBuf + req->readOffset, kvClientManager_);
             chunkCacheManager->AddReadDataCache(dataCache);
         }
     }
@@ -1477,8 +1478,9 @@ DataCachePtr ChunkCacheManager::FindWriteableDataCache(
 void ChunkCacheManager::WriteNewDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                                           uint32_t chunkPos, uint32_t len,
                                           const char *data) {
-    DataCachePtr dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor, this->shared_from_this(), chunkPos, len, data);
+    DataCachePtr dataCache =
+        std::make_shared<DataCache>(s3ClientAdaptor, this->shared_from_this(),
+                                    chunkPos, len, data, kvClientManager_);
     VLOG(9) << "WriteNewDataCache chunkPos:" << chunkPos << ", len:" << len
             << ", new len:" << dataCache->GetLen() << ",chunkIndex:" << index_;
     WriteLockGuard writeLockGuard(rwLockWrite_);
@@ -1733,7 +1735,8 @@ void ChunkCacheManager::AddWriteDataCacheForTest(DataCachePtr dataCache) {
 
 DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                      ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
-                     uint64_t len, const char *data)
+                     uint64_t len, const char *data,
+              std::shared_ptr<KVClientManager> kvClientManager)
     : s3ClientAdaptor_(std::move(s3ClientAdaptor)),
       chunkCacheManager_(chunkCacheManager),
       status_(DataCacheStatus::Dirty), inReadCache_(false) {
@@ -1792,6 +1795,8 @@ DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
     assert((actualLen_ % pageSize) == 0);
     assert((actualChunkPos_ % pageSize) == 0);
     createTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
+
+    kvClientManager_ = std::move(kvClientManager);
 }
 
 void DataCache::CopyBufToDataCache(uint64_t dataCachePos, uint64_t len,
@@ -2312,7 +2317,7 @@ CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
         s3Tasks->emplace_back(context);
 
         // generate flush to kvcache task
-        if (g_kvClientManager) {
+        if (kvClientManager_) {
             auto task = std::make_shared<SetKVCacheTask>();
             task->key = objectName;
             task->value = data + (*writeOffset);
@@ -2398,11 +2403,11 @@ void DataCache::FlushTaskExecute(
             });
     }
     // kvtask execute
-    if (g_kvClientManager && kvPendingTaskCal.load()) {
+    if (kvClientManager_ && kvPendingTaskCal.load()) {
         std::for_each(kvCacheTasks.begin(), kvCacheTasks.end(),
                       [&](const std::shared_ptr<SetKVCacheTask> &task) {
                           task->done = kvdone;
-                          g_kvClientManager->Set(task);
+                          kvClientManager_->Set(task);
                       });
         kvTaskEnvent.Wait();
     }

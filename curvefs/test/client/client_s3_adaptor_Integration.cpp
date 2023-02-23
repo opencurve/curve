@@ -23,6 +23,7 @@
 #include <brpc/server.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 #include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
@@ -123,6 +124,7 @@ class ClientS3IntegrationTest : public testing::Test {
  protected:
     void SetUp() override {
         Aws::InitAPI(awsOptions_);
+        InitKVClientManager();
         ASSERT_EQ(0, server_.AddService(&mockMetaServerService_,
                                         brpc::SERVER_DOESNT_OWN_SERVICE));
         ASSERT_EQ(0, server_.Start(addr_.c_str(), nullptr));
@@ -143,9 +145,10 @@ class ClientS3IntegrationTest : public testing::Test {
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte,
-            option.writeCacheMaxByte);
+            option.writeCacheMaxByte, kvClientManager_);
         s3ClientAdaptor_->Init(option, mockS3Client, mockInodeManager,
-                               mockMdsClient, fsCacheManager, nullptr);
+                               mockMdsClient, fsCacheManager, nullptr,
+                               kvClientManager_);
         s3ClientAdaptor_->SetFsId(2);
         curvefs::client::common::FLAGS_enableCto = false;
     }
@@ -157,11 +160,11 @@ class ClientS3IntegrationTest : public testing::Test {
     }
 
     void InitKVClientManager() {
-        g_kvClientManager = new KVClientManager();
+        kvClientManager_ = std::make_shared<KVClientManager>();
 
         KVClientManagerOpt opt;
         std::shared_ptr<MockKVClient> mockKVClient(&mockKVClient_);
-        g_kvClientManager->Init(opt, mockKVClient);
+        kvClientManager_->Init(opt, mockKVClient);
     }
 
  protected:
@@ -176,6 +179,8 @@ class ClientS3IntegrationTest : public testing::Test {
     Aws::SDKOptions awsOptions_;
 
     std::shared_ptr<InodeWrapper> inode{InitInodeForIntegration()};
+
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 TEST_F(ClientS3IntegrationTest, test_first_write) {
@@ -2834,8 +2839,6 @@ TEST_F(ClientS3IntegrationTest, test_fssync_overlap_write) {
 }
 
 TEST_F(ClientS3IntegrationTest, test_write_read_remotekvcache) {
-    InitKVClientManager();
-
     curvefs::client::common::FLAGS_enableCto = true;
 
     uint64_t offset_0 = 0, offset_4M = (4 << 20), chunkId = 10;

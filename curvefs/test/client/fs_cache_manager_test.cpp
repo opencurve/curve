@@ -56,9 +56,9 @@ class FsCacheManagerTest : public testing::Test {
         option.chunkFlushThreads = 5;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         fsCacheManager_ = std::make_shared<FsCacheManager>(
-            s3ClientAdaptor_, maxReadCacheByte_, maxWriteCacheByte);
+            s3ClientAdaptor_, maxReadCacheByte_, maxWriteCacheByte, nullptr);
         s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
-                               fsCacheManager_, nullptr);
+                               fsCacheManager_, nullptr, nullptr);
         s3ClientAdaptor_->SetFsId(2);
 
         mockChunkCacheManager_ = std::make_shared<MockChunkCacheManager>();
@@ -118,7 +118,7 @@ TEST_F(FsCacheManagerTest, test_lru_set_and_delete) {
         for (size_t i = 0; i < maxReadCacheByte_ / smallDataCacheByte; ++i) {
             fsCacheManager_->Set(std::make_shared<DataCache>(
                                      s3ClientAdaptor_, mockChunkCacheManager_,
-                                     0, smallDataCacheByte, buf),
+                                     0, smallDataCacheByte, buf, nullptr),
                                  &outIter);
         }
     }
@@ -130,9 +130,9 @@ TEST_F(FsCacheManagerTest, test_lru_set_and_delete) {
         EXPECT_CALL(*mockChunkCacheManager_, ReleaseReadDataCache(_))
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
-        fsCacheManager_->Set(std::make_shared<DataCache>(s3ClientAdaptor_,
-                                                         mockChunkCacheManager_,
-                                                         0, dataCacheByte, buf),
+        fsCacheManager_->Set(std::make_shared<DataCache>(
+                                 s3ClientAdaptor_, mockChunkCacheManager_, 0,
+                                 dataCacheByte, buf, nullptr),
                              &outIter);
 
         counter.Wait();
@@ -146,9 +146,9 @@ TEST_F(FsCacheManagerTest, test_lru_set_and_delete) {
             .Times(expectCallTimes)
             .WillRepeatedly(Invoke([&counter](uint64_t) { counter.Signal(); }));
 
-        fsCacheManager_->Set(std::make_shared<DataCache>(s3ClientAdaptor_,
-                                                         mockChunkCacheManager_,
-                                                         0, dataCacheByte, buf),
+        fsCacheManager_->Set(std::make_shared<DataCache>(
+                                 s3ClientAdaptor_, mockChunkCacheManager_, 0,
+                                 dataCacheByte, buf, nullptr),
                              &outIter);
         counter.Wait();
     }

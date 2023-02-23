@@ -33,6 +33,7 @@
 #include <utility>
 
 #include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
 #include "curvefs/src/common/s3util.h"
 #include "src/common/concurrent/concurrent.h"
@@ -122,9 +123,7 @@ void WarmupManagerS3Impl::UnInit() {
 }
 
 void WarmupManagerS3Impl::Init(const FuseClientOption &option) {
-    listDentryLimit_ = option.listDentryLimit;
-    downloadMaxRetryTimes_ = option.downloadMaxRetryTimes;
-    warmupThreadsNum_ = option.warmupThreadsNum;
+    WarmupManager::Init(option);
     bgFetchStop_.store(false, std::memory_order_release);
     bgFetchThread_ = Thread(&WarmupManagerS3Impl::BackGroundFetch, this);
     initbgFetchThread_ = true;
@@ -283,7 +282,7 @@ void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
 void WarmupManagerS3Impl::FetchChildDentry(fuse_ino_t key, fuse_ino_t ino) {
     VLOG(9) << "FetchChildDentry start: key:" << key << " inode: " << ino;
     std::list<Dentry> dentryList;
-    auto limit = listDentryLimit_;
+    auto limit = option_.listDentryLimit;
     CURVEFS_ERROR ret = dentryManager_->ListDentry(ino, &dentryList, limit);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
@@ -489,12 +488,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             }
             if (context->retCode == 0) {
                 VLOG(9) << "Get Object success: " << context->key;
-                int ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(
-                    context->key, context->buf, context->len);
-                if (ret < 0) {
-                    LOG_EVERY_SECOND(INFO)
-                        << "write read directly failed, key: " << context->key;
-                }
+                PutObjectToCache(context->key, context->buf, context->len);
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(6) << "pendingReq is over";
                     cond.Signal();
@@ -502,7 +496,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
                 delete[] context->buf;
                 return;
             }
-            if (++context->retry >= downloadMaxRetryTimes_) {
+            if (++context->retry >= option_.downloadMaxRetryTimes) {
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(6) << "pendingReq is over";
                     cond.Signal();
@@ -651,35 +645,54 @@ void WarmupManagerS3Impl::ScanWarmupFilelist() {
 void WarmupManagerS3Impl::AddFetchDentryTask(fuse_ino_t key,
                                              std::function<void()> task) {
     VLOG(9) << "add fetchDentry task: " << key;
-    WriteLockGuard lock(inode2FetchDentryPoolMutex_);
-    auto iter = inode2FetchDentryPool_.find(key);
-    if (iter == inode2FetchDentryPool_.end()) {
-        std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
-        tp->Start(warmupThreadsNum_);
-        iter = inode2FetchDentryPool_.emplace(key, std::move(tp)).first;
+    if (!bgFetchStop_.load(std::memory_order_acquire)) {
+        WriteLockGuard lock(inode2FetchDentryPoolMutex_);
+        auto iter = inode2FetchDentryPool_.find(key);
+        if (iter == inode2FetchDentryPool_.end()) {
+            std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
+            tp->Start(option_.warmupThreadsNum);
+            iter = inode2FetchDentryPool_.emplace(key, std::move(tp)).first;
+        }
+        if (!iter->second->Enqueue(task)) {
+            LOG(ERROR) << "key:" << key
+                       << " fetch dentry thread pool has been stoped!";
+        }
+        VLOG(9) << "add fetchDentry task: " << key << " finished";
     }
-    if (!iter->second->Enqueue(task)) {
-        LOG(ERROR) << "key:" << key
-                   << " fetch dentry thread pool has been stoped!";
-    }
-    VLOG(9) << "add fetchDentry task: " << key << " finished";
 }
 
 void WarmupManagerS3Impl::AddFetchS3objectsTask(fuse_ino_t key,
                                                 std::function<void()> task) {
     VLOG(9) << "add fetchS3Objects task: " << key;
-    WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
-    auto iter = inode2FetchS3ObjectsPool_.find(key);
-    if (iter == inode2FetchS3ObjectsPool_.end()) {
-        std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
-        tp->Start(warmupThreadsNum_);
-        iter = inode2FetchS3ObjectsPool_.emplace(key, std::move(tp)).first;
+    if (!bgFetchStop_.load(std::memory_order_acquire)) {
+        WriteLockGuard lock(inode2FetchS3ObjectsPoolMutex_);
+        auto iter = inode2FetchS3ObjectsPool_.find(key);
+        if (iter == inode2FetchS3ObjectsPool_.end()) {
+            std::unique_ptr<ThreadPool> tp = absl::make_unique<ThreadPool>();
+            tp->Start(option_.warmupThreadsNum);
+            iter = inode2FetchS3ObjectsPool_.emplace(key, std::move(tp)).first;
+        }
+        if (!iter->second->Enqueue(task)) {
+            LOG(ERROR) << "key:" << key
+                       << " fetch s3 objects thread pool has been stoped!";
+        }
+        VLOG(9) << "add fetchS3Objects task: " << key << " finished";
     }
-    if (!iter->second->Enqueue(task)) {
-        LOG(ERROR) << "key:" << key
-                   << " fetch s3 objects thread pool has been stoped!";
+}
+
+void WarmupManagerS3Impl::PutObjectToCache(const std::string &filename,
+                                           const char *data, uint64_t len) {
+    int ret =
+        s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(filename, data, len);
+    if (ret < 0) {
+        LOG_EVERY_SECOND(INFO)
+            << "write read directly failed, key: " << filename;
     }
-    VLOG(9) << "add fetchS3Objects task: " << key << " finished";
+
+    if (kvClientManager_ != nullptr) {
+        kvClientManager_->Set(
+            std::make_shared<SetKVCacheTask>(filename, data, len));
+    }
 }
 
 }  // namespace warmup
