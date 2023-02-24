@@ -75,8 +75,11 @@ CURVEFS_ERROR DefaultVolumeStorage::Write(uint64_t ino,
                                           off_t offset,
                                           size_t len,
                                           const char* data) {
+ VLOG(9) << "write ino: " << ino << ", offset: " << offset
+            << ", len: " << len;                        
     std::shared_ptr<InodeWrapper> inodeWrapper;
     LatencyUpdater updater(&metric_.writeLatency);
+
     auto ret = inodeCacheManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Fail to get inode, ino: " << ino << ", error: " << ret;
@@ -130,7 +133,7 @@ CURVEFS_ERROR DefaultVolumeStorage::Read(uint64_t ino,
                                          off_t offset,
                                          size_t len,
                                          char* data) {
-    VLOG(9) << "read start, ino: " << ino << ", offset: " << offset
+    VLOG(0) << "whs: read start, ino: " << ino << ", offset: " << offset
             << ", len: " << len;
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -175,7 +178,7 @@ CURVEFS_ERROR DefaultVolumeStorage::Read(uint64_t ino,
     }
     inodeCacheManager_->ShipToFlush(inodeWrapper);
 
-    VLOG(9) << "read end, ino: " << ino << ", offset: " << offset
+    VLOG(0) << "whs: read end, ino: " << ino << ", offset: " << offset
             << ", len: " << len;
 
     return CURVEFS_ERROR::OK;

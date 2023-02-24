@@ -488,11 +488,13 @@ void InodeCacheManagerImpl::TrimIcache(uint64_t trimSize) {
 CURVEFS_ERROR
 InodeCacheManagerImpl::RefreshData(std::shared_ptr<InodeWrapper> &inode,
                                    bool streaming) {
+VLOG(0) << "whs 00 RefreshData";
     auto type = inode->GetType();
     CURVEFS_ERROR rc = CURVEFS_ERROR::OK;
 
     switch (type) {
-    case FsFileType::TYPE_S3:
+    case FsFileType::TYPE_S3: {
+        VLOG(0) << "whs 11 RefreshData";
         if (streaming) {
             // NOTE: if the s3chunkinfo inside inode is too large,
             // we should invoke RefreshS3ChunkInfo() to receive s3chunkinfo
@@ -502,8 +504,9 @@ InodeCacheManagerImpl::RefreshData(std::shared_ptr<InodeWrapper> &inode,
                 << "RefreshS3ChunkInfo() failed, retCode = " << rc;
         }
         break;
-
+    }
     case FsFileType::TYPE_FILE: {
+        VLOG(0) << "whs 22 RefreshData";
         if (inode->GetLength() > 0) {
             rc = inode->RefreshVolumeExtent();
             LOG_IF(ERROR, rc != CURVEFS_ERROR::OK)

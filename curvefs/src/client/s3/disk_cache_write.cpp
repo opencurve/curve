@@ -55,6 +55,7 @@ void DiskCacheWrite::AsyncUploadEnqueue(const std::string objName) {
 
 int DiskCacheWrite::ReadFile(const std::string name, char **buf,
                              uint64_t *size) {
+    VLOG(9) << "read file, file = " << name;
     std::string fileFullPath;
     bool fileExist;
     fileFullPath = GetCacheIoFullDir() + "/" + name;
@@ -111,6 +112,8 @@ int DiskCacheWrite::ReadFile(const std::string name, char **buf,
     }
     posixWrapper_->close(fd);
     *buf = buffer;
+    VLOG(9) << "whs: read file, file = " << name
+            << ", " << buf;
     return 0;
 }
 

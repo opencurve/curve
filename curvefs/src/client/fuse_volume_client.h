@@ -21,11 +21,13 @@
  * Author: xuchaojie
  */
 
+/*
 #ifndef CURVEFS_SRC_CLIENT_FUSE_VOLUME_CLIENT_H_
 #define CURVEFS_SRC_CLIENT_FUSE_VOLUME_CLIENT_H_
 
 #include <memory>
 
+#include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/volume/volume_storage.h"
 #include "curvefs/src/volume/block_device_client.h"
@@ -113,3 +115,4 @@ class FuseVolumeClient : public FuseClient {
 }  // namespace curvefs
 
 #endif  // CURVEFS_SRC_CLIENT_FUSE_VOLUME_CLIENT_H_
+*/

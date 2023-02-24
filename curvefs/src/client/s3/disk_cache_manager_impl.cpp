@@ -41,13 +41,13 @@ DiskCacheManagerImpl::DiskCacheManagerImpl(
 }
 
 int DiskCacheManagerImpl::Init(const S3ClientAdaptorOption option) {
-    LOG(INFO) << "DiskCacheManagerImpl init start.";
+    LOG(INFO) << "whs DiskCacheManagerImpl init start 01.";
     int ret = diskCacheManager_->Init(client_, option);
     if (ret < 0) {
         LOG(ERROR) << "DiskCacheManagerImpl init error.";
         return ret;
     }
-
+ LOG(INFO) << "whs DiskCacheManagerImpl init start 02.";
     forceFlush_ = option.diskCacheOpt.forceFlush;
     threads_ = option.diskCacheOpt.threads;
     taskPool_.Start(threads_);

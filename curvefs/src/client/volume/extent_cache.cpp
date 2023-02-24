@@ -70,7 +70,7 @@ ExtentCacheOption ExtentCache::option_;
 
 // TODO(wuhanqing): loffset and pext can span on two ranges
 void ExtentCache::Merge(uint64_t loffset, const PExtent& pExt) {
-    VLOG(9) << "merge extent, loffset: " << loffset
+    VLOG(0) << "whs: merge extent, loffset: " << loffset
             << ", physical offset: " << pExt.pOffset << ", len: " << pExt.len
             << ", written: " << !pExt.UnWritten;
     assert(is_aligned(loffset, option_.blockSize));
@@ -97,6 +97,8 @@ void ExtentCache::DivideForWrite(uint64_t offset,
                                  const char* data,
                                  std::vector<WritePart>* allocated,
                                  std::vector<AllocPart>* needAlloc) {
+VLOG(0) << "whs 00 DivideForWrite, offset: " << offset
+        << ", len: " << len;
     LatencyUpdater updater(&g_write_divide_latency);
     ReadLockGuard lk(lock_);
 
@@ -109,15 +111,21 @@ void ExtentCache::DivideForWrite(uint64_t offset,
 
         auto slice = slices_.find(align_down(offset, option_.sliceSize));
         if (slice != slices_.end()) {
+VLOG(0) << "whs 01 DivideForWrite, offset: " << offset
+        << ", len: " << len;
             slice->second.DivideForWrite(offset, length, datap, allocated,
                                          needAlloc);
         } else {
+VLOG(0) << "whs 02 DivideForWrite, offset: " << offset
+        << ", len: " << len;
             DivideForWriteWithinEmptySlice(offset, length, datap, needAlloc);
         }
 
         datap += length;
         offset += length;
     }
+VLOG(0) << "whs 03 DivideForWrite, offset: " << offset
+        << ", len: " << len;
 }
 
 void ExtentCache::DivideForWriteWithinEmptySlice(

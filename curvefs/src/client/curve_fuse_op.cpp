@@ -46,8 +46,8 @@
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
 using ::curvefs::client::FuseClient;
-using ::curvefs::client::FuseS3Client;
-using ::curvefs::client::FuseVolumeClient;
+// using ::curvefs::client::FuseS3Client;
+// using ::curvefs::client::FuseVolumeClient;
 using ::curvefs::client::common::FuseClientOption;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::rpcclient::MDSBaseClient;
@@ -58,7 +58,8 @@ using ::curvefs::client::common::FileHandle;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
-static FuseClient *g_ClientInstance = nullptr;
+FuseClient *g_ClientInstance = nullptr;
+
 static FuseClientOption *g_fuseClientOption = nullptr;
 static ClientOpMetric* g_clientOpMetric = nullptr;
 
@@ -168,24 +169,43 @@ int InitFuseClient(const char *confPath, const char* fsName,
         LOG(ERROR) << "The parameter fstype is inconsistent with mds!";
         return -1;
     } else if (fsTypeStr == "s3") {
-        g_ClientInstance = new FuseS3Client();
+        
+        g_ClientInstance = new FuseClient(true);
     } else if (fsTypeStr == "volume") {
-        g_ClientInstance = new FuseVolumeClient();
+           g_ClientInstance = new FuseClient(false);
     } else {
         LOG(ERROR) << "unknown fstype! fstype is " << fsTypeStr;
         return -1;
     }
-
+    LOG(ERROR) << "whs init00";
     g_ClientInstance->SetFsInfo(fsInfo);
+    LOG(ERROR) << "whs init01";
     CURVEFS_ERROR ret = g_ClientInstance->Init(*g_fuseClientOption);
     if (ret != CURVEFS_ERROR::OK) {
         return -1;
     }
+
+    LOG(ERROR) << "whs init02";
     ret = g_ClientInstance->Run();
     if (ret != CURVEFS_ERROR::OK) {
         return -1;
     }
 
+   LOG(ERROR) << "whs init03";
+
+  //  g_ClientInstanceBs->SetFsInfo(fsInfo);
+   // ret = g_ClientInstanceBs->Init(*g_fuseClientOption);
+    if (ret != CURVEFS_ERROR::OK) {
+        return -1;
+    }
+/*
+   LOG(ERROR) << "whs init04";
+    ret = g_ClientInstanceBs->Run();
+    if (ret != CURVEFS_ERROR::OK) {
+        return -1;
+    }
+*/
+   LOG(ERROR) << "whs init05";
     return 0;
 }
 
@@ -200,10 +220,13 @@ void UnInitFuseClient() {
 }
 
 void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+
+   LOG(ERROR) << "whs init06";
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpInit(userdata, conn);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(FATAL) << "FuseOpInit failed, ret = " << ret;
     }
+    LOG(ERROR) << "whs init07";
     EnableSplice(conn);
     LOG(INFO) << "Fuse op init success!";
 }

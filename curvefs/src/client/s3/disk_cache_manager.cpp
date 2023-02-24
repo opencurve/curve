@@ -284,6 +284,7 @@ int64_t DiskCacheManager::SetDiskFsUsedRatio() {
 }
 
 void DiskCacheManager::SetDiskInitUsedBytes() {
+    VLOG(9) << "start computer cache disk used size.";
     std::string cmd = "timeout " + std::to_string(cmdTimeoutSec_) + " du -sb " +
                       cacheDir_ + " | awk '{printf $1}' ";
     SysUtils sysUtils;
@@ -453,6 +454,7 @@ int DiskCacheManager::TrimStop() {
 }
 
 void DiskCacheManager::InitMetrics(const std::string &fsName) {
+    VLOG(9) << "DiskCacheManager init metric.";
     metric_ = std::make_shared<DiskCacheMetric>(fsName);
     cacheWrite_->InitMetrics(metric_);
     cacheRead_->InitMetrics(metric_);

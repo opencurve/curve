@@ -251,12 +251,13 @@ void InodeWrapper::FlushS3ChunkInfoAsync() {
 CURVEFS_ERROR InodeWrapper::FlushVolumeExtent() {
     std::lock_guard<::curve::common::Mutex> guard(syncingVolumeExtentsMtx_);
     if (!extentCache_.HasDirtyExtents()) {
+        VLOG(0) << "whs FlushVolumeExtent, ino: " << inode_.inodeid();
         return CURVEFS_ERROR::OK;
     }
 
     UpdateVolumeExtentClosure closure(shared_from_this(), true);
     auto dirtyExtents = extentCache_.GetDirtyExtents();
-    VLOG(3) << "FlushVolumeExtent, ino: " << inode_.inodeid()
+    VLOG(0) << "whs FlushVolumeExtent, ino: " << inode_.inodeid()
             << ", dirty extents: " << dirtyExtents.ShortDebugString();
     CHECK_GT(dirtyExtents.slices_size(), 0);
     metaClient_->AsyncUpdateVolumeExtent(inode_.fsid(), inode_.inodeid(),
@@ -436,17 +437,25 @@ CURVEFS_ERROR InodeWrapper::UpdateParent(
 
 CURVEFS_ERROR InodeWrapper::Sync(bool internal) {
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+VLOG(3) << "whs sync inode: " << inode_.ShortDebugString();
+
     switch (inode_.type()) {
         case FsFileType::TYPE_S3:
+        {
+             VLOG(0) << "whs sync inode 00";
             ret = SyncS3(internal);
             break;
+        }
         case FsFileType::TYPE_FILE:
+        {
+            VLOG(0) << "whs sync inode 11";
             ret = SyncAttr(internal);
             if (ret != CURVEFS_ERROR::OK) {
                 break;
             }
             ret = FlushVolumeExtent();
             break;
+        }
         case FsFileType::TYPE_DIRECTORY:
             ret = SyncAttr(internal);
             break;
@@ -457,17 +466,34 @@ CURVEFS_ERROR InodeWrapper::Sync(bool internal) {
 }
 
 void InodeWrapper::Async(MetaServerClientDone *done, bool internal) {
-    VLOG(3) << "async inode: " << inode_.ShortDebugString();
+ //   VLOG(3) << "async inode: " << inode_.ShortDebugString();
 
     switch (inode_.type()) {
-        case FsFileType::TYPE_S3:
+/*
+whs: 当前由于FuseOpCreate没有区分，所以即使后端是volume
+那么文件类型也还是TYPE_S3
+*/
+            case FsFileType::TYPE_S3:
+        {
+            VLOG(0) << "whs async inode 00";
             return AsyncS3(done, internal);
+        }
         case FsFileType::TYPE_FILE:
+        {
+            VLOG(0) << "whs async inode 11";
             return AsyncFlushAttrAndExtents(done, internal);
+        }
         case FsFileType::TYPE_DIRECTORY:
+        {
+            VLOG(0) << "whs async inode 22";
             FALLTHROUGH_INTENDED;
+        }
         case FsFileType::TYPE_SYM_LINK:
+        {
+            VLOG(0) << "whs async inode 33";
             return AsyncFlushAttr(done, internal);
+        }
+        VLOG(0) << "whs async inode 44";
     }
 
     CHECK(false) << "Unexpected inode type: " << inode_.type() << ", "
@@ -582,10 +608,11 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
 }
 
 CURVEFS_ERROR InodeWrapper::RefreshVolumeExtent() {
+    VLOG(0) << " whs00 RefreshVolumeExtent, ino: " << inode_.inodeid();
     VolumeExtentList extents;
     auto st = metaClient_->GetVolumeExtent(inode_.fsid(), inode_.inodeid(),
                                            true, &extents);
-    VLOG(9) << "RefreshVolumeExtent, ino: " << inode_.inodeid()
+    VLOG(0) << " whs01 RefreshVolumeExtent, ino: " << inode_.inodeid()
             << ", extents: " << extents.ShortDebugString();
     if (st == MetaStatusCode::OK) {
         VLOG(9) << "Refresh volume extent success, inodeid: "
@@ -595,7 +622,8 @@ CURVEFS_ERROR InodeWrapper::RefreshVolumeExtent() {
     } else {
         LOG(ERROR) << "GetVolumeExtent failed, inodeid: " << inode_.inodeid();
     }
-
+VLOG(0) << " whs02 RefreshVolumeExtent, ino: " << inode_.inodeid()
+            << ", extents: " << extents.ShortDebugString();
     return MetaStatusCodeToCurvefsErrCode(st);
 }
 

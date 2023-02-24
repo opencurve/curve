@@ -40,6 +40,7 @@ bool AllocSpace(SpaceManager* space,
                 const AllocPart& part,
                 std::map<uint64_t, WritePart>* writes,
                 std::map<uint64_t, Extent>* alloc) {
+VLOG(0) << "whs AllocSpace start";
     AllocateHint hint;
     if (part.allocInfo.leftHintAvailable) {
         hint.leftOffset = part.allocInfo.pOffsetLeft;
@@ -66,7 +67,7 @@ bool AllocSpace(SpaceManager* space,
 
         writes->emplace(part.allocInfo.lOffset, newPart);
         alloc->emplace(part.allocInfo.lOffset, exts[0]);
-
+VLOG(0) << "whs AllocSpace end00";
         return true;
     }
 
@@ -102,7 +103,7 @@ bool AllocSpace(SpaceManager* space,
     }
 
     CHECK(part.allocInfo.len == totalsize);
-
+VLOG(0) << "whs AllocSpace end01";
     return true;
 }
 
@@ -113,18 +114,24 @@ bool PrepareWriteRequest(off_t off,
                          SpaceManager* spaceManager,
                          std::vector<WritePart>* writes) {
     std::vector<AllocPart> needalloc;
-
+ LOG(ERROR) << "whs PrepareWriteRequest: " << off
+            << ", " << size;
     extentCache->DivideForWrite(off, size, data, writes, &needalloc);
 
     if (needalloc.empty()) {
+        LOG(ERROR) << "whs PrepareWriteRequest 00: " << off
+            << ", " << size;
         return true;
     }
-
+LOG(ERROR) << "whs PrepareWriteRequest 01: " << off
+            << ", " << size;
     std::map<uint64_t, WritePart> newalloc;
     std::map<uint64_t, Extent> newextents;
 
     // alloc enough space for write
     for (const auto& alloc : needalloc) {
+        VLOG(0) << "whs PrepareWriteRequest need alloc ";
+      
         auto ret = AllocSpace(spaceManager, alloc, &newalloc, &newextents);
         if (!ret) {
             LOG(ERROR) << "Alloc space error";
@@ -132,16 +139,24 @@ bool PrepareWriteRequest(off_t off,
         }
     }
 
+LOG(ERROR) << "whs PrepareWriteRequest 03: " << off
+            << ", " << size;
+
     // insert allocated space into extent cache
     for (const auto& ext : newextents) {
+LOG(ERROR) << "whs PrepareWriteRequest 04 need merge";
         PExtent pext{ext.second.len, ext.second.offset, true};
         extentCache->Merge(ext.first, pext);
     }
 
     for (const auto& alloc : newalloc) {
+LOG(ERROR) << "whs PrepareWriteRequest 05 need do";
         writes->emplace_back(alloc.second.offset, alloc.second.length,
                              alloc.second.data);
     }
+
+ LOG(ERROR) << "whs PrepareWriteRequest end: " << off
+            << ", " << size;
 
     return true;
 }
