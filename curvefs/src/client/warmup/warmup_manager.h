@@ -418,3 +418,4 @@ class WarmupManagerS3Impl : public WarmupManager {
 }  // namespace curvefs
 
 #endif  // CURVEFS_SRC_CLIENT_WARMUP_WARMUP_MANAGER_H_
+
