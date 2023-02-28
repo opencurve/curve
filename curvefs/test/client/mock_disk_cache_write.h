@@ -43,7 +43,7 @@ class MockDiskCacheWrite : public DiskCacheWrite {
                       const char* buf, uint64_t length, bool force));
 
     MOCK_METHOD1(CreateIoDir,
-                 int(bool writreDir));
+                 int(bool writeDir));
 
     MOCK_METHOD1(IsFileExist,
                  bool(const std::string file));
@@ -66,6 +66,8 @@ class MockDiskCacheWrite : public DiskCacheWrite {
     MOCK_METHOD1(AsyncUploadEnqueue,
                 void(const std::string objName));
     MOCK_METHOD1(UploadFileByInode, int(const std::string &inode));
+
+    MOCK_METHOD0(IsCacheClean, bool());
 };
 
 }  // namespace client

@@ -55,20 +55,20 @@ class DiskCacheWrite : public DiskCacheBase {
  public:
     class SynchronizationTask {
      public:
-        explicit SynchronizationTask(int enventNum) {
-            countDownEnvent_.Reset(enventNum);
+        explicit SynchronizationTask(int eventNum) {
+            countDownEvent_.Reset(eventNum);
             errorCount_ = 0;
         }
-        void Wait() { countDownEnvent_.Wait(); }
+        void Wait() { countDownEvent_.Wait(); }
 
-        void Signal() { countDownEnvent_.Signal(); }
+        void Signal() { countDownEvent_.Signal(); }
 
         void SetError() { errorCount_.fetch_add(1); }
 
         bool Success() { return errorCount_ == 0; }
 
      public:
-        curve::common::CountDownEvent countDownEnvent_;
+        curve::common::CountDownEvent countDownEvent_;
         std::atomic<int> errorCount_;
     };
 
@@ -85,7 +85,7 @@ class DiskCacheWrite : public DiskCacheBase {
               const std::string cacheDir, uint64_t asyncLoadPeriodMs,
               std::shared_ptr<SglLRUCache<std::string>> cachedObjName);
     /**
-     * @brief write obj to write cahce disk
+     * @brief write obj to write cache disk
      * @param[in] client S3Client
      * @param[in] option config option
      * @return success: 0, fail : < 0
@@ -116,7 +116,7 @@ class DiskCacheWrite : public DiskCacheBase {
     virtual int UploadFileByInode(const std::string &inode);
 
     /**
-     * @brief: start aync upload thread
+     * @brief: start async upload thread
      */
     virtual int AsyncUploadRun();
     /**
@@ -125,13 +125,18 @@ class DiskCacheWrite : public DiskCacheBase {
      */
     virtual void AsyncUploadEnqueue(const std::string objName);
     /**
-     * @brief: stop aync upload thread.
+     * @brief: stop async upload thread.
      */
     virtual int AsyncUploadStop();
 
     virtual void InitMetrics(std::shared_ptr<DiskCacheMetric> metric) {
         metric_ = metric;
     }
+
+    /**
+     * @brief check that cache dir does not exist or there is no cache file
+     */
+    virtual bool IsCacheClean();
 
  private:
     using DiskCacheBase::Init;
@@ -146,7 +151,8 @@ class DiskCacheWrite : public DiskCacheBase {
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     std::list<std::string> waitUpload_;
-    bthread::Mutex mtx_;
+    std::mutex mtx_;
+    std::condition_variable cond_;
     InterruptibleSleeper sleeper_;
     uint64_t asyncLoadPeriodMs_;
     std::shared_ptr<S3Client> client_;

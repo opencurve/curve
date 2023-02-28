@@ -75,7 +75,7 @@ void DiskCacheManagerImpl::Enqueue(
 int DiskCacheManagerImpl::WriteReadDirectClosure(
     std::shared_ptr<PutObjectAsyncContext> context) {
         VLOG(9) << "WriteReadClosure start, name: " << context->key;
-        // Write to read cache, we don't care if the cache wirte success
+        // Write to read cache, we don't care if the cache write success
         int ret = WriteReadDirect(context->key,
                             context->buffer, context->bufferSize);
         VLOG(9) << "WriteReadClosure end, name: " << context->key;
@@ -186,13 +186,13 @@ bool DiskCacheManagerImpl::IsDiskCacheFull() {
 }
 
 int DiskCacheManagerImpl::UmountDiskCache() {
+    taskPool_.Stop();
     int ret;
     ret = diskCacheManager_->UmountDiskCache();
     if (ret < 0) {
         LOG(ERROR) << "umount disk cache error.";
         return -1;
     }
-    taskPool_.Stop();
     client_->Deinit();
     return 0;
 }

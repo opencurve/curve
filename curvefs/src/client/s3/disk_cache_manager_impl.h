@@ -83,7 +83,7 @@ class DiskCacheManagerImpl {
      * @brief Write obj
      * @param[in] name obj name
      * @param[in] buf what to write
-     * @param[in] length wtite length
+     * @param[in] length write length
      * @return success: write length, fail : < 0
      */
     int Write(const std::string name, const char *buf, uint64_t length);

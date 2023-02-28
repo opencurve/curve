@@ -112,7 +112,7 @@ class DiskCacheManager {
     void InitMetrics(const std::string &fsName);
 
     /**
-     * @brief: has geted the origin used size or not.
+     * @brief: has got the origin used size or not.
      */
     virtual bool IsDiskUsedInited() {
         return diskUsedInit_.load();
@@ -160,6 +160,11 @@ class DiskCacheManager {
      */
     bool IsExceedFileNums();
 
+    /**
+     * @brief check whether cache dir does not exist or there is no cache file
+     */
+    bool IsCacheClean();
+
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
@@ -188,7 +193,7 @@ class DiskCacheManager {
 
     S3ClientAdaptorOption option_;
 
-    // has geted the origin used size or not
+    // has got the origin used size or not
     std::atomic<bool> diskUsedInit_;
     curve::common::Thread diskInitThread_;
 };
