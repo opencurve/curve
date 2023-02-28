@@ -246,14 +246,12 @@ TEST_F(TestDiskCacheManagerImpl, IsCached) {
 }
 
 TEST_F(TestDiskCacheManagerImpl, UmountDiskCache) {
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*diskCacheWrite_, IsCacheClean()).WillOnce(Return(true));
     diskCacheManagerImpl_->InitMetrics("test");
     int ret = diskCacheManagerImpl_->UmountDiskCache();
     ASSERT_EQ(0, ret);
 
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-        .WillOnce(Return(0));
+    EXPECT_CALL(*diskCacheWrite_, IsCacheClean()).WillOnce(Return(false));
     diskCacheManagerImpl_->InitMetrics("test");
     ret = diskCacheManagerImpl_->UmountDiskCache();
     ASSERT_EQ(0, ret);

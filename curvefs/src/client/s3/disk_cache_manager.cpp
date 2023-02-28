@@ -103,7 +103,7 @@ int DiskCacheManager::Init(std::shared_ptr<S3Client> client,
         return ret;
     }
 
-    // start aync upload thread
+    // start async upload thread
     cacheWrite_->AsyncUploadRun();
     std::thread uploadThread =
         std::thread(&DiskCacheManager::UploadAllCacheWriteFile, this);
@@ -172,16 +172,16 @@ bool DiskCacheManager::IsCached(const std::string name) {
     return true;
 }
 
+bool DiskCacheManager::IsCacheClean() {
+    return cacheWrite_->IsCacheClean();
+}
+
 int DiskCacheManager::UmountDiskCache() {
     LOG(INFO) << "umount disk cache.";
-    int ret;
     diskInitThread_.join();
-    ret = cacheWrite_->UploadAllCacheWriteFile();
-    if (ret < 0) {
-        LOG(ERROR) << "umount disk cache error.";
-    }
     TrimStop();
     cacheWrite_->AsyncUploadStop();
+    LOG_IF(ERROR, !IsCacheClean()) << "umount disk cache error.";
     LOG(INFO) << "umount disk cache end.";
     return 0;
 }
@@ -211,7 +211,7 @@ int DiskCacheManager::CreateDir() {
         LOG(ERROR) << "create cache read dir error. ret = " << ret;
         return ret;
     }
-    VLOG(9) << "create cache dir sucess.";
+    VLOG(9) << "create cache dir success.";
     return 0;
 }
 
