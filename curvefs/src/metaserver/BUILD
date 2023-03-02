@@ -22,6 +22,7 @@ cc_library(
         ["*.cpp"],
         exclude = [
             "main.cpp",
+            "fsinfo_manager.cpp",
         ],
     ) + glob(
         ["copyset/*.cpp"],
@@ -32,6 +33,9 @@ cc_library(
     ),
     hdrs = glob(
         ["*.h"],
+        exclude = [
+            "fsinfo_manager.h",
+        ],
     ) + glob(
         ["copyset/*.h"],
     ) + glob(
@@ -62,6 +66,8 @@ cc_library(
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/utility",
         "//external:gtest",
+        "//curvefs/src/metaserver/volume:metaserver_volume_lib",
+        "//curvefs/src/metaserver:metaserver_fsinfo_lib",
     ],
 )
 
@@ -80,6 +86,17 @@ cc_library(
         "//src/common:curve_s3_adapter",
         "//curvefs/src/client/common",
         "//curvefs/src/client/metric:client_metric",
+        "//curvefs/src/client/rpcclient",
+    ],
+)
+
+cc_library(
+    name = "metaserver_fsinfo_lib",
+    srcs = glob(["fsinfo*.cpp"]),
+    hdrs = glob(["fsinfo*.h"]),
+    copts = CURVE_DEFAULT_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
         "//curvefs/src/client/rpcclient",
     ],
 )

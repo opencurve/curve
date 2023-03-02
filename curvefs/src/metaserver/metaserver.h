@@ -46,6 +46,7 @@
 #include "src/fs/local_filesystem.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "curvefs/src/metaserver/recycle_manager.h"
+#include "curvefs/src/metaserver/volume/volume_space_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -143,6 +144,8 @@ class Metaserver {
 
     std::unique_ptr<InflightThrottle> inflightThrottle_;
     std::shared_ptr<curve::fs::LocalFileSystem> localFileSystem_;
+
+    std::unique_ptr<VolumeSpaceManager> volumeSpaceManager_;
 };
 }  // namespace metaserver
 }  // namespace curvefs

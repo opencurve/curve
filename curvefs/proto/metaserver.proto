@@ -49,6 +49,8 @@ enum MetaStatusCode {
     RPC_STREAM_ERROR = 25;
     INODE_S3_META_TOO_LARGE = 26;
     STORAGE_CLOSED = 27;
+    FS_NOT_FOUND = 28;
+    VOLUME_FREE_ERR = 29;
 }
 
 // dentry interface

@@ -46,6 +46,7 @@
 #include "src/common/uri_parser.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/src/metaserver/fsinfo_manager.h"
 
 namespace braft {
 
@@ -73,6 +74,7 @@ using ::curvefs::client::rpcclient::MetaServerClientImpl;
 using ::curvefs::client::rpcclient::ChannelManager;
 using ::curvefs::client::rpcclient::MetaCache;
 using ::curvefs::client::rpcclient::Cli2ClientImpl;
+using ::curvefs::volume::BlockDeviceClientImpl;
 
 void Metaserver::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
@@ -206,6 +208,8 @@ void Metaserver::Init() {
     mdsClient_ = std::make_shared<MdsClientImpl>();
     mdsClient_->Init(mdsOptions_, mdsBase_);
 
+    FsInfoManager::GetInstance().SetMdsClient(mdsClient_);
+
     // init metaserver client for recycle
     InitMetaClient();
 
@@ -215,14 +219,24 @@ void Metaserver::Init() {
     InitS3Option(conf_, &s3ClientAdaptorOption);
     curve::common::S3AdapterOption s3AdaptorOption;
     ::curve::common::InitS3AdaptorOptionExceptS3InfoOption(conf_.get(),
-                                                         &s3AdaptorOption);
+                                                           &s3AdaptorOption);
     auto s3Client_ = new S3ClientImpl;
     s3Client_->SetAdaptor(std::make_shared<curve::common::S3Adapter>());
     s3Client_->Init(s3AdaptorOption);
+
+    // init volume space manager
+    volumeSpaceManager_ = absl::make_unique<VolumeSpaceManager>();
+    VolumeSpaceManagerOptions volumeSpaceManagerOptions;
+    volumeSpaceManagerOptions.host = options_.ip + ":" +
+                                     std::to_string(options_.port);
+    volumeSpaceManagerOptions.mdsClient = mdsClient_;
+    volumeSpaceManagerOptions.blockDeviceClient =
+        std::make_shared<BlockDeviceClientImpl>();
+    volumeSpaceManager_->Init(volumeSpaceManagerOptions);
+
     // s3Adaptor_ own the s3Client_, and will delete it when destruct.
     s3Adaptor_->Init(s3ClientAdaptorOption, s3Client_);
     trashOption.s3Adaptor = s3Adaptor_;
-    trashOption.mdsClient = mdsClient_;
     TrashManager::GetInstance().Init(trashOption);
 
     RecycleManagerOption recycleManagerOption;

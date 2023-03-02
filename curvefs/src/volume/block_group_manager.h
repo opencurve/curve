@@ -38,6 +38,7 @@ namespace curvefs {
 namespace volume {
 
 using ::curvefs::client::rpcclient::MdsClient;
+using ::curvefs::mds::space::BlockGroup;
 
 class SpaceManager;
 
@@ -48,7 +49,13 @@ class BlockGroupManager {
     virtual bool AllocateBlockGroup(
         std::vector<AllocatorAndBitmapUpdater>* out) = 0;
 
-    virtual bool ReleaseAllBlockGroups() = 0;
+    virtual bool ReleaseAllBlockGroups(
+        const std::vector<BlockGroup>& blockGroups) = 0;
+
+    virtual bool ReleaseBlockGroup(const BlockGroup& blockGroups) = 0;
+
+    virtual bool AcquireBlockGroup(uint64_t offset,
+                                   AllocatorAndBitmapUpdater* out) = 0;
 };
 
 class BlockGroupManagerImpl final : public BlockGroupManager {
@@ -62,11 +69,15 @@ class BlockGroupManagerImpl final : public BlockGroupManager {
     bool AllocateBlockGroup(
         std::vector<AllocatorAndBitmapUpdater>* out) override;
 
-    void AcquireBlockGroup();
+    bool AcquireBlockGroup(uint64_t offset,
+                           AllocatorAndBitmapUpdater* out) override;
 
     void AllocateBlockGroupAsync();
 
-    bool ReleaseAllBlockGroups() override;
+    bool ReleaseAllBlockGroups(
+        const std::vector<BlockGroup>& blockGroups) override;
+
+    bool ReleaseBlockGroup(const BlockGroup& blockGroups) override;
 
  private:
     SpaceManager* spaceManager_;

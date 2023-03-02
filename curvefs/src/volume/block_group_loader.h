@@ -36,6 +36,7 @@ namespace curvefs {
 namespace volume {
 
 using ::curvefs::common::BitmapLocation;
+using ::curvefs::mds::space::BlockGroup;
 
 class BlockDeviceClient;
 
@@ -43,25 +44,22 @@ struct AllocatorAndBitmapUpdater {
     uint64_t blockGroupOffset;
     std::unique_ptr<Allocator> allocator;
     std::unique_ptr<BlockGroupBitmapUpdater> bitmapUpdater;
+    std::shared_ptr<BlockGroup> blockGroup;
 };
 
 // load bitmap for each block group
 class BlockGroupBitmapLoader {
  public:
-    BlockGroupBitmapLoader(BlockDeviceClient* client,
-                           uint32_t blockSize,
-                           uint64_t offset,
-                           uint64_t blockGroupSize,
-                           BitmapLocation location,
-                           bool clean,
-                           const AllocatorOption& option)
-        : blockDev_(client),
-          offset_(offset),
-          blockGroupSize_(blockGroupSize),
-          blockSize_(blockSize),
-          bitmapLocation_(location),
-          clean_(clean),
-          allocatorOption_(option) {}
+    BlockGroupBitmapLoader(BlockDeviceClient* client, uint32_t blockSize,
+                           const AllocatorOption& option,
+                           const BlockGroup& blockGroup)
+        : blockDev_(client), blockSize_(blockSize), allocatorOption_(option) {
+        offset_ = blockGroup.offset();
+        blockGroupSize_ = blockGroup.size();
+        bitmapLocation_ = blockGroup.bitmaplocation();
+        clean_ = blockGroup.size() == blockGroup.available();
+        blockGroup_ = std::make_shared<BlockGroup>(blockGroup);
+    }
 
     BlockGroupBitmapLoader(const BlockGroupBitmapLoader&) = delete;
     BlockGroupBitmapLoader& operator=(const BlockGroupBitmapLoader&) = delete;
@@ -88,6 +86,7 @@ class BlockGroupBitmapLoader {
     BitmapLocation bitmapLocation_;
     bool clean_;
     const AllocatorOption& allocatorOption_;
+    std::shared_ptr<BlockGroup> blockGroup_;
 };
 
 }  // namespace volume

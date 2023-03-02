@@ -62,6 +62,8 @@ using ::curvefs::metaserver::storage::MemoryStorage;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 
+using ::curvefs::common::FSType;
+
 namespace {
 const char* const kMetaDataFilename = "metadata";
 bvar::LatencyRecorder g_storage_checkpoint_latency("storage_checkpoint");
@@ -280,6 +282,26 @@ MetaStatusCode MetaStoreImpl::DeletePartition(
     }
 
     if (it->second->GetStatus() != PartitionStatus::DELETING) {
+        // if fs type is s3 or hybrid, clear dentry and
+        // add partiton cleaner to delete s3 data
+        // if fs type is volume, delete inode/dentry/extent/partiton directly
+        FsInfo fsInfo;
+        if (!it->second->GetFsInfo(&fsInfo)) {
+            response->set_statuscode(MetaStatusCode::FS_NOT_FOUND);
+            return MetaStatusCode::FS_NOT_FOUND;
+        }
+
+        if (fsInfo.fstype() == FSType::TYPE_VOLUME) {
+            LOG(INFO) << "DeletePartition, fs type is volume, delete it"
+                      << ", partitionId = " << partitionId;
+            TrashManager::GetInstance().Remove(partitionId);
+            it->second->CancelS3Compact();
+            it->second->Clear();
+            partitionMap_.erase(it);
+            response->set_statuscode(MetaStatusCode::OK);
+            return MetaStatusCode::OK;
+        }
+
         LOG(INFO) << "DeletePartition, set partition to deleting"
                   << ", partitionId = " << partitionId;
         it->second->ClearDentry();
