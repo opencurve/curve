@@ -54,6 +54,8 @@ A tool for CurveFS & CurveBs.
       - [staus mds](#staus-mds)
     - [delete](#delete-1)
       - [delete peer](#delete-peer)
+    - [update](#update)
+      - [update peer](#update-peer)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -981,6 +983,26 @@ Output:
 
 ```
 
+### update
+
+#### update peer
+
+reset peer
+
+Usage:
+```bash
+curve bs update peer 127.0.0.0:8200:0 --logicalpoolid=1 --copysetid=1
+```
+
+Output:
+```
++----------------------+---------+---------+--------+
+|         PEER         | COPYSET | RESULT  | REASON |
++----------------------+---------+---------+--------+
+|   127.0.0.0:8200:0   | (1:1)   | success | null   |
++----------------------+---------+---------+--------+
+```
+
 ## Comparison of old and new commands
 
 ### curve fs
@@ -1036,7 +1058,7 @@ Output:
 | check-consistency | |
 | remove-peer | curve bs delete peer |
 | transfer-leader | |
-| reset-peer | |
+| reset-peer | curve bs update peer |
 | do-snapshot | |
 | do-snapshot-all | |
 | check-chunkserver | |

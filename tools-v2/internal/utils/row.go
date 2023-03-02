@@ -115,6 +115,8 @@ const (
 	ROW_VALUE_OFFLINE = "offline"
 	ROW_VALUE_UNKNOWN = "unknown"
 	ROW_VALUE_SUCCESS = "success"
+	ROW_VALUE_FAILED  = "failed"
+	ROW_VALUE_NULL    = "null"
 )
 
 // topology type
