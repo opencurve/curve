@@ -42,7 +42,6 @@
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/common/metric_utils.h"
 #include "curvefs/src/common/dynamic_vlog.h"
-#include "curvefs/src/client/warmup/warmup_manager.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -277,47 +276,25 @@ void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     fuse_reply_attr(req, &attr, g_fuseClientOption->attrTimeOut);
 }
 
-int AddWarmupTask(curvefs::client::common::WarmupType type, fuse_ino_t key,
-                  const std::string &path) {
+int AddWarmupTask(const std::string& type, const std::string& path) {
     int ret = 0;
-    bool result = true;
-    switch (type) {
-    case curvefs::client::common::WarmupType::kWarmupTypeList:
-        result = g_ClientInstance->PutWarmFilelistTask(key);
-        break;
-    case curvefs::client::common::WarmupType::kWarmupTypeSingle:
-        result = g_ClientInstance->PutWarmFileTask(key, path);
-        break;
-    default:
-        // not support add warmup type (warmup single file/dir or filelist)
-        LOG(ERROR) << "not support warmup type, only support single/list";
-        ret = EOPNOTSUPP;
-    }
-    if (!result) {
-        ret = ERANGE;
+    switch (curvefs::client::common::GetWarmupType(type)) {
+        case curvefs::client::common::WarmupType::kWarmupTypeList:
+            g_ClientInstance->PutWarmTask(path);
+            break;
+        case curvefs::client::common::WarmupType::kWarmupTypeSingle:
+            g_ClientInstance->FetchDentryEnqueue(path);
+            break;
+        default:
+            // not support add warmup type (warmup single file/dir or filelist)
+            LOG(ERROR) << "not support warmup type, only support single/list";
+            ret = ERANGE;
     }
     return ret;
 }
 
-void QueryWarmupTask(fuse_ino_t key, std::string *data) {
-    curvefs::client::warmup::WarmupProgress progress;
-    bool ret = g_ClientInstance->GetWarmupProgress(key, &progress);
-    if (!ret) {
-        *data = "finished";
-    } else {
-        *data = std::to_string(progress.GetFinished()) + "/" +
-                std::to_string(progress.GetTotal());
-    }
-    VLOG(9) << "Warmup [" << key << "]" << *data;
-}
-
-int Warmup(fuse_ino_t key, const std::string& name, const std::string& value) {
+int Warmup(const std::string& name, const std::string& value) {
     // warmup
-    if (g_ClientInstance->GetFsInfo()->fstype() != FSType::TYPE_S3) {
-        LOG(ERROR) << "warmup only support s3";
-        return EOPNOTSUPP;
-    }
-
     std::vector<std::string> opTypePath;
     curve::common::SplitString(value, "\n", &opTypePath);
     if (opTypePath.size() != 3) {
@@ -326,17 +303,15 @@ int Warmup(fuse_ino_t key, const std::string& name, const std::string& value) {
     }
     int ret = 0;
     switch (curvefs::client::common::GetWarmupOpType(opTypePath[0])) {
-    case curvefs::client::common::WarmupOpType::kWarmupOpAdd:
-        ret =
-            AddWarmupTask(curvefs::client::common::GetWarmupType(opTypePath[1]),
-                          key, opTypePath[2]);
-        if (ret != 0) {
+        case curvefs::client::common::WarmupOpType::kWarmupOpAdd:
+            ret = AddWarmupTask(opTypePath[1], opTypePath[2]);
+            if (ret != 0) {
+                LOG(ERROR) << name << " has invalid xattr value " << value;
+            }
+            break;
+        default:
             LOG(ERROR) << name << " has invalid xattr value " << value;
-        }
-        break;
-    default:
-        LOG(ERROR) << name << " has invalid xattr value " << value;
-        ret = ERANGE;
+            ret = ERANGE;
     }
     return ret;
 }
@@ -349,7 +324,7 @@ void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char* name,
             << " flags " << flags;
     if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
         // warmup
-        int code = Warmup(ino, name, xattrValue);
+        int code = Warmup(name, xattrValue);
         fuse_reply_err(req, code);
     } else {
         // set xattr
@@ -362,18 +337,7 @@ void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char* name,
 }
 
 void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
-                    size_t size) {
-    if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
-        // warmup
-        std::string data;
-        QueryWarmupTask(ino, &data);
-        if (size == 0) {
-            fuse_reply_xattr(req, data.length());
-        } else {
-            fuse_reply_buf(req, data.data(), data.length());
-        }
-        return;
-    }
+    size_t size) {
     InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opGetXattr.latency);
     std::string buf;
