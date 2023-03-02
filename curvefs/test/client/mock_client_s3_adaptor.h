@@ -23,8 +23,6 @@
 #ifndef CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
 #define CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
 
-#include <gmock/gmock.h>
-
 #include <memory>
 #include <string>
 

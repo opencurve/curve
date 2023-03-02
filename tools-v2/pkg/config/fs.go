@@ -87,12 +87,6 @@ const (
 	CURVEFS_SERVERS              = "servers"
 	VIPER_CURVEFS_SERVERS        = "curvefs.servers"
 	CURVEFS_DEFAULT_SERVERS      = "127.0.0.1:7001,127.0.0.1:7002"
-	CURVEFS_INTERVAL             = "interval"
-	VIPER_CURVEFS_INTERVAL       = "curvefs.interval"
-	CURVEFS_DEFAULT_INTERVAL     = 1 * time.Second
-	CURVEFS_DAEMON               = "daemon"
-	VIPER_CURVEFS_DAEMON         = "curvefs.daemon"
-	CURVEFS_DEFAULT_DAEMON       = false
 
 	// S3
 	CURVEFS_S3_AK                 = "s3.ak"
@@ -166,9 +160,6 @@ var (
 		CURVEFS_CLUSTERMAP:     VIPER_CURVEFS_CLUSTERMAP,
 		CURVEFS_MARGIN:         VIPER_CURVEFS_MARGIN,
 		CURVEFS_SERVERS:        VIPER_CURVEFS_SERVERS,
-		CURVEFS_FILELIST:       VIPER_CURVEFS_FILELIST,
-		CURVEFS_INTERVAL:       VIPER_CURVEFS_INTERVAL,
-		CURVEFS_DAEMON:			VIPER_CURVEFS_DAEMON,
 
 		// S3
 		CURVEFS_S3_AK:         VIPER_CURVEFS_S3_AK,
@@ -195,9 +186,7 @@ var (
 		CURVEFS_DETAIL:     CURVEFS_DEFAULT_DETAIL,
 		CURVEFS_CLUSTERMAP: CURVEFS_DEFAULT_CLUSTERMAP,
 		CURVEFS_MARGIN:     CURVEFS_DEFAULT_MARGIN,
-		CURVEFS_SERVERS:    CURVEFS_DEFAULT_SERVERS,
-		CURVEFS_INTERVAL:   CURVEFS_DEFAULT_INTERVAL,
-		CURVEFS_DAEMON:		CURVEFS_DEFAULT_DAEMON,
+		CURVEFS_SERVERS:	CURVEFS_DEFAULT_SERVERS,
 
 		// S3
 		CURVEFS_S3_AK:         CURVEFS_DEFAULT_S3_AK,
@@ -285,18 +274,6 @@ func AddBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
 		defaultValue = false
 	}
 	cmd.Flags().Bool(name, defaultValue.(bool), usage)
-	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-}
-
-func AddBoolOptionPFlag(cmd *cobra.Command, name string, short string, usage string) {
-	defaultValue := FLAG2DEFAULT[name]
-	if defaultValue == nil {
-		defaultValue = false
-	}
-	cmd.Flags().BoolP(name, short, defaultValue.(bool), usage)
 	err := viper.BindPFlag(FLAG2VIPER[name], cmd.Flags().Lookup(name))
 	if err != nil {
 		cobra.CheckErr(err)
@@ -734,28 +711,6 @@ func AddFileListOptionFlag(cmd *cobra.Command) {
 
 func GetFileListOptionFlag(cmd *cobra.Command) string {
 	return GetFlagString(cmd, CURVEFS_FILELIST)
-}
-
-// interval [option]
-func AddIntervalOptionFlag(cmd *cobra.Command) {
-	AddDurationOptionFlag(cmd, CURVEFS_INTERVAL, "interval time")
-}
-
-func GetIntervalFlag(cmd *cobra.Command) time.Duration {
-	return GetFlagDuration(cmd, CURVEFS_INTERVAL)
-}
-
-// daemon [option]
-func AddDaemonOptionFlag(cmd *cobra.Command) {
-	AddBoolOptionFlag(cmd, CURVEFS_DAEMON, "run in daemon mode")
-}
-
-func AddDaemonOptionPFlag(cmd *cobra.Command) {
-	AddBoolOptionPFlag(cmd, CURVEFS_DAEMON, "d", "run in daemon mode")
-}
-
-func GetDaemonFlag(cmd *cobra.Command) bool {
-	return GetFlagBool(cmd, CURVEFS_DAEMON)
 }
 
 /* required */
