@@ -280,7 +280,11 @@ var (
 		return NewInternalCmdError(14, "invalid %s: %s")
 	}
 	ErrSplitPeer = func() *CmdError {
+<<<<<<< HEAD
 		return NewInternalCmdError(15, "split peer %s failed")
+=======
+		return NewInternalCmdError(15, "split peer[%s] failed, peer should be like: 127.0.0.1:8200:0")
+>>>>>>> 87664bd3... develop 'curve bs update reset' (for 'curve_ops_tool reset-peer')
 	}
 	ErrMarshalJson = func() *CmdError {
 		return NewInternalCmdError(16, "marshal %s to json error, the error is: %s")

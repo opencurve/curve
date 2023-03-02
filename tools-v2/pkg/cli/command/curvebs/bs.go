@@ -31,6 +31,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update"
 )
 
 type CurveBsCommand struct {
@@ -46,6 +47,7 @@ func (bsCmd *CurveBsCommand) AddSubCommands() {
 		status.NewStatusCommand(),
 		delete.NewDeleteCommand(),
 		create.NewCreateCmd(),
+		update.NewUpdateCommand(),
 	)
 }
 
