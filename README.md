@@ -48,6 +48,17 @@
 
 **Curve** is a mordern storage system developed by netease, currently supporting file storage(CurveFS) and block storage(CurveBS). Now it's hosted at [CNCF](https://www.cncf.io/) as a sandbox project.
 
+The core application scenarios of CurveBS mainly include:
+- the performance, mixed, capacity cloud disk or persistent volume of virtual machine/container, and remote disks of physical machines
+- high-performance separation of storage and computation architecture: high-performance and low latency architecture based on RDMA+SPDK, supporting the separation deployment structure of various databases such as MySQL and Kafka
+
+
+The core application scenarios of CurveFS mainly include:
+- the cost-effective storage in AI training scene
+- the hot and cold data automation layered storage in big data scenarios
+- the cost-effective shared file storage on the public cloud: It can be used for business scenarios such as AI, big data, file sharing
+- Hybrid storage: Hot data is stored in the local IDC, cold data is stored in public cloud
+
 <details>
   <summary><b><font=5>High Performance | More stable | Easy Operation | Cloud Native</b></font></summary>
 
