@@ -32,7 +32,6 @@
 
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
-#include "curvefs/src/client/warmup/warmup_manager.h"
 #include "src/common/s3_adapter.h"
 
 namespace curvefs {
@@ -40,34 +39,20 @@ namespace client {
 
 using curve::common::GetObjectAsyncContext;
 using curve::common::GetObjectAsyncCallBack;
-namespace warmup {
-class WarmupManager;
-class WarmupManagerS3Impl;
-}  // namespace warmup
-
 
 class FuseS3Client : public FuseClient {
  public:
     FuseS3Client()
-        : FuseClient(), s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {
-        auto readFunc = [this](fuse_req_t req, fuse_ino_t ino, size_t size,
-                               off_t off, struct fuse_file_info *fi,
-                               char *buffer, size_t *rSize) {
-            return FuseOpRead(req, ino, size, off, fi, buffer, rSize);
-        };
-        warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
-            metaClient_, inodeManager_, dentryManager_, fsInfo_, readFunc,
-            s3Adaptor_);
-    }
+      : FuseClient(),
+        s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {}
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,
-                 const std::shared_ptr<MetaServerClient> &metaClient,
-                 const std::shared_ptr<InodeCacheManager> &inodeManager,
-                 const std::shared_ptr<DentryCacheManager> &dentryManager,
-                 const std::shared_ptr<S3ClientAdaptor> &s3Adaptor,
-                 const std::shared_ptr<warmup::WarmupManager> &warmupManager)
-        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager,
-                     warmupManager),
+        const std::shared_ptr<MetaServerClient> &metaClient,
+        const std::shared_ptr<InodeCacheManager> &inodeManager,
+        const std::shared_ptr<DentryCacheManager> &dentryManager,
+        const std::shared_ptr<S3ClientAdaptor> &s3Adaptor)
+        : FuseClient(mdsClient, metaClient,
+            inodeManager, dentryManager),
           s3Adaptor_(s3Adaptor) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
@@ -112,10 +97,33 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
+    // get the warmUp filelist
+    void GetWarmUpFileList(const WarmUpFileContext_t&,
+      std::vector<std::string>&);
+    void BackGroundFetch();
+    // put the file needed warmup to queue,
+    // then can downlaod the objs belong to it
+    void fetchDataEnqueue(fuse_ino_t ino);
+    // travel all chunks
+    void travelChunks(
+        fuse_ino_t ino,
+        const google::protobuf::Map<uint64_t, S3ChunkInfoList>& s3ChunkInfoMap);
+    // travel and download all objs belong to the chunk
+    void travelChunk(fuse_ino_t ino, S3ChunkInfoList chunkInfo);
+    // warmup all the prefetchObjs
+    void WarmUpAllObjs();
 
  private:
     // s3 adaptor
     std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
+
+    Thread bgFetchThread_;
+    std::atomic<bool> bgFetchStop_;
+    std::mutex warmupObjsMtx_;
+    std::atomic<bool> isWarmUping_;
+    std::list<std::pair<std::string, uint64_t>> needWarmupObjs_;
+    std::mutex fetchMtx_;
+    uint32_t downloadMaxRetryTimes_;
 };
 
 

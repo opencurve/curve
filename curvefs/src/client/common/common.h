@@ -71,7 +71,6 @@ const char kCurveFsWarmupXAttr[] = "curvefs.warmup.op";
 enum class WarmupOpType {
     kWarmupOpUnknown = 0,
     kWarmupOpAdd = 1,
-    kWarmupOpQuery = 2,
 };
 
 WarmupOpType GetWarmupOpType(const std::string& op);
