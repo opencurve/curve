@@ -674,7 +674,8 @@ class SnapshotCloneServerTest : public ::testing::Test {
         int ret = tracker->GetResult();
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "RecoverChunk tracker GetResult fail"
-                       << ", ret = " << ret;
+                       << ", ret = " << ret
+                       << LibCurveErrorName((LIBCURVE_ERROR)ret);
             return ret;
         }
         return LIBCURVE_ERROR::OK;

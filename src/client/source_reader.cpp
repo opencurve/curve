@@ -175,7 +175,8 @@ int SourceReader::Read(const std::vector<RequestContext*>& reqCtxVec,
                                           UserDataType::IOBuffer);
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "Read curve failed failed, filename = " << fileName
-                       << ", error = " << ret;
+                       << ", error = " << ret
+                       << LibCurveErrorName((LIBCURVE_ERROR)ret);
             delete curveCombineCtx;
             return -1;
         } else {

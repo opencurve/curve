@@ -61,8 +61,8 @@ int ChunkServerBroadCaster::BroadCastFileEpoch(
             tracker->Wait();
             LOG(ERROR) << "BroadCastFileEpoch request failed, ret: " << ret
                        << ", chunkserverid: " << cs.peerID
-                       << ", fileId: " << fileId
-                       << ", epoch: " << epoch;
+                       << ", fileId: " << fileId << ", epoch: " << epoch
+                       << LibCurveErrorName((LIBCURVE_ERROR)ret);
             return ret;
         }
         if (tracker->GetTaskNum() >= option_.broadCastMaxNum) {
@@ -73,7 +73,7 @@ int ChunkServerBroadCaster::BroadCastFileEpoch(
             // already failed, wait all inflight rpc to be done
             tracker->Wait();
             LOG(ERROR) << "BroadCastFileEpoch found some request failed, ret: "
-                       << ret;
+                       << ret << LibCurveErrorName((LIBCURVE_ERROR)ret);
             return ret;
         }
     }
@@ -81,7 +81,7 @@ int ChunkServerBroadCaster::BroadCastFileEpoch(
     ret = tracker->GetResult();
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "BroadCastFileEpoch found some request failed, ret: "
-                   << ret;
+                   << ret << LibCurveErrorName((LIBCURVE_ERROR)ret);
         return ret;
     }
 
@@ -89,5 +89,5 @@ int ChunkServerBroadCaster::BroadCastFileEpoch(
 }
 
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

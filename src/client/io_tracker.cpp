@@ -44,38 +44,33 @@ using curve::chunkserver::CHUNK_OP_STATUS;
 std::atomic<uint64_t> IOTracker::tracekerID_(1);
 DiscardOption IOTracker::discardOption_;
 
-IOTracker::IOTracker(IOManager* iomanager,
-                     MetaCache* mc,
-                     RequestScheduler* scheduler,
-                     FileMetric* clientMetric,
+IOTracker::IOTracker(IOManager *iomanager, MetaCache *mc,
+                     RequestScheduler *scheduler, FileMetric *clientMetric,
                      bool disableStripe)
-    : mc_(mc),
-      iomanager_(iomanager),
-      scheduler_(scheduler),
-      fileMetric_(clientMetric),
-      disableStripe_(disableStripe) {
-    id_         = tracekerID_.fetch_add(1, std::memory_order_relaxed);
-    scc_        = nullptr;
-    aioctx_     = nullptr;
-    data_       = nullptr;
-    type_       = OpType::UNKNOWN;
-    errcode_    = LIBCURVE_ERROR::OK;
-    offset_     = 0;
-    length_     = 0;
+    : mc_(mc), iomanager_(iomanager), scheduler_(scheduler),
+      fileMetric_(clientMetric), disableStripe_(disableStripe) {
+    id_ = tracekerID_.fetch_add(1, std::memory_order_relaxed);
+    scc_ = nullptr;
+    aioctx_ = nullptr;
+    data_ = nullptr;
+    type_ = OpType::UNKNOWN;
+    errcode_ = LIBCURVE_ERROR::OK;
+    offset_ = 0;
+    length_ = 0;
     reqlist_.clear();
     reqcount_.store(0, std::memory_order_release);
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
 void IOTracker::ReleaseAllSegmentLocks() {
-    for (auto& readlock : segmentLocks_) {
+    for (auto &readlock : segmentLocks_) {
         readlock->ReleaseLock();
     }
 }
 
-void IOTracker::StartRead(void* buf, off_t offset, size_t length,
-                          MDSClient* mdsclient, const FInfo_t* fileInfo,
-                          Throttle* throttle) {
+void IOTracker::StartRead(void *buf, off_t offset, size_t length,
+                          MDSClient *mdsclient, const FInfo_t *fileInfo,
+                          Throttle *throttle) {
     data_ = buf;
     offset_ = offset;
     length_ = length;
@@ -86,8 +81,8 @@ void IOTracker::StartRead(void* buf, off_t offset, size_t length,
     DoRead(mdsclient, fileInfo, throttle);
 }
 
-void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
-                             const FInfo_t* fileInfo, Throttle* throttle) {
+void IOTracker::StartAioRead(CurveAioContext *ctx, MDSClient *mdsclient,
+                             const FInfo_t *fileInfo, Throttle *throttle) {
     aioctx_ = ctx;
     data_ = ctx->buf;
     offset_ = ctx->offset;
@@ -100,8 +95,8 @@ void IOTracker::StartAioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     DoRead(mdsclient, fileInfo, throttle);
 }
 
-void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo,
-                       Throttle* throttle) {
+void IOTracker::DoRead(MDSClient *mdsclient, const FInfo_t *fileInfo,
+                       Throttle *throttle) {
     if (throttle) {
         throttle->Add(true, length_);
     }
@@ -111,9 +106,9 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo,
     if (ret == 0) {
         PrepareReadIOBuffers(reqlist_.size());
         uint32_t subIoIndex = 0;
-        std::vector<RequestContext*> originReadVec;
+        std::vector<RequestContext *> originReadVec;
 
-        std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
+        std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext *r) {
             // fake subrequest
             if (!r->idinfo_.chunkExist) {
                 // the clone source is empty
@@ -150,9 +145,9 @@ void IOTracker::DoRead(MDSClient* mdsclient, const FInfo_t* fileInfo,
     }
 }
 
-int IOTracker::ReadFromSource(const std::vector<RequestContext*>& reqCtxVec,
-                              const UserInfo_t& userInfo,
-                              MDSClient* mdsClient) {
+int IOTracker::ReadFromSource(const std::vector<RequestContext *> &reqCtxVec,
+                              const UserInfo_t &userInfo,
+                              MDSClient *mdsClient) {
     if (reqCtxVec.empty()) {
         return 0;
     }
@@ -160,11 +155,10 @@ int IOTracker::ReadFromSource(const std::vector<RequestContext*>& reqCtxVec,
     return SourceReader::GetInstance().Read(reqCtxVec, userInfo, mdsClient);
 }
 
-void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
-                           MDSClient* mdsclient, const FInfo_t* fileInfo,
-                           const FileEpoch* fEpoch,
-                           Throttle* throttle) {
-    data_ = const_cast<void*>(buf);
+void IOTracker::StartWrite(const void *buf, off_t offset, size_t length,
+                           MDSClient *mdsclient, const FInfo_t *fileInfo,
+                           const FileEpoch *fEpoch, Throttle *throttle) {
+    data_ = const_cast<void *>(buf);
     offset_ = offset;
     length_ = length;
     type_ = OpType::WRITE;
@@ -174,9 +168,9 @@ void IOTracker::StartWrite(const void* buf, off_t offset, size_t length,
     DoWrite(mdsclient, fileInfo, fEpoch, throttle);
 }
 
-void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
-                              const FInfo_t* fileInfo, const FileEpoch* fEpoch,
-                              Throttle* throttle) {
+void IOTracker::StartAioWrite(CurveAioContext *ctx, MDSClient *mdsclient,
+                              const FInfo_t *fileInfo, const FileEpoch *fEpoch,
+                              Throttle *throttle) {
     aioctx_ = ctx;
     data_ = ctx->buf;
     offset_ = ctx->offset;
@@ -189,36 +183,34 @@ void IOTracker::StartAioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     DoWrite(mdsclient, fileInfo, fEpoch, throttle);
 }
 
-void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
-                        const FileEpoch* fEpoch,
-                        Throttle* throttle) {
+void IOTracker::DoWrite(MDSClient *mdsclient, const FInfo_t *fileInfo,
+                        const FileEpoch *fEpoch, Throttle *throttle) {
     if (nullptr == data_) {
         ReturnOnFail();
         return;
     }
 
     switch (userDataType_) {
-        case UserDataType::RawBuffer:
-            writeData_.append_user_data(data_, length_,
-                                        TrivialDeleter);
-            break;
-        case UserDataType::IOBuffer:
-            writeData_ = *reinterpret_cast<const butil::IOBuf*>(data_);
-            break;
+    case UserDataType::RawBuffer:
+        writeData_.append_user_data(data_, length_, TrivialDeleter);
+        break;
+    case UserDataType::IOBuffer:
+        writeData_ = *reinterpret_cast<const butil::IOBuf *>(data_);
+        break;
     }
 
     if (throttle) {
         throttle->Add(false, length_);
     }
 
-    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_,
-                                        offset_, length_,
-                                        mdsclient, fileInfo, fEpoch);
+    int ret =
+        Splitor::IO2ChunkRequests(this, mc_, &reqlist_, &writeData_, offset_,
+                                  length_, mdsclient, fileInfo, fEpoch);
     if (ret == 0) {
         uint32_t subIoIndex = 0;
 
         reqcount_.store(reqlist_.size(), std::memory_order_release);
-        std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
+        std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext *r) {
             r->done_->SetFileMetric(fileMetric_);
             r->done_->SetIOManager(iomanager_);
             r->subIoIndex_ = subIoIndex++;
@@ -235,9 +227,9 @@ void IOTracker::DoWrite(MDSClient* mdsclient, const FInfo_t* fileInfo,
     }
 }
 
-void IOTracker::StartDiscard(off_t offset, size_t length, MDSClient* mdsclient,
-                             const FInfo* fileInfo,
-                             DiscardTaskManager* taskManager) {
+void IOTracker::StartDiscard(off_t offset, size_t length, MDSClient *mdsclient,
+                             const FInfo *fileInfo,
+                             DiscardTaskManager *taskManager) {
     offset_ = offset;
     length_ = length;
     type_ = OpType::DISCARD;
@@ -245,9 +237,9 @@ void IOTracker::StartDiscard(off_t offset, size_t length, MDSClient* mdsclient,
     DoDiscard(mdsclient, fileInfo, taskManager);
 }
 
-void IOTracker::StartAioDiscard(CurveAioContext* ctx, MDSClient* mdsclient,
-                                const FInfo_t* fileInfo,
-                                DiscardTaskManager* taskManager) {
+void IOTracker::StartAioDiscard(CurveAioContext *ctx, MDSClient *mdsclient,
+                                const FInfo_t *fileInfo,
+                                DiscardTaskManager *taskManager) {
     aioctx_ = ctx;
     offset_ = ctx->offset;
     length_ = ctx->length;
@@ -256,8 +248,8 @@ void IOTracker::StartAioDiscard(CurveAioContext* ctx, MDSClient* mdsclient,
     DoDiscard(mdsclient, fileInfo, taskManager);
 }
 
-void IOTracker::DoDiscard(MDSClient* mdsClient, const FInfo* fileInfo,
-                          DiscardTaskManager* taskManager) {
+void IOTracker::DoDiscard(MDSClient *mdsClient, const FInfo *fileInfo,
+                          DiscardTaskManager *taskManager) {
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, nullptr, offset_,
                                         length_, mdsClient, fileInfo, nullptr);
 
@@ -284,14 +276,14 @@ void IOTracker::DoDiscard(MDSClient* mdsClient, const FInfo* fileInfo,
     Done();
 }
 
-void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
-    uint64_t seq, uint64_t offset, uint64_t len,
-    char *buf, SnapCloneClosure* scc) {
-    scc_    = scc;
-    data_   = buf;
+void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo, uint64_t seq,
+                              uint64_t offset, uint64_t len, char *buf,
+                              SnapCloneClosure *scc) {
+    scc_ = scc;
+    data_ = buf;
     offset_ = offset;
     length_ = len;
-    type_   = OpType::READ_SNAP;
+    type_ = OpType::READ_SNAP;
 
     int ret = -1;
     do {
@@ -302,7 +294,7 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
             uint32_t subIoIndex = 0;
             reqcount_.store(reqlist_.size(), std::memory_order_release);
 
-            for (auto& req : reqlist_) {
+            for (auto &req : reqlist_) {
                 req->subIoIndex_ = subIoIndex++;
             }
 
@@ -317,12 +309,12 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-    uint64_t correctedSeq) {
+                                           uint64_t correctedSeq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
+        RequestContext *newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
@@ -344,12 +336,12 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
-    ChunkInfoDetail *chunkInfo) {
+                             ChunkInfoDetail *chunkInfo) {
     type_ = OpType::GET_CHUNK_INFO;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
+        RequestContext *newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
@@ -370,24 +362,24 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::CreateCloneChunk(const std::string& location,
-                                 const ChunkIDInfo& cinfo, uint64_t sn,
+void IOTracker::CreateCloneChunk(const std::string &location,
+                                 const ChunkIDInfo &cinfo, uint64_t sn,
                                  uint64_t correntSn, uint64_t chunkSize,
-                                 SnapCloneClosure* scc) {
+                                 SnapCloneClosure *scc) {
     type_ = OpType::CREATE_CLONE;
     scc_ = scc;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
+        RequestContext *newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
 
-        newreqNode->seq_         = sn;
-        newreqNode->chunksize_   = chunkSize;
-        newreqNode->location_    = location;
-        newreqNode->correctedSeq_  = correntSn;
+        newreqNode->seq_ = sn;
+        newreqNode->chunksize_ = chunkSize;
+        newreqNode->location_ = location;
+        newreqNode->correctedSeq_ = correntSn;
         FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
@@ -403,20 +395,20 @@ void IOTracker::CreateCloneChunk(const std::string& location,
     }
 }
 
-void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
-                             uint64_t len, SnapCloneClosure* scc) {
+void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo, uint64_t offset,
+                             uint64_t len, SnapCloneClosure *scc) {
     type_ = OpType::RECOVER_CHUNK;
     scc_ = scc;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = RequestContext::NewInitedRequestContext();
+        RequestContext *newreqNode = RequestContext::NewInitedRequestContext();
         if (newreqNode == nullptr) {
             break;
         }
 
-        newreqNode->rawlength_   = len;
-        newreqNode->offset_      = offset;
+        newreqNode->rawlength_ = len;
+        newreqNode->offset_ = offset;
         FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
@@ -432,13 +424,13 @@ void IOTracker::RecoverChunk(const ChunkIDInfo& cinfo, uint64_t offset,
     }
 }
 
-void IOTracker::FillCommonFields(ChunkIDInfo idinfo, RequestContext* req) {
-    req->optype_      = type_;
-    req->idinfo_      = idinfo;
+void IOTracker::FillCommonFields(ChunkIDInfo idinfo, RequestContext *req) {
+    req->optype_ = type_;
+    req->idinfo_ = idinfo;
     req->done_->SetIOTracker(this);
 }
 
-void IOTracker::HandleResponse(RequestContext* reqctx) {
+void IOTracker::HandleResponse(RequestContext *reqctx) {
     int errorcode = reqctx->done_->GetErrorCode();
     if (errorcode != 0) {
         ChunkServerErr2LibcurveErr(static_cast<CHUNK_OP_STATUS>(errorcode),
@@ -455,13 +447,11 @@ void IOTracker::HandleResponse(RequestContext* reqctx) {
     }
 }
 
-void IOTracker::InitDiscardOption(const DiscardOption& opt) {
+void IOTracker::InitDiscardOption(const DiscardOption &opt) {
     discardOption_ = opt;
 }
 
-int IOTracker::Wait() {
-    return iocv_.Wait();
-}
+int IOTracker::Wait() { return iocv_.Wait(); }
 
 void IOTracker::Done() {
     if (type_ == OpType::READ || type_ == OpType::WRITE) {
@@ -476,27 +466,27 @@ void IOTracker::Done() {
         // copy read data to user buffer
         if (OpType::READ == type_ || OpType::READ_SNAP == type_) {
             butil::IOBuf readData;
-            for (const auto& buf : readDatas_) {
+            for (const auto &buf : readDatas_) {
                 readData.append(buf);
             }
 
             switch (userDataType_) {
-                case UserDataType::RawBuffer: {
-                    size_t nc = readData.copy_to(data_, readData.size());
-                    if (nc != length_) {
-                        errcode_ = LIBCURVE_ERROR::FAILED;
-                    }
-                    break;
+            case UserDataType::RawBuffer: {
+                size_t nc = readData.copy_to(data_, readData.size());
+                if (nc != length_) {
+                    errcode_ = LIBCURVE_ERROR::FAILED;
                 }
-                case UserDataType::IOBuffer: {
-                    butil::IOBuf* userData =
-                        reinterpret_cast<butil::IOBuf*>(data_);
-                    *userData = readData;
-                    if (userData->size() != length_) {
-                        errcode_ = LIBCURVE_ERROR::FAILED;
-                    }
-                    break;
+                break;
+            }
+            case UserDataType::IOBuffer: {
+                butil::IOBuf *userData =
+                    reinterpret_cast<butil::IOBuf *>(data_);
+                *userData = readData;
+                if (userData->size() != length_) {
+                    errcode_ = LIBCURVE_ERROR::FAILED;
                 }
+                break;
+            }
             }
 
             if (errcode_ != LIBCURVE_ERROR::OK) {
@@ -510,15 +500,15 @@ void IOTracker::Done() {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
         if (type_ == OpType::READ || type_ == OpType::WRITE) {
             if (LIBCURVE_ERROR::EPOCH_TOO_OLD == errcode_) {
-                LOG(WARNING) << "file [" << fileMetric_->filename << "]"
-                        << ", epoch too old, OpType = " << OpTypeToString(type_)
-                        << ", offset = " << offset_
-                        << ", length = " << length_;
+                LOG(WARNING)
+                    << "file [" << fileMetric_->filename << "]"
+                    << ", epoch too old, OpType = " << OpTypeToString(type_)
+                    << ", offset = " << offset_ << ", length = " << length_;
             } else {
                 LOG(ERROR) << "file [" << fileMetric_->filename << "]"
-                        << ", IO Error, OpType = " << OpTypeToString(type_)
-                        << ", offset = " << offset_
-                        << ", length = " << length_;
+                           << ", IO Error, OpType = " << OpTypeToString(type_)
+                           << ", offset = " << offset_
+                           << ", length = " << length_;
             }
         } else {
             if (OpType::CREATE_CLONE == type_ &&
@@ -565,39 +555,39 @@ void IOTracker::ReturnOnFail() {
 }
 
 void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
-    LIBCURVE_ERROR* errout) {
+                                           LIBCURVE_ERROR *errout) {
     switch (errcode) {
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
-            *errout = LIBCURVE_ERROR::OK;
-            break;
-        // chunk或者copyset对于用户来说是透明的，所以直接返回错误
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
-            *errout = LIBCURVE_ERROR::NOTEXIST;
-            break;
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CRC_FAIL:
-            *errout = LIBCURVE_ERROR::CRC_ERROR;
-            break;
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST:
-            *errout = LIBCURVE_ERROR::INVALID_REQUEST;
-            break;
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_DISK_FAIL:
-            *errout = LIBCURVE_ERROR::DISK_FAIL;
-            break;
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE:
-            *errout = LIBCURVE_ERROR::NO_SPACE;
-            break;
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
-            *errout = LIBCURVE_ERROR::EXISTS;
-            break;
-        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
-            *errout = LIBCURVE_ERROR::EPOCH_TOO_OLD;
-            break;
-        default:
-            *errout = LIBCURVE_ERROR::FAILED;
-            break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
+        *errout = LIBCURVE_ERROR::OK;
+        break;
+    // chunk或者copyset对于用户来说是透明的，所以直接返回错误
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
+        *errout = LIBCURVE_ERROR::NOTEXIST;
+        break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CRC_FAIL:
+        *errout = LIBCURVE_ERROR::CRC_ERROR;
+        break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST:
+        *errout = LIBCURVE_ERROR::INVALID_REQUEST;
+        break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_DISK_FAIL:
+        *errout = LIBCURVE_ERROR::DISK_FAIL;
+        break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE:
+        *errout = LIBCURVE_ERROR::NO_SPACE;
+        break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST:
+        *errout = LIBCURVE_ERROR::EXISTS;
+        break;
+    case CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD:
+        *errout = LIBCURVE_ERROR::EPOCH_TOO_OLD;
+        break;
+    default:
+        *errout = LIBCURVE_ERROR::FAILED;
+        break;
     }
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

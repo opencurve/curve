@@ -29,18 +29,12 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
-LeaseExecutor::LeaseExecutor(const LeaseOption& leaseOpt,
-                             const UserInfo& userinfo, MDSClient* mdsclient,
-                             IOManager4File* iomanager)
-    : fullFileName_(),
-      mdsclient_(mdsclient),
-      userinfo_(userinfo),
-      iomanager_(iomanager),
-      leaseoption_(leaseOpt),
-      leasesession_(),
-      isleaseAvaliable_(true),
-      failedrefreshcount_(0),
-      task_() {}
+LeaseExecutor::LeaseExecutor(const LeaseOption &leaseOpt,
+                             const UserInfo &userinfo, MDSClient *mdsclient,
+                             IOManager4File *iomanager)
+    : fullFileName_(), mdsclient_(mdsclient), userinfo_(userinfo),
+      iomanager_(iomanager), leaseoption_(leaseOpt), leasesession_(),
+      isleaseAvaliable_(true), failedrefreshcount_(0), task_() {}
 
 LeaseExecutor::~LeaseExecutor() {
     if (task_) {
@@ -49,7 +43,7 @@ LeaseExecutor::~LeaseExecutor() {
     }
 }
 
-bool LeaseExecutor::Start(const FInfo_t& fi, const LeaseSession_t& lease) {
+bool LeaseExecutor::Start(const FInfo_t &fi, const LeaseSession_t &lease) {
     fullFileName_ = fi.fullPathName;
 
     leasesession_ = lease;
@@ -145,9 +139,7 @@ void LeaseExecutor::Stop() {
     }
 }
 
-bool LeaseExecutor::LeaseValid() {
-    return isleaseAvaliable_.load();
-}
+bool LeaseExecutor::LeaseValid() { return isleaseAvaliable_.load(); }
 
 void LeaseExecutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
@@ -158,8 +150,8 @@ void LeaseExecutor::IncremRefreshFailed() {
     }
 }
 
-void LeaseExecutor::CheckNeedUpdateFileInfo(const FInfo& fileInfo) {
-    MetaCache* metaCache = iomanager_->GetMetaCache();
+void LeaseExecutor::CheckNeedUpdateFileInfo(const FInfo &fileInfo) {
+    MetaCache *metaCache = iomanager_->GetMetaCache();
 
     uint64_t currentFileSn = metaCache->GetLatestFileSn();
     uint64_t newSn = fileInfo.seqnum;
@@ -203,5 +195,5 @@ void LeaseExecutor::ResetRefreshSessionTask() {
     isleaseAvaliable_.store(true);
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
