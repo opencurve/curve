@@ -53,14 +53,14 @@ void CurveAioCallback(struct CurveAioContext* context) {
     brpc::ClosureGuard doneGuard(done);
 }
 
-void OriginCopyer::DeleteExpiredCurveCache(void* arg) {
-    OriginCopyer* taskCopyer = static_cast<OriginCopyer*>(arg);
+void OriginCopyer::DeleteExpiredCurveCache(void *arg) {
+    OriginCopyer* taskCopyer = static_cast<OriginCopyer *>(arg);
     std::unique_lock<std::mutex> lock(taskCopyer->mtx_);
     std::unique_lock<std::mutex> lockTime(taskCopyer->timeMtx_);
     timespec now = butil::seconds_from_now(0);
 
     while (taskCopyer->curveOpenTime_.size() > 0) {
-        CurveOpenTimestamp oldestCache = *taskCopyer->curveOpenTime_.begin();
+        CurveOpenTimestamp oldestCache =* taskCopyer->curveOpenTime_.begin();
         if (now.tv_sec - oldestCache.lastUsedSec <
             taskCopyer->curveFileTimeoutSec_) {
             break;
@@ -72,8 +72,8 @@ void OriginCopyer::DeleteExpiredCurveCache(void* arg) {
     }
 
     if (taskCopyer->curveOpenTime_.size() > 0) {
-        int64_t nextTimer = taskCopyer->curveFileTimeoutSec_ - now.tv_sec
-            + taskCopyer->curveOpenTime_.begin()->lastUsedSec;
+        int64_t nextTimer = taskCopyer->curveFileTimeoutSec_ - now.tv_sec +
+              taskCopyer->curveOpenTime_.begin()->lastUsedSec;
         timespec nextTimespec = butil::seconds_from_now(nextTimer);
         taskCopyer->timerId_ = taskCopyer->timer_.schedule(
             &DeleteExpiredCurveCache, arg, nextTimespec);
@@ -94,7 +94,7 @@ int OriginCopyer::Init(const CopyerOptions& options) {
         int errorCode = curveClient_->Init(options.curveConf.c_str());
         if (errorCode != 0) {
             LOG(ERROR) << "Init curve client failed."
-                    << "error code: " << errorCode;
+                       << "error code: " << errorCode;
             return -1;
         }
         curveUser_ = options.curveUser;
@@ -155,12 +155,10 @@ void OriginCopyer::DownloadAsync(DownloadClosure* done) {
             return;
         }
         DownloadFromCurve(fileName, chunkOffset + context->offset,
-                          context->size, context->buf,
-                          done);
+                          context->size, context->buf, done);
         doneGuard.release();
     } else if (type == OriginType::S3Origin) {
-        DownloadFromS3(originPath, context->offset,
-                       context->size, context->buf,
+        DownloadFromS3(originPath, context->offset, context->size, context->buf,
                        done);
         doneGuard.release();
     } else {
@@ -170,11 +168,9 @@ void OriginCopyer::DownloadAsync(DownloadClosure* done) {
     }
 }
 
-void OriginCopyer::DownloadFromS3(const string& objectName,
-                                 off_t off,
-                                 size_t size,
-                                 char* buf,
-                                 DownloadClosure* done) {
+void OriginCopyer::DownloadFromS3(const string &objectName, off_t off,
+                                  size_t size, char *buf,
+                                  DownloadClosure *done) {
     brpc::ClosureGuard doneGuard(done);
     if (s3Client_ == nullptr) {
         LOG(ERROR) << "Failed to get s3 object."
@@ -184,8 +180,8 @@ void OriginCopyer::DownloadFromS3(const string& objectName,
     }
 
     GetObjectAsyncCallBack cb =
-        [=] (const S3Adapter* adapter,
-             const std::shared_ptr<GetObjectAsyncContext>& context) {
+        [=](const S3Adapter *adapter,
+            const std::shared_ptr<GetObjectAsyncContext> &context) {
             brpc::ClosureGuard doneGuard(done);
             if (context->retCode != 0) {
                 done->SetFailed();
@@ -203,11 +199,9 @@ void OriginCopyer::DownloadFromS3(const string& objectName,
     doneGuard.release();
 }
 
-void OriginCopyer::DownloadFromCurve(const string& fileName,
-                                    off_t off,
-                                    size_t size,
-                                    char* buf,
-                                    DownloadClosure* done) {
+void OriginCopyer::DownloadFromCurve(const string &fileName, off_t off,
+                                     size_t size, char *buf,
+                                     DownloadClosure *done) {
     brpc::ClosureGuard doneGuard(done);
     if (curveClient_ == nullptr) {
         LOG(ERROR) << "Failed to read curve file."
@@ -225,7 +219,7 @@ void OriginCopyer::DownloadFromCurve(const string& fileName,
             fd = iter->second;
             auto fdIter = std::find_if(
                 curveOpenTime_.cbegin(), curveOpenTime_.cend(),
-                [&] (const CurveOpenTimestamp& s) {return s.fd == fd;});
+                [&](const CurveOpenTimestamp &s) { return s.fd == fd; });
             if (fdIter != curveOpenTime_.cend()) {
                 timespec now = butil::seconds_from_now(0);
                 curveOpenTime_.emplace_back(fd, fileName, now.tv_sec);
@@ -237,8 +231,8 @@ void OriginCopyer::DownloadFromCurve(const string& fileName,
             fd = curveClient_->Open4ReadOnly(fileName, curveUser_, true);
             if (fd < 0) {
                 LOG(ERROR) << "Open curve file failed."
-                        << "file name: " << fileName
-                        << " ,return code: " << fd;
+                           << "file name: " << fileName
+                           << " ,return code: " << fd;
                 done->SetFailed();
                 return;
             }
@@ -248,8 +242,8 @@ void OriginCopyer::DownloadFromCurve(const string& fileName,
             if (timerId_ == bthread::TimerThread::INVALID_TASK_ID) {
                 timespec nextTimespec =
                     butil::seconds_from_now(curveFileTimeoutSec_);
-                timerId_ = timer_.schedule(
-                    &DeleteExpiredCurveCache, this, nextTimespec);
+                timerId_ = timer_.schedule(&DeleteExpiredCurveCache, this,
+                                           nextTimespec);
             }
         }
     }
@@ -262,11 +256,12 @@ void OriginCopyer::DownloadFromCurve(const string& fileName,
     curveCombineCtx->curveCtx.op = LIBCURVE_OP::LIBCURVE_OP_READ;
     curveCombineCtx->curveCtx.cb = CurveAioCallback;
 
-    int ret = curveClient_->AioRead(fd,  &curveCombineCtx->curveCtx);
-    if (ret !=  LIBCURVE_ERROR::OK) {
+    int ret = curveClient_->AioRead(fd, &curveCombineCtx->curveCtx);
+    if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "Read curve file failed."
-                   << "file name: " << fileName
-                   << " ,error code: " << ret;
+                   << "file name: " << fileName << " ,error code: " << ret
+                   << LibCurveErrorName((LIBCURVE_ERROR)ret);
+
         delete curveCombineCtx;
         done->SetFailed();
     } else {

@@ -33,10 +33,10 @@ namespace curve {
 namespace client {
 
 void DiscardTask::Run() {
-    const FInfo* fileInfo = metaCache_->GetFileInfo();
+    const FInfo *fileInfo = metaCache_->GetFileInfo();
     uint64_t offset =
         static_cast<uint64_t>(segmentIndex_) * fileInfo->segmentsize;
-    FileSegment* fileSegment = metaCache_->GetFileSegment(segmentIndex_);
+    FileSegment *fileSegment = metaCache_->GetFileSegment(segmentIndex_);
 
     fileSegment->AcquireWriteLock();
     metric_->pending << -1;
@@ -69,18 +69,19 @@ void DiscardTask::Run() {
         metric_->totalError << 1;
         LOG(ERROR) << "DiscardTask failed, mds return error = " << errCode
                    << ", filename = " << fileInfo->fullPathName
-                   << ", offset = " << offset << ", taskid = " << timerId_;
+                   << ", offset = " << offset << ", taskid = " << timerId_
+                   << LibCurveErrorName((LIBCURVE_ERROR)errCode);
     }
 
     fileSegment->ReleaseLock();
     taskManager_->OnTaskFinish(timerId_);
 }
 
-DiscardTaskManager::DiscardTaskManager(DiscardMetric* metric)
+DiscardTaskManager::DiscardTaskManager(DiscardMetric *metric)
     : mtx_(), cond_(), unfinishedTasks_(), metric_(metric) {}
 
-static void RunDiscardTask(void* arg) {
-    DiscardTask* task = static_cast<DiscardTask*>(arg);
+static void RunDiscardTask(void *arg) {
+    DiscardTask *task = static_cast<DiscardTask *>(arg);
     task->Run();
 }
 
@@ -91,8 +92,8 @@ void DiscardTaskManager::OnTaskFinish(bthread_timer_t timerId) {
 }
 
 bool DiscardTaskManager::ScheduleTask(SegmentIndex segmentIndex,
-                                      MetaCache* metaCache,
-                                      MDSClient* mdsclient, timespec abstime) {
+                                      MetaCache *metaCache,
+                                      MDSClient *mdsclient, timespec abstime) {
     bthread_timer_t timerId;
     std::unique_ptr<DiscardTask> task(
         new DiscardTask(this, segmentIndex, metaCache, mdsclient, metric_));
@@ -117,12 +118,12 @@ void DiscardTaskManager::Stop() {
 
     {
         std::lock_guard<bthread::Mutex> lk(mtx_);
-        for (auto& kv : unfinishedTasks_) {
+        for (auto &kv : unfinishedTasks_) {
             currentTasks.emplace(kv.first);
         }
     }
 
-    for (const auto& timerId : currentTasks) {
+    for (const auto &timerId : currentTasks) {
         int ret = bthread_timer_del(timerId);
 
         if (ret == 0) {

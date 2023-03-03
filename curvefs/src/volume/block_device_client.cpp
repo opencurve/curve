@@ -52,25 +52,23 @@ BlockDeviceClientImpl::BlockDeviceClientImpl()
     : fd_(-1), fileClient_(std::make_shared<FileClient>()) {}
 
 BlockDeviceClientImpl::BlockDeviceClientImpl(
-    const std::shared_ptr<FileClient>& fileClient)
+    const std::shared_ptr<FileClient> &fileClient)
     : fd_(-1), fileClient_(fileClient) {}
 
-bool BlockDeviceClientImpl::Init(const BlockDeviceClientOptions& options) {
+bool BlockDeviceClientImpl::Init(const BlockDeviceClientOptions &options) {
     auto ret = fileClient_->Init(options.configPath);
     if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Init file client error: " << ret;
+        LOG(ERROR) << "Init file client error: " << ret
+                   << LibCurveErrorName((LIBCURVE_ERROR)ret);
         return false;
     }
 
     return true;
 }
+void BlockDeviceClientImpl::UnInit() { fileClient_->UnInit(); }
 
-void BlockDeviceClientImpl::UnInit() {
-    fileClient_->UnInit();
-}
-
-bool BlockDeviceClientImpl::Open(const std::string& filename,
-                                 const std::string& owner) {
+bool BlockDeviceClientImpl::Open(const std::string &filename,
+                                 const std::string &owner) {
     UserInfo userInfo(owner);
     curve::client::OpenFlags flags;
     auto retCode = fileClient_->Open(filename, userInfo, flags);
@@ -93,7 +91,8 @@ bool BlockDeviceClientImpl::Close() {
 
     int retCode;
     if ((retCode = fileClient_->Close(fd_)) != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Close file failed, retCode = " << retCode;
+        LOG(ERROR) << "Close file failed, retCode = " << retCode
+                   << LibCurveErrorName((LIBCURVE_ERROR)retCode);
         return false;
     }
 
@@ -101,28 +100,31 @@ bool BlockDeviceClientImpl::Close() {
     return true;
 }
 
-bool BlockDeviceClientImpl::Stat(const std::string& filename,
-                                          const std::string& owner,
-                                          BlockDeviceStat* statInfo) {
+bool BlockDeviceClientImpl::Stat(const std::string &filename,
+                                 const std::string &owner,
+                                 BlockDeviceStat *statInfo) {
     FileStatInfo fileStatInfo;
     UserInfo userInfo(owner);
     auto retCode = fileClient_->StatFile(filename, userInfo, &fileStatInfo);
     if (retCode != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Stat file failed, retCode = " << retCode;
+        LOG(ERROR) << "Stat file failed, retCode = " << retCode
+                   << LibCurveErrorName((LIBCURVE_ERROR)retCode);
         return false;
     }
 
     statInfo->length = fileStatInfo.length;
     if (!ConvertFileStatus(fileStatInfo.fileStatus, &statInfo->status)) {
         LOG(ERROR) << "Stat file failed, unknown file status: "
-                   << fileStatInfo.fileStatus;
+                   << fileStatInfo.fileStatus
+                   << LibCurveErrorName((LIBCURVE_ERROR)retCode);
+
         return false;
     }
 
     return true;
 }
 
-ssize_t BlockDeviceClientImpl::Read(char* buf, off_t offset, size_t length) {
+ssize_t BlockDeviceClientImpl::Read(char *buf, off_t offset, size_t length) {
     VLOG(9) << "read request, offset: " << offset << ", length: " << length;
 
     LatencyUpdater updater(&g_read_latency);
@@ -138,7 +140,7 @@ ssize_t BlockDeviceClientImpl::Read(char* buf, off_t offset, size_t length) {
     return request.Wait();
 }
 
-ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart>& iov) {
+ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart> &iov) {
     if (iov.size() == 1) {
         VLOG(9) << "read block offset: " << iov[0].offset
                 << ", length: " << iov[0].length;
@@ -148,7 +150,7 @@ ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart>& iov) {
     std::vector<std::unique_ptr<AioRead>> requests;
     requests.reserve(iov.size());
 
-    for (const auto& io : iov) {
+    for (const auto &io : iov) {
         requests.push_back(absl::make_unique<AioRead>(
             io.offset, io.length, io.data, fileClient_.get(), fd_));
 
@@ -157,7 +159,7 @@ ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart>& iov) {
 
     bool error = false;
     ssize_t total = 0;
-    for (const auto& r : requests) {
+    for (const auto &r : requests) {
         auto nr = r->Wait();
         if (nr < 0) {
             error = true;
@@ -171,11 +173,8 @@ ssize_t BlockDeviceClientImpl::Readv(const std::vector<ReadPart>& iov) {
     return error ? -1 : total;
 }
 
-ssize_t BlockDeviceClientImpl::Write(const char* buf,
-                                     off_t offset,
+ssize_t BlockDeviceClientImpl::Write(const char *buf, off_t offset,
                                      size_t length) {
-    VLOG(9) << "write request, offset: " << offset << ", length: " << length;
-
     LatencyUpdater updater(&g_write_latency);
 
     if (fd_ < 0) {
@@ -189,7 +188,7 @@ ssize_t BlockDeviceClientImpl::Write(const char* buf,
     return request.Wait();
 }
 
-ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart>& iov) {
+ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart> &iov) {
     if (iov.size() == 1) {
         return Write(iov[0].data, iov[0].offset, iov[0].length);
     }
@@ -197,7 +196,7 @@ ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart>& iov) {
     std::vector<std::unique_ptr<AioWrite>> requests;
     requests.reserve(iov.size());
 
-    for (const auto& io : iov) {
+    for (const auto &io : iov) {
         requests.push_back(absl::make_unique<AioWrite>(
             io.offset, io.length, io.data, fileClient_.get(), fd_));
 
@@ -206,7 +205,7 @@ ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart>& iov) {
 
     bool error = false;
     ssize_t total = 0;
-    for (const auto& r : requests) {
+    for (const auto &r : requests) {
         auto nr = r->Wait();
         if (nr < 0) {
             error = true;
@@ -220,12 +219,11 @@ ssize_t BlockDeviceClientImpl::Writev(const std::vector<WritePart>& iov) {
     return error ? -1 : total;
 }
 
-bool BlockDeviceClientImpl::WritePadding(char* writeBuffer,
-                                         off_t writeStart,
+bool BlockDeviceClientImpl::WritePadding(char *writeBuffer, off_t writeStart,
                                          off_t writeEnd,
                                          off_t offset,     // actual offset
                                          size_t length) {  // actual length
-    std::vector<std::pair<off_t, size_t>> readvec;  // Align reads
+    std::vector<std::pair<off_t, size_t>> readvec;         // Align reads
     off_t readEnd = 0;
 
     // Padding leading
@@ -244,7 +242,7 @@ bool BlockDeviceClientImpl::WritePadding(char* writeBuffer,
         }
     }
 
-    for (const auto& item : readvec) {
+    for (const auto &item : readvec) {
         auto retCode = AlignRead(writeBuffer + item.first - writeStart,
                                  item.first, item.second);
         if (retCode != item.second) {
@@ -255,8 +253,7 @@ bool BlockDeviceClientImpl::WritePadding(char* writeBuffer,
     return true;
 }
 
-ssize_t BlockDeviceClientImpl::AlignRead(char* buf,
-                                         off_t offset,
+ssize_t BlockDeviceClientImpl::AlignRead(char *buf, off_t offset,
                                          size_t length) {
     auto ret = fileClient_->Read(fd_, buf, offset, length);
     if (ret < 0) {
@@ -271,8 +268,7 @@ ssize_t BlockDeviceClientImpl::AlignRead(char* buf,
     return length;
 }
 
-ssize_t BlockDeviceClientImpl::AlignWrite(const char* buf,
-                                          off_t offset,
+ssize_t BlockDeviceClientImpl::AlignWrite(const char *buf, off_t offset,
                                           size_t length) {
     auto ret = fileClient_->Write(fd_, buf, offset, length);
     if (ret < 0) {
@@ -288,15 +284,14 @@ ssize_t BlockDeviceClientImpl::AlignWrite(const char* buf,
 }
 
 bool BlockDeviceClientImpl::ConvertFileStatus(int fileStatus,
-                                              BlockDeviceStatus* bdStatus) {
-    static const std::map<int, BlockDeviceStatus> fileStatusMap {
-        { 0, BlockDeviceStatus::CREATED },
-        { 1, BlockDeviceStatus::DELETING },
-        { 2, BlockDeviceStatus::CLONING },
-        { 3, BlockDeviceStatus::CLONE_META_INSTALLED },
-        { 4, BlockDeviceStatus::CLONED },
-        { 5, BlockDeviceStatus::BEING_CLONED }
-    };
+                                              BlockDeviceStatus *bdStatus) {
+    static const std::map<int, BlockDeviceStatus> fileStatusMap{
+        {0, BlockDeviceStatus::CREATED},
+        {1, BlockDeviceStatus::DELETING},
+        {2, BlockDeviceStatus::CLONING},
+        {3, BlockDeviceStatus::CLONE_META_INSTALLED},
+        {4, BlockDeviceStatus::CLONED},
+        {5, BlockDeviceStatus::BEING_CLONED}};
 
     auto iter = fileStatusMap.find(fileStatus);
     if (iter == fileStatusMap.end()) {
