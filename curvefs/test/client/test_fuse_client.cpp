@@ -99,6 +99,7 @@ class TestFuseVolumeClient : public ::testing::Test {
         fuseClientOption_.listDentryLimit = listDentryLimit_;
         fuseClientOption_.listDentryThreads = listDentryThreads_;
         fuseClientOption_.maxNameLength = 20u;
+        fuseClientOption_.warmupThreadsNum = 10;
 
         spaceManager_ = new MockSpaceManager();
         volumeStorage_ = new MockVolumeStorage();
