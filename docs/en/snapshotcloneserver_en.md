@@ -8,7 +8,7 @@
 
 Snapshot is the read-only copy of the entire data of a cloud disk at a certain moment, and is an convenient and efficient way for data disaster tolerance, commonly used in data backup, creating images and application disaster tolerance. Snapshot system provides users an snapshot service interface, by which users can create, delete or cancel a snapshot, or recover data from snapshot, and even create their own image.
 
-The snapshot service works as an independent component from core services of Curve, and it supports multi-level snapshot, which means a full backup for the first snapshot and incremental snapshot for the following ones. In the first snapshot, data will be stored entirely on S3, and only the modified data will be stored in the following tasks for saving spaces. The storing of snapshot data to S3 is asynchronous. Leader election and a high availability is implemanted by Etcd, and unfinished tasks will be resume automatically when the service restart.
+The snapshot service works as an independent component from core services of Curve, and it supports multi-level snapshot, which means a full backup for the first snapshot and incremental snapshot for the following ones. In the first snapshot, data will be stored entirely on S3, and only the modified data will be stored in the following tasks for saving spaces. The storing of snapshot data to S3 is asynchronous. Leader election and a high availability is implemented by Etcd, and unfinished tasks will be resume automatically when the service restart.
 
 ### 1.2 Curve Snapshot Architecture
 
@@ -76,7 +76,7 @@ Please refer to the [document](../cn/snapshotcloneserver_interface.md) of snapsh
 
 ### 2.1 Intro to Curve Clone Module
 
-In section 1 we introduced the snapshot system, which is for creating snapshots of  files of curvefs and incrementally dump the data to S3. But for a complete snapshot system, supporting only the snapshot creation is not enough, file recovery and cloning is the reason why take snapshot. In this section we introduce Curve cloning systerm(recovering can be considered as cloning to some extent).
+In section 1 we introduced the snapshot system, which is for creating snapshots of  files of curvefs and incrementally dump the data to S3. But for a complete snapshot system, supporting only the snapshot creation is not enough, file recovery and cloning is the reason why take snapshot. In this section we introduce Curve cloning system(recovering can be considered as cloning to some extent).
 
 According to the data source, there are two kinds of cloning, including cloning from snapshot and cloning from image, and if dividing by whether the data is entirely cloned before the service is provided, it can be divided into Lazy Clone and Not-Lazy Clone.
 

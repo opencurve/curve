@@ -4,7 +4,7 @@
 
 <div align=center> <image src="docs/images/cncf-icon-color.png" width = 8%>
 
-**A could-native distributed storage system**
+**A cloud-native distributed storage system**
 
 #### [English](README.md) | 简体中文
 ### 📄 [文档](https://github.com/opencurve/curve/tree/master/docs) || 🌐 [官网](https://www.opencurve.io/Curve/HOME) || 🏠 [论坛](https://ask.opencurve.io/t/topic/7)
