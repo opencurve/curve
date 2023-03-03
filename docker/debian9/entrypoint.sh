@@ -5,10 +5,12 @@
 ############################  GLOBAL VARIABLES
 g_role=""
 g_args=""
+g_disk=""
 g_prefix=""
 g_preexec=""
 g_binary=""
 g_start_args=""
+mount_point=/curvebs/chunkserver/data
 
 ############################  BASIC FUNCTIONS
 function msg() {
@@ -52,6 +54,10 @@ function get_options() {
                 g_args=$2
                 shift 2
                 ;;
+            -d|--disk)
+                g_disk=$2
+                shift 2
+                ;;
             -h)
                 usage
                 exit 1
@@ -81,6 +87,10 @@ function prepare() {
             g_start_args="--confPath $conf_path"
             ;;
         chunkserver)
+         if [ "$g_disk" ]; then
+                mount -o rw,errors=remount-ro $g_disk $mount_point
+                [[ $? -ne 0 ]] && die "mount disk device $g_disk to $mount_point failed\n"
+            fi
             g_binary="$g_prefix/sbin/curvebs-chunkserver"
             g_start_args="--conf=$conf_path"
             ;;
