@@ -4,7 +4,7 @@
 
 <div align=center> <image src="docs/images/cncf-icon-color.png" width = 8%>
 
-**A could-native distributed storage system**
+**A cloud-native distributed storage system**
 
 #### English | [简体中文](README_cn.md)
 ### 📄 [Documents](https://github.com/opencurve/curve/tree/master/docs) || 🌐 [Official Website](https://www.opencurve.io/Curve/HOME) || 🏠 [Forum](https://ask.opencurve.io/t/topic/7)
@@ -46,7 +46,7 @@
 
 ##  About Curve
 
-**Curve** is a mordern storage system developed by netease, currently supporting file storage(CurveFS) and block storage(CurveBS). Now it's hosted at [CNCF](https://www.cncf.io/) as a sandbox project.
+**Curve** is a modern storage system developed by netease, currently supporting file storage(CurveFS) and block storage(CurveBS). Now it's hosted at [CNCF](https://www.cncf.io/) as a sandbox project.
 
 The core application scenarios of CurveBS mainly include:
 - the performance, mixed, capacity cloud disk or persistent volume of virtual machine/container, and remote disks of physical machines
