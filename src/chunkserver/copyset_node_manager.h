@@ -36,7 +36,7 @@
 namespace curve {
 namespace chunkserver {
 
-using curve::common::RWLock;
+using curve::common::BthreadRWLock;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 using curve::common::TaskThreadPool;
@@ -55,7 +55,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
         static CopysetNodeManager instance;
         return instance;
     }
-
+    virtual ~CopysetNodeManager() = default;
     int Init(const CopysetNodeOptions &copysetNodeOptions);
     int Run();
     int Fini();
@@ -216,7 +216,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     using CopysetNodeMap = std::unordered_map<GroupId,
                                               std::shared_ptr<CopysetNode>>;
     // 保护复制组 map的读写锁
-    mutable RWLock rwLock_;
+    mutable BthreadRWLock rwLock_;
     // 复制组map
     CopysetNodeMap copysetNodeMap_;
     // 复制组配置选项

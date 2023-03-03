@@ -20,16 +20,20 @@
  * Author: xuchaojie
  */
 
-#include "curvefs/src/client/fuse_s3_client.h"
 
 #include <memory>
-#include <string>
-#include <list>
+#include <vector>
+
+#include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/kvclient/memcache_client.h"
 
 namespace curvefs {
 namespace client {
 namespace common {
+
 DECLARE_bool(enableCto);
+DECLARE_bool(supportKVcache);
+
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs
@@ -37,29 +41,40 @@ DECLARE_bool(enableCto);
 namespace curvefs {
 namespace client {
 
+using curvefs::client::common::FLAGS_supportKVcache;
+using curvefs::client::common::FLAGS_enableCto;
+using curvefs::mds::topology::MemcacheClusterInfo;
+using curvefs::mds::topology::MemcacheServerInfo;
+
 CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
     FuseClientOption opt(option);
+
     CURVEFS_ERROR ret = FuseClient::Init(opt);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
 
-    // set fsS3Option
+    // init kvcache
+    if (FLAGS_supportKVcache && !InitKVCache(option.kvClientManagerOpt)) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    // set fs S3Option
     const auto& s3Info = fsInfo_->detail().s3info();
     ::curve::common::S3InfoOption fsS3Option;
     ::curvefs::client::common::S3Info2FsS3Option(s3Info, &fsS3Option);
     SetFuseClientS3Option(&opt, fsS3Option);
 
     auto s3Client = std::make_shared<S3ClientImpl>();
-    auto s3DiskCacheClient = std::make_shared<S3ClientImpl>();
     s3Client->Init(opt.s3Opt.s3AdaptrOpt);
-    s3DiskCacheClient->Init(opt.s3Opt.s3AdaptrOpt);
     auto fsCacheManager = std::make_shared<FsCacheManager>(
         dynamic_cast<S3ClientAdaptorImpl *>(s3Adaptor_.get()),
         opt.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
         opt.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte);
     if (opt.s3Opt.s3ClientAdaptorOpt.diskCacheOpt.diskCacheType !=
         DiskCacheType::Disable) {
+        auto s3DiskCacheClient = std::make_shared<S3ClientImpl>();
+        s3DiskCacheClient->Init(opt.s3Opt.s3AdaptrOpt);
         auto wrapper = std::make_shared<PosixWrapper>();
         auto diskCacheRead = std::make_shared<DiskCacheRead>();
         auto diskCacheWrite = std::make_shared<DiskCacheWrite>();
@@ -75,13 +90,42 @@ CURVEFS_ERROR FuseS3Client::Init(const FuseClientOption &option) {
                                inodeManager_, mdsClient_, fsCacheManager,
                                nullptr, true);
     }
-
     return ret;
 }
 
+
+bool FuseS3Client::InitKVCache(const KVClientManagerOpt &opt) {
+     // get kvcache cluster
+    MemcacheClusterInfo kvcachecluster;
+    if (!mdsClient_->AllocOrGetMemcacheCluster(fsInfo_->fsid(),
+                                               &kvcachecluster)) {
+        LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
+                   << ", but AllocOrGetMemcacheCluster fail";
+        return false;
+    }
+
+    // init kvcache client
+    auto memcacheClient = std::make_shared<MemCachedClient>();
+    if (!memcacheClient->Init(kvcachecluster)) {
+        LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
+                   << ", but init memcache client fail";
+        return false;
+    }
+
+    g_kvClientManager = new KVClientManager();
+    if (!g_kvClientManager->Init(opt, memcacheClient)) {
+        LOG(ERROR) << "FLAGS_supportKVcache = " << FLAGS_supportKVcache
+                   << ", but init kvClientManager fail";
+        return false;
+    }
+
+    return true;
+}
+
 void FuseS3Client::UnInit() {
-    s3Adaptor_->Stop();
     FuseClient::UnInit();
+    s3Adaptor_->Stop();
+    curve::common::S3Adapter::Shutdown();
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpInit(void *userdata,
@@ -116,7 +160,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userWrite.qps.count << 1;
         uint64_t duration = butil::cpuwide_time_us() - start;
         fsMetric_->userWrite.latency << duration;
-        fsMetric_->userWriteIoSize << wRet;
+        fsMetric_->userWriteIoSize.set_value(wRet);
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -128,21 +172,16 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *inode = inodeWrapper->GetMutableInodeUnlocked();
 
     *wSize = wRet;
     size_t changeSize = 0;
     // update file len
-    if (inode->length() < off + *wSize) {
-        changeSize = off + *wSize - inode->length();
-        inode->set_length(off + *wSize);
+    if (inodeWrapper->GetLengthLocked() < off + *wSize) {
+        changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
+        inodeWrapper->SetLengthLocked(off + *wSize);
     }
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    inode->set_mtime(now.tv_sec);
-    inode->set_mtime_ns(now.tv_nsec);
-    inode->set_ctime(now.tv_sec);
-    inode->set_ctime_ns(now.tv_nsec);
+
+    inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
 
     inodeManager_->ShipToFlush(inodeWrapper);
 
@@ -151,6 +190,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
     }
 
     if (enableSumInDir_ && changeSize != 0) {
+        const Inode* inode = inodeWrapper->GetInodeLocked();
         XAttr xattr;
         xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
             std::to_string(changeSize)});
@@ -210,20 +250,14 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
         fsMetric_->userRead.qps.count << 1;
         uint64_t duration = butil::cpuwide_time_us() - start;
         fsMetric_->userRead.latency << duration;
-        fsMetric_->userReadIoSize << rRet;
+        fsMetric_->userReadIoSize.set_value(rRet);
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
-    Inode *newInode = inodeWrapper->GetMutableInodeUnlocked();
-
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    newInode->set_atime(now.tv_sec);
-    newInode->set_atime_ns(now.tv_nsec);
-
+    inodeWrapper->UpdateTimestampLocked(kAccessTime);
     inodeManager_->ShipToFlush(inodeWrapper);
 
-    VLOG(6) << "read end, read size = " << *rSize;
+    VLOG(9) << "read end, read size = " << *rSize;
     return ret;
 }
 
@@ -234,7 +268,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
     VLOG(1) << "FuseOpCreate, parent: " << parent << ", name: " << name
             << ", mode: " << mode;
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, false, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -246,7 +280,8 @@ CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                         dev_t rdev, fuse_entry_param *e) {
     VLOG(1) << "FuseOpMkNod, parent: " << parent << ", name: " << name
             << ", mode: " << mode << ", rdev: " << rdev;
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
+    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, false,
+                    e);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
@@ -289,7 +324,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
     return inodeWrapper->Sync();
 }
 
-CURVEFS_ERROR FuseS3Client::Truncate(Inode *inode, uint64_t length) {
+CURVEFS_ERROR FuseS3Client::Truncate(InodeWrapper *inode, uint64_t length) {
     return s3Adaptor_->Truncate(inode, length);
 }
 
@@ -299,7 +334,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
     CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
 
     // if enableCto, flush all write cache both in memory cache and disk cache
-    if (curvefs::client::common::FLAGS_enableCto) {
+    if (FLAGS_enableCto) {
         ret = s3Adaptor_->FlushAllCache(ino);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "FuseOpFlush, flush all cache fail, ret = " << ret

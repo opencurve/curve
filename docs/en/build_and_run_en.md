@@ -21,7 +21,7 @@ Method 2: Build docker image manually
 Use the Dockerfile in the project directory to build. The command is as follows:
 
 ```bash
-docker build -t opencurvedocker/curve-base:build-debian9.
+docker build -t opencurvedocker/curve-base:build-debian9
 ```
 
 Note: The above operations are not recommended to be performed in the CURVE project directory, otherwise the files in the current directory will be copied to the docker image when building the image. It is recommended to copy the Dockerfile to the newly created clean directory to build the docker image.
@@ -37,8 +37,8 @@ git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/
 bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
 # after curve v2.0
-compile curvebs: cd curve && make build
-compile curvefs: cd curve/curvefs && make build dep=1
+compile curvebs: cd curve && make build stor=bs dep=1
+compile curvefs: cd curve && make build stor=fs dep=1
 ```
 
 ## Compile on a physical machine
@@ -51,6 +51,9 @@ CURVE compilation depends on:
 | gcc   | Compatible version supporting C++11 |
 
 Other dependencies of CURVE are managed by bazel and do not need to be installed separately.
+
+**Note** The 4.* version of bazel can successfully compile the curve project, other versions are not compatible.
+4.2.2 is the recommended version.
 
 ### Installation dependency
 
@@ -65,8 +68,8 @@ git clone https://github.com/opencurve/curve.git or git clone https://gitee.com/
 bash mk-tar.sh （compile curvebs and make tar package）
 bash mk-deb.sh （compile curvebs and make debian package）
 # after curve v2.0
-compile curvebs: cd curve && make build
-compile curvefs: cd curve/curvefs && make build dep=1
+compile curvebs: cd curve && make build stor=bs dep=1
+compile curvefs: cd curve && make build stor=fs dep=1
 ```
 
 ## Test case compilation and execution
@@ -92,6 +95,48 @@ $    --define=libunwind=true
 ### Perform the test
 
 Before executing the test, you need to prepare the dependencies required for the test case to run:
+
+execute unit tests:
+- build module tests:
+  ```bash
+  $ bazel build xxx/...//:xxx_test
+  ```
+
+- run module tests:
+
+  ```bash
+  $ bazel run xxx/xxx//:xxx_test
+  ```
+
+- compile all tests
+
+  ```bash
+  $ bazel build "..."
+  ```
+
+- sometimes the bazel compiling cache will be failure.
+
+  clean the project cache:
+  ```bash
+  $ bazel clean
+  ```
+
+  clean the project cache and deps cache.(bazel will also save project cache).
+  ```bash
+  $ bazel clean --expunge
+  ```
+
+- debug mode build:
+  ```bash
+  $ bazel build xxx//:xxx_test -c dbg
+  ```
+
+- releases mode build
+  ```bash
+  $ bazel build xxx//:xxx_test -c opt
+  ```
+
+- more about bazel docs, please go [bazel docs](https://bazel.build/docs).
 
 #### Dynamic library
 

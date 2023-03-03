@@ -127,6 +127,26 @@ void TopologyServiceImpl::GetChunkServer(
     }
 }
 
+void TopologyServiceImpl::GetChunkServerInCluster(
+    google::protobuf::RpcController* cntl_base,
+    const GetChunkServerInClusterRequest* request,
+    GetChunkServerInClusterResponse* response,
+    google::protobuf::Closure* done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+        static_cast<brpc::Controller*>(cntl_base);
+    topology_->GetChunkServerInCluster(request, response);
+
+    if (kTopoErrCodeSuccess != response->statuscode()) {
+        LOG(ERROR) << "Send response[log_id=" << cntl->log_id()
+                   << "] from " << cntl->local_side()
+                   << " to " << cntl->remote_side()
+                   << ". [GetChunkServerInClusterResponse] "
+                   << response->DebugString();
+    }
+}
+
 void TopologyServiceImpl::DeleteChunkServer(
     google::protobuf::RpcController* cntl_base,
     const DeleteChunkServerRequest* request,

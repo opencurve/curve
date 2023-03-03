@@ -28,6 +28,7 @@
 
 #include "proto/topology.pb.h"
 #include "src/mds/topology/topology_service_manager.h"
+#include "src/mds/topology/topology_stat.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 
@@ -62,12 +63,22 @@ class TestTopologyServiceManager : public ::testing::Test {
                                                storage_);
         regInfoBuilder_ = std::make_shared<MockChunkServerRegistInfoBuilder>();
         TopologyOption topologyOption;
+        topologystat_ = std::make_shared<TopologyStatImpl>(topology_);
+        std::shared_ptr<ChunkFilePoolAllocHelp> chunkFilePoolAllocHelp_ =
+                std::make_shared<ChunkFilePoolAllocHelp>();
+        chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
+        topologyChunkAllocator_ = std::make_shared<TopologyChunkAllocatorImpl>(
+            topology_, nullptr, topologystat_,
+            chunkFilePoolAllocHelp_, topologyOption);
         CopysetOption copysetOption;
         copysetManager_ =
             std::make_shared<curve::mds::copyset::CopysetManager>(
                 copysetOption);
         serviceManager_ = std::make_shared<TopologyServiceManager>(topology_,
-             copysetManager_, regInfoBuilder_);
+             topologystat_,
+             topologyChunkAllocator_,
+             copysetManager_,
+             regInfoBuilder_);
         serviceManager_->Init(topologyOption);
 
         mockCopySetService =
@@ -220,6 +231,8 @@ class TestTopologyServiceManager : public ::testing::Test {
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
     std::shared_ptr<Topology> topology_;
+    std::shared_ptr<TopologyStat> topologystat_;
+    std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
     std::shared_ptr<MockChunkServerRegistInfoBuilder> regInfoBuilder_;
     std::shared_ptr<TopologyServiceManager> serviceManager_;
@@ -642,6 +655,25 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_InvalidParam) {
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
     ASSERT_FALSE(response.has_chunkserverinfo());
+}
+
+TEST_F(TestTopologyServiceManager, test_GetChunkServerInCluster_Success) {
+    ChunkServerIdType csId1 = 0x41, csId2 = 0x42;
+    ServerIdType serverId1 = 0x31, serverId2 = 0x32;
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId1, "server1", "ip1", "ip2");
+    PrepareAddServer(serverId2, "server2", "ip3", "ip4");
+    PrepareAddChunkServer(csId1, "token", "nvme", serverId1, "ip1", "ip2", 100);
+    PrepareAddChunkServer(csId2, "token", "nvme", serverId2, "ip3", "ip4", 100);
+
+    GetChunkServerInClusterRequest request;
+    GetChunkServerInClusterResponse response;
+    serviceManager_->GetChunkServerInCluster(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_EQ(2, response.chunkserverinfos_size());
 }
 
 TEST_F(TestTopologyServiceManager, test_DeleteChunkServer_success) {

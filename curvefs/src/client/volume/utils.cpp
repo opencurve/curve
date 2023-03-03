@@ -36,26 +36,6 @@ namespace client {
 using ::curvefs::metaserver::Inode;
 using ::curvefs::volume::AllocateHint;
 
-void UpdateInodeTimestamp(Inode* inode, int flags) {
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-
-    if (flags & kAccessTime) {
-        inode->set_atime(now.tv_sec);
-        inode->set_atime_ns(now.tv_nsec);
-    }
-
-    if (flags & kChangeTime) {
-        inode->set_ctime(now.tv_sec);
-        inode->set_ctime_ns(now.tv_nsec);
-    }
-
-    if (flags & kModifyTime) {
-        inode->set_mtime(now.tv_sec);
-        inode->set_mtime_ns(now.tv_nsec);
-    }
-}
-
 bool AllocSpace(SpaceManager* space,
                 const AllocPart& part,
                 std::map<uint64_t, WritePart>* writes,
@@ -72,7 +52,8 @@ bool AllocSpace(SpaceManager* space,
     std::vector<Extent> exts;
     auto ret = space->Alloc(part.allocInfo.len, hint, &exts);
     if (!ret) {
-        LOG(ERROR) << "allocate space error: " << ret;
+        LOG(ERROR) << "allocate space error, length: " << part.allocInfo.len
+                   << ", hint: " << hint;
         return false;
     }
 

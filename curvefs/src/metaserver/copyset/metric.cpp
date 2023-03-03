@@ -66,7 +66,7 @@ void OperatorMetric::OnOperatorCompleteFromLog(OperatorType type,
     }
 }
 
-void OperatorMetric::WaitInQueueLantancy(OperatorType type,
+void OperatorMetric::WaitInQueueLatency(OperatorType type,
                                              uint64_t latencyUs) {
     auto index = static_cast<uint32_t>(type);
     if (index < kTotalOperatorNum) {
@@ -74,7 +74,7 @@ void OperatorMetric::WaitInQueueLantancy(OperatorType type,
     }
 }
 
-void OperatorMetric::ExecuteLantancy(OperatorType type,
+void OperatorMetric::ExecuteLatency(OperatorType type,
                                              uint64_t latencyUs) {
     auto index = static_cast<uint32_t>(type);
     if (index < kTotalOperatorNum) {

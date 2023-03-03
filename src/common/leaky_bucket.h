@@ -51,7 +51,7 @@ struct ThrottleParams {
     // note: the real burst duration will be longer than burstSeconds
     uint64_t burstSeconds;
 
-    ThrottleParams() : ThrottleParams(0, 0, 1) {}
+    ThrottleParams() : ThrottleParams(0, 0, 0) {}
 
     ThrottleParams(uint64_t limit, uint64_t burst, uint64_t burstSeconds)
         : limit(limit), burst(burst), burstSeconds(burstSeconds) {}

@@ -174,5 +174,26 @@ TEST_F(ThrottleTest, TestBpsBurst) {
     ASSERT_LE(seconds, 7);
 }
 
+TEST_F(ThrottleTest, TestIopsLimit) {
+    // iops limit is 1000, burst is not enable default.
+    params_.iopsTotal.limit = 1000;
+    throttle_.UpdateThrottleParams(params_);
+    auto fn = [&](bool isRead, uint64_t total) {
+        uint64_t count = 0;
+        while (count++ < total) {
+            throttle_.Add(isRead, 1);
+        }
+    };
+    auto start = std::chrono::high_resolution_clock::now();
+    fn(true, 10000);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto seconds =
+        std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+    // consume 10000 iops token, limit is 1000
+    // so this call will wait 10 seconds
+    ASSERT_GE(seconds, 9);
+    ASSERT_LE(seconds, 11);
+}
+
 }  // namespace common
 }  // namespace curve

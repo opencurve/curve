@@ -39,11 +39,11 @@ TEST(TestInitVolumeOption, Common) {
     conf.SetUInt64Value("volume.bigFileSize", 1ULL * 1024 * 1024);
     conf.SetUInt64Value("volume.volBlockSize", 4096);
     conf.SetUInt64Value("volume.fsBlockSize", 4096);
-    conf.SetUInt32Value("volume.blockgroup.allocate_once", 4);
+    conf.SetUInt32Value("volume.blockGroup.allocateOnce", 4);
     conf.SetStringValue("volume.allocator.type", "bitmap");
-    conf.SetUInt64Value("volume.bitmapallocator.size_per_bit",
+    conf.SetUInt64Value("volume.bitmapAllocator.sizePerBit",
                         4ULL * 1024 * 1024);
-    conf.SetDoubleValue("volume.bitmapallocator.small_alloc_proportion", 0.0);
+    conf.SetDoubleValue("volume.bitmapAllocator.smallAllocProportion", 0.0);
 
     ASSERT_NO_FATAL_FAILURE({ InitVolumeOption(&conf, &volopt); });
 }
@@ -55,11 +55,11 @@ TEST(TestInitVolumeOption, TypeError) {
     conf.SetUInt64Value("volume.bigFileSize", 1ULL * 1024 * 1024);
     conf.SetUInt64Value("volume.volBlockSize", 4096);
     conf.SetUInt64Value("volume.fsBlockSize", 4096);
-    conf.SetUInt32Value("volume.blockgroup.allocate_once", 4);
+    conf.SetUInt32Value("volume.blockGroup.allocateOnce", 4);
     conf.SetStringValue("volume.allocator.type", "xxx");
-    conf.SetUInt64Value("volume.bitmapallocator.size_per_bit",
+    conf.SetUInt64Value("volume.bitmapAllocator.sizePerBit",
                         4ULL * 1024 * 1024);
-    conf.SetDoubleValue("volume.bitmapallocator.small_alloc_proportion", 0.0);
+    conf.SetDoubleValue("volume.bitmapAllocator.smallAllocProportion", 0.0);
 
     ASSERT_DEATH({ InitVolumeOption(&conf, &volopt); }, "");
 }

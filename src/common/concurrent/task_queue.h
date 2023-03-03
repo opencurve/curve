@@ -32,27 +32,34 @@
 namespace curve {
 namespace common {
 
-class TaskQueue {
+template <typename MutexT, typename CondVarT>
+class GenericTaskQueue {
  public:
     using Task = std::function<void()>;
-    explicit TaskQueue(size_t capacity): capacity_(capacity) {
-    }
 
-    ~TaskQueue() = default;
+    explicit GenericTaskQueue(size_t capacity) : capacity_(capacity) {}
 
-    template<class F, class... Args>
+    template <class F, class... Args>
     void Push(F&& f, Args&&... args) {
         auto task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
-        std::unique_lock<std::mutex> lk(mtx_);
-        notfullcv_.wait(lk, [this]()->bool{return this->tasks_.size() < this->capacity_;});     // NOLINT
-        tasks_.push(task);
+        {
+            std::unique_lock<MutexT> lk(mtx_);
+            while (tasks_.size() >= capacity_) {
+                notfullcv_.wait(lk);
+            }
+
+            tasks_.push(std::move(task));
+        }
         notemptycv_.notify_one();
-    };                                                                                          // NOLINT
+    }
 
     Task Pop() {
-        std::unique_lock<std::mutex> lk(mtx_);
-        notemptycv_.wait(lk, [this]()->bool{return this->tasks_.size() > 0;});                  // NOLINT
-        Task t = tasks_.front();
+        std::unique_lock<MutexT> lk(mtx_);
+        while (tasks_.empty()) {
+            notemptycv_.wait(lk);
+        }
+
+        Task t = std::move(tasks_.front());
         tasks_.pop();
         notfullcv_.notify_one();
         return t;
@@ -60,11 +67,13 @@ class TaskQueue {
 
  private:
     size_t capacity_;
-    std::mutex  mtx_;
-    std::condition_variable notemptycv_;
-    std::condition_variable notfullcv_;
+    MutexT mtx_;
+    CondVarT notemptycv_;
+    CondVarT notfullcv_;
     std::queue< Task > tasks_;
 };
+
+using TaskQueue = GenericTaskQueue<std::mutex, std::condition_variable>;
 
 }   // namespace common
 }   // namespace curve

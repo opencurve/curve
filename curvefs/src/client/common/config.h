@@ -32,20 +32,17 @@
 #include "src/common/configuration.h"
 #include "src/common/s3_adapter.h"
 
+namespace curvefs {
+namespace client {
+namespace common {
 using ::curve::common::Configuration;
 using ::curve::common::S3AdapterOption;
 using ::curvefs::client::common::DiskCacheType;
 using ::curve::common::S3InfoOption;
-
-namespace curvefs {
-namespace client {
-namespace common {
-
 using MdsOption = ::curve::client::MetaServerOption;
 
 struct BlockDeviceClientOptions {
     std::string configPath;
-    uint32_t threadnum;
 };
 
 struct MetaCacheOpt {
@@ -79,6 +76,11 @@ struct LeaseOpt {
 struct SpaceAllocServerOption {
     std::string spaceaddr;
     uint64_t rpcTimeoutMs;
+};
+
+struct KVClientManagerOpt {
+    int setThreadPooln = 4;
+    int getThreadPooln = 4;
 };
 
 struct DiskCacheOption {
@@ -167,6 +169,10 @@ struct ExtentManagerOption {
     uint64_t preAllocSize;
 };
 
+struct RefreshDataOption {
+    uint64_t maxDataSize = 1024;
+    uint32_t refreshDataIntervalSec = 30;
+};
 struct FuseClientOption {
     MdsOption mdsOpt;
     MetaCacheOpt metaCacheOpt;
@@ -178,6 +184,8 @@ struct FuseClientOption {
     ExtentManagerOption extentManagerOpt;
     VolumeOption volumeOpt;
     LeaseOpt leaseOpt;
+    RefreshDataOption refreshDataOption;
+    KVClientManagerOpt kvClientManagerOpt;
 
     double attrTimeOut;
     double entryTimeOut;
@@ -189,10 +197,13 @@ struct FuseClientOption {
     uint64_t dCacheLruSize;
     bool enableICacheMetrics;
     bool enableDCacheMetrics;
+    uint32_t lruTimeOutSec;
     uint32_t dummyServerStartPort;
     bool enableMultiMountPointRename = false;
     bool enableFuseSplice = false;
     bool disableXattr = false;
+    uint32_t downloadMaxRetryTimes;
+    uint32_t warmupThreadsNum;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);

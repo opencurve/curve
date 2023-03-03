@@ -28,6 +28,7 @@
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 #include "curvefs/src/common/s3util.h"
 #include "curvefs/src/client/metric/client_metric.h"
+#include "curvefs/src/client/kvclient/kvclient_manager.h"
 
 namespace curvefs {
 namespace client {
@@ -94,8 +95,8 @@ FsCacheManager::FindOrCreateFileCacheManager(uint64_t fsId, uint64_t inodeId) {
         return it->second;
     }
 
-    FileCacheManagerPtr fileCacheManager =
-        std::make_shared<FileCacheManager>(fsId, inodeId, s3ClientAdaptor_);
+    FileCacheManagerPtr fileCacheManager = std::make_shared<FileCacheManager>(
+        fsId, inodeId, s3ClientAdaptor_);
     auto ret = fileCacheManagerMap_.emplace(inodeId, fileCacheManager);
     g_s3MultiManagerMetric->fileManagerNum << 1;
     assert(ret.second);
@@ -300,323 +301,354 @@ FileCacheManager::FindOrCreateChunkCacheManager(uint64_t index) {
     return chunkCacheManager;
 }
 
-int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
-                           char *dataBuf) {
-    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
-    uint64_t index = offset / chunkSize;
-    uint64_t chunkPos = offset % chunkSize;
-    uint64_t readLen = 0;
-    int ret = 0;
-    uint64_t readOffset = 0;
-    std::vector<ReadRequest> totalRequests;
-
-    //  Find offset~len in the write and read cache,
-    //  and The parts that are not in the cache are placed in the totalRequests
-    while (length > 0) {
-        std::vector<ReadRequest> requests;
-        if (chunkPos + length > chunkSize) {
-            readLen = chunkSize - chunkPos;
-        } else {
-            readLen = length;
-        }
-        ChunkCacheManagerPtr chunkCacheManager =
-        FindOrCreateChunkCacheManager(index);
-        chunkCacheManager->ReadChunk(index, chunkPos, readLen, dataBuf,
-                                     readOffset, &requests);
-        totalRequests.insert(totalRequests.end(), requests.begin(),
-                             requests.end());
-        length -= readLen;
-        index++;
-        readOffset += readLen;
-        chunkPos = (chunkPos + readLen) % chunkSize;
-    }
-
-    if (totalRequests.empty()) {
-        VLOG(3) << "read cache is all the hits.";
-        return readOffset;
-    }
-
-    {
-        uint32_t maxIntervalMs =
-            s3ClientAdaptor_->GetMaxReadRetryIntervalMs();  // hardcode, fixme
-        uint32_t retryIntervalMs = s3ClientAdaptor_->GetReadRetryIntervalMs();
-        uint32_t retry = 0;
-        std::shared_ptr<InodeWrapper> inodeWrapper;
-        auto inodeManager = s3ClientAdaptor_->GetInodeCacheManager();
-        CURVEFS_ERROR r = inodeManager->GetInode(inodeId, inodeWrapper);
-        if (r != CURVEFS_ERROR::OK) {
-            LOG(WARNING) << "get inode fail, ret:" << ret;
-            return -1;
-        }
-        std::vector<S3ReadResponse> responses;
-        while (1) {
-            std::vector<S3ReadRequest> totalS3Requests;
-            auto iter = totalRequests.begin();
-            uint64_t fileLen;
-            {
-                ::curve::common::UniqueLock lgGuard =
-                    inodeWrapper->GetUniqueLock();
-                Inode* inode = inodeWrapper->GetMutableInodeUnlocked();
-                VLOG(9) << "FileCacheManager::Read Inode: "
-                          << inode->DebugString();
-                fileLen = inode->length();
-                for (; iter != totalRequests.end(); iter++) {
-                    VLOG(6) << "ReadRequest index:" << iter->index
-                            << ",chunkPos:" << iter->chunkPos
-                            << ",len:" << iter->len
-                            << ",bufOffset:" << iter->bufOffset;
-                    auto s3InfoListIter =
-                        inode->s3chunkinfomap().find(iter->index);
-                    if (s3InfoListIter == inode->s3chunkinfomap().end()) {
-                        VLOG(6)
-                            << "s3infolist is not found.index:" << iter->index;
-                        memset(dataBuf + iter->bufOffset, 0, iter->len);
-                        continue;
-                    }
-                    std::vector<S3ReadRequest> s3Requests;
-                    GenerateS3Request(*iter, s3InfoListIter->second, dataBuf,
-                                      &s3Requests, inode->fsid(),
-                                      inode->inodeid());
-                    totalS3Requests.insert(totalS3Requests.end(),
-                                           s3Requests.begin(),
-                                           s3Requests.end());
-                }
-            }
-            if (totalS3Requests.empty()) {
-                VLOG(6) << "s3 has not data to read.";
-                return readOffset;
-            }
-
-            uint32_t i;
-            for (i = 0; i < totalS3Requests.size(); i++) {
-                S3ReadRequest& tmp_req = totalS3Requests[i];
-                VLOG(9) << "S3ReadRequest chunkid:" << tmp_req.chunkId
-                        << ",offset:" << tmp_req.offset
-                        << ",len:" << tmp_req.len
-                        << ",objectOffset:" << tmp_req.objectOffset
-                        << ",readOffset:" << tmp_req.readOffset
-                        << ",compaction:" << tmp_req.compaction
-                        << ",fsid:" << tmp_req.fsId
-                        << ",inodeId:" << tmp_req.inodeId;
-            }
-
-            ret = ReadFromS3(totalS3Requests, &responses, fileLen);
-            if (ret < 0) {
-                retry++;
-                responses.clear();
-                if (ret != -2) {
-                    LOG(ERROR) << "read from s3 failed. ret:" << ret;
-                    return ret;
-                } else {
-                    // ret -2 refs s3obj not exist, first It may be that
-                    // the metaserver compaction update inode is not
-                    // synchronized to the client;so clear inodecache && get
-                    // again;If it returns -2 multiple times, it may be that the
-                    // data of a client has not been flushed back to s3, and you
-                    // only need to keep retrying.
-                    if (1 == retry) {
-                        LOG(INFO)
-                            << "inode cache maybe stale, try to get latest";
-                                   curve::common::UniqueLock lgGuard =
-                            inodeWrapper->GetUniqueLock();
-                        auto r = inodeWrapper->RefreshS3ChunkInfo();
-                        if (r != CURVEFS_ERROR::OK) {
-                            LOG(WARNING) << "refresh inode fail, ret:" << ret;
-                            return -1;
-                        }
-                    }
-                    if (retry * retryIntervalMs < maxIntervalMs) {
-                        LOG(WARNING) << "read retry num:" << retry;
-                        bthread_usleep(retryIntervalMs * retry * 1000);
-                    } else {
-                        LOG(WARNING) << "retry is reach max interval ms:"
-                                     << maxIntervalMs;
-                        bthread_usleep(maxIntervalMs * 1000);
-                    }
-                }
-            } else {
-                break;
-            }
-        }
-        auto repIter = responses.begin();
-        for (; repIter != responses.end(); repIter++) {
-            VLOG(6) << "readOffset:" << repIter->GetReadOffset()
-                    << ",bufLen:" << repIter->GetBufLen();
-            memcpy(dataBuf + repIter->GetReadOffset(),
-                repIter->GetDataBuf(), repIter->GetBufLen());
-        }
-    }
-
-    return readOffset;
+void FileCacheManager::GetChunkLoc(uint64_t offset, uint64_t *index,
+                                   uint64_t *chunkPos, uint64_t *chunkSize) {
+    *chunkSize = s3ClientAdaptor_->GetChunkSize();
+    *index = offset / *chunkSize;
+    *chunkPos = offset % *chunkSize;
 }
 
-int FileCacheManager::ReadFromS3(const std::vector<S3ReadRequest> &requests,
-                                 std::vector<S3ReadResponse> *responses,
-                                 uint64_t fileLen) {
-    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+void FileCacheManager::GetBlockLoc(uint64_t offset, uint64_t *chunkIndex,
+                                   uint64_t *chunkPos, uint64_t *blockIndex,
+                                   uint64_t *blockPos) {
+    uint64_t chunkSize = 0;
     uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
-    std::vector<S3ReadRequest>::const_iterator iter = requests.begin();
-    std::atomic<uint64_t> pendingReq(0);
-    curve::common::CountDownEvent cond(1);
-    bool async = false;
-    // first is chunkIndex, second is vector chunkPos
-    std::map<uint64_t, std::vector<uint64_t>> dataCacheMap;
-    GetObjectAsyncCallBack cb =
-        [&](const S3Adapter *adapter,
-            const std::shared_ptr<GetObjectAsyncContext> &context) {
-            if (context->retCode == 0) {
-                pendingReq.fetch_sub(1, std::memory_order_relaxed);
-                cond.Signal();
+    GetChunkLoc(offset, chunkIndex, chunkPos, &chunkSize);
+
+    *blockIndex = offset % chunkSize / blockSize;
+    *blockPos = offset % chunkSize % blockSize;
+}
+
+void FileCacheManager::ReadFromMemCache(
+    uint64_t offset, uint64_t length, char *dataBuf, uint64_t *actualReadLen,
+    std::vector<ReadRequest> *memCacheMissRequest) {
+
+    uint64_t index = 0, chunkPos = 0, chunkSize = 0;
+    GetChunkLoc(offset, &index, &chunkPos, &chunkSize);
+
+    uint64_t currentReadLen = 0;
+    uint64_t dataBufferOffset = 0;
+    while (length > 0) {
+        // |--------------------------------|
+        // 0                             chunksize
+        //                chunkPos                   length + chunkPos
+        //                   |-------------------------|
+        //                   |--------------|
+        //                    currentReadLen
+        currentReadLen =
+            chunkPos + length > chunkSize ? chunkSize - chunkPos : length;
+
+
+        // 1. read from local memory cache
+        // 2. generate cache miss request
+        ChunkCacheManagerPtr chunkCacheManager =
+            FindOrCreateChunkCacheManager(index);
+        std::vector<ReadRequest> tmpMissRequests;
+        chunkCacheManager->ReadChunk(index, chunkPos, currentReadLen, dataBuf,
+                                     dataBufferOffset, &tmpMissRequests);
+        memCacheMissRequest->insert(memCacheMissRequest->end(),
+                                    tmpMissRequests.begin(),
+                                    tmpMissRequests.end());
+
+        length -= currentReadLen;            // left length
+        index++;                             // next index
+        dataBufferOffset += currentReadLen;  // next data buffer offset
+        chunkPos = (chunkPos + currentReadLen) % chunkSize;  // next chunkPos
+    }
+
+    *actualReadLen = dataBufferOffset;
+
+    VLOG_IF(3, memCacheMissRequest->empty())
+        << "greate! memory cache all hit.";
+}
+
+int FileCacheManager::GenerateKVReuqest(
+    const std::shared_ptr<InodeWrapper> &inodeWrapper,
+    const std::vector<ReadRequest> &readRequest, char *dataBuf,
+    std::vector<S3ReadRequest> *kvRequest) {
+
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    const Inode *inode = inodeWrapper->GetInodeLocked();
+    const auto *s3chunkinfo = inodeWrapper->GetChunkInfoMap();
+    VLOG(9) << "process inode: " << inode->DebugString();
+    for_each(
+        readRequest.begin(), readRequest.end(), [&](const ReadRequest &req) {
+            VLOG(6) << req.DebugString();
+            auto infoIter = s3chunkinfo->find(req.index);
+            if (infoIter == s3chunkinfo->end()) {
+                VLOG(6) << "inode = " << inode->inodeid()
+                        << " s3chunkinfo do not find index = " << req.index;
+                memset(dataBuf + req.bufOffset, 0, req.len);
                 return;
+            } else {
+                std::vector<S3ReadRequest> tmpKVRequests;
+                GenerateS3Request(req, infoIter->second, dataBuf,
+                                  &tmpKVRequests, inode->fsid(),
+                                  inode->inodeid());
+                kvRequest->insert(kvRequest->end(), tmpKVRequests.begin(),
+                                  tmpKVRequests.end());
             }
+        });
 
-            LOG(WARNING) << "Get Object failed, key: " << context->key
-                         << ", offset: " << context->offset;
-            s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
-        };
+    VLOG(9) << "process inode: " << S3ReadRequestVecDebugString(*kvRequest)
+            << " ok";
 
-    for (; iter != requests.end(); iter++) {
-        uint64_t blockIndex = iter->offset % chunkSize / blockSize;
-        uint64_t blockPos = iter->offset % chunkSize % blockSize;
-        uint64_t chunkIndex = iter->offset / chunkSize;
-        uint64_t chunkPos = iter->offset % chunkSize;
-        uint64_t len = iter->len;
-        uint64_t n = 0;
-        uint64_t readOffset = 0;
-        uint64_t objectOffset = iter->objectOffset;
+    return 0;
+}
 
-        std::vector<uint64_t> &dataCacheVec = dataCacheMap[chunkIndex];
-        dataCacheVec.push_back(chunkPos);
-        S3ReadResponse response(len);
-        if (!response.GetDataBuf()) {
+int FileCacheManager::HandleReadS3NotExist(
+    int ret, uint32_t retry,
+    const std::shared_ptr<InodeWrapper> &inodeWrapper) {
+    uint32_t maxIntervalMs =
+        s3ClientAdaptor_->GetMaxReadRetryIntervalMs();  // hardcode, fixme
+    uint32_t retryIntervalMs = s3ClientAdaptor_->GetReadRetryIntervalMs();
+
+    if (retry == 1) {
+        curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+        if (CURVEFS_ERROR::OK != inodeWrapper->RefreshS3ChunkInfo()) {
+            LOG(ERROR) << "refresh inode = " << inodeWrapper->GetInodeId()
+                       << " fail";
             return -1;
         }
-        VLOG(6) << "HandleReadRequest blockPos:" << blockPos << ",len:" << len
-                << ",blockIndex:" << blockIndex
-                << ",objectOffset:" << objectOffset << ",chunkid"
-                << iter->chunkId << ",fsid" << iter->fsId
-                << ",inodeId:" << iter->inodeId;
-        // prefetch read
-        // TODO(huyao): The read-ahead trigger logic needs to be refactored and
-        // supplemented with unit tests
-        if (s3ClientAdaptor_->HasDiskCache()) {
-            uint64_t blockIndexTmp = blockIndex;
-            // the counts of blocks that need prefetch
-            uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
-            std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
-            for (int count = 0; count < prefetchBlocks; count++) {
-                std::string name = curvefs::common::s3util::GenObjName(
-                    iter->chunkId, blockIndexTmp, iter->compaction, iter->fsId,
-                    iter->inodeId);
-                uint64_t readLen = (blockIndexTmp + 1) * blockSize;
-                if (readLen > fileLen) {
-                    VLOG(6) << "end, redLen :" << readLen
-                            << ", fileLen: " << fileLen << ", blockIndexTmp "
-                            << blockIndexTmp;
-                    readLen = fileLen - blockIndexTmp * blockSize;
-                    prefetchObjs.push_back(std::make_pair(name, readLen));
-                    break;
-                } else {
-                    prefetchObjs.push_back(std::make_pair(name, blockSize));
-                }
+    } else if (retry * retryIntervalMs < maxIntervalMs) {
+        LOG(WARNING) << "read inode = " << inodeWrapper->GetInodeId()
+                     << " retry = " << retry;
+        bthread_usleep(retryIntervalMs * retry * 1000);
+    } else {
+        LOG(WARNING) << "read inode = " << inodeWrapper->GetInodeId()
+                     << " retry = " << retry
+                     << ", reach max interval = " << maxIntervalMs << " ms";
+        bthread_usleep(maxIntervalMs * 1000);
+    }
 
-                blockIndexTmp++;
-                if (blockIndexTmp >= chunkSize / blockSize) {
-                    break;
-                }
+    return 0;
+}
+
+int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
+                            char *dataBuf) {
+    // 1. read from memory cache
+    uint64_t actualReadLen = 0;
+    std::vector<ReadRequest> memCacheMissRequest;
+    ReadFromMemCache(offset, length, dataBuf, &actualReadLen,
+                     &memCacheMissRequest);
+    if (memCacheMissRequest.empty()) {
+        return actualReadLen;
+    }
+
+
+    // 2. read from localcache and remote cluster
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    auto inodeManager = s3ClientAdaptor_->GetInodeCacheManager();
+    if (CURVEFS_ERROR::OK != inodeManager->GetInode(inodeId, inodeWrapper)) {
+        LOG(ERROR) << "get inode = " << inodeId << " fail";
+        return -1;
+    }
+
+    uint32_t retry = 0;
+    do {
+        // generate kv request
+        std::vector<S3ReadRequest> kvRequest;
+        GenerateKVReuqest(inodeWrapper, memCacheMissRequest, dataBuf,
+                          &kvRequest);
+
+        // read from kv cluster (localcache -> remote kv cluster -> s3)
+        // localcache/remote kv cluster fail will not return error code.
+        // Failure to read from s3 will eventually return failure.
+        int ret = ReadKVRequest(kvRequest, dataBuf, inodeWrapper->GetLength());
+        if (ret >= 0) {
+            // read ok
+            break;
+        } else if (ret == -2) {
+            // TODO(@anybody): ret should replace the current number with a
+            // meaningful error code
+            //  read from s3 not exist
+            // 1. may be the metaserver compaction update inode is not
+            //    synchronized to the client. clear inodecache && get agin
+            // 2. if it returns -2 multiple times, it may be the data of a
+            //    client has not been flushed back to s3, and need keep
+            //    retrying.
+            if (0 != HandleReadS3NotExist(ret, retry++, inodeWrapper)) {
+                return -1;
             }
-            // prefetch object from s3
-            PrefetchS3Objs(prefetchObjs);
+        } else {
+            LOG(INFO) << "read inode = " << inodeId
+                      << " from s3 failed, ret = " << ret;
+            return ret;
         }
-        while (len > 0) {
-            if (blockPos + len > blockSize) {
-                n = blockSize - blockPos;
-            } else {
-                n = len;
-            }
+    } while (1);
+
+    return actualReadLen;
+}
+
+bool FileCacheManager::ReadKVRequestFromLocalCache(const std::string &name,
+                                                      char *databuf,
+                                                      uint64_t offset,
+                                                      uint64_t len) {
+    uint64_t start = butil::cpuwide_time_us();
+
+    bool mayCached = s3ClientAdaptor_->HasDiskCache() &&
+                     s3ClientAdaptor_->GetDiskCacheManager()->IsCached(name);
+    if (!mayCached) {
+        return false;
+    }
+
+    if (0 > s3ClientAdaptor_->GetDiskCacheManager()->Read(name, databuf, offset,
+                                                          len)) {
+        LOG(WARNING) << "object " << name << " not cached in disk";
+        return false;
+    }
+
+    if (s3ClientAdaptor_->s3Metric_.get()) {
+        s3ClientAdaptor_->CollectMetrics(
+            &s3ClientAdaptor_->s3Metric_->adaptorReadS3, len, start);
+    }
+    return true;
+}
+
+bool FileCacheManager::ReadKVRequestFromRemoteCache(const std::string &name,
+                                                    char *databuf,
+                                                    uint64_t offset,
+                                                    uint64_t length) {
+    if (!g_kvClientManager) {
+        return false;
+    }
+
+    auto task = std::make_shared<GetKVCacheTask>(name, databuf, offset, length);
+    CountDownEvent event(1);
+    task->done = [&](const std::shared_ptr<GetKVCacheTask> &task) {
+        event.Signal();
+        return;
+    };
+    g_kvClientManager->Get(task);
+    event.Wait();
+
+    return task->res;
+}
+
+bool FileCacheManager::ReadKVRequestFromS3(const std::string &name,
+                                           char *databuf, uint64_t offset,
+                                           uint64_t length, int *ret) {
+    uint64_t start = butil::cpuwide_time_us();
+    *ret = s3ClientAdaptor_->GetS3Client()->Download(name, databuf, offset,
+                                                     length);
+    if (*ret < 0) {
+        LOG(ERROR) << "object " << name << " read from s3 fail, ret = " << *ret;
+        return false;
+    } else if (s3ClientAdaptor_->s3Metric_.get()) {
+        s3ClientAdaptor_->CollectMetrics(
+            &s3ClientAdaptor_->s3Metric_->adaptorReadS3, length, start);
+    }
+
+    return true;
+}
+
+int FileCacheManager::ReadKVRequest(
+    const std::vector<S3ReadRequest> &kvRequests, char *dataBuf,
+    uint64_t fileLen) {
+
+    for (auto req = kvRequests.begin(); req != kvRequests.end(); req++) {
+        VLOG(6) << "read from kv request " << req->DebugString();
+
+        uint64_t chunkIndex = 0, chunkPos = 0, blockIndex = 0, blockPos = 0;
+        uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+        uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+        GetBlockLoc(req->offset, &chunkIndex, &chunkPos, &blockIndex,
+                    &blockPos);
+
+        // prefetch
+        if (s3ClientAdaptor_->HasDiskCache()) {
+            PrefetchForBlock(*req, fileLen, blockSize, chunkSize, blockIndex);
+        }
+
+        // read request
+        // |--------------------------------|----------------------------------|
+        // 0                             blockSize                   2*blockSize
+        //                blockPos                   length + blockPos
+        //                   |-------------------------|
+        //                   |--------------|
+        //                    currentReadLen
+        uint64_t length = req->len;
+        uint64_t currentReadLen = 0;
+        uint64_t readBufOffset = 0;
+        uint64_t objectOffset = req->objectOffset;
+
+        while (length > 0) {
+            int ret = 0;
+            currentReadLen =
+                length + blockPos > blockSize ? blockSize - blockPos : length;
             assert(blockPos >= objectOffset);
             std::string name = curvefs::common::s3util::GenObjName(
-                iter->chunkId, blockIndex, iter->compaction, iter->fsId,
-                iter->inodeId);
-            uint64_t start = butil::cpuwide_time_us();
-            if (async) {
-                VLOG(9) << "async read s3";
-                auto context = std::make_shared<GetObjectAsyncContext>();
-                context->key = name;
-                context->buf = response.GetDataBuf() + readOffset;
-                context->offset = blockPos - objectOffset;
-                context->len = n;
-                context->cb = cb;
-                pendingReq.fetch_add(1, std::memory_order_relaxed);
-                s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
+                req->chunkId, blockIndex, req->compaction, req->fsId,
+                req->inodeId);
+            char *currentBuf = dataBuf + req->readOffset + readBufOffset;
+
+            // read from localcache -> remotecache -> s3
+            if (ReadKVRequestFromLocalCache(name, currentBuf,
+                                            blockPos - objectOffset,
+                                            currentReadLen)) {
+                VLOG(9) << "read " << name << " from local cache ok";
+            } else if (ReadKVRequestFromRemoteCache(name, currentBuf,
+                                                    blockPos - objectOffset,
+                                                    currentReadLen)) {
+                VLOG(9) << "read " << name << " from remote cache ok";
+            } else if (ReadKVRequestFromS3(name, currentBuf,
+                                           blockPos - objectOffset,
+                                           currentReadLen, &ret)) {
+                VLOG(9) << "read " << name << " from s3 ok";
             } else {
-                VLOG(9) << "sync read s3";
-                int ret = 0;
-                if (s3ClientAdaptor_->HasDiskCache() &&
-                    s3ClientAdaptor_->GetDiskCacheManager()->IsCached(name)) {
-                    VLOG(9) << "cached in disk: " << name;
-                    ret = s3ClientAdaptor_->GetDiskCacheManager()->Read(
-                        name, response.GetDataBuf() + readOffset,
-                        blockPos - objectOffset, n);
-                    if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
-                        s3ClientAdaptor_->CollectMetrics(
-                            &s3ClientAdaptor_->s3Metric_->adaptorReadDiskCache,
-                            n, start);
-                    }
-                } else {
-                    VLOG(9) << "not cached in disk: " << name;
-                    ret = s3ClientAdaptor_->GetS3Client()->Download(
-                        name, response.GetDataBuf() + readOffset,
-                        blockPos - objectOffset, n);
-                    if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
-                        s3ClientAdaptor_->CollectMetrics(
-                            &s3ClientAdaptor_->s3Metric_->adaptorReadS3, n,
-                            start);
-                    }
-                }
-                if (ret < 0) {
-                    LOG(ERROR) << "get obj failed, name is: " << name
-                               << ", offset is: " << blockPos
-                               << ", objoffset is: " << objectOffset
-                               << ", len: " << n << ", ret is: " << ret;
-                    return ret;
-                }
+                LOG(ERROR) << "read " << name << " fail";
+                return ret;
             }
 
-            len -= n;
-            readOffset += n;
-            blockIndex++;
-            blockPos = (blockPos + n) % blockSize;
-            objectOffset = 0;
+            // update param
+            {
+                length -= currentReadLen;         // Remaining read data length
+                readBufOffset += currentReadLen;  // next read offset
+                blockIndex++;
+                blockPos = (blockPos + currentReadLen) % blockSize;
+                objectOffset = 0;
+            }
         }
-        response.SetReadOffset(iter->readOffset);
-        VLOG(6) << "response readOffset:" << response.GetReadOffset()
-                << ",response len:" << response.GetBufLen()
-                << ",bufLen:" << readOffset;
-        responses->emplace_back(std::move(response));
-    }
 
-    while (pendingReq.load(std::memory_order_acquire)) {
-        cond.Wait();
-    }
-    uint32_t i = 0;
-    for (auto &dataCacheMapIter : dataCacheMap) {
-        ChunkCacheManagerPtr chunkCacheManager =
-            FindOrCreateChunkCacheManager(dataCacheMapIter.first);
-        std::vector<uint64_t> &DataCacheVec = dataCacheMapIter.second;
-        WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
-        for (auto &chunkPos : DataCacheVec) {
+        // add data to memory read cache
+        if (!curvefs::client::common::FLAGS_enableCto) {
+            auto chunkCacheManager = FindOrCreateChunkCacheManager(chunkIndex);
+            WriteLockGuard writeLockGuard(chunkCacheManager->rwLockChunk_);
             DataCachePtr dataCache = std::make_shared<DataCache>(
-            s3ClientAdaptor_, chunkCacheManager, chunkPos,
-            (*responses)[i].GetBufLen(), (*responses)[i].GetDataBuf());
-            if (!curvefs::client::common::FLAGS_enableCto) {
-                chunkCacheManager->AddReadDataCache(dataCache);
-            }
-            i++;
+                s3ClientAdaptor_, chunkCacheManager, chunkPos, req->len,
+                dataBuf + req->readOffset);
+            chunkCacheManager->AddReadDataCache(dataCache);
         }
     }
 
     return 0;
+}
+
+void FileCacheManager::PrefetchForBlock(const S3ReadRequest &req,
+                                       uint64_t fileLen, uint64_t blockSize,
+                                       uint64_t chunkSize,
+                                       uint64_t startBlockIndex) {
+    uint32_t prefetchBlocks = s3ClientAdaptor_->GetPrefetchBlocks();
+    std::vector<std::pair<std::string, uint64_t>> prefetchObjs;
+
+    uint64_t blockIndex = startBlockIndex;
+    for (uint32_t i = 0; i < prefetchBlocks; i++) {
+        std::string name = curvefs::common::s3util::GenObjName(
+            req.chunkId, blockIndex, req.compaction, req.fsId, req.inodeId);
+        uint64_t maxReadLen = (blockIndex + 1) * blockSize;
+        uint64_t needReadLen = maxReadLen > fileLen
+                                   ? fileLen - blockIndex * blockSize
+                                   : blockSize;
+
+        prefetchObjs.push_back(std::make_pair(name, needReadLen));
+
+        blockIndex++;
+        if (maxReadLen > fileLen || blockIndex >= chunkSize / blockSize) {
+            break;
+        }
+    }
+
+    PrefetchS3Objs(prefetchObjs);
 }
 
 class AsyncPrefetchCallback {
@@ -626,8 +658,8 @@ class AsyncPrefetchCallback {
 
     void operator()(const S3Adapter *,
                     const std::shared_ptr<GetObjectAsyncContext> &context) {
-        VLOG(9) << "prefetch end: " << context->key << ", len " << context->len;
-
+        VLOG(9) << "prefetch end: " << context->key << ", len " << context->len
+                << "actual len: " <<  context->actualLen;
         std::unique_ptr<char[]> guard(context->buf);
         auto fileCache =
             s3Client_->GetFsCacheManager()->FindFileCacheManager(inode_);
@@ -645,7 +677,7 @@ class AsyncPrefetchCallback {
         }
 
         int ret = s3Client_->GetDiskCacheManager()->WriteReadDirect(
-            context->key, context->buf, context->len);
+            context->key, context->buf, context->actualLen);
         if (ret < 0) {
             LOG_EVERY_SECOND(INFO) <<
               "write read directly failed, key: " << context->key;
@@ -1057,10 +1089,14 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
                                  std::vector<ReadRequest> *requests) {
     ReadLockGuard readLockGuard(rwLockChunk_);
     std::vector<ReadRequest> cacheMissWriteRequests, cacheMissFlushDataRequest;
-    ReadByWriteCache(chunkPos, readLen, dataBuf,
-                                        dataBufOffset, &cacheMissWriteRequests);
+    // read by write cache
+    ReadByWriteCache(chunkPos, readLen, dataBuf, dataBufOffset,
+                     &cacheMissWriteRequests);
+
+    // read by flushing data cache
     flushingDataCacheMtx_.lock();
     if (!IsFlushDataEmpty()) {
+        // read by flushing data cache
         for (auto request : cacheMissWriteRequests) {
             std::vector<ReadRequest> tmpRequests;
             ReadByFlushData(request.chunkPos, request.len,
@@ -1071,6 +1107,8 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
                                              tmpRequests.end());
         }
         flushingDataCacheMtx_.unlock();
+
+        // read by read cache
         for (auto request : cacheMissFlushDataRequest) {
             std::vector<ReadRequest> tmpRequests;
             ReadByReadCache(request.chunkPos, request.len,
@@ -1082,6 +1120,8 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
         return;
     }
     flushingDataCacheMtx_.unlock();
+
+    // read by read cache
     for (auto request : cacheMissWriteRequests) {
         std::vector<ReadRequest> tmpRequests;
         ReadByReadCache(request.chunkPos, request.len,
@@ -1090,6 +1130,7 @@ void ChunkCacheManager::ReadChunk(uint64_t index, uint64_t chunkPos,
         requests->insert(requests->end(), tmpRequests.begin(),
                              tmpRequests.end());
     }
+
     return;
 }
 
@@ -1693,7 +1734,8 @@ void ChunkCacheManager::AddWriteDataCacheForTest(DataCachePtr dataCache) {
 DataCache::DataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
                      ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
                      uint64_t len, const char *data)
-    : s3ClientAdaptor_(s3ClientAdaptor), chunkCacheManager_(chunkCacheManager),
+    : s3ClientAdaptor_(std::move(s3ClientAdaptor)),
+      chunkCacheManager_(chunkCacheManager),
       status_(DataCacheStatus::Dirty), inReadCache_(false) {
     uint64_t blockSize = s3ClientAdaptor->GetBlockSize();
     uint32_t pageSize = s3ClientAdaptor->GetPageSize();
@@ -2189,53 +2231,129 @@ void DataCache::CopyDataCacheToBuf(uint64_t offset, uint64_t len, char *data) {
 }
 
 CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
-    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
-    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
-    uint32_t flushIntervalSec = s3ClientAdaptor_->GetFlushInterval();
-    uint32_t fsId = s3ClientAdaptor_->GetFsId();
-    uint64_t blockPos;
-    uint64_t blockIndex;
-    uint64_t chunkIndex = chunkCacheManager_->GetIndex();
-    uint64_t offset;
-    uint64_t tmpLen;
-    uint64_t n = 0;
-    std::string objectName;
-    uint32_t writeOffset = 0;
-    uint64_t chunkId;
-    uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
-    char *data = nullptr;
-    curve::common::CountDownEvent cond(1);
-    std::atomic<uint64_t> pendingReq(0);
-    FSStatusCode ret;
+    VLOG(9) << "DataCache Flush. chunkPos=" << chunkPos_ << ", len=" << len_
+            << ", chunkIndex=" << chunkCacheManager_->GetIndex()
+            << ", inodeId=" << inodeId;
 
-    VLOG(9) << "DataCache::Flush : now:" << now << ",createTime:" << createTime_
-            << ",flushIntervalSec:" << flushIntervalSec
-            << ",chunkPos:" << chunkPos_ << ", len:" << len_
-            << ", inodeId:" << inodeId << ",chunkIndex:" << chunkIndex;
-
-    tmpLen = len_;
-    blockPos = chunkPos_ % blockSize;
-    blockIndex = chunkPos_ / blockSize;
-    offset = chunkIndex * chunkSize + chunkPos_;
-
-    ret = s3ClientAdaptor_->AllocS3ChunkId(fsId, 1, &chunkId);
-    if (ret != FSStatusCode::OK) {
-        LOG(ERROR) << "alloc s3 chunkid fail. ret:" << ret;
-        return CURVEFS_ERROR::INTERNAL;
-    }
-    data = new (std::nothrow) char[len_];
+    // generate flush task
+    std::vector<std::shared_ptr<PutObjectAsyncContext>> s3Tasks;
+    std::vector<std::shared_ptr<SetKVCacheTask>> kvCacheTasks;
+    char *data = new (std::nothrow) char[len_];
     if (!data) {
         LOG(ERROR) << "new data failed.";
         return CURVEFS_ERROR::INTERNAL;
     }
     CopyDataCacheToBuf(0, len_, data);
-    status_.store(DataCacheStatus::Flush, std::memory_order_release);
+    uint64_t writeOffset = 0;
+    uint64_t chunkId = 0;
+    CURVEFS_ERROR ret = PrepareFlushTasks(
+        inodeId, data, &s3Tasks, &kvCacheTasks, &chunkId, &writeOffset);
+    if (CURVEFS_ERROR::OK != ret) {
+        return ret;
+    }
 
-    VLOG(9) << "start datacache flush, chunkId:" << chunkId
-            << ", inodeId:" << inodeId
-            << ",Len:" << tmpLen << ",blockPos:" << blockPos
-            << ",blockIndex:" << blockIndex;
-    PutObjectAsyncCallBack cb =
+    // exec flush task
+    FlushTaskExecute(GetCachePolicy(toS3), s3Tasks, kvCacheTasks);
+    delete[] data;
+
+    // inode ship to flush
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    ret = s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
+        inodeId, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(WARNING) << "get inode fail, ret:" << ret;
+        status_.store(DataCacheStatus::Dirty, std::memory_order_release);
+        return ret;
+    }
+
+    S3ChunkInfo info;
+    uint64_t chunkIndex = chunkCacheManager_->GetIndex();
+    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+    int64_t offset = chunkIndex * chunkSize + chunkPos_;
+    PrepareS3ChunkInfo(chunkId, offset, writeOffset, &info);
+    inodeWrapper->AppendS3ChunkInfo(chunkIndex, info);
+    s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
+
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR DataCache::PrepareFlushTasks(uint64_t inodeId,
+    char *data, std::vector<std::shared_ptr<PutObjectAsyncContext>> *s3Tasks,
+    std::vector<std::shared_ptr<SetKVCacheTask>> *kvCacheTasks,
+    uint64_t *chunkId, uint64_t *writeOffset) {
+    // allocate chunkid
+    uint32_t fsId = s3ClientAdaptor_->GetFsId();
+    FSStatusCode ret = s3ClientAdaptor_->AllocS3ChunkId(fsId, 1, chunkId);
+    if (ret != FSStatusCode::OK) {
+        LOG(ERROR) << "alloc s3 chunkid fail. ret:" << ret;
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    // generate flush task
+    uint64_t chunkSize = s3ClientAdaptor_->GetChunkSize();
+    uint64_t blockSize = s3ClientAdaptor_->GetBlockSize();
+    uint64_t blockPos = chunkPos_ % blockSize;
+    uint64_t blockIndex = chunkPos_ / blockSize;
+    uint64_t remainLen = len_;
+    while (remainLen > 0) {
+        uint64_t curentLen =
+            blockPos + remainLen > blockSize ? blockSize - blockPos : remainLen;
+
+        // generate flush to disk or s3 task
+        std::string objectName = curvefs::common::s3util::GenObjName(
+            *chunkId, blockIndex, 0, fsId, inodeId);
+        int ret = 0;
+        uint64_t start = butil::cpuwide_time_us();
+        auto context = std::make_shared<PutObjectAsyncContext>();
+        context->key = objectName;
+        context->buffer = data + (*writeOffset);
+        context->bufferSize = curentLen;
+        context->startTime = butil::cpuwide_time_us();
+        s3Tasks->emplace_back(context);
+
+        // generate flush to kvcache task
+        if (g_kvClientManager) {
+            auto task = std::make_shared<SetKVCacheTask>();
+            task->key = objectName;
+            task->value = data + (*writeOffset);
+            task->length = curentLen;
+            kvCacheTasks->emplace_back(task);
+        }
+
+        remainLen -= curentLen;
+        blockIndex++;
+        (*writeOffset) += curentLen;
+        blockPos = (blockPos + curentLen) % blockSize;
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
+CachePoily DataCache::GetCachePolicy(bool toS3) {
+    const bool mayCache =
+        s3ClientAdaptor_->HasDiskCache() &&
+        !s3ClientAdaptor_->GetDiskCacheManager()->IsDiskCacheFull() && !toS3;
+
+    if (s3ClientAdaptor_->IsReadCache() && mayCache) {
+        return CachePoily::RCache;
+    } else if (s3ClientAdaptor_->IsReadWriteCache() && mayCache) {
+        return CachePoily::WRCache;
+    } else {
+        return CachePoily::NCache;
+    }
+}
+
+void DataCache::FlushTaskExecute(
+    CachePoily cachePoily,
+    const std::vector<std::shared_ptr<PutObjectAsyncContext>> &s3Tasks,
+    const std::vector<std::shared_ptr<SetKVCacheTask>> &kvCacheTasks) {
+    // callback
+    std::atomic<uint64_t> s3PendingTaskCal(s3Tasks.size());
+    std::atomic<uint64_t> kvPendingTaskCal(kvCacheTasks.size());
+    CountDownEvent s3TaskEnvent(s3PendingTaskCal);
+    CountDownEvent kvTaskEnvent(kvPendingTaskCal);
+
+    PutObjectAsyncCallBack s3cb =
         [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
                 if (s3ClientAdaptor_->s3Metric_.get() != nullptr) {
@@ -2243,91 +2361,53 @@ CURVEFS_ERROR DataCache::Flush(uint64_t inodeId, bool toS3) {
                         &s3ClientAdaptor_->s3Metric_->adaptorWriteS3,
                         context->bufferSize, context->startTime);
                 }
+
+                if (CachePoily::RCache == cachePoily) {
+                    VLOG(9) << "write to read cache, name = " << context->key;
+                    s3ClientAdaptor_->GetDiskCacheManager()->Enqueue(context,
+                                                                     true);
+                }
+
                 // Don't move the if sentence to the front
                 // it will cause core dumped because s3Metric_
                 // will be destructed before being accessed
-                if (pendingReq.fetch_sub(
-                    1, std::memory_order_seq_cst) == 1) {
-                    VLOG(9) << "pendingReq is over";
-                    cond.Signal();
-                }
-                VLOG(9) << "PutObjectAsyncCallBack: " << context->key
-                        << " pendingReq is: " << pendingReq;
+                s3TaskEnvent.Signal();
                 return;
             }
+
             LOG(WARNING) << "Put object failed, key: " << context->key;
             s3ClientAdaptor_->GetS3Client()->UploadAsync(context);
         };
 
-    std::vector<std::shared_ptr<PutObjectAsyncContext>> uploadTasks;
-    bool useDiskCache =
-        s3ClientAdaptor_->IsReadWriteCache() &&
-        !s3ClientAdaptor_->GetDiskCacheManager()->IsDiskCacheFull() &&
-        !toS3;
-    while (tmpLen > 0) {
-        if (blockPos + tmpLen > blockSize) {
-            n = blockSize - blockPos;
-        } else {
-            n = tmpLen;
-        }
+    SetKVCacheDone kvdone = [&](const std::shared_ptr<SetKVCacheTask> &task) {
+        kvTaskEnvent.Signal();
+        return;
+    };
 
-        objectName = curvefs::common::s3util::GenObjName(
-            chunkId, blockIndex, 0, fsId, inodeId);
-        int ret = 0;
-        uint64_t start = butil::cpuwide_time_us();
-        auto context = std::make_shared<PutObjectAsyncContext>();
-        context->key = objectName;
-        context->buffer = data + writeOffset;
-        context->bufferSize = n;
-        context->cb = cb;
-        context->startTime = butil::cpuwide_time_us();
-        uploadTasks.emplace_back(context);
-        tmpLen -= n;
-        blockIndex++;
-        writeOffset += n;
-        blockPos = (blockPos + n) % blockSize;
+    // s3task execute
+    if (s3PendingTaskCal.load()) {
+        std::for_each(
+            s3Tasks.begin(), s3Tasks.end(),
+            [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
+                context->cb = s3cb;
+                if (CachePoily::WRCache == cachePoily) {
+                    s3ClientAdaptor_->GetDiskCacheManager()->Enqueue(context);
+                } else {
+                    s3ClientAdaptor_->GetS3Client()->UploadAsync(context);
+                }
+            });
+    }
+    // kvtask execute
+    if (g_kvClientManager && kvPendingTaskCal.load()) {
+        std::for_each(kvCacheTasks.begin(), kvCacheTasks.end(),
+                      [&](const std::shared_ptr<SetKVCacheTask> &task) {
+                          task->done = kvdone;
+                          g_kvClientManager->Set(task);
+                      });
+        kvTaskEnvent.Wait();
     }
 
-    pendingReq.fetch_add(uploadTasks.size(), std::memory_order_seq_cst);
-    VLOG(9) << "DataCache::Flush data cache flush pendingReq init: "
-        << pendingReq.load(std::memory_order_seq_cst);
-    assert(pendingReq.load(std::memory_order_seq_cst) != 0);
-    if (pendingReq.load(std::memory_order_seq_cst)) {
-        VLOG(9) << "wait for pendingReq";
-        for (auto iter = uploadTasks.begin(); iter != uploadTasks.end();
-             ++iter) {
-            VLOG(9) << "upload start: " << (*iter)->key
-                    << " len : " << (*iter)->bufferSize;
-            if (!useDiskCache) {
-                s3ClientAdaptor_->GetS3Client()->UploadAsync(*iter);
-            } else {
-                s3ClientAdaptor_->GetDiskCacheManager()->Enqueue(*iter);
-            }
-        }
-        cond.Wait();
-    }
-    delete[] data;
-    VLOG(9) << "update inode start, chunkId:" << chunkId
-            << ",offset:" << offset << ",len:" << writeOffset
-            << ",inodeId:" << inodeId << ",chunkIndex:" << chunkIndex;
-    {
-        std::shared_ptr<InodeWrapper> inodeWrapper;
-        CURVEFS_ERROR ret =
-            s3ClientAdaptor_->GetInodeCacheManager()->GetInode(
-                inodeId, inodeWrapper);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(WARNING) << "get inode fail, ret:" << ret;
-            status_.store(DataCacheStatus::Dirty, std::memory_order_release);
-            return ret;
-        }
-
-        S3ChunkInfo info;
-        PrepareS3ChunkInfo(chunkId, offset, writeOffset, &info);
-        inodeWrapper->AppendS3ChunkInfo(chunkIndex, info);
-        s3ClientAdaptor_->GetInodeCacheManager()->ShipToFlush(inodeWrapper);
-    }
-    VLOG(9) << "data flush end, inodeId: " << inodeId;
-    return CURVEFS_ERROR::OK;
+    s3TaskEnvent.Wait();
 }
 
 void DataCache::PrepareS3ChunkInfo(uint64_t chunkId, uint64_t offset,

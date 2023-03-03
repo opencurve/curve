@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -102,16 +101,12 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	cCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListCopysetInfo")
 
-	table, err := gotable.Create(cobrautil.ROW_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_EPOCH, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_PEER_NUMBER)
 	header := []string{cobrautil.ROW_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_EPOCH, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_PEER_NUMBER}
 	cCmd.SetHeader(header)
 	index_pool := slices.Index(header, cobrautil.ROW_POOL_ID)
 	index_leader := slices.Index(header, cobrautil.ROW_LEADER_PEER)
 	cCmd.TableNew.SetAutoMergeCellsByColumnIndex([]int{index_pool, index_leader})
-	if err != nil {
-		return err
-	}
-	cCmd.Table = table
+
 	return nil
 }
 
@@ -163,13 +158,12 @@ func (cCmd *CopysetCommand) updateTable() {
 		}
 		rows = append(rows, row)
 	}
-	cCmd.Table.AddRows(rows)
 	list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{cobrautil.ROW_LEADER_PEER, cobrautil.ROW_KEY})
 	cCmd.TableNew.AppendBulk(list)
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
+	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
 func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse, *cmderror.CmdError) {
@@ -177,7 +171,7 @@ func GetCopysetsInfos(caller *cobra.Command) (*topology.ListCopysetInfoResponse,
 	listCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
+	config.AlignFlagsValue(caller, listCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
 	listCopyset.Cmd.SilenceErrors = true
 	err := listCopyset.Cmd.Execute()
 	if err != nil {

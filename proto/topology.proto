@@ -26,6 +26,7 @@ package curve.mds.topology;
 // HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
 
 option cc_generic_services = true;
+option go_package = "proto/topology";
 
 enum LogicalPoolType {
     PAGEFILE = 0;
@@ -153,6 +154,9 @@ message ChunkServerRegistRequest {
     // already registed chunkserver should take chunkserverId & token
     optional uint32 chunkServerID = 6;
     optional string token = 7;
+    optional uint64 chunkFilepoolSize = 8;
+    optional bool   useChunkFilePoolAsWalPool = 9;
+    optional uint32 useChunkFilePoolAsWalPoolReserve = 10;
 };
 
 message ChunkServerRegistResponse {
@@ -185,6 +189,14 @@ message GetChunkServerInfoRequest {
 message GetChunkServerInfoResponse {
     required sint32 statusCode = 1;
     optional ChunkServerInfo chunkServerInfo = 2;
+}
+
+message GetChunkServerInClusterRequest {
+}
+
+message GetChunkServerInClusterResponse {
+    required sint32 statusCode = 1;
+    repeated ChunkServerInfo chunkServerInfos = 2;
 }
 
 message DeleteChunkServerRequest {
@@ -496,6 +508,7 @@ service TopologyService {
     rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
     rpc ListChunkServer(ListChunkServerRequest) returns (ListChunkServerResponse);
     rpc GetChunkServer(GetChunkServerInfoRequest) returns (GetChunkServerInfoResponse);
+    rpc GetChunkServerInCluster(GetChunkServerInClusterRequest) returns (GetChunkServerInClusterResponse);
     rpc DeleteChunkServer(DeleteChunkServerRequest) returns (DeleteChunkServerResponse);
     rpc SetChunkServer(SetChunkServerStatusRequest) returns (SetChunkServerStatusResponse);
 

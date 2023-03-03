@@ -28,6 +28,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "curvefs/src/client/error_code.h"
+
 namespace curvefs {
 namespace client {
 
@@ -35,17 +37,17 @@ class VolumeStorage {
  public:
     virtual ~VolumeStorage() = default;
 
-    virtual ssize_t Read(uint64_t ino,
-                         off_t offset,
-                         size_t len,
-                         char* data) = 0;
+    virtual CURVEFS_ERROR Read(uint64_t ino,
+                               off_t offset,
+                               size_t len,
+                               char* data) = 0;
 
-    virtual ssize_t Write(uint64_t ino,
-                          off_t offset,
-                          size_t len,
-                          const char* data) = 0;
+    virtual CURVEFS_ERROR Write(uint64_t ino,
+                                off_t offset,
+                                size_t len,
+                                const char* data) = 0;
 
-    virtual bool Flush(uint64_t ino) = 0;
+    virtual CURVEFS_ERROR Flush(uint64_t ino) = 0;
 
     virtual bool Shutdown() = 0;
 };

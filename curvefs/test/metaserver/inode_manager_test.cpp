@@ -20,9 +20,11 @@
  * @Author: chenwei
  */
 
+#include <time.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <memory>
 
 #include "curvefs/test/metaserver/test_helper.h"
 #include "curvefs/src/metaserver/inode_manager.h"
@@ -32,6 +34,7 @@
 #include "curvefs/src/metaserver/storage/rocksdb_storage.h"
 #include "curvefs/test/metaserver/storage/utils.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "absl/types/optional.h"
 
 using ::google::protobuf::util::MessageDifferencer;
 using ::testing::_;
@@ -61,7 +64,7 @@ class InodeManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
         auto tablename = "partition:1";
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
         options.localFileSystem = localfs.get();
@@ -72,7 +75,9 @@ class InodeManagerTest : public ::testing::Test {
         auto inodeStorage = std::make_shared<InodeStorage>(
             kvStorage_, nameGenerator, 0);
         auto trash = std::make_shared<TrashImpl>(inodeStorage);
-        manager = std::make_shared<InodeManager>(inodeStorage, trash);
+        filetype2InodeNum_ = std::make_shared<FileType2InodeNumMap>();
+        manager = std::make_shared<InodeManager>(inodeStorage, trash,
+                                                 filetype2InodeNum_.get());
 
         param_.fsId = 1;
         param_.length = 100;
@@ -182,6 +187,7 @@ class InodeManagerTest : public ::testing::Test {
     std::shared_ptr<Converter> conv_;
     std::string dataDir_;
     std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<FileType2InodeNumMap> filetype2InodeNum_;
 };
 
 TEST_F(InodeManagerTest, test1) {
@@ -215,6 +221,14 @@ TEST_F(InodeManagerTest, test1) {
     ASSERT_EQ(inode4.inodeid(), 5);
     ASSERT_EQ(inode4.type(), FsFileType::TYPE_S3);
 
+    // test struct timespec
+    Inode inode5;
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    param_.timestamp = absl::make_optional<struct timespec>(now);
+    ASSERT_EQ(manager->CreateInode(6, param_, &inode5),
+              MetaStatusCode::OK);
+
     // GET
     Inode temp1;
     ASSERT_EQ(manager->GetInode(fsId, inode1.inodeid(), &temp1),
@@ -245,19 +259,20 @@ TEST_F(InodeManagerTest, test1) {
 
     // UPDATE
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode1);
-    Inode inode;
-    int32_t deletedNum = 0;
-    ASSERT_EQ(manager->UpdateInode(request, &inode, &deletedNum),
-              MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::NOT_FOUND);
     temp2.set_atime(100);
     UpdateInodeRequest request2 = MakeUpdateInodeRequestFromInode(temp2);
-    ASSERT_EQ(manager->UpdateInode(request2, &inode, &deletedNum),
-              MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request2), MetaStatusCode::OK);
     Inode temp5;
     ASSERT_EQ(manager->GetInode(fsId, inode2.inodeid(), &temp5),
               MetaStatusCode::OK);
     ASSERT_TRUE(CompareInode(temp5, temp2));
     ASSERT_FALSE(CompareInode(inode2, temp2));
+
+    Inode temp6;
+    ASSERT_EQ(manager->GetInode(fsId, inode5.inodeid(), &temp6),
+              MetaStatusCode::OK);
+    ASSERT_TRUE(CompareInode(inode5, temp6));
 }
 
 TEST_F(InodeManagerTest, GetOrModifyS3ChunkInfo) {
@@ -404,40 +419,16 @@ TEST_F(InodeManagerTest, UpdateInode) {
     uint64_t ino = 2;
 
     Inode inode;
-    ASSERT_EQ(MetaStatusCode::OK,
-              manager->CreateInode(ino, param_, &inode));
+    ASSERT_EQ(MetaStatusCode::OK, manager->CreateInode(ino, param_, &inode));
 
-    // 1. test add openmpcount
-    Inode old;
-    int32_t deletedNum = 0;
+    // test update ok
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode);
-    request.set_inodeopenstatuschange(InodeOpenStatusChange::OPEN);
     ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request, &old, &deletedNum));
-    Inode updateOne;
-    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
-    ASSERT_EQ(1, updateOne.openmpcount());
+              manager->UpdateInode(request));
 
-    // 2. test openmpcount nochange
-    request.set_inodeopenstatuschange(InodeOpenStatusChange::NOCHANGE);
+    // test update fail
     ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request, &old, &deletedNum));
-    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
-    ASSERT_EQ(1, updateOne.openmpcount());
-
-    // 3. test sub openmpcount
-    request.set_inodeopenstatuschange(InodeOpenStatusChange::CLOSE);
-    ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request, &old, &deletedNum));
-    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
-    ASSERT_EQ(0, updateOne.openmpcount());
-
-    // 4. test update fail
-    request.set_inodeopenstatuschange(InodeOpenStatusChange::CLOSE);
-    ASSERT_EQ(MetaStatusCode::OK,
-              manager->UpdateInode(request, &old, &deletedNum));
-    ASSERT_EQ(MetaStatusCode::OK, manager->GetInode(fsId, ino, &updateOne));
-    ASSERT_EQ(0, updateOne.openmpcount());
+              manager->UpdateInode(request));
 }
 
 
@@ -500,10 +491,7 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     inode2.mutable_xattr()->find(XATTRENTRIES)->second = "2";
     inode2.mutable_xattr()->find(XATTRFBYTES)->second = "100";
     UpdateInodeRequest request = MakeUpdateInodeRequestFromInode(inode2);
-    Inode inode;
-    int32_t deletedNum = 0;
-    ASSERT_EQ(manager->UpdateInode(request, &inode, &deletedNum),
-              MetaStatusCode::OK);
+    ASSERT_EQ(manager->UpdateInode(request), MetaStatusCode::OK);
 
     // GET
     XAttr xattr1;
@@ -514,6 +502,22 @@ TEST_F(InodeManagerTest, testGetXAttr) {
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRSUBDIRS)->second, "1");
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRENTRIES)->second, "2");
     ASSERT_EQ(xattr1.xattrinfos().find(XATTRFBYTES)->second, "100");
+}
+
+TEST_F(InodeManagerTest, testCreateManageInode) {
+    param_.type = FsFileType::TYPE_DIRECTORY;
+    param_.parent = ROOTINODEID;
+    ManageInodeType type = ManageInodeType::TYPE_RECYCLE;
+    Inode inode;
+    ASSERT_EQ(MetaStatusCode::OK,
+        manager->CreateManageInode(param_, type, &inode));
+    ASSERT_EQ(inode.inodeid(), RECYCLEINODEID);
+    ASSERT_EQ(inode.parent()[0], ROOTINODEID);
+
+    Inode temp1;
+    ASSERT_EQ(manager->GetInode(1, inode.inodeid(), &temp1),
+              MetaStatusCode::OK);
+    ASSERT_TRUE(CompareInode(inode, temp1));
 }
 
 }  // namespace metaserver

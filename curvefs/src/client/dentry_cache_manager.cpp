@@ -78,7 +78,6 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
             << ", parent = " << parent << ", name = " << name;
         return MetaStatusCodeToCurvefsErrCode(ret);
     }
-
     if (!curvefs::client::common::FLAGS_enableCto) {
         dCache_->Put(key, *out);
     }
@@ -146,11 +145,7 @@ CURVEFS_ERROR DentryCacheManagerImpl::ListDentry(uint64_t parent,
                 << ", onlyDir = " << onlyDir
                 << ", ret = " << ret << ", part.size() = " << part.size();
         if (ret != MetaStatusCode::OK) {
-            if (MetaStatusCode::NOT_FOUND == ret) {
-                return CURVEFS_ERROR::OK;
-            }
-            LOG(ERROR) << "metaClient_ ListDentry failed, MetaStatusCode = "
-                       << ret
+            LOG(ERROR) << "metaClient_ ListDentry failed"
                        << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", parent = " << parent << ", last = " << last
                        << ", count = " << limit << ", onlyDir = " << onlyDir;

@@ -28,14 +28,14 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         // But the current operation of the same chunk is serial, this problem
         // will not occur
         if (rc != 0  && rc != -EEXIST) {
-            LOG(ERROR) << "Error occured when create file."
+            LOG(ERROR) << "Error occurred when create file."
                        << " filepath = " << chunkFilePath;
             return CSErrorCode::InternalError;
         }
     }
     int rc = lfs_->Open(chunkFilePath, O_RDWR|O_NOATIME|O_DSYNC);
     if (rc < 0) {
-        LOG(ERROR) << "Error occured when opening file."
+        LOG(ERROR) << "Error occurred when opening file."
                    << " filepath = " << chunkFilePath;
         return CSErrorCode::InternalError;
     }

@@ -22,8 +22,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 7,
-  "iteration": 1657537822267,
+  "id": 5,
+  "iteration": 1660902423620,
   "links": [],
   "panels": [
     {
@@ -611,7 +611,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_create_inode_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_create_inode\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -704,7 +704,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_create_dentry_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_create_dentry\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -797,7 +797,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_delete_inode_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_delete_inode\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -890,7 +890,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_delete_dentry_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_delete_dentry\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -983,7 +983,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_inode_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_inode\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1076,7 +1076,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_dentry_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_dentry\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1169,7 +1169,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_batch_get_inode_attr_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_batch_get_inode_attr\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1262,7 +1262,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_list_dentry_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_list_dentry\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1355,7 +1355,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_update_inode_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_update_inode\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1448,7 +1448,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_batch_get_xattr_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_batch_get_xattr\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1541,7 +1541,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_prepare_rename_tx_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_prepare_rename_tx\", job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1634,7 +1634,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_or_modify_s3_chunk_info_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_or_modify_s3_chunk_info\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1727,7 +1727,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_create_partition_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_create_partition\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1820,7 +1820,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_delete_partition_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_delete_partition\",job=\"metaserver\", instance=~\"$instance\", quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -1913,7 +1913,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_volume_extent_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_get_volume_extent\",job=\"metaserver\", instance=~\"$instance\",quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -2006,7 +2006,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_update_volume_extent_[[quantile:regex]]\",job=\"metaserver\", instance=~\"$instance\"}",
+              "expr": "{__name__=~\".*curvefs_metaserver_meta_server_service_update_volume_extent\",job=\"metaserver\", instance=~\"$instance\",quantile=~\"[[service_quantile]]\"}",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -4658,8 +4658,12 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "{__name__=~\"bthread_count\", job=\"metaserver\"}",
@@ -4685,8 +4689,12 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "{__name__=~\"op_apply_pool_.*_copyset.*create_inode_count\", job=\"metaserver\"}",
@@ -4712,8 +4720,12 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "{__name__=~\".*copyset_.*_create_inode_count\", job=\"metaserver\"}",
@@ -4738,12 +4750,12 @@
       {
         "allValue": "",
         "current": {
-          "selected": true,
+          "selected": false,
           "text": [
-            "latency_99"
+            "latency"
           ],
           "value": [
-            "latency_99"
+            "latency"
           ]
         },
         "datasource": null,
@@ -4770,8 +4782,12 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": null,
         "definition": "{__name__=~\".*curvefs_metaserver_meta_server_service_.*_qps\", job=\"metaserver\"}",
@@ -4792,6 +4808,37 @@
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
+      },
+      {
+        "allValue": "",
+        "current": {
+          "selected": false,
+          "text": [
+            "1"
+          ],
+          "value": [
+            "1"
+          ]
+        },
+        "datasource": null,
+        "definition": "{__name__=~\".*curvefs_metaserver_meta_server_service.*\", job=\"metaserver\"}",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "service_quantile",
+        "multi": true,
+        "name": "service_quantile",
+        "options": [],
+        "query": {
+          "query": "{__name__=~\".*curvefs_metaserver_meta_server_service.*\", job=\"metaserver\"}",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "/quantile=\"(.*)\"}/",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
       }
     ]
   },
@@ -4802,6 +4849,6 @@
   "timepicker": {},
   "timezone": "",
   "title": "metaserver",
-  "uid": "-sypic6nk",
-  "version": 59
+  "uid": "d12ivuiVz",
+  "version": 8
 }

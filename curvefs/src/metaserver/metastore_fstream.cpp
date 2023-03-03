@@ -91,7 +91,8 @@ bool MetaStoreFStream::LoadPartition(uint32_t partitionId,
 
     const auto pid = partitionInfo.partitionid();
     partitionMap_->emplace(
-        pid, std::make_shared<Partition>(std::move(partitionInfo), kvStorage_));
+        pid, std::make_shared<Partition>(std::move(partitionInfo), kvStorage_,
+                                         /*startCompact*/ false));
 
     return true;
 }
@@ -247,8 +248,6 @@ std::shared_ptr<Iterator> MetaStoreFStream::NewPartitionIterator() {
         auto partitionId = item.first;
         auto partition = item.second;
         auto partitionInfo = partition->GetPartitionInfo();
-        partitionInfo.set_inodenum(partition->GetInodeNum());
-        partitionInfo.set_dentrynum(partition->GetDentryNum());
         LOG(INFO) << "Save partition, partition: " << partitionId
                   << ", partition info: " << partitionInfo.ShortDebugString();
         if (!conv_->SerializeToString(partitionInfo, &value)) {

@@ -30,6 +30,8 @@
 #include <memory>
 #include <string>
 #include <list>
+#include <utility>
+#include <vector>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/mds.pb.h"
@@ -45,10 +47,12 @@
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/src/common/s3util.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/lease/lease_excutor.h"
 #include "curvefs/src/client/xattr_manager.h"
+#include "curvefs/src/client/warmup/warmup_manager.h"
 
 #define DirectIOAlignment 512
 
@@ -57,10 +61,15 @@ using ::curve::common::InterruptibleSleeper;
 using ::curve::common::Thread;
 using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
+using ::curvefs::metaserver::ManageInodeType;
 using ::curvefs::client::metric::FSMetric;
 
 namespace curvefs {
 namespace client {
+
+namespace warmup {
+class WarmupManager;
+}
 
 using common::FuseClientOption;
 using rpcclient::MDSBaseClient;
@@ -87,14 +96,16 @@ class FuseClient {
         mdsBase_(nullptr),
         isStop_(true),
         init_(false),
-        enableSumInDir_(false) {}
+        enableSumInDir_(false),
+        warmupManager_(nullptr) {}
 
     virtual ~FuseClient() {}
 
     FuseClient(const std::shared_ptr<MdsClient> &mdsClient,
         const std::shared_ptr<MetaServerClient> &metaClient,
         const std::shared_ptr<InodeCacheManager> &inodeManager,
-        const std::shared_ptr<DentryCacheManager> &dentryManager)
+        const std::shared_ptr<DentryCacheManager> &dentryManager,
+        const std::shared_ptr<warmup::WarmupManager> &warmupManager)
           : mdsClient_(mdsClient),
             metaClient_(metaClient),
             inodeManager_(inodeManager),
@@ -104,7 +115,8 @@ class FuseClient {
             mdsBase_(nullptr),
             isStop_(true),
             init_(false),
-            enableSumInDir_(false) {}
+            enableSumInDir_(false),
+            warmupManager_(warmupManager) {}
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -180,8 +192,12 @@ class FuseClient {
                                         struct stat* attrOut);
 
     virtual CURVEFS_ERROR FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
-                                         const char* name, void* value,
+                                         const char* name, std::string* value,
                                          size_t size);
+
+    virtual CURVEFS_ERROR FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino,
+                                         const char* name, const char* value,
+                                         size_t size, int flags);
 
     virtual CURVEFS_ERROR FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
                             char *value, size_t size, size_t *realSize);
@@ -230,6 +246,12 @@ class FuseClient {
         init_ = true;
     }
 
+    void SetMounted(bool mounted) {
+        if (warmupManager_ != nullptr) {
+            warmupManager_->SetMounted(mounted);
+        }
+    }
+
     std::shared_ptr<FsInfo> GetFsInfo() {
         return fsInfo_;
     }
@@ -245,13 +267,50 @@ class FuseClient {
         enableSumInDir_ = enable;
     }
 
+    bool PutWarmFilelistTask(fuse_ino_t key) {
+        if (fsInfo_->fstype() == FSType::TYPE_S3) {
+            return warmupManager_->AddWarmupFilelist(key);
+        }  // only support s3
+        return true;
+    }
+
+    bool PutWarmFileTask(fuse_ino_t key, const std::string& path) {
+        if (fsInfo_->fstype() == FSType::TYPE_S3) {
+            return warmupManager_->AddWarmupFile(key, path);
+        }  // only support s3
+        return true;
+    }
+
+    bool GetWarmupProgress(fuse_ino_t key, warmup::WarmupProgress *progress) {
+        if (fsInfo_->fstype() == FSType::TYPE_S3) {
+            return warmupManager_->QueryWarmupProgress(key, progress);
+        }
+        return false;
+    }
+
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
                            mode_t mode, FsFileType type, dev_t rdev,
-                           fuse_entry_param* e);
+                           bool internal, fuse_entry_param* e);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, FsFileType type);
+
+    CURVEFS_ERROR CreateManageNode(fuse_req_t req, uint64_t parent,
+                                   const char *name, mode_t mode,
+                                   ManageInodeType manageType,
+                                   fuse_entry_param *e);
+
+    CURVEFS_ERROR GetOrCreateRecycleDir(fuse_req_t req, Dentry *out);
+
+    CURVEFS_ERROR DeleteNode(fuse_ino_t ino, fuse_ino_t parent,
+                             const char* name, FsFileType type);
+
+    CURVEFS_ERROR MoveToRecycle(fuse_req_t req, fuse_ino_t ino,
+                                fuse_ino_t parent, const char* name,
+                                FsFileType type);
+
+    bool ShouldMoveToRecycle(fuse_ino_t parent);
 
     CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                              fuse_ino_t newparent, const char* newname,
@@ -272,12 +331,24 @@ class FuseClient {
     }
 
  private:
-    virtual CURVEFS_ERROR Truncate(Inode* inode, uint64_t length) = 0;
+    virtual CURVEFS_ERROR Truncate(InodeWrapper* inode, uint64_t length) = 0;
 
     virtual void FlushData() = 0;
 
-    CURVEFS_ERROR UpdateParentInodeMCTimeAndInvalidNlink(
-        fuse_ino_t parent, FsFileType type);
+    CURVEFS_ERROR UpdateParentMCTimeAndNlink(
+        fuse_ino_t parent, FsFileType type,  NlinkChange nlink);
+
+    std::string GenerateNewRecycleName(fuse_ino_t ino,
+            fuse_ino_t parent, const char* name) {
+        std::string newName(name);
+        newName = std::to_string(parent) + "_" + std::to_string(ino)
+                    + "_" + newName;
+        if (newName.length() > option_.maxNameLength) {
+            newName = newName.substr(0, option_.maxNameLength);
+        }
+
+        return newName;
+    }
 
  protected:
     // mds client
@@ -314,6 +385,9 @@ class FuseClient {
     std::shared_ptr<FSMetric> fsMetric_;
 
     Mountpoint mountpoint_;
+
+    // warmup manager
+    std::shared_ptr<warmup::WarmupManager> warmupManager_;
 
  private:
     MDSBaseClient* mdsBase_;

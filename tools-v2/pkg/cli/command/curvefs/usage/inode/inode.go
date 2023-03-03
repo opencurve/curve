@@ -23,12 +23,10 @@
 package inode
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -45,7 +43,7 @@ const (
 
 type InodeNumCommand struct {
 	basecmd.FinalCurveCmd
-	FsId2Filetype2Metric map[string]map[string]basecmd.Metric
+	FsId2Filetype2Metric map[string]map[string]*basecmd.Metric
 }
 
 type Result struct {
@@ -85,7 +83,7 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	iCmd.FsId2Filetype2Metric = make(map[string]map[string]basecmd.Metric)
+	iCmd.FsId2Filetype2Metric = make(map[string]map[string]*basecmd.Metric)
 
 	fsIds := config.GetFlagStringSliceDefaultAll(iCmd.Cmd, config.CURVEFS_FSID)
 	if len(fsIds) == 0 {
@@ -101,16 +99,15 @@ func (iCmd *InodeNumCommand) Init(cmd *cobra.Command, args []string) error {
 		}
 		subUri := fmt.Sprintf("/vars/"+PREFIX+"_%s*"+SUFFIX, fsId)
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
-		metric := *basecmd.NewMetric(addrs, subUri, timeout)
-		filetype2Metric := make(map[string]basecmd.Metric)
+		metric := basecmd.NewMetric(addrs, subUri, timeout)
+		filetype2Metric := make(map[string]*basecmd.Metric)
 		filetype2Metric["inode_num"] = metric
 		iCmd.FsId2Filetype2Metric[fsId] = filetype2Metric
 	}
-	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_TYPE, cobrautil.ROW_NUM)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	iCmd.Table = table
+	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_TYPE, cobrautil.ROW_NUM}
+	iCmd.SetHeader(header)
+	iCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(header, []string{cobrautil.ROW_FS_ID}))
+
 	return nil
 }
 
@@ -124,7 +121,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	for fsId, filetype2Metric := range iCmd.FsId2Filetype2Metric {
 		for filetype, metric := range filetype2Metric {
 			size++
-			go func(m basecmd.Metric, filetype string, id string) {
+			go func(m *basecmd.Metric, filetype string, id string) {
 				result, err := basecmd.QueryMetric(m)
 				results <- Result{
 					Result: result,
@@ -188,22 +185,15 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	iCmd.Error = &mergeErr
 
 	if len(rows) > 0 {
-		// query some data
-		iCmd.Table.AddRows(rows)
-		jsonResult, err := iCmd.Table.JSON(0)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
-		var m interface{}
-		err = json.Unmarshal([]byte(jsonResult), &m)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
-		iCmd.Result = m
+		list := cobrautil.ListMap2ListSortByKeys(rows, iCmd.Header, []string{
+			config.CURVEFS_FSID,
+		})
+		iCmd.TableNew.AppendBulk(list)
+		iCmd.Result = rows
 	}
 	return mergeErr.ToError()
 }
 
 func (iCmd *InodeNumCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&iCmd.FinalCurveCmd, iCmd)
+	return output.FinalCmdOutputPlain(&iCmd.FinalCurveCmd)
 }

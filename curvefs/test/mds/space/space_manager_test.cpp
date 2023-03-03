@@ -21,11 +21,13 @@
  */
 
 #include <gtest/gtest.h>
+#include <memory>
 
 #include "absl/memory/memory.h"
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/mds/space/manager.h"
 #include "curvefs/test/mds/mock/mock_etcd_client.h"
+#include "curvefs/test/mds/mock/mock_fs_stroage.h"
 
 namespace curvefs {
 namespace mds {
@@ -67,7 +69,9 @@ class SpaceManagerTest : public ::testing::Test {
  protected:
     void SetUp() override {
         etcdclient_ = std::make_shared<MockEtcdClientImpl>();
-        spaceManager_ = absl::make_unique<SpaceManagerImpl>(etcdclient_);
+        fsStorage_ = std::make_shared<MockFsStorage>();
+        spaceManager_ =
+            absl::make_unique<SpaceManagerImpl>(etcdclient_, fsStorage_);
     }
 
     void TearDown() override {}
@@ -90,6 +94,7 @@ class SpaceManagerTest : public ::testing::Test {
  protected:
     std::shared_ptr<MockEtcdClientImpl> etcdclient_;
     std::unique_ptr<SpaceManager> spaceManager_;
+    std::shared_ptr<MockFsStorage> fsStorage_;
 };
 
 TEST_F(SpaceManagerTest, TestGetVolumeSpace) {

@@ -27,6 +27,7 @@
 #include <gmock/gmock.h>
 #include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
+#include <functional>
 #include <string>
 
 #include "curvefs/test/mds/fake_metaserver.h"
@@ -35,6 +36,8 @@
 #include "curvefs/test/mds/mock/mock_cli2.h"
 #include "test/common/mock_s3_adapter.h"
 #include "curvefs/test/mds/mock/mock_space_manager.h"
+#include "proto/nameserver2.pb.h"
+#include "curvefs/test/mds/utils.h"
 
 using ::curve::common::MockS3Adapter;
 using ::curvefs::common::S3Info;
@@ -122,22 +125,20 @@ class MdsServiceTest : public ::testing::Test {
             fsStorage_, spaceManager_, metaserverClient_, topoManager_,
             s3Adapter_, nullptr, fsManagerOption);
         ASSERT_TRUE(fsManager_->Init());
-        return;
     }
 
-    void TearDown() override {
-        return;
+    static bool CompareVolume(const Volume& first, const Volume& second) {
+#define COMPARE_FIELD(field)                     \
+    (first.has_##field() && second.has_##field() \
+         ? first.field() == second.field()       \
+         : true)
+
+        return COMPARE_FIELD(volumesize) && COMPARE_FIELD(blocksize) &&
+               COMPARE_FIELD(volumename) && COMPARE_FIELD(user) &&
+               COMPARE_FIELD(password);
     }
 
-    bool CompareVolume(const Volume& first, const Volume& second) {
-        return first.volumesize() == second.volumesize() &&
-               first.blocksize() == second.blocksize() &&
-               first.volumename() == second.volumename() &&
-               first.user() == second.user() &&
-               first.has_password() == second.has_password();
-    }
-
-    bool CompareFs(const FsInfo& first, const FsInfo& second) {
+    static bool CompareFs(const FsInfo& first, const FsInfo& second) {
         return first.fsid() == second.fsid() &&
                first.fsname() == second.fsname() &&
                first.rootinodeid() == second.rootinodeid() &&
@@ -184,6 +185,10 @@ TEST_F(MdsServiceTest, test1) {
         server.AddService(&mockCliService2, brpc::SERVER_DOESNT_OWN_SERVICE),
         0);
 
+    FakeCurveFSService fakeCurveFSService;
+    ASSERT_EQ(0, server.AddService(&fakeCurveFSService,
+                                   brpc::SERVER_DOESNT_OWN_SERVICE));
+
     // start rpc server
     brpc::ServerOptions option;
     std::string addr = "127.0.0.1:6703";
@@ -206,8 +211,11 @@ TEST_F(MdsServiceTest, test1) {
     createRequest.set_blocksize(4096);
     createRequest.set_fstype(::curvefs::common::FSType::TYPE_VOLUME);
     createRequest.set_enablesumindir(false);
-    createRequest.mutable_fsdetail();
-    createRequest.set_capacity((uint64_t)100 * 1024 * 1024 * 1024);
+    auto* detail = createRequest.mutable_fsdetail();  // force allocate detail
+    (void)detail;
+
+    const auto capacity = 100ULL << 30;
+    createRequest.set_capacity(capacity);
     createRequest.set_owner("test");
 
     FsInfo fsinfo1;
@@ -221,13 +229,14 @@ TEST_F(MdsServiceTest, test1) {
 
     // type if volume, create ok
     Volume volume;
-    volume.set_volumesize(4096 * 4096);
     volume.set_blocksize(4096);
     volume.set_volumename("volume1");
     volume.set_user("user1");
     volume.set_blockgroupsize(128ull * 1024 * 1024);
     volume.set_bitmaplocation(common::BitmapLocation::AtStart);
     volume.set_slicesize(1ULL * 1024 * 1024 * 1024);
+    volume.set_autoextend(false);
+    volume.add_cluster("127.0.0.1:6703");
 
     createRequest.set_fsname("fs1");
     createRequest.set_blocksize(4096);
@@ -258,11 +267,13 @@ TEST_F(MdsServiceTest, test1) {
         ASSERT_EQ(fsinfo1.fsid(), 0);
         ASSERT_EQ(fsinfo1.fsname(), "fs1");
         ASSERT_EQ(fsinfo1.rootinodeid(), 1);
-        ASSERT_EQ(fsinfo1.capacity(), 4096 * 4096);
+        ASSERT_EQ(fsinfo1.capacity(), capacity);
         ASSERT_EQ(fsinfo1.blocksize(), 4096);
         ASSERT_EQ(fsinfo1.mountnum(), 0);
         ASSERT_EQ(fsinfo1.mountpoints_size(), 0);
-        ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()));
+        ASSERT_TRUE(CompareVolume(volume, fsinfo1.detail().volume()))
+            << "Request:\n" << volume.DebugString()
+            << ", response:\n" << fsinfo1.detail().volume().DebugString();
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -346,6 +357,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint.set_hostname("host1");
     mountPoint.set_port(9000);
     mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     MountFsRequest mountRequest;
     MountFsResponse mountResponse;
     mountRequest.set_fsname("fs1");
@@ -367,7 +379,8 @@ TEST_F(MdsServiceTest, test1) {
     cntl.Reset();
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(mountResponse.statuscode(), FSStatusCode::MOUNT_POINT_EXIST);
+        ASSERT_EQ(mountResponse.statuscode(),
+                  FSStatusCode::MOUNT_POINT_CONFLICT);
     } else {
         LOG(ERROR) << "error = " << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -378,6 +391,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint2.set_hostname("host1");
     mountPoint2.set_port(9000);
     mountPoint2.set_path("/a/b/d");
+    mountPoint2.set_cto(false);
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint2));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
@@ -396,6 +410,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint3.set_hostname("host2");
     mountPoint3.set_port(9000);
     mountPoint3.set_path("/a/b/d");
+    mountPoint3.set_cto(false);
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint3));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {
@@ -413,6 +428,7 @@ TEST_F(MdsServiceTest, test1) {
     mountPoint.set_hostname("host2");
     mountPoint.set_port(9000);
     mountPoint.set_path("/a/b/c");
+    mountPoint.set_cto(false);
     mountRequest.set_allocated_mountpoint(new Mountpoint(mountPoint));
     stub.MountFs(&cntl, &mountRequest, &mountResponse, NULL);
     if (!cntl.Failed()) {

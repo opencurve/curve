@@ -70,7 +70,9 @@ enum class CheckResult {
     // copyset topo is not ok
     kTopoNotOk = -3,
     // peer not match
-    kPeersNoSufficient = -4
+    kPeersNoSufficient = -4,
+    // peer op status not health
+    kPeerOpNotOk = -5,
 };
 
 CheckResult checkCopysetHelthy(

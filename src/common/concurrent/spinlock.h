@@ -30,10 +30,6 @@ namespace curve {
 namespace common {
 class SpinLock {
  public:
-    SpinLock(): flag_(ATOMIC_FLAG_INIT) {
-    }
-    ~SpinLock() {}
-
     void Lock() {
         while (flag_.test_and_set(std::memory_order_acquire)) {}
     }
@@ -43,7 +39,7 @@ class SpinLock {
     }
 
  private:
-    CURVE_CACHELINE_ALIGNMENT std::atomic_flag flag_;
+    CURVE_CACHELINE_ALIGNMENT std::atomic_flag flag_ = ATOMIC_FLAG_INIT;
 };
 }   // namespace common
 }   // namespace curve

@@ -24,12 +24,10 @@ package umount
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -119,12 +117,8 @@ func (fCmd *FsCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	fCmd.Rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "UmountFs")
 
-	table, err := gotable.Create(cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT, cobrautil.ROW_RESULT)
-	if err != nil {
-		return err
-	}
-	fCmd.Table = table
-
+	header := []string{cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT, cobrautil.ROW_RESULT}
+	fCmd.SetHeader(header)
 	return nil
 }
 
@@ -139,16 +133,6 @@ func (fCmd *FsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	}
 	uf := response.(*mds.UmountFsResponse)
 	fCmd.updateTable(uf)
-	jsonResult, err := fCmd.Table.JSON(0)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	fCmd.Result = m
 	fCmd.Error = errCmd
 
 	return nil
@@ -160,11 +144,14 @@ func (fCmd *FsCommand) updateTable(info *mds.UmountFsResponse) *cmderror.CmdErro
 	row[cobrautil.ROW_MOUNTPOINT] = fCmd.mountpoint
 	err := cmderror.ErrUmountFs(int(info.GetStatusCode()))
 	row[cobrautil.ROW_RESULT] = err.Message
+	
+	list := cobrautil.Map2List(row, fCmd.Header)
+	fCmd.TableNew.Append(list)
 
-	fCmd.Table.AddRow(row)
+	fCmd.Result = row
 	return err
 }
 
 func (fCmd *FsCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd, fCmd)
+	return output.FinalCmdOutputPlain(&fCmd.FinalCurveCmd)
 }

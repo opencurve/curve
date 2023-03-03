@@ -24,18 +24,22 @@
 
 #include <functional>
 #include <unordered_map>
+#include <vector>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/tools/curvefs_tool_define.h"
 #include "src/common/string_util.h"
 #include "src/common/fast_align.h"
+#include "absl/strings/string_view.h"
+#include "absl/strings/str_split.h"
 
 DECLARE_string(fsName);
 DECLARE_string(confPath);
 DECLARE_string(mdsAddr);
 DECLARE_uint64(blockSize);
 DECLARE_string(fsType);
-DECLARE_uint64(volumeSize);
+
+// volume fs
 DECLARE_uint64(volumeBlockSize);
 DECLARE_string(volumeName);
 DECLARE_string(volumeUser);
@@ -43,6 +47,10 @@ DECLARE_string(volumePassword);
 DECLARE_uint64(volumeBlockGroupSize);
 DECLARE_string(volumeBitmapLocation);
 DECLARE_uint64(volumeSliceSize);
+DECLARE_bool(volumeAutoExtend);
+DECLARE_double(volumeExtendFactor);
+DECLARE_string(volumeCluster);
+
 DECLARE_string(s3_ak);
 DECLARE_string(s3_sk);
 DECLARE_string(s3_endpoint);
@@ -54,6 +62,7 @@ DECLARE_uint32(rpcRetryTimes);
 DECLARE_bool(enableSumInDir);
 DECLARE_uint64(capacity);
 DECLARE_string(user);
+DECLARE_uint32(recycleTimeHour);
 
 namespace curvefs {
 namespace tools {
@@ -72,21 +81,25 @@ void CreateFsTool::PrintHelp() {
               << "] [-mdsAddr=" << FLAGS_mdsAddr
               << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
               << " -rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]"
-              << "]\n[-fsType=volume -volumeSize=" << FLAGS_volumeSize
-              << " -volumeBlockGroupSize=" << FLAGS_volumeBlockGroupSize
+              << "] [recycleTimeHour=" << FLAGS_recycleTimeHour
+              << "] \n[-fsType=volume -volumeBlockGroupSize="
+              << FLAGS_volumeBlockGroupSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
               << " -volumeName=" << FLAGS_volumeName
               << " -volumeUser=" << FLAGS_volumeUser
               << " -volumePassword=" << FLAGS_volumePassword
               << " -volumeBitmapLocation=AtStart|AtEnd"
+              << " -volumeAutoExtend=false|true"
+              << " -volumeExtendFactor=" << FLAGS_volumeExtendFactor
+              << " -volumeCluster=" << FLAGS_volumeCluster
               << "]\n[-fsType=s3 -s3_ak=" << FLAGS_s3_ak
               << " -s3_sk=" << FLAGS_s3_sk
               << " -s3_endpoint=" << FLAGS_s3_endpoint
               << " -s3_bucket_name=" << FLAGS_s3_bucket_name
               << " -s3_blocksize=" << FLAGS_s3_blocksize
               << " -s3_chunksize=" << FLAGS_s3_chunksize
-              << "]\n[-fsType=hybrid -volumeSize=" << FLAGS_volumeSize
-              << " -volumeBlockGroupSize=" << FLAGS_volumeBlockGroupSize
+              << "]\n[-fsType=hybrid -volumeBlockGroupSize="
+              << FLAGS_volumeBlockGroupSize
               << " -volumeBlockSize=" << FLAGS_volumeBlockSize
               << " -volumeName=" << FLAGS_volumeName
               << " -volumeUser=" << FLAGS_volumeUser
@@ -103,13 +116,13 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetMdsAddr);
     AddUpdateFlagsFunc(curvefs::tools::SetBlockSize);
     AddUpdateFlagsFunc(curvefs::tools::SetFsType);
-    AddUpdateFlagsFunc(curvefs::tools::SetVolumeSize);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeBlockSize);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeName);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeUser);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumePassword);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeBlockSize);
     AddUpdateFlagsFunc(curvefs::tools::SetVolumeBitmapLocation);
+    AddUpdateFlagsFunc(curvefs::tools::SetVolumeCluster);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_ak);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_sk);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_endpoint);
@@ -119,7 +132,22 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
     AddUpdateFlagsFunc(curvefs::tools::SetEnableSumInDir);
+    AddUpdateFlagsFunc(curvefs::tools::SetRecycleTimeHour);
 }
+
+namespace {
+google::protobuf::RepeatedPtrField<::std::string> ParseVolumeCluster(
+    const std::string& hosts) {
+    std::vector<absl::string_view> split = absl::StrSplit(hosts, ',');
+    google::protobuf::RepeatedPtrField<::std::string> res;
+    res.Reserve(split.size());
+    for (const auto& sv : split) {
+        res.Add(std::string{sv.data(), sv.size()});
+    }
+
+    return res;
+}
+}  // namespace
 
 int CreateFsTool::Init() {
     int ret = CurvefsToolRpc::Init();
@@ -134,6 +162,7 @@ int CreateFsTool::Init() {
     request.set_fsname(FLAGS_fsName);
     request.set_blocksize(FLAGS_blockSize);
     request.set_enablesumindir(FLAGS_enableSumInDir);
+    request.set_recycletimehour(FLAGS_recycleTimeHour);
 
     auto SetS3Request = [&]() -> int {
         request.set_fstype(common::FSType::TYPE_S3);
@@ -166,11 +195,6 @@ int CreateFsTool::Init() {
             return -1;
         }
 
-        if (!is_aligned(FLAGS_volumeSize, FLAGS_volumeBlockGroupSize)) {
-            std::cerr << "volumeSize should align with volumeBlockGroupSize";
-            return -1;
-        }
-
         if (!is_aligned(FLAGS_volumeSliceSize, FLAGS_volumeBlockGroupSize)) {
             std::cerr << "volume slice size should align with "
                          "FLAGS_volumeBlockGroupSize";
@@ -187,7 +211,6 @@ int CreateFsTool::Init() {
         // volume
         request.set_fstype(common::FSType::TYPE_VOLUME);
         auto* volume = new common::Volume();
-        volume->set_volumesize(FLAGS_volumeSize);
         volume->set_blocksize(FLAGS_volumeBlockSize);
         volume->set_volumename(FLAGS_volumeName);
         volume->set_user(FLAGS_volumeUser);
@@ -195,6 +218,11 @@ int CreateFsTool::Init() {
         volume->set_blockgroupsize(FLAGS_volumeBlockGroupSize);
         volume->set_bitmaplocation(location);
         volume->set_slicesize(FLAGS_volumeSliceSize);
+        volume->set_autoextend(FLAGS_volumeAutoExtend);
+        if (FLAGS_volumeAutoExtend) {
+            volume->set_extendfactor(FLAGS_volumeExtendFactor);
+        }
+        *volume->mutable_cluster() = ParseVolumeCluster(FLAGS_volumeCluster);
         request.mutable_fsdetail()->set_allocated_volume(volume);
         return 0;
     };

@@ -45,6 +45,7 @@
 #include "src/leader_election/leader_election.h"
 #include "src/common/s3_adapter.h"
 #include "curvefs/src/mds/space/service.h"
+#include "curvefs/src/mds/space/mds_proxy_options.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::mds::topology::TopologyOption;
@@ -79,6 +80,8 @@ using ::curve::kvstorage::KVStorageClient;
 using ::curvefs::mds::space::SpaceManager;
 using ::curvefs::mds::dlock::DLockOptions;
 
+using ::curvefs::mds::space::MdsProxyOptions;
+
 struct MDSOptions {
     int dummyPort;
     std::string mdsListenAddr;
@@ -90,6 +93,8 @@ struct MDSOptions {
     ScheduleOption scheduleOption;
 
     DLockOptions dLockOptions;
+
+    MdsProxyOptions bsMdsProxyOptions;
 };
 
 class MDS {
@@ -139,6 +144,8 @@ class MDS {
     void InitCoordinator();
 
     void InitFsManagerOptions(FsManagerOption* fsManagerOption);
+
+    void InitMdsProxyManagerOptions(MdsProxyOptions* options);
 
  private:
     // mds configuration items

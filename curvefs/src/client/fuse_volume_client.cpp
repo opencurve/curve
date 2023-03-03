@@ -32,6 +32,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/volume/default_volume_storage.h"
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/src/volume/common.h"
@@ -56,7 +57,6 @@ CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
 
     BlockDeviceClientOptions opts;
     opts.configPath = option.bdevOpt.configPath;
-    opts.threadnum = option.bdevOpt.threadnum;
 
     bool ret2 = blockDeviceClient_->Init(opts);
 
@@ -148,14 +148,15 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
     butil::Timer timer;
     timer.start();
 
-    ssize_t nr = storage_->Write(ino, off, size, buf);
-    if (nr < 0) {
+    CURVEFS_ERROR ret = storage_->Write(ino, off, size, buf);
+    if (ret != CURVEFS_ERROR::OK) {
         if (fsMetric_) {
             fsMetric_->userWrite.eps.count << 1;
         }
         LOG(ERROR) << "write error, ino: " << ino << ", offset: " << off
-                   << ", len: " << size;
-        return CURVEFS_ERROR::IO_ERROR;
+                   << ", len: " << size
+                   << ", error: " << ret;
+        return ret;
     }
 
     *wSize = size;
@@ -172,7 +173,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
         fsMetric_->userWrite.bps.count << size;
         fsMetric_->userWrite.qps.count << 1;
         fsMetric_->userWrite.latency << timer.u_elapsed();
-        fsMetric_->userWriteIoSize << size;
+        fsMetric_->userWriteIoSize.set_value(size);
     }
 
     VLOG(9) << "write end, ino: " << ino << ", offset: " << off
@@ -204,21 +205,21 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
     butil::Timer timer;
     timer.start();
 
-    ssize_t nr = storage_->Read(ino, off, size, buffer);
-    if (nr < 0) {
+    CURVEFS_ERROR ret = storage_->Read(ino, off, size, buffer);
+    if (ret != CURVEFS_ERROR::OK) {
         if (fsMetric_) {
             fsMetric_->userRead.eps.count << 1;
         }
         LOG(ERROR) << "read error, ino: " << ino << ", offset: " << off
-                   << ", len: " << size;
-        return CURVEFS_ERROR::IO_ERROR;
+                   << ", len: " << size << ", error: " << ret;
+        return ret;
     }
 
     if (fsMetric_) {
         fsMetric_->userRead.bps.count << size;
         fsMetric_->userRead.qps.count << 1;
         fsMetric_->userRead.latency << timer.u_elapsed();
-        fsMetric_->userReadIoSize << size;
+        fsMetric_->userReadIoSize.set_value(size);
     }
 
     *rSize = size;
@@ -237,7 +238,7 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
               << ", name: " << name
               << ", mode: " << mode;
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, false, e);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
@@ -249,7 +250,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
                                             dev_t rdev, fuse_entry_param *e) {
     VLOG(3) << "FuseOpMkNod, parent: " << parent << ", name: " << name
             << ", mode: " << mode << ", rdev: " << rdev;
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
+    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev,
+                    false, e);
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
@@ -272,10 +274,10 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                             struct fuse_file_info *fi) {
     VLOG(3) << "FuseOpFsync start, ino: " << ino << ", datasync: " << datasync;
 
-    auto ret = storage_->Flush(ino);
-    if (!ret) {
-        LOG(ERROR) << "Storage flush ino: " << ino << " failed";
-        return CURVEFS_ERROR::IO_ERROR;
+    CURVEFS_ERROR ret = storage_->Flush(ino);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "Storage flush ino: " << ino << " failed, error: " << ret;
+        return ret;
     }
 
     if (datasync) {
@@ -285,17 +287,17 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
     }
 
     std::shared_ptr<InodeWrapper> inodeWrapper;
-    auto ret2 = inodeManager_->GetInode(ino, inodeWrapper);
-    if (ret2 != CURVEFS_ERROR::OK) {
+    ret = inodeManager_->GetInode(ino, inodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Get inode fail, ino: " << ino << ", ret: " << ret;
-        return ret2;
+        return ret;
     }
 
     auto lk = inodeWrapper->GetUniqueLock();
     return inodeWrapper->Sync();
 }
 
-CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
+CURVEFS_ERROR FuseVolumeClient::Truncate(InodeWrapper *inode, uint64_t length) {
     // Todo: call volume truncate
     return CURVEFS_ERROR::OK;
 }
@@ -303,9 +305,12 @@ CURVEFS_ERROR FuseVolumeClient::Truncate(Inode *inode, uint64_t length) {
 CURVEFS_ERROR FuseVolumeClient::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                             struct fuse_file_info *fi) {
     VLOG(9) << "FuseOpFlush, ino: " << ino;
-    bool ret = storage_->Flush(ino);
-    LOG_IF(ERROR, !ret) << "Flush error, ino: " << ino;
-    return ret ? CURVEFS_ERROR::OK : CURVEFS_ERROR::IO_ERROR;
+
+    CURVEFS_ERROR ret = storage_->Flush(ino);
+    LOG_IF(ERROR, ret != CURVEFS_ERROR::OK)
+        << "Flush error, ino: " << ino << ", error: " << ret;
+
+    return ret;
 }
 
 void FuseVolumeClient::FlushData() {

@@ -84,6 +84,20 @@ class UpdateVolumeExtentClosure : public internal::AsyncRequestClosureBase {
     bthread::ConditionVariable cond_;
 };
 
+class UpdateInodeAttrAndExtentClosure
+    : public internal::AsyncRequestClosureBase {
+ public:
+    using Base = AsyncRequestClosureBase;
+
+    UpdateInodeAttrAndExtentClosure(const std::shared_ptr<InodeWrapper>& inode,
+                                    MetaServerClientDone* parent);
+
+    void Run() override;
+
+ private:
+    MetaServerClientDone* parent_;
+};
+
 }  // namespace client
 }  // namespace curvefs
 

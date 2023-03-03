@@ -115,6 +115,8 @@ class TopologyManager {
     virtual TopoStatusCode CreatePartitionsAndGetMinPartition(
         FsIdType fsId, PartitionInfo *partition);
 
+    virtual TopoStatusCode DeletePartition(uint32_t partitionId);
+
     virtual TopoStatusCode CommitTxId(const std::vector<PartitionTxId>& txIds);
 
     virtual void CommitTx(const CommitTxRequest *request,
@@ -166,10 +168,19 @@ class TopologyManager {
 
     virtual void ListMetaserverOfCluster(ListMetaServerResponse* response);
 
+    virtual void RegistMemcacheCluster(
+        const RegistMemcacheClusterRequest* request,
+        RegistMemcacheClusterResponse* response);
+
+    virtual void ListMemcacheCluster(ListMemcacheClusterResponse* response);
+
+    virtual void AllocOrGetMemcacheCluster(
+        const AllocOrGetMemcacheClusterRequest* request,
+        AllocOrGetMemcacheClusterResponse* response);
+
  private:
-    TopoStatusCode CreateEnoughCopyset();
-    TopoStatusCode InitialCreateCopyset();
-    TopoStatusCode CreateCopysetByResourceUsage(int createNum);
+    TopoStatusCode CreateEnoughCopyset(int32_t createNum);
+
     TopoStatusCode CreateCopyset(const CopysetCreateInfo& copyset);
 
     virtual void GetCopysetInfo(const uint32_t& poolId,
@@ -178,6 +189,9 @@ class TopologyManager {
 
     virtual void ClearCopysetCreating(PoolIdType poolId,
                                       CopySetIdType copysetId);
+    TopoStatusCode CreatePartitionOnCopyset(FsIdType fsId,
+                                            const CopySetInfo& copyset,
+                                            PartitionInfo *info);
 
  private:
     std::shared_ptr<Topology> topology_;
@@ -188,6 +202,13 @@ class TopologyManager {
      *        in concurrent scenario
      */
     NameLock registMsMutex;
+
+    /**
+     * @brief register mutex for memcachecluster,
+     *           preventing duplicate registration
+     *        in concurrent scenario
+     */
+    mutable RWLock registMemcacheClusterMutex_;
 
     NameLock createPartitionMutex_;
 

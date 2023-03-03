@@ -43,7 +43,6 @@ namespace curvefs {
 namespace metaserver {
 namespace copyset {
 
-using ::braft::Configuration;
 using ::braft::PeerId;
 using ::curvefs::common::Peer;
 using ::curvefs::metaserver::MetaStore;

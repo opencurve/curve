@@ -23,11 +23,12 @@
 #include "curvefs/src/metaserver/s3compact_manager.h"
 
 #include <list>
-#include <thread>
+#include <mutex>
 
+#include "absl/memory/memory.h"
+#include "curvefs/src/metaserver/partition.h"
+#include "curvefs/src/metaserver/s3compact_worker.h"
 #include "src/common/string_util.h"
-#include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
-#include "curvefs/src/metaserver/s3compact_wq_impl.h"
 
 using curve::common::Configuration;
 using curve::common::InitS3AdaptorOptionExceptS3InfoOption;
@@ -39,8 +40,6 @@ using curve::common::WriteLockGuard;
 
 namespace curvefs {
 namespace metaserver {
-
-using copyset::CopysetNodeManager;
 
 void S3AdapterManager::Init() {
     std::lock_guard<std::mutex> lock(mtx_);
@@ -104,26 +103,9 @@ void S3CompactWorkQueueOption::Init(std::shared_ptr<Configuration> conf) {
     s3opts.sk = "";
     s3opts.s3Address = "";
     s3opts.bucketName = "";
-    conf->GetValueFatalIfFail("s3.loglevel", &s3opts.loglevel);
-    conf->GetStringValue("s3.logPrefix", &s3opts.logPrefix);
-    conf->GetValueFatalIfFail("s3.http_scheme", &s3opts.scheme);
-    conf->GetValueFatalIfFail("s3.verify_SSL", &s3opts.verifySsl);
-    conf->GetValueFatalIfFail("s3.max_connections", &s3opts.maxConnections);
-    conf->GetValueFatalIfFail("s3.connect_timeout", &s3opts.connectTimeout);
-    conf->GetValueFatalIfFail("s3.request_timeout", &s3opts.requestTimeout);
-    conf->GetValueFatalIfFail("s3.async_thread_num", &s3opts.asyncThreadNum);
-    conf->GetValueFatalIfFail("s3.throttle.iopsTotalLimit",
-                              &s3opts.iopsTotalLimit);
-    conf->GetValueFatalIfFail("s3.throttle.iopsReadLimit",
-                              &s3opts.iopsReadLimit);
-    conf->GetValueFatalIfFail("s3.throttle.iopsWriteLimit",
-                              &s3opts.iopsWriteLimit);
-    conf->GetValueFatalIfFail("s3.throttle.bpsTotalMB", &s3opts.bpsTotalMB);
-    conf->GetValueFatalIfFail("s3.throttle.bpsReadMB", &s3opts.bpsReadMB);
-    conf->GetValueFatalIfFail("s3.throttle.bpsWriteMB", &s3opts.bpsWriteMB);
+    InitS3AdaptorOptionExceptS3InfoOption(conf.get(), &s3opts);
     conf->GetValueFatalIfFail("s3compactwq.enable", &enable);
     conf->GetValueFatalIfFail("s3compactwq.thread_num", &threadNum);
-    conf->GetValueFatalIfFail("s3compactwq.queue_size", &queueSize);
     conf->GetValueFatalIfFail("s3compactwq.fragment_threshold",
                               &fragmentThreshold);
     conf->GetValueFatalIfFail("s3compactwq.max_chunks_per_compact",
@@ -147,23 +129,55 @@ void S3CompactManager::Init(std::shared_ptr<Configuration> conf) {
         butil::EndPoint metaserverAddr_(metaserverIp, opts_.metaserverPort);
         LOG(INFO) << "Metaserver address: " << opts_.metaserverIpStr << ":"
                   << opts_.metaserverPort;
-        s3infoCache_ = std::make_shared<S3InfoCache>(
+        s3infoCache_ = absl::make_unique<S3InfoCache>(
             opts_.s3infocacheSize, opts_.mdsAddrs, metaserverAddr_);
         s3adapterManager_ =
-            std::make_shared<S3AdapterManager>(opts_.queueSize, opts_.s3opts);
+            absl::make_unique<S3AdapterManager>(opts_.threadNum, opts_.s3opts);
         s3adapterManager_->Init();
-        s3compactworkqueueImpl_ = std::make_shared<S3CompactWorkQueueImpl>(
-            s3adapterManager_, s3infoCache_, opts_,
-            &copyset::CopysetNodeManager::GetInstance());
+
+        workerOptions_.s3adapterManager = s3adapterManager_.get();
+        workerOptions_.s3infoCache = s3infoCache_.get();
+        workerOptions_.maxChunksPerCompact = opts_.maxChunksPerCompact;
+        workerOptions_.fragmentThreshold = opts_.fragmentThreshold;
+        workerOptions_.s3ReadMaxRetry = opts_.s3ReadMaxRetry;
+        workerOptions_.s3ReadRetryInterval = opts_.s3ReadRetryInterval;
+        workerOptions_.sleepMS = opts_.enqueueSleepMS;
+
         inited_ = true;
     } else {
         LOG(INFO) << "s3compact: not enabled";
     }
 }
 
-void S3CompactManager::RegisterS3Compact(std::weak_ptr<S3Compact> s3compact) {
-    WriteLockGuard l(rwLock_);
-    s3compacts_.emplace_back(s3compact);
+void S3CompactManager::Register(S3Compact s3compact) {
+    {
+        std::lock_guard<std::mutex> lock(workerContext_.mtx);
+        workerContext_.s3compacts.push_back(std::move(s3compact));
+    }
+
+    workerContext_.cond.notify_one();
+}
+
+void S3CompactManager::Cancel(uint32_t partitionId) {
+    std::lock_guard<std::mutex> lock(workerContext_.mtx);
+    auto it = workerContext_.compacting.find(partitionId);
+    if (it != workerContext_.compacting.end()) {
+        it->second->Cancel(partitionId);
+        LOG(INFO) << "Canceled s3 compaction, partition: " << partitionId;
+        return;
+    }
+
+    for (auto comp = workerContext_.s3compacts.begin();
+         comp != workerContext_.s3compacts.end(); ++comp) {
+        if (comp->partitionInfo.partitionid() == partitionId) {
+            workerContext_.s3compacts.erase(comp);
+            LOG(INFO) << "Canceled s3 compaction, partitionid: "
+                      << partitionId;
+            return;
+        }
+    }
+
+    LOG(WARNING) << "Fail to find s3 compaction for partition: " << partitionId;
 }
 
 int S3CompactManager::Run() {
@@ -171,75 +185,29 @@ int S3CompactManager::Run() {
         LOG(WARNING) << "s3compact: not inited, wont't run";
         return 0;
     }
-    int ret = s3compactworkqueueImpl_->Start(opts_.threadNum, opts_.queueSize);
-    if (ret != 0) return ret;
-    entry_ = std::thread([this]() {
-        while (inited_) {
-            this->Enqueue();
+
+    if (!workerContext_.running.exchange(true)) {
+        for (uint64_t i = 0; i < opts_.threadNum; ++i) {
+            workers_.push_back(absl::make_unique<S3CompactWorker>(
+                this, &workerContext_, &workerOptions_));
+            workers_.back()->Run();
         }
-    });
+    }
+
     return 0;
 }
 
 void S3CompactManager::Stop() {
-    if (inited_) {
-        inited_ = false;
-        s3compactworkqueueImpl_->Stop();
-        entry_.join();
-        s3adapterManager_->Deinit();
-    }
-}
-
-void S3CompactManager::Enqueue() {
-    std::vector<std::weak_ptr<S3Compact>> s3compacts;
-    {
-        // make a snapshot
-        ReadLockGuard l(rwLock_);
-        s3compacts = s3compacts_;
-    }
-    if (s3compacts.empty()) {
-        // fastpath
-        sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
+    if (!inited_ || !workerContext_.running.exchange(false)) {
         return;
     }
-    std::vector<int> toErase;
-    for (int i = 0; i < s3compacts.size(); i++) {
-        auto s3compact(s3compacts[i].lock());
-        if (!s3compact) {
-            // partition is deleted, record erase
-            toErase.push_back(i);
-            continue;
-        }
 
-        auto pinfo = s3compact->GetPartition();
-        // traverse inode container
-        auto inodeManager = s3compact->GetInodeManager();
-
-        std::list<uint64_t> inodes;
-        if (!inodeManager->GetInodeIdList(&inodes)) {
-            inodes.clear();
-        }
-
-        uint64_t fsid = pinfo.fsid();
-
-        if (inodes.empty()) {
-            sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
-            continue;
-        }
-        for (const auto& inodeid : inodes) {
-            sleeper_.wait_for(std::chrono::milliseconds(opts_.enqueueSleepMS));
-            s3compactworkqueueImpl_->Enqueue(
-                inodeManager, Key4Inode(fsid, inodeid), pinfo);
-        }
+    workerContext_.cond.notify_all();
+    for (auto& worker : workers_) {
+        worker->Stop();
     }
-    {
-        WriteLockGuard l(rwLock_);
-        auto it = toErase.rbegin();
-        while (it != toErase.rend()) {
-            s3compacts_.erase(s3compacts_.begin() + *it);
-            it++;
-        }
-    }
+
+    s3adapterManager_->Deinit();
 }
 
 }  // namespace metaserver

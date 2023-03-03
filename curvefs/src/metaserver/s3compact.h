@@ -24,33 +24,38 @@
 #define CURVEFS_SRC_METASERVER_S3COMPACT_H_
 
 #include <memory>
+#include <utility>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/metaserver/inode_manager.h"
 
 namespace curvefs {
 namespace metaserver {
+
+namespace copyset {
+class CopysetNode;
+}  // namespace copyset
+
 using curvefs::common::PartitionInfo;
 
 // one S3Compact per partition
-class S3Compact {
- public:
-    S3Compact(const std::shared_ptr<InodeManager>& inodeManager,
-              const PartitionInfo& partitionInfo)
-        : inodeManager_(inodeManager), partitionInfo_(partitionInfo) {}
+struct S3Compact {
+    S3Compact() = default;
 
-    std::shared_ptr<InodeManager> GetInodeManager() {
-        return inodeManager_;
-    }
+    S3Compact(std::shared_ptr<InodeManager> manager,
+              PartitionInfo pinfo);
 
-    PartitionInfo GetPartition() const {
-        return partitionInfo_;
-    }
+    S3Compact(std::shared_ptr<InodeManager> manager,
+              std::shared_ptr<copyset::CopysetNode> copyset,
+              PartitionInfo pinfo)
+        : inodeManager(std::move(manager)),
+          copysetNode(std::move(copyset)),
+          partitionInfo(std::move(pinfo)) {}
 
- private:
-    std::shared_ptr<InodeManager> inodeManager_;
-    // we only need data that will not be changed after being created.
-    const PartitionInfo partitionInfo_;
+    std::shared_ptr<InodeManager> inodeManager;
+    std::shared_ptr<copyset::CopysetNode> copysetNode;
+    PartitionInfo partitionInfo;
+    bool canceled{false};
 };
 
 }  // namespace metaserver

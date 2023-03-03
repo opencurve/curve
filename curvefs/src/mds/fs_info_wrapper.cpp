@@ -37,13 +37,74 @@ using ::curvefs::common::S3Info;
 using ::curvefs::common::Volume;
 using google::protobuf::util::MessageDifferencer;
 
-bool FsInfoWrapper::IsMountPointExist(const Mountpoint& mp) const {
+FsInfoWrapper::FsInfoWrapper(const ::curvefs::mds::CreateFsRequest* request,
+                             uint64_t fsId,
+                             uint64_t rootInodeId) {
+    FsInfo fsInfo;
+    fsInfo.set_fsname(request->fsname());
+    fsInfo.set_fsid(fsId);
+    fsInfo.set_status(FsStatus::NEW);
+    fsInfo.set_rootinodeid(rootInodeId);
+    fsInfo.set_blocksize(request->blocksize());
+    fsInfo.set_mountnum(0);
+    fsInfo.set_enablesumindir(request->enablesumindir());
+    fsInfo.set_txsequence(0);
+    fsInfo.set_txowner("");
+    if (request->has_recycletimehour()) {
+        fsInfo.set_recycletimehour(request->recycletimehour());
+    }
+
+    const auto& detail = request->fsdetail();
+    fsInfo.set_allocated_detail(new FsDetail(detail));
+
+    switch (request->fstype()) {
+        case FSType::TYPE_S3:
+            fsInfo.set_fstype(FSType::TYPE_S3);
+            fsInfo.set_capacity(request->capacity());
+            break;
+        case FSType::TYPE_VOLUME:
+            fsInfo.set_fstype(FSType::TYPE_VOLUME);
+            fsInfo.set_capacity(detail.volume().volumesize());
+            break;
+        case FSType::TYPE_HYBRID:
+            fsInfo.set_fstype(FSType::TYPE_HYBRID);
+            // TODO(huyao): set capacity for hybrid fs
+            fsInfo.set_capacity(
+                std::min(detail.volume().volumesize(), request->capacity()));
+            break;
+    }
+
+    fsInfo.set_owner(request->owner());
+    fsInfo_ = std::move(fsInfo);
+}
+
+bool FsInfoWrapper::IsMountPointExist(const Mountpoint &mp) const {
     return std::find_if(fsInfo_.mountpoints().begin(),
                         fsInfo_.mountpoints().end(),
-                        [mp](const Mountpoint& mountPoint) {
+                        [mp](const Mountpoint &mountPoint) {
                             return mp.path() == mountPoint.path() &&
                                    mp.hostname() == mountPoint.hostname();
                         }) != fsInfo_.mountpoints().end();
+}
+
+bool FsInfoWrapper::IsMountPointConflict(const Mountpoint &mp) const {
+    bool cto = (fsInfo_.mountpoints_size() ? false : mp.cto());
+
+    bool exist =
+        std::find_if(fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end(),
+                     [&](const Mountpoint &mountPoint) {
+                         if (mountPoint.has_cto() && mountPoint.cto()) {
+                             cto = true;
+                         }
+
+                         return mp.path() == mountPoint.path() &&
+                                mp.hostname() == mountPoint.hostname();
+                     }) != fsInfo_.mountpoints().end();
+
+    // NOTE:
+    // 1. if mount point exist (exist = true), conflict
+    // 2. if existing mount point enableCto is diffrent from newcomer, conflict
+    return exist || (cto != mp.cto());
 }
 
 void FsInfoWrapper::AddMountPoint(const Mountpoint& mp) {
@@ -57,8 +118,10 @@ void FsInfoWrapper::AddMountPoint(const Mountpoint& mp) {
 FSStatusCode FsInfoWrapper::DeleteMountPoint(const Mountpoint& mp) {
     auto iter =
         std::find_if(fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end(),
-                     [mp](const Mountpoint& mountPoint) {
-                         return MessageDifferencer::Equals(mp, mountPoint);
+                     [mp](const Mountpoint &mountPoint) {
+                         return mp.path() == mountPoint.path() &&
+                                mp.hostname() == mountPoint.hostname() &&
+                                mp.port() == mountPoint.port();
                      });
 
     bool found = iter != fsInfo_.mountpoints().end();
@@ -77,6 +140,10 @@ std::vector<Mountpoint> FsInfoWrapper::MountPoints() const {
     }
 
     return {fsInfo_.mountpoints().begin(), fsInfo_.mountpoints().end()};
+}
+
+void FsInfoWrapper::SetVolumeSize(uint64_t size) {
+    fsInfo_.mutable_detail()->mutable_volume()->set_volumesize(size);
 }
 
 }  // namespace mds

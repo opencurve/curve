@@ -24,6 +24,7 @@
 #include <brpc/closure_guard.h>
 #include <butil/iobuf.h>
 #include <glog/logging.h>
+#include <time.h>
 
 #include <cstddef>
 #include <memory>
@@ -215,12 +216,12 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
 
         MetaStatusCode ret = response.statuscode();
         if (ret != MetaStatusCode::OK) {
-            LOG_IF(WARNING, ret != MetaStatusCode::NOT_FOUND)
-                << "ListDentry: fsId = " << fsId << ", inodeid = " << inodeid
-                << ", last = " << last << ", count = " << count
-                << ", onlyDir = " << onlyDir
-                << ", errcode = " << ret
-                << ", errmsg = " << MetaStatusCode_Name(ret);
+            LOG(WARNING) << "ListDentry: fsId = " << fsId
+                         << ", inodeid = " << inodeid
+                         << ", last = " << last << ", count = " << count
+                         << ", onlyDir = " << onlyDir
+                         << ", errcode = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret);
         } else if (response.has_appliedindex()) {
             metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
                                          response.appliedindex());
@@ -828,54 +829,83 @@ MetaServerClientImpl::UpdateInode(const UpdateInodeRequest &request,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-UpdateInodeRequest
-MetaServerClientImpl::BuileUpdateInodeAttrWithOutNlinkRequest(
-    const Inode &inode,
-    InodeOpenStatusChange statusChange,
-    S3ChunkInofMap *s3ChunkInfoAdd) {
+namespace {
+
+#define SET_REQUEST_FIELD_IF_HAS(request, attr, field) \
+    do {                                               \
+        if ((attr).has_##field()) {                    \
+            (request)->set_##field((attr).field());     \
+        }                                              \
+    } while (false)
+
+void FillInodeAttr(uint32_t fsId,
+                   uint64_t inodeId,
+                   const InodeAttr& attr,
+                   bool nlink,
+                   UpdateInodeRequest* request) {
+    request->set_fsid(fsId);
+    request->set_inodeid(inodeId);
+
+    SET_REQUEST_FIELD_IF_HAS(request, attr, length);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, atime);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, atime_ns);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, ctime);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, ctime_ns);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, mtime);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, mtime_ns);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, uid);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, gid);
+    SET_REQUEST_FIELD_IF_HAS(request, attr, mode);
+
+    *request->mutable_parent() = attr.parent();
+    if (attr.xattr_size() > 0) {
+        *request->mutable_xattr() = attr.xattr();
+    }
+
+    if (nlink) {
+        request->set_nlink(attr.nlink());
+    }
+}
+
+#undef SET_REQUEST_FIELD_IF_HAS
+
+void FillDataIndices(DataIndices&& indices, UpdateInodeRequest* request) {
+    if (indices.s3ChunkInfoMap && !indices.s3ChunkInfoMap->empty()) {
+        *request->mutable_s3chunkinfoadd() =
+            std::move(indices.s3ChunkInfoMap.value());
+    }
+
+    if (indices.volumeExtents && indices.volumeExtents->slices_size() > 0) {
+        *request->mutable_volumeextents() =
+            std::move(indices.volumeExtents.value());
+    }
+}
+
+}  // namespace
+
+MetaStatusCode MetaServerClientImpl::UpdateInodeAttr(
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr) {
     UpdateInodeRequest request;
-    request.set_inodeid(inode.inodeid());
-    request.set_fsid(inode.fsid());
-    request.set_length(inode.length());
-    request.set_ctime(inode.ctime());
-    request.set_mtime(inode.mtime());
-    request.set_atime(inode.atime());
-    request.set_uid(inode.uid());
-    request.set_gid(inode.gid());
-    request.set_mode(inode.mode());
-    request.set_inodeopenstatuschange(statusChange);
-    *(request.mutable_parent()) = inode.parent();
-    if (inode.xattr_size() > 0) {
-        *(request.mutable_xattr()) = inode.xattr();
-    }
-    if (s3ChunkInfoAdd && !s3ChunkInfoAdd->empty()) {
-        *(request.mutable_s3chunkinfoadd()) = *s3ChunkInfoAdd;
-    }
-    return request;
-}
-
-UpdateInodeRequest
-MetaServerClientImpl::BuildeUpdateInodeAttrRequest(const Inode &inode,
-    InodeOpenStatusChange statusChange) {
-    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange, nullptr);
-    request.set_nlink(inode.nlink());
-    return request;
-}
-
-MetaStatusCode
-MetaServerClientImpl::UpdateInodeAttr(const Inode &inode,
-                                      InodeOpenStatusChange statusChange) {
-    UpdateInodeRequest request =
-        BuildeUpdateInodeAttrRequest(inode, statusChange);
+    FillInodeAttr(fsId, inodeId, attr, /*nlink=*/true, &request);
     return UpdateInode(request);
 }
 
 MetaStatusCode MetaServerClientImpl::UpdateInodeAttrWithOutNlink(
-    const Inode &inode, InodeOpenStatusChange statusChange,
-    S3ChunkInofMap *s3ChunkInfoAdd, bool internal) {
-    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange, s3ChunkInfoAdd);
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
+    S3ChunkInfoMap* s3ChunkInfoAdd,
+    bool internal) {
+    UpdateInodeRequest request;
+    FillInodeAttr(fsId, inodeId, attr, /*nlink=*/false,
+                  &request);
+    if (s3ChunkInfoAdd != nullptr) {
+        DataIndices indices;
+        indices.s3ChunkInfoMap = *s3ChunkInfoAdd;
+        FillDataIndices(std::move(indices), &request);
+    }
     return UpdateInode(request, internal);
 }
 
@@ -924,7 +954,6 @@ void UpdateInodeRpcDone::Run() {
     VLOG(6) << "UpdateInode done, "
             << "response: " << response.DebugString();
     done_->SetRetCode(ret);
-    return;
 }
 
 void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
@@ -952,19 +981,15 @@ void MetaServerClientImpl::UpdateInodeAsync(const UpdateInodeRequest &request,
     excutor->DoAsyncRPCTask(taskDone);
 }
 
-void MetaServerClientImpl::UpdateInodeAttrAsync(
-    const Inode &inode, MetaServerClientDone *done,
-    InodeOpenStatusChange statusChange) {
-    UpdateInodeRequest request =
-        BuildeUpdateInodeAttrRequest(inode, statusChange);
-    UpdateInodeAsync(request, done);
-}
-
 void MetaServerClientImpl::UpdateInodeWithOutNlinkAsync(
-    const Inode &inode, MetaServerClientDone *done,
-    InodeOpenStatusChange statusChange, S3ChunkInofMap *s3ChunkInfoAdd) {
-    UpdateInodeRequest request = BuileUpdateInodeAttrWithOutNlinkRequest(
-        inode, statusChange, s3ChunkInfoAdd);
+    uint32_t fsId,
+    uint64_t inodeId,
+    const InodeAttr& attr,
+    MetaServerClientDone* done,
+    DataIndices&& indices) {
+    UpdateInodeRequest request;
+    FillInodeAttr(fsId, inodeId, attr, /*nlink=*/false, &request);
+    FillDataIndices(std::move(indices), &request);
     UpdateInodeAsync(request, done);
 }
 
@@ -1215,6 +1240,12 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
         request.set_rdev(param.rdev);
         request.set_symlink(param.symlink);
         request.set_parent(param.parent);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        Time* tm = new Time();
+        tm->set_sec(now.tv_sec);
+        tm->set_nsec(now.tv_nsec);
+        request.set_allocated_create(tm);
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateInode(cntl, &request, &response, nullptr);
 
@@ -1256,6 +1287,69 @@ MetaStatusCode MetaServerClientImpl::CreateInode(const InodeParam &param,
 
     auto taskCtx = std::make_shared<TaskContext>(MetaServerOpType::CreateInode,
                                                  task, param.fsId, 0);
+    CreateInodeExcutor excutor(opt_, metaCache_, channelManager_,
+                               std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::CreateManageInode(const InodeParam &param,
+                                                       Inode *out) {
+    auto task = RPCTask {
+        metric_.createInode.qps.count << 1;
+        LatencyUpdater updater(&metric_.createInode.latency);
+        CreateManageInodeResponse response;
+        CreateManageInodeRequest request;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(param.fsId);
+        request.set_uid(param.uid);
+        request.set_gid(param.gid);
+        request.set_mode(param.mode);
+        assert(param.manageType != ManageInodeType::TYPE_NOT_MANAGE);
+        request.set_managetype(param.manageType);
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.CreateManageInode(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.createInode.eps.count << 1;
+            LOG(WARNING) << "CreateManageInode Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        MetaStatusCode ret = response.statuscode();
+        if (ret != MetaStatusCode::OK) {
+            LOG(WARNING) << "CreateManageInode:  param = " << param
+                         << ", errcode = " << ret
+                         << ", errmsg = " << MetaStatusCode_Name(ret)
+                         << ", remote side = "
+                         << butil::endpoint2str(cntl->remote_side()).c_str()
+                         << ", request: " << request.ShortDebugString()
+                         << ", pool: " << poolID << ", copyset: " << copysetID
+                         << ", partition: " << partitionID;
+        } else if (response.has_inode() && response.has_appliedindex()) {
+            *out = response.inode();
+
+            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
+                                         response.appliedindex());
+        } else {
+            LOG(WARNING) << "CreateManageInode:  param = " << param
+                         << " ok, but applyIndex or inode not set in response:"
+                         << response.DebugString();
+            return -1;
+        }
+
+        VLOG(6) << "CreateManageInode done, request: " << request.DebugString()
+                << "response: " << response.DebugString();
+        return ret;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+                    MetaServerOpType::CreateManageInode, task, param.fsId, 0);
     CreateInodeExcutor excutor(opt_, metaCache_, channelManager_,
                                std::move(taskCtx));
     return ConvertToMetaStatusCode(excutor.DoRPCTask());

@@ -26,6 +26,8 @@
 
 namespace curvefs {
 const uint64_t ROOTINODEID = 1;
+const uint64_t RECYCLEINODEID = 2;
+const char RECYCLENAME[] = ".recycle";
 
 const char XATTRFILES[] = "curve.dir.files";
 const char XATTRSUBDIRS[] = "curve.dir.subdirs";

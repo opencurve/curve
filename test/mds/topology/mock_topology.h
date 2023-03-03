@@ -164,8 +164,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
  public:
     MockTopologyServiceManager(
         std::shared_ptr<Topology> topology,
+        std::shared_ptr<TopologyStat> topologyStat,
         std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager) //NOLINT
-        : TopologyServiceManager(topology, copysetManager, nullptr) {}
+        : TopologyServiceManager(topology, topologyStat, nullptr,
+                                    copysetManager, nullptr) {}
 
     ~MockTopologyServiceManager() {}
 
@@ -180,6 +182,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
     MOCK_METHOD2(GetChunkServer, void(
                      const GetChunkServerInfoRequest *request,
                      GetChunkServerInfoResponse *response));
+
+    MOCK_METHOD2(GetChunkServerInCluster, void(
+                     const GetChunkServerInClusterRequest *request,
+                     GetChunkServerInClusterResponse *response));
 
     MOCK_METHOD2(DeleteChunkServer, void(
                      const DeleteChunkServerRequest *request,

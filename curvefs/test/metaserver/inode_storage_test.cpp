@@ -748,7 +748,7 @@ TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
         slice.set_offset(1ULL * 1024 * 1024 * 1024);
 
         const std::string expectTableName =
-            nameGenerator_->GetVolumnExtentTableName();
+            nameGenerator_->GetVolumeExtentTableName();
         const std::string expectKey = "4:1:1:" + std::to_string(slice.offset());
         EXPECT_CALL(*kvStorage, SSet(expectTableName, expectKey, _))
             .WillOnce(Return(test.second));
@@ -793,6 +793,14 @@ static bool PrepareGetAllVolumeExtentTest(InodeStorage* storage,
         return false;
     }
 
+    VolumeExtentSlice slice3;
+    slice3.set_offset(0);
+
+    RandomSetExtent(slice3.add_extents());
+    RandomSetExtent(slice3.add_extents());
+
+    st = storage->UpdateVolumeExtentSlice(fsId, inodeId * 10, slice3);
+
     out->push_back(slice1);
     out->push_back(slice2);
     return true;
@@ -826,7 +834,7 @@ TEST_F(InodeStorageTest, TestGetAllVolumeExtent) {
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
     for (auto& store : {memStore, kvStore}) {
-        InodeStorage storage(memStore, nameGenerator_, 0);
+        InodeStorage storage(store, nameGenerator_, 0);
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
 

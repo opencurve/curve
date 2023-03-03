@@ -39,9 +39,9 @@ namespace curve {
 namespace client {
 
 class FileInstance;
-class RequestContext;
-class UserInfo;
 class MDSClient;
+struct RequestContext;
+struct UserInfo;
 
 class SourceReader {
  public:

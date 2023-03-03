@@ -72,13 +72,13 @@ class TestTopologyService : public ::testing::Test {
         auto codec = std::make_shared<TopologyStorageCodec>();
         auto storage_ =
             std::make_shared<TopologyStorageEtcd>(etcdClient_, codec);
+        auto topo_ = std::make_shared<TopologyImpl>(
+                idGenerator_, tokenGenerator_, storage_);
 
         CopysetOption copysetOption;
         manager_ = std::make_shared<MockTopologyServiceManager>(
-                       std::make_shared<TopologyImpl>(idGenerator_,
-                               tokenGenerator_,
-                               storage_),
-                       std::make_shared<CopysetManager>(copysetOption));
+                topo_, std::make_shared<TopologyStatImpl>(topo_),
+                std::make_shared<CopysetManager>(copysetOption));
 
         TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
         ASSERT_EQ(0, server_->AddService(topoService,
@@ -119,6 +119,9 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     request.set_hostip("3");
     request.set_port(8888);
     request.set_externalip("127.0.0.1");
+    request.set_chunkfilepoolsize(100000);
+    request.set_usechunkfilepoolaswalpool(true);
+    request.set_usechunkfilepoolaswalpoolreserve(15);
 
     ChunkServerRegistResponse response;
 
@@ -152,6 +155,9 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     request.set_hostip("3");
     request.set_port(8888);
     request.set_externalip("127.0.0.1");
+    request.set_chunkfilepoolsize(100000);
+    request.set_usechunkfilepoolaswalpool(true);
+    request.set_usechunkfilepoolaswalpoolreserve(15);
 
     ChunkServerRegistResponse response;
 
@@ -283,6 +289,62 @@ TEST_F(TestTopologyService, test_GetChunkServer_fail) {
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_GetChunkServerInCluster_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    GetChunkServerInClusterRequest request;
+    GetChunkServerInClusterResponse response;
+
+    GetChunkServerInClusterResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, GetChunkServerInCluster(_, _))
+    .Times(1)
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.GetChunkServerInCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_GetChunkServerInCluster_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    GetChunkServerInClusterRequest request;
+    GetChunkServerInClusterResponse response;
+
+    GetChunkServerInClusterResponse reps;
+    reps.set_statuscode(kTopoErrCodeChunkServerNotFound);
+    EXPECT_CALL(*manager_, GetChunkServerInCluster(_, _))
+    .Times(1)
+    .WillOnce(SetArgPointee<1>(reps));
+
+    stub.GetChunkServerInCluster(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeChunkServerNotFound, response.statuscode());
 }
 
 TEST_F(TestTopologyService, test_DeleteChunkServer_success) {

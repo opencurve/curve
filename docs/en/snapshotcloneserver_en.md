@@ -23,7 +23,7 @@ Figure 1 shows the architecture of Curve snapshot service.
 
 After receiving requests from users, the system will create temporary snapshot by calling the interfaces of curvefs, then it will dump the temporary data to object storage system and persist metadata of the snapshot to database. The functions of snapshot system can be concluded into two parts:
 
-1. Provides snapshot interface for users to create, delete and query snapshot infomation.
+1. Provides snapshot interface for users to create, delete and query snapshot information.
 2. Managing the snapshot data, and control the snapshot data flow in the system using the interface from curvefs and object storage system.
 
 #### curvefs

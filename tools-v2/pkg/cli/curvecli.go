@@ -26,27 +26,29 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	cobraUtil "github.com/opencurve/curve/tools-v2/internal/utils"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/version"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func addSubCommands(cmd *cobra.Command) {
-	cmd.AddCommand(curvefs.NewCurveFsCommand())
+	cmd.AddCommand(curvefs.NewCurveFsCommand(), curvebs.NewCurveBsCommand())
 }
 
 func setupRootCommand(cmd *cobra.Command) {
-	cmd.SetVersionTemplate("curve v{{.Version}}\n")
+	cmd.SetVersionTemplate("curve {{.Version}}\n")
 	cobraUtil.SetFlagErrorFunc(cmd)
 	cobraUtil.SetHelpTemplate(cmd)
 	cobraUtil.SetUsageTemplate(cmd)
 }
 
 func newCurveCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:     "curve fs|bs [OPTIONS] COMMAND [ARGS...]",
 		Short:   "curve is a tool for managing curvefs ands curvebs",
 		Version: version.Version,
@@ -63,16 +65,17 @@ func newCurveCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolP("version", "v", false, "Print curve version")
-	cmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
-	cmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
-	config.AddShowErrorPFlag(cmd)
-	viper.BindPFlag("useViper", cmd.PersistentFlags().Lookup("viper"))
+	rootCmd.Flags().BoolP("version", "v", false, "print curve version")
+	rootCmd.PersistentFlags().BoolP("help", "h", false, "print help")
+	rootCmd.PersistentFlags().StringVarP(&config.ConfPath, "conf", "c", "", "config file (default is $HOME/.curve/curve.yaml or /etc/curve/curve.yaml)")
+	config.AddShowErrorPFlag(rootCmd)
+	rootCmd.PersistentFlags().BoolP("verbose", "", false, "show some log")
+	viper.BindPFlag("useViper", rootCmd.PersistentFlags().Lookup("viper"))
 
-	addSubCommands(cmd)
-	setupRootCommand(cmd)
+	addSubCommands(rootCmd)
+	setupRootCommand(rootCmd)
 
-	return cmd
+	return rootCmd
 }
 
 func Execute() {

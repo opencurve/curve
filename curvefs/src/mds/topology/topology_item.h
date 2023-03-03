@@ -303,12 +303,7 @@ class MetaServerSpace {
             diskUseRatio = 100.0 * diskUsedByte_ / diskThresholdByte_;
         }
 
-        double memUseRatio = 0;
-        if (memoryThresholdByte_ != 0) {
-            memUseRatio = 100.0 * memoryUsedByte_ / memoryThresholdByte_;
-        }
-
-        return std::max(memUseRatio, diskUseRatio);
+        return diskUseRatio;
     }
 
     bool IsMetaserverResourceAvailable() {
@@ -317,27 +312,12 @@ class MetaServerSpace {
             return false;
         }
 
-        if (memoryCopySetMinRequireByte_ != 0 &&
-            (memoryThresholdByte_ <
-             (memoryCopySetMinRequireByte_ + memoryUsedByte_))) {
-            return false;
-        }
-
         return true;
     }
 
-    // if memoryCopySetMinRequireByte_ equals 0, not consider the memory usage
+    // only consider the disk usage
     bool IsResourceOverload() {
-        if (diskThresholdByte_ < diskUsedByte_) {
-            return true;
-        }
-
-        if (memoryCopySetMinRequireByte_ != 0 &&
-            memoryThresholdByte_ < memoryUsedByte_) {
-            return true;
-        }
-
-        return false;
+        return diskThresholdByte_ < diskUsedByte_;
     }
 
  private:
@@ -642,6 +622,7 @@ struct PartitionStatistic {
     common::PartitionStatus status;
     uint64_t inodeNum;
     uint64_t dentryNum;
+    uint64_t nextId;
     std::unordered_map<FileType, uint64_t> fileType2InodeNum;
 };
 
@@ -654,6 +635,7 @@ class Partition {
           partitionId_(UNINITIALIZE_ID),
           idStart_(0),
           idEnd_(0),
+          idNext_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(0),
@@ -669,6 +651,7 @@ class Partition {
           partitionId_(partitionId),
           idStart_(idStart),
           idEnd_(idEnd),
+          idNext_(0),
           txId_(0),
           status_(PartitionStatus::READWRITE),
           inodeNum_(0),
@@ -683,6 +666,7 @@ class Partition {
           partitionId_(v.partitionId_),
           idStart_(v.idStart_),
           idEnd_(v.idEnd_),
+          idNext_(v.idNext_),
           txId_(v.txId_),
           status_(v.status_),
           inodeNum_(v.inodeNum_),
@@ -699,6 +683,7 @@ class Partition {
         partitionId_ = v.partitionId_;
         idStart_ = v.idStart_;
         idEnd_ = v.idEnd_;
+        idNext_ = v.idNext_;
         txId_ = v.txId_;
         status_ = v.status_;
         inodeNum_ = v.inodeNum_;
@@ -722,6 +707,7 @@ class Partition {
             fileType2InodeNum_.emplace(static_cast<FileType>(i.first),
                                        i.second);
         }
+        idNext_ = v.has_nextid() ? v.nextid() : 0;
     }
 
     explicit operator common::PartitionInfo() const {
@@ -739,6 +725,9 @@ class Partition {
         auto partitionFileType2InodeNum = partition.mutable_filetype2inodenum();
         for (auto const& i : fileType2InodeNum_) {
             (*partitionFileType2InodeNum)[i.first] = i.second;
+        }
+        if (idNext_ != 0) {
+            partition.set_nextid(idNext_);
         }
         return partition;
     }
@@ -768,6 +757,10 @@ class Partition {
     uint64_t GetIdEnd() const { return idEnd_; }
 
     void SetIdEnd(uint64_t idEnd) { idEnd_ = idEnd; }
+
+    uint64_t GetIdNext() const { return idNext_; }
+
+    void SetIdNext(uint64_t idNext) { idNext_ = idNext; }
 
     uint64_t GetTxId() const { return txId_; }
 
@@ -816,12 +809,118 @@ class Partition {
     PartitionIdType partitionId_;
     uint64_t idStart_;
     uint64_t idEnd_;
+    uint64_t idNext_;
     uint64_t txId_;
     common::PartitionStatus status_;
     uint64_t inodeNum_;
     uint64_t dentryNum_;
     std::unordered_map<FileType, uint64_t> fileType2InodeNum_;
     mutable ::curve::common::RWLock mutex_;
+};
+
+class MemcacheServer {
+ public:
+    MemcacheServer() : port_(0) {}
+    explicit MemcacheServer(const MemcacheServerInfo& info)
+        : ip_(info.ip()), port_(info.port()) {}
+    explicit MemcacheServer(const std::string&& ip, uint32_t port)
+        : ip_(ip), port_(port) {}
+
+    MemcacheServer& operator=(const MemcacheServerInfo& info) {
+        ip_ = info.ip();
+        port_ = info.port();
+        return *this;
+    }
+
+    operator MemcacheServerInfo() const {
+        MemcacheServerInfo info;
+        info.set_ip(ip_);
+        info.set_port(port_);
+        return info;
+    }
+
+    bool operator==(const MemcacheServerInfo& server) const {
+        return ip_ == server.ip() && port_ == server.port();
+    }
+
+    std::string GetIp() const {
+        return ip_;
+    }
+
+    uint32_t GetPort() const {
+        return port_;
+    }
+
+ private:
+    std::string ip_;
+    uint32_t port_;
+};
+
+class MemcacheCluster {
+ public:
+    MemcacheCluster() : id_(UNINITIALIZE_ID) {}
+    explicit MemcacheCluster(const MemcacheClusterInfo& info)
+        : id_(info.clusterid()) {
+        for (auto const& server : info.servers()) {
+            servers_.emplace_back(server);
+        }
+    }
+
+    MemcacheCluster(MetaServerIdType id, std::list<MemcacheServer>&& servers)
+        : id_(id), servers_(servers) {}
+
+    MemcacheCluster(MetaServerIdType id,
+                    const std::list<MemcacheServer>& servers)
+        : id_(id), servers_(servers) {}
+
+    MemcacheCluster& operator=(const MemcacheClusterInfo& info) {
+        id_ = info.clusterid();
+        for (auto const& server : info.servers()) {
+            servers_.emplace_back(server);
+        }
+        return *this;
+    }
+
+    operator MemcacheClusterInfo() const {
+        MemcacheClusterInfo info;
+        info.set_clusterid(id_);
+        for (auto const& server : servers_) {
+            (*info.add_servers()) = static_cast<MemcacheServerInfo>(server);
+        }
+        return info;
+    }
+
+    bool operator==(const MemcacheCluster& rhs) const {
+        if (rhs.id_ != id_ || rhs.servers_.size() != servers_.size()) {
+            return false;
+        }
+        for (auto const& server : servers_) {
+            if (std::find(rhs.servers_.cbegin(), rhs.servers_.cend(), server) ==
+                rhs.servers_.cend()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    std::list<MemcacheServer> GetServers() const {
+        return servers_;
+    }
+
+    MetaServerIdType GetId() const {
+        return id_;
+    }
+
+    bool ParseFromString(const std::string& value);
+    bool SerializeToString(std::string* value) const;
+
+    void SetId(MetaServerIdType id) {
+        id_ = id;
+    }
+
+ private:
+    MetaServerIdType id_;
+    std::list<MemcacheServer> servers_;
 };
 
 }  // namespace topology

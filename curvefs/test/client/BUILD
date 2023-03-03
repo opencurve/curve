@@ -36,6 +36,21 @@ cc_library(
     linkopts = ["-L/usr/local/lib/x86_64-linux-gnu"],
 )
 
+cc_library(
+    name = "client_test_utils",
+    srcs = [
+        "utils.cpp",
+    ],
+    hdrs = [
+        "utils.h",
+    ],
+    copts = CURVE_TEST_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//curvefs/proto:metaserver_cc_proto",
+    ],
+)
+
 cc_test(
     name = "client_s3_test",
     srcs = glob([
@@ -78,7 +93,9 @@ cc_test(
                    "file_cache_manager_test.cpp",
                    "chunk_cache_manager_test.cpp",
                    "data_cache_test.cpp",
-                   "client_s3_adaptor_Integration.cpp"]
+                   "client_s3_adaptor_Integration.cpp",
+                   "client_memcache_test.cpp",
+                 ],
    ),
    copts = CURVE_TEST_COPTS + ["-I/usr/local/include/fuse3"],
    deps = [
@@ -98,21 +115,6 @@ cc_test(
    visibility = ["//visibility:public"],
 )
 
-cc_test(
-    name = "curvefs_fs_cache_manager_test",
-    srcs = [
-        "fs_cache_manager_test.cpp",
-    ] + glob([
-        "*.h",
-    ]),
-    deps = [
-        "//curvefs/src/client:fuse_client_lib",
-        "//external:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-    copts = CURVE_TEST_COPTS,
-)
-
 cc_library(
     name = "mock",
     hdrs = glob([
@@ -122,6 +124,23 @@ cc_library(
         "//curvefs/src/client:fuse_client_lib",
         "@com_google_googletest//:gtest",
     ],
+    copts = CURVE_TEST_COPTS,
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "curvefs_client_memcache_test",
+    srcs = [
+        "client_memcache_test.cpp",
+    ],
+    deps = [
+        "//curvefs/src/client/kvclient:memcached_client_lib",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
+        "//external:gtest",
+        "//external:glog",
+    ],
+    linkopts = ["-lmemcached"],
     copts = CURVE_TEST_COPTS,
     visibility = ["//visibility:public"],
 )

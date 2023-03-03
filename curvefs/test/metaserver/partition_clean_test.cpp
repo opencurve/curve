@@ -54,7 +54,7 @@ auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
 class PartitionCleanManagerTest : public testing::Test {
  protected:
     void SetUp() override {
-        dataDir_ = RandomStoragePath();;
+        dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
         options.localFileSystem = localfs.get();
@@ -108,7 +108,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
     partitionInfo.set_partitionid(partitionId);
     partitionInfo.set_fsid(fsId);
     partitionInfo.set_start(0);
-    partitionInfo.set_end(100);
+    partitionInfo.set_end(2000);
     std::shared_ptr<Partition> partition =
                 std::make_shared<Partition>(partitionInfo, kvStorage_);
     Dentry dentry;
@@ -125,7 +125,7 @@ TEST_F(PartitionCleanManagerTest, test1) {
     param.rdev = 0;
 
     dentry.set_name("/");
-    dentry.set_inodeid(100);
+    dentry.set_inodeid(1100);
     dentry.set_txid(0);
     dentry.set_type(FsFileType::TYPE_DIRECTORY);
     ASSERT_EQ(partition->CreateRootInode(param), MetaStatusCode::OK);
@@ -159,11 +159,11 @@ TEST_F(PartitionCleanManagerTest, test1) {
                       << ", inodeId = " << ROOTINODEID;
             task.done->Run();
         }))
-        .WillOnce(Invoke([partition, fsId](const braft::Task& task) {
-            ASSERT_EQ(partition->DeleteInode(fsId, ROOTINODEID + 1),
+        .WillOnce(Invoke([partition, fsId, inode1](const braft::Task& task) {
+            ASSERT_EQ(partition->DeleteInode(fsId, inode1.inodeid()),
                       MetaStatusCode::OK);
             LOG(INFO) << "Partition DeleteInode, fsId = " << fsId
-                      << ", inodeId = " << ROOTINODEID + 1;
+                      << ", inodeId = " << inode1.inodeid();
             task.done->Run();
         }))
         .WillOnce(Invoke([partition](const braft::Task& task) {

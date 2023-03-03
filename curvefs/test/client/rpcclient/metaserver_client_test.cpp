@@ -43,6 +43,7 @@
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/src/common/process.h"
+#include "curvefs/test/client/utils.h"
 
 namespace curvefs {
 namespace client {
@@ -743,7 +744,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
 
-    MetaStatusCode status = metaserverCli_.UpdateInodeAttr(inode);
+    MetaStatusCode status = metaserverCli_.UpdateInodeAttr(
+        inode.fsid(), inode.inodeid(), ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test1: update inode ok
@@ -757,7 +759,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
                               SetArgPointee<3>(applyIndex), Return(true)));
     EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _));
-    status = metaserverCli_.UpdateInodeAttr(inode);
+    status = metaserverCli_.UpdateInodeAttr(
+        inode.fsid(), inode.inodeid(), ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::OK, status);
 
     // test2: update inode with overload
@@ -766,7 +769,8 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
         .WillRepeatedly(DoAll(
             SetArgPointee<2>(response),
             Invoke(SetRpcService<UpdateInodeRequest, UpdateInodeResponse>)));
-    status = metaserverCli_.UpdateInodeAttr(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode.fsid(), inode.inodeid(),
+                                            ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::OVERLOAD, status);
 
     // test3: response has no applyindex
@@ -777,13 +781,15 @@ TEST_F(MetaServerClientImplTest, test_UpdateInodeAttr) {
             SetArgPointee<2>(response),
             Invoke(SetRpcService<UpdateInodeRequest, UpdateInodeResponse>)));
 
-    status = metaserverCli_.UpdateInodeAttr(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode.fsid(), inode.inodeid(),
+                                            ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 
     // test4: get target always fail
     EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
         .WillRepeatedly(Return(false));
-    status = metaserverCli_.UpdateInodeAttr(inode);
+    status = metaserverCli_.UpdateInodeAttr(inode.fsid(), inode.inodeid(),
+                                            ToInodeAttr(inode));
     ASSERT_EQ(MetaStatusCode::RPC_ERROR, status);
 }
 

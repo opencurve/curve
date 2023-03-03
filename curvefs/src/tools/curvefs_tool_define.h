@@ -231,9 +231,6 @@ extern std::function<void(curve::common::Configuration*,
     SetFsType;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
-    SetVolumeSize;
-extern std::function<void(curve::common::Configuration*,
-                          google::CommandLineFlagInfo*)>
     SetVolumeBlockSize;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
@@ -246,10 +243,16 @@ extern std::function<void(curve::common::Configuration*,
     SetVolumePassword;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
-    SetVolumeBlockSize;
+    SetVolumeBitmapLocation;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
-    SetVolumeBitmapLocation;
+    SetVolumeAutoExtend;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeExtendFactor;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetVolumeCluster;
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetS3_ak;
@@ -277,6 +280,9 @@ extern std::function<void(curve::common::Configuration*,
 extern std::function<void(curve::common::Configuration*,
                           google::CommandLineFlagInfo*)>
     SetRpcRetryIntervalUs;
+extern std::function<void(curve::common::Configuration*,
+                          google::CommandLineFlagInfo*)>
+    SetRecycleTimeHour;
 
 /* checkout the flag is default */
 extern std::function<bool(google::CommandLineFlagInfo*)>

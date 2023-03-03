@@ -74,5 +74,6 @@ cc_library(
         "//src/common:curve_common",
         "//src/mds/topology",
         "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/strings",
     ],
 )

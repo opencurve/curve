@@ -70,6 +70,7 @@ struct S3AdapterOption {
     std::string sk;
     std::string s3Address;
     std::string bucketName;
+    std::string region;
     int loglevel;
     std::string logPrefix;
     int scheme;
@@ -114,6 +115,8 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     size_t len;
     GetObjectAsyncCallBack cb;
     int retCode;
+    int retry;
+    size_t actualLen;
 };
 
 /*
@@ -135,8 +138,14 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
 
 class S3Adapter {
  public:
-    S3Adapter() {}
-    virtual ~S3Adapter() {}
+    S3Adapter() {
+        clientCfg_ = nullptr;
+        s3Client_ = nullptr;
+        throttle_ = nullptr;
+    }
+    virtual ~S3Adapter() {
+        Deinit();
+    }
     /**
      * 初始化S3Adapter
      */
@@ -164,7 +173,7 @@ class S3Adapter {
     /**
      *  call aws sdk shutdown api
      */
-    virtual void Shutdown();
+    static void Shutdown();
     /**
      * reinit s3client with new AWSCredentials
      */
@@ -243,7 +252,6 @@ class S3Adapter {
      * @param context 异步上下文
      */
     virtual void GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context);
-
     /**
      * 删除对象
      * @param 对象名

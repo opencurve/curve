@@ -133,6 +133,9 @@ void HeartbeatManager::UpdateChunkServerStatistics(
         stat.chunkSizeUsedBytes = request.stats().chunksizeusedbytes();
         stat.chunkSizeLeftBytes = request.stats().chunksizeleftbytes();
         stat.chunkSizeTrashedBytes = request.stats().chunksizetrashedbytes();
+        if (request.stats().has_chunkfilepoolsize()) {
+            stat.chunkFilepoolSize = request.stats().chunkfilepoolsize();
+        }
 
         for (int i = 0; i < request.copysetinfos_size(); i++) {
             CopysetStat cstat;

@@ -30,7 +30,6 @@
 #include <utility>
 
 #include "curvefs/src/volume/common.h"
-#include "curvefs/src/volume/utils.h"
 #include "src/common/fast_align.h"
 
 namespace curvefs {
@@ -300,7 +299,10 @@ void FreeExtents::MarkUsedInternal(const uint64_t off, const uint64_t len) {
             extents_.emplace(newOff, newLen);
         }
     } else {
-        --iter;
+        if (iter != extents_.begin()) {
+            --iter;
+        }
+
         if ((iter->first + iter->second) == (off + len)) {
             auto newOff = iter->first;
             auto newLen = iter->second - len;

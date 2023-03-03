@@ -26,6 +26,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 #include <mutex>   // NOLINT
 #include <thread>  // NOLINT
@@ -33,8 +34,8 @@
 #include <list>
 
 #include "include/client/libcurve.h"
+#include "include/client/libcurve_define.h"
 #include "include/curve_compiler_specific.h"
-#include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/file_instance.h"
@@ -1143,4 +1144,79 @@ void GlobalUnInit() {
         globalclientinited_ = false;
         LOG(INFO) << "destory global client instance success!";
     }
+}
+
+const char* LibCurveErrorName(LIBCURVE_ERROR err) {
+    switch (err) {
+        case LIBCURVE_ERROR::OK:
+            return "OK";
+        case LIBCURVE_ERROR::EXISTS:
+            return "EXISTS";
+        case LIBCURVE_ERROR::FAILED:
+            return "FAILED";
+        case LIBCURVE_ERROR::DISABLEIO:
+            return "DISABLEIO";
+        case LIBCURVE_ERROR::AUTHFAIL:
+            return "AUTHFAIL";
+        case LIBCURVE_ERROR::DELETING:
+            return "DELETING";
+        case LIBCURVE_ERROR::NOTEXIST:
+            return "NOTEXIST";
+        case LIBCURVE_ERROR::UNDER_SNAPSHOT:
+            return "UNDER_SNAPSHOT";
+        case LIBCURVE_ERROR::NOT_UNDERSNAPSHOT:
+            return "NOT_UNDERSNAPSHOT";
+        case LIBCURVE_ERROR::DELETE_ERROR:
+            return "DELETE_ERROR";
+        case LIBCURVE_ERROR::NOT_ALLOCATE:
+            return "NOT_ALLOCATE";
+        case LIBCURVE_ERROR::NOT_SUPPORT:
+            return "NOT_SUPPORT";
+        case LIBCURVE_ERROR::NOT_EMPTY:
+            return "NOT_EMPTY";
+        case LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE:
+            return "NO_SHRINK_BIGGER_FILE";
+        case LIBCURVE_ERROR::SESSION_NOTEXISTS:
+            return "SESSION_NOTEXISTS";
+        case LIBCURVE_ERROR::FILE_OCCUPIED:
+            return "FILE_OCCUPIED";
+        case LIBCURVE_ERROR::PARAM_ERROR:
+            return "PARAM_ERROR";
+        case LIBCURVE_ERROR::INTERNAL_ERROR:
+            return "INTERNAL_ERROR";
+        case LIBCURVE_ERROR::CRC_ERROR:
+            return "CRC_ERROR";
+        case LIBCURVE_ERROR::INVALID_REQUEST:
+            return "INVALID_REQUEST";
+        case LIBCURVE_ERROR::DISK_FAIL:
+            return "DISK_FAIL";
+        case LIBCURVE_ERROR::NO_SPACE:
+            return "NO_SPACE";
+        case LIBCURVE_ERROR::NOT_ALIGNED:
+            return "NOT_ALIGNED";
+        case LIBCURVE_ERROR::BAD_FD:
+            return "BAD_FD";
+        case LIBCURVE_ERROR::LENGTH_NOT_SUPPORT:
+            return "LENGTH_NOT_SUPPORT";
+        case LIBCURVE_ERROR::SESSION_NOT_EXIST:
+            return "SESSION_NOT_EXIST";
+        case LIBCURVE_ERROR::STATUS_NOT_MATCH:
+            return "STATUS_NOT_MATCH";
+        case LIBCURVE_ERROR::DELETE_BEING_CLONED:
+            return "DELETE_BEING_CLONED";
+        case LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT:
+            return "CLIENT_NOT_SUPPORT_SNAPSHOT";
+        case LIBCURVE_ERROR::SNAPSTHO_FROZEN:
+            return "SNAPSTHO_FROZEN";
+        case LIBCURVE_ERROR::RETRY_UNTIL_SUCCESS:
+            return "RETRY_UNTIL_SUCCESS";
+        case LIBCURVE_ERROR::EPOCH_TOO_OLD:
+            return "EPOCH_TOO_OLD";
+        case LIBCURVE_ERROR::UNKNOWN:
+            break;
+    }
+
+    static thread_local char message[64];
+    snprintf(message, sizeof(message), "Unknown[%d]", static_cast<int>(err));
+    return message;
 }

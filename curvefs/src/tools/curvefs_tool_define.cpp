@@ -45,11 +45,29 @@ DEFINE_string(metaserverId, "1,2,3", "metaserver id");
 DEFINE_bool(noconfirm, false, "execute command without confirmation");
 DEFINE_uint64(blockSize, 1048576, "block size");
 DEFINE_string(fsType, "s3", "fs type: s3 or volume");
-DEFINE_uint64(volumeSize, 1048576, "block size");
+
+// volume fs
 DEFINE_uint64(volumeBlockSize, 4096, "volume block size");
 DEFINE_string(volumeName, "volume", "volume name");
 DEFINE_string(volumeUser, "user", "volume user");
 DEFINE_string(volumePassword, "user", "volume user");
+DEFINE_uint64(volumeBlockGroupSize,
+              128ULL * 1024 * 1024,
+              "volume block group size");
+
+DEFINE_string(volumeBitmapLocation,
+              "AtStart",
+              "volume space bitmap location, support |AtStart| and |AtEnd|");
+
+static constexpr uint64_t kGiB = 1ULL * 1024 * 1024 * 1024;
+DEFINE_uint64(volumeSliceSize, 1 * kGiB, "volume extents slice size");
+
+DEFINE_bool(volumeAutoExtend, false, "auto extend volume when space used up");
+DEFINE_double(volumeExtendFactor, 1.5, "auto extend factor");
+DEFINE_string(volumeCluster,
+              "127.0.0.1:6666,127.0.0.1:6667,127.0.0.1:6668",
+              "curvebs cluster");
+
 DEFINE_string(s3_ak, "ak", "s3 ak");
 DEFINE_string(s3_sk, "sk", "s3 sk");
 DEFINE_string(s3_endpoint, "endpoint", "s3 endpoint");
@@ -62,6 +80,8 @@ DEFINE_uint64(capacity, (uint64_t)100 * 1024 * 1024 * 1024,
 DEFINE_string(user, "anonymous", "user of request");
 DEFINE_string(inodeId, "1,2,3", "inodes id");
 
+DEFINE_uint32(recycleTimeHour, 1, "recycle time hour");
+
 // list-topology
 DEFINE_string(jsonPath, "/tmp/topology.json", "output json path");
 DEFINE_string(jsonType, "build", "output json type(build or tree)");
@@ -70,17 +90,6 @@ DEFINE_string(jsonType, "build", "output json type(build or tree)");
 DEFINE_string(mds_addr, "127.0.0.1:6700",
               "mds ip and port, separated by \",\"");  // NOLINT
 DEFINE_string(cluster_map, "topo_example.json", "cluster topology map.");
-
-DEFINE_uint64(volumeBlockGroupSize,
-              128ULL * 1024 * 1024,
-              "volume block group size");
-
-DEFINE_string(volumeBitmapLocation,
-              "AtStart",
-              "volume space bitmap location, support |AtStart| and |AtEnd|");
-
-static constexpr uint64_t kGiB = 1ULL * 1024 * 1024 * 1024;
-DEFINE_uint64(volumeSliceSize, 1 * kGiB, "volume extents slice size");
 
 DEFINE_uint32(rpcStreamIdleTimeoutMs, 10000, "rpc stream idle timeout");
 DEFINE_uint32(rpcRetryIntervalUs, 1000, "rpc retry interval(us)");
@@ -154,11 +163,6 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
                           std::placeholders::_2, "fsType", &FLAGS_fsType);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
-    SetVolumeSize =
-        std::bind(&SetFlagInfo<uint64_t>, std::placeholders::_1,
-                  std::placeholders::_2, "volumeSize", &FLAGS_volumeSize);
-
-std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetVolumeBlockSize = std::bind(&SetFlagInfo<uint64_t>,
                                    std::placeholders::_1, std::placeholders::_2,
                                    "volumeBlockSize", &FLAGS_volumeBlockSize);
@@ -191,6 +195,27 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
                                         std::placeholders::_2,
                                         "volumeBitmapLocation",
                                         &FLAGS_volumeBitmapLocation);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetVolumeAutoExtend = std::bind(&SetFlagInfo<bool>,
+                                        std::placeholders::_1,
+                                        std::placeholders::_2,
+                                        "autoExtend",
+                                        &FLAGS_volumeAutoExtend);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetVolumeExtendFactor = std::bind(&SetFlagInfo<double>,
+                                        std::placeholders::_1,
+                                        std::placeholders::_2,
+                                        "extendFactor",
+                                        &FLAGS_volumeExtendFactor);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetVolumeCluster = std::bind(&SetFlagInfo<fLS::clstring>,
+                                 std::placeholders::_1,
+                                 std::placeholders::_2,
+                                 "volumeCluster",
+                                 &FLAGS_volumeCluster);
 
 std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetS3_ak = std::bind(&SetDiffFlagInfo<fLS::clstring>, std::placeholders::_1,
@@ -238,6 +263,11 @@ std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
     SetRpcRetryIntervalUs = std::bind(
         &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
         "rpcRetryIntervalUs", &FLAGS_rpcRetryIntervalUs);
+
+std::function<void(curve::common::Configuration*, google::CommandLineFlagInfo*)>
+    SetRecycleTimeHour = std::bind(
+        &SetFlagInfo<uint32_t>, std::placeholders::_1, std::placeholders::_2,
+        "recycleTimeHour", &FLAGS_recycleTimeHour);
 
 /* check flag */
 std::function<bool(google::CommandLineFlagInfo*)> CheckMetaserverIdDefault =

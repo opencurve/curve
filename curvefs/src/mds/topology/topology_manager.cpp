@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <chrono>  //NOLINT
 #include <list>
 #include <set>
@@ -36,6 +37,8 @@
 #include "brpc/channel.h"
 #include "brpc/controller.h"
 #include "brpc/server.h"
+#include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 
@@ -626,6 +629,72 @@ TopoStatusCode TopologyManager::CreatePartitionsAndGetMinPartition(
     return TopoStatusCode::TOPO_OK;
 }
 
+TopoStatusCode TopologyManager::CreatePartitionOnCopyset(FsIdType fsId,
+                                            const CopySetInfo& copyset,
+                                            PartitionInfo *info) {
+    // get copyset members
+    std::set<MetaServerIdType> copysetMembers = copyset.GetCopySetMembers();
+    std::set<std::string> copysetMemberAddr;
+    for (auto item : copysetMembers) {
+        MetaServer metaserver;
+        if (topology_->GetMetaServer(item, &metaserver)) {
+            std::string addr = metaserver.GetInternalIp() + ":" +
+                                std::to_string(metaserver.GetInternalPort());
+            copysetMemberAddr.emplace(addr);
+        } else {
+            LOG(WARNING) << "Get metaserver info failed.";
+        }
+    }
+
+    // calculate inodeId start and end of partition
+    uint32_t index = topology_->GetPartitionIndexOfFS(fsId);
+    uint64_t idStart = index * option_.idNumberInPartition;
+    uint64_t idEnd = (index + 1) * option_.idNumberInPartition - 1;
+    PartitionIdType partitionId = topology_->AllocatePartitionId();
+
+    if (partitionId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
+        return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
+    }
+
+    PoolIdType poolId = copyset.GetPoolId();
+    CopySetIdType copysetId = copyset.GetId();
+    LOG(INFO) << "CreatePartiton for fs: " << fsId << ", on copyset:(" << poolId
+              << ", " << copysetId << "), partitionId = " << partitionId
+              << ", start = " << idStart << ", end = " << idEnd;
+
+    FSStatusCode retcode = metaserverClient_->CreatePartition(
+        fsId, poolId, copysetId, partitionId, idStart, idEnd,
+        copysetMemberAddr);
+    if (FSStatusCode::OK != retcode) {
+        LOG(ERROR) << "CreatePartition failed, "
+                    << "fsId = " << fsId << ", poolId = " << poolId
+                    << ", copysetId = " << copysetId
+                    << ", partitionId = " << partitionId;
+        return TopoStatusCode::TOPO_CREATE_PARTITION_FAIL;
+    }
+
+    Partition partition(fsId, poolId, copysetId, partitionId, idStart,
+                    idEnd);
+    TopoStatusCode ret = topology_->AddPartition(partition);
+    if (TopoStatusCode::TOPO_OK != ret) {
+        // TODO(wanghai): delete partition on metaserver
+        LOG(ERROR) << "Add partition failed after create partition."
+                    << " error code = " << ret;
+        return ret;
+    }
+
+    info->set_fsid(fsId);
+    info->set_poolid(poolId);
+    info->set_copysetid(copysetId);
+    info->set_partitionid(partitionId);
+    info->set_start(idStart);
+    info->set_end(idEnd);
+    info->set_txid(0);
+    info->set_status(PartitionStatus::READWRITE);
+
+    return TopoStatusCode::TOPO_OK;
+}
+
 void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
                                        CreatePartitionResponse *response) {
     FsIdType fsId = request->fsid();
@@ -637,9 +706,10 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
     NameLockGuard lock(createPartitionMutex_, std::to_string(fsId));
 
     while (partitionInfoList->size() < count) {
-        if (topology_->GetAvailableCopysetNum()
-                            < option_.minAvailableCopysetNum) {
-            if (CreateEnoughCopyset() != TopoStatusCode::TOPO_OK) {
+        int32_t createNum = count - topology_->GetAvailableCopysetNum();
+        // if available copyset is not enough, create copyset first
+        if (createNum > 0) {
+            if (CreateEnoughCopyset(createNum) != TopoStatusCode::TOPO_OK) {
                 LOG(ERROR) << "Create copyset failed when create partition.";
                 response->set_statuscode(
                     TopoStatusCode::TOPO_CREATE_COPYSET_ERROR);
@@ -647,77 +717,51 @@ void TopologyManager::CreatePartitions(const CreatePartitionRequest *request,
             }
         }
 
-        CopySetInfo copyset;
-        if (!topology_->GetAvailableCopyset(&copyset)) {
+        std::vector<CopySetInfo> copysetVec =
+                                        topology_->GetAvailableCopysetList();
+        if (copysetVec.size() == 0) {
             LOG(ERROR) << "Get available copyset fail when create partition.";
             response->set_statuscode(
-                TopoStatusCode::TOPO_GET_AVAILABLE_COPYSET_ERROR);
+                        TopoStatusCode::TOPO_GET_AVAILABLE_COPYSET_ERROR);
             return;
         }
 
-        // get copyset members
-        std::set<MetaServerIdType> copysetMembers = copyset.GetCopySetMembers();
-        std::set<std::string> copysetMemberAddr;
-        for (auto item : copysetMembers) {
-            MetaServer metaserver;
-            if (topology_->GetMetaServer(item, &metaserver)) {
-                std::string addr = metaserver.GetInternalIp() + ":" +
-                                   std::to_string(metaserver.GetInternalPort());
-                copysetMemberAddr.emplace(addr);
-            } else {
-                LOG(WARNING) << "Get metaserver info failed.";
-            }
-        }
+        // sort copysetVec by partition num desent
+        std::sort(copysetVec.begin(), copysetVec.end(),
+                    [](const CopySetInfo& a, const CopySetInfo& b) {
+                        return a.GetPartitionNum() < b.GetPartitionNum();
+                    });
 
-        // calculate inodeId start and end of partition
-        uint32_t index = topology_->GetPartitionIndexOfFS(fsId);
-        uint64_t idStart = index * option_.idNumberInPartition;
-        uint64_t idEnd = (index + 1) * option_.idNumberInPartition - 1;
-        PartitionIdType partitionId = topology_->AllocatePartitionId();
-        LOG(INFO) << "CreatePartiton partitionId = " << partitionId
-                  << ", start = " << idStart
-                  << ", end = " << idEnd;
-        if (partitionId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
-            response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
-            return;
-        }
+        uint32_t copysetNum = copysetVec.size();
+        int32_t tempCount = std::min(copysetNum,
+                                        count - partitionInfoList->size());
 
-        PoolIdType poolId = copyset.GetPoolId();
-        CopySetIdType copysetId = copyset.GetId();
-        FSStatusCode retcode = metaserverClient_->CreatePartition(
-            fsId, poolId, copysetId, partitionId, idStart, idEnd,
-            copysetMemberAddr);
-        Partition partition(fsId, poolId, copysetId, partitionId, idStart,
-                            idEnd);
-        if (FSStatusCode::OK == retcode) {
-            TopoStatusCode ret = topology_->AddPartition(partition);
-            if (TopoStatusCode::TOPO_OK == ret) {
-                PartitionInfo *info = partitionInfoList->Add();
-                info->set_fsid(fsId);
-                info->set_poolid(poolId);
-                info->set_copysetid(copysetId);
-                info->set_partitionid(partitionId);
-                info->set_start(idStart);
-                info->set_end(idEnd);
-                info->set_txid(0);
-                info->set_status(PartitionStatus::READWRITE);
-            } else {
-                // TODO(wanghai): delete partition on metaserver
-                LOG(ERROR) << "Add partition failed after create partition."
-                           << " error code = " << ret;
+        for (int i = 0; i < tempCount; i++) {
+            PartitionInfo *info = partitionInfoList->Add();
+            TopoStatusCode ret = CreatePartitionOnCopyset(fsId,
+                                    copysetVec[i], info);
+            if (ret != TopoStatusCode::TOPO_OK) {
+                LOG(ERROR) << "create partition on copyset fail, fsId = "
+                           << fsId << ", poolId = " << copysetVec[i].GetPoolId()
+                           << ", copysetId = " << copysetVec[i].GetId();
                 response->set_statuscode(ret);
                 return;
             }
-        } else {
-            LOG(ERROR) << "CreatePartition failed, "
-                       << "fsId = " << fsId << ", poolId = " << poolId
-                       << ", copysetId = " << copysetId
-                       << ", partitionId = " << partitionId;
-            response->set_statuscode(
-                TopoStatusCode::TOPO_CREATE_PARTITION_FAIL);
-            return;
         }
     }
+}
+
+TopoStatusCode TopologyManager::DeletePartition(uint32_t partitionId) {
+    DeletePartitionRequest request;
+    DeletePartitionResponse response;
+    request.set_partitionid(partitionId);
+    DeletePartition(&request, &response);
+
+    if (TopoStatusCode::TOPO_OK != response.statuscode()) {
+        return TopoStatusCode::TOPO_DELETE_PARTITION_ON_METASERVER_FAIL;
+    }
+
+    return TopoStatusCode::TOPO_OK;
 }
 
 void TopologyManager::DeletePartition(
@@ -797,35 +841,13 @@ void TopologyManager::ClearCopysetCreating(PoolIdType poolId,
     topology_->RemoveCopySetCreating(CopySetKey(poolId, copysetId));
 }
 
-TopoStatusCode TopologyManager::CreateEnoughCopyset() {
-    int avaibleCopysetNum = topology_->GetAvailableCopysetNum();
-    int copysetNumTotal = topology_->GetCopySetsInCluster().size();
-
-    // if the cluster has no copyset, it create batch copysets random, the
-    // create num equals option_.initialCopysetNumber;
-    // else create copyset by metaserver resource usage, the create num equals
-    // option_.minAvailableCopysetNum - avaibleCopysetNum
-    TopoStatusCode ret = TopoStatusCode::TOPO_OK;
-    if (copysetNumTotal == 0) {
-        ret = InitialCreateCopyset();
-    } else {
-        int createNum = option_.minAvailableCopysetNum - avaibleCopysetNum;
-        if (createNum <= 0) {
-            return TopoStatusCode::TOPO_OK;
-        }
-        ret = CreateCopysetByResourceUsage(createNum);
-    }
-
-    return ret;
-}
-
-TopoStatusCode TopologyManager::InitialCreateCopyset() {
+TopoStatusCode TopologyManager::CreateEnoughCopyset(int32_t createNum) {
     std::list<CopysetCreateInfo> copysetList;
-    TopoStatusCode ret =
-        topology_->GenInitialCopysetAddrBatch(option_.initialCopysetNumber,
-                                              &copysetList);
+    // gen copyset add, the copyset num >= createNum
+    auto ret = topology_->GenCopysetAddrBatch(createNum, &copysetList);
     if (ret != TopoStatusCode::TOPO_OK) {
-        LOG(ERROR) << "initial create copyset, generate copyset addr fail";
+        LOG(ERROR) << "create copyset generate copyset addr fail, createNum = "
+                   << createNum;
         return ret;
     }
 
@@ -840,35 +862,6 @@ TopoStatusCode TopologyManager::InitialCreateCopyset() {
         ret = CreateCopyset(copyset);
         if (ret != TopoStatusCode::TOPO_OK) {
             LOG(ERROR) << "initial create copyset, create copyset fail";
-            return ret;
-        }
-    }
-
-    return TopoStatusCode::TOPO_OK;
-}
-
-TopoStatusCode TopologyManager::CreateCopysetByResourceUsage(int createNum) {
-    for (int i = 0; i < createNum; i++) {
-        // select metaserver for copyset
-        std::set<MetaServerIdType> metaServerIds;
-        PoolIdType poolId;
-        TopoStatusCode ret =
-            topology_->GenCopysetAddrByResourceUsage(&metaServerIds, &poolId);
-        if (ret != TopoStatusCode::TOPO_OK) {
-            LOG(ERROR) << "Generate copyset addr fail";
-            return ret;
-        }
-
-        // alloce copyset id
-        CopySetIdType copysetId = topology_->AllocateCopySetId(poolId);
-        if (copysetId == static_cast<ServerIdType>(UNINITIALIZE_ID)) {
-            return TopoStatusCode::TOPO_ALLOCATE_ID_FAIL;
-        }
-
-        CopysetCreateInfo copyset(poolId, copysetId, metaServerIds);
-        ret = CreateCopyset(copyset);
-        if (ret != TopoStatusCode::TOPO_OK) {
-            LOG(ERROR) << "Create copyset fail";
             return ret;
         }
     }
@@ -999,6 +992,9 @@ void TopologyManager::ListPartition(const ListPartitionRequest *request,
         info->set_status(partition.GetStatus());
         info->set_inodenum(partition.GetInodeNum());
         info->set_dentrynum(partition.GetDentryNum());
+        if (partition.GetIdNext() != 0) {
+            info->set_nextid(partition.GetIdNext());
+        }
     }
 }
 
@@ -1157,6 +1153,9 @@ void TopologyManager::GetCopysetInfo(const uint32_t& poolId,
                 partition->set_status(tmp.GetStatus());
                 partition->set_inodenum(tmp.GetInodeNum());
                 partition->set_dentrynum(tmp.GetDentryNum());
+                if (tmp.GetIdNext() != 0) {
+                    partition->set_nextid(tmp.GetIdNext());
+                }
             }
         }
 
@@ -1332,6 +1331,82 @@ void TopologyManager::ListMetaserverOfCluster(
 TopoStatusCode TopologyManager::UpdatePartitionStatus(
     PartitionIdType partitionId, PartitionStatus status) {
     return topology_->UpdatePartitionStatus(partitionId, status);
+}
+
+void TopologyManager::RegistMemcacheCluster(
+    const RegistMemcacheClusterRequest* request,
+    RegistMemcacheClusterResponse* response) {
+    response->set_statuscode(TopoStatusCode::TOPO_OK);
+    // register memcacheCluster as server
+    WriteLockGuard lock(registMemcacheClusterMutex_);
+
+    // idempotence
+    std::list<MemcacheCluster> clusterList = topology_->ListMemcacheClusters();
+    MemcacheCluster mCluster(
+        0, std::list<MemcacheServer>(request->servers().begin(),
+                                     request->servers().end()));
+    for (auto const& cluster : clusterList) {
+        mCluster.SetId(cluster.GetId());
+        if (cluster == mCluster) {
+            // has registered memcache cluster
+            response->set_clusterid(cluster.GetId());
+            return;
+        }
+    }
+
+    // Guarantee the uniqueness of memcacheServer
+    std::list<MemcacheServer> serverRegisted = topology_->ListMemcacheServers();
+    std::list<MemcacheServer> serverList;
+    for (auto const& server : request->servers()) {
+        auto cmp = [server](const MemcacheServer& ms) {
+            return ms == server;
+        };
+        if (std::find_if(serverRegisted.begin(), serverRegisted.end(), cmp) !=
+            serverRegisted.end()) {
+            LOG(ERROR) << "Regist MemcacheCluster failed! Server["
+                       << server.ShortDebugString()
+                       << "] already existsin another cluster";
+            response->set_statuscode(TopoStatusCode::TOPO_IP_PORT_DUPLICATED);
+            break;
+        }
+        serverList.emplace_back(server);
+    }
+
+    if (response->statuscode() == TopoStatusCode::TOPO_OK) {
+        // add new cluster
+        MemcacheClusterIdType id = topology_->AllocateMemCacheClusterId();
+        if (id == static_cast<MemcacheClusterIdType>(UNINITIALIZE_ID)) {
+            response->set_statuscode(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL);
+        } else {
+            MemcacheCluster cluster(id, std::move(serverList));
+            TopoStatusCode errorCode =
+                topology_->AddMemcacheCluster(std::move(cluster));
+            response->set_statuscode(errorCode);
+            response->set_clusterid(id);
+        }
+    }
+}
+
+void TopologyManager::ListMemcacheCluster(
+    ListMemcacheClusterResponse* response) {
+    std::list<MemcacheCluster> clusterList = topology_->ListMemcacheClusters();
+    if (!clusterList.empty()) {
+        response->set_statuscode(TopoStatusCode::TOPO_OK);
+        for (auto& cluster : clusterList) {
+            (*response->add_memcacheclusters()) = std::move(cluster);
+        }
+    } else {
+        response->set_statuscode(
+            TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND);
+    }
+}
+
+void TopologyManager::AllocOrGetMemcacheCluster(
+    const AllocOrGetMemcacheClusterRequest* request,
+    AllocOrGetMemcacheClusterResponse* response) {
+    auto statusCode = topology_->AllocOrGetMemcacheCluster(
+        request->fsid(), response->mutable_cluster());
+    response->set_statuscode(statusCode);
 }
 
 }  // namespace topology

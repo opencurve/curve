@@ -32,6 +32,7 @@
 #include "curvefs/src/metaserver/s3compact_manager.h"
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/converter.h"
+#include "curvefs/src/metaserver/s3compact.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -39,7 +40,8 @@ namespace metaserver {
 using ::curvefs::metaserver::storage::NameGenerator;
 
 Partition::Partition(PartitionInfo partition,
-                     std::shared_ptr<KVStorage> kvStorage) {
+                     std::shared_ptr<KVStorage> kvStorage,
+                     bool startCompact) {
     assert(partition.start() <= partition.end());
     partitionInfo_ = std::move(partition);
 
@@ -59,7 +61,8 @@ Partition::Partition(PartitionInfo partition,
         kvStorage, tableName, nDentry);
 
     trash_ = std::make_shared<TrashImpl>(inodeStorage_);
-    inodeManager_ = std::make_shared<InodeManager>(inodeStorage_, trash_);
+    inodeManager_ = std::make_shared<InodeManager>(
+        inodeStorage_, trash_, partitionInfo_.mutable_filetype2inodenum());
     txManager_ = std::make_shared<TxManager>(dentryStorage_);
     dentryManager_ =
         std::make_shared<DentryManager>(dentryStorage_, txManager_);
@@ -70,8 +73,9 @@ Partition::Partition(PartitionInfo partition,
 
     if (partitionInfo_.status() != PartitionStatus::DELETING) {
         TrashManager::GetInstance().Add(partitionInfo_.partitionid(), trash_);
-        s3compact_ = std::make_shared<S3Compact>(inodeManager_, partitionInfo_);
-        S3CompactManager::GetInstance().RegisterS3Compact(s3compact_);
+        if (startCompact) {
+            StartS3Compact();
+        }
     }
 }
 
@@ -239,8 +243,7 @@ MetaStatusCode Partition::CreateInode(const InodeParam &param,
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    return UpdatePartitionInfoFsType2InodeNum(
-        inodeManager_->CreateInode(inodeId, param, inode), param.type, 1);
+    return inodeManager_->CreateInode(inodeId, param, inode);
 }
 
 MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
@@ -252,8 +255,21 @@ MetaStatusCode Partition::CreateRootInode(const InodeParam &param) {
         return MetaStatusCode::PARTITION_DELETING;
     }
 
-    return UpdatePartitionInfoFsType2InodeNum(
-        inodeManager_->CreateRootInode(param), param.type, 1);
+    return inodeManager_->CreateRootInode(param);
+}
+
+MetaStatusCode Partition::CreateManageInode(const InodeParam &param,
+                                            ManageInodeType manageType,
+                                            Inode* inode) {
+    if (!IsInodeBelongs(param.fsId)) {
+        return MetaStatusCode::PARTITION_ID_MISSMATCH;
+    }
+
+    if (GetStatus() == PartitionStatus::DELETING) {
+        return MetaStatusCode::PARTITION_DELETING;
+    }
+
+    return inodeManager_->CreateManageInode(param, manageType, inode);
 }
 
 MetaStatusCode Partition::GetInode(uint32_t fsId, uint64_t inodeId,
@@ -287,11 +303,7 @@ MetaStatusCode Partition::DeleteInode(uint32_t fsId, uint64_t inodeId) {
     if (!IsInodeBelongs(fsId, inodeId)) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
-    InodeAttr attr;
-    GetInodeAttr(fsId, inodeId, &attr);
-
-    return UpdatePartitionInfoFsType2InodeNum(
-        inodeManager_->DeleteInode(fsId, inodeId), attr.type(), -1);
+    return inodeManager_->DeleteInode(fsId, inodeId);
 }
 
 MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
@@ -302,13 +314,8 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request) {
     if (GetStatus() == PartitionStatus::DELETING) {
         return MetaStatusCode::PARTITION_DELETING;
     }
-    Inode inode;
-    int deletedNum = 0;
-    const MetaStatusCode& ret =
-        inodeManager_->UpdateInode(request, &inode, &deletedNum);
 
-    return UpdatePartitionInfoFsType2InodeNum(ret, inode.type(),
-                                              (-1) * deletedNum);
+    return inodeManager_->UpdateInode(request);
 }
 
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
@@ -345,8 +352,7 @@ MetaStatusCode Partition::InsertInode(const Inode& inode) {
         return MetaStatusCode::PARTITION_ID_MISSMATCH;
     }
 
-    return UpdatePartitionInfoFsType2InodeNum(inodeManager_->InsertInode(inode),
-                                              inode.type(), 1);
+    return inodeManager_->InsertInode(inode);
 }
 
 bool Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
@@ -401,10 +407,9 @@ uint32_t Partition::GetPartitionId() const {
 }
 
 PartitionInfo Partition::GetPartitionInfo() {
-    auto partitionInfo = partitionInfo_;
-    partitionInfo.set_inodenum(GetInodeNum());
-    partitionInfo.set_dentrynum(GetDentryNum());
-    return partitionInfo;
+    partitionInfo_.set_inodenum(GetInodeNum());
+    partitionInfo_.set_dentrynum(GetDentryNum());
+    return partitionInfo_;
 }
 
 std::shared_ptr<Iterator> Partition::GetAllInode() {
@@ -507,6 +512,15 @@ MetaStatusCode Partition::GetVolumeExtent(uint32_t fsId,
                                           VolumeExtentList* extents) {
     PRECHECK(fsId, inodeId);
     return inodeManager_->GetVolumeExtent(fsId, inodeId, slices, extents);
+}
+
+void Partition::StartS3Compact() {
+    S3CompactManager::GetInstance().Register(
+        S3Compact{inodeManager_, partitionInfo_});
+}
+
+void Partition::CancelS3Compact() {
+    S3CompactManager::GetInstance().Cancel(partitionInfo_.partitionid());
 }
 
 }  // namespace metaserver

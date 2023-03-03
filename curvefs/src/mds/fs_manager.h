@@ -88,10 +88,10 @@ class FsManager {
         : fsStorage_(fsStorage),
           spaceManager_(spaceManager),
           metaserverClient_(metaserverClient),
+          nameLock_(),
           topoManager_(topoManager),
           s3Adapter_(s3Adapter),
           dlock_(dlock),
-          nameLock_(),
           isStop_(true),
           option_(option) {}
 
@@ -101,6 +101,8 @@ class FsManager {
     void Uninit();
     void BackEndFunc();
     void ScanFs(const FsInfoWrapper& wrapper);
+
+    static bool CheckFsName(const std::string& fsName);
 
     /**
      * @brief create fs, the fs name can not repeat
@@ -134,8 +136,8 @@ class FsManager {
      * @param[out] fsInfo: return the fsInfo
      *
      * @return If success return OK;
-     *         if fs has same mount point, return MOUNT_POINT_EXIST;
-     *         else return error code
+     *         if fs has same mount point or cto not consistent, return
+     *         MOUNT_POINT_CONFLICT; else return error code
      */
     FSStatusCode MountFs(const std::string& fsName,
                          const Mountpoint& mountpoint, FsInfo* fsInfo);
@@ -242,8 +244,9 @@ class FsManager {
 
     void RebuildTimeRecorder();
 
- private:
     uint64_t GetRootId();
+
+    bool FillVolumeInfo(common::Volume* volume);
 
  private:
     std::shared_ptr<FsStorage> fsStorage_;
@@ -254,7 +257,7 @@ class FsManager {
     std::shared_ptr<S3Adapter> s3Adapter_;
     std::shared_ptr<DLock> dlock_;
 
-    // Manage fs backgroud delete threads
+    // Manage fs background delete threads
     Thread backEndThread_;
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;

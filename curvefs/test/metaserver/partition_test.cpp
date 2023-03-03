@@ -158,7 +158,7 @@ TEST_F(PartitionTest, testInodeIdGen3) {
 
 TEST_F(PartitionTest, testInodeIdGen4_NextId) {
     std::vector<std::pair<uint64_t, uint64_t>> testsets = {
-        {0, 2}, {1, 2}, {2, 2}, {3, 3}};
+        {0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 4}};
 
     for (auto& t : testsets) {
         PartitionInfo partitionInfo1;

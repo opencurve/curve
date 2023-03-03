@@ -67,6 +67,14 @@ class MockTopologyService : public curvefs::mds::topology::TopologyService {
                  request,
              ::curvefs::mds::topology::GetCopysetOfPartitionResponse* response,
              ::google::protobuf::Closure* done));
+    MOCK_METHOD4(
+        AllocOrGetMemcacheCluster,
+        void(::google::protobuf::RpcController* controller,
+             const ::curvefs::mds::topology::AllocOrGetMemcacheClusterRequest*
+                 request,
+             ::curvefs::mds::topology::AllocOrGetMemcacheClusterResponse*
+                 response,
+             ::google::protobuf::Closure* done));
 };
 }  // namespace rpcclient
 }  // namespace client

@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -124,12 +123,8 @@ func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
 	if len(poolids) != len(copysetids) {
 		return fmt.Errorf("%s and %s is must be in one-to-one correspondence", config.CURVEFS_POOLID, config.CURVEFS_COPYSETID)
 	}
-	table, err := gotable.Create(cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_EPOCH)
-	if err != nil {
-		return err
-	}
 
-	cCmd.Table = table
+	cCmd.Header = []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER, cobrautil.ROW_EPOCH}
 
 	cCmd.Rows = make([]map[string]string, 0)
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
@@ -208,21 +203,33 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		if !allNotFound && detail {
 			statusErr := cCmd.UpdateCopysetsStatus(copysetValues)
 			errs = append(errs, statusErr...)
+		} else {
+			cCmd.SetHeader(cCmd.Header)
 		}
 	}
 
-	cCmd.Table.AddRows(cCmd.Rows)
+	indexSlice := cobrautil.GetIndexSlice(cCmd.Header, []string{
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER,
+	})
+	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(indexSlice)
+
+	list := cobrautil.ListMap2ListSortByKeys(cCmd.Rows, cCmd.Header, []string{
+		cobrautil.ROW_POOL_ID, cobrautil.ROW_LEADER_PEER,
+		cobrautil.ROW_COPYSET_ID,
+	})
+	cCmd.TableNew.AppendBulk(list)
 	cCmd.Result = cCmd.key2Copyset
 	cCmd.Error = cmderror.MostImportantCmdError(errs)
 	return nil
 }
 
 func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue) []*cmderror.CmdError {
-	cCmd.Table.AddColumn(cobrautil.ROW_PEER_ADDR)
-	cCmd.Table.AddColumn(cobrautil.ROW_STATUS)
-	cCmd.Table.AddColumn(cobrautil.ROW_STATE)
-	cCmd.Table.AddColumn(cobrautil.ROW_TERM)
-	cCmd.Table.AddColumn(cobrautil.ROW_READONLY)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_PEER_ADDR)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_STATUS)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_STATE)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_TERM)
+	cCmd.Header = append(cCmd.Header, cobrautil.ROW_READONLY)
+	cCmd.SetHeader(cCmd.Header)
 	for _, row := range cCmd.Rows {
 		row[cobrautil.ROW_PEER_ADDR] = cobrautil.ROW_VALUE_DNE
 		row[cobrautil.ROW_STATUS] = cobrautil.ROW_VALUE_DNE
@@ -238,7 +245,7 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 			copysetInfo := value.GetCopysetInfo()
 			peers := copysetInfo.GetPeers()
 			for _, peer := range peers {
-				addr, err := cobrautil.SplitPeerToAddr(peer.GetAddress())
+				addr, err := cobrautil.PeerAddressToAddr(peer.GetAddress())
 				if err.TypeCode() != cmderror.CODE_SUCCESS {
 					ret = append(ret, err)
 				} else if addr2Request[addr] == nil {
@@ -286,60 +293,63 @@ func (cCmd *CopysetCommand) UpdateCopysetsStatus(values []*topology.CopysetValue
 	// update row & copysetInfoStatus
 	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
 	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
-	results := GetCopysetsStatus(&addr2Request, timeout, retrytimes)
-	for _, result := range results {
-		ret = append(ret, result.Error)
-		copysets := result.Request.GetCopysets()
-		copysetsStatus := result.Status.GetStatus()
-		for i := range copysets {
+	var results []*StatusResult
+	if len(addr2Request) != 0 {
+		results = GetCopysetsStatus(&addr2Request, timeout, retrytimes)
+		for _, result := range results {
 			ret = append(ret, result.Error)
-			copysetInfo := copysets[i]
-			poolId := copysetInfo.GetPoolId()
-			copysetId := copysetInfo.GetCopysetId()
-			copysetKey := cobrautil.GetCopysetKey(uint64(poolId), uint64(copysetId))
+			copysets := result.Request.GetCopysets()
+			copysetsStatus := result.Status.GetStatus()
+			for i := range copysets {
+				ret = append(ret, result.Error)
+				copysetInfo := copysets[i]
+				poolId := copysetInfo.GetPoolId()
+				copysetId := copysetInfo.GetCopysetId()
+				copysetKey := cobrautil.GetCopysetKey(uint64(poolId), uint64(copysetId))
 
-			copysetInfoStatus := cCmd.key2Copyset[copysetKey]
-			var status *copyset.CopysetStatusResponse
-			if copysetsStatus != nil {
-				status = copysetsStatus[i]
-			}
-			if copysetInfoStatus.Peer2Status == nil {
-				copysetInfoStatus.Peer2Status = make(map[string]*copyset.CopysetStatusResponse)
-			}
-			copysetInfoStatus.Peer2Status[result.Addr] = status
+				copysetInfoStatus := cCmd.key2Copyset[copysetKey]
+				var status *copyset.CopysetStatusResponse
+				if copysetsStatus != nil {
+					status = copysetsStatus[i]
+				}
+				if copysetInfoStatus.Peer2Status == nil {
+					copysetInfoStatus.Peer2Status = make(map[string]*copyset.CopysetStatusResponse)
+				}
+				copysetInfoStatus.Peer2Status[result.Addr] = status
 
-			rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
-				peerAddr := row[cobrautil.ROW_PEER_ADDR]
-				addr := result.Addr
-				return (row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)) && (peerAddr == addr)
-			})
+				rowIndex := slices.IndexFunc(cCmd.Rows, func(row map[string]string) bool {
+					peerAddr := row[cobrautil.ROW_PEER_ADDR]
+					addr := result.Addr
+					return (row[cobrautil.ROW_COPYSET_KEY] == fmt.Sprintf("%d", copysetKey)) && (peerAddr == addr)
+				})
 
-			if rowIndex == -1 {
-				errIndex := cmderror.ErrCopysetKey()
-				errIndex.Format(copysetKey, result.Addr)
-				ret = append(ret, errIndex)
-				continue
-			}
+				if rowIndex == -1 {
+					errIndex := cmderror.ErrCopysetKey()
+					errIndex.Format(copysetKey, result.Addr)
+					ret = append(ret, errIndex)
+					continue
+				}
 
-			row := cCmd.Rows[rowIndex]
-			row[cobrautil.ROW_STATUS] = status.GetStatus().String()
-			if status.GetStatus() != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
-				row[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
-				row[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
-				row[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
-				continue
+				row := cCmd.Rows[rowIndex]
+				row[cobrautil.ROW_STATUS] = status.GetStatus().String()
+				if status.GetStatus() != copyset.COPYSET_OP_STATUS_COPYSET_OP_STATUS_SUCCESS {
+					row[cobrautil.ROW_STATE] = cobrautil.ROW_VALUE_DNE
+					row[cobrautil.ROW_TERM] = cobrautil.ROW_VALUE_DNE
+					row[cobrautil.ROW_READONLY] = cobrautil.ROW_VALUE_DNE
+					continue
+				}
+				copysetStatus := status.GetCopysetStatus()
+				row[cobrautil.ROW_STATE] = fmt.Sprintf("%d", copysetStatus.GetState())
+				row[cobrautil.ROW_TERM] = fmt.Sprintf("%d", copysetStatus.GetTerm())
+				row[cobrautil.ROW_READONLY] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
 			}
-			copysetStatus := status.GetCopysetStatus()
-			row[cobrautil.ROW_STATE] = fmt.Sprintf("%d", copysetStatus.GetState())
-			row[cobrautil.ROW_TERM] = fmt.Sprintf("%d", copysetStatus.GetTerm())
-			row[cobrautil.ROW_READONLY] = fmt.Sprintf("%t", copysetStatus.GetReadonly())
 		}
 	}
 	return ret
 }
 
 func (cCmd *CopysetCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd, cCmd)
+	return output.FinalCmdOutputPlain(&cCmd.FinalCurveCmd)
 }
 
 // copsetIds,poolId just like: 1,2,3
@@ -349,7 +359,7 @@ func QueryCopysetInfoStatus(caller *cobra.Command) (*map[uint64]*cobrautil.Copys
 		fmt.Sprintf("--%s", config.CURVEFS_DETAIL),
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	config.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
 	queryCopyset.Cmd.SilenceErrors = true
 	err := queryCopyset.Cmd.Execute()
 	if err != nil {
@@ -366,7 +376,7 @@ func QueryCopysetInfo(caller *cobra.Command) (*map[uint64]*cobrautil.CopysetInfo
 	queryCopyset.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
+	config.AlignFlagsValue(caller, queryCopyset.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR, config.CURVEFS_COPYSETID, config.CURVEFS_POOLID})
 	queryCopyset.Cmd.SilenceErrors = true
 	err := queryCopyset.Cmd.Execute()
 	if err != nil {

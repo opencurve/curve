@@ -26,16 +26,16 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/liushuochen/gotable/table"
-	"github.com/moby/term"
 	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
+	process "github.com/opencurve/curve/tools-v2/internal/utils/process"
 	config "github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -58,7 +58,6 @@ type FinalCurveCmd struct {
 	Example  string             `json:"-"`
 	Error    *cmderror.CmdError `json:"error"`
 	Result   interface{}        `json:"result"`
-	Table    *table.Table       `json:"-"`
 	TableNew *tablewriter.Table `json:"-"`
 	Header   []string           `json:"-"`
 	Cmd      *cobra.Command     `json:"-"`
@@ -67,15 +66,15 @@ type FinalCurveCmd struct {
 func (fc *FinalCurveCmd) SetHeader(header []string) {
 	fc.Header = header
 	fc.TableNew.SetHeader(header)
-	width := 80
-	if ws, err := term.GetWinsize(0); err == nil {
-		if width < int(ws.Width) {
-			width = int(ws.Width)
-		}
-	}
-	if len(header) != 0 {
-		fc.TableNew.SetColWidth(width/len(header) - 1)
-	}
+	// width := 80
+	// if ws, err := term.GetWinsize(0); err == nil {
+	// 	if width < int(ws.Width) {
+	// 		width = int(ws.Width)
+	// 	}
+	// }
+	// if len(header) != 0 {
+	// 	fc.TableNew.SetColWidth(width/len(header) - 1)
+	// }
 }
 
 // FinalCurveCmdFunc is the function type for final command
@@ -111,7 +110,10 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 		Long:    cli.Long,
 		Example: cli.Example,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
 			err := funcs.Init(cmd, args)
+			show := config.GetFlagBool(cli.Cmd, config.VERBOSE)
+			process.SetShow(show)
 			if err != nil {
 				return err
 			}
@@ -121,7 +123,7 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 			}
 			return funcs.Print(cmd, args)
 		},
-		SilenceUsage: true,
+		SilenceUsage: false,
 	}
 	config.AddFormatFlag(cli.Cmd)
 	funcs.AddFlags()
@@ -132,7 +134,6 @@ func NewFinalCurveCli(cli *FinalCurveCmd, funcs FinalCurveCmdFunc) *cobra.Comman
 	cli.TableNew.SetRowLine(true)
 	cli.TableNew.SetAutoFormatHeaders(true)
 	cli.TableNew.SetAutoWrapText(true)
-	cli.TableNew.SetRowLine(true)
 	cli.TableNew.SetAlignment(tablewriter.ALIGN_LEFT)
 
 	return cli.Cmd
@@ -169,7 +170,7 @@ func NewMetric(addrs []string, subUri string, timeout time.Duration) *Metric {
 	}
 }
 
-func QueryMetric(m Metric) (string, *cmderror.CmdError) {
+func QueryMetric(m *Metric) (string, *cmderror.CmdError) {
 	response := make(chan string, 1)
 	size := len(m.Addrs)
 	if size > config.MaxChannelSize() {
@@ -278,44 +279,65 @@ type RpcFunc interface {
 	Stub_Func(ctx context.Context) (interface{}, error)
 }
 
+type Result struct {
+	addr   string
+	err    *cmderror.CmdError
+	result interface{}
+}
+
 func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError) {
 	size := len(rpc.Addrs)
 	if size > config.MaxChannelSize() {
 		size = config.MaxChannelSize()
 	}
-	errs := make(chan *cmderror.CmdError, size)
-	response := make(chan interface{}, 1)
+	results := make(chan Result, size)
 	for _, addr := range rpc.Addrs {
-		go func(addr string) {
+		go func(address string) {
+			log.Printf("%s: start to dial", address)
 			ctx, cancel := context.WithTimeout(context.Background(), rpc.RpcTimeout)
 			defer cancel()
-			conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 			if err != nil {
 				errDial := cmderror.ErrRpcDial()
-				errDial.Format(addr, err.Error())
-				errs <- errDial
-			}
-			rpcFunc.NewRpcClient(conn)
-			res, err := rpcFunc.Stub_Func(context.Background())
-			if err != nil {
-				errRpc := cmderror.ErrRpcCall()
-				errRpc.Format(rpc.RpcFuncName, err.Error())
-				errs <- errRpc
+				errDial.Format(address, err.Error())
+				results <- Result{
+					addr:   address,
+					err:    errDial,
+					result: nil,
+				}
+				log.Printf("%s: fail to dial", address)
 			} else {
-				response <- res
-				errs <- cmderror.ErrSuccess()
+				rpcFunc.NewRpcClient(conn)
+				log.Printf("%s: start to rpc [%s]", address, rpc.RpcFuncName)
+				res, err := rpcFunc.Stub_Func(ctx)
+				if err != nil {
+					errRpc := cmderror.ErrRpcCall()
+					errRpc.Format(rpc.RpcFuncName, err.Error())
+					results <- Result{
+						addr:   address,
+						err:    errRpc,
+						result: nil,
+					}
+					log.Printf("%s: fail to get rpc [%s] response", address, rpc.RpcFuncName)
+				} else {
+					results <- Result{
+						addr:   address,
+						err:    cmderror.ErrSuccess(),
+						result: res,
+					}
+					log.Printf("%s: get rpc [%s] response successfully", address, rpc.RpcFuncName)
+				}
 			}
 		}(addr)
 	}
-
 	var ret interface{}
 	var vecErrs []*cmderror.CmdError
 	count := 0
-	for err := range errs {
-		if err.Code != cmderror.CODE_SUCCESS {
-			vecErrs = append(vecErrs, err)
+	for res := range results {
+		if res.err.TypeCode() != cmderror.CODE_SUCCESS {
+			vecErrs = append(vecErrs, res.err)
 		} else {
-			ret = <-response
+			ret = res.result
 			break
 		}
 		count++

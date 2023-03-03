@@ -26,6 +26,7 @@
 #include <string>
 #include <set>
 
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "curvefs/src/mds/topology/topology_storage_codec.h"
 #include "curvefs/test/mds/topology/test_topology_helper.h"
 
@@ -139,7 +140,7 @@ TEST_F(TopologyStorageCodecTest, TestClusterInfoEncodeDecodeEqual) {
     ASSERT_TRUE(testObj.EncodeClusterInfoData(data, &value));
 
     ClusterInformation out;
-    ASSERT_TRUE(testObj.DecodeCluserInfoData(value, &out));
+    ASSERT_TRUE(testObj.DecodeClusterInfoData(value, &out));
 
     ASSERT_EQ(data.clusterId, out.clusterId);
 }
@@ -178,6 +179,21 @@ TEST_F(TopologyStorageCodecTest, TestEncodeKeyNumEqual) {
     }
 
     ASSERT_EQ(5 * keyNum + keyNum * keyRow, keySet.size());
+}
+
+TEST_F(TopologyStorageCodecTest, TestMemcacheClusterEncodeDecodeEqual) {
+    MemcacheCluster data(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)});
+
+    std::string value;
+    ASSERT_TRUE(testObj.EncodeMemcacheClusterData(data, &value));
+
+    MemcacheCluster out;
+    ASSERT_TRUE(testObj.DecodeMemcacheClusterData(value, &out));
+
+    ASSERT_EQ(data, out);
 }
 
 }  // namespace topology

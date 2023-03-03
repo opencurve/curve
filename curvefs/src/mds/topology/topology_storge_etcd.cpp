@@ -21,10 +21,14 @@
  */
 #include "curvefs/src/mds/topology/topology_storge_etcd.h"
 
+#include <exception>
 #include <string>
 #include <vector>
 #include <map>
 #include <utility>
+#include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/common/storage_key.h"
+#include "src/common/string_util.h"
 
 namespace curvefs {
 namespace mds {
@@ -514,9 +518,9 @@ bool TopologyStorageEtcd::LoadClusterInfo(
         return false;
     }
     ClusterInformation data;
-    errCode = codec_->DecodeCluserInfoData(value, &data);
+    errCode = codec_->DecodeClusterInfoData(value, &data);
     if (!errCode) {
-        LOG(ERROR) << "DecodeCluserInfoData err";
+        LOG(ERROR) << "DecodeClusterInfoData err";
         return false;
     }
     info->emplace_back(std::move(data));
@@ -536,6 +540,105 @@ bool TopologyStorageEtcd::StorageClusterInfo(const ClusterInformation &info) {
         LOG(ERROR) << "Put ClusterInfo into etcd err"
                    << ", errcode = " << errCode;
         return false;
+    }
+    return true;
+}
+
+bool TopologyStorageEtcd::LoadMemcacheCluster(
+    std::unordered_map<MemcacheClusterIdType, MemcacheCluster>*
+        memcacheClusterMap,
+    MemcacheClusterIdType* maxMemCacheClusterId) {
+    std::vector<std::string> out;
+    memcacheClusterMap->clear();
+    *maxMemCacheClusterId = 0;
+    int errCode =
+        client_->List(MEMCACHECLUSTERKEYPREFIX, MEMCACHECLUSTERKEYEND, &out);
+    if (errCode == EtcdErrCode::EtcdKeyNotExist) {
+        return true;
+    }
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "etcd list err:" << errCode;
+        return false;
+    }
+    for (uint32_t i = 0; i < out.size(); i++) {
+        MemcacheCluster data;
+        errCode = codec_->DecodeMemcacheClusterData(out[i], &data);
+        if (!errCode) {
+            LOG(ERROR) << "DecodeMemcacheData err";
+            return false;
+        }
+
+        MemcacheClusterIdType id = data.GetId();
+        auto ret = memcacheClusterMap->emplace(id, std::move(data));
+        if (!ret.second) {
+            LOG(ERROR) << "LoadMemcacheCluster: "
+                       << "MemcacheClusterId duplicated, MemcacheId = " << id;
+            return false;
+        }
+        if (*maxMemCacheClusterId < id) {
+            *maxMemCacheClusterId = id;
+        }
+    }
+    return true;
+}
+
+bool TopologyStorageEtcd::StorageMemcacheCluster(const MemcacheCluster& data) {
+    std::string key = codec_->EncodeMemcacheClusterKey(data.GetId());
+    std::string value;
+    bool ret = codec_->EncodeMemcacheClusterData(data, &value);
+    if (!ret) {
+        LOG(ERROR) << "EncodeMemcacheCLusterData err, clusterId = "
+                   << data.GetId();
+    } else {
+        int errCode = client_->Put(key, value);
+        if (errCode != EtcdErrCode::EtcdOK) {
+            LOG(ERROR) << "Put MemcacheCLuster info to etcd error. errCode = "
+                       << errCode << ", clusterId = " << data.GetId();
+            ret = false;
+        }
+    }
+    return ret;
+}
+
+bool TopologyStorageEtcd::StorageFs2MemcacheCluster(
+    FsIdType fsId, MemcacheClusterIdType memcacheClusterId) {
+    std::string key = codec_->EncodeFs2MemcacheClusterKey(fsId);
+    std::string value = std::to_string(memcacheClusterId);
+    int errCode = client_->Put(key, value);
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "Put Fs2MemcacheCLuster info to etcd error. errCode = "
+                   << errCode << ", fsId = " << fsId;
+        return false;
+    }
+    return true;
+}
+
+bool TopologyStorageEtcd::LoadFs2MemcacheCluster(
+    std::unordered_map<FsIdType, MemcacheClusterIdType>* fs2MemcacheCluster) {
+    std::vector<std::pair<std::string, std::string>> out;
+    fs2MemcacheCluster->clear();
+    int errCode = client_->List(FS2MEMCACHECLUSTERKEYPREFIX,
+                                FS2MEMCACHECLUSTERKEYEND, &out);
+    if (errCode == EtcdErrCode::EtcdKeyNotExist) {
+        return true;
+    }
+    if (errCode != EtcdErrCode::EtcdOK) {
+        LOG(ERROR) << "etcd list err:" << errCode;
+        return false;
+    }
+    for (auto const& data : out) {
+        FsIdType id;
+        codec_->DecodeFs2MemcacheClusterKey(data.first, &id);
+        if (fs2MemcacheCluster->find(id) != fs2MemcacheCluster->end()) {
+            // Duplicated id
+            return false;
+        }
+        FsIdType fsId;
+        if (curve::common::StringToUl(data.second, &fsId)) {
+            fs2MemcacheCluster->emplace(id, fsId);
+        } else {
+            return false;
+        }
     }
     return true;
 }

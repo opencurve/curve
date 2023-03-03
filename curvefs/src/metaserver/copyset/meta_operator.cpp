@@ -156,13 +156,13 @@ bool GetVolumeExtentOperator::CanBypassPropose() const {
                                  uint64_t startTimeUs) {               \
         brpc::ClosureGuard doneGuard(done);                            \
         uint64_t timeUs = TimeUtility::GetTimeofDayUs();               \
-        node_->GetMetric()->WaitInQueueLantancy(                       \
+        node_->GetMetric()->WaitInQueueLatency(                        \
                 OperatorType::TYPE, timeUs - startTimeUs);             \
         auto status = node_->GetMetaStore()->TYPE(                     \
             static_cast<const TYPE##Request*>(request_),               \
             static_cast<TYPE##Response*>(response_));                  \
         uint64_t executeTime = TimeUtility::GetTimeofDayUs() - timeUs; \
-        node_->GetMetric()->ExecuteLantancy(                           \
+        node_->GetMetric()->ExecuteLatency(                            \
                 OperatorType::TYPE, executeTime);                      \
         if (status == MetaStatusCode::OK) {                            \
             node_->UpdateAppliedIndex(index);                          \
@@ -189,6 +189,7 @@ OPERATOR_ON_APPLY(CreateInode);
 OPERATOR_ON_APPLY(UpdateInode);
 OPERATOR_ON_APPLY(DeleteInode);
 OPERATOR_ON_APPLY(CreateRootInode);
+OPERATOR_ON_APPLY(CreateManageInode);
 OPERATOR_ON_APPLY(CreatePartition);
 OPERATOR_ON_APPLY(DeletePartition);
 OPERATOR_ON_APPLY(PrepareRenameTx);
@@ -314,6 +315,7 @@ OPERATOR_ON_APPLY_FROM_LOG(CreateInode);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateInode);
 OPERATOR_ON_APPLY_FROM_LOG(DeleteInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreateRootInode);
+OPERATOR_ON_APPLY_FROM_LOG(CreateManageInode);
 OPERATOR_ON_APPLY_FROM_LOG(CreatePartition);
 OPERATOR_ON_APPLY_FROM_LOG(DeletePartition);
 OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
@@ -369,6 +371,7 @@ OPERATOR_REDIRECT(UpdateInode);
 OPERATOR_REDIRECT(GetOrModifyS3ChunkInfo);
 OPERATOR_REDIRECT(DeleteInode);
 OPERATOR_REDIRECT(CreateRootInode);
+OPERATOR_REDIRECT(CreateManageInode);
 OPERATOR_REDIRECT(CreatePartition);
 OPERATOR_REDIRECT(DeletePartition);
 OPERATOR_REDIRECT(PrepareRenameTx);
@@ -394,6 +397,7 @@ OPERATOR_ON_FAILED(UpdateInode);
 OPERATOR_ON_FAILED(GetOrModifyS3ChunkInfo);
 OPERATOR_ON_FAILED(DeleteInode);
 OPERATOR_ON_FAILED(CreateRootInode);
+OPERATOR_ON_FAILED(CreateManageInode);
 OPERATOR_ON_FAILED(CreatePartition);
 OPERATOR_ON_FAILED(DeletePartition);
 OPERATOR_ON_FAILED(PrepareRenameTx);
@@ -419,6 +423,7 @@ OPERATOR_HASH_CODE(UpdateInode);
 OPERATOR_HASH_CODE(GetOrModifyS3ChunkInfo);
 OPERATOR_HASH_CODE(DeleteInode);
 OPERATOR_HASH_CODE(CreateRootInode);
+OPERATOR_HASH_CODE(CreateManageInode);
 OPERATOR_HASH_CODE(PrepareRenameTx);
 OPERATOR_HASH_CODE(DeletePartition);
 OPERATOR_HASH_CODE(GetVolumeExtent);
@@ -454,6 +459,7 @@ OPERATOR_TYPE(UpdateInode);
 OPERATOR_TYPE(GetOrModifyS3ChunkInfo);
 OPERATOR_TYPE(DeleteInode);
 OPERATOR_TYPE(CreateRootInode);
+OPERATOR_TYPE(CreateManageInode);
 OPERATOR_TYPE(PrepareRenameTx);
 OPERATOR_TYPE(CreatePartition);
 OPERATOR_TYPE(DeletePartition);

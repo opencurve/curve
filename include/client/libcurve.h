@@ -43,8 +43,6 @@ enum FileType {
     INODE_SNAPSHOT_PAGEFILE = 4
 };
 
-const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
-
 typedef struct FileStatInfo {
     uint64_t        id;
     uint64_t        parentid;
@@ -82,6 +80,8 @@ typedef struct DirInfo {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+const char* LibCurveErrorName(LIBCURVE_ERROR err);
 
 /**
  * 初始化系统

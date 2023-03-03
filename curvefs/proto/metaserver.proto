@@ -218,7 +218,7 @@ message Inode {
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
     optional uint32 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
-    map<string, string> xattr = 21;
+    map<string, bytes> xattr = 21;
     repeated uint64 parent = 22;
 }
 
@@ -242,6 +242,12 @@ message CreateInodeRequest {
     required uint64 parent = 10;
     optional uint64 rdev = 11;
     optional string symlink = 12;   // TYPE_SYM_LINK only
+    optional Time create = 13;
+}
+
+message Time {
+    required uint64 sec = 1;
+    required int64 nsec = 2;
 }
 
 message CreateInodeResponse {
@@ -258,6 +264,7 @@ message CreateRootInodeRequest {
     required uint32 uid = 5;
     required uint32 gid = 6;
     required uint32 mode = 7;
+    optional Time create = 8;
 }
 
 message CreateRootInodeResponse {
@@ -265,10 +272,26 @@ message CreateRootInodeResponse {
     optional uint64 appliedIndex = 2;
 }
 
-enum InodeOpenStatusChange {
-    OPEN = 1;
-    CLOSE = 2;
-    NOCHANGE = 3;
+enum ManageInodeType {
+    TYPE_NOT_MANAGE = 0;
+    TYPE_RECYCLE = 1;
+};
+
+message CreateManageInodeRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint32 fsId = 4;
+    required uint32 uid = 5;
+    required uint32 gid = 6;
+    required uint32 mode = 7;
+    required ManageInodeType manageType = 8;
+}
+
+message CreateManageInodeResponse {
+    required MetaStatusCode statusCode = 1;
+    optional Inode inode = 2;
+    optional uint64 appliedIndex = 3;
 }
 
 message UpdateInodeRequest {
@@ -290,10 +313,11 @@ message UpdateInodeRequest {
     // field 16 is left for compatibility
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 17;
     optional uint32 nlink = 18;
-    optional InodeOpenStatusChange inodeOpenstatusChange = 19;
-    map<string, string> xattr = 20;
+    // field 19 is left for compatibility
+    map<string, bytes> xattr = 20;
     repeated uint64 parent = 21;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
+    optional VolumeExtentList volumeExtents = 23;
 }
 
 message UpdateInodeResponse {
@@ -383,7 +407,7 @@ message InodeAttr {
     optional uint64 rdev = 16;
     optional uint32 dtime = 17;
     optional uint32 openmpcount = 18;
-    map<string, string> xattr = 19;
+    map<string, bytes> xattr = 19;
     repeated uint64 parent = 20;
 }
 
@@ -414,7 +438,7 @@ message BatchGetXAttrRequest {
 message XAttr {
     required uint64 inodeId = 1;
     required uint32 fsId = 2;
-    map<string, string> xAttrInfos = 3;
+    map<string, bytes> xAttrInfos = 3;
 }
 
 message BatchGetXAttrResponse {
@@ -472,6 +496,7 @@ service MetaServerService {
     rpc DeleteInode(DeleteInodeRequest) returns (DeleteInodeResponse);
     rpc CreateRootInode(CreateRootInodeRequest) returns
                                             (CreateRootInodeResponse);
+    rpc CreateManageInode(CreateManageInodeRequest) returns (CreateManageInodeResponse);
     rpc GetOrModifyS3ChunkInfo(GetOrModifyS3ChunkInfoRequest) returns (GetOrModifyS3ChunkInfoResponse);
     rpc BatchGetInodeAttr(BatchGetInodeAttrRequest) returns (BatchGetInodeAttrResponse);
     rpc BatchGetXAttr(BatchGetXAttrRequest) returns (BatchGetXAttrResponse);

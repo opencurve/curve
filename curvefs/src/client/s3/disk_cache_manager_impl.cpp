@@ -56,11 +56,30 @@ int DiskCacheManagerImpl::Init(const S3ClientAdaptorOption option) {
 }
 
 void DiskCacheManagerImpl::Enqueue(
-  std::shared_ptr<PutObjectAsyncContext> context) {
+    std::shared_ptr<PutObjectAsyncContext> context, bool isReadCacheOnly) {
+    if ( isReadCacheOnly ) {
+        auto task = [this, context]() {
+            this->WriteReadDirectClosure(context);
+        };
+        taskPool_.Enqueue(task);
+        return;
+    }
     auto task = [this, context]() {
         this->WriteClosure(context);
     };
     taskPool_.Enqueue(task);
+}
+
+
+
+int DiskCacheManagerImpl::WriteReadDirectClosure(
+    std::shared_ptr<PutObjectAsyncContext> context) {
+        VLOG(9) << "WriteReadClosure start, name: " << context->key;
+        // Write to read cache, we don't care if the cache wirte success
+        int ret = WriteReadDirect(context->key,
+                            context->buffer, context->bufferSize);
+        VLOG(9) << "WriteReadClosure end, name: " << context->key;
+        return ret;
 }
 
 int DiskCacheManagerImpl::WriteClosure(
@@ -80,22 +99,17 @@ int DiskCacheManagerImpl::Write(const std::string name, const char *buf,
     VLOG(9) << "write name = " << name << ", length = " << length;
     int ret = 0;
     ret = WriteDiskFile(name, buf, length);
-    if (ret < 0) {
-        ret = client_->Upload(name, buf, length);
-        if (ret < 0) {
-            LOG(ERROR) << "upload object fail. object: " << name;
-            return -1;
-        }
-    }
-    VLOG(9) << "write success, write name = " << name;
-    return 0;
+    VLOG(9) << "write end, write name: " << name
+            << "ret: " << ret;
+    return ret;
 }
 
 int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
                                         uint64_t length) {
     VLOG(9) << "write name = " << name << ", length = " << length;
     // if cache disk is full
-    if (diskCacheManager_->IsDiskCacheFull()) {
+    if (!diskCacheManager_->IsDiskUsedInited() ||
+      diskCacheManager_->IsDiskCacheFull()) {
         VLOG(6) << "write disk file fail, disk full.";
         return -1;
     }
@@ -121,12 +135,13 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
 
     // notify async load to s3
     diskCacheManager_->AsyncUploadEnqueue(name);
-    return writeRet;
+    return 0;
 }
 
 int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
                                           const char *buf, uint64_t length) {
-    if (diskCacheManager_->IsDiskCacheFull()) {
+    if (!diskCacheManager_->IsDiskUsedInited() ||
+      diskCacheManager_->IsDiskCacheFull()) {
         VLOG(6) << "write disk file fail, disk full.";
         return -1;
     }
@@ -178,6 +193,7 @@ int DiskCacheManagerImpl::UmountDiskCache() {
         return -1;
     }
     taskPool_.Stop();
+    client_->Deinit();
     return 0;
 }
 

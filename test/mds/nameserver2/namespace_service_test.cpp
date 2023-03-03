@@ -32,6 +32,7 @@
 #include "src/common/string_util.h"
 #include "test/mds/nameserver2/fakes.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
@@ -51,6 +52,7 @@ using ::testing::AtLeast;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::Invoke;
+using ::testing::Matcher;
 
 namespace curve {
 namespace mds {
@@ -128,6 +130,7 @@ class NameSpaceServiceTest : public ::testing::Test {
         ASSERT_EQ(curveFSOptions.maxFileLength, kCurveFS.GetMaxFileLength());
         DefaultSegmentSize = kCurveFS.GetDefaultSegmentSize();
         kMiniFileLength = kCurveFS.GetMinFileLength();
+        kMaxFileLength = kCurveFS.GetMaxFileLength();
         kCurveFS.Run();
 
         std::this_thread::sleep_for(std::chrono::microseconds(
@@ -236,7 +239,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
     std::shared_ptr<CleanManager> cleanManager_;
     std::shared_ptr<MockTopology> topology_;
-    std::shared_ptr<AllocStatistic> allocStatistic_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<FileRecordManager> fileRecordManager_;
     std::shared_ptr<CurveFSService_Stub> stub_;
     struct FileRecordOptions fileRecordOptions;
@@ -244,6 +247,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     struct CurveFSOption curveFSOptions;
     uint64_t DefaultSegmentSize;
     uint64_t kMiniFileLength;
+    uint64_t kMaxFileLength;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -267,6 +271,10 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     // test CreateFile
     // create /file1(owner1) , /file2(owner2), /dir/file3(owner3)
+    std::vector<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
     CreateFileRequest request;
     CreateFileResponse response;
     brpc::Controller cntl;
@@ -1152,6 +1160,10 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
 
     // test create file
+    std::vector<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
     CreateFileRequest request;
     CreateFileResponse response;
 
@@ -1404,6 +1416,10 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     CurveFSService_Stub stub(&channel);
 
     // 先创建文件/file1，目录/dir1，文件/dir1/file2
+    std::vector<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
     CreateFileRequest request;
     CreateFileResponse response;
 
@@ -2103,6 +2119,10 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     CurveFSService_Stub stub(&channel);
 
     // create file /file1，dir /dir1 and file /dir1/file2
+    std::vector<PoolIdType> logicalPools{1, 2, 3};
+    EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+        .Times(AtLeast(1))
+        .WillRepeatedly(Return(logicalPools));
     CreateFileRequest createRequest;
     CreateFileResponse createResponse;
     brpc::Controller cntl;
@@ -2718,6 +2738,10 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
 
     // create file and allocate segment
     {
+        std::vector<PoolIdType> logicalPools{1, 2, 3};
+         EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+         .Times(AtLeast(1))
+         .WillRepeatedly(Return(logicalPools));
         CreateFileRequest createRequest;
         CreateFileResponse createResponse;
         createRequest.set_filename(filename);

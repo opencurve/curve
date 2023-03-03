@@ -413,6 +413,37 @@ bool MdsClientImpl::ListPartition(uint32_t fsID,
     return 0 == rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS);
 }
 
+bool MdsClientImpl::AllocOrGetMemcacheCluster(uint32_t fsId,
+                                              MemcacheClusterInfo* cluster) {
+    auto task = RPCTask {
+        mdsClientMetric_.allocOrGetMemcacheCluster.qps.count << 1;
+        LatencyUpdater updater(
+            &mdsClientMetric_.allocOrGetMemcacheCluster.latency);
+        mds::topology::AllocOrGetMemcacheClusterResponse response;
+        mdsbasecli_->AllocOrGetMemcacheCluster(fsId, &response, cntl, channel);
+        if (cntl->Failed()) {
+            mdsClientMetric_.allocOrGetMemcacheCluster.eps.count << 1;
+            LOG(WARNING)
+                << "AllocOrGetMemcacheCluster from mds failed, error is "
+                << cntl->ErrorText() << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        TopoStatusCode ret = response.statuscode();
+        if (ret != TopoStatusCode::TOPO_OK) {
+            LOG(WARNING) << "AllocOrGetMemcacheCluster fail, errcode = " << ret
+                         << ", errmsg = " << TopoStatusCode_Name(ret);
+            return ret;
+        }
+
+        *cluster = std::move(*response.mutable_cluster());
+
+        return ret;
+    };
+
+    return 0 == ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
 FSStatusCode MdsClientImpl::AllocS3ChunkId(uint32_t fsId, uint32_t idNum,
                                            uint64_t *chunkId) {
     auto task = RPCTask {
@@ -486,6 +517,7 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
 FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
                                           GetLatestTxIdResponse* response) {
     auto task = RPCTask {
+        VLOG(3) << "GetLatestTxId [request]: " << request.DebugString();
         mdsClientMetric_.getLatestTxId.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.getLatestTxId.latency);
         mdsbasecli_->GetLatestTxId(request, response, cntl, channel);
@@ -509,6 +541,8 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
             LOG(WARNING) << "GetLatestTxId fail, errcode = " << rc
                          << ", errmsg = " << FSStatusCode_Name(rc);
         }
+
+        VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
         return rc;
     };
 
@@ -518,6 +552,7 @@ FSStatusCode MdsClientImpl::GetLatestTxId(const GetLatestTxIdRequest& request,
 
 FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
     auto task = RPCTask {
+        VLOG(3) << "CommitTx [request]: " << request.DebugString();
         mdsClientMetric_.commitTx.qps.count << 1;
         LatencyUpdater updater(&mdsClientMetric_.commitTx.latency);
         CommitTxResponse response;
@@ -542,15 +577,18 @@ FSStatusCode MdsClientImpl::CommitTx(const CommitTxRequest& request) {
             LOG(WARNING) << "CommitTx: retCode = " << rc
                          << ", message = " << FSStatusCode_Name(rc);
         }
+        VLOG(3) << "CommitTx [response]: " << response.DebugString();
         return rc;
     };
     // for rpc error or get lock failed/timeout, we will retry until success
     return ReturnError(rpcexcutor_.DoRPCTask(task, 0));
 }
 
-FSStatusCode MdsClientImpl::GetLatestTxId(std::vector<PartitionTxId>* txIds) {
+FSStatusCode MdsClientImpl::GetLatestTxId(uint32_t fsId,
+                                          std::vector<PartitionTxId>* txIds) {
     GetLatestTxIdRequest request;
     GetLatestTxIdResponse response;
+    request.set_fsid(fsId);
     FSStatusCode rc = GetLatestTxId(request, &response);
     if (rc == FSStatusCode::OK) {
         *txIds = { response.txids().begin(), response.txids().end() };
@@ -650,9 +688,9 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
             VLOG(9) << "AllocateVolumeBlockGroup, response: "
                     << response.ShortDebugString();
             groups->reserve(response.blockgroups_size());
-            for (int i = 0; i < response.blockgroups_size(); ++i) {
-                groups->push_back(std::move(*response.mutable_blockgroups(i)));
-            }
+            std::move(response.mutable_blockgroups()->begin(),
+                      response.mutable_blockgroups()->end(),
+                      std::back_inserter(*groups));
         }
 
         return status;

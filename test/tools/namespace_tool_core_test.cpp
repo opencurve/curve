@@ -139,18 +139,39 @@ TEST_F(NameSpaceToolCoreTest, CreateFile) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
     std::string fileName = "/test";
     uint64_t length = 5 * segmentSize;
+    uint64_t stripeUnit = 32 * 1024 *1024;
+    uint64_t stripeCount = 32;
 
     // 1、正常情况
-    EXPECT_CALL(*client_, CreateFile(_, _))
+    EXPECT_CALL(*client_, CreateFile(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, namespaceTool.CreateFile(fileName, length));
+    ASSERT_EQ(0, namespaceTool.CreateFile(fileName, length,
+                               true, stripeUnit, stripeCount));
 
     // 2、创建失败
-    EXPECT_CALL(*client_, CreateFile(_, _))
+    EXPECT_CALL(*client_, CreateFile(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.CreateFile(fileName, length));
+    ASSERT_EQ(-1, namespaceTool.CreateFile(fileName, length,
+                               true, stripeUnit, stripeCount));
+}
+
+TEST_F(NameSpaceToolCoreTest, ExtendVolume) {
+    curve::tool::NameSpaceToolCore namespaceTool(client_);
+    std::string fileName = "/test";
+    uint64_t length = 10 * segmentSize;
+    // 1、正常情况
+    EXPECT_CALL(*client_, ExtendVolume(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, namespaceTool.ExtendVolume(fileName, length));
+
+    // 2、创建失败
+    EXPECT_CALL(*client_, ExtendVolume(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.ExtendVolume(fileName, length));
 }
 
 TEST_F(NameSpaceToolCoreTest, DeleteFile) {

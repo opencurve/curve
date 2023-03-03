@@ -30,6 +30,7 @@ cc_test(
        "//curvefs/proto:curvefs_topology_cc_proto",
        "//curvefs/src/common:curvefs_common",
        "//curvefs/test/utils:curvefs_test_utils",
+       "//curvefs/test/client:client_test_utils"
    ],
    visibility = ["//visibility:public"],
 )

@@ -51,6 +51,7 @@ enum class OperatorType : uint32_t {
     GetOrModifyS3ChunkInfo = 14,
     GetVolumeExtent = 15,
     UpdateVolumeExtent = 16,
+    CreateManageInode = 17,
     // NOTE:
     //   Add new operator before `OperatorTypeMax`
     //   And DO NOT recorder or delete previous types

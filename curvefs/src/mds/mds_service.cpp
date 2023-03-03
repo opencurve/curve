@@ -35,13 +35,15 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
                               ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    std::string fsName = request->fsname();
+    const std::string& fsName = request->fsname();
     uint64_t blockSize = request->blocksize();
     FSType type = request->fstype();
     bool enableSumInDir = request->enablesumindir();
 
     // set response statuscode default value is ok
     response->set_statuscode(FSStatusCode::OK);
+
+    LOG(INFO) << "CreateFs request: " << request->ShortDebugString();
 
     // create volume fs
     auto createVolumeFs =
@@ -54,13 +56,6 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
                 return;
             }
             const auto& volume = request->fsdetail().volume();
-            LOG(INFO) << "CreateFs request, fsName = " << fsName
-                      << ", blockSize = " << blockSize
-                      << ", volume.volumeName = " << volume.volumename()
-                      << ", enableSumInDir = " << enableSumInDir
-                      << ", owner = " << request->owner()
-                      << ", capacity = " << request->capacity();
-
             FSStatusCode status =
                 fsManager_->CreateFs(request, response->mutable_fsinfo());
 
@@ -88,13 +83,6 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
                 return;
             }
             const auto& s3Info = request->fsdetail().s3info();
-            LOG(INFO) << "CreateFs request, fsName = " << fsName
-                      << ", blockSize = " << blockSize
-                      << ", s3Info.bucketname = " << s3Info.bucketname()
-                      << ", enableSumInDir = " << enableSumInDir
-                      << ", owner = " << request->owner()
-                      << ", capacity = " << request->capacity();
-
             FSStatusCode status =
                 fsManager_->CreateFs(request, response->mutable_fsinfo());
 
@@ -156,7 +144,6 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
               << ", blockSize = " << blockSize
               << ", owner = " << request->owner()
               << ", capacity = " << request->capacity();
-    return;
 }
 
 void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
@@ -165,7 +152,7 @@ void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
                              ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    std::string fsName = request->fsname();
+    const std::string& fsName = request->fsname();
     const Mountpoint& mount = request->mountpoint();
     LOG(INFO) << "MountFs request, fsName = " << fsName
               << ", mountPoint = " << mount.ShortDebugString();
@@ -184,7 +171,6 @@ void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
     LOG(INFO) << "MountFs success, fsName = " << fsName
               << ", mountPoint = " << mount.ShortDebugString()
               << ", mps: " << response->mutable_fsinfo()->mountpoints_size();
-    return;
 }
 
 void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
@@ -193,7 +179,7 @@ void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
                               ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    std::string fsName = request->fsname();
+    const std::string& fsName = request->fsname();
     const Mountpoint& mount = request->mountpoint();
     LOG(INFO) << "UmountFs request, " << request->ShortDebugString();
     FSStatusCode status = fsManager_->UmountFs(fsName, mount);
@@ -208,7 +194,6 @@ void MdsServiceImpl::UmountFs(::google::protobuf::RpcController* controller,
     response->set_statuscode(FSStatusCode::OK);
     LOG(INFO) << "UmountFs success, fsName = " << fsName
               << ", mountPoint = " << mount.ShortDebugString();
-    return;
 }
 
 void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController* controller,
@@ -244,7 +229,6 @@ void MdsServiceImpl::GetFsInfo(::google::protobuf::RpcController* controller,
     response->set_statuscode(FSStatusCode::OK);
     LOG(INFO) << "GetFsInfo success, response: "
               << response->ShortDebugString();
-    return;
 }
 
 void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
@@ -253,7 +237,7 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
                               ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-    std::string fsName = request->fsname();
+    const std::string& fsName = request->fsname();
     LOG(INFO) << "DeleteFs request, fsName = " << fsName;
     FSStatusCode status = fsManager_->DeleteFs(fsName);
     response->set_statuscode(status);
@@ -264,7 +248,6 @@ void MdsServiceImpl::DeleteFs(::google::protobuf::RpcController* controller,
     }
 
     LOG(INFO) << "DeleteFs success, fsName = " << fsName;
-    return;
 }
 
 void MdsServiceImpl::AllocateS3Chunk(
@@ -312,7 +295,6 @@ void MdsServiceImpl::ListClusterFsInfo(
     fsManager_->GetAllFsInfo(response->mutable_fsinfo());
     LOG(INFO) << "ListClusterFsInfo success, response: "
               << response->ShortDebugString();
-    return;
 }
 
 void MdsServiceImpl::RefreshSession(
@@ -331,7 +313,9 @@ void MdsServiceImpl::GetLatestTxId(
     GetLatestTxIdResponse* response,
     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
+    VLOG(3) << "GetLatestTxId [request]: " << request->DebugString();
     fsManager_->GetLatestTxId(request, response);
+    VLOG(3) << "GetLatestTxId [response]: " << response->DebugString();
 }
 
 void MdsServiceImpl::CommitTx(::google::protobuf::RpcController* controller,
@@ -339,7 +323,9 @@ void MdsServiceImpl::CommitTx(::google::protobuf::RpcController* controller,
                               CommitTxResponse* response,
                               ::google::protobuf::Closure* done) {
     brpc::ClosureGuard guard(done);
+    VLOG(3) << "CommitTx [request]: " << request->DebugString();
     fsManager_->CommitTx(request, response);
+    VLOG(3) << "CommitTx [response]: " << request->DebugString();
 }
 
 }  // namespace mds

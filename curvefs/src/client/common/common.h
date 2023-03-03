@@ -27,6 +27,7 @@
 
 #include <bthread/mutex.h>
 #include <ostream>
+#include <string>
 
 namespace curvefs {
 namespace client {
@@ -58,12 +59,47 @@ enum class MetaServerOpType {
     GetOrModifyS3ChunkInfo,
     GetVolumeExtent,
     UpdateVolumeExtent,
+    CreateManageInode,
 };
 
 std::ostream &operator<<(std::ostream &os, MetaServerOpType optype);
 
-const uint32_t MAXXATTRLENGTH = 256;
+const uint32_t MAX_XATTR_NAME_LENGTH = 255;
+const uint32_t MAX_XATTR_VALUE_LENGTH = 64 * 1024;
 
+const char kCurveFsWarmupXAttr[] = "curvefs.warmup.op";
+
+enum class WarmupOpType {
+    kWarmupOpUnknown = 0,
+    kWarmupOpAdd = 1,
+    kWarmupOpQuery = 2,
+};
+
+WarmupOpType GetWarmupOpType(const std::string& op);
+
+enum class WarmupType {
+    kWarmupTypeUnknown = 0,
+    kWarmupTypeList = 1,
+    kWarmupTypeSingle = 2,
+};
+
+WarmupType GetWarmupType(const std::string& type);
+
+enum class FileHandle : uint64_t {
+    kDefaultValue = 0,
+    kKeepCache = 1,
+};
+
+enum class NlinkChange : int32_t {
+    kAddOne = 1,
+    kSubOne = -1,
+};
+
+// if direction is true means '+', false means '-'
+// is direction is true, add second to first
+// if direction is false, sub second from first
+bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction);
+bool AddUllStringToFirst(uint64_t *first, const std::string &second);
 }  // namespace common
 }  // namespace client
 }  // namespace curvefs

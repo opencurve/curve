@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -38,7 +37,6 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 )
 
@@ -97,23 +95,14 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(addrErr.Message)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_PARTITION_ID, cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_START, cobrautil.ROW_END, cobrautil.ROW_STATUS)
 	header := []string{cobrautil.ROW_PARTITION_ID, cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID, cobrautil.ROW_START, cobrautil.ROW_END, cobrautil.ROW_STATUS}
 	pCmd.SetHeader(header)
-	mergeRow := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID}
-	var mergeIndex []int
-	for _, row := range mergeRow {
-		index := slices.Index(header, row)
-		if index != -1 {
-			mergeIndex = append(mergeIndex, index)
-		}
-	}
-	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(mergeIndex)
 
-	if err != nil {
-		return err
-	}
-	pCmd.Table = table
+	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		pCmd.Header, []string{cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID,
+			cobrautil.ROW_COPYSET_ID},
+	))
+
 	fsIds := config.GetFlagStringSliceDefaultAll(pCmd.Cmd, config.CURVEFS_FSID)
 	if fsIds[0] == "*" {
 		var getFsIdErr *cmderror.CmdError
@@ -122,8 +111,11 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(getFsIdErr.Message)
 		}
 	}
+
 	pCmd.fsId2Rows = make(map[uint32][]map[string]string)
 	pCmd.fsId2PartitionList = make(map[uint32][]*common.PartitionInfo)
+	timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
+	retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 	for _, fsId := range fsIds {
 		id, err := strconv.ParseUint(fsId, 10, 32)
 		if err != nil {
@@ -135,8 +127,6 @@ func (pCmd *PartitionCommand) Init(cmd *cobra.Command, args []string) error {
 		rpc := &ListPartitionRpc{
 			Request: request,
 		}
-		timeout := viper.GetDuration(config.VIPER_GLOBALE_RPCTIMEOUT)
-		retrytimes := viper.GetInt32(config.VIPER_GLOBALE_RPCRETRYTIMES)
 		rpc.Info = basecmd.NewRpc(addrs, timeout, retrytimes, "ListPartition")
 		pCmd.Rpc = append(pCmd.Rpc, rpc)
 		pCmd.fsId2Rows[id32] = make([]map[string]string, 1)
@@ -161,6 +151,11 @@ func (pCmd *PartitionCommand) Print(cmd *cobra.Command, args []string) error {
 func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	var infos []*basecmd.Rpc
 	var funcs []basecmd.RpcFunc
+	if len(pCmd.Rpc) == 0 {
+		pCmd.Result = "no partition in cluster"
+		pCmd.Error = cmderror.ErrSuccess()
+		return nil
+	}
 	for _, rpc := range pCmd.Rpc {
 		infos = append(infos, rpc.Info)
 		funcs = append(funcs, rpc)
@@ -213,20 +208,21 @@ func (pCmd *PartitionCommand) RunCommand(cmd *cobra.Command, args []string) erro
 }
 
 func (pCmd *PartitionCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd, pCmd)
+	if pCmd.TableNew.NumLines() ==0 {
+		fmt.Println("no partition in cluster")
+		return nil
+	}
+	return output.FinalCmdOutputPlain(&pCmd.FinalCurveCmd)
 }
 
 func (pCmd *PartitionCommand) updateTable() {
 	var total []map[string]string
 	for _, rows := range pCmd.fsId2Rows {
-		for _, row := range rows {
-			pCmd.Table.AddRow(row)
-			total = append(total, row)
-		}
+		total = append(total, rows...)
 	}
 	list := cobrautil.ListMap2ListSortByKeys(total, pCmd.Header, []string{
 		cobrautil.ROW_FS_ID, cobrautil.ROW_POOL_ID, cobrautil.ROW_COPYSET_ID,
-		cobrautil.ROW_START, cobrautil.ROW_PARTITION_ID, 
+		cobrautil.ROW_START, cobrautil.ROW_PARTITION_ID,
 	})
 	pCmd.TableNew.AppendBulk(list)
 }
@@ -247,7 +243,7 @@ func GetFsPartition(caller *cobra.Command) (*map[uint32][]*common.PartitionInfo,
 	listPartionCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, listPartionCmd.Cmd, []string{
+	config.AlignFlagsValue(caller, listPartionCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 		config.CURVEFS_FSID,
 	})

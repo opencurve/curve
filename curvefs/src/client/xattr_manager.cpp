@@ -30,40 +30,19 @@ namespace client {
 
 using ::curve::common::StringToUll;
 using ::curve::common::Thread;
+using ::curvefs::client::common::AddUllStringToFirst;
 
-// if direction is true means '+', false means '-'
-bool AddUllStringToFirst(std::string *first, uint64_t second, bool direction) {
-    uint64_t firstNum = 0;
-    uint64_t secondNum = second;
-    if (StringToUll(*first, &firstNum)) {
-        if (direction) {
-            *first = std::to_string(firstNum + secondNum);
-        } else {
-            if (firstNum < secondNum) {
-                *first = std::to_string(0);
-                LOG(WARNING) << "AddUllStringToFirst failed when minus,"
-                             << " first = " << firstNum
-                             << ", second = " << secondNum;
-                return false;
-            }
-            *first = std::to_string(firstNum - secondNum);
-        }
-    } else {
-        LOG(ERROR) << "StringToUll failed, first = " << *first
-                   << ", second = " << second;
-        return false;
-    }
-    return true;
+bool IsSummaryInfo(const char *name) {
+    return std::strstr(name, SUMMARYPREFIX);
 }
 
-bool AddUllStringToFirst(uint64_t *first, const std::string &second) {
-    uint64_t secondNum = 0;
-    if (StringToUll(second, &secondNum)) {
-        *first += secondNum;
+bool IsOneLayer(const char *name) {
+    if (std::strcmp(name, XATTRFILES) == 0 ||
+        std::strcmp(name, XATTRSUBDIRS) == 0 ||
+        std::strcmp(name, XATTRENTRIES) == 0 ||
+        std::strcmp(name, XATTRFBYTES) == 0) {
         return true;
     }
-
-    LOG(ERROR) << "StringToUll failed, second = " << second;
     return false;
 }
 
@@ -441,6 +420,43 @@ CURVEFS_ERROR XattrManager::FastCalAllLayerSumInfo(InodeAttr *attr) {
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR XattrManager::GetXattr(const char* name, std::string *value,
+    InodeAttr *attr, bool enableSumInDir) {
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    // get summary info if the xattr name is summary type
+    if (IsSummaryInfo(name) && attr->type() == FsFileType::TYPE_DIRECTORY) {
+        // if not enable record summary info in dir xattr,
+        // need recursive computation all files;
+        // otherwise only recursive computation all dirs.
+        if (!enableSumInDir) {
+            if (IsOneLayer(name)) {
+                ret = CalOneLayerSumInfo(attr);
+            } else {
+                ret = CalAllLayerSumInfo(attr);
+            }
+        } else {
+            if (IsOneLayer(name)) {
+                ret = FastCalOneLayerSumInfo(attr);
+            } else {
+                ret = FastCalAllLayerSumInfo(attr);
+            }
+        }
+
+        if (CURVEFS_ERROR::OK != ret) {
+            return ret;
+        }
+        LOG(INFO) << "After calculate summary info:\n"
+                  << attr->DebugString();
+    }
+
+    auto it = attr->xattr().find(name);
+    if (it != attr->xattr().end()) {
+        *value = it->second;
+    }
+    return ret;
+}
+
+
 CURVEFS_ERROR XattrManager::UpdateParentInodeXattr(uint64_t parentId,
     const XAttr &xattr, bool direction) {
     VLOG(9) << "UpdateParentInodeXattr inodeId = " << parentId
@@ -455,10 +471,11 @@ CURVEFS_ERROR XattrManager::UpdateParentInodeXattr(uint64_t parentId,
     }
 
     ::curve::common::UniqueLock lgGuard = pInodeWrapper->GetUniqueLock();
-    auto inode = pInodeWrapper->GetMutableInodeUnlocked();
+    auto inodeXAttr = pInodeWrapper->GetInodeLocked()->xattr();
+    bool update = false;
     for (const auto &it : xattr.xattrinfos()) {
-        auto iter = inode->mutable_xattr()->find(it.first);
-        if (iter != inode->mutable_xattr()->end()) {
+        auto iter = inodeXAttr.find(it.first);
+        if (iter != inodeXAttr.end()) {
             uint64_t dat = 0;
             if (StringToUll(it.second, &dat)) {
                 if (!AddUllStringToFirst(&(iter->second), dat, direction)) {
@@ -468,9 +485,15 @@ CURVEFS_ERROR XattrManager::UpdateParentInodeXattr(uint64_t parentId,
                 LOG(ERROR) << "StringToUll failed, first = " << it.second;
                 return CURVEFS_ERROR::INTERNAL;
             }
+            update = true;
         }
     }
-    inodeManager_->ShipToFlush(pInodeWrapper);
+
+    if (update) {
+        pInodeWrapper->MergeXAttrLocked(inodeXAttr);
+        inodeManager_->ShipToFlush(pInodeWrapper);
+    }
+
     return CURVEFS_ERROR::OK;
 }
 

@@ -1,0 +1,12 @@
+Diagnostics:
+  ClangTidy:
+    Add: [performance-*, modernize-*, readability-*,bugprone-*,]
+    Remove: [modernize-use-trailing-return-type]
+    CheckOptions:
+      readability-identifier-naming.VariableCase: camelBack
+  UnusedIncludes: Strict
+
+InlayHints:
+  Enabled: No
+  ParameterNames: No
+  DeducedTypes: No

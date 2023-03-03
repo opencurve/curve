@@ -25,7 +25,6 @@ package mountpoint
 import (
 	"fmt"
 
-	"github.com/liushuochen/gotable"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -43,6 +42,7 @@ const (
 type MountpointCommand struct {
 	basecmd.FinalCurveCmd
 	fsInfo *mds.ListClusterFsInfoResponse
+	number uint64
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*MountpointCommand)(nil) // check interface
@@ -73,14 +73,10 @@ func (mpCmd *MountpointCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 	mpCmd.Error = fsInfoErr
 
-	table, err := gotable.Create(cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT)
 	header := []string{cobrautil.ROW_FS_ID, cobrautil.ROW_FS_NAME, cobrautil.ROW_MOUNTPOINT}
 	mpCmd.SetHeader(header)
 	mpCmd.TableNew.SetAutoMergeCells(true)
-	if err != nil {
-		return err
-	}
-	mpCmd.Table = table
+
 	return nil
 }
 
@@ -101,6 +97,7 @@ func (mpCmd *MountpointCommand) updateTable() {
 			continue
 		}
 		for _, mountpoint := range fsInfo.GetMountpoints() {
+			mpCmd.number++
 			row := make(map[string]string)
 			row[cobrautil.ROW_FS_ID] = fmt.Sprintf("%d", fsInfo.GetFsId())
 			row[cobrautil.ROW_FS_NAME] = fsInfo.GetFsName()
@@ -109,12 +106,14 @@ func (mpCmd *MountpointCommand) updateTable() {
 			rows = append(rows, row)
 		}
 	}
-	mpCmd.Table.AddRows(rows)
 	list := cobrautil.ListMap2ListSortByKeys(rows, mpCmd.Header, []string{cobrautil.ROW_FS_ID})
 	mpCmd.TableNew.AppendBulk(list)
 	mpCmd.Result = rows
 }
 
 func (mpCmd *MountpointCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mpCmd.FinalCurveCmd, mpCmd)
+	if mpCmd.number == 0 {
+		fmt.Println("no mountpoint in curvefs")
+	}
+	return output.FinalCmdOutputPlain(&mpCmd.FinalCurveCmd)
 }

@@ -32,7 +32,7 @@ cc_test(
             "//src/common:curve_common",
             "//curvefs/proto:space_cc_proto",
             "//curvefs/test/mds/mock:curvefs_mds_mock",
-            "//test/common:common_mock"
+            "//test/common:common_mock",
     ],
 )
 
@@ -51,5 +51,20 @@ cc_test(
             "//src/common:curve_common",
             "//curvefs/proto:space_cc_proto",
             "//curvefs/test/mds/mock:curvefs_mds_mock",
+    ],
+)
+
+cc_test(
+    name = "curvefs_metaserver_balance_poc_test",
+    srcs = glob([
+        "metaserver_balance_poc.cpp",
+        "mock_etcdclient.h"
+    ]),
+    copts = CURVE_TEST_COPTS,
+    deps = [
+            "//external:gtest",
+            "//curvefs/src/mds/topology:curvefs_topology",
+            "//curvefs/test/mds/mock:curvefs_mds_mock",
+            "//curvefs/src/mds/schedule:curvefs_schedule",
     ],
 )

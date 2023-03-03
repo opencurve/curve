@@ -40,7 +40,9 @@ func ListMap2ListSortByKeys(rows []map[string]string, headers []string, keys []s
 	var keysIndex []int
 	for _, key := range keys {
 		keyIndex := slices.Index(headers, key)
-		keysIndex = append(keysIndex, keyIndex)
+		if keyIndex != -1 {
+			keysIndex = append(keysIndex, keyIndex)
+		}
 	}
 	if len(keysIndex) > 0 {
 		sort.SliceStable(ret, func(i, j int) bool {
@@ -53,6 +55,17 @@ func ListMap2ListSortByKeys(rows []map[string]string, headers []string, keys []s
 			}
 			return false
 		})
+	}
+	return ret
+}
+
+func GetIndexSlice(source []string, target []string) []int {
+	var ret []int
+	for _, i := range target {
+		index := slices.Index(source, i)
+		if index != -1 {
+			ret = append(ret, index)
+		}
 	}
 	return ret
 }

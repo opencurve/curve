@@ -23,6 +23,8 @@
 #ifndef CURVEFS_SRC_METASERVER_INODE_MANAGER_H_
 #define CURVEFS_SRC_METASERVER_INODE_MANAGER_H_
 
+#include <time.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -33,11 +35,16 @@
 #include "curvefs/src/metaserver/trash.h"
 #include "src/common/concurrent/name_lock.h"
 
+
 using ::curve::common::NameLock;
 using ::curvefs::metaserver::S3ChunkInfoList;
 
 namespace curvefs {
 namespace metaserver {
+
+using FileType2InodeNumMap =
+    ::google::protobuf::Map<::google::protobuf::int32,
+                            ::google::protobuf::uint64>;
 
 struct InodeParam {
     uint32_t fsId;
@@ -49,18 +56,25 @@ struct InodeParam {
     std::string symlink;
     uint64_t rdev;
     uint64_t parent;
+    absl::optional<struct timespec> timestamp;
 };
 
 class InodeManager {
  public:
-    InodeManager(const std::shared_ptr<InodeStorage> &inodeStorage,
-        const std::shared_ptr<Trash> &trash)
+    InodeManager(const std::shared_ptr<InodeStorage>& inodeStorage,
+                 const std::shared_ptr<Trash>& trash,
+                 FileType2InodeNumMap* type2InodeNum)
         : inodeStorage_(inodeStorage),
-          trash_(trash) {}
+          trash_(trash),
+          type2InodeNum_(type2InodeNum) {}
 
     MetaStatusCode CreateInode(uint64_t inodeId, const InodeParam &param,
                                Inode *inode);
     MetaStatusCode CreateRootInode(const InodeParam &param);
+
+    MetaStatusCode CreateManageInode(const InodeParam &param,
+                                     ManageInodeType manageType,
+                                     Inode *inode);
 
     MetaStatusCode GetInode(uint32_t fsId,
                             uint64_t inodeId,
@@ -74,8 +88,7 @@ class InodeManager {
 
     MetaStatusCode DeleteInode(uint32_t fsId, uint64_t inodeId);
 
-    MetaStatusCode UpdateInode(const UpdateInodeRequest& request, Inode* old,
-                               int* deletedNum);
+    MetaStatusCode UpdateInode(const UpdateInodeRequest& request);
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId,
@@ -132,6 +145,8 @@ class InodeManager {
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<Trash> trash_;
+    FileType2InodeNumMap* type2InodeNum_;
+
     NameLock inodeLock_;
 };
 

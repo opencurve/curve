@@ -14,6 +14,14 @@
 #  limitations under the License.
 #
 
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "gtest_prod",
+    hdrs = ["googletest/include/gtest/gtest_prod.h"],
+    includes = ["googletest/include"],
+)
+
 cc_library(
       name = "gtest",
       srcs = [

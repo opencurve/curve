@@ -49,6 +49,7 @@ namespace common {
 DEFINE_bool(enableCto, true, "acheieve cto consistency");
 DEFINE_bool(useFakeS3, false,
             "Use fake s3 to inject more metadata for testing metaserver");
+DEFINE_bool(supportKVcache, false, "use kvcache to speed up sharing");
 
 void InitMdsOption(Configuration *conf, MdsOption *mdsOpt) {
     conf->GetValueFatalIfFail("mdsOpt.mdsMaxRetryMS", &mdsOpt->mdsMaxRetryMS);
@@ -85,26 +86,26 @@ void InitMetaCacheOption(Configuration *conf, MetaCacheOpt *opts) {
 
 void InitExcutorOption(Configuration *conf, ExcutorOpt *opts, bool internal) {
     if (internal) {
-        conf->GetValueFatalIfFail("excutorOpt.maxInternalRetry",
+        conf->GetValueFatalIfFail("executorOpt.maxInternalRetry",
                                   &opts->maxRetry);
     } else {
-        conf->GetValueFatalIfFail("excutorOpt.maxRetry", &opts->maxRetry);
+        conf->GetValueFatalIfFail("executorOpt.maxRetry", &opts->maxRetry);
     }
 
-    conf->GetValueFatalIfFail("excutorOpt.retryIntervalUS",
+    conf->GetValueFatalIfFail("executorOpt.retryIntervalUS",
                               &opts->retryIntervalUS);
-    conf->GetValueFatalIfFail("excutorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
-    conf->GetValueFatalIfFail("excutorOpt.rpcStreamIdleTimeoutMS",
+    conf->GetValueFatalIfFail("executorOpt.rpcTimeoutMS", &opts->rpcTimeoutMS);
+    conf->GetValueFatalIfFail("executorOpt.rpcStreamIdleTimeoutMS",
                               &opts->rpcStreamIdleTimeoutMS);
-    conf->GetValueFatalIfFail("excutorOpt.maxRPCTimeoutMS",
+    conf->GetValueFatalIfFail("executorOpt.maxRPCTimeoutMS",
                               &opts->maxRPCTimeoutMS);
-    conf->GetValueFatalIfFail("excutorOpt.maxRetrySleepIntervalUS",
+    conf->GetValueFatalIfFail("executorOpt.maxRetrySleepIntervalUS",
                               &opts->maxRetrySleepIntervalUS);
-    conf->GetValueFatalIfFail("excutorOpt.minRetryTimesForceTimeoutBackoff",
+    conf->GetValueFatalIfFail("executorOpt.minRetryTimesForceTimeoutBackoff",
                               &opts->minRetryTimesForceTimeoutBackoff);
-    conf->GetValueFatalIfFail("excutorOpt.maxRetryTimesBeforeConsiderSuspend",
+    conf->GetValueFatalIfFail("executorOpt.maxRetryTimesBeforeConsiderSuspend",
                               &opts->maxRetryTimesBeforeConsiderSuspend);
-    conf->GetValueFatalIfFail("excutorOpt.batchInodeAttrLimit",
+    conf->GetValueFatalIfFail("executorOpt.batchInodeAttrLimit",
                               &opts->batchInodeAttrLimit);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &opts->enableRenameParallel);
@@ -112,8 +113,7 @@ void InitExcutorOption(Configuration *conf, ExcutorOpt *opts, bool internal) {
 
 void InitBlockDeviceOption(Configuration *conf,
                            BlockDeviceClientOptions *bdevOpt) {
-    conf->GetValueFatalIfFail("bdev.confpath", &bdevOpt->configPath);
-    conf->GetValueFatalIfFail("bdev.threadnum", &bdevOpt->threadnum);
+    conf->GetValueFatalIfFail("bdev.confPath", &bdevOpt->configPath);
 }
 
 void InitDiskCacheOption(Configuration *conf,
@@ -159,15 +159,15 @@ void InitS3Option(Configuration *conf, S3Option *s3Opt) {
     conf->GetValueFatalIfFail("s3.fakeS3", &FLAGS_useFakeS3);
     conf->GetValueFatalIfFail("s3.fuseMaxSize",
                               &s3Opt->s3ClientAdaptorOpt.fuseMaxSize);
-    conf->GetValueFatalIfFail("s3.pagesize",
+    conf->GetValueFatalIfFail("s3.pageSize",
                               &s3Opt->s3ClientAdaptorOpt.pageSize);
     conf->GetValueFatalIfFail("s3.prefetchBlocks",
                               &s3Opt->s3ClientAdaptorOpt.prefetchBlocks);
     conf->GetValueFatalIfFail("s3.prefetchExecQueueNum",
                               &s3Opt->s3ClientAdaptorOpt.prefetchExecQueueNum);
-    conf->GetValueFatalIfFail("s3.intervalSec",
+    conf->GetValueFatalIfFail("s3.threadScheduleInterval",
                               &s3Opt->s3ClientAdaptorOpt.intervalSec);
-    conf->GetValueFatalIfFail("s3.flushIntervalSec",
+    conf->GetValueFatalIfFail("s3.cacheFlushIntervalSec",
                               &s3Opt->s3ClientAdaptorOpt.flushIntervalSec);
     conf->GetValueFatalIfFail("s3.chunkFlushThreads",
                               &s3Opt->s3ClientAdaptorOpt.chunkFlushThreads);
@@ -197,15 +197,15 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
                               &volumeOpt->allocatorOption.type);
 
     conf->GetValueFatalIfFail(
-        "volume.blockgroup.allocate_once",
+        "volume.blockGroup.allocateOnce",
         &volumeOpt->allocatorOption.blockGroupOption.allocateOnce);
 
     if (volumeOpt->allocatorOption.type == "bitmap") {
         conf->GetValueFatalIfFail(
-            "volume.bitmapallocator.size_per_bit",
+            "volume.bitmapAllocator.sizePerBit",
             &volumeOpt->allocatorOption.bitmapAllocatorOption.sizePerBit);
         conf->GetValueFatalIfFail(
-            "volume.bitmapallocator.small_alloc_proportion",
+            "volume.bitmapAllocator.smallAllocProportion",
             &volumeOpt->allocatorOption.bitmapAllocatorOption
                  .smallAllocProportion);
     } else {
@@ -223,6 +223,24 @@ void InitLeaseOpt(Configuration *conf, LeaseOpt *leaseOpt) {
     conf->GetValueFatalIfFail("mds.leaseTimesUs", &leaseOpt->leaseTimeUs);
     conf->GetValueFatalIfFail("mds.refreshTimesPerLease",
                               &leaseOpt->refreshTimesPerLease);
+}
+
+void InitRefreshDataOpt(Configuration *conf,
+                        RefreshDataOption *opt) {
+    conf->GetValueFatalIfFail("fuseClient.maxDataSize",
+                              &opt->maxDataSize);
+    conf->GetValueFatalIfFail("fuseClient.refreshDataIntervalSec",
+                              &opt->refreshDataIntervalSec);
+}
+
+void InitKVClientManagerOpt(Configuration *conf,
+                               KVClientManagerOpt *config) {
+    conf->GetValueFatalIfFail("fuseClient.supportKVcache",
+                              &FLAGS_supportKVcache);
+    conf->GetValueFatalIfFail("fuseClient.setThreadPool",
+                              &config->setThreadPooln);
+    conf->GetValueFatalIfFail("fuseClient.getThreadPool",
+                              &config->getThreadPooln);
 }
 
 void SetBrpcOpt(Configuration *conf) {
@@ -243,6 +261,8 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitExtentManagerOption(conf, &clientOption->extentManagerOpt);
     InitVolumeOption(conf, &clientOption->volumeOpt);
     InitLeaseOpt(conf, &clientOption->leaseOpt);
+    InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
+    InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
 
     conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
                               &clientOption->attrTimeOut);
@@ -264,18 +284,29 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
                               &clientOption->enableICacheMetrics);
     conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
                               &clientOption->enableDCacheMetrics);
-    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
-    conf->GetValueFatalIfFail("client.dummyserver.startport",
+    conf->GetValueFatalIfFail("fuseClient.lruTimeOutSec",
+                              &clientOption->lruTimeOutSec);
+    conf->GetValueFatalIfFail("client.dummyServer.startPort",
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
     conf->GetValueFatalIfFail("fuseClient.disableXattr",
                               &clientOption->disableXattr);
-
+    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
+    conf->GetValueFatalIfFail("fuseClient.downloadMaxRetryTimes",
+                              &clientOption->downloadMaxRetryTimes);
+    conf->GetValueFatalIfFail("fuseClient.warmupThreadsNum",
+                              &clientOption->warmupThreadsNum);
     LOG_IF(WARNING, conf->GetBoolValue("fuseClient.enableSplice",
                                        &clientOption->enableFuseSplice))
         << "Not found `fuseClient.enableSplice` in conf, use default value `"
         << std::boolalpha << clientOption->enableFuseSplice << '`';
+
+    // if enableCto, attr and entry cache must invalid
+    if (FLAGS_enableCto) {
+        clientOption->attrTimeOut = 0;
+        clientOption->entryTimeOut = 0;
+    }
 
     SetBrpcOpt(conf);
 }

@@ -17,6 +17,12 @@ ${vm_iops_limit}   8000
 ${chunk_num}   0
 
 *** Test Cases ***
+begin pjdtest
+    [Tags]   P2  base    interface    pjdtest
+    ${pjdfs}    evaluate    str("failover-pjdtest")
+    mount test dir   ${pjdfs}
+    start pjdtest    ${pjdfs}
+
 inject kill one mds
     [Tags]    P0    base    first release   failover
     ${num}   evaluate  int(1)
@@ -151,6 +157,10 @@ test ipmitool restart metaserver node
    check fuse iops
    [Teardown]   wait fs cluster ok
 
+test check pjdtest result
+    [Tags]   P2  base    interface    pjdtest
+    check pjdtest result
+
 test loop mount umount
     [Tags]    P0    base    first release   failover
     sleep   30
@@ -250,6 +260,7 @@ check umount date consistency
     sleep  60
     get test dir file md5
     umount test dir   test2
+    sleep  120
     wait fuse exit   failover/test2
     mount test dir   test2
     sleep  60
@@ -264,10 +275,10 @@ init failover cluster
      destroy curvefs
      clean log
      deploy all servers
-     check fs cluster ok
      sleep  30
+     check fs cluster ok
      mount test dir
-     sleep  10
+     sleep  40
      check fuse mount success
      write check data
      cp check data

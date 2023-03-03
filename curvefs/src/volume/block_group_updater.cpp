@@ -34,6 +34,7 @@ namespace curvefs {
 namespace volume {
 
 void BlockGroupBitmapUpdater::Update(const Extent& ext, Op op) {
+    assert(ext.len != 0);
     std::lock_guard<std::mutex> lk(bitmapMtx_);
 
     uint64_t startOffset = ext.offset - groupOffset_;

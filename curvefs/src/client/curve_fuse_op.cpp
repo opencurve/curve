@@ -23,6 +23,9 @@
 
 #include <string>
 #include <memory>
+#include <cstring>
+#include <utility>
+#include <vector>
 
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_client.h"
@@ -39,6 +42,7 @@
 #include "curvefs/src/client/metric/client_metric.h"
 #include "curvefs/src/common/metric_utils.h"
 #include "curvefs/src/common/dynamic_vlog.h"
+#include "curvefs/src/client/warmup/warmup_manager.h"
 
 using ::curve::common::Configuration;
 using ::curvefs::client::CURVEFS_ERROR;
@@ -46,12 +50,12 @@ using ::curvefs::client::FuseClient;
 using ::curvefs::client::FuseS3Client;
 using ::curvefs::client::FuseVolumeClient;
 using ::curvefs::client::common::FuseClientOption;
-using ::curvefs::client::common::MAXXATTRLENGTH;
 using ::curvefs::client::rpcclient::MdsClientImpl;
 using ::curvefs::client::rpcclient::MDSBaseClient;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::client::metric::InflightGuard;
+using ::curvefs::client::common::FileHandle;
 
 using ::curvefs::common::FLAGS_vlog_level;
 
@@ -241,6 +245,9 @@ void FuseReplyErrByErrCode(fuse_req_t req, CURVEFS_ERROR errcode) {
     case CURVEFS_ERROR::NODATA:
         fuse_reply_err(req, ENODATA);
         break;
+    case CURVEFS_ERROR::EXISTS:
+        fuse_reply_err(req, EEXIST);
+        break;
     default:
         fuse_reply_err(req, EIO);
         break;
@@ -273,13 +280,108 @@ void FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) {
     fuse_reply_attr(req, &attr, g_fuseClientOption->attrTimeOut);
 }
 
+int AddWarmupTask(curvefs::client::common::WarmupType type, fuse_ino_t key,
+                  const std::string &path) {
+    int ret = 0;
+    bool result = true;
+    switch (type) {
+    case curvefs::client::common::WarmupType::kWarmupTypeList:
+        result = g_ClientInstance->PutWarmFilelistTask(key);
+        break;
+    case curvefs::client::common::WarmupType::kWarmupTypeSingle:
+        result = g_ClientInstance->PutWarmFileTask(key, path);
+        break;
+    default:
+        // not support add warmup type (warmup single file/dir or filelist)
+        LOG(ERROR) << "not support warmup type, only support single/list";
+        ret = EOPNOTSUPP;
+    }
+    if (!result) {
+        ret = ERANGE;
+    }
+    return ret;
+}
+
+void QueryWarmupTask(fuse_ino_t key, std::string *data) {
+    curvefs::client::warmup::WarmupProgress progress;
+    bool ret = g_ClientInstance->GetWarmupProgress(key, &progress);
+    if (!ret) {
+        *data = "finished";
+    } else {
+        *data = std::to_string(progress.GetFinished()) + "/" +
+                std::to_string(progress.GetTotal());
+    }
+    VLOG(9) << "Warmup [" << key << "]" << *data;
+}
+
+int Warmup(fuse_ino_t key, const std::string& name, const std::string& value) {
+    // warmup
+    if (g_ClientInstance->GetFsInfo()->fstype() != FSType::TYPE_S3) {
+        LOG(ERROR) << "warmup only support s3";
+        return EOPNOTSUPP;
+    }
+
+    std::vector<std::string> opTypePath;
+    curve::common::SplitString(value, "\n", &opTypePath);
+    if (opTypePath.size() != 3) {
+        LOG(ERROR) << name << " has invalid xattr value " << value;
+        return ERANGE;
+    }
+    int ret = 0;
+    switch (curvefs::client::common::GetWarmupOpType(opTypePath[0])) {
+    case curvefs::client::common::WarmupOpType::kWarmupOpAdd:
+        ret =
+            AddWarmupTask(curvefs::client::common::GetWarmupType(opTypePath[1]),
+                          key, opTypePath[2]);
+        if (ret != 0) {
+            LOG(ERROR) << name << " has invalid xattr value " << value;
+        }
+        break;
+    default:
+        LOG(ERROR) << name << " has invalid xattr value " << value;
+        ret = ERANGE;
+    }
+    return ret;
+}
+
+void FuseOpSetXattr(fuse_req_t req, fuse_ino_t ino, const char* name,
+                    const char* value, size_t size, int flags) {
+    std::string xattrValue(value, size);
+    VLOG(9) << "FuseOpSetXattr"
+            << " ino " << ino << " name " << name << " value " << xattrValue
+            << " flags " << flags;
+    if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
+        // warmup
+        int code = Warmup(ino, name, xattrValue);
+        fuse_reply_err(req, code);
+    } else {
+        // set xattr
+        CURVEFS_ERROR ret = g_ClientInstance->FuseOpSetXattr(req, ino, name,
+            value, size, flags);
+        FuseReplyErrByErrCode(req, ret);
+    }
+
+    VLOG(9) << "FuseOpSetXattr done";
+}
+
 void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
-    size_t size) {
+                    size_t size) {
+    if (strcmp(name, curvefs::client::common::kCurveFsWarmupXAttr) == 0) {
+        // warmup
+        std::string data;
+        QueryWarmupTask(ino, &data);
+        if (size == 0) {
+            fuse_reply_xattr(req, data.length());
+        } else {
+            fuse_reply_buf(req, data.data(), data.length());
+        }
+        return;
+    }
     InflightGuard guard(&g_clientOpMetric->opGetXattr.inflightOpNum);
     LatencyUpdater updater(&g_clientOpMetric->opGetXattr.latency);
-    char buf[MAXXATTRLENGTH] = {0};
+    std::string buf;
     CURVEFS_ERROR ret = g_ClientInstance->FuseOpGetXattr(req, ino, name,
-                                                         buf, size);
+                                                         &buf, size);
     if (ret != CURVEFS_ERROR::OK) {
         g_clientOpMetric->opGetXattr.ecount << 1;
         FuseReplyErrByErrCode(req, ret);
@@ -287,9 +389,9 @@ void FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino, const char *name,
     }
 
     if (size == 0) {
-        fuse_reply_xattr(req, strlen(buf));
+        fuse_reply_xattr(req, buf.length());
     } else {
-        fuse_reply_buf(req, buf, strlen(buf));
+        fuse_reply_buf(req, buf.data(), buf.length());
     }
 }
 

@@ -204,6 +204,15 @@ CheckResult checkCopysetHelthy(
         copysetStatusVec.size()) {
         return CheckResult::kPeersNoSufficient;
     }
+    for (auto const& i : copysetStatusVec) {
+        auto const& opStatus = i.status();
+        if (opStatus != metaserver::copyset::COPYSET_OP_STATUS_SUCCESS &&
+            opStatus != metaserver::copyset::COPYSET_OP_STATUS_EXIST &&
+            opStatus !=
+                metaserver::copyset::COPYSET_OP_STATUS_COPYSET_IS_HEALTHY) {
+            return CheckResult::kPeerOpNotOk;
+        }
+    }
 
     return CheckResult::kHealthy;
 }

@@ -57,7 +57,7 @@ InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
     : kvStorage_(std::move(kvStorage)),
       table4Inode_(nameGenerator->GetInodeTableName()),
       table4S3ChunkInfo_(nameGenerator->GetS3ChunkInfoTableName()),
-      table4VolumeExtent_(nameGenerator->GetVolumnExtentTableName()),
+      table4VolumeExtent_(nameGenerator->GetVolumeExtentTableName()),
       table4InodeAuxInfo_(nameGenerator->GetInodeAuxInfoTableName()),
       nInode_(nInode),
       conv_() {}
@@ -139,9 +139,6 @@ MetaStatusCode InodeStorage::GetAttr(const Key4Inode& key,
     }
     if (inode.has_dtime()) {
         attr->set_dtime(inode.dtime());
-    }
-    if (inode.has_openmpcount()) {
-        attr->set_openmpcount(inode.openmpcount());
     }
     if (inode.xattr_size() > 0) {
         *(attr->mutable_xattr()) = inode.xattr();

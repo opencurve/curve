@@ -59,6 +59,7 @@ class RenameOperator {
     CURVEFS_ERROR UnlinkSrcParentInode();
     void UnlinkOldInode();
     CURVEFS_ERROR UpdateInodeParent();
+    CURVEFS_ERROR UpdateInodeCtime();
     void UpdateCache();
 
     void GetOldInode(uint64_t *oldInodeId, int64_t *oldInodeSize,
@@ -68,9 +69,9 @@ class RenameOperator {
         *oldInodeType = oldInodeType_;
     }
 
- private:
     std::string DebugString();
 
+ private:
     CURVEFS_ERROR CheckOverwrite();
 
     CURVEFS_ERROR GetLatestTxIdWithLock();

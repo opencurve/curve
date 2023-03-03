@@ -64,14 +64,14 @@ Figure 3 below shows the relation between segment and chunk:
     <font size=3> Figure 3: Relation between segment and chunk</font>
 </p>
 
-Namespace info is rather intuitive, which is the hierachy of files:
+Namespace info is rather intuitive, which is the hierarchy of files:
 
 <p align="center">
     <img src="../images/mds-nameserver.png" alt="mds-nameserver.png" width="700"><br>
     <font size=3> Figure 4: Example of namespace data and operations </font>
 </p>
 
-Figure 4 illustrates how namespace info is stored in form of KV pairs. The key consists of parent directory ID and target name (seperated by a '/'), and the value is the ID of the target file. In this way we struck a great balance between the workload of some of the operations we implemented:
+Figure 4 illustrates how namespace info is stored in form of KV pairs. The key consists of parent directory ID and target name (separated by a '/'), and the value is the ID of the target file. In this way we struck a great balance between the workload of some of the operations we implemented:
 
 1. List: List all file and directories under a certain directory.
 2. Find: Find a specific file under a location

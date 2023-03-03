@@ -78,17 +78,17 @@ void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt) {
 
 void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
                                            S3AdapterOption* s3Opt) {
-    LOG_IF(FATAL, !conf->GetIntValue("s3.loglevel", &s3Opt->loglevel));
+    LOG_IF(FATAL, !conf->GetIntValue("s3.logLevel", &s3Opt->loglevel));
     LOG_IF(FATAL, !conf->GetStringValue("s3.logPrefix", &s3Opt->logPrefix));
     LOG_IF(FATAL, !conf->GetIntValue("s3.http_scheme", &s3Opt->scheme));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.verify_SSL", &s3Opt->verifySsl));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.max_connections",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.maxConnections",
         &s3Opt->maxConnections));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.connect_timeout",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.connectTimeout",
         &s3Opt->connectTimeout));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.request_timeout",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.requestTimeout",
         &s3Opt->requestTimeout));
-    LOG_IF(FATAL, !conf->GetIntValue("s3.async_thread_num",
+    LOG_IF(FATAL, !conf->GetIntValue("s3.asyncThreadNum",
         &s3Opt->asyncThreadNum));
     LOG_IF(FATAL, !conf->GetUInt64Value("s3.throttle.iopsTotalLimit",
         &s3Opt->iopsTotalLimit));
@@ -104,10 +104,11 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
         &s3Opt->bpsWriteMB));
     LOG_IF(FATAL, !conf->GetBoolValue("s3.useVirtualAddressing",
         &s3Opt->useVirtualAddressing));
+    LOG_IF(FATAL, !conf->GetStringValue("s3.region", &s3Opt->region));
 
-    if (!conf->GetUInt64Value("s3.max_async_request_inflight_bytes",
+    if (!conf->GetUInt64Value("s3.maxAsyncRequestInflightBytes",
                               &s3Opt->maxAsyncRequestInflightBytes)) {
-        LOG(WARNING) << "Not found s3.max_async_request_inflight_bytes in conf";
+        LOG(WARNING) << "Not found s3.maxAsyncRequestInflightBytes in conf";
         s3Opt->maxAsyncRequestInflightBytes = 0;
     }
 }
@@ -150,6 +151,7 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     clientCfg_->verifySSL = option.verifySsl;
     //clientCfg_->userAgent = conf_.GetStringValue("s3.user_agent_conf").c_str();  //NOLINT
     clientCfg_->userAgent = "S3 Browser";
+    clientCfg_->region = option.region.c_str();
     clientCfg_->maxConnections = option.maxConnections;
     clientCfg_->connectTimeoutMs = option.connectTimeout;
     clientCfg_->requestTimeoutMs = option.requestTimeout;
@@ -184,10 +186,20 @@ void S3Adapter::Init(const S3AdapterOption &option) {
 
 void S3Adapter::Deinit() {
     // delete s3client in s3adapter
-    Aws::Delete<Aws::Client::ClientConfiguration>(clientCfg_);
-    Aws::Delete<Aws::S3::S3Client>(s3Client_);
-    delete throttle_;
-    inflightBytesThrottle_.release();
+    if (clientCfg_ != nullptr) {
+        Aws::Delete<Aws::Client::ClientConfiguration>(clientCfg_);
+        clientCfg_ = nullptr;
+    }
+    if (s3Client_ != nullptr) {
+        Aws::Delete<Aws::S3::S3Client>(s3Client_);
+        s3Client_ = nullptr;
+    }
+    if (throttle_ != nullptr) {
+        delete throttle_;
+        throttle_ = nullptr;
+    }
+    if (inflightBytesThrottle_ != nullptr)
+        inflightBytesThrottle_.release();
 }
 
 void S3Adapter::Shutdown() {
@@ -454,7 +466,7 @@ void S3Adapter::GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) {
                 << "GetObjectAsync error: "
                 << response.GetError().GetExceptionName()
                 << response.GetError().GetMessage();
-
+            ctx->actualLen = response.GetResult().GetContentLength();
             ctx->retCode = (response.IsSuccess() ? 0 : -1);
             ctx->cb(this, ctx);
         };

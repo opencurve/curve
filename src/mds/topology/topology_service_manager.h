@@ -32,7 +32,8 @@
 #include "src/mds/copyset/copyset_policy.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
-
+#include "src/mds/topology/topology_stat.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
 using curve::mds::copyset::CopysetManager;
 
@@ -52,9 +53,13 @@ class TopologyServiceManager {
  public:
     TopologyServiceManager(
         const std::shared_ptr<Topology> &topology,
+        const std::shared_ptr<TopologyStat> &topologyStat,
+        const std::shared_ptr<TopologyChunkAllocator> &topologychunkallocator,
         const std::shared_ptr<CopysetManager> &copysetManager,
         const std::shared_ptr<ChunkServerRegistInfoBuilder> &registInfoBuilder)
         : topology_(topology),
+          topoStat_(topologyStat),
+          topologyChunkAllocator_(topologychunkallocator),
           copysetManager_(copysetManager),
           registInfoBuilder_(registInfoBuilder) {}
 
@@ -72,6 +77,10 @@ class TopologyServiceManager {
 
     virtual void GetChunkServer(const GetChunkServerInfoRequest *request,
                                 GetChunkServerInfoResponse *response);
+
+    virtual void GetChunkServerInCluster(
+        const GetChunkServerInClusterRequest *request,
+        GetChunkServerInClusterResponse *response);
 
     virtual void DeleteChunkServer(const DeleteChunkServerRequest *request,
                                    DeleteChunkServerResponse *response);
@@ -239,6 +248,16 @@ class TopologyServiceManager {
      * @brief topology module
      */
     std::shared_ptr<Topology> topology_;
+
+    /**
+     * @brief topology statistic module
+     */
+    std::shared_ptr<TopologyStat> topoStat_;
+
+    /**
+     * @brief topology allocation module
+     */
+    std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
 
     /**
      * @brief copyset manager module

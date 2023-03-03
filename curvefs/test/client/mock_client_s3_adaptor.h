@@ -23,9 +23,12 @@
 #ifndef CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
 #define CURVEFS_TEST_CLIENT_MOCK_CLIENT_S3_ADAPTOR_H_
 
+#include <gmock/gmock.h>
+
 #include <memory>
 #include <string>
 
+#include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 
 namespace curvefs {
@@ -33,21 +36,6 @@ namespace client {
 
 class MockS3ClientAdaptor : public S3ClientAdaptor {
  public:
-    MockS3ClientAdaptor() {}
-    ~MockS3ClientAdaptor() {}
-/*
-    MOCK_METHOD5(Init,
-                 CURVEFS_ERROR(const S3ClientAdaptorOption &option,
-                               std::shared_ptr<S3Client> client,
-                               std::shared_ptr<InodeCacheManager> inodeManager,
-                               std::shared_ptr<MdsClient> mdsClient,
-                               std::shared_ptr<DiskCacheManagerImpl>
-                                   diskcacheManagerImpl));
-    MOCK_METHOD4(Init,
-                 CURVEFS_ERROR(const S3ClientAdaptorOption& option,
-                               std::shared_ptr<S3Client> client,
-                               std::shared_ptr<InodeCacheManager> inodeManager,
-                               std::shared_ptr<MdsClient> mdsClient));*/
     MOCK_METHOD7(Init,
                  CURVEFS_ERROR(const S3ClientAdaptorOption &option,
                                std::shared_ptr<S3Client> client,
@@ -68,13 +56,18 @@ class MockS3ClientAdaptor : public S3ClientAdaptor {
     MOCK_METHOD1(FlushAllCache, CURVEFS_ERROR(uint64_t inodeId));
     MOCK_METHOD0(FsSync, CURVEFS_ERROR());
     MOCK_METHOD0(Stop, int());
-    MOCK_METHOD2(Truncate, CURVEFS_ERROR(Inode* inode, uint64_t size));
+    MOCK_METHOD2(Truncate, CURVEFS_ERROR(InodeWrapper* inode, uint64_t size));
     MOCK_METHOD3(AllocS3ChunkId, FSStatusCode(uint32_t fsId, uint32_t idNum,
                                               uint64_t *chunkId));
     MOCK_METHOD1(SetFsId, void(uint32_t fsId));
     MOCK_METHOD1(InitMetrics, void(const std::string &fsName));
     MOCK_METHOD3(CollectMetrics,
                  void(InterfaceMetric *interface, int count, uint64_t start));
+    MOCK_METHOD0(GetDiskCacheManager, std::shared_ptr<DiskCacheManagerImpl>());
+    MOCK_METHOD0(GetS3Client, std::shared_ptr<S3Client>());
+    MOCK_METHOD0(GetBlockSize, uint64_t());
+    MOCK_METHOD0(GetChunkSize, uint64_t());
+    MOCK_METHOD0(HasDiskCache, bool());
 };
 
 }  // namespace client

@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -63,8 +64,9 @@ class MockMdsClient : public MdsClient {
     MOCK_METHOD3(AllocS3ChunkId, FSStatusCode(uint32_t fsId, uint32_t idNum,
                                               uint64_t *chunkId));
 
-    MOCK_METHOD1(GetLatestTxId,
-                 FSStatusCode(std::vector<PartitionTxId>* txIds));
+    MOCK_METHOD2(GetLatestTxId,
+                 FSStatusCode(uint32_t fsId,
+                              std::vector<PartitionTxId>* txIds));
 
     MOCK_METHOD5(GetLatestTxIdWithLock,
                  FSStatusCode(uint32_t fsId,
@@ -123,9 +125,11 @@ class MockMdsClient : public MdsClient {
 
     MOCK_METHOD3(
         ReleaseVolumeBlockGroup,
-        SpaceErrCode(uint32_t,
-                     const std::string&,
+        SpaceErrCode(uint32_t, const std::string&,
                      const std::vector<curvefs::mds::space::BlockGroup>&));
+
+    MOCK_METHOD2(AllocOrGetMemcacheCluster,
+                 bool(uint32_t, curvefs::mds::topology::MemcacheClusterInfo*));
 };
 }  // namespace rpcclient
 }  // namespace client

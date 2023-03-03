@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <memory>
 #include <list>
+#include <unordered_map>
 
 #include "src/common/configuration.h"
 #include "src/common/concurrent/concurrent.h"
@@ -33,6 +34,9 @@
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/metaserver/s3/metaserver_s3_adaptor.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
+
+namespace curvefs {
+namespace metaserver {
 
 using ::curve::common::Configuration;
 using ::curve::common::Thread;
@@ -42,9 +46,6 @@ using ::curve::common::LockGuard;
 using ::curve::common::InterruptibleSleeper;
 using ::curvefs::client::rpcclient::MdsClient;
 using ::curvefs::client::rpcclient::MdsClientImpl;
-
-namespace curvefs {
-namespace metaserver {
 
 struct TrashItem {
     uint32_t fsId;
@@ -112,10 +113,13 @@ class TrashImpl : public Trash {
 
     MetaStatusCode DeleteInodeAndData(const TrashItem &item);
 
+    uint64_t GetFsRecycleTimeHour(uint32_t fsId);
+
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
     std::shared_ptr<MdsClient> mdsClient_;
+    std::unordered_map<uint32_t, FsInfo> fsInfoMap_;
 
     std::list<TrashItem> trashItems_;
 

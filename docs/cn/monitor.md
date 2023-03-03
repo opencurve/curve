@@ -48,7 +48,7 @@ CURVE 集群监控使用 Prometheus 采集数据，并使用 Grafana 作为前�
 
 1. ```Promethethus``` 定时从 MDS、ETCD、Snapshotcloneserver、ChunkServer、Client 中的 Brpc Server 拉取相应的数据
 
-2. ```docker compose``` 用于编排docker组件的配置，包括 Promethues、Grafana、Repoter
+2. ```docker compose``` 用于编排docker组件的配置，包括 Prometheus、Grafana、Repoter
 
 3. ```python``` 脚本有多个。[target_json.py ](../../monitor/target_json.py)用于生成 prometheus 服务发现依赖的监控目标配置，生成的文件为 json 格式；该脚本依赖 [target.ini](../../monitor/target.ini) 中的配置，从配置中获取 mds、etcd 的信息。[grafana-report.py](../../monitor/grafana-report.py) 用于从 Grafana 导出 daily reporter中所需要的数据信息。
 

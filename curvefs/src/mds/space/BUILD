@@ -27,10 +27,15 @@ cc_library(
     deps = [
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",
+        "//curvefs/src/mds:curvefs_mds_fs_storage",
         "//curvefs/src/mds/codec:fs_mds_codec",
         "//external:brpc",
+        "//include/client:include_client",
+        "//src/client:curve_client",
         "//src/common:curve_common",
         "//src/kvstorageclient:kvstorage_client",
+        "@com_google_absl//absl/hash",
         "@com_google_absl//absl/memory",
+        "@com_google_googletest//:gtest_prod",
     ],
 )

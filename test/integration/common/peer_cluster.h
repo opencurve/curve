@@ -149,10 +149,24 @@ class PeerCluster {
     int SignalPeer(const Peer &peer);
     /**
      * 反复重试直到等到新的leader产生
-     * @param leaderId出参，返回leader id
+     * @param leaderPeer出参，返回leader info
      * @return 0，成功；-1 失败
      */
     int WaitLeader(Peer *leaderPeer);
+
+    /**
+     * confirm leader 
+     * @param: LogicPoolID logicalPool id
+     * @param: copysetId copyset id
+     * @param: leaderAddr leader address
+     * @param: leader leader info
+     * @return 0，成功；-1 失败
+     */
+    int ConfirmLeader(const LogicPoolID &logicPoolId,
+                        const CopysetID &copysetId,
+                        const std::string& leaderAddr,
+                        Peer *leader);
+
 
     /**
      * Stop所有的peer

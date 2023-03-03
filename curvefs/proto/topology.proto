@@ -47,6 +47,7 @@ enum TopoStatusCode {
     TOPO_METASERVER_EXIST = 22;
     TOPO_GET_AVAILABLE_COPYSET_ERROR = 23;
     TOPO_DELETE_PARTITION_ON_METASERVER_FAIL = 24;
+    TOPO_MEMCACHECLUSTER_NOT_FOUND = 25;
 }
 
 enum OnlineState {
@@ -458,6 +459,42 @@ message ListTopologyResponse {
     required ListMetaServerResponse metaservers = 5;
 }
 
+message MemcacheServerInfo {
+    required string ip = 1;
+    required uint32 port = 2;
+}
+
+message RegistMemcacheClusterRequest {
+    repeated MemcacheServerInfo servers = 1;
+}
+
+message RegistMemcacheClusterResponse {
+    required TopoStatusCode statusCode = 1;
+    optional uint32 clusterId = 2;
+}
+
+message ListMemcacheClusterRequest {
+}
+
+message MemcacheClusterInfo {
+    required uint32 clusterId = 1;
+    repeated MemcacheServerInfo servers = 2;
+}
+
+message ListMemcacheClusterResponse {
+    required TopoStatusCode statusCode = 1;
+    repeated MemcacheClusterInfo memcacheClusters = 2;
+}
+
+message AllocOrGetMemcacheClusterRequest {
+    required uint32 fsId = 1;
+}
+
+message AllocOrGetMemcacheClusterResponse {
+    required TopoStatusCode statusCode = 1;
+    optional MemcacheClusterInfo cluster = 2;
+}
+
 service TopologyService {
     rpc RegistMetaServer(MetaServerRegistRequest)       returns (MetaServerRegistResponse);
     rpc ListMetaServer(ListMetaServerRequest)           returns (ListMetaServerResponse);
@@ -493,4 +530,8 @@ service TopologyService {
     rpc StatMetadataUsage(StatMetadataUsageRequest) returns (StatMetadataUsageResponse);
 
     rpc ListTopology(ListTopologyRequest) returns (ListTopologyResponse);
+
+    rpc RegistMemcacheCluster(RegistMemcacheClusterRequest) returns (RegistMemcacheClusterResponse);
+    rpc ListMemcacheCluster(ListMemcacheClusterRequest) returns (ListMemcacheClusterResponse);
+    rpc AllocOrGetMemcacheCluster(AllocOrGetMemcacheClusterRequest) returns (AllocOrGetMemcacheClusterResponse);
 }

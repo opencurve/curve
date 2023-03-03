@@ -60,6 +60,23 @@ Bitmap::Bitmap(uint32_t bits, const char* bitmap) : bits_(bits) {
     }
 }
 
+Bitmap::Bitmap(uint32_t bits, char* bitmap, bool transfer) : bits_(bits) {
+    int count = unitCount();
+
+    if (!transfer) {
+        bitmap_ = new(std::nothrow) char[count];
+        CHECK(bitmap_ != nullptr) << "allocate bitmap failed.";
+        if (bitmap != nullptr) {
+            memcpy(bitmap_, bitmap, count);
+        } else {
+            memset(bitmap_, 0, count);
+        }
+    } else {
+        bitmap_ = bitmap;
+        CHECK(bitmap_ != nullptr) << "transfer bitmap with nullptr is invalid";
+    }
+}
+
 Bitmap::~Bitmap() {
     if (nullptr != bitmap_) {
         delete[] bitmap_;

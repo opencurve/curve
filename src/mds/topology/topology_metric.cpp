@@ -35,6 +35,8 @@ namespace topology {
 
 std::map<PoolIdType, LogicalPoolMetricPtr> gLogicalPoolMetrics;
 std::map<ChunkServerIdType, ChunkServerMetricPtr> gChunkServerMetrics;
+ClusterMetricPtr gClusterMetrics =
+  std::unique_ptr<ClusterMetric>(new ClusterMetric);
 
 void TopologyMetricService::UpdateTopologyMetrics() {
     // process chunkserver
@@ -44,6 +46,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                     return cs.GetStatus() != ChunkServerStatus::RETIRED;
                 });
 
+    std::vector<CopysetStat> copysetStatsCs, copysetStatsCluster;
     for (auto csId : chunkservers) {
         auto it = gChunkServerMetrics.find(csId);
         if (it == gChunkServerMetrics.end()) {
@@ -84,6 +87,11 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                 csStat.chunkSizeLeftBytes +
                 csStat.chunkSizeTrashedBytes);
         }
+
+        copysetStatsCs = csStat.copysetStats;
+        copysetStatsCluster.insert(copysetStatsCluster.end(),
+          copysetStatsCs.begin(), copysetStatsCs.end());
+        copysetStatsCs.clear();
     }
 
     // process logical pool
@@ -209,7 +217,36 @@ void TopologyMetricService::UpdateTopologyMetrics() {
             it->second->logicalCapacity.set_value(
                 totalChunkSizeBytes / pool.GetReplicaNum());
         }
+
+        uint64_t readRate = 0, writeRate = 0,
+          readIOPS = 0, writeIOPS = 0;
+        for (auto iterCsStat : copysetStatsCluster) {
+            if (iterCsStat.logicalPoolId == pid) {
+                readRate += iterCsStat.readRate;
+                writeRate += iterCsStat.writeRate;
+                readIOPS += iterCsStat.readIOPS;
+                writeIOPS += iterCsStat.writeIOPS;
+            }
+            DVLOG(6) << "copyset Metrics, csid is: "
+                  << iterCsStat.copysetId << ", write iops: "
+                  << iterCsStat.writeIOPS << ", write bps: "
+                  << iterCsStat.writeRate << ", read bps: "
+                  << iterCsStat.readRate  << ", read iops: "
+                  << iterCsStat.readIOPS;
+        }
+        it->second->writeIOPS.set_value(writeIOPS);
+        it->second->writeRate.set_value(writeRate);
+        it->second->readRate.set_value(readRate);
+        it->second->readIOPS.set_value(readIOPS);
+
+        DVLOG(6) << "pool metrics, pid is: "
+            << pid << ", write iops: "
+            << writeIOPS << ", write bps: "
+            << writeRate << ", read bps: "
+            << readRate  << ", read iops: "
+            << readIOPS;
     }
+
     // remove logical pool metrics that no longer exist
     for (auto iy = gLogicalPoolMetrics.begin();
         iy != gLogicalPoolMetrics.end();) {
@@ -232,6 +269,44 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         }
     }
 
+    // cluster io
+    uint64_t clusterReadIOPS = 0, clusterWriteIOPS = 0,
+        clusterReadRate = 0, clusterWriteRate = 0, copysetNum = 0;
+    for (auto metricIter = gLogicalPoolMetrics.begin();
+        metricIter != gLogicalPoolMetrics.end(); metricIter++) {
+        clusterReadIOPS += metricIter->second->readIOPS.get_value();
+        clusterWriteIOPS +=  metricIter->second->writeIOPS.get_value();
+        clusterReadRate +=  metricIter->second->readRate.get_value();
+        clusterWriteRate +=  metricIter->second->writeRate.get_value();
+        copysetNum += metricIter->second->copysetNum.get_value();
+    }
+
+    auto servers = topo_->GetServerInCluster();
+    gClusterMetrics->serverNum.set_value(servers.size());
+    gClusterMetrics->chunkServerNum.set_value(chunkservers.size());
+    gClusterMetrics->copysetNum.set_value(copysetNum);
+    gClusterMetrics->logicalPoolNum.set_value(lPools.size());
+    gClusterMetrics->readIOPS.set_value(clusterReadIOPS);
+    gClusterMetrics->writeIOPS.set_value(clusterWriteIOPS);
+    gClusterMetrics->readRate.set_value(clusterReadRate);
+    gClusterMetrics->writeRate.set_value(clusterWriteRate);
+
+
+
+    DVLOG(6) << "cluster metrics, logical pool num: "
+            << gClusterMetrics->logicalPoolNum.get_value()
+            << ", cluster chunkserver num: "
+            << gClusterMetrics->chunkServerNum.get_value()
+            << ", cluster copyset num: "
+            << gClusterMetrics->copysetNum.get_value()
+            << ", cluster readiops: "
+            << gClusterMetrics->readIOPS.get_value()
+            << ", cluster writeiops: "
+            << gClusterMetrics->writeIOPS.get_value()
+            << ", cluster readbps: "
+            << gClusterMetrics->readRate.get_value()
+            << ", cluster writebps: "
+            << gClusterMetrics->writeRate.get_value();
     return;
 }
 

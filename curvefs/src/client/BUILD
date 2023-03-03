@@ -43,6 +43,8 @@ cc_library(
             "s3/*.h",
             "volume/*.cpp",
             "volume/*.h",
+            "warmup/*.h",
+            "warmup/*.cpp",
         ],
         exclude = ["main.cpp"],
     ),
@@ -59,6 +61,7 @@ cc_library(
         "//curvefs/src/client/rpcclient",
         "//curvefs/src/common:curvefs_common",
         "//curvefs/src/client/lease:curvefs_lease",
+        "//curvefs/src/client/kvclient:memcached_client_lib",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
@@ -72,5 +75,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/meta:type_traits",
         "@com_google_absl//absl/types:optional",
+        "@com_google_googletest//:gtest_prod",
     ],
 )

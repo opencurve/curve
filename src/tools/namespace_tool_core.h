@@ -102,12 +102,25 @@ class NameSpaceToolCore {
                            bool forcedelete = false);
 
     /**
-     *  @brief 创建pageFile文件
-     *  @param fileName 文件名
+     *  @brief create pageFile or directory
+     *  @param fileName file name or dir name
      *  @param length 文件长度
+     *  @param normalFile is file or dir
+     *  @param stripeUnit stripe unit size
+     *  @param stripeCount the amount of stripes
      *  @return 成功返回0，失败返回-1
      */
-    virtual int CreateFile(const std::string& fileName, uint64_t length);
+    virtual int CreateFile(const std::string& fileName, uint64_t length,
+                           bool normalFile = true, uint64_t stripeUnit = 0,
+                           uint64_t stripeCount = 0);
+
+   /**
+     *  @brief 扩容卷
+     *  @param fileName 文件名
+     *  @param newSize 扩容后的文件长度
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int ExtendVolume(const std::string& fileName, uint64_t newSize);
 
     /**
      *  @brief 计算文件或目录实际分配的空间

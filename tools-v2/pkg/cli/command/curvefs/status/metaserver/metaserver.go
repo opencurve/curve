@@ -23,11 +23,9 @@
 package metaserver
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/liushuochen/gotable"
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -40,7 +38,7 @@ import (
 
 type MetaserverCommand struct {
 	basecmd.FinalCurveCmd
-	metrics []basecmd.Metric
+	metrics []*basecmd.Metric
 	rows    []map[string]string
 	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
@@ -76,17 +74,17 @@ func (mCmd *MetaserverCommand) AddFlags() {
 
 func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 	mCmd.health = cobrautil.HEALTH_ERROR
-	externalAddrs, internalAddrs, errMetaserver := topology.GetMetaserverAddrs()
+	externalAddrs, internalAddrs, errMetaserver := topology.GetMetaserverAddrs(mCmd.Cmd)
 	if errMetaserver.TypeCode() != cmderror.CODE_SUCCESS {
 		mCmd.Error = errMetaserver
 		return fmt.Errorf(errMetaserver.Message)
 	}
 
-	table, err := gotable.Create(cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	mCmd.Table = table
+	header := []string{cobrautil.ROW_EXTERNAL_ADDR, cobrautil.ROW_INTERNAL_ADDR, cobrautil.ROW_VERSION, cobrautil.ROW_STATUS}
+	mCmd.SetHeader(header)
+	mCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
+		mCmd.Header, []string{cobrautil.ROW_STATUS, cobrautil.ROW_VERSION},
+	))
 
 	for i, addr := range externalAddrs {
 		if !cobrautil.IsValidAddr(addr) {
@@ -97,9 +95,9 @@ func (mCmd *MetaserverCommand) Init(cmd *cobra.Command, args []string) error {
 		timeout := viper.GetDuration(config.VIPER_GLOBALE_HTTPTIMEOUT)
 		addrs := []string{addr}
 		statusMetric := basecmd.NewMetric(addrs, STATUS_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, *statusMetric)
+		mCmd.metrics = append(mCmd.metrics, statusMetric)
 		versionMetric := basecmd.NewMetric(addrs, VERSION_SUBURI, timeout)
-		mCmd.metrics = append(mCmd.metrics, *versionMetric)
+		mCmd.metrics = append(mCmd.metrics, versionMetric)
 
 		// set rows
 		row := make(map[string]string)
@@ -121,7 +119,7 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	size := 0
 	for _, metric := range mCmd.metrics {
 		size++
-		go func(m basecmd.Metric) {
+		go func(m *basecmd.Metric) {
 			result, err := basecmd.QueryMetric(m)
 			var key string
 			if m.SubUri == STATUS_SUBURI {
@@ -171,22 +169,16 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 		mCmd.health = cobrautil.HEALTH_OK
 	}
 
-	mCmd.Table.AddRows(mCmd.rows)
-	jsonResult, err := mCmd.Table.JSON(0)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	var m interface{}
-	err = json.Unmarshal([]byte(jsonResult), &m)
-	if err != nil {
-		cobra.CheckErr(err)
-	}
-	mCmd.Result = m
+	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
+		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
+	})
+	mCmd.TableNew.AppendBulk(list)
+	mCmd.Result = mCmd.rows
 	return nil
 }
 
 func (mCmd *MetaserverCommand) ResultPlainOutput() error {
-	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd, mCmd)
+	return output.FinalCmdOutputPlain(&mCmd.FinalCurveCmd)
 }
 
 func NewStatusMetaserverCommand() *MetaserverCommand {
@@ -200,15 +192,15 @@ func NewStatusMetaserverCommand() *MetaserverCommand {
 	return mdsCmd
 }
 
-func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
+func GetMetaserverStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS) {
 	metaserverCmd := NewStatusMetaserverCommand()
 	metaserverCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	cobrautil.AlignFlagsValue(caller, metaserverCmd.Cmd, []string{
+	config.AlignFlagsValue(caller, metaserverCmd.Cmd, []string{
 		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR,
 	})
 	metaserverCmd.Cmd.SilenceErrors = true
 	metaserverCmd.Cmd.Execute()
-	return &metaserverCmd.Result, metaserverCmd.Table, metaserverCmd.Error, metaserverCmd.health
+	return &metaserverCmd.Result, metaserverCmd.TableNew, metaserverCmd.Error, metaserverCmd.health
 }

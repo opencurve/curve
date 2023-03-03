@@ -54,6 +54,8 @@ template <typename T> struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
     PeerAddr externalAddr;
 
     CopysetPeerInfo() = default;
+
+    CopysetPeerInfo(const CopysetPeerInfo&) = default;
     CopysetPeerInfo &operator=(const CopysetPeerInfo &other) = default;
 
     CopysetPeerInfo(const T &cid, const PeerAddr &internal,

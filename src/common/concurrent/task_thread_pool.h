@@ -40,13 +40,14 @@
 namespace curve {
 namespace common {
 
+
+using Task = std::function<void()>;
+
 // 异步运行回调的线程池
 template <typename MutexT = std::mutex,
           typename CondVarT = std::condition_variable>
 class TaskThreadPool : public Uncopyable {
  public:
-    using Task = std::function<void()>;
-
     TaskThreadPool()
         : mutex_(), notEmpty_(), notFull_(), capacity_(-1), running_(false) {}
 
@@ -73,6 +74,7 @@ class TaskThreadPool : public Uncopyable {
         }
 
         if (!running_.exchange(true, std::memory_order_acq_rel)) {
+            threads_.clear();
             threads_.reserve(numThreads);
             for (int i = 0; i < numThreads; ++i) {
                 threads_.emplace_back(new std::thread(

@@ -26,10 +26,12 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
-#include "curvefs/proto/space.pb.h"
 #include "curvefs/proto/mds.pb.h"
+#include "curvefs/proto/space.pb.h"
 #include "curvefs/src/mds/common/types.h"
+#include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/space/block_group_storage.h"
 #include "curvefs/src/mds/space/volume_space.h"
 #include "src/common/concurrent/name_lock.h"
@@ -50,9 +52,11 @@ class SpaceManager {
 
 class SpaceManagerImpl final : public SpaceManager {
  public:
-    explicit SpaceManagerImpl(
-        const std::shared_ptr<curve::kvstorage::KVStorageClient>& kvstore)
-        : storage_(new BlockGroupStorageImpl(kvstore)) {}
+    SpaceManagerImpl(
+        const std::shared_ptr<curve::kvstorage::KVStorageClient>& kvstore,
+        std::shared_ptr<FsStorage> fsStorage)
+        : storage_(new BlockGroupStorageImpl(kvstore)),
+          fsStorage_(std::move(fsStorage)) {}
 
     SpaceManagerImpl(const SpaceManagerImpl&) = delete;
     SpaceManagerImpl& operator=(const SpaceManagerImpl&) = delete;
@@ -74,6 +78,8 @@ class SpaceManagerImpl final : public SpaceManager {
     std::unique_ptr<BlockGroupStorage> storage_;
 
     curve::common::GenericNameLock<Mutex> namelock_;
+
+    std::shared_ptr<FsStorage> fsStorage_;
 };
 
 }  // namespace space

@@ -31,11 +31,9 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <utility>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
-
-using ::testing::Return;
-using ::testing::_;
 
 namespace curvefs {
 namespace client {
@@ -43,9 +41,6 @@ namespace rpcclient {
 
 class MockMetaServerClient : public MetaServerClient {
  public:
-    MockMetaServerClient() {}
-    ~MockMetaServerClient() {}
-
     MOCK_METHOD4(Init,
                  MetaStatusCode(const ExcutorOpt &excutorOpt,
                                 const ExcutorOpt &excutorInternalOpt,
@@ -94,24 +89,35 @@ class MockMetaServerClient : public MetaServerClient {
         uint32_t fsId, const std::set<uint64_t> &inodeIds,
         std::list<XAttr> *xattr));
 
-    MOCK_METHOD2(UpdateInodeAttr,
-                 MetaStatusCode(const Inode &inode,
-                                InodeOpenStatusChange statusChange));
+    MOCK_METHOD3(UpdateInodeAttr,
+                 MetaStatusCode(uint32_t,
+                                uint64_t,
+                                const InodeAttr&));
 
-    MOCK_METHOD4(UpdateInodeAttrWithOutNlink,
-                 MetaStatusCode(const Inode &inode,
-                                InodeOpenStatusChange statusChange,
-                                S3ChunkInofMap *s3ChunkInfoAdd,
+    MOCK_METHOD5(UpdateInodeAttrWithOutNlink,
+                 MetaStatusCode(uint32_t,
+                                uint64_t,
+                                const InodeAttr&,
+                                S3ChunkInfoMap* s3ChunkInfoAdd,
                                 bool internal));
 
-    MOCK_METHOD3(UpdateInodeAttrAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
-                      InodeOpenStatusChange statusChange));
+    // Workaround for rvalue parameters
+    // https://stackoverflow.com/questions/12088537/workaround-for-gmock-to-support-rvalue-reference
+    void UpdateInodeWithOutNlinkAsync(uint32_t fsId,
+                                      uint64_t inodeId,
+                                      const InodeAttr& attr,
+                                      MetaServerClientDone* done,
+                                      DataIndices&& indices) override {
+        return UpdateInodeWithOutNlinkAsync_rvr(fsId, inodeId, attr, done,
+                                                std::move(indices));
+    }
 
-    MOCK_METHOD4(UpdateInodeWithOutNlinkAsync,
-                 void(const Inode &inode, MetaServerClientDone *done,
-                      InodeOpenStatusChange statusChange,
-                      S3ChunkInofMap *s3ChunkInfoAdd));
+    MOCK_METHOD5(UpdateInodeWithOutNlinkAsync_rvr,
+                 void(uint32_t,
+                      uint64_t,
+                      const InodeAttr&,
+                      MetaServerClientDone* done,
+                      DataIndices));
 
     MOCK_METHOD2(UpdateXattrAsync, void(const Inode &inode,
         MetaServerClientDone *done));
@@ -133,6 +139,9 @@ class MockMetaServerClient : public MetaServerClient {
 
     MOCK_METHOD2(CreateInode, MetaStatusCode(
             const InodeParam &param, Inode *out));
+
+    MOCK_METHOD2(CreateManageInode, MetaStatusCode(
+                 const InodeParam &param, Inode *out));
 
     MOCK_METHOD2(DeleteInode, MetaStatusCode(uint32_t fsId, uint64_t inodeid));
 

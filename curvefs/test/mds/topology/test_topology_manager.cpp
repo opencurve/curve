@@ -23,12 +23,17 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <google/protobuf/util/message_differencer.h>
+#include <algorithm>
+#include <iostream>
+#include <vector>
 
 #include "curvefs/proto/topology.pb.h"
 #include "curvefs/src/mds/common/mds_define.h"
+#include "curvefs/src/mds/topology/topology_item.h"
 #include "curvefs/src/mds/topology/topology_manager.h"
 #include "curvefs/test/mds/mock/mock_metaserver.h"
 #include "curvefs/test/mds/mock/mock_metaserver_client.h"
@@ -62,8 +67,6 @@ class TestTopologyManager : public ::testing::Test {
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                    tokenGenerator_, storage_);
         TopologyOption topologyOption;
-        topologyOption.initialCopysetNumber = 1;
-        topologyOption.minAvailableCopysetNum = 1;
         topologyOption.createPartitionNumber = 3;
 
         MetaserverOptions metaserverOptions;
@@ -218,6 +221,14 @@ class TestTopologyManager : public ::testing::Test {
         PrepareAddPartition(fsId, poolId, copysetId, pId1, 1, 100, 2);
         PrepareAddPartition(fsId, poolId, copysetId, pId2, 1, 100, 2);
         PrepareAddPartition(fsId + 1, poolId, copysetId, pId3, 1, 100, 2);
+    }
+
+    void PrepareAddMemcacheCluster(MemcacheClusterIdType id,
+                                   const std::list<MemcacheServer>& servers) {
+        MemcacheCluster cluster(id, servers);
+        EXPECT_CALL(*storage_, StorageMemcacheCluster(_))
+            .WillOnce(Return(true));
+        topology_->AddMemcacheCluster(cluster);
     }
 
  protected:
@@ -1568,7 +1579,9 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Success) {
 TEST_F(TestTopologyManager,
     test_CreatePartitionsAndGetMinPartition_Success) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
+    CopySetIdType copysetId1 = 0x51;
+    CopySetIdType copysetId2 = 0x52;
+    CopySetIdType copysetId3 = 0x53;
     PartitionIdType partitionId = 0x61;
     PartitionIdType partitionId2 = 0x62;
     PartitionIdType partitionId3 = 0x63;
@@ -1594,7 +1607,9 @@ TEST_F(TestTopologyManager,
     replicas.insert(0x41);
     replicas.insert(0x42);
     replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, poolId, replicas);
+    PrepareAddCopySet(copysetId1, poolId, replicas);
+    PrepareAddCopySet(copysetId2, poolId, replicas);
+    PrepareAddCopySet(copysetId3, poolId, replicas);
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .Times(3)
@@ -1618,12 +1633,13 @@ TEST_F(TestTopologyManager,
     ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
     ASSERT_EQ(partitionId, pInfo.partitionid());
     ASSERT_EQ(3, topology_->GetPartitionIndexOfFS(0x01));
-    ASSERT_EQ(copysetId, pInfo.copysetid());
+    ASSERT_EQ(copysetId1, pInfo.copysetid());
 }
 
 TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
+    CopySetIdType copysetId1 = 0x51;
+    CopySetIdType copysetId2 = 0x52;
     PartitionIdType partitionId = 0x61;
 
     PrepareAddPool(poolId);
@@ -1647,7 +1663,8 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
     replicas.insert(0x41);
     replicas.insert(0x42);
     replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, poolId, replicas);
+    PrepareAddCopySet(copysetId1, poolId, replicas);
+    PrepareAddCopySet(copysetId2, poolId, replicas);
 
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId))
@@ -1673,13 +1690,19 @@ TEST_F(TestTopologyManager, test_CreatePartitionWithAvailableCopyset_Sucess2) {
 
     Partition partition;
     ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
-    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(copysetId1, partition.GetCopySetId());
 
     CopySetInfo info;
-    CopySetKey key(poolId, copysetId);
+    CopySetKey key(poolId, copysetId1);
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
-    ASSERT_EQ(copysetId, info.GetId());
-    ASSERT_EQ(2, info.GetPartitionNum());
+    ASSERT_EQ(copysetId1, info.GetId());
+    ASSERT_EQ(1, info.GetPartitionNum());
+
+    CopySetInfo info2;
+    CopySetKey key2(poolId, copysetId2);
+    ASSERT_TRUE(topology_->GetCopySet(key2, &info2));
+    ASSERT_EQ(copysetId2, info2.GetId());
+    ASSERT_EQ(1, info2.GetPartitionNum());
 }
 
 TEST_F(TestTopologyManager,
@@ -1832,7 +1855,9 @@ TEST_F(TestTopologyManager,
 TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_Success) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
+    CopySetIdType copysetId1 = 0x51;
+    CopySetIdType copysetId2 = 0x52;
+    CopySetIdType copysetId3 = 0x53;
     PartitionIdType partitionId = 0x61;
 
     Pool::RedundanceAndPlaceMentPolicy policy;
@@ -1859,10 +1884,18 @@ TEST_F(TestTopologyManager,
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 1), 0x42);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 2), 0x43);
 
-    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_))
+        .WillOnce(Return(copysetId1))
+        .WillOnce(Return(copysetId2))
+        .WillOnce(Return(copysetId3));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
+        .WillOnce(Return(FSStatusCode::OK))
+        .WillOnce(Return(FSStatusCode::OK))
         .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
+    EXPECT_CALL(*storage_, StorageCopySet(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(true))
+        .WillOnce(Return(true));
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
@@ -1884,12 +1917,12 @@ TEST_F(TestTopologyManager,
 
     Partition partition;
     ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
-    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(copysetId1, partition.GetCopySetId());
 
     CopySetInfo info;
-    CopySetKey key(poolId, copysetId);
+    CopySetKey key(poolId, copysetId1);
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
-    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(copysetId1, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
     ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
@@ -1975,7 +2008,9 @@ TEST_F(TestTopologyManager,
 TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_HaveOfflineMetaserver) {
     PoolIdType poolId = 0x11;
-    CopySetIdType copysetId = 0x51;
+    CopySetIdType copysetId1 = 0x51;
+    CopySetIdType copysetId2 = 0x52;
+    CopySetIdType copysetId3 = 0x53;
     PartitionIdType partitionId = 0x61;
 
     Pool::RedundanceAndPlaceMentPolicy policy;
@@ -2005,10 +2040,13 @@ TEST_F(TestTopologyManager,
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x43);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x44);
 
-    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_))
+        .WillOnce(Return(copysetId1))
+        .WillOnce(Return(copysetId2))
+        .WillOnce(Return(copysetId3));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
-        .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
+        .WillRepeatedly(Return(FSStatusCode::OK));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillRepeatedly(Return(true));
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
@@ -2030,12 +2068,12 @@ TEST_F(TestTopologyManager,
 
     Partition partition;
     ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
-    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(copysetId1, partition.GetCopySetId());
 
     CopySetInfo info;
-    CopySetKey key(poolId, copysetId);
+    CopySetKey key(poolId, copysetId1);
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
-    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(copysetId1, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
     ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
@@ -2088,7 +2126,9 @@ TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_HaveOfflineMetaserver2) {
     PoolIdType poolId = 0x11;
     PoolIdType poolId1 = 0x12;
-    CopySetIdType copysetId = 0x51;
+    CopySetIdType copysetId1 = 0x51;
+    CopySetIdType copysetId2 = 0x52;
+    CopySetIdType copysetId3 = 0x53;
     PartitionIdType partitionId = 0x61;
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2140,10 +2180,13 @@ TEST_F(TestTopologyManager,
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x46);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 0), 0x47);
 
-    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_))
+        .WillOnce(Return(copysetId1))
+        .WillOnce(Return(copysetId2))
+        .WillOnce(Return(copysetId3));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
-        .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
+        .WillRepeatedly(Return(FSStatusCode::OK));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillRepeatedly(Return(true));
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
@@ -2165,12 +2208,12 @@ TEST_F(TestTopologyManager,
 
     Partition partition;
     ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
-    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(copysetId1, partition.GetCopySetId());
 
     CopySetInfo info;
-    CopySetKey key(poolId1, copysetId);
+    CopySetKey key(poolId1, copysetId1);
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
-    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(copysetId1, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
     ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
@@ -2179,7 +2222,9 @@ TEST_F(TestTopologyManager,
        test_CreatePartitionWithOutAvailableCopyset_MetaServerSpaceIsFull2) {
     PoolIdType poolId = 0x11;
     PoolIdType poolId1 = 0x12;
-    CopySetIdType copysetId = 0x51;
+    CopySetIdType copysetId1 = 0x51;
+    CopySetIdType copysetId2 = 0x52;
+    CopySetIdType copysetId3 = 0x53;
     PartitionIdType partitionId = 0x61;
     Pool::RedundanceAndPlaceMentPolicy policy;
     policy.replicaNum = 3;
@@ -2228,10 +2273,13 @@ TEST_F(TestTopologyManager,
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x46);
     topology_->UpdateMetaServerSpace(MetaServerSpace(100, 50), 0x47);
 
-    EXPECT_CALL(*idGenerator_, GenCopySetId(_)).WillOnce(Return(copysetId));
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_))
+        .WillOnce(Return(copysetId1))
+        .WillOnce(Return(copysetId2))
+        .WillOnce(Return(copysetId3));
     EXPECT_CALL(*mockMetaserverClient_, CreateCopySet(_, _, _))
-        .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
+        .WillRepeatedly(Return(FSStatusCode::OK));
+    EXPECT_CALL(*storage_, StorageCopySet(_)).WillRepeatedly(Return(true));
     EXPECT_CALL(*idGenerator_, GenPartitionId())
         .WillOnce(Return(partitionId));
     EXPECT_CALL(*storage_, StoragePartition(_))
@@ -2253,12 +2301,12 @@ TEST_F(TestTopologyManager,
 
     Partition partition;
     ASSERT_TRUE(topology_->GetPartition(partitionId, &partition));
-    ASSERT_EQ(copysetId, partition.GetCopySetId());
+    ASSERT_EQ(copysetId1, partition.GetCopySetId());
 
     CopySetInfo info;
-    CopySetKey key(poolId1, copysetId);
+    CopySetKey key(poolId1, copysetId1);
     ASSERT_TRUE(topology_->GetCopySet(key, &info));
-    ASSERT_EQ(copysetId, info.GetId());
+    ASSERT_EQ(copysetId1, info.GetId());
     ASSERT_EQ(1, info.GetPartitionNum());
     ASSERT_FALSE(topology_->IsCopysetCreating(key));
 }
@@ -2805,6 +2853,175 @@ TEST_F(TestTopologyManager, test_GetCopysetMembers_Success) {
     ASSERT_EQ(TopoStatusCode::TOPO_OK, ret);
     ASSERT_EQ(3, addrs.size());
     ASSERT_THAT(*addrs.begin(), AnyOf("ip2:8887", "ip2:8888", "ip2:8889"));
+}
+
+TEST_F(TestTopologyManager, test_RegistMemcacheCluster_Success) {
+    RegistMemcacheClusterRequest request;
+    RegistMemcacheClusterResponse response;
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *request.add_servers() = server;
+
+    MemcacheClusterIdType mcCId(1);
+
+    EXPECT_CALL(*idGenerator_, GenMemCacheClusterId()).WillOnce(Return(mcCId));
+    EXPECT_CALL(*storage_, StorageMemcacheCluster(_)).WillOnce(Return(true));
+
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_clusterid());
+    ASSERT_EQ(mcCId, response.clusterid());
+
+    // test register same cluster
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+
+    // test register register server
+    server.set_port(2);
+    *request.add_servers() = server;
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_IP_PORT_DUPLICATED, response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_RegistMemcacheCluster_AllocateIdFail) {
+    RegistMemcacheClusterRequest request;
+    RegistMemcacheClusterResponse response;
+    MemcacheServerInfo server;
+    server.set_ip("127.0.0.1");
+    server.set_port(1);
+    *request.add_servers() = server;
+
+    MemcacheClusterIdType mcCId(1);
+
+    EXPECT_CALL(*idGenerator_, GenMemCacheClusterId())
+        .WillOnce(Return(UNINITIALIZE_ID));
+
+    serviceManager_->RegistMemcacheCluster(&request, &response);
+
+    ASSERT_EQ(TopoStatusCode::TOPO_ALLOCATE_ID_FAIL, response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_ListMemcacheCluster_Success) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    clusters.emplace_back(MemcacheCluster(
+        2, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 4),
+                                     MemcacheServer("127.0.0.1", 5),
+                                     MemcacheServer("127.0.0.1", 6)}));
+    for (auto const & cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    ListMemcacheClusterResponse response;
+    serviceManager_->ListMemcacheCluster(&response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    auto clusterList = response.memcacheclusters();
+    ASSERT_EQ(clusterList.size(), clusters.size());
+    for (auto const& cluster : clusterList) {
+        ASSERT_TRUE(std::find(clusters.cbegin(), clusters.cend(),
+                              static_cast<MemcacheCluster>(cluster)) !=
+                    clusters.cend());
+    }
+}
+
+TEST_F(TestTopologyManager, test_ListMemcacheCluster_NotFound) {
+    ListMemcacheClusterResponse response;
+    serviceManager_->ListMemcacheCluster(&response);
+    ASSERT_EQ(TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND,
+              response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_1_Success) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    for (auto const& cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    EXPECT_CALL(*storage_, StorageFs2MemcacheCluster(_, _))
+        .WillOnce(Return(true));
+
+    AllocOrGetMemcacheClusterRequest request;
+    AllocOrGetMemcacheClusterResponse response;
+    serviceManager_->AllocOrGetMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response.statuscode());
+    ASSERT_TRUE(response.has_cluster());
+    ASSERT_EQ(clusters[0],
+              static_cast<MemcacheCluster>(response.cluster()));
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_Success) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    clusters.emplace_back(MemcacheCluster(
+        2, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 4),
+                                     MemcacheServer("127.0.0.1", 5),
+                                     MemcacheServer("127.0.0.1", 6)}));
+    for (auto const& cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    EXPECT_CALL(*storage_, StorageFs2MemcacheCluster(_, _))
+        .WillOnce(Return(true));
+
+    AllocOrGetMemcacheClusterRequest request1;
+    request1.set_fsid(1);
+    AllocOrGetMemcacheClusterResponse response1;
+    serviceManager_->AllocOrGetMemcacheCluster(&request1, &response1);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response1.statuscode());
+    ASSERT_TRUE(response1.has_cluster());
+
+
+    // same fsid
+    AllocOrGetMemcacheClusterResponse response2;
+    serviceManager_->AllocOrGetMemcacheCluster(&request1, &response2);
+    ASSERT_EQ(TopoStatusCode::TOPO_OK, response2.statuscode());
+    ASSERT_TRUE(response2.has_cluster());
+    ASSERT_EQ(static_cast<MemcacheCluster>(response1.cluster()),
+              static_cast<MemcacheCluster>(response2.cluster()));
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_NotFound) {
+    AllocOrGetMemcacheClusterRequest request;
+    AllocOrGetMemcacheClusterResponse response;
+    serviceManager_->AllocOrGetMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_MEMCACHECLUSTER_NOT_FOUND,
+              response.statuscode());
+}
+
+TEST_F(TestTopologyManager, test_AllocOrGetMemcacheCluster_StorageFail) {
+    std::vector<MemcacheCluster> clusters;
+    clusters.emplace_back(MemcacheCluster(
+        1, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 1),
+                                     MemcacheServer("127.0.0.1", 2),
+                                     MemcacheServer("127.0.0.1", 3)}));
+    clusters.emplace_back(MemcacheCluster(
+        2, std::list<MemcacheServer>{MemcacheServer("127.0.0.1", 4),
+                                     MemcacheServer("127.0.0.1", 5),
+                                     MemcacheServer("127.0.0.1", 6)}));
+    for (auto const& cluster : clusters) {
+        PrepareAddMemcacheCluster(cluster.GetId(), cluster.GetServers());
+    }
+
+    AllocOrGetMemcacheClusterRequest request;
+    request.set_fsid(1);
+    AllocOrGetMemcacheClusterResponse response;
+
+    EXPECT_CALL(*storage_, StorageFs2MemcacheCluster(_, _))
+        .WillOnce(Return(false));
+    serviceManager_->AllocOrGetMemcacheCluster(&request, &response);
+    ASSERT_EQ(TopoStatusCode::TOPO_STORGE_FAIL, response.statuscode());
 }
 
 }  // namespace topology

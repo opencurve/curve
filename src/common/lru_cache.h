@@ -26,11 +26,13 @@
 #include <bvar/bvar.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <list>
 #include <string>
 #include <memory>
 #include <unordered_map>
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace common {
@@ -61,6 +63,11 @@ class CacheMetrics {
 
     void OnCacheHit() {
         cacheHit << 1;
+    }
+
+    void OnTimeOut() {
+        cacheHit << -1;
+        cacheMiss << 1;
     }
 
     void OnCacheMiss() {
@@ -121,12 +128,14 @@ class LRUCacheInterface {
     * @return false if failed, true if succeeded
     */
     virtual bool Get(const K &key, V *value) = 0;
+
     /*
     * @brief Remove Remove key-value from cache
     *
     * @param[in] key
     */
     virtual void Remove(const K &key) = 0;
+
     /*
     * @brief Get the size of the lru
     */
@@ -134,13 +143,16 @@ class LRUCacheInterface {
 };
 
 
+// LRUCache
 template <typename K,  typename V,
     typename KeyTraits = CacheTraits<K>,
     typename ValueTraits = CacheTraits<V>>
 class LRUCache : public LRUCacheInterface<K, V> {
  public:
+    // to less one Key construct
+    // make the Item key be a pointer
     struct Item {
-        K key;
+        const K* key;
         V value;
     };
 
@@ -190,6 +202,7 @@ class LRUCache : public LRUCacheInterface<K, V> {
     * @param[in] key
     */
     void Remove(const K &key) override;
+
     /*
     * @brief Get the first key that $value = value
     *
@@ -199,6 +212,7 @@ class LRUCache : public LRUCacheInterface<K, V> {
     * @return false if not find the value, true if succeeded
     */
     bool GetLast(const V value, K *key);
+
     /*
      * @brief Get the last item's key and value
      *
@@ -208,6 +222,7 @@ class LRUCache : public LRUCacheInterface<K, V> {
      * @return false if not find the value, true if succeeded
      */
     bool GetLast(K *key, V *value);
+
     /*
      * @brief Get the last item's key and value
      *
@@ -218,6 +233,7 @@ class LRUCache : public LRUCacheInterface<K, V> {
      * @return false if not find the value, true if succeeded
      */
     bool GetLast(K *key, V *value, bool (*f)(const V &value));
+
     /*
     * @brief Get the size of the lru
     */
@@ -274,7 +290,6 @@ class LRUCache : public LRUCacheInterface<K, V> {
     std::list<Item> ll_;
     // record the position of the item corresponding to the key in the dequeue
     std::unordered_map<K, typename std::list<Item>::iterator> cache_;
-
     // cache related metric data
     std::shared_ptr<CacheMetrics> cacheMetrics_;
 };
@@ -335,7 +350,7 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(const V value, K *key) {
     }
     if (it == ll_.rend())
         return false;
-    *key = (*it).key;
+    *key = *(it->key);
     return true;
 }
 
@@ -346,7 +361,7 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(K *key, V *value) {
         return false;
     }
     auto it = ll_.rbegin();
-    *key = (*it).key;
+    *key = *(it->key);
     *value = (*it).value;
     return true;
 }
@@ -362,8 +377,8 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::GetLast(
     for (; it != ll_.rend(); it++) {
         bool ok = f((*it).value);
         if (ok) {
-            *key = (*it).key;
-            *value = (*it).value;
+            *key = *(it->key);
+            *value = (it->value);
             return true;
         }
     }
@@ -388,9 +403,10 @@ bool LRUCache<K, V, KeyTraits, ValueTraits>::PutLocked(
     }
 
     // put new value
-    Item kv{key, value};
+    Item kv{nullptr, value};
     ll_.push_front(kv);
     cache_[key] = ll_.begin();
+    ll_.begin()->key = &(cache_.find(key)->first);
     if (cacheMetrics_ != nullptr) {
         cacheMetrics_->UpdateAddToCacheCount();
         cacheMetrics_->UpdateAddToCacheBytes(
@@ -416,7 +432,7 @@ void LRUCache<K, V, KeyTraits, ValueTraits>::MoveToFront(
     Item duplica{elem->key, elem->value};
     ll_.erase(elem);
     ll_.push_front(duplica);
-    cache_[duplica.key] = ll_.begin();
+    cache_[*(duplica.key)] = ll_.begin();
 }
 
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
@@ -435,11 +451,11 @@ void LRUCache<K, V, KeyTraits, ValueTraits>::RemoveElement(
     if (cacheMetrics_ != nullptr) {
         cacheMetrics_->UpdateRemoveFromCacheCount();
         cacheMetrics_->UpdateRemoveFromCacheBytes(
-            KeyTraits::CountBytes(elem->key) +
+            KeyTraits::CountBytes(*(elem->key)) +
             ValueTraits::CountBytes(elem->value));
     }
     const typename std::list<Item>::iterator elemTmp = elem;
-    auto iter = cache_.find(elem->key);
+    auto iter = cache_.find(*(elem->key));
     cache_.erase(iter);
     ll_.erase(elemTmp);
 }
@@ -448,6 +464,119 @@ template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
 std::shared_ptr<CacheMetrics>
     LRUCache<K, V, KeyTraits, ValueTraits>::GetCacheMetrics() const {
     return  cacheMetrics_;
+}
+
+
+// TimedLRUCache
+template <typename K,  typename V,
+    typename KeyTraits = CacheTraits<K>,
+    typename ValueTraits = CacheTraits<V>>
+class TimedLRUCache : public LRUCacheInterface<K, V> {
+ public:
+    struct ItemWithTimestamp {
+        V value;
+        uint64_t time;
+    };
+
+ public:
+    explicit TimedLRUCache(uint64_t timeout,
+        std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
+      : timeout_(timeout),
+        cacheMetrics_(cacheMetrics),
+        lruImp_(cacheMetrics) {}
+
+    explicit TimedLRUCache(uint64_t timeout,
+        uint64_t maxCount,
+        std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
+      : timeout_(timeout),
+        cacheMetrics_(cacheMetrics),
+        lruImp_(maxCount, cacheMetrics) {}
+
+    void Put(const K &key, const V &value) override;
+
+    bool Put(const K &key, const V &value, V *eliminated) override;
+
+    bool Get(const K &key, V *value) override;
+
+    void Remove(const K &key) override;
+
+    uint64_t Size() override;
+
+    std::shared_ptr<CacheMetrics> GetCacheMetrics() const;
+
+ private:
+    bool IsTimeout(const ItemWithTimestamp &elem);
+
+    void OnCacheTimeOut() const;
+
+ private:
+    // lru timeout seconds
+    uint64_t timeout_;
+    std::shared_ptr<CacheMetrics> cacheMetrics_;
+    // lru implement
+    LRUCache<K, ItemWithTimestamp> lruImp_;
+};
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+bool TimedLRUCache<K, V, KeyTraits, ValueTraits>::IsTimeout(
+    const ItemWithTimestamp &elem) {
+    if (timeout_ > 0 &&
+        TimeUtility::GetTimeofDaySec() - elem.time >= timeout_) {
+        return true;
+    }
+    return false;
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+std::shared_ptr<CacheMetrics>
+    TimedLRUCache<K, V, KeyTraits, ValueTraits>::GetCacheMetrics() const {
+    return lruImp_.GetCacheMetrics();
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+void TimedLRUCache<K, V, KeyTraits, ValueTraits>::OnCacheTimeOut() const {
+    cacheMetrics_->OnTimeOut();
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+uint64_t TimedLRUCache<K, V, KeyTraits, ValueTraits>::Size() {
+    return lruImp_.Size();
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+void TimedLRUCache<K, V, KeyTraits, ValueTraits>::Put(
+    const K &key, const V &value) {
+    ItemWithTimestamp v{value, TimeUtility::GetTimeofDaySec()};
+    lruImp_.Put(key, v);
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+bool TimedLRUCache<K, V, KeyTraits, ValueTraits>::Put(
+    const K &key, const V &value, V *eliminated) {
+    ItemWithTimestamp ev;
+    ItemWithTimestamp v{value, TimeUtility::GetTimeofDaySec()};
+    bool ret = lruImp_.Put(key, v, &ev);
+    *eliminated = ev.value;
+    return ret;
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+bool TimedLRUCache<K, V, KeyTraits, ValueTraits>::Get(const K &key, V *value) {
+    ItemWithTimestamp v;
+    if (lruImp_.Get(key, &v)) {
+        if (!IsTimeout(v)) {
+            *value = v.value;
+            return true;
+        }
+        OnCacheTimeOut();
+        lruImp_.Remove(key);
+    }
+    return false;
+}
+
+template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
+void TimedLRUCache<K, V, KeyTraits, ValueTraits>::Remove(const K &key) {
+    lruImp_.Remove(key);
 }
 
 template <typename K>
@@ -465,7 +594,9 @@ class SglLRUCacheInterface {
      * @param[in] key
      */
     virtual bool IsCached(const K &key) = 0;
+
     virtual bool GetBefore(const K key, K *keyNext) = 0;
+
     /*
     * @brief Remove key from cache
     * @param[in] key
@@ -477,6 +608,7 @@ class SglLRUCacheInterface {
     * @param[out] the back key
     */
     virtual bool GetBack(K *value) = 0;
+
     /*
     * @brief move the key to list tail
     */
@@ -539,7 +671,6 @@ class SglLRUCache : public SglLRUCacheInterface<K> {
     uint64_t size_;
     // record the position of the item corresponding to the key in the dequeue
     std::unordered_map<K, typename std::list<K>::iterator> cache_;
-
     // cache related metric data
     std::shared_ptr<CacheMetrics> cacheMetrics_;
 };
@@ -710,6 +841,5 @@ void SglLRUCache<K, KeyTraits>::RemoveElement(
 
 }  // namespace common
 }  // namespace curve
-
 
 #endif  // SRC_COMMON_LRU_CACHE_H_

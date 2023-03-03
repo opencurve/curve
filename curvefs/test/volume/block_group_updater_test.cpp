@@ -47,7 +47,9 @@ class BlockGroupBitmapUpdaterTest : public ::testing::Test {
         Bitmap bitmap(kBlockGroupSize / kBlockSize);
         bitmap.Clear();
 
-        BitmapRange range{kBlockGroupOffset, kBlockGroupSize / kBlockSize};
+        BitmapRange range{
+            kBlockGroupOffset,
+            kBlockGroupSize / kBlockSize / curve::common::BITMAP_UNIT_SIZE};
 
         updater_ = absl::make_unique<BlockGroupBitmapUpdater>(
             std::move(bitmap), kBlockSize, kBlockGroupSize, kBlockGroupOffset,

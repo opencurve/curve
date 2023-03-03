@@ -260,7 +260,7 @@ int DiskCacheWrite::UploadFileByInode(const std::string &inode) {
         if (ret <= 0) {
             return ret;
         }
-        LOG(INFO) << "UploadFileByInode, need wait file on disk uopload ok";
+        VLOG(3) << "UploadFileByInode, need wait file on disk upload ok";
         sleeper_.wait_for(std::chrono::milliseconds(asyncLoadPeriodMs_));
     }
 

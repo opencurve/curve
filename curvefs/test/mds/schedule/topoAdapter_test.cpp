@@ -381,7 +381,7 @@ TEST(TestMetaServerInfo, test_onlineState) {
 }
 
 TEST(TestMetaServerInfo, test_IsResourceOverload) {
-    // disk overload
+    // disk overload, only consider disk
     {
         uint64_t diskThreshold = 10;
         uint64_t diskUsed = 20;
@@ -397,7 +397,7 @@ TEST(TestMetaServerInfo, test_IsResourceOverload) {
         ASSERT_TRUE(ms.IsResourceOverload());
     }
 
-    // memory overload
+    // memory overload, only consider disk
     {
         uint64_t diskThreshold = 0;
         uint64_t diskUsed = 0;
@@ -410,10 +410,10 @@ TEST(TestMetaServerInfo, test_IsResourceOverload) {
                               memoryCopySetMinRequire);
         MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
                           space);
-        ASSERT_TRUE(ms.IsResourceOverload());
+        ASSERT_FALSE(ms.IsResourceOverload());
     }
 
-    // both overload
+    // both overload, only consider disk
     {
         uint64_t diskThreshold = 10;
         uint64_t diskUsed = 20;
@@ -429,7 +429,7 @@ TEST(TestMetaServerInfo, test_IsResourceOverload) {
         ASSERT_TRUE(ms.IsResourceOverload());
     }
 
-    // not overload
+    // not overload, only consider disk
     {
         uint64_t diskThreshold = 20;
         uint64_t diskUsed = 10;
@@ -455,7 +455,7 @@ TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
         ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
     }
 
-    // memoryCopySetMinRequireByte is 0, calc disk usage
+    // only calc disk usage
     {
         uint64_t diskThreshold = 20;
         uint64_t diskUsed = 10;
@@ -484,10 +484,10 @@ TEST(TestMetaServerInfo, test_GetResourceUseRatioPercent) {
                               memoryCopySetMinRequire);
         MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
                           space);
-        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 25);
+        ASSERT_DOUBLE_EQ(ms.GetResourceUseRatioPercent(), 0);
     }
 
-    // diskThreshold and memoryThreshold not 0
+    // diskThreshold and memoryThreshold not 0, only calc disk
     {
         uint64_t diskThreshold = 20;
         uint64_t diskUsed = 10;
@@ -545,7 +545,7 @@ TEST(TestMetaServerInfo, test_IsMetaserverResourceAvailable) {
         ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
     }
 
-    // disk enough, momory not enough
+    // disk enough, momory not enough, only consider disk
     {
         uint64_t diskThreshold = 200;
         uint64_t diskUsed = 40;
@@ -558,7 +558,7 @@ TEST(TestMetaServerInfo, test_IsMetaserverResourceAvailable) {
                               memoryCopySetMinRequire);
         MetaServerInfo ms(PeerInfo(1, 1, 1, "", 9000), OnlineState::ONLINE,
                           space);
-        ASSERT_FALSE(ms.IsMetaserverResourceAvailable());
+        ASSERT_TRUE(ms.IsMetaserverResourceAvailable());
     }
 
     // disk enough, momory not enough, but momory require 0
@@ -577,7 +577,7 @@ TEST(TestMetaServerInfo, test_IsMetaserverResourceAvailable) {
         ASSERT_TRUE(ms.IsMetaserverResourceAvailable());
     }
 
-    // disk, momory both eough
+    // disk, momory both enough
     {
         uint64_t diskThreshold = 200;
         uint64_t diskUsed = 40;

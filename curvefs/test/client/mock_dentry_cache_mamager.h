@@ -24,10 +24,9 @@
 #define CURVEFS_TEST_CLIENT_MOCK_DENTRY_CACHE_MAMAGER_H_
 
 #include <gmock/gmock.h>
-
+#include <cstdint>
 #include <string>
 #include <list>
-
 #include "curvefs/src/client/dentry_cache_manager.h"
 
 namespace curvefs {
@@ -38,8 +37,8 @@ class MockDentryCacheManager : public DentryCacheManager {
     MockDentryCacheManager() {}
     ~MockDentryCacheManager() {}
 
-    MOCK_METHOD2(Init, CURVEFS_ERROR(
-        uint64_t cacheSize, bool enableCacheMetrics));
+    MOCK_METHOD3(Init, CURVEFS_ERROR(
+        uint64_t cacheSize, bool enableCacheMetrics, uint32_t cacheTimeOutSec));
 
     MOCK_METHOD1(InsertOrReplaceCache, void(const Dentry& dentry));
 

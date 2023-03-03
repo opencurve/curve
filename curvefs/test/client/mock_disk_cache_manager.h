@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 
 #include <string>
+#include <utility>
 #include <vector>
 #include <set>
 #include <memory>
@@ -54,6 +55,8 @@ class MockDiskCacheManager : public DiskCacheManager {
     MOCK_METHOD3(WriteReadDirect,
                   int(const std::string fileName,
                       const char* buf, uint64_t length));
+    MOCK_METHOD0(IsDiskUsedInited,
+                 bool());
 };
 
 class MockDiskCacheManager2 : public DiskCacheManager {
@@ -66,15 +69,21 @@ class MockDiskCacheManager2 : public DiskCacheManager {
     MOCK_METHOD0(IsDiskCacheFull, bool());
     MOCK_METHOD3(WriteReadDirect, int(const std::string fileName,
                                       const char *buf, uint64_t length));
+    MOCK_METHOD1(IsCached, bool(const std::string));
 };
 
 class MockDiskCacheManagerImpl : public DiskCacheManagerImpl {
  public:
     MockDiskCacheManagerImpl() : DiskCacheManagerImpl() {}
+    MockDiskCacheManagerImpl(std::shared_ptr<DiskCacheManager> diskCacheManager,
+                             std::shared_ptr<S3Client> client)
+        : DiskCacheManagerImpl(std::move(diskCacheManager), std::move(client)) {
+    }
     ~MockDiskCacheManagerImpl() {}
 
     MOCK_METHOD1(UploadWriteCacheByInode, int(const std::string &inode));
     MOCK_METHOD1(ClearReadCache, int(const std::list<std::string> &files));
+    MOCK_METHOD1(IsCached, bool(const std::string));
 };
 
 }  // namespace client

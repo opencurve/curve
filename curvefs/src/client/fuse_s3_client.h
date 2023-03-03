@@ -25,25 +25,49 @@
 #define CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
 
 #include <memory>
+#include <string>
+#include <list>
+#include <vector>
+#include <utility>
 
 #include "curvefs/src/client/fuse_client.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/warmup/warmup_manager.h"
+#include "src/common/s3_adapter.h"
+
 namespace curvefs {
 namespace client {
+
+using curve::common::GetObjectAsyncContext;
+using curve::common::GetObjectAsyncCallBack;
+namespace warmup {
+class WarmupManager;
+class WarmupManagerS3Impl;
+}  // namespace warmup
+
 
 class FuseS3Client : public FuseClient {
  public:
     FuseS3Client()
-      : FuseClient(),
-        s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {}
+        : FuseClient(), s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {
+        auto readFunc = [this](fuse_req_t req, fuse_ino_t ino, size_t size,
+                               off_t off, struct fuse_file_info *fi,
+                               char *buffer, size_t *rSize) {
+            return FuseOpRead(req, ino, size, off, fi, buffer, rSize);
+        };
+        warmupManager_ = std::make_shared<warmup::WarmupManagerS3Impl>(
+            metaClient_, inodeManager_, dentryManager_, fsInfo_, readFunc,
+            s3Adaptor_);
+    }
 
     FuseS3Client(const std::shared_ptr<MdsClient> &mdsClient,
-        const std::shared_ptr<MetaServerClient> &metaClient,
-        const std::shared_ptr<InodeCacheManager> &inodeManager,
-        const std::shared_ptr<DentryCacheManager> &dentryManager,
-        const std::shared_ptr<S3ClientAdaptor> &s3Adaptor)
-        : FuseClient(mdsClient, metaClient,
-            inodeManager, dentryManager),
+                 const std::shared_ptr<MetaServerClient> &metaClient,
+                 const std::shared_ptr<InodeCacheManager> &inodeManager,
+                 const std::shared_ptr<DentryCacheManager> &dentryManager,
+                 const std::shared_ptr<S3ClientAdaptor> &s3Adaptor,
+                 const std::shared_ptr<warmup::WarmupManager> &warmupManager)
+        : FuseClient(mdsClient, metaClient, inodeManager, dentryManager,
+                     warmupManager),
           s3Adaptor_(s3Adaptor) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
@@ -85,7 +109,9 @@ class FuseS3Client : public FuseClient {
         struct fuse_file_info *fi) override;
 
  private:
-    CURVEFS_ERROR Truncate(Inode *inode, uint64_t length) override;
+    bool InitKVCache(const KVClientManagerOpt &opt);
+
+    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
 

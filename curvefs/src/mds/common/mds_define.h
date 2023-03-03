@@ -23,8 +23,10 @@
 #ifndef CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
 #define CURVEFS_SRC_MDS_COMMON_MDS_DEFINE_H_
 
+#include <cstdint>
 namespace curvefs {
 namespace mds {
+
 namespace topology {
 
 typedef uint32_t FsIdType;
@@ -36,6 +38,7 @@ typedef uint32_t PartitionIdType;
 typedef uint32_t CopySetIdType;
 typedef uint64_t EpochType;
 typedef uint32_t UserIdType;
+using MemcacheClusterIdType = uint32_t;
 
 const uint32_t UNINITIALIZE_ID = 0u;
 const uint32_t UNINITIALIZE_COUNT = UINT32_MAX;

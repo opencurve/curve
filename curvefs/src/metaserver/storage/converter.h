@@ -58,7 +58,7 @@ class NameGenerator {
 
     std::string GetDentryTableName() const;
 
-    std::string GetVolumnExtentTableName() const;
+    std::string GetVolumeExtentTableName() const;
 
     std::string GetInodeAuxInfoTableName() const;
 

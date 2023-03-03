@@ -37,6 +37,7 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/uri_parser.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_attachment.h"
 #include "src/chunkserver/raftsnapshot/curve_file_service.h"
@@ -150,6 +151,7 @@ int ChunkServer::Run(int argc, char** argv) {
     std::string raftLogProtocol = UriParser::GetProtocolFromUri(raftLogUri);
     std::shared_ptr<FilePool> walFilePool = nullptr;
     bool useChunkFilePoolAsWalPool = true;
+    uint32_t useChunkFilePoolAsWalPoolReserve = 15;
     if (raftLogProtocol == kProtocalCurve) {
         LOG_IF(FATAL, !conf.GetBoolValue(
             "walfilepool.use_chunk_file_pool",
@@ -164,6 +166,9 @@ int ChunkServer::Run(int argc, char** argv) {
             LOG(INFO) << "initialize walpool success.";
         } else {
             walFilePool = chunkfilePool;
+            LOG_IF(FATAL, !conf.GetUInt32Value(
+            "walfilepool.use_chunk_file_pool_reserve",
+            &useChunkFilePoolAsWalPoolReserve));
             LOG(INFO) << "initialize to use chunkfilePool as walpool success.";
         }
     }
@@ -190,7 +195,11 @@ int ChunkServer::Run(int argc, char** argv) {
     // 初始化注册模块
     RegisterOptions registerOptions;
     InitRegisterOptions(&conf, &registerOptions);
+    registerOptions.useChunkFilePoolAsWalPoolReserve =
+            useChunkFilePoolAsWalPoolReserve;
+    registerOptions.useChunkFilePoolAsWalPool = useChunkFilePoolAsWalPool;
     registerOptions.fs = fs;
+    registerOptions.chunkFilepool = chunkfilePool;
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     ChunkServerMetadata localMetadata;
@@ -286,6 +295,7 @@ int ChunkServer::Run(int argc, char** argv) {
     InitHeartbeatOptions(&conf, &heartbeatOptions);
     heartbeatOptions.copysetNodeManager = copysetNodeManager_;
     heartbeatOptions.fs = fs;
+    heartbeatOptions.chunkFilePool = chunkfilePool;
     heartbeatOptions.chunkserverId = metadata.id();
     heartbeatOptions.chunkserverToken = metadata.token();
     heartbeatOptions.scanManager = &scanManager_;
@@ -587,15 +597,21 @@ void ChunkServer::InitCopysetNodeOptions(
         &copysetNodeOptions->finishLoadMargin));
     LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_loadmargin_interval_ms",
         &copysetNodeOptions->checkLoadMarginIntervalMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value("copyset.sync_concurrency",
+            &copysetNodeOptions->syncConcurrency));
 
     LOG_IF(FATAL, !conf->GetBoolValue(
         "copyset.enable_odsync_when_open_chunkfile",
         &copysetNodeOptions->enableOdsyncWhenOpenChunkFile));
     if (!copysetNodeOptions->enableOdsyncWhenOpenChunkFile) {
-        LOG_IF(FATAL, !conf->GetUInt32Value("copyset.synctimer_interval_ms",
-            &copysetNodeOptions->syncTimerIntervalMs));
+        LOG_IF(FATAL, !conf->GetUInt64Value("copyset.sync_chunk_limits",
+            &copysetNodeOptions->syncChunkLimit));
+        LOG_IF(FATAL, !conf->GetUInt64Value("copyset.sync_threshold",
+            &copysetNodeOptions->syncThreshold));
         LOG_IF(FATAL, !conf->GetUInt32Value("copyset.check_syncing_interval_ms",
             &copysetNodeOptions->checkSyncingIntervalMs));
+        LOG_IF(FATAL, !conf->GetUInt32Value("copyset.sync_trigger_seconds",
+                &copysetNodeOptions->syncTriggerSeconds));
     }
 }
 

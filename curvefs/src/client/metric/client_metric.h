@@ -25,6 +25,7 @@
 #define CURVEFS_SRC_CLIENT_METRIC_CLIENT_METRIC_H_
 
 #include <bvar/bvar.h>
+#include <cstdint>
 #include <string>
 #include "src/client/client_metric.h"
 
@@ -50,11 +51,12 @@ struct MDSClientMetric {
     InterfaceMetric refreshSession;
     InterfaceMetric getLatestTxId;
     InterfaceMetric commitTx;
+    InterfaceMetric allocOrGetMemcacheCluster;
 
-    explicit MDSClientMetric(const std::string &prefix_ = "")
+    explicit MDSClientMetric(const std::string& prefix_ = "")
         : prefix(!prefix_.empty() ? prefix_
                                   : "curvefs_mds_client_" +
-                                    curve::common::ToHexString(this)),
+                                        curve::common::ToHexString(this)),
           mountFs(prefix, "mountFs"),
           umountFs(prefix, "umountFs"),
           getFsInfo(prefix, "getFsInfo"),
@@ -66,7 +68,8 @@ struct MDSClientMetric {
           allocS3ChunkId(prefix, "allocS3ChunkId"),
           refreshSession(prefix, "refreshSession"),
           getLatestTxId(prefix, "getLatestTxId"),
-          commitTx(prefix, "commitTx") {}
+          commitTx(prefix, "commitTx"),
+          allocOrGetMemcacheCluster(prefix, "allocOrGetMemcacheCluster") {}
 };
 
 struct MetaServerClientMetric {
@@ -222,16 +225,16 @@ struct FSMetric {
 
     InterfaceMetric userWrite;
     InterfaceMetric userRead;
-    bvar::LatencyRecorder userWriteIoSize;
-    bvar::LatencyRecorder userReadIoSize;
+    bvar::Status<uint32_t> userWriteIoSize;
+    bvar::Status<uint32_t> userReadIoSize;
 
     explicit FSMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           userWrite(prefix, fsName + "_userWrite"),
           userRead(prefix, fsName + "_userRead"),
-          userWriteIoSize(prefix, fsName + "_userWriteIoSize"),
-          userReadIoSize(prefix, fsName + "_userReadIoSize") {}
+          userWriteIoSize(prefix, fsName + "_userWriteIoSize", 0),
+          userReadIoSize(prefix, fsName + "_userReadIoSize", 0) {}
 };
 
 struct S3Metric {
@@ -244,8 +247,8 @@ struct S3Metric {
     InterfaceMetric adaptorWriteDiskCache;
     InterfaceMetric adaptorReadS3;
     InterfaceMetric adaptorReadDiskCache;
-    bvar::LatencyRecorder readSize;
-    bvar::LatencyRecorder writeSize;
+    bvar::Status<uint32_t> readSize;
+    bvar::Status<uint32_t> writeSize;
 
     explicit S3Metric(const std::string &name = "")
         : fsName(!name.empty() ? name
@@ -256,8 +259,8 @@ struct S3Metric {
           adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
           adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
           adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache"),
-          readSize(prefix, fsName + "_adaptor_read_size"),
-          writeSize(prefix, fsName + "_adaptor_write_size") {}
+          readSize(prefix, fsName + "_adaptor_read_size", 0),
+          writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
 };
 
 struct DiskCacheMetric {
@@ -272,6 +275,15 @@ struct DiskCacheMetric {
                                : prefix + curve::common::ToHexString(this)),
           writeS3(prefix, fsName + "_write_s3"),
           diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
+};
+
+struct KVClientMetric {
+    const std::string prefix = "curvefs_kvclient";
+    InterfaceMetric kvClientSet;
+    InterfaceMetric kvClientGet;
+
+    KVClientMetric()
+        : kvClientGet(prefix, "get"), kvClientSet(prefix, "set") {}
 };
 
 struct S3ChunkInfoMetric {

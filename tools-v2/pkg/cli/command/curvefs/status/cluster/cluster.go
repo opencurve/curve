@@ -25,7 +25,7 @@ package cluster
 import (
 	"fmt"
 
-	"github.com/liushuochen/gotable/table"
+	"github.com/olekukonko/tablewriter"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -47,8 +47,8 @@ const (
 
 type ClusterCommand struct {
 	basecmd.FinalCurveCmd
-	type2Table map[string]*table.Table
-	type2Func  map[string]func(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS)
+	type2Table map[string]*tablewriter.Table
+	type2Func  map[string]func(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS)
 	serverList []string
 	health  cobrautil.ClUSTER_HEALTH_STATUS
 }
@@ -78,13 +78,13 @@ func (cCmd *ClusterCommand) AddFlags() {
 }
 
 func (cCmd *ClusterCommand) Init(cmd *cobra.Command, args []string) error {
-	cCmd.type2Func = map[string]func(caller *cobra.Command) (*interface{}, *table.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS){
+	cCmd.type2Func = map[string]func(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmderror.CmdError, cobrautil.ClUSTER_HEALTH_STATUS){
 		TYPE_ETCD:        etcd.GetEtcdStatus,
 		TYPE_MDS:         mds.GetMdsStatus,
 		TYPE_MEATASERVER: metaserver.GetMetaserverStatus,
 		TYPE_COPYSET:     copyset.GetCopysetStatus,
 	}
-	cCmd.type2Table = make(map[string]*table.Table)
+	cCmd.type2Table = make(map[string]*tablewriter.Table)
 	cCmd.serverList = []string{TYPE_ETCD, TYPE_MDS, TYPE_MEATASERVER, TYPE_COPYSET}
 	cCmd.health = cobrautil.HEALTH_OK
 	return nil
@@ -114,12 +114,12 @@ func (cCmd *ClusterCommand) RunCommand(cmd *cobra.Command, args []string) error 
 func (cCmd *ClusterCommand) ResultPlainOutput() error {
 	for _, server := range cCmd.serverList {
 		fmt.Printf("%s:\n", server)
-		if cCmd.type2Table[server] != nil && len(cCmd.type2Table[server].Row) > 0 {
-			fmt.Println(cCmd.type2Table[server])
+		if cCmd.type2Table[server] != nil && cCmd.type2Table[server].NumLines() > 0 {
+			cCmd.type2Table[server].Render()
 		} else {
-			fmt.Printf("No found %s\n\n", server)
+			fmt.Printf("No found %s\n", server)
 		}
 	}
-	fmt.Println("Cluster health is: ", cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)])
-	return cCmd.Error.ToError()
+	fmt.Println("Cluster health is:", cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)])
+	return nil
 }

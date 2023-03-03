@@ -34,7 +34,7 @@ bazel_skylib_workspace()
 git_repository(
     name = "com_github_baidu_braft",
     remote = "https://github.com/baidu/braft",
-    commit = "e255c0e4b18d1a8a5d484d4b647f41ff1385ef1e",
+    commit = "d12de388c97998f5ccd5cb97ed0da728815ef438",
 )
 
 bind(
@@ -116,7 +116,7 @@ bind(
 
 http_archive(
     name = "com_github_google_leveldb",
-    build_file = "@com_github_apache_brpc//:leveldb.BUILD",
+    build_file = "@com_github_brpc_brpc//:leveldb.BUILD",
     strip_prefix = "leveldb-a53934a3ae1244679f812d998a4f16f2c7f309a6",
     urls = ["https://github.com/google/leveldb/archive/a53934a3ae1244679f812d998a4f16f2c7f309a6.tar.gz"],
 )
@@ -127,7 +127,7 @@ bind(
 )
 
 git_repository(
-    name = "com_github_apache_brpc",
+    name = "com_github_brpc_brpc",
     remote = "https://github.com/apache/incubator-brpc",
     commit = "1b9e00641cbec1c8803da6a1f7f555398c954cb0",
     patches = ["//:thirdparties/brpc/brpc.patch"],
@@ -136,22 +136,22 @@ git_repository(
 
 bind(
     name = "brpc",
-    actual = "@com_github_apache_brpc//:brpc",
+    actual = "@com_github_brpc_brpc//:brpc",
 )
 
 bind(
     name = "butil",
-    actual = "@com_github_apache_brpc//:butil",
+    actual = "@com_github_brpc_brpc//:butil",
 )
 
 bind(
     name = "bthread",
-    actual = "@com_github_apache_brpc//:bthread",
+    actual = "@com_github_brpc_brpc//:bthread",
 )
 
 bind(
     name = "bvar",
-    actual = "@com_github_apache_brpc//:bvar",
+    actual = "@com_github_brpc_brpc//:bvar",
 )
 
 # jsoncpp
@@ -172,6 +172,13 @@ new_local_repository(
     build_file = "//:thirdparties/etcdclient.BUILD",
     path = "thirdparties/etcdclient",
 )
+
+new_local_repository(
+    name = "libmemcached",
+    build_file = "//:thirdparties/memcache/memcache.BUILD",
+    path = "thirdparties/memcache/libmemcached-1.1.2",
+)
+
 
 http_archive(
     name = "aws",

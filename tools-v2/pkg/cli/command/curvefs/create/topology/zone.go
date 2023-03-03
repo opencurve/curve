@@ -135,7 +135,7 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_ZONE
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_DEL
 			row[cobrautil.ROW_PARENT] = zoneInfo.GetPoolName()
-			tCmd.Table.AddRow(row)
+			tCmd.rows = append(tCmd.rows, row)
 			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
 		}
 	}
@@ -156,7 +156,7 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 			row[cobrautil.ROW_TYPE] = cobrautil.TYPE_ZONE
 			row[cobrautil.ROW_OPERATION] = cobrautil.ROW_VALUE_ADD
 			row[cobrautil.ROW_PARENT] = zone.PoolName
-			tCmd.Table.AddRow(row)
+			tCmd.rows = append(tCmd.rows, row)
 			tCmd.TableNew.Append(cobrautil.Map2List(row, tCmd.Header))
 		}
 	}
@@ -166,7 +166,7 @@ func (tCmd *TopologyCommand) scanZones() *cmderror.CmdError {
 
 func (tCmd *TopologyCommand) removeZones() *cmderror.CmdError {
 	tCmd.deleteZoneRpc = &DeleteZoneRpc{}
-	tCmd.deleteZoneRpc.Info = basecmd.NewRpc(tCmd.addrs, tCmd.timeout, tCmd.retryTimes, "DeleteServer")
+	tCmd.deleteZoneRpc.Info = basecmd.NewRpc(tCmd.addrs, tCmd.timeout, tCmd.retryTimes, "DeleteZone")
 	for _, delReuest := range tCmd.deleteZone {
 		tCmd.deleteZoneRpc.Request = delReuest
 		result, err := basecmd.GetRpcResponse(tCmd.deleteZoneRpc.Info, tCmd.deleteZoneRpc)

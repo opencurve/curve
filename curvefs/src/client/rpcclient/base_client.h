@@ -42,6 +42,8 @@ using curvefs::metaserver::CreateDentryRequest;
 using curvefs::metaserver::CreateDentryResponse;
 using curvefs::metaserver::CreateInodeRequest;
 using curvefs::metaserver::CreateInodeResponse;
+using curvefs::metaserver::CreateManageInodeRequest;
+using curvefs::metaserver::CreateManageInodeResponse;
 using curvefs::metaserver::DeleteDentryRequest;
 using curvefs::metaserver::DeleteDentryResponse;
 using curvefs::metaserver::DeleteInodeRequest;
@@ -59,6 +61,7 @@ using curvefs::metaserver::PrepareRenameTxRequest;
 using curvefs::metaserver::PrepareRenameTxResponse;
 using curvefs::metaserver::UpdateInodeRequest;
 using curvefs::metaserver::UpdateInodeResponse;
+using curvefs::metaserver::ManageInodeType;
 
 using curvefs::common::FSType;
 using curvefs::common::PartitionInfo;
@@ -87,6 +90,8 @@ using curvefs::mds::UmountFsResponse;
 using ::curve::client::CopysetID;
 using ::curve::client::LogicPoolID;
 
+using curvefs::mds::topology::AllocOrGetMemcacheClusterRequest;
+using curvefs::mds::topology::AllocOrGetMemcacheClusterResponse;
 using curvefs::mds::topology::Copyset;
 using curvefs::mds::topology::CreatePartitionRequest;
 using curvefs::mds::topology::CreatePartitionResponse;
@@ -120,6 +125,7 @@ struct InodeParam {
     uint64_t rdev;
     std::string symlink;
     uint64_t parent;
+    ManageInodeType manageType = ManageInodeType::TYPE_NOT_MANAGE;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
@@ -212,6 +218,10 @@ class MDSBaseClient {
         ReleaseBlockGroupResponse* response,
         brpc::Controller* cntl,
         brpc::Channel* channel);
+
+    virtual void AllocOrGetMemcacheCluster(
+        uint32_t fsId, AllocOrGetMemcacheClusterResponse* response,
+        brpc::Controller* cntl, brpc::Channel* channel);
 };
 
 }  // namespace rpcclient
