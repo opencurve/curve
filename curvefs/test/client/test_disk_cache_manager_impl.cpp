@@ -97,6 +97,7 @@ class TestDiskCacheManagerImpl : public ::testing::Test {
 
 TEST_F(TestDiskCacheManagerImpl, Init) {
     S3ClientAdaptorOption s3AdaptorOption;
+    s3AdaptorOption.diskCacheOpt.threads = 10;
     EXPECT_CALL(*diskCacheManager_, Init(_, _)).WillOnce(Return(-1));
     int ret = diskCacheManagerImpl_->Init(s3AdaptorOption);
     ASSERT_EQ(-1, ret);
