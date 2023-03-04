@@ -859,8 +859,8 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     }
 
     // check if inode should move to recycle
-    if (ShouldMoveToRecycle(parent) 
-        && recycle_whitelist_.find(name) != recycle_whitelist_.end()) {
+    if (ShouldMoveToRecycle(parent) &&
+        recycle_whitelist_.find(name) != recycle_whitelist_.end()) {
         ret = MoveToRecycle(req, ino, parent, name, type);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "MoveToRecycle failed, ret = " << ret
