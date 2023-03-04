@@ -32,6 +32,7 @@
 #include <set>
 #include <unordered_map>
 #include <utility>
+#include <fstream>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/common/common.h"
@@ -84,6 +85,28 @@ using rpcclient::MetaCache;
 using common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
+
+    // 读取白名单文件
+    std::string whitelist_path = std::string(getenv("HOME")) + "/.curvefs/config";
+
+    std::ifstream ifs(whitelist_path);
+    if (!ifs.is_open()) {
+        LOG(ERROR) << "Failed to open whitelist file: " << whitelist_path;
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    std::string line;
+    while (std::getline(ifs, line)) {
+        // 删除行末可能存在的空格，避免误判
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+        if (!line.empty() && line[0] != '#') {
+            recycle_whitelist_.insert(std::move(line));
+        }
+    }
+
+    ifs.close();
+
     option_ = option;
 
     mdsBase_ = new MDSBaseClient();
@@ -836,7 +859,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     }
 
     // check if inode should move to recycle
-    if (ShouldMoveToRecycle(parent)) {
+    if (ShouldMoveToRecycle(parent) && recycle_whitelist_.find(name) != recycle_whitelist_.end()) {
         ret = MoveToRecycle(req, ino, parent, name, type);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "MoveToRecycle failed, ret = " << ret

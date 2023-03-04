@@ -37,6 +37,7 @@ BASE_FLAGS = [
     "-momit-leaf-frame-pointer",
     "-msse4.2",
     "-pthread",
+    "-faligned-new"
 ]
 
 CXX_FLAGS = [

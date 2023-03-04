@@ -389,6 +389,11 @@ class FuseClient {
     // warmup manager
     std::shared_ptr<warmup::WarmupManager> warmupManager_;
 
+    // recycle whitelist
+    std::string conf_path_;
+    
+    std::unordered_set<std::string> recycle_whitelist_;
+
  private:
     MDSBaseClient* mdsBase_;
 
