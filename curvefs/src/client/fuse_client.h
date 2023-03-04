@@ -390,7 +390,7 @@ class FuseClient {
     std::shared_ptr<warmup::WarmupManager> warmupManager_;
 
     // recycle whitelist
-    std::string conf_path_;
+    common::Configuration config_;
 
     std::unordered_set<std::string> recycle_whitelist_;
 

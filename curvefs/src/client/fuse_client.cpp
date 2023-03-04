@@ -86,26 +86,26 @@ using common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     // 读取白名单文件
-    std::string whitelist_path = 
-        std::string(getenv("HOME")) + "/.curvefs/config";
-
-    std::ifstream ifs(whitelist_path);
-    if (!ifs.is_open()) {
-        LOG(ERROR) << "Failed to open whitelist file: " << whitelist_path;
+    config_.SetConfigPath(std::string (
+        getenv ( " HOME " )) + " curvefs/conf/recycle_whitelist.conf ");
+    if (!config_.LoadConfig()) {
+        // handle error here
+        LOG(ERROR) << "Failed to open whitelist file: " << config_.GetConfigPath();
         return CURVEFS_ERROR::INTERNAL;
     }
-
-    std::string line;
-    while (std::getline(ifs, line)) {
-        // 删除行末可能存在的空格，避免误判
-        line.erase(line.find_last_not_of(" \t\r\n") + 1);
-
-        if (!line.empty() && line[0] != '#') {
-            recycle_whitelist_.insert(std::move(line));
+    std::string whitelist_str;
+    // 读取白名单配置项的值
+    // 如果配置项不存在或者配置项为空，则考虑可能未定义该配置项，我们不会报错退出
+    bool found = config_.GetStringValue("recycle_whitelist", &whitelist_str);
+    std::map<std::string, std::string> confMap = config_.ListConfig();
+    if(found && !whitelist_str.empty()){
+        for (const auto& kv : confMap) {
+            recycle_whitelist_.insert(kv.second);
         }
+    } else {
+    // 白名单为空或者配置文件中没有对应的白名单配置项，我们认为是不需要限制的
+    LOG(INFO) << "Recycle whitelist is empty.";
     }
-
-    ifs.close();
 
     option_ = option;
 
@@ -859,8 +859,7 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     }
 
     // check if inode should move to recycle
-    if (ShouldMoveToRecycle(parent) &&
-        recycle_whitelist_.find(name) != recycle_whitelist_.end()) {
+    if (ShouldMoveToRecycle(parent) && recycle_whitelist_.count(name)) {
         ret = MoveToRecycle(req, ino, parent, name, type);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "MoveToRecycle failed, ret = " << ret
