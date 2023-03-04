@@ -391,7 +391,7 @@ class FuseClient {
 
     // recycle whitelist
     std::string conf_path_;
-    
+
     std::unordered_set<std::string> recycle_whitelist_;
 
  private:

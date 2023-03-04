@@ -85,9 +85,9 @@ using rpcclient::MetaCache;
 using common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
-
     // 读取白名单文件
-    std::string whitelist_path = std::string(getenv("HOME")) + "/.curvefs/config";
+    std::string whitelist_path = 
+        std::string(getenv("HOME")) + "/.curvefs/config";
 
     std::ifstream ifs(whitelist_path);
     if (!ifs.is_open()) {
@@ -859,7 +859,8 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     }
 
     // check if inode should move to recycle
-    if (ShouldMoveToRecycle(parent) && recycle_whitelist_.find(name) != recycle_whitelist_.end()) {
+    if (ShouldMoveToRecycle(parent) 
+        && recycle_whitelist_.find(name) != recycle_whitelist_.end()) {
         ret = MoveToRecycle(req, ino, parent, name, type);
         if (ret != CURVEFS_ERROR::OK) {
             LOG(ERROR) << "MoveToRecycle failed, ret = " << ret
