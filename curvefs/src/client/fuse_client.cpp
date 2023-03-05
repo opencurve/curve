@@ -86,7 +86,7 @@ using common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     // 读取白名单文件
-    config_.SetConfigPath(std::string (
+    config_.SetConfigPath(std::string(
         getenv("HOME")) + "/curvefs/conf/recycle_whitelist.conf");
     if (!config_.LoadConfig()) {
         // handle error here
