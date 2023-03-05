@@ -87,10 +87,11 @@ using common::FLAGS_enableCto;
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     // 读取白名单文件
     config_.SetConfigPath(std::string (
-        getenv ( " HOME " )) + " /curvefs/conf/recycle_whitelist.conf ");
+        getenv ("HOME")) + "/curvefs/conf/recycle_whitelist.conf");
     if (!config_.LoadConfig()) {
         // handle error here
-        LOG(ERROR) << "Failed to open whitelist file: " << config_.GetConfigPath();
+        LOG(ERROR) << "Failed to open whitelist file: "
+                   << config_.GetConfigPath();
         return CURVEFS_ERROR::INTERNAL;
     }
     std::string whitelist_str;
@@ -98,7 +99,7 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     // 如果配置项不存在或者配置项为空，则考虑可能未定义该配置项，我们不会报错退出
     bool found = config_.GetStringValue("recycle_whitelist", &whitelist_str);
     std::map<std::string, std::string> confMap = config_.ListConfig();
-    if(found && !whitelist_str.empty()){
+    if (found && !whitelist_str.empty()) {
         for (const auto& kv : confMap) {
             recycle_whitelist_.insert(kv.second);
         }
