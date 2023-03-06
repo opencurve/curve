@@ -32,7 +32,6 @@
 #include <set>
 #include <unordered_map>
 #include <utility>
-#include <fstream>
 
 #include "curvefs/proto/mds.pb.h"
 #include "curvefs/src/client/common/common.h"
