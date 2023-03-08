@@ -20,6 +20,7 @@
  * Author: lixiaocui
  */
 
+#include <iostream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -32,6 +33,8 @@
 #include <thread>  //NOLINT
 #include <chrono>  //NOLINT
 #include <memory>
+#include <utility>
+#include <vector>
 #include "test/integration/cluster_common/cluster.h"
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
@@ -49,6 +52,16 @@ using ::curve::client::CreateFileContext;
 int CurveCluster::InitMdsClient(const curve::client::MetaServerOption &op) {
     mdsClient_ = std::make_shared<MDSClient>();
     return mdsClient_->Initialize(op);
+}
+
+std::vector<char *> vecStrVecChar(std::vector<std::string> args) {
+    std::vector<char *> argv(args.size() + 1);       // for the NULL terminator
+    for (std::size_t i = 0; i < args.size(); ++i) {  // not include cmd
+        argv[i] = new char[args[i].size()+1];
+        std::strcpy(argv[i], args[i].c_str());
+    }
+    argv[args.size()] = NULL;
+    return argv;
 }
 
 int CurveCluster::InitSnapshotCloneMetaStoreEtcd(
@@ -117,18 +130,20 @@ int CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
     } else if (0 == pid) {
         // 在子进程中起一个mds
         // ./bazel-bin/src/mds/main/curvemds
-        std::string cmd_dir =
-            std::string("./bazel-bin/src/mds/main/curvemds --mdsAddr=") +
-            ipPort + " --dummyPort=" + std::to_string(dummyPort);
+        std::vector<std::string> args;
+        args.emplace_back("./bazel-bin/src/mds/main/curvemds");
+        args.emplace_back("--mdsAddr=" + ipPort);
+        args.emplace_back("--dummyPort=" + std::to_string(dummyPort));
         for (auto &item : mdsConf) {
-            cmd_dir += item;
+            args.emplace_back(item);
         }
 
+        std::vector<char *> argv = vecStrVecChar(args);
         /**
          *  重要提示！！！！
          *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
          */
-        execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        execv("./bazel-bin/src/mds/main/curvemds", argv.data());
         exit(0);
     }
 
@@ -207,18 +222,20 @@ int CurveCluster::StartSnapshotCloneServer(
         return -1;
     } else if (0 == pid) {
         // 在子进程中起一个snapshotcloneserver
-        std::string cmd_dir = std::string(
-                                  "./bazel-bin/src/snapshotcloneserver/"
-                                  "snapshotcloneserver --addr=") +  // NOLINT
-                              ipPort;
+        std::vector<std::string> args;
+        args.emplace_back(
+            "./bazel-bin/src/snapshotcloneserver/snapshotcloneserver");
+        args.emplace_back("--addr=" + ipPort);
         for (auto &item : snapshotcloneConf) {
-            cmd_dir += item;
+            args.emplace_back(item);
         }
+        std::vector<char *> argv = vecStrVecChar(args);
         /**
          *  重要提示！！！！
          *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
          */
-        execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        execv("./bazel-bin/src/snapshotcloneserver/snapshotcloneserver",
+              argv.data());
         exit(0);
     }
 
@@ -313,23 +330,28 @@ int CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
     } else if (0 == pid) {
         // 在子进程中起一个etcd
         // ip netns exec integ_etcd1 etcd
-        std::string cmd_dir =
-            std::string(" etcd --listen-peer-urls http://") + peerIpPort +
-            std::string(" --initial-advertise-peer-urls http://") + peerIpPort +
-            std::string(" --listen-client-urls http://") + clientIpPort +
-            std::string(" --advertise-client-urls http://") + clientIpPort +
-            std::string(" --pre-vote") +
-            std::string(" --election-timeout 3000") +
-            std::string(" --heartbeat-interval 300");
+        std::vector<std::string> args{"etcd"};
+        args.emplace_back("--listen-peer-urls=http://" + peerIpPort);
+        args.emplace_back("--initial-advertise-peer-urls=http://" + peerIpPort);
+        args.emplace_back("--listen-client-urls=http://" + clientIpPort);
+        args.emplace_back("--advertise-client-urls=http://" + clientIpPort);
+        args.emplace_back("--pre-vote");
+        args.emplace_back("--initial-cluster-token=etcd-cluster-1");
+        args.emplace_back("--election-timeout=3000");
+        args.emplace_back("--heartbeat-interval=300");
         for (auto &item : etcdConf) {
-            cmd_dir += item;
+            args.push_back(item);
         }
 
+        std::vector<char *> argv = vecStrVecChar(args);
+        for (auto &arg : argv) {
+            LOG(INFO) << "etcd arg:" << arg;
+        }
         /**
          *  重要提示！！！！
          *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
          */
-        execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        execvp("etcd", argv.data());
         exit(0);
     }
 
@@ -472,19 +494,20 @@ int CurveCluster::StartSingleChunkServer(
         return -1;
     } else if (0 == pid) {
         // 在子进程中起一个chunkserver
-        std::string cmd_dir =
-            std::string("./bazel-bin/src/chunkserver/chunkserver ") +
-            std::string(" -chunkServerIp=") + split[0] +
-            std::string(" -chunkServerPort=") + split[1];
+        std::vector<std::string> args;
+        args.emplace_back("./bazel-bin/src/chunkserver/chunkserver");
+        args.emplace_back("-chunkServerIp=" + split[0]);
+        args.emplace_back("-chunkServerPort=" + split[1]);
         for (auto &item : chunkserverConf) {
-            cmd_dir += item;
+            args.emplace_back(item);
         }
 
+        std::vector<char *> argv = vecStrVecChar(args);
         /**
          *  重要提示！！！！
          *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
          */
-        execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        execv("./bazel-bin/src/chunkserver/chunkserver", argv.data());
         exit(0);
     }
 
@@ -517,20 +540,22 @@ int CurveCluster::StartSingleChunkServerInBackground(
         return -1;
     } else if (0 == pid) {
         // 在子进程中起一个chunkserver
-        std::string cmd_dir =
-            std::string("ip netns exec ") + nsPrefix_ + std::string("cs") +
-            std::to_string(id) +
-            std::string(" ./bazel-bin/src/chunkserver/chunkserver ") +
-            std::string(" -chunkServerIp=") + ipPort[0] +
-            std::string(" -chunkServerPort=") + ipPort[1];
+        std::vector<std::string> args;
+        args.emplace_back("netns");
+        args.emplace_back("exec");
+        args.emplace_back(nsPrefix_ + "cs" + std::to_string(id));
+        args.emplace_back("./bazel-bin/src/chunkserver/chunkserver");
+        args.emplace_back("-chunkServerIp=" + ipPort[0]);
+        args.emplace_back("-chunkServerPort=" + ipPort[1]);
         for (auto &item : chunkserverConf) {
-            cmd_dir += item;
+            args.emplace_back(item);
         }
+        std::vector<char *> argv = vecStrVecChar(args);
         /**
          *  重要提示！！！！
          *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
          */
-        execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        execvp("ip", argv.data());
         exit(0);
     }
 
@@ -570,7 +595,7 @@ int CurveCluster::StopChunkServer(int id) {
 }
 
 int CurveCluster::StopAllChunkServer() {
-    LOG(INFO) << "sttop all chunkserver begin...";
+    LOG(INFO) << "stop all chunkserver begin...";
 
     int ret = 0;
     for (auto it = chunkserverPidMap_.begin(); it != chunkserverPidMap_.end();
