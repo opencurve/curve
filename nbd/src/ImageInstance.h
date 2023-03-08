@@ -25,76 +25,134 @@
 #ifndef NBD_SRC_IMAGEINSTANCE_H_
 #define NBD_SRC_IMAGEINSTANCE_H_
 
-#include <string>
 #include <memory>
+#include <string>
 
+#include "include/client/libcurve.h"
+#include "include/client/libcurve_define.h"
 #include "nbd/src/define.h"
 #include "nebd/src/part1/libnebd.h"
 
 namespace curve {
 namespace nbd {
 
-// 封装nebd相关接口
+union AioContext {
+    CurveAioContext curve;
+    NebdClientAioContext nebd;
+};
+
 class ImageInstance {
  public:
-    ImageInstance(const std::string& imageName, NBDConfig* config)
+    ImageInstance(const std::string& imageName, const NBDConfig* config)
         : fd_(-1), imageName_(imageName), config_(config) {}
 
-    virtual ~ImageInstance();
+    ImageInstance(const ImageInstance&) = delete;
+    ImageInstance& operator=(const ImageInstance&) = delete;
+
+    virtual ~ImageInstance() = default;
 
     /**
      * @brief 打开卷
      * @return 打开成功返回true
      *         打开失败返回false
      */
-    virtual bool Open();
+    virtual bool Open() = 0;
 
     /**
      * @brief 关闭卷
      */
-    virtual void Close();
+    virtual void Close() = 0;
 
     /**
      * @brief 异步读请求
      * @param context 读请求信息
      */
-    virtual void AioRead(NebdClientAioContext* context);
+    virtual bool AioRead(AioContext* context) = 0;
 
     /**
      * @brief 异步写请求
      * @param context 写请求信息
      */
-    virtual void AioWrite(NebdClientAioContext* context);
+    virtual bool AioWrite(AioContext* context) = 0;
 
     /**
      * @brief trim请求
      * @param context trim请求信息
      */
-    virtual void Trim(NebdClientAioContext* context);
+    virtual bool Trim(AioContext* context) = 0;
 
     /**
      * @brief flush请求
      * @param context flush请求信息
      */
-    virtual void Flush(NebdClientAioContext* context);
+    virtual bool Flush(AioContext* context) = 0;
 
     /**
      * @brief 获取文件大小
      * @return 获取成功返回文件大小（正值）
      *         获取失败返回错误码（负值）
      */
-    virtual int64_t GetImageSize();
+    virtual int64_t GetImageSize() = 0;
 
- private:
-    // nebd返回的文件描述符
+ protected:
     int fd_;
-
-    // 卷名
     std::string imageName_;
 
-    NBDConfig* config_;
+    const NBDConfig* config_;
 };
+
 using ImagePtr = std::shared_ptr<ImageInstance>;
+
+class NebdImage : public ImageInstance {
+ public:
+    NebdImage(const std::string& imageName, const NBDConfig* config)
+        : ImageInstance{imageName, config} {}
+
+    ~NebdImage() override;
+
+    bool Open() override;
+
+    void Close() override;
+
+    bool AioRead(AioContext* context) override;
+
+    bool AioWrite(AioContext* context) override;
+
+    bool Trim(AioContext* context) override;
+
+    bool Flush(AioContext* context) override;
+
+    int64_t GetImageSize() override;
+};
+
+class CurveImage : public ImageInstance {
+ public:
+    CurveImage(const std::string& imageName, const NBDConfig* config)
+        : ImageInstance{imageName, config} {}
+
+    ~CurveImage() override;
+
+    bool Open() override;
+
+    void Close() override;
+
+    bool AioRead(AioContext* context) override;
+
+    bool AioWrite(AioContext* context) override;
+
+    bool Flush(AioContext* context) override;
+
+    bool Trim(AioContext* context) override;
+
+    int64_t GetImageSize() override;
+
+    // Strip prefix `cbd:pool/` from name
+    static std::string TransformImageName(const std::string& name);
+
+ private:
+    curve::client::CurveClient client_;
+    std::string actualImageName_;
+};
 
 }  // namespace nbd
 }  // namespace curve

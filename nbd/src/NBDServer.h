@@ -70,26 +70,28 @@ struct IOContext {
     NBDServer* server = nullptr;
     std::unique_ptr<char[]> data;
 
-    // NEBD请求上下文信息
-    NebdClientAioContext nebdAioCtx;
+    // 后端IO请求上下文信息
+    AioContext aio;
 
     IOContext() {
-        memset(&nebdAioCtx, 0, sizeof(nebdAioCtx));
+        memset(&aio, 0, sizeof(aio));
     }
 };
 
 // NBDServer负责与nbd内核进行数据通信
 class NBDServer {
  public:
-    NBDServer(int sock, NBDControllerPtr nbdCtrl,
+    NBDServer(int sock,
+              NBDControllerPtr nbdCtrl,
+              const NBDConfig* config,
               std::shared_ptr<ImageInstance> imageInstance,
               std::shared_ptr<SafeIO> safeIO = std::make_shared<SafeIO>())
         : started_(false),
           terminated_(false),
           sock_(sock),
           nbdCtrl_(nbdCtrl),
+          config_(config),
           image_(imageInstance),
-          pendingRequestCounts_(0),
           safeIO_(safeIO) {}
 
     ~NBDServer();
@@ -115,12 +117,13 @@ class NBDServer {
         return nbdCtrl_;
     }
 
- private:
     /**
-     * @brief NEBD异步请求回调函数
+     * @brief 异步请求结束时执行函数
+     * @param ctx 异步请求上下文
      */
-    static void NBDAioCallback(struct NebdClientAioContext* context);
+    void OnRequestFinish(IOContext* ctx);
 
+ private:
     /**
      * @brief 关闭server
      */
@@ -147,12 +150,6 @@ class NBDServer {
     void OnRequestStart();
 
     /**
-     * @brief 异步请求结束时执行函数
-     * @param ctx 异步请求上下文
-     */
-    void OnRequestFinish(IOContext* ctx);
-
-    /**
      * @brief 等待异步请求返回
      * @return 异步请求context
      */
@@ -165,6 +162,8 @@ class NBDServer {
      */
     bool StartAioRequest(IOContext* ctx);
 
+    void SetUpAioRequest(IOContext* ctx);
+
  private:
     // server是否启动
     std::atomic<bool> started_;
@@ -174,6 +173,7 @@ class NBDServer {
     // 与内核通信的socket fd
     int sock_;
     NBDControllerPtr nbdCtrl_;
+    const NBDConfig* config_;
     std::shared_ptr<ImageInstance> image_;
     std::shared_ptr<SafeIO> safeIO_;
 
@@ -182,7 +182,7 @@ class NBDServer {
     std::condition_variable requestCond_;
 
     // 正在执行过程中的请求数量
-    uint64_t pendingRequestCounts_;
+    uint64_t pendingRequestCounts_ = 0;
 
     // 已完成请求上下文队列
     std::deque<IOContext*> finishedRequests_;

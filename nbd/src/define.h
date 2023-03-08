@@ -62,6 +62,8 @@ namespace nbd {
 #define DEV_PATH_PREFIX "/dev/nbd"
 #define CURVETAB_PATH "/etc/curve/curvetab"
 
+const char* const kDefaultCurveSDKConfigPath = "/etc/curve/client.conf";
+
 using std::cerr;
 
 struct NBDConfig {
@@ -93,6 +95,10 @@ struct NBDConfig {
     int block_size = 4096;
     // libnebd config file path
     std::string nebd_conf;
+    // use curve-sdk backend
+    bool use_curvesdk = false;
+    // curve-sdk config file path
+    std::string curve_conf = kDefaultCurveSDKConfigPath;
 
     /**
      * @brief Return options for map operation
@@ -161,6 +167,10 @@ inline std::string NBDConfig::MapOptions() const {
     opts.append(KeyValueOption("block-size", block_size, 4096, &firstOpt));
     opts.append(KeyValueOption("nebd-conf", nebd_conf, {}, &firstOpt));
     opts.append(BoolOption("no-exclusive", !exclusive, &firstOpt));
+    opts.append(KeyValueOption("curve-conf", curve_conf,
+                               std::string{kDefaultCurveSDKConfigPath},
+                               &firstOpt));
+    opts.append(BoolOption("use-curvesdk", use_curvesdk, &firstOpt));
 
     return opts.empty() ? "defaults" : opts;
 }

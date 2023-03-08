@@ -40,8 +40,8 @@
 namespace curve {
 namespace nbd {
 
-std::shared_ptr<NBDTool> nbdTool;
-std::shared_ptr<NBDConfig> nbdConfig;
+static std::shared_ptr<NBDTool> nbdTool;
+static NBDConfig nbdConfig;
 
 static std::string Version() {
     static const std::string version =
@@ -66,7 +66,7 @@ static void HandleSignal(int signum) {
     std::cout << "Got signal " << sys_siglist[signum] << "\n"
               << ", disconnect now" << std::endl;
 
-    ret = nbdTool->Disconnect(nbdConfig.get());
+    ret = nbdTool->Disconnect(&nbdConfig);
     if (ret != 0) {
         std::cout << "curve-nbd: disconnect failed. Error: " << ret
                   << std::endl;
@@ -90,13 +90,15 @@ static void Usage() {
         << "  --block-size            NBD Devices's block size, default is 4096, support 512 and 4096\n"  // NOLINT
         << "  --nebd-conf             LibNebd config file\n"
         << "  --no-exclusive          Map image non exclusive\n"
+        << "  --use-curvesdk          Use Curve-SDK instead of Nebd\n"
+        << "  --curve-conf            Curve-SDK config file\n"
         << "\n"
         << "Unmap options:\n"
         << "  -f, --force                 Force unmap even if the device is mounted\n"              // NOLINT
         << "  --retry_times <limit>       The number of retries waiting for the process to exit\n"  // NOLINT
-        << "                              (default: " << nbdConfig->retry_times << ")\n"            // NOLINT
+        << "                              (default: " << nbdConfig.retry_times << ")\n"             // NOLINT
         << "  --sleep_ms <milliseconds>   Retry interval in milliseconds\n"                         // NOLINT
-        << "                              (default: " << nbdConfig->sleep_ms << ")\n"               // NOLINT
+        << "                              (default: " << nbdConfig.sleep_ms << ")\n"                // NOLINT
         << std::endl;
 }
 
@@ -110,10 +112,10 @@ static int AddRecord(int flag) {
         return -EINVAL;
     }
     if (1 == flag) {
-        record = "+\t" + nbdConfig->devpath + "\t" + nbdConfig->imgname + "\t" +
-                 nbdConfig->MapOptions() + "\n";
+        record = "+\t" + nbdConfig.devpath + "\t" + nbdConfig.imgname + "\t" +
+                 nbdConfig.MapOptions() + "\n";
     } else if (-1 == flag) {
-        record = "-\t" + nbdConfig->devpath + "\n";
+        record = "-\t" + nbdConfig.devpath + "\n";
     }
     write(fd, record.c_str(), record.size());
     close(fd);
@@ -160,7 +162,7 @@ static int NBDConnect() {
     signal(SIGTERM, HandleSignal);
     signal(SIGINT, HandleSignal);
 
-    int ret = nbdTool->Connect(nbdConfig.get());
+    int ret = nbdTool->Connect(&nbdConfig);
     int connectionRes = -1;
     if (ret < 0) {
         ::write(waitConnectPipe[1], &connectionRes, sizeof(connectionRes));
@@ -183,11 +185,10 @@ static int CurveNbdMain(int argc, const char* argv[]) {
     std::ostringstream errMsg;
     std::vector<const char*> args;
 
-    nbdConfig = std::make_shared<NBDConfig>();
     nbdTool = std::make_shared<NBDTool>();
 
     argv_to_vec(argc, argv, args);
-    r = parse_args(args, &errMsg, &command, nbdConfig.get());
+    r = parse_args(args, &errMsg, &command, &nbdConfig);
 
     if (r == HELP_INFO) {
         Usage();
@@ -202,7 +203,7 @@ static int CurveNbdMain(int argc, const char* argv[]) {
 
     switch (command) {
         case Command::Connect: {
-            if (nbdConfig->imgname.empty()) {
+            if (nbdConfig.imgname.empty()) {
                 std::cerr << "curve-nbd: image name was not specified"
                           << std::endl;
                 return -EINVAL;
@@ -216,7 +217,7 @@ static int CurveNbdMain(int argc, const char* argv[]) {
             break;
         }
         case Command::Disconnect: {
-            r = nbdTool->Disconnect(nbdConfig.get());
+            r = nbdTool->Disconnect(&nbdConfig);
             if (r < 0) {
                 return -EINVAL;
             }
@@ -244,7 +245,6 @@ static int CurveNbdMain(int argc, const char* argv[]) {
     }
 
     nbdTool.reset();
-    nbdConfig.reset();
 
     return 0;
 }

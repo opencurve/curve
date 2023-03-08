@@ -59,7 +59,7 @@ extern int check_block_size(int nbd_index, uint64_t expected_size);
 // 检查指定nbd设备的大小是否符合预期
 extern int check_device_size(int nbd_index, uint64_t expected_size);
 // 如果当前系统还未加载nbd模块，则进行加载；如果已经加载，则不作任何操作
-extern int load_module(NBDConfig *cfg);
+extern int load_module(const NBDConfig *cfg);
 // Check whether the device can be unmap
 int check_dev_can_unmap(const NBDConfig *cfg);
 

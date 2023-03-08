@@ -92,7 +92,7 @@ int NBDTool::Connect(NBDConfig *cfg) {
     }
 
     NBDControllerPtr nbdCtrl = GetController(cfg->try_netlink);
-    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtrl,
+    nbdServer_ = std::make_shared<NBDServer>(socketPair_.Second(), nbdCtrl, cfg,
                                              imageInstance);
 
     // setup controller
@@ -167,13 +167,18 @@ void NBDTool::RunServerUntilQuit() {
 }
 
 ImagePtr g_test_image = nullptr;
+
 ImagePtr NBDTool::GenerateImage(const std::string& imageName,
-                                NBDConfig* config) {
+                                const NBDConfig* config) {
     ImagePtr result = nullptr;
     if (imageName.compare(0, 4, "test") == 0) {
         result = g_test_image;
     } else {
-        result = std::make_shared<ImageInstance>(imageName, config);
+        if (config->use_curvesdk) {
+            result = std::make_shared<CurveImage>(imageName, config);
+        } else {
+            result = std::make_shared<NebdImage>(imageName, config);
+        }
     }
     return result;
 }

@@ -47,6 +47,7 @@ cc_library(
         "//external:gflags",
         "//external:glog",
         "//nebd/src/part1:nebdclient",
+        "//src/client:curve_client",
     ],
     copts = COPTS,
     linkopts = [
@@ -58,10 +59,9 @@ cc_library(
 
 cc_binary(
     name = "curve-nbd",
-    srcs = glob([
+    srcs = [
         "main.cpp"
-        ]
-    ),
+    ],
     deps = [
         "//nbd/src:curvenbd"
     ],

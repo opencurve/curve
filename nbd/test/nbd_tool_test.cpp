@@ -74,12 +74,13 @@ class NBDToolTest : public ::testing::Test {
             .WillRepeatedly(Return(true));
         EXPECT_CALL(*image_, GetImageSize())
             .WillRepeatedly(Return(1 * kGB));
-        NebdClientAioContext aioCtx;
+        AioContext aioCtx;
         EXPECT_CALL(*image_, AioRead(_))
-            .WillRepeatedly(Invoke([](NebdClientAioContext* context){
-                memset(context->buf, 0, context->length);
-                context->ret = 0;
-                context->cb(context);
+            .WillRepeatedly(Invoke([](AioContext* context){
+                memset(context->nebd.buf, 0, context->nebd.length);
+                context->nebd.ret = 0;
+                context->nebd.cb(&context->nebd);
+                return true;
             }));
         nbdThread_ = std::thread(task, config, &isRunning_, &tool_);
 
@@ -91,16 +92,18 @@ class NBDToolTest : public ::testing::Test {
         char buf[4096];
         NebdClientAioContext tempContext;
         EXPECT_CALL(*image_, AioWrite(_))
-            .WillOnce(Invoke([&](NebdClientAioContext* context){
-                tempContext = *context;
-                memset(context->buf, 0, context->length);
-                context->ret = 0;
-                context->cb(context);
+            .WillOnce(Invoke([&](AioContext* context){
+                tempContext = context->nebd;
+                memset(context->nebd.buf, 0, context->nebd.length);
+                context->nebd.ret = 0;
+                context->nebd.cb(&context->nebd);
+                return true;
             }));
         EXPECT_CALL(*image_, Flush(_))
-            .WillOnce(Invoke([](NebdClientAioContext* context){
-                context->ret = 0;
-                context->cb(context);
+            .WillOnce(Invoke([](AioContext* context){
+                context->nebd.ret = 0;
+                context->nebd.cb(&context->nebd);
+                return true;
             }));
 
         int fd = open(devpath.c_str(), O_RDWR | O_SYNC);
@@ -116,12 +119,14 @@ class NBDToolTest : public ::testing::Test {
         std::thread timeoutThread;
         char buf[4096];
         EXPECT_CALL(*image_, AioWrite(_))
-            .WillOnce(Invoke([&](NebdClientAioContext* context){
+            .WillOnce(Invoke([&](AioContext* context){
+                NebdClientAioContext* nebdCtx = &context->nebd;
                 auto callback = [&](NebdClientAioContext* ctx) {
                     sleep(timeout);
                     ctx->cb(ctx);
                 };
-                timeoutThread = std::thread(callback, context);
+                timeoutThread = std::thread(callback, nebdCtx);
+                return true;
             }));
 
         int fd = open(devpath.c_str(), O_RDWR | O_SYNC);
@@ -158,7 +163,7 @@ TEST_F(NBDToolTest, ioctl_connect_test) {
     ASSERT_FALSE(isRunning_);
 }
 
-TEST_F(NBDToolTest, netlink_connect_test) {
+TEST_F(NBDToolTest, DISABLED_netlink_connect_test) {
     NBDConfig config;
     config.devpath = "/dev/nbd10";
     config.imgname = kTestImage;

@@ -38,10 +38,10 @@ class MockImageInstance : public ImageInstance {
 
     MOCK_METHOD0(Open, bool());
     MOCK_METHOD0(Close, void());
-    MOCK_METHOD1(AioRead, void(NebdClientAioContext*));
-    MOCK_METHOD1(AioWrite, void(NebdClientAioContext*));
-    MOCK_METHOD1(Trim, void(NebdClientAioContext*));
-    MOCK_METHOD1(Flush, void(NebdClientAioContext*));
+    MOCK_METHOD1(AioRead, bool(AioContext*));
+    MOCK_METHOD1(AioWrite, bool(AioContext*));
+    MOCK_METHOD1(Trim, bool(AioContext*));
+    MOCK_METHOD1(Flush, bool(AioContext*));
     MOCK_METHOD0(GetImageSize, int64_t());
 };
 

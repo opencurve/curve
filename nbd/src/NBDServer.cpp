@@ -80,11 +80,24 @@ static std::ostream& operator<<(std::ostream& os, const IOContext& ctx) {
     return os;
 }
 
-void NBDServer::NBDAioCallback(struct NebdClientAioContext* aioCtx) {
+static void NEBDAioCallback(struct NebdClientAioContext* aioCtx) {
     IOContext* ctx = reinterpret_cast<IOContext*>(
-        reinterpret_cast<char*>(aioCtx) - offsetof(IOContext, nebdAioCtx));
+            reinterpret_cast<char*>(aioCtx) - offsetof(IOContext, aio));
 
     if (aioCtx->ret != 0) {
+        ctx->reply.error = htonl(-aioCtx->ret);
+    } else {
+        ctx->reply.error = htonl(0);
+    }
+
+    ctx->server->OnRequestFinish(ctx);
+}
+
+static void CurveAioCallback(struct CurveAioContext* aioCtx) {
+    IOContext* ctx = reinterpret_cast<IOContext*>(
+            reinterpret_cast<char*>(aioCtx) - offsetof(IOContext, aio));
+
+    if (aioCtx->ret < 0) {
         ctx->reply.error = htonl(-aioCtx->ret);
     } else {
         ctx->reply.error = htonl(0);
@@ -119,8 +132,6 @@ void NBDServer::Start() {
 
     readerThread_ = std::thread(&NBDServer::ReaderFunc, this);
     writerThread_ = std::thread(&NBDServer::WriterFunc, this);
-
-    return;
 }
 
 void NBDServer::WaitForDisconnect() {
@@ -207,7 +218,12 @@ void NBDServer::ReaderFunc() {
         bool ret = StartAioRequest(ctx.release());
 
         if (ret == false) {
-            pctx->nebdAioCtx.ret = -1;
+            if (config_->use_curvesdk) {
+                pctx->aio.curve.ret = -1;
+            } else {
+                pctx->aio.nebd.ret = -1;
+            }
+
             OnRequestFinish(pctx);
             break;
         }
@@ -297,41 +313,87 @@ void NBDServer::WaitClean() {
 }
 
 bool NBDServer::StartAioRequest(IOContext* ctx) {
+    SetUpAioRequest(ctx);
+
     switch (ctx->command) {
-        case NBD_CMD_WRITE:
-            ctx->nebdAioCtx.offset = ctx->request.from;
-            ctx->nebdAioCtx.length = ctx->request.len;
-            ctx->nebdAioCtx.buf = ctx->data.get();
-            ctx->nebdAioCtx.cb = NBDAioCallback;
-            ctx->nebdAioCtx.op = LIBAIO_OP::LIBAIO_OP_WRITE;
-            image_->AioWrite(&ctx->nebdAioCtx);
-            return true;
         case NBD_CMD_READ:
-            ctx->nebdAioCtx.offset = ctx->request.from;
-            ctx->nebdAioCtx.length = ctx->request.len;
-            ctx->nebdAioCtx.buf = ctx->data.get();
-            ctx->nebdAioCtx.cb = NBDAioCallback;
-            ctx->nebdAioCtx.op = LIBAIO_OP::LIBAIO_OP_READ;
-            image_->AioRead(&ctx->nebdAioCtx);
-            return true;
+            return image_->AioRead(&ctx->aio);
+        case NBD_CMD_WRITE:
+            return image_->AioWrite(&ctx->aio);
         case NBD_CMD_FLUSH:
-            ctx->nebdAioCtx.op = LIBAIO_OP::LIBAIO_OP_FLUSH;
-            ctx->nebdAioCtx.cb = NBDAioCallback;
-            image_->Flush(&ctx->nebdAioCtx);
-            return true;
+            return image_->Flush(&ctx->aio);
         case NBD_CMD_TRIM:
-            ctx->nebdAioCtx.offset = ctx->request.from;
-            ctx->nebdAioCtx.length = ctx->request.len;
-            ctx->nebdAioCtx.cb = NBDAioCallback;
-            ctx->nebdAioCtx.op = LIBAIO_OP::LIBAIO_OP_DISCARD;
-            image_->Trim(&ctx->nebdAioCtx);
-            return true;
+            return image_->Trim(&ctx->aio);
         default:
             LOG(ERROR) << "Invalid request type: " << *ctx;
             return false;
     }
 
     return false;
+}
+
+void NBDServer::SetUpAioRequest(IOContext* ctx) {
+    const int command = ctx->command;
+
+    if (!config_->use_curvesdk) {
+        switch (command) {
+            case NBD_CMD_READ:
+                ctx->aio.nebd.op = LIBAIO_OP_READ;
+                ctx->aio.nebd.cb = NEBDAioCallback;
+                ctx->aio.nebd.offset = ctx->request.from;
+                ctx->aio.nebd.length = ctx->request.len;
+                ctx->aio.nebd.buf = ctx->data.get();
+                break;
+            case NBD_CMD_WRITE:
+                ctx->aio.nebd.op = LIBAIO_OP_WRITE;
+                ctx->aio.nebd.cb = NEBDAioCallback;
+                ctx->aio.nebd.offset = ctx->request.from;
+                ctx->aio.nebd.length = ctx->request.len;
+                ctx->aio.nebd.buf = ctx->data.get();
+                break;
+            case NBD_CMD_FLUSH:
+                ctx->aio.nebd.op = LIBAIO_OP_FLUSH;
+                ctx->aio.nebd.cb = NEBDAioCallback;
+                break;
+            case NBD_CMD_TRIM:
+                ctx->aio.nebd.op = LIBAIO_OP_DISCARD;
+                ctx->aio.nebd.cb = NEBDAioCallback;
+                ctx->aio.nebd.offset = ctx->request.from;
+                ctx->aio.nebd.length = ctx->request.len;
+                break;
+            default:
+                break;
+        }
+    } else {
+        switch (command) {
+            case NBD_CMD_READ:
+                ctx->aio.curve.op = LIBCURVE_OP_READ;
+                ctx->aio.curve.cb = CurveAioCallback;
+                ctx->aio.curve.offset = ctx->request.from;
+                ctx->aio.curve.length = ctx->request.len;
+                ctx->aio.curve.buf = ctx->data.get();
+                break;
+            case NBD_CMD_WRITE:
+                ctx->aio.curve.op = LIBCURVE_OP_WRITE;
+                ctx->aio.curve.cb = CurveAioCallback;
+                ctx->aio.curve.offset = ctx->request.from;
+                ctx->aio.curve.length = ctx->request.len;
+                ctx->aio.curve.buf = ctx->data.get();
+                break;
+            case NBD_CMD_FLUSH:
+                ctx->aio.curve.op = LIBCURVE_OP_FLUSH;
+                ctx->aio.curve.cb = CurveAioCallback;
+                break;
+            case NBD_CMD_TRIM:
+                ctx->aio.curve.op = LIBCURVE_OP_DISCARD;
+                ctx->aio.curve.cb = CurveAioCallback;
+                ctx->aio.curve.offset = ctx->request.from;
+                ctx->aio.curve.length = ctx->request.len;
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 }  // namespace nbd

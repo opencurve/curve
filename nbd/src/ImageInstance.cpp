@@ -26,10 +26,12 @@
 
 #include <glog/logging.h>
 
+#include <utility>
+
 namespace curve {
 namespace nbd {
 
-bool ImageInstance::Open() {
+bool NebdImage::Open() {
     int ret = 0;
 
     if (config_ && !config_->nebd_conf.empty()) {
@@ -56,35 +58,126 @@ bool ImageInstance::Open() {
     return true;
 }
 
-void ImageInstance::Close() {
-    nebd_lib_close(fd_);
-    fd_ = -1;
+void NebdImage::Close() {
+    if (fd_ != -1) {
+        nebd_lib_close(fd_);
+        fd_ = -1;
+    }
 }
 
-void ImageInstance::AioRead(NebdClientAioContext* context) {
-    nebd_lib_aio_pread(fd_, context);
+bool NebdImage::AioRead(AioContext* context) {
+    nebd_lib_aio_pread(fd_, &(context->nebd));
+    return true;
 }
 
-void ImageInstance::AioWrite(NebdClientAioContext* context) {
-    nebd_lib_aio_pwrite(fd_, context);
+bool NebdImage::AioWrite(AioContext* context) {
+    nebd_lib_aio_pwrite(fd_, &(context->nebd));
+    return true;
 }
 
-void ImageInstance::Trim(NebdClientAioContext* context) {
-    nebd_lib_discard(fd_, context);
+bool NebdImage::Trim(AioContext* context) {
+    nebd_lib_discard(fd_, &(context->nebd));
+    return true;
 }
 
-void ImageInstance::Flush(NebdClientAioContext* context) {
-    nebd_lib_flush(fd_, context);
+bool NebdImage::Flush(AioContext* context) {
+    nebd_lib_flush(fd_, &(context->nebd));
+    return true;
 }
 
-int64_t ImageInstance::GetImageSize() {
+int64_t NebdImage::GetImageSize() {
     return nebd_lib_filesize(fd_);
 }
 
-ImageInstance::~ImageInstance() {
-    if (fd_ != -1) {
-        Close();
+NebdImage::~NebdImage() {
+    Close();
+    nebd_lib_uninit();
+}
+
+std::string CurveImage::TransformImageName(const std::string& name) {
+    if (name.compare(0, 4, "cbd:") != 0) {
+        return {};
     }
+
+    auto pos = name.find_first_of('/');
+    if (pos == std::string::npos) {
+        return {};
+    }
+
+    return name.substr(pos + 1);
+}
+
+bool CurveImage::Open() {
+    int ret = 0;
+    ret = client_.Init(config_->curve_conf);
+
+    if (ret != 0) {
+        LOG(ERROR) << "Init CurveClient failed, ret = " << ret;
+        return false;
+    }
+
+    curve::client::OpenFlags flags;
+    flags.exclusive = config_->exclusive;
+
+    std::string name = TransformImageName(imageName_);
+    if (name.empty()) {
+        LOG(ERROR) << "Open failed, filename `" << imageName_ << "` is invalid";
+        return false;
+    }
+
+    ret = client_.Open(name, flags);
+    if (ret != 0) {
+        LOG(ERROR) << "Open failed, ret = " << ret;
+        return false;
+    }
+
+    actualImageName_ = std::move(name);
+    fd_ = ret;
+    return true;
+}
+
+void CurveImage::Close() {
+    if (fd_ != -1) {
+        client_.Close(fd_);
+        fd_ = -1;
+    }
+}
+
+bool CurveImage::AioRead(AioContext* context) {
+    return LIBCURVE_ERROR::OK ==
+           client_.AioRead(fd_, &(context->curve),
+                           curve::client::UserDataType::RawBuffer);
+}
+
+bool CurveImage::AioWrite(AioContext* context) {
+    return LIBCURVE_ERROR::OK ==
+           client_.AioWrite(fd_, &(context->curve),
+                            curve::client::UserDataType::RawBuffer);
+}
+
+bool CurveImage::Flush(AioContext* context) {
+    // curve-sdk doesn't have cache, so return directly
+    context->curve.ret = 0;
+    context->curve.cb(&(context->curve));
+
+    return true;
+}
+
+bool CurveImage::Trim(AioContext* context) {
+    // curve doesn't support trim yet
+    context->curve.ret = 0;
+    context->curve.cb(&(context->curve));
+
+    return true;
+}
+
+int64_t CurveImage::GetImageSize() {
+    return client_.StatFile(actualImageName_);
+}
+
+CurveImage::~CurveImage() {
+    Close();
+    client_.UnInit();
 }
 
 }  // namespace nbd

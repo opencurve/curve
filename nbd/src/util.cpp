@@ -104,11 +104,6 @@ static bool find_mapped_dev_by_spec(NBDConfig *cfg) {
     return false;
 }
 
-static int parse_imgpath(const std::string &imgpath, NBDConfig *cfg,
-                         std::ostream *err_msg) {
-    return 0;
-}
-
 // TODO(all): replace this function with gflags
 //            but, currently, gflags `--help` command is messy
 int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLINT
@@ -195,6 +190,15 @@ int parse_args(std::vector<const char*>& args, std::ostream *err_msg,   // NOLIN
                 *err_msg << "curve-nbd: " << err.str();
                 return -EINVAL;
             }
+        } else if (argparse_witharg(args, i, &cfg->curve_conf, err,
+                                    "--curve-conf", nullptr)) {
+            if (!err.str().empty()) {
+                *err_msg << "curve-nbd: " << err.str();
+                return -EINVAL;
+            }
+        } else if (argparse_flag(args, i, &cfg->use_curvesdk, "--use-curvesdk",
+                                 nullptr)) {
+            cfg->use_curvesdk = true;
         } else {
             ++i;
         }
@@ -273,7 +277,7 @@ int get_mapped_info(int pid, NBDConfig *cfg) {
     }
     ifs >> cmdline;
 
-    for (int i = 0; i < cmdline.size(); i++) {
+    for (size_t i = 0; i < cmdline.size(); i++) {
         char *arg = &cmdline[i];
         if (i == 0) {
             if (strcmp(basename(arg) , PROCESS_NAME) != 0) {
@@ -422,7 +426,7 @@ static int module_load(const char *module, const char *options) {
     return run_command(command);
 }
 
-int load_module(NBDConfig *cfg) {
+int load_module(const NBDConfig *cfg) {
     std::ostringstream param;
     int ret;
 
