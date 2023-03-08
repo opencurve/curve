@@ -55,7 +55,9 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
         libnl-3-dev \
         libnl-genl-3-200 \
         libnl-genl-3-dev  \
-        libjemalloc2 && \
+        libjemalloc2 \
+        file \
+        lcov && \
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/debian/gpg | \
     gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
@@ -109,4 +111,4 @@ RUN    wget ${GITHUB_PROXY}https://github.com/bazelbuild/bazelisk/releases/downl
     rm protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION} && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
-ENV PATH=$PATH:/usr/local/go/bin:/usr/local/go/bin
+ENV PATH=$PATH:/usr/local/go/bin

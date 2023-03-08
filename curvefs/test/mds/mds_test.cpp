@@ -80,8 +80,11 @@ class MdsTest : public ::testing::Test {
                 std::string(" --name curve_fs_test_mds");
 
             LOG(INFO) << "start etcd: " << cmd;
-
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd.c_str(), nullptr));
+            ASSERT_EQ(0,
+                      execlp("etcd", "etcd", "--advertise-client-urls",
+                             "http://localhost:20032", "--listen-client-urls",
+                             "http://localhost:20032", "--name",
+                             "curve_fs_test_mds", nullptr));
             exit(0);
         }
 
