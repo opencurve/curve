@@ -54,18 +54,16 @@ class MDSTest : public ::testing::Test {
         if (0 > etcdPid) {
             ASSERT_TRUE(false);
         } else if (0 == etcdPid) {
-            std::string runEtcd =
-                std::string("etcd --listen-client-urls") +
-                std::string(" 'http://localhost:10032'") +
-                std::string(" --advertise-client-urls") +
-                std::string(" 'http://localhost:10032'") +
-                std::string(" --listen-peer-urls 'http://localhost:10033'") +
-                std::string(" --name testMds");
             /**
              *  重要提示！！！！
              *  fork后，子进程尽量不要用LOG()打印，可能死锁！！！
              */
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            ASSERT_EQ(0, execlp("etcd", "etcd", "--listen-client-urls",
+                                "http://localhost:10032",
+                                "--advertise-client-urls",
+                                "http://localhost:10032", "--listen-peer-urls",
+                                "http://localhost:10033", "--name", "testMds",
+                                nullptr));
             exit(0);
         }
         // 一定时间内尝试init直到etcd完全起来

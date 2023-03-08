@@ -23,6 +23,7 @@
 
 #include <gtest/gtest.h>
 #include <memory>
+#include <string>
 #include <vector>
 #include <thread>  //NOLINT
 #include <chrono>  //NOLINT
@@ -30,64 +31,64 @@
 
 namespace curve {
 const std::vector<std::string> mdsConf{
-    { " --graceful_quit_on_sigterm" },
-    { " --confPath=./conf/mds.conf" },
-    { " --mdsDbName=cluster_common_curve_mds" },
-    { " --sessionInterSec=30" },
+    { "--graceful_quit_on_sigterm" },
+    { "--confPath=./conf/mds.conf" },
+    { "--mdsDbName=cluster_common_curve_mds" },
+    { "--sessionInterSec=30" },
 };
 
 const std::vector<std::string> chunkserverConf1{
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerStoreUri=local://./basic1/" },
-    { " -chunkServerMetaUri=local://./basic1/chunkserver.dat" },
-    { " -copySetUri=local://./basic1/copysets" },
-    { " -raftSnapshotUri=curve://./basic1/copysets" },
-    { " -raftLogUri=curve://./basic1/copysets" },
-    { " -recycleUri=local://./basic1/recycler" },
-    { " -chunkFilePoolDir=./basic1/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./basic1/chunkfilepool.meta" },
-    { " -conf=./conf/chunkserver.conf.example" },
-    { " -raft_sync_segments=true" },
-    { " -enableChunkfilepool=false" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=./basic1/walfilepool/" },
-    { " -walFilePoolMetaPath=./basic1/walfilepool.meta" }
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerStoreUri=local://./basic1/" },
+    { "-chunkServerMetaUri=local://./basic1/chunkserver.dat" },
+    { "-copySetUri=local://./basic1/copysets" },
+    { "-raftSnapshotUri=curve://./basic1/copysets" },
+    { "-raftLogUri=curve://./basic1/copysets" },
+    { "-recycleUri=local://./basic1/recycler" },
+    { "-chunkFilePoolDir=./basic1/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./basic1/chunkfilepool.meta" },
+    { "-conf=./conf/chunkserver.conf.example" },
+    { "-raft_sync_segments=true" },
+    { "-enableChunkfilepool=false" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=./basic1/walfilepool/" },
+    { "-walFilePoolMetaPath=./basic1/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf2{
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerStoreUri=local://./basic2/" },
-    { " -chunkServerMetaUri=local://./basic2/chunkserver.dat" },
-    { " -copySetUri=local://./basic2/copysets" },
-    { " -raftSnapshotUri=curve://./basic2/copysets" },
-    { " -raftLogUri=curve://./basic2/copysets" },
-    { " -recycleUri=local://./basic2/recycler" },
-    { " -chunkFilePoolDir=./basic2/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./basic2/chunkfilepool.meta" },
-    { " -conf=./conf/chunkserver.conf.example" },
-    { " -raft_sync_segments=true" },
-    { " -enableChunkfilepool=false" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=./basic2/walfilepool/" },
-    { " -walFilePoolMetaPath=./basic2/walfilepool.meta" }
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerStoreUri=local://./basic2/" },
+    { "-chunkServerMetaUri=local://./basic2/chunkserver.dat" },
+    { "-copySetUri=local://./basic2/copysets" },
+    { "-raftSnapshotUri=curve://./basic2/copysets" },
+    { "-raftLogUri=curve://./basic2/copysets" },
+    { "-recycleUri=local://./basic2/recycler" },
+    { "-chunkFilePoolDir=./basic2/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./basic2/chunkfilepool.meta" },
+    { "-conf=./conf/chunkserver.conf.example" },
+    { "-raft_sync_segments=true" },
+    { "-enableChunkfilepool=false" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=./basic2/walfilepool/" },
+    { "-walFilePoolMetaPath=./basic2/walfilepool.meta" }
 };
 
 const std::vector<std::string> chunkserverConf3{
-    { " --graceful_quit_on_sigterm" },
-    { " -chunkServerStoreUri=local://./basic3/" },
-    { " -chunkServerMetaUri=local://./basic3/chunkserver.dat" },
-    { " -copySetUri=local://./basic3/copysets" },
-    { " -raftSnapshotUri=curve://./basic3/copysets" },
-    { " -raftLogUri=curve://./basic3/copysets" },
-    { " -recycleUri=local://./basic3/recycler" },
-    { " -chunkFilePoolDir=./basic3/chunkfilepool/" },
-    { " -chunkFilePoolMetaPath=./basic3/chunkfilepool.meta" },
-    { " -conf=./conf/chunkserver.conf.example" },
-    { " -raft_sync_segments=true" },
-    { " -enableChunkfilepool=false" },
-    { " -enableWalfilepool=false" },
-    { " -walFilePoolDir=./basic3/walfilepool/" },
-    { " -walFilePoolMetaPath=./basic3/walfilepool.meta" }
+    { "--graceful_quit_on_sigterm" },
+    { "-chunkServerStoreUri=local://./basic3/" },
+    { "-chunkServerMetaUri=local://./basic3/chunkserver.dat" },
+    { "-copySetUri=local://./basic3/copysets" },
+    { "-raftSnapshotUri=curve://./basic3/copysets" },
+    { "-raftLogUri=curve://./basic3/copysets" },
+    { "-recycleUri=local://./basic3/recycler" },
+    { "-chunkFilePoolDir=./basic3/chunkfilepool/" },
+    { "-chunkFilePoolMetaPath=./basic3/chunkfilepool.meta" },
+    { "-conf=./conf/chunkserver.conf.example" },
+    { "-raft_sync_segments=true" },
+    { "-enableChunkfilepool=false" },
+    { "-enableWalfilepool=false" },
+    { "-walFilePoolDir=./basic3/walfilepool/" },
+    { "-walFilePoolMetaPath=./basic3/walfilepool.meta" }
 };
 
 class ClusterBasicTest : public ::testing::Test {
@@ -162,13 +163,13 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_EQ(0, system((std::string("rm -fr ") + commonDir).c_str()));
     ASSERT_EQ(0, system("rm -fr test_start_stop_module2.etcd"));
     ASSERT_EQ(0, system("rm -fr basic*"));
-    ASSERT_EQ(0, system((std::string("mkdir ") + commonDir).c_str()));
+    ASSERT_EQ(0, system((std::string("mkdir -p ") + commonDir).c_str()));
 
     // 起etcd
     std::string etcdDir = commonDir + "/etcd.log";
     pid_t pid = curveCluster_->StartSingleEtcd(
         1, "127.0.0.1:2221", "127.0.0.1:2222",
-        std::vector<std::string>{ " --name test_start_stop_module2" });
+        std::vector<std::string>{ "--name=test_start_stop_module2" });
     LOG(INFO) << "etcd 1 started on 127.0.0.1:2221:2222, pid = " << pid;
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
@@ -177,8 +178,8 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     auto mdsConfbak = mdsConf;
     auto mdsDir = commonDir + "/mds";
     ASSERT_EQ(0, system((std::string("mkdir ") + mdsDir).c_str()));
-    mdsConfbak.emplace_back(" -log_dir=" + mdsDir);
-    mdsConfbak.emplace_back(" --etcdAddr=127.0.0.1:2221");
+    mdsConfbak.emplace_back("-log_dir=" + mdsDir);
+    mdsConfbak.emplace_back("--etcdAddr=127.0.0.1:2221");
     pid = curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", 3334, mdsConfbak,
                                         true);
     LOG(INFO) << "mds 1 started on 127.0.0.1:3333, pid = " << pid;
@@ -199,8 +200,8 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     auto copy1 = chunkserverConf1;
     std::string chunkserver1Dir = commonDir + "/chunkserver1";
     ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver1Dir).c_str()));
-    copy1.push_back(" -mdsListenAddr=127.0.0.1:3333");
-    copy1.push_back(" -log_dir=" + chunkserver1Dir);
+    copy1.push_back("-mdsListenAddr=127.0.0.1:3333");
+    copy1.push_back("-log_dir=" + chunkserver1Dir);
     pid = curveCluster_->StartSingleChunkServer(1, "127.0.0.1:2002", copy1);
     LOG(INFO) << "chunkserver 1 started on 127.0.0.1:2002, pid = " << pid;
     ASSERT_GT(pid, 0);
@@ -208,8 +209,8 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     auto copy2 = chunkserverConf2;
     std::string chunkserver2Dir = commonDir + "/chunkserver2";
     ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver2Dir).c_str()));
-    copy2.push_back(" -mdsListenAddr=127.0.0.1:3333");
-    copy2.push_back(" -log_dir=" + chunkserver2Dir);
+    copy2.push_back("-mdsListenAddr=127.0.0.1:3333");
+    copy2.push_back("-log_dir=" + chunkserver2Dir);
     pid = curveCluster_->StartSingleChunkServer(2, "127.0.0.1:2003", copy2);
     LOG(INFO) << "chunkserver 2 started on 127.0.0.1:2003, pid = " << pid;
     ASSERT_GT(pid, 0);
@@ -217,8 +218,8 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     auto copy3 = chunkserverConf3;
     std::string chunkserver3Dir = commonDir + "/chunkserver3";
     ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver3Dir).c_str()));
-    copy3.push_back(" -mdsListenAddr=127.0.0.1:3333");
-    copy3.push_back(" -log_dir=" + chunkserver3Dir);
+    copy3.push_back("-mdsListenAddr=127.0.0.1:3333");
+    copy3.push_back("-log_dir=" + chunkserver3Dir);
     pid = curveCluster_->StartSingleChunkServer(3, "127.0.0.1:2004", copy3);
     LOG(INFO) << "chunkserver 3 started on 127.0.0.1:2004, pid = " << pid;
     ASSERT_GT(pid, 0);
@@ -273,30 +274,35 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     // 起三个etcd
     std::string etcdDir = commonDir + "/etcd";
     ASSERT_EQ(0, system((std::string("mkdir ") + etcdDir).c_str()));
-    std::string etcdcluster =
-        std::string(" --initial-cluster ") +
-        std::string("'test_multi_etcd_node1=http://127.0.0.1:2302,") +
-        std::string("test_multi_etcd_node2=http://127.0.0.1:2304,") +
-        std::string("test_multi_etcd_node3=http://127.0.0.1:2306'");
-    pid_t pid = curveCluster_->StartSingleEtcd(
-        1, "127.0.0.1:2301", "127.0.0.1:2302",
-        std::vector<std::string>{ " --name test_multi_etcd_node1",
-                                  etcdcluster });
+    std::vector<std::string> etcdCluster{
+        "--initial-cluster=test_multi_etcd_node1=http://"
+        "127.0.0.1:2302,test_multi_etcd_node2=http://"
+        "127.0.0.1:2304,test_multi_etcd_node3=http://127.0.0.1:2306"};
+    std::vector<std::string> etcd1{
+        "--name=test_multi_etcd_node1",
+    };
+    etcd1.insert(etcd1.end(), etcdCluster.cbegin(), etcdCluster.cend());
+    pid_t pid = curveCluster_->StartSingleEtcd(1, "127.0.0.1:2301",
+                                               "127.0.0.1:2302", etcd1);
     LOG(INFO) << "etcd 1 started on 127.0.0.1:2301:2302, pid = " << pid;
     ASSERT_GT(pid, 0);
     ASSERT_FALSE(curveCluster_->WaitForEtcdClusterAvalible(3));
 
-    pid = curveCluster_->StartSingleEtcd(
-        2, "127.0.0.1:2303", "127.0.0.1:2304",
-        std::vector<std::string>{ " --name test_multi_etcd_node2",
-                                  etcdcluster });
+    std::vector<std::string> etcd2{
+        "--name=test_multi_etcd_node2",
+    };
+    etcd2.insert(etcd2.end(), etcdCluster.cbegin(), etcdCluster.cend());
+    pid = curveCluster_->StartSingleEtcd(2, "127.0.0.1:2303", "127.0.0.1:2304",
+                                         etcd2);
     LOG(INFO) << "etcd 2 started on 127.0.0.1:2303:2304, pid = " << pid;
     ASSERT_GT(pid, 0);
 
-    pid = curveCluster_->StartSingleEtcd(
-        3, "127.0.0.1:2305", "127.0.0.1:2306",
-        std::vector<std::string>{ " --name test_multi_etcd_node3",
-                                  etcdcluster });
+    std::vector<std::string> etcd3{
+        "--name=test_multi_etcd_node3",
+    };
+    etcd3.insert(etcd3.end(), etcdCluster.cbegin(), etcdCluster.cend());
+    pid = curveCluster_->StartSingleEtcd(3, "127.0.0.1:2305", "127.0.0.1:2306",
+                                         etcd3);
     LOG(INFO) << "etcd 3 started on 127.0.0.1:2305:2306, pid = " << pid;
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
@@ -311,24 +317,24 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     std::string etcdClinetAddrs("127.0.0.1:2301,127.0.0.1:2303,127.0.0.1:2305");
 
     auto copy1 = mdsConf;
-    copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
-    copy1.emplace_back(" -log_dir=" + mds1Dir);
+    copy1.emplace_back("--etcdAddr=" + etcdClinetAddrs);
+    copy1.emplace_back("-log_dir=" + mds1Dir);
     pid = curveCluster_->StartSingleMDS(1, "127.0.0.1:2310", 2313, copy1, true);
     LOG(INFO) << "mds 1 started on 127.0.0.1:2310, pid = " << pid;
     ASSERT_GT(pid, 0);
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     auto copy2 = mdsConf;
-    copy2.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
-    copy2.emplace_back(" -log_dir=" + mds2Dir);
+    copy2.emplace_back("--etcdAddr=" + etcdClinetAddrs);
+    copy2.emplace_back("-log_dir=" + mds2Dir);
     pid =
         curveCluster_->StartSingleMDS(2, "127.0.0.1:2311", 2314, copy2, false);
     LOG(INFO) << "mds 2 started on 127.0.0.1:2311, pid = " << pid;
     ASSERT_GT(pid, 0);
 
     auto copy3 = mdsConf;
-    copy3.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
-    copy3.emplace_back(" -log_dir=" + mds3Dir);
+    copy3.emplace_back("--etcdAddr=" + etcdClinetAddrs);
+    copy3.emplace_back("-log_dir=" + mds3Dir);
     pid =
         curveCluster_->StartSingleMDS(3, "127.0.0.1:2312", 2315, copy3, false);
     LOG(INFO) << "mds 3 started on 127.0.0.1:2312, pid = " << pid;
