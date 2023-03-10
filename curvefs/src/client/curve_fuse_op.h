@@ -39,8 +39,7 @@ extern "C" {
 
 int InitGlog(const char *confPath, const char *argv0);
 
-int InitFuseClient(const char *confPath, const char *fsName,
-        const char* fsType, const char* mdsAddr);
+int InitFuseClient(const struct MountOption *mountOption);
 
 void UnInitFuseClient();
 

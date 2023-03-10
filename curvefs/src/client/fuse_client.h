@@ -296,6 +296,8 @@ class FuseClient {
         WarmUpRun();
     }
 
+    CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
+
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
                            mode_t mode, FsFileType type, dev_t rdev,

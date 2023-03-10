@@ -175,7 +175,9 @@ bool DiskCacheManager::IsCached(const std::string name) {
 int DiskCacheManager::UmountDiskCache() {
     LOG(INFO) << "umount disk cache.";
     int ret;
-    diskInitThread_.join();
+    if (diskInitThread_.joinable()) {
+        diskInitThread_.join();
+    }
     ret = cacheWrite_->UploadAllCacheWriteFile();
     if (ret < 0) {
         LOG(ERROR) << "umount disk cache error.";
@@ -359,6 +361,9 @@ void DiskCacheManager::TrimCache() {
     waitIntervalSec_.Init(trimCheckIntervalSec_ * 1000);
     // trim will start after get the disk size
     while (!IsDiskUsedInited()) {
+        if (!isRunning_) {
+            return;
+        }
         waitIntervalSec_.WaitForNextExcution();
     }
     // 1. check cache disk usage every sleepSec seconds.
