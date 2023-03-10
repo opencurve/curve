@@ -226,7 +226,7 @@ Please refer to the [Test environment configuration](docs/cn/测试环境配置�
 See [Governance](https://github.com/opencurve/community/blob/master/GOVERNANCE.md).
 
 ##  Contribute us
-Participation in the Curve project is described in the [Curve Open Source Community Guidelines](Community_Guidelines.md) and is subject to a [contributor contract](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md).
+Participation in the Curve project is described in the [Curve Developers Guidelines]developers_guide.md) and is subject to a [contributor contract](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md).
 We welcome your contribution!
 
 ## Code of Conduct
