@@ -178,7 +178,9 @@ bool DiskCacheManager::IsCacheClean() {
 
 int DiskCacheManager::UmountDiskCache() {
     LOG(INFO) << "umount disk cache.";
-    diskInitThread_.join();
+    if (diskInitThread_.joinable()) {
+        diskInitThread_.join();
+    }
     TrimStop();
     cacheWrite_->AsyncUploadStop();
     LOG_IF(ERROR, !IsCacheClean()) << "umount disk cache error.";
@@ -359,6 +361,9 @@ void DiskCacheManager::TrimCache() {
     waitIntervalSec_.Init(trimCheckIntervalSec_ * 1000);
     // trim will start after get the disk size
     while (!IsDiskUsedInited()) {
+        if (!isRunning_) {
+            return;
+        }
         waitIntervalSec_.WaitForNextExcution();
     }
     // 1. check cache disk usage every sleepSec seconds.
