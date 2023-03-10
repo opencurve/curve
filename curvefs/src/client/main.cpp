@@ -21,6 +21,9 @@
  * Author: xuchaojie
  */
 
+#include <glog/logging.h>
+
+#include <string>
 #include <unordered_map>
 #include "curvefs/src/client/curve_fuse_op.h"
 #include "curvefs/src/client/fuse_common.h"
@@ -222,14 +225,14 @@ int main(int argc, char *argv[]) {
         printf("Init glog failed, confpath = %s\n", mOpts.conf);
     }
 
-    ret = InitFuseClient(mOpts.conf, mOpts.fsName, mOpts.fsType, mOpts.mdsAddr);
+    ret = InitFuseClient(&mOpts);
     if (ret < 0) {
-        printf("init fuse client fail, conf =%s\n", mOpts.conf);
+        LOG(ERROR) << "init fuse client fail, conf = " << mOpts.conf;
         goto err_out4;
     }
 
-    printf("fuse start loop, singlethread = %d, max_idle_threads = %d\n",
-        opts.singlethread, opts.max_idle_threads);
+    LOG(INFO) << "fuse start loop, singlethread = " << opts.singlethread
+              << ", max_idle_threads = " << opts.max_idle_threads;
 
     /* Block until ctrl+c or fusermount -u */
     if (opts.singlethread) {
