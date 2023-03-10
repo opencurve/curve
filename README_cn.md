@@ -221,7 +221,7 @@ $ ./fio --thread --rw=randwrite --bs=4k --ioengine=nebd --nebd=cbd:pool//pfstest
 
 ##  贡献我们
 
-参与 Curve 项目开发详见[Curve 开源社区指南](Community_Guidelines_cn.md)并且请遵循[贡献者准则](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md), 我们期待您的贡献!
+参与 Curve 项目开发详见[Curve 开发者指南](developers_guide_cn.md)并且请遵循[贡献者准则](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md), 我们期待您的贡献!
 
 ## 最佳实践
 - [CurveBS+NFS搭建NFS存储](docs/practical/curvebs_nfs.md)
