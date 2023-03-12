@@ -122,7 +122,7 @@ The core application scenarios of CurveFS mainly include:
 
 </details>
 <details>
-  <summary><b><font=5>Docking Kubernates</b></font></summary>
+  <summary><b><font=5>Docking Kubernetes</b></font></summary>
 
 - Use [Curve CSI Driver](https://github.com/opencurve/curve-csi), The plugin implements the Container Storage Interface(CSI) between Container Orchestrator(CO) and Curve cluster. It allows dynamically provisioning curve volumes and attaching them to workloads.
 - For details of the documentation, see [CSI Curve Driver Doc](https://github.com/opencurve/curve-csi/blob/master/docs/README.md).
