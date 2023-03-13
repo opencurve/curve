@@ -32,6 +32,8 @@
 namespace curve {
 namespace chunkserver {
 
+class ChunkRequest;
+
 using curve::common::Bitmap;
 
 const uint8_t FORMAT_VERSION = 1;
@@ -70,6 +72,8 @@ enum CSErrorCode {
     // The page has not been written, it will appear when the page that has not
     // been written is read when the clone chunk is read
     PageNerverWrittenError = 13,
+    // Thrown when given snapshot is not found for a chunk.
+    SnapshotNotExistError = 14,
 };
 
 // Chunk details
@@ -136,6 +140,28 @@ struct CSChunkInfo {
     bool operator!= (const CSChunkInfo& rhs) const {
         return !(*this == rhs);
     }
+};
+
+class SnapContext {
+ public:
+    SnapContext(const std::vector<SequenceNum>& snaps);
+    virtual ~SnapContext() = default;
+
+    static std::shared_ptr<SnapContext> build_empty() {
+        std::shared_ptr<SnapContext> ptr(new SnapContext());
+        return ptr;
+    }
+
+    SequenceNum getNext(SequenceNum snapSn) const;
+    SequenceNum getPrev(SequenceNum snapSn) const;
+    SequenceNum getLatest() const;
+    bool contains(SequenceNum snapSn) const;
+    bool empty() const;
+
+ private:
+    SnapContext() = default;
+    // existing snapshot sequences, in descending order.
+    std::vector<SequenceNum> snaps;
 };
 
 }  // namespace chunkserver

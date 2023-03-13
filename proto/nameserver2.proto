@@ -75,6 +75,9 @@ message FileInfo {
     optional    uint64      epoch = 18;
     optional    string      poolset = 19;
     optional    uint32      blocksize = 20;
+
+    // sequence numbers of snapshots
+    repeated    uint64      snaps = 21;
 }
 
 // status code

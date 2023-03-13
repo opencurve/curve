@@ -173,6 +173,31 @@ class SnapshotDeleteTask : public SnapshotTask {
     }
 };
 
+/**
+ * @brief 删除本地同步快照任务（创建本地快照是秒级同步的，删除是异步的）
+ */
+class SnapshotDeleteSyncTask : public SnapshotTask {
+ public:
+     /**
+      * @brief 构造函数
+      *
+      * @param taskId 快照任务id
+      * @param taskInfo 快照任务信息
+      * @param core 快照核心逻辑对象
+      */
+    SnapshotDeleteSyncTask(const TaskIdType &taskId,
+        std::shared_ptr<SnapshotTaskInfo> taskInfo,
+        std::shared_ptr<SnapshotCore> core)
+        : SnapshotTask(taskId, taskInfo, core) {}
+
+    /**
+     * @brief 快照执行函数
+     */
+    void Run() override {
+        core_->HandleDeleteSyncSnapshotTask(taskInfo_);
+    }
+};
+
 struct ReadChunkSnapshotContext {
     // chunkid 信息
     ChunkIDInfo cidInfo;

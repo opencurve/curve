@@ -200,6 +200,21 @@ class SnapshotServiceManager {
         UUID *uuid);
 
     /**
+     * @brief 创建同步快照服务(多层秒级快照的创建快照方式采用同步，而非异步任务方式)
+     *
+     * @param file 文件名
+     * @param user 文件所属用户
+     * @param snapshotName 快照名
+     * @param uuid 快照uuid
+     *
+     * @return 错误码
+     */
+    virtual int CreateSyncSnapshot(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName,
+        UUID *uuid);
+
+    /**
      * @brief 删除快照服务
      *
      * @param uuid 快照uuid
@@ -209,6 +224,19 @@ class SnapshotServiceManager {
      * @return 错误码
      */
     virtual int DeleteSnapshot(const UUID &uuid,
+        const std::string &user,
+        const std::string &file);
+
+    /**
+     * @brief 删除本地快照服务（异步删除以同步方式创建的本地多层秒级快照）
+     *
+     * @param uuid 快照uuid
+     * @param user 快照文件的用户
+     * @param file 快照所属文件的文件名
+     *
+     * @return 错误码
+     */
+    virtual int DeleteSyncSnapshot(const UUID &uuid,
         const std::string &user,
         const std::string &file);
 

@@ -260,6 +260,7 @@ class ReadChunkSnapClosure : public ClientClosure {
         : ClientClosure(client, done) {}
 
     void OnSuccess() override;
+    void OnChunkNotExist() override;
     void SendRetryRequest() override;
 };
 

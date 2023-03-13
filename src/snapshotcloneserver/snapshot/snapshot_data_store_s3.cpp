@@ -32,9 +32,13 @@ namespace snapshotcloneserver {
 
 // nos conf
 int S3SnapshotDataStore::Init(const std::string &path) {
+    if (path.empty())
+        return 0;
+
     // Init server conf
     s3Adapter4Meta_->Init(path);
     s3Adapter4Data_->Init(path);
+    enabled_ = true;
     // create bucket if not exist
     if (!s3Adapter4Meta_->BucketExist()) {
         return s3Adapter4Meta_->CreateBucket();
@@ -43,8 +47,16 @@ int S3SnapshotDataStore::Init(const std::string &path) {
     }
 }
 
+bool S3SnapshotDataStore::Enabled() const {
+    return enabled_;
+}
+
 int S3SnapshotDataStore::PutChunkIndexData(const ChunkIndexDataName &name,
         const ChunkIndexData &indexData) {
+    if (!Enabled()) {
+        return -1;
+    }
+
     std::string key = name.ToIndexDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     std::string data;
@@ -57,6 +69,10 @@ int S3SnapshotDataStore::PutChunkIndexData(const ChunkIndexDataName &name,
 
 int S3SnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
         ChunkIndexData *indexData) {
+    if (!Enabled()) {
+        return -1;
+    }
+
     std::string key = name.ToIndexDataChunkKey();
     std::string *data = new std::string();
     const Aws::String aws_key(key.c_str(), key.size());
@@ -69,6 +85,10 @@ int S3SnapshotDataStore::GetChunkIndexData(const ChunkIndexDataName &name,
     return -1;
 }
 bool S3SnapshotDataStore::ChunkIndexDataExist(const ChunkIndexDataName &name) {
+    if (!Enabled()) {
+        return false;
+    }
+
     std::string key = name.ToIndexDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     if (s3Adapter4Meta_->ObjectExist(aws_key)) {
@@ -95,6 +115,9 @@ int S3SnapshotDataStore::GetChunkData(const ChunkDataName &name,
 }
 */
 bool S3SnapshotDataStore::ChunkDataExist(const ChunkDataName &name) {
+    if (!Enabled()) {
+        return false;
+    }
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     if (s3Adapter4Meta_->ObjectExist(aws_key)) {
@@ -104,12 +127,18 @@ bool S3SnapshotDataStore::ChunkDataExist(const ChunkDataName &name) {
 }
 
 int S3SnapshotDataStore::DeleteChunkIndexData(const ChunkIndexDataName &name) {
+    if (!Enabled()) {
+        return -1;
+    }
     std::string key = name.ToIndexDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     return s3Adapter4Meta_->DeleteObject(aws_key);
 }
 
 int S3SnapshotDataStore::DeleteChunkData(const ChunkDataName &name) {
+    if (!Enabled()) {
+        return -1;
+    }
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     return s3Adapter4Meta_->DeleteObject(aws_key);
@@ -144,6 +173,9 @@ int S3SnapshotDataStore::GetSnapshotFlag(const ChunkIndexDataName &name) {
 */
 int S3SnapshotDataStore::DataChunkTranferInit(const ChunkDataName &name,
                                     std::shared_ptr<TransferTask> task) {
+    if (!Enabled()) {
+        return -1;
+    }
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     Aws::String aws_uploadId = s3Adapter4Data_->MultiUploadInit(aws_key);
@@ -161,6 +193,9 @@ int S3SnapshotDataStore::DataChunkTranferAddPart(const ChunkDataName &name,
                                         int partNum,
                                         int partSize,
                                         const char *buf) {
+    if (!Enabled()) {
+        return -1;
+    }
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
@@ -179,6 +214,9 @@ int S3SnapshotDataStore::DataChunkTranferAddPart(const ChunkDataName &name,
 
 int S3SnapshotDataStore::DataChunkTranferComplete(const ChunkDataName &name,
                                         std::shared_ptr<TransferTask> task) {
+    if (!Enabled()) {
+        return -1;
+    }
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
@@ -194,6 +232,9 @@ int S3SnapshotDataStore::DataChunkTranferComplete(const ChunkDataName &name,
 
 int S3SnapshotDataStore::DataChunkTranferAbort(const ChunkDataName &name,
                                     std::shared_ptr<TransferTask> task) {
+    if (!Enabled()) {
+        return -1;
+    }
     std::string key = name.ToDataChunkKey();
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());

@@ -174,7 +174,7 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         FakeChunkClosure closure(&event);
 
         sourceInfo.cloneFileSource.clear();
-        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, 0, 0,
+        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, {}, 0, 0,
                                  sourceInfo, &closure);
 
         event.Wait();
@@ -196,7 +196,7 @@ TEST_F(RequestSenderTest, TestWriteChunkSourceInfo) {
         sourceInfo.cloneFileOffset = 0;
         sourceInfo.valid = true;
 
-        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0, {}, 0, 0,
+        requestSender.WriteChunk(ChunkIDInfo(), 1, 1, 0,{}, {}, 0, 0,
                                  sourceInfo, &closure);
 
         event.Wait();

@@ -67,7 +67,54 @@ void CleanTaskManager::CheckCleanResult(void) {
                 ++iter;
             }
             // clean task为空，清空channelPool
-            if (cleanTasks_.empty() && notEmptyBefore) {
+            common::LockGuard lckBatch(mutexBatch_);
+            if (cleanTasks_.empty() && cleanBatchSnapTasks_.empty() && notEmptyBefore) {
+                LOG(INFO) << "All tasks completed, clear channel pool";
+                channelPool_->Clear();
+            }
+        }
+
+        {
+            common::LockGuard lckBatch(mutexBatch_);
+            bool notEmptyBefore = !cleanBatchSnapTasks_.empty();
+            for (auto iter = cleanBatchSnapTasks_.begin(); iter != cleanBatchSnapTasks_.end();) {
+                auto taskProgress = iter->second->GetTaskProgress();
+                if (taskProgress.GetStatus() == TaskStatus::SUCCESS) {
+                    // 该任务Run执行完成后，进入本check函数前又有新的快照删除任务插入。
+                    // 因此，在移除cleanBatchSnapTask前再检查一次，否则该新的删除任务没有机会执行                    
+                    if (iter->second->IsEmpty()) {
+                        LOG(INFO) << "going to remove cleanBatchSnapTask, taskID = "
+                            << iter->second->GetTaskID();
+                        iter = cleanBatchSnapTasks_.erase(iter);
+                        continue;
+                    } else {
+                        LOG(INFO) << "Found residual task in cleanBatchSnapTask before erase, run it again";
+                        cleanWorkers_->Enqueue(iter->second->Closure());
+                    }
+                } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
+                    iter->second->Retry();
+                    // TODO:这里的重试次数并没有因为多个快照删除任务的存在而累加
+                    if (!iter->second->RetryTimesExceed()) {
+                        LOG(WARNING) << "CleanTaskManager find failed status cleanBatchSnapTask,"
+                                     << " retry,"
+                                     << " taskID = "
+                                     << iter->second->GetTaskID();
+                        cleanWorkers_->Enqueue(iter->second->Closure());
+                    } else {
+                        LOG(ERROR) << "CleanTaskManager find failed status cleanBatchSnapTask,"
+                                     << " retry times exceed,"
+                                     << " going to remove task,"
+                                     << " taskID = "
+                                     << iter->second->GetTaskID();
+                        iter = cleanBatchSnapTasks_.erase(iter);
+                        continue;
+                    }
+                }
+                ++iter;
+            }
+            // 应该cleanTasks_和cleanBatchSnapTasks_都空才清空channelPool
+            common::LockGuard lck(mutex_);
+            if (cleanBatchSnapTasks_.empty() && cleanTasks_.empty() && notEmptyBefore) {
                 LOG(INFO) << "All tasks completed, clear channel pool";
                 channelPool_->Clear();
             }
@@ -142,6 +189,51 @@ std::shared_ptr<Task> CleanTaskManager::GetTask(TaskIDType id) {
     } else {
         return iter->second;
     }
+}
+
+bool CleanTaskManager::PushTask(std::shared_ptr<SnapShotBatchCleanTask> task, const FileInfo &snapfileInfo) {
+    common::LockGuard lck(mutexBatch_);
+    if (stopFlag_) {
+        LOG(ERROR) << "task manager not started, taskID = "
+            << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();
+        return false;
+    }
+    auto cleanBatchSnapTask = cleanBatchSnapTasks_.find(task->GetTaskID());
+    if (cleanBatchSnapTask != cleanBatchSnapTasks_.end()) {
+        if (!cleanBatchSnapTask->second->PushTask(snapfileInfo)) {
+            LOG(ERROR) << "cleanBatchSnapTask duplicated, taskID = " 
+                      << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();
+            return false;
+        } else {
+            LOG(INFO) << "Push task to existing SnapShotBatchCleanTask OK, TaskID = " 
+                      << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();
+            return true;
+        }
+    }
+
+    if (!task->PushTask(snapfileInfo)) {
+        LOG(ERROR) << "cleanBatchSnapTask duplicated, taskID = " 
+                    << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();
+        return false;        
+    }
+    cleanWorkers_->Enqueue(task->Closure());
+
+    cleanBatchSnapTasks_.insert(std::make_pair(task->GetTaskID(), task));
+    LOG(INFO) << "Push new created SnapShotBatchCleanTask OK, TaskID = " 
+              << task->GetTaskID() << ", snapSn = " << snapfileInfo.seqnum();
+    return true;
+}
+
+std::shared_ptr<Task> CleanTaskManager::GetTask(TaskIDType id, TaskIDType sn) {
+    common::LockGuard lck(mutex_);
+
+    auto iter = cleanBatchSnapTasks_.find(id);
+    if (iter == cleanBatchSnapTasks_.end()) {
+        LOG(INFO) << "taskid = "<< id << ", not found in cleanBatchSnapTasks";
+        return nullptr;
+    } else {
+        return iter->second->GetTask(sn);
+    } 
 }
 
 }  // namespace mds

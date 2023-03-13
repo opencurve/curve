@@ -39,6 +39,7 @@ namespace curve {
 namespace chunkserver {
 
 using curve::common::Bitmap;
+using curve::common::BitRange;
 using curve::fs::LocalFileSystem;
 
 class FilePool;
@@ -77,6 +78,7 @@ struct SnapshotMetaPage {
 };
 
 class CSSnapshot {
+    friend class CSSnapshots;
  public:
     CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
                std::shared_ptr<FilePool> chunkFilePool,
@@ -144,13 +146,22 @@ class CSSnapshot {
      * Load metapage into memory
      */
     CSErrorCode loadMetaPage();
+    /**
+     * Read in ranges
+    */
+    CSErrorCode ReadRanges(char *buf, off_t offset, size_t length, std::vector<BitRange>& ranges);
 
     inline string path() {
         return baseDir_ + "/" +
                FileNameOperator::GenerateSnapshotName(chunkId_, metaPage_.sn);
     }
 
-    uint32_t fileSize() const {
+    inline string path(SequenceNum snapSn) {
+        return baseDir_ + "/" +
+               FileNameOperator::GenerateSnapshotName(chunkId_, snapSn);
+    }
+
+    inline uint32_t fileSize() const {
         return metaPageSize_ + size_;
     }
 
@@ -194,6 +205,29 @@ class CSSnapshot {
     std::shared_ptr<FilePool> chunkFilePool_;
     // datastore internal statistical indicators
     std::shared_ptr<DataStoreMetric> metric_;
+};
+
+class CSSnapshots {
+ public:
+    CSSnapshots(ChunkSizeType size): blockSize_(size) {}
+    bool insert(CSSnapshot* s);
+    CSSnapshot* pop(SequenceNum sn);
+    bool contains(SequenceNum sn) const;
+    SequenceNum getCurrentSn() const;
+    CSSnapshot* getCurrentSnapshot();
+    CSErrorCode Read(SequenceNum sn, char * buf, off_t offset, size_t length, vector<BitRange>* clearRanges);
+    CSErrorCode Delete(CSChunkFile* chunkf, SequenceNum sn, std::shared_ptr<SnapContext> ctx);
+
+    CSErrorCode Move(SequenceNum from, SequenceNum to);
+    CSErrorCode Merge(SequenceNum from, SequenceNum to);
+    virtual ~CSSnapshots();
+
+ private:
+    std::vector<CSSnapshot*>::iterator find(SequenceNum sn);
+
+    // Snapshot file pointers, sorted by sequence number.
+    std::vector<CSSnapshot*> snapshots_;
+    const ChunkSizeType blockSize_;
 };
 
 }  // namespace chunkserver

@@ -64,11 +64,13 @@ TEST_F(TestS3SnapshotDataStore, testInit) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-    ASSERT_EQ(0, store_->Init(""));
-    ASSERT_EQ(0, store_->Init(""));
-    ASSERT_EQ(-1, store_->Init(""));
+    ASSERT_EQ(0, store_->Init("-"));
+    ASSERT_EQ(0, store_->Init("-"));
+    ASSERT_EQ(-1, store_->Init("-"));
 }
 TEST_F(TestS3SnapshotDataStore, testChunkIndexDataExist) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkIndexDataName indexDataName("test", 1);
     Aws::String obj = "test-1";
     EXPECT_CALL(*adapter4Meta_, ObjectExist(obj))
@@ -80,6 +82,8 @@ TEST_F(TestS3SnapshotDataStore, testChunkIndexDataExist) {
 }
 
 TEST_F(TestS3SnapshotDataStore, testPutIndexChunkData) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkIndexData indexData;
     ChunkIndexDataName indexDataName("test", 1);
     Aws::String obj = "test-1";
@@ -95,6 +99,8 @@ TEST_F(TestS3SnapshotDataStore, testPutIndexChunkData) {
     ASSERT_EQ(-1, store_->PutChunkIndexData(indexDataName, indexData));
 }
 TEST_F(TestS3SnapshotDataStore, testGetIndexChunk) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkIndexData indexData;
     Aws::String obj = "test-1";
     ChunkIndexDataName indexDataName("test", 1);
@@ -106,6 +112,8 @@ TEST_F(TestS3SnapshotDataStore, testGetIndexChunk) {
     ASSERT_EQ(0, store_->GetChunkIndexData(indexDataName, &indexData));
 }
 TEST_F(TestS3SnapshotDataStore, testDeleteIndexChunk) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkIndexDataName indexDataName("test", 1);
     Aws::String obj = "test-1";
     EXPECT_CALL(*adapter4Meta_, DeleteObject(obj))
@@ -117,6 +125,8 @@ TEST_F(TestS3SnapshotDataStore, testDeleteIndexChunk) {
 }
 
 TEST_F(TestS3SnapshotDataStore, testDataChunkOp) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkDataName cdName("test", 1, 1);
     std::string cdKey = cdName.ToDataChunkKey();
     ChunkDataName tmp;
@@ -131,6 +141,8 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkOp) {
 }
 
 TEST_F(TestS3SnapshotDataStore, testDataChunkTransferInit) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkDataName cdName("test", 1, 1);
     Aws::String uploadID = "test-uploadID";
     Aws::String null_uploadID = "";
@@ -143,6 +155,8 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferInit) {
     ASSERT_EQ(-1, store_->DataChunkTranferInit(cdName, task));
 }
 TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAddPart) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkDataName cdName("test", 1, 1);
     Aws::String dataobj = "test-1-1";
     Aws::String uploadID = "test-uploadID";
@@ -165,6 +179,8 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAddPart) {
     delete [] buf;
 }
 TEST_F(TestS3SnapshotDataStore, testDataChunkTransferComplete) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkDataName cdName("test", 1, 1);
     std::shared_ptr<TransferTask> task = std::make_shared<TransferTask>();
     EXPECT_CALL(*adapter4Data_, CompleteMultiUpload(_, _, _))
@@ -175,6 +191,8 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferComplete) {
     ASSERT_EQ(-1, store_->DataChunkTranferComplete(cdName, task));
 }
 TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAbort) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkDataName cdName("test", 1, 1);
     std::shared_ptr<TransferTask> task = std::make_shared<TransferTask>();
     EXPECT_CALL(*adapter4Data_, AbortMultiUpload(_, _))
@@ -186,6 +204,8 @@ TEST_F(TestS3SnapshotDataStore, testDataChunkTransferAbort) {
 }
 
 TEST_F(TestS3SnapshotDataStore, testDeleteDataChunk) {
+    EXPECT_CALL(*adapter4Meta_, BucketExist()).WillOnce(Return(true));  
+    ASSERT_EQ(0, store_->Init("-"));
     ChunkDataName cdName("test", 1, 1);
     EXPECT_CALL(*adapter4Meta_, DeleteObject(_))
         .Times(2)

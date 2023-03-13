@@ -101,6 +101,8 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     uint64_t epoch_;
     // request的版本信息
     uint64_t            seq_ = 0;
+    // sequence nums of current existed snapshots, required for multi-level snapshot
+    std::vector<uint64_t> snaps_;
     // appliedindex_表示当前IO是否走chunkserver端的raft协议，为0的时候走raft
     uint64_t            appliedindex_ = 0;
 

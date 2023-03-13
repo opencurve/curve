@@ -225,6 +225,18 @@ class MetaCache {
         fileInfo_.seqnum = newSn;
     }
 
+    /**
+     * Get all currently existed snapshot seqs
+    */
+    std::vector<uint64_t> GetLatestSnaps() const { return fileInfo_.snaps; }
+
+    /**
+     * Set all currently existed snapshot seqs. No need to lock as there is no concurrency
+    */
+    void SetLatestSnaps(const std::vector<uint64_t>& snaps) {
+        fileInfo_.snaps = snaps;
+    }
+
     FileStatus GetLatestFileStatus() const { return fileInfo_.filestatus; }
 
     void SetLatestFileStatus(FileStatus status) {

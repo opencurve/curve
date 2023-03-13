@@ -73,6 +73,7 @@ class Splitor {
      * @param: offset是当前chunk内的偏移
      * @param: length数据长度
      * @param: seq是当前chunk的版本号
+     * @param: snaps是当前chunk所有快照序号列表
      */
     static int SingleChunkIO2ChunkRequests(IOTracker* iotracker,
                            MetaCache* metaCache,
@@ -81,7 +82,8 @@ class Splitor {
                            butil::IOBuf* data,
                            off_t offset,
                            size_t length,
-                           uint64_t seq);
+                           uint64_t seq,
+                           const std::vector<uint64_t>& snaps);
 
     /**
      * @brief 计算请求的location信息

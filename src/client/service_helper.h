@@ -129,6 +129,16 @@ class ServiceHelper {
                                         std::string* user);
 
     /**
+     * 从文件名中解析可能存在的快照版本号，该接口用于测试多层快照的读取功能
+     * 如用户传入的完整文件信息是/temp@1_user_，则解析得到的快照版本号是@符号后的数字内容1
+     * @param[in]: filename为用户传下来的已解析不包含user的名称，如/temp@1
+     * @param[out]: sn,若解析成功，得到的快照版本号
+     * @param[out]: realfilename,若解析成功，得到的真正的文件名
+     * @return: 获取到sn为true，代表快照文件，否则false,代表普通文件
+    */
+    static bool GetSnapSeqFromFilename(const std::string& filename, uint64_t& sn, std::string* realfilename);
+
+    /**
      * @brief: 发送http请求，判断chunkserver是否健康
      *
      * @param: endPoint chunkserver的ip:port

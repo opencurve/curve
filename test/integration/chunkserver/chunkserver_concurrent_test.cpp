@@ -454,7 +454,7 @@ void CreateCloneChunk(Peer leader,
                       ChunkID end) {
     int ret = 0;
     SequenceNum sn = 2;
-    SequenceNum correctedSn = 1;
+    SequenceNum snapSn = 1;
     std::string location = "test@s3";
 
     PeerId leaderId(leader.address());
@@ -471,7 +471,7 @@ void CreateCloneChunk(Peer leader,
         request.set_copysetid(copysetId);
         request.set_chunkid(i);
         request.set_sn(sn);
-        request.set_correctedsn(correctedSn);
+        request.set_snapsn(snapSn);
         request.set_location(location);
         request.set_size(kChunkSize);
         stub.CreateCloneChunk(&cntl, &request, &response, nullptr);

@@ -502,7 +502,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .Times(2)
         .WillOnce(DoAll(SetArgPointee<3>(FileStatus::Deleting),
                         Return(LIBCURVE_ERROR::OK)))
@@ -1712,7 +1712,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 
     core_->HandleCreateSnapshotTask(task);
@@ -1861,7 +1861,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillOnce(Return(-LIBCURVE_ERROR::DELETE_ERROR));
 
     core_->HandleCreateSnapshotTask(task);
@@ -2010,7 +2010,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<3>(FileStatus::Created),
                         Return(LIBCURVE_ERROR::OK)));
 
@@ -2145,7 +2145,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
@@ -2731,7 +2731,7 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
                         }))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     // 进入cancel
@@ -2797,7 +2797,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     EXPECT_CALL(*metaStore_, DeleteSnapshot(uuid))
@@ -2901,7 +2901,7 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     EXPECT_CALL(*dataStore_, DeleteChunkIndexData(_))
@@ -3061,7 +3061,7 @@ TEST_F(TestSnapshotCoreImpl,
                     return kErrCodeSuccess;
                         }));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     // 进入cancel
@@ -3220,7 +3220,7 @@ TEST_F(TestSnapshotCoreImpl,
                     return kErrCodeSuccess;
                         }));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     // 进入cancel
@@ -3386,7 +3386,7 @@ TEST_F(TestSnapshotCoreImpl,
                         }))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _))
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _, _, _))
         .WillRepeatedly(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     // 进入cancel

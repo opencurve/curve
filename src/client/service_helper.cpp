@@ -72,6 +72,9 @@ void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo& finfo,
     if (finfo.has_seqnum()) {
         fi->seqnum = finfo.seqnum();
     }
+    for (int i = 0; i < finfo.snaps_size(); i++) {
+        fi->snaps.emplace_back(finfo.snaps(i));
+    }
     if (finfo.has_filestatus()) {
         fi->filestatus = (FileStatus)finfo.filestatus();
     }
@@ -373,6 +376,26 @@ bool ServiceHelper::GetUserInfoFromFilename(const std::string& filename,
     *realfilename = filename.substr(0, user_begin);
     *user = filename.substr(user_begin + 1, user_end - user_begin - 1);
 
+    return true;
+}
+
+bool ServiceHelper::GetSnapSeqFromFilename(const std::string& filename, 
+                                           uint64_t& sn,
+                                           std::string* realfilename) {
+    auto snapPos = filename.find_last_of("@");
+    if (snapPos == std::string::npos || snapPos == filename.length() -1 ) {
+        return false;
+    }
+    if (filename.find_first_not_of("0123456789", snapPos + 1) != std::string::npos ) {
+        LOG(ERROR) << "filename " << filename << " contains invalid seqnum.";
+        return false;
+    }
+
+    std::string snapStr = filename.substr(snapPos + 1);
+    sn = std::stoul(snapStr);
+    *realfilename = filename.substr(0, snapPos);
+    if (sn == 0)
+        return false;
     return true;
 }
 

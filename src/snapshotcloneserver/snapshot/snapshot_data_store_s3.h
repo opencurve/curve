@@ -43,6 +43,7 @@ class S3SnapshotDataStore : public SnapshotDataStore {
     }
     ~S3SnapshotDataStore() {}
     int Init(const std::string &path) override;
+    bool Enabled() const;
     int PutChunkIndexData(const ChunkIndexDataName &name,
                         const ChunkIndexData &meta) override;
     int GetChunkIndexData(const ChunkIndexDataName &name,
@@ -87,6 +88,7 @@ class S3SnapshotDataStore : public SnapshotDataStore {
  private:
     std::shared_ptr<curve::common::S3Adapter> s3Adapter4Data_;
     std::shared_ptr<curve::common::S3Adapter> s3Adapter4Meta_;
+    bool enabled_ = false;
 };
 
 }   // namespace snapshotcloneserver

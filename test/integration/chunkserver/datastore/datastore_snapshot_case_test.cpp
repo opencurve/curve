@@ -191,7 +191,7 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     /******************场景二：第一次快照结束，删除快照******************/
 
     // 请求删chunk1的快照，返回成功，并删除快照
-    errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(id1, fileSn);
+    errorCode = dataStore_->DeleteSnapshotChunk(id1, fileSn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     // 检查chunk1信息，符合预期
     errorCode = dataStore_->GetChunkInfo(id1, &chunk1Info);
@@ -201,7 +201,7 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     ASSERT_EQ(0, chunk1Info.correctedSn);
 
     // 请求删chunk2的快照，返回成功
-    errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(id2, fileSn);
+    errorCode = dataStore_->DeleteSnapshotChunk(id2, fileSn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
     // 向chunk2的[0, 8KB)区域写入数据 "a"
@@ -286,7 +286,7 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     /******************场景四：第二次快照结束，删除快照******************/
 
     // 请求删chunk1的快照，返回成功
-    errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(id1, fileSn);
+    errorCode = dataStore_->DeleteSnapshotChunk(id1, fileSn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     // 检查chunk1信息，符合预期
     errorCode = dataStore_->GetChunkInfo(id1, &chunk1Info);
@@ -296,7 +296,7 @@ TEST_F(SnapshotTestSuit, SnapshotTest) {
     ASSERT_EQ(0, chunk1Info.correctedSn);
 
     // 请求删chunk2的快照，返回成功
-    errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(id2, fileSn);
+    errorCode = dataStore_->DeleteSnapshotChunk(id2, fileSn);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     // 检查chunk2信息，符合预期
     errorCode = dataStore_->GetChunkInfo(id2, &chunk2Info);

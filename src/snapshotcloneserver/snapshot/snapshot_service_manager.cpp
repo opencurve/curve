@@ -84,6 +84,41 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
     return kErrCodeSuccess;
 }
 
+int SnapshotServiceManager::CreateSyncSnapshot(const std::string &file,
+    const std::string &user,
+    const std::string &snapshotName,
+    UUID *uuid) {
+    SnapshotInfo snapInfo;
+    int ret = core_->CreateSyncSnapshotPre(file, user, snapshotName, &snapInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "CreateSyncSnapshotPre error, "
+                   << " ret = " << ret
+                   << ", file = " << file
+                   << ", snapshotName = " << snapshotName
+                   << ", uuid = " << snapInfo.GetUuid();
+        return ret;
+    }
+    *uuid = snapInfo.GetUuid();
+
+    std::shared_ptr<SnapshotTaskInfo> taskInfo =
+        std::make_shared<SnapshotTaskInfo>(snapInfo, nullptr);
+    ret =  core_->HandleCreateSyncSnapshotTask(taskInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "HandleCreateSyncSnapshotTask error and ready to delete, "
+                   << " ret = " << ret 
+                   << ", file = " << file
+                   << ", snapshotName = " << snapshotName
+                   << ", uuid = " << snapInfo.GetUuid();
+        int retTmp = DeleteSyncSnapshot(*uuid, user, file);
+        if (retTmp < 0) {
+            LOG(ERROR) << "DeleteSyncSnapshot fail when HandleCreateSyncSnapshotTask error,"
+                       << " ret = " << retTmp;
+        }
+        return ret;
+    }
+    return kErrCodeSuccess;
+}
+
 int SnapshotServiceManager::CancelSnapshot(
     const UUID &uuid,
     const std::string &user,
@@ -162,6 +197,38 @@ int SnapshotServiceManager::DeleteSnapshot(
     return kErrCodeSuccess;
 }
 
+int SnapshotServiceManager::DeleteSyncSnapshot(
+    const UUID &uuid,
+    const std::string &user,
+    const std::string &file) {
+    SnapshotInfo snapInfo;
+    int ret = core_->DeleteSyncSnapshotPre(uuid, user, file, &snapInfo);
+    if (kErrCodeTaskExist == ret) {
+        return kErrCodeSuccess;
+    } 
+    else if (ret < 0) {
+        LOG(ERROR) << "DeleteSyncSnapshotPre fail"
+                   << ", ret = " << ret
+                   << ", uuid = " << uuid
+                   << ", file =" << file;
+        return ret;
+    }
+    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
+    std::shared_ptr<SnapshotTaskInfo> taskInfo =
+        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
+    taskInfo->UpdateMetric();
+    std::shared_ptr<SnapshotDeleteSyncTask> task =
+        std::make_shared<SnapshotDeleteSyncTask>(
+            snapInfo.GetUuid(), taskInfo, core_);
+    ret = taskMgr_->PushTask(task);
+    if (ret < 0) {
+        LOG(ERROR) << "Push Task error, "
+                   << " ret = " << ret;
+        return ret;
+    }
+    return kErrCodeSuccess;    
+}
+
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
     const std::string &user,
     std::vector<FileSnapshotInfo> *info) {
@@ -219,8 +286,7 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                     break;
                 }
                 case Status::deleting:
-                case Status::errorDeleting:
-                case Status::pending: {
+                case Status::errorDeleting: {
                     UUID uuid = snap.GetUuid();
                     std::shared_ptr<SnapshotTask> task =
                         taskMgr_->GetTask(uuid);
@@ -252,6 +318,11 @@ int SnapshotServiceManager::GetFileSnapshotInfoInner(
                                 return kErrCodeInternalError;
                         }
                     }
+                    break;
+                }
+                case Status::pending: {
+                    //对于同步创建的快照，不存在任务和进度的概念
+                    info->emplace_back(snap, 1);
                     break;
                 }
                 default:
@@ -310,8 +381,7 @@ int SnapshotServiceManager::GetSnapshotListInner(
                     break;
                 }
                 case Status::deleting:
-                case Status::errorDeleting:
-                case Status::pending: {
+                case Status::errorDeleting: {
                     UUID uuid = snap.GetUuid();
                     std::shared_ptr<SnapshotTask> task =
                         taskMgr_->GetTask(uuid);
@@ -343,6 +413,11 @@ int SnapshotServiceManager::GetSnapshotListInner(
                                 return kErrCodeInternalError;
                         }
                     }
+                    break;
+                }
+                case Status::pending: {
+                    //对于同步创建的快照，不存在任务和进度的概念
+                    info->emplace_back(snap, 1);
                     break;
                 }
                 default:
@@ -377,6 +452,7 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
     for (auto &snap : list) {
         Status st = snap.GetStatus();
         switch (st) {
+            /*
             case Status::pending : {
                 auto snapInfoMetric =
                     std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
@@ -398,6 +474,11 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
                 }
                 break;
             }
+            */
+            // 创建快照改为同步之后，重启程序发现状态为pending的快照记录，
+            // 则用户必然未收到快照创建成功的响应，因此要回滚删除快照记录。
+            // 删除快照可能比较耗时，因此以异步任务方式进行
+           case Status::pending :
             // 重启恢复的canceling等价于errorDeleting
             case Status::canceling :
             case Status::deleting :
@@ -407,8 +488,8 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
                     std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
                 taskInfo->UpdateMetric();
-                std::shared_ptr<SnapshotDeleteTask> task =
-                    std::make_shared<SnapshotDeleteTask>(
+                std::shared_ptr<SnapshotDeleteSyncTask> task =
+                    std::make_shared<SnapshotDeleteSyncTask>(
                         snap.GetUuid(),
                         taskInfo,
                         core_);

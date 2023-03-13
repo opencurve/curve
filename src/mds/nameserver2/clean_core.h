@@ -56,6 +56,15 @@ class CleanCore {
                                  TaskProgress* progress);
 
     /**
+     * @brief 删除快照文件，更新task状态（用于本地多层快照）
+     * @param snapShotFile: 需要清理的snapshot文件
+     * @param progress: CleanSnapShotFile接口属于时间较长的偏异步任务
+     *                  这里传入进度进行跟踪反馈
+     */
+    StatusCode CleanSnapShotFile2(const FileInfo & snapShotFile,
+                                 TaskProgress* progress);
+
+    /**
      * @brief 删除普通文件，更新task状态
      * @param commonFile: 需要清理的普通文件
      * @param progress: CleanFile接口属于时间较长的偏异步任务
@@ -71,6 +80,17 @@ class CleanCore {
     std::shared_ptr<AllocStatistic> allocStatistic_;
 };
 
+inline std::string Snaps2Str(const std::vector<uint64_t>& snaps) {
+    std::string str;
+    std::for_each(snaps.begin(),snaps.end(), [&] (uint64_t seq) {
+        str.append(std::to_string(seq));
+        str.append(",");
+    });
+    if(str.length() > 0) {
+        str.pop_back();
+    }
+    return str;
+}
 }  // namespace mds
 }  // namespace curve
 

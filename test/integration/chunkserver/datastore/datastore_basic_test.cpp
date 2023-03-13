@@ -169,7 +169,8 @@ TEST_F(BasicTestSuit, BasicTest) {
                                        iobuf1_1_4,
                                        offset,
                                        length,
-                                       nullptr);
+                                       nullptr,
+                                       SnapContext::build_empty());
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
     // 没被写过的区域也可以读，但是不保证读到的数据内容

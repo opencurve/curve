@@ -38,6 +38,16 @@
 namespace curve {
 namespace chunkserver {
 
+static std::vector<SequenceNum> getSnapIds(const ChunkRequest* request) {
+    // std::vector has move-semantics in c++11
+    std::vector<SequenceNum> snaps;
+    for (long i = 0; i < request->snaps_size(); ++i) {
+        snaps.push_back(request->snaps(i));
+    }
+    std::sort(snaps.begin(), snaps.end());
+    return snaps;
+}
+
 ChunkOpRequest::ChunkOpRequest() :
     datastore_(nullptr),
     node_(nullptr),
@@ -177,7 +187,8 @@ void DeleteChunkRequest::OnApply(uint64_t index,
     brpc::ClosureGuard doneGuard(done);
 
     auto ret = datastore_->DeleteChunk(request_->chunkid(),
-                                       request_->sn());
+                                       request_->sn(),
+                                       std::make_shared<SnapContext>(getSnapIds(request_)));
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
@@ -206,7 +217,8 @@ void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                         const butil::IOBuf &data) {
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->DeleteChunk(request.chunkid(),
-                                      request.sn());
+                                      request.sn(),
+                                      std::make_shared<SnapContext>(getSnapIds(&request)));
     if (CSErrorCode::Success == ret)
         return;
 
@@ -453,6 +465,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
                                       request_->offset(),
                                       request_->size(),
                                       &cost,
+                                      std::make_shared<SnapContext>(getSnapIds(request_)),
                                       cloneSourceLocation);
 
     if (CSErrorCode::Success == ret) {
@@ -518,6 +531,7 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                      request.offset(),
                                      request.size(),
                                      &cost,
+                                     std::make_shared<SnapContext>(getSnapIds(&request)),
                                      cloneSourceLocation);
      if (CSErrorCode::Success == ret) {
          return;
@@ -559,7 +573,8 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                                              request_->sn(),
                                              readBuffer,
                                              request_->offset(),
-                                             request_->size());
+                                             request_->size(),
+                                             std::make_shared<SnapContext>(getSnapIds(request_)));
     butil::IOBuf wrapper;
     wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
 
@@ -580,6 +595,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST); //NOLINT
             break;
         }
+        std::string snapsStr = request_->snaps_size() == 0 ? "empty": std::to_string(request_->snaps(request_->snaps_size()-1));
         /**
          * 3.internal error
          */
@@ -589,6 +605,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                        << " copyset id: " << request_->copysetid()
                        << " chunkid: " << request_->chunkid()
                        << " sn: " << request_->sn()
+                       << " latest snap seq = " << snapsStr
                        << " data size: " << request_->size()
                        << " read len :" << size
                        << " offset: " << request_->offset()
@@ -602,6 +619,7 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
                    << " sn: " << request_->sn()
+                   << " latest snap seq = " << snapsStr
                    << " data size: " << request_->size()
                    << " read len :" << size
                    << " offset: " << request_->offset()
@@ -625,8 +643,8 @@ void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 void DeleteSnapshotRequest::OnApply(uint64_t index,
                                     ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
-    CSErrorCode ret = datastore_->DeleteSnapshotChunkOrCorrectSn(
-        request_->chunkid(), request_->correctedsn());
+    CSErrorCode ret = datastore_->DeleteSnapshotChunk(
+        request_->chunkid(), request_->snapsn(), std::make_shared<SnapContext>(getSnapIds(request_)));
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
@@ -635,7 +653,7 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
                      << " logic pool id: " << request_->logicpoolid()
                      << " copyset id: " << request_->copysetid()
                      << " chunkid: " << request_->chunkid()
-                     << " correctedSn: " << request_->correctedsn()
+                     << " snapSn: " << request_->snapsn()
                      << " data store return: " << ret;
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
@@ -644,14 +662,14 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
                    << " logic pool id: " << request_->logicpoolid()
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
-                   << " correctedSn: " << request_->correctedsn()
+                   << " snapsn: " << request_->snapsn()
                    << " data store return: " << ret;
     } else {
         LOG(ERROR) << "delete snapshot or correct sn failed: "
                    << " logic pool id: " << request_->logicpoolid()
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
-                   << " correctedSn: " << request_->correctedsn()
+                   << " snapsn: " << request_->snapsn()
                    << " data store return: " << ret;
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -665,8 +683,8 @@ void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastor
                                            const ChunkRequest &request,
                                            const butil::IOBuf &data) {
     // NOTE: 处理过程中优先使用参数传入的datastore/request
-    auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
-        request.chunkid(), request.correctedsn());
+    auto ret = datastore->DeleteSnapshotChunk(
+        request.chunkid(), request.snapsn(), std::make_shared<SnapContext>(getSnapIds(&request)));
     if (CSErrorCode::Success == ret) {
         return;
     } else if (CSErrorCode::BackwardRequestError == ret) {
@@ -674,21 +692,21 @@ void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastor
                      << request.logicpoolid() << ", "
                      << request.copysetid()
                      << " chunkid: " << request.chunkid()
-                     << " correctedSn: " << request.correctedsn()
+                     << " snapsn: " << request.snapsn()
                      << " data store return: " << ret;
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete snapshot or correct sn failed: "
                    << request.logicpoolid() << ", "
                    << request.copysetid()
                    << " chunkid: " << request.chunkid()
-                   << " correctedSn: " << request.correctedsn()
+                   << " snapsn: " << request.snapsn()
                    << " data store return: " << ret;
     } else {
         LOG(ERROR) << "delete snapshot or correct sn failed: "
                    << request.logicpoolid() << ", "
                    << request.copysetid()
                    << " chunkid: " << request.chunkid()
-                   << " correctedSn: " << request.correctedsn()
+                   << " snapsn: " << request.snapsn()
                    << " data store return: " << ret;
     }
 }
@@ -699,7 +717,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
 
     auto ret = datastore_->CreateCloneChunk(request_->chunkid(),
                                             request_->sn(),
-                                            request_->correctedsn(),
+                                            request_->snapsn(),
                                             request_->size(),
                                             request_->location());
 
@@ -718,7 +736,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
                    << " sn " << request_->sn()
-                   << " correctedSn: " << request_->correctedsn()
+                   << " snapsn: " << request_->snapsn()
                    << " location: " << request_->location();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -728,7 +746,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
                    << " sn " << request_->sn()
-                   << " correctedSn: " << request_->correctedsn()
+                   << " snapsn: " << request_->snapsn()
                    << " location: " << request_->location();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST);
@@ -738,7 +756,7 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
                    << " sn " << request_->sn()
-                   << " correctedSn: " << request_->correctedsn()
+                   << " snapsn: " << request_->snapsn()
                    << " location: " << request_->location();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -754,7 +772,7 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
     // NOTE: 处理过程中优先使用参数传入的datastore/request
     auto ret = datastore->CreateCloneChunk(request.chunkid(),
                                            request.sn(),
-                                           request.correctedsn(),
+                                           request.snapsn(),
                                            request.size(),
                                            request.location());
     if (CSErrorCode::Success == ret)
@@ -766,7 +784,7 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
                 << " copyset id: " << request.copysetid()
                 << " chunkid: " << request.chunkid()
                 << " sn " << request.sn()
-                << " correctedSn: " << request.correctedsn()
+                << " snapsn: " << request.snapsn()
                 << " location: " << request.location();
         return;
     }
@@ -779,7 +797,7 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
                    << " copyset id: " << request.copysetid()
                    << " chunkid: " << request.chunkid()
                    << " sn " << request.sn()
-                   << " correctedSn: " << request.correctedsn()
+                   << " snapsn: " << request.snapsn()
                    << " location: " << request.location();
     } else {
         LOG(ERROR) << "create clone failed: "
@@ -787,7 +805,7 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
                    << " copyset id: " << request.copysetid()
                    << " chunkid: " << request.chunkid()
                    << " sn " << request.sn()
-                   << " correctedSn: " << request.correctedsn()
+                   << " snapsn: " << request.snapsn()
                    << " location: " << request.location();
     }
 }

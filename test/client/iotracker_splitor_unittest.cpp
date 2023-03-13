@@ -914,7 +914,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       nullptr, mc,
-                      &reqlist, cid, &iobuf, offset, length, 0));
+                      &reqlist, cid, &iobuf, offset, length, 0, {0}));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, nullptr, &reqlist, &iobuf, offset, length,
@@ -922,7 +922,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       iotracker, nullptr,
-                      &reqlist, cid, &iobuf, offset, length, 0));
+                      &reqlist, cid, &iobuf, offset, length, 0, {0}));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, &iobuf, offset, length,
@@ -935,7 +935,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(0, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                      iotracker, mc,
-                     &reqlist, cid, &iobuf, offset, length, 0));
+                     &reqlist, cid, &iobuf, offset, length, 0, {0}));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, nullptr, &iobuf, offset, length,
@@ -943,7 +943,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
 
     ASSERT_EQ(-1, curve::client::Splitor::SingleChunkIO2ChunkRequests(
                       iotracker, mc,
-                      nullptr, cid, &iobuf, offset, length, 0));
+                      nullptr, cid, &iobuf, offset, length, 0, {0}));
 
     ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(
                       iotracker, mc, &reqlist, nullptr, offset, length,
@@ -952,7 +952,7 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
     iotracker->SetOpType(OpType::WRITE);
     ASSERT_EQ(-1,
               curve::client::Splitor::SingleChunkIO2ChunkRequests(
-                  iotracker, mc, &reqlist, cid, nullptr, offset, length, 0));
+                  iotracker, mc, &reqlist, cid, nullptr, offset, length, 0, {0}));
 
     // write request, but write data is nullptr
     iotracker->SetOpType(OpType::WRITE);

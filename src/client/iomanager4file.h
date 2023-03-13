@@ -92,6 +92,12 @@ class IOManager4File : public IOManager {
      */
     int AioRead(CurveAioContext* aioctx, MDSClient* mdsclient,
                 UserDataType dataType);
+
+    /**
+     * 异步模式读快照（用于测试）
+    */
+    int AioReadSnapshot(CurveAioContext* ctx, MDSClient* mdsclient,
+                        UserDataType dataType);
     /**
      * 异步模式写
      * @param: mdsclient透传给底层，在必要的时候与mds通信

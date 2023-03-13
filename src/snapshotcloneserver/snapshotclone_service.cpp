@@ -124,7 +124,8 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
               << ", Name = " << *name
               << ", requestId = " << requestId;
     UUID uuid;
-    int ret = snapshotManager_->CreateSnapshot(*file, *user, *name, &uuid);
+    //int ret = snapshotManager_->CreateSnapshot(*file, *user, *name, &uuid);
+    int ret = snapshotManager_->CreateSyncSnapshot(*file, *user, *name, &uuid);
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
@@ -175,7 +176,8 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
               << ", UUID = " << *uuid
               << ", File = " << fileStr
               << ", requestId = " << requestId;
-    int ret = snapshotManager_->DeleteSnapshot(*uuid, *user, fileName);
+    //int ret = snapshotManager_->DeleteSnapshot(*uuid, *user, fileName);
+    int ret = snapshotManager_->DeleteSyncSnapshot(*uuid, *user, fileName);
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);

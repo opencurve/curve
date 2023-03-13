@@ -96,6 +96,10 @@ struct MDSOptions {
     // cache size of namestorage
     int mdsCacheCount;
     int mdsFilelockBucketNum;
+    // session timeout 
+    // sleep for double session timeout to let all clients refresh snap context 
+    // when deleting a curvefs snapshot(for local multi-level snapshot) 
+    uint32_t mdsSessionTimeUs;
 
     FileRecordOptions fileRecordOptions;
     RootAuthOption authOptions;

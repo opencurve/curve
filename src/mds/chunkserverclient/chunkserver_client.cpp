@@ -53,7 +53,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
-    uint64_t correctedSn) {
+    uint64_t snapSn) {
     ChannelPtr channelPtr;
     int res = GetOrInitChannel(leaderId, &channelPtr);
     if (res != kMdsSuccess) {
@@ -69,7 +69,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     request.set_logicpoolid(logicalPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
-    request.set_correctedsn(correctedSn);
+    request.set_snapsn(snapSn);
 
     ChunkResponse response;
     uint32_t retry = 0;
@@ -127,6 +127,104 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
                 }
             default: {
                 LOG(ERROR) << "Received DeleteChunkSnapshotOrCorrectSn "
+                           << "error, [log_id="
+                           << cntl.log_id()
+                           << "] from " << cntl.remote_side()
+                           << " to " << cntl.local_side()
+                           << ". [ChunkResponse] "
+                           << response.DebugString();
+                    return kCsClientReturnFail;
+                }
+        }
+    }
+    return kMdsSuccess;
+}
+
+int ChunkServerClient::DeleteChunkSnapshot(
+    ChunkServerIdType leaderId,
+    LogicalPoolID logicalPoolId,
+    CopysetID copysetId,
+    ChunkID chunkId,
+    uint64_t snapSn,
+    const std::vector<uint64_t>& snaps) {
+    ChannelPtr channelPtr;
+    int res = GetOrInitChannel(leaderId, &channelPtr);
+    if (res != kMdsSuccess) {
+        return res;
+    }
+    ChunkService_Stub stub(channelPtr.get());
+
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(rpcTimeoutMs_);
+
+    ChunkRequest request;
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
+    request.set_logicpoolid(logicalPoolId);
+    request.set_copysetid(copysetId);
+    request.set_chunkid(chunkId);
+    request.set_snapsn(snapSn);
+    for (auto snap: snaps) {
+        request.add_snaps(snap);
+    }
+
+    ChunkResponse response;
+    uint32_t retry = 0;
+    do {
+        cntl.Reset();
+        cntl.set_timeout_ms(rpcTimeoutMs_);
+        //stub.DeleteChunkSnapshot(&cntl,
+        // 这里目前还是维持的旧的删除RPC接口，后面根据新旧快照兼容方案来修改
+        stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+            &request,
+            &response,
+            nullptr);
+        LOG(INFO) << "Send DeleteChunkSnapshot[log_id="
+                  << cntl.log_id()
+                  << "] from " << cntl.local_side()
+                  << " to " << cntl.remote_side()
+                  << ". [ChunkRequest] "
+                  << request.DebugString();
+        if (cntl.Failed()) {
+            LOG(WARNING) << "Send DeleteChunkSnapshot error, "
+                       << "cntl.errorText = "
+                       << cntl.ErrorText()
+                       << ", retry, time = "
+                       << retry;
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(rpcRetryIntervalMs_));
+        }
+        retry++;
+    } while (cntl.Failed() && retry < rpcRetryTimes_);
+
+    if (cntl.Failed()) {
+        LOG(ERROR) << "Send DeleteChunkSnapshot error, retry fail,"
+                   << "cntl.errorText = "
+                   << cntl.ErrorText() << std::endl;
+        return kRpcFail;
+    } else {
+        switch (response.status()) {
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST: {
+                LOG(INFO) << "Received DeleteChunkSnapshot[log_id="
+                          << cntl.log_id()
+                          << "] from " << cntl.remote_side()
+                          << " to " << cntl.local_side()
+                          << ". [ChunkResponse] "
+                          << response.DebugString();
+                    return kMdsSuccess;
+                }
+            case CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED: {
+                LOG(INFO) << "Received DeleteChunkSnapshot,"
+                          << " not leader, redirect."
+                          << " [log_id=" << cntl.log_id()
+                          << "] from " << cntl.remote_side()
+                          << " to " << cntl.local_side()
+                          << ". [ChunkResponse] "
+                          << response.DebugString();
+                    return kCsClientNotLeader;
+                }
+            default: {
+                LOG(ERROR) << "Received DeleteChunkSnapshot "
                            << "error, [log_id="
                            << cntl.log_id()
                            << "] from " << cntl.remote_side()

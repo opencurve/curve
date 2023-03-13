@@ -260,10 +260,10 @@ TEST_F(DatastoreIntegrationTest, RestartTest) {
                                         length,
                                         nullptr);
         // 删除chunk2快照
-        e_delsnap_2_2 = dataStore_->DeleteSnapshotChunkOrCorrectSn(2, fileSn);
+        e_delsnap_2_2 = dataStore_->DeleteSnapshotChunk(2, fileSn);
         // 模拟再次快照，然后删除chunk2快照
         ++fileSn;
-        e_delsnap_2_3 = dataStore_->DeleteSnapshotChunkOrCorrectSn(2, fileSn);
+        e_delsnap_2_3 = dataStore_->DeleteSnapshotChunk(2, fileSn);
         // 模拟再次快照，然后写数据到chunk2产生快照
         ++fileSn;
         offset = 2 * PAGE_SIZE;

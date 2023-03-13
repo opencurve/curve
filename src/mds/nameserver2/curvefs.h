@@ -307,14 +307,19 @@ class CurveFS {
     StatusCode CreateSnapShotFile(const std::string &fileName,
                             FileInfo *snapshotFileInfo);
 
+    // The version for creating local multi-level snapshot
+    StatusCode CreateSnapShotFile2(const std::string &fileName,
+                            FileInfo *snapshotFileInfo);
+
     /**
      *  @brief get all the snapshot info of the file
      *  @param filename
-     *         snapshotFileInfos: returned result
+     *  @param snapshotFileInfos: snapshot info
+     *  @param srcfileInfo: file info
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode ListSnapShotFile(const std::string & fileName,
-                            std::vector<FileInfo> *snapshotFileInfos) const;
+                            std::vector<FileInfo> *snapshotFileInfos, FileInfo *srcfileInfo = nullptr) const;
     // async interface
     /**
      *  @brief Delete the snapshot file of the file specified by seq
@@ -324,6 +329,19 @@ class CurveFS {
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode DeleteFileSnapShotFile(const std::string &fileName,
+                            FileSeqType seq,
+                            std::shared_ptr<AsyncDeleteSnapShotEntity> entity);
+
+    // async interface
+    /**
+     *  @brief Delete the snapshot file of the file specified by seq. 
+     *         This is the version for the deletion of local multi-level snapshot(not S3)
+     *  @param filename
+     *  @param seq: Seq of snapshot
+     *  @param entity: Delete snapshot entities asynchronously
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode DeleteFileSnapShotFile2(const std::string &fileName,
                             FileSeqType seq,
                             std::shared_ptr<AsyncDeleteSnapShotEntity> entity);
 
@@ -341,14 +359,28 @@ class CurveFS {
                             uint32_t * progress) const;
 
     /**
-     *  @brief Get snapshot info
+     *  @brief Get the status of the snapshot, if the status is kFileDeleting
+     *         , return the deletion progress additionally
+     *  @param fileName
+     *  @param seq: The sequence of the snapshot
+     *  @param[out] status: File status (kFileCreated, kFileDeleting)
+     *  @param[out] progress: Additional deletion progress when the status is kFileDeleting //NOLINT
+     *  @return StatusCode::kOK if succeeded
+     */
+    StatusCode CheckSnapShotFileStatus2(const std::string &fileName,
+                            FileSeqType seq, FileStatus * status,
+                            uint32_t * progress) const;
+
+    /**
+     *  @brief Get snapshot and file info
      *  @param filename
      *  @param seq: sequence of the snapshot
      *  @param[out] snapshotFileInfo: snapshot info fetched
+     *  @param[out] fileInfo: file info fetched
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode GetSnapShotFileInfo(const std::string &fileName,
-                            FileSeqType seq, FileInfo *snapshotFileInfo) const;
+                            FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *fileInfo = nullptr) const;
 
     /**
      *  @brief get the segments info of the snapshot

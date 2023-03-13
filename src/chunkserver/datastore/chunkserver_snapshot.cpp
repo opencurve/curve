@@ -21,8 +21,10 @@
  */
 
 #include <memory>
+#include "src/common/bitmap.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
+#include "src/fs/wrap_posix.h"
 
 namespace curve {
 namespace chunkserver {
@@ -191,6 +193,28 @@ CSErrorCode CSSnapshot::Read(char * buf, off_t offset, size_t length) {
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSSnapshot::ReadRanges(char * buf, off_t offset, size_t length, std::vector<BitRange>& ranges) {
+    CSErrorCode errorCode = CSErrorCode::Success;
+    off_t readOff;
+    size_t readSize;
+
+    for (auto& range : ranges) {
+        readOff = range.beginIndex * blockSize_;
+        readSize = (range.endIndex - range.beginIndex + 1) * blockSize_;
+        int rc = readData(buf + (readOff - offset),
+                          readOff,
+                          readSize);
+        if (rc < 0) {
+            LOG(ERROR) << "Read snap chunk file failed. "
+                       << "ChunkID: " << chunkId_
+                       << ", snap sn: " << metaPage_.sn;
+            return CSErrorCode::InternalError;
+        }
+    }
+
+    return CSErrorCode::Success;
+}
+
 CSErrorCode CSSnapshot::Delete() {
     if (fd_ >= 0) {
         lfs_->Close(fd_);
@@ -262,6 +286,263 @@ CSErrorCode CSSnapshot::loadMetaPage() {
         return CSErrorCode::InternalError;
     }
     return metaPage_.decode(buf.get());
+}
+
+CSSnapshots::~CSSnapshots() {
+    for (int i = 0; i < snapshots_.size(); i++) {
+        delete snapshots_[i];
+    }
+
+    snapshots_.clear();
+}
+
+std::vector<CSSnapshot*>::iterator CSSnapshots::find(SequenceNum sn) {
+    std::vector<CSSnapshot*>::iterator it;
+    for (it = snapshots_.begin(); it != snapshots_.end(); it++) {
+        if ((*it)->GetSn() == sn) {
+            return it;
+        }
+
+        if ((*it)->GetSn() > sn) {
+            break;
+        }
+    }
+
+    return snapshots_.end();
+}
+
+bool CSSnapshots::insert(CSSnapshot* s) {
+    std::vector<CSSnapshot*>::iterator it;
+    for (it = snapshots_.begin(); it != snapshots_.end(); it++) {
+        if ((*it)->GetSn() == s->GetSn()) {
+            return false;
+        }
+
+        if ((*it)->GetSn() > s->GetSn()) {
+            break;
+        }
+    }
+
+    snapshots_.insert(it, s);
+    return true;
+}
+
+CSSnapshot *CSSnapshots::pop(SequenceNum sn) {
+    std::vector<CSSnapshot*>::iterator it = find(sn);
+    if (it != snapshots_.end()) {
+        CSSnapshot* snap = *it;
+        snapshots_.erase(it);
+        return snap;
+    }
+
+    return nullptr;
+}
+
+bool CSSnapshots::contains(SequenceNum sn) const {
+    for (int i = 0; i < snapshots_.size(); i++) {
+        SequenceNum n = snapshots_[i]->GetSn();
+        if (n == sn) return true;
+        if (n > sn) break;
+    }
+
+    return false;
+}
+
+SequenceNum CSSnapshots::getCurrentSn() const {
+    if (snapshots_.empty()) {
+        return 0;
+    }
+
+    return (*snapshots_.rbegin())->GetSn();
+}
+
+CSSnapshot* CSSnapshots::getCurrentSnapshot() {
+    if (snapshots_.empty()) {
+        return nullptr;
+    }
+
+    return *snapshots_.rbegin();
+}
+
+/**
+ * Assuming timeline of snapshots, from older to newer:
+ *   prev -> curr -> next
+*/
+CSErrorCode CSSnapshots::Delete(CSChunkFile* chunkf, SequenceNum snapSn, std::shared_ptr<SnapContext> ctx) {
+    // snapshot chunk not exists on disk.
+    if (!this->contains(snapSn)) {
+        return CSErrorCode::Success;
+    }
+
+    CSErrorCode errorCode;
+    SequenceNum prev = ctx->getPrev(snapSn);
+    if (prev == 0) {
+        // snapSn is oldest snapshot.  Delete snap chunk directly.
+        CSSnapshot *snapshot_ = pop(snapSn);
+        errorCode = snapshot_->Delete();
+        if (errorCode != CSErrorCode::Success) {
+            LOG(ERROR) << "Delete snapshot failed."
+                    << "ChunkID: " << snapshot_->chunkId_
+                    << ",snapshot sn: " << snapshot_->GetSn();
+            delete snapshot_;
+            return errorCode;
+        }
+
+        delete snapshot_;
+        return CSErrorCode::Success;
+    }
+
+    // we need to merge data from current snap chunk to `prev' snap chunk.
+    if (!this->contains(prev)) {
+        // No cow was generated for snap `prev', set current as `prev'.
+        errorCode = Move(snapSn, prev);
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+
+        return chunkf->loadSnapshot(prev);
+    }
+
+    // do merge if both snap chunk `prev' and `curr' exists.
+    return Merge(snapSn, prev);
+}
+
+/**
+ * This method is called with the following guarantees:
+ * 1. the chunk file exists;
+ * 2. the snapshot chunk (COW file) might *not* exists.
+ *
+ * The `offset' and `length' is converted to per-page access.
+ * Each page is being tested with presence in sorted snapshot files
+ * after `sn' until a hit.  If all missed, mark it into
+ * `clearRanges' so that caller will read the data from chunk.
+ */
+CSErrorCode CSSnapshots::Read(SequenceNum sn, char * buf, off_t offset, size_t length, vector<BitRange>* clearRanges) {
+    // contains COW with seqnum >= sn, in ascending order
+    std::vector<CSSnapshot*> snapshots;
+    uint32_t blockBeginIndex = offset / blockSize_;
+    uint32_t blockEndIndex = (offset + length - 1) / blockSize_;
+
+    std::copy_if(snapshots_.begin(), snapshots_.end(),
+                 std::back_inserter(snapshots),
+                 [&](CSSnapshot* s) { return s->GetSn() >= sn; });
+    if (snapshots.empty()) {
+        BitRange clearRange;
+        clearRange.beginIndex = blockBeginIndex;
+        clearRange.endIndex = blockEndIndex;
+        clearRanges->push_back(clearRange);
+        return CSErrorCode::Success;
+    }
+
+    // indicate whether given page has COW
+    std::unique_ptr<Bitmap> snapBitmap(new Bitmap(blockEndIndex+1));
+
+    for (auto snapshot: snapshots) {
+        const auto it = snapshot->GetPageStatus();
+        std::unique_ptr<Bitmap> curBitmap(new Bitmap(blockEndIndex+1));
+        for (uint32_t i = blockBeginIndex; i <= blockEndIndex; i++) {
+            if (!it->Test(i)) continue;  // page not in current COW
+            if (snapBitmap->Test(i)) continue; // page already hit in previous COW
+
+            curBitmap->Set(i);  // current copy have to read those set in `curBitmap'
+            snapBitmap->Set(i); // further copy must ignore those set in `snapBitmap'
+        }
+
+        std::vector<BitRange> copiedRange;
+        curBitmap->Divide(blockBeginIndex,
+                          blockEndIndex,
+                          nullptr,
+                          &copiedRange);
+        CSErrorCode errorCode = snapshot->ReadRanges(buf, offset, length, copiedRange);
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+    }
+
+    snapBitmap->Divide(blockBeginIndex,
+                       blockEndIndex,
+                       clearRanges,
+                       nullptr);
+    return CSErrorCode::Success;
+}
+
+/**
+ * It moves snap chunk `from` to `to', and erase `from' from `snapshots' vector.
+ * The caller should load snapshot `to' upon success.
+ *
+ * Snapshot `to' should have no COW in disk.
+*/
+CSErrorCode CSSnapshots::Move(SequenceNum from, SequenceNum to) {
+    std::shared_ptr<CSSnapshot> snapFrom(pop(from));
+    snapFrom->metaPage_.sn = to;
+    CSErrorCode errorCode = snapFrom->Flush();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(ERROR) << "Move snapshot failed: " << errorCode;
+        return errorCode;
+    }
+
+    int rc = snapFrom->lfs_->Rename(snapFrom->path(from), snapFrom->path(to), RENAME_NOREPLACE);
+    if (rc != 0) {
+        LOG(ERROR) << "Rename snap chunk " << snapFrom->path(from)
+                   << " to " << snapFrom->path(to) << " failed: " << rc;
+        return CSErrorCode::InternalError;
+    }
+
+    return CSErrorCode::Success;
+}
+
+/**
+ * It merges snap chunk `from' to `to', if target bitmap is not set, and erase
+ * `from' from `snapshots' vector, after delete the snap chunk in disk.
+ *
+ * Both snapshot `from' and `to' have COW in disk.
+*/
+CSErrorCode CSSnapshots::Merge(SequenceNum from, SequenceNum to) {
+    std::shared_ptr<CSSnapshot> snapFrom(pop(from));
+    CSSnapshot* snapTo = *find(to);
+
+    uint32_t pos = 0;
+    char buf[blockSize_];
+    // TODO read/write in ranges
+    for (pos = snapFrom->metaPage_.bitmap->NextSetBit(pos); pos != Bitmap::NO_POS; pos =snapFrom->metaPage_.bitmap->NextSetBit(pos+1)) {
+        if (!snapTo->metaPage_.bitmap->Test(pos)) {
+            off_t offset = blockSize_ * pos;
+            int rc = snapFrom->readData(buf, offset, blockSize_);
+            if (rc < 0) {
+                LOG(ERROR) << "Read snap chunk file failed. "
+                           << "ChunkID: " << snapFrom->chunkId_
+                           << ", chunk sn: " << snapFrom->GetSn()
+                           << ", snap sn: " << from;
+                return CSErrorCode::InternalError;
+            }
+
+            rc = snapTo->Write(buf, offset, blockSize_);
+            if (rc < 0) {
+                LOG(ERROR) << "Write snap chunk file failed. "
+                           << "ChunkID: " << snapFrom->chunkId_
+                           << ", chunk sn: " << snapFrom->GetSn()
+                           << ", snap sn: " << to;
+                return CSErrorCode::InternalError;
+            }
+        }
+    }
+
+    CSErrorCode errorCode = snapTo->Flush();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(ERROR) << "Merge snapshot failed upon flush: " << errorCode;
+        return errorCode;
+    }
+
+    errorCode = snapFrom->Delete();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(ERROR) << "Delete snapshot failed."
+                   << "ChunkID: " << snapFrom->chunkId_
+                   << ", chunk sn: " << snapFrom->GetSn()
+                   << ", snap sn: " << from;
+        return errorCode;
+    }
+
+    return CSErrorCode::Success;
 }
 
 }  // namespace chunkserver

@@ -133,10 +133,16 @@ void SnapshotTaskManager::ScanWaitingTask() {
     LockGuard workingTasksLock(workingTasksLock_);
     for (auto it = waitingTasks_.begin();
         it != waitingTasks_.end();) {
-        if (workingTasks_.find((*it)->GetTaskInfo()->GetFileName())
-            == workingTasks_.end()) {
-            workingTasks_.emplace((*it)->GetTaskInfo()->GetFileName(),
-                *it);
+        // 此处针对同一文件名的快照任务做了排队处理，不能并发。
+        // 然在本地多层快照的批量删除场景下，mds端会对快照尽量进行排队，按seqnum从小
+        // 到大串行进行删除，以减少无谓的快照数据搬迁，因此这里的快照删除不需要排队
+        // if (workingTasks_.find((*it)->GetTaskInfo()->GetFileName())
+        //     == workingTasks_.end()) {
+        //     workingTasks_.emplace((*it)->GetTaskInfo()->GetFileName(),
+        //         *it);
+        // 这里TaskID不会重复
+        if (workingTasks_.find((*it)->GetTaskId()) == workingTasks_.end()) {
+            workingTasks_.emplace((*it)->GetTaskId(), *it);
             threadpool_->PushTask(*it);
             snapshotMetric_->snapshotDoing << 1;
             snapshotMetric_->snapshotWaiting << -1;

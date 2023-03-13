@@ -151,7 +151,8 @@ int FakeCurveFsClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
 int FakeCurveFsClient::CheckSnapShotStatus(std::string filename,
         std::string user,
         uint64_t seq,
-        FileStatus* filestatus) {
+        FileStatus* filestatus,
+        uint32_t* progress) {
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeCurveFsClient.CheckSnapShotStatus", -LIBCURVE_ERROR::FAILED);  // NOLINT
     return -LIBCURVE_ERROR::NOTEXIST;

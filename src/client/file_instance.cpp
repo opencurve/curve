@@ -139,6 +139,9 @@ int FileInstance::AioRead(CurveAioContext* aioctx, UserDataType dataType) {
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
+    if (GetReadSnapshotSn()) {
+        return iomanager4file_.AioReadSnapshot(aioctx, mdsclient_.get(), dataType);
+    }
     return iomanager4file_.AioRead(aioctx, mdsclient_.get(), dataType);
 }
 

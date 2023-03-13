@@ -188,6 +188,29 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient,
     return LIBCURVE_ERROR::OK;
 }
 
+int IOManager4File::AioReadSnapshot(CurveAioContext* ctx, MDSClient* mdsclient,
+                            UserDataType dataType) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ_SNAP);
+
+    IOTracker* temp = new (std::nothrow)
+        IOTracker(this, &mc_, scheduler_, fileMetric_, disableStripe_);
+    if (temp == nullptr) {
+        ctx->ret = -LIBCURVE_ERROR::FAILED;
+        ctx->cb(ctx);
+        LOG(ERROR) << "allocate tracker for AioReadSnapshot failed!";
+        return LIBCURVE_ERROR::OK;
+    }
+
+    temp->SetUserDataType(dataType);
+    inflightCntl_.IncremInflightNum();
+    auto task = [this, ctx, mdsclient, temp]() {
+        temp->StartAioReadSnapshot(ctx, mdsclient, this->GetFileInfo());
+    };
+
+    taskPool_.Enqueue(task);
+    return LIBCURVE_ERROR::OK;
+}
+
 int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
                              UserDataType dataType) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);

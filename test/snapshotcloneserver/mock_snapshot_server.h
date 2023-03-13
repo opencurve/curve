@@ -56,13 +56,31 @@ class MockSnapshotCore : public SnapshotCore {
     MOCK_METHOD1(HandleCreateSnapshotTask,
         void(std::shared_ptr<SnapshotTaskInfo> task));
 
+    MOCK_METHOD4(CreateSyncSnapshotPre,
+        int(const std::string &file,
+        const std::string &user,
+        const std::string &snapshotName,
+        SnapshotInfo *snapInfo));
+
+    MOCK_METHOD1(HandleCreateSyncSnapshotTask,
+        int(std::shared_ptr<SnapshotTaskInfo> task));
+
     MOCK_METHOD4(DeleteSnapshotPre,
         int(UUID uuid,
         const std::string &user,
         const std::string &fileName,
         SnapshotInfo *snapInfo));
 
+    MOCK_METHOD4(DeleteSyncSnapshotPre,
+        int(UUID uuid,
+        const std::string &user,
+        const std::string &fileName,
+        SnapshotInfo *snapInfo));
+
     MOCK_METHOD1(HandleDeleteSnapshotTask,
+        void(std::shared_ptr<SnapshotTaskInfo> task));
+
+    MOCK_METHOD1(HandleDeleteSyncSnapshotTask,
         void(std::shared_ptr<SnapshotTaskInfo> task));
 
     MOCK_METHOD2(GetFileSnapshotInfo,
@@ -183,11 +201,12 @@ class MockCurveFsClient : public CurveFsClient {
         int(const ChunkIDInfo &cidinfo,
         uint64_t correctedSeq));
 
-    MOCK_METHOD4(CheckSnapShotStatus,
+    MOCK_METHOD5(CheckSnapShotStatus,
         int(std::string filename,
         std::string user,
         uint64_t seq,
-        FileStatus* filestatus));
+        FileStatus* filestatus,
+        uint32_t* progress));
 
     MOCK_METHOD2(GetChunkInfo,
         int(const ChunkIDInfo &cidinfo,
@@ -271,6 +290,12 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
      SnapshotServiceManager(nullptr, nullptr) {}
     ~MockSnapshotServiceManager() {}
     MOCK_METHOD4(CreateSnapshot,
+        int(const std::string &file,
+        const std::string &user,
+        const std::string &desc,
+        UUID *uuid));
+
+    MOCK_METHOD4(CreateSyncSnapshot,
         int(const std::string &file,
         const std::string &user,
         const std::string &desc,
