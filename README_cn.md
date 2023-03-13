@@ -124,7 +124,7 @@ CurveFS的核心应用场景主要包括：
 
 </details>
 <details>
-  <summary><b><font=5>对接 Kubernates</b></font></summary>
+  <summary><b><font=5>对接 Kubernetes</b></font></summary>
 
 - 使用 [Curve CSI Driver](https://github.com/opencurve/curve-csi) 插件在 Container Orchestrator (CO) 与 Curve 集群中实现了 Container Storage Interface(CSI)。
 - 文档详见[CSI Curve Driver Doc](https://github.com/opencurve/curve-csi/blob/master/docs/README.md)。
