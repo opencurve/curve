@@ -80,7 +80,8 @@ class FakeCurveFsClient : public CurveFsClient {
     int CheckSnapShotStatus(std::string filename,
                             std::string user,
                             uint64_t seq,
-                            FileStatus* filestatus) override;
+                            FileStatus* filestatus,
+                            uint32_t* progress) override;
 
     int GetChunkInfo(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo) override;

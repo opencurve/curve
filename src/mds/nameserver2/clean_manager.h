@@ -38,7 +38,10 @@ class CleanManagerInterface {
     virtual ~CleanManagerInterface() {}
     virtual bool SubmitDeleteSnapShotFileJob(const FileInfo&,
       std::shared_ptr<AsyncDeleteSnapShotEntity> entity) = 0;
+    virtual bool SubmitDeleteBatchSnapShotFileJob(const FileInfo&,
+      std::shared_ptr<AsyncDeleteSnapShotEntity> entity) = 0;
     virtual std::shared_ptr<Task> GetTask(TaskIDType id) = 0;
+    virtual std::shared_ptr<Task> GetTask(TaskIDType id, TaskIDType sn) = 0;
     virtual bool SubmitDeleteCommonFileJob(const FileInfo&) = 0;
 };
 /**
@@ -50,7 +53,8 @@ class CleanManager : public CleanManagerInterface {
  public:
     explicit CleanManager(std::shared_ptr<CleanCore> core,
                 std::shared_ptr<CleanTaskManager> taskMgr,
-                std::shared_ptr<NameServerStorage> storage);
+                std::shared_ptr<NameServerStorage> storage,
+                uint32_t mdsSessionTimeUs = 3000*1000);
 
     bool Start(void);
 
@@ -59,16 +63,23 @@ class CleanManager : public CleanManagerInterface {
     bool SubmitDeleteSnapShotFileJob(const FileInfo &fileInfo,
          std::shared_ptr<AsyncDeleteSnapShotEntity> entity) override;
 
+    bool SubmitDeleteBatchSnapShotFileJob(const FileInfo &snapfileInfo,
+         std::shared_ptr<AsyncDeleteSnapShotEntity> entity) override;
+
     bool SubmitDeleteCommonFileJob(const FileInfo&fileInfo) override;
 
     bool RecoverCleanTasks(void);
 
+    bool RecoverCleanTasks2(void);
+
     std::shared_ptr<Task> GetTask(TaskIDType id) override;
 
+    std::shared_ptr<Task> GetTask(TaskIDType id, TaskIDType sn) override;
  private:
     std::shared_ptr<NameServerStorage> storage_;
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> taskMgr_;
+    uint32_t mdsSessionTimeUs_;
 };
 
 }  // namespace mds

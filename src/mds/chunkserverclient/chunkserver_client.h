@@ -78,6 +78,23 @@ class ChunkServerClient {
         uint64_t correctedSn);
 
     /**
+     * @brief delete a specific snapshot from local multi-level snapshots
+     *
+     * @param logicPoolId
+     * @param copysetId
+     * @param chunkId
+     * @param snapSn the snapshot sequence that needs to be deleted
+     * @param snaps the existing snapshot sequence nums
+     * @return error code
+     */
+    virtual int DeleteChunkSnapshot(ChunkServerIdType leaderId,
+        LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t snapSn,
+        const std::vector<uint64_t>& snaps);
+
+    /**
      * @brief delete chunk files that are not snapshot
      *
      * @param leaderId

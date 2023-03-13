@@ -595,14 +595,14 @@ void ReadSnapshotVerify(Peer leaderPeer,
  * @param logicPoolId   逻辑池 id
  * @param copysetId     复制组 id
  * @param chunkId       chunk id
- * @param csn           corrected sn
+ * @param snapSn        snapshot sn
  */
 void DeleteSnapshotVerify(Peer leaderPeer,
                           LogicPoolID logicPoolId,
                           CopysetID copysetId,
                           ChunkID chunkId,
-                          uint64_t csn) {
-    LOG(INFO) << "Delete snapshot verify, csn: " << csn;
+                          uint64_t snapSn) {
+    LOG(INFO) << "Delete snapshot verify, snapSn: " << snapSn;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
     ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
@@ -617,7 +617,7 @@ void DeleteSnapshotVerify(Peer leaderPeer,
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
-    request.set_correctedsn(csn);
+    request.set_snapsn(snapSn);
     stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response, nullptr);
     LOG_IF(INFO, cntl.Failed()) << "error msg: "
                                 << cntl.ErrorCode() << " : "

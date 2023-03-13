@@ -528,7 +528,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     char* buf = new char[len];
     memset(buf, 0, len);
     LOG(ERROR) << "start read snap chunk";
-    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0,
+    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, {0}, 0,
                                          len, buf, &scc);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -544,7 +544,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
 
     mocksch->EnableScheduleFailed();
     ASSERT_EQ(0,
-    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0, len, buf, &scc2));
+    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, {0}, 0, len, buf, &scc2));
 
     cl.UnInit();
 }

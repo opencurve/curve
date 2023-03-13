@@ -107,18 +107,22 @@ void HeartbeatManager::SendHeartBeat() {
         oss << fileInfo.fd << " : " << fileInfo.fileName << ", ";
     }
 
-    LOG(INFO) << "Send Heartbeat request, log id = " << cntl.log_id()
-              << ", pid = " << request.pid()
-              << ", nebd version = " << request.nebdversion()
-              << ", files [" << oss.str() << ']';
+    // zzw: it's possible to cause undefined behavior if the deinitialization of
+    //      this LOG object is happening after the deinitialization of static nebdclient 
+    //      when app exits.
+     
+    // LOG(INFO) << "Send Heartbeat request, log id = " << cntl.log_id()
+    //           << ", pid = " << request.pid()
+    //           << ", nebd version = " << request.nebdversion()
+    //           << ", files [" << oss.str() << ']';
 
     stub.KeepAlive(&cntl, &request, &response, nullptr);
 
     bool isCntlFailed = cntl.Failed();
     if (isCntlFailed) {
-        LOG(WARNING) << "Heartbeat request failed, error = "
-                     << cntl.ErrorText()
-                     << ", log id = " << cntl.log_id();
+        // LOG(WARNING) << "Heartbeat request failed, error = "
+        //              << cntl.ErrorText()
+        //              << ", log id = " << cntl.log_id();
     }
 }
 

@@ -1367,8 +1367,76 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::CreateSnapShotFile2(const std::string &fileName,
+                                    FileInfo *snapshotFileInfo) {
+    FileInfo  parentFileInfo;
+    std::string lastEntry;
+
+    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", Walk Path error";
+        return ret;
+    }
+    if (lastEntry.empty()) {
+        return StatusCode::kFileNotExists;
+    }
+
+    FileInfo fileInfo;
+    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", LookUpFile error";
+        return ret;
+    }
+
+    // check file type
+    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        return StatusCode::kNotSupported;
+    }
+
+    // compatibility check, when the client version does not exist or is lower
+    // than 0.0.6, snapshots are not allowed
+    ret = IsSnapshotAllowed(fileName);
+    if (ret != kOK) {
+        return ret;
+    }
+
+    // TTODO(hzsunjianliang): check if fileis open and session not expire
+    // then invalide client
+
+    // do snapshot
+    // first new snapshot fileinfo, based on the original fileInfo
+    InodeID inodeID;
+    if (InodeIDGenerator_->GenInodeID(&inodeID) != true) {
+        LOG(ERROR) << fileName << ", createSnapShotFile GenInodeID error";
+        return StatusCode::kStorageError;
+    }
+    *snapshotFileInfo = fileInfo;
+    snapshotFileInfo->set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
+    snapshotFileInfo->set_id(inodeID);
+    snapshotFileInfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+    snapshotFileInfo->set_parentid(fileInfo.id());
+    snapshotFileInfo->set_filename(fileInfo.filename() + "-" +
+            std::to_string(fileInfo.seqnum()));
+    snapshotFileInfo->set_filestatus(FileStatus::kFileCreated);
+
+    // save snapshot seq number to fileInfo,
+    // in order to let client know the latest snaps through RefreshSession rpc
+    fileInfo.add_snaps(fileInfo.seqnum());
+
+    // add original file snapshot seq number
+    fileInfo.set_seqnum(fileInfo.seqnum() + 1);
+
+    // do storage
+    ret = SnapShotFile(&fileInfo, snapshotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", SnapShotFile error";
+        return StatusCode::kStorageError;
+    }
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
-                            std::vector<FileInfo> *snapshotFileInfos) const {
+                            std::vector<FileInfo> *snapshotFileInfos, FileInfo *srcfileInfo) const {
     FileInfo parentFileInfo;
     std::string lastEntry;
 
@@ -1382,22 +1450,24 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
         return StatusCode::kNotSupported;
     }
 
-    FileInfo fileInfo;
-    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    FileInfo tmpfileInfo;
+    FileInfo* fileInfo = srcfileInfo != nullptr ? srcfileInfo : &tmpfileInfo;
+    
+    ret = LookUpFile(parentFileInfo, lastEntry, fileInfo);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << fileName << ", LookUpFile error";
         return ret;
     }
 
     // check file type
-    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+    if (fileInfo->filetype() != FileType::INODE_PAGEFILE) {
         LOG(INFO) << fileName << ", filetype not support SnapShot";
         return StatusCode::kNotSupported;
     }
 
     // list snapshot files
-    auto storeStatus =  storage_->ListSnapshotFile(fileInfo.id(),
-                                           fileInfo.id() + 1,
+    auto storeStatus =  storage_->ListSnapshotFile(fileInfo->id(),
+                                           fileInfo->id() + 1,
                                            snapshotFileInfos);
     if (storeStatus == StoreStatus::KeyNotExist ||
         storeStatus == StoreStatus::OK) {
@@ -1409,9 +1479,9 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
 }
 
 StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
-                        FileSeqType seq, FileInfo *snapshotFileInfo) const {
+                        FileSeqType seq, FileInfo *snapshotFileInfo, FileInfo *fileInfo) const {
     std::vector<FileInfo> snapShotFileInfos;
-    StatusCode ret =  ListSnapShotFile(fileName, &snapShotFileInfos);
+    StatusCode ret =  ListSnapShotFile(fileName, &snapShotFileInfos, fileInfo);
     if (ret != StatusCode::kOK) {
         LOG(INFO) << "ListSnapShotFile error";
         return ret;
@@ -1485,6 +1555,73 @@ StatusCode CurveFS::DeleteFileSnapShotFile(const std::string &fileName,
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::DeleteFileSnapShotFile2(const std::string &fileName,
+                        FileSeqType seq,
+                        std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
+    FileInfo snapShotFileInfo, fileInfo;
+    StatusCode ret =  GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "fileName = " << fileName
+            << ", seq = "<< seq
+            << ", GetSnapShotFileInfo file ,ret = " << ret;
+        return ret;
+    }
+
+    if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
+        LOG(INFO) << "fileName = " << fileName
+        << ", seq = " << seq
+        << ", snapshot is under deleting";
+        return StatusCode::kSnapshotDeleting;
+    }
+
+    if (snapShotFileInfo.filestatus() != FileStatus::kFileCreated) {
+        LOG(ERROR) << "fileName = " << fileName
+        << ", seq = " << seq
+        << ", status error, status = " << snapShotFileInfo.filestatus();
+        return StatusCode::KInternalError;
+    }
+
+    snapShotFileInfo.set_filestatus(FileStatus::kFileDeleting);
+    // remove snapshot seq number from fileInfo,
+    // in order to let client know the latest snaps through RefreshSession rpc
+    auto snaps = fileInfo.mutable_snaps();
+    auto findSnap = std::find(snaps->begin(), snaps->end(), seq);
+    if (findSnap == snaps->end()) {
+        LOG(WARNING) << "fileName = " << fileName
+                     << ", seq = " << seq 
+                     << ", not found in fileInfo!";
+    } else {
+        snaps->erase(findSnap);
+    }
+    // // set current existed snapshot seqs to the snapshot fileinfo, 
+    // // thus no need to get these snaps info from original fileinfo
+    // for (auto i = 0; i < fileInfo.snaps_size(); i++) {
+    //     snapShotFileInfo.add_snaps(fileInfo.snaps(i));
+    // }
+
+    // do storage
+    ret = SnapShotFile(&fileInfo, &snapShotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "fileName = " << fileName
+            << ", seq = " << seq
+            << ", SnapShotFile error = " << ret;
+        LOG(ERROR) << fileName << ", SnapShotFile error";
+        return StatusCode::kStorageError;
+    }
+    LOG(INFO) << "DeleteFileSnapShotFile2 update snap and file to storage success"
+              << ", snapInfo: \n" << snapShotFileInfo.DebugString();
+
+    //  message the snapshot delete manager
+    if (!cleanManager_->SubmitDeleteBatchSnapShotFileJob(
+                        snapShotFileInfo, entity)) {
+        LOG(ERROR) << "fileName = " << fileName
+                << ", seq = " << seq
+                << ", Delete Task Deduplicated";
+        return StatusCode::KInternalError;
+    }
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
                                     FileSeqType seq, FileStatus * status,
                                     uint32_t * progress) const {
@@ -1500,6 +1637,58 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
     if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
         TaskIDType taskID = static_cast<TaskIDType>(snapShotFileInfo.id());
         auto task = cleanManager_->GetTask(taskID);
+        if (task == nullptr) {
+            // GetSnapShotFileInfo again
+            StatusCode ret2 =
+                GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
+            // if not exist, means delete succeed.
+            if (StatusCode::kSnapshotFileNotExists == ret2) {
+                *progress = 100;
+                return StatusCode::kSnapshotFileNotExists;
+            // else the snapshotFile still exist,
+            // means delete failed and retry times exceed.
+            } else {
+                *progress = 0;
+                LOG(ERROR) << "snapshot file delete fail, fileName = "
+                           << fileName << ", seq = " << seq;
+                return StatusCode::kSnapshotFileDeleteError;
+            }
+        }
+
+        TaskStatus taskStatus = task->GetTaskProgress().GetStatus();
+        switch (taskStatus) {
+            case TaskStatus::PROGRESSING:
+            case TaskStatus::FAILED:  // FAILED task will retry
+                *progress = task->GetTaskProgress().GetProgress();
+                break;
+            case TaskStatus::SUCCESS:
+                *progress = 100;
+                break;
+        }
+    } else {
+        // means delete haven't begin.
+        *progress = 0;
+    }
+
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckSnapShotFileStatus2(const std::string &fileName,
+                                    FileSeqType seq, FileStatus * status,
+                                    uint32_t * progress) const {
+    FileInfo snapShotFileInfo;
+    StatusCode ret =  GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(WARNING) << "GetSnapShotFileInfo file fail, fileName = "
+                   << fileName << ", seq = " << seq << ", ret = " << ret;
+        return ret;
+    }
+
+    *status = snapShotFileInfo.filestatus();
+    if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
+        TaskIDType fileID = static_cast<TaskIDType>(snapShotFileInfo.parentid());
+        TaskIDType snapSn = static_cast<TaskIDType>(snapShotFileInfo.seqnum());
+        auto task = cleanManager_->GetTask(fileID, snapSn);
         if (task == nullptr) {
             // GetSnapShotFileInfo again
             StatusCode ret2 =

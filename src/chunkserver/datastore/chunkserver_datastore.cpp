@@ -114,7 +114,13 @@ bool CSDataStore::Initialize() {
     return true;
 }
 
-CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn) {
+CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn, std::shared_ptr<SnapContext> ctx) {
+    if (ctx != nullptr && !ctx->empty()) {
+        LOG(WARNING) << "Delete chunk file failed: snapshot exists."
+                     << "ChunkID = " << id;
+        return CSErrorCode::SnapshotExistError;
+    }
+
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile != nullptr) {
         CSErrorCode errorCode = chunkFile->Delete(sn);
@@ -128,15 +134,15 @@ CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn) {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSDataStore::DeleteSnapshotChunkOrCorrectSn(
-    ChunkID id, SequenceNum correctedSn) {
+CSErrorCode CSDataStore::DeleteSnapshotChunk(
+    ChunkID id, SequenceNum snapSn, std::shared_ptr<SnapContext> ctx) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile != nullptr) {
-        CSErrorCode errorCode = chunkFile->DeleteSnapshotOrCorrectSn(correctedSn);  // NOLINT
+        CSErrorCode errorCode = chunkFile->DeleteSnapshot(snapSn, ctx);  // NOLINT
         if (errorCode != CSErrorCode::Success) {
             LOG(WARNING) << "Delete snapshot chunk or correct sn failed."
                          << "ChunkID = " << id
-                         << ", correctedSn = " << correctedSn;
+                         << ", snapSn = " << snapSn;
             return errorCode;
         }
     }
@@ -162,14 +168,21 @@ CSErrorCode CSDataStore::ReadChunk(ChunkID id,
     return CSErrorCode::Success;
 }
 
+// It is ensured that if snap chunk exists, the chunk must exist.
+// 1. snap chunk is generated from COW, thus chunk must exist.
+// 2. discard will not delete chunk if there is snapshot.
 CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
                                            SequenceNum sn,
                                            char * buf,
                                            off_t offset,
-                                           size_t length) {
+                                           size_t length,
+                                           std::shared_ptr<SnapContext> ctx) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile == nullptr) {
         return CSErrorCode::ChunkNotExistError;
+    }
+    if (ctx != nullptr && !ctx->contains(sn)) {
+        return CSErrorCode::SnapshotNotExistError;
     }
     CSErrorCode errorCode =
         chunkFile->ReadSpecifiedChunk(sn, buf, offset, length);
@@ -216,6 +229,7 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                             off_t offset,
                             size_t length,
                             uint32_t* cost,
+                            std::shared_ptr<SnapContext> ctx,
                             const std::string & cloneSourceLocation)  {
     // The requested sequence number is not allowed to be 0, when snapsn=0,
     // it will be used as the basis for judging that the snapshot does not exist
@@ -247,7 +261,8 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                                              buf,
                                              offset,
                                              length,
-                                             cost);
+                                             cost,
+                                             ctx);
     if (errorCode != CSErrorCode::Success) {
         LOG(WARNING) << "Write chunk file failed."
                      << "ChunkID = " << id;
@@ -404,6 +419,39 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         metaCache_.Set(id, chunkFilePtr);
     }
     return CSErrorCode::Success;
+}
+
+SnapContext::SnapContext(const std::vector<SequenceNum>& snapIds) {
+    std::copy(snapIds.begin(), snapIds.end(), std::back_inserter(snaps));
+}
+
+SequenceNum SnapContext::getPrev(SequenceNum snapSn) const {
+    SequenceNum n = 0;
+    for (long i = 0; i < snaps.size(); i++) {
+        if (snaps[i] >= snapSn) {
+            break;
+        }
+        n = snaps[i];
+    }
+
+    return n;
+}
+
+SequenceNum SnapContext::getNext(SequenceNum snapSn) const {
+    auto it = std::find_if(snaps.begin(), snaps.end(), [&](SequenceNum n) {return n > snapSn;});
+    return it == snaps.end() ? 0 : *it;
+}
+
+SequenceNum SnapContext::getLatest() const {
+    return snaps.empty() ? 0 : *snaps.rbegin();
+}
+
+bool SnapContext::contains(SequenceNum snapSn) const {
+    return std::find(snaps.begin(), snaps.end(), snapSn) != snaps.end();
+}
+
+bool SnapContext::empty() const {
+    return snaps.empty();
 }
 
 }  // namespace chunkserver

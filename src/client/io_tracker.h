@@ -89,6 +89,15 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                       const FInfo_t* fileInfo);
 
     /**
+     * @brief start an async read snapshot operation
+     * @param ctx async read context
+     * @param mdsclient used to communicate with MDS
+     * @param fileInfo current file info
+     */
+    void StartAioReadSnapshot(CurveAioContext* ctx, MDSClient* mdsclient,
+                      const FInfo_t* fileInfo);
+
+    /**
      * @brief start an async write operation
      * @param ctx async write context
      * @param mdsclient used to communicate with MDS
@@ -105,6 +114,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * 感知上层的接口类别。
      * @param:chunkidinfo 目标chunk
      * @param: seq是快照版本号
+     * @param: snaps是当前chunk所有快照序号列表
      * @param: offset是快照内的offset
      * @param: len是要读取的长度
      * @param: buf是读取缓冲区
@@ -112,6 +122,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     void ReadSnapChunk(const ChunkIDInfo &cinfo,
                      uint64_t seq,
+                     const std::vector<uint64_t>& snaps,
                      uint64_t offset,
                      uint64_t len,
                      char *buf,

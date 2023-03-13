@@ -190,11 +190,13 @@ class CurveFsClient {
      * @param: filenam文件名
      * @param: seq是文件版本号信息
      * @param: filestatus 快照文件状态
+     * @param: progress 快照处于deleting状态时的删除进度（0-100）
      */
     virtual int CheckSnapShotStatus(std::string filename,
                                 std::string user,
                                 uint64_t seq,
-                                FileStatus* filestatus) = 0;
+                                FileStatus* filestatus,
+                                uint32_t* progress = nullptr) = 0;
 
     /**
      * @brief 获取chunk的版本号信息
@@ -445,7 +447,8 @@ class CurveFsClientImpl : public CurveFsClient {
     int CheckSnapShotStatus(std::string filename,
                             std::string user,
                             uint64_t seq,
-                            FileStatus* filestatus) override;
+                            FileStatus* filestatus,
+                            uint32_t* progress = nullptr) override;
 
     int GetChunkInfo(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo) override;

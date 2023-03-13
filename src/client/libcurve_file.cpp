@@ -184,6 +184,7 @@ int FileClient::Open(const std::string& filename,
                      const UserInfo_t& userinfo,
                      const OpenFlags& openflags) {
     LOG(INFO) << "Opening filename: " << filename << ", flags: " << openflags;
+
     ClientConfig clientConfig;
     if (openflags.confPath.empty()) {
         clientConfig = clientconfig_;
@@ -202,17 +203,28 @@ int FileClient::Open(const std::string& filename,
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    FileInstance *fileserv = FileInstance::NewInitedFileInstance(
-        clientConfig.GetFileServiceOption(), mdsClient, filename, userinfo,
-        openflags, false);
+    uint64_t sn = 0;
+    std::string realfilename = filename;
+    bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(filename, sn, &realfilename);
+    if (isSnapshot) {
+        LOG(INFO) << "Opening Snapshot sn: " << sn << ", realfilename: " << realfilename;
+    }
+
+    FileInstance* fileserv = FileInstance::NewInitedFileInstance(
+        clientConfig.GetFileServiceOption(), mdsClient, realfilename, userinfo,
+        openflags, isSnapshot);
     if (fileserv == nullptr) {
         LOG(ERROR) << "NewInitedFileInstance fail";
         return -1;
     }
 
+    if (isSnapshot) {
+        fileserv->SetReadSnapshotSn(sn);
+    }
+
     int ret = fileserv->Open();
     if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Open file failed, filename: " << filename
+        LOG(ERROR) << "Open file failed, filename: " << realfilename
                    << ", retCode: " << ret;
         fileserv->UnInitialize();
         delete fileserv;
@@ -224,10 +236,11 @@ int FileClient::Open(const std::string& filename,
     {
         WriteLockGuard lk(rwlock_);
         fileserviceMap_[fd] = fileserv;
-        fileserviceFileNameMap_[filename] = fileserv;
+        if (!isSnapshot)  // As there is no need for snapshot to IncreaseEpoch
+            fileserviceFileNameMap_[realfilename] = fileserv;
     }
 
-    LOG(INFO) << "Open success, filname = " << filename << ", fd = " << fd;
+    LOG(INFO) << "Open success, filname = " << realfilename << ", fd = " << fd;
     openedFileNum_ << 1;
 
     return fd;
@@ -235,6 +248,13 @@ int FileClient::Open(const std::string& filename,
 
 int FileClient::Open4ReadOnly(const std::string& filename,
                               const UserInfo_t& userinfo, bool disableStripe) {
+    uint64_t sn = 0;
+    std::string realfilename;
+    bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(filename, sn, &realfilename);
+    if (isSnapshot) {
+        LOG(INFO) << "Open4ReadOnly Snapshot not allowed, sn: " << sn << ", realfilename: " << realfilename;
+        return -LIBCURVE_ERROR::NOT_SUPPORT;
+    }
     FileInstance* instance = FileInstance::Open4Readonly(
         clientconfig_.GetFileServiceOption(), mdsClient_, filename, userinfo);
 
@@ -263,6 +283,14 @@ int FileClient::Open4ReadOnly(const std::string& filename,
 int FileClient::IncreaseEpoch(const std::string& filename,
                               const UserInfo_t& userinfo) {
     LOG(INFO) << "IncreaseEpoch, filename: " << filename;
+    uint64_t sn = 0;
+    std::string realfilename;
+    bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(filename, sn, &realfilename);
+    if (isSnapshot) {
+        LOG(INFO) << "IncreaseEpoch Snapshot not allowed, sn: " << sn << ", realfilename: " << realfilename;
+        return -LIBCURVE_ERROR::NOT_SUPPORT;
+    } 
+
     FInfo_t fi;
     FileEpoch_t fEpoch;
     std::list<CopysetPeerInfo> csLocs;
@@ -416,6 +444,13 @@ int FileClient::Rename(const UserInfo_t& userinfo,
 int FileClient::Extend(const std::string& filename,
     const UserInfo_t& userinfo, uint64_t newsize) {
     LIBCURVE_ERROR ret;
+    uint64_t sn = 0;
+    std::string realfilename;
+    bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(filename, sn, &realfilename);
+    if (isSnapshot) {
+        LOG(INFO) << "Extend Snapshot not allowed, sn: " << sn << ", realfilename: " << realfilename;
+        return -LIBCURVE_ERROR::NOT_SUPPORT;
+    }  
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->Extend(filename, userinfo, newsize);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
@@ -432,6 +467,13 @@ int FileClient::Extend(const std::string& filename,
 int FileClient::Unlink(const std::string& filename,
     const UserInfo_t& userinfo, bool deleteforce) {
     LIBCURVE_ERROR ret;
+    uint64_t sn = 0;
+    std::string realfilename;
+    bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(filename, sn, &realfilename);
+    if (isSnapshot) {
+        LOG(INFO) << "Unlink Snapshot not allowed, sn: " << sn << ", realfilename: " << realfilename;
+        return -LIBCURVE_ERROR::NOT_SUPPORT;
+    }  
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->DeleteFile(filename, userinfo, deleteforce);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
@@ -482,10 +524,16 @@ int FileClient::StatFile(const std::string &filename,
     FInfo_t fi;
     FileEpoch_t fEpoch;
     int ret;
+    uint64_t sn = 0;
+    std::string realfilename = filename;
+    bool isSnapshot = curve::client::ServiceHelper::GetSnapSeqFromFilename(filename, sn, &realfilename);
+    if (isSnapshot) {
+        LOG(INFO) << "StatFile Snapshot sn: " << sn << ", realfilename: " << realfilename;
+    }    
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->GetFileInfo(filename, userinfo, &fi, &fEpoch);
+        ret = mdsClient_->GetFileInfo(realfilename, userinfo, &fi, &fEpoch);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
-            << "StatFile failed, filename: " << filename << ", ret" << ret;
+            << "StatFile failed, filename: " << realfilename << ", ret" << ret;
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;

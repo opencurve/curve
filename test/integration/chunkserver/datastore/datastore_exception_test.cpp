@@ -355,7 +355,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
     // 更新 correctedsn 为2
-    errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(1, 2);
+    errorCode = dataStore_->DeleteSnapshotChunk(1, 2);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
 
     // 构造要写入的请求参数
@@ -545,7 +545,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest8) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    errorCode = dataStore_->DeleteSnapshotChunkOrCorrectSn(1, 2);
+    errorCode = dataStore_->DeleteSnapshotChunk(1, 2);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
     errorCode = dataStore_->WriteChunk(1,  // id
                                        ++fileSn,

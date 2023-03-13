@@ -246,11 +246,13 @@ class MDSClient : public MDSClientBase,
      * @param: userinfo是用户信息
      * @param: seq是文件版本号信息
      * @param[out]: filestatus为快照状态
+     * @param[out]: 当快照为deleting状态时，progress表示删除进度（0到100）
      */
     LIBCURVE_ERROR CheckSnapShotStatus(const std::string& filename,
                                        const UserInfo_t& userinfo,
                                        uint64_t seq,
-                                       FileStatus* filestatus);
+                                       FileStatus* filestatus,
+                                       uint32_t* progress = nullptr);
 
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约

@@ -58,12 +58,13 @@ message ChunkRequest {
     optional uint32 size = 7;           // for read/write/clone 读取数据大小/写入数据大小/创建快照请求中表示请求创建的chunk大小
     optional QosRequestParas deltaRho = 8; // for read/write
     optional uint64 sn = 9;             // for write/read snapshot 写请求中表示文件当前版本号，读快照请求中表示请求的chunk的版本号
-    optional uint64 correctedSn = 10;   // for CreateCloneChunk/DeleteChunkSnapshotOrCorrectedSn 用于修改chunk的correctedSn
+    optional uint64 snapSn = 10;        // for CreateCloneChunk/DeleteChunkSnapshot
     optional string location = 11;      // for CreateCloneChunk
     optional string cloneFileSource = 12;   // for write/read
     optional uint64 cloneFileOffset = 13;   // for write/read
     optional uint64 fileId = 18;  // for io fence
     optional uint64 epoch = 19;  // for io fence
+    repeated uint64 snaps = 20 [packed = true];
 };
 
 enum CHUNK_OP_STATUS {

@@ -434,7 +434,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
-        request.set_correctedsn(sn);
+        request.set_snapsn(sn);
         stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
                                             &request,
                                             &response,

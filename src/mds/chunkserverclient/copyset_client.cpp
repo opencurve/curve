@@ -92,6 +92,65 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
     return ret;
 }
 
+int CopysetClient::DeleteChunkSnapshot(LogicalPoolID logicalPoolId,
+    CopysetID copysetId,
+    ChunkID chunkId,
+    uint64_t snapSn,
+    const std::vector<uint64_t>& snaps) {
+    int ret = kMdsFail;
+    CopySetInfo copyset;
+    if (true != topo_->GetCopySet(
+        CopySetKey(logicalPoolId, copysetId),
+        &copyset)) {
+        LOG(ERROR) << "GetCopySet fail.";
+        return kMdsFail;
+    }
+
+    ChunkServerIdType leaderId =
+        copyset.GetLeader();
+
+    if (leaderId != UNINTIALIZE_ID) {
+        ret = chunkserverClient_->DeleteChunkSnapshot(
+            leaderId, logicalPoolId, copysetId, chunkId, snapSn, snaps);
+        if (kMdsSuccess == ret) {
+            return ret;
+        }
+    }
+
+    uint32_t retry = 0;
+    while ((retry < updateLeaderRetryTimes_) &&
+           ((UNINTIALIZE_ID == leaderId) ||
+            (kCsClientCSOffline == ret) ||
+            (kRpcFail == ret) ||
+            (kCsClientNotLeader == ret))) {
+        std::this_thread::sleep_for(
+                std::chrono::milliseconds(updateLeaderRetryIntervalMs_));
+        ret = UpdateLeader(&copyset);
+        if (ret < 0) {
+            LOG(ERROR) << "UpdateLeader fail."
+                       << " logicalPoolId = " << logicalPoolId
+                       << ", copysetId = " << copysetId;
+            break;
+        }
+
+        leaderId = copyset.GetLeader();
+        LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
+
+        if (leaderId != UNINTIALIZE_ID) {
+            ret = chunkserverClient_->DeleteChunkSnapshot(
+                leaderId, logicalPoolId, copysetId, chunkId, snapSn, snaps);
+            if (kMdsSuccess == ret) {
+                break;
+            }
+        } else {
+            LOG(ERROR) << "UpdateLeader success, but leaderId is uninit.";
+            return kMdsFail;
+        }
+        retry++;
+    }
+    return ret;
+}
+
 int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
                                     CopysetID copysetId,
                                     ChunkID chunkId,

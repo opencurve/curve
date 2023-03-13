@@ -976,7 +976,7 @@ void NameSpaceService::CreateSnapShot(
         return;
     }
 
-    retCode = kCurveFS.CreateSnapShotFile(request->filename(),
+    retCode = kCurveFS.CreateSnapShotFile2(request->filename(),
                                     response->mutable_snapshotfileinfo());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
@@ -1146,7 +1146,7 @@ void NameSpaceService::DeleteSnapShot(
         return;
     }
 
-    retCode =  kCurveFS.DeleteFileSnapShotFile(request->filename(),
+    retCode =  kCurveFS.DeleteFileSnapShotFile2(request->filename(),
                                     request->seq(), nullptr);
 
     if (retCode != StatusCode::kOK) {
@@ -1218,7 +1218,7 @@ void NameSpaceService::CheckSnapShotStatus(
 
     FileStatus fileStatus;
     uint32_t progress;
-    retCode = kCurveFS.CheckSnapShotFileStatus(request->filename(),
+    retCode = kCurveFS.CheckSnapShotFileStatus2(request->filename(),
                         request->seq(), &fileStatus, &progress);
     if (retCode  != StatusCode::kOK) {
         response->set_statuscode(retCode);

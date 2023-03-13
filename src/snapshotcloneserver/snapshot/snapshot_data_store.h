@@ -195,6 +195,14 @@ class SnapshotDataStore {
      * @return 0 初始化成功/ -1 初始化失败
      */
     virtual int Init(const std::string &confpath) = 0;
+
+    /**
+     * datastore is disabled if not initialized.
+     */
+    virtual bool Enabled() const {
+        return true;
+    }
+
     /**
      * 存储快照文件的元数据信息到datastore中
      * @param 元数据对象名

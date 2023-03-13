@@ -37,7 +37,10 @@ class MockCleanManager: public CleanManagerInterface {
     ~MockCleanManager() {}
     MOCK_METHOD2(SubmitDeleteSnapShotFileJob, bool(const FileInfo&,
         std::shared_ptr<AsyncDeleteSnapShotEntity>));
+    MOCK_METHOD2(SubmitDeleteBatchSnapShotFileJob, bool(const FileInfo&,
+        std::shared_ptr<AsyncDeleteSnapShotEntity>));
     MOCK_METHOD1(GetTask, std::shared_ptr<Task>(TaskIDType id));
+    MOCK_METHOD2(GetTask, std::shared_ptr<Task>(TaskIDType id, TaskIDType sn));
     MOCK_METHOD1(SubmitDeleteCommonFileJob, bool(const FileInfo&));
 };
 

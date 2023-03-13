@@ -74,13 +74,22 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker, MetaCache* metaCache,
 int Splitor::SingleChunkIO2ChunkRequests(
     IOTracker* iotracker, MetaCache* metaCache,
     std::vector<RequestContext*>* targetlist, const ChunkIDInfo& idinfo,
-    butil::IOBuf* data, off_t offset, uint64_t length, uint64_t seq) {
+    butil::IOBuf* data, off_t offset, uint64_t length, uint64_t seq, const std::vector<uint64_t>& snaps) {
     if (targetlist == nullptr || metaCache == nullptr || iotracker == nullptr) {
         return -1;
     }
 
     if (iotracker->Optype() == OpType::WRITE && data == nullptr) {
         return -1;
+    }
+
+    if (iotracker->Optype() == OpType::READ_SNAP) {
+        auto it = std::find(snaps.begin(), snaps.end(), seq);
+        if (it == snaps.end() ) {
+            LOG(ERROR) << "Invalid READ_SNAP request, snap sn = " << seq
+                       << ", not contained in snaps [" << Snaps2Str(snaps) << "]";
+            return -1;
+        }
     }
 
     const auto maxSplitSizeBytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
@@ -106,17 +115,18 @@ int Splitor::SingleChunkIO2ChunkRequests(
         }
 
         newreqNode->seq_         = seq;
+        newreqNode->snaps_       = snaps;
         newreqNode->offset_      = currentOffset;
         newreqNode->rawlength_   = requestLength;
         newreqNode->optype_      = iotracker->Optype();
         newreqNode->idinfo_      = idinfo;
         newreqNode->done_->SetIOTracker(iotracker);
         targetlist->push_back(newreqNode);
-
         DVLOG(9) << "request split"
                  << ", off = " << currentOffset
                  << ", len = " << requestLength
                  << ", seqnum = " << seq
+                 << ", snaps = [" << Snaps2Str(newreqNode->snaps_) << "]"
                  << ", chunkid = " << idinfo.cid_
                  << ", copysetid = " << idinfo.cpid_
                  << ", logicpoolid = " << idinfo.lpid_;
@@ -144,7 +154,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
     if (NeedGetOrAllocateSegment(errCode, iotracker->Optype(), chunkIdInfo,
                                  metaCache)) {
         bool isAllocateSegment =
-            iotracker->Optype() == OpType::READ ? false : true;
+           (iotracker->Optype() == OpType::READ || iotracker->Optype() == OpType::READ_SNAP) ? false : true;
         if (false == GetOrAllocateSegment(
                          isAllocateSegment,
                          static_cast<uint64_t>(chunkidx) * fileInfo->chunksize,
@@ -168,7 +178,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker, MetaCache* metaCache,
         std::vector<RequestContext*> templist;
         ret = SingleChunkIO2ChunkRequests(iotracker, metaCache, &templist,
                                           chunkIdInfo, data, off, len,
-                                          fileInfo->seqnum);
+                                          (iotracker->Optype() == OpType::READ_SNAP? fileInfo->snapSeqnum : fileInfo->seqnum), fileInfo->snaps);
 
         for (auto& ctx : templist) {
             ctx->fileId_ = fileInfo->id;
@@ -288,11 +298,12 @@ int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
         uint64_t requestLength =
             std::min(currentChunkEndOffset, endRequestOffest) -
             currentRequestOffset;
-
+        
         DVLOG(9) << "request split"
                  << ", off = " << currentChunkOffset
                  << ", len = " << requestLength
                  << ", seqnum = " << fileInfo->seqnum
+                 << ", snaps = [" << Snaps2Str(fileInfo->snaps) << "]"
                  << ", endoff = " << endRequestOffest
                  << ", chunkendpos = " << currentChunkEndOffset
                  << ", chunksize = " << chunksize
@@ -306,6 +317,7 @@ int Splitor::SplitForNormal(IOTracker* iotracker, MetaCache* metaCache,
                        << ", off = " << currentChunkOffset
                        << ", len = " << requestLength
                        << ", seqnum = " << fileInfo->seqnum
+                       << ", snaps = [" << Snaps2Str(fileInfo->snaps) << "]"
                        << ", endoff = " << endRequestOffest
                        << ", chunkendpos = " << currentChunkEndOffset
                        << ", chunksize = " << chunksize
@@ -350,6 +362,15 @@ int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
         uint64_t blockOff = cur % stripeUnit;
         uint64_t curChunkOffset = blockInChunkStartOff + blockOff;
         uint64_t requestLength = std::min((stripeUnit - blockOff), left);
+        DVLOG(9) << "request splitForStripe"
+                 << ", off = " << curChunkOffset
+                 << ", len = " << requestLength
+                 << ", seqnum = " << fileInfo->seqnum
+                 << ", snaps = [" << Snaps2Str(fileInfo->snaps) << "]"
+                 << ", stripeUnit = " << stripeUnit
+                 << ", stripeCount = " << stripeCount
+                 << ", chunksize = " << chunksize
+                 << ", chunkindex = " << curChunkIndex;
 
         if (!AssignInternal(iotracker, metaCache, targetlist, data,
                             curChunkOffset, requestLength, mdsclient,
@@ -358,6 +379,7 @@ int Splitor::SplitForStripe(IOTracker* iotracker, MetaCache* metaCache,
                        << ", off = " << curChunkOffset
                        << ", len = " << requestLength
                        << ", seqnum = " << fileInfo->seqnum
+                       << ", snaps = [" << Snaps2Str(fileInfo->snaps) << "]"
                        << ", chunksize = " << chunksize
                        << ", chunkindex = " << curChunkIndex;
 

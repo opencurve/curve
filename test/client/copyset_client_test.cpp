@@ -241,7 +241,7 @@ TEST_F(CopysetClientTest, normal_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -273,7 +273,7 @@ TEST_F(CopysetClientTest, normal_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -306,7 +306,7 @@ TEST_F(CopysetClientTest, normal_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -493,7 +493,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -525,7 +525,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                                   Return(0)));
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
@@ -564,7 +564,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                                   Return(0)));
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(WriteChunkFunc));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
@@ -608,7 +608,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
@@ -645,7 +645,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
@@ -683,7 +683,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -722,7 +722,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
 
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -762,7 +762,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -799,7 +799,7 @@ TEST_F(CopysetClientTest, write_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         auto startTimeUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         auto elpased = curve::common::TimeUtility::GetTimeofDayUs()
@@ -838,7 +838,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -875,7 +875,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                             Invoke(WriteChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -906,7 +906,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
@@ -998,7 +998,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
                                   Return(0)));
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
             .WillRepeatedly(Invoke(WriteChunkFunc));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
@@ -1041,7 +1041,7 @@ TEST_F(CopysetClientTest, write_failed_test) {
         EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(WriteChunkFunc)));
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {}, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
@@ -1765,7 +1765,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -1797,7 +1797,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -1827,7 +1827,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(ReadChunkSnapshotFunc));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -1859,7 +1859,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -1898,7 +1898,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1934,7 +1934,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1974,7 +1974,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2009,7 +2009,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -2042,7 +2042,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -2080,7 +2080,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2114,7 +2114,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone);
+                                        sn, {sn}, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3814,7 +3814,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
 
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
@@ -3864,7 +3864,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
@@ -3913,7 +3913,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
@@ -3960,7 +3960,7 @@ TEST_F(CopysetClientTest, retry_rpc_sleep_test) {
             .WillOnce(
                 DoAll(SetArgPointee<2>(response2), Invoke(WriteChunkFunc)));
         auto startUs = curve::common::TimeUtility::GetTimeofDayUs();
-        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0,
+        copysetClient.WriteChunk(reqCtx->idinfo_, fileId, epoch, 0, {},
                                  iobuf, offset, len, {},
                                  reqDone);
         cond.Wait();
@@ -4016,7 +4016,7 @@ TEST(CopysetClientBasicTest, TestReScheduleWhenSessionNotValid) {
             .Times(1);
 
         TestRunnedRequestClosure closure;
-        copysetClient.WriteChunk({}, 1, 1, 0, {}, 0, 0, {}, &closure);
+        copysetClient.WriteChunk({}, 1, 1, 0, {}, {}, 0, 0, {}, &closure);
         ASSERT_FALSE(closure.IsRunned());
     }
 }

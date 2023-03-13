@@ -393,9 +393,9 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
         return;
     }
 
-    if (false == request->has_correctedsn()) {
+    if (false == request->has_snapsn()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
-        LOG(ERROR) << "delete chunk snapshot failed, no corrected sn:"
+        LOG(ERROR) << "delete chunk snapshot failed, no snapshot sn:"
                    << request->logicpoolid() << "," << request->copysetid();
         return;
     }

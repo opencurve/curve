@@ -95,6 +95,89 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     return StatusCode::kOK;
 }
 
+StatusCode CleanCore::CleanSnapShotFile2(const FileInfo & fileInfo,
+                                        TaskProgress* progress) {
+    if (fileInfo.segmentsize() == 0) {
+        LOG(ERROR) << "cleanSnapShot2 File Error, segmentsize = 0";
+        return StatusCode::KInternalError;
+    }
+    uint32_t  segmentNum = fileInfo.length() / fileInfo.segmentsize();
+    uint64_t segmentSize = fileInfo.segmentsize();
+    for (uint32_t i = 0; i < segmentNum; i++) {
+        // load  segment
+        PageFileSegment segment;
+        StoreStatus storeRet = storage_->GetSegment(fileInfo.parentid(),
+                                                    i * segmentSize,
+                                                    &segment);
+        if (storeRet == StoreStatus::KeyNotExist) {
+            progress->SetProgress(100 * (i+1) / segmentNum);
+            LOG(INFO) << "CleanSnapShotFile2 skip non-existed segment num = " << i+1
+                    << ", total segment num = " << segmentNum
+                    << ", progress = " << progress->GetProgress();
+            continue;
+        } else if (storeRet !=  StoreStatus::OK) {
+            LOG(ERROR) << "cleanSnapShot2 File Error: "
+            << "GetSegment Error, inodeid = " << fileInfo.id()
+            << ", filename = " << fileInfo.filename()
+            << ", offset = " << i * segmentSize
+            << ", sequenceNum = " << fileInfo.seqnum();
+            progress->SetStatus(TaskStatus::FAILED);
+            return StatusCode::kSnapshotFileDeleteError;
+        }
+
+        // delete chunks in chunkserver
+        LogicalPoolID logicalPoolID = segment.logicalpoolid();
+        uint32_t chunkNum = segment.chunks_size();
+        for (uint32_t j = 0; j != chunkNum; j++) {
+            // 删除本地快照时，传入待删除的快照版本号和当前文件现存的所有快照版本号，
+            // 用于chunkserver进行快照数据的搬迁
+            SeqNum deleteSn = fileInfo.seqnum();
+            std::vector<SeqNum> snaps;
+            for (auto i = 0; i < fileInfo.snaps_size(); ++i) {
+                snaps.push_back(fileInfo.snaps(i));
+            }
+            int ret = copysetClient_->DeleteChunkSnapshot(
+                logicalPoolID,
+                segment.chunks()[j].copysetid(),
+                segment.chunks()[j].chunkid(),
+                deleteSn,
+                snaps);
+            if (ret != 0) {
+                LOG(ERROR) << "CleanSnapShotFile2 Error: "
+                    << "DeleteChunkSnapshot Error"
+                    << ", ret = " << ret
+                    << ", inodeid = " << fileInfo.id()
+                    << ", filename = " << fileInfo.filename()
+                    << ", snapSn = " << deleteSn
+                    << ", snaps = [" << Snaps2Str(snaps) << "]";
+                progress->SetStatus(TaskStatus::FAILED);
+                return StatusCode::kSnapshotFileDeleteError;
+            }
+        }
+        progress->SetProgress(100 * (i+1) / segmentNum);
+        LOG(INFO) << "CleanSnapShotFile2 finished clean segment num = " << i+1
+                  << ", total segment num = " << segmentNum
+                  << ", progress = " << progress->GetProgress();
+    }
+
+    // delete the storage
+    StoreStatus ret =  storage_->DeleteSnapshotFile(fileInfo.parentid(),
+                                                fileInfo.filename());
+    if (ret != StoreStatus::OK) {
+        LOG(INFO) << "delete snapshotfile error, retCode = " << ret;
+        progress->SetStatus(TaskStatus::FAILED);
+        return StatusCode::kSnapshotFileDeleteError;
+    } else {
+        LOG(INFO) << "inodeid = " << fileInfo.id()
+            << ", filename = " << fileInfo.filename()
+            << ", seq = " << fileInfo.seqnum() << ", deleted";
+    }
+
+    progress->SetProgress(100);
+    progress->SetStatus(TaskStatus::SUCCESS);
+    return StatusCode::kOK;
+}
+
 StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
                                 TaskProgress* progress) {
     if (commonFile.segmentsize() == 0) {

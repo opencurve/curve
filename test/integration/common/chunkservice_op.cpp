@@ -182,7 +182,7 @@ int ChunkServiceOp::DeleteChunk(struct ChunkServiceOpConf *opConf,
 }
 
 int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
-    struct ChunkServiceOpConf *opConf, ChunkID chunkId, uint64_t correctedSn) {
+    struct ChunkServiceOpConf *opConf, ChunkID chunkId, uint64_t snapSn) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
     channel.Init(leaderId.addr, NULL);
@@ -196,7 +196,7 @@ int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
     request.set_logicpoolid(opConf->logicPoolId);
     request.set_copysetid(opConf->copysetId);
     request.set_chunkid(chunkId);
-    request.set_correctedsn(correctedSn);
+    request.set_snapsn(snapSn);
     stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
@@ -214,7 +214,7 @@ int ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(
 int ChunkServiceOp::CreateCloneChunk(struct ChunkServiceOpConf *opConf,
                                      ChunkID chunkId,
                                      const std::string &location,
-                                     uint64_t correctedSn, uint64_t sn,
+                                     uint64_t snapSn, uint64_t sn,
                                      uint64_t chunkSize) {
     PeerId leaderId(opConf->leaderPeer->address());
     brpc::Channel channel;
@@ -231,7 +231,7 @@ int ChunkServiceOp::CreateCloneChunk(struct ChunkServiceOpConf *opConf,
     request.set_chunkid(chunkId);
     request.set_location(location);
     request.set_sn(sn);
-    request.set_correctedsn(correctedSn);
+    request.set_snapsn(snapSn);
     request.set_size(chunkSize);
     stub.CreateCloneChunk(&cntl, &request, &response, nullptr);
 
@@ -464,24 +464,24 @@ int ChunkServiceVerify::VerifyDeleteChunk(ChunkID chunkId, SequenceNum sn) {
 }
 
 int ChunkServiceVerify::VerifyDeleteChunkSnapshotOrCorrectSn(
-    ChunkID chunkId, SequenceNum correctedSn) {
+    ChunkID chunkId, SequenceNum snapSn) {
     int ret = ChunkServiceOp::DeleteChunkSnapshotOrCorrectSn(opConf_, chunkId,
-                                                             correctedSn);
+                                                             snapSn);
     LOG(INFO) << "DeleteSnapshot for Chunk " << chunkId
-              << ", correctedSn=" << correctedSn << ", ret=" << ret;
+              << ", snapSn=" << snapSn << ", ret=" << ret;
 
     return ret;
 }
 
 int ChunkServiceVerify::VerifyCreateCloneChunk(ChunkID chunkId,
                                                const std::string &location,
-                                               uint64_t correctedSn,
+                                               uint64_t snapSn,
                                                uint64_t sn,
                                                uint64_t chunkSize) {
     int ret = ChunkServiceOp::CreateCloneChunk(opConf_, chunkId, location,
-                                               correctedSn, sn, chunkSize);
+                                               snapSn, sn, chunkSize);
     LOG(INFO) << "CreateCloneChunk for Chunk " << chunkId << ", from location "
-              << location << ", correctedSn=" << correctedSn << ", sn=" << sn
+              << location << ", snapSn=" << snapSn << ", sn=" << sn
               << ", chunkSize=" << chunkSize << ", ret=" << ret;
 
     if (ret == CHUNK_OP_STATUS_SUCCESS)

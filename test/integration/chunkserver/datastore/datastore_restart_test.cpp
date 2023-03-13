@@ -221,11 +221,11 @@ class ExecDeleteSnapshot : public ExecStep {
     ~ExecDeleteSnapshot() {}
 
     void Exec() override {
-        (*datastore_)->DeleteSnapshotChunkOrCorrectSn(id_, correctedSn_);
+        (*datastore_)->DeleteSnapshotChunk(id_, correctedSn_);
     }
 
     void Dump() override {
-        printf("DeleteSnapshotChunkOrCorrectSn, "
+        printf("DeleteSnapshotChunk, "
                "id = %llu, correctedSn = %llu.\n", id_, correctedSn_);
     }
 

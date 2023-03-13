@@ -65,7 +65,7 @@ TEST_F(ConcurrencyTestSuit, ConcurrencyTest) {
     };
 
     auto deleteSnapFunc = [&](ChunkID id) {
-        dataStore_->DeleteSnapshotChunkOrCorrectSn(id, sn);
+        dataStore_->DeleteSnapshotChunk(id, sn);
     };
 
     auto readSnapFunc = [&](ChunkID id) {
