@@ -1,4 +1,4 @@
-[中文版](Community_Guidelines_cn.md)
+[中文版](developers_guide_cn.md)
 
 
 ## Overview
