@@ -283,6 +283,109 @@ CURVEFS_ERROR XattrManager::CalAllLayerSumInfo(InodeAttr *attr) {
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR XattrManager::RefreshAllXAttr() {
+    std::stack<uint64_t> iStack;
+    std::mutex stackMutex;
+    Atomic<uint32_t> inflightNum(0);
+    Atomic<bool> ret(true);
+    iStack.emplace(ROOTINODEID);
+    std::vector<Thread> threadpool;
+    for (auto i = listDentryThreads_; i > 0; i--) {
+        try {
+            threadpool.emplace_back(
+                Thread(&XattrManager::ConcurrentRefreshInodeXattr, this,
+                       &iStack, &stackMutex, &inflightNum, &ret));
+        } catch (const std::exception &e) {
+            LOG(WARNING) << "RefreshInodeXattr create thread failed,"
+                         << " err: " << e.what();
+        }
+    }
+
+    if (threadpool.empty()) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    for (auto &thread : threadpool) {
+        thread.join();
+    }
+
+    if (!ret.load()) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
+void XattrManager::ConcurrentRefreshInodeXattr(
+    std::stack<uint64_t> *iStack, std::mutex *stackMutex, Atomic<uint32_t> *inflightNum, Atomic<bool> *ret) {
+    while (1) {
+        std::list<Dentry> dentryList;
+        std::set<uint64_t> inodeIds;
+        std::list<InodeAttr> attrs;
+        auto tret = ConcurrentListDentry(&dentryList, iStack, stackMutex, true,
+                                         inflightNum, ret);
+        if (!tret) {
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> guard(*stackMutex);
+            for (const auto &it : dentryList) {
+                iStack->emplace(it.inodeid());
+                inodeIds.emplace(it.inodeid());
+            }
+            inflightNum->fetch_sub(1);
+        }
+        if (!inodeIds.empty()){
+            auto tret = inodeManager_->BatchGetInodeAttr(&inodeIds, &attrs);
+            if (tret == CURVEFS_ERROR::OK) {
+                for (auto &it : attrs) {
+                    if (it.type() == FsFileType::TYPE_DIRECTORY) {
+                        RefreshInodeXAttr(&it);
+                    } 
+                }
+            } else {
+                ret->store(false);
+                return;
+            }
+        }
+    }
+}
+
+CURVEFS_ERROR XattrManager::RefreshInodeXAttr(InodeAttr *attr) {
+    auto ret = CalAllLayerSumInfo(attr);
+    std::shared_ptr<InodeWrapper> InodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(attr->inodeid(), InodeWrapper);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "RefreshXAttr get root inode fail, ret = " << ret
+                   << ", inodeid = " << ROOTINODEID;
+        return ret;
+    }
+    ::curve::common::UniqueLock lgGuard = InodeWrapper->GetUniqueLock();
+    auto inodeXAttr = InodeWrapper->GetInodeLocked()->xattr();
+    bool update = false;
+    for (const auto &it : *attr->mutable_xattr()) {
+        auto iter = inodeXAttr.find(it.first);
+        if (iter != inodeXAttr.end()) {
+            uint64_t dat = 0;
+            if (StringToUll(it.second, &dat)) {
+                if (!AddUllStringToFirst(&(iter->second), dat, true)) {
+                    return CURVEFS_ERROR::INTERNAL;
+                }
+            } else {
+                LOG(ERROR) << "StringToUll failed, first = " << it.second;
+                return CURVEFS_ERROR::INTERNAL;
+            }
+            update = true;
+        }
+    }
+    if (update) {
+        InodeWrapper->MergeXAttrLocked(inodeXAttr);
+        inodeManager_->ShipToFlush(InodeWrapper);
+    }
+
+    return ret;
+}
+
 void XattrManager::ConcurrentGetInodeXattr(
     std::stack<uint64_t> *iStack,
     std::mutex *stackMutex,

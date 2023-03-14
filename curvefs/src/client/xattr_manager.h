@@ -74,6 +74,10 @@ class XattrManager {
         isStop_.store(true);
     }
 
+    CURVEFS_ERROR RefreshAllXAttr();
+
+    CURVEFS_ERROR RefreshInodeXAttr(InodeAttr *attr);
+
     CURVEFS_ERROR GetXattr(const char* name, std::string *value,
         InodeAttr *attr, bool enableSumInDir);
 
@@ -100,6 +104,12 @@ class XattrManager {
         std::mutex *mapMutex,
         SummaryInfo *summaryInfo,
         std::mutex *valueMutex,
+        Atomic<uint32_t> *inflightNum,
+        Atomic<bool> *ret);
+
+    void ConcurrentRefreshInodeXattr(
+        std::stack<uint64_t> *iStack,
+        std::mutex *stackMutex, 
         Atomic<uint32_t> *inflightNum,
         Atomic<bool> *ret);
 

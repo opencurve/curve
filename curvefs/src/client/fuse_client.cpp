@@ -205,6 +205,9 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
 
     LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
               << " success!" << " enableSumInDir = " << enableSumInDir_;
+    if (enableSumInDir_) {
+        xattrManager_->RefreshAllXAttr();
+    }
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
 
