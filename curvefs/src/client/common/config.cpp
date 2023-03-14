@@ -204,6 +204,7 @@ void InitDiskCacheOption(Configuration *conf,
                               &diskCacheOption->avgReadFileIops);
 }
 
+// TODO(@hzwuhongsong)
 void InitS3Option(Configuration *conf, S3Option *s3Opt) {
     conf->GetValueFatalIfFail("s3.fakeS3", &FLAGS_useFakeS3);
     conf->GetValueFatalIfFail("s3.pageSize",
@@ -400,6 +401,9 @@ void SetFuseClientS3Option(FuseClientOption *clientOption,
     clientOption->s3Opt.s3AdaptrOpt.ak = fsS3Opt.ak;
     clientOption->s3Opt.s3AdaptrOpt.sk = fsS3Opt.sk;
     clientOption->s3Opt.s3AdaptrOpt.bucketName = fsS3Opt.bucketName;
+    VLOG(1) << "fuse s3 option, chunk size is: " << fsS3Opt.chunkSize
+            << "block size is: " << fsS3Opt.blockSize
+            << "s3 adress is: " << fsS3Opt.s3Address;
 }
 
 void S3Info2FsS3Option(const curvefs::common::S3Info& s3,

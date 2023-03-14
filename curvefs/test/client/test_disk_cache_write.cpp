@@ -25,7 +25,7 @@
 
 #include "curvefs/test/client/mock_test_posix_wapper.h"
 #include "curvefs/test/client/mock_client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_write.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 
 namespace curvefs {
@@ -56,7 +56,6 @@ class TestDiskCacheWrite : public ::testing::Test {
 
     virtual void SetUp() {
         Aws::InitAPI(awsOptions_);
-//        client_ = new MockS3Client();
         client_ = std::make_shared<MockS3Client>();
         diskCacheWrite_ = std::make_shared<DiskCacheWrite>();
         wrapper_ = std::make_shared<MockPosixWrapper>();
@@ -72,14 +71,12 @@ class TestDiskCacheWrite : public ::testing::Test {
     virtual void TearDown() {
         // allows the destructor of lfs_ to be invoked correctly
         Mock::VerifyAndClear(wrapper_.get());
-//        delete client_;
         Mock::VerifyAndClear(diskCacheWrite_.get());
         Aws::ShutdownAPI(awsOptions_);
     }
     std::shared_ptr<DiskCacheWrite> diskCacheWrite_;
     std::shared_ptr<MockPosixWrapper> wrapper_;
     std::shared_ptr<MockS3Client> client_;
-//    MockS3Client *client_;
     Aws::SDKOptions awsOptions_;
 };
 

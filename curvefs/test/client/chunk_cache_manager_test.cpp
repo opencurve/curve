@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
 
 namespace curvefs {
@@ -43,8 +43,8 @@ class ChunkCacheManagerTest : public testing::Test {
     ~ChunkCacheManagerTest() {}
     void SetUp() override {
         uint64_t index = 0;
-
-        S3ClientAdaptorOption option;
+        FuseClientOption fuseOption;
+        S3ClientAdaptorOption& option = fuseOption.s3Opt.s3ClientAdaptorOpt;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
         option.baseSleepUs = 500;
@@ -57,12 +57,15 @@ class ChunkCacheManagerTest : public testing::Test {
         option.readCacheThreads = 5;
         option.chunkFlushThreads = 5;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
+        fuseOption.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
+        s3ClientAdaptor_->SetBlockSize(option.blockSize);
+        s3ClientAdaptor_->SetChunkSize(option.chunkSize);
         auto fsCacheManager_ = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte, option.writeCacheMaxByte,
             option.readCacheThreads, nullptr);
-        s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
-                               fsCacheManager_, nullptr, nullptr);
+        s3ClientAdaptor_->Init(fuseOption, nullptr, nullptr,
+                               fsCacheManager_, nullptr, nullptr, nullptr);
         chunkCacheManager_ = std::make_shared<ChunkCacheManager>(
             index, s3ClientAdaptor_, nullptr);
     }
@@ -358,8 +361,6 @@ TEST_F(ChunkCacheManagerTest, test_truncate_cache) {
     char *buf = new char[len];
     auto dataCache = std::make_shared<DataCache>(
         s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
-    /*EXPECT_CALL(*dataCache, Truncate(_))
-        .WillOnce(Return());*/
     chunkCacheManager_->AddWriteDataCacheForTest(dataCache);
     ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetDataCacheSize());
     chunkCacheManager_->TruncateCache(0);

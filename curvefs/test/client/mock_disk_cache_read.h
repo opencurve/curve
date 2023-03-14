@@ -30,7 +30,7 @@
 #include <set>
 #include <list>
 
-#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_read.h"
 
 namespace curvefs {
 namespace client {

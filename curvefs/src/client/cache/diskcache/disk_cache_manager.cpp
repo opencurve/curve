@@ -19,6 +19,9 @@
  * Created Date: 21-08-13
  * Author: hzwuhongsong
  */
+
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
+
 #include <sys/vfs.h>
 #include <errno.h>
 #include <string>
@@ -27,7 +30,6 @@
 #include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
 #include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
@@ -230,7 +232,12 @@ int DiskCacheManager::WriteDiskFile(const std::string fileName, const char *buf,
                                     uint64_t length, bool force) {
     // write throttle
     diskCacheThrottle_.Add(false, length);
+    uint64_t start = butil::cpuwide_time_us();
     int ret = cacheWrite_->WriteDiskFile(fileName, buf, length, force);
+    if ((ret >= 0) &&
+      metric_.get() != nullptr) {
+        CollectMetrics(&metric_->adaptorWriteDiskCache, length, start);
+    }
     if (ret > 0)
         AddDiskUsedBytes(ret);
     return ret;
@@ -244,14 +251,26 @@ int DiskCacheManager::ReadDiskFile(const std::string name, char *buf,
                                    uint64_t offset, uint64_t length) {
     // read throttle
     diskCacheThrottle_.Add(true, length);
-    return cacheRead_->ReadDiskFile(name, buf, offset, length);
+    uint64_t start = butil::cpuwide_time_us();
+    int ret = cacheRead_->ReadDiskFile(
+      name, buf, offset, length);
+    if ((ret >= 0) &&
+      metric_.get() != nullptr) {
+        CollectMetrics(&metric_->adaptorWriteDiskCache, length, start);
+    }
+    return ret;
 }
 
 int DiskCacheManager::WriteReadDirect(const std::string fileName,
                                       const char *buf, uint64_t length) {
     // write hrottle
     diskCacheThrottle_.Add(false, length);
+    uint64_t start = butil::cpuwide_time_us();
     int ret = cacheRead_->WriteDiskFile(fileName, buf, length);
+    if ((ret >= 0) &&
+      metric_.get() != nullptr) {
+        CollectMetrics(&metric_->adaptorWriteDiskCache, length, start);
+    }
     if (ret > 0)
         AddDiskUsedBytes(ret);
     return ret;

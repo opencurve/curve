@@ -157,7 +157,9 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     clientCfg_->requestTimeoutMs = option.requestTimeout;
     clientCfg_->endpointOverride = s3Address_;
     auto asyncThreadNum = option.asyncThreadNum;
-    LOG(INFO) << "S3Adapter init thread num = " << asyncThreadNum << std::endl;
+    LOG(INFO) << "S3Adapter init thread num = " << asyncThreadNum
+              << ", adress is: " <<  s3Address_
+              << ", bucket name is: " << bucketName_ << std::endl;
     clientCfg_->executor =
         Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>(
             "S3Adapter.S3Client", asyncThreadNum);
