@@ -35,7 +35,7 @@
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 #include "curvefs/src/common/s3util.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/string_util.h"
@@ -497,7 +497,9 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
 
             LOG(WARNING) << "Get Object failed, key: " << context->key
                          << ", offset: " << context->offset;
-            s3Adaptor_->GetS3Client()->DownloadAsync(context);
+
+            dynamic_cast<S3ClientAdaptorImpl *>(
+              s3Adaptor_.get())->GetS3Client()->DownloadAsync(context);
         };
 
     pendingReq.fetch_add(prefetchObjs.size(), std::memory_order_seq_cst);
@@ -528,7 +530,9 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             context->len = readLen;
             context->cb = cb;
             context->retry = 0;
-            s3Adaptor_->GetS3Client()->DownloadAsync(context);
+
+            dynamic_cast<S3ClientAdaptorImpl *>(
+              s3Adaptor_.get())->GetS3Client()->DownloadAsync(context);
         }
         if (pendingReq.load())
             cond.Wait();

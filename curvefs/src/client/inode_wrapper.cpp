@@ -457,8 +457,7 @@ CURVEFS_ERROR InodeWrapper::Sync(bool internal) {
 }
 
 void InodeWrapper::Async(MetaServerClientDone *done, bool internal) {
-    VLOG(3) << "async inode: " << inode_.ShortDebugString();
-
+    VLOG(9) << "async inode: " << inode_.ShortDebugString();
     switch (inode_.type()) {
         case FsFileType::TYPE_S3:
             return AsyncS3(done, internal);

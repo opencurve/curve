@@ -26,7 +26,7 @@
 #include "src/common/lru_cache.h"
 #include "curvefs/test/client/mock_test_posix_wapper.h"
 #include "curvefs/test/client/mock_disk_cache_base.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_read.h"
 
 namespace curvefs {
 namespace client {

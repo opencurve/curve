@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
 
 namespace curvefs {
@@ -42,7 +42,12 @@ class DataCacheTest : public testing::Test {
     DataCacheTest() {}
     ~DataCacheTest() {}
     void SetUp() override {
-        S3ClientAdaptorOption option;
+        Aws::InitAPI(awsOptions_);
+        FuseClientOption fuseOption;
+        fuseOption.listDentryThreads = 1;
+        fuseOption.warmupThreadsNum = 1;
+        fuseOption.s3Opt.s3AdaptrOpt.asyncThreadNum  = 1;
+        S3ClientAdaptorOption& option = fuseOption.s3Opt.s3ClientAdaptorOpt;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
         option.pageSize = 64 * 1024;
@@ -51,12 +56,17 @@ class DataCacheTest : public testing::Test {
         option.readCacheMaxByte = 104857600;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         option.chunkFlushThreads = 5;
+        option.prefetchExecQueueNum = 1;
+
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte,
             option.writeCacheMaxByte, nullptr);
-        s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
-                               fsCacheManager, nullptr, nullptr);
+        s3ClientAdaptor_->SetBlockSize(option.blockSize);
+        s3ClientAdaptor_->SetChunkSize(option.chunkSize);
+        s3ClientAdaptor_->Init(fuseOption, nullptr, nullptr,
+                               fsCacheManager, nullptr, nullptr, nullptr);
+
         mockChunkCacheManager_ = std::make_shared<MockChunkCacheManager>();
         uint64_t offset = 512 * 1024;
         uint64_t len = 1024 * 1024;
@@ -66,12 +76,15 @@ class DataCacheTest : public testing::Test {
                                                  len, buf, nullptr);
         delete buf;
     }
-    void TearDown() override {}
+    void TearDown() override {
+        Aws::ShutdownAPI(awsOptions_);
+    }
 
  protected:
     S3ClientAdaptorImpl *s3ClientAdaptor_;
     std::shared_ptr<DataCache> dataCache_;
     std::shared_ptr<MockChunkCacheManager> mockChunkCacheManager_;
+    Aws::SDKOptions awsOptions_;
 };
 
 TEST_F(DataCacheTest, test_write1) {

@@ -45,6 +45,11 @@ cc_library(
             "volume/*.h",
             "warmup/*.h",
             "warmup/*.cpp",
+            "cache/*.h",
+            "cache/*.cpp",
+            "cache/diskcache/*.h",
+            "cache/diskcache/*.cpp",
+
         ],
         exclude = ["main.cpp"],
     ),

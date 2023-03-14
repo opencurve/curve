@@ -31,7 +31,7 @@ using ::curvefs::client::metric::MetaServerClientMetric;
 using ::curvefs::client::metric::ClientOpMetric;
 using ::curvefs::client::metric::S3MultiManagerMetric;
 using ::curvefs::client::metric::FSMetric;
-using ::curvefs::client::metric::S3Metric;
+using ::curvefs::client::metric::IoMetric;
 using ::curvefs::client::metric::DiskCacheMetric;
 using ::curvefs::client::metric::KVClientMetric;
 using ::curvefs::client::metric::S3ChunkInfoMetric;
@@ -75,7 +75,7 @@ TEST_F(ClientMetricTest, test_prefix) {
 
     {
         const char* prefix = "curvefs_s3";
-        ASSERT_EQ(0, ::strcmp(S3Metric::prefix.c_str(), prefix));
+        ASSERT_EQ(0, ::strcmp(IoMetric::prefix.c_str(), prefix));
     }
 
     {

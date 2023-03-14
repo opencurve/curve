@@ -26,7 +26,7 @@
 #include <gmock/gmock.h>
 #include <utility>
 #include <vector>
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 
 namespace curvefs {
 namespace client {
@@ -67,7 +67,7 @@ class MockChunkCacheManager : public ChunkCacheManager {
                               std::vector<DataCachePtr> *mergeDataCacheVer,
                               uint64_t inodeId));
     MOCK_METHOD4(WriteNewDataCache,
-                 void(S3ClientAdaptorImpl *s3ClientAdaptor, uint32_t chunkPos,
+                 void(StorageAdaptor *s3ClientAdaptor, uint32_t chunkPos,
                       uint32_t len, const char *data));
     MOCK_METHOD5(ReadByWriteCache, void(uint64_t chunkPos, uint64_t readLen,
                                         char *dataBuf, uint64_t dataBufOffset,
@@ -77,11 +77,15 @@ class MockChunkCacheManager : public ChunkCacheManager {
                                        std::vector<ReadRequest> *requests));
     MOCK_METHOD0(ReleaseCache, void());
     MOCK_METHOD1(AddReadDataCache, void(DataCachePtr dataCache));
+    MOCK_METHOD6(ReadChunk, void(uint64_t index, uint64_t chunkPos,
+                                 uint64_t readLen, char *dataBuf,
+                                 uint64_t dataBufOffset,
+                                 std::vector<ReadRequest> *requests));
 };
 
 class MockDataCache : public DataCache {
  public:
-    MockDataCache(S3ClientAdaptorImpl *s3ClientAdaptor,
+    MockDataCache(StorageAdaptor *s3ClientAdaptor,
                   ChunkCacheManagerPtr chunkCacheManager, uint64_t chunkPos,
                   uint64_t len, const char *data,
                   std::shared_ptr<KVClientManager> kvClientManager)

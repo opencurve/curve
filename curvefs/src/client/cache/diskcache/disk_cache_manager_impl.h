@@ -19,8 +19,8 @@
  * Created Date: 21-08-13
  * Author: wuhongsong
  */
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_IMPL_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_IMPL_H_
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_IMPL_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_IMPL_H_
 
 #include <bthread/mutex.h>
 
@@ -35,9 +35,9 @@
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_write.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_read.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
 
 namespace curvefs {
 namespace client {
@@ -46,6 +46,7 @@ using curvefs::common::PosixWrapper;
 using curvefs::client::common::DiskCacheType;
 using curve::common::TaskThreadPool;
 
+// disk cache opt
 struct DiskCacheOption {
     DiskCacheType diskCacheType;
     uint64_t trimCheckIntervalSec;
@@ -72,13 +73,15 @@ class DiskCacheManagerImpl {
         std::shared_ptr<S3Client> client);
     DiskCacheManagerImpl() {}
     virtual ~DiskCacheManagerImpl() {}
+
     /**
      * @brief init DiskCacheManagerImpl
      * @param[in] client S3Client
      * @param[in] option config option
      * @return success: 0, fail : < 0
-     */
-    int Init(const S3ClientAdaptorOption option);
+    */
+    virtual int Init(const S3ClientAdaptorOption option);
+
     /**
      * @brief Write obj
      * @param[in] name obj name
@@ -87,12 +90,14 @@ class DiskCacheManagerImpl {
      * @return success: write length, fail : < 0
      */
     int Write(const std::string name, const char *buf, uint64_t length);
+
     /**
      * @brief whether obj is cached in cached disk
      * @param[in] name obj name
      * @return cached: true, not cached : < 0
      */
     bool IsCached(const std::string name);
+
     /**
      * @brief read obj
      * @param[in] name obj name
@@ -109,9 +114,18 @@ class DiskCacheManagerImpl {
      */
     int UmountDiskCache();
 
+    /// @brief disk cache is full or not
+    /// @return true: full, false: not full
     bool IsDiskCacheFull();
+
+    /// @brief write to cache read disk
+    /// @param fileName file name
+    /// @param buf data need to write
+    /// @param length data length need to write
+    /// @return data length write to cache read
     int WriteReadDirect(const std::string fileName, const char *buf,
                         uint64_t length);
+
     void InitMetrics(std::string fsName);
 
     virtual int UploadWriteCacheByInode(const std::string &inode);
@@ -124,14 +138,17 @@ class DiskCacheManagerImpl {
  private:
     int WriteDiskFile(const std::string name, const char *buf, uint64_t length);
 
-    std::shared_ptr<DiskCacheManager> diskCacheManager_;
-
-    bool forceFlush_;
-    std::shared_ptr<S3Client> client_;
-
     int WriteClosure(std::shared_ptr<PutObjectAsyncContext> context);
 
     int WriteReadDirectClosure(std::shared_ptr<PutObjectAsyncContext> context);
+
+ private:
+    // disk cache manager
+    std::shared_ptr<DiskCacheManager> diskCacheManager_;
+    // use fdatasync or not
+    bool forceFlush_;
+    // s3 client interface(put/get object from s3)
+    std::shared_ptr<S3Client> client_;
     // threads for disk cache
     uint32_t threads_;
     TaskThreadPool<bthread::Mutex, bthread::ConditionVariable>
@@ -141,4 +158,4 @@ class DiskCacheManagerImpl {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_IMPL_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_IMPL_H_

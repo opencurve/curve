@@ -73,9 +73,13 @@ class DefaultVolumeStorage final : public VolumeStorage {
     bool Shutdown() override;
 
  private:
+    // volume space manager
     SpaceManager* spaceManager_;
+    // block device client(write/read data from volume)
     BlockDeviceClient* blockDeviceClient_;
+    // inode cache manager
     InodeCacheManager* inodeCacheManager_;
+    // metric from volume storage
     VolumeStorageMetric metric_;
 };
 

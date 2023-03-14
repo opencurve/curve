@@ -28,7 +28,7 @@
 #include "curvefs/test/client/mock_disk_cache_read.h"
 #include "curvefs/test/client/mock_disk_cache_base.h"
 #include "curvefs/test/client/mock_test_posix_wapper.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
 
 namespace curvefs {

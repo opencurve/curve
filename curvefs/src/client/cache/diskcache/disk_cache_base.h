@@ -20,8 +20,8 @@
  * Author: wuhongsong
  */
 
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_BASE_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_BASE_H_
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_BASE_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_BASE_H_
 
 #include <glog/logging.h>
 
@@ -69,4 +69,4 @@ class DiskCacheBase {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_BASE_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_BASE_H_

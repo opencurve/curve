@@ -41,6 +41,7 @@ namespace client {
 
 bool KVClientManager::Init(const KVClientManagerOpt &config,
                            const std::shared_ptr<KVClient> &kvclient) {
+    LOG(INFO) << "KVClientManager init.";
     client_ = kvclient;
     return threadPool_.Start(config.setThreadPooln) == 0;
 }

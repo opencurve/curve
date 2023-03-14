@@ -19,8 +19,9 @@
  * Created Date: 21-08-13
  * Author: wuhongsong
  */
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
+
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_H_
 
 #include <bthread/mutex.h>
 
@@ -38,8 +39,8 @@
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_write.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_read.h"
 #include "curvefs/src/client/common/config.h"
 namespace curvefs {
 namespace client {
@@ -59,12 +60,13 @@ class DiskCacheManager {
                      std::shared_ptr<DiskCacheWrite> cacheWrite,
                      std::shared_ptr<DiskCacheRead> cacheRead);
     DiskCacheManager() {}
-    virtual ~DiskCacheManager() { TrimStop(); }
+    virtual ~DiskCacheManager() { TrimStop();}
 
     virtual int Init(std::shared_ptr<S3Client> client,
         const S3ClientAdaptorOption option);
 
     virtual int UmountDiskCache();
+
     virtual bool IsCached(const std::string name);
 
     /**
@@ -77,33 +79,48 @@ class DiskCacheManager {
       bool cacheWriteExist = true);
 
     int CreateDir();
+
     std::string GetCacheReadFullDir();
+
     std::string GetCacheWriteFullDir();
 
     int WriteDiskFile(const std::string fileName, const char *buf,
                       uint64_t length, bool force = true);
-    void AsyncUploadEnqueue(const std::string objName);
+
     virtual int WriteReadDirect(const std::string fileName, const char *buf,
                                 uint64_t length);
+
     int ReadDiskFile(const std::string name, char *buf, uint64_t offset,
                      uint64_t length);
+
     int LinkWriteToRead(const std::string fileName,
                         const std::string fullWriteDir,
                         const std::string fullReadDir);
+
+    void AsyncUploadEnqueue(const std::string objName);
+
     int UploadAllCacheWriteFile();
+
     int UploadWriteCacheByInode(const std::string &inode);
+
     int ClearReadCache(const std::list<std::string> &files);
+
     /**
      * @brief get use ratio of cache disk
      * @return the use ratio
      */
     int64_t SetDiskFsUsedRatio();
+
     virtual bool IsDiskCacheFull();
+
     bool IsDiskCacheSafe();
+
     /**
      * @brief: start trim thread.
      */
+
     int TrimRun();
+
     /**
      * @brief: stop trim thread.
      */
@@ -130,6 +147,7 @@ class DiskCacheManager {
                 << ", now is: " << usedBytes_.load();
         return;
     }
+
     /**
      * @brief dec the used bytes of disk cache.
      * can not dec disk used bytes after file have been loaded,
@@ -144,12 +162,15 @@ class DiskCacheManager {
                 << ", now is: " << usedBytes_.load();
         return;
     }
+
     void SetDiskInitUsedBytes();
+
     uint64_t GetDiskUsedbytes() {
         return usedBytes_.load();
     }
 
     void InitQosParam();
+
     /**
      * @brief trim cache func.
      */
@@ -165,6 +186,14 @@ class DiskCacheManager {
      */
     bool IsCacheClean();
 
+    void CollectMetrics(InterfaceMetric *interface,
+      int count, uint64_t start) {
+        interface->bps.count << count;
+        interface->qps.count << 1;
+        interface->latency << (butil::cpuwide_time_us() - start);
+    }
+
+ private:
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isRunning_;
     curve::common::InterruptibleSleeper sleeper_;
@@ -202,4 +231,4 @@ class DiskCacheManager {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_H_
