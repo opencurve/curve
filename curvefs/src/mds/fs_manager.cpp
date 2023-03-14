@@ -642,7 +642,7 @@ FSStatusCode FsManager::MountFs(const std::string& fsName,
         return ret;
     }
     // update client alive time
-    UpdateClientAliveTime(mountpoint, fsName, false);
+    UpdateClientAliveTime(mountpoint, fsName);
 
     // convert fs info
     FsMetric::GetInstance().OnMount(wrapper.GetFsName(), mountpoint);
@@ -841,8 +841,22 @@ void FsManager::RefreshSession(const RefreshSessionRequest* request,
             std::make_move_iterator(out.end())};
     }
 
-    // update this client's alive time
-    UpdateClientAliveTime(request->mountpoint(), request->fsname());
+    std::string mountpath;
+    MountPoint2Str(request->mountpoint(), &mountpath);
+    bool found;
+    {
+        ReadLockGuard rlock(recorderMutex_);
+        auto iter = mpTimeRecorder_.find(mountpath);
+        found = (iter == mpTimeRecorder_.end());
+    }
+    if (!found) {
+        // client hang timeout and recover later
+        // need add mountpoint to fsInfo
+        AddMountPoint(request->mountpoint(), request->fsname());
+    } else {
+        // update this client's alive time
+        UpdateClientAliveTime(request->mountpoint(), request->fsname(), false);
+    }
 }
 
 FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {
@@ -1051,7 +1065,7 @@ void FsManager::RebuildTimeRecorder() {
     fsStorage_->GetAll(&fsInfos);
     for (auto const& info : fsInfos) {
         for (auto const& mount : info.MountPoints()) {
-            UpdateClientAliveTime(mount, info.GetFsName(), false);
+            UpdateClientAliveTime(mount, info.GetFsName());
         }
     }
     LOG(INFO) << "RebuildTimeRecorder size = " << mpTimeRecorder_.size();
@@ -1081,6 +1095,8 @@ FSStatusCode FsManager::AddMountPoint(const Mountpoint& mountpoint,
         return ret;
     }
 
+    UpdateClientAliveTime(mountpoint, fsName);
+
     return FSStatusCode::OK;
 }
 
@@ -1093,17 +1109,15 @@ void FsManager::UpdateClientAliveTime(const Mountpoint& mountpoint,
     MountPoint2Str(mountpoint, &mountpath);
     WriteLockGuard wlock(recorderMutex_);
     if (addMountPoint) {
+        mpTimeRecorder_[mountpath] = std::make_pair(
+            fsName, ::curve::common::TimeUtility::GetTimeofDaySec());
+    } else {
         auto iter = mpTimeRecorder_.find(mountpath);
-        // client hang timeout and recover later
-        // need add mountpoint to fsInfo
-        if (iter == mpTimeRecorder_.end()) {
-            if (AddMountPoint(mountpoint, fsName) != FSStatusCode::OK) {
-                return;
-            }
+        if (iter != mpTimeRecorder_.end()) {
+            iter->second.second = ::curve::common::TimeUtility::
+                                    GetTimeofDaySec();
         }
     }
-    mpTimeRecorder_[mountpath] = std::make_pair(
-        fsName, ::curve::common::TimeUtility::GetTimeofDaySec());
 }
 
 void FsManager::DeleteClientAliveTime(const std::string& mountpoint) {
