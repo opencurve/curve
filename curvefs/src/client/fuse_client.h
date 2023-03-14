@@ -45,6 +45,7 @@
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/client/volume/client_volume_adaptor.h"
 #include "curvefs/src/common/fast_align.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
@@ -66,6 +67,7 @@ using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
 using ::curvefs::metaserver::ManageInodeType;
 using ::curvefs::client::metric::FSMetric;
+using curvefs::volume::kMiB;
 
 namespace curvefs {
 namespace client {
@@ -90,17 +92,17 @@ using mds::Mountpoint;
 class FuseClient {
  public:
     FuseClient()
-      : mdsClient_(std::make_shared<MdsClientImpl>()),
-        metaClient_(std::make_shared<MetaServerClientImpl>()),
-        inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
-        dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
-        dirBuf_(std::make_shared<DirBuffer>()),
-        fsInfo_(nullptr),
-        init_(false),
-        enableSumInDir_(false),
-        warmupManager_(nullptr),
-        mdsBase_(nullptr),
-        isStop_(true) {}
+    : mdsClient_(std::make_shared<MdsClientImpl>()),
+      metaClient_(std::make_shared<MetaServerClientImpl>()),
+      inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
+      dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
+      dirBuf_(std::make_shared<DirBuffer>()),
+      fsInfo_(nullptr),
+      init_(false),
+      enableSumInDir_(false),
+      warmupManager_(nullptr),
+      mdsBase_(nullptr),
+      isStop_(true) {}
 
     virtual ~FuseClient() {}
 
@@ -128,6 +130,8 @@ class FuseClient {
     virtual CURVEFS_ERROR Run();
 
     virtual void Fini();
+
+/*** fuse op***/
 
     virtual CURVEFS_ERROR FuseOpInit(
         void* userdata, struct fuse_conn_info* conn);
@@ -222,13 +226,9 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                       int datasync,
                                       struct fuse_file_info* fi) = 0;
+
     virtual CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
-                                      struct fuse_file_info *fi) {
-        (void)req;
-        (void)ino;
-        (void)fi;
-        return CURVEFS_ERROR::OK;
-    }
+                                      struct fuse_file_info *fi) = 0;
 
     virtual CURVEFS_ERROR FuseOpStatFs(fuse_req_t req, fuse_ino_t ino,
                                        struct statvfs* stbuf) {
@@ -249,6 +249,16 @@ class FuseClient {
         return CURVEFS_ERROR::OK;
     }
 
+/*** flush inode ***/
+
+    virtual void FlushInode();
+
+    virtual void FlushInodeAll();
+
+    virtual void FlushAll();
+
+/*** get or set some elements***/
+
     void SetFsInfo(const std::shared_ptr<FsInfo>& fsInfo) {
         fsInfo_ = fsInfo;
         init_ = true;
@@ -263,12 +273,6 @@ class FuseClient {
     std::shared_ptr<FsInfo> GetFsInfo() {
         return fsInfo_;
     }
-
-    virtual void FlushInode();
-
-    virtual void FlushInodeAll();
-
-    virtual void FlushAll();
 
     // for unit test
     void SetEnableSumInDir(bool enable) {
@@ -302,6 +306,9 @@ class FuseClient {
     void Add(bool isRead, size_t size) { throttle_.Add(isRead, size); }
 
     void InitQosParam();
+    Mountpoint& GetMountPoint() {
+        return mountpoint_;
+    }
 
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
@@ -414,6 +421,8 @@ class FuseClient {
     Throttle throttle_;
 
     bthread_timer_t throttleTimer_;
+
+    static constexpr auto MIN_WRITE_CACHE_SIZE = 8 * kMiB;
 };
 
 }  // namespace client

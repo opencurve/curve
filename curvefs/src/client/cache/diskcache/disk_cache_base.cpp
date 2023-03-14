@@ -28,7 +28,7 @@
 #include <dirent.h>
 #include <functional>
 
-#include "curvefs/src/client/s3/disk_cache_base.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_base.h"
 
 namespace curvefs {
 

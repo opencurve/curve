@@ -19,8 +19,8 @@
  * Created Date: 21-08-13
  * Author: wuhongsong
  */
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_READ_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_READ_H_
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_READ_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_READ_H_
 
 #include <list>
 #include <string>
@@ -32,7 +32,7 @@
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
 #include "curvefs/src/common/wrap_posix.h"
-#include "curvefs/src/client/s3/disk_cache_base.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_base.h"
 
 namespace curvefs {
 namespace client {
@@ -73,4 +73,4 @@ class DiskCacheRead : public DiskCacheBase {
 
 }  // namespace client
 }  // namespace curvefs
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_READ_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_READ_H_

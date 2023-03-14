@@ -24,10 +24,13 @@
 #include <gtest/gtest.h>
 
 #include "curvefs/src/client/common/common.h"
+#include "curvefs/proto/mds.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/error_code.h"
-#include "curvefs/src/client/fuse_volume_client.h"
+#include "curvefs/src/client/volume/fuse_volume_client.h"
+#include "curvefs/src/client/volume/client_volume_adaptor.h"
 #include "curvefs/src/common/define.h"
+#include "curvefs/test/client/mock_client_volume_adaptor.h"
 #include "curvefs/test/client/mock_dentry_cache_mamager.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
@@ -97,13 +100,42 @@ class TestFuseVolumeClient : public ::testing::Test {
         fuseClientOption_.listDentryLimit = listDentryLimit_;
         fuseClientOption_.listDentryThreads = listDentryThreads_;
         fuseClientOption_.maxNameLength = 20u;
+        fuseClientOption_.dummyServerStartPort = 5000;
+        fuseClientOption_.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte = 104857600;
+        fuseClientOption_.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte
+          = 10485760000;
+        fuseClientOption_.s3Opt.s3ClientAdaptorOpt.readCacheThreads = 2;
+        fuseClientOption_.s3Opt.s3ClientAdaptorOpt.diskCacheOpt.diskCacheType
+          = DiskCacheType::Disable;
+        fuseClientOption_.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
+
+        fuseClientOption_.warmupThreadsNum = 1;
+        fuseClientOption_.s3Opt.s3ClientAdaptorOpt.prefetchExecQueueNum = 1;
+        // if not set, then there will be a lot of threads in gdb
+        fuseClientOption_.s3Opt.s3ClientAdaptorOpt.chunkFlushThreads = 1;
+        storageAdaptor_ = std::make_shared<MockVolumeClientAdaptor>();
 
         spaceManager_ = new MockSpaceManager();
         volumeStorage_ = new MockVolumeStorage();
         client_ = std::make_shared<FuseVolumeClient>(
             mdsClient_, metaClient_, inodeManager_, dentryManager_,
-            blockDeviceClient_);
+            blockDeviceClient_, storageAdaptor_);
 
+        auto fsInfo = std::make_shared<FsInfo>();
+        fsInfo->set_fsid(fsId);
+        fsInfo->set_fsname("s3fs");
+        fsInfo->set_blocksize(4096);
+
+        Volume volume;
+        volume.set_blocksize(4096);
+        volume.set_slicesize(4*4096);
+
+        curvefs::mds::FsDetail fsDetail;
+        fsDetail.set_allocated_volume(new Volume(volume));
+
+        fsInfo->set_allocated_detail(new curvefs::mds::FsDetail(fsDetail));
+
+        client_->SetFsInfo(fsInfo);
         client_->Init(fuseClientOption_);
         PrepareFsInfo();
         PrepareEnv();
@@ -125,6 +157,7 @@ class TestFuseVolumeClient : public ::testing::Test {
         auto fsInfo = std::make_shared<FsInfo>();
         fsInfo->set_fsid(fsId);
         fsInfo->set_fsname("xxx");
+        fsInfo->set_blocksize(4096);
 
         client_->SetFsInfo(fsInfo);
         client_->SetMounted(true);
@@ -151,9 +184,11 @@ class TestFuseVolumeClient : public ::testing::Test {
     std::shared_ptr<MockInodeCacheManager> inodeManager_;
     std::shared_ptr<MockDentryCacheManager> dentryManager_;
     std::shared_ptr<FuseVolumeClient> client_;
+    std::shared_ptr<MockVolumeClientAdaptor> storageAdaptor_;
 
     MockVolumeStorage *volumeStorage_;
     MockSpaceManager *spaceManager_;
+    ExtentCacheOption option_;
 
     uint64_t preAllocSize_;
     uint64_t bigFileSize_;
@@ -184,12 +219,13 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
     vol->set_slicesize(1ULL * 1024 * 1024 * 1024);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
-
-    EXPECT_CALL(*blockDeviceClient_, Open(_, _))
-        .WillOnce(Return(true));
     CURVEFS_ERROR ret = client_->SetMountStatus(&mOpts);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    EXPECT_CALL(*storageAdaptor_, FuseOpInit(_, _))
+        .WillOnce(Return(CURVEFS_ERROR::OK));
+
     ret = client_->FuseOpInit(&mOpts, nullptr);
+
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();
@@ -204,13 +240,23 @@ TEST_F(TestFuseVolumeClient, FuseOpDestroy) {
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.mountPoint = "host1:/test";
     mOpts.fsName = "xxx";
-    mOpts.fsType = "curve";
+    mOpts.fsType = "volume";
 
     std::string fsName = mOpts.fsName;
 
+    VLOG(9) << "fuse op destroy failed";
+    EXPECT_CALL(*mdsClient_, UmountFs(fsName, _))
+        .WillOnce(Return(FSStatusCode::INTERNAL_ERROR));
+    client_->FuseOpDestroy(&mOpts);
+
+    VLOG(9) << "fuse op destroy sucess";
+    EXPECT_CALL(*mdsClient_, UmountFs(fsName, _))
+        .WillOnce(Return(FSStatusCode::MOUNT_POINT_NOT_EXIST));
+    client_->FuseOpDestroy(&mOpts);
+
+    VLOG(9) << "fuse op destroy success";
     EXPECT_CALL(*mdsClient_, UmountFs(fsName, _))
         .WillOnce(Return(FSStatusCode::OK));
-
     client_->FuseOpDestroy(&mOpts);
 }
 
@@ -292,18 +338,23 @@ TEST_F(TestFuseVolumeClient, FuseOpWrite) {
     inode.set_inodeid(ino);
     inode.set_length(0);
 
-    for (auto ret : {CURVEFS_ERROR::OK, CURVEFS_ERROR::IO_ERROR,
-                     CURVEFS_ERROR::NO_SPACE}) {
-        EXPECT_CALL(*volumeStorage_, Write(_, _, _, _))
-            .WillOnce(Return(ret));
+    VLOG(9) << "write failed";
+    EXPECT_CALL(*storageAdaptor_, Write(_, _, _, _))
+        .WillOnce(Return(-1));
 
-        ASSERT_EQ(ret,
+    ASSERT_EQ(CURVEFS_ERROR::INTERNAL,
                   client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize));
 
-        if (ret == CURVEFS_ERROR::OK) {
-            ASSERT_EQ(size, wSize);
-        }
-    }
+    VLOG(9) << "write success";
+    EXPECT_CALL(*storageAdaptor_, Write(_, _, _, _))
+        .WillOnce(Return(1));
+    inode.set_type(FsFileType::TYPE_FILE);
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+    ASSERT_EQ(CURVEFS_ERROR::OK,
+      client_->FuseOpWrite(req, ino, buf, size, off, &fi, &wSize));
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpRead) {
@@ -320,19 +371,33 @@ TEST_F(TestFuseVolumeClient, FuseOpRead) {
     inode.set_fsid(fsId);
     inode.set_inodeid(ino);
     inode.set_length(4096);
+    VLOG(9) << "read failed";
+    auto inodeWrapper = std::make_shared<InodeWrapper>(inode, metaClient_);
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper),
+              Return(CURVEFS_ERROR::NOTEMPTY)));
 
-    for (auto ret : {CURVEFS_ERROR::OK, CURVEFS_ERROR::IO_ERROR,
-                     CURVEFS_ERROR::NO_SPACE}) {
-        EXPECT_CALL(*volumeStorage_, Read(_, _, _, _))
-            .WillOnce(Return(ret));
+    ASSERT_EQ(CURVEFS_ERROR::NOTEMPTY, client_->FuseOpRead(
+        req, ino, size, off, &fi, buf.get(), &rSize));
 
-        ASSERT_EQ(ret, client_->FuseOpRead(req, ino, size, off, &fi, buf.get(),
-                                           &rSize));
+    VLOG(9) << "read failed";
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+     EXPECT_CALL(*storageAdaptor_, Read(_, _, _, _))
+        .WillOnce(Return(-1));
+     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, client_->FuseOpRead(
+        req, ino, size, off, &fi, buf.get(), &rSize));
 
-        if (ret == CURVEFS_ERROR::OK) {
-            ASSERT_EQ(size, rSize);
-        }
-    }
+    VLOG(9) << "read success";
+    EXPECT_CALL(*inodeManager_, GetInode(ino, _))
+        .WillOnce(
+            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
+     EXPECT_CALL(*storageAdaptor_, Read(_, _, _, _))
+        .WillOnce(Return(1));
+     ASSERT_EQ(CURVEFS_ERROR::OK, client_->FuseOpRead(
+        req, ino, size, off, &fi, buf.get(), &rSize));
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpOpen) {

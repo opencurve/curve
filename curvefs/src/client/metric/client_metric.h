@@ -228,27 +228,35 @@ struct FSMetric {
           userReadIoSize(prefix, fsName + "_userReadIoSize", 0) {}
 };
 
-struct S3Metric {
-    static const std::string prefix;
 
+struct IoMetric {
+    static const std::string prefix;
     std::string fsName;
     InterfaceMetric adaptorWrite;
     InterfaceMetric adaptorRead;
+    InterfaceMetric adaptorBgFlush;
+    InterfaceMetric adaptorFlushBackend;
     InterfaceMetric adaptorWriteS3;
-    InterfaceMetric adaptorWriteDiskCache;
     InterfaceMetric adaptorReadS3;
+    InterfaceMetric adaptorWriteKvCache;
+    InterfaceMetric adaptorReadKvCache;
+    InterfaceMetric adaptorReadBackend;
     InterfaceMetric adaptorReadDiskCache;
     bvar::Status<uint32_t> readSize;
     bvar::Status<uint32_t> writeSize;
 
-    explicit S3Metric(const std::string &name = "")
+    explicit IoMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           adaptorWrite(prefix, fsName + "_adaptor_write"),
           adaptorRead(prefix, fsName + "_adaptor_read"),
+          adaptorBgFlush(prefix, fsName + "_adaptor_bg_flush"),
+          adaptorFlushBackend(prefix, fsName + "_adaptor_flush_backend"),
+          adaptorReadBackend(prefix, fsName + "_adaptor_read_backend"),
           adaptorWriteS3(prefix, fsName + "_adaptor_write_s3"),
-          adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
           adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
+          adaptorWriteKvCache(prefix, fsName + "_adaptor_write_kv_cache"),
+          adaptorReadKvCache(prefix, fsName + "_adaptor_read_kv_cache"),
           adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache"),
           readSize(prefix, fsName + "_adaptor_read_size", 0),
           writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
@@ -258,12 +266,16 @@ struct DiskCacheMetric {
     static const std::string prefix;
 
     std::string fsName;
+    InterfaceMetric adaptorWriteDiskCache;
+    InterfaceMetric adaptorReadDiskCache;
     InterfaceMetric writeS3;
     bvar::Status<uint64_t> diskUsedBytes;
 
     explicit DiskCacheMetric(const std::string &name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
+          adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
+          adaptorReadDiskCache(prefix, fsName + "_adaptor_read_disk_cache"),
           writeS3(prefix, fsName + "_write_s3"),
           diskUsedBytes(prefix, fsName + "_diskcache_usedbytes", 0) {}
 };

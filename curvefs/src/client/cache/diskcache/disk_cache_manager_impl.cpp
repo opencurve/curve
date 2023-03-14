@@ -27,7 +27,7 @@
 #include <memory>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager_impl.h"
 
 namespace curvefs {
 
@@ -69,8 +69,6 @@ void DiskCacheManagerImpl::Enqueue(
     };
     taskPool_.Enqueue(task);
 }
-
-
 
 int DiskCacheManagerImpl::WriteReadDirectClosure(
     std::shared_ptr<PutObjectAsyncContext> context) {

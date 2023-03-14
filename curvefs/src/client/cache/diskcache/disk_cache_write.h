@@ -19,8 +19,8 @@
  * Created Date: 21-08-13
  * Author: wuhongsong
  */
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_WRITE_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_WRITE_H_
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_WRITE_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_WRITE_H_
 
 #include <sys/stat.h>
 #include <bthread/condition_variable.h>
@@ -39,9 +39,8 @@
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
 #include "curvefs/src/client/common/config.h"
-#include "curvefs/src/client/s3/disk_cache_base.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_base.h"
 
 namespace curvefs {
 namespace client {
@@ -167,4 +166,4 @@ class DiskCacheWrite : public DiskCacheBase {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_WRITE_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_WRITE_H_

@@ -44,6 +44,8 @@ TEST(TestInitVolumeOption, Common) {
     conf.SetUInt64Value("volume.bitmapAllocator.sizePerBit",
                         4ULL * 1024 * 1024);
     conf.SetDoubleValue("volume.bitmapAllocator.smallAllocProportion", 0.0);
+    conf.SetDoubleValue("volume.space.useThreshold", 0.90);
+    conf.SetUInt64Value("volume.space.releaseInterSec", 300);
 
     ASSERT_NO_FATAL_FAILURE({ InitVolumeOption(&conf, &volopt); });
 }
@@ -56,6 +58,7 @@ TEST(TestInitVolumeOption, TypeError) {
     conf.SetUInt64Value("volume.volBlockSize", 4096);
     conf.SetUInt64Value("volume.fsBlockSize", 4096);
     conf.SetUInt32Value("volume.blockGroup.allocateOnce", 4);
+    conf.SetDoubleValue("volume.space.useThreshold", 0.9);
     conf.SetStringValue("volume.allocator.type", "xxx");
     conf.SetUInt64Value("volume.bitmapAllocator.sizePerBit",
                         4ULL * 1024 * 1024);

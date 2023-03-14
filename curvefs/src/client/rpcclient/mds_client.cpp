@@ -710,6 +710,8 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
         AllocateBlockGroupResponse response;
         mdsbasecli_->AllocateVolumeBlockGroup(fsId, count, owner, &response,
                                               cntl, channel);
+        VLOG(9) << "AllocateVolumeBlockGroup, response: "
+                    << response.DebugString();
 
         CHECK_RPC_AND_RETRY_IF_ERROR("AllocateVolumeBlockGroup");
 
