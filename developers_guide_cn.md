@@ -1,4 +1,4 @@
-[English version](Community_Guidelines.md)
+[English version](developers_guide.md)
 
 
 ## 概述
