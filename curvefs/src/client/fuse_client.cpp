@@ -39,6 +39,7 @@
 #include "curvefs/src/client/fuse_common.h"
 #include "curvefs/src/client/client_operator.h"
 #include "curvefs/src/client/inode_wrapper.h"
+#include "curvefs/src/client/kvclient/memcache_client.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/common/define.h"
@@ -49,13 +50,18 @@
 
 #define PORT_LIMIT 65535
 
-using ::curvefs::common::S3Info;
-using ::curvefs::common::Volume;
-using ::curvefs::mds::topology::PartitionTxId;
+namespace curvefs {
+namespace client {
+namespace common {
+DECLARE_bool(enableCto);
+
+}  // namespace common
+}  // namespace client
+}  // namespace curvefs
+
 using ::curvefs::mds::FSStatusCode_Name;
 using ::curvefs::client::common::MAX_XATTR_NAME_LENGTH;
 using ::curvefs::client::common::MAX_XATTR_VALUE_LENGTH;
-using ::curvefs::client::common::FileHandle;
 
 #define RETURN_IF_UNSUCCESS(action)                                            \
     do {                                                                       \
@@ -64,15 +70,6 @@ using ::curvefs::client::common::FileHandle;
             return rc;                                                         \
         }                                                                      \
     } while (0)
-
-
-namespace curvefs {
-namespace client {
-namespace common {
-DECLARE_bool(enableCto);
-}  // namespace common
-}  // namespace client
-}  // namespace curvefs
 
 namespace curvefs {
 namespace client {
@@ -84,10 +81,10 @@ using rpcclient::MetaCache;
 using common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
+    LOG(INFO) << "fuse client init start.";
     option_ = option;
-
     mdsBase_ = new MDSBaseClient();
-    FSStatusCode ret = mdsClient_->Init(option.mdsOpt, mdsBase_);
+    auto ret = mdsClient_->Init(option.mdsOpt, mdsBase_);
     if (ret != FSStatusCode::OK) {
         return CURVEFS_ERROR::INTERNAL;
     }
@@ -117,14 +114,14 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     curve::client::ClientDummyServerInfo::GetInstance().SetPort(listenPort);
     curve::client::ClientDummyServerInfo::GetInstance().SetIP(localIp);
 
-    MetaStatusCode ret2 =
+    auto ret2 =
         metaClient_->Init(option.excutorOpt, option.excutorInternalOpt,
                           metaCache, channelManager);
     if (ret2 != MetaStatusCode::OK) {
         return CURVEFS_ERROR::INTERNAL;
     }
 
-    CURVEFS_ERROR ret3 =
+    auto ret3 =
         inodeManager_->Init(option.iCacheLruSize, option.enableICacheMetrics,
                             option.flushPeriodSec, option.refreshDataOption,
                             option.lruTimeOutSec);
@@ -143,6 +140,7 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         warmupManager_->SetFsInfo(fsInfo_);
     }
 
+    LOG(INFO) << "fuse client init success.";
     return ret3;
 }
 
@@ -153,6 +151,7 @@ void FuseClient::UnInit() {
 
     delete mdsBase_;
     mdsBase_ = nullptr;
+    // s3Adaptor_->Stop();
 }
 
 CURVEFS_ERROR FuseClient::Run() {
@@ -228,8 +227,8 @@ void InodeAttr2ParamAttr(const InodeAttr &inodeAttr, struct stat *attr) {
     attr->st_ctim.tv_sec = inodeAttr.ctime();
     attr->st_ctim.tv_nsec = inodeAttr.ctime_ns();
     attr->st_blksize = kOptimalIOBlockSize;
-
     switch (inodeAttr.type()) {
+        // TODO(@hzwuhongsong): type_volume?
         case metaserver::TYPE_S3:
             attr->st_blocks = (inodeAttr.length() + 511) / 512;
             break;

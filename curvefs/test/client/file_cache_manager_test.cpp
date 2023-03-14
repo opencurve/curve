@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
 #include "curvefs/test/client/mock_inode_cache_manager.h"
 #include "curvefs/test/client/mock_client_s3.h"
@@ -48,16 +48,19 @@ using ::testing::SetArgPointee;
 using ::testing::SetArgReferee;
 using ::testing::WithArg;
 
-// extern KVClientManager *g_kvClientManager;
-
 class FileCacheManagerTest : public testing::Test {
  protected:
     FileCacheManagerTest() {}
     ~FileCacheManagerTest() {}
     void SetUp() override {
+        Aws::InitAPI(awsOptions_);
         uint64_t inodeId = 1;
         uint64_t fsId = 2;
-        S3ClientAdaptorOption option;
+        FuseClientOption fuseOption;
+        fuseOption.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
+        fuseOption.listDentryThreads = 1;
+        fuseOption.warmupThreadsNum = 1;
+        S3ClientAdaptorOption& option = fuseOption.s3Opt.s3ClientAdaptorOpt;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
         option.pageSize = 64 * 1024;
@@ -67,14 +70,17 @@ class FileCacheManagerTest : public testing::Test {
         option.writeCacheMaxByte = 10485760000;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         option.chunkFlushThreads = 5;
+        option.prefetchExecQueueNum = 1;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
+        s3ClientAdaptor_->SetBlockSize(option.blockSize);
+        s3ClientAdaptor_->SetChunkSize(option.chunkSize);
         auto fsCacheManager_ = std::make_shared<FsCacheManager>(
             s3ClientAdaptor_, option.readCacheMaxByte, option.writeCacheMaxByte,
             nullptr);
         mockInodeManager_ = std::make_shared<MockInodeCacheManager>();
-        mockS3Client_ = std::make_shared<MockS3Client>();
-        s3ClientAdaptor_->Init(option, mockS3Client_, mockInodeManager_,
-                               nullptr, fsCacheManager_, nullptr, nullptr);
+
+        s3ClientAdaptor_->Init(fuseOption, mockInodeManager_,
+          nullptr, fsCacheManager_, nullptr, nullptr, nullptr);
         s3ClientAdaptor_->SetFsId(fsId);
         fileCacheManager_ = std::make_shared<FileCacheManager>(
             fsId, inodeId, s3ClientAdaptor_, nullptr);
@@ -84,7 +90,7 @@ class FileCacheManagerTest : public testing::Test {
     }
 
     void TearDown() override {
-        // s3ClientAdaptor_->Stop();
+        Aws::ShutdownAPI(awsOptions_);
         delete s3ClientAdaptor_;
         s3ClientAdaptor_ = nullptr;
     }
@@ -94,8 +100,8 @@ class FileCacheManagerTest : public testing::Test {
     std::shared_ptr<FileCacheManager> fileCacheManager_;
     std::shared_ptr<MockChunkCacheManager> mockChunkCacheManager_;
     std::shared_ptr<MockInodeCacheManager> mockInodeManager_;
-    std::shared_ptr<MockS3Client> mockS3Client_;
     std::shared_ptr<KVClientManager> kvClientManager_;
+    Aws::SDKOptions awsOptions_;
 };
 
 TEST_F(FileCacheManagerTest, test_FindOrCreateChunkCacheManager) {
@@ -180,15 +186,14 @@ TEST_F(FileCacheManagerTest, test_read_cache) {
     std::vector<ReadRequest> requests;
     std::vector<ReadRequest> emptyRequests;
     requests.emplace_back(request);
-    EXPECT_CALL(*mockChunkCacheManager_, ReadByWriteCache(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
-    EXPECT_CALL(*mockChunkCacheManager_, ReadByReadCache(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(emptyRequests), Return()))
-        .WillOnce(DoAll(SetArgPointee<4>(emptyRequests), Return()));
+
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
     fileCacheManager_->SetChunkCacheManagerForTest(1, mockChunkCacheManager_);
 
+    std::vector<ReadRequest> tmpMissRequests;
+    EXPECT_CALL(*mockChunkCacheManager_, ReadChunk(_, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<5>(tmpMissRequests), Return()))
+        .WillOnce(DoAll(SetArgPointee<5>(tmpMissRequests), Return()));
     ASSERT_EQ(len, fileCacheManager_->Read(inodeId, offset, len, buf));
 }
 
@@ -205,13 +210,17 @@ TEST_F(FileCacheManagerTest, test_read_getinode_fail) {
     request.len = len;
     request.bufOffset = 0;
     requests.emplace_back(request);
-    EXPECT_CALL(*mockChunkCacheManager_, ReadByWriteCache(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
-    EXPECT_CALL(*mockChunkCacheManager_, ReadByReadCache(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
+
+    std::vector<ReadRequest> tmpMissRequests;
+    EXPECT_CALL(*mockChunkCacheManager_, ReadChunk(_, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<5>(tmpMissRequests), Return()));
+    ASSERT_EQ(1024, fileCacheManager_->Read(inodeId, offset, len, buf));
+
     EXPECT_CALL(*mockInodeManager_, GetInode(_, _))
         .WillOnce(Return(CURVEFS_ERROR::NOTEXIST));
+    EXPECT_CALL(*mockChunkCacheManager_, ReadChunk(_, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<5>(requests), Return()));
     ASSERT_EQ(-1, fileCacheManager_->Read(inodeId, offset, len, buf));
 }
 
@@ -231,14 +240,6 @@ TEST_F(FileCacheManagerTest, test_read_s3) {
     request.len = len;
     request.bufOffset = 0;
     requests.emplace_back(request);
-    EXPECT_CALL(*mockChunkCacheManager_, ReadByWriteCache(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
-    EXPECT_CALL(*mockChunkCacheManager_, ReadByReadCache(_, _, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()))
-        .WillOnce(DoAll(SetArgPointee<4>(requests), Return()));
-    EXPECT_CALL(*mockChunkCacheManager_, AddReadDataCache(_))
-        .WillOnce(Return());
     fileCacheManager_->SetChunkCacheManagerForTest(0, mockChunkCacheManager_);
     Inode inode;
     inode.set_length(len);
@@ -253,17 +254,12 @@ TEST_F(FileCacheManagerTest, test_read_s3) {
     s3ChunkInfo->set_zero(false);
     s3ChunkInfoMap->insert({0, *s3ChunkInfoList});
     auto inodeWrapper = std::make_shared<InodeWrapper>(inode, nullptr);
-    EXPECT_CALL(*mockInodeManager_, GetInode(_, _))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)))
-        .WillOnce(
-            DoAll(SetArgReferee<1>(inodeWrapper), Return(CURVEFS_ERROR::OK)));
-    EXPECT_CALL(*mockS3Client_, Download(_, _, _, _))
-        .WillOnce(DoAll(SetArgPointee<1>(*tmpbuf), Return(len)))
-        .WillOnce(Return(-1));
+
+    std::vector<ReadRequest> tmpMissRequests;
+    EXPECT_CALL(*mockChunkCacheManager_, ReadChunk(_, _, _, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<5>(tmpMissRequests), Return()));
 
     ASSERT_EQ(len, fileCacheManager_->Read(inodeId, offset, len, buf));
-    ASSERT_EQ(-1, fileCacheManager_->Read(inodeId, offset, len, buf));
 
     delete buf;
     delete tmpbuf;

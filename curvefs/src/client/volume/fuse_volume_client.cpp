@@ -21,7 +21,7 @@
  * Author: xuchaojie
  */
 
-#include "curvefs/src/client/fuse_volume_client.h"
+#include "curvefs/src/client/volume/fuse_volume_client.h"
 
 #include <butil/time.h>
 #include <bvar/bvar.h>
@@ -47,32 +47,26 @@ using ::curvefs::volume::BlockDeviceClientOptions;
 using ::curvefs::volume::BlockDeviceClientImpl;
 
 CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
-    volOpts_ = option.volumeOpt;
-
     CURVEFS_ERROR ret = FuseClient::Init(option);
-
     if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "Init failed: " << ret;
         return ret;
     }
 
-    BlockDeviceClientOptions opts;
-    opts.configPath = option.bdevOpt.configPath;
-
-    bool ret2 = blockDeviceClient_->Init(opts);
-
-    if (!ret2) {
-        LOG(ERROR) << "Init block device client failed";
-        return CURVEFS_ERROR::INTERNAL;
-    }
+    auto fsCacheManager = std::make_shared<FsCacheManager>(
+        dynamic_cast<StorageAdaptor*>(storageAdaptor_.get()),
+        option.s3Opt.s3ClientAdaptorOpt.readCacheMaxByte,
+        option.s3Opt.s3ClientAdaptorOpt.writeCacheMaxByte,
+        nullptr);  // bs no need cache cluster
+    ret = storageAdaptor_->Init(option,
+        inodeManager_, mdsClient_, fsCacheManager,
+        nullptr, nullptr, fsInfo_);  // no need cache cluster and diskcache
 
     return ret;
 }
 
 void FuseVolumeClient::UnInit() {
-    storage_->Shutdown();
-    spaceManager_->Shutdown();
-    blockDeviceClient_->UnInit();
-
+    storageAdaptor_->Stop();
     FuseClient::UnInit();
 }
 
@@ -83,151 +77,136 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpInit(void *userdata,
         LOG(ERROR) << "fuse op init failed, error: " << ret;
         return ret;
     }
-
-    const auto &vol = fsInfo_->detail().volume();
-    const auto &volName = vol.volumename();
-    const auto &user = vol.user();
-    auto ret2 = blockDeviceClient_->Open(volName, user);
-    if (!ret2) {
-        LOG(ERROR) << "BlockDeviceClientImpl open failed, ret = " << ret
-                   << ", volName = " << volName << ", user = " << user;
-        return CURVEFS_ERROR::INTERNAL;
-    }
-
-    SpaceManagerOption option;
-    option.blockGroupManagerOption.fsId = fsInfo_->fsid();
-    option.blockGroupManagerOption.owner = mountpoint_.hostname() + ":" +
-                                           std::to_string(mountpoint_.port()) +
-                                           ":" + mountpoint_.path();
-    option.blockGroupManagerOption.blockGroupAllocateOnce =
-        volOpts_.allocatorOption.blockGroupOption.allocateOnce;
-    option.blockGroupManagerOption.blockGroupSize =
-        fsInfo_->detail().volume().blockgroupsize();
-    option.blockGroupManagerOption.blockSize =
-        fsInfo_->detail().volume().blocksize();
-
-    option.allocatorOption.type = volOpts_.allocatorOption.type;
-    option.allocatorOption.bitmapAllocatorOption.sizePerBit =
-        volOpts_.allocatorOption.bitmapAllocatorOption.sizePerBit;
-    option.allocatorOption.bitmapAllocatorOption.smallAllocProportion =
-        volOpts_.allocatorOption.bitmapAllocatorOption.smallAllocProportion;
-
-    spaceManager_ = absl::make_unique<SpaceManagerImpl>(option, mdsClient_,
-                                                        blockDeviceClient_);
-
-    storage_ = absl::make_unique<DefaultVolumeStorage>(
-        spaceManager_.get(), blockDeviceClient_.get(), inodeManager_.get());
-
-    ExtentCacheOption extentOpt;
-    extentOpt.blockSize = vol.blocksize();
-    extentOpt.sliceSize = vol.slicesize();
-
-    ExtentCache::SetOption(extentOpt);
-
+    Mountpoint mountPoint = GetMountPoint();
+    std::string mountOwner = mountPoint.hostname() + ":" +
+        std::to_string(mountPoint.port()) +
+        ":" + mountPoint.path();
+    storageAdaptor_->SetMountOwner(mountOwner);
+    storageAdaptor_->FuseOpInit(userdata, conn);
+    LOG(INFO) << "fuse op Init success: " << mountOwner;
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req,
-                                            fuse_ino_t ino,
-                                            const char *buf,
-                                            size_t size,
-                                            off_t off,
-                                            struct fuse_file_info *fi,
-                                            size_t *wSize) {
-    VLOG(9) << "write start, ino: " << ino << ", offset: " << off
-            << ", length: " << size;
-
+CURVEFS_ERROR FuseVolumeClient::FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
+        const char *buf, size_t size, off_t off,
+        struct fuse_file_info *fi,
+        size_t *wSize) {
+    // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
-              is_aligned(size, DirectIOAlignment))) {
-            fsMetric_->userWrite.eps.count << 1;
+              is_aligned(size, DirectIOAlignment)))
             return CURVEFS_ERROR::INVALIDPARAM;
-        }
+    }
+    uint64_t start = butil::cpuwide_time_us();
+    int wRet = storageAdaptor_->Write(ino, off, size, buf);
+    if (wRet < 0) {
+        LOG(ERROR) << "storageAdaptor_ write failed, ret = " << wRet;
+        return CURVEFS_ERROR::INTERNAL;
     }
 
-    butil::Timer timer;
-    timer.start();
+    if (fsMetric_.get() != nullptr) {
+        fsMetric_->userWrite.bps.count << wRet;
+        fsMetric_->userWrite.qps.count << 1;
+        uint64_t duration = butil::cpuwide_time_us() - start;
+        fsMetric_->userWrite.latency << duration;
+        fsMetric_->userWriteIoSize.set_value(wRet);
+    }
 
-    CURVEFS_ERROR ret = storage_->Write(ino, off, size, buf);
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
-        if (fsMetric_) {
-            fsMetric_->userWrite.eps.count << 1;
-        }
-        LOG(ERROR) << "write error, ino: " << ino << ", offset: " << off
-                   << ", len: " << size
-                   << ", error: " << ret;
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << ino;
         return ret;
     }
 
-    *wSize = size;
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
 
-    // NOTE: O_DIRECT/O_SYNC/O_DSYNC have simillar semantic, but not exactly the
-    // same, see `man 2 open` for more details
+    *wSize = wRet;
+    size_t changeSize = 0;
+    // update file len
+    if (inodeWrapper->GetLengthLocked() < off + *wSize) {
+        changeSize = off + *wSize - inodeWrapper->GetLengthLocked();
+        inodeWrapper->SetLengthLocked(off + *wSize);
+    }
+
+    inodeWrapper->UpdateTimestampLocked(kModifyTime | kChangeTime);
+
+    inodeManager_->ShipToFlush(inodeWrapper);
+
     if (fi->flags & O_DIRECT || fi->flags & O_SYNC || fi->flags & O_DSYNC) {
         // Todo: do some cache flush later
     }
 
-    timer.stop();
-
-    if (fsMetric_) {
-        fsMetric_->userWrite.bps.count << size;
-        fsMetric_->userWrite.qps.count << 1;
-        fsMetric_->userWrite.latency << timer.u_elapsed();
-        fsMetric_->userWriteIoSize.set_value(size);
+    if (enableSumInDir_ && changeSize != 0) {
+        const Inode* inode = inodeWrapper->GetInodeLocked();
+        XAttr xattr;
+        xattr.mutable_xattrinfos()->insert({XATTRFBYTES,
+            std::to_string(changeSize)});
+        for (const auto &it : inode->parent()) {
+            auto tret = xattrManager_->UpdateParentInodeXattr(it, xattr, true);
+            if (tret != CURVEFS_ERROR::OK) {
+                LOG(ERROR) << "UpdateParentInodeXattr failed,"
+                           << " inodeId = " << it
+                           << ", xattr = " << xattr.DebugString();
+            }
+        }
     }
-
-    VLOG(9) << "write end, ino: " << ino << ", offset: " << off
-            << ", length: " << size << ", written: " << *wSize;
-
-    return CURVEFS_ERROR::OK;
+    return ret;
 }
 
-CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
-                                           fuse_ino_t ino,
-                                           size_t size,
-                                           off_t off,
-                                           struct fuse_file_info *fi,
-                                           char *buffer,
-                                           size_t *rSize) {
-    VLOG(3) << "read start, ino: " << ino << ", offset: " << off
-            << ", length: " << size;
-
+CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
+                                       size_t size, off_t off,
+                                       struct fuse_file_info *fi, char *buffer,
+                                       size_t *rSize) {
     // check align
     if (fi->flags & O_DIRECT) {
         if (!(is_aligned(off, DirectIOAlignment) &&
-              is_aligned(size, DirectIOAlignment))) {
-            fsMetric_->userRead.eps.count << 1;
-
+              is_aligned(size, DirectIOAlignment)))
             return CURVEFS_ERROR::INVALIDPARAM;
-        }
     }
 
-    butil::Timer timer;
-    timer.start();
-
-    CURVEFS_ERROR ret = storage_->Read(ino, off, size, buffer);
+    uint64_t start = butil::cpuwide_time_us();
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
-        if (fsMetric_) {
-            fsMetric_->userRead.eps.count << 1;
-        }
-        LOG(ERROR) << "read error, ino: " << ino << ", offset: " << off
-                   << ", len: " << size << ", error: " << ret;
+        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+                   << ", inodeid = " << ino;
         return ret;
     }
+    uint64_t fileSize = inodeWrapper->GetLength();
 
-    if (fsMetric_) {
-        fsMetric_->userRead.bps.count << size;
-        fsMetric_->userRead.qps.count << 1;
-        fsMetric_->userRead.latency << timer.u_elapsed();
-        fsMetric_->userReadIoSize.set_value(size);
+    size_t len = 0;
+    if (fileSize <= off) {
+        *rSize = 0;
+        return CURVEFS_ERROR::OK;
+    } else if (fileSize < off + size) {
+        len = fileSize - off;
+    } else {
+        len = size;
     }
 
-    *rSize = size;
+    int rRet = storageAdaptor_->Read(ino, off, len, buffer);
+    if (rRet < 0) {
+        LOG(ERROR) << "storageAdaptor_ read failed, ret = " << rRet;
+        return CURVEFS_ERROR::INTERNAL;
+    }
+    *rSize = rRet;
 
-    VLOG(3) << "read end, ino: " << ino << ", offset: " << off
-            << ", length: " << size << ", rsize: " << *rSize;
+    if (fsMetric_.get() != nullptr) {
+        fsMetric_->userRead.bps.count << rRet;
+        fsMetric_->userRead.qps.count << 1;
+        uint64_t duration = butil::cpuwide_time_us() - start;
+        fsMetric_->userRead.latency << duration;
+        fsMetric_->userReadIoSize.set_value(rRet);
+    }
 
-    return CURVEFS_ERROR::OK;
+    ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
+    inodeWrapper->UpdateTimestampLocked(kAccessTime);
+    inodeManager_->ShipToFlush(inodeWrapper);
+
+    VLOG(9) << "read end, read size = " << *rSize;
+    return ret;
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
@@ -273,8 +252,9 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                             int datasync,
                                             struct fuse_file_info *fi) {
     VLOG(3) << "FuseOpFsync start, ino: " << ino << ", datasync: " << datasync;
-
-    CURVEFS_ERROR ret = storage_->Flush(ino);
+    CURVEFS_ERROR ret = CURVEFS_ERROR::OK;
+    ret = dynamic_cast<VolumeClientAdaptorImpl*>(
+      storageAdaptor_.get())->getUnderStorage()->Flush(ino);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "Storage flush ino: " << ino << " failed, error: " << ret;
         return ret;
@@ -306,7 +286,8 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                             struct fuse_file_info *fi) {
     VLOG(9) << "FuseOpFlush, ino: " << ino;
 
-    CURVEFS_ERROR ret = storage_->Flush(ino);
+    CURVEFS_ERROR ret =   dynamic_cast< VolumeClientAdaptorImpl *>(
+      storageAdaptor_.get())->getUnderStorage()->Flush(ino);
     LOG_IF(ERROR, ret != CURVEFS_ERROR::OK)
         << "Flush error, ino: " << ino << ", error: " << ret;
 
@@ -318,11 +299,12 @@ void FuseVolumeClient::FlushData() {
 }
 
 void FuseVolumeClient::SetSpaceManagerForTesting(SpaceManager *manager) {
-    spaceManager_.reset(manager);
+  //  spaceManager_.reset(manager);
 }
 
 void FuseVolumeClient::SetVolumeStorageForTesting(VolumeStorage *storage) {
-    storage_.reset(storage);
+//    dynamic_cast< VolumeClientAdaptorImpl *>(
+//      storageAdaptor_.get())->getUnderStorage()->reset(storage);
 }
 
 }  // namespace client

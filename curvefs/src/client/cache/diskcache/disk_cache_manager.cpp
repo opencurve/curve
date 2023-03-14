@@ -27,7 +27,7 @@
 #include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
 
 namespace curvefs {
 

@@ -57,6 +57,7 @@ struct SetKVCacheTask {
     std::string key;
     const char *value;
     uint64_t length;
+    uint64_t startTime;
     SetKVCacheDone done;
     SetKVCacheTask() = default;
     SetKVCacheTask(
@@ -71,6 +72,7 @@ struct GetKVCacheTask {
     uint64_t offset;
     uint64_t length;
     bool res;
+    uint64_t startTime;
     GetKVCacheDone done;
     GetKVCacheTask(const std::string &k, char *v, uint64_t off, uint64_t len)
         : key(k), value(v), offset(off), length(len), res(false) {

@@ -1,4 +1,11 @@
 /*
+ * @Author: hzwuhongsong
+ * @Date: 2023-03-27 16:19:22
+ * @LastEditors: hzwuhongsong hzwuhongsong@corp.netease.com
+ * @LastEditTime: 2023-04-11 20:27:45
+ * @Description: cursorMoveOnType
+ */
+/*
  *  Copyright (c) 2020 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,24 +36,37 @@
 #include <string>
 
 #include "curvefs/src/client/inode_wrapper.h"
-#include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/client/client_storage_adaptor.h"
 
 namespace curvefs {
 namespace client {
 
-class MockS3ClientAdaptor : public S3ClientAdaptor {
+class MockS3ClientAdaptor : public StorageAdaptor {
  public:
-    MOCK_METHOD8(Init,
-                 CURVEFS_ERROR(const S3ClientAdaptorOption &option,
-                               std::shared_ptr<S3Client> client,
-                               std::shared_ptr<InodeCacheManager> inodeManager,
-                               std::shared_ptr<MdsClient> mdsClient,
-                               std::shared_ptr<FsCacheManager> fsCacheManager,
-                               std::shared_ptr<DiskCacheManagerImpl>
-                                   diskCacheManagerImpl,
-                                std::shared_ptr<KVClientManager>
-                                    kvClientManager,
-                               bool startBackGround));
+    MockS3ClientAdaptor() : StorageAdaptor() {
+    }
+    ~MockS3ClientAdaptor() {
+        StorageAdaptor::Stop();
+    }
+
+    MOCK_METHOD7(Init,
+        CURVEFS_ERROR(const S3ClientAdaptorOption &option,
+            std::shared_ptr<InodeCacheManager> inodeManager,
+            std::shared_ptr<MdsClient> mdsClient,
+            std::shared_ptr<FsCacheManager> fsCacheManager,
+            std::shared_ptr<DiskCacheManagerImpl>
+                diskCacheManagerImpl,
+            std::shared_ptr<KVClientManager>
+                kvClientManager,
+            std::shared_ptr<FsInfo> fsInfo));
+
+    MOCK_METHOD2(FuseOpInit, CURVEFS_ERROR(void *userdata,
+      struct fuse_conn_info *conn));
+
+    MOCK_METHOD2(FlushDataCache, CURVEFS_ERROR(const UperFlushRequest& req,
+      uint64_t* writeOffset));
+
+    MOCK_METHOD1(ReadFromLowlevel, CURVEFS_ERROR(UperReadRequest request));
 
     MOCK_METHOD4(Write, int(uint64_t inodeId, uint64_t offset, uint64_t length,
                             const char* buf));

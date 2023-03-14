@@ -35,8 +35,8 @@
 #include "src/common/configuration.h"
 #include "src/common/gflags_helper.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/fuse_volume_client.h"
-#include "curvefs/src/client/fuse_s3_client.h"
+#include "curvefs/src/client/volume/fuse_volume_client.h"
+#include "curvefs/src/client/s3/fuse_s3_client.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/base_client.h"
 #include "curvefs/src/client/metric/client_metric.h"
@@ -164,7 +164,6 @@ int InitFuseClient(const struct MountOption *mountOption) {
     } else if (fsInfo->fstype() == FSType::TYPE_VOLUME) {
        fsTypeMds = "volume";
     }
-
     if (fsTypeMds != fsTypeStr) {
         LOG(ERROR) << "The parameter fstype is inconsistent with mds!";
         return -1;

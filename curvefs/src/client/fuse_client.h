@@ -43,6 +43,7 @@
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
+#include "curvefs/src/client/volume/client_volume_adaptor.h"
 #include "curvefs/src/common/fast_align.h"
 #include "curvefs/src/client/metric/client_metric.h"
 #include "src/common/concurrent/concurrent.h"
@@ -87,17 +88,18 @@ using mds::Mountpoint;
 class FuseClient {
  public:
     FuseClient()
-      : mdsClient_(std::make_shared<MdsClientImpl>()),
-        metaClient_(std::make_shared<MetaServerClientImpl>()),
-        inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
-        dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
-        dirBuf_(std::make_shared<DirBuffer>()),
-        fsInfo_(nullptr),
-        mdsBase_(nullptr),
-        isStop_(true),
-        init_(false),
-        enableSumInDir_(false),
-        warmupManager_(nullptr) {}
+    : mdsClient_(std::make_shared<MdsClientImpl>()),
+      metaClient_(std::make_shared<MetaServerClientImpl>()),
+      inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
+      dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
+      dirBuf_(std::make_shared<DirBuffer>()),
+      fsInfo_(nullptr),
+      mdsBase_(nullptr),
+      isStop_(true),
+      init_(false),
+      enableSumInDir_(false),
+      warmupManager_(nullptr) {
+    }
 
     virtual ~FuseClient() {}
 
@@ -116,7 +118,8 @@ class FuseClient {
             isStop_(true),
             init_(false),
             enableSumInDir_(false),
-            warmupManager_(warmupManager) {}
+            warmupManager_(warmupManager) {
+        }
 
     virtual CURVEFS_ERROR Init(const FuseClientOption &option);
 
@@ -219,10 +222,9 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpFsync(fuse_req_t req, fuse_ino_t ino,
                                       int datasync,
                                       struct fuse_file_info* fi) = 0;
+
     virtual CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
-                                      struct fuse_file_info *fi) {
-        return CURVEFS_ERROR::OK;
-    }
+                                      struct fuse_file_info *fi) = 0;
 
     virtual CURVEFS_ERROR FuseOpStatFs(fuse_req_t req, fuse_ino_t ino,
                                        struct statvfs* stbuf) {
@@ -290,6 +292,9 @@ class FuseClient {
     }
 
     CURVEFS_ERROR SetMountStatus(const struct MountOption *mountOption);
+    Mountpoint& GetMountPoint() {
+        return mountpoint_;
+    }
 
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,

@@ -19,8 +19,9 @@
  * Created Date: 21-08-13
  * Author: wuhongsong
  */
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
+
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_H_
 
 #include <bthread/mutex.h>
 
@@ -38,8 +39,8 @@
 #include "curvefs/src/common/wrap_posix.h"
 #include "curvefs/src/common/utils.h"
 #include "curvefs/src/client/s3/client_s3.h"
-#include "curvefs/src/client/s3/disk_cache_write.h"
-#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_write.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_read.h"
 #include "curvefs/src/client/common/config.h"
 namespace curvefs {
 namespace client {
@@ -202,4 +203,4 @@ class DiskCacheManager {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_MANAGER_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_MANAGER_H_

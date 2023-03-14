@@ -1,4 +1,12 @@
 /*
+ * @Author: hzwuhongsong hzwuhongsong@corp.netease.com
+ * @Date: 2023-04-03 17:38:53
+ * @LastEditors: hzwuhongsong hzwuhongsong@corp.netease.com
+ * @LastEditTime: 2023-04-03 17:38:54
+ * @FilePath: /curve/curvefs/test/client/mock_disk_cache_manager.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+/*
  *  Copyright (c) 2020 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,8 +41,8 @@
 #include <list>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/disk_cache_manager.h"
-#include "curvefs/src/client/s3/disk_cache_manager_impl.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_manager_impl.h"
 
 namespace curvefs {
 namespace client {
@@ -80,10 +88,11 @@ class MockDiskCacheManagerImpl : public DiskCacheManagerImpl {
         : DiskCacheManagerImpl(std::move(diskCacheManager), std::move(client)) {
     }
     ~MockDiskCacheManagerImpl() {}
-
+    MOCK_METHOD1(Init, int(const S3ClientAdaptorOption option));
     MOCK_METHOD1(UploadWriteCacheByInode, int(const std::string &inode));
     MOCK_METHOD1(ClearReadCache, int(const std::list<std::string> &files));
     MOCK_METHOD1(IsCached, bool(const std::string));
+    MOCK_METHOD0(UmountDiskCache, int());
 };
 
 }  // namespace client

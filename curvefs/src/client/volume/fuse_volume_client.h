@@ -21,13 +21,13 @@
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_SRC_CLIENT_FUSE_VOLUME_CLIENT_H_
-#define CURVEFS_SRC_CLIENT_FUSE_VOLUME_CLIENT_H_
+#ifndef CURVEFS_SRC_CLIENT_VOLUME_FUSE_VOLUME_CLIENT_H_
+#define CURVEFS_SRC_CLIENT_VOLUME_FUSE_VOLUME_CLIENT_H_
 
 #include <memory>
 
 #include "curvefs/src/client/fuse_client.h"
-#include "curvefs/src/client/volume/volume_storage.h"
+#include "curvefs/src/client/volume/client_volume_adaptor.h"
 #include "curvefs/src/volume/block_device_client.h"
 #include "curvefs/src/volume/space_manager.h"
 
@@ -35,6 +35,7 @@ namespace curvefs {
 namespace client {
 
 using common::VolumeOption;
+using mds::Mountpoint;
 using ::curvefs::volume::BlockDeviceClient;
 using ::curvefs::volume::BlockDeviceClientImpl;
 using ::curvefs::volume::SpaceManager;
@@ -42,8 +43,9 @@ using ::curvefs::volume::SpaceManager;
 class FuseVolumeClient : public FuseClient {
  public:
     FuseVolumeClient()
-        : FuseClient(),
-          blockDeviceClient_(std::make_shared<BlockDeviceClientImpl>()) {}
+        : FuseClient() {
+        storageAdaptor_ = std::make_shared<VolumeClientAdaptorImpl>();
+    }
 
     // for UNIT_TEST
     FuseVolumeClient(
@@ -51,10 +53,12 @@ class FuseVolumeClient : public FuseClient {
         const std::shared_ptr<MetaServerClient> &metaClient,
         const std::shared_ptr<InodeCacheManager> &inodeManager,
         const std::shared_ptr<DentryCacheManager> &dentryManager,
-        const std::shared_ptr<BlockDeviceClient> &blockDeviceClient)
+        const std::shared_ptr<BlockDeviceClient> &blockDeviceClient,
+        const std::shared_ptr<VolumeClientAdaptorImpl> &storageAdaptor)
         : FuseClient(mdsClient, metaClient, inodeManager, dentryManager,
-                     nullptr),
-          blockDeviceClient_(blockDeviceClient) {}
+                     nullptr) {
+            storageAdaptor_ = storageAdaptor;
+        }
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
@@ -63,19 +67,24 @@ class FuseVolumeClient : public FuseClient {
     CURVEFS_ERROR FuseOpInit(
         void *userdata, struct fuse_conn_info *conn) override;
 
-    CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
-        const char *buf, size_t size, off_t off,
-        struct fuse_file_info *fi, size_t *wSize) override;
 
-    CURVEFS_ERROR FuseOpRead(fuse_req_t req,
-            fuse_ino_t ino, size_t size, off_t off,
-            struct fuse_file_info *fi,
-            char *buffer,
-            size_t *rSize) override;
     CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, struct fuse_file_info *fi,
         fuse_entry_param *e) override;
 
+// for volume
+    CURVEFS_ERROR FuseOpRead(fuse_req_t req, fuse_ino_t ino,
+        size_t size, off_t off,
+        struct fuse_file_info *fi, char *buffer,
+        size_t *rSize) override;
+
+    CURVEFS_ERROR FuseOpWrite(fuse_req_t req, fuse_ino_t ino,
+        const char *buf, size_t size, off_t off,
+        struct fuse_file_info *fi,
+        size_t *wSize) override;
+
+
+// for volume
     CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, dev_t rdev,
         fuse_entry_param *e) override;
@@ -103,14 +112,10 @@ class FuseVolumeClient : public FuseClient {
     void FlushData() override;
 
  private:
-    std::shared_ptr<BlockDeviceClient> blockDeviceClient_;
-    std::unique_ptr<SpaceManager> spaceManager_;
-    std::unique_ptr<VolumeStorage> storage_;
-
-    VolumeOption volOpts_;
+    std::shared_ptr<StorageAdaptor> storageAdaptor_;
 };
 
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_FUSE_VOLUME_CLIENT_H_
+#endif  // CURVEFS_SRC_CLIENT_VOLUME_FUSE_VOLUME_CLIENT_H_

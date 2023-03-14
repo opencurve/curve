@@ -1,3 +1,10 @@
+'''
+Author: hzwuhongsong
+Date: 2023-03-21 11:36:44
+LastEditors: Please set LastEditors
+LastEditTime: 2023-03-22 09:46:43
+Description: cursorMoveOnType
+'''
 #
 #  Copyright (c) 2021 NetEase Inc.
 #
@@ -45,6 +52,11 @@ cc_library(
             "volume/*.h",
             "warmup/*.h",
             "warmup/*.cpp",
+            "cache/*.h",
+            "cache/*.cpp",
+            "cache/diskcache/*.h",
+            "cache/diskcache/*.cpp",
+
         ],
         exclude = ["main.cpp"],
     ),

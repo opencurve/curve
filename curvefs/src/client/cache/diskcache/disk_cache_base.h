@@ -1,4 +1,12 @@
 /*
+ * @Author: hzwuhongsong hzwuhongsong@corp.netease.com
+ * @Date: 2023-04-11 14:57:19
+ * @LastEditors: hzwuhongsong hzwuhongsong@corp.netease.com
+ * @LastEditTime: 2023-04-11 14:57:19
+ * @FilePath: /curve/curvefs/src/client/cache/diskcache/disk_cache_base.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+/*
  *  Copyright (c) 2020 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +28,8 @@
  * Author: wuhongsong
  */
 
-#ifndef CURVEFS_SRC_CLIENT_S3_DISK_CACHE_BASE_H_
-#define CURVEFS_SRC_CLIENT_S3_DISK_CACHE_BASE_H_
+#ifndef CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_BASE_H_
+#define CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_BASE_H_
 
 #include <glog/logging.h>
 
@@ -69,4 +77,4 @@ class DiskCacheBase {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_S3_DISK_CACHE_BASE_H_
+#endif  // CURVEFS_SRC_CLIENT_CACHE_DISKCACHE_DISK_CACHE_BASE_H_

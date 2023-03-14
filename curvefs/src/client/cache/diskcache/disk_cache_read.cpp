@@ -29,7 +29,7 @@
 #include <memory>
 #include <utility>
 
-#include "curvefs/src/client/s3/disk_cache_read.h"
+#include "curvefs/src/client/cache/diskcache/disk_cache_read.h"
 #include "curvefs/src/common/s3util.h"
 
 namespace curvefs {
