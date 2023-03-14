@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 
 #include "curvefs/src/client/s3/client_s3_adaptor.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 #include "src/common/concurrent/count_down_event.h"
 #include "curvefs/test/client/mock_client_s3_cache_manager.h"
 
@@ -43,9 +43,11 @@ class FsCacheManagerTest : public testing::Test {
     FsCacheManagerTest() {}
     ~FsCacheManagerTest() {}
     void SetUp() override {
+        Aws::InitAPI(awsOptions_);
         maxReadCacheByte_ = 16ull * 1024 * 1024;  // 16MiB
         uint64_t maxWriteCacheByte = maxReadCacheByte_;
-        S3ClientAdaptorOption option;
+        FuseClientOption fuseOption;
+        S3ClientAdaptorOption& option = fuseOption.s3Opt.s3ClientAdaptorOpt;
         option.blockSize = 1 * 1024 * 1024;
         option.chunkSize = 4 * 1024 * 1024;
         option.baseSleepUs = 500;
@@ -57,12 +59,21 @@ class FsCacheManagerTest : public testing::Test {
         option.readCacheThreads = 5;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         option.chunkFlushThreads = 5;
+        fuseOption.s3Opt.s3AdaptrOpt.asyncThreadNum = 1;
+        option.prefetchExecQueueNum = 1;
+        fuseOption.listDentryThreads = 1;
+        fuseOption.warmupThreadsNum = 1;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
+        s3ClientAdaptor_->SetBlockSize(option.blockSize);
+        s3ClientAdaptor_->SetChunkSize(option.chunkSize);
         fsCacheManager_ = std::make_shared<FsCacheManager>(
-            s3ClientAdaptor_, maxReadCacheByte_, maxWriteCacheByte,
-            option.readCacheThreads, nullptr);
-        s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
-                               fsCacheManager_, nullptr, nullptr);
+          s3ClientAdaptor_,
+          maxReadCacheByte_,
+          maxWriteCacheByte,
+          option.readCacheThreads,
+          nullptr);
+        s3ClientAdaptor_->Init(fuseOption, nullptr, nullptr,
+          fsCacheManager_, nullptr, nullptr, nullptr);
         s3ClientAdaptor_->SetFsId(2);
 
         mockChunkCacheManager_ = std::make_shared<MockChunkCacheManager>();
@@ -70,6 +81,7 @@ class FsCacheManagerTest : public testing::Test {
 
     void TearDown() override {
         delete s3ClientAdaptor_;
+        Aws::ShutdownAPI(awsOptions_);
     }
 
  protected:
@@ -77,6 +89,7 @@ class FsCacheManagerTest : public testing::Test {
     std::shared_ptr<FsCacheManager> fsCacheManager_;
     std::shared_ptr<MockChunkCacheManager> mockChunkCacheManager_;
     uint64_t maxReadCacheByte_;
+    Aws::SDKOptions awsOptions_;
 };
 
 TEST_F(FsCacheManagerTest, test_FindFileCacheManager) {
@@ -162,7 +175,8 @@ TEST_F(FsCacheManagerTest, test_fsSync_ok) {
     uint64_t inodeId = 1;
     auto fileCache = std::make_shared<MockFileCacheManager>();
 
-    EXPECT_CALL(*fileCache, Flush(_, _)).WillOnce(Return(CURVEFS_ERROR::OK));
+    EXPECT_CALL(*fileCache, Flush(_, _)).WillRepeatedly(
+      Return(CURVEFS_ERROR::OK));
     fsCacheManager_->SetFileCacheManagerForTest(inodeId, fileCache);
     ASSERT_EQ(CURVEFS_ERROR::OK, fsCacheManager_->FsSync(true));
 }
@@ -184,7 +198,7 @@ TEST_F(FsCacheManagerTest, test_fsSync_fail) {
     auto fileCache = std::make_shared<MockFileCacheManager>();
 
     EXPECT_CALL(*fileCache, Flush(_, _))
-        .WillOnce(Return(CURVEFS_ERROR::INTERNAL));
+        .WillRepeatedly(Return(CURVEFS_ERROR::INTERNAL));
     fsCacheManager_->SetFileCacheManagerForTest(inodeId, fileCache);
     ASSERT_EQ(CURVEFS_ERROR::INTERNAL, fsCacheManager_->FsSync(true));
 }

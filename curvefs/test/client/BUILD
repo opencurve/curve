@@ -80,6 +80,7 @@ cc_test(
                 "-L/usr/local/lib/x86_64-linux-gnu"],
 )
 
+
 cc_test(
    name = "curve_fuse_test",
    srcs = glob([

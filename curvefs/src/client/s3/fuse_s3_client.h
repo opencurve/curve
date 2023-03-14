@@ -21,8 +21,8 @@
  * Author: xuchaojie
  */
 
-#ifndef CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
-#define CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
+#ifndef CURVEFS_SRC_CLIENT_S3_FUSE_S3_CLIENT_H_
+#define CURVEFS_SRC_CLIENT_S3_FUSE_S3_CLIENT_H_
 
 #include <memory>
 #include <string>
@@ -31,7 +31,7 @@
 #include <utility>
 
 #include "curvefs/src/client/fuse_client.h"
-#include "curvefs/src/client/s3/client_s3_cache_manager.h"
+#include "curvefs/src/client/cache/fuse_client_cache_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
 #include "curvefs/src/volume/common.h"
 #include "src/common/s3_adapter.h"
@@ -47,11 +47,13 @@ class WarmupManager;
 class WarmupManagerS3Impl;
 }  // namespace warmup
 
-
+// s3 client
 class FuseS3Client : public FuseClient {
  public:
     FuseS3Client()
-        : FuseClient(), s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()) {
+        : FuseClient(),
+          s3Adaptor_(std::make_shared<S3ClientAdaptorImpl>()),
+          kvClientManager_(nullptr) {
         auto readFunc = [this](fuse_req_t req, fuse_ino_t ino, size_t size,
                                off_t off, struct fuse_file_info *fi,
                                char *buffer, size_t *rSize) {
@@ -66,15 +68,18 @@ class FuseS3Client : public FuseClient {
                  const std::shared_ptr<MetaServerClient> &metaClient,
                  const std::shared_ptr<InodeCacheManager> &inodeManager,
                  const std::shared_ptr<DentryCacheManager> &dentryManager,
-                 const std::shared_ptr<S3ClientAdaptor> &s3Adaptor,
+                 const std::shared_ptr<StorageAdaptor> &s3Adaptor,
                  const std::shared_ptr<warmup::WarmupManager> &warmupManager)
         : FuseClient(mdsClient, metaClient, inodeManager, dentryManager,
                      warmupManager),
-          s3Adaptor_(s3Adaptor) {}
+          s3Adaptor_(s3Adaptor),
+          kvClientManager_(nullptr) {}
 
     CURVEFS_ERROR Init(const FuseClientOption &option) override;
 
     void UnInit() override;
+
+/*** fuse op ***/
 
     CURVEFS_ERROR FuseOpInit(
         void *userdata, struct fuse_conn_info *conn) override;
@@ -112,14 +117,15 @@ class FuseS3Client : public FuseClient {
 
  private:
     bool InitKVCache(const KVClientManagerOpt &opt);
-
+    CURVEFS_ERROR InitStorageAdaptor(const FuseClientOption &option);
     CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
 
  private:
-    // s3 adaptor
-    std::shared_ptr<S3ClientAdaptor> s3Adaptor_;
+    // s3 storage adaptor
+    std::shared_ptr<StorageAdaptor> s3Adaptor_;
+    // kv client manager
     std::shared_ptr<KVClientManager> kvClientManager_;
 
     static constexpr auto MIN_WRITE_CACHE_SIZE = 8 * kMiB;
@@ -129,4 +135,4 @@ class FuseS3Client : public FuseClient {
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_FUSE_S3_CLIENT_H_
+#endif  // CURVEFS_SRC_CLIENT_S3_FUSE_S3_CLIENT_H_
