@@ -246,7 +246,7 @@ bool CopysetNodeManager::CreateCopysetNode(PoolId poolId, CopysetId copysetId,
 }
 
 void CopysetNodeManager::GetAllCopysets(
-    std::vector<CopysetNode*>* nodes) const {
+    std::vector<CopysetNode *> *nodes) const {
     nodes->clear();
     ReadLockGuard lock(lock_);
     for (auto& copyset : copysets_) {

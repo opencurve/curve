@@ -22,9 +22,12 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "curvefs/src/metaserver/heartbeat.h"
+#include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/test/metaserver/mock_heartbeat_service.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node_manager.h"
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -42,6 +45,9 @@ using ::curvefs::mds::heartbeat::HeartbeatStatusCode;
 using ::curve::fs::FileSystemType;
 using ::curve::fs::LocalFsFactory;
 using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::copyset::MockCopysetNodeManager;
+using ::curvefs::metaserver::copyset::MockCopysetNode;
+using ::curvefs::mds::heartbeat::BlockGroupDeallcateStatusCode;
 
 namespace curvefs {
 namespace metaserver {
@@ -56,6 +62,8 @@ class HeartbeatTest : public ::testing::Test {
         resourceCollector_ = absl::make_unique<ResourceCollector>(
             options_.maxDiskQuotaBytes, options_.maxMemoryQuotaBytes,
             options_.dataDir);
+
+        GetHeartbeatOption(&hbopts_);
     }
 
     bool GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
@@ -67,9 +75,25 @@ class HeartbeatTest : public ::testing::Test {
         return heartbeat.GetMetaserverSpaceStatus(status, ncopysets);
     }
 
+    void GetHeartbeatOption(HeartbeatOptions *opt) {
+        opt->metaserverId = 1;
+        opt->metaserverToken = "token";
+        opt->intervalSec = 2;
+        opt->timeout = 1000;
+        opt->ip = "127.0.0.1";
+        opt->port = 6000;
+        opt->mdsListenAddr = "127.0.0.1:6710";
+        opt->copysetNodeManager = &mockCopysetManager_;
+        opt->storeUri = "local://./metaserver_data/copysets";
+        opt->fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
+        opt->resourceCollector = resourceCollector_.get();
+    }
+
  protected:
     StorageOptions options_;
     std::unique_ptr<ResourceCollector> resourceCollector_;
+    HeartbeatOptions hbopts_;
+    MockCopysetNodeManager mockCopysetManager_;
 };
 
 template <typename RpcRequestType, typename RpcResponseType,
@@ -107,44 +131,17 @@ TEST_F(HeartbeatTest, testInitFail) {
 }
 
 TEST_F(HeartbeatTest, test1) {
-    HeartbeatOptions options;
     Heartbeat heartbeat;
 
-    options.metaserverId = 1;
-    options.metaserverToken = "token";
-    options.intervalSec = 1;
-    options.timeout = 1000;
-    options.ip = "127.0.0.1";
-    options.port = 6000;
-    options.mdsListenAddr = "127.0.0.1:6710";
-    options.copysetNodeManager = &CopysetNodeManager::GetInstance();
-    options.storeUri = "local://./metaserver_data/copysets";
-    options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
-    options.resourceCollector = absl::make_unique<ResourceCollector>(
-        0, 0, options_.dataDir).get();
-
     // mds service not start
-    ASSERT_EQ(heartbeat.Init(options), 0);
+    ASSERT_EQ(heartbeat.Init(hbopts_), 0);
     ASSERT_EQ(heartbeat.Run(), 0);
     sleep(2);
     ASSERT_EQ(heartbeat.Fini(), 0);
 }
 
 TEST_F(HeartbeatTest, test_ok) {
-    HeartbeatOptions options;
     Heartbeat heartbeat;
-
-    options.metaserverId = 1;
-    options.metaserverToken = "token";
-    options.intervalSec = 2;
-    options.timeout = 1000;
-    options.ip = "127.0.0.1";
-    options.port = 6000;
-    options.mdsListenAddr = "127.0.0.1:6710";
-    options.copysetNodeManager = &CopysetNodeManager::GetInstance();
-    options.storeUri = "local://./metaserver_data/copysets";
-    options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
-    options.resourceCollector = resourceCollector_.get();
 
     // send heartbeat ok
     brpc::Server server;
@@ -161,7 +158,7 @@ TEST_F(HeartbeatTest, test_ok) {
                         Invoke(RpcService<MetaServerHeartbeatRequest,
                                           MetaServerHeartbeatResponse>)));
 
-    ASSERT_EQ(heartbeat.Init(options), 0);
+    ASSERT_EQ(heartbeat.Init(hbopts_), 0);
     ASSERT_EQ(heartbeat.Run(), 0);
     sleep(5);
     ASSERT_EQ(heartbeat.Fini(), 0);
@@ -171,19 +168,7 @@ TEST_F(HeartbeatTest, test_ok) {
 }
 
 TEST_F(HeartbeatTest, test_fail) {
-    HeartbeatOptions options;
     Heartbeat heartbeat;
-
-    options.metaserverId = 1;
-    options.metaserverToken = "token";
-    options.intervalSec = 2;
-    options.timeout = 1000;
-    options.ip = "127.0.0.1";
-    options.port = 6000;
-    options.mdsListenAddr = "127.0.0.1:6710";
-    options.copysetNodeManager = &CopysetNodeManager::GetInstance();
-    options.storeUri = "local://./metaserver_data/copysets";
-    options.fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
     // send heartbeat ok
     brpc::Server server;
@@ -200,7 +185,7 @@ TEST_F(HeartbeatTest, test_fail) {
                         Invoke(RpcService<MetaServerHeartbeatRequest,
                                           MetaServerHeartbeatResponse>)));
 
-    ASSERT_EQ(heartbeat.Init(options), 0);
+    ASSERT_EQ(heartbeat.Init(hbopts_), 0);
     ASSERT_EQ(heartbeat.Run(), 0);
     sleep(5);
     ASSERT_EQ(heartbeat.Fini(), 0);
@@ -231,5 +216,67 @@ TEST_F(HeartbeatTest, GetMetaServerSpaceStatusTest) {
               status.memoryusedbyte());
 }
 
+TEST_F(HeartbeatTest, Test_BuildRequest) {
+    Heartbeat heartbeat;
+    ASSERT_EQ(heartbeat.Init(hbopts_), 0);
+
+    MockCopysetNode mockCopysetNode;
+    std::vector<CopysetNode *> copysetVec;
+    copysetVec.emplace_back(&mockCopysetNode);
+
+    BlockGroupStatInfoMap blockGroupStatInfoMap;
+    uint32_t fsId = 1;
+    uint64_t offset = 0;
+    auto &statInfo = blockGroupStatInfoMap[fsId];
+    statInfo.set_fsid(1);
+    auto de = statInfo.add_deallocatableblockgroups();
+    de->set_blockgroupoffset(offset);
+    de->set_deallocatablesize(1024);
+
+    EXPECT_CALL(mockCopysetManager_, GetAllCopysets(_))
+        .WillOnce(SetArgPointee<0>(copysetVec));
+    EXPECT_CALL(mockCopysetNode, GetPoolId()).WillOnce(Return(1));
+    EXPECT_CALL(mockCopysetNode, GetCopysetId()).WillOnce(Return(1));
+    EXPECT_CALL(mockCopysetNode, ListPeers(_)).Times(1);
+    EXPECT_CALL(mockCopysetNode, GetLeaderId()).Times(1);
+    EXPECT_CALL(mockCopysetNode, IsLoading()).WillRepeatedly(Return(false));
+    EXPECT_CALL(mockCopysetNode, GetPartitionInfoList(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(mockCopysetNode, GetConfChange(_, _)).Times(1);
+    EXPECT_CALL(mockCopysetNode, GetConfEpoch()).WillOnce(Return(1));
+    EXPECT_CALL(mockCopysetNode, IsLeaderTerm()).WillOnce(Return(true));
+    EXPECT_CALL(mockCopysetNode, GetBlockStatInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(blockGroupStatInfoMap), Return(true)));
+
+    HeartbeatRequest req;
+    heartbeat.taskExecutor_->SetDeallocTask(fsId, offset);
+    heartbeat.BuildRequest(&req);
+
+    // assert block group stat info
+    {
+        // assert deallocatableBlockGroups
+        auto outStatInfos = req.blockgroupstatinfos();
+        ASSERT_EQ(outStatInfos.size(), 1);
+
+        auto outOne = outStatInfos[0];
+        ASSERT_EQ(outOne.fsid(), fsId);
+
+        auto outDes = outOne.deallocatableblockgroups();
+        ASSERT_EQ(outDes.size(), 1);
+
+        auto outDesOne = outDes[0];
+        ASSERT_EQ(outDesOne.blockgroupoffset(), de->blockgroupoffset());
+        ASSERT_EQ(outDesOne.deallocatablesize(), de->deallocatablesize());
+        ASSERT_TRUE(outDesOne.inodeidlist().empty());
+        ASSERT_TRUE(outDesOne.inodeidunderdeallocate().empty());
+
+        // assert blockGroupDeallocateStatus
+        auto outStatus = outOne.blockgroupdeallocatestatus();
+        ASSERT_EQ(outStatus.size(), 1);
+
+        auto outStatusOne = outStatus[offset];
+        ASSERT_EQ(outStatusOne, BlockGroupDeallcateStatusCode::BGDP_DONE);
+    }
+}
 }  // namespace metaserver
 }  // namespace curvefs

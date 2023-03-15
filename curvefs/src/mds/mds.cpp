@@ -68,6 +68,8 @@ void MDS::InitOptions(std::shared_ptr<Configuration> conf) {
     conf_->GetValueFatalIfFail("mds.dummy.port", &options_.dummyPort);
     conf_->GetValueFatalIfFail("mds.server.idleTimeoutSec",
                                &options_.idleTimeoutSec);
+    conf_->GetValueFatalIfFail("mds.space.calIntervalSec",
+                               &options_.mdsSpaceCalIntervalSec);
 
     InitMetaServerOption(&options_.metaserverOptions);
     InitTopologyOption(&options_.topologyOptions);
@@ -171,8 +173,8 @@ void MDS::Init() {
     space::MdsProxyManager::SetProxyOptions(options_.bsMdsProxyOptions);
 
     fsStorage_ = std::make_shared<PersisKVStorage>(etcdClient_);
-    spaceManager_ =
-        std::make_shared<SpaceManagerImpl>(etcdClient_, fsStorage_);
+    spaceManager_ = std::make_shared<SpaceManagerImpl>(
+        etcdClient_, fsStorage_, options_.mdsSpaceCalIntervalSec);
     metaserverClient_ =
         std::make_shared<MetaserverClient>(options_.metaserverOptions);
     auto dlock = std::make_shared<DLock>(options_.dLockOptions, etcdClient_);
@@ -420,7 +422,7 @@ void MDS::InitHeartbeatManager() {
 
     heartbeatOption.mdsStartTime = steady_clock::now();
     heartbeatManager_ = std::make_shared<HeartbeatManager>(
-        heartbeatOption, topology_, coordinator_);
+        heartbeatOption, topology_, coordinator_, spaceManager_);
     heartbeatManager_->Init();
 }
 

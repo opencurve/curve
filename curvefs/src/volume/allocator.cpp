@@ -32,6 +32,7 @@ namespace volume {
 
 std::unique_ptr<Allocator> Allocator::Create(const std::string& type,
                                              const AllocatorOption& option) {
+    // TODO(@all): define bit map as a attribute of message Volume
     if (type == "bitmap") {
         return absl::make_unique<BitmapAllocator>(option.bitmapAllocatorOption);
     } else {

@@ -36,12 +36,25 @@
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/space.pb.h"
+#include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/proto/heartbeat.pb.h"
 #include "curvefs/src/mds/fs_storage.h"
 #include "curvefs/src/mds/space/block_group_storage.h"
+#include "src/common/interruptible_sleeper.h"
 
 namespace curvefs {
 namespace mds {
 namespace space {
+
+using ::curvefs::mds::heartbeat::BlockGroupDeallcateStatusCode;
+using ::curvefs::metaserver::DeallocatableBlockGroup;
+using ::curve::common::InterruptibleSleeper;
+
+using DeallocatableBlockGroupVec =
+    google::protobuf::RepeatedPtrField<DeallocatableBlockGroup>;
+using BlockGroupDeallcateStatusMap = ::google::protobuf::Map<
+    ::google::protobuf::uint64,
+    ::curvefs::mds::heartbeat::BlockGroupDeallcateStatusCode>;
 
 class AbstractVolumeSpace {
  public:
@@ -56,8 +69,14 @@ class AbstractVolumeSpace {
                                            const std::string& owner,
                                            BlockGroup* group) = 0;
 
-    virtual SpaceErrCode ReleaseBlockGroups(
-        const std::vector<BlockGroup>& blockGroups) = 0;
+    virtual SpaceErrCode
+    ReleaseBlockGroups(const std::vector<BlockGroup> &blockGroups) = 0;
+
+    virtual SpaceErrCode ReleaseBlockGroups(const std::string &owner) = 0;
+
+    virtual bool UpdateDeallocatableBlockGroup(
+        uint32_t metaserverId, const DeallocatableBlockGroupVec &groups,
+        const BlockGroupDeallcateStatusMap &stats, uint64_t *issue) = 0;
 };
 
 using ::curvefs::common::BitmapLocation;
@@ -65,13 +84,13 @@ using ::curvefs::common::Volume;
 
 class VolumeSpace final : public AbstractVolumeSpace {
  public:
-    static std::unique_ptr<VolumeSpace> Create(uint32_t fsId,
-                                               const Volume& volume,
-                                               BlockGroupStorage* storage,
-                                               FsStorage* fsStorage);
+    static std::unique_ptr<VolumeSpace>
+    Create(uint32_t fsId, const Volume &volume, BlockGroupStorage *storage,
+           FsStorage *fsStorage, uint64_t calcIntervalSec);
 
     VolumeSpace(const VolumeSpace&) = delete;
     VolumeSpace& operator=(const VolumeSpace&) = delete;
+    ~VolumeSpace() { Stop(); }
 
     /**
      * @brief Allocate block groups
@@ -95,17 +114,32 @@ class VolumeSpace final : public AbstractVolumeSpace {
         const std::vector<BlockGroup>& blockGroups) override;
 
     /**
+     * @brief Release block groups by owner
+     */
+    SpaceErrCode ReleaseBlockGroups(const std::string &owner) override;
+
+    /**
      * @brief Remove all block groups and persistent records that belong to
      *        current volume
      * @return return SpaceOk if success, otherwise return error code
      */
     SpaceErrCode RemoveAllBlockGroups();
 
+
+    bool UpdateDeallocatableBlockGroup(
+        uint32_t metaserverId, const DeallocatableBlockGroupVec &groups,
+        const BlockGroupDeallcateStatusMap &stats, uint64_t *issue);
+
  private:
-    VolumeSpace(uint32_t fsId,
-                Volume volume,
-                BlockGroupStorage* storage,
-                FsStorage* fsStorage);
+    VolumeSpace(uint32_t fsId, Volume volume, BlockGroupStorage *storage,
+                FsStorage *fsStorage);
+
+    /**
+     * @brief Calculate block group that can be recycled
+     */
+    void Run();
+
+    void Stop();
 
  private:
     SpaceErrCode AllocateBlockGroupsInternal(
@@ -130,6 +164,24 @@ class VolumeSpace final : public AbstractVolumeSpace {
     bool UpdateFsInfo(uint64_t origin, uint64_t extended);
 
     void AddCleanGroups(uint64_t origin, uint64_t extended);
+
+    // pick out blockgroups that can be authorized for metaserver processing
+    void CalBlockGroupAvailableForDeAllocate();
+
+    // update the deallocatable space of blockgroup
+    void UpdateBlockGroupDeallocatableSpace(
+        uint32_t metaserverId, const DeallocatableBlockGroupVec &groups);
+
+    // update the deallocating progress reported by the metaserver
+    void
+    UpdateDeallocatingBlockGroup(uint32_t metaserverId,
+                                 const BlockGroupDeallcateStatusMap &stats);
+
+    // check whether there is currently a blockgroup that can be recycled and
+    // send it to the metaserver
+    bool SelectBlockGroupForDeAllocate(uint32_t metaserverId, uint64_t *issue);
+
+    FRIEND_TEST(VolumeSpaceTest, Test_CalBlockGroupAvailableForDeAllocate);
 
  private:
     // persist block group to backend storage
@@ -164,6 +216,13 @@ class VolumeSpace final : public AbstractVolumeSpace {
     // 3. clean
     //    these block groups' space is never used, and they can be allocated to
     //    other clients.
+    // 4. waitDeallocate
+    //    these block groups wait for being deallocated by
+    //    metaservers, and they can not allocate to clients.
+    // 5. deallocating
+    //    these block groups are being deallocated by metaservers, and they can
+    //    not allocate to clients.
+    //    these block groups are not persisted into storage.
 
     // key is block group offset
     std::unordered_map<uint64_t, BlockGroup> allocatedGroups_;
@@ -174,9 +233,51 @@ class VolumeSpace final : public AbstractVolumeSpace {
     // stores clean block groups' offset
     std::unordered_set<uint64_t> cleanGroups_;
 
+    // key is block group offset
+    std::unordered_map<uint64_t, BlockGroup> waitDeallocateGroups_;
+
+    // key is block group offset
+    std::unordered_map<uint64_t, BlockGroup> deallocatingGroups_;
+
+    mutable bthread::Mutex statmtx_;
+    // Summarize the deallocatable space of the blockgroup in this volume
+    // reported by all metaservers
+    //
+    // The metaserver reports the full amount of information instead of
+    // incremental information, so adding this data to the statistical data
+    // requires subtracting the last data
+    //
+    // - lastupdate_
+    //   metaserver report last time
+    // - summary_
+    //   summary add metaserver report info and remove lastupdate info
+
+    // key is metaserver id
+    std::unordered_map<uint32_t, DeallocatableBlockGroupVec> lastUpdate_;
+
+    // key is block group offset, value is deallocatable size
+    std::unordered_map<uint64_t, uint64_t> summary_;
+
     BlockGroupStorage* storage_;
 
     FsStorage* fsStorage_;
+
+    // TODO(@ilixiaocui): may need use thread pool, if there are many volumes
+    std::thread calThread_;
+    InterruptibleSleeper sleeper_;
+    int64_t calcIntervalSec_;
+
+ private:
+    struct Metric {
+        bvar::Adder<uint64_t> dealloc;
+        bvar::Adder<uint64_t> waitingDealloc;
+
+        Metric()
+            : dealloc("mds_volume_space_dealloc"),
+              waitingDealloc("mds_volume_space_wait_dealloc") {}
+    };
+
+    Metric metric_;
 };
 
 // Calculate extended size based on origin with factor, and the result size is

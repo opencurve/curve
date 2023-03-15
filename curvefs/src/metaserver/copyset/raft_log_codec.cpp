@@ -165,6 +165,10 @@ std::unique_ptr<MetaOperator> RaftLogCodec::Decode(CopysetNode* node,
             return ParseFromRaftLog<UpdateVolumeExtentOperator,
                                     UpdateVolumeExtentRequest>(node, type,
                                                                meta);
+        case OperatorType::UpdateDeallocatableBlockGroup:
+            return ParseFromRaftLog<UpdateDeallocatableBlockGroupOperator,
+                                    UpdateDeallocatableBlockGroupRequest>(
+                node, type, meta);
         // Add new case before `OperatorType::OperatorTypeMax`
         case OperatorType::OperatorTypeMax:
             break;

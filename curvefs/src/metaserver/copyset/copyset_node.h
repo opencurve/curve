@@ -24,11 +24,13 @@
 #define CURVEFS_SRC_METASERVER_COPYSET_COPYSET_NODE_H_
 
 #include <braft/raft.h>
+#include <gtest/gtest_prod.h>
 
 #include <list>
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "curvefs/src/metaserver/common/types.h"
 #include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
@@ -38,6 +40,7 @@
 #include "curvefs/src/metaserver/copyset/metric.h"
 #include "curvefs/src/metaserver/copyset/raft_node.h"
 #include "curvefs/src/metaserver/metastore.h"
+#include "curvefs/proto/heartbeat.pb.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -47,6 +50,7 @@ using ::braft::PeerId;
 using ::curvefs::common::Peer;
 using ::curvefs::metaserver::MetaStore;
 using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curvefs::mds::heartbeat::BlockGroupStatInfo;
 
 class CopysetNodeManager;
 
@@ -89,13 +93,13 @@ class CopysetNode : public braft::StateMachine {
      */
     virtual bool IsLeaseExpired(const braft::LeaderLeaseStatus &lease_status) const;  // NOLINT
 
-    PoolId GetPoolId() const;
+    virtual PoolId GetPoolId() const;
 
-    const braft::PeerId& GetPeerId() const;
+    virtual const braft::PeerId& GetPeerId() const;
 
-    CopysetId GetCopysetId() const;
+    virtual CopysetId GetCopysetId() const;
 
-    PeerId GetLeaderId() const;
+    virtual PeerId GetLeaderId() const;
 
     MetaStore* GetMetaStore() const;
 
@@ -154,7 +158,7 @@ class CopysetNode : public braft::StateMachine {
     virtual void RemovePeer(const Peer& peer, braft::Closure* done = nullptr);
     virtual void ChangePeers(const std::vector<Peer>& newPeers,
                              braft::Closure* done = nullptr);
-    void GetConfChange(ConfigChangeType* type, Peer* alterPeer);
+    virtual void GetConfChange(ConfigChangeType* type, Peer* alterPeer);
     void OnConfChangeComplete();
 
  private:
@@ -193,15 +197,28 @@ class CopysetNode : public braft::StateMachine {
 
  public:
     // for heartbeat
-    bool GetPartitionInfoList(std::list<PartitionInfo> *partitionInfoList);
+    virtual bool
+    GetPartitionInfoList(std::list<PartitionInfo> *partitionInfoList);
 
-    bool IsLoading() const;
+    virtual bool IsLoading() const;
+
+    virtual bool
+    GetBlockStatInfo(std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap);
+
+    virtual void Deallocate(uint64_t fsId, uint64_t blockGroupOffset);
 
  private:
     void InitRaftNodeOptions();
 
     bool FetchLeaderStatus(const braft::PeerId& peerId,
                            braft::NodeStatus* leaderStatus);
+
+    bool AggregateBlockStatInfo(
+        const std::shared_ptr<Partition> &partition,
+        std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap,
+        uint32_t *blockGroupNum);
+
+    FRIEND_TEST(CopysetNodeBlockGroupTest, Test_AggregateBlockStatInfo);
 
  private:
     const PoolId poolId_;

@@ -26,6 +26,8 @@
 #include <gmock/gmock.h>
 
 #include <vector>
+#include <list>
+#include <map>
 
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 
@@ -46,6 +48,17 @@ class MockCopysetNode : public CopysetNode {
     MOCK_CONST_METHOD0(IsLeaderTerm, bool());
     MOCK_METHOD1(Propose, void(const braft::Task& task));
     MOCK_METHOD(void, GetLeaderLeaseStatus, (braft::LeaderLeaseStatus*), (override));  // NOLINT
+    MOCK_METHOD2(GetConfChange, void(ConfigChangeType *type, Peer *alterPeer));
+
+    MOCK_CONST_METHOD0(GetPoolId, PoolId());
+    MOCK_CONST_METHOD0(GetPeerId, const braft::PeerId &());
+    MOCK_CONST_METHOD0(GetLeaderId, PeerId());
+    MOCK_CONST_METHOD0(GetCopysetId, CopysetId());
+
+    MOCK_METHOD1(GetPartitionInfoList, bool(std::list<PartitionInfo> *));
+    MOCK_CONST_METHOD0(IsLoading, bool());
+    MOCK_METHOD1(GetBlockStatInfo,
+                 bool(std::map<uint32_t, BlockGroupStatInfo> *));
 };
 
 }  // namespace copyset

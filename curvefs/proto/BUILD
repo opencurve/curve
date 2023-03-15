@@ -113,6 +113,7 @@ proto_library(
     name = "curvefs_heartbeat_proto",
     srcs = ["heartbeat.proto"],
     deps = [":curvefs_common_proto",
+            ":metaserver_proto",
             "//proto:heartbeat_proto"],
 )
 

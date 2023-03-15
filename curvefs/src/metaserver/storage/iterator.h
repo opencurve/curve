@@ -72,6 +72,7 @@ class MergeIterator : public Iterator {
         for (const auto &child : children_) {
             size += child->Size();
         }
+
         return size;
     }
 

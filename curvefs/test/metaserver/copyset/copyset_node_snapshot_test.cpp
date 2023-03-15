@@ -402,7 +402,15 @@ void RunGetPartitionInfoList(CopysetNode* node, uint32_t sleepSec,
     ASSERT_EQ(node->GetPartitionInfoList(&partitionInfoList), expectedValue);
 }
 
-// get partition list while copyset is loading
+void RunGetBlockStatInfo(CopysetNode *node, uint32_t sleepSec,
+                         bool expectedValue) {
+    sleep(sleepSec);
+    std::map<uint32_t, BlockGroupStatInfo> blockStatInfoMap;
+
+    ASSERT_EQ(node->GetBlockStatInfo(&blockStatInfoMap), expectedValue);
+}
+
+// get partition list / get block statinfo while copyset is loading
 TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess1) {
     ASSERT_TRUE(CreateOneCopyset());
 
@@ -431,8 +439,10 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess1) {
 
     std::thread thread1(RunOnSnapshotLoad, node, &reader, 0);
     std::thread thread2(RunGetPartitionInfoList, node, 3, false);
+    std::thread thread3(RunGetBlockStatInfo, node, 3, false);
     thread1.join();
     thread2.join();
+    thread3.join();
 
     node->SetMetaStore(nullptr);
 }
@@ -465,11 +475,18 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess2) {
         .Times(1);
     EXPECT_CALL(*mockMetaStore, GetPartitionInfoList(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*mockMetaStore, GetPartitionSnap(_))
+        .Times(2)
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
 
     std::thread thread1(RunOnSnapshotLoad, node, &reader, 0);
     std::thread thread2(RunGetPartitionInfoList, node, 3, true);
+    std::thread thread3(RunGetBlockStatInfo, node, 5, true);
+
     thread1.join();
     thread2.join();
+    thread3.join();
 
     node->SetMetaStore(nullptr);
 }
@@ -510,6 +527,7 @@ TEST_F(CopysetNodeRaftSnapshotTest, SnapshotLoadTest_MetaStoreLoadSuccess3) {
 
     node->SetMetaStore(nullptr);
 }
+
 }  // namespace copyset
 }  // namespace metaserver
 }  // namespace curvefs

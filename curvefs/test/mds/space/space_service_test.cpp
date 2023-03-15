@@ -41,6 +41,7 @@ using ::curvefs::test::GenerateAnDefaultInitializedMessage;
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
+using ::testing::Matcher;
 
 static constexpr uint32_t kRetryTimes = 10;
 static unsigned int seed = time(nullptr);
@@ -189,7 +190,9 @@ TEST_F(SpaceServiceTest, ReleaseBlockGroupTest) {
         EXPECT_CALL(spaceMgr_, GetVolumeSpace(_))
             .WillOnce(Return(&volumeSpace));
 
-        EXPECT_CALL(volumeSpace, ReleaseBlockGroups(_))
+        EXPECT_CALL(
+            volumeSpace,
+            ReleaseBlockGroups(Matcher<const std::vector<BlockGroup> &>(_)))
             .WillOnce(Return(err));
 
         auto request = GenerateAnDefaultInitializedMessage(

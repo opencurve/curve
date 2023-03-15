@@ -41,10 +41,15 @@
 namespace curvefs {
 namespace client {
 
+namespace common {
+DECLARE_bool(enableCto);
+}  // namespace common
+
 using ::curvefs::volume::SpaceManagerImpl;
 using ::curvefs::volume::SpaceManagerOption;
 using ::curvefs::volume::BlockDeviceClientOptions;
 using ::curvefs::volume::BlockDeviceClientImpl;
+using ::curvefs::client::common::FLAGS_enableCto;
 
 CURVEFS_ERROR FuseVolumeClient::Init(const FuseClientOption &option) {
     volOpts_ = option.volumeOpt;
@@ -111,9 +116,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpInit(void *userdata,
         volOpts_.allocatorOption.bitmapAllocatorOption.sizePerBit;
     option.allocatorOption.bitmapAllocatorOption.smallAllocProportion =
         volOpts_.allocatorOption.bitmapAllocatorOption.smallAllocProportion;
+    option.threshold = volOpts_.threshold;
+    option.releaseInterSec = volOpts_.releaseInterSec;
 
     spaceManager_ = absl::make_unique<SpaceManagerImpl>(option, mdsClient_,
                                                         blockDeviceClient_);
+    spaceManager_->Run();
 
     storage_ = absl::make_unique<DefaultVolumeStorage>(
         spaceManager_.get(), blockDeviceClient_.get(), inodeManager_.get());

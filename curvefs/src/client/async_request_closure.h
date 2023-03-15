@@ -63,7 +63,7 @@ class AsyncRequestClosureBase : public rpcclient::MetaServerClientDone {
 //     // xxx
 //     auto statusCode = closure.Wait();
 //
-// for synchronous update
+// for asynchronous update
 //
 //     auto* closure = new UpdateVolumeExtentClosure(
 //          shared_ptr of a inode wrapper, /* sync */ false);

@@ -90,6 +90,8 @@ struct MDSOptions {
     MetaserverOptions metaserverOptions;
     // TODO(add EtcdConf): add etcd configure
 
+    uint64_t mdsSpaceCalIntervalSec;
+
     TopologyOption topologyOptions;
     HeartbeatOption heartbeatOption;
     ScheduleOption scheduleOption;

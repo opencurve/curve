@@ -31,6 +31,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
+#include <unordered_map>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
@@ -630,24 +632,157 @@ void CopysetNode::ListPeers(std::vector<Peer>* peers) const {
 }
 
 // if copyset is loading, return false;
-// if copyset is not loading, and metastore returns fales, retry;
+// if copyset is not loading, and metastore returns false, retry;
 // if copyset is not loading, and metastore returns true, return true and get
 // partition info list success.
 bool CopysetNode::GetPartitionInfoList(
-                    std::list<PartitionInfo> *partitionInfoList) {
-    uint32_t retryCount = 0;
-    while (true) {
-        if (IsLoading()) {
-            LOG(INFO) << "Copyset is loading, return empty partition list";
-            return false;
-        }
-        bool ret = metaStore_->GetPartitionInfoList(partitionInfoList);
-        if (ret) {
-            return true;
-        }
-        LOG(WARNING) << "Copyset is not loading, but GetPartitionInfoList fail,"
-                     << " retryCount = " << retryCount++;
+    std::list<PartitionInfo> *partitionInfoList) {
+    if (IsLoading()) {
+        LOG(INFO) << "Copyset is loading, return empty partition list";
+        return false;
     }
+
+    uint32_t retryCount = 0;
+    do {
+        bool ret = metaStore_->GetPartitionInfoList(partitionInfoList);
+        if (!ret) {
+            LOG(WARNING)
+                << "Copyset is not loading, but GetPartitionInfoList fail,"
+                << " retryCount = " << retryCount++;
+            continue;
+        }
+
+        return true;
+    } while (true);
+}
+
+bool CopysetNode::GetBlockStatInfo(
+    std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap) {
+    if (IsLoading()) {
+        LOG(INFO)
+            << "CopysetNode copyset is loading, return empty block stat info";
+        return false;
+    }
+
+    uint32_t retryCount = 0;
+    uint32_t blockGroupNum = 0;
+    do {
+        std::map<uint32_t, std::shared_ptr<Partition>> partitionSnap;
+        if (!metaStore_->GetPartitionSnap(&partitionSnap)) {
+            LOG(WARNING) << "CopysetNode get partition snap fail, retryCount = "
+                         << ++retryCount;
+            continue;
+        }
+
+        for (const auto &item : partitionSnap) {
+            auto partition = item.second;
+            VLOG(6) << "CopysetNode get block stat info from partition="
+                    << partition->GetPartitionId()
+                    << ", fsId=" << partition->GetFsId();
+            if (!AggregateBlockStatInfo(partition, blockStatInfoMap,
+                                        &blockGroupNum)) {
+                continue;
+            }
+        }
+
+        return true;
+    } while (true);
+}
+
+// NOTE:
+//  If the file system size is 1PB, the block size is 128MB
+//  - The maximum number of blockgroups in the file system is 838,8608.
+//
+//  The deallocatable space of the current blockgroup is counted according to
+//  the granularity of the partition. Now the maximum number of partitions on
+//  each copyset is configured to 128
+//  - In extreme cases, the number of statistical fragments of blockgroups in
+//  each copyset is 838,8608*128≈10billion.The number of fragments of the
+//  blockgroup that metaserver needs to carry in a heartbeat will be too large
+//
+//  Therefore, it is necessary to combine the information of these fragments to
+//  calculate.
+//
+// TODO(ilixiaocui): need more stat optimization
+bool CopysetNode::AggregateBlockStatInfo(
+    const std::shared_ptr<Partition> &partition,
+    std::map<uint32_t, BlockGroupStatInfo> *blockStatInfoMap,
+    uint32_t *blockGroupNum) {
+    uint32_t fsId = partition->GetFsId();
+    uint64_t partitionId = partition->GetPartitionId();
+
+    // get block group info in partition
+    std::vector<DeallocatableBlockGroup> deallocatableBlockGroupVec;
+    if (MetaStatusCode::OK !=
+        partition->GetAllBlockGroup(&deallocatableBlockGroupVec)) {
+        LOG(WARNING) << "CopysetNode get all blockgroup fail, partitionId= "
+                     << partitionId << ", fsId=" << fsId;
+        return false;
+    }
+
+    auto &blockGroupStatInfo = (*blockStatInfoMap)[fsId];
+    if (!blockGroupStatInfo.has_fsid()) {
+        blockGroupStatInfo.set_fsid(fsId);
+    }
+
+#define LIMITBLICKGROUPNUM 8192
+    // combine the information of the same blockgroup
+    auto blockGroups = blockGroupStatInfo.mutable_deallocatableblockgroups();
+    std::unordered_map<uint64_t, DeallocatableBlockGroup *> blockGroupMap;
+    for (auto &blockGroup : *blockGroups) {
+        blockGroupMap[blockGroup.blockgroupoffset()] = &blockGroup;
+    }
+
+    for (auto &blockGroup : deallocatableBlockGroupVec) {
+        auto it = blockGroupMap.find(blockGroup.blockgroupoffset());
+        if (it != blockGroupMap.end()) {
+            it->second->set_deallocatablesize(it->second->deallocatablesize() +
+                                              blockGroup.deallocatablesize());
+        } else {
+            blockGroup.clear_inodeidlist();
+            blockGroup.clear_inodeidunderdeallocate();
+            blockGroups->Add()->MergeFrom(blockGroup);
+            if (++(*blockGroupNum) > LIMITBLICKGROUPNUM) {
+                LOG(WARNING) << "CopysetNode get blockgroup num over limit, "
+                                "blockGroupNum = "
+                             << *blockGroupNum;
+                break;
+            }
+        }
+        VLOG(6) << "CopysetNode get block group info, fsId = " << fsId
+                << ", block info:" << blockGroup.DebugString();
+    }
+
+    VLOG(6) << "CopysetNode get block group num:" << *blockGroupNum;
+
+    return true;
+}
+
+void CopysetNode::Deallocate(uint64_t fsId, uint64_t blockGroupOffset) {
+    if (IsLoading()) {
+        LOG(INFO)
+            << "CopysetNode copyset is loading, return empty block stat info";
+        return;
+    }
+
+    uint32_t retryCount = 0;
+    do {
+        std::map<uint32_t, std::shared_ptr<Partition>> partitionSnap;
+        if (!metaStore_->GetPartitionSnap(&partitionSnap)) {
+            LOG(WARNING) << "CopysetNode get partition snap fail, retryCount = "
+                         << ++retryCount;
+            continue;
+        }
+
+        for (const auto &item : partitionSnap) {
+            auto partition = item.second;
+            if (partition->GetFsId() != fsId) {
+                continue;
+            }
+            item.second->SetVolumeDeallocate(fsId, blockGroupOffset);
+        }
+        return;
+    } while (true);
 }
 
 void CopysetNode::OnConfChangeComplete() {
