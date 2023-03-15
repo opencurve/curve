@@ -43,7 +43,7 @@ namespace client {
 using ::curvefs::volume::ReadPart;
 using ::curvefs::volume::WritePart;
 using ::curvefs::metaserver::VolumeExtentSlice;
-using ::curvefs::metaserver::VolumeExtentList;
+using ::curvefs::metaserver::VolumeExtentSliceList;
 
 struct ExtentCacheOption {
     // preallocation size if offset ~ length is not allocated
@@ -61,7 +61,7 @@ class ExtentCache {
 
     static void SetOption(const ExtentCacheOption& option);
 
-    void Build(const VolumeExtentList& extents);
+    void Build(const VolumeExtentSliceList& extents);
 
     void DivideForWrite(uint64_t offset,
                         uint64_t len,
@@ -81,7 +81,7 @@ class ExtentCache {
 
     bool HasDirtyExtents() const;
 
-    VolumeExtentList GetDirtyExtents();
+    VolumeExtentSliceList GetDirtyExtents();
 
     std::unordered_map<uint64_t, std::map<uint64_t, PExtent>>
     GetExtentsForTesting() const;

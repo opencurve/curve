@@ -26,6 +26,7 @@
 #include <brpc/server.h>
 #include <gtest/gtest.h>
 #include <cassert>
+#include <utility>
 
 #include "absl/memory/memory.h"
 #include "curvefs/proto/common.pb.h"
@@ -42,8 +43,8 @@ namespace space {
 
 using ::testing::_;
 using ::testing::Invoke;
-using ::testing::Return;
 using ::testing::Matcher;
+using ::testing::Return;
 
 static constexpr uint32_t kFsId = 1;
 static constexpr uint64_t kVolumeSize = 10ULL * 1024 * 1024 * 1024;
@@ -53,7 +54,7 @@ static constexpr curvefs::common::BitmapLocation kBitmapLocation =
     curvefs::common::BitmapLocation::AtStart;
 static constexpr uint32_t kAllocateOnce = 4;
 static constexpr double kExtendFactor = 1.5;
-static const char* kOwner = "test";
+static const char *kOwner = "test";
 
 static unsigned int seed = time(nullptr);
 
@@ -72,19 +73,20 @@ class VolumeSpaceTest : public ::testing::Test {
 
     std::unique_ptr<VolumeSpace> CreateOneEmptyVolumeSpace() {
         EXPECT_CALL(*storage_, ListBlockGroups(_, _))
-            .WillOnce(Invoke([](uint32_t, std::vector<BlockGroup>* groups) {
+            .WillOnce(Invoke([](uint32_t, std::vector<BlockGroup> *groups) {
                 groups->clear();
                 return SpaceOk;
             }));
 
         auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
-                                         fsStorage_.get());
+                                         fsStorage_.get(), 1);
         EXPECT_NE(nullptr, space);
         return space;
     }
 
-    std::unique_ptr<VolumeSpace> CreateVolumeSpaceWithTwoGroups(
-        bool allocated = true, std::vector<BlockGroup>* out = nullptr) {
+    std::unique_ptr<VolumeSpace>
+    CreateVolumeSpaceWithTwoGroups(bool allocated = true,
+                                   std::vector<BlockGroup> *out = nullptr) {
         BlockGroup group1;
         group1.set_offset(0);
         group1.set_size(kBlockGroupSize);
@@ -99,7 +101,6 @@ class VolumeSpaceTest : public ::testing::Test {
         group2.set_size(kBlockGroupSize);
         group2.set_available(kBlockGroupSize / 2);
         group2.set_bitmaplocation(kBitmapLocation);
-        group2.set_owner(kOwner);
         if (allocated) {
             group2.set_owner(kOwner);
         }
@@ -112,15 +113,73 @@ class VolumeSpaceTest : public ::testing::Test {
 
         EXPECT_CALL(*storage_, ListBlockGroups(_, _))
             .WillOnce(
-                Invoke([&exist](uint32_t, std::vector<BlockGroup>* groups) {
+                Invoke([&exist](uint32_t, std::vector<BlockGroup> *groups) {
                     *groups = exist;
                     return SpaceOk;
                 }));
 
         auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
-                                         fsStorage_.get());
+                                         fsStorage_.get(), 1);
         EXPECT_NE(nullptr, space);
         return space;
+    }
+
+    void
+    UpdateBlockGroupSpaceInfo(uint32_t metaserverId,
+                              std::unique_ptr<VolumeSpace> &space,  // NOLINT
+                              bool needIssued = false,
+                              uint64_t expectIssued = 0) {
+        BlockGroupDeallcateStatusMap stats;
+        DeallocatableBlockGroupVec groups;
+        {
+            DeallocatableBlockGroup group1;
+            group1.set_blockgroupoffset(0);
+            group1.set_deallocatablesize(kBlockGroupSize / 2);
+            groups.Add()->CopyFrom(group1);
+
+
+            DeallocatableBlockGroup group2;
+            group2.set_blockgroupoffset(kBlockGroupSize);
+            group2.set_deallocatablesize(kBlockGroupSize / 4);
+            groups.Add()->CopyFrom(group2);
+        }
+
+        uint64_t issued = 0;
+        if (needIssued) {
+            ASSERT_TRUE(space->UpdateDeallocatableBlockGroup(
+                metaserverId, 2, groups, stats, &issued));
+            ASSERT_EQ(issued, expectIssued);
+
+        } else {
+            ASSERT_FALSE(space->UpdateDeallocatableBlockGroup(
+                metaserverId, 2, groups, stats, &issued));
+        }
+    }
+
+    void
+    UpdateBlockGroupIssueStat(uint32_t metaserverId,
+                              std::unique_ptr<VolumeSpace> &space,  // NOLINT
+                              uint64_t blockoffset,
+                              BlockGroupDeallcateStatusCode status,
+                              bool needIssue = true) {
+        DeallocatableBlockGroupVec groups;
+        BlockGroupDeallcateStatusMap stats;
+        stats[blockoffset] = status;
+        if (status == BlockGroupDeallcateStatusCode::BGDP_DONE) {
+            DeallocatableBlockGroup group;
+            group.set_blockgroupoffset(blockoffset);
+            group.set_deallocatablesize(0);
+            groups.Add()->CopyFrom(group);
+        }
+
+        uint64_t issued = 0;
+        if (needIssue) {
+            ASSERT_TRUE(space->UpdateDeallocatableBlockGroup(
+                metaserverId, 2, groups, stats, &issued));
+        } else {
+            ASSERT_FALSE(space->UpdateDeallocatableBlockGroup(
+                metaserverId, 2, groups, stats, &issued));
+        }
     }
 
  protected:
@@ -133,20 +192,20 @@ TEST_F(VolumeSpaceTest, TestCreate_ListError) {
     EXPECT_CALL(*storage_, ListBlockGroups(_, _))
         .WillOnce(Return(SpaceErrStorage));
 
-    auto space =
-        VolumeSpace::Create(kFsId, volume_, storage_.get(), fsStorage_.get());
+    auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
+                                     fsStorage_.get(), 1);
     EXPECT_EQ(nullptr, space);
 }
 
 TEST_F(VolumeSpaceTest, TestCreate_Success) {
     EXPECT_CALL(*storage_, ListBlockGroups(_, _))
-        .WillOnce(Invoke([](uint32_t, std::vector<BlockGroup>* groups) {
+        .WillOnce(Invoke([](uint32_t, std::vector<BlockGroup> *groups) {
             groups->clear();
             return SpaceOk;
         }));
 
-    auto space =
-        VolumeSpace::Create(kFsId, volume_, storage_.get(), fsStorage_.get());
+    auto space = VolumeSpace::Create(kFsId, volume_, storage_.get(),
+                                     fsStorage_.get(), 1);
     EXPECT_NE(nullptr, space);
 }
 
@@ -186,7 +245,7 @@ TEST_F(VolumeSpaceTest, TestAllocateBlockGroups) {
     }
 
     std::set<uint64_t> offsets;
-    for (auto& group : groups) {
+    for (auto &group : groups) {
         ASSERT_EQ(kOwner, group.owner());
         offsets.insert(group.offset());
     }
@@ -225,10 +284,10 @@ TEST_F(VolumeSpaceTest, TestAutoExtendVolume_ExtendError) {
 namespace {
 class FakeCurveFSService : public curve::mds::CurveFSService {
  public:
-    void ExtendFile(::google::protobuf::RpcController* controller,
-                    const ::curve::mds::ExtendFileRequest* request,
-                    ::curve::mds::ExtendFileResponse* response,
-                    ::google::protobuf::Closure* done) override {
+    void ExtendFile(::google::protobuf::RpcController *controller,
+                    const ::curve::mds::ExtendFileRequest *request,
+                    ::curve::mds::ExtendFileResponse *response,
+                    ::google::protobuf::Closure *done) override {
         brpc::ClosureGuard guard(done);
         if (request->newsize() % kBlockGroupSize != 0) {
             response->set_statuscode(curve::mds::kParaError);
@@ -304,16 +363,14 @@ TEST_F(VolumeSpaceTest, TestAutoExtendVolumeSuccess) {
 
     EXPECT_CALL(*fsStorage_, Get(Matcher<uint64_t>(_), _))
         .WillOnce(Return(FSStatusCode::OK));
-    EXPECT_CALL(*fsStorage_, Update(_))
-        .WillOnce(Return(FSStatusCode::OK));
+    EXPECT_CALL(*fsStorage_, Update(_)).WillOnce(Return(FSStatusCode::OK));
 
     EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
         .Times(1)
         .WillRepeatedly(Return(SpaceOk));
 
     std::vector<BlockGroup> newGroups;
-    ASSERT_EQ(SpaceOk,
-              space->AllocateBlockGroups(1, kOwner, &newGroups));
+    ASSERT_EQ(SpaceOk, space->AllocateBlockGroups(1, kOwner, &newGroups));
 
     ASSERT_EQ(totalGroups + 1, space->allocatedGroups_.size());
     ASSERT_TRUE(space->availableGroups_.empty());
@@ -439,9 +496,7 @@ TEST_F(VolumeSpaceTest, TestReleaseBlockGroup_SpaceIsNotUsed_ButClearError) {
     ASSERT_EQ(SpaceErrStorage, space->ReleaseBlockGroups(exists));
 }
 
-MATCHER(NoOwner, "") {
-    return !arg.has_owner();
-}
+MATCHER(NoOwner, "") { return !arg.has_owner(); }
 
 TEST_F(VolumeSpaceTest, TestReleaseBlockGroup_SpaceIsPartialUsed) {
     std::vector<BlockGroup> exists;
@@ -469,6 +524,131 @@ TEST_F(VolumeSpaceTest, TestReleaseBlockGroup_SpaceIsPartialUsed_PutError) {
 
     ASSERT_EQ(SpaceErrStorage, space->ReleaseBlockGroups(exists));
 }
+
+TEST_F(VolumeSpaceTest, Test_CalBlockGroupAvailableForDeAllocate) {
+    // 1. test cal none
+    {
+        auto space = CreateOneEmptyVolumeSpace();
+        space->Run();
+        sleep(1);
+        space->Stop();
+        ASSERT_EQ(0, space->waitDeallocateGroups_.size());
+
+        space = CreateVolumeSpaceWithTwoGroups(false);
+        space->Run();
+        sleep(1);
+        space->Stop();
+        ASSERT_EQ(0, space->waitDeallocateGroups_.size());
+        ASSERT_EQ(2, space->availableGroups_.size());
+    }
+
+    // 2. test cal one and issue
+    {
+        // cal one
+        uint32_t metaserverId1 = 1;
+        std::vector<BlockGroup> exists;
+        auto space = CreateVolumeSpaceWithTwoGroups(false, &exists);
+        UpdateBlockGroupSpaceInfo(metaserverId1, space);
+        space->CalBlockGroupAvailableForDeAllocate();
+        ASSERT_EQ(1, space->waitDeallocateGroups_.size());
+        ASSERT_EQ(exists[0].offset(), space->waitDeallocateGroups_[0].offset());
+        ASSERT_EQ(1, space->availableGroups_.size());
+        ASSERT_EQ(exists[0].offset(), space->availableGroups_[0].offset());
+        ASSERT_EQ(kBlockGroupSize / 2, space->summary_[exists[0].offset()]);
+        ASSERT_EQ(kBlockGroupSize / 4, space->summary_[exists[1].offset()]);
+
+        // issue to metaserver1
+        EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+            .Times(1)
+            .WillOnce(Return(SpaceOk));
+        UpdateBlockGroupSpaceInfo(metaserverId1, space, true,
+                                  exists[0].offset());
+        ASSERT_TRUE(space->waitDeallocateGroups_.empty());
+        ASSERT_EQ(1, space->deallocatingGroups_.size());
+        ASSERT_EQ(
+            metaserverId1,
+            space->deallocatingGroups_[exists[0].offset()].deallocating()[0]);
+
+        // issue to metaserver2
+        uint32_t metaserverId2 = 2;
+        EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+            .Times(1)
+            .WillOnce(Return(SpaceOk));
+        UpdateBlockGroupSpaceInfo(metaserverId2, space, true,
+                                  exists[0].offset());
+        ASSERT_EQ(
+            metaserverId1,
+            space->deallocatingGroups_[exists[0].offset()].deallocating()[0]);
+
+        ASSERT_EQ(
+            metaserverId2,
+            space->deallocatingGroups_[exists[0].offset()].deallocating()[1]);
+        ASSERT_EQ(kBlockGroupSize, space->summary_[exists[0].offset()]);
+        ASSERT_EQ(kBlockGroupSize / 2, space->summary_[exists[1].offset()]);
+
+        // metaserver2 report, update summary and be issued again
+        UpdateBlockGroupSpaceInfo(metaserverId2, space, true,
+                                  exists[0].offset());
+        ASSERT_EQ(kBlockGroupSize, space->summary_[exists[0].offset()]);
+        ASSERT_EQ(kBlockGroupSize / 2, space->summary_[exists[1].offset()]);
+
+        // metaserver1 report issued stat: BGDP_PROCESSING
+        UpdateBlockGroupIssueStat(
+            metaserverId1, space, exists[0].offset(),
+            BlockGroupDeallcateStatusCode::BGDP_PROCESSING);
+        ASSERT_EQ(2, space->deallocatingGroups_[exists[0].offset()]
+                         .deallocating()
+                         .size());
+        ASSERT_EQ(2, space->summary_.size());
+
+        // metaserver1 report issued stat: BGDP_DONE
+        EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+            .Times(1)
+            .WillOnce(Return(SpaceOk));
+        UpdateBlockGroupIssueStat(metaserverId1, space, exists[0].offset(),
+                                  BlockGroupDeallcateStatusCode::BGDP_DONE,
+                                  false);
+        ASSERT_EQ(
+            metaserverId2,
+            space->deallocatingGroups_[exists[0].offset()].deallocating()[0]);
+        ASSERT_EQ(
+            metaserverId1,
+            space->deallocatingGroups_[exists[0].offset()].deallocated()[0]);
+        ASSERT_EQ(2, space->summary_.size());
+
+        // metaserver2 report issued stat: BGDP_DONE
+        EXPECT_CALL(*storage_, PutBlockGroup(_, _, _))
+            .Times(1)
+            .WillOnce(Return(SpaceOk));
+        UpdateBlockGroupIssueStat(metaserverId2, space, exists[0].offset(),
+                                  BlockGroupDeallcateStatusCode::BGDP_DONE,
+                                  false);
+        ASSERT_EQ(
+            metaserverId1,
+            space->deallocatingGroups_[exists[0].offset()].deallocated()[0]);
+        ASSERT_EQ(
+            metaserverId2,
+            space->deallocatingGroups_[exists[0].offset()].deallocated()[1]);
+        ASSERT_EQ(1, space->summary_.size());
+        ASSERT_EQ(kBlockGroupSize / 2, space->summary_[exists[1].offset()]);
+
+        // metaserver1 and metaserver2 process done
+        EXPECT_CALL(*storage_, PutBlockGroup(_, exists[0].offset(), _))
+            .Times(1)
+            .WillOnce(Return(SpaceOk));
+        space->CalBlockGroupAvailableForDeAllocate();
+        ASSERT_EQ(1, space->waitDeallocateGroups_.count(exists[1].offset()));
+        ASSERT_EQ(1, space->waitDeallocateGroups_.size());
+        ASSERT_EQ(1, space->availableGroups_.count(exists[0].offset()));
+        ASSERT_EQ(1, space->availableGroups_.size());
+    }
+}
+
+// TEST_F(VolumeSpaceTest, Test_UpdateBlockGroupDeallocatableSpace) {}
+
+// TEST_F(VolumeSpaceTest, Test_UpdnaateDeallocatingBlockGroup) {}
+
+// TEST_F(VolumeSpaceTest, Test_UpdateDeallocatingBlockGroupError) {}
 
 }  // namespace space
 }  // namespace mds

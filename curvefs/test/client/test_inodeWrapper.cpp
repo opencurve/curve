@@ -198,7 +198,7 @@ TEST_F(TestInodeWrapper, TestFlushVolumeExtent) {
     EXPECT_CALL(*metaClient_, UpdateInodeAttrWithOutNlink(_, _, _, _, _))
         .Times(0);
     EXPECT_CALL(*metaClient_, AsyncUpdateVolumeExtent(_, _, _, _))
-        .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentList&,
+        .WillOnce(Invoke([](uint32_t, uint64_t, const VolumeExtentSliceList&,
                             MetaServerClientDone* done) {
             done->SetMetaStatusCode(MetaStatusCode::OK);
             done->Run();

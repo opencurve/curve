@@ -116,6 +116,15 @@ class MockMetaServerService : public curvefs::metaserver::MetaServerService {
              const ::curvefs::metaserver::UpdateVolumeExtentRequest *request,
              ::curvefs::metaserver::UpdateVolumeExtentResponse *response,
              ::google::protobuf::Closure *done));
+
+    MOCK_METHOD4(
+        UpdateDeallocatableBlockGroup,
+        void(::google::protobuf::RpcController *controller,
+             const ::curvefs::metaserver::UpdateDeallocatableBlockGroupRequest
+                 *request,
+             ::curvefs::metaserver::UpdateDeallocatableBlockGroupResponse
+                 *response,
+             ::google::protobuf::Closure *done));
 };
 }  // namespace rpcclient
 }  // namespace client

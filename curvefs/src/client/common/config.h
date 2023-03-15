@@ -73,11 +73,6 @@ struct LeaseOpt {
     uint32_t leaseTimeUs = 20000000;
 };
 
-struct SpaceAllocServerOption {
-    std::string spaceaddr;
-    uint64_t rpcTimeoutMs;
-};
-
 struct KVClientManagerOpt {
     int setThreadPooln = 4;
     int getThreadPooln = 4;
@@ -165,6 +160,9 @@ struct VolumeOption {
     uint64_t volBlockSize;
     uint64_t fsBlockSize;
     VolumeAllocatorOption allocatorOption;
+
+    double threshold{1.0};
+    uint64_t releaseInterSec{300};
 };
 
 struct ExtentManagerOption {
@@ -180,7 +178,6 @@ struct FuseClientOption {
     MetaCacheOpt metaCacheOpt;
     ExcutorOpt excutorOpt;
     ExcutorOpt excutorInternalOpt;
-    SpaceAllocServerOption spaceOpt;
     BlockDeviceClientOptions bdevOpt;
     S3Option s3Opt;
     ExtentManagerOption extentManagerOpt;

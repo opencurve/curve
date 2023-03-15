@@ -27,6 +27,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/common/interruptible_sleeper.h"
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 #include "curvefs/src/volume/allocator.h"
@@ -39,6 +40,7 @@ namespace curvefs {
 namespace volume {
 
 using ::curvefs::client::rpcclient::MdsClient;
+using ::curve::common::InterruptibleSleeper;
 
 class SpaceManager {
  public:
@@ -48,9 +50,14 @@ class SpaceManager {
                        const AllocateHint& hint,
                        std::vector<Extent>* extents) = 0;
 
-    virtual bool DeAlloc(const std::vector<Extent>& extents) = 0;
+    virtual bool DeAlloc(uint64_t blockGroupOffset,
+                         const std::vector<Extent> &extents) = 0;
+
+    virtual void Run() = 0;
 
     virtual bool Shutdown() = 0;
+
+    virtual uint64_t GetBlockGroupSize() = 0;
 };
 
 class SpaceManagerImpl final : public SpaceManager {
@@ -67,12 +74,17 @@ class SpaceManagerImpl final : public SpaceManager {
                const AllocateHint& hint,
                std::vector<Extent>* extents) override;
 
-    bool DeAlloc(const std::vector<Extent>& extents) override;
+    bool DeAlloc(uint64_t blockGroupOffset,
+                 const std::vector<Extent> &extents) override;
+
+    void Run() override;
 
     /**
      * @brief Shutdown space manager, release all blockgroups' rights
      */
     bool Shutdown() override;
+
+    uint64_t GetBlockGroupSize() override { return blockGroupSize_; }
 
  private:
     int64_t AllocInternal(int64_t size,
@@ -87,7 +99,10 @@ class SpaceManagerImpl final : public SpaceManager {
      */
     BlockGroupBitmapUpdater* FindBitmapUpdater(const Extent& ext);
 
-    bool UpdateBitmap(const std::vector<Extent>& exts);
+    bool UpdateBitmap(const std::vector<Extent> &exts,
+                      BlockGroupBitmapUpdater::Op op);
+
+    void ReleaseFullBlockGroups();
 
  private:
     bool AllocateBlockGroup(uint64_t hint);
@@ -115,16 +130,25 @@ class SpaceManagerImpl final : public SpaceManager {
     std::mutex mtx_;
     std::condition_variable cond_;
 
+    // releaseT_ is periodically release the allocated blockgroup
+    double threshold_;
+    uint64_t releaseInterSec_;
+    InterruptibleSleeper sleeper_;
+    bool running_{false};
+    std::thread releaseT_;
+
+
  private:
     struct Metric {
         bvar::LatencyRecorder allocLatency;
+        bvar::LatencyRecorder deallocLatency;
         bvar::LatencyRecorder allocSize;
         bvar::Adder<uint64_t> errorCount;
 
         Metric()
             : allocLatency("space_alloc_latency"),
-              allocSize("space_alloc_size"),
-              errorCount("space_alloc_error") {}
+              deallocLatency("space_dealloc_latency"),
+              allocSize("space_alloc_size"), errorCount("space_alloc_error") {}
     };
 
     Metric metric_;

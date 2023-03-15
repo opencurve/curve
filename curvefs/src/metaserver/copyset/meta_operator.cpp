@@ -191,6 +191,7 @@ OPERATOR_ON_APPLY(CreatePartition);
 OPERATOR_ON_APPLY(DeletePartition);
 OPERATOR_ON_APPLY(PrepareRenameTx);
 OPERATOR_ON_APPLY(UpdateVolumeExtent);
+OPERATOR_ON_APPLY(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_APPLY
 
@@ -269,7 +270,7 @@ void GetVolumeExtentOperator::OnApply(int64_t index,
     }
 
     // in streaming mode, swap slices out and send them by streaming
-    VolumeExtentList extents;
+    VolumeExtentSliceList extents;
     response->mutable_slices()->Swap(&extents);
     response->clear_slices();
 
@@ -316,6 +317,7 @@ OPERATOR_ON_APPLY_FROM_LOG(CreatePartition);
 OPERATOR_ON_APPLY_FROM_LOG(DeletePartition);
 OPERATOR_ON_APPLY_FROM_LOG(PrepareRenameTx);
 OPERATOR_ON_APPLY_FROM_LOG(UpdateVolumeExtent);
+OPERATOR_ON_APPLY_FROM_LOG(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_APPLY_FROM_LOG
 
@@ -374,6 +376,7 @@ OPERATOR_REDIRECT(DeletePartition);
 OPERATOR_REDIRECT(PrepareRenameTx);
 OPERATOR_REDIRECT(GetVolumeExtent);
 OPERATOR_REDIRECT(UpdateVolumeExtent);
+OPERATOR_REDIRECT(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_REDIRECT
 
@@ -400,6 +403,7 @@ OPERATOR_ON_FAILED(DeletePartition);
 OPERATOR_ON_FAILED(PrepareRenameTx);
 OPERATOR_ON_FAILED(GetVolumeExtent);
 OPERATOR_ON_FAILED(UpdateVolumeExtent);
+OPERATOR_ON_FAILED(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_ON_FAILED
 
@@ -425,6 +429,8 @@ OPERATOR_HASH_CODE(PrepareRenameTx);
 OPERATOR_HASH_CODE(DeletePartition);
 OPERATOR_HASH_CODE(GetVolumeExtent);
 OPERATOR_HASH_CODE(UpdateVolumeExtent);
+OPERATOR_HASH_CODE(UpdateDeallocatableBlockGroup);
+
 
 #undef OPERATOR_HASH_CODE
 
@@ -462,6 +468,7 @@ OPERATOR_TYPE(CreatePartition);
 OPERATOR_TYPE(DeletePartition);
 OPERATOR_TYPE(GetVolumeExtent);
 OPERATOR_TYPE(UpdateVolumeExtent);
+OPERATOR_TYPE(UpdateDeallocatableBlockGroup);
 
 #undef OPERATOR_TYPE
 

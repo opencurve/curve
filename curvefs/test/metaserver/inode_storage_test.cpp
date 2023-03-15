@@ -31,6 +31,7 @@
 #include <random>
 #include <string>
 #include "curvefs/proto/metaserver.pb.h"
+#include "curvefs/proto/common.pb.h"
 #include "curvefs/src/metaserver/inode_storage.h"
 #include "curvefs/src/common/define.h"
 
@@ -44,20 +45,22 @@
 #include "curvefs/test/metaserver/mock/mock_kv_storage.h"
 #include "src/fs/ext4_filesystem_impl.h"
 
-using ::testing::AtLeast;
-using ::testing::StrEq;
 using ::testing::_;
+using ::testing::AtLeast;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::ReturnArg;
-using ::testing::DoAll;
-using ::testing::SetArgPointee;
 using ::testing::SaveArg;
+using ::testing::SetArgPointee;
+using ::testing::StrEq;
 
-using ::curvefs::metaserver::storage::KVStorage;
-using ::curvefs::metaserver::storage::StorageOptions;
-using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::common::EmptyMsg;
+using ::curvefs::metaserver::storage::Key4DeallocatableBlockGroup;
 using ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
+using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
+using ::curvefs::metaserver::storage::RocksDBStorage;
+using ::curvefs::metaserver::storage::StorageOptions;
 
 namespace curvefs {
 namespace metaserver {
@@ -85,7 +88,7 @@ class InodeStorageTest : public ::testing::Test {
         ASSERT_EQ(output.size(), 0);
     }
 
-    std::string execShell(const std::string& cmd) {
+    std::string execShell(const std::string &cmd) {
         std::array<char, 128> buffer;
         std::string result;
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
@@ -128,7 +131,7 @@ class InodeStorageTest : public ::testing::Test {
                                        uint64_t lastChunkId) {
         S3ChunkInfoList list;
         for (uint64_t id = firstChunkId; id <= lastChunkId; id++) {
-            S3ChunkInfo* info = list.add_s3chunks();
+            S3ChunkInfo *info = list.add_s3chunks();
             info->set_chunkid(id);
             info->set_compaction(0);
             info->set_offset(0);
@@ -139,17 +142,15 @@ class InodeStorageTest : public ::testing::Test {
         return list;
     }
 
-    bool EqualS3ChunkInfo(const S3ChunkInfo& lhs, const S3ChunkInfo& rhs) {
+    bool EqualS3ChunkInfo(const S3ChunkInfo &lhs, const S3ChunkInfo &rhs) {
         return lhs.chunkid() == rhs.chunkid() &&
-            lhs.compaction() == rhs.compaction() &&
-            lhs.offset() == rhs.offset() &&
-            lhs.len() == rhs.len() &&
-            lhs.size() == rhs.size() &&
-            lhs.zero() == rhs.zero();
+               lhs.compaction() == rhs.compaction() &&
+               lhs.offset() == rhs.offset() && lhs.len() == rhs.len() &&
+               lhs.size() == rhs.size() && lhs.zero() == rhs.zero();
     }
 
-    bool EqualS3ChunkInfoList(const S3ChunkInfoList& lhs,
-                              const S3ChunkInfoList& rhs) {
+    bool EqualS3ChunkInfoList(const S3ChunkInfoList &lhs,
+                              const S3ChunkInfoList &rhs) {
         size_t size = lhs.s3chunks_size();
         if (size != rhs.s3chunks_size()) {
             return false;
@@ -163,8 +164,8 @@ class InodeStorageTest : public ::testing::Test {
         return true;
     }
 
-    void CHECK_INODE_S3CHUNKINFOLIST(InodeStorage* storage,
-                                     uint32_t fsId, uint64_t inodeId,
+    void CHECK_INODE_S3CHUNKINFOLIST(InodeStorage *storage, uint32_t fsId,
+                                     uint64_t inodeId,
                                      const std::vector<uint64_t> chunkIndexs,
                                      const std::vector<S3ChunkInfoList> lists) {
         ASSERT_EQ(chunkIndexs.size(), lists.size());
@@ -219,8 +220,7 @@ TEST_F(InodeStorageTest, test1) {
     // delete
     ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::OK);
     ASSERT_EQ(storage.Size(), 2);
-    ASSERT_EQ(storage.Get(Key4Inode(inode1), &temp),
-        MetaStatusCode::NOT_FOUND);
+    ASSERT_EQ(storage.Get(Key4Inode(inode1), &temp), MetaStatusCode::NOT_FOUND);
     ASSERT_EQ(storage.Delete(Key4Inode(inode1)), MetaStatusCode::OK);
 
     // update
@@ -261,7 +261,7 @@ TEST_F(InodeStorageTest, testGetAttrNotFound) {
     ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
     InodeAttr attr;
     ASSERT_EQ(storage.GetAttr(Key4Inode(1, 2), &attr),
-        MetaStatusCode::NOT_FOUND);
+              MetaStatusCode::NOT_FOUND);
 }
 
 TEST_F(InodeStorageTest, testGetAttr) {
@@ -359,8 +359,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
     {
         LOG(INFO) << "CASE 2: append one s3chunkinfo";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
-        std::vector<uint64_t> chunkIndexs{ 1 };
-        std::vector<S3ChunkInfoList> lists2add{ GenS3ChunkInfoList(1, 1) };
+        std::vector<uint64_t> chunkIndexs{1};
+        std::vector<S3ChunkInfoList> lists2add{GenS3ChunkInfoList(1, 1)};
 
         for (size_t i = 0; i < chunkIndexs.size(); i++) {
             MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
@@ -368,15 +368,15 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
-                                    chunkIndexs, lists2add);
+        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId, chunkIndexs,
+                                    lists2add);
     }
 
     // CASE 3: append multi s3chunkinfos
     {
         LOG(INFO) << "CASE 3: append multi s3chunkinfos";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
-        std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+        std::vector<uint64_t> chunkIndexs{1, 2, 3};
         std::vector<S3ChunkInfoList> lists2add{
             GenS3ChunkInfoList(1, 1),
             GenS3ChunkInfoList(2, 2),
@@ -389,15 +389,15 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
             ASSERT_EQ(rc, MetaStatusCode::OK);
         }
 
-        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
-                                    chunkIndexs, lists2add);
+        CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId, chunkIndexs,
+                                    lists2add);
     }
 
     // CASE 4: check order for s3chunkinfo's chunk index
     {
         LOG(INFO) << "CASE 4: check order for s3chunkinfo's chunk index";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
-        std::vector<uint64_t> chunkIndexs{ 2, 1, 3 };
+        std::vector<uint64_t> chunkIndexs{2, 1, 3};
         std::vector<S3ChunkInfoList> lists2add{
             GenS3ChunkInfoList(2, 2),
             GenS3ChunkInfoList(1, 1),
@@ -411,24 +411,22 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         }
 
         CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
-            std::vector<uint64_t>{ 1, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(1, 1),
-                GenS3ChunkInfoList(2, 2),
-                GenS3ChunkInfoList(3, 3),
-            });
+                                    std::vector<uint64_t>{1, 2, 3},
+                                    std::vector<S3ChunkInfoList>{
+                                        GenS3ChunkInfoList(1, 1),
+                                        GenS3ChunkInfoList(2, 2),
+                                        GenS3ChunkInfoList(3, 3),
+                                    });
     }
 
     // CASE 5: check order for s3chunkinfo's chunk id
     {
         LOG(INFO) << "CASE 5: check order for s3chunkinfo's chunk id";
         ASSERT_EQ(storage.Clear(), MetaStatusCode::OK);
-        std::vector<uint64_t> chunkIndexs{ 2, 1, 3, 1, 2 };
+        std::vector<uint64_t> chunkIndexs{2, 1, 3, 1, 2};
         std::vector<S3ChunkInfoList> lists2add{
-            GenS3ChunkInfoList(200, 210),
-            GenS3ChunkInfoList(120, 130),
-            GenS3ChunkInfoList(300, 310),
-            GenS3ChunkInfoList(100, 110),
+            GenS3ChunkInfoList(200, 210), GenS3ChunkInfoList(120, 130),
+            GenS3ChunkInfoList(300, 310), GenS3ChunkInfoList(100, 110),
             GenS3ChunkInfoList(220, 230),
         };
 
@@ -439,14 +437,14 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
         }
 
         CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
-            std::vector<uint64_t>{ 1, 1, 2, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(100, 110),
-                GenS3ChunkInfoList(120, 130),
-                GenS3ChunkInfoList(200, 210),
-                GenS3ChunkInfoList(220, 230),
-                GenS3ChunkInfoList(300, 310),
-            });
+                                    std::vector<uint64_t>{1, 1, 2, 2, 3},
+                                    std::vector<S3ChunkInfoList>{
+                                        GenS3ChunkInfoList(100, 110),
+                                        GenS3ChunkInfoList(120, 130),
+                                        GenS3ChunkInfoList(200, 210),
+                                        GenS3ChunkInfoList(220, 230),
+                                        GenS3ChunkInfoList(300, 310),
+                                    });
     }
 
 
@@ -457,7 +455,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step1: add s3chunkinfo
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(100, 199),
                 GenS3ChunkInfoList(200, 299),
@@ -473,7 +471,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step2: compaction
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(199, 199),
                 GenS3ChunkInfoList(299, 299),
@@ -488,8 +486,8 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i],
-                    &lists2add[i], &lists2del[i]);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i],
+                    &lists2del[i]);
                 ASSERT_EQ(rc, MetaStatusCode::STORAGE_INTERNAL_ERROR);
             }
         }
@@ -502,7 +500,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step1: add s3chunkinfo
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(100, 199),
                 GenS3ChunkInfoList(200, 299),
@@ -518,7 +516,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step2: compaction
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(199, 199),
                 GenS3ChunkInfoList(299, 299),
@@ -533,20 +531,20 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i],
-                    &lists2add[i], &lists2del[i]);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i],
+                    &lists2del[i]);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
 
         // step3: check result
         CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
-            std::vector<uint64_t>{ 1, 2, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(199, 199),
-                GenS3ChunkInfoList(299, 299),
-                GenS3ChunkInfoList(399, 399),
-        });
+                                    std::vector<uint64_t>{1, 2, 3},
+                                    std::vector<S3ChunkInfoList>{
+                                        GenS3ChunkInfoList(199, 199),
+                                        GenS3ChunkInfoList(299, 299),
+                                        GenS3ChunkInfoList(399, 399),
+                                    });
     }
 
 
@@ -557,7 +555,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step1: add s3chunkinfo
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(100, 199),
                 GenS3ChunkInfoList(1000, 1999),
@@ -573,7 +571,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step2: add s3chunkinfo again
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(200, 299),
                 GenS3ChunkInfoList(2000, 2999),
@@ -589,7 +587,7 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
         // step2: compaction
         {
-            std::vector<uint64_t> chunkIndexs{ 1, 2, 3 };
+            std::vector<uint64_t> chunkIndexs{1, 2, 3};
             std::vector<S3ChunkInfoList> lists2add{
                 GenS3ChunkInfoList(199, 199),
                 GenS3ChunkInfoList(2999, 2999),
@@ -604,22 +602,22 @@ TEST_F(InodeStorageTest, ModifyInodeS3ChunkInfoList) {
 
             for (size_t i = 0; i < chunkIndexs.size(); i++) {
                 MetaStatusCode rc = storage.ModifyInodeS3ChunkInfoList(
-                    fsId, inodeId, chunkIndexs[i],
-                    &lists2add[i], &lists2del[i]);
+                    fsId, inodeId, chunkIndexs[i], &lists2add[i],
+                    &lists2del[i]);
                 ASSERT_EQ(rc, MetaStatusCode::OK);
             }
         }
 
         // step3: check result
         CHECK_INODE_S3CHUNKINFOLIST(&storage, fsId, inodeId,
-            std::vector<uint64_t>{ 1, 1, 2, 3, 3 },
-            std::vector<S3ChunkInfoList>{
-                GenS3ChunkInfoList(199, 199),
-                GenS3ChunkInfoList(200, 299),
-                GenS3ChunkInfoList(2999, 2999),
-                GenS3ChunkInfoList(19999, 19999),
-                GenS3ChunkInfoList(20000, 29999),
-        });
+                                    std::vector<uint64_t>{1, 1, 2, 3, 3},
+                                    std::vector<S3ChunkInfoList>{
+                                        GenS3ChunkInfoList(199, 199),
+                                        GenS3ChunkInfoList(200, 299),
+                                        GenS3ChunkInfoList(2999, 2999),
+                                        GenS3ChunkInfoList(19999, 19999),
+                                        GenS3ChunkInfoList(20000, 29999),
+                                    });
     }
 }
 
@@ -634,12 +632,10 @@ TEST_F(InodeStorageTest, PaddingInodeS3ChunkInfo) {
     ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
 
     // step2: append s3chunkinfo
-    std::vector<uint64_t> chunkIndexs{ 1, 3, 2, 1, 2 };
+    std::vector<uint64_t> chunkIndexs{1, 3, 2, 1, 2};
     std::vector<S3ChunkInfoList> lists2add{
-        GenS3ChunkInfoList(100, 109),
-        GenS3ChunkInfoList(300, 310),
-        GenS3ChunkInfoList(200, 209),
-        GenS3ChunkInfoList(110, 120),
+        GenS3ChunkInfoList(100, 109), GenS3ChunkInfoList(300, 310),
+        GenS3ChunkInfoList(200, 209), GenS3ChunkInfoList(110, 120),
         GenS3ChunkInfoList(210, 220),
     };
 
@@ -715,8 +711,8 @@ TEST_F(InodeStorageTest, GetAllS3ChunkInfoList) {
     size_t size = 0;
     Key4S3ChunkInfoList key;
     S3ChunkInfoList list4get;
-    std::vector<uint32_t> fsIds{ 1, 2 };
-    std::vector<uint64_t> inodeIds{ 1, 2 };
+    std::vector<uint32_t> fsIds{1, 2};
+    std::vector<uint64_t> inodeIds{1, 2};
     auto iterator = storage.GetAllS3ChunkInfoList();
     for (iterator->SeekToFirst(); iterator->Valid(); iterator->Next()) {
         ASSERT_TRUE(conv_->ParseFromString(iterator->Key(), &key));
@@ -734,11 +730,10 @@ TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
     using storage::Status;
 
     const std::vector<std::pair<MetaStatusCode, Status>> cases{
-        {                    MetaStatusCode::OK,            Status::OK()},
-        {MetaStatusCode::STORAGE_INTERNAL_ERROR, Status::InternalError()}
-    };
+        {MetaStatusCode::OK, Status::OK()},
+        {MetaStatusCode::STORAGE_INTERNAL_ERROR, Status::InternalError()}};
 
-    for (const auto& test : cases) {
+    for (const auto &test : cases) {
         auto kvStorage = std::make_shared<storage::MockKVStorage>();
         InodeStorage storage(kvStorage, nameGenerator_, 0);
 
@@ -758,7 +753,7 @@ TEST_F(InodeStorageTest, TestUpdateVolumeExtentSlice) {
     }
 }
 
-static void RandomSetExtent(VolumeExtent* ext) {
+static void RandomSetExtent(VolumeExtent *ext) {
     std::random_device rd;
 
     ext->set_fsoffset(rd());
@@ -767,10 +762,9 @@ static void RandomSetExtent(VolumeExtent* ext) {
     ext->set_isused(rd() & 1);
 }
 
-static bool PrepareGetAllVolumeExtentTest(InodeStorage* storage,
-                                          uint32_t fsId,
+static bool PrepareGetAllVolumeExtentTest(InodeStorage *storage, uint32_t fsId,
                                           uint64_t inodeId,
-                                          std::vector<VolumeExtentSlice>* out) {
+                                          std::vector<VolumeExtentSlice> *out) {
     VolumeExtentSlice slice1;
     slice1.set_offset(0);
 
@@ -806,22 +800,22 @@ static bool PrepareGetAllVolumeExtentTest(InodeStorage* storage,
     return true;
 }
 
-static bool operator==(const VolumeExtentList& list,
-                       const std::vector<VolumeExtentSlice>& slices) {
+static bool operator==(const VolumeExtentSliceList &list,
+                       const std::vector<VolumeExtentSlice> &slices) {
     std::vector<VolumeExtentSlice> clist(list.slices().begin(),
                                          list.slices().end());
 
     auto copy = slices;
     std::sort(copy.begin(), copy.end(),
-              [](const VolumeExtentSlice& s1, const VolumeExtentSlice& s2) {
+              [](const VolumeExtentSlice &s1, const VolumeExtentSlice &s2) {
                   return s1.offset() < s2.offset();
               });
 
     return true;
 }
 
-static bool operator==(const VolumeExtentSlice& s1,
-                       const VolumeExtentSlice& s2) {
+static bool operator==(const VolumeExtentSlice &s1,
+                       const VolumeExtentSlice &s2) {
     return google::protobuf::util::MessageDifferencer::Equals(s1, s2);
 }
 
@@ -833,7 +827,7 @@ TEST_F(InodeStorageTest, TestGetAllVolumeExtent) {
         std::make_shared<storage::MemoryStorage>(opts);
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
-    for (auto& store : {memStore, kvStore}) {
+    for (auto &store : {memStore, kvStore}) {
         InodeStorage storage(store, nameGenerator_, 0);
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
@@ -842,20 +836,28 @@ TEST_F(InodeStorageTest, TestGetAllVolumeExtent) {
         ASSERT_TRUE(
             PrepareGetAllVolumeExtentTest(&storage, fsId, inodeId, &slices));
 
-        VolumeExtentList list;
+        VolumeExtentSliceList list;
         ASSERT_EQ(MetaStatusCode::OK,
                   storage.GetAllVolumeExtent(fsId, inodeId, &list));
         ASSERT_EQ(2, list.slices().size());
         ASSERT_EQ(list, slices);
+
+        auto iter = storage.GetAllVolumeExtent(fsId, inodeId);
+        iter->SeekToFirst();
+        ASSERT_TRUE(iter->Valid());
+        iter->Next();
+        ASSERT_TRUE(iter->Valid());
+        iter->Next();
+        ASSERT_FALSE(iter->Valid());
     }
 }
 
 static std::string ToString(storage::STORAGE_TYPE type) {
     switch (type) {
-        case storage::STORAGE_TYPE::MEMORY_STORAGE:
-            return "memory";
-        case storage::STORAGE_TYPE::ROCKSDB_STORAGE:
-            return "rocksdb";
+    case storage::STORAGE_TYPE::MEMORY_STORAGE:
+        return "memory";
+    case storage::STORAGE_TYPE::ROCKSDB_STORAGE:
+        return "rocksdb";
     }
 
     return "unknown";
@@ -869,7 +871,7 @@ TEST_F(InodeStorageTest, TestGetVolumeExtentByOffset) {
         std::make_shared<storage::MemoryStorage>(opts);
     std::shared_ptr<KVStorage> kvStore = kvStorage_;
 
-    for (auto& store : {kvStorage_, memStore}) {
+    for (auto &store : {kvStorage_, memStore}) {
         InodeStorage storage(store, nameGenerator_, 0);
         const uint32_t fsId = 1;
         const uint64_t inodeId = 2;
@@ -894,6 +896,105 @@ TEST_F(InodeStorageTest, TestGetVolumeExtentByOffset) {
             fsId, inodeId, slices[1].offset() + slices[1].offset(), &slice);
         ASSERT_EQ(st, MetaStatusCode::NOT_FOUND);
     }
+}
+
+TEST_F(InodeStorageTest, Test_UpdateInodeWithDeallocate) {
+    auto inode = GenInode(1, 1);
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_EQ(storage.Insert(inode), MetaStatusCode::OK);
+
+    ASSERT_EQ(MetaStatusCode::OK, storage.Update(inode, true));
+
+    auto tableName = nameGenerator_->GetDeallocatableInodeTableName();
+    Key4Inode key(1, 1);
+    auto skey = key.SerializeToString();
+    EmptyMsg value;
+    auto s = kvStorage_->HGet(tableName, skey, &value);
+    ASSERT_TRUE(s.ok());
+}
+
+TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
+    uint64_t blockGroupOffset = 0;
+    uint32_t fsId = 1;
+    auto tableName = nameGenerator_->GetDeallocatableBlockGroupTableName();
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    uint64_t increaseSize = 100 * 1024;
+    uint64_t decreaseSize = 4 * 1024;
+    Key4DeallocatableBlockGroup key(fsId, blockGroupOffset);
+    std::vector<DeallocatableBlockGroup> deallocatableBlockGroupVec;
+    ASSERT_EQ(MetaStatusCode::NOT_FOUND,
+              storage.GeAllBlockGroup(&deallocatableBlockGroupVec));
+
+    // test increase
+    {
+        DeallocatableBlockGroupVec inputVec;
+
+        DeallocatableBlockGroup blockGroup;
+        auto increase = blockGroup.mutable_increase();
+        increase->set_increasedeallocatablesize(increaseSize);
+        increase->add_inodeidlistadd(1);
+        inputVec.Add()->CopyFrom(blockGroup);
+
+        // increase first time
+        ASSERT_EQ(MetaStatusCode::OK,
+                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        DeallocatableBlockGroup out;
+        auto st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
+        ASSERT_TRUE(st.ok());
+        ASSERT_EQ(increaseSize, out.deallocatablesize());
+        ASSERT_EQ(1, out.inodeidlist_size());
+        ASSERT_EQ(blockGroupOffset, out.blockgroupoffset());
+        ASSERT_EQ(0, out.inodeidunderdeallocate_size());
+
+        // increase second time
+        ASSERT_EQ(MetaStatusCode::OK,
+                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
+        ASSERT_TRUE(st.ok());
+        ASSERT_EQ(increaseSize * 2, out.deallocatablesize());
+        ASSERT_EQ(1, out.inodeidlist_size());
+        ASSERT_EQ(blockGroupOffset, out.blockgroupoffset());
+        ASSERT_EQ(0, out.inodeidunderdeallocate_size());
+    }
+
+    // test mark
+    {
+        DeallocatableBlockGroupVec inputVec;
+
+        DeallocatableBlockGroup blockGroup;
+        auto mark = blockGroup.mutable_mark();
+        mark->add_inodeidunderdeallocate(1);
+        inputVec.Add()->CopyFrom(blockGroup);
+
+        ASSERT_EQ(MetaStatusCode::OK,
+                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        DeallocatableBlockGroup out;
+        auto st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
+        ASSERT_TRUE(st.ok());
+        ASSERT_EQ(increaseSize * 2, out.deallocatablesize());
+        ASSERT_EQ(0, out.inodeidlist_size());
+        ASSERT_EQ(1, out.inodeidunderdeallocate_size());
+    }
+
+    // test decrease
+    {
+        DeallocatableBlockGroupVec inputVec;
+
+        DeallocatableBlockGroup blockGroup;
+        auto decrease = blockGroup.mutable_decrease();
+        decrease->set_decreasedeallocatablesize(decreaseSize);
+        inputVec.Add()->CopyFrom(blockGroup);
+        ASSERT_EQ(MetaStatusCode::OK,
+                  storage.UpdateDeallocatableBlockGroup(fsId, inputVec));
+        DeallocatableBlockGroup out;
+        auto st = kvStorage_->HGet(tableName, key.SerializeToString(), &out);
+        ASSERT_TRUE(st.ok());
+        ASSERT_EQ(increaseSize * 2 - decreaseSize, out.deallocatablesize());
+    }
+
+    ASSERT_EQ(MetaStatusCode::OK,
+              storage.GeAllBlockGroup(&deallocatableBlockGroupVec));
+    ASSERT_EQ(1, deallocatableBlockGroupVec.size());
 }
 
 }  // namespace metaserver

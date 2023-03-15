@@ -71,7 +71,7 @@ class SpaceManagerTest : public ::testing::Test {
         etcdclient_ = std::make_shared<MockEtcdClientImpl>();
         fsStorage_ = std::make_shared<MockFsStorage>();
         spaceManager_ =
-            absl::make_unique<SpaceManagerImpl>(etcdclient_, fsStorage_);
+            absl::make_unique<SpaceManagerImpl>(etcdclient_, fsStorage_, 1);
     }
 
     void TearDown() override {}

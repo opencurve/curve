@@ -40,19 +40,21 @@
 #include "curvefs/src/metaserver/copyset/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
+#include "curvefs/src/metaserver/space/volume_deallocate_manager.h"
 
 namespace curvefs {
 namespace metaserver {
 
 using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curvefs::mds::heartbeat::ConfigChangeInfo;
+using ::curvefs::mds::heartbeat::CopySetInfo;
 using ::curvefs::metaserver::copyset::CopysetService_Stub;
 using ::curvefs::metaserver::copyset::ToGroupIdString;
 
 namespace {
 
 int GatherCopysetConfChange(CopysetNode* node, ConfigChangeInfo* info) {
-    ConfigChangeType type;
+    ConfigChangeType type = ConfigChangeType::NONE;
     Peer peer;
 
     node->GetConfChange(&type, &peer);
@@ -161,7 +163,7 @@ int Heartbeat::Fini() {
     return 0;
 }
 
-void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
+void Heartbeat::BuildCopysetInfo(CopySetInfo *info,
                                  CopysetNode *copyset) {
     int ret;
     PoolId poolId = copyset->GetPoolId();
@@ -213,6 +215,12 @@ void Heartbeat::BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo *info,
     }
 }
 
+void Heartbeat::BuildBlockGroupStatInfo(CopysetNode *copyset,
+                             BlockGroupStatInfoMap *blockGroupStatInfoMap) {
+    copyset->GetBlockStatInfo(blockGroupStatInfoMap);
+}
+
+
 // TODO(@Wine93): now we use memory storage, so we gather disk usage bytes
 // which only has raft related capacity. If we use rocksdb storage, maybe
 // we should need more flexible strategy.
@@ -255,16 +263,38 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 
     req->set_copysetcount(copysets.size());
     int leaders = 0;
-
+    BlockGroupStatInfoMap blockGroupStatInfoMap;
     for (auto copyset : copysets) {
-        curvefs::mds::heartbeat::CopySetInfo *info = req->add_copysetinfos();
-
+        // build copyset info
+        CopySetInfo *info = req->add_copysetinfos();
         BuildCopysetInfo(info, copyset);
 
         if (copyset->IsLeaderTerm()) {
+            // build block group info
+            BuildBlockGroupStatInfo(copyset, &blockGroupStatInfoMap);
             ++leaders;
         }
     }
+
+    // get deallocate task status
+    for (auto &item : blockGroupStatInfoMap) {
+        if (taskExecutor_->deallocfsid_.has_value() &&
+            item.second.fsid() == taskExecutor_->deallocfsid_.value()) {
+            bool doing = VolumeDeallocateManager::GetInstance().HasDeallocate();
+            auto status = item.second.mutable_blockgroupdeallocatestatus();
+            if (doing) {
+                status->insert(
+                    {item.second.fsid(),
+                     BlockGroupDeallcateStatusCode::BGDP_PROCESSING});
+            } else {
+                status->insert({item.second.fsid(),
+                                BlockGroupDeallcateStatusCode::BGDP_DONE});
+                taskExecutor_->deallocfsid_.reset();
+            }
+        }
+        *req->add_blockgroupstatinfos() = std::move(item.second);
+    }
+
     req->set_leadercount(leaders);
 
     MetaServerSpaceStatus* status = req->mutable_spacestatus();
@@ -314,8 +344,13 @@ void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse &response) {
     VLOG(3) << "Received heartbeat response, statusCode = "
             << response.statuscode();
 
-    for (auto& conf : response.needupdatecopysets()) {
+    for (auto &conf : response.needupdatecopysets()) {
         VLOG(3) << "need update copyset: " << conf.ShortDebugString();
+    }
+
+    for (auto &issue : response.issuedblockgroups()) {
+        VLOG(3) << "issued block group fsid=" << issue.first
+                << ", blockgroupoffset=" << issue.second;
     }
 }
 
@@ -409,6 +444,18 @@ HeartbeatTaskExecutor::HeartbeatTaskExecutor(CopysetNodeManager* mgr,
 void HeartbeatTaskExecutor::ExecTasks(const HeartbeatResponse& response) {
     for (auto& conf : response.needupdatecopysets()) {
         ExecOneTask(conf);
+    }
+
+    std::vector<CopysetNode *> copysets;
+    copysetMgr_->GetAllCopysets(&copysets);
+    for (auto &issue : response.issuedblockgroups()) {
+        for (auto &copyset : copysets) {
+            if (copyset->IsLeaderTerm()) {
+                copyset->Deallocate(issue.first, issue.second);
+            }
+        }
+
+        deallocfsid_ = issue.first;
     }
 }
 

@@ -69,13 +69,20 @@ CURVEFS_ERROR UpdateVolumeExtentClosure::Wait() {
 void UpdateVolumeExtentClosure::Run() {
     auto st = GetStatusCode();
     if (!IsOK(st)) {
-        LOG(ERROR) << "UpdateVolumeExtent failed, error: "
-                   << MetaStatusCode_Name(st)
-                   << ", inodeid: " << inode_->GetInodeId();
-        inode_->MarkInodeError();
+        if (inode_ != nullptr) {
+            inode_->MarkInodeError();
+            LOG(ERROR) << "UpdateVolumeExtent failed, error: "
+                       << MetaStatusCode_Name(st)
+                       << ", inodeid: " << inode_->GetInodeId();
+        } else {
+            LOG(ERROR) << "UpdateVolumeExtent failed, error: "
+                       << MetaStatusCode_Name(st);
+        }
     }
 
-    inode_->syncingVolumeExtentsMtx_.unlock();
+    if (inode_ != nullptr) {
+        inode_->syncingVolumeExtentsMtx_.unlock();
+    }
 
     if (sync_) {
         std::lock_guard<bthread::Mutex> lk(mtx_);
