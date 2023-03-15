@@ -91,7 +91,6 @@ CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
         // handle error here
         LOG(ERROR) << "Failed to open whitelist file: "
                    << whitelist_config_.GetConfigPath();
-        return CURVEFS_ERROR::INTERNAL;
     }
 
     option_ = option;
