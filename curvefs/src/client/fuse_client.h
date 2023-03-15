@@ -53,6 +53,7 @@
 #include "curvefs/src/client/lease/lease_excutor.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
+#include "curvefs/src/client/filesystem/filesystem.h"
 
 #define DirectIOAlignment 512
 
@@ -63,6 +64,8 @@ using ::curvefs::common::FSType;
 using ::curvefs::metaserver::DentryFlag;
 using ::curvefs::metaserver::ManageInodeType;
 using ::curvefs::client::metric::FSMetric;
+using ::curvefs::client::filesystem::Context;
+using ::curvefs::client::filesystem::FileSystem;
 
 namespace curvefs {
 namespace client {
@@ -142,7 +145,7 @@ class FuseClient {
                                      size_t* rSize) = 0;
 
     virtual CURVEFS_ERROR FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
-                                       const char* name, fuse_entry_param* e);
+                                       const char* name, EntryOut* entryOut);
 
     virtual CURVEFS_ERROR FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                                      struct fuse_file_info* fi);
@@ -175,8 +178,7 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
                                             size_t size, off_t off,
                                             struct fuse_file_info* fi,
-                                            char** buffer, size_t* rSize,
-                                            bool cacheDir);
+                                            char** buffer, size_t* rSize);
 
     virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req, fuse_ino_t parent,
                                        const char* name, fuse_ino_t newparent,
@@ -184,12 +186,12 @@ class FuseClient {
 
     virtual CURVEFS_ERROR FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info* fi,
-                                        struct stat* attr);
+                                        struct AttrOut* out);
 
     virtual CURVEFS_ERROR FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct stat* attr, int to_set,
                                         struct fuse_file_info* fi,
-                                        struct stat* attrOut);
+                                        struct AttrOut* out);
 
     virtual CURVEFS_ERROR FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, std::string* value,
@@ -256,9 +258,9 @@ class FuseClient {
         return fsInfo_;
     }
 
-    virtual void FlushInode();
-
-    virtual void FlushInodeAll();
+    std::shared_ptr<FileSystem> GetFileSystem() {
+        return fs_;
+    }
 
     virtual void FlushAll();
 
@@ -287,6 +289,9 @@ class FuseClient {
         }
         return false;
     }
+
+    virtual CURVEFS_ERROR HandleOpenFlags(
+        Context* ctx, std::shared_ptr<InodeWrapper> inodeWrapper);
 
  protected:
     CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
@@ -330,8 +335,10 @@ class FuseClient {
         return 0;
     }
 
+
  private:
     virtual CURVEFS_ERROR Truncate(InodeWrapper* inode, uint64_t length) = 0;
+
 
     virtual void FlushData() = 0;
 
@@ -388,6 +395,8 @@ class FuseClient {
 
     // warmup manager
     std::shared_ptr<warmup::WarmupManager> warmupManager_;
+
+    std::shared_ptr<FileSystem> fs_;
 
  private:
     MDSBaseClient* mdsBase_;

@@ -47,6 +47,7 @@ static const std::map<CURVEFS_ERROR, std::string> err2Msg = {
     {CURVEFS_ERROR::NAMETOOLONG, "name too long"},
     {CURVEFS_ERROR::MOUNT_POINT_EXIST, "mount point already exist"},
     {CURVEFS_ERROR::MOUNT_FAILED, "mount failed"},
+    {CURVEFS_ERROR::STALE, "stale file handler"},
 };
 
 std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code) {

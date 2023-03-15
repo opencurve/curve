@@ -49,6 +49,7 @@ enum class CURVEFS_ERROR {
     OUT_OF_RANGE = -15,
     NODATA = -16,
     IO_ERROR = -17,
+    STALE = -18,
 };
 
 

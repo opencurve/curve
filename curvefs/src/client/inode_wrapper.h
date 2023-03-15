@@ -59,9 +59,6 @@ enum class InodeStatus {
     kError = -1,
 };
 
-// TODO(xuchaojie) : get from conf maybe?
-const uint32_t kOptimalIOBlockSize = 0x10000u;
-
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 using rpcclient::MetaServerClientDone;

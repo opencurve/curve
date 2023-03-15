@@ -157,7 +157,6 @@ void FuseClient::UnInit() {
 
 CURVEFS_ERROR FuseClient::Run() {
     if (isStop_.exchange(false)) {
-        inodeManager_->Run();
         return CURVEFS_ERROR::OK;
     }
     return CURVEFS_ERROR::INTERNAL;
@@ -165,7 +164,6 @@ CURVEFS_ERROR FuseClient::Run() {
 
 void FuseClient::Fini() {
     if (!isStop_.exchange(true)) {
-        inodeManager_->Stop();
         xattrManager_->Stop();
     }
 }
@@ -207,6 +205,8 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
               << " success!" << " enableSumInDir = " << enableSumInDir_;
 
     fsMetric_ = std::make_shared<FSMetric>(fsName);
+
+    fs_ = std::make_shared<FileSystem>(option_.fileSystemOption);
 
     // init fsname and mountpoint
     leaseExecutor_->SetFsName(fsName);
@@ -260,46 +260,8 @@ void FuseClient::FuseOpDestroy(void *userdata) {
               << " success!";
 }
 
-void InodeAttr2ParamAttr(const InodeAttr &inodeAttr, struct stat *attr) {
-    attr->st_ino = inodeAttr.inodeid();
-    attr->st_mode = inodeAttr.mode();
-    attr->st_nlink = inodeAttr.nlink();
-    attr->st_uid = inodeAttr.uid();
-    attr->st_gid = inodeAttr.gid();
-    attr->st_size = inodeAttr.length();
-    attr->st_rdev = inodeAttr.rdev();
-    attr->st_atim.tv_sec = inodeAttr.atime();
-    attr->st_atim.tv_nsec = inodeAttr.atime_ns();
-    attr->st_mtim.tv_sec = inodeAttr.mtime();
-    attr->st_mtim.tv_nsec = inodeAttr.mtime_ns();
-    attr->st_ctim.tv_sec = inodeAttr.ctime();
-    attr->st_ctim.tv_nsec = inodeAttr.ctime_ns();
-    attr->st_blksize = kOptimalIOBlockSize;
-
-    switch (inodeAttr.type()) {
-        case metaserver::TYPE_S3:
-            attr->st_blocks = (inodeAttr.length() + 511) / 512;
-            break;
-        default:
-            attr->st_blocks = 0;
-            break;
-    }
-}
-
-void GetDentryParamFromInodeAttr(
-    const FuseClientOption &option,
-    const InodeAttr &inodeAttr,
-    fuse_entry_param *param) {
-    memset(param, 0, sizeof(fuse_entry_param));
-    param->ino = inodeAttr.inodeid();
-    param->generation = 0;
-    InodeAttr2ParamAttr(inodeAttr, &param->attr);
-    param->attr_timeout = option.attrTimeOut;
-    param->entry_timeout = option.entryTimeOut;
-}
-
 CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
-                                       const char *name, fuse_entry_param *e) {
+                                       const char *name, AttrOut* entryOut) {
     VLOG(1) << "FuseOpLookup parent: " << parent
             << ", name: " << name;
     if (strlen(name) > option_.maxNameLength) {
@@ -318,28 +280,38 @@ CURVEFS_ERROR FuseClient::FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
     }
 
     fuse_ino_t ino = dentry.inodeid();
-    InodeAttr attr;
-    ret = inodeManager_->GetInodeAttr(ino, &attr);
+    ret = inodeManager_->GetInodeAttr(ino, &entryOut->attr);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
                    << ", inodeid = " << ino;
         return ret;
     }
 
-    GetDentryParamFromInodeAttr(option_, attr, e);
     return ret;
 }
 
-CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
-                                     struct fuse_file_info *fi) {
-    VLOG(1) << "FuseOpOpen, ino: " << ino;
-    std::shared_ptr<InodeWrapper> inodeWrapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << ino;
-        return ret;
+CURVEFS_ERROR FuseClient::HandleXAttr(std::shared_ptr<InodeWrapper> inode,
+                                      uint64_t length) {
+    XAttr xattr;
+    const Inode* protoInode = inode->GetInodeLocked();
+    xattr.mutable_xattrinfos()->insert({XATTRFBYTES, std::to_string(length)});
+    for (const auto& it : protoInode->parent()) {
+        CURVEFS_ERROR rc =
+            xattrManager_->UpdateParentInodeXattr(it, xattr, false);
+        if (rc != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "UpdateParentInodeXattr failed,"
+                       << " inodeId = " << it
+                       << ", xattr = " << xattr.DebugString();
+        }
     }
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR FuseClient::HandleOpenFlags(Context* ctx,
+                                          std::shared_ptr<InodeWrapper> inodeWrapper) {
+
+    CURVEFS_ERROR ret;
+    struct fuse_file_info* fi = ctx->fi;
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
     if (fi->flags & O_TRUNC) {
         if (fi->flags & O_WRONLY || fi->flags & O_RDWR) {
@@ -347,7 +319,7 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
             CURVEFS_ERROR tRet = Truncate(inodeWrapper.get(), 0);
             if (tRet != CURVEFS_ERROR::OK) {
                 LOG(ERROR) << "truncate file fail, ret = " << ret
-                           << ", inodeid = " << ino;
+                           << ", inodeid = " << ctx->ino;
                 return CURVEFS_ERROR::INTERNAL;
             }
             inodeWrapper->SetLengthLocked(0);
@@ -381,14 +353,45 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
             return CURVEFS_ERROR::NOPERMISSION;
         }
     }
-    if (FLAGS_enableCto) {
-        inodeManager_->AddOpenedInode(ino);
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req,
+                                     fuse_ino_t ino,
+                                     struct fuse_file_info* fi) {
+    CURVEFS_ERROR rc;
+    std::shared_ptr<OpenFile> file;
+    std::shared_ptr<InodeWrapper> inodeWrapper;
+
+    VLOG(1) << "FuseOpOpen, ino: " << ino;
+
+    if (fs->CheckOpen(ino, file)) {
+        inodeWrapper = file->inode;
+    } else {
+        CURVEFS_ERROR rc = inodeManager_->GetInode(ino, inodeWrapper); // REVAL_
+        if (rc != CURVEFS_ERROR::OK) {
+            LOG(ERROR) << "Get inode failed, retCode = " << rc << ", ino = " << ino;
+            return rc;
+        }
+
+        TimeSpec time;
+        if (fs->ModifySince(time)) {
+            return CURVEFS::STALE;
+        }
+        fs->Open(ino, inodeWrapper);
     }
-    return ret;
+
+    auto ctx = NewContext(req, ino, fi);
+    rc = HandleOpenFlags(&ctx, inodeWrapper);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+    return rc;
 }
 
 CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
     fuse_ino_t parent, FsFileType type, NlinkChange nlink) {
+
     std::shared_ptr<InodeWrapper> parentInodeWrapper;
     auto ret = inodeManager_->GetInode(parent, parentInodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
@@ -406,6 +409,7 @@ CURVEFS_ERROR FuseClient::UpdateParentMCTimeAndNlink(
         }
     }
     inodeManager_->ShipToFlush(parentInodeWrapper);
+
     return CURVEFS_ERROR::OK;
 }
 
@@ -587,8 +591,6 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
                          << ", xattr = " << xattr.DebugString();
         }
     }
-
-    inodeManager_->ClearInodeCache(ino);
     return ret;
 }
 
@@ -855,15 +857,23 @@ CURVEFS_ERROR FuseClient::RemoveNode(fuse_req_t req, fuse_ino_t parent,
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
+CURVEFS_ERROR FuseClient::FuseOpOpenDir(fuse_req_t req,
+                                        fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
     VLOG(1) << "FuseOpOpenDir ino = " << ino;
     std::shared_ptr<InodeWrapper> inodeWrapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+
+    InodeAttr attr;
+    CURVEFS_ERROR ret = inodeManager_->GetInodeAttr(ino, &attr);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
+        LOG(ERROR) << "inodeManager get attr fail, ret = " << ret
                    << ", inodeid = " << ino;
         return ret;
+    }
+
+    TimeSpec time(attr.mtime(), attr.mtime_ns());
+    if (fs->ModifiedSince(ino, time)) {
+        dirCache_->Drop(ino);
     }
 
     ::curve::common::UniqueLock lgGuard = inodeWrapper->GetUniqueLock();
@@ -911,63 +921,74 @@ static void dirbuf_add(fuse_req_t req, struct DirBufferHead *b,
     }
 }
 
-CURVEFS_ERROR FuseClient::FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
-                                            size_t size, off_t off,
-                                            struct fuse_file_info *fi,
-                                            char **buffer, size_t *rSize,
-                                            bool cacheDir) {
-    VLOG(1) << "FuseOpReadDirPlus ino: " << ino << ", size: " << size
-            << ", off = " << off << ", cacheDir = " << cacheDir;
-    std::shared_ptr<InodeWrapper> inodeWrapper;
-    CURVEFS_ERROR ret = inodeManager_->GetInode(ino, inodeWrapper);
+CURVEFS_ERROR FuseClient::RetriveDirEntry(fuse_ino_t ino, std::shared_ptr<DirEntryList>& list) {
+    bool yes = dirCache_->Get(ino, list);
+    if (yes) {
+        return CURVEFS_ERROR::OK;
+    }
+
+    std::list<Dentry> dentryList;
+    std::set<uint64_t> inodeIds;
+    std::map<uint64_t, InodeAttr> inodeAttrMap;
+    auto limit = option_.listDentryLimit;
+    ret = dentryManager_->ListDentry(ino, &dentryList, limit);
     if (ret != CURVEFS_ERROR::OK) {
-        LOG(ERROR) << "inodeManager get inode fail, ret = " << ret
-                   << ", inodeid = " << ino;
+        LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
+                   << ", parent = " << ino;
         return ret;
     }
 
-    uint64_t dindex = fi->fh;
-    DirBufferHead *bufHead = dirBuf_->DirBufferGet(dindex);
-    if (!bufHead->wasRead) {
-        std::list<Dentry> dentryList;
-        std::set<uint64_t> inodeIds;
-        std::map<uint64_t, InodeAttr> inodeAttrMap;
-        auto limit = option_.listDentryLimit;
-        ret = dentryManager_->ListDentry(ino, &dentryList, limit);
-        if (ret != CURVEFS_ERROR::OK) {
-            LOG(ERROR) << "dentryManager_ ListDentry fail, ret = " << ret
-                       << ", parent = " << ino;
-            return ret;
-        }
+    for (const auto &dentry : dentryList) {
+        inodeIds.emplace(dentry.inodeid());
+    }
+    VLOG(3) << "batch get inode size = " << inodeIds.size();
+    ret = inodeManager_->BatchGetInodeAttrAsync(ino, &inodeIds,
+                                                &inodeAttrMap);
+    if (ret != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "BatchGetInodeAttr failed when FuseOpReadDir"
+                   << ", parentId = " << ino;
+        return ret;
+    }
 
-        if (!cacheDir) {
-            for (const auto &dentry : dentryList) {
-                dirbuf_add(req, bufHead, dentry, option_, cacheDir);
-            }
+    for (const auto &dentry : dentryList) {
+        auto iter = inodeAttrMap.find(dentry.inodeid());
+        if (iter != inodeAttrMap.end()) {
         } else {
-            for (const auto &dentry : dentryList) {
-                inodeIds.emplace(dentry.inodeid());
-            }
-            VLOG(3) << "batch get inode size = " << inodeIds.size();
-            ret = inodeManager_->BatchGetInodeAttrAsync(ino, &inodeIds,
-                                                        &inodeAttrMap);
-            if (ret != CURVEFS_ERROR::OK) {
-                LOG(ERROR) << "BatchGetInodeAttr failed when FuseOpReadDir"
-                           << ", parentId = " << ino;
-                return ret;
-            }
-
-            for (const auto &dentry : dentryList) {
-                auto iter = inodeAttrMap.find(dentry.inodeid());
-                if (iter != inodeAttrMap.end()) {
-                    dirbuf_add(req, bufHead, dentry, option_,
-                               cacheDir, &iter->second);
-                } else {
-                    LOG(WARNING) << "BatchGetInodeAttr missing some inodes,"
-                                 << " inodeId = " << dentry.inodeid();
-                }
-            }
+            LOG(WARNING) << "BatchGetInodeAttr missing some inodes,"
+                         << " inodeId = " << dentry.inodeid();
         }
+    }
+
+    dirCache_->Put(ino, list);
+    return CURVEFS_ERROR::OK;
+}
+
+CURVEFS_ERROR FuseClient::FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
+                                            size_t size, off_t off,
+                                            struct fuse_file_info *fi,
+                                            char **buffer, size_t *rSize) {
+    VLOG(1) << "FuseOpReadDirPlus ino: " << ino << ", size: " << size
+            << ", off = " << off;
+
+    auto fs = fs_;
+    DirEntryList entries;
+    Context ctx(req, fi);
+    CURVEFS_ERROR rc = fs_->ReadDir(ctx, ino, &entries);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "ReadDir failed, retCode = " << rc
+                   << ", ino = " << ino;
+        return rc;
+    }
+
+    DirBufferHead *bufHead = fs_->GetHandlerBuffer(fi->fh);
+    if (!bufHead->wasRead) {
+        entries.Iterate([&](const Entry& entry){
+            if (cachdDir) {
+                fs_->AddDirEntry(ctx, entry);
+            } else {
+                fs_->AddDirEntryPlus(ctx, entry);
+            }
+        });
         bufHead->wasRead = true;
     }
 
@@ -1032,7 +1053,7 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
 
 CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi,
-                                        struct stat *attr) {
+                                        struct AttrOut* out) {
     VLOG(1) << "FuseOpGetAttr ino = " << ino;
     InodeAttr inodeAttr;
     CURVEFS_ERROR ret =
@@ -1042,14 +1063,15 @@ CURVEFS_ERROR FuseClient::FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                    << ", inodeid = " << ino;
         return ret;
     }
-    InodeAttr2ParamAttr(inodeAttr, attr);
+    InodeAttr2ParamAttr(inodeAttr, &out->attr);
+    SetAttrTimeout(out, inodeAttr.type(), option_.metaOption);
     return ret;
 }
 
 CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct stat *attr, int to_set,
                                         struct fuse_file_info *fi,
-                                        struct stat *attrOut) {
+                                        struct AttrOut* out) {
     VLOG(1) << "FuseOpSetAttr to_set: " << to_set << ", ino: " << ino
             << ", attr: " << *attr;
     std::shared_ptr<InodeWrapper> inodeWrapper;
@@ -1108,7 +1130,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         }
         InodeAttr inodeAttr;
         inodeWrapper->GetInodeAttrLocked(&inodeAttr);
-        InodeAttr2ParamAttr(inodeAttr, attrOut);
+        InodeAttr2ParamAttr(inodeAttr, &out->attr);
+        SetAttrTimeout(out, inodeAttr.type(), option_.metaOption);
 
         if (enableSumInDir_ && changeSize != 0) {
             // update parent summary info
@@ -1135,7 +1158,8 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
     }
     InodeAttr inodeAttr;
     inodeWrapper->GetInodeAttrLocked(&inodeAttr);
-    InodeAttr2ParamAttr(inodeAttr, attrOut);
+    InodeAttr2ParamAttr(inodeAttr, &out->attr);
+    SetAttrTimeout(out, inodeAttr.type(), option_.metaOption);
     return ret;
 }
 
@@ -1438,13 +1462,10 @@ CURVEFS_ERROR FuseClient::FuseOpRelease(fuse_req_t req, fuse_ino_t ino,
     return CURVEFS_ERROR::OK;
 }
 
-void FuseClient::FlushInode() { inodeManager_->FlushInodeOnce(); }
-
-void FuseClient::FlushInodeAll() { inodeManager_->FlushAll(); }
-
 void FuseClient::FlushAll() {
     FlushData();
-    FlushInodeAll();
+    fs_->openfiles->Close(); // TODO(@wine93)
+    //FlushInodeAll();
 }
 
 }  // namespace client

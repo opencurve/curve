@@ -418,8 +418,6 @@ CURVEFS_ERROR RenameOperator::UpdateInodeCtime() {
 }
 
 void RenameOperator::UpdateCache() {
-    dentryManager_->DeleteCache(parentId_, name_);
-    dentryManager_->InsertOrReplaceCache(newDentry_);
     SetTxId(srcPartitionId_, srcTxId_ + 1);
     SetTxId(dstPartitionId_, dstTxId_ + 1);
 }

@@ -35,12 +35,9 @@
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/error_code.h"
 #include "src/common/concurrent/concurrent.h"
-#include "src/common/lru_cache.h"
 #include "src/common/concurrent/name_lock.h"
 
 using ::curvefs::metaserver::Dentry;
-using ::curve::common::TimedLRUCache;
-using ::curve::common::CacheMetrics;
 
 namespace curvefs {
 namespace client {
@@ -58,13 +55,6 @@ class DentryCacheManager {
     void SetFsId(uint32_t fsId) {
         fsId_ = fsId;
     }
-
-    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
-        uint32_t cacheTimeOutSec) = 0;
-
-    virtual void InsertOrReplaceCache(const Dentry& dentry) = 0;
-
-    virtual void DeleteCache(uint64_t parentId, const std::string& name) = 0;
 
     virtual CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out) = 0;
@@ -86,30 +76,11 @@ class DentryCacheManager {
 class DentryCacheManagerImpl : public DentryCacheManager {
  public:
     DentryCacheManagerImpl()
-      : metaClient_(std::make_shared<MetaServerClientImpl>()),
-        dCache_(nullptr) {}
+      : metaClient_(std::make_shared<MetaServerClientImpl>()) {}
 
     explicit DentryCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
-      : metaClient_(metaClient),
-        dCache_(nullptr) {}
-
-    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
-        uint32_t cacheTimeOutSec) override {
-        if (enableCacheMetrics) {
-            dCache_ = std::make_shared<
-                TimedLRUCache<std::string, Dentry>>(cacheTimeOutSec, cacheSize,
-                    std::make_shared<CacheMetrics>("dcache"));
-        } else {
-            dCache_ = std::make_shared<
-                TimedLRUCache<std::string, Dentry>>(cacheTimeOutSec, cacheSize);
-        }
-        return CURVEFS_ERROR::OK;
-    }
-
-    void InsertOrReplaceCache(const Dentry& dentry) override;
-
-    void DeleteCache(uint64_t parentId, const std::string& name) override;
+      : metaClient_(metaClient) {}
 
     CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out) override;
@@ -130,8 +101,6 @@ class DentryCacheManagerImpl : public DentryCacheManager {
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-    // key is parentId + name
-    std::shared_ptr<TimedLRUCache<std::string, Dentry>> dCache_;
     curve::common::GenericNameLock<Mutex> nameLock_;
 };
 

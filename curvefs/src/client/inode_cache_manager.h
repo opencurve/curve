@@ -126,14 +126,7 @@ class InodeCacheManager {
         fsId_ = fsId;
     }
 
-    virtual CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
-                               uint32_t flushPeriodSec,
-                               RefreshDataOption option,
-                               uint32_t cacheTimeOutSec) = 0;
-
-    virtual void Run() = 0;
-
-    virtual void Stop() = 0;
+    virtual CURVEFS_ERROR Init(RefreshDataOption option) = 0;
 
     virtual CURVEFS_ERROR
     GetInode(uint64_t inodeId,
@@ -164,20 +157,10 @@ class InodeCacheManager {
     virtual void AddInodeAttrs(uint64_t parentId,
         const RepeatedPtrField<InodeAttr>& inodeAttrs) = 0;
 
-    virtual void ClearInodeCache(uint64_t inodeId) = 0;
-
     virtual void ShipToFlush(
         const std::shared_ptr<InodeWrapper> &inodeWrapper) = 0;
 
-    virtual void FlushAll() = 0;
-
-    virtual void FlushInodeOnce() = 0;
-
     virtual void ReleaseCache(uint64_t parentId) = 0;
-
-    virtual void AddOpenedInode(uint64_t inodeId) = 0;
-
-    virtual void RemoveOpenedInode(uint64_t inodeId) = 0;
 
  protected:
     uint32_t fsId_;
@@ -185,59 +168,22 @@ class InodeCacheManager {
 
 class InodeCacheManagerImpl : public InodeCacheManager,
     public std::enable_shared_from_this<InodeCacheManagerImpl> {
+
  public:
     InodeCacheManagerImpl()
       : metaClient_(std::make_shared<MetaServerClientImpl>()),
-        iCache_(nullptr),
-        iAttrCache_(nullptr),
-        isStop_(true),
-        cacheTimeOutSec_(0) {}
+        iAttrCache_(nullptr) {}
 
     explicit InodeCacheManagerImpl(
         const std::shared_ptr<MetaServerClient> &metaClient)
       : metaClient_(metaClient),
-        iCache_(nullptr),
-        iAttrCache_(nullptr),
-        cacheTimeOutSec_(0) {}
+        iAttrCache_(nullptr) {}
 
-    CURVEFS_ERROR Init(uint64_t cacheSize, bool enableCacheMetrics,
-                       uint32_t flushPeriodSec,
-                       RefreshDataOption option,
-                       uint32_t cacheTimeOutSec) override {
-        if (enableCacheMetrics) {
-            iCache_ = std::make_shared<
-                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0,
-                    std::make_shared<CacheMetrics>("icache"));
-        } else {
-            iCache_ = std::make_shared<
-                LRUCache<uint64_t, std::shared_ptr<InodeWrapper>>>(0);
-        }
-        maxCacheSize_ = cacheSize;
+    CURVEFS_ERROR Init(RefreshDataOption option) override {
         option_ = option;
-        flushPeriodSec_ = flushPeriodSec;
-        cacheTimeOutSec_ = cacheTimeOutSec;
         iAttrCache_ = std::make_shared<InodeAttrCache>();
         s3ChunkInfoMetric_ = std::make_shared<S3ChunkInfoMetric>();
         return CURVEFS_ERROR::OK;
-    }
-
-    void Run() {
-        isStop_.exchange(false);
-        flushThread_ =
-            Thread(&InodeCacheManagerImpl::FlushInodeBackground, this);
-        LOG(INFO) << "Start inodeManager flush thread ok.";
-    }
-
-    void Stop() {
-        isStop_.exchange(true);
-        LOG(INFO) << "stop inodeManager flush thread ...";
-        sleeper_.interrupt();
-        flushThread_.join();
-    }
-
-    bool IsDirtyMapExist(uint64_t inodeId) {
-        curve::common::LockGuard lg(dirtyMapMutex_);
-        return dirtyMap_.count(inodeId) > 0;
     }
 
     CURVEFS_ERROR GetInode(uint64_t inodeId,
@@ -266,64 +212,26 @@ class InodeCacheManagerImpl : public InodeCacheManager,
     void AddInodeAttrs(uint64_t parentId,
         const RepeatedPtrField<InodeAttr>& inodeAttrs) override;
 
-    void ClearInodeCache(uint64_t inodeId) override;
-
     void ShipToFlush(
         const std::shared_ptr<InodeWrapper> &inodeWrapper) override;
 
-    void FlushAll() override;
-
-    void FlushInodeOnce() override;
-
     void ReleaseCache(uint64_t parentId) override;
 
-    void RemoveICache(const std::shared_ptr<InodeWrapper> &inode);
-
-    void AddOpenedInode(uint64_t inodeId) override;
-
-    void RemoveOpenedInode(uint64_t inodeId) override;
-
-    bool NeedUseCache(uint64_t inodeId,
-        const std::shared_ptr<InodeWrapper> &inodeWrapper,
-        bool onlyAttr);
-
-    bool IsTimeOut(const std::shared_ptr<InodeWrapper> &inodeWrapper) const;
-
  private:
-    virtual void FlushInodeBackground();
-    void TrimIcache(uint64_t trimSize);
     CURVEFS_ERROR RefreshData(std::shared_ptr<InodeWrapper> &inode,  // NOLINT
                               bool streaming = true);
-    bool OpenInodeCached(uint64_t inodeId);
 
  private:
     std::shared_ptr<MetaServerClient> metaClient_;
-    std::shared_ptr<LRUCache<uint64_t,
-        std::shared_ptr<InodeWrapper>>> iCache_;
     std::shared_ptr<S3ChunkInfoMetric> s3ChunkInfoMetric_;
 
     std::shared_ptr<InodeAttrCache> iAttrCache_;
-
-    // dirty map, key is inodeid
-    std::map<uint64_t, std::shared_ptr<InodeWrapper>> dirtyMap_;
-    curve::common::Mutex dirtyMapMutex_;
-
-    // record opened inode
-    std::multiset<uint64_t> openedInodes_;
-    curve::common::Mutex openInodesMutex_;
 
     curve::common::GenericNameLock<Mutex> nameLock_;
 
     curve::common::GenericNameLock<Mutex> asyncNameLock_;
 
-    uint64_t maxCacheSize_;
     RefreshDataOption option_;
-    uint32_t flushPeriodSec_;
-    Thread flushThread_;
-    InterruptibleSleeper sleeper_;
-    Atomic<bool> isStop_;
-    // cache timeout seconds, 0 means never timeout
-    uint32_t cacheTimeOutSec_;
 };
 
 class BatchGetInodeAttrAsyncDone : public BatchGetInodeAttrDone {

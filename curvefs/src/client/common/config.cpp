@@ -243,6 +243,34 @@ void InitKVClientManagerOpt(Configuration *conf,
                               &config->getThreadPooln);
 }
 
+void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
+    c->GetValueFatalIfFail("fs.cto", &option->cto);
+    c->GetValueFatalIfFail("fs.cto", &FLAGS_enableCto);
+    c->GetValueFatalIfFail("fs.maxNameLength", &option->maxNameLength);
+    { // kernel cache option
+        auto o = option->kernelCacheOption;
+        c->GetValueFatalIfFail("fs.kernelCache.attrTimeout", &o.attrTimeout);
+        c->GetValueFatalIfFail("fs.kernelCache.dirAttrTimeout", &o.dirAttrTimeout);
+        c->GetValueFatalIfFail("fs.kernelCache.entryTimeout", &o.entryTimeout);
+        c->GetValueFatalIfFail("fs.kernelCache.dirEntryTimeout", &o.dirEntryTimeout);
+    }
+    { // dir cache option
+        auto o = option->dirCacheOption;
+        c->GetValueFatalIfFail("fs.dirCache.lruSize", &o.lruSize);
+    }
+    { // open file option
+        auto o = option->openFileOption;
+        c->GetValueFatalIfFail("fs.openFile.lruSize", &o.lruSize);
+    }
+    { // attr watcher option
+        auto o = option->attrWatcherOption;
+        c->GetValueFatalIfFail("fs.attrWatcher.lruSize", &o.lruSize);
+    }
+    { // attr watcher option
+        auto o = option->rpcOption;
+    }
+}
+
 void SetBrpcOpt(Configuration *conf) {
     curve::common::GflagsLoadValueFromConfIfCmdNotSet dummy;
     dummy.Load(conf, "defer_close_second", "rpc.defer.close.second",
@@ -264,35 +292,16 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
     InitRefreshDataOpt(conf, &clientOption->refreshDataOption);
     InitKVClientManagerOpt(conf, &clientOption->kvClientManagerOpt);
 
-    conf->GetValueFatalIfFail("fuseClient.attrTimeOut",
-                              &clientOption->attrTimeOut);
-    conf->GetValueFatalIfFail("fuseClient.entryTimeOut",
-                              &clientOption->entryTimeOut);
     conf->GetValueFatalIfFail("fuseClient.listDentryLimit",
                               &clientOption->listDentryLimit);
     conf->GetValueFatalIfFail("fuseClient.listDentryThreads",
                               &clientOption->listDentryThreads);
-    conf->GetValueFatalIfFail("fuseClient.flushPeriodSec",
-                              &clientOption->flushPeriodSec);
-    conf->GetValueFatalIfFail("fuseClient.maxNameLength",
-                              &clientOption->maxNameLength);
-    conf->GetValueFatalIfFail("fuseClient.iCacheLruSize",
-                              &clientOption->iCacheLruSize);
-    conf->GetValueFatalIfFail("fuseClient.dCacheLruSize",
-                              &clientOption->dCacheLruSize);
-    conf->GetValueFatalIfFail("fuseClient.enableICacheMetrics",
-                              &clientOption->enableICacheMetrics);
-    conf->GetValueFatalIfFail("fuseClient.enableDCacheMetrics",
-                              &clientOption->enableDCacheMetrics);
-    conf->GetValueFatalIfFail("fuseClient.lruTimeOutSec",
-                              &clientOption->lruTimeOutSec);
     conf->GetValueFatalIfFail("client.dummyServer.startPort",
                               &clientOption->dummyServerStartPort);
     conf->GetValueFatalIfFail("fuseClient.enableMultiMountPointRename",
                               &clientOption->enableMultiMountPointRename);
     conf->GetValueFatalIfFail("fuseClient.disableXattr",
                               &clientOption->disableXattr);
-    conf->GetValueFatalIfFail("fuseClient.cto", &FLAGS_enableCto);
     conf->GetValueFatalIfFail("fuseClient.downloadMaxRetryTimes",
                               &clientOption->downloadMaxRetryTimes);
     conf->GetValueFatalIfFail("fuseClient.warmupThreadsNum",
@@ -302,12 +311,7 @@ void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption) {
         << "Not found `fuseClient.enableSplice` in conf, use default value `"
         << std::boolalpha << clientOption->enableFuseSplice << '`';
 
-    // if enableCto, attr and entry cache must invalid
-    if (FLAGS_enableCto) {
-        clientOption->attrTimeOut = 0;
-        clientOption->entryTimeOut = 0;
-    }
-
+    InitFileSystemOption(conf, &clientOption->fileSystemOption);
     SetBrpcOpt(conf);
 }
 

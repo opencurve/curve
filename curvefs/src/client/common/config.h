@@ -173,6 +173,44 @@ struct RefreshDataOption {
     uint64_t maxDataSize = 1024;
     uint32_t refreshDataIntervalSec = 30;
 };
+
+// { filesystem option
+struct KernelCacheOption {
+    uint32_t entryTimeout;
+    uint32_t dirEntryTimeout;
+    uint32_t attrTimeout;
+    uint32_t dirAttrTimeout;
+};
+
+struct DirCacheOption {
+    uint64_t lruSize;  /* size must greater than 10000 */
+    uint32_t timeout;
+};
+
+struct AttrWatcherOption {
+    uint64_t lruSize;
+};
+
+struct OpenFileOption {
+    uint64_t lruSize;
+};
+
+struct RPCOption {
+    uint64_t listDentryLimit;
+};
+
+struct FileSystemOption {
+    bool cto;
+    uint32_t maxNameLength;
+    uint32_t blockSize = 0x10000u;
+    KernelCacheOption kernelCacheOption;
+    DirCacheOption dirCacheOption;
+    OpenFileOption openFileOption;
+    AttrWatcherOption attrWatcherOption;
+    RPCOption rpcOption;
+};
+// }
+
 struct FuseClientOption {
     MdsOption mdsOpt;
     MetaCacheOpt metaCacheOpt;
@@ -186,18 +224,10 @@ struct FuseClientOption {
     LeaseOpt leaseOpt;
     RefreshDataOption refreshDataOption;
     KVClientManagerOpt kvClientManagerOpt;
+    FileSystemOption fileSystemOption;
 
-    double attrTimeOut;
-    double entryTimeOut;
     uint32_t listDentryLimit;
     uint32_t listDentryThreads;
-    uint32_t flushPeriodSec;
-    uint32_t maxNameLength;
-    uint64_t iCacheLruSize;
-    uint64_t dCacheLruSize;
-    bool enableICacheMetrics;
-    bool enableDCacheMetrics;
-    uint32_t lruTimeOutSec;
     uint32_t dummyServerStartPort;
     bool enableMultiMountPointRename = false;
     bool enableFuseSplice = false;

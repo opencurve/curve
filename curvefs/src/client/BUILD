@@ -43,6 +43,8 @@ cc_library(
             "s3/*.h",
             "volume/*.cpp",
             "volume/*.h",
+            "filesystem/*.cpp",
+            "filesystem/*.h",
             "warmup/*.h",
             "warmup/*.cpp",
         ],

@@ -369,6 +369,7 @@ CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
     }
 
     VLOG(1) << "FuseOpFlush, ino: " << ino << " flush ok";
+    fs_->Close(ino);
     return CURVEFS_ERROR::OK;
 }
 

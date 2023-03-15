@@ -147,3 +147,9 @@ tools-v2/proto/curvefs/*
 tools-v2/*/*.test
 tools-v2/__debug_bin
 tools-v2/vendor/
+
+.note
+.playground
+GPATH
+GRTAGS
+GTAGS
