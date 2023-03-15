@@ -54,7 +54,7 @@ using NameLockGuard = ::curve::common::GenericNameLockGuard<Mutex>;
 bool FsManager::Init() {
     LOG_IF(FATAL, !fsStorage_->Init()) << "fsStorage Init fail";
     s3Adapter_->Init(option_.s3AdapterOption);
-    auto ret = ReloadMountedFsVolumeSpace();
+    auto ret = ReloadFsVolumeSpace();
     if (ret != FSStatusCode::OK) {
         LOG(ERROR) << "Reload mounted fs volume space error";
     }
@@ -682,25 +682,34 @@ FSStatusCode FsManager::UmountFs(const std::string& fsName,
                      << ", errCode = " << FSStatusCode_Name(ret);
         return ret;
     }
+    VLOG(3) << "FsManager delete mount point success, fsName = " << fsName
+            << ", mountpoint = " << mountpoint.ShortDebugString();
 
     std::string mountpath;
     MountPoint2Str(mountpoint, &mountpath);
     DeleteClientAliveTime(mountpath);
 
-    // 3. if no mount point exist, uninit space
-    if (wrapper.GetFsType() == FSType::TYPE_VOLUME &&
-        wrapper.IsMountPointEmpty()) {
-        auto ret = spaceManager_->RemoveVolume(wrapper.GetFsId());
-        if (ret != space::SpaceOk) {
-            LOG(ERROR) << "UmountFs fail, uninit space fail, fsName = "
+    // 3. if no mount point exist, release all block groups
+    if (wrapper.GetFsType() == FSType::TYPE_VOLUME) {
+        auto volumeSpace = spaceManager_->GetVolumeSpace(wrapper.GetFsId());
+        if (volumeSpace == nullptr) {
+            LOG(ERROR) << "handle fs mount point timeout fail, get volume "
+                          "space fail, fsName = "
                        << fsName
-                       << ", mountpoint = " << mountpoint.ShortDebugString()
-                       << ", errCode = " << space::SpaceErrCode_Name(ret);
+                       << ", mountpoint = " << mountpoint.ShortDebugString();
             return UNINIT_SPACE_ERROR;
         }
 
-        LOG(INFO) << "Remove volume space success, fsName = " << fsName
-                  << ", fsId = " << wrapper.GetFsId();
+        auto ret = volumeSpace->ReleaseBlockGroups(mountpath);
+        if (ret != space::SpaceOk) {
+            LOG(ERROR)
+                << "handle fs mount point timeout fail,release block groups "
+                   "fail, fsName = "
+                << fsName << ", mountpoint = " << mountpoint.ShortDebugString();
+            return SPACE_RELEASE_FAIL;
+        }
+
+        VLOG(3) << "FsManager release block group for " << mountpath << " ok";
     }
 
     // 4. update fs info
@@ -855,7 +864,7 @@ void FsManager::RefreshSession(const RefreshSessionRequest* request,
     response->set_enablesumindir(wrapper.ProtoFsInfo().enablesumindir());
 }
 
-FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {
+FSStatusCode FsManager::ReloadFsVolumeSpace() {
     std::vector<FsInfoWrapper> allfs;
     fsStorage_->GetAll(&allfs);
 
@@ -865,9 +874,7 @@ FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {
             continue;
         }
 
-        if (!fs.MountPoints().empty()) {
-            reloader.Add(fs.ProtoFsInfo());
-        }
+        reloader.Add(fs.ProtoFsInfo());
     }
 
     auto err = reloader.Wait();

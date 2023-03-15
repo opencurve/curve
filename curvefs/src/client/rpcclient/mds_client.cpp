@@ -714,10 +714,11 @@ SpaceErrCode MdsClientImpl::AllocateVolumeBlockGroup(
         CHECK_RPC_AND_RETRY_IF_ERROR("AllocateVolumeBlockGroup");
 
         auto status = response.status();
-        if (status != SpaceErrCode::SpaceOk) {
-            LOG(WARNING) << "Allocate volume block group failed, err: "
-                         << SpaceErrCode_Name(status);
-        } else if (response.blockgroups_size() == 0) {
+        LOG_IF(WARNING, status != SpaceErrCode::SpaceOk)
+            << "Allocate volume block group failed, err: "
+            << SpaceErrCode_Name(status);
+
+        if (response.blockgroups_size() == 0) {
             LOG(WARNING) << "Allocate volume block group failed, no block "
                             "group allcoated";
             return SpaceErrCode::SpaceErrNoSpace;

@@ -113,7 +113,7 @@ class InodeManager {
     // Update one or more volume extent slice
     MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
                                       uint64_t inodeId,
-                                      const VolumeExtentList &extents);
+                                      const VolumeExtentSliceList &extents);
 
     // Update only one volume extent slice
     MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
@@ -123,7 +123,7 @@ class InodeManager {
     MetaStatusCode GetVolumeExtent(uint32_t fsId,
                                    uint64_t inodeId,
                                    const std::vector<uint64_t> &slices,
-                                   VolumeExtentList *extents);
+                                   VolumeExtentSliceList *extents);
 
  private:
     void GenerateInodeInternal(uint64_t inodeId, const InodeParam &param,

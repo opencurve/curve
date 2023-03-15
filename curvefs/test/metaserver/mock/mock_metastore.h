@@ -28,6 +28,7 @@
 #include <string>
 #include <list>
 #include <memory>
+#include <map>
 
 #include "curvefs/src/metaserver/metastore.h"
 
@@ -47,6 +48,8 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD2(DeletePartition, MetaStatusCode(const DeletePartitionRequest*,
                                                  DeletePartitionResponse*));
     MOCK_METHOD1(GetPartitionInfoList, bool(std::list<PartitionInfo> *));
+    MOCK_METHOD1(GetPartitionSnap,
+                 bool(std::map<uint32_t, std::shared_ptr<Partition>> *));
 
     MOCK_METHOD2(CreateDentry, MetaStatusCode(const CreateDentryRequest*,
                                               CreateDentryResponse*));
@@ -98,6 +101,10 @@ class MockMetaStore : public curvefs::metaserver::MetaStore {
     MOCK_METHOD2(UpdateVolumeExtent,
                  MetaStatusCode(const UpdateVolumeExtentRequest*,
                                 UpdateVolumeExtentResponse*));
+
+    MOCK_METHOD2(UpdateDeallocatableBlockGroup,
+                 MetaStatusCode(const UpdateDeallocatableBlockGroupRequest *,
+                                UpdateDeallocatableBlockGroupResponse *));
 };
 
 }  // namespace mock

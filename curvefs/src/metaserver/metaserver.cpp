@@ -38,6 +38,7 @@
 #include "curvefs/src/metaserver/trash_manager.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_perf.h"
+#include "curvefs/src/metaserver/mds/fsinfo_manager.h"
 #include "src/common/crc32.h"
 #include "src/common/curve_version.h"
 #include "src/common/s3_adapter.h"
@@ -46,6 +47,7 @@
 #include "src/common/uri_parser.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "src/fs/ext4_filesystem_impl.h"
+#include "curvefs/src/metaserver/metacli_manager.h"
 
 namespace braft {
 
@@ -160,6 +162,16 @@ void Metaserver::InitRecycleManagerOption(
                                          &recycleManagerOption->scanLimit));
 }
 
+void Metaserver::InitVolumeDeallocateOption(
+    VolumeDeallocateWorkerQueueOption *queueOpt,
+    VolumeDeallocateExecuteOption *execOpt) {
+    conf_->GetValueFatalIfFail("volume.deallocate.enable", &queueOpt->enable);
+    conf_->GetValueFatalIfFail("volume.deallocate.workerNum",
+                               &queueOpt->workerNum);
+    conf_->GetValueFatalIfFail("volume.deallocate.batchClean",
+                               &execOpt->batchClean);
+}
+
 void InitExcutorOption(const std::shared_ptr<Configuration>& conf,
                        ExcutorOpt *opts, bool internal) {
     if (internal) {
@@ -208,6 +220,8 @@ void Metaserver::Init() {
     mdsClient_ = std::make_shared<MdsClientImpl>();
     mdsClient_->Init(mdsOptions_, mdsBase_);
 
+    FsInfoManager::GetInstance().SetMdsClient(mdsClient_);
+
     // init metaserver client for recycle
     InitMetaClient();
 
@@ -245,6 +259,20 @@ void Metaserver::Init() {
 
     S3CompactManager::GetInstance().Init(conf_);
 
+    VolumeSpaceManagerOptions spaceManagerOpt;
+    spaceManagerOpt.mdsClient = mdsClient_;
+    conf_->GetValueFatalIfFail("volume.sdk.confPath",
+                               &spaceManagerOpt.deviceOpt.configPath);
+    auto volumeSpaceMgr = std::make_shared<VolumeSpaceManager>();
+    volumeSpaceMgr->Init(spaceManagerOpt);
+
+    VolumeDeallocateWorkerQueueOption queueOpt;
+    VolumeDeallocateExecuteOption executeOpt;
+    executeOpt.metaClient = metaClient_;
+    executeOpt.volumeSpaceManager = std::move(volumeSpaceMgr);
+    InitVolumeDeallocateOption(&queueOpt, &executeOpt);
+    VolumeDeallocateManager::GetInstance().Init(queueOpt, executeOpt);
+
     PartitionCleanOption partitionCleanOption;
     InitPartitionOption(s3Adaptor_, mdsClient_, &partitionCleanOption);
     PartitionCleanManager::GetInstance().Init(partitionCleanOption);
@@ -266,6 +294,15 @@ void Metaserver::InitMetaClient() {
     InitExcutorOption(conf_, &excutorOpt, false);
     InitExcutorOption(conf_, &internalOpt, true);
     metaClient_->Init(excutorOpt, internalOpt, metaCache, channelManager);
+
+    MetaCliManagerOpt opt;
+    opt.metaCacheOpt = std::move(metaCacheOpt);
+    opt.executorOpt = std::move(excutorOpt);
+    opt.internalOpt = std::move(internalOpt);
+    opt.cli2Cli = cli2Client;
+    opt.mdsCli = mdsClient_;
+    opt.channelManager = channelManager;
+    MetaCliManager::GetInstance().Init(std::move(opt));
 }
 
 void Metaserver::GetMetaserverDataByLoadOrRegister() {
@@ -494,6 +531,9 @@ void Metaserver::Run() {
     LOG_IF(FATAL, S3CompactManager::GetInstance().Run() != 0);
     running_ = true;
 
+    // start volume deallocate manager
+    VolumeDeallocateManager::GetInstance().Run();
+
     // start copyset node manager
     LOG_IF(FATAL, !copysetNodeManager_->Start())
         << "Failed to start copyset node manager";
@@ -528,6 +568,7 @@ void Metaserver::Stop() {
 
     s3Adaptor_ = nullptr;
     S3CompactManager::GetInstance().Stop();
+    VolumeDeallocateManager::GetInstance().Stop();
     LOG(INFO) << "MetaServer stopped success";
 }
 

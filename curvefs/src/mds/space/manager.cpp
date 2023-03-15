@@ -55,12 +55,15 @@ SpaceErrCode SpaceManagerImpl::AddVolume(const FsInfo& fsInfo) {
     {
         ReadLockGuard lk(rwlock_);
         if (volumes_.count(fsInfo.fsid()) != 0) {
-            return SpaceErrCode::SpaceErrExist;
+            LOG(WARNING) << "Volume space already exists, fsId: "
+                         << fsInfo.fsid();
+            return SpaceOk;
         }
     }
 
-    auto space = VolumeSpace::Create(fsInfo.fsid(), fsInfo.detail().volume(),
-                                     storage_.get(), fsStorage_.get());
+    auto space =
+        VolumeSpace::Create(fsInfo.fsid(), fsInfo.detail().volume(),
+                            storage_.get(), fsStorage_.get(), calcIntervalSec_);
 
     if (!space) {
         LOG(ERROR) << "Create volume space failed, fsId: " << fsInfo.fsid();

@@ -45,6 +45,9 @@
 #include "src/fs/local_filesystem.h"
 #include "curvefs/src/metaserver/resource_statistic.h"
 #include "curvefs/src/metaserver/recycle_manager.h"
+#include "curvefs/src/metaserver/space/volume_deallocate_manager.h"
+#include "curvefs/src/metaserver/space/inode_volume_space_deallocate.h"
+#include "curvefs/src/metaserver/space/volume_space_manager.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -96,6 +99,9 @@ class Metaserver {
                              PartitionCleanOption* partitionCleanOption);
     void InitRecycleManagerOption(
                 RecycleManagerOption* recycleManagerOption);
+
+    void InitVolumeDeallocateOption(VolumeDeallocateWorkerQueueOption *queueOpt,
+                                    VolumeDeallocateExecuteOption *execOpt);
     void GetMetaserverDataByLoadOrRegister();
     int PersistMetaserverMeta(std::string path, MetaServerMetadata* metadata);
     int LoadMetaserverMeta(const std::string& metaFilePath,

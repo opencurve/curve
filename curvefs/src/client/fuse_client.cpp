@@ -117,10 +117,12 @@ using common::FLAGS_fuseClientAvgReadBytes;
 using common::FLAGS_fuseClientBurstReadBytes;
 using common::FLAGS_fuseClientBurstReadBytesSecs;
 
-static void on_throttle_timer(void *arg) {
-    FuseClient *fuseClient = reinterpret_cast<FuseClient *>(arg);
-    fuseClient->InitQosParam();
-}
+
+// FIXME: multi-threaded concurrency issues with FuseClient::UnInit()
+// static void on_throttle_timer(void *arg) {
+//     FuseClient *fuseClient = reinterpret_cast<FuseClient *>(arg);
+//     fuseClient->InitQosParam();
+// }
 
 CURVEFS_ERROR FuseClient::Init(const FuseClientOption &option) {
     option_ = option;
@@ -197,9 +199,9 @@ void FuseClient::UnInit() {
     delete mdsBase_;
     mdsBase_ = nullptr;
 
-    while (bthread_timer_del(throttleTimer_) == 1) {
-        bthread_usleep(1000);
-    }
+    // while (bthread_timer_del(throttleTimer_) == 1) {
+    //     bthread_usleep(1000);
+    // }
 }
 
 CURVEFS_ERROR FuseClient::Run() {
@@ -1431,11 +1433,11 @@ void FuseClient::InitQosParam() {
 
     throttle_.UpdateThrottleParams(params);
 
-    int ret = bthread_timer_add(&throttleTimer_, butil::seconds_from_now(1),
-                                on_throttle_timer, this);
-    if (ret != 0) {
-        LOG(ERROR) << "Create fuse client throttle timer failed!";
-    }
+    // int ret = bthread_timer_add(&throttleTimer_, butil::seconds_from_now(1),
+    //                             on_throttle_timer, this);
+    // if (ret != 0) {
+    //     LOG(ERROR) << "Create fuse client throttle timer failed!";
+    // }
 }
 
 }  // namespace client

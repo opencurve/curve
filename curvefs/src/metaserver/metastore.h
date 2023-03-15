@@ -86,6 +86,22 @@ using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 using ::curvefs::metaserver::storage::StorageOptions;
 
+// Dentry and inode related data will be stored in kvstorage
+//
+// 1. When kvstorage is rocksdb, the structure of the data is as follows:
+//    (table is related with partitionID)
+//                  column
+//                     |
+//       (table1     table2             table3)
+//           |         |                   |
+//         inode  inodedealloc  blockGroup-with-inodedealloc
+//
+//                  column
+//                     |
+//       (table1     table2         table3)
+//           |          |              |
+//         dentry  s3chunkinfo    volumnextent
+
 class MetaStore {
  public:
     MetaStore() = default;
@@ -106,6 +122,9 @@ class MetaStore {
 
     virtual bool GetPartitionInfoList(
                             std::list<PartitionInfo> *partitionInfoList) = 0;
+
+    virtual bool GetPartitionSnap(
+        std::map<uint32_t, std::shared_ptr<Partition>> *partitionSnap) = 0;
 
     virtual std::shared_ptr<StreamServer> GetStreamServer() = 0;
 
@@ -170,6 +189,10 @@ class MetaStore {
     virtual MetaStatusCode UpdateVolumeExtent(
         const UpdateVolumeExtentRequest* request,
         UpdateVolumeExtentResponse* response) = 0;
+
+    virtual MetaStatusCode UpdateDeallocatableBlockGroup(
+        const UpdateDeallocatableBlockGroupRequest *request,
+        UpdateDeallocatableBlockGroupResponse *response) = 0;
 };
 
 class MetaStoreImpl : public MetaStore {
@@ -192,6 +215,9 @@ class MetaStoreImpl : public MetaStore {
 
     bool GetPartitionInfoList(
                         std::list<PartitionInfo> *partitionInfoList) override;
+
+    bool GetPartitionSnap(
+        std::map<uint32_t, std::shared_ptr<Partition>> *partitionSnap) override;
 
     std::shared_ptr<StreamServer> GetStreamServer() override;
 
@@ -254,6 +280,11 @@ class MetaStoreImpl : public MetaStore {
     MetaStatusCode UpdateVolumeExtent(
         const UpdateVolumeExtentRequest* request,
         UpdateVolumeExtentResponse* response) override;
+
+    // block group
+    MetaStatusCode UpdateDeallocatableBlockGroup(
+        const UpdateDeallocatableBlockGroupRequest *request,
+        UpdateDeallocatableBlockGroupResponse *response) override;
 
  private:
     FRIEND_TEST(MetastoreTest, partition);

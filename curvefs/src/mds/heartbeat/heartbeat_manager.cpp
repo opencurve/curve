@@ -42,8 +42,9 @@ namespace mds {
 namespace heartbeat {
 HeartbeatManager::HeartbeatManager(
     const HeartbeatOption &option, const std::shared_ptr<Topology> &topology,
-    const std::shared_ptr<Coordinator> &coordinator)
-    : topology_(topology) {
+    const std::shared_ptr<Coordinator> &coordinator,
+    const std::shared_ptr<SpaceManager> &spaceManager)
+    : topology_(topology), spaceManager_(spaceManager) {
     healthyChecker_ =
         std::make_shared<MetaserverHealthyChecker>(option, topology);
 
@@ -86,24 +87,6 @@ void HeartbeatManager::Stop() {
     }
 }
 
-void HeartbeatManager::MetaServerHealthyChecker() {
-    while (sleeper_.wait_for(
-        std::chrono::milliseconds(metaserverHealthyCheckerRunInter_))) {
-        healthyChecker_->CheckHeartBeatInterval();
-    }
-}
-
-void HeartbeatManager::UpdateMetaServerSpace(
-    const MetaServerHeartbeatRequest &request) {
-    MetaServerSpace space(request.spacestatus());
-    TopoStatusCode ret =
-        topology_->UpdateMetaServerSpace(space, request.metaserverid());
-    if (ret != TopoStatusCode::TOPO_OK) {
-        LOG(ERROR) << "heartbeat UpdateMetaServerSpace fail, ret = "
-                   << TopoStatusCode_Name(ret);
-    }
-}
-
 void HeartbeatManager::MetaServerHeartbeat(
     const MetaServerHeartbeatRequest &request,
     MetaServerHeartbeatResponse *response) {
@@ -127,6 +110,32 @@ void HeartbeatManager::MetaServerHeartbeat(
     UpdateMetaServerSpace(request);
 
     // dealing with copysets included in the heartbeat request
+    Coordinate(request, response);
+
+    // update deallocatable block group info
+    UpdateDeallocatableBlockGroup(request, response);
+}
+
+void HeartbeatManager::MetaServerHealthyChecker() {
+    while (sleeper_.wait_for(
+        std::chrono::milliseconds(metaserverHealthyCheckerRunInter_))) {
+        healthyChecker_->CheckHeartBeatInterval();
+    }
+}
+
+void HeartbeatManager::UpdateMetaServerSpace(
+    const MetaServerHeartbeatRequest &request) {
+    MetaServerSpace space(request.spacestatus());
+    TopoStatusCode ret =
+        topology_->UpdateMetaServerSpace(space, request.metaserverid());
+    if (ret != TopoStatusCode::TOPO_OK) {
+        LOG(ERROR) << "heartbeat UpdateMetaServerSpace fail, ret = "
+                   << TopoStatusCode_Name(ret);
+    }
+}
+
+void HeartbeatManager::Coordinate(const MetaServerHeartbeatRequest &request,
+                                  MetaServerHeartbeatResponse *response) {
     for (auto &value : request.copysetinfos()) {
         // convert copysetInfo from heartbeat format to topology format
         ::curvefs::mds::topology::CopySetInfo reportCopySetInfo;
@@ -168,6 +177,40 @@ void HeartbeatManager::MetaServerHeartbeat(
     }
 }
 
+void HeartbeatManager::UpdateDeallocatableBlockGroup(
+    const MetaServerHeartbeatRequest &request,
+    MetaServerHeartbeatResponse *response) {
+    uint32_t metaserverId = request.metaserverid();
+    VLOG(6) << "HeartbeatManager get block group stat info from metaserver:"
+            << request.metaserverid()
+            << ", size:" << request.blockgroupstatinfos_size();
+
+    for (auto &info : request.blockgroupstatinfos()) {
+        VLOG(9) << "HeartbeatManager handle request from metaserver:"
+                << request.metaserverid() << ", fsid:" << info.fsid()
+                << ", block stat info:" << info.DebugString();
+        auto volumeSpace = spaceManager_->GetVolumeSpace(info.fsid());
+        if (volumeSpace == nullptr) {
+            LOG(ERROR) << "HeartbeatManager fsid=" << info.fsid()
+                       << " do not have volumeSpace manager";
+            response->set_statuscode(HeartbeatStatusCode::hbMetaServerFSUnkown);
+            return;
+        }
+
+        uint64_t issued = 0;
+        bool hasissued = volumeSpace->UpdateDeallocatableBlockGroup(
+            metaserverId, info.deallocatableblockgroups(),
+            info.blockgroupdeallocatestatus(), &issued);
+        if (hasissued) {
+            response->mutable_issuedblockgroups()->insert(
+                {info.fsid(), issued});
+            LOG(INFO) << "HeartbeatManager issue metaserverid=" << metaserverId
+                      << " blockgroup, fsid=" << info.fsid()
+                      << ", issued=" << issued;
+        }
+    }
+}
+
 HeartbeatStatusCode HeartbeatManager::CheckRequest(
     const MetaServerHeartbeatRequest &request) {
     MetaServer metaServer;
@@ -203,6 +246,8 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
                    << metaServer.GetToken();
         return HeartbeatStatusCode::hbMetaServerTokenNotMatch;
     }
+
+    VLOG(6) << "HeartbeatManager get request:" << request.DebugString();
     return HeartbeatStatusCode::hbOK;
 }
 

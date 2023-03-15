@@ -83,7 +83,6 @@ class PartitionCleaner {
     std::shared_ptr<MdsClient> mdsClient_;
     bool isStop_;
     uint32_t inodeDeletePeriodMs_;
-    std::unordered_map<uint32_t, FsInfo> fsInfoMap_;
 };
 
 class PartitionCleanerClosure : public google::protobuf::Closure {

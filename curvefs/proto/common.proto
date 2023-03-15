@@ -31,6 +31,11 @@ enum BitmapLocation {
     AtEnd = 2;
 }
 
+message BlockGroupID {
+    required uint64 fsId = 1;
+    required uint64 offset = 2;
+}
+
 // When creating fs, `volumeSize` and `extendAlignment` are fetched from the bs cluster
 message Volume {
     optional uint64 volumeSize = 1;

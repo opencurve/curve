@@ -60,6 +60,7 @@ enum FSStatusCode {
     INSERT_MANAGE_INODE_FAIL = 35;
     DELETE_DENTRY_FAIL = 36;
     UPDATE_FS_FAIL = 37;
+    SPACE_RELEASE_FAIL = 38;
 }
 
 // fs interface

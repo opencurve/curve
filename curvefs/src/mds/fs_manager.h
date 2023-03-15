@@ -221,7 +221,7 @@ class FsManager {
     // set partition status to DELETING in topology
     bool SetPartitionToDeleting(const PartitionInfo& partition);
 
-    FSStatusCode ReloadMountedFsVolumeSpace();
+    FSStatusCode ReloadFsVolumeSpace();
 
     void GetLatestTxId(const uint32_t fsId,
                        std::vector<PartitionTxId>* txIds);
