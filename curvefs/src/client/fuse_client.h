@@ -392,8 +392,6 @@ class FuseClient {
     // recycle whitelist
     common::Configuration whitelist_config_;
 
-    std::unordered_set<std::string> recycle_whitelist_;
-
  private:
     MDSBaseClient* mdsBase_;
 
