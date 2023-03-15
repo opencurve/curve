@@ -228,7 +228,7 @@ void ExtentCache::SetOption(const ExtentCacheOption& option) {
     LOG(INFO) << "ExtentCacheOption: [" << option_ << "]";
 }
 
-void ExtentCache::Build(const VolumeExtentList &extents) {
+void ExtentCache::Build(const VolumeExtentSliceList &extents) {
     WriteLockGuard lk(lock_);
     slices_.clear();
     dirties_.clear();
@@ -238,8 +238,8 @@ void ExtentCache::Build(const VolumeExtentList &extents) {
     }
 }
 
-VolumeExtentList ExtentCache::GetDirtyExtents() {
-    VolumeExtentList result;
+VolumeExtentSliceList ExtentCache::GetDirtyExtents() {
+    VolumeExtentSliceList result;
     WriteLockGuard lk(lock_);
     for (const auto* slice : dirties_) {
         *result.add_slices() = slice->ToVolumeExtentSlice();

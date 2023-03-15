@@ -342,8 +342,12 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
         needUpdate = true;
     }
 
+    bool fileNeedDeallocate =
+        (needAddTrash && (FsFileType::TYPE_FILE == old.type()));
+    bool s3NeedTrash = (needAddTrash && (FsFileType::TYPE_S3 == old.type()));
+
     if (needUpdate) {
-        ret = inodeStorage_->Update(old);
+        ret = inodeStorage_->Update(old, fileNeedDeallocate);
         if (ret != MetaStatusCode::OK) {
             LOG(ERROR) << "UpdateInode fail, " << request.ShortDebugString()
                        << ", ret: " << MetaStatusCode_Name(ret);
@@ -351,7 +355,7 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request) {
         }
     }
 
-    if (needAddTrash) {
+    if (s3NeedTrash) {
         trash_->Add(old.fsid(), old.inodeid(), old.dtime());
         --(*type2InodeNum_)[old.type()];
     }
@@ -556,7 +560,7 @@ MetaStatusCode InodeManager::UpdateVolumeExtentSlice(
 MetaStatusCode InodeManager::UpdateVolumeExtent(
     uint32_t fsId,
     uint64_t inodeId,
-    const VolumeExtentList &extents) {
+    const VolumeExtentSliceList &extents) {
     VLOG(6) << "UpdateInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId;
     NameLockGuard guard(inodeLock_, GetInodeLockName(fsId, inodeId));
 
@@ -578,7 +582,7 @@ MetaStatusCode InodeManager::GetVolumeExtent(
     uint32_t fsId,
     uint64_t inodeId,
     const std::vector<uint64_t> &slices,
-    VolumeExtentList *extents) {
+    VolumeExtentSliceList *extents) {
     VLOG(6) << "GetInodeExtent, fsId: " << fsId << ", inodeId: " << inodeId;
 
     if (slices.empty()) {

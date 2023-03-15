@@ -123,6 +123,12 @@ class MetaServerServiceImpl : public MetaServerService {
                             UpdateVolumeExtentResponse* response,
                             ::google::protobuf::Closure* done) override;
 
+    void UpdateDeallocatableBlockGroup(
+        ::google::protobuf::RpcController *controller,
+        const UpdateDeallocatableBlockGroupRequest *request,
+        UpdateDeallocatableBlockGroupResponse *response,
+        ::google::protobuf::Closure *done) override;
+
  private:
     CopysetNodeManager* copysetNodeManager_;
     InflightThrottle* inflightThrottle_;

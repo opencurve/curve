@@ -31,7 +31,7 @@ namespace curvefs {
 namespace metaserver {
 
 MetaStatusCode StreamingSendVolumeExtent(StreamConnection* connection,
-                                         const VolumeExtentList& extents) {
+                                         const VolumeExtentSliceList& extents) {
     VLOG(9) << "StreamingSendVolumeExtent, extents: "
             << extents.ShortDebugString();
     for (const auto& slice : extents.slices()) {

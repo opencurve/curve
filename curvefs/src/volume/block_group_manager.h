@@ -49,6 +49,11 @@ class BlockGroupManager {
         std::vector<AllocatorAndBitmapUpdater>* out) = 0;
 
     virtual bool ReleaseAllBlockGroups() = 0;
+
+    virtual bool ReleaseBlockGroup(uint64_t blockGroupOffset) = 0;
+
+    virtual bool AcquireBlockGroup(uint64_t blockGroupOffset,
+                                   AllocatorAndBitmapUpdater *out) = 0;
 };
 
 class BlockGroupManagerImpl final : public BlockGroupManager {
@@ -62,11 +67,14 @@ class BlockGroupManagerImpl final : public BlockGroupManager {
     bool AllocateBlockGroup(
         std::vector<AllocatorAndBitmapUpdater>* out) override;
 
-    void AcquireBlockGroup();
+    bool AcquireBlockGroup(uint64_t blockGroupOffset,
+                           AllocatorAndBitmapUpdater *out) override;
 
     void AllocateBlockGroupAsync();
 
     bool ReleaseAllBlockGroups() override;
+
+    bool ReleaseBlockGroup(uint64_t blockGroupOffset) override;
 
  private:
     SpaceManager* spaceManager_;
@@ -75,6 +83,9 @@ class BlockGroupManagerImpl final : public BlockGroupManager {
 
     BlockGroupManagerOption option_;
     AllocatorOption allocatorOption_;
+
+    curve::common::RWLock groupsLock_;
+    std::vector<BlockGroup> groups_;
 };
 
 }  // namespace volume

@@ -27,6 +27,7 @@ cc_library(
         "//curvefs/proto:curvefs_topology_cc_proto",
         "//curvefs/proto:metaserver_cc_proto",
         "//curvefs/src/mds/topology:curvefs_topology",
+        "//curvefs/src/mds/space:curvefs_mds_space",
         "//external:brpc",
         "//external:gflags",
         "//external:glog",

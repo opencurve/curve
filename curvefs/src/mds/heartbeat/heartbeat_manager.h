@@ -36,6 +36,7 @@
 #include "curvefs/src/mds/heartbeat/topo_updater.h"
 #include "curvefs/src/mds/schedule/coordinator.h"
 #include "curvefs/src/mds/topology/topology.h"
+#include "curvefs/src/mds/space/manager.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 
@@ -43,6 +44,7 @@ using ::curvefs::mds::topology::PoolIdType;
 using ::curvefs::mds::topology::CopySetIdType;
 using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::schedule::Coordinator;
+using ::curvefs::mds::space::SpaceManager;
 
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
@@ -65,7 +67,8 @@ class HeartbeatManager {
  public:
     HeartbeatManager(const HeartbeatOption &option,
                      const std::shared_ptr<Topology> &topology,
-                     const std::shared_ptr<Coordinator> &coordinator);
+                     const std::shared_ptr<Coordinator> &coordinator,
+                     const std::shared_ptr<SpaceManager> &spaceManager);
 
     ~HeartbeatManager() { Stop(); }
 
@@ -98,6 +101,7 @@ class HeartbeatManager {
                              MetaServerHeartbeatResponse *response);
 
  private:
+    FRIEND_TEST(TestHeartbeatManager, TEST_UpdateDeallocatableBlockGroup);
     /**
      * @brief Background thread for heartbeat timeout inspection
      */
@@ -140,10 +144,18 @@ class HeartbeatManager {
 
     void UpdateMetaServerSpace(const MetaServerHeartbeatRequest &request);
 
+    void Coordinate(const MetaServerHeartbeatRequest &request,
+                    MetaServerHeartbeatResponse *response);
+
+    void
+    UpdateDeallocatableBlockGroup(const MetaServerHeartbeatRequest &request,
+                                  MetaServerHeartbeatResponse *response);
+
  private:
     // Dependencies of heartbeat
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<Coordinator> coordinator_;
+    std::shared_ptr<SpaceManager> spaceManager_;
 
     // healthyChecker_ health checker running in background thread
     std::shared_ptr<MetaserverHealthyChecker> healthyChecker_;
@@ -155,6 +167,8 @@ class HeartbeatManager {
 
     // Manage metaserverHealthyChecker threads
     Thread backEndThread_;
+
+    std::atomic<uint32_t> onlineMetaServerNum_;
 
     Atomic<bool> isStop_;
     InterruptibleSleeper sleeper_;

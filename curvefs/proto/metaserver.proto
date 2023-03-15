@@ -167,6 +167,46 @@ enum FsFileType {
     TYPE_S3 = 4;
 };
 
+message DeallocatableBlockGroup {
+    required uint64 blockGroupOffset = 1;
+    optional uint64 deallocatableSize = 2;
+    repeated uint64 inodeIdlist = 3;
+    repeated uint64 inodeIdUnderDeallocate = 4;
+
+    oneof type {
+        IncreaseDeallocatableBlockGroup increase = 5;
+        DecreaseDeallocatableBlockGroup decrease = 6;
+        MarkDeallocatableBlockGroup mark = 7;
+    }
+}
+
+message IncreaseDeallocatableBlockGroup {
+    required uint64 increaseDeallocatableSize = 1;
+    repeated uint64 inodeIdlistAdd = 2;
+}
+
+message DecreaseDeallocatableBlockGroup {
+    required uint64 decreaseDeallocatableSize = 1;
+    repeated uint64 inodedDeallocated = 2;
+}
+
+message MarkDeallocatableBlockGroup {
+    repeated uint64 inodeIdUnderDeallocate = 2;
+}
+
+message UpdateDeallocatableBlockGroupRequest {
+    required uint32 poolId = 1;
+    required uint32 copysetId = 2;
+    required uint32 partitionId = 3;
+    required uint64 fsId = 4;
+    repeated DeallocatableBlockGroup update = 5;
+}
+
+message UpdateDeallocatableBlockGroupResponse {
+    required MetaStatusCode statusCode = 1; 
+    optional uint64 appliedIndex = 2;
+}
+
 message VolumeExtent {
     required uint64 fsOffset = 1;
     required uint64 volumeOffset = 2;
@@ -179,7 +219,7 @@ message VolumeExtentSlice {
     repeated VolumeExtent extents = 2;
 }
 
-message VolumeExtentList {
+message VolumeExtentSliceList {
     repeated VolumeExtentSlice slices = 1;
 }
 
@@ -317,7 +357,7 @@ message UpdateInodeRequest {
     map<string, bytes> xattr = 20;
     repeated uint64 parent = 21;
     map<uint64, S3ChunkInfoList> s3ChunkInfoAdd = 22;
-    optional VolumeExtentList volumeExtents = 23;
+    optional VolumeExtentSliceList volumeExtents = 23;
 }
 
 message UpdateInodeResponse {
@@ -464,7 +504,7 @@ message GetVolumeExtentRequest {
 message GetVolumeExtentResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
-    optional VolumeExtentList slices = 3;
+    optional VolumeExtentSliceList slices = 3;
 }
 
 message UpdateVolumeExtentRequest {
@@ -473,7 +513,7 @@ message UpdateVolumeExtentRequest {
     required uint32 partitionId = 3;
     required uint32 fsId = 4;
     required uint64 inodeId = 5;
-    required VolumeExtentList extents = 6;
+    required VolumeExtentSliceList extents = 6;
 }
 
 message UpdateVolumeExtentResponse {
@@ -508,4 +548,7 @@ service MetaServerService {
     // volume extent interface
     rpc GetVolumeExtent(GetVolumeExtentRequest) returns (GetVolumeExtentResponse);
     rpc UpdateVolumeExtent(UpdateVolumeExtentRequest) returns (UpdateVolumeExtentResponse);
+
+    // block group with deallocatable inode list interface
+    rpc UpdateDeallocatableBlockGroup(UpdateDeallocatableBlockGroupRequest) returns (UpdateDeallocatableBlockGroupResponse);
 }

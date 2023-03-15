@@ -94,6 +94,9 @@ class SpaceManagerImplTest : public ::testing::Test {
         opt_.allocatorOption.bitmapAllocatorOption.sizePerBit = 0;
         opt_.allocatorOption.bitmapAllocatorOption.smallAllocProportion = 0;
 
+        opt_.threshold = 0.5;
+        opt_.releaseInterSec = 0;
+
         mdsClient_ = std::make_shared<client::rpcclient::MockMdsClient>();
         devClient_ = std::make_shared<MockBlockDeviceClient>();
         spaceManager_.reset(new SpaceManagerImpl(opt_, mdsClient_, devClient_));
@@ -144,6 +147,12 @@ TEST_F(SpaceManagerImplTest, TestAlloc) {
 
     ASSERT_EQ(opt_.blockGroupManagerOption.blockGroupSize / kBlockSize - 1,
               extents.size());
+
+    spaceManager_->Run();
+    sleep(1);
+    EXPECT_CALL(*mdsClient_, ReleaseVolumeBlockGroup(_, _, _))
+        .WillOnce(Return(SpaceErrCode::SpaceErrUnknown));
+    ASSERT_FALSE(spaceManager_->Shutdown());
 }
 
 TEST_F(SpaceManagerImplTest, TestMultiThreadAlloc) {
@@ -199,6 +208,14 @@ TEST_F(SpaceManagerImplTest, TestMultiThreadAlloc) {
     }
 
     ASSERT_EQ(kBlockGroupSize, totalAllocated);
+
+    EXPECT_CALL(*mdsClient_, ReleaseVolumeBlockGroup(_, _, _))
+        .WillOnce(Return(SpaceErrCode::SpaceOk));
+    spaceManager_->Run();
+    sleep(1);
+    EXPECT_CALL(*mdsClient_, ReleaseVolumeBlockGroup(_, _, _))
+        .WillOnce(Return(SpaceErrCode::SpaceOk));
+    ASSERT_TRUE(spaceManager_->Shutdown());
 }
 
 }  // namespace volume

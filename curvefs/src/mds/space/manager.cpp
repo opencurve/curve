@@ -59,8 +59,9 @@ SpaceErrCode SpaceManagerImpl::AddVolume(const FsInfo& fsInfo) {
         }
     }
 
-    auto space = VolumeSpace::Create(fsInfo.fsid(), fsInfo.detail().volume(),
-                                     storage_.get(), fsStorage_.get());
+    auto space =
+        VolumeSpace::Create(fsInfo.fsid(), fsInfo.detail().volume(),
+                            storage_.get(), fsStorage_.get(), calcIntervalSec_);
 
     if (!space) {
         LOG(ERROR) << "Create volume space failed, fsId: " << fsInfo.fsid();

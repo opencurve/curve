@@ -35,6 +35,7 @@ namespace volume {
 using ::curve::common::Bitmap;
 using ::curve::common::BITMAP_UNIT_SIZE;
 using ::curve::common::BitRange;
+using ::curve::common::WriteLockGuard;
 using ::curvefs::common::BitmapLocation;
 using ::curvefs::mds::space::BlockGroup;
 using ::curvefs::mds::space::SpaceErrCode_Name;
@@ -66,14 +67,14 @@ bool BlockGroupManagerImpl::AllocateBlockGroup(
         return false;
     }
 
-    for (const auto& group : groups) {
+    WriteLockGuard lk(groupsLock_);
+    for (auto& group : groups) {
         VLOG(9) << "load group: " << group.ShortDebugString();
         AllocatorAndBitmapUpdater res;
         res.blockGroupOffset = group.offset();
-        BlockGroupBitmapLoader loader(
-            blockDeviceClient_.get(), option_.blockSize, group.offset(),
-            group.size(), group.bitmaplocation(),
-            group.size() == group.available(), allocatorOption_);
+        BlockGroupBitmapLoader loader(blockDeviceClient_.get(),
+                                      option_.blockSize, allocatorOption_,
+                                      group);
         auto ret = loader.Load(&res);
         if (!ret) {
             LOG(ERROR) << "Create allocator for block group failed";
@@ -81,13 +82,81 @@ bool BlockGroupManagerImpl::AllocateBlockGroup(
         } else {
             out->push_back(std::move(res));
         }
+
+        groups_.emplace_back(std::move(group));
     }
 
     return true;
 }
 
-// TODO(wuhanqing): implement this function
+bool BlockGroupManagerImpl::AcquireBlockGroup(uint64_t blockGroupOffset,
+                                              AllocatorAndBitmapUpdater *out) {
+    BlockGroup group;
+    SpaceErrCode err = mdsClient_->AcquireVolumeBlockGroup(
+        option_.fsId, blockGroupOffset, option_.owner, &group);
+    if (err != SpaceErrCode::SpaceOk) {
+        LOG(WARNING) << "Acquire volume block group failed, err: "
+                     << SpaceErrCode_Name(err);
+        return false;
+    }
+
+    AllocatorAndBitmapUpdater res;
+    res.blockGroupOffset = group.offset();
+    BlockGroupBitmapLoader loader(blockDeviceClient_.get(), option_.blockSize,
+                                  allocatorOption_, group);
+    auto ret = loader.Load(&res);
+    if (!ret) {
+        LOG(ERROR) << "Create allocator for block group failed";
+        return false;
+    }
+
+    *out = std::move(res);
+    return true;
+}
+
+
+bool BlockGroupManagerImpl::ReleaseBlockGroup(uint64_t blockGroupOffset) {
+    WriteLockGuard lk(groupsLock_);
+    auto iter = std::find_if(groups_.begin(), groups_.end(),
+                             [blockGroupOffset](const BlockGroup &group) {
+                                 return group.offset() == blockGroupOffset;
+                             });
+    if (iter == groups_.end()) {
+        LOG(ERROR) << "BlockGroupManagerImpl find group block: "
+                   << blockGroupOffset << " failed";
+        return false;
+    }
+
+    SpaceErrCode err = mdsClient_->ReleaseVolumeBlockGroup(
+        option_.fsId, option_.owner, {*iter});
+    if (err != SpaceErrCode::SpaceOk) {
+        LOG(WARNING) << "BlockGroupManagerImpl release block group: "
+                     << blockGroupOffset
+                     << "failed, err: " << SpaceErrCode_Name(err)
+                     << ", blockGroupOffset: " << blockGroupOffset;
+        return false;
+    }
+
+    groups_.erase(iter);
+    LOG(INFO) << "BlockGroupManagerImpl release one volume block group "
+                 "successfully";
+    return true;
+}
+
 bool BlockGroupManagerImpl::ReleaseAllBlockGroups() {
+    WriteLockGuard lk(groupsLock_);
+    SpaceErrCode err = mdsClient_->ReleaseVolumeBlockGroup(
+        option_.fsId, option_.owner, groups_);
+    if (err != SpaceErrCode::SpaceOk) {
+        LOG(WARNING) << "BlockGroupManagerImpl release all volume block groups "
+                        "failed, err: "
+                     << SpaceErrCode_Name(err) << "";
+        return false;
+    }
+
+    groups_.clear();
+    LOG(INFO) << "BlockGroupManagerImpl release all volume block groups "
+                 "successfully";
     return true;
 }
 

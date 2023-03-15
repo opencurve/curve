@@ -25,6 +25,7 @@
 
 #include <braft/node.h>  // NodeImpl
 #include <braft/node_manager.h>
+#include <gtest/gtest_prod.h>
 
 #include <atomic>
 #include <map>
@@ -37,23 +38,26 @@
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/wait_interval.h"
-
-using ::curve::common::Thread;
-using ::curvefs::metaserver::copyset::CopysetNode;
+#include "absl/types/optional.h"
 
 namespace curvefs {
 namespace metaserver {
+using curve::common::Thread;
+using curve::fs::LocalFileSystem;
+using curvefs::common::Peer;
+using curvefs::mds::heartbeat::BlockGroupStatInfo;
+using curvefs::mds::heartbeat::CopySetConf;
+using curvefs::mds::heartbeat::BlockGroupDeallcateStatusCode;
+using curvefs::metaserver::copyset::CopysetNode;
+using curvefs::metaserver::copyset::CopysetNodeManager;
 
-using ::curve::fs::LocalFileSystem;
 using HeartbeatRequest = curvefs::mds::heartbeat::MetaServerHeartbeatRequest;
 using HeartbeatResponse = curvefs::mds::heartbeat::MetaServerHeartbeatResponse;
 using MetaServerSpaceStatus = curvefs::mds::heartbeat::MetaServerSpaceStatus;
-using ::curvefs::mds::heartbeat::CopySetConf;
-using TaskStatus = butil::Status;
 using CopysetNodePtr = std::shared_ptr<CopysetNode>;
-using curvefs::metaserver::copyset::CopysetNodeManager;
-using curvefs::common::Peer;
 using PeerId = braft::PeerId;
+using TaskStatus = butil::Status;
+using BlockGroupStatInfoMap = std::map<uint32_t, BlockGroupStatInfo>;
 
 class ResourceCollector;
 
@@ -104,6 +108,8 @@ class Heartbeat {
     int Run();
 
  private:
+    FRIEND_TEST(HeartbeatTest, Test_BuildRequest);
+
     /**
      * @brief stop heartbeat subsystem
      * @return 0:success; not 0: fail
@@ -117,6 +123,9 @@ class Heartbeat {
 
     void BuildCopysetInfo(curvefs::mds::heartbeat::CopySetInfo* info,
                          CopysetNode* copyset);
+
+    void BuildBlockGroupStatInfo(CopysetNode *copyset,
+                                 BlockGroupStatInfoMap *blockGroupStatInfoMap);
 
     int BuildRequest(HeartbeatRequest* request);
 
@@ -136,11 +145,14 @@ class Heartbeat {
     bool GetMetaserverSpaceStatus(MetaServerSpaceStatus* status,
                                   uint64_t ncopysets);
 
+    // Handle heartbeat and send recyclable BlockGroup requests
+    void DeallocateBolckGroup(const HeartbeatResponse &response);
+
  private:
     friend class HeartbeatTest;
 
  private:
-     Thread hbThread_;
+    Thread hbThread_;
 
     std::atomic<bool> toStop_;
 
@@ -175,6 +187,10 @@ class HeartbeatTaskExecutor {
 
     void ExecTasks(const HeartbeatResponse& response);
 
+    void SetDeallocFsId(uint64_t fsid) {
+        deallocfsid_ = fsid;
+    }
+
  private:
     void ExecOneTask(const CopySetConf& conf);
 
@@ -187,8 +203,11 @@ class HeartbeatTaskExecutor {
     bool NeedPurge(const CopySetConf& conf);
 
  private:
+    friend class Heartbeat;
+
     CopysetNodeManager* copysetMgr_;
     butil::EndPoint ep_;
+    absl::optional<uint64_t> deallocfsid_;
 };
 
 }  // namespace metaserver
