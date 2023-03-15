@@ -30,6 +30,7 @@
 #include <set>
 #include <unordered_map>
 #include <utility>
+#include <map>
 
 #include "curvefs/proto/common.pb.h"
 #include "curvefs/proto/metaserver.pb.h"
@@ -49,21 +50,24 @@ using ::curvefs::metaserver::InodeAttr;
 using ::curvefs::metaserver::XAttr;
 using ::curvefs::metaserver::MetaStatusCode;
 using ::curvefs::metaserver::S3ChunkInfoList;
+using ::curvefs::metaserver::DeallocatableBlockGroup;
 using ::curvefs::common::StreamStatus;
 using ::curvefs::common::StreamClient;
-using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 using ::curvefs::metaserver::Time;
+
+using DeallocatableBlockGroupMap = std::map<uint64_t, DeallocatableBlockGroup>;
+using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
 
 namespace curvefs {
 namespace client {
 namespace rpcclient {
 
 using S3ChunkInfoMap = google::protobuf::Map<uint64_t, S3ChunkInfoList>;
-using ::curvefs::metaserver::VolumeExtentList;
+using ::curvefs::metaserver::VolumeExtentSliceList;
 
 struct DataIndices {
     absl::optional<S3ChunkInfoMap> s3ChunkInfoMap;
-    absl::optional<VolumeExtentList> volumeExtents;
+    absl::optional<VolumeExtentSliceList> volumeExtents;
 };
 
 class MetaServerClient {
@@ -161,13 +165,17 @@ class MetaServerClient {
 
     virtual void AsyncUpdateVolumeExtent(uint32_t fsId,
                                          uint64_t inodeId,
-                                         const VolumeExtentList &extents,
+                                         const VolumeExtentSliceList &extents,
                                          MetaServerClientDone *done) = 0;
 
     virtual MetaStatusCode GetVolumeExtent(uint32_t fsId,
                                            uint64_t inodeId,
                                            bool streaming,
-                                           VolumeExtentList *extents) = 0;
+                                           VolumeExtentSliceList *extents) = 0;
+
+    virtual MetaStatusCode
+    UpdateDeallocatableBlockGroup(uint32_t fsId, uint64_t inodeId,
+                                  DeallocatableBlockGroupMap *statistic) = 0;
 };
 
 class MetaServerClientImpl : public MetaServerClient {
@@ -265,13 +273,17 @@ class MetaServerClientImpl : public MetaServerClient {
 
     void AsyncUpdateVolumeExtent(uint32_t fsId,
                                  uint64_t inodeId,
-                                 const VolumeExtentList &extents,
+                                 const VolumeExtentSliceList &extents,
                                  MetaServerClientDone *done) override;
 
     MetaStatusCode GetVolumeExtent(uint32_t fsId,
                                    uint64_t inodeId,
                                    bool streaming,
-                                   VolumeExtentList *extents) override;
+                                   VolumeExtentSliceList *extents) override;
+
+    MetaStatusCode UpdateDeallocatableBlockGroup(
+        uint32_t fsId, uint64_t inodeId,
+        DeallocatableBlockGroupMap *statistic) override;
 
  private:
     MetaStatusCode UpdateInode(const UpdateInodeRequest &request,

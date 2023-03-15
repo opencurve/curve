@@ -52,7 +52,7 @@ constexpr int kAccessTime = 1 << 0;
 constexpr int kChangeTime = 1 << 1;
 constexpr int kModifyTime = 1 << 2;
 
-using ::curvefs::metaserver::VolumeExtentList;
+using ::curvefs::metaserver::VolumeExtentSliceList;
 
 enum class InodeStatus {
     kNormal = 0,

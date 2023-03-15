@@ -146,6 +146,8 @@ TEST_F(MetaOperatorTest, OperatorTypeTest) {
     TEST_OPERATOR_TYPE(CreatePartition);
     TEST_OPERATOR_TYPE(DeletePartition);
     TEST_OPERATOR_TYPE(PrepareRenameTx);
+    TEST_OPERATOR_TYPE(UpdateDeallocatableBlockGroup);
+
 
 #undef TEST_OPERATOR_TYPE
 }

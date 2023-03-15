@@ -41,20 +41,17 @@ using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
 
 SpaceManagerImpl::SpaceManagerImpl(
-    const SpaceManagerOption& option,
-    const std::shared_ptr<MdsClient>& mdsClient,
-    const std::shared_ptr<BlockDeviceClient>& blockDev)
-    : totalBytes_(0),
-      availableBytes_(0),
+    const SpaceManagerOption &option,
+    const std::shared_ptr<MdsClient> &mdsClient,
+    const std::shared_ptr<BlockDeviceClient> &blockDev)
+    : totalBytes_(0), availableBytes_(0),
       blockSize_(option.blockGroupManagerOption.blockSize),
       blockGroupSize_(option.blockGroupManagerOption.blockGroupSize),
-      blockGroupManager_(
-          new BlockGroupManagerImpl(this,
-                                    mdsClient,
-                                    blockDev,
-                                    option.blockGroupManagerOption,
-                                    option.allocatorOption)),
-      allocating_(false) {}
+      blockGroupManager_(new BlockGroupManagerImpl(
+          this, mdsClient, blockDev, option.blockGroupManagerOption,
+          option.allocatorOption)),
+      allocating_(false), threshold_(option.threshold),
+      releaseInterSec_(option.releaseInterSec) {}
 
 bool SpaceManagerImpl::Alloc(uint32_t size,
                              const AllocateHint& hint,
@@ -88,7 +85,7 @@ bool SpaceManagerImpl::Alloc(uint32_t size,
         left -= allocated;
     }
 
-    auto ret = UpdateBitmap(*extents);
+    auto ret = UpdateBitmap(*extents, BlockGroupBitmapUpdater::Set);
     if (!ret) {
         LOG(ERROR) << "Update bitmap failed";
         metric_.errorCount << 1;
@@ -104,9 +101,34 @@ bool SpaceManagerImpl::Alloc(uint32_t size,
     return true;
 }
 
-bool SpaceManagerImpl::DeAlloc(const std::vector<Extent>& extents) {
-    // TODO(wuhanqing): fix
-    (void)extents;
+bool SpaceManagerImpl::DeAlloc(uint64_t blockGroupOffset,
+                               const std::vector<Extent> &extents) {
+    butil::Timer timer;
+    timer.start();
+
+    if (!AcquireBlockGroup(blockGroupOffset)) {
+        LOG(WARNING) << "Acquire block group failed, block group offset: "
+                     << blockGroupOffset;
+        return false;
+    }
+
+    bool ret = UpdateBitmap(extents, BlockGroupBitmapUpdater::Op::Clear);
+    if (!ret) {
+        LOG(ERROR) << "DeAlloc update bitmap failed";
+        metric_.errorCount << 1;
+        return false;
+    }
+
+    uint64_t size = 0;
+    for (const auto &ext : extents) {
+        size += ext.len;
+    }
+
+    timer.stop();
+    metric_.deallocLatency << timer.u_elapsed();
+    metric_.allocSize << -size;
+
+    VLOG(9) << "Dealloc success, " << extents;
     return true;
 }
 
@@ -162,13 +184,14 @@ int64_t SpaceManagerImpl::AllocInternal(int64_t size,
     return size - left;
 }
 
-bool SpaceManagerImpl::UpdateBitmap(const std::vector<Extent>& exts) {
+bool SpaceManagerImpl::UpdateBitmap(const std::vector<Extent> &exts,
+                                    BlockGroupBitmapUpdater::Op op) {
     ReadLockGuard lk(updatersLock_);
 
     std::unordered_set<BlockGroupBitmapUpdater*> dirty;
     for (const auto& ext : exts) {
         BlockGroupBitmapUpdater* updater = FindBitmapUpdater(ext);
-        updater->Update(ext, BlockGroupBitmapUpdater::Set);
+        updater->Update(ext, op);
         dirty.insert(updater);
     }
 
@@ -191,47 +214,105 @@ BlockGroupBitmapUpdater* SpaceManagerImpl::FindBitmapUpdater(
     return it->second.get();
 }
 
-bool SpaceManagerImpl::Shutdown() {
-    WriteLockGuard allocLk(allocatorsLock_);
-    WriteLockGuard updaterLk(updatersLock_);
+void SpaceManagerImpl::Run() {
+    releaseT_ = std::thread(&SpaceManagerImpl::ReleaseFullBlockGroups, this);
+    running_ = true;
+}
 
-    // sync all bitmap updater
-    bool ret = false;
-    for (auto& updater : bitmapUpdaters_) {
-        ret = updater.second->Sync();
-        if (!ret) {
-            LOG(ERROR) << "Sync bitmap updater failed";
-            return false;
+
+void SpaceManagerImpl::ReleaseFullBlockGroups() {
+    while (sleeper_.wait_for(std::chrono::seconds(releaseInterSec_))) {
+        std::vector<uint64_t> selectBlockGroups;
+
+        // find the blockgroup whose space usage ratio is greater than a certain
+        // threshold
+        {
+            ReadLockGuard lk(allocatorsLock_);
+            for (auto &alloc : allocators_) {
+                if (alloc.second->Total() == 0) {
+                    continue;
+                }
+
+                double total = alloc.second->Total();
+                double available = alloc.second->AvailableSize();
+                double usedPer = 1.0 - available / total;
+
+                if (usedPer > threshold_) {
+                    selectBlockGroups.push_back(alloc.first);
+                }
+            }
+        }
+
+        if (selectBlockGroups.empty()) {
+            LOG(INFO) << "No block group need to release";
+            continue;
+        }
+
+        // release selected blockgroups
+        {
+            WriteLockGuard allocLk(allocatorsLock_);
+            WriteLockGuard updaterLk(updatersLock_);
+            for (auto &id : selectBlockGroups) {
+                auto iter = allocators_.find(id);
+                assert(iter != allocators_.end());
+
+                availableBytes_.fetch_sub(iter->second->AvailableSize(),
+                                          std::memory_order_relaxed);
+                totalBytes_.fetch_sub(iter->second->AvailableSize(),
+                                      std::memory_order_release);
+                allocators_.erase(id);
+                bitmapUpdaters_.erase(id);
+
+                bool ret = blockGroupManager_->ReleaseBlockGroup(id);
+                if (ret) {
+                    LOG(INFO) << "Release block group success, id: " << id;
+                } else {
+                    LOG(ERROR) << "Release block group failed, id: " << id;
+                }
+            }
         }
     }
+}
 
-    // release all block group
-    ret = blockGroupManager_->ReleaseAllBlockGroups();
-    LOG_IF(ERROR, !ret) << "Release all block groups failed";
+bool SpaceManagerImpl::Shutdown() {
+    bool ret = false;
+
+    {
+        WriteLockGuard allocLk(allocatorsLock_);
+        WriteLockGuard updaterLk(updatersLock_);
+
+        // sync all bitmap updater
+        for (auto &updater : bitmapUpdaters_) {
+            ret = updater.second->Sync();
+            if (!ret) {
+                LOG(ERROR) << "Sync bitmap updater failed";
+                return false;
+            }
+        }
+
+        // release all block group
+        ret = blockGroupManager_->ReleaseAllBlockGroups();
+        LOG_IF(ERROR, !ret) << "Release all block groups failed";
+    }
+
+    if (running_) {
+        sleeper_.interrupt();
+        releaseT_.join();
+        LOG(INFO) << "SpaceManagerImpl stop thread ok";
+    }
     return ret;
 }
 
 bool SpaceManagerImpl::AllocateBlockGroup(uint64_t hint) {
-    {
-        std::unique_lock<std::mutex> lk(mtx_);
-        if (allocating_) {
-            cond_.wait(lk);
-        }
-
-        if (availableBytes_.load(std::memory_order_relaxed) >= hint) {
-            return true;
-        }
+    std::unique_lock<std::mutex> lk(mtx_);
+    if (availableBytes_.load(std::memory_order_relaxed) >= hint) {
+        return true;
     }
-
-    std::lock_guard<std::mutex> lk(mtx_);
-    allocating_ = true;
 
     std::vector<AllocatorAndBitmapUpdater> out;
     auto ret = blockGroupManager_->AllocateBlockGroup(&out);
     if (!ret) {
         LOG(ERROR) << "Allocate block group failed";
-        allocating_ = false;
-        cond_.notify_all();
         return false;
     }
 
@@ -239,7 +320,7 @@ bool SpaceManagerImpl::AllocateBlockGroup(uint64_t hint) {
     uint64_t total = 0;
     WriteLockGuard allocLk(allocatorsLock_);
     WriteLockGuard updaterLk(updatersLock_);
-    for (auto& d : out) {
+    for (auto &d : out) {
         VLOG(9) << "add allocator, offset: " << d.blockGroupOffset
                 << ", available: " << d.allocator->AvailableSize()
                 << ", total: " << d.allocator->Total();
@@ -251,9 +332,28 @@ bool SpaceManagerImpl::AllocateBlockGroup(uint64_t hint) {
 
     availableBytes_.fetch_add(available, std::memory_order_release);
     totalBytes_.fetch_add(total, std::memory_order_release);
+    return true;
+}
 
-    allocating_ = false;
-    cond_.notify_all();
+bool SpaceManagerImpl::AcquireBlockGroup(uint64_t blockGroupOffset) {
+    std::unique_lock<std::mutex> lk(mtx_);
+    if (bitmapUpdaters_.find(blockGroupOffset) != bitmapUpdaters_.end()) {
+        return true;
+    }
+
+    AllocatorAndBitmapUpdater out;
+    bool ret = blockGroupManager_->AcquireBlockGroup(blockGroupOffset, &out);
+    if (!ret) {
+        LOG(WARNING) << "Acquire block group failed, offset: "
+                     << blockGroupOffset;
+        return false;
+    }
+
+    WriteLockGuard allocLk(allocatorsLock_);
+    WriteLockGuard updaterLk(updatersLock_);
+
+    allocators_.emplace(blockGroupOffset, std::move(out.allocator));
+    bitmapUpdaters_.emplace(blockGroupOffset, std::move(out.bitmapUpdater));
     return true;
 }
 

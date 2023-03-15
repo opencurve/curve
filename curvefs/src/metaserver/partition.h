@@ -52,7 +52,8 @@ class Partition {
  public:
     Partition(PartitionInfo partition,
               std::shared_ptr<KVStorage> kvStorage,
-              bool startCompact = true);
+              bool startCompact = true, bool startVolumeDeallocate = true);
+    Partition() = default;
 
     // dentry
     MetaStatusCode CreateDentry(const Dentry& dentry);
@@ -111,7 +112,7 @@ class Partition {
 
     MetaStatusCode UpdateVolumeExtent(uint32_t fsId,
                                       uint64_t inodeId,
-                                      const VolumeExtentList& extents);
+                                      const VolumeExtentSliceList& extents);
 
     MetaStatusCode UpdateVolumeExtentSlice(uint32_t fsId,
                                            uint64_t inodeId,
@@ -120,7 +121,14 @@ class Partition {
     MetaStatusCode GetVolumeExtent(uint32_t fsId,
                                    uint64_t inodeId,
                                    const std::vector<uint64_t>& slices,
-                                   VolumeExtentList* extents);
+                                   VolumeExtentSliceList* extents);
+
+
+    MetaStatusCode UpdateDeallocatableBlockGroup(
+        const UpdateDeallocatableBlockGroupRequest &request);
+
+    virtual MetaStatusCode GeAllBlockGroup(
+        std::vector<DeallocatableBlockGroup> *deallocatableBlockGroupVec);
 
     MetaStatusCode InsertInode(const Inode& inode);
 
@@ -130,18 +138,20 @@ class Partition {
     bool IsDeletable();
 
     // check if fsid matchs and inode range belongs to this partition
-    bool IsInodeBelongs(uint32_t fsId, uint64_t inodeId);
+    bool IsInodeBelongs(uint32_t fsId, uint64_t inodeId) const;
 
     // check if fsid match this partition
-    bool IsInodeBelongs(uint32_t fsId);
+    bool IsInodeBelongs(uint32_t fsId) const;
 
-    uint32_t GetPartitionId() const;
+    virtual uint32_t GetPartitionId() const {
+        return partitionInfo_.partitionid();
+    }
 
-    uint32_t GetPoolId() { return partitionInfo_.poolid(); }
+    virtual uint32_t GetPoolId() const { return partitionInfo_.poolid(); }
 
-    uint32_t GetCopySetId() { return partitionInfo_.copysetid(); }
+    virtual uint32_t GetCopySetId() const { return partitionInfo_.copysetid(); }
 
-    uint32_t GetFsId() { return partitionInfo_.fsid(); }
+    virtual uint32_t GetFsId() const { return partitionInfo_.fsid(); }
 
     PartitionInfo GetPartitionInfo();
 
@@ -164,6 +174,12 @@ class Partition {
     void StartS3Compact();
 
     void CancelS3Compact();
+
+    void StartVolumeDeallocate();
+
+    void CancelVolumeDeallocate();
+
+    void SetVolumeDeallocate(uint64_t fsId, uint64_t blockGroupOffset);
 
     std::string GetInodeTablename();
 
@@ -190,10 +206,13 @@ class Partition {
     }
 
  private:
+    std::shared_ptr<KVStorage> kvStorage_;
+    std::shared_ptr<NameGenerator> nameGen_;
+
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<DentryStorage> dentryStorage_;
+
     std::shared_ptr<InodeManager> inodeManager_;
-    std::shared_ptr<TrashImpl> trash_;
     std::shared_ptr<DentryManager> dentryManager_;
     std::shared_ptr<TxManager> txManager_;
 

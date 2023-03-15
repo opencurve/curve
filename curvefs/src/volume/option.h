@@ -54,6 +54,9 @@ struct AllocatorOption {
 struct SpaceManagerOption {
     AllocatorOption allocatorOption;
     BlockGroupManagerOption blockGroupManagerOption;
+
+    double threshold{1.0};
+    uint64_t releaseInterSec{300};
 };
 
 }  // namespace volume

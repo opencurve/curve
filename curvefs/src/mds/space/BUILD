@@ -27,6 +27,8 @@ cc_library(
     deps = [
         "//curvefs/proto:mds_cc_proto",
         "//curvefs/proto:space_cc_proto",
+        "//curvefs/proto:metaserver_cc_proto",
+        "//curvefs/proto:curvefs_heartbeat_cc_proto",
         "//curvefs/src/mds:curvefs_mds_fs_storage",
         "//curvefs/src/mds/codec:fs_mds_codec",
         "//external:brpc",

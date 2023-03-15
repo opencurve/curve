@@ -583,7 +583,7 @@ void InodeWrapper::AsyncS3(MetaServerClientDone *done, bool internal) {
 }
 
 CURVEFS_ERROR InodeWrapper::RefreshVolumeExtent() {
-    VolumeExtentList extents;
+    VolumeExtentSliceList extents;
     auto st = metaClient_->GetVolumeExtent(inode_.fsid(), inode_.inodeid(),
                                            true, &extents);
     VLOG(9) << "RefreshVolumeExtent, ino: " << inode_.inodeid()

@@ -54,6 +54,10 @@ static bool CompareType(const std::string& str, KEY_TYPE keyType) {
 
 NameGenerator::NameGenerator(uint32_t partitionId)
     : tableName4Inode_(Format(kTypeInode, partitionId)),
+      tableName4DeallocatableIndoe_(
+          Format(kTypeDeallocatableInode, partitionId)),
+      tableName4DeallocatableBlockGroup_(
+          Format(kTypeDeallocatableBlockGroup, partitionId)),
       tableName4S3ChunkInfo_(Format(kTypeS3ChunkInfo, partitionId)),
       tableName4Dentry_(Format(kTypeDentry, partitionId)),
       tableName4VolumeExtent_(Format(kTypeVolumeExtent, partitionId)),
@@ -61,6 +65,14 @@ NameGenerator::NameGenerator(uint32_t partitionId)
 
 std::string NameGenerator::GetInodeTableName() const {
     return tableName4Inode_;
+}
+
+std::string NameGenerator::GetDeallocatableInodeTableName() const {
+    return tableName4DeallocatableIndoe_;
+}
+
+std::string NameGenerator::GetDeallocatableBlockGroupTableName() const {
+    return tableName4DeallocatableBlockGroup_;
 }
 
 std::string NameGenerator::GetS3ChunkInfoTableName() const {
@@ -340,6 +352,40 @@ bool Key4InodeAuxInfo::ParseFromString(const std::string& value) {
            StringToUl(items[1], &fsId) && StringToUll(items[2], &inodeId);
 }
 
+std::string Key4DeallocatableBlockGroup::SerializeToString() const {
+    return absl::StrCat(keyType_, kDelimiter, fsId, kDelimiter, volumeOffset);
+}
+
+
+bool Key4DeallocatableBlockGroup::ParseFromString(const std::string &value) {
+    std::vector<std::string> items;
+    SplitString(value, kDelimiter, &items);
+    return items.size() == 3 && CompareType(items[0], keyType_) &&
+           StringToUl(items[1], &fsId) && StringToUll(items[2], &volumeOffset);
+}
+
+std::string Key4DeallocatableInode::SerializeToString() const {
+    return absl::StrCat(keyType_, kDelimiter, fsId, kDelimiter, inodeId);
+}
+
+bool Key4DeallocatableInode::ParseFromString(const std::string &value) {
+    std::vector<std::string> items;
+    SplitString(value, kDelimiter, &items);
+    return items.size() == 3 && CompareType(items[0], keyType_) &&
+           StringToUl(items[1], &fsId) && StringToUll(items[2], &inodeId);
+}
+
+std::string Prefix4AllDeallocatableBlockGroup::SerializeToString() const {
+    return absl::StrCat(keyType_, ":");
+}
+
+bool Prefix4AllDeallocatableBlockGroup::ParseFromString(
+    const std::string &value) {
+    std::vector<std::string> items;
+    SplitString(value, ":", &items);
+    return items.size() == 1 && CompareType(items[0], keyType_);
+}
+
 std::string Converter::SerializeToString(const StorageKey& key) {
     return key.SerializeToString();
 }
@@ -352,7 +398,6 @@ bool Converter::SerializeToString(const google::protobuf::Message& entry,
     }
     return entry.SerializeToString(value);
 }
-
 }  // namespace storage
 }  // namespace metaserver
 }  // namespace curvefs

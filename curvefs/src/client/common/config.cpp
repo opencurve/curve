@@ -244,6 +244,10 @@ void InitVolumeOption(Configuration *conf, VolumeOption *volumeOpt) {
     conf->GetValueFatalIfFail("volume.fsBlockSize", &volumeOpt->fsBlockSize);
     conf->GetValueFatalIfFail("volume.allocator.type",
                               &volumeOpt->allocatorOption.type);
+    conf->GetValueFatalIfFail("volume.space.useThreshold",
+                              &volumeOpt->threshold);
+    conf->GetValueFatalIfFail("volume.space.releaseInterSec",
+                              &volumeOpt->releaseInterSec);
 
     conf->GetValueFatalIfFail(
         "volume.blockGroup.allocateOnce",

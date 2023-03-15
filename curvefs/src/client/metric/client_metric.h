@@ -92,13 +92,12 @@ struct MetaServerClientMetric {
     // volume extent
     InterfaceMetric updateVolumeExtent;
     InterfaceMetric getVolumeExtent;
+    InterfaceMetric updateDeallocatableBlockGroup;
 
     MetaServerClientMetric()
-        : getDentry(prefix, "getDentry"),
-          listDentry(prefix, "listDentry"),
+        : getDentry(prefix, "getDentry"), listDentry(prefix, "listDentry"),
           createDentry(prefix, "createDentry"),
-          deleteDentry(prefix, "deleteDentry"),
-          getInode(prefix, "getInode"),
+          deleteDentry(prefix, "deleteDentry"), getInode(prefix, "getInode"),
           batchGetInodeAttr(prefix, "batchGetInodeAttr"),
           batchGetXattr(prefix, "batchGetXattr"),
           createInode(prefix, "createInode"),
@@ -107,7 +106,9 @@ struct MetaServerClientMetric {
           appendS3ChunkInfo(prefix, "appendS3ChunkInfo"),
           prepareRenameTx(prefix, "prepareRenameTx"),
           updateVolumeExtent(prefix, "updateVolumeExtent"),
-          getVolumeExtent(prefix, "getVolumeExtent") {}
+          getVolumeExtent(prefix, "getVolumeExtent"),
+          updateDeallocatableBlockGroup(prefix,
+                                        "updateDeallocatableBlockGroup") {}
 };
 
 struct InflightGuard {

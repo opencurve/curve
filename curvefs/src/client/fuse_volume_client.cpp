@@ -111,9 +111,12 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpInit(void *userdata,
         volOpts_.allocatorOption.bitmapAllocatorOption.sizePerBit;
     option.allocatorOption.bitmapAllocatorOption.smallAllocProportion =
         volOpts_.allocatorOption.bitmapAllocatorOption.smallAllocProportion;
+    option.threshold = volOpts_.threshold;
+    option.releaseInterSec = volOpts_.releaseInterSec;
 
     spaceManager_ = absl::make_unique<SpaceManagerImpl>(option, mdsClient_,
                                                         blockDeviceClient_);
+    spaceManager_->Run();
 
     storage_ = absl::make_unique<DefaultVolumeStorage>(
         spaceManager_.get(), blockDeviceClient_.get(), inodeManager_.get());

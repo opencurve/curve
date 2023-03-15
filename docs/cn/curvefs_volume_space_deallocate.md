@@ -23,7 +23,7 @@ message VolumeExtentSlice {
     repeated VolumeExtent extents = 2;
 }
 
-message VolumeExtentList {
+message VolumeExtenSlicetList {
     repeated VolumeExtentSlice slices = 1;
 }
 ```

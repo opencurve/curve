@@ -24,7 +24,7 @@
 #define CURVEFS_TEST_METASERVER_COPYSET_MOCK_MOCK_COPYSET_NODE_MANAGER_H_
 
 #include <gmock/gmock.h>
-
+#include <vector>
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
 
 namespace curvefs {
@@ -35,6 +35,7 @@ class MockCopysetNodeManager : public CopysetNodeManager {
  public:
     MOCK_METHOD2(GetCopysetNode, CopysetNode*(PoolId, CopysetId));
     MOCK_METHOD2(PurgeCopysetNode, bool(PoolId, CopysetId));
+    MOCK_CONST_METHOD1(GetAllCopysets, void(std::vector<CopysetNode *> *));
     MOCK_CONST_METHOD0(IsLoadFinished, bool());
 };
 

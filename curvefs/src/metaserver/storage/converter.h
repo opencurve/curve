@@ -43,6 +43,9 @@ enum KEY_TYPE : unsigned char {
     kTypeDentry = 3,
     kTypeVolumeExtent = 4,
     kTypeInodeAuxInfo = 5,
+    kTypeBlockGroup = 6,
+    kTypeDeallocatableBlockGroup = 7,
+    kTypeDeallocatableInode = 8,
 };
 
 // NOTE: you must generate all table name by NameGenerator class for
@@ -54,6 +57,8 @@ class NameGenerator {
 
     std::string GetInodeTableName() const;
 
+    std::string GetDeallocatableInodeTableName() const;
+
     std::string GetS3ChunkInfoTableName() const;
 
     std::string GetDentryTableName() const;
@@ -62,6 +67,10 @@ class NameGenerator {
 
     std::string GetInodeAuxInfoTableName() const;
 
+    std::string GetBlockGroupStatisticTableName() const;
+
+    std::string GetDeallocatableBlockGroupTableName() const;
+
     static size_t GetFixedLength();
 
  private:
@@ -69,6 +78,8 @@ class NameGenerator {
 
  private:
     std::string tableName4Inode_;
+    std::string tableName4DeallocatableIndoe_;
+    std::string tableName4DeallocatableBlockGroup_;
     std::string tableName4S3ChunkInfo_;
     std::string tableName4Dentry_;
     std::string tableName4VolumeExtent_;
@@ -84,7 +95,7 @@ class StorageKey {
 };
 
 /* rules for key serialization:
- *   Key4Inode                        : kTypeInode:fsId:InodeId
+ *   Key4Inode                        : kTypeInode:fsId:inodeId
  *   Prefix4AllInode                  : kTypeInode:
  *   Key4S3ChunkInfoList              : kTypeS3ChunkInfo:fsId:inodeId:chunkIndex:firstChunkId:lastChunkId  // NOLINT
  *   Prefix4ChunkIndexS3ChunkInfoList : kTypeS3ChunkInfo:fsId:inodeId:chunkIndex:  // NOLINT
@@ -93,10 +104,13 @@ class StorageKey {
  *   Key4Dentry                       : kTypeDentry:parentInodeId:name
  *   Prefix4SameParentDentry          : kTypeDentry:parentInodeId:
  *   Prefix4AllDentry                 : kTypeDentry:
- *   Key4VolumeExtentSlice            : kTypeExtent:fsId:InodeId:SliceOffset
- *   Prefix4InodeVolumeExtent         : kTypeExtent:fsId:InodeId:
+ *   Key4VolumeExtentSlice            : kTypeExtent:fsId:inodeId:sliceOffset
+ *   Prefix4InodeVolumeExtent         : kTypeExtent:fsId:inodeId:
  *   Prefix4AllVolumeExtent           : kTypeExtent:
  *   Key4InodeAuxInfo                 : kTypeInodeAuxInfo:fsId:inodeId
+ *   Key4DeallocatableBlockGroup      : kTypeBlockGroup:fsId:volumeOffset
+ *   Prefix4AllDeallocatableBlockGroup: kTypeBlockGroup:
+ *   Key4DeallocatableInode           : kTypeDeallocatableInode:fsId:inodeId
  */
 
 class Key4Inode : public StorageKey {
@@ -322,6 +336,56 @@ class Key4InodeAuxInfo : public StorageKey {
 
  private:
     static constexpr KEY_TYPE keyType_ = kTypeInodeAuxInfo;
+};
+
+class Key4DeallocatableBlockGroup : public StorageKey {
+ public:
+    Key4DeallocatableBlockGroup() = default;
+
+    Key4DeallocatableBlockGroup(uint32_t fsId, uint64_t volumeOffset)
+        : fsId(fsId), volumeOffset(volumeOffset) {}
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string &value) override;
+
+ public:
+    uint32_t fsId;
+    uint64_t volumeOffset;
+
+ private:
+    static constexpr KEY_TYPE keyType_ = kTypeDeallocatableBlockGroup;
+};
+
+class Key4DeallocatableInode : public StorageKey {
+ public:
+    Key4DeallocatableInode() = default;
+
+    Key4DeallocatableInode(uint32_t fsId, uint64_t inodeId)
+        : fsId(fsId), inodeId(inodeId) {}
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string &value) override;
+
+ public:
+    uint32_t fsId;
+    uint64_t inodeId;
+
+ private:
+    static constexpr KEY_TYPE keyType_ = kTypeDeallocatableInode;
+};
+
+class Prefix4AllDeallocatableBlockGroup : public StorageKey {
+ public:
+    Prefix4AllDeallocatableBlockGroup() = default;
+
+    std::string SerializeToString() const override;
+
+    bool ParseFromString(const std::string &value) override;
+
+ public:
+    static const KEY_TYPE keyType_ = kTypeDeallocatableBlockGroup;
 };
 
 // converter

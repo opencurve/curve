@@ -61,6 +61,8 @@ using ::curvefs::metaserver::BatchGetInodeAttrRequest;
 using ::curvefs::metaserver::BatchGetInodeAttrResponse;
 using ::curvefs::metaserver::BatchGetXAttrRequest;
 using ::curvefs::metaserver::BatchGetXAttrResponse;
+using ::curvefs::metaserver::UpdateDeallocatableBlockGroupRequest;
+using ::curvefs::metaserver::UpdateDeallocatableBlockGroupResponse;
 using ::curvefs::common::StreamServer;
 using ::curvefs::common::StreamOptions;
 using ::curvefs::common::StreamConnection;
@@ -1337,7 +1339,7 @@ TEST_F(MetaServerClientImplTest, TestGetVolumeExtent) {
     const uint64_t applyIndex = 10;
 
     for (auto streaming : {true, false}) {
-        metaserver::VolumeExtentList out;
+        metaserver::VolumeExtentSliceList out;
 
         EXPECT_CALL(*mockMetacache_, GetTarget(_, _, _, _, _))
             .WillRepeatedly(
@@ -1369,6 +1371,62 @@ TEST_F(MetaServerClientImplTest, TestGetVolumeExtent) {
         ASSERT_EQ(MetaStatusCode::OK,
                   metaserverCli_.GetVolumeExtent(fsid, ino, streaming, &out));
         ASSERT_EQ(1, out.slices_size());
+    }
+}
+
+TEST_F(MetaServerClientImplTest, TestUpdateDeallocatableBlockGroup) {
+    const uint32_t fsid = 1;
+    const uint64_t ino = 1;
+    const uint64_t blockgroupoffset = 0;
+    const uint64_t applyIndex = 10;
+    DeallocatableBlockGroupMap statistic;
+    auto &item = statistic[0];
+    item.set_blockgroupoffset(blockgroupoffset);
+    auto increase = item.mutable_increase();
+    increase->set_increasedeallocatablesize(1024 * 1024);
+    increase->add_inodeidlistadd(ino);
+
+    // set response
+    UpdateDeallocatableBlockGroupResponse response;
+    response.set_statuscode(MetaStatusCode::OK);
+    response.set_appliedindex(applyIndex);
+
+    {
+        // test rpc ok
+        EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+            .WillOnce(DoAll(SetArgPointee<2>(target_),
+                                  SetArgPointee<3>(applyIndex), Return(true)));
+        EXPECT_CALL(mockMetaServerService_,
+                    UpdateDeallocatableBlockGroup(_, _, _, _))
+            .WillOnce(DoAll(
+                SetArgPointee<2>(response),
+                Invoke(SetRpcService<UpdateDeallocatableBlockGroupRequest,
+                                     UpdateDeallocatableBlockGroupResponse>)));
+
+        EXPECT_CALL(*mockMetacache_.get(), UpdateApplyIndex(_, _)).Times(1);
+        ASSERT_EQ(MetaStatusCode::OK,
+                  metaserverCli_.UpdateDeallocatableBlockGroup(fsid, ino,
+                                                               &statistic));
+    }
+
+    {
+        // test rpc error
+        EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                                  SetArgPointee<3>(applyIndex), Return(true)));
+        EXPECT_CALL(mockMetaServerService_,
+                    UpdateDeallocatableBlockGroup(_, _, _, _))
+            .WillRepeatedly(
+                Invoke(SetRpcService<UpdateDeallocatableBlockGroupRequest,
+                                     UpdateDeallocatableBlockGroupResponse>));
+        EXPECT_CALL(*mockMetacache_.get(), GetTargetLeader(_, _, _))
+            .WillRepeatedly(Return(true));
+        EXPECT_CALL(*mockMetacache_.get(), GetTarget(_, _, _, _, _))
+            .WillRepeatedly(DoAll(SetArgPointee<2>(target_),
+                                  SetArgPointee<3>(applyIndex), Return(true)));
+        ASSERT_EQ(MetaStatusCode::RPC_ERROR,
+                  metaserverCli_.UpdateDeallocatableBlockGroup(fsid, ino,
+                                                               &statistic));
     }
 }
 

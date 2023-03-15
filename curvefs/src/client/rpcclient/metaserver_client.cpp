@@ -65,6 +65,7 @@ using BatchGetXAttrExcutor = TaskExecutor;
 using GetOrModifyS3ChunkInfoExcutor = TaskExecutor;
 using UpdateVolumeExtentExecutor = TaskExecutor;
 using GetVolumeExtentExecutor = TaskExecutor;
+using UpdateDeallocatableBlockGroupExcutor = TaskExecutor;
 
 using ::curvefs::common::LatencyUpdater;
 using ::curvefs::common::StreamConnection;
@@ -1465,7 +1466,7 @@ void UpdateVolumeExtentRpcDone::Run() {
     } while (0)
 
 void MetaServerClientImpl::AsyncUpdateVolumeExtent(
-    uint32_t fsId, uint64_t inodeId, const VolumeExtentList &extents,
+    uint32_t fsId, uint64_t inodeId, const VolumeExtentSliceList &extents,
     MetaServerClientDone *done) {
     auto task = AsyncRPCTask {
         (void)txId;
@@ -1473,7 +1474,7 @@ void MetaServerClientImpl::AsyncUpdateVolumeExtent(
         metric_.updateVolumeExtent.qps.count << 1;
         metaserver::UpdateVolumeExtentRequest request;
         SET_COMMON_FIELDS;
-        request.set_allocated_extents(new VolumeExtentList{extents});
+        request.set_allocated_extents(new VolumeExtentSliceList{extents});
 
         auto *rpcDone =
             new UpdateVolumeExtentRpcDone(taskExecutorDone, &metric_);
@@ -1493,7 +1494,8 @@ void MetaServerClientImpl::AsyncUpdateVolumeExtent(
 namespace {
 
 struct ParseVolumeExtentCallBack {
-    explicit ParseVolumeExtentCallBack(VolumeExtentList *ext) : extents(ext) {}
+    explicit ParseVolumeExtentCallBack(VolumeExtentSliceList *ext)
+        : extents(ext) {}
 
     bool operator()(butil::IOBuf *data) const {
         metaserver::VolumeExtentSlice slice;
@@ -1506,7 +1508,7 @@ struct ParseVolumeExtentCallBack {
         return true;
     }
 
-    VolumeExtentList *extents;
+    VolumeExtentSliceList *extents;
 };
 
 }  // namespace
@@ -1514,7 +1516,7 @@ struct ParseVolumeExtentCallBack {
 MetaStatusCode
 MetaServerClientImpl::GetVolumeExtent(uint32_t fsId, uint64_t inodeId,
                                       bool streaming,
-                                      VolumeExtentList *extents) {
+                                      VolumeExtentSliceList *extents) {
     auto task = RPCTask {
         (void)txId;
         (void)applyIndex;
@@ -1596,9 +1598,66 @@ MetaServerClientImpl::GetVolumeExtent(uint32_t fsId, uint64_t inodeId,
     return ConvertToMetaStatusCode(executor.DoRPCTask());
 }
 
-MetaStatusCode MetaServerClientImpl::GetInodeAttr(uint32_t fsId,
-                                                  uint64_t inodeid,
-                                                  InodeAttr *attr) {
+MetaStatusCode MetaServerClientImpl::UpdateDeallocatableBlockGroup(
+    uint32_t fsId, uint64_t inodeId, DeallocatableBlockGroupMap *statistic) {
+    auto task = RPCTask {
+        metric_.updateDeallocatableBlockGroup.qps.count << 1;
+        LatencyUpdater updater(&metric_.updateDeallocatableBlockGroup.latency);
+
+        metaserver::UpdateDeallocatableBlockGroupRequest request;
+        metaserver::UpdateDeallocatableBlockGroupResponse response;
+        request.set_poolid(poolID);
+        request.set_copysetid(copysetID);
+        request.set_partitionid(partitionID);
+        request.set_fsid(fsId);
+        auto *upadte = request.mutable_update();
+        for (auto &it : *statistic) {
+            upadte->Add()->CopyFrom(std::move(it.second));
+        }
+
+        curvefs::metaserver::MetaServerService_Stub stub(channel);
+        stub.UpdateDeallocatableBlockGroup(cntl, &request, &response, nullptr);
+
+        if (cntl->Failed()) {
+            metric_.updateDeallocatableBlockGroup.eps.count << 1;
+            LOG(WARNING) << "UpdateDeallocatableBlockGroup failed"
+                         << ", errorCode = " << cntl->ErrorCode()
+                         << ", errorText = " << cntl->ErrorText()
+                         << ", logId = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        auto rc = response.statuscode();
+        if (rc != MetaStatusCode::OK) {
+            metric_.updateDeallocatableBlockGroup.eps.count << 1;
+            LOG(WARNING) << "UpdateDeallocatableBlockGroup: retCode = " << rc
+                         << ", message = " << MetaStatusCode_Name(rc);
+        } else if (response.has_appliedindex()) {
+            metaCache_->UpdateApplyIndex(CopysetGroupID(poolID, copysetID),
+                                         response.appliedindex());
+        } else {
+            LOG(WARNING) << "UpdateDeallocatableBlockGroup OK"
+                         << ", but applyIndex not set in response:"
+                         << response.DebugString();
+            return -1;
+        }
+
+        VLOG(6) << "UpdateDeallocatableBlockGroup done, request: "
+                << request.DebugString()
+                << "response: " << response.DebugString();
+        return rc;
+    };
+
+    auto taskCtx = std::make_shared<TaskContext>(
+        MetaServerOpType::UpdateDeallocatableBlockGroup, task, fsId, inodeId);
+
+    UpdateDeallocatableBlockGroupExcutor excutor(
+        opt_, metaCache_, channelManager_, std::move(taskCtx));
+    return ConvertToMetaStatusCode(excutor.DoRPCTask());
+}
+
+MetaStatusCode MetaServerClientImpl::GetInodeAttr(
+    uint32_t fsId, uint64_t inodeid, InodeAttr *attr) {
     std::set<uint64_t> inodeIds;
     inodeIds.insert(inodeid);
     std::list<InodeAttr> attrs;

@@ -74,7 +74,7 @@ class CopysetNodeManager {
 
     virtual bool PurgeCopysetNode(PoolId poolId, CopysetId copysetId);
 
-    void GetAllCopysets(std::vector<CopysetNode*>* nodes) const;
+    virtual void GetAllCopysets(std::vector<CopysetNode *> *nodes) const;
 
     virtual bool IsLoadFinished() const;
 

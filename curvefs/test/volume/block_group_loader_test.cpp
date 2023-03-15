@@ -51,10 +51,23 @@ class BlockGroupBitmapLoaderTest : public ::testing::Test {
         option_.bitmapAllocatorOption.sizePerBit = 4 * kMiB;
         option_.bitmapAllocatorOption.smallAllocProportion = 0;
 
+        BlockGroup blockGroup;
+        GetBlockGroup(false, &blockGroup);
+
         loader_ = absl::make_unique<BlockGroupBitmapLoader>(
-            &blockDev_, kBlockSize, kBlockGroupOffset, kBlockGroupSize,
-            kBitmapLocation, false, option_);
+            &blockDev_, kBlockSize, option_, blockGroup);
     }
+
+    void GetBlockGroup(bool available, BlockGroup *blockGroup) {
+        blockGroup->set_offset(kBlockGroupOffset);
+        blockGroup->set_size(kBlockGroupSize);
+        blockGroup->set_bitmaplocation(kBitmapLocation);
+        if (available) {
+            blockGroup->set_available(kBlockGroupSize);
+        } else {
+            blockGroup->set_available(0);
+        }
+     }
 
  protected:
     MockBlockDeviceClient blockDev_;
@@ -93,9 +106,10 @@ TEST_F(BlockGroupBitmapLoaderTest, LoadTest_Success) {
 }
 
 TEST_F(BlockGroupBitmapLoaderTest, LoadTest_LoadFromACleanBlockGroup) {
-    loader_ = absl::make_unique<BlockGroupBitmapLoader>(
-        &blockDev_, kBlockSize, kBlockGroupOffset, kBlockGroupSize,
-        kBitmapLocation, true, option_);
+    BlockGroup blockGroup;
+    GetBlockGroup(true, &blockGroup);
+    loader_ = absl::make_unique<BlockGroupBitmapLoader>(&blockDev_, kBlockSize,
+                                                        option_, blockGroup);
 
     EXPECT_CALL(blockDev_, Read(_, _, _))
         .Times(0);
@@ -138,9 +152,10 @@ TEST_F(BlockGroupBitmapLoaderTest, ISSUE_1457) {
 
     int count = 100;
     while (count-- > 0) {
+        BlockGroup blockGroup;
+        GetBlockGroup(false, &blockGroup);
         loader_ = absl::make_unique<BlockGroupBitmapLoader>(
-            &blockDev_, kBlockSize, kBlockGroupOffset, kBlockGroupSize,
-            kBitmapLocation, false, option_);
+            &blockDev_, kBlockSize, option_, blockGroup);
 
         AllocatorAndBitmapUpdater out;
         EXPECT_TRUE(loader_->Load(&out));
