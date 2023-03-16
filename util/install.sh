@@ -323,6 +323,7 @@ install_tools-v2() {
     mkdir -p $project_prefix/conf
     copy_file "$project_name/sbin/curve" "$project_prefix/sbin"
     copy_file "$project_name/pkg/config/curve.yaml" "$g_prefix/conf"
+    copy_file "$project_name/sbin/daemon" "$project_prefix/sbin"
 }
 
 main() {
