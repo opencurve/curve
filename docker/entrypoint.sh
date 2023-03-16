@@ -6,7 +6,7 @@
 g_role=""
 g_args=""
 g_prefix=""
-g_preexec=""
+g_preexec="/curvebs/tools-v2/sbin/daemon"
 g_binary=""
 g_start_args=""
 
@@ -119,7 +119,7 @@ function main() {
     prepare
     create_directory
     [[ $(command -v crontab) ]] && cron
-    [[ ! -z $g_preexec ]] && $g_preexec
+    [[ ! -z $g_preexec ]] && $g_preexec &
     exec $g_binary $g_start_args
 }
 
