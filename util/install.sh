@@ -311,6 +311,17 @@ install_monitor() {
     success "install $project_name success\n"
 }
 
+install_tools-v2() {
+    local project_name="tools-v2"
+    g_project_name=$project_name
+    project_prefix="$g_prefix/tools-v2"
+    mkdir -p $project_prefix/sbin
+    mkdir -p $project_prefix/conf
+    copy_file "$project_name/sbin/curve" "$project_prefix/sbin"
+    copy_file "$project_name/pkg/config/curve.yaml" "$g_prefix/conf"
+    copy_file "$project_name/sbin/daemon" "$project_prefix/sbin"
+}
+
 main() {
     get_options "$@"
     get_build_mode
