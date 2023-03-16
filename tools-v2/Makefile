@@ -25,6 +25,7 @@ GO := go
 
 # output
 OUTPUT := sbin/curve
+DAEMON_OUTPUT := sbin/daemon
 
 # version
 VERSION_FLAG := -X github.com/opencurve/curve/tools-v2/pkg/cli/command/version.Version=$(version)
@@ -50,13 +51,16 @@ DEBUG_FLAGS := -gcflags=$(GCFLAGS)
 DEBUG_FLAGS += $(CGO_DEBUG_FLAG)
 
 # packages
-PACKAGES := $(PWD)/cmd/curvecli/main.go
+PACKAGES := $(PWD)/cmd/curve/main.go
+DAEMON_PACKAGES := $(PWD)/cmd/daemon/main.go
 
 build: proto
 	$(GOENV) $(GO) build -o $(OUTPUT) $(BUILD_FLAGS) $(PACKAGES)
+	$(GOENV) $(GO) build -o $(DAEMON_OUTPUT) $(BUILD_FLAGS) $(DAEMON_PACKAGES)
 
 debug: proto
 	$(GOENV) $(GO) build -o $(OUTPUT) $(DEBUG_FLAGS) $(PACKAGES)
+	$(GOENV) $(GO) build -o $(DAEMON_OUTPUT) $(DEBUG_FLAGS) $(DAEMON_PACKAGES)
 
 init: proto
 	go mod init github.com/opencurve/curve/tools-v2
