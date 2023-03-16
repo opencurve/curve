@@ -1,9 +1,23 @@
 FROM opencurvedocker/curve-base:debian9
+COPY --from=opencurvedocker/curve-base:curve-tgt-debian9 /curve-tgt/  /curve-tgt/
+COPY --from=opencurvedocker/curve-base:curve-tgt-debian9 /curve/curve-sdk /curve-tgt/curve-sdk
+RUN apt update \
+    && apt install -y kmod \
+    && cd /curve-tgt/curve-sdk \
+    && cp -f lib/* /usr/lib \
+    && cp -f bin/* /usr/bin \
+    && mkdir -p /usr/curvefs \
+    && cp -f curvefs/* /usr/curvefs \
+    && cp -f include/* /usr/include \
+    && ldconfig \
+    && cd /curve-tgt/ \
+    && make install-programs \
+    && rm -rf /curve-tgt
 COPY entrypoint.sh /
 COPY curvebs /curvebs
 RUN mkdir -p /etc/curve /etc/nebd /curve/init.d/ \
     && chmod a+x /entrypoint.sh \
-    && cp curvebs/nbd/sbin/curve-nbd /usr/bin/ \
-    && cp curvebs/tools/sbin/curve_ops_tool /usr/bin/ \
-    && cp curvebs/tools-v2/sbin/curve /usr/bin/
+    && cp /curvebs/nbd/sbin/curve-nbd /usr/bin/ \
+    && cp /curvebs/tools/sbin/curve_ops_tool /usr/bin/ \
+    && cp /curvebs/tools-v2/sbin/curve /usr/bin/
 ENTRYPOINT ["/entrypoint.sh"]

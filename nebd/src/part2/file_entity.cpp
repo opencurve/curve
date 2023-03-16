@@ -370,6 +370,11 @@ int NebdFileEntity::UpdateFileStatus(NebdFileInstancePtr fileInstance) {
     fileInstance_ = fileInstance;
     status_ = NebdFileStatus::OPENED;
     timeStamp_ = TimeUtility::GetTimeofDayMs();
+    OpenFlags flags;
+    if (fileInstance->xattr.count(kOpenFlagsAttrKey) &&
+        flags.ParseFromString(fileInstance->xattr.at(kOpenFlagsAttrKey))) {
+        openFlags_.reset(new OpenFlags{flags});
+    }
     return 0;
 }
 
