@@ -30,6 +30,29 @@
 namespace nebd {
 namespace server {
 
+extern const char* kOpenFlagsAttrKey;
+
+bool IsOpenFlagsExactlySame(const OpenFlags* lhs, const OpenFlags* rhs) {
+    if (lhs == nullptr && rhs == nullptr) {
+        return true;
+    } else if ((lhs != nullptr && rhs == nullptr) ||
+               (lhs == nullptr && rhs != nullptr)) {
+        return false;
+    }
+
+    return google::protobuf::util::MessageDifferencer::Equals(*lhs, *rhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const OpenFlags* flags) {
+    if (!flags) {
+        os << "[empty]";
+    } else {
+        os << "[exclusive: " << flags->exclusive() << "]";
+    }
+
+    return os;
+}
+
 NebdFileEntity::NebdFileEntity()
     : fd_(0)
     , fileName_("")
@@ -106,6 +129,13 @@ int NebdFileEntity::Reopen(const ExtendAttribute& xattr) {
                    << "filename: " << fileName_;
         return -1;
     }
+
+    OpenFlags flags;
+    if (fileInstance->xattr.count(kOpenFlagsAttrKey) &&
+        flags.ParseFromString(fileInstance->xattr.at(kOpenFlagsAttrKey))) {
+        openFlags_.reset(new OpenFlags{flags});
+    }
+
     LOG(INFO) << "Reopen file success. "
               << "fd: " << fd_
               << ", filename: " << fileName_;

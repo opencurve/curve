@@ -236,6 +236,14 @@ install_lib() {
     fi
 }
 
+install_tools-v2() {
+    local project_name="tools-v2"
+    g_project_name=$project_name
+    project_prefix="$g_prefix/tools-v2"
+    mkdir -p $project_prefix/sbin
+    copy_file "$project_name/sbin/daemon" "$project_prefix/sbin"
+}
+
 main() {
     get_options "$@"
 
@@ -247,6 +255,7 @@ main() {
     else
         install_curvebs
         install_lib
+        install_tools-v2
     fi
 }
 
