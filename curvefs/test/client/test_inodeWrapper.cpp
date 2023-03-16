@@ -81,7 +81,7 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     info1.set_offset(0);
     info1.set_len(1024);
     info1.set_size(65536);
-    info1.set_size(true);
+    info1.set_zero(true);
     uint64_t chunkIndex1 = 1;
     AppendS3ChunkInfoToMap(chunkIndex1, info1, &s3ChunkInfoMap);
     ASSERT_EQ(1, s3ChunkInfoMap.size());
@@ -96,7 +96,7 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     info2.set_offset(1024);
     info2.set_len(1024);
     info2.set_size(65536);
-    info2.set_size(false);
+    info2.set_zero(false);
     AppendS3ChunkInfoToMap(chunkIndex1, info2, &s3ChunkInfoMap);
     ASSERT_EQ(1, s3ChunkInfoMap.size());
     ASSERT_EQ(2, s3ChunkInfoMap[chunkIndex1].s3chunks_size());
@@ -112,7 +112,7 @@ TEST(TestAppendS3ChunkInfoToMap, testAppendS3ChunkInfoToMap) {
     info3.set_offset(2048);
     info3.set_len(1024);
     info3.set_size(65536);
-    info3.set_size(false);
+    info3.set_zero(false);
     uint64_t chunkIndex2 = 2;
     AppendS3ChunkInfoToMap(chunkIndex2, info3, &s3ChunkInfoMap);
     ASSERT_EQ(2, s3ChunkInfoMap.size());
@@ -138,7 +138,7 @@ TEST_F(TestInodeWrapper, testSyncSuccess) {
     info1.set_offset(0);
     info1.set_len(1024);
     info1.set_size(65536);
-    info1.set_size(true);
+    info1.set_zero(true);
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
@@ -160,7 +160,7 @@ TEST_F(TestInodeWrapper, testSyncFailed) {
     info1.set_offset(0);
     info1.set_len(1024);
     info1.set_size(65536);
-    info1.set_size(true);
+    info1.set_zero(true);
     uint64_t chunkIndex1 = 1;
     inodeWrapper_->AppendS3ChunkInfo(chunkIndex1, info1);
 
