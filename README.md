@@ -42,6 +42,8 @@
   - [LICENSE](#license)
   - [Release Cycle](#release-cycle)
   - [Branch](#branch)
+  - [Contributors](#contributors)
+  - [Star History](#star-history)
   - [Feedback & Contact](#feedback--contact)
 
 ##  About Curve
@@ -242,6 +244,19 @@ Curve is distributed under the [**Apache 2.0 LICENSE**](LICENSE).
 
 ## Branch
 All the developments will be done under master branch. If there's any new version to establish, a new branch release-x.y will be pulled from the master, and the new version will be released from this branch.
+
+## Contributors
+This project exists thanks to all the people who contribute.
+
+<a href="https://github.com/opencurve/curve/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=opencurve/curve" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=opencurve/curve&type=Date)](https://star-history.com/#opencurve/curve&Date)
 
 ## Feedback & Contact
 - [Github Issues](https://github.com/openCURVE/CURVE/issues)：You are sincerely welcomed to issue any bugs you came across or any suggestions through Github issues. If you have any question you can refer to our FAQ or join our user group for more details.
