@@ -196,13 +196,15 @@ func MergeCmdErrorExceptSuccess(err []*CmdError) CmdError {
 	ret.Message = ""
 	countSuccess := 0
 	for _, e := range err {
-		if e.Code == CODE_SUCCESS {
-			countSuccess++
-			continue
-		} else if e.Code < ret.Code {
-			ret.Code = e.Code
+		if e != nil {
+			if e.Code == CODE_SUCCESS {
+				countSuccess++
+				continue
+			} else if e.Code < ret.Code {
+				ret.Code = e.Code
+			}
+			ret.Message = e.Message + "\n" + ret.Message
 		}
-		ret.Message = e.Message + "\n" + ret.Message
 	}
 	if countSuccess == len(err) {
 		return *NewSucessCmdError()
@@ -280,7 +282,7 @@ var (
 		return NewInternalCmdError(14, "invalid %s: %s")
 	}
 	ErrSplitPeer = func() *CmdError {
-		return NewInternalCmdError(15, "split peer[%s] failed")
+		return NewInternalCmdError(15, "split peer[%s] failed, peer should be like: 127.0.0.1:8200:0")
 	}
 	ErrMarshalJson = func() *CmdError {
 		return NewInternalCmdError(16, "marshal %s to json error, the error is: %s")

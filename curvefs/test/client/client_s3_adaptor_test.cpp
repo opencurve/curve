@@ -47,7 +47,7 @@ using ::testing::WithArg;
 
 using rpcclient::MockMdsClient;
 
-extern KVClientManager *g_kvClientManager;
+// extern KVClientManager *g_kvClientManager;
 
 class ClientS3AdaptorTest : public testing::Test {
  protected:
@@ -72,10 +72,10 @@ class ClientS3AdaptorTest : public testing::Test {
         option.fuseMaxSize = 131072;
         option.chunkFlushThreads = 5;
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
+        kvClientManager_ = nullptr;
         s3ClientAdaptor_->Init(option, mockS3Client_, mockInodeManager_,
                                mockMdsClient_, mockFsCacheManager_,
-                               mockDiskcacheManagerImpl_);
-        g_kvClientManager = nullptr;
+                               mockDiskcacheManagerImpl_, kvClientManager_);
     }
 
     void TearDown() override {
@@ -88,6 +88,7 @@ class ClientS3AdaptorTest : public testing::Test {
     std::shared_ptr<MockFsCacheManager> mockFsCacheManager_;
     std::shared_ptr<MockS3Client> mockS3Client_;
     std::shared_ptr<MockMdsClient> mockMdsClient_;
+    std::shared_ptr<KVClientManager> kvClientManager_;
 };
 
 uint64_t gInodeId = 1;

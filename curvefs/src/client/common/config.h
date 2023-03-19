@@ -104,7 +104,7 @@ struct DiskCacheOption {
     // the max time system command can run
     uint32_t cmdTimeoutSec;
     // threads for disk cache
-    uint32_t threads;
+    uint32_t threads = 10;
     // the write throttle bps of disk cache
     uint64_t avgFlushBytes;
     // the write burst bps of disk cache
@@ -203,7 +203,7 @@ struct FuseClientOption {
     bool enableFuseSplice = false;
     bool disableXattr = false;
     uint32_t downloadMaxRetryTimes;
-    uint32_t warmupThreadsNum;
+    uint32_t warmupThreadsNum = 10;
 };
 
 void InitFuseClientOption(Configuration *conf, FuseClientOption *clientOption);

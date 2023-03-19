@@ -42,6 +42,8 @@
   - [LICENSE](#license)
   - [Release Cycle](#release-cycle)
   - [Branch](#branch)
+  - [Contributors](#contributors)
+  - [Star History](#star-history)
   - [Feedback & Contact](#feedback--contact)
 
 ##  About Curve
@@ -122,7 +124,7 @@ The core application scenarios of CurveFS mainly include:
 
 </details>
 <details>
-  <summary><b><font=5>Docking Kubernates</b></font></summary>
+  <summary><b><font=5>Docking Kubernetes</b></font></summary>
 
 - Use [Curve CSI Driver](https://github.com/opencurve/curve-csi), The plugin implements the Container Storage Interface(CSI) between Container Orchestrator(CO) and Curve cluster. It allows dynamically provisioning curve volumes and attaching them to workloads.
 - For details of the documentation, see [CSI Curve Driver Doc](https://github.com/opencurve/curve-csi/blob/master/docs/README.md).
@@ -226,7 +228,7 @@ Please refer to the [Test environment configuration](docs/cn/测试环境配置�
 See [Governance](https://github.com/opencurve/community/blob/master/GOVERNANCE.md).
 
 ##  Contribute us
-Participation in the Curve project is described in the [Curve Open Source Community Guidelines](Community_Guidelines.md) and is subject to a [contributor contract](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md).
+Participation in the Curve project is described in the [Curve Developers Guidelines](developers_guide.md) and is subject to a [contributor contract](https://github.com/opencurve/curve/blob/master/CODE_OF_CONDUCT.md).
 We welcome your contribution!
 
 ## Code of Conduct
@@ -242,6 +244,19 @@ Curve is distributed under the [**Apache 2.0 LICENSE**](LICENSE).
 
 ## Branch
 All the developments will be done under master branch. If there's any new version to establish, a new branch release-x.y will be pulled from the master, and the new version will be released from this branch.
+
+## Contributors
+This project exists thanks to all the people who contribute.
+
+<a href="https://github.com/opencurve/curve/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=opencurve/curve" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=opencurve/curve&type=Date)](https://star-history.com/#opencurve/curve&Date)
 
 ## Feedback & Contact
 - [Github Issues](https://github.com/openCURVE/CURVE/issues)：You are sincerely welcomed to issue any bugs you came across or any suggestions through Github issues. If you have any question you can refer to our FAQ or join our user group for more details.

@@ -307,6 +307,7 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
         gChunkServerMetrics[0x43]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(1, gLogicalPoolMetrics.size());
+    ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->serverNum.get_value()); //NOLINT
     ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->chunkServerNum.get_value()); //NOLINT
     ASSERT_EQ(1, gLogicalPoolMetrics[logicalPoolId]->copysetNum.get_value()); //NOLINT
     ASSERT_EQ(2, gLogicalPoolMetrics[logicalPoolId]->scatterWidthAvg.get_value()); //NOLINT
@@ -348,6 +349,10 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(3, gClusterMetrics->writeIOPS.get_value());
     ASSERT_EQ(3, gClusterMetrics->readRate.get_value());
     ASSERT_EQ(3, gClusterMetrics->writeRate.get_value());
+    ASSERT_EQ(1, gClusterMetrics->logicalPoolNum.get_value());
+    ASSERT_EQ(3, gClusterMetrics->serverNum.get_value());
+    ASSERT_EQ(3, gClusterMetrics->chunkServerNum.get_value());
+    ASSERT_EQ(1, gClusterMetrics->copysetNum.get_value());
 }
 
 TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {

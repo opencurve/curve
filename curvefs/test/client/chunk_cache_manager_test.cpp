@@ -56,12 +56,12 @@ class ChunkCacheManagerTest : public testing::Test {
         option.diskCacheOpt.diskCacheType = (DiskCacheType)0;
         s3ClientAdaptor_ = new S3ClientAdaptorImpl();
         auto fsCacheManager_ = std::make_shared<FsCacheManager>(
-            s3ClientAdaptor_, option.readCacheMaxByte,
-            option.writeCacheMaxByte);
+            s3ClientAdaptor_, option.readCacheMaxByte, option.writeCacheMaxByte,
+            nullptr);
         s3ClientAdaptor_->Init(option, nullptr, nullptr, nullptr,
-                               fsCacheManager_, nullptr);
-        chunkCacheManager_ =
-            std::make_shared<ChunkCacheManager>(index, s3ClientAdaptor_);
+                               fsCacheManager_, nullptr, nullptr);
+        chunkCacheManager_ = std::make_shared<ChunkCacheManager>(
+            index, s3ClientAdaptor_, nullptr);
     }
     void TearDown() override {
         delete s3ClientAdaptor_;
@@ -91,20 +91,20 @@ TEST_F(ChunkCacheManagerTest, test_add_read_data_cache) {
     uint64_t len = 1024 * 1024;
     char *buf = new char[len];
     auto dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
     VLOG(0) << "wghs001";
     chunkCacheManager_->AddReadDataCache(dataCache);
     VLOG(0) << "wghs002";
     ASSERT_EQ(len, s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
     offset = 2 * 1024 * 1024;
     auto dataCache1 = std::make_shared<DataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
     chunkCacheManager_->AddReadDataCache(dataCache1);
     ASSERT_EQ(2 * len, s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
     offset = 0;
     len = 512 * 1024;
     auto dataCache2 = std::make_shared<DataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
     chunkCacheManager_->AddReadDataCache(dataCache2);
     ASSERT_EQ(1.5 * 1024 * 1024,
               s3ClientAdaptor_->GetFsCacheManager()->GetLruByte());
@@ -236,7 +236,7 @@ TEST_F(ChunkCacheManagerTest, test_read_by_read_cache) {
     requests.clear();
 
     auto dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, 1024, len, dataCacheBuf);
+        s3ClientAdaptor_, chunkCacheManager_, 1024, len, dataCacheBuf, nullptr);
     chunkCacheManager_->AddReadDataCache(dataCache);
     chunkCacheManager_->ReadByReadCache(offset, len, buf, 0, &requests);
     ASSERT_EQ(1, requests.size());
@@ -311,7 +311,7 @@ TEST_F(ChunkCacheManagerTest, test_flush) {
     uint64_t len = 1024 * 1024;
     char *buf = new char[len];
     auto dataCache = std::make_shared<MockDataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
     EXPECT_CALL(*dataCache, Flush(_, _))
         .WillOnce(Return(CURVEFS_ERROR::OK))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
@@ -341,7 +341,7 @@ TEST_F(ChunkCacheManagerTest, test_release_read_dataCache) {
     uint64_t len = 1024 * 1024;
     char *buf = new char[len];
     auto dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
     chunkCacheManager_->AddReadDataCache(dataCache);
     chunkCacheManager_->ReleaseReadDataCache(offset);
     ASSERT_EQ(true, chunkCacheManager_->IsEmpty());
@@ -355,7 +355,7 @@ TEST_F(ChunkCacheManagerTest, test_truncate_cache) {
     uint64_t len = 1024 * 1024;
     char *buf = new char[len];
     auto dataCache = std::make_shared<DataCache>(
-        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf);
+        s3ClientAdaptor_, chunkCacheManager_, offset, len, buf, nullptr);
     /*EXPECT_CALL(*dataCache, Truncate(_))
         .WillOnce(Return());*/
     chunkCacheManager_->AddWriteDataCacheForTest(dataCache);

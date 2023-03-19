@@ -50,7 +50,7 @@ class MemCachedTest : public ::testing::Test {
         } else if (0 == memcached_pid) {
             std::string memcached_port =
                 "-p " + std::to_string(port);
-            ASSERT_EQ(0, execlp("memcached", "memcached", "-u root",
+            ASSERT_EQ(0, execlp("memcached", "memcached", "-uroot",
                                 memcached_port.c_str(), nullptr));
         }
 
@@ -65,13 +65,16 @@ class MemCachedTest : public ::testing::Test {
         // wait memcached server start
         std::string errorlog;
         int retry = 0;
+        bool ret = false;
         do {
-            if (client->Set("1", "2", 1, &errorlog) || retry > 100) {
+            if ((ret = client->Set("1", "2", 1, &errorlog)) || retry > 100) {
                 break;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             retry++;
         } while (1);
+        ASSERT_TRUE(ret)
+            << absl::StrCat("memcache start failed, errorlog: ", errorlog);
         LOG(INFO) << "=============== memcache start ok";
     }
 
@@ -97,35 +100,36 @@ TEST_F(MemCachedTest, MultiThreadTask) {
     };
 
     // set
-    CountDownEvent taskEnvent(5);
+    CountDownEvent taskEvent(5);
     for (int i = 0; i < 5; i++) {
         workers.emplace_back([&, i]() {
             auto task = std::make_shared<SetKVCacheTask>(
                 kvstr[i].first, kvstr[i].second.c_str(),
                 kvstr[i].second.length());
             task->done =
-                [&taskEnvent](const std::shared_ptr<SetKVCacheTask> &task) {
-                    taskEnvent.Signal();
+                [&taskEvent](const std::shared_ptr<SetKVCacheTask> &task) {
+                    taskEvent.Signal();
                 };
             manager_.Set(task);
         });
     }
-    taskEnvent.Wait();
-    ASSERT_EQ(5, g_kvClientMetric->kvClientSet.latency.count());
+    taskEvent.Wait();
+    ASSERT_EQ(
+        5, manager_.GetClientMetricForTesting()->kvClientSet.latency.count());
 
     // get
     for (int i = 0; i < 5; i++) {
         workers.emplace_back([&, i]() {
-            CountDownEvent taskEnvent(1);
+            CountDownEvent taskEvent(1);
             char *result = new char[4];
             auto task =
                 std::make_shared<GetKVCacheTask>(kvstr[i].first, result, 0, 4);
             task->done =
-                [&taskEnvent](const std::shared_ptr<GetKVCacheTask> &task) {
-                    taskEnvent.Signal();
+                [&taskEvent](const std::shared_ptr<GetKVCacheTask> &task) {
+                    taskEvent.Signal();
                 };
             manager_.Get(task);
-            taskEnvent.Wait();
+            taskEvent.Wait();
             ASSERT_EQ(0, memcmp(result, kvstr[i].second.c_str(), 4));
             ASSERT_TRUE(task->res);
         });

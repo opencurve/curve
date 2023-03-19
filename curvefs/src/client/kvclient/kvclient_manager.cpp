@@ -21,6 +21,7 @@
  */
 
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
+#include <memory>
 #include "src/client/client_metric.h"
 #include "src/common/concurrent/count_down_event.h"
 
@@ -31,32 +32,27 @@ using curvefs::client::metric::KVClientMetric;
 namespace curvefs {
 namespace client {
 
-KVClientManager *g_kvClientManager = nullptr;
-KVClientMetric *g_kvClientMetric = nullptr;
-
 #define ONRETURN(TYPE, RES)                                                    \
     if (RES) {                                                                 \
-        g_kvClientMetric->kvClient##TYPE.qps.count << 1;                       \
+        kvClientMetric_.kvClient##TYPE.qps.count << 1;                        \
     } else {                                                                   \
-        g_kvClientMetric->kvClient##TYPE.eps.count << 1;                       \
-    }
+        kvClientMetric_.kvClient##TYPE.eps.count << 1;                        \
+    }                                                                          \
 
 bool KVClientManager::Init(const KVClientManagerOpt &config,
                            const std::shared_ptr<KVClient> &kvclient) {
     client_ = kvclient;
-    g_kvClientMetric = new KVClientMetric();
     return threadPool_.Start(config.setThreadPooln) == 0;
 }
 
 void KVClientManager::Uninit() {
     client_->UnInit();
     threadPool_.Stop();
-    delete g_kvClientMetric;
 }
 
 void KVClientManager::Set(std::shared_ptr<SetKVCacheTask> task) {
     threadPool_.Enqueue([task, this]() {
-        LatencyGuard guard(&g_kvClientMetric->kvClientSet.latency);
+        LatencyGuard guard(&kvClientMetric_.kvClientSet.latency);
 
         std::string error_log;
         auto res =
@@ -69,7 +65,7 @@ void KVClientManager::Set(std::shared_ptr<SetKVCacheTask> task) {
 
 void KVClientManager::Get(std::shared_ptr<GetKVCacheTask> task) {
     threadPool_.Enqueue([task, this]() {
-        LatencyGuard guard(&g_kvClientMetric->kvClientGet.latency);
+        LatencyGuard guard(&kvClientMetric_.kvClientGet.latency);
 
         std::string error_log;
         task->res = client_->Get(task->key, task->value, task->offset,
