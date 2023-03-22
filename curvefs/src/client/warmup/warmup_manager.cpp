@@ -329,8 +329,7 @@ void WarmupManagerS3Impl::FetchDataEnqueue(fuse_ino_t key, fuse_ino_t ino) {
         TravelChunks(key, ino, s3ChunkInfoMap);
     };
     AddFetchS3objectsTask(key, task);
-    VLOG(9)
-        << "FetchDataEnqueue end: key:" << key << " inode: " << ino;
+    VLOG(9) << "FetchDataEnqueue end: key:" << key << " inode: " << ino;
 }
 
 void WarmupManagerS3Impl::TravelChunks(
@@ -459,6 +458,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
     const std::list<std::pair<std::string, uint64_t>> &prefetchObjs) {
     std::atomic<uint64_t> pendingReq(0);
     curve::common::CountDownEvent cond(1);
+    uint64_t start = butil::cpuwide_time_us();
     // callback function
     GetObjectAsyncCallBack cb =
         [&](const S3Adapter *adapter,
@@ -468,19 +468,22 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
                 cond.Signal();
                 return;
             }
-            {
-                // update progress
-                ReadLockGuard lock(inode2ProgressMutex_);
-                auto iter = FindKeyWarmupProgressLocked(key);
-                if (iter != inode2Progress_.end()) {
-                    iter->second.FinishedPlusOne();
-                } else {
-                    VLOG(9) << "no such warmup progress: " << key;
-                }
-            }
             if (context->retCode == 0) {
                 VLOG(9) << "Get Object success: " << context->key;
+                {
+                    // update progress
+                    ReadLockGuard lock(inode2ProgressMutex_);
+                    auto iter = FindKeyWarmupProgressLocked(key);
+                    if (iter != inode2Progress_.end()) {
+                        iter->second.FinishedPlusOne();
+                    } else {
+                        VLOG(9) << "no such warmup progress: " << key;
+                    }
+                }
                 PutObjectToCache(context->key, context->buf, context->len);
+                CollectMetrics(&warmupS3Metric_.warmupS3Cached, context->len,
+                               start);
+                warmupS3Metric_.warmupS3CacheSize << context->len;
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(6) << "pendingReq is over";
                     cond.Signal();
@@ -488,6 +491,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
                 delete[] context->buf;
                 return;
             }
+            warmupS3Metric_.warmupS3Cached.eps.count << 1;
             if (++context->retry >= option_.downloadMaxRetryTimes) {
                 if (pendingReq.fetch_sub(1, std::memory_order_seq_cst) == 1) {
                     VLOG(6) << "pendingReq is over";
@@ -685,6 +689,13 @@ void WarmupManagerS3Impl::PutObjectToCache(const std::string &filename,
         kvClientManager_->Set(
             std::make_shared<SetKVCacheTask>(filename, data, len));
     }
+}
+
+void WarmupManager::CollectMetrics(InterfaceMetric *interface, int count,
+                                   uint64_t start) {
+    interface->bps.count << count;
+    interface->qps.count << 1;
+    interface->latency << (butil::cpuwide_time_us() - start);
 }
 
 }  // namespace warmup
