@@ -53,7 +53,7 @@ class StatusBaseTool : public CurvefsToolMetric {
     virtual ~StatusBaseTool() {}
 
  protected:
-    void AfterGetMetric(const std::string hostAddr, const std::string& subUri,
+    void AfterGetMetric(const std::string& hostAddr, const std::string& subUri,
                         const std::string& value,
                         const MetricStatusCode& statusCode);
     int Init() override;

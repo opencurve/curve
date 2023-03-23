@@ -39,14 +39,14 @@ class MockDiskCacheWrite : public DiskCacheWrite {
     ~MockDiskCacheWrite() {}
 
     MOCK_METHOD4(WriteDiskFile,
-                  int(const std::string fileName,
+                  int(const std::string& fileName,
                       const char* buf, uint64_t length, bool force));
 
     MOCK_METHOD1(CreateIoDir,
                  int(bool writreDir));
 
     MOCK_METHOD1(IsFileExist,
-                 bool(const std::string file));
+                 bool(const std::string& file));
 
     MOCK_METHOD0(GetCacheIoFullDir,
                  std::string());
@@ -55,7 +55,7 @@ class MockDiskCacheWrite : public DiskCacheWrite {
                  int());
 
     MOCK_METHOD1(UploadFile,
-                 int(const std::string name));
+                 int(const std::string& name));
 
     MOCK_METHOD0(AsyncUploadFunc,
                  int());
@@ -64,7 +64,7 @@ class MockDiskCacheWrite : public DiskCacheWrite {
                  int());
 
     MOCK_METHOD1(AsyncUploadEnqueue,
-                void(const std::string objName));
+                void(const std::string& objName));
     MOCK_METHOD1(UploadFileByInode, int(const std::string &inode));
 };
 

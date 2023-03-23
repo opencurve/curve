@@ -28,6 +28,8 @@
 #include <vector>
 #include <memory>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
@@ -45,14 +47,14 @@ class DiskCacheRead : public DiskCacheBase {
     DiskCacheRead() {}
     virtual ~DiskCacheRead() {}
     virtual void Init(std::shared_ptr<PosixWrapper> posixWrapper,
-                      const std::string cacheDir);
-    virtual int ReadDiskFile(const std::string name, char *buf, uint64_t offset,
+                      const std::string& cacheDir);
+    virtual int ReadDiskFile(absl::string_view name, char *buf, uint64_t offset,
                              uint64_t length);
-    virtual int WriteDiskFile(const std::string fileName, const char *buf,
+    virtual int WriteDiskFile(absl::string_view fileName, const char *buf,
                               uint64_t length);
-    virtual int LinkWriteToRead(const std::string fileName,
-                                const std::string fullWriteDir,
-                                const std::string fullReadDir);
+    virtual int LinkWriteToRead(absl::string_view fileName,
+                                absl::string_view fullWriteDir,
+                                absl::string_view fullReadDir);
 
     /**
      * @brief after reboot，load all files that store in read cache.

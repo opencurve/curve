@@ -37,7 +37,7 @@ namespace status {
 class MdsStatusTool : public StatusBaseTool {
  public:
     explicit MdsStatusTool(const std::string& cmd = kMdsStatusCmd,
-                           const std::string hostType = kHostTypeMds)
+                           const std::string& hostType = kHostTypeMds)
         : StatusBaseTool(cmd, hostType) {}
     void PrintHelp() override;
     int Init() override;
@@ -53,7 +53,7 @@ class MdsStatusTool : public StatusBaseTool {
      */
     std::map<std::string, std::string> dummy2MainAddr_;
 
-    void AfterGetMetric(const std::string hostAddr, const std::string& subUri,
+    void AfterGetMetric(const std::string& hostAddr, const std::string& subUri,
                         const std::string& value,
                         const MetricStatusCode& statusCode) override;
     void InitHostsAddr() override;

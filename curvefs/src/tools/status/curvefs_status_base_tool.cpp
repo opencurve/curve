@@ -47,7 +47,7 @@ int StatusBaseTool::Init() {
     return 0;
 }
 
-void StatusBaseTool::AfterGetMetric(const std::string hostAddr,
+void StatusBaseTool::AfterGetMetric(const std::string& hostAddr,
                                     const std::string& subUri,
                                     const std::string& value,
                                     const MetricStatusCode& statusCode) {

@@ -31,6 +31,8 @@
 #include <list>
 #include <set>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
@@ -82,7 +84,7 @@ class DiskCacheWrite : public DiskCacheBase {
     }
     void Init(std::shared_ptr<S3Client> client,
               std::shared_ptr<PosixWrapper> posixWrapper,
-              const std::string cacheDir, uint64_t asyncLoadPeriodMs,
+              const std::string& cacheDir, uint64_t asyncLoadPeriodMs,
               std::shared_ptr<SglLRUCache<std::string>> cachedObjName);
     /**
      * @brief write obj to write cahce disk
@@ -90,7 +92,7 @@ class DiskCacheWrite : public DiskCacheBase {
      * @param[in] option config option
      * @return success: 0, fail : < 0
      */
-    virtual int WriteDiskFile(const std::string fileName,
+    virtual int WriteDiskFile(absl::string_view fileName,
                               const char* buf, uint64_t length,
                               bool force = true);
     /**
@@ -100,8 +102,8 @@ class DiskCacheWrite : public DiskCacheBase {
     /**
     * @brief remove from write cache
     */
-    virtual int RemoveFile(const std::string fileName);
-    virtual int ReadFile(const std::string name, char** buf,
+    virtual int RemoveFile(const std::string& fileName);
+    virtual int ReadFile(const std::string& name, char** buf,
       uint64_t* size);
     /**
      * @brief upload file in write cache to S3
@@ -123,7 +125,7 @@ class DiskCacheWrite : public DiskCacheBase {
      * @brief enqueue the file, then upload to S3
      * @param[in] objName obj name
      */
-    virtual void AsyncUploadEnqueue(const std::string objName);
+    virtual void AsyncUploadEnqueue(absl::string_view objName);
     /**
      * @brief: stop aync upload thread.
      */

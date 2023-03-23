@@ -39,9 +39,9 @@ using ::curvefs::mds::topology::PartitionTxId;
 RenameOperator::RenameOperator(uint32_t fsId,
                                const std::string& fsName,
                                uint64_t parentId,
-                               std::string name,
+                               const std::string& name,
                                uint64_t newParentId,
-                               std::string newname,
+                               const std::string& newname,
                                std::shared_ptr<DentryCacheManager> dentryManager,  // NOLINT
                                std::shared_ptr<InodeCacheManager> inodeManager,
                                std::shared_ptr<MetaServerClient> metaClient,

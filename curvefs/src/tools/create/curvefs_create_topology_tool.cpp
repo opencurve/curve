@@ -89,7 +89,7 @@ int CurvefsBuildTopologyTool::TryAnotherMdsAddress() {
     return ret;
 }
 
-int CurvefsBuildTopologyTool::DealFailedRet(int ret, std::string operation) {
+int CurvefsBuildTopologyTool::DealFailedRet(int ret, const std::string& operation) {
     if (kRetCodeRedirectMds == ret) {
         LOG(WARNING) << operation
                      << " fail on mds: " << mdsAddressStr_[mdsAddressIndex_];

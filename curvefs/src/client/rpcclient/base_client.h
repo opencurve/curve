@@ -156,7 +156,7 @@ class MDSBaseClient {
     virtual void GetFsInfo(uint32_t fsId, GetFsInfoResponse* response,
                            brpc::Controller* cntl, brpc::Channel* channel);
 
-    virtual void GetMetaServerInfo(uint32_t port, std::string ip,
+    virtual void GetMetaServerInfo(uint32_t port, const std::string& ip,
                                    GetMetaServerInfoResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel);

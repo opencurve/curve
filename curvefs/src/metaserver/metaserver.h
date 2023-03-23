@@ -98,7 +98,7 @@ class Metaserver {
     void InitRecycleManagerOption(
                 RecycleManagerOption* recycleManagerOption);
     void GetMetaserverDataByLoadOrRegister();
-    int PersistMetaserverMeta(std::string path, MetaServerMetadata* metadata);
+    int PersistMetaserverMeta(const std::string& path, MetaServerMetadata* metadata);
     int LoadMetaserverMeta(const std::string& metaFilePath,
                            MetaServerMetadata* metadata);
     int LoadDataFromLocalFile(std::shared_ptr<LocalFileSystem> fs,

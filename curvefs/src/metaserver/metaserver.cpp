@@ -287,7 +287,7 @@ void Metaserver::GetMetaserverDataByLoadOrRegister() {
     }
 }
 
-int Metaserver::PersistMetaserverMeta(std::string path,
+int Metaserver::PersistMetaserverMeta(const std::string& path,
                                       MetaServerMetadata* metadata) {
     std::string tempData;
     metadata->set_checksum(0);

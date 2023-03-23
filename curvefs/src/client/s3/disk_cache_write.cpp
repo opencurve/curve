@@ -37,7 +37,7 @@ namespace client {
 
 void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
                           std::shared_ptr<PosixWrapper> posixWrapper,
-                          const std::string cacheDir,
+                          const std::string& cacheDir,
                           uint64_t asyncLoadPeriodMs,
                           std::shared_ptr<SglLRUCache<
                             std::string>> cachedObjName) {
@@ -48,12 +48,12 @@ void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
     DiskCacheBase::Init(posixWrapper, cacheDir);
 }
 
-void DiskCacheWrite::AsyncUploadEnqueue(const std::string objName) {
+void DiskCacheWrite::AsyncUploadEnqueue(absl::string_view objName) {
     std::lock_guard<bthread::Mutex> lk(mtx_);
-    waitUpload_.push_back(objName);
+    waitUpload_.push_back(std::string(objName));
 }
 
-int DiskCacheWrite::ReadFile(const std::string name, char **buf,
+int DiskCacheWrite::ReadFile(const std::string& name, char **buf,
                              uint64_t *size) {
     std::string fileFullPath;
     bool fileExist;
@@ -397,7 +397,7 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
     return 0;
 }
 
-int DiskCacheWrite::RemoveFile(const std::string fileName) {
+int DiskCacheWrite::RemoveFile(const std::string& fileName) {
     // del disk file
     std::string fileFullPath;
     fileFullPath = GetCacheIoFullDir();
@@ -413,13 +413,13 @@ int DiskCacheWrite::RemoveFile(const std::string fileName) {
     return 0;
 }
 
-int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
+int DiskCacheWrite::WriteDiskFile(absl::string_view fileName, const char *buf,
                                   uint64_t length, bool force) {
     VLOG(6) << "WriteDiskFile start. name = " << fileName
             << ", force = " << force << ", length = " << length;
     std::string fileFullPath;
     int fd, ret;
-    fileFullPath = GetCacheIoFullDir() + "/" + fileName;
+    fileFullPath = absl::StrCat(GetCacheIoFullDir(), "/", fileName);
     fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno

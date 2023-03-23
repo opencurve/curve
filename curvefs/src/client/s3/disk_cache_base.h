@@ -45,12 +45,12 @@ class DiskCacheBase {
     DiskCacheBase() {}
     virtual ~DiskCacheBase() {}
     virtual void Init(std::shared_ptr<PosixWrapper> wrapper,
-                      const std::string cacheDir);
+                      const std::string& cacheDir);
     /**
      * @brief Create Read/Write Cache Dir.
     */
     virtual int CreateIoDir(bool writreDir);
-    virtual bool IsFileExist(const std::string file);
+    virtual bool IsFileExist(const std::string& file);
     /**
      * @brief Get Read/Write Cache full Dir(include CacheDir_).
     */

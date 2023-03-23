@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     // config initialization
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    std::string confPath = FLAGS_confPath;
+    const std::string& confPath = FLAGS_confPath;
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath(confPath);
     LOG_IF(FATAL, !conf->LoadConfig())

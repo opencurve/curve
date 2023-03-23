@@ -140,7 +140,7 @@ class CurvefsBuildTopologyTool : public curvefs::tools::CurvefsTool {
     int CreateZone();
     int CreateServer();
 
-    int DealFailedRet(int ret, std::string operation);
+    int DealFailedRet(int ret, const std::string& operation);
 
     int ListPool(std::list<PoolInfo>* poolInfos);
 

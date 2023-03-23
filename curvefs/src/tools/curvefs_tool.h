@@ -444,7 +444,7 @@ class CurvefsToolMetric : public CurvefsTool {
 
     virtual void UpdateFlags();
 
-    virtual void AfterGetMetric(const std::string mdsAddr,
+    virtual void AfterGetMetric(const std::string& mdsAddr,
                                 const std::string& subUri,
                                 const std::string& Value,
                                 const MetricStatusCode& statusCode) = 0;

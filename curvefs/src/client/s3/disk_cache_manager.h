@@ -30,6 +30,7 @@
 #include <set>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "src/common/lru_cache.h"
@@ -65,7 +66,7 @@ class DiskCacheManager {
         const S3ClientAdaptorOption option);
 
     virtual int UmountDiskCache();
-    virtual bool IsCached(const std::string name);
+    virtual bool IsCached(const std::string& name);
 
     /**
      * @brief add obj to cachedObjName
@@ -73,23 +74,23 @@ class DiskCacheManager {
      * @param[in] cacheWriteExist whether the obj is
      *                            exist in cache write
      */
-    void AddCache(const std::string name,
+    void AddCache(absl::string_view name,
       bool cacheWriteExist = true);
 
     int CreateDir();
     std::string GetCacheReadFullDir();
     std::string GetCacheWriteFullDir();
 
-    int WriteDiskFile(const std::string fileName, const char *buf,
+    int WriteDiskFile(absl::string_view fileName, const char *buf,
                       uint64_t length, bool force = true);
-    void AsyncUploadEnqueue(const std::string objName);
-    virtual int WriteReadDirect(const std::string fileName, const char *buf,
+    void AsyncUploadEnqueue(absl::string_view objName);
+    virtual int WriteReadDirect(absl::string_view fileName, const char *buf,
                                 uint64_t length);
-    int ReadDiskFile(const std::string name, char *buf, uint64_t offset,
+    int ReadDiskFile(absl::string_view name, char *buf, uint64_t offset,
                      uint64_t length);
-    int LinkWriteToRead(const std::string fileName,
-                        const std::string fullWriteDir,
-                        const std::string fullReadDir);
+    int LinkWriteToRead(absl::string_view fileName,
+                        absl::string_view fullWriteDir,
+                        absl::string_view fullReadDir);
     int UploadAllCacheWriteFile();
     int UploadWriteCacheByInode(const std::string &inode);
     int ClearReadCache(const std::list<std::string> &files);

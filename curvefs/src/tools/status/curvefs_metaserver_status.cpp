@@ -87,7 +87,7 @@ int MetaserverStatusTool::Init() {
     return StatusBaseTool::Init();
 }
 
-void MetaserverStatusTool::AfterGetMetric(const std::string hostAddr,
+void MetaserverStatusTool::AfterGetMetric(const std::string& hostAddr,
                                           const std::string& subUri,
                                           const std::string& value,
                                           const MetricStatusCode& statusCode) {

@@ -76,7 +76,7 @@ void GetFsInfoByFsIDRpcFailed(uint32_t fsId, GetFsInfoResponse *response,
     cntl->SetFailed(112, "Not connected to");
 }
 
-void GetMetaServerInfoRpcFailed(uint32_t port, std::string ip,
+void GetMetaServerInfoRpcFailed(uint32_t port, const std::string& ip,
                                 GetMetaServerInfoResponse *response,
                                 brpc::Controller *cntl,
                                 brpc::Channel *channel) {

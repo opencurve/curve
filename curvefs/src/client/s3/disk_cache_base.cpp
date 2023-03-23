@@ -37,7 +37,7 @@ namespace client {
 #define CACHE_READ_DIR  "cacheread"
 
 void DiskCacheBase::Init(std::shared_ptr<PosixWrapper> wrapper,
-                         const std::string cacheDir) {
+                         const std::string& cacheDir) {
     cacheDir_ = cacheDir;
     posixWrapper_ = wrapper;
 }
@@ -68,7 +68,7 @@ int DiskCacheBase::CreateIoDir(bool writreDir) {
     return 0;
 }
 
-bool DiskCacheBase::IsFileExist(const std::string file) {
+bool DiskCacheBase::IsFileExist(const std::string& file) {
     struct stat statFile;
     int ret;
     ret = posixWrapper_->stat(file.c_str(), &statFile);

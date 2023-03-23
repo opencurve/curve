@@ -36,13 +36,13 @@ namespace status {
 class EtcdStatusTool : public StatusBaseTool {
  public:
     explicit EtcdStatusTool(const std::string& cmd = kEtcdStatusCmd,
-                            const std::string hostType = kHostTypeEtcd)
+                            const std::string& hostType = kHostTypeEtcd)
         : StatusBaseTool(cmd, hostType) {}
     void PrintHelp() override;
     void InitHostsAddr() override;
 
  protected:
-    void AfterGetMetric(const std::string hostAddr, const std::string& subUri,
+    void AfterGetMetric(const std::string& hostAddr, const std::string& subUri,
                         const std::string& value,
                         const MetricStatusCode& statusCode) override;
     int Init() override;

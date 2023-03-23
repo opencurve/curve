@@ -52,7 +52,7 @@ int EtcdStatusTool::Init() {
     return 0;
 }
 
-void EtcdStatusTool::AfterGetMetric(const std::string hostAddr,
+void EtcdStatusTool::AfterGetMetric(const std::string& hostAddr,
                                     const std::string& subUri,
                                     const std::string& value,
                                     const MetricStatusCode& statusCode) {

@@ -31,7 +31,7 @@ namespace storage {
 
 std::string RandomString();
 
-std::string RandomStoragePath(std::string basedir = "./storage");
+std::string RandomStoragePath(const std::string& basedir = "./storage");
 
 }  // namespace storage
 }  // namespace metaserver

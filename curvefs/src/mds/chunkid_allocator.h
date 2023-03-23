@@ -69,7 +69,7 @@ class ChunkIdAllocator {
 class ChunkIdAllocatorImpl : public ChunkIdAllocator {
  public:
     ChunkIdAllocatorImpl(std::shared_ptr<KVStorageClient> client = nullptr,
-                         std::string storeKey = CHUNKID_NAME_KEY_PREFIX,
+                         const std::string& storeKey = CHUNKID_NAME_KEY_PREFIX,
                          uint64_t initId = CHUNKIDINITIALIZE,
                          uint64_t bundleSize = CHUNKBUNDLEALLOCATED)
         : ChunkIdAllocator(),

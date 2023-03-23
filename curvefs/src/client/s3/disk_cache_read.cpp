@@ -37,18 +37,18 @@ namespace curvefs {
 namespace client {
 
 void DiskCacheRead::Init(std::shared_ptr<PosixWrapper> posixWrapper,
-                         const std::string cacheDir) {
+                         const std::string& cacheDir) {
     posixWrapper_ = posixWrapper;
     DiskCacheBase::Init(posixWrapper, cacheDir);
 }
 
-int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
+int DiskCacheRead::ReadDiskFile(absl::string_view name, char *buf,
                                 uint64_t offset, uint64_t length) {
     VLOG(6) << "ReadDiskFile start. name = " << name << ", offset = " << offset
             << ", length = " << length;
     std::string fileFullPath;
     int fd, ret;
-    fileFullPath = GetCacheIoFullDir() + "/" + name;
+    fileFullPath = absl::StrCat(GetCacheIoFullDir(), "/", name);
     fd = posixWrapper_->open(fileFullPath.c_str(), O_RDONLY, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. file = " << name
@@ -81,13 +81,13 @@ int DiskCacheRead::ReadDiskFile(const std::string name, char *buf,
     return readLen;
 }
 
-int DiskCacheRead::LinkWriteToRead(const std::string fileName,
-                                   const std::string fullWriteDir,
-                                   const std::string fullReadDir) {
+int DiskCacheRead::LinkWriteToRead(absl::string_view fileName,
+                                   absl::string_view fullWriteDir,
+                                   absl::string_view fullReadDir) {
     VLOG(6) << "LinkWriteToRead start. name = " << fileName;
     std::string fullReadPath, fullWritePath;
-    fullWritePath = fullWriteDir + "/" + fileName;
-    fullReadPath = fullReadDir + "/" + fileName;
+    fullWritePath = absl::StrCat(fullWriteDir, "/", fileName);
+    fullReadPath = absl::StrCat(fullReadDir, "/", fileName);
     int ret;
     if (!IsFileExist(fullWritePath)) {
         LOG(ERROR) << "link error because of file is not exist."
@@ -124,13 +124,13 @@ int DiskCacheRead::LoadAllCacheReadFile(
     return ret;
 }
 
-int DiskCacheRead::WriteDiskFile(const std::string fileName, const char *buf,
+int DiskCacheRead::WriteDiskFile(absl::string_view fileName, const char *buf,
                                  uint64_t length) {
     VLOG(9) << "WriteDiskFile start. name = " << fileName
             << ", length = " << length;
     std::string fileFullPath;
     int fd, ret;
-    fileFullPath = GetCacheIoFullDir() + "/" + fileName;
+    fileFullPath = absl::StrCat(GetCacheIoFullDir(), "/", fileName);
     fd = posixWrapper_->open(fileFullPath.c_str(), O_RDWR | O_CREAT, MODE);
     if (fd < 0) {
         LOG(ERROR) << "open disk file error. errno = " << errno

@@ -401,7 +401,7 @@ class MetaServer {
 
     std::string GetToken() const { return token_; }
 
-    void SetToken(std::string token) { token_ = token; }
+    void SetToken(const std::string& token) { token_ = token; }
 
     void SetServerId(ServerIdType id) { serverId_ = id; }
 
@@ -411,7 +411,7 @@ class MetaServer {
 
     uint32_t GetInternalPort() const { return internalPort_; }
 
-    void SetInternalIp(std::string internalIp) { internalIp_ = internalIp; }
+    void SetInternalIp(const std::string& internalIp) { internalIp_ = internalIp; }
 
     void SetInternalPort(uint32_t internalPort) {
         internalPort_ = internalPort;

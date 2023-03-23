@@ -30,6 +30,7 @@
 #include <list>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/interruptible_sleeper.h"
 #include "curvefs/src/common/wrap_posix.h"
@@ -86,13 +87,13 @@ class DiskCacheManagerImpl {
      * @param[in] length wtite length
      * @return success: write length, fail : < 0
      */
-    int Write(const std::string name, const char *buf, uint64_t length);
+    int Write(absl::string_view name, const char *buf, uint64_t length);
     /**
      * @brief whether obj is cached in cached disk
      * @param[in] name obj name
      * @return cached: true, not cached : < 0
      */
-    bool IsCached(const std::string name);
+    bool IsCached(const std::string& name);
     /**
      * @brief read obj
      * @param[in] name obj name
@@ -101,7 +102,7 @@ class DiskCacheManagerImpl {
      * @param[in] length read length
      * @return success: length, fail : < length
      */
-    int Read(const std::string name, char *buf, uint64_t offset,
+    int Read(const std::string& name, char *buf, uint64_t offset,
              uint64_t length);
     /**
      * @brief umount disk cache
@@ -110,9 +111,9 @@ class DiskCacheManagerImpl {
     int UmountDiskCache();
 
     bool IsDiskCacheFull();
-    int WriteReadDirect(const std::string fileName, const char *buf,
+    int WriteReadDirect(absl::string_view fileName, const char *buf,
                         uint64_t length);
-    void InitMetrics(std::string fsName);
+    void InitMetrics(const std::string& fsName);
 
     virtual int UploadWriteCacheByInode(const std::string &inode);
 
@@ -122,7 +123,7 @@ class DiskCacheManagerImpl {
                 bool isReadCacheOnly  = false);
 
  private:
-    int WriteDiskFile(const std::string name, const char *buf, uint64_t length);
+    int WriteDiskFile(absl::string_view name, const char *buf, uint64_t length);
 
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
 

@@ -157,13 +157,13 @@ int DiskCacheManager::ClearReadCache(const std::list<std::string> &files) {
     return cacheRead_->ClearReadCache(files);
 }
 
-void DiskCacheManager::AddCache(const std::string name,
+void DiskCacheManager::AddCache(absl::string_view name,
   bool cacheWriteExist) {
-    cachedObjName_->Put(name);
+    cachedObjName_->Put(std::string(name));
     VLOG(9) << "cache size is: " << cachedObjName_->Size();
 }
 
-bool DiskCacheManager::IsCached(const std::string name) {
+bool DiskCacheManager::IsCached(const std::string& name) {
     if (!cachedObjName_->IsCached(name)) {
         VLOG(9) << "not cached, name = " << name;
         return false;
@@ -223,7 +223,7 @@ std::string DiskCacheManager::GetCacheWriteFullDir() {
     return cacheWrite_->GetCacheIoFullDir();
 }
 
-int DiskCacheManager::WriteDiskFile(const std::string fileName, const char *buf,
+int DiskCacheManager::WriteDiskFile(absl::string_view fileName, const char *buf,
                                     uint64_t length, bool force) {
     // write throttle
     diskCacheThrottle_.Add(false, length);
@@ -233,18 +233,18 @@ int DiskCacheManager::WriteDiskFile(const std::string fileName, const char *buf,
     return ret;
 }
 
-void DiskCacheManager::AsyncUploadEnqueue(const std::string objName) {
+void DiskCacheManager::AsyncUploadEnqueue(absl::string_view objName) {
     cacheWrite_->AsyncUploadEnqueue(objName);
 }
 
-int DiskCacheManager::ReadDiskFile(const std::string name, char *buf,
+int DiskCacheManager::ReadDiskFile(absl::string_view name, char *buf,
                                    uint64_t offset, uint64_t length) {
     // read throttle
     diskCacheThrottle_.Add(true, length);
     return cacheRead_->ReadDiskFile(name, buf, offset, length);
 }
 
-int DiskCacheManager::WriteReadDirect(const std::string fileName,
+int DiskCacheManager::WriteReadDirect(absl::string_view fileName,
                                       const char *buf, uint64_t length) {
     // write hrottle
     diskCacheThrottle_.Add(false, length);
@@ -254,9 +254,9 @@ int DiskCacheManager::WriteReadDirect(const std::string fileName,
     return ret;
 }
 
-int DiskCacheManager::LinkWriteToRead(const std::string fileName,
-                                      const std::string fullWriteDir,
-                                      const std::string fullReadDir) {
+int DiskCacheManager::LinkWriteToRead(absl::string_view fileName,
+                                      absl::string_view fullWriteDir,
+                                      absl::string_view fullReadDir) {
     return cacheRead_->LinkWriteToRead(fileName, fullWriteDir, fullReadDir);
 }
 

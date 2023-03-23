@@ -94,7 +94,7 @@ int DiskCacheManagerImpl::WriteClosure(
     return 0;
 }
 
-int DiskCacheManagerImpl::Write(const std::string name, const char *buf,
+int DiskCacheManagerImpl::Write(absl::string_view name, const char *buf,
                                 uint64_t length) {
     VLOG(9) << "write name = " << name << ", length = " << length;
     int ret = 0;
@@ -104,7 +104,7 @@ int DiskCacheManagerImpl::Write(const std::string name, const char *buf,
     return ret;
 }
 
-int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
+int DiskCacheManagerImpl::WriteDiskFile(absl::string_view name, const char *buf,
                                         uint64_t length) {
     VLOG(9) << "write name = " << name << ", length = " << length;
     // if cache disk is full
@@ -138,7 +138,7 @@ int DiskCacheManagerImpl::WriteDiskFile(const std::string name, const char *buf,
     return 0;
 }
 
-int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
+int DiskCacheManagerImpl::WriteReadDirect(absl::string_view fileName,
                                           const char *buf, uint64_t length) {
     if (!diskCacheManager_->IsDiskUsedInited() ||
       diskCacheManager_->IsDiskCacheFull()) {
@@ -155,7 +155,7 @@ int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
     return ret;
 }
 
-int DiskCacheManagerImpl::Read(const std::string name, char *buf,
+int DiskCacheManagerImpl::Read(const std::string& name, char *buf,
                                uint64_t offset, uint64_t length) {
     VLOG(9) << "read name = " << name << ", offset = " << offset
             << ", length = " << length;
@@ -177,7 +177,7 @@ int DiskCacheManagerImpl::Read(const std::string name, char *buf,
     return ret;
 }
 
-bool DiskCacheManagerImpl::IsCached(const std::string name) {
+bool DiskCacheManagerImpl::IsCached(const std::string& name) {
     return diskCacheManager_->IsCached(name);
 }
 
@@ -197,7 +197,7 @@ int DiskCacheManagerImpl::UmountDiskCache() {
     return 0;
 }
 
-void DiskCacheManagerImpl::InitMetrics(std::string fsName) {
+void DiskCacheManagerImpl::InitMetrics(const std::string& fsName) {
     diskCacheManager_->InitMetrics(fsName);
 }
 

@@ -65,7 +65,7 @@ class MockMDSBaseClient : public MDSBaseClient {
                                 brpc::Channel* channel));
 
     MOCK_METHOD5(GetMetaServerInfo,
-                 void(uint32_t port, std::string ip,
+                 void(uint32_t port, const std::string& ip,
                       GetMetaServerInfoResponse *response,
                       brpc::Controller *cntl, brpc::Channel *channel));
 

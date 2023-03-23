@@ -69,7 +69,7 @@ void MDSBaseClient::GetFsInfo(uint32_t fsId, GetFsInfoResponse* response,
     stub.GetFsInfo(cntl, &request, response, nullptr);
 }
 
-void MDSBaseClient::GetMetaServerInfo(uint32_t port, std::string ip,
+void MDSBaseClient::GetMetaServerInfo(uint32_t port, const std::string& ip,
                                       GetMetaServerInfoResponse* response,
                                       brpc::Controller* cntl,
                                       brpc::Channel* channel) {

@@ -46,7 +46,7 @@ std::string RandomString() {
     return oss.str();
 }
 
-std::string RandomStoragePath(std::string basedir) {
+std::string RandomStoragePath(const std::string& basedir) {
     return basedir + "_" + RandomString();
 }
 

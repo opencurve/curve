@@ -216,7 +216,7 @@ class FsManager {
     // send request to metaserver to DeletePartition, if response returns
     // FSStatusCode::OK or FSStatusCode::UNDER_DELETING, returns true;
     // else returns false
-    bool DeletePartiton(std::string fsName, const PartitionInfo& partition);
+    bool DeletePartiton(const std::string& fsName, const PartitionInfo& partition);
 
     // set partition status to DELETING in topology
     bool SetPartitionToDeleting(const PartitionInfo& partition);

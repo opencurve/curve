@@ -72,7 +72,7 @@ void MdsStatusTool::AddUpdateFlags() {
     StatusBaseTool::AddUpdateFlags();
 }
 
-void MdsStatusTool::AfterGetMetric(const std::string hostAddr,
+void MdsStatusTool::AfterGetMetric(const std::string& hostAddr,
                                    const std::string& subUri,
                                    const std::string& value,
                                    const MetricStatusCode& statusCode) {

@@ -92,7 +92,7 @@ void FsManager::Uninit() {
     LOG(INFO) << "FsManager Uninit ok.";
 }
 
-bool FsManager::DeletePartiton(std::string fsName,
+bool FsManager::DeletePartiton(const std::string& fsName,
                                const PartitionInfo& partition) {
     LOG(INFO) << "delete fs partition, fsName = " << fsName
               << ", partitionId = " << partition.partitionid();

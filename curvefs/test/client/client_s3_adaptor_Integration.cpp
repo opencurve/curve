@@ -78,7 +78,7 @@ struct S3Data {
 
 static std::map<std::string, S3Data> gObjectDataMaps;
 
-int S3Upload(std::string name, const char *buf, uint64_t len) {
+int S3Upload(const std::string& name, const char *buf, uint64_t len) {
     S3Data &tmp = gObjectDataMaps[name];
 
     tmp.len = len;
@@ -88,7 +88,7 @@ int S3Upload(std::string name, const char *buf, uint64_t len) {
     return len;
 }
 
-int S3Download(std::string name, char *buf, uint64_t offset, uint64_t len) {
+int S3Download(const std::string& name, char *buf, uint64_t offset, uint64_t len) {
     S3Data &tmp = gObjectDataMaps[name];
 
     assert((offset + len) <= tmp.len);
