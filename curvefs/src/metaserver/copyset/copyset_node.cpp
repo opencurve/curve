@@ -834,11 +834,13 @@ bool CopysetNode::HasOngoingConfChange() {
 
 butil::Status CopysetNode::ReadyDoConfChange() {
     if (!IsLeaderTerm()) {
-        return butil::Status(EPERM, "Not a leader, copyset: %s", name_.c_str());
+        return butil::Status(EPERM, "Not a leader, copyset: %s, peer id: %s",
+                             name_.c_str(), peerId_.to_string().c_str());
     } else if (HasOngoingConfChange()) {
-        return butil::Status(EBUSY,
-                             "Doing another configurations change, copyset: %s",
-                             name_.c_str());
+        return butil::Status(
+            EBUSY,
+            "Doing another configurations change, copyset: %s, peer id: %s",
+            name_.c_str(), peerId_.to_string().c_str());
     }
 
     return butil::Status::OK();

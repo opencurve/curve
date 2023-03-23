@@ -65,6 +65,11 @@ class RaftCliService2Test : public testing::Test {
         ASSERT_TRUE(WaitLeader(10, &leaderId_));
         ASSERT_FALSE(leaderId_.is_empty());
         ASSERT_EQ(0, channel_.Init(leaderId_.addr, &kDefaultChannelOptions));
+
+        LOG(INFO)
+            << "TestCase "
+            << testing::UnitTest::GetInstance()->current_test_info()->name()
+            << ", current leader is " << leaderId_.to_string();
     }
 
     void TearDown() override {}
