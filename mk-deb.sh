@@ -487,31 +487,7 @@ if [ $? -ne 0 ]
 then
     exit
 fi
-cp -r ./curve-snapshotcloneserver-nginx/app/lib \
-build/curve-nginx/etc/curve/nginx/app
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp -r ./curve-snapshotcloneserver-nginx/app/src \
-build/curve-nginx/etc/curve/nginx/app
-if [ $? -ne 0 ]
-then
-    exit
-fi
 mkdir -p build/curve-nginx/etc/curve/nginx/conf
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp ./curve-snapshotcloneserver-nginx/conf/mime.types \
-build/curve-nginx/etc/curve/nginx/conf/
-if [ $? -ne 0 ]
-then
-    exit
-fi
-cp -r ./curve-snapshotcloneserver-nginx/docker \
-build/curve-nginx/etc/curve/nginx/
 if [ $? -ne 0 ]
 then
     exit
