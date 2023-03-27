@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2023 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,22 +14,26 @@
  *  limitations under the License.
  */
 
-
 /*
- * Project: curve
- * Created Date: Thur May 27 2021
- * Author: xuchaojie
+ * Project: Curve
+ * Created Date: 2023-03-06
+ * Author: Jingli Chen (Wine93)
  */
 
-#ifndef CURVEFS_SRC_CLIENT_ERROR_CODE_H_
-#define CURVEFS_SRC_CLIENT_ERROR_CODE_H_
+#include <map>
+#include <iostream>
 
 #include "curvefs/proto/metaserver.pb.h"
 
+#ifndef CURVEFS_SRC_CLIENT_FILESYSTEM_ERROR_H_
+#define CURVEFS_SRC_CLIENT_FILESYSTEM_ERROR_H_
+
 namespace curvefs {
 namespace client {
+namespace filesystem {
 
-// notice : the error code should be negative.
+using ::curvefs::metaserver::MetaStatusCode;
+
 enum class CURVEFS_ERROR {
     OK = 0,
     INTERNAL = -1,
@@ -49,15 +53,20 @@ enum class CURVEFS_ERROR {
     OUT_OF_RANGE = -15,
     NODATA = -16,
     IO_ERROR = -17,
+    STALE = -18,
+    NOSYS = -19,
 };
 
+std::string StrErr(CURVEFS_ERROR code);
+
+int SysErr(CURVEFS_ERROR code);
 
 std::ostream &operator<<(std::ostream &os, CURVEFS_ERROR code);
 
-CURVEFS_ERROR MetaStatusCodeToCurvefsErrCode(
-    ::curvefs::metaserver::MetaStatusCode code);
+CURVEFS_ERROR ToFSError(MetaStatusCode code);
 
+}  // namespace filesystem
 }  // namespace client
 }  // namespace curvefs
 
-#endif  // CURVEFS_SRC_CLIENT_ERROR_CODE_H_
+#endif  // CURVEFS_SRC_CLIENT_FILESYSTEM_ERROR_H_

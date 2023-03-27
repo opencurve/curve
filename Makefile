@@ -70,3 +70,6 @@ install:
 
 image:
 	@bash util/image.sh $(stor) $(tag) $(os)
+
+playground:
+	@bash util/playground.sh

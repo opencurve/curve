@@ -33,7 +33,6 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/async_request_closure.h"
-#include "curvefs/src/client/error_code.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/rpcclient/task_excutor.h"
 #include "curvefs/src/client/xattr_manager.h"
@@ -47,6 +46,7 @@ namespace client {
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
 using rpcclient::DataIndices;
+using ::curvefs::client::filesystem::ToFSError;
 
 bvar::Adder<int64_t> g_alive_inode_count{"alive_inode_count"};
 
@@ -193,7 +193,7 @@ CURVEFS_ERROR InodeWrapper::SyncAttr(bool internal) {
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
-            return MetaStatusCodeToCurvefsErrCode(ret);
+            return ToFSError(ret);
         }
 
         dirty_ = false;
@@ -213,7 +213,7 @@ CURVEFS_ERROR InodeWrapper::SyncS3ChunkInfo(bool internal) {
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
-            return MetaStatusCodeToCurvefsErrCode(ret);
+            return ToFSError(ret);
         }
         ClearS3ChunkInfoAdd();
     }
@@ -294,7 +294,7 @@ CURVEFS_ERROR InodeWrapper::RefreshS3ChunkInfo() {
                    << "MetaStatusCode: " << ret
                    << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                    << ", inodeid: " << inode_.inodeid();
-        return MetaStatusCodeToCurvefsErrCode(ret);
+        return ToFSError(ret);
     }
     auto before = s3ChunkInfoSize_;
     inode_.mutable_s3chunkinfomap()->swap(s3ChunkInfoMap);
@@ -328,7 +328,7 @@ CURVEFS_ERROR InodeWrapper::Link(uint64_t parent) {
                    <<", MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();
-        return MetaStatusCodeToCurvefsErrCode(ret);
+        return ToFSError(ret);
     }
 
     dirty_ = false;
@@ -396,7 +396,7 @@ CURVEFS_ERROR InodeWrapper::UnLink(uint64_t parent) {
                        << ", MetaStatusCode = " << ret
                        << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                        << ", inodeid = " << inode_.inodeid();
-            return MetaStatusCodeToCurvefsErrCode(ret);
+            return ToFSError(ret);
         }
         dirty_ = false;
         dirtyAttr_.Clear();
@@ -427,7 +427,7 @@ CURVEFS_ERROR InodeWrapper::UpdateParent(
                    << ", MetaStatusCode = " << ret
                    << ", MetaStatusCode_Name = " << MetaStatusCode_Name(ret)
                    << ", inodeid = " << inode_.inodeid();
-        return MetaStatusCodeToCurvefsErrCode(ret);
+        return ToFSError(ret);
     }
     dirty_ = false;
     dirtyAttr_.Clear();
@@ -514,7 +514,7 @@ CURVEFS_ERROR InodeWrapper::SyncS3(bool internal) {
                        << "MetaStatusCode: " << ret
                        << ", MetaStatusCode_Name: " << MetaStatusCode_Name(ret)
                        << ", inodeid: " << inode_.inodeid();
-            return MetaStatusCodeToCurvefsErrCode(ret);
+            return ToFSError(ret);
         }
         ClearS3ChunkInfoAdd();
         dirty_ = false;
@@ -596,7 +596,7 @@ CURVEFS_ERROR InodeWrapper::RefreshVolumeExtent() {
         LOG(ERROR) << "GetVolumeExtent failed, inodeid: " << inode_.inodeid();
     }
 
-    return MetaStatusCodeToCurvefsErrCode(st);
+    return ToFSError(st);
 }
 
 CURVEFS_ERROR InodeWrapper::RefreshNlink() {

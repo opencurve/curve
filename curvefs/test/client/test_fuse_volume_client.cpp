@@ -25,7 +25,7 @@
 
 #include "curvefs/src/client/common/common.h"
 #include "curvefs/proto/metaserver.pb.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/fuse_volume_client.h"
 #include "curvefs/src/common/define.h"
 #include "curvefs/test/client/mock_dentry_cache_mamager.h"

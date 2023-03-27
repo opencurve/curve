@@ -28,10 +28,12 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 
 namespace curvefs {
 namespace client {
+
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
 
 class VolumeStorage {
  public:

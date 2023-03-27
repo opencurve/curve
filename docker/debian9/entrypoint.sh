@@ -117,6 +117,11 @@ function create_directory() {
     fi
 }
 
+post_start() {
+    [ -f [post.sh] ] {
+
+}
+
 function main() {
     get_options "$@"
 
@@ -132,6 +137,7 @@ function main() {
     else
         exec $g_binary $g_start_args
     fi
+    post_start
 }
 
 ############################  MAIN()
