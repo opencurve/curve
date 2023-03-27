@@ -118,6 +118,8 @@ class MemCachedClient : public KVClient {
             return true;
         }
         *errorlog = ResError(res);
+        memcached_free(tcli);
+        tcli = nullptr;
         LOG(ERROR) << "Set key = " << key << " error = " << *errorlog;
         return false;
     }
@@ -144,9 +146,11 @@ class MemCachedClient : public KVClient {
 
         *errorlog = ResError(ue);
         if (ue != MEMCACHED_NOTFOUND) {
-            LOG(ERROR) << "Get key = " << key << " error = " << *errorlog
-                       << ", get_value_len = " << value_length
-                       << ", expect_value_len = " << length;
+          LOG(ERROR) << "Get key = " << key << " error = " << *errorlog
+                     << ", get_value_len = " << value_length
+                     << ", expect_value_len = " << length;
+          memcached_free(tcli);
+          tcli = nullptr;
         }
 
         return false;
