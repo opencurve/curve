@@ -24,13 +24,14 @@
 
 #include "src/common/uuid.h"
 #include "curvefs/src/client/client_operator.h"
-
+#include "curvefs/src/client/filesystem/error.h"
 namespace curvefs {
 namespace client {
 
 using ::curve::common::UUIDGenerator;
 using ::curvefs::metaserver::DentryFlag;
 using ::curvefs::mds::topology::PartitionTxId;
+using ::curvefs::client::filesystem::ToFSError;
 
 #define LOG_ERROR(action, rc) \
     LOG(ERROR) << action << " failed, retCode = " << rc \
@@ -95,7 +96,7 @@ CURVEFS_ERROR RenameOperator::GetTxId(uint32_t fsId,
     if (rc != MetaStatusCode::OK) {
         LOG_ERROR("GetTxId", rc);
     }
-    return MetaStatusCodeToCurvefsErrCode(rc);
+    return ToFSError(rc);
 }
 
 CURVEFS_ERROR RenameOperator::GetLatestTxIdWithLock() {
@@ -204,7 +205,7 @@ CURVEFS_ERROR RenameOperator::PrepareRenameTx(
         LOG_ERROR("PrepareRenameTx", rc);
     }
 
-    return MetaStatusCodeToCurvefsErrCode(rc);
+    return ToFSError(rc);
 }
 
 CURVEFS_ERROR RenameOperator::PrepareTx() {
@@ -397,8 +398,6 @@ CURVEFS_ERROR RenameOperator::UpdateInodeParent() {
 }
 
 void RenameOperator::UpdateCache() {
-    dentryManager_->DeleteCache(parentId_, name_);
-    dentryManager_->InsertOrReplaceCache(newDentry_);
     SetTxId(srcPartitionId_, srcTxId_ + 1);
     SetTxId(dstPartitionId_, dstTxId_ + 1);
 }

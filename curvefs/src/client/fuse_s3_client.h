@@ -87,17 +87,25 @@ class FuseS3Client : public FuseClient {
         char *buffer,
         size_t *rSize) override;
 
-    CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
-        const char *name, mode_t mode, struct fuse_file_info *fi,
-        fuse_entry_param *e) override;
+    CURVEFS_ERROR FuseOpCreate(fuse_req_t req,
+                               fuse_ino_t parent,
+                               const char* name,
+                               mode_t mode,
+                               struct fuse_file_info *fi,
+                               EntryOut* entryOut) override;
 
-    CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-        const char *name, mode_t mode, dev_t rdev,
-        fuse_entry_param *e) override;
+    CURVEFS_ERROR FuseOpMkNod(fuse_req_t req,
+                              fuse_ino_t parent,
+                              const char* name,
+                              mode_t mode,
+                              dev_t rdev,
+                              EntryOut* entryOut) override;
 
-    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
-        fuse_ino_t newparent, const char *newname,
-        fuse_entry_param *e) override;
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req,
+                             fuse_ino_t ino,
+                             fuse_ino_t newparent,
+                             const char *newname,
+                             EntryOut* entryOut) override;
 
     CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
         const char *name) override;
@@ -108,10 +116,10 @@ class FuseS3Client : public FuseClient {
     CURVEFS_ERROR FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
         struct fuse_file_info *fi) override;
 
+    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
+
  private:
     bool InitKVCache(const KVClientManagerOpt &opt);
-
-    CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
     void FlushData() override;
 

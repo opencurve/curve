@@ -47,13 +47,11 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     release : FuseOpRelease,
     fsync : FuseOpFsync,
     opendir : FuseOpOpenDir,
-    // TODO(wuhongsong): readdirplus is problematic,
-    // resulting in inconsistent metadata
-    // #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
-    // readdir : 0,
-    // #else
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdir : 0,
+    #else
     readdir : FuseOpReadDir,
-    // #endif
+    #endif
     releasedir : FuseOpReleaseDir,
     fsyncdir : 0,
     statfs : FuseOpStatFs,
@@ -77,11 +75,11 @@ static const struct fuse_lowlevel_ops curve_ll_oper = {
     flock : 0,
     fallocate : 0,
     #endif
-    // TODO(wuhongsong): The current implementation is problematic,
-    // resulting in inconsistent metadata
-    // #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 0)
+    readdirplus : FuseOpReadDirPlus,
+    #else
     readdirplus : 0,
-    // #endif
+    #endif
     #if FUSE_VERSION >= FUSE_MAKE_VERSION(3, 4)
     copy_file_range : 0,
     #endif
@@ -218,8 +216,8 @@ int main(int argc, char *argv[]) {
 
     fuse_daemonize(opts.foreground);
 
-    if (InitGlog(mOpts.conf, argv[0]) < 0) {
-        printf("Init glog failed, confpath = %s\n", mOpts.conf);
+    if (InitLog(mOpts.conf, argv[0]) < 0) {
+        printf("Init log failed, confpath = %s\n", mOpts.conf);
     }
 
     ret = InitFuseClient(mOpts.conf, mOpts.fsName, mOpts.fsType, mOpts.mdsAddr);

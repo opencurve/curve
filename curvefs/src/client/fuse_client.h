@@ -53,6 +53,8 @@
 #include "curvefs/src/client/lease/lease_excutor.h"
 #include "curvefs/src/client/xattr_manager.h"
 #include "curvefs/src/client/warmup/warmup_manager.h"
+#include "curvefs/src/client/filesystem/meta.h"
+#include "curvefs/src/client/filesystem/filesystem.h"
 
 #define DirectIOAlignment 512
 
@@ -66,6 +68,7 @@ using ::curvefs::client::metric::FSMetric;
 namespace curvefs {
 namespace client {
 
+
 namespace warmup {
 class WarmupManager;
 }
@@ -76,6 +79,9 @@ using rpcclient::MdsClient;
 using rpcclient::MdsClientImpl;
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using ::curvefs::client::filesystem::FileSystem;
+using ::curvefs::client::filesystem::EntryOut;
+using ::curvefs::client::filesystem::AttrOut;
 
 using curvefs::common::is_aligned;
 
@@ -90,7 +96,6 @@ class FuseClient {
         metaClient_(std::make_shared<MetaServerClientImpl>()),
         inodeManager_(std::make_shared<InodeCacheManagerImpl>(metaClient_)),
         dentryManager_(std::make_shared<DentryCacheManagerImpl>(metaClient_)),
-        dirBuf_(std::make_shared<DirBuffer>()),
         fsInfo_(nullptr),
         mdsBase_(nullptr),
         isStop_(true),
@@ -109,7 +114,6 @@ class FuseClient {
             metaClient_(metaClient),
             inodeManager_(inodeManager),
             dentryManager_(dentryManager),
-            dirBuf_(std::make_shared<DirBuffer>()),
             fsInfo_(nullptr),
             mdsBase_(nullptr),
             isStop_(true),
@@ -140,24 +144,34 @@ class FuseClient {
                                      struct fuse_file_info* fi, char* buffer,
                                      size_t* rSize) = 0;
 
-    virtual CURVEFS_ERROR FuseOpLookup(fuse_req_t req, fuse_ino_t parent,
-                                       const char* name, fuse_entry_param* e);
+    virtual CURVEFS_ERROR FuseOpLookup(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       EntryOut* entryOut);
 
-    virtual CURVEFS_ERROR FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
+    virtual CURVEFS_ERROR FuseOpOpen(fuse_req_t req,
+                                     fuse_ino_t ino,
                                      struct fuse_file_info* fi);
 
-    virtual CURVEFS_ERROR FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
-                                       const char* name, mode_t mode,
+    virtual CURVEFS_ERROR FuseOpCreate(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       mode_t mode,
                                        struct fuse_file_info* fi,
-                                       fuse_entry_param* e) = 0;
+                                       EntryOut* entryOut) = 0;
 
-    virtual CURVEFS_ERROR FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-                                      const char* name, mode_t mode, dev_t rdev,
-                                      fuse_entry_param* e) = 0;
+    virtual CURVEFS_ERROR FuseOpMkNod(fuse_req_t req,
+                                      fuse_ino_t parent,
+                                      const char* name,
+                                      mode_t mode,
+                                      dev_t rdev,
+                                      EntryOut* entryOut) = 0;
 
-    virtual CURVEFS_ERROR FuseOpMkDir(fuse_req_t req, fuse_ino_t parent,
-                                      const char* name, mode_t mode,
-                                      fuse_entry_param* e);
+    virtual CURVEFS_ERROR FuseOpMkDir(fuse_req_t req,
+                                      fuse_ino_t parent,
+                                      const char* name,
+                                      mode_t mode,
+                                      EntryOut* entryOut);
 
     virtual CURVEFS_ERROR FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,
                                        const char* name) = 0;
@@ -165,30 +179,38 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpRmDir(fuse_req_t req, fuse_ino_t parent,
                                       const char* name);
 
-    virtual CURVEFS_ERROR FuseOpOpenDir(fuse_req_t req, fuse_ino_t ino,
+    virtual CURVEFS_ERROR FuseOpOpenDir(fuse_req_t req,
+                                        fuse_ino_t ino,
                                         struct fuse_file_info* fi);
 
-    virtual CURVEFS_ERROR FuseOpReleaseDir(fuse_req_t req, fuse_ino_t ino,
+    virtual CURVEFS_ERROR FuseOpReleaseDir(fuse_req_t req,
+                                           fuse_ino_t ino,
                                            struct fuse_file_info* fi);
 
-    virtual CURVEFS_ERROR FuseOpReadDirPlus(fuse_req_t req, fuse_ino_t ino,
-                                            size_t size, off_t off,
-                                            struct fuse_file_info* fi,
-                                            char** buffer, size_t* rSize,
-                                            bool cacheDir);
+    virtual CURVEFS_ERROR FuseOpReadDir(fuse_req_t req,
+                                        fuse_ino_t ino,
+                                        size_t size,
+                                        off_t off,
+                                        struct fuse_file_info* fi,
+                                        char** bufferOut,
+                                        size_t* rSize,
+                                        bool plus);
 
-    virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req, fuse_ino_t parent,
-                                       const char* name, fuse_ino_t newparent,
-                                       const char* newname);
+    virtual CURVEFS_ERROR FuseOpRename(fuse_req_t req,
+                                       fuse_ino_t parent,
+                                       const char* name,
+                                       fuse_ino_t newparent,
+                                       const char* newname,
+                                       unsigned int flags);
 
     virtual CURVEFS_ERROR FuseOpGetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info* fi,
-                                        struct stat* attr);
+                                        struct AttrOut* out);
 
     virtual CURVEFS_ERROR FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
                                         struct stat* attr, int to_set,
                                         struct fuse_file_info* fi,
-                                        struct stat* attrOut);
+                                        struct AttrOut* out);
 
     virtual CURVEFS_ERROR FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
                                          const char* name, std::string* value,
@@ -201,13 +223,17 @@ class FuseClient {
     virtual CURVEFS_ERROR FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
                             char *value, size_t size, size_t *realSize);
 
-    virtual CURVEFS_ERROR FuseOpSymlink(fuse_req_t req, const char* link,
-                                        fuse_ino_t parent, const char* name,
-                                        fuse_entry_param* e);
+    virtual CURVEFS_ERROR FuseOpSymlink(fuse_req_t req,
+                                        const char* link,
+                                        fuse_ino_t parent,
+                                        const char* name,
+                                        EntryOut* entryOut);
 
-    virtual CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
-                                     fuse_ino_t newparent, const char* newname,
-                                     fuse_entry_param* e) = 0;
+    virtual CURVEFS_ERROR FuseOpLink(fuse_req_t req,
+                                     fuse_ino_t ino,
+                                     fuse_ino_t newparent,
+                                     const char* newname,
+                                     EntryOut* entryOut) = 0;
 
     virtual CURVEFS_ERROR FuseOpReadLink(fuse_req_t req, fuse_ino_t ino,
                                          std::string* linkStr);
@@ -236,9 +262,11 @@ class FuseClient {
         stbuf->f_fsid = fsInfo_->fsid();
 
         stbuf->f_flag = 0;
-        stbuf->f_namemax = option_.maxNameLength;
+        stbuf->f_namemax = option_.fileSystemOption.maxNameLength;
         return CURVEFS_ERROR::OK;
     }
+
+    virtual CURVEFS_ERROR Truncate(InodeWrapper* inode, uint64_t length) = 0;
 
     void SetFsInfo(const std::shared_ptr<FsInfo>& fsInfo) {
         fsInfo_ = fsInfo;
@@ -255,15 +283,19 @@ class FuseClient {
         return fsInfo_;
     }
 
-    virtual void FlushInode();
-
-    virtual void FlushInodeAll();
+    std::shared_ptr<FileSystem> GetFileSystem() {
+        return fs_;
+    }
 
     virtual void FlushAll();
 
     // for unit test
     void SetEnableSumInDir(bool enable) {
         enableSumInDir_ = enable;
+    }
+
+    bool EnableXattrSumming() {
+        return enableSumInDir_;
     }
 
     bool PutWarmFilelistTask(fuse_ino_t key) {
@@ -288,17 +320,28 @@ class FuseClient {
     }
 
  protected:
-    CURVEFS_ERROR MakeNode(fuse_req_t req, fuse_ino_t parent, const char* name,
-                           mode_t mode, FsFileType type, dev_t rdev,
-                           fuse_entry_param* e);
+    CURVEFS_ERROR MakeNode(fuse_req_t req,
+                           fuse_ino_t parent,
+                           const char* name,
+                           mode_t mode,
+                           FsFileType type,
+                           dev_t rdev,
+                           bool internal,
+                           std::shared_ptr<InodeWrapper>& InodeWrapper);
 
     CURVEFS_ERROR RemoveNode(fuse_req_t req, fuse_ino_t parent,
                              const char* name, FsFileType type);
 
-    CURVEFS_ERROR FuseOpLink(fuse_req_t req, fuse_ino_t ino,
-                             fuse_ino_t newparent, const char* newname,
+    CURVEFS_ERROR FuseOpLink(fuse_req_t req,
+                             fuse_ino_t ino,
+                             fuse_ino_t newparent,
+                             const char* newname,
                              FsFileType type,
-                             fuse_entry_param* e);
+                             EntryOut* entryOut);
+
+    CURVEFS_ERROR HandleOpenFlags(fuse_req_t req,
+                                  fuse_ino_t ino,
+                                  struct fuse_file_info* fi);
 
     int SetHostPortInMountPoint(Mountpoint* out) {
         char hostname[kMaxHostNameLength];
@@ -313,9 +356,8 @@ class FuseClient {
         return 0;
     }
 
- private:
-    virtual CURVEFS_ERROR Truncate(InodeWrapper* inode, uint64_t length) = 0;
 
+ private:
     virtual void FlushData() = 0;
 
     CURVEFS_ERROR UpdateParentMCTimeAndNlink(
@@ -326,8 +368,8 @@ class FuseClient {
         std::string newName(name);
         newName = std::to_string(parent) + "_" + std::to_string(ino)
                     + "_" + newName;
-        if (newName.length() > option_.maxNameLength) {
-            newName = newName.substr(0, option_.maxNameLength);
+        if (newName.length() > option_.fileSystemOption.maxNameLength) {
+            newName = newName.substr(0, option_.fileSystemOption.maxNameLength);
         }
 
         return newName;
@@ -351,9 +393,6 @@ class FuseClient {
 
     std::shared_ptr<LeaseExecutor> leaseExecutor_;
 
-    // dir buffer
-    std::shared_ptr<DirBuffer> dirBuf_;
-
     // filesystem info
     std::shared_ptr<FsInfo> fsInfo_;
 
@@ -371,6 +410,8 @@ class FuseClient {
 
     // warmup manager
     std::shared_ptr<warmup::WarmupManager> warmupManager_;
+
+    std::shared_ptr<FileSystem> fs_;
 
  private:
     MDSBaseClient* mdsBase_;

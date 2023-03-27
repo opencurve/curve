@@ -31,7 +31,7 @@
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/client/common/common.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/fuse_s3_client.h"
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
 #include "curvefs/src/client/s3/disk_cache_manager_impl.h"

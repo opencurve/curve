@@ -32,7 +32,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "curvefs/proto/mds.pb.h"
-#include "curvefs/src/client/error_code.h"
+#include "curvefs/src/client/filesystem/error.h"
 #include "curvefs/src/client/volume/default_volume_storage.h"
 #include "curvefs/src/client/volume/extent_cache.h"
 #include "curvefs/src/volume/common.h"
@@ -233,33 +233,57 @@ CURVEFS_ERROR FuseVolumeClient::FuseOpRead(fuse_req_t req,
 CURVEFS_ERROR FuseVolumeClient::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
                                              const char *name, mode_t mode,
                                              struct fuse_file_info *fi,
-                                             fuse_entry_param *e) {
+                                             EntryOut* entryOut) {
     VLOG(3) << "FuseOpCreate, parent: " << parent
               << ", name: " << name
               << ", mode: " << mode;
-    CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, e);
+
+    std::shared_ptr<InodeWrapper> inode;
+    CURVEFS_ERROR ret = MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, 0, false,
+                                 inode);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
-    return FuseOpOpen(req, e->ino, fi);
+
+    auto openFiles = fs_->BorrowMember().openFiles;
+    openFiles->Open(inode->GetInodeId(), inode);
+
+    inode->GetInodeAttr(&entryOut->attr);
+    return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-                                            const char *name, mode_t mode,
-                                            dev_t rdev, fuse_entry_param *e) {
+CURVEFS_ERROR FuseVolumeClient::FuseOpMkNod(fuse_req_t req,
+                                            fuse_ino_t parent,
+                                            const char* name,
+                                            mode_t mode,
+                                            dev_t rdev,
+                                            EntryOut* entryOut) {
     VLOG(3) << "FuseOpMkNod, parent: " << parent << ", name: " << name
             << ", mode: " << mode << ", rdev: " << rdev;
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_FILE, rdev, e);
+
+    std::shared_ptr<InodeWrapper> inode;
+    CURVEFS_ERROR rc = MakeNode(req, parent, name, mode,
+                                FsFileType::TYPE_FILE, rdev,
+                                false, inode);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    InodeAttr attr;
+    inode->GetInodeAttr(&attr);
+    *entryOut = EntryOut(attr);
+    return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FuseVolumeClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
-                                     fuse_ino_t newparent, const char *newname,
-                                     fuse_entry_param *e) {
+CURVEFS_ERROR FuseVolumeClient::FuseOpLink(fuse_req_t req,
+                                           fuse_ino_t ino,
+                                           fuse_ino_t newparent,
+                                           const char* newname,
+                                           EntryOut* entryOut) {
     VLOG(1) << "FuseOpLink, ino: " << ino << ", newparent: " << newparent
             << ", newname: " << newname;
     return FuseClient::FuseOpLink(
-        req, ino, newparent, newname, FsFileType::TYPE_FILE, e);
+        req, ino, newparent, newname, FsFileType::TYPE_FILE, entryOut);
 }
 
 CURVEFS_ERROR FuseVolumeClient::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,

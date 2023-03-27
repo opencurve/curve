@@ -268,32 +268,56 @@ CURVEFS_ERROR FuseS3Client::FuseOpRead(fuse_req_t req, fuse_ino_t ino,
 CURVEFS_ERROR FuseS3Client::FuseOpCreate(fuse_req_t req, fuse_ino_t parent,
                                          const char *name, mode_t mode,
                                          struct fuse_file_info *fi,
-                                         fuse_entry_param *e) {
+                                         EntryOut* entryOut) {
     VLOG(1) << "FuseOpCreate, parent: " << parent << ", name: " << name
             << ", mode: " << mode;
+
+    std::shared_ptr<InodeWrapper> inode;
     CURVEFS_ERROR ret =
-        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, e);
+        MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, 0, false, inode);
     if (ret != CURVEFS_ERROR::OK) {
         return ret;
     }
-    return FuseOpOpen(req, e->ino, fi);
+
+    auto openFiles = fs_->BorrowMember().openFiles;
+    openFiles->Open(inode->GetInodeId(), inode);
+
+    inode->GetInodeAttr(&entryOut->attr);
+    return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req, fuse_ino_t parent,
-                                        const char *name, mode_t mode,
-                                        dev_t rdev, fuse_entry_param *e) {
+CURVEFS_ERROR FuseS3Client::FuseOpMkNod(fuse_req_t req,
+                                        fuse_ino_t parent,
+                                        const char* name,
+                                        mode_t mode,
+                                        dev_t rdev,
+                                        EntryOut* entryOut) {
     VLOG(1) << "FuseOpMkNod, parent: " << parent << ", name: " << name
             << ", mode: " << mode << ", rdev: " << rdev;
-    return MakeNode(req, parent, name, mode, FsFileType::TYPE_S3, rdev, e);
+
+    std::shared_ptr<InodeWrapper> inode;
+    CURVEFS_ERROR rc = MakeNode(req, parent, name, mode,
+                                FsFileType::TYPE_S3, rdev, false,
+                                inode);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    InodeAttr attr;
+    inode->GetInodeAttr(&attr);
+    *entryOut = EntryOut(attr);
+    return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR FuseS3Client::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
-                                     fuse_ino_t newparent, const char *newname,
-                                     fuse_entry_param *e) {
+CURVEFS_ERROR FuseS3Client::FuseOpLink(fuse_req_t req,
+                                       fuse_ino_t ino,
+                                       fuse_ino_t newparent,
+                                       const char* newname,
+                                       EntryOut* entryOut) {
     VLOG(1) << "FuseOpLink, ino: " << ino << ", newparent: " << newparent
             << ", newname: " << newname;
     return FuseClient::FuseOpLink(
-        req, ino, newparent, newname, FsFileType::TYPE_S3, e);
+        req, ino, newparent, newname, FsFileType::TYPE_S3, entryOut);
 }
 
 CURVEFS_ERROR FuseS3Client::FuseOpUnlink(fuse_req_t req, fuse_ino_t parent,

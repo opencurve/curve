@@ -228,6 +228,24 @@ http_archive(
   sha256 = "59b862f50e710277f8ede96f083a5bb8d7c9595376146838b9580be90374ee1f",
 )
 
+# fmt
+http_archive(
+  name = "fmt",
+  url = "https://github.com/fmtlib/fmt/archive/9.1.0.tar.gz",
+  sha256 = "5dea48d1fcddc3ec571ce2058e13910a0d4a6bab4cc09a809d8b1dd1c88ae6f2",
+  strip_prefix = "fmt-9.1.0",
+  build_file = "//:thirdparties/fmt.BUILD",
+)
+
+# spdlog
+http_archive(
+  name = "spdlog",
+  urls = ["https://github.com/gabime/spdlog/archive/refs/tags/v1.11.0.tar.gz"],
+  strip_prefix = "spdlog-1.11.0",
+  sha256 = "ca5cae8d6cac15dae0ec63b21d6ad3530070650f68076f3a4a862ca293a858bb",
+  build_file = "//:thirdparties/spdlog.BUILD",
+)
+
 # Bazel platform rules.
 http_archive(
     name = "platforms",
@@ -248,14 +266,14 @@ new_local_repository(
 http_archive(
     name = "hedron_compile_commands",
 
-    # Replace the commit hash in both places (below) with the latest, rather than using the stale one here. 
+    # Replace the commit hash in both places (below) with the latest, rather than using the stale one here.
     # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" in the README).
     urls = [
         "https://curve-build.nos-eastchina1.126.net/bazel-compile-commands-extractor-af9af15f7bc16fc3e407e2231abfcb62907d258f.tar.gz",
         "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/af9af15f7bc16fc3e407e2231abfcb62907d258f.tar.gz",
     ],
     strip_prefix = "bazel-compile-commands-extractor-af9af15f7bc16fc3e407e2231abfcb62907d258f",
-    # When you first run this tool, it'll recommend a sha256 hash to put here with a message like: "DEBUG: Rule 'hedron_compile_commands' indicated that a canonical reproducible form can be obtained by modifying arguments sha256 = ..." 
+    # When you first run this tool, it'll recommend a sha256 hash to put here with a message like: "DEBUG: Rule 'hedron_compile_commands' indicated that a canonical reproducible form can be obtained by modifying arguments sha256 = ..."
 )
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 hedron_compile_commands_setup()

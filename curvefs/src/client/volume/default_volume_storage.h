@@ -31,12 +31,14 @@
 #include "curvefs/src/client/volume/volume_storage.h"
 #include "curvefs/src/volume/block_device_client.h"
 #include "curvefs/src/volume/space_manager.h"
+#include "curvefs/src/client/filesystem/error.h"
 
 namespace curvefs {
 namespace client {
 
 using ::curvefs::volume::BlockDeviceClient;
 using ::curvefs::volume::SpaceManager;
+using ::curvefs::client::filesystem::CURVEFS_ERROR;
 
 class InodeCacheManager;
 
