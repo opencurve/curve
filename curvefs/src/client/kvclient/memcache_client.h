@@ -92,12 +92,9 @@ class MemCachedClient : public KVClient {
                 return false;
             }
         }
-
         memcached_behavior_set(client_, MEMCACHED_BEHAVIOR_DISTRIBUTION,
                                MEMCACHED_DISTRIBUTION_CONSISTENT);
         memcached_behavior_set(client_, MEMCACHED_BEHAVIOR_RETRY_TIMEOUT, 5);
-        memcached_behavior_set(client_,
-                               MEMCACHED_BEHAVIOR_REMOVE_FAILED_SERVERS, 1);
 
         return PushServer();
     }
@@ -117,9 +114,13 @@ class MemCachedClient : public KVClient {
         auto res = memcached_set(tcli, key.c_str(), key.length(), value,
                                  value_len, 0, 0);
         if (MEMCACHED_SUCCESS == res) {
+            VLOG(9) << "Set key = " << key << " OK";
             return true;
         }
         *errorlog = ResError(res);
+        memcached_free(tcli);
+        tcli = nullptr;
+        LOG(ERROR) << "Set key = " << key << " error = " << *errorlog;
         return false;
     }
 
@@ -135,13 +136,23 @@ class MemCachedClient : public KVClient {
         memcached_return_t ue;
         char *res = memcached_get(tcli, key.c_str(), key.length(),
                                   &value_length, &flags, &ue);
-        if (res != nullptr && value) {
+        if (MEMCACHED_SUCCESS == ue && res != nullptr && value &&
+            value_length >= length) {
+            VLOG(9) << "Get key = " << key << " OK";
             memcpy(value, res + offset, length);
             free(res);
             return true;
         }
 
         *errorlog = ResError(ue);
+        if (ue != MEMCACHED_NOTFOUND) {
+          LOG(ERROR) << "Get key = " << key << " error = " << *errorlog
+                     << ", get_value_len = " << value_length
+                     << ", expect_value_len = " << length;
+          memcached_free(tcli);
+          tcli = nullptr;
+        }
+
         return false;
     }
 

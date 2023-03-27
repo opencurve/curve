@@ -150,6 +150,7 @@ class TestFuseS3Client : public ::testing::Test {
         opt->dummyServerStartPort = 5000;
         opt->maxNameLength = 20u;
         opt->listDentryThreads = 2;
+        opt->warmupThreadsNum = 10;
     }
 
     void InitFSInfo(std::shared_ptr<FuseS3Client> client) {
