@@ -198,7 +198,7 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
     }
     inodeManager_->SetFsId(fsInfo_->fsid());
     dentryManager_->SetFsId(fsInfo_->fsid());
-    //enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
+    // enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
     enableSumInDir_ = fsInfo_->enablesumindir();
     if (fsInfo_->has_recycletimehour()) {
         enableSumInDir_ = enableSumInDir_ && (fsInfo_->recycletimehour() == 0);
