@@ -105,6 +105,19 @@ WarmupType GetWarmupType(const std::string& type) {
     return ret;
 }
 
+const char kCurveFsWarmupStorageDisk[] = "disk";
+const char kCurveFsWarmupStorageKvclient[] = "kvclient";
+
+WarmupStorageType GetWarmupStorageType(const std::string &type) {
+    auto ret = WarmupStorageType::kWarmupStorageTypeUnknown;
+    if (type == kCurveFsWarmupStorageDisk) {
+        ret = WarmupStorageType::kWarmupStorageTypeDisk;
+    } else if (type == kCurveFsWarmupStorageKvclient) {
+        ret = WarmupStorageType::kWarmupStorageTypeKvClient;
+    }
+    return ret;
+}
+
 using ::curve::common::StringToUll;
 
 // if direction is true means '+', false means '-'
