@@ -68,6 +68,9 @@ const uint32_t MAX_XATTR_VALUE_LENGTH = 64 * 1024;
 
 const char kCurveFsWarmupXAttr[] = "curvefs.warmup.op";
 
+
+constexpr int kWarmupOpNum = 4;
+
 enum class WarmupOpType {
     kWarmupOpUnknown = 0,
     kWarmupOpAdd = 1,
@@ -82,7 +85,15 @@ enum class WarmupType {
     kWarmupTypeSingle = 2,
 };
 
-WarmupType GetWarmupType(const std::string& type);
+WarmupType GetWarmupType(const std::string &type);
+
+enum class WarmupStorageType {
+    kWarmupStorageTypeUnknown = 0,
+    kWarmupStorageTypeDisk = 1,
+    kWarmupStorageTypeKvClient = 2,
+};
+
+WarmupStorageType GetWarmupStorageType(const std::string &type);
 
 enum class FileHandle : uint64_t {
     kDefaultValue = 0,

@@ -216,15 +216,16 @@ void UnInitFuseClient() {
 }
 
 int AddWarmupTask(curvefs::client::common::WarmupType type, fuse_ino_t key,
-                  const std::string &path) {
+                  const std::string &path,
+                  curvefs::client::common::WarmupStorageType storageType) {
     int ret = 0;
     bool result = true;
     switch (type) {
     case curvefs::client::common::WarmupType::kWarmupTypeList:
-        result = g_ClientInstance->PutWarmFilelistTask(key);
+        result = g_ClientInstance->PutWarmFilelistTask(key, storageType);
         break;
     case curvefs::client::common::WarmupType::kWarmupTypeSingle:
-        result = g_ClientInstance->PutWarmFileTask(key, path);
+        result = g_ClientInstance->PutWarmFileTask(key, path, storageType);
         break;
     default:
         // not support add warmup type (warmup single file/dir or filelist)
@@ -258,8 +259,15 @@ int Warmup(fuse_ino_t key, const std::string& name, const std::string& value) {
 
     std::vector<std::string> opTypePath;
     curve::common::SplitString(value, "\n", &opTypePath);
-    if (opTypePath.size() != 3) {
+    if (opTypePath.size() != curvefs::client::common::kWarmupOpNum) {
         LOG(ERROR) << name << " has invalid xattr value " << value;
+        return ERANGE;
+    }
+    auto storageType =
+        curvefs::client::common::GetWarmupStorageType(opTypePath[3]);
+    if (storageType ==
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeUnknown) {
+        LOG(ERROR) << name << " not support storage type: " << value;
         return ERANGE;
     }
     int ret = 0;
@@ -267,7 +275,7 @@ int Warmup(fuse_ino_t key, const std::string& name, const std::string& value) {
     case curvefs::client::common::WarmupOpType::kWarmupOpAdd:
         ret =
             AddWarmupTask(curvefs::client::common::GetWarmupType(opTypePath[1]),
-                          key, opTypePath[2]);
+                          key, opTypePath[2], storageType);
         if (ret != 0) {
             LOG(ERROR) << name << " has invalid xattr value " << value;
         }

@@ -226,7 +226,9 @@ TEST_F(TestFuseS3Client, warmUp_inodeBadFd) {
                         Return(CURVEFS_ERROR::BAD_FD)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
     LOG(INFO) << "ret:" << ret << " Warmup progress: " << progress.ToString();
@@ -281,7 +283,9 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry01) {
 
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -337,7 +341,9 @@ TEST_F(TestFuseS3Client, warmUp_Warmfile_error_GetDentry02) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -393,7 +399,9 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue__error_getinode) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -449,7 +457,9 @@ TEST_F(TestFuseS3Client, warmUp_fetchDataEnqueue_chunkempty) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -510,7 +520,9 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_TYPE_SYM_LINK) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -573,7 +585,9 @@ TEST_F(TestFuseS3Client, warmUp_FetchDentry_error_TYPE_DIRECTORY) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -635,7 +649,9 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_multilevel) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -684,7 +700,9 @@ TEST_F(TestFuseS3Client, warmUp_lookpath_unkown) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -739,7 +757,9 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_error_ListDentry) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);
@@ -825,7 +845,9 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
             DoAll(SetArrayArgument<3>(tmpbuf, tmpbuf + len), Return(len)));
     auto old = client_->GetFsInfo()->fstype();
     client_->GetFsInfo()->set_fstype(FSType::TYPE_S3);
-    client_->PutWarmFilelistTask(inodeid);
+    client_->PutWarmFilelistTask(
+        inodeid,
+        curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk);
 
     warmup::WarmupProgress progress;
     bool ret = client_->GetWarmupProgress(inodeid, &progress);

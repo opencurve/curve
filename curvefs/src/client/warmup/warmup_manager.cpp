@@ -32,6 +32,7 @@
 #include <memory>
 #include <utility>
 
+#include "curvefs/src/client/common/common.h"
 #include "curvefs/src/client/inode_wrapper.h"
 #include "curvefs/src/client/kvclient/kvclient_manager.h"
 #include "curvefs/src/client/s3/client_s3_cache_manager.h"
@@ -48,16 +49,17 @@ using curve::common::WriteLockGuard;
 
 #define WARMUP_CHECKINTERVAL_US (1000 * 1000)
 
-bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key) {
+bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key,
+                                            WarmupStorageType type) {
     if (!mounted_.load(std::memory_order_acquire)) {
         LOG(ERROR) << "not mounted";
         return false;
     }
     // add warmup Progress
-    if (AddWarmupProcess(key)) {
+    if (AddWarmupProcess(key, type)) {
         VLOG(9) << "add warmup list task:" << key;
         WriteLockGuard lock(warmupFilelistDequeMutex_);
-        auto iter = FindKeyWarmupFilelistLocked(key);
+        auto iter = FindWarmupFilelistByKeyLocked(key);
         if (iter == warmupFilelistDeque_.end()) {
             std::shared_ptr<InodeWrapper> inodeWrapper;
             CURVEFS_ERROR ret = inodeManager_->GetInode(key, inodeWrapper);
@@ -73,14 +75,14 @@ bool WarmupManagerS3Impl::AddWarmupFilelist(fuse_ino_t key) {
     return true;
 }
 
-bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key,
-                                        const std::string &path) {
+bool WarmupManagerS3Impl::AddWarmupFile(fuse_ino_t key, const std::string &path,
+                                        WarmupStorageType type) {
     if (!mounted_.load(std::memory_order_acquire)) {
         LOG(ERROR) << "not mounted";
         return false;
     }
     // add warmup Progress
-    if (AddWarmupProcess(key)) {
+    if (AddWarmupProcess(key, type)) {
         VLOG(9) << "add warmup single task:" << key;
         FetchDentryEnqueue(key, path);
     }
@@ -246,7 +248,7 @@ void WarmupManagerS3Impl::FetchDentry(fuse_ino_t key, fuse_ino_t ino,
     }
     if (FsFileType::TYPE_S3 == dentry.type()) {
         WriteLockGuard lock(warmupInodesDequeMutex_);
-        auto iterDeque = FindKeyWarmupInodesLocked(key);
+        auto iterDeque = FindWarmupInodesByKeyLocked(key);
         if (iterDeque == warmupInodesDeque_.end()) {
             warmupInodesDeque_.emplace_back(
                 key, std::set<fuse_ino_t>{dentry.inodeid()});
@@ -286,7 +288,7 @@ void WarmupManagerS3Impl::FetchChildDentry(fuse_ino_t key, fuse_ino_t ino) {
                 << " dentry: " << dentry.name();
         if (FsFileType::TYPE_S3 == dentry.type()) {
             WriteLockGuard lock(warmupInodesDequeMutex_);
-            auto iterDeque = FindKeyWarmupInodesLocked(key);
+            auto iterDeque = FindWarmupInodesByKeyLocked(key);
             if (iterDeque == warmupInodesDeque_.end()) {
                 warmupInodesDeque_.emplace_back(
                     key, std::set<fuse_ino_t>{dentry.inodeid()});
@@ -342,7 +344,7 @@ void WarmupManagerS3Impl::TravelChunks(
         TravelChunk(ino, infoIter.second, &prefetchObjs);
         {
             ReadLockGuard lock(inode2ProgressMutex_);
-            auto iter = FindKeyWarmupProgressLocked(key);
+            auto iter = FindWarmupProgressByKeyLocked(key);
             if (iter != inode2Progress_.end()) {
                 iter->second.AddTotal(prefetchObjs.size());
             } else {
@@ -470,17 +472,7 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             }
             if (context->retCode == 0) {
                 VLOG(9) << "Get Object success: " << context->key;
-                {
-                    // update progress
-                    ReadLockGuard lock(inode2ProgressMutex_);
-                    auto iter = FindKeyWarmupProgressLocked(key);
-                    if (iter != inode2Progress_.end()) {
-                        iter->second.FinishedPlusOne();
-                    } else {
-                        VLOG(9) << "no such warmup progress: " << key;
-                    }
-                }
-                PutObjectToCache(context->key, context->buf, context->len);
+                PutObjectToCache(key, context->key, context->buf, context->len);
                 CollectMetrics(&warmupS3Metric_.warmupS3Cached, context->len,
                                start);
                 warmupS3Metric_.warmupS3CacheSize << context->len;
@@ -515,9 +507,17 @@ void WarmupManagerS3Impl::WarmUpAllObjs(
             VLOG(9) << "download start: " << iter.first;
             std::string name = iter.first;
             uint64_t readLen = iter.second;
-            if (s3Adaptor_->GetDiskCacheManager()->IsCached(name)) {
-                pendingReq.fetch_sub(1);
-                continue;
+            {
+                ReadLockGuard lock(inode2ProgressMutex_);
+                auto iterProgress = FindWarmupProgressByKeyLocked(key);
+                if (iterProgress->second.GetStorageType() ==
+                        curvefs::client::common::WarmupStorageType::
+                            kWarmupStorageTypeDisk &&
+                    s3Adaptor_->GetDiskCacheManager()->IsCached(name)) {
+                    // storage in disk and has cached
+                    pendingReq.fetch_sub(1);
+                    continue;
+                }
             }
             char *cacheS3 = new char[readLen];
             memset(cacheS3, 0, readLen);
@@ -539,25 +539,26 @@ bool WarmupManagerS3Impl::ProgressDone(fuse_ino_t key) {
     bool ret;
     {
         ReadLockGuard lockList(warmupFilelistDequeMutex_);
-        ret = FindKeyWarmupFilelistLocked(key) == warmupFilelistDeque_.end();
+        ret =
+            FindWarmupFilelistByKeyLocked(key) == warmupFilelistDeque_.end();
     }
 
     {
         ReadLockGuard lockDentry(inode2FetchDentryPoolMutex_);
-        ret = ret && (FindKeyFetchDentryPoolLocked(key) ==
+        ret = ret && (FindFetchDentryPoolByKeyLocked(key) ==
                       inode2FetchDentryPool_.end());
     }
 
     {
         ReadLockGuard lockInodes(warmupInodesDequeMutex_);
-        ret =
-            ret && (FindKeyWarmupInodesLocked(key) == warmupInodesDeque_.end());
+        ret = ret &&
+              (FindWarmupInodesByKeyLocked(key) == warmupInodesDeque_.end());
     }
 
 
     {
         ReadLockGuard lockS3Objects(inode2FetchS3ObjectsPoolMutex_);
-        ret = ret && (FindKeyFetchS3ObjectsPoolLocked(key) ==
+        ret = ret && (FindFetchS3ObjectsPoolByKeyLocked(key) ==
                       inode2FetchS3ObjectsPool_.end());
     }
     return ret;
@@ -676,18 +677,35 @@ void WarmupManagerS3Impl::AddFetchS3objectsTask(fuse_ino_t key,
     }
 }
 
-void WarmupManagerS3Impl::PutObjectToCache(const std::string &filename,
+void WarmupManagerS3Impl::PutObjectToCache(fuse_ino_t key,
+                                           const std::string &filename,
                                            const char *data, uint64_t len) {
-    int ret =
-        s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(filename, data, len);
-    if (ret < 0) {
-        LOG_EVERY_SECOND(INFO)
-            << "write read directly failed, key: " << filename;
+    ReadLockGuard lock(inode2ProgressMutex_);
+    auto iter = FindWarmupProgressByKeyLocked(key);
+    if (iter == inode2Progress_.end()) {
+        VLOG(9) << "no this warmup task progress: " << key;
+        return;
     }
-
-    if (kvClientManager_ != nullptr) {
-        kvClientManager_->Set(
-            std::make_shared<SetKVCacheTask>(filename, data, len));
+    int ret;
+    // update progress
+    iter->second.FinishedPlusOne();
+    switch (iter->second.GetStorageType()) {
+    case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk:
+        ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(filename, data,
+                                                                 len);
+        if (ret < 0) {
+            LOG_EVERY_SECOND(INFO)
+                << "write read directly failed, key: " << filename;
+        }
+        break;
+    case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeKvClient:
+        if (kvClientManager_ != nullptr) {
+            kvClientManager_->Set(
+                std::make_shared<SetKVCacheTask>(filename, data, len));
+        }
+        break;
+    default:
+        LOG_EVERY_N(ERROR, 1000) << "unsupported warmup storage type";
     }
 }
 

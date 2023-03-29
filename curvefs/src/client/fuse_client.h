@@ -299,17 +299,17 @@ class FuseClient {
     bool EnableXattrSumming() {
         return enableSumInDir_;
     }
-
-    bool PutWarmFilelistTask(fuse_ino_t key) {
+    bool PutWarmFilelistTask(fuse_ino_t key, common::WarmupStorageType type) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
-            return warmupManager_->AddWarmupFilelist(key);
+            return warmupManager_->AddWarmupFilelist(key, type);
         }  // only support s3
         return true;
     }
 
-    bool PutWarmFileTask(fuse_ino_t key, const std::string& path) {
+    bool PutWarmFileTask(fuse_ino_t key, const std::string &path,
+                         common::WarmupStorageType type) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
-            return warmupManager_->AddWarmupFile(key, path);
+            return warmupManager_->AddWarmupFile(key, path, type);
         }  // only support s3
         return true;
     }
