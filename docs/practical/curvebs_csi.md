@@ -1,6 +1,6 @@
 [TOC]
 
-## Curve-csi与Curvebs2.5使用对接
+## Curve-CSI 与 CurveBS v2.5 使用对接
 
     curve-csi使用说明参考<https://github.com/opencurve/curve-csi/blob/master/docs/README.md>
 
@@ -15,9 +15,9 @@
 | 主机名     | 系统      | IP         |
 | ------- | ------- | ---------- |
 | 主控机     | debian9 | ip         |
-| host109 | debian9 | 10.0.0.109 |
-| host109 | debian9 | 10.0.0.110 |
-| host109 | debian9 | 10.0.0.111 |
+| host109 | debian9 | ip.*.*.109 |
+| host109 | debian9 | ip.*.*.110 |
+| host109 | debian9 | ip.*.*.111 |
 
 ### curve\_release2.5 编译
 
@@ -45,7 +45,7 @@
     # 根据需求查看Makefile和docker/debian9/中Dockefile文件
     $ make help
     # 将镜像上传到本地docker仓库，需要建本地dokcer仓库
-    $ docker tag wfcurvedocker/curvefs:v2.5 192.168.0.202:5000/wfcurvedocker/curvefs:v2.5
+    $ docker tag wfcurvedocker/curvefs:v2.5 ip.*.*.202:5000/wfcurvedocker/curvefs:v2.5
     # docker 离线仓库配置参考
       https://blog.csdn.net/weixin_37926734/article/details/123279987
 
@@ -78,11 +78,11 @@ hosts.yaml
     
     hosts:
       - host: host109
-        hostname: 10.0.0.109
+        hostname: ip.*.*.109
       - host: host110
-        hostname: 10.0.0.110
+        hostname: ip.*.*.110
       - host: host111
-        hostname: 10.0.0.111
+        hostname: ip.*.*.111
 ```
 
 ```yaml
@@ -101,7 +101,7 @@ format.yaml
 topology.yaml 
     kind: curvebs
     global:
-      container_image: 192.168.0.202:5000/wfcurvedocker/curvebs:v2.5 #编译的镜像地址
+      container_image: ip.*.*.202:5000/wfcurvedocker/curvebs:v2.5 #编译的镜像地址
       log_dir: ${home}/logs/${service_role}${service_replicas_sequence}
       data_dir: ${home}/data/${service_role}${service_replicas_sequence}
       variable:
@@ -213,19 +213,19 @@ curvebs部署参考
     $ pip install --upgrade setuptools
 ```
 
-4.  配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为10.0.0.109,10.0.0.110,10.0.0.111
+4.  配置ssh登陆到所有机器（包括自己），假设三台机器的ip分别为ip.*.*.109,ip.*.*.110,ip.*.*.111
 
 ```shell
     $ ssh-keygen  # 生成ssh秘钥
-    $ ssh-copy-id root@10.0.0.109  # 拷贝key到第一个机器
-    $ ssh-copy-id root@10.0.0.110  # 拷贝key到第二个机器
-    $ ssh-copy-id root@10.0.0.111  # 拷贝key到第三个机器
-    $ ssh 10.0.0.109  # 挨个验证一下配置是否正确
+    $ ssh-copy-id root@ip.*.*.109  # 拷贝key到第一个机器
+    $ ssh-copy-id root@ip.*.*.110  # 拷贝key到第二个机器
+    $ ssh-copy-id root@ip.*.*.111  # 拷贝key到第三个机器
+    $ ssh ip.*.*.109  # 挨个验证一下配置是否正确
 ```
 
 #### curvebs客户端配置
 
-1.  拷贝脚本和二进制到10.0.0.109节点 /home/curve目录
+1.  拷贝脚本和二进制到ip.*.*.109节点 /home/curve目录
 
 ```shell
     $ cp /编译目录/curve/build/curve  /home/curve/
@@ -245,12 +245,12 @@ client.ini
 
     [client]
     #所需部署客户端的地址
-    client109 ansible_ssh_host=10.0.0.109
+    client109 ansible_ssh_host=ip.*.*.109
     # 仅用于生成配置中的mds地址，curvebs服务端mds地址，curveadm status 可以查看
     [mds]
-    mds109 ansible_ssh_host=10.0.0.109
-    mds110 ansible_ssh_host=10.0.0.110
-    mds111 ansible_ssh_host=10.0.0.111
+    mds109 ansible_ssh_host=ip.*.*.109
+    mds110 ansible_ssh_host=ip.*.*.110
+    mds111 ansible_ssh_host=ip.*.*.111
     [client:vars]
     nebd_package_version="1.0.2+e3fa47f"
     nbd_package_version=""
@@ -322,6 +322,7 @@ client.ini
     # 查看挂载状态
     $ curve-nbd list-mapped
 ```
+<img src="../images/Curve-csi_Requirements.png" alt="Curve-csi_Requirements" width="850" />
 
 ### curve-csi 部署
 
