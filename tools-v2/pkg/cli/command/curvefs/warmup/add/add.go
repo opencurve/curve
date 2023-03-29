@@ -48,16 +48,22 @@ $ curve fs warmup add /mnt/warmup # warmup all files in /mnt/warmup`
 
 const (
 	CURVEFS_WARMUP_OP_XATTR      = "curvefs.warmup.op"
-	CURVEFS_WARMUP_OP_ADD_SINGLE = "add\nsingle\n%s"
-	CURVEFS_WARMUP_OP_ADD_LIST   = "add\nlist\n%s"
+	CURVEFS_WARMUP_OP_ADD_SINGLE = "add\nsingle\n%s\n%s"
+	CURVEFS_WARMUP_OP_ADD_LIST   = "add\nlist\n%s\n%s"
 )
+
+var STORAGE_TYPE = map[string]string{
+	"disk": "disk",
+	"mem":  "kvclient",
+}
 
 type AddCommand struct {
 	basecmd.FinalCurveCmd
 	Mountpoint   *mountinfo.MountInfo
 	Path         string // path in user system
-	CurvefsPath	 string // path in curvefs
-	Single       bool // warmup a single file or directory
+	CurvefsPath  string // path in curvefs
+	Single       bool   // warmup a single file or directory
+	StorageType  string // warmup storage type
 	ConvertFails []string
 }
 
@@ -82,6 +88,7 @@ func NewAddCommand() *cobra.Command {
 func (aCmd *AddCommand) AddFlags() {
 	config.AddFileListOptionFlag(aCmd.Cmd)
 	config.AddDaemonOptionPFlag(aCmd.Cmd)
+	config.AddStorageOptionFlag(aCmd.Cmd)
 }
 
 func (aCmd *AddCommand) Init(cmd *cobra.Command, args []string) error {
@@ -122,23 +129,29 @@ func (aCmd *AddCommand) Init(cmd *cobra.Command, args []string) error {
 	aCmd.Mountpoint = nil
 	for _, mountpoint := range mountpoints {
 		absPath, _ := filepath.Abs(aCmd.Path)
-		rel , err := filepath.Rel(mountpoint.MountPoint, absPath)
+		rel, err := filepath.Rel(mountpoint.MountPoint, absPath)
 		if err == nil && !strings.HasPrefix(rel, "..") {
 			// found the mountpoint
 			if aCmd.Mountpoint == nil ||
 				len(aCmd.Mountpoint.MountPoint) < len(mountpoint.MountPoint) {
-					// Prevent the curvefs directory from being mounted under the curvefs directory
-					// /a/b/c:
-					// test-1 mount in /a
-					// test-1 mount in /a/b
-					// warmup /a/b/c.
-					aCmd.Mountpoint = mountpoint
-					aCmd.CurvefsPath = cobrautil.Path2CurvefsPath(aCmd.Path, mountpoint)
+				// Prevent the curvefs directory from being mounted under the curvefs directory
+				// /a/b/c:
+				// test-1 mount in /a
+				// test-1 mount in /a/b
+				// warmup /a/b/c.
+				aCmd.Mountpoint = mountpoint
+				aCmd.CurvefsPath = cobrautil.Path2CurvefsPath(aCmd.Path, mountpoint)
 			}
 		}
 	}
 	if aCmd.Mountpoint == nil {
 		return fmt.Errorf("[%s] is not saved in curvefs", aCmd.Path)
+	}
+
+	// check storage type
+	aCmd.StorageType = STORAGE_TYPE[config.GetStorageFlag(aCmd.Cmd)]
+	if aCmd.StorageType == "" {
+		return fmt.Errorf("[%s] is not support storage type", aCmd.StorageType)
 	}
 
 	return nil
@@ -185,7 +198,7 @@ func (aCmd *AddCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		}
 		xattr = CURVEFS_WARMUP_OP_ADD_LIST
 	}
-	value := fmt.Sprintf(xattr, aCmd.CurvefsPath)
+	value := fmt.Sprintf(xattr, aCmd.CurvefsPath, aCmd.StorageType)
 	err := unix.Setxattr(aCmd.Path, CURVEFS_WARMUP_OP_XATTR, []byte(value), 0)
 	if err == unix.ENOTSUP || err == unix.EOPNOTSUPP {
 		return fmt.Errorf("filesystem does not support extended attributes")
