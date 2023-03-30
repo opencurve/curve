@@ -2,7 +2,7 @@
 
 ## Curve-CSI 与 CurveBS v2.5 使用对接
 
-    本文的补充[curve-csi使用说明](https://blog.csdn.net/weixin_37926734/article/details/123279987)中Requirements部分，即用curveadm容器化部署curvebs服务端，用ansible在物理机上部署curvebs客户端，包括nebd nbd sdk。物理机上部署curvebs客户端后,curve-csi就可以调用物理机上curve命令创建卷，curve-csi通过nebd服务挂载nbd。curvebs版本使用release2.5。
+  本文的补充[curve-csi使用说明](https://blog.csdn.net/weixin_37926734/article/details/123279987)中Requirements部分，即用curveadm容器化部署curvebs服务端，用ansible在物理机上部署curvebs客户端，包括nebd nbd sdk。物理机上部署curvebs客户端后,curve-csi就可以调用物理机上curve命令创建卷，curve-csi通过nebd服务挂载nbd。curvebs版本使用release2.5。
 
 ### 环境信息
 
