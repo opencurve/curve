@@ -92,6 +92,10 @@ struct TimeSpec {
 
     TimeSpec& operator=(const TimeSpec& time) = default;
 
+    TimeSpec operator+(const TimeSpec& time) const {
+        return TimeSpec(seconds + time.seconds, nanoSeconds + time.nanoSeconds);
+    }
+
     uint64_t seconds;
     uint32_t nanoSeconds;
 };

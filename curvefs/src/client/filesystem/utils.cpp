@@ -58,6 +58,12 @@ TimeSpec InodeMtime(const std::shared_ptr<InodeWrapper> inode) {
     return AttrMtime(attr);
 }
 
+TimeSpec Now() {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    return TimeSpec(now.tv_sec, now.tv_nsec);
+}
+
 }  // namespace filesystem
 }  // namespace client
 }  // namespace curvefs

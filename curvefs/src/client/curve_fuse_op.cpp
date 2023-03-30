@@ -214,19 +214,6 @@ void UnInitFuseClient() {
     delete g_clientOpMetric;
 }
 
-void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
-    CURVEFS_ERROR ret = g_ClientInstance->FuseOpInit(userdata, conn);
-    if (ret != CURVEFS_ERROR::OK) {
-        LOG(FATAL) << "FuseOpInit failed, ret = " << ret;
-    }
-    EnableSplice(conn);
-    LOG(INFO) << "Fuse op init success!";
-}
-
-void FuseOpDestroy(void *userdata) {
-    g_ClientInstance->FuseOpDestroy(userdata);
-}
-
 int AddWarmupTask(curvefs::client::common::WarmupType type, fuse_ino_t key,
                   const std::string &path) {
     int ret = 0;
@@ -331,6 +318,30 @@ void QueryWarmup(fuse_req_t req, fuse_ino_t ino, size_t size) {
     LatencyUpdater updater(&g_clientOpMetric->op##REQUEST.latency)
 
 }  // namespace
+
+void FuseOpInit(void *userdata, struct fuse_conn_info *conn) {
+    CURVEFS_ERROR rc;
+    auto client = Client();
+    AccessLogGuard log([&](){
+        return StrFormat("init : %s", StrErr(rc));
+    });
+
+    rc = client->FuseOpInit(userdata, conn);
+    if (rc != CURVEFS_ERROR::OK) {
+        LOG(FATAL) << "FuseOpInit() failed, retCode = " << rc;
+    } else {
+        EnableSplice(conn);
+        LOG(INFO) << "FuseOpInit() success, retCode = " << rc;
+    }
+}
+
+void FuseOpDestroy(void *userdata) {
+    auto client = Client();
+    AccessLogGuard log([&](){
+        return StrFormat("destory : OK");
+    });
+    client->FuseOpDestroy(userdata);
+}
 
 void FuseOpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
     CURVEFS_ERROR rc;
@@ -612,7 +623,7 @@ void FuseOpFlush(fuse_req_t req,
     auto fs = client->GetFileSystem();
     MetricGuard(Flush);
     AccessLogGuard log([&](){
-        return StrFormat("flush (%d,%d: %s", ino, fi->fh, StrErr(rc));
+        return StrFormat("flush (%d,%d): %s", ino, fi->fh, StrErr(rc));
     });
 
     rc = client->FuseOpFlush(req, ino, fi);

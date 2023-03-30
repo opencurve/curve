@@ -184,6 +184,11 @@ struct KernelCacheOption {
     uint32_t dirAttrTimeout;
 };
 
+struct LookupCacheOption {
+    uint64_t lruSize;
+    uint32_t negativeTimeout;
+};
+
 struct DirCacheOption {
     uint64_t lruSize;
     uint32_t timeout;
@@ -213,6 +218,7 @@ struct FileSystemOption {
     uint32_t maxNameLength;
     uint32_t blockSize = 0x10000u;
     KernelCacheOption kernelCacheOption;
+    LookupCacheOption lookupCacheOption;
     DirCacheOption dirCacheOption;
     OpenFileOption openFileOption;
     AttrWatcherOption attrWatcherOption;

@@ -48,6 +48,8 @@ struct TimeSpec AttrCtime(const InodeAttr& attr);
 
 struct TimeSpec InodeMtime(const std::shared_ptr<InodeWrapper> inode);
 
+struct TimeSpec Now();
+
 }  // namespace filesystem
 }  // namespace client
 }  // namespace curvefs

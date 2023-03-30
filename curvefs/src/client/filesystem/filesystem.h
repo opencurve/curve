@@ -27,6 +27,7 @@
 #include "curvefs/src/client/common/config.h"
 #include "curvefs/src/client/filesystem/package.h"
 #include "curvefs/src/client/filesystem/meta.h"
+#include "curvefs/src/client/filesystem/lookup_cache.h"
 #include "curvefs/src/client/filesystem/dir_cache.h"
 #include "curvefs/src/client/filesystem/openfile.h"
 #include "curvefs/src/client/filesystem/attr_watcher.h"
@@ -136,6 +137,7 @@ class FileSystem {
     FileSystemOption option_;
     ExternalMember member;
     std::shared_ptr<DeferSync> deferSync_;
+    std::shared_ptr<LookupCache> negative_;
     std::shared_ptr<DirCache> dirCache_;
     std::shared_ptr<OpenFiles> openFiles_;
     std::shared_ptr<AttrWatcher> attrWatcher_;

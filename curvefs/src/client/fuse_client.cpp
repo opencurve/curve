@@ -181,7 +181,7 @@ CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                                                        : mOpts->mountPoint);
     std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
 
-    mountpoint_.set_cto(FLAGS_enableCto);
+    mountpoint_.set_cto(false);
 
     int retVal = SetHostPortInMountPoint(&mountpoint_);
     if (retVal < 0) {

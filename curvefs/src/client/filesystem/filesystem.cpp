@@ -32,6 +32,7 @@ namespace filesystem {
 FileSystem::FileSystem(FileSystemOption option, ExternalMember member)
     : option_(option), member(member) {
     deferSync_ = std::make_shared<DeferSync>(option.deferSyncOption);
+    negative_ = std::make_shared<LookupCache>(option.lookupCacheOption);
     dirCache_ = std::make_shared<DirCache>(option.dirCacheOption);
     openFiles_ = std::make_shared<OpenFiles>(option_.openFileOption,
                                              deferSync_, dirCache_);
@@ -228,7 +229,17 @@ CURVEFS_ERROR FileSystem::Lookup(Request req,
     if (name.size() > option_.maxNameLength) {
         return CURVEFS_ERROR::NAMETOOLONG;
     }
-    return rpc_->Lookup(parent, name, entryOut);
+
+    bool yes = negative_->Get(parent, name);
+    if (yes) {
+        return CURVEFS_ERROR::NOTEXIST;
+    }
+
+    auto rc = rpc_->Lookup(parent, name, entryOut);
+    if (rc == CURVEFS_ERROR::NOTEXIST) {
+        negative_->Put(parent, name);
+    }
+    return rc;
 }
 
 CURVEFS_ERROR FileSystem::GetAttr(Request req, Ino ino, AttrOut* attrOut) {

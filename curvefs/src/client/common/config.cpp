@@ -257,6 +257,12 @@ void InitFileSystemOption(Configuration* c, FileSystemOption* option) {
         c->GetValueFatalIfFail("fs.kernelCache.entryTimeout", &o->entryTimeout);
         c->GetValueFatalIfFail("fs.kernelCache.dirEntryTimeout", &o->dirEntryTimeout);
     }
+    { // memory lookup cache option
+        auto o = &option->lookupCacheOption;
+        c->GetValueFatalIfFail("fs.lookupCache.lruSize", &o->lruSize);
+        c->GetValueFatalIfFail("fs.lookupCache.negativeTimeout",
+                               &o->negativeTimeout);
+    }
     { // dir cache option
         auto o = &option->dirCacheOption;
         c->GetValueFatalIfFail("fs.dirCache.lruSize", &o->lruSize);

@@ -31,5 +31,5 @@ fi
 
 docker exec ${g_container_name} cp -r /curve/src/curvefs /curve/build/
 docker exec ${g_container_name} cp -r /curve/src/WORKSPACE /curve/build/
-docker exec ${g_container_name} cp -r /curve/src/thirdparties/*.BUILD /curve/build/thirdparties
-docker exec -it ${g_container_name} /bin/bash
+docker exec ${g_container_name}cp -r /curve/src/thirdparties/*.BUILD /curve/build/thirdparties
+docker exec  -it ${g_container_name} /bin/bash
