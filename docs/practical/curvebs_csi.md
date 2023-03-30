@@ -2,13 +2,7 @@
 
 ## Curve-CSI 与 CurveBS v2.5 使用对接
 
-    curve-csi使用说明参考<https://github.com/opencurve/curve-csi/blob/master/docs/README.md>
-
-    本文的补充curve-csi使用说明中Requirements部分，即用curveadm容器化部署curvebs服务端，用ansible在物理机上部署curvebs客户端，包括nebd nbd sdk。
-
-    物理机上部署curvebs客户端后,curve-csi就可以调用物理机上curve命令创建卷，curve-csi通过nebd服务挂载nbd。
-
-    curvebs版本使用release2.5。
+    本文的补充[curve-csi使用说明](https://blog.csdn.net/weixin_37926734/article/details/123279987)中Requirements部分，即用curveadm容器化部署curvebs服务端，用ansible在物理机上部署curvebs客户端，包括nebd nbd sdk。物理机上部署curvebs客户端后,curve-csi就可以调用物理机上curve命令创建卷，curve-csi通过nebd服务挂载nbd。curvebs版本使用release2.5。
 
 ### 环境信息
 
@@ -19,7 +13,7 @@
 | host110 | debian9 | ip.*.*.110 |
 | host111 | debian9 | ip.*.*.111 |
 
-### curve\_release2.5 编译
+### curve_release2.5 源码编译与镜像打包
 
 #### 源码编译
 
@@ -36,7 +30,7 @@
       curve nbd-package nebd-package
 ```
 
-#### 镜像编译
+#### 镜像打包
 
 ```shell
     # 编译curve release2.5镜像，用于部署curvebs服务端
@@ -46,18 +40,14 @@
     $ make help
     # 将镜像上传到本地docker仓库，需要建本地dokcer仓库
     $ docker tag wfcurvedocker/curvebs:v2.5 ip.*.*.202:5000/wfcurvedocker/curvebs:v2.5
-    # docker 离线仓库配置参考
-      https://blog.csdn.net/weixin_37926734/article/details/123279987
-
 ```
+  docker离线仓库配置请参考[Docker入门私有库](https://blog.csdn.net/weixin_37926734/article/details/123279987)
 
 ### curvebs 服务端部署
 
 #### curveadm 部署
 
-curveadm 部署参考
-
-<https://github.com/opencurve/curveadm/wiki/install-curveadm#%E5%AE%89%E8%A3%85-curveadm>
+  请参考[安装CurveAdm](https://github.com/opencurve/curveadm/wiki/install-curveadm#%E5%AE%89%E8%A3%85-curveadm)
 
 ```shell
     $ bash -c "$(curl -fsSL https://curveadm.nos-eastchina1.126.net/script/install.sh)"
@@ -65,9 +55,7 @@ curveadm 部署参考
 
 #### curvebs服务端配置
 
-yaml配置参考
-
-<https://github.com/opencurve/curveadm/tree/develop/configs/bs/cluster>
+  请参考[yaml配置](https://github.com/opencurve/curveadm/tree/develop/configs/bs/cluster)
 
 ```yaml
 hosts.yaml
@@ -159,32 +147,13 @@ topology.yaml
 
 #### curvebs 服务端部署步骤
 
-curvebs部署参考
-<https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment>
-
-```shell
-    # 进入curveadm配置目录，根据参考和需求修改
-    $ cd configs/bs/cluster
-    # 添加主机
-    $ curveadm hosts commit hosts.yaml
-    # 格式化磁盘
-    $ curveadm format -f format.yaml
-    # 添加集群
-    $ curveadm cluster add curvebs2.5 -f topology.yaml
-    # 切换集群
-    $ curveadm cluster checkout curvebs2.5
-    # 部署集群
-    $ curveadm deploy --skip snapshotclone
-    # 查看集群运行情况
-    $ curveadm status
-```
+  请参考[CurveAdm部署CurveBS集群](https://github.com/opencurve/curveadm/wiki/curvebs-cluster-deployment)
 
 ### curvebs 客户端部署
 
 #### 环境准备具体步骤
 
- ansile部署curvebs参考
-    <https://github.com/opencurve/curve/blob/master/docs/cn/deploy.md>
+  请参考[Ansile部署Curvebs](https://github.com/opencurve/curve/blob/master/docs/cn/deploy.md)
 
 1.  root用户登录机器，创建curve用户
 
@@ -196,8 +165,7 @@ curvebs部署参考
 
 ```shell
     $ su  # 进入root用户
-    $ apt install sudo  # 安装sudo，如果没有安装过的话
-    $ echo "curve ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/curve 
+    $ 在/etc/sudoers.d下面创建一个新文件curve，里面添加一行：curve ALL=(ALL) NOPASSWD:ALL 
     $ sudo -iu curve  # 切换到curve用户
     $ sudo ls  # 测试sudo是否正确配置
 ```
@@ -314,8 +282,7 @@ client.ini
 
 3.  验证curvebs集群是否可用
 
-curve卷命令参考
-	https://github.com/opencurve/curve/blob/master/docs/cn/k8s_csi_interface.md
+  请参考[curve卷命令](https://github.com/opencurve/curve/blob/master/docs/cn/k8s_csi_interface.md)
 	
 ```shell
     # 创建卷
@@ -329,4 +296,11 @@ curve卷命令参考
 
 ### curve-csi 部署
 
-    curve-csi使用说明参考<https://github.com/opencurve/curve-csi/blob/master/docs/README.md>
+  请参考[curve-csi使用说明](https://github.com/opencurve/curve-csi/blob/master/docs/README.md)
+
+### 总结
+
+  本篇文章我们主要解决的问题是curve-csi创建卷，查询卷，挂载卷失败的问题。目前最新curvebs客户端的部署是用curveadm进行容器化部署，
+  物理主机上没有curve curve-nebd命令和nebd相关的服务和配置，因此curve-csi部署的时候会产生报错。本文部署curvebs服务端依旧使用curveadm
+  进行容器化部署，curvebs客户端使用curve源码中旧的部署方式ansible部署方式，可以解决客户端在物理机上的部署，部署只需修改client.ini配置
+  执行三个部署命令。
