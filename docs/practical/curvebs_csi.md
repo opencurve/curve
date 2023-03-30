@@ -16,8 +16,8 @@
 | ------- | ------- | ---------- |
 | 主控机     | debian9 | ip         |
 | host109 | debian9 | ip.*.*.109 |
-| host109 | debian9 | ip.*.*.110 |
-| host109 | debian9 | ip.*.*.111 |
+| host110 | debian9 | ip.*.*.110 |
+| host111 | debian9 | ip.*.*.111 |
 
 ### curve\_release2.5 编译
 
@@ -41,11 +41,11 @@
 ```shell
     # 编译curve release2.5镜像，用于部署curvebs服务端
     $ cd /编译路径/curve
-    $ make image stor=bs tag=wfcurvedocker/curvefs:v2.5 os=debian9
+    $ make image stor=bs tag=wfcurvedocker/curvebs:v2.5 os=debian9
     # 根据需求查看Makefile和docker/debian9/中Dockefile文件
     $ make help
     # 将镜像上传到本地docker仓库，需要建本地dokcer仓库
-    $ docker tag wfcurvedocker/curvefs:v2.5 ip.*.*.202:5000/wfcurvedocker/curvefs:v2.5
+    $ docker tag wfcurvedocker/curvebs:v2.5 ip.*.*.202:5000/wfcurvedocker/curvebs:v2.5
     # docker 离线仓库配置参考
       https://blog.csdn.net/weixin_37926734/article/details/123279987
 
@@ -313,7 +313,9 @@ client.ini
 ```
 
 3.  验证curvebs集群是否可用
-
+curve卷命令参考
+	https://github.com/opencurve/curve/blob/master/docs/cn/k8s_csi_interface.md
+	
 ```shell
     # 创建卷
     $ curve create --filename /test --length 10 --user curve
