@@ -313,6 +313,7 @@ client.ini
 ```
 
 3.  验证curvebs集群是否可用
+
 curve卷命令参考
 	https://github.com/opencurve/curve/blob/master/docs/cn/k8s_csi_interface.md
 	
