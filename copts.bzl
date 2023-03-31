@@ -78,6 +78,7 @@ CURVE_GCC_DISABLED_FLGAS = [
     "-Wno-error=unused-variable",
     "-Wno-error=deprecated-declarations",
     "-Wno-error=narrowing",
+    "-Wno-error=extra",
 ]
 
 # FIXME: temporary disabled because triggered in many places

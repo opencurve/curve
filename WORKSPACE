@@ -236,6 +236,21 @@ http_archive(
     urls = ["https://github.com/bazelbuild/platforms/archive/98939346da932eef0b54cf808622f5bb0928f00b.zip"],
 )
 
+http_archive(
+    name = "opentelemetry",
+    strip_prefix = "opentelemetry-cpp-1.8.3",
+    urls = [
+        "https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.8.3.tar.gz"
+    ],
+)
+
+# Load OpenTelemetry dependencies after load.
+load("@opentelemetry//bazel:repository.bzl", "opentelemetry_cpp_deps")
+opentelemetry_cpp_deps()
+# Load extra dependencies required for OpenTelemetry
+load("@opentelemetry//bazel:extra_deps.bzl", "opentelemetry_extra_deps")
+opentelemetry_extra_deps()
+
 # RocksDB
 new_local_repository(
     name = "rocksdb",
