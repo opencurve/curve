@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 
 #include "nebd/proto/client.pb.h"
+#include "src/common/telemetry/telemetry.h"
 
 namespace nebd {
 namespace server {
@@ -220,16 +221,19 @@ int CurveRequestExecutor::Discard(NebdFileInstance* fd,
 
 int CurveRequestExecutor::AioRead(
     NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+    auto tracer = curve::telemetry::GetTracer("AioRead");
+    auto span = tracer->StartSpan("CurveRequestExecutor::AioRead");
     int curveFd = GetCurveFdFromNebdFileInstance(fd);
     if (curveFd < 0) {
         return -1;
     }
 
-    CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
+    auto *curveCombineCtx = new CurveAioCombineContext();
     curveCombineCtx->nebdCtx = aioctx;
     int ret = FromNebdCtxToCurveCtx(aioctx, &curveCombineCtx->curveCtx);
     if (ret < 0) {
         delete curveCombineCtx;
+        span->End();
         return -1;
     }
 
@@ -237,6 +241,7 @@ int CurveRequestExecutor::AioRead(
                            curve::client::UserDataType::IOBuffer);
     if (ret !=  LIBCURVE_ERROR::OK) {
         delete curveCombineCtx;
+        span->End();
         return -1;
     }
 

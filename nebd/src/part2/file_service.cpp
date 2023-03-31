@@ -26,10 +26,11 @@
 #include <butil/iobuf.h>
 
 #include "nebd/src/part2/file_service.h"
+#include "src/common/telemetry/telemetry.h"
+#include "src/common/telemetry/brpc_carrier.h"
 
 namespace nebd {
 namespace server {
-
 using nebd::client::RetCode;
 using OpenFlags = nebd::client::ProtoOpenFlags;
 
@@ -191,10 +192,13 @@ void NebdFileServiceImpl::Read(
     const nebd::client::ReadRequest* request,
     nebd::client::ReadResponse* response,
     google::protobuf::Closure* done) {
+    auto span = curve::telemetry::startRpcServerSpan(
+        "AioRead", "NebdFileServiceImpl::Read", cntl_base);
+    auto scope = trace::Scope{span};
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
-    NebdServerAioContext* aioContext
+    auto* aioContext
         = new (std::nothrow) NebdServerAioContext();
     aioContext->offset = request->offset();
     aioContext->size = request->size();

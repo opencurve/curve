@@ -35,6 +35,7 @@ cc_library(
         "//nebd/proto:client_cc_proto",
         "//nebd/src/common:nebd_common",
         "//src/client:curve",
+        "//src/common/telemetry:curve_telemetry",
     ],
 )
 

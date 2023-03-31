@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "nebd/src/part2/util.h"
+#include "src/common/telemetry/telemetry.h"
 
 namespace nebd {
 namespace server {
@@ -213,15 +214,20 @@ int NebdFileEntity::Discard(NebdServerAioContext* aioctx) {
 }
 
 int NebdFileEntity::AioRead(NebdServerAioContext* aioctx) {
+    auto tracer = curve::telemetry::GetTracer("AioRead");
+    auto span = tracer->StartSpan("NebdFileEntity::AioRead");
     auto task = [&]() {
+        auto subSpan = tracer->StartSpan("NebdFileEntity::AioRead_AsyncTask");
         int ret = executor_->AioRead(fileInstance_.get(), aioctx);
         if (ret < 0) {
             LOG(ERROR) << "AioRead file failed. "
                        << "fd: " << fd_
                        << ", fileName: " << fileName_
                        << ", context: " << *aioctx;
+            subSpan->End();
             return -1;
         }
+        subSpan->End();
         return 0;
     };
     return ProcessAsyncRequest(task, aioctx);
@@ -329,7 +335,7 @@ int NebdFileEntity::ProcessAsyncRequest(ProcessTask task,
                                 << "filename: " << fileName_;
     CHECK(aioctx != nullptr) << "AioContext should not be null.";
 
-    NebdRequestReadLockClosure* done =
+    auto* done =
         new (std::nothrow) NebdRequestReadLockClosure(rwLock_);
     brpc::ClosureGuard doneGuard(done);
 

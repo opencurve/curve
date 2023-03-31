@@ -27,6 +27,7 @@
 
 #include "nebd/src/part1/nebd_client.h"
 #include "nebd/src/part1/nebd_common.h"
+#include "src/common/telemetry/telemetry.h"
 
 namespace nebd {
 namespace client {
@@ -38,6 +39,10 @@ struct AsyncRequestClosure : public google::protobuf::Closure {
       : fd(fd),
         aioCtx(ctx),
         requestOption_(option) {}
+    AsyncRequestClosure(int fd, NebdClientAioContext *ctx,
+                        const RequestOption &option,
+                        nostd::shared_ptr<trace::Tracer> tracer)
+        : fd(fd), aioCtx(ctx), requestOption_(option), tracer_(tracer) {}
 
     void Run() override;
 
@@ -57,6 +62,8 @@ struct AsyncRequestClosure : public google::protobuf::Closure {
     brpc::Controller cntl;
 
     RequestOption requestOption_;
+
+    nostd::shared_ptr<trace::Tracer> tracer_{curve::telemetry::GetNoopTracer()};
 };
 
 struct AioWriteClosure : public AsyncRequestClosure {
@@ -83,6 +90,12 @@ struct AioReadClosure : public AsyncRequestClosure {
           fd,
           ctx,
           option) {}
+
+    AioReadClosure(int fd, NebdClientAioContext *ctx,
+                   const RequestOption &option,
+                   nostd::shared_ptr<trace::Tracer> tracer
+                   )
+        : AsyncRequestClosure(fd, ctx, option, tracer) {}
 
     ReadResponse response;
 

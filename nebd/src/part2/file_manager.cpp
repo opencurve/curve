@@ -29,10 +29,11 @@
 #include <vector>
 
 #include "nebd/src/part2/util.h"
+#include "src/common/telemetry/telemetry.h"
+
 
 namespace nebd {
 namespace server {
-
 NebdFileManager::NebdFileManager(MetaFileManagerPtr metaFileManager)
     : isRunning_(false)
     , metaFileManager_(metaFileManager) {}
@@ -121,6 +122,8 @@ int NebdFileManager::Discard(int fd, NebdServerAioContext* aioctx) {
 }
 
 int NebdFileManager::AioRead(int fd, NebdServerAioContext* aioctx) {
+    auto span = curve::telemetry::GetTracer("AioRead")->StartSpan(
+        "NebdClient::AioRead");
     NebdFileEntityPtr entity = GetFileEntity(fd);
     if (entity == nullptr) {
         LOG(ERROR) << "AioRead file failed. fd: " << fd;
@@ -176,6 +179,8 @@ int NebdFileManager::InvalidCache(int fd) {
 
 NebdFileEntityPtr
 NebdFileManager::GetFileEntity(int fd) {
+    auto span = curve::telemetry::GetTracer("AioRead")->StartSpan(
+        "NebdFileManager::GetFileEntity");
     ReadLockGuard readLock(rwLock_);
     auto iter = fileMap_.find(fd);
     if (iter == fileMap_.end()) {

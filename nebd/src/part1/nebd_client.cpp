@@ -33,6 +33,8 @@
 
 #include "nebd/src/part1/async_request_closure.h"
 #include "nebd/src/common/configuration.h"
+#include "src/common/telemetry/telemetry.h"
+#include "src/common/telemetry/brpc_carrier.h"
 
 #define RETURN_IF_FALSE(val) if (val == false) { return -1; }
 
@@ -340,22 +342,34 @@ int NebdClient::Discard(int fd, NebdClientAioContext* aioctx) {
 }
 
 int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
-    auto task = [this, fd, aioctx]() {
+    auto tracer = curve::telemetry::GetTracer("AioRead");
+    auto span = tracer->StartSpan("NebdClient::AioRead");
+    auto task = [this, fd, aioctx, &tracer]() {
+        auto subSpan = tracer->StartSpan("NebdClient::AioRead_AsyncTask");
         nebd::client::NebdFileService_Stub stub(&channel_);
         nebd::client::ReadRequest request;
         request.set_fd(fd);
         request.set_offset(aioctx->offset);
         request.set_size(aioctx->length);
 
-        AioReadClosure* done = new(std::nothrow) AioReadClosure(
-            fd, aioctx, option_.requestOption);
+        auto *done = new (std::nothrow)
+            AioReadClosure(fd, aioctx, option_.requestOption, tracer);
         done->cntl.set_timeout_ms(-1);
         done->cntl.set_log_id(logId_.fetch_add(1, std::memory_order_relaxed));
+
+        // Inject current context to brpc header
+        auto currCtx = context::RuntimeContext::GetCurrent();
+        curve::telemetry::RpcServiceCarrier carrier(&done->cntl);
+        auto prop = context::propagation::GlobalTextMapPropagator::
+            GetGlobalPropagator();
+        prop->Inject(carrier, currCtx);
+
         stub.Read(&done->cntl, &request, &done->response, done);
+        subSpan->End();
     };
 
     PushAsyncTask(task);
-
+    span->End();
     return 0;
 }
 

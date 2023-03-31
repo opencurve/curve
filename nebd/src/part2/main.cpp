@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <glog/logging.h>
 #include "nebd/src/part2/nebd_server.h"
+#include "src/common/telemetry/telemetry.h"
+
 
 DEFINE_string(confPath, "/etc/nebd/nebd-server.conf", "nebd server conf path");
 
@@ -31,8 +33,9 @@ int main(int argc, char* argv[]) {
     // 解析参数
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
-    std::string confPath = FLAGS_confPath.c_str();
+    std::string confPath{FLAGS_confPath};
 
+    curve::telemetry::InitTracer();
     // 启动nebd server
     auto server = std::make_shared<::nebd::server::NebdServer>();
     int initRes = server->Init(confPath);
