@@ -37,6 +37,25 @@ git_repository(
     commit = "d12de388c97998f5ccd5cb97ed0da728815ef438",
 )
 
+git_repository(
+    name = "fmt",
+    branch = "master",
+    remote = "https://github.com/fmtlib/fmt",
+    commit = "bce8d4ed087a0560492426f9f5be2713804daded"
+    patch_cmds = [
+        "mv support/bazel/.bazelrc .bazelrc",
+        "mv support/bazel/.bazelversion .bazelversion",
+        "mv support/bazel/BUILD.bazel BUILD.bazel",
+        "mv support/bazel/WORKSPACE.bazel WORKSPACE.bazel",
+    ],
+    patch_cmds_win = [
+        "Move-Item -Path support/bazel/.bazelrc -Destination .bazelrc",
+        "Move-Item -Path support/bazel/.bazelversion -Destination .bazelversion",
+        "Move-Item -Path support/bazel/BUILD.bazel -Destination BUILD.bazel",
+        "Move-Item -Path support/bazel/WORKSPACE.bazel -Destination WORKSPACE.bazel",
+    ],
+)
+
 bind(
     name = "braft",
     actual = "@com_github_baidu_braft//:braft",
