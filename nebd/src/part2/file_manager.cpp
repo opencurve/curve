@@ -123,7 +123,7 @@ int NebdFileManager::Discard(int fd, NebdServerAioContext* aioctx) {
 
 int NebdFileManager::AioRead(int fd, NebdServerAioContext* aioctx) {
     auto span = curve::telemetry::GetTracer("AioRead")->StartSpan(
-        "NebdClient::AioRead");
+        "NebdFileManager::AioRead");
     NebdFileEntityPtr entity = GetFileEntity(fd);
     if (entity == nullptr) {
         LOG(ERROR) << "AioRead file failed. fd: " << fd;

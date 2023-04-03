@@ -192,14 +192,12 @@ void NebdFileServiceImpl::Read(
     const nebd::client::ReadRequest* request,
     nebd::client::ReadResponse* response,
     google::protobuf::Closure* done) {
-    auto span = curve::telemetry::startRpcServerSpan(
+    auto span = curve::telemetry::StartRpcServerSpan(
         "AioRead", "NebdFileServiceImpl::Read", cntl_base);
-    auto scope = trace::Scope{span};
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
-    auto* aioContext
-        = new (std::nothrow) NebdServerAioContext();
+    auto *aioContext = new (std::nothrow) NebdServerAioContext();
     aioContext->offset = request->offset();
     aioContext->size = request->size();
     aioContext->op = LIBAIO_OP::LIBAIO_OP_READ;
@@ -214,12 +212,14 @@ void NebdFileServiceImpl::Read(
     aioContext->cntl = cntl_base;
     int rc = fileManager_->AioRead(request->fd(), aioContext);
     if (rc < 0) {
+        span->SetStatus(trace::StatusCode::kError);
         LOG(ERROR) << "Read file failed. "
                    << "fd: " << request->fd()
                    << ", offset: " << request->offset()
                    << ", size: " << request->size()
                    << ", return code: " << rc;
     } else {
+        span->SetStatus(trace::StatusCode::kOk);
         buf.release();
         doneGuard.release();
     }

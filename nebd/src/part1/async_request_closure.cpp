@@ -32,7 +32,10 @@ namespace nebd {
 namespace client {
 
 void AsyncRequestClosure::Run() {
-    auto span = tracer_->StartSpan("AsyncRequestClosure::Run");
+    auto parentSpan = tracer_->GetCurrentSpan();
+    trace::StartSpanOptions options;
+    options.parent = parentSpan->GetContext();
+    auto childSpan = tracer_->StartSpan("AsyncRequestClosure::Run", options);
     std::unique_ptr<AsyncRequestClosure> selfGuard(this);
 
     bool isCntlFailed = cntl.Failed();
@@ -48,7 +51,6 @@ void AsyncRequestClosure::Run() {
             << ", sleep " << (sleepUs / 1000) << " ms";
         bthread_usleep(sleepUs);
         Retry();
-        span->End();
     } else {
         auto retCode = GetResponseRetCode();
         if (nebd::client::RetCode::kOK == retCode) {
@@ -62,8 +64,7 @@ void AsyncRequestClosure::Run() {
 
             aioCtx->ret = 0;
             aioCtx->cb(aioCtx);
-            span->SetStatus(trace::StatusCode::kOk);
-            span->End();
+            childSpan->SetStatus(trace::StatusCode::kOk);
         } else {
             LOG(ERROR) << OpTypeToString(aioCtx->op) << " failed, fd = " << fd
                        << ", offset = " << aioCtx->offset
@@ -72,10 +73,11 @@ void AsyncRequestClosure::Run() {
                        << ", log id = " << cntl.log_id();
             aioCtx->ret = -1;
             aioCtx->cb(aioCtx);
-            span->SetStatus(trace::StatusCode::kError);
-            span->End();
+            childSpan->SetStatus(trace::StatusCode::kError);
         }
     }
+    childSpan->End();
+    parentSpan->End();
 }
 
 int64_t AsyncRequestClosure::GetRpcRetryIntervalUs(int64_t retryCount) const {

@@ -51,10 +51,9 @@ class RpcServiceCarrier : public context::propagation::TextMapCarrier {
 };
 
 inline nostd::shared_ptr<trace::Span>
-startRpcServerSpan(const std::string &tracerName, const std::string &spanName,
+StartRpcServerSpan(const std::string &tracerName, const std::string &spanName,
                    google::protobuf::RpcController *cntl_base) {
     RpcServiceCarrier carrier(static_cast<brpc::Controller *>(cntl_base));
-
     auto prop =
         context::propagation::GlobalTextMapPropagator::GetGlobalPropagator();
     auto currCtx = context::RuntimeContext::GetCurrent();
@@ -63,7 +62,7 @@ startRpcServerSpan(const std::string &tracerName, const std::string &spanName,
     trace::StartSpanOptions options;
     options.kind = trace::SpanKind::kServer;
     options.parent = trace::GetSpan(newCtx)->GetContext();
-    return telemetry::GetTracer(tracerName)->StartSpan(spanName, options);
+    return GetTracer(tracerName)->StartSpan(spanName, options);
 }
 }  // namespace telemetry
 }  // namespace curve

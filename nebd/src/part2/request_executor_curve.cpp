@@ -221,8 +221,8 @@ int CurveRequestExecutor::Discard(NebdFileInstance* fd,
 
 int CurveRequestExecutor::AioRead(
     NebdFileInstance* fd, NebdServerAioContext* aioctx) {
-    auto tracer = curve::telemetry::GetTracer("AioRead");
-    auto span = tracer->StartSpan("CurveRequestExecutor::AioRead");
+    auto span = curve::telemetry::GetTracer("AioRead")->StartSpan(
+        "CurveRequestExecutor::AioRead");
     int curveFd = GetCurveFdFromNebdFileInstance(fd);
     if (curveFd < 0) {
         return -1;
@@ -233,7 +233,6 @@ int CurveRequestExecutor::AioRead(
     int ret = FromNebdCtxToCurveCtx(aioctx, &curveCombineCtx->curveCtx);
     if (ret < 0) {
         delete curveCombineCtx;
-        span->End();
         return -1;
     }
 
@@ -241,7 +240,6 @@ int CurveRequestExecutor::AioRead(
                            curve::client::UserDataType::IOBuffer);
     if (ret !=  LIBCURVE_ERROR::OK) {
         delete curveCombineCtx;
-        span->End();
         return -1;
     }
 

@@ -342,10 +342,9 @@ int NebdClient::Discard(int fd, NebdClientAioContext* aioctx) {
 }
 
 int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
-    auto tracer = curve::telemetry::GetTracer("AioRead");
-    auto span = tracer->StartSpan("NebdClient::AioRead");
-    auto task = [this, fd, aioctx, &tracer]() {
-        auto subSpan = tracer->StartSpan("NebdClient::AioRead_AsyncTask");
+    auto task = [this, fd, aioctx]() {
+        auto tracer = curve::telemetry::GetTracer("AioRead");
+        auto span = tracer->StartSpan("NebdClient::AioRead");
         nebd::client::NebdFileService_Stub stub(&channel_);
         nebd::client::ReadRequest request;
         request.set_fd(fd);
@@ -365,11 +364,9 @@ int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
         prop->Inject(carrier, currCtx);
 
         stub.Read(&done->cntl, &request, &done->response, done);
-        subSpan->End();
     };
 
     PushAsyncTask(task);
-    span->End();
     return 0;
 }
 

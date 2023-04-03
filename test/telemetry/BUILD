@@ -15,19 +15,18 @@
 #
 
 load("//:copts.bzl", "CURVE_TEST_COPTS")
-load("//:copts.bzl", "CURVE_GCC_DISABLED_FLGAS")
 
 cc_test(
-    name = "opentelemetry_test",
+    name = "telemetry_test",
     srcs = glob([
         "*.cpp",
         "*.h",
     ]),
     copts = CURVE_TEST_COPTS + ["-Wno-error=extra"],
     deps = [
+        "//external:glog",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "@opentelemetry//api",
-        "@opentelemetry//exporters/ostream:ostream_span_exporter",
+        "//src/common/telemetry:curve_telemetry",
     ],
 )
