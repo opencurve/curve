@@ -344,7 +344,9 @@ int NebdClient::Discard(int fd, NebdClientAioContext* aioctx) {
 int NebdClient::AioRead(int fd, NebdClientAioContext* aioctx) {
     auto task = [this, fd, aioctx]() {
         auto tracer = curve::telemetry::GetTracer("AioRead");
-        auto span = tracer->StartSpan("NebdClient::AioRead");
+        trace::StartSpanOptions opts;
+        opts.kind = trace::SpanKind::kClient;
+        auto span = tracer->StartSpan("NebdClient::AioRead", opts);
         nebd::client::NebdFileService_Stub stub(&channel_);
         nebd::client::ReadRequest request;
         request.set_fd(fd);

@@ -36,22 +36,28 @@
 namespace curve {
 namespace telemetry {
 class OpenTelemetryTest : public testing::Test {
-    void SetUp() override {}
+    void SetUp() override {
+        // init tracer, trace will be output to the console
+        auto exporter = std::unique_ptr<trace_sdk::SpanExporter>(
+            new trace_exporter::OStreamSpanExporter);
+        auto processor = std::unique_ptr<trace_sdk::SpanProcessor>(
+            new trace_sdk::SimpleSpanProcessor(std::move(exporter)));
+        auto provider = std::shared_ptr<trace::TracerProvider>(
+            new trace_sdk::TracerProvider(std::move(processor)));
+        trace::Provider::SetTracerProvider(provider);
+    }
 
-    void TearDown() override {}
+    void TearDown() override {
+        std::shared_ptr<trace::TracerProvider> none;
+        trace::Provider::SetTracerProvider(none);
+    }
 
  protected:
 };
 
+
 TEST_F(OpenTelemetryTest, basic_test) {
-    // init tracer, trace will be output to the console
-    auto exporter = std::unique_ptr<trace_sdk::SpanExporter>(
-        new opentelemetry::exporter::trace::OStreamSpanExporter);
-    auto processor = std::unique_ptr<trace_sdk::SpanProcessor>(
-        new trace_sdk::SimpleSpanProcessor(std::move(exporter)));
-    auto provider = std::shared_ptr<trace::TracerProvider>(
-        new trace_sdk::TracerProvider(std::move(processor)));
-    auto tracer = provider->GetTracer("basic_test");
+    auto tracer = trace::Provider::GetTracerProvider()->GetTracer("basic_test");
 
     // Start a new span
     auto span1 = tracer->StartSpan("span1");

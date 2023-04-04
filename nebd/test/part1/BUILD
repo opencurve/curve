@@ -48,7 +48,7 @@ cc_binary(
     srcs = glob([
         "nebd_client_unittest.cpp",
     ]),
-    copts = CURVE_TEST_COPTS,
+    copts = CURVE_TEST_COPTS + ["-Wno-error=extra"],
     linkstatic = False,
     deps = [
         "//external:gflags",
@@ -56,6 +56,7 @@ cc_binary(
         "//nebd/test/part1:fake_lib",
         "//nebd/test/utils:test_utils_lib",
         "@com_google_googletest//:gtest_main",
+        "//src/common/telemetry:curve_telemetry",
     ],
 )
 
@@ -82,10 +83,11 @@ cc_library(
         "mock_*",
     ]),
     hdrs = glob(["*.h"]),
-    copts = CURVE_TEST_COPTS,
+    copts = CURVE_TEST_COPTS + ["-Wno-error=extra"],
     visibility = ["//visibility:public"],
     deps = [
         "//nebd/src/part1:nebdclient",
         "@com_google_googletest//:gtest",
+        "//src/common/telemetry:curve_telemetry",
     ],
 )

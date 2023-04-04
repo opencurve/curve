@@ -20,6 +20,9 @@
  * Author: hzchenwei7
  */
 #include "nebd/test/part1/fake_file_service.h"
+#include "src/common/telemetry/telemetry.h"
+#include "src/common/telemetry/brpc_carrier.h"
+
 
 namespace nebd {
 namespace client {
@@ -67,6 +70,8 @@ void FakeNebdFileService::Read(::google::protobuf::RpcController* controller,
                        const ::nebd::client::ReadRequest* request,
                        ::nebd::client::ReadResponse* response,
                        ::google::protobuf::Closure* done) {
+    auto span = curve::telemetry::StartRpcServerSpan(
+        "AioRead", "FakeNebdFileService::Read", controller);
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
@@ -76,6 +81,7 @@ void FakeNebdFileService::Read(::google::protobuf::RpcController* controller,
                                        request->size());
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("Read OK");
+    span->SetStatus(trace::StatusCode::kOk);
 
     return;
 }

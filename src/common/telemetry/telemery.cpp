@@ -35,17 +35,20 @@ void InitTracer() {
     auto exporter = trace_exporter::OStreamSpanExporterFactory::Create();
     auto processor =
         trace_sdk::SimpleSpanProcessorFactory::Create(std::move(exporter));
-    std::shared_ptr<opentelemetry::trace::TracerProvider> provider =
-        trace_sdk::TracerProviderFactory::Create(std::move(processor));
-
+    std::vector<std::unique_ptr<trace_sdk::SpanProcessor>> processors;
+    processors.push_back(std::move(processor));
+    // Default is an always-on sampler.
+    std::shared_ptr<trace_sdk::TracerContext> context =
+        trace_sdk::TracerContextFactory::Create(std::move(processors));
+    std::shared_ptr<trace::TracerProvider> provider =
+        trace_sdk::TracerProviderFactory::Create(context);
     // Set the global trace provider
     trace::Provider::SetTracerProvider(provider);
+
     // set global propagator
-    opentelemetry::context::propagation::GlobalTextMapPropagator::
-        SetGlobalPropagator(
-            opentelemetry::nostd::shared_ptr<
-                opentelemetry::context::propagation::TextMapPropagator>(
-                new opentelemetry::trace::propagation::HttpTraceContext()));
+    propagation::GlobalTextMapPropagator::SetGlobalPropagator(
+        opentelemetry::nostd::shared_ptr<propagation::TextMapPropagator>(
+            new trace::propagation::HttpTraceContext()));
 }
 }  // namespace telemetry
 }  // namespace curve

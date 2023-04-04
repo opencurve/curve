@@ -35,6 +35,8 @@
 #include "nebd/test/part1/fake_file_service.h"
 #include "nebd/test/part1/mock_file_service.h"
 #include "nebd/test/utils/config_generator.h"
+#include "src/common/telemetry/telemetry.h"
+
 
 const char* kFileName = "nebd-test-filename";
 const char* kFileNameWithSlash = "nebd-test-filenae//filename";
@@ -280,6 +282,7 @@ TEST_F(NebdFileClientTest, CommonTest) {
     AddFakeService();
     StartServer();
 
+    curve::telemetry::InitTracer();
     ASSERT_EQ(0, Init4Nebd(kNebdClientConf));
 
     int fd = Open4Nebd(kFileName, nullptr);
