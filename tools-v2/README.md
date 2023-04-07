@@ -63,6 +63,7 @@ A tool for CurveFS & CurveBs.
     - [create](#create-1)
       - [create file](#create-file)
       - [create dir](#create-dir)
+    - [clean-recycle](#clean-recycle)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -934,6 +935,26 @@ Output:
 |      |      |                |       |        |         |        |     |                     |              |         | type:BPS_TOTAL  |          |
 |      |      |                |       |        |         |        |     |                     |              |         | limit:125829120 |          |
 +------+------+----------------+-------+--------+---------+--------+-----+---------------------+--------------+---------+-----------------+----------+
+```
+
+### clean-recycle
+
+clean the recycle bin 
+
+Usage:
+
+```bash
+curve bs clean-recycle --recycleprefix=/test --expiredtime=1h
+```
+
+Output:
+
+```bash
++---------+
+| RESULT  | 
++---------+
+| success |        
++---------+
 ```
 
 ##### query chunk
