@@ -426,7 +426,13 @@ var (
 	}
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> b9b6bfdf... [feat] add bs update throttle
+=======
+	ErrBsListDir = func() *CmdError {
+		return NewInternalCmdError(51, "list directory fail, err: %s")
+	}
+>>>>>>> 61c07b30... code for clean-recycle
 =======
 	ErrBsListDir = func() *CmdError {
 		return NewInternalCmdError(51, "list directory fail, err: %s")
