@@ -22,7 +22,7 @@ var _ basecmd.MidCurveCmdFunc = (*DeleteCommand)(nil) // check interface
 
 func (dCmd *DeleteCommand) AddSubCommands() {
 	dCmd.Cmd.AddCommand(
-		file.NewCommand(),
+		file.NewFileCommand(),
 		peer.NewCommand(),
 	)
 }
