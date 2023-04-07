@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	deleteCliExample = `curve bs delete file --filename /curvebs-file-name --username username [--password password] [--forcedelete true]`
+	deleteCliExample = `curve bs delete file --path /curvebs-file-path --user username [--password password] [--force true]`
 )
 
 type DeleteCertainFileRpc struct {
@@ -51,16 +51,16 @@ func (deleteCommand *DeleteCommand) Init(cmd *cobra.Command, args []string) erro
 	//get the default timeout and retrytimes
 	timeout := config.GetFlagDuration(deleteCommand.Cmd, config.RPCTIMEOUT)
 	retrytimes := config.GetFlagInt32(deleteCommand.Cmd, config.RPCRETRYTIMES)
-	filename := config.GetBsFlagString(deleteCommand.Cmd, config.CURVEBS_FILENAME)
+	path := config.GetBsFlagString(deleteCommand.Cmd, config.CURVEBS_PATH)
 	username := config.GetBsFlagString(deleteCommand.Cmd, config.CURVEBS_USER)
 	password := config.GetBsFlagString(deleteCommand.Cmd, config.CURVEBS_PASSWORD)
-	forcedelete := config.GetFlagBool(deleteCommand.Cmd, config.CURVEBS_FORCEDELETE)
+	forcedelete := config.GetBsFlagBool(deleteCommand.Cmd, config.CURVEBS_FORCE)
 	date, errDat := cobrautil.GetTimeofDayUs()
 	if errDat.TypeCode() != cmderror.CODE_SUCCESS {
 		return errDat.ToError()
 	}
 	deleteRequest := nameserver2.DeleteFileRequest{
-		FileName:    &filename,
+		FileName:    &path,
 		Owner:       &username,
 		Date:        &date,
 		ForceDelete: &forcedelete,
@@ -74,7 +74,7 @@ func (deleteCommand *DeleteCommand) Init(cmd *cobra.Command, args []string) erro
 		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "DeleteFile"),
 		Request: &deleteRequest,
 	}
-	header := []string{cobrautil.ROW_RESULT, cobrautil.ROW_REASON}
+	header := []string{cobrautil.ROW_RESULT}
 	deleteCommand.SetHeader(header)
 	deleteCommand.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
 		deleteCommand.Header, header,
@@ -83,24 +83,24 @@ func (deleteCommand *DeleteCommand) Init(cmd *cobra.Command, args []string) erro
 }
 
 func (deleteCommand *DeleteCommand) RunCommand(cmd *cobra.Command, args []string) error {
-	out := make(map[string]string)
 	result, err := basecmd.GetRpcResponse(deleteCommand.Rpc.Info, deleteCommand.Rpc)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		out[cobrautil.ROW_RESULT] = "failed"
-		out[cobrautil.ROW_REASON] = err.Message
-		return nil
+		deleteCommand.Error = err
+		deleteCommand.Result = result
+		return err.ToError()
 	}
 	deleteCommand.Response = result.(*nameserver2.DeleteFileResponse)
 	if deleteCommand.Response.GetStatusCode() != nameserver2.StatusCode_kOK {
-		err = cmderror.ErrBsDeleteFile()
-		out[cobrautil.ROW_RESULT] = "failed"
-		out[cobrautil.ROW_REASON] = err.Message
-		return nil
+		deleteCommand.Error = cmderror.ErrBsDeleteFile()
+		deleteCommand.Result = result
+		return deleteCommand.Error.ToError()
 	}
-	out[cobrautil.ROW_RESULT] = "success"
-	out[cobrautil.ROW_REASON] = ""
-	list := cobrautil.Map2List(out, []string{cobrautil.ROW_RESULT, cobrautil.ROW_REASON})
+	out := make(map[string]string)
+	out[cobrautil.ROW_RESULT] = cobrautil.ROW_VALUE_SUCCESS
+	list := cobrautil.Map2List(out, []string{cobrautil.ROW_RESULT})
 	deleteCommand.TableNew.Append(list)
+
+	deleteCommand.Result, deleteCommand.Error = result, cmderror.Success()
 	return nil
 }
 
@@ -113,18 +113,18 @@ func (deleteCommand *DeleteCommand) ResultPlainOutput() error {
 }
 
 func (deleteCommand *DeleteCommand) AddFlags() {
-	config.AddFsMdsAddrFlag(deleteCommand.Cmd)
+	config.AddBsMdsFlagOption(deleteCommand.Cmd)
 	config.AddRpcTimeoutFlag(deleteCommand.Cmd)
 	config.AddRpcRetryTimesFlag(deleteCommand.Cmd)
 
-	config.AddBsFilenameRequiredFlag(deleteCommand.Cmd)
-	config.AddBsUsernameRequiredFlag(deleteCommand.Cmd)
+	config.AddBsPathRequiredFlag(deleteCommand.Cmd)
+	config.AddBsUserOptionFlag(deleteCommand.Cmd)
 	config.AddBsPasswordOptionFlag(deleteCommand.Cmd)
 	config.AddBsForceDeleteOptionFlag(deleteCommand.Cmd)
 }
 
 // NewCommand return the mid cli
-func NewCommand() *cobra.Command {
+func NewDeleteFileCommand() *DeleteCommand {
 	deleteCommand := &DeleteCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "file",
@@ -133,5 +133,29 @@ func NewCommand() *cobra.Command {
 		},
 	}
 	basecmd.NewFinalCurveCli(&deleteCommand.FinalCurveCmd, deleteCommand)
-	return basecmd.NewFinalCurveCli(&deleteCommand.FinalCurveCmd, deleteCommand)
+	return deleteCommand
+}
+
+func NewFileCommand() *cobra.Command {
+	return NewDeleteFileCommand().Cmd
+}
+
+// DeleteFile function wraps the DeleteCertainFile rpc
+func DeleteFile(caller *cobra.Command) (*nameserver2.DeleteFileResponse, *cmderror.CmdError) {
+	delCmd := NewDeleteFileCommand()
+	config.AlignFlagsValue(caller, delCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+		config.CURVEBS_PATH, config.CURVEBS_USER, config.CURVEBS_PASSWORD,
+		config.CURVEBS_FORCE,
+	})
+	delCmd.Cmd.SilenceErrors = true
+	delCmd.Cmd.SilenceUsage = true
+	delCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	err := delCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsDeleteFile()
+		retErr.Format(err.Error())
+		return delCmd.Response, retErr
+	}
+	return delCmd.Response, cmderror.Success()
 }
