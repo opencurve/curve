@@ -54,7 +54,7 @@ bool LookupCache::Get(Ino parent, const std::string& name) {
     bool yes = lru_->Get(key, &expireTime);
     if (!yes) {
         return false;
-    } else if (expireTime > Now()) {
+    } else if (Now() > expireTime) {
         return false;
     }
     return true;
