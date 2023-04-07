@@ -425,7 +425,13 @@ var (
 		return NewInternalCmdError(50, "unknown throttle type[%s], only support: iops_total|iops_read|iops_write|bps_total|bps_read|bps_write")
 	}
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> b9b6bfdf... [feat] add bs update throttle
+=======
+	ErrBsListDir = func() *CmdError {
+		return NewInternalCmdError(51, "list directory fail, err: %s")
+	}
+>>>>>>> 61c07b30... code for clean-recycle
 =======
 	ErrBsListDir = func() *CmdError {
 		return NewInternalCmdError(51, "list directory fail, err: %s")
