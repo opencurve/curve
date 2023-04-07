@@ -53,10 +53,9 @@ const (
 	CURVEBS_DEFAULT_PASSWORD     = "root_password"
 	CURVEBS_CLUSTERMAP           = "clustermap"
 	VIPER_CURVEBS_CLUSTERMAP     = "curvebs.clustermap"
-	CURVEBS_FILENAME             = "filename"
-	VIPER_CURVEBS_FILENAME       = "curvebs.filename"
-	CURVEBS_FORCEDELETE          = "forcedelete"
-	CURVEBS_DEFAULT_FORCEDELETE  = false
+	CURVEBS_FORCE                = "force"
+	VIPER_CURVEBS_FORCE          = "curvebs.force"
+	CURVEBS_DEFAULT_FORCE        = false
 	CURVEBS_LOGIC_POOL_ID        = "logicalpoolid"
 	VIPER_CURVEBS_LOGIC_POOL_ID  = "curvebs.logicalpoolid"
 	CURVEBS_COPYSET_ID           = "copysetid"
@@ -76,6 +75,10 @@ const (
 	CURVEBS_STRIPE_COUNT         = "stripecount"
 	VIPER_CURVEBS_STRIPE_COUNT   = "curvebs.stripecount"
 	CURVEBS_DEFAULT_STRIPE_COUNT = uint64(32)
+	CURVEBS_RECYCLE_PREFIX       = "recycleprefix"
+	VIPER_RECYCLE_PREFIX         = "curvebs.recycleprefix"
+	CURVE_EXPIRED_TIME           = "expiredtime"
+	VIPER_CURVE_EXPIRED_TIME     = "curvebs.expiredtime"
 	CURVEBS_LIMIT                = "limit"
 	VIPER_CURVEBS_LIMIT          = "curvebs.limit"
 	CURVEBS_BURST                = "burst"
@@ -93,36 +96,40 @@ var (
 		RPCRETRYTIMES: VIPER_GLOBALE_RPCRETRYTIMES,
 
 		// bs
-		CURVEBS_MDSADDR:       VIPER_CURVEBS_MDSADDR,
-		CURVEBS_MDSDUMMYADDR:  VIPER_CURVEBS_MDSDUMMYADDR,
-		CURVEBS_PATH:          VIPER_CURVEBS_PATH,
-		CURVEBS_USER:          VIPER_CURVEBS_USER,
-		CURVEBS_PASSWORD:      VIPER_CURVEBS_PASSWORD,
-		CURVEBS_ETCDADDR:      VIPER_CURVEBS_ETCDADDR,
-		CURVEBS_LOGIC_POOL_ID: VIPER_CURVEBS_LOGIC_POOL_ID,
-		CURVEBS_COPYSET_ID:    VIPER_CURVEBS_COPYSET_ID,
-		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
-		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
-		CURVEBS_OFFSET:        VIPER_CURVEBS_OFFSET,
-		CURVEBS_SIZE:          VIPER_CURVEBS_SIZE,
-		CURVEBS_STRIPE_UNIT:   VIPER_CURVEBS_STRIPE_UNIT,
-		CURVEBS_STRIPE_COUNT:  VIPER_CURVEBS_STRIPE_COUNT,
-		CURVEBS_LIMIT:         VIPER_CURVEBS_LIMIT,
-		CURVEBS_BURST:         VIPER_CURVEBS_BURST,
-		CURVEBS_BURST_LENGTH:  VIPER_CURVEBS_BURST_LENGTH,
+		CURVEBS_MDSADDR:        VIPER_CURVEBS_MDSADDR,
+		CURVEBS_MDSDUMMYADDR:   VIPER_CURVEBS_MDSDUMMYADDR,
+		CURVEBS_PATH:           VIPER_CURVEBS_PATH,
+		CURVEBS_USER:           VIPER_CURVEBS_USER,
+		CURVEBS_PASSWORD:       VIPER_CURVEBS_PASSWORD,
+		CURVEBS_ETCDADDR:       VIPER_CURVEBS_ETCDADDR,
+		CURVEBS_LOGIC_POOL_ID:  VIPER_CURVEBS_LOGIC_POOL_ID,
+		CURVEBS_COPYSET_ID:     VIPER_CURVEBS_COPYSET_ID,
+		CURVEBS_PEERS_ADDRESS:  VIPER_CURVEBS_PEERS_ADDRESS,
+		CURVEBS_CLUSTERMAP:     VIPER_CURVEBS_CLUSTERMAP,
+		CURVEBS_OFFSET:         VIPER_CURVEBS_OFFSET,
+		CURVEBS_SIZE:           VIPER_CURVEBS_SIZE,
+		CURVEBS_STRIPE_UNIT:    VIPER_CURVEBS_STRIPE_UNIT,
+		CURVEBS_STRIPE_COUNT:   VIPER_CURVEBS_STRIPE_COUNT,
+		CURVEBS_LIMIT:          VIPER_CURVEBS_LIMIT,
+		CURVEBS_BURST:          VIPER_CURVEBS_BURST,
+		CURVEBS_BURST_LENGTH:   VIPER_CURVEBS_BURST_LENGTH,
+		CURVEBS_FORCE:          VIPER_CURVEBS_FORCE,
+		CURVEBS_TYPE:           VIPER_CURVEBS_TYPE,
+		CURVE_EXPIRED_TIME:     VIPER_CURVE_EXPIRED_TIME,
+		CURVEBS_RECYCLE_PREFIX: VIPER_RECYCLE_PREFIX,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
 		// bs
 		CURVEBS_USER:         CURVEBS_DEFAULT_USER,
 		CURVEBS_PASSWORD:     CURVEBS_DEFAULT_PASSWORD,
-		CURVEBS_FORCEDELETE:  CURVEBS_DEFAULT_FORCEDELETE,
 		CURVEBS_SIZE:         CURVEBS_DEFAULT_SIZE,
 		CURVEBS_STRIPE_UNIT:  CURVEBS_DEFAULT_STRIPE_UNIT,
 		CURVEBS_STRIPE_COUNT: CURVEBS_DEFAULT_STRIPE_COUNT,
 		CURVEBS_BURST:        CURVEBS_DEFAULT_BURST,
 		CURVEBS_BURST_LENGTH: CURVEBS_DEFAULT_BURST_LENGTH,
 		CURVEBS_PATH:         CURVEBS_DEFAULT_PATH,
+		CURVEBS_FORCE:        CURVEBS_DEFAULT_FORCE,
 	}
 )
 
@@ -244,7 +251,6 @@ func AddBsPasswordOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_PASSWORD, "user password")
 }
 
-
 // etcd
 func AddBsEtcdAddrFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_ETCDADDR, "etcd address, should be like 127.0.0.1:8700,127.0.0.1:8701,127.0.0.1:8702")
@@ -280,14 +286,6 @@ func AddBsPathRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_PATH, "file path")
 }
 
-func AddBsUsernameRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_USER, "username")
-}
-
-func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
-	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "the full path of file")
-}
-
 func AddBSLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
@@ -305,7 +303,7 @@ func AddBSPeersConfFlag(cmd *cobra.Command) {
 }
 
 func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
-	AddBsBoolOptionFlag(cmd, CURVEBS_FORCEDELETE, "whether to force delete the file")
+	AddBsBoolOptionFlag(cmd, CURVEBS_FORCE, "whether to force delete the file")
 }
 
 func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
@@ -449,4 +447,21 @@ func GetBsFlagInt32(cmd *cobra.Command, flagName string) int32 {
 		value = viper.GetInt32(BSFLAG2VIPER[flagName])
 	}
 	return value
+}
+
+// flag for clean recycle bin
+func AddBsRecyclePrefixOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_RECYCLE_PREFIX, "recycle prefix (default \"\")")
+}
+
+func AddBsExpireTimeOptionFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVE_EXPIRED_TIME, "expire time (default 0s)")
+}
+
+func GetBsRecyclePrefix(cmd *cobra.Command) string {
+	return GetBsFlagString(cmd, CURVEBS_RECYCLE_PREFIX)
+}
+
+func GetBsExpireTime(cmd *cobra.Command) time.Duration {
+	return GetBsFlagDuration(cmd, CURVE_EXPIRED_TIME)
 }
