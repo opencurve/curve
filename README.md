@@ -156,7 +156,7 @@ Curve supports deployment in private and public cloud environments, and can also
 <div align=center> <image src="docs/images/Curve-deploy-on-premises-idc.png" width=60%>
 <div align=left>
 
-One of them, CurveFS shared file storage system, can be elasticly scaled to public cloud storage, which can provide users with greater capacity elasticity, lower cost, and better performance experience.
+One of them, CurveFS shared file storage system, can be elastically scaled to public cloud storage, which can provide users with greater capacity elasticity, lower cost, and better performance experience.
 
 </details>
 
