@@ -24,9 +24,9 @@ Curve 社区有多个[沟通渠道](#社区交流)，每两周还会有线上的
 
 在对 Curve 项目有一定了解后，如果感兴趣就可以选择入手点进行 Curve 开源项目的参与了，可以从以下几个方面进行选择：
 
-- 从 Curve 项目的 [Issue](https://github.com/opencurve/curve/issues) 中选择感兴趣的问题入手，可以特别关注带有 good_first_issue tag 的 issue，这些是我们经过评估认为是相对好入门的一些问题。
+- 从 Curve 项目的 [issue](https://github.com/opencurve/curve/issues) 中选择感兴趣的问题入手，可以特别关注带有 [good first issue](https://github.com/opencurve/curve/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22good+first+issue%22) tag 的 issue，这些是我们经过评估认为是相对好入门的一些问题。
 - 在对 Curve 项目有一定了解的基础上也可以从 [Roadmap](https://github.com/opencurve/curve/wiki/Roadmap_CN) 中进行选择。
-- 从 Curve 项目的运维工具 [Curveadm](https://github.com/opencurve/curveadm) 的 [Issue](https://github.com/opencurve/curveadm/issues) 和 [Roadmap](https://github.com/opencurve/curveadm/issues/92) 中进行选择，开发方式可参见[快速上手 CurveAdm 开发](https://github.com/opencurve/curveadm/wiki/develop)。
+- 从 Curve 项目的运维工具 [Curveadm](https://github.com/opencurve/curveadm) 的 [issue](https://github.com/opencurve/curveadm/issues) 和 [Roadmap](https://github.com/opencurve/curveadm/issues/92) 中进行选择，开发方式可参见 [快速上手 CurveAdm 开发](https://github.com/opencurve/curveadm/wiki/develop)。
 - 除了已有的 issue，也欢迎将自己发现的问题或希望的新特性提出 issue 并进行解决。
 - 可以关注现有 Curve 代码中的 *TODO* ，大部分为代码逻辑优化和待补充特性，选择感兴趣的提出相关 issue 跟进并尝试解决。
 
@@ -73,9 +73,9 @@ Curve CI 使用```cpplint```检查更改的代码,
 
 对于 PR 我们有如下要求：
 
-- CURVE编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，但使用 4 空格进行缩进, 可使用 clang-format 进行格式化, CI 会检查相关更改代码是否符合规则.
+- Curve编码规范严格按照[Google C++开源项目编码指南](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/contents/)来进行代码编写，但使用 4 空格进行缩进, 可使用 clang-format 进行格式化, CI 会检查相关更改代码是否符合规则.
 - 代码必须有测试，文档除外，单元测试（增量行覆盖80%以上，增量分支覆盖70%以上）；集成测试（与单元测试合并统计，满足单元测试覆盖率要求即可）
-- 请尽可能详细的填写 PR 的描述，关联相关问题的 issuse，PR commit message 能清晰看出解决的问题，提交到 Curve master 分支之后会自动触发Curve CI，需保证 CI 通过，CI 的 Jenkins 用户名密码为 netease/netease，如遇到 CI 运行失败可以登录 Jenkins 平台查看失败原因。
+- 请尽可能详细的填写 PR 的描述，关联相关问题的 issue，PR commit message 能清晰看出解决的问题，提交到 Curve master 分支之后会自动触发Curve CI，需保证 CI 通过，CI 的 Jenkins 用户名密码为 netease/netease，如遇到 CI 运行失败可以登录 Jenkins 平台查看失败原因。
 - CI 通过之后可开始进行 review，每个 PR 在合并之前都需要至少得到两个 Committer/Maintainer 的 LGTM。
 - PR 代码需要一定量的注释来使代码容易理解，且所有注释和 review 意见和回复均要求使用英语。
 
