@@ -182,7 +182,7 @@ func (iCmd *InodeNumCommand) RunCommand(cmd *cobra.Command, args []string) error
 	iCmd.Error = cmderror.MostImportantCmdError(errs)
 
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	iCmd.Error = &mergeErr
+	iCmd.Error = mergeErr
 
 	if len(rows) > 0 {
 		list := cobrautil.ListMap2ListSortByKeys(rows, iCmd.Header, []string{

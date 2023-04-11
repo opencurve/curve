@@ -134,7 +134,7 @@ func (pCmd *PoolZoneCommand) RunCommand(cmd *cobra.Command, args []string) error
 		pCmd.Zones = append(pCmd.Zones, zones...)
 	}
 	errRet := cmderror.MergeCmdError(errors)
-	pCmd.Error = &errRet
+	pCmd.Error = errRet
 	return nil
 }
 

@@ -215,7 +215,7 @@ func (cCmd *CopysetCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		cCmd.health = cobrautil.HEALTH_OK
 	}
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	cCmd.Error = &retErr
+	cCmd.Error = retErr
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
 	})
@@ -255,5 +255,5 @@ func (cCmd *CopysetCommand) UpdateCopysteGap(timeout time.Duration) *cmderror.Cm
 		return true
 	})
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	return &retErr
+	return retErr
 }

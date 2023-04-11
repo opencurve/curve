@@ -218,7 +218,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 	})
 	lCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)
-	lCmd.Error = &errRet
+	lCmd.Error = errRet
 	return nil
 }
 
