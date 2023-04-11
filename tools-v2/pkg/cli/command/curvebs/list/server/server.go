@@ -157,7 +157,7 @@ func (pCmd *ServerCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	})
 	pCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)
-	pCmd.Error = &errRet
+	pCmd.Error = errRet
 	pCmd.Result = results
 	return nil
 }

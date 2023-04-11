@@ -191,5 +191,5 @@ func Topology2Map(topo *topology.ListTopologyResponse) (map[string]interface{}, 
 
 	ret[POOL_LIST] = poolList
 	retErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	return ret, &retErr
+	return ret, retErr
 }

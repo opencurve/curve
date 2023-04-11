@@ -105,7 +105,7 @@ func (cCmd *ClusterCommand) RunCommand(cmd *cobra.Command, args []string) error 
 		cCmd.health = cobrautil.CompareHealth(cCmd.health, health)
 	}
 	finalErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	cCmd.Error = &finalErr
+	cCmd.Error = finalErr
 	results["health"] = cobrautil.ClusterHealthStatus_Str[int32(cCmd.health)]
 	cCmd.Result = results
 	return nil

@@ -25,23 +25,26 @@ package query
 import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/file"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/query/seginfo"
 	"github.com/spf13/cobra"
 )
 
-type ListCommand struct {
+type QueryCommand struct {
 	basecmd.MidCurveCmd
 }
 
-var _ basecmd.MidCurveCmdFunc = (*ListCommand)(nil) // check interface
+var _ basecmd.MidCurveCmdFunc = (*QueryCommand)(nil) // check interface
 
-func (queryCmd *ListCommand) AddSubCommands() {
+func (queryCmd *QueryCommand) AddSubCommands() {
 	queryCmd.Cmd.AddCommand(
 		file.NewFileCommand(),
+		seginfo.NewSeginfoCommand(),
+		seginfo.NewSegmentCommand(),
 	)
 }
 
 func NewQueryCommand() *cobra.Command {
-	queryCmd := &ListCommand{
+	queryCmd := &QueryCommand{
 		basecmd.MidCurveCmd{
 			Use:   "query",
 			Short: "query resources in the curvebs",

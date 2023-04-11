@@ -25,6 +25,7 @@ package client
 import (
 	"context"
 	"fmt"
+
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
@@ -144,7 +145,7 @@ func (pCmd *ClientCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	})
 	pCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)
-	pCmd.Error = &errRet
+	pCmd.Error = errRet
 	pCmd.Result = results
 	return nil
 }

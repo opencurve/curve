@@ -64,6 +64,8 @@ const (
 	VIPER_CURVEBS_COPYSET_ID    = "curvebs.copysetid"
 	CURVEBS_PEERS_ADDRESS       = "peers"
 	VIPER_CURVEBS_PEERS_ADDRESS = "curvebs.peers"
+	CURVEBS_OFFSET              = "offset"
+	VIPER_CURVEBS_OFFSET        = "curvebs.offset"
 )
 
 var (
@@ -84,6 +86,7 @@ var (
 		CURVEBS_COPYSET_ID:    VIPER_CURVEBS_COPYSET_ID,
 		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
 		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
+		CURVEBS_OFFSET:        VIPER_CURVEBS_OFFSET,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -151,6 +154,25 @@ func AddBsBoolOptionFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
+func AddBsUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Uint32(name, uint32(0), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
+
+func AddBsUint64RequiredFlag(cmd *cobra.Command, name string, usage string) {
+	cmd.Flags().Uint64(name, uint64(0), usage+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(name)
+	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+}
+
 // add flag option
 // bs mds[option]
 func AddBsMdsFlagOption(cmd *cobra.Command) {
@@ -195,11 +217,11 @@ func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
 }
 
 func AddBSLogicalPoolIdFlag(cmd *cobra.Command) {
-	AddBSUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
+	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 
 func AddBSCopysetIdFlag(cmd *cobra.Command) {
-	AddBSUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
+	AddBsUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
 }
 
 func AddBSPeersConfFlag(cmd *cobra.Command) {
@@ -210,13 +232,8 @@ func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_FORCEDELETE, "whether to force delete the file")
 }
 
-func AddBSUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
-	cmd.Flags().Uint32(name, uint32(0), usage+color.Red.Sprint("[required]"))
-	cmd.MarkFlagRequired(name)
-	err := viper.BindPFlag(BSFLAG2VIPER[name], cmd.Flags().Lookup(name))
-	if err != nil {
-		cobra.CheckErr(err)
-	}
+func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
+	AddBsUint64RequiredFlag(cmd, CURVEBS_OFFSET, "offset")
 }
 
 // get stingslice flag
@@ -255,6 +272,17 @@ func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
 	}
 
 	return uint32(val), nil
+}
+
+// get uint64 flag
+func GetBsFlagUint64(cmd *cobra.Command, flagName string) uint64 {
+	var value uint64
+	if cmd.Flag(flagName).Changed {
+		value, _ = cmd.Flags().GetUint64(flagName)
+	} else {
+		value = viper.GetUint64(FLAG2VIPER[flagName])
+	}
+	return value
 }
 
 // get mdsaddr
