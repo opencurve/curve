@@ -187,9 +187,9 @@ func MostImportantCmdError(err []*CmdError) *CmdError {
 
 // keep the most important wrong id, all wrong message will be kept
 // if all success return success
-func MergeCmdErrorExceptSuccess(err []*CmdError) CmdError {
+func MergeCmdErrorExceptSuccess(err []*CmdError) *CmdError {
 	if len(err) == 0 {
-		return *NewSucessCmdError()
+		return NewSucessCmdError()
 	}
 	var ret CmdError
 	ret.Code = CODE_UNKNOWN
@@ -205,31 +205,31 @@ func MergeCmdErrorExceptSuccess(err []*CmdError) CmdError {
 		ret.Message = e.Message + "\n" + ret.Message
 	}
 	if countSuccess == len(err) {
-		return *NewSucessCmdError()
+		return NewSucessCmdError()
 	}
 	ret.Message = ret.Message[:len(ret.Message)-1]
-	return ret
+	return &ret
 }
 
 // keep the most important wrong id, all wrong message will be kept
 // if have one success return success
-func MergeCmdError(err []*CmdError) CmdError {
+func MergeCmdError(err []*CmdError) *CmdError {
 	if len(err) == 0 {
-		return *NewSucessCmdError()
+		return NewSucessCmdError()
 	}
 	var ret CmdError
 	ret.Code = CODE_UNKNOWN
 	ret.Message = ""
 	for _, e := range err {
 		if e.Code == CODE_SUCCESS {
-			return *e
+			return e
 		} else if e.Code < ret.Code {
 			ret.Code = e.Code
 		}
 		ret.Message = e.Message + "\n" + ret.Message
 	}
 	ret.Message = ret.Message[:len(ret.Message)-1]
-	return ret
+	return &ret
 }
 
 var (
@@ -385,6 +385,15 @@ var (
 	ErrGetPeer = func() *CmdError {
 		return NewInternalCmdError(42, "invalid peer args, err: %s")
 	}
+<<<<<<< HEAD
+=======
+	ErrQueryWarmup = func() *CmdError {
+		return NewInternalCmdError(43, "query warmup progress fail, err: %s")
+	}
+	ErrBsGetSegment = func() *CmdError {
+		return NewInternalCmdError(44, "get segments fail, err: %s")
+	}
+>>>>>>> a8c1dc47... [feat]tools-v2:curve query segment
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -648,5 +657,17 @@ var (
 			message = fmt.Sprintf("delete %s[%s], err: %s", topoType, name, statusCode.String())
 		}
 		return NewRpcReultCmdError(-code, message)
+	}
+
+	ErrGetOrAllocateSegment = func(statusCode nameserver2.StatusCode, file string, offset uint64) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = fmt.Sprintf("getOrAllocateSegment file[%s] offset[%d], successfully", file, offset)
+		default:
+			message = fmt.Sprintf("getOrAllocateSegment file[%s] offset[%d], err: %s", file, offset, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
 	}
 )

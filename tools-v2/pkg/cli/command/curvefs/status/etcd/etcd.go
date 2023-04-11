@@ -16,7 +16,7 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-09-08
+ * Created Date: 2022-06-09
  * Author: chengyi (Cyber-SiKu)
  */
 
@@ -60,7 +60,7 @@ var (
 var _ basecmd.FinalCurveCmdFunc = (*EtcdCommand)(nil) // check interface
 
 const (
-	etcdExample = `$ curve bs status etcd`
+	etcdExample = `$ curve fs status etcd`
 )
 
 func NewEtcdCommand() *cobra.Command {
@@ -68,7 +68,7 @@ func NewEtcdCommand() *cobra.Command {
 }
 
 func (eCmd *EtcdCommand) AddFlags() {
-	config.AddBsEtcdAddrFlag(eCmd.Cmd)
+	config.AddEtcdAddrFlag(eCmd.Cmd)
 	config.AddHttpTimeoutFlag(eCmd.Cmd)
 }
 
@@ -81,7 +81,7 @@ func (eCmd *EtcdCommand) Init(cmd *cobra.Command, args []string) error {
 	))
 
 	// set main addr
-	etcdAddrs, addrErr := config.GetBsEtcdAddrSlice(eCmd.Cmd)
+	etcdAddrs, addrErr := config.GetFsEtcdAddrSlice(eCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
@@ -192,7 +192,7 @@ func NewStatusEtcdCommand() *EtcdCommand {
 	etcdCmd := &EtcdCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "etcd",
-			Short:   "get the etcd status of curvebs",
+			Short:   "get the etcd status of curvefs",
 			Example: etcdExample,
 		},
 	}

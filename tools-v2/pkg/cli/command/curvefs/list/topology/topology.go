@@ -214,7 +214,7 @@ func (tCmd *TopologyCommand) updateTable(topoMap *map[string]interface{}) *cmder
 		}
 	}
 	retErr := cmderror.MergeCmdError(errs)
-	return &retErr
+	return retErr
 }
 
 func (tCmd *TopologyCommand) updateMetaserverAddr(metaservers []*topology.MetaServerInfo) {

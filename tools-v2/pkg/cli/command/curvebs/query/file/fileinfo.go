@@ -100,8 +100,6 @@ func (gCmd *GetFileInfoCommand) Init(cmd *cobra.Command, args []string) error {
 		Owner:    &owner,
 		Date:     &date,
 	}
-	// fmt.Println("user:", owner)
-	// fmt.Println("viper:", viper.GetString(config.VIPER_CURVEBS_USER))
 	password := config.GetBsFlagString(gCmd.Cmd, config.CURVEBS_PASSWORD)
 	if owner == viper.GetString(config.VIPER_CURVEBS_USER) && len(password) !=0 {
 		strSig := cobrautil.GetString2Signature(date, owner)

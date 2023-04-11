@@ -16,7 +16,7 @@
 
 /*
  * Project: CurveCli
- * Created Date: 2022-09-08
+ * Created Date: 2022-06-06
  * Author: chengyi (Cyber-SiKu)
  */
 
@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	mdsExample = `$ curve bs status mds`
+	mdsExample = `$ curve fs status mds`
 )
 
 type MdsCommand struct {
@@ -48,7 +48,7 @@ type MdsCommand struct {
 }
 
 const (
-	STATUS_SUBURI  = "/vars/mds_status"
+	STATUS_SUBURI  = "/vars/curvefs_mds_status"
 	VERSION_SUBURI = "/vars/curve_version"
 )
 
@@ -59,9 +59,9 @@ func NewMdsCommand() *cobra.Command {
 }
 
 func (mCmd *MdsCommand) AddFlags() {
-	config.AddBsMdsFlagOption(mCmd.Cmd)
+	config.AddFsMdsAddrFlag(mCmd.Cmd)
 	config.AddHttpTimeoutFlag(mCmd.Cmd)
-	config.AddBsMdsDummyFlagOption(mCmd.Cmd)
+	config.AddFsMdsDummyAddrFlag(mCmd.Cmd)
 }
 
 func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
@@ -74,13 +74,13 @@ func (mCmd *MdsCommand) Init(cmd *cobra.Command, args []string) error {
 	))
 
 	// set main addr
-	mainAddrs, addrErr := config.GetBsMdsAddrSlice(mCmd.Cmd)
+	mainAddrs, addrErr := config.GetFsMdsAddrSlice(mCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
 
 	// set dummy addr
-	dummyAddrs, addrErr := config.GetBsMdsDummyAddrSlice(mCmd.Cmd)
+	dummyAddrs, addrErr := config.GetFsMdsDummyAddrSlice(mCmd.Cmd)
 	if addrErr.TypeCode() != cmderror.CODE_SUCCESS {
 		return fmt.Errorf(addrErr.Message)
 	}
@@ -193,7 +193,7 @@ func GetMdsStatus(caller *cobra.Command) (*interface{}, *tablewriter.Table, *cmd
 	mdsCmd.Cmd.SetArgs([]string{
 		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,
 	})
-	config.AlignFlagsValue(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR})
+	config.AlignFlagsValue(caller, mdsCmd.Cmd, []string{config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEFS_MDSADDR})
 	mdsCmd.Cmd.SilenceErrors = true
 	mdsCmd.Cmd.Execute()
 	return &mdsCmd.Result, mdsCmd.TableNew, mdsCmd.Error, mdsCmd.health
