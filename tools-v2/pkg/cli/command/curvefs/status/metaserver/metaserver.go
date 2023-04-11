@@ -161,7 +161,7 @@ func (mCmd *MetaserverCommand) RunCommand(cmd *cobra.Command, args []string) err
 	}
 
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	mCmd.Error = &mergeErr
+	mCmd.Error = mergeErr
 
 	if len(errs) > 0 && len(errs) < len(mCmd.rows) {
 		mCmd.health = cobrautil.HEALTH_WARN

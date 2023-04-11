@@ -25,6 +25,9 @@ package dir
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/dustin/go-humanize"
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -36,8 +39,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	"log"
-	"time"
 )
 
 const (
@@ -211,7 +212,7 @@ func (pCmd *DirCommand) RunCommand(cmd *cobra.Command, args []string) error {
 	list := cobrautil.ListMap2ListSortByKeys(rows, pCmd.Header, []string{cobrautil.ROW_OWNER, cobrautil.ROW_FILE_TYPE, cobrautil.ROW_PARENT_ID})
 	pCmd.TableNew.AppendBulk(list)
 	errRet := cmderror.MergeCmdError(errors)
-	pCmd.Error = &errRet
+	pCmd.Error = errRet
 	pCmd.Result = results
 	return nil
 }
