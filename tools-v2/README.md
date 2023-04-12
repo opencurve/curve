@@ -1049,12 +1049,18 @@ Output:
 | copysets-status | |
 | chunkserver-list | |
 | cluster-status | |
+<<<<<<< HEAD
 | list | |
 | seginfo | |
 | delete | |
+=======
+| curve_ops_tool list | curve bs list dir |
+| seginfo | curve bs query seginfo |
+| curve_ops_tool delete | curve bs delete file |
+>>>>>>> 747436ee... [feat]tools-v2: bs query chunk
 | clean-recycle | |
 | create | |
-| chunk-location | |
+| chunk-location | curve bs query chunk |
 | check-consistency | |
 | remove-peer | curve bs delete peer |
 | transfer-leader | |

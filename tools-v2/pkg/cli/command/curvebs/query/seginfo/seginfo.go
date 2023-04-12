@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	seginfoExample = `$ curve bs query seginfo /pagefile`
+	seginfoExample = `$ curve bs query seginfo --path /pagefile`
 )
 
 type SeginfoCommand struct {
