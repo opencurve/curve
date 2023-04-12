@@ -66,8 +66,9 @@ struct SnapshotMetaPage {
     // bitmap  representing the current snapshot page status
     std::shared_ptr<Bitmap> bitmap;
 
-    SnapshotMetaPage()
-        : version(FORMAT_VERSION), damaged(false), bitmap(nullptr) {}
+    SnapshotMetaPage()  : version(FORMAT_VERSION)
+                        , damaged(false)
+                        , bitmap(nullptr) {}
     SnapshotMetaPage(const SnapshotMetaPage &metaPage);
     SnapshotMetaPage &operator=(const SnapshotMetaPage &metaPage);
 

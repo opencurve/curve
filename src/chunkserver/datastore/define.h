@@ -34,10 +34,14 @@ namespace chunkserver {
 
 using curve::common::Bitmap;
 
+// In zeroed chunk file, taking endianness into consideration, the version is 8,
+// Taking endianness into consideration, the version is 4,
 // In zeroed chunk file, the version is 2,
 // otherwise, the version is 1
 const uint8_t FORMAT_VERSION = 1;
 const uint8_t FORMAT_VERSION_V2 = 2;
+const uint8_t FORMAT_VERSION_V3 = 4;
+const uint8_t FORMAT_VERSION_V4 = 8;
 const SequenceNum kInvalidSeq = 0;
 
 DECLARE_uint32(minIoAlignment);

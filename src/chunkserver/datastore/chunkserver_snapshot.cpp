@@ -87,9 +87,9 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
 
     // uint64_t sn 8 bytes need convert to host endianness in decode
     memcpy(&sn, buf + len, sizeof(sn));
-    uint64_t netSn = ntohll(sn);
-    sn = netSn;
-    len += sizeof(netSn);
+    uint64_t hostSn = ntohll(sn);
+    sn = hostSn;
+    len += sizeof(sn);
 
     // uint32_t bits 4 bytes need convert to host endianness in decode
     uint32_t bits = 0;
@@ -117,12 +117,15 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
 
     // TODO(yyk) judge version compatibility, simple processing at present,
     // detailed implementation later
-    if (version != FORMAT_VERSION) {
+    if (version != FORMAT_VERSION || version != FORMAT_VERSION_V3) {
         LOG(ERROR) << "File format version incompatible."
                    << "file version: " << static_cast<uint32_t>(version)
                    << ", format version: "
-                   << static_cast<uint32_t>(FORMAT_VERSION);
+                   << static_cast<uint32_t>(FORMAT_VERSION) << "/"
+                   << static_cast<uint32_t>(FORMAT_VERSION_V3);
         return CSErrorCode::IncompatibleError;
+    } else if (version != FORMAT_VERSION_V3) {
+        version = FORMAT_VERSION_V3;
     }
     return CSErrorCode::Success;
 }

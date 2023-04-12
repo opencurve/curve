@@ -74,56 +74,130 @@ ChunkFileMetaPage& ChunkFileMetaPage::operator =(
     return *this;
 }
 
-void ChunkFileMetaPage::encode(char* buf) {
+uint64_t SnapshotMetaPage::htonll(uint64_t val) {
+    if (1 == htonl(1))  // Judge the machine endianness
+        return val;     // If equal Big Endianness
+    return (((uint64_t)htonl(val)) << 32) + htonl(val >> 32);
+}
+
+uint64_t SnapshotMetaPage::ntohll(uint64_t val) {
+    if (1 == htonl(1))
+        return val;
+    return (((uint64_t)ntohl(val)) << 32) + ntohl(val >> 32);
+}
+
+void ChunkFileMetaPage::encode(char *buf) {
     size_t len = 0;
+
+    // uint8_t version 1 byte
     memcpy(buf, &version, sizeof(version));
     len += sizeof(version);
-    memcpy(buf + len, &sn, sizeof(sn));
-    len += sizeof(sn);
-    memcpy(buf + len, &correctedSn, sizeof(correctedSn));
-    len += sizeof(correctedSn);
+
+    // uint64_t sn 8 bytes need convert to network endianness in encode
+    uint64_t netSn = htonll(sn);
+    memcpy(buf + len, &netSn, sizeof(netSn));
+    len += sizeof(netSn);
+
+    // uint64_t correctedSn 8 bytes need convert to network endianness
+    uint64_t netCorrectedSn = htonll(correctedSn);
+    memcpy(buf + len, &netCorrectedSn, sizeof(netCorrectedSn));
+    len += sizeof(netCorrectedSn);
+
+    // long unsigned int loc_size 4/8 bytes need convert to network endianness
     size_t loc_size = location.size();
-    memcpy(buf + len, &loc_size, sizeof(loc_size));
-    len += sizeof(loc_size);
+    size_t net_loc_size;
+    if (sizeof(size_t) == 4) {
+        net_loc_size = htonl(loc_size);
+    } else if (sizeof(size_t) == 8) {
+        net_loc_size = htonll(loc_size);
+    } else {
+        net_loc_size = loc_size;
+    }
+    memcpy(buf + len, &net_loc_size, sizeof(net_loc_size));
+    len += sizeof(net_loc_size);
+
     // CloneChunk need serialized location information and bitmap information
     if (loc_size > 0) {
         memcpy(buf + len, location.c_str(), loc_size);
         len += loc_size;
+
+        // uint32_t bits 4 bytes need convert to network endianness
         uint32_t bits = bitmap->Size();
-        memcpy(buf + len, &bits, sizeof(bits));
-        len += sizeof(bits);
+        uint32_t netBits = htonl(bits);
+        memcpy(buf + len, &netBits, sizeof(netBits));
+        len += sizeof(netBits);
+
+        // unsigned long bitmapBytes 4 bytes
+        // bitmap char  (bits + 8 - 1) / 8 bytes
         size_t bitmapBytes = (bits + 8 - 1) >> 3;
         memcpy(buf + len, bitmap->GetBitmap(), bitmapBytes);
         len += bitmapBytes;
     }
+
+    // uint32_t crc 4 bytes need convert to network endianness
     uint32_t crc = ::curve::common::CRC32(buf, len);
-    memcpy(buf + len, &crc, sizeof(crc));
+    uint32_t netCrc = htonl(crc);
+    memcpy(buf + len, &netCrc, sizeof(netCrc));
 }
 
-CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
+CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     size_t len = 0;
+
+    // uint8_t version 1 byte
     memcpy(&version, buf, sizeof(version));
     len += sizeof(version);
+
+    // uint64_t sn 8 bytes need convert to host endianness in decode
     memcpy(&sn, buf + len, sizeof(sn));
+    uint64_t hostSn = ntohll(sn);
+    sn = hostSn;
     len += sizeof(sn);
+
+    // uint64_t correctedSn 8 bytes need convert to host endianness
     memcpy(&correctedSn, buf + len, sizeof(correctedSn));
+    uint64_t hostCorrectedSn = ntohll(correctedSn);
+    correctedSn = hostCorrectedSn;
     len += sizeof(correctedSn);
+
+    // long unsigned int loc_size 4/8 bytes need convert to host endianness
     size_t loc_size;
+    size_t host_loc_size;
+    if (sizeof(size_t) == 4) {
+        host_loc_size = ntohl(loc_size);
+    } else if (sizeof(size_t) == 8) {
+        host_loc_size = ntohll(loc_size);
+    } else {
+        host_loc_size = loc_size;
+    }
+    loc_size = host_loc_size;
     memcpy(&loc_size, buf + len, sizeof(loc_size));
     len += sizeof(loc_size);
+
+
     if (loc_size > 0) {
         location = string(buf + len, loc_size);
         len += loc_size;
+
+        // uint32_t bits 4 bytes need convert to host endianness
         uint32_t bits = 0;
         memcpy(&bits, buf + len, sizeof(bits));
+        uint32_t hostBits = ntohl(bits);
+        bits = hostBits;
         len += sizeof(bits);
+
+        // unsigned long bitmapBytes 4 bytes
+        // bitmap char  (bits + 8 - 1) / 8 bytes
         bitmap = std::make_shared<Bitmap>(bits, buf + len);
         size_t bitmapBytes = (bitmap->Size() + 8 - 1) >> 3;
         len += bitmapBytes;
     }
-    uint32_t crc =  ::curve::common::CRC32(buf, len);
+
+    // uint32_t crc 4 bytes need convert to host endianness
+    uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
+    uint32_t hostRecordCrc = ntohl(recordCrc);
+    recordCrc = hostRecordCrc;
     // check crc
     if (crc != recordCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
@@ -132,12 +206,17 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
 
     // TODO(yyk) check version compatibility, currrent simple error handing,
     // need detailed implementation later
-    if (!(version == FORMAT_VERSION || version == FORMAT_VERSION_V2)) {
+    if (!(version == FORMAT_VERSION || version == FORMAT_VERSION_V2 ||
+          version == FORMAT_VERSION_V4)) {
         LOG(ERROR) << "File format version incompatible."
-                   << "file version: " << version
-                   << ", valid version: [" << FORMAT_VERSION
-                   << ", " << FORMAT_VERSION_V2 << "]";
+                   << "file version: " << version << ", valid version: ["
+                   << FORMAT_VERSION << ", " << FORMAT_VERSION_V2 << ", "
+                   << FORMAT_VERSION_V4 << "]";
         return CSErrorCode::IncompatibleError;
+    } else if (version == FORMAT_VERSION) {
+        version = FORMAT_VERSION_V3;
+    } else if (version == FORMAT_VERSION_V2) {
+        version = FORMAT_VERSION_V4;
     }
     return CSErrorCode::Success;
 }
@@ -207,7 +286,7 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         && metaPage_.sn > 0) {
         std::unique_ptr<char[]> buf(new char[pageSize_]);
         memset(buf.get(), 0, pageSize_);
-        metaPage_.version = FORMAT_VERSION_V2;
+        metaPage_.version = FORMAT_VERSION_V3;
         metaPage_.encode(buf.get());
 
         int rc = chunkFilePool_->GetFile(chunkFilePath, buf.get(), true);
