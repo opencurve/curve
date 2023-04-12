@@ -19,6 +19,7 @@
  * File Created: Thursday, 6th September 2018 10:49:53 am
  * Author: yangyaokai
  */
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <algorithm>
 #include <memory>
