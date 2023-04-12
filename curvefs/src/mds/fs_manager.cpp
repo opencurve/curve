@@ -264,11 +264,6 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
     const auto& fsType = request->fstype();
     const auto& detail = request->fsdetail();
 
-    // check fsname
-    if (!CheckFsName(fsName)) {
-        return FSStatusCode::FSNAME_INVALID;
-    }
-
     NameLockGuard lock(nameLock_, fsName);
     FsInfoWrapper wrapper;
     bool skipCreateNewFs = false;
@@ -298,6 +293,11 @@ FSStatusCode FsManager::CreateFs(const ::curvefs::mds::CreateFsRequest* request,
         } else {
             return FSStatusCode::FS_EXIST;
         }
+    }
+
+    // check fsname
+    if (!CheckFsName(fsName)) {
+        return FSStatusCode::FSNAME_INVALID;
     }
 
     // check s3info
