@@ -31,7 +31,7 @@ const (
 	ROW_CHILD_LIST      = "childList"
 	ROW_CHILD_TYPE      = "childType"
 	ROW_CHUNK           = "chunk"
-	ROW_CHUNK_SIZE		= "chunkSize"
+	ROW_CHUNK_SIZE      = "chunkSize"
 	ROW_COPYSET         = "copyset"
 	ROW_COPYSET_ID      = "copysetId"
 	ROW_COPYSET_KEY     = "copysetKey"
@@ -48,6 +48,7 @@ const (
 	ROW_FS_ID           = "fsId"
 	ROW_FS_NAME         = "fsName"
 	ROW_FS_TYPE         = "fsType"
+	ROW_GROUP           = "group"
 	ROW_HOSTNAME        = "hostname"
 	ROW_ID              = "id"
 	ROW_INODE_ID        = "inodeId"
@@ -88,7 +89,7 @@ const (
 	ROW_RESULT          = "result"
 	ROW_SCAN            = "scan"
 	ROW_SEGMENT         = "segment"
-	ROW_SEGMENT_SIZE	= "segmentSize"
+	ROW_SEGMENT_SIZE    = "segmentSize"
 	ROW_SEQ             = "seq"
 	ROW_SERVER          = "server"
 	ROW_SIZE            = "size"
@@ -104,6 +105,7 @@ const (
 	ROW_USED            = "used"
 	ROW_VERSION         = "version"
 	ROW_ZONE            = "zone"
+	ROW_LOCATION		= "location"
 
 	// s3
 	ROW_S3CHUNKINFO_CHUNKID = "s3ChunkId"

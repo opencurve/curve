@@ -216,12 +216,16 @@ func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "the full path of file")
 }
 
-func AddBSLogicalPoolIdFlag(cmd *cobra.Command) {
+func AddBSLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 
-func AddBSCopysetIdFlag(cmd *cobra.Command) {
+func AddBSCopysetIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
+}
+
+func AddBSCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset ids")
 }
 
 func AddBSPeersConfFlag(cmd *cobra.Command) {
@@ -259,7 +263,7 @@ func GetBsFlagString(cmd *cobra.Command, flagName string) string {
 }
 
 // GetBsFlagUint32 get uint32 flag
-func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
+func GetBsFlagUint32(cmd *cobra.Command, flagName string) uint32 {
 	var value string
 	if cmd.Flag(flagName).Changed {
 		value = cmd.Flag(flagName).Value.String()
@@ -268,10 +272,10 @@ func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
 	}
 	val, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		return 0, err
+		return 0
 	}
 
-	return uint32(val), nil
+	return uint32(val)
 }
 
 // get uint64 flag
