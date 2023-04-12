@@ -95,8 +95,8 @@ func (pCmd *PeerCommand) AddFlags() {
 	config.AddRpcRetryTimesFlag(pCmd.Cmd)
 	config.AddRpcTimeoutFlag(pCmd.Cmd)
 
-	config.AddBSLogicalPoolIdFlag(pCmd.Cmd)
-	config.AddBSCopysetIdFlag(pCmd.Cmd)
+	config.AddBSLogicalPoolIdRequiredFlag(pCmd.Cmd)
+	config.AddBSCopysetIdRequiredFlag(pCmd.Cmd)
 }
 
 // ParsePeer parse the peer string
@@ -128,22 +128,15 @@ func (pCmd *PeerCommand) Init(cmd *cobra.Command, args []string) error {
 	pCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
 		pCmd.Header, []string{},
 	))
-
-	var err error
+	
 	var e *cmderror.CmdError
 
 	pCmd.opts.Timeout = config.GetFlagDuration(pCmd.Cmd, config.RPCTIMEOUT)
 	pCmd.opts.RetryTimes = config.GetFlagInt32(pCmd.Cmd, config.RPCRETRYTIMES)
 
-	pCmd.copysetID, err = config.GetBsFlagUint32(pCmd.Cmd, config.CURVEBS_COPYSET_ID)
-	if err != nil {
-		return err
-	}
+	pCmd.copysetID = config.GetBsFlagUint32(pCmd.Cmd, config.CURVEBS_COPYSET_ID)
 
-	pCmd.logicalPoolID, err = config.GetBsFlagUint32(pCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
-	if err != nil {
-		return err
-	}
+	pCmd.logicalPoolID = config.GetBsFlagUint32(pCmd.Cmd, config.CURVEBS_LOGIC_POOL_ID)
 
 	// parse peer conf
 	if len(args) < 1 {
