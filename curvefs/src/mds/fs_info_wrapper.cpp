@@ -113,7 +113,7 @@ void FsInfoWrapper::AddMountPoint(const Mountpoint& mp) {
     *p = mp;
 
     fsInfo_.set_mountnum(fsInfo_.mountnum() + 1);
-    if (fsInfo_.mountnum() > 1) {
+    if (fsInfo_.enablesumindir() && fsInfo_.mountnum() > 1) {
         fsInfo_.set_enablesumindir(false);
     }
 }
