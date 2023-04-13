@@ -172,53 +172,6 @@ void FuseClient::Fini() {
 
 CURVEFS_ERROR FuseClient::FuseOpInit(void *userdata,
                                      struct fuse_conn_info *conn) {
-    struct MountOption* mOpts = (struct MountOption*)userdata;
-    // set path
-    mountpoint_.set_path((mOpts->mountPoint == nullptr) ? ""
-                                                       : mOpts->mountPoint);
-    std::string fsName = (mOpts->fsName == nullptr) ? "" : mOpts->fsName;
-
-    mountpoint_.set_cto(FLAGS_enableCto);
-
-    int retVal = SetHostPortInMountPoint(&mountpoint_);
-    if (retVal < 0) {
-        LOG(ERROR) << "Set Host and Port in MountPoint failed, ret = "
-                   << retVal;
-        return CURVEFS_ERROR::INTERNAL;
-    }
-
-    auto ret = mdsClient_->MountFs(fsName, mountpoint_, fsInfo_.get());
-    if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
-        LOG(ERROR) << "MountFs failed, FSStatusCode = " << ret
-                   << ", FSStatusCode_Name = "
-                   << FSStatusCode_Name(ret)
-                   << ", fsName = " << fsName
-                   << ", mountPoint = " << mountpoint_.ShortDebugString();
-        return CURVEFS_ERROR::MOUNT_FAILED;
-    }
-    inodeManager_->SetFsId(fsInfo_->fsid());
-    dentryManager_->SetFsId(fsInfo_->fsid());
-    enableSumInDir_ = fsInfo_->enablesumindir();
-    if (fsInfo_->has_recycletimehour()) {
-        enableSumInDir_ = enableSumInDir_ && (fsInfo_->recycletimehour() == 0);
-    }
-
-    LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
-              << " success!" << " enableSumInDir = " << enableSumInDir_;
-
-    fsMetric_ = std::make_shared<FSMetric>(fsName);
-
-    // init fsname and mountpoint
-    leaseExecutor_->SetFsName(fsName);
-    leaseExecutor_->SetMountPoint(mountpoint_);
-    if (!leaseExecutor_->Start()) {
-        return CURVEFS_ERROR::INTERNAL;
-    }
-
-    init_ = true;
-    if (warmupManager_ != nullptr) {
-        warmupManager_->SetMounted(true);
-    }
     return CURVEFS_ERROR::OK;
 }
 
@@ -1445,6 +1398,57 @@ void FuseClient::FlushInodeAll() { inodeManager_->FlushAll(); }
 void FuseClient::FlushAll() {
     FlushData();
     FlushInodeAll();
+}
+
+CURVEFS_ERROR
+FuseClient::SetMountStatus(const struct MountOption *mountOption) {
+    mountpoint_.set_path(
+        (mountOption->mountPoint == nullptr) ? "" : mountOption->mountPoint);
+    std::string fsName =
+        (mountOption->fsName == nullptr) ? "" : mountOption->fsName;
+
+    mountpoint_.set_cto(FLAGS_enableCto);
+
+    int retVal = SetHostPortInMountPoint(&mountpoint_);
+    if (retVal < 0) {
+        LOG(ERROR) << "Set Host and Port in MountPoint failed, ret = "
+                   << retVal;
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    auto ret = mdsClient_->MountFs(fsName, mountpoint_, fsInfo_.get());
+    if (ret != FSStatusCode::OK && ret != FSStatusCode::MOUNT_POINT_EXIST) {
+        LOG(ERROR) << "MountFs failed, FSStatusCode = " << ret
+                   << ", FSStatusCode_Name = " << FSStatusCode_Name(ret)
+                   << ", fsName = " << fsName
+                   << ", mountPoint = " << mountpoint_.ShortDebugString();
+        return CURVEFS_ERROR::MOUNT_FAILED;
+    }
+    inodeManager_->SetFsId(fsInfo_->fsid());
+    dentryManager_->SetFsId(fsInfo_->fsid());
+    enableSumInDir_ = fsInfo_->enablesumindir() && !FLAGS_enableCto;
+    if (fsInfo_->has_recycletimehour()) {
+        enableSumInDir_ = enableSumInDir_ && (fsInfo_->recycletimehour() == 0);
+    }
+
+    LOG(INFO) << "Mount " << fsName << " on " << mountpoint_.ShortDebugString()
+              << " success!"
+              << " enableSumInDir = " << enableSumInDir_;
+
+    fsMetric_ = std::make_shared<FSMetric>(fsName);
+
+    // init fsname and mountpoint
+    leaseExecutor_->SetFsName(fsName);
+    leaseExecutor_->SetMountPoint(mountpoint_);
+    if (!leaseExecutor_->Start()) {
+        return CURVEFS_ERROR::INTERNAL;
+    }
+
+    init_ = true;
+    if (warmupManager_ != nullptr) {
+        warmupManager_->SetMounted(true);
+    }
+    return CURVEFS_ERROR::OK;
 }
 
 }  // namespace client

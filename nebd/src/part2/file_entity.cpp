@@ -33,6 +33,8 @@
 namespace nebd {
 namespace server {
 
+extern const char* kOpenFlagsAttrKey;
+
 bool IsOpenFlagsExactlySame(const OpenFlags* lhs, const OpenFlags* rhs) {
     if (lhs == nullptr && rhs == nullptr) {
         return true;
@@ -145,6 +147,13 @@ int NebdFileEntity::Reopen(const ExtendAttribute& xattr) {
                    << "filename: " << fileName_;
         return -1;
     }
+
+    OpenFlags flags;
+    if (fileInstance->xattr.count(kOpenFlagsAttrKey) &&
+        flags.ParseFromString(fileInstance->xattr.at(kOpenFlagsAttrKey))) {
+        openFlags_.reset(new OpenFlags{flags});
+    }
+
     LOG(INFO) << "Reopen file success. "
               << "fd: " << fd_
               << ", filename: " << fileName_;
@@ -361,6 +370,11 @@ int NebdFileEntity::UpdateFileStatus(NebdFileInstancePtr fileInstance) {
     fileInstance_ = fileInstance;
     status_ = NebdFileStatus::OPENED;
     timeStamp_ = TimeUtility::GetTimeofDayMs();
+    OpenFlags flags;
+    if (fileInstance->xattr.count(kOpenFlagsAttrKey) &&
+        flags.ParseFromString(fileInstance->xattr.at(kOpenFlagsAttrKey))) {
+        openFlags_.reset(new OpenFlags{flags});
+    }
     return 0;
 }
 

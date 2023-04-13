@@ -134,18 +134,17 @@ int InitGlog(const char *confPath, const char *argv0) {
     return 0;
 }
 
-int InitFuseClient(const char *confPath, const char* fsName,
-    const char *fsType, const char *mdsAddr) {
+int InitFuseClient(const struct MountOption *mountOption) {
     g_clientOpMetric = new ClientOpMetric();
 
     Configuration conf;
-    conf.SetConfigPath(confPath);
+    conf.SetConfigPath(mountOption->conf);
     if (!conf.LoadConfig()) {
-        LOG(ERROR) << "LoadConfig failed, confPath = " << confPath;
+        LOG(ERROR) << "LoadConfig failed, confPath = " << mountOption->conf;
         return -1;
     }
-    if (mdsAddr)
-        conf.SetStringValue("mdsOpt.rpcRetryOpt.addrs", mdsAddr);
+    if (mountOption->mdsAddr)
+        conf.SetStringValue("mdsOpt.rpcRetryOpt.addrs", mountOption->mdsAddr);
 
     conf.PrintConfig();
 
@@ -153,11 +152,12 @@ int InitFuseClient(const char *confPath, const char* fsName,
     curvefs::client::common::InitFuseClientOption(&conf, g_fuseClientOption);
 
     std::shared_ptr<FsInfo> fsInfo = std::make_shared<FsInfo>();
-    if (GetFsInfo(fsName, fsInfo.get()) != 0) {
+    if (GetFsInfo(mountOption->fsName, fsInfo.get()) != 0) {
         return -1;
     }
 
-    std::string fsTypeStr = (fsType == nullptr) ? "" : fsType;
+    std::string fsTypeStr =
+        (mountOption->fsType == nullptr) ? "" : mountOption->fsType;
     std::string fsTypeMds;
     if (fsInfo->fstype() == FSType::TYPE_S3) {
        fsTypeMds = "s3";
@@ -183,6 +183,11 @@ int InitFuseClient(const char *confPath, const char* fsName,
         return -1;
     }
     ret = g_ClientInstance->Run();
+    if (ret != CURVEFS_ERROR::OK) {
+        return -1;
+    }
+
+    ret = g_ClientInstance->SetMountStatus(mountOption);
     if (ret != CURVEFS_ERROR::OK) {
         return -1;
     }

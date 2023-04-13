@@ -462,10 +462,15 @@ TEST_F(TestDiskCacheWrite, AsyncUploadRun) {
     sleep(1);
     diskCacheWrite_->AsyncUploadEnqueue("test");
     std::string t1 = "test";
-    curve::common::Thread backEndThread =
-        std::thread(&DiskCacheWrite::AsyncUploadEnqueue, diskCacheWrite_, t1);
+    std::vector<curve::common::Thread> threads;
+    for (int i = 0; i < 5; i++) {
+        threads.emplace_back(&DiskCacheWrite::AsyncUploadEnqueue,
+                             diskCacheWrite_, t1);
+    }
     diskCacheWrite_->AsyncUploadStop();
-    backEndThread.join();
+    for (auto &t : threads) {
+        t.join();
+    }
 }
 
 TEST_F(TestDiskCacheWrite, UploadFileByInode) {

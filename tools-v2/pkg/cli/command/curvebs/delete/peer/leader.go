@@ -141,5 +141,5 @@ func GetLeader(logicalPoolID, copysetID uint32, conf Configuration, opts Options
 		}
 	}
 	ret := cmderror.MergeCmdError(errors)
-	return nil, &ret
+	return nil, ret
 }

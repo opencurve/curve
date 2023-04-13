@@ -819,7 +819,9 @@ CheckResult CopysetCheckCore::CheckHealthOnLeader(
                     return CheckResult::kParseError;
                 }
             }
-            gap = std::max(gap, lastLogId - (nextIndex - 1 - flying));
+            if (lastLogId > (nextIndex - 1 - flying)) {
+                gap = std::max(gap, lastLogId - (nextIndex - 1 - flying));
+            }
         }
     }
     if (gap > FLAGS_margin) {

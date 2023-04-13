@@ -187,7 +187,9 @@ TEST_F(TestFuseVolumeClient, FuseOpInit_when_fs_exist) {
 
     EXPECT_CALL(*blockDeviceClient_, Open(_, _))
         .WillOnce(Return(true));
-    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
+    CURVEFS_ERROR ret = client_->SetMountStatus(&mOpts);
+    ASSERT_EQ(CURVEFS_ERROR::OK, ret);
+    ret = client_->FuseOpInit(&mOpts, nullptr);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();

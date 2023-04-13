@@ -199,7 +199,7 @@ func QueryMetric(m *Metric) (string, *cmderror.CmdError) {
 		}
 	}
 	retErr := cmderror.MergeCmdError(vecErrs)
-	return retStr, &retErr
+	return retStr, retErr
 }
 
 func GetMetricValue(metricRet string) (string, *cmderror.CmdError) {
@@ -348,7 +348,7 @@ func GetRpcResponse(rpc *Rpc, rpcFunc RpcFunc) (interface{}, *cmderror.CmdError)
 	}
 	if len(vecErrs) >= len(rpc.Addrs) {
 		retErr := cmderror.MergeCmdError(vecErrs)
-		return ret, &retErr
+		return ret, retErr
 	}
 	return ret, cmderror.ErrSuccess()
 }

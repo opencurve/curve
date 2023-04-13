@@ -49,7 +49,7 @@ void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
 }
 
 void DiskCacheWrite::AsyncUploadEnqueue(const std::string objName) {
-    std::lock_guard<bthread::Mutex> lk(mtx_);
+    std::lock_guard<std::mutex> lock(mtx_);
     waitUpload_.push_back(objName);
 }
 
@@ -139,7 +139,7 @@ int DiskCacheWrite::UploadFile(const std::string &name,
         [&, buffer, syncTask, name]
             (const std::shared_ptr<PutObjectAsyncContext> &context) {
             if (context->retCode == 0) {
-                if (metric_.get() != nullptr) {
+                if (metric_ != nullptr) {
                     metric_->writeS3.bps.count << context->bufferSize;
                     metric_->writeS3.qps.count << 1;
                     metric_->writeS3.latency
@@ -186,7 +186,7 @@ bool DiskCacheWrite::WriteCacheValid() {
 
 int DiskCacheWrite::GetUploadFile(const std::string &inode,
                                   std::list<std::string> *toUpload) {
-    std::unique_lock<bthread::Mutex> lk(mtx_);
+    std::unique_lock<std::mutex> lock(mtx_);
     if (waitUpload_.empty()) {
         return 0;
     }
@@ -207,11 +207,11 @@ int DiskCacheWrite::GetUploadFile(const std::string &inode,
 }
 
 int DiskCacheWrite::FileExist(const std::string &inode) {
-    // load all write cacahe
+    // load all write cache
     std::set<std::string> cachedObj;
     int ret = LoadAllCacheFile(&cachedObj);
     if (ret < 0) {
-        LOG(ERROR) << "DiskCacheWrite, load all cacched file fail ret = "
+        LOG(ERROR) << "DiskCacheWrite, load all cached file fail ret = "
                    << ret;
         return ret;
     }
@@ -274,6 +274,7 @@ int DiskCacheWrite::AsyncUploadFunc() {
     }
 
     std::list<std::string> toUpload;
+    std::shared_ptr<SynchronizationTask> syncTask;
 
     VLOG(3) << "async upload function start.";
     while (sleeper_.wait_for(std::chrono::milliseconds(asyncLoadPeriodMs_))) {
@@ -282,12 +283,22 @@ int DiskCacheWrite::AsyncUploadFunc() {
             return 0;
         }
         toUpload.clear();
-        if (GetUploadFile("", &toUpload) <= 0) {
+        int num = GetUploadFile("", &toUpload);
+        if (num <= 0) {
+            std::unique_lock<std::mutex> lock(mtx_);
+            if (waitUpload_.empty()) {
+                cond_.notify_all();
+            }
             continue;
         }
-        VLOG(6) << "async upload file size = " << toUpload.size();
-        UploadFile(toUpload, nullptr);
+        VLOG(6) << "async upload file size = " << num;
+        syncTask.reset(new SynchronizationTask(num));
+        UploadFile(toUpload, syncTask);
         VLOG(6) << "async upload all files";
+    }
+
+    if (syncTask) {
+        syncTask->Wait();
     }
     return 0;
 }
@@ -303,15 +314,20 @@ int DiskCacheWrite::AsyncUploadRun() {
 }
 
 int DiskCacheWrite::AsyncUploadStop() {
+    if (isRunning_.load()) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        while (!waitUpload_.empty()) {
+            cond_.wait_for(lock, std::chrono::milliseconds(asyncLoadPeriodMs_));
+        }
+    }
     if (isRunning_.exchange(false)) {
         LOG(INFO) << "stop AsyncUpload thread...";
         sleeper_.interrupt();
         backEndThread_.join();
         LOG(INFO) << "stop AsyncUpload thread ok.";
         return -1;
-    } else {
-        LOG(INFO) << "AsyncUpload thread not running.";
     }
+    LOG(INFO) << "AsyncUpload thread not running.";
     return 0;
 }
 
@@ -456,6 +472,14 @@ int DiskCacheWrite::WriteDiskFile(const std::string fileName, const char *buf,
     VLOG(6) << "WriteDiskFile success. name = " << fileName
             << ", force = " << force << ", length = " << length;
     return writeLen;
+}
+
+bool DiskCacheWrite::IsCacheClean() {
+    if (!WriteCacheValid()) {
+        return true;
+    }
+    std::set<std::string> objs;
+    return LoadAllCacheFile(&objs) == 0 && objs.empty();
 }
 
 }  // namespace client

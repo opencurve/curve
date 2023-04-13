@@ -2,23 +2,16 @@
 
 # 编译环境搭建
 
-请注意：
-1. 如您只是想体验CURVE的部署流程和基本功能，**则不需要编译CURVE**，请参考[部署](https://github.com/opencurve/curveadm/wiki)
-2. 本文档仅用来帮助你搭建CURVE代码编译环境，便于您参与CURVE的开发调试
+**请注意：**
 
-**注意：**
-
-mk-tar.sh 和 mk-deb.sh 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
+1. 如您只是想体验Curve的部署流程和基本功能，**则不需要编译Curve**，请参考 [部署](https://github.com/opencurve/curveadm/wiki)
+2. 本文档仅用来帮助你搭建Curve代码编译环境，便于您参与Curve的开发调试
 
 ## 使用Docker进行编译（推荐方式）
 
 ### 获取或者构建docker镜像
 
 方法一：从docker hub镜像库中拉取docker镜像（推荐方式）
-
-```bash
-docker pull opencurvedocker/curve-base:build-debian9
-```
 
 ```bash
 docker pull opencurvedocker/curve-base:build-debian9
@@ -32,7 +25,7 @@ docker pull opencurvedocker/curve-base:build-debian9
 docker build -t opencurvedocker/curve-base:build-debian9
 ```
 
-注意：上述操作不建议在CURVE工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
+**注意：** 上述操作不建议在Curve工程目录执行，否则构建镜像时会把当前目录的文件都复制到docker镜像中，建议把Dockerfile拷贝到新建的干净目录下进行docker镜像的构建。
 
 ### 在docker镜像中编译
 
@@ -40,28 +33,29 @@ docker build -t opencurvedocker/curve-base:build-debian9
 docker run -it opencurvedocker/curve-base:build-debian9 /bin/bash
 cd <workspace>
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
-# （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
+# （中国大陆可选）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
 # curve v2.0 之前
 bash mk-tar.sh （编译 curvebs 并打tar包）
 bash mk-deb.sh （编译 curvebs 并打debian包）
-# curve v2.0 及之后
+# （当前）curve v2.0 及之后
 编译 curvebs: cd curve && make build stor=bs dep=1
 编译 curvefs: cd curve && make build stor=fs dep=1
 ```
 
+**注意：** `mk-tar.sh` 和 `mk-deb.sh` 用于 curve v2.0 之前版本的编译打包，v2.0 版本之后不再维护。
 
 ## 在物理机上编译
 
-CURVE编译依赖的包括：
+Curve编译依赖的包括：
 
 | 依赖 | 版本 |
 |:-- |:-- |
 | bazel | 4.2.2 |
 | gcc   | 支持c++11的兼容版本 |
 
-CURVE的其他依赖项，均由bazel去管理，不可单独安装。
+Curve的其他依赖项，均由bazel去管理，不可单独安装。
 
-**注意** 4.* 版本的 bazel 均可以成功编译 curve 项目，其他版本不兼容。
+**注意：** 4.* 版本的 bazel 均可以成功编译 Curve 项目，其他版本不兼容。
 4.2.2 为推荐版本。
 
 ### 安装依赖
@@ -70,13 +64,13 @@ CURVE的其他依赖项，均由bazel去管理，不可单独安装。
 
 ### 一键编译
 
-```
+```bash
 git clone https://github.com/opencurve/curve.git 或者 git clone https://gitee.com/mirrors/curve.git
-# （可选步骤）将外部依赖替换为国内下载点或镜像仓库，可以加快编译速度： bash replace-curve-repo.sh
+# （中国大陆可选）将外部依赖替换为国内下载点或镜像仓库，可以加快下载速度： bash replace-curve-repo.sh
 # curve v2.0 之前
 bash mk-tar.sh （编译 curvebs 并打tar包）
 bash mk-deb.sh （编译 curvebs 并打debian包）
-# curve v2.0 及之后
+# （当前）curve v2.0 及之后
 编译 curvebs: cd curve && make build stor=bs dep=1
 编译 curvefs: cd curve && make build stor=fs dep=1
 ```
@@ -86,15 +80,24 @@ bash mk-deb.sh （编译 curvebs 并打debian包）
 ### 编译全部模块
 
 仅编译全部模块，不进行打包
-```
+```bash
 bash ./build.sh
 ```
 
-### 编译对应模块的代码和运行测试
+### 列出所有测试模块
+
+```bash
+# curvebs
+bazel query '//test/...'
+# curvefs
+bazel query '//curvefs/test/...'
+```
+
+### 编译对应模块的代码
 
 编译对应模块，例如test/common目录下的common-test测试：
 
-```
+```bash
 bazel build test/common:common-test --copt -DHAVE_ZLIB=1 --define=with_glog=true --compilation_mode=dbg --define=libunwind=true
 ```
 
@@ -171,7 +174,8 @@ cd etcd-v3.4.10-linux-amd64 && cp etcd etcdctl /usr/bin
 ```
 
 #### 执行单个测试模块
-```
+
+```bash
 ./bazel-bin/test/common/common-test
 ```
 

@@ -49,6 +49,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "curvefs/src/common/task_thread_pool.h"
+#include "curvefs/src/client/metric/client_metric.h"
 
 namespace curvefs {
 namespace client {
@@ -213,6 +214,8 @@ class WarmupManager {
         }
         return ret;
     }
+
+    void CollectMetrics(InterfaceMetric *interface, int count, uint64_t start);
 
  protected:
     /**
@@ -424,6 +427,8 @@ class WarmupManagerS3Impl : public WarmupManager {
     std::unordered_map<fuse_ino_t, std::unique_ptr<ThreadPool>>
         inode2FetchS3ObjectsPool_;
     mutable RWLock inode2FetchS3ObjectsPoolMutex_;
+
+    curvefs::client::metric::WarmupManagerS3Metric warmupS3Metric_;
 };
 
 }  // namespace warmup

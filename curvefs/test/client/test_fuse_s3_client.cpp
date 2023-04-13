@@ -838,7 +838,7 @@ TEST_F(TestFuseS3Client, warmUp_FetchChildDentry_suc_ListDentry) {
     ASSERT_FALSE(ret);
 }
 
-TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
+TEST_F(TestFuseS3Client, FuseInit_when_fs_exist) {
     MountOption mOpts;
     memset(&mOpts, 0, sizeof(mOpts));
     mOpts.fsName = "s3fs";
@@ -851,7 +851,7 @@ TEST_F(TestFuseS3Client, FuseOpInit_when_fs_exist) {
     fsInfoExp.set_fsname(fsName);
     EXPECT_CALL(*mdsClient_, MountFs(fsName, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(fsInfoExp), Return(FSStatusCode::OK)));
-    CURVEFS_ERROR ret = client_->FuseOpInit(&mOpts, nullptr);
+    CURVEFS_ERROR ret = client_->SetMountStatus(&mOpts);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
 
     auto fsInfo = client_->GetFsInfo();

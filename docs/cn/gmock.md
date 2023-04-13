@@ -118,7 +118,7 @@
 + 第6行WillOnce(action)是定义一次调用时所产生的行为，比如定义该方法返回怎么样的值等等。
 + 第7行WillRepeatedly(action)的意思是缺省/重复行为。
 
-## Machers（匹配器）
+## Matchers（匹配器）
 
 Matcher用于定义Mock类中的方法的形参的值（当然，如果你的方法不需要形参时，可以保持match为空）。 
 
@@ -179,7 +179,7 @@ Matcher可以在ON_CALL() or EXPECT_CALL()内部使用，也可以直接判断�
 | ContainerEq(container)	 | 类型Eq(container)，就是输出结果有点不一样，这里输出结果会带上哪些个元素不被包含在另一个容器中 |
 | Pointwise(m, container)	 |            |
 
-所有这些Machers都在命名空间::testing中，使用时需引入这一命名空间
+所有这些Matchers都在命名空间::testing中，使用时需引入这一命名空间
 例：
 
     using ::testing::Ge;
@@ -197,7 +197,7 @@ Matcher可以在ON_CALL() or EXPECT_CALL()内部使用，也可以直接判断�
 
 | Field(&class::field, m)	      | argument.field (或 argument->field, 当argument是一个指针时)与匹配器m匹配, 这里的argument是一个class类的实例. |
 |:----------------------|:----------------------|
-| Key(e)	                      | 容器的key值符合e，e可以是一个值或者是一个Macher |
+| Key(e)	                      | 容器的key值符合e，e可以是一个值或者是一个Matcher |
 | Pair(m1, m2)	                  | argument是一个std::pair，并且argument.first等于m1，argument.second等于m2. |
 | Property(&class::property, m)	  | argument.property()(或argument->property(),当argument是一个指针时)与匹配器m匹配, 这里的argument是一个class类的实例. |
 
@@ -292,7 +292,7 @@ Side Effects 指的是这个action还将对测试起的作用，比如给指针�
 
 | Invoke(f)	                                | 使用模拟函数的参数调用f, 这里的f可以是全局/静态函数或函数对象. |
 |:-------------------------|:----------------------|
-| Invoke(object_pointer, &class::method)	| 使用模拟函数的参数调用object_pointer对象的mothod方法. |
+| Invoke(object_pointer, &class::method)	| 使用模拟函数的参数调用object_pointer对象的method方法. |
 
 ### 复合动作
 

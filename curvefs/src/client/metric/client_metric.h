@@ -294,6 +294,16 @@ struct S3ChunkInfoMetric {
     S3ChunkInfoMetric() : s3ChunkInfoSize(prefix, "size") {}
 };
 
+struct WarmupManagerS3Metric {
+    static constexpr const char* prefix = "curvefs_warmup";
+    InterfaceMetric warmupS3Cached;
+    bvar::Adder<uint64_t> warmupS3CacheSize;
+
+    WarmupManagerS3Metric()
+        : warmupS3Cached(prefix, "s3_cached"),
+          warmupS3CacheSize(prefix, "s3_cache_size") {}
+};
+
 }  // namespace metric
 }  // namespace client
 }  // namespace curvefs

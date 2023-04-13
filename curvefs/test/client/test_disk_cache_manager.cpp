@@ -277,8 +277,6 @@ TEST_F(TestDiskCacheManager, TrimRun_1) {
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-        .WillOnce(Return(0));
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     EXPECT_CALL(*wrapper, statfs(NotNull(), NotNull()))
@@ -312,8 +310,6 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-        .WillOnce(Return(0));
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
@@ -349,8 +345,6 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-        .WillOnce(Return(0));
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
@@ -387,8 +381,6 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
-        .WillOnce(Return(0));
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test");
     diskCacheManager_->AddCache("test");
@@ -427,8 +419,6 @@ TEST_F(TestDiskCacheManager, TrimCache_noexceed) {
         .Times(3)
         .WillOnce(Return(0))
         .WillOnce(Return(-1))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
         .WillOnce(Return(0));
     int ret = diskCacheManager_->TrimRun();
     diskCacheManager_->InitMetrics("test");
@@ -472,8 +462,6 @@ TEST_F(TestDiskCacheManager, TrimCache_exceed) {
     EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
         .Times(2)
         .WillOnce(Return(-1))
-        .WillOnce(Return(0));
-    EXPECT_CALL(*diskCacheWrite_, UploadAllCacheWriteFile())
         .WillOnce(Return(0));
     diskCacheManager_->TrimRun();
     diskCacheManager_->InitMetrics("test");

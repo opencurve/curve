@@ -163,7 +163,7 @@ func (mCmd *MdsCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		mCmd.health = cobrautil.HEALTH_OK
 	}
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	mCmd.Error = &mergeErr
+	mCmd.Error = mergeErr
 	list := cobrautil.ListMap2ListSortByKeys(mCmd.rows, mCmd.Header, []string{
 		cobrautil.ROW_STATUS, cobrautil.ROW_VERSION,
 	})

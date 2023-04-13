@@ -167,7 +167,7 @@ func (eCmd *EtcdCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 	mergeErr := cmderror.MergeCmdErrorExceptSuccess(errs)
-	eCmd.Error = &mergeErr
+	eCmd.Error = mergeErr
 
 	if len(errs) > 0 && len(errs) < len(eCmd.rows) {
 		eCmd.health = cobrautil.HEALTH_WARN
