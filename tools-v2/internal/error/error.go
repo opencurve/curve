@@ -692,4 +692,16 @@ var (
 		}
 		return NewRpcReultCmdError(-code, message)
 	}
+
+	ErrExtendFile = func(statusCode nameserver2.StatusCode, path, size string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "successfully expanded the file"
+		default:
+			message = fmt.Sprintf("failed to expand file[%s] to %s, err: %s", path, size, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
 )
