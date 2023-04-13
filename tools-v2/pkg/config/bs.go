@@ -66,6 +66,8 @@ const (
 	VIPER_CURVEBS_PEERS_ADDRESS = "curvebs.peers"
 	CURVEBS_OFFSET              = "offset"
 	VIPER_CURVEBS_OFFSET        = "curvebs.offset"
+	CURVEBS_SIZE                = "size"
+	VIPER_CURVEBS_SIZE          = "curvebs.size"
 )
 
 var (
@@ -87,6 +89,7 @@ var (
 		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
 		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
 		CURVEBS_OFFSET:        VIPER_CURVEBS_OFFSET,
+		CURVEBS_SIZE:          VIPER_CURVEBS_SIZE,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -163,7 +166,6 @@ func AddBsUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
-
 func AddBsUint64RequiredFlag(cmd *cobra.Command, name string, usage string) {
 	cmd.Flags().Uint64(name, uint64(0), usage+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(name)
@@ -238,6 +240,10 @@ func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
 
 func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
 	AddBsUint64RequiredFlag(cmd, CURVEBS_OFFSET, "offset")
+}
+
+func AddBsSizeRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_SIZE, "size, just like: 10GiB")
 }
 
 // get stingslice flag
