@@ -75,13 +75,13 @@ ChunkFileMetaPage& ChunkFileMetaPage::operator =(
     return *this;
 }
 
-uint64_t SnapshotMetaPage::htonll(uint64_t val) {
+uint64_t ChunkFileMetaPage::htonll(uint64_t val) {
     if (1 == htonl(1))  // Judge the machine endianness
         return val;     // If equal Big Endianness
     return (((uint64_t)htonl(val)) << 32) + htonl(val >> 32);
 }
 
-uint64_t SnapshotMetaPage::ntohll(uint64_t val) {
+uint64_t ChunkFileMetaPage::ntohll(uint64_t val) {
     if (1 == htonl(1))
         return val;
     return (((uint64_t)ntohl(val)) << 32) + ntohl(val >> 32);
