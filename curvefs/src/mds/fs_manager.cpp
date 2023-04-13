@@ -843,6 +843,11 @@ void FsManager::RefreshSession(const RefreshSessionRequest* request,
 
     // update this client's alive time
     UpdateClientAliveTime(request->mountpoint(), request->fsname());
+
+    // get fsinfo and set into response
+    FsInfo* fsInfo;
+    GetFsInfo(request->fsname(), fsInfo);
+    response->enableSumInDir() = fsInfo->enableSumInDir();
 }
 
 FSStatusCode FsManager::ReloadMountedFsVolumeSpace() {

@@ -45,9 +45,13 @@ class LeaseExecutor : public LeaseExecutorBase {
  public:
     LeaseExecutor(const LeaseOpt &opt, std::shared_ptr<MetaCache> metaCache,
                   std::shared_ptr<MdsClient> mdsCli)
-        : opt_(opt), metaCache_(metaCache), mdsCli_(mdsCli) {}
+        : opt_(opt), metaCache_(metaCache), mdsCli_(mdsCli) {
+         enableSumInDir_ = new bool();
+        }
 
-    ~LeaseExecutor();
+    ~LeaseExecutor() {
+      free(enableSumInDir_);
+    }
 
     bool Start();
 
@@ -66,6 +70,10 @@ class LeaseExecutor : public LeaseExecutorBase {
        mountpoint_ = mp;
     }
 
+    void SetEnableSumInDir(const bool& flag) {
+       *enableSumInDir_ = flag;
+    }
+
  private:
     LeaseOpt opt_;
     std::shared_ptr<MetaCache> metaCache_;
@@ -73,6 +81,7 @@ class LeaseExecutor : public LeaseExecutorBase {
     std::unique_ptr<RefreshSessionTask> task_;
     std::string fsName_;
     Mountpoint mountpoint_;
+    bool* enableSumInDir_;
 };
 
 }  // namespace client

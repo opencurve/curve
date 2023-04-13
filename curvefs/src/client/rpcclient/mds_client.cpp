@@ -507,7 +507,7 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
             LOG(INFO) << "RefreshSession need update partition txid list: "
                       << response.DebugString();
         }
-
+        *enablesumindir = response.enablesumindir();
         return ret;
     };
 

@@ -1440,6 +1440,7 @@ FuseClient::SetMountStatus(const struct MountOption *mountOption) {
     // init fsname and mountpoint
     leaseExecutor_->SetFsName(fsName);
     leaseExecutor_->SetMountPoint(mountpoint_);
+    leaseExecutor_->SetEnableSumInDir(enableSumInDir_);
     if (!leaseExecutor_->Start()) {
         return CURVEFS_ERROR::INTERNAL;
     }

@@ -191,6 +191,7 @@ message RefreshSessionRequest {
 message RefreshSessionResponse {
     required FSStatusCode statusCode = 1;
     repeated topology.PartitionTxId latestTxIdList = 2;
+    optional bool enableSumInDir = 3;
 }
 
 message DLockValue {
