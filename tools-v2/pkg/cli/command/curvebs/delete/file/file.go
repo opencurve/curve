@@ -113,6 +113,10 @@ func (deleteCommand *DeleteCommand) ResultPlainOutput() error {
 }
 
 func (deleteCommand *DeleteCommand) AddFlags() {
+	config.AddFsMdsAddrFlag(deleteCommand.Cmd)
+	config.AddRpcTimeoutFlag(deleteCommand.Cmd)
+	config.AddRpcRetryTimesFlag(deleteCommand.Cmd)
+
 	config.AddBsFilenameRequiredFlag(deleteCommand.Cmd)
 	config.AddBsUsernameRequiredFlag(deleteCommand.Cmd)
 	config.AddBsPasswordOptionFlag(deleteCommand.Cmd)
