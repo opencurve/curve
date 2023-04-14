@@ -95,13 +95,7 @@ void ChunkFileMetaPage::encode(char *buf) {
     // long unsigned int loc_size 4/8 bytes need convert to big endian
     size_t loc_size = location.size();
     size_t be_loc_size;
-    if (sizeof(size_t) == 4) {
-        be_loc_size = htobe32(loc_size);
-    } else if (sizeof(size_t) == 8) {
-        be_loc_size = htobe64(loc_size);
-    } else {
-        be_loc_size = loc_size;
-    }
+    be_loc_size = htobe64(loc_size);
     memcpy(buf + len, &be_loc_size, sizeof(be_loc_size));
     len += sizeof(be_loc_size);
 
@@ -151,13 +145,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     // long unsigned int loc_size 4/8 bytes need convert to host endianness
     size_t loc_size;
     size_t host_loc_size;
-    if (sizeof(size_t) == 4) {
-        host_loc_size = be32toh(loc_size);
-    } else if (sizeof(size_t) == 8) {
-        host_loc_size = be64toh(loc_size);
-    } else {
-        host_loc_size = loc_size;
-    }
+    host_loc_size = be64toh(loc_size);
     loc_size = host_loc_size;
     memcpy(&loc_size, buf + len, sizeof(loc_size));
     len += sizeof(loc_size);
