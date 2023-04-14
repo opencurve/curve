@@ -72,8 +72,6 @@ struct SnapshotMetaPage {
     SnapshotMetaPage(const SnapshotMetaPage &metaPage);
     SnapshotMetaPage &operator=(const SnapshotMetaPage &metaPage);
 
-    uint64_t htonll(uint64_t val);
-    uint64_t ntohll(uint64_t val);
     void encode(char *buf);
     CSErrorCode decode(const char *buf);
 };

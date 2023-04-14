@@ -19,7 +19,7 @@
  * File Created: Thursday, 6th September 2018 10:49:53 am
  * Author: yangyaokai
  */
-#include <arpa/inet.h>
+#include <endian.h>
 #include <fcntl.h>
 #include <algorithm>
 #include <memory>
@@ -75,18 +75,6 @@ ChunkFileMetaPage& ChunkFileMetaPage::operator =(
     return *this;
 }
 
-uint64_t ChunkFileMetaPage::htonll(uint64_t val) {
-    if (1 == htonl(1))  // Judge the machine endianness
-        return val;     // If equal Big Endianness
-    return (((uint64_t)htonl(val)) << 32) + htonl(val >> 32);
-}
-
-uint64_t ChunkFileMetaPage::ntohll(uint64_t val) {
-    if (1 == htonl(1))
-        return val;
-    return (((uint64_t)ntohl(val)) << 32) + ntohl(val >> 32);
-}
-
 void ChunkFileMetaPage::encode(char *buf) {
     size_t len = 0;
 
@@ -94,37 +82,37 @@ void ChunkFileMetaPage::encode(char *buf) {
     memcpy(buf, &version, sizeof(version));
     len += sizeof(version);
 
-    // uint64_t sn 8 bytes need convert to network endianness in encode
-    uint64_t netSn = htonll(sn);
-    memcpy(buf + len, &netSn, sizeof(netSn));
-    len += sizeof(netSn);
+    // uint64_t sn 8 bytes need convert to big endian in encode
+    uint64_t beSn = htobe64(sn);
+    memcpy(buf + len, &beSn, sizeof(beSn));
+    len += sizeof(beSn);
 
-    // uint64_t correctedSn 8 bytes need convert to network endianness
-    uint64_t netCorrectedSn = htonll(correctedSn);
-    memcpy(buf + len, &netCorrectedSn, sizeof(netCorrectedSn));
-    len += sizeof(netCorrectedSn);
+    // uint64_t correctedSn 8 bytes need convert to big endian
+    uint64_t beCorrectedSn = htobe64(correctedSn);
+    memcpy(buf + len, &beCorrectedSn, sizeof(beCorrectedSn));
+    len += sizeof(beCorrectedSn);
 
-    // long unsigned int loc_size 4/8 bytes need convert to network endianness
+    // long unsigned int loc_size 4/8 bytes need convert to big endian
     size_t loc_size = location.size();
-    size_t net_loc_size;
+    size_t be_loc_size;
     if (sizeof(size_t) == 4) {
-        net_loc_size = htonl(loc_size);
+        be_loc_size = htobe32(loc_size);
     } else if (sizeof(size_t) == 8) {
-        net_loc_size = htonll(loc_size);
+        be_loc_size = htobe64(loc_size);
     } else {
-        net_loc_size = loc_size;
+        be_loc_size = loc_size;
     }
-    memcpy(buf + len, &net_loc_size, sizeof(net_loc_size));
-    len += sizeof(net_loc_size);
+    memcpy(buf + len, &be_loc_size, sizeof(be_loc_size));
+    len += sizeof(be_loc_size);
 
     // CloneChunk need serialized location information and bitmap information
     if (loc_size > 0) {
         memcpy(buf + len, location.c_str(), loc_size);
         len += loc_size;
 
-        // uint32_t bits 4 bytes need convert to network endianness
+        // uint32_t bits 4 bytes need convert to big endian
         uint32_t bits = bitmap->Size();
-        uint32_t netBits = htonl(bits);
+        uint32_t netBits = htobe32(bits);
         memcpy(buf + len, &netBits, sizeof(netBits));
         len += sizeof(netBits);
 
@@ -137,7 +125,7 @@ void ChunkFileMetaPage::encode(char *buf) {
 
     // uint32_t crc 4 bytes need convert to network endianness
     uint32_t crc = ::curve::common::CRC32(buf, len);
-    uint32_t netCrc = htonl(crc);
+    uint32_t netCrc = htobe32(crc);
     memcpy(buf + len, &netCrc, sizeof(netCrc));
 }
 
@@ -150,13 +138,13 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
 
     // uint64_t sn 8 bytes need convert to host endianness in decode
     memcpy(&sn, buf + len, sizeof(sn));
-    uint64_t hostSn = ntohll(sn);
+    uint64_t hostSn = be64toh(sn);
     sn = hostSn;
     len += sizeof(sn);
 
     // uint64_t correctedSn 8 bytes need convert to host endianness
     memcpy(&correctedSn, buf + len, sizeof(correctedSn));
-    uint64_t hostCorrectedSn = ntohll(correctedSn);
+    uint64_t hostCorrectedSn = be64toh(correctedSn);
     correctedSn = hostCorrectedSn;
     len += sizeof(correctedSn);
 
@@ -164,9 +152,9 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     size_t loc_size;
     size_t host_loc_size;
     if (sizeof(size_t) == 4) {
-        host_loc_size = ntohl(loc_size);
+        host_loc_size = be32toh(loc_size);
     } else if (sizeof(size_t) == 8) {
-        host_loc_size = ntohll(loc_size);
+        host_loc_size = be64toh(loc_size);
     } else {
         host_loc_size = loc_size;
     }
@@ -182,7 +170,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
         // uint32_t bits 4 bytes need convert to host endianness
         uint32_t bits = 0;
         memcpy(&bits, buf + len, sizeof(bits));
-        uint32_t hostBits = ntohl(bits);
+        uint32_t hostBits = be32toh(bits);
         bits = hostBits;
         len += sizeof(bits);
 
@@ -197,7 +185,7 @@ CSErrorCode ChunkFileMetaPage::decode(const char *buf) {
     uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
-    uint32_t hostRecordCrc = ntohl(recordCrc);
+    uint32_t hostRecordCrc = be32toh(recordCrc);
     recordCrc = hostRecordCrc;
     // check crc
     if (crc != recordCrc) {

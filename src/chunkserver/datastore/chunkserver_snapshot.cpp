@@ -20,25 +20,13 @@
  * Author: yangyaokai
  */
 
-#include <arpa/inet.h>
+#include <endian.h>
 #include <memory>
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
 
 namespace curve {
 namespace chunkserver {
-
-uint64_t SnapshotMetaPage::htonll(uint64_t val) {
-    if (1 == htonl(1))  // Judge the machine endianness
-        return val;     // If equal Big Endianness
-    return (((uint64_t)htonl(val)) << 32) + htonl(val >> 32);
-}
-
-uint64_t SnapshotMetaPage::ntohll(uint64_t val) {
-    if (1 == htonl(1))
-        return val;
-    return (((uint64_t)ntohl(val)) << 32) + ntohl(val >> 32);
-}
 
 void SnapshotMetaPage::encode(char *buf) {
     size_t len = 0;
@@ -51,16 +39,16 @@ void SnapshotMetaPage::encode(char *buf) {
     memcpy(buf + len, &damaged, sizeof(damaged));
     len += sizeof(damaged);
 
-    // uint64_t sn 8 bytes need convert to network endianness in encode
-    uint64_t u64NetSn = htonll(sn);
-    memcpy(buf + len, &u64NetSn, sizeof(u64NetSn));
-    len += sizeof(u64NetSn);
+    // uint64_t sn 8 bytes need convert to big endian in encode
+    uint64_t u64BeSn = htobe64(sn);
+    memcpy(buf + len, &u64BeSn, sizeof(u64BeSn));
+    len += sizeof(u64BeSn);
 
-    // uint32_t bits 4 bytes need convert to network endianness in encode
+    // uint32_t bits 4 bytes need convert to big endian
     uint32_t bits = bitmap->Size();
-    uint32_t netBits = htonl(bits);
-    memcpy(buf + len, &netBits, sizeof(netBits));
-    len += sizeof(netBits);
+    uint32_t beBits = htobe32(bits);
+    memcpy(buf + len, &beBits, sizeof(beBits));
+    len += sizeof(beBits);
 
     // unsigned long bitmapBytes 4 bytes
     // bitmap char  (bits + 8 - 1) / 8 bytes
@@ -68,10 +56,10 @@ void SnapshotMetaPage::encode(char *buf) {
     memcpy(buf + len, bitmap->GetBitmap(), bitmapBytes);
     len += bitmapBytes;
 
-    // uint32_t crc 4 bytes need convert to network endianness in encode
+    // uint32_t crc 4 bytes need convert to big endian
     uint32_t crc = ::curve::common::CRC32(buf, len);
-    uint32_t netCrc = htonl(crc);
-    memcpy(buf + len, &netCrc, sizeof(netCrc));
+    uint32_t beCrc = htobe32(crc);
+    memcpy(buf + len, &beCrc, sizeof(beCrc));
 }
 
 CSErrorCode SnapshotMetaPage::decode(const char *buf) {
@@ -87,14 +75,14 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
 
     // uint64_t sn 8 bytes need convert to host endianness in decode
     memcpy(&sn, buf + len, sizeof(sn));
-    uint64_t hostSn = ntohll(sn);
+    uint64_t hostSn = be64toh(sn);
     sn = hostSn;
     len += sizeof(sn);
 
-    // uint32_t bits 4 bytes need convert to host endianness in decode
+    // uint32_t bits 4 bytes need convert to host endianness
     uint32_t bits = 0;
     memcpy(&bits, buf + len, sizeof(bits));
-    uint32_t hostBits = ntohl(bits);
+    uint32_t hostBits = be32toh(bits);
     len += sizeof(hostBits);
     bitmap = std::make_shared<Bitmap>(hostBits, buf + len);
 
@@ -103,11 +91,11 @@ CSErrorCode SnapshotMetaPage::decode(const char *buf) {
     size_t bitmapBytes = (bitmap->Size() + 8 - 1) / 8;
     len += bitmapBytes;
 
-    // uint32_t crc 4 bytes need convert to host endianness in decode
+    // uint32_t crc 4 bytes need convert to host endianness
     uint32_t crc = ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
-    uint32_t hostRecordCrc = ntohl(recordCrc);
+    uint32_t hostRecordCrc = be32toh(recordCrc);
 
     // Verify crc, return an error code if the verification fails
     if (crc != hostRecordCrc) {
