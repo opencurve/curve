@@ -50,7 +50,7 @@ class LeaseExecutor : public LeaseExecutorBase {
         }
 
     ~LeaseExecutor() {
-      free(enableSumInDir_);
+      delete(enableSumInDir_);
     }
 
     bool Start();
