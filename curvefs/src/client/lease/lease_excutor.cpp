@@ -85,6 +85,12 @@ bool LeaseExecutor::RefreshLease() {
         return true;
     }
 
+    FsInfo* fsinfo;
+    mdsCli_->GetFsInfo(fsName_,fsinfo);
+    if (fsinfo->enablesumindir() != *enableSumInDir_) {
+        *enableSumInDir_ = fsinfo->enablesumindir();
+    }
+    
     // update to metacache
     std::for_each(latestTxIdList.begin(), latestTxIdList.end(),
                   [&](const PartitionTxId &item) {
