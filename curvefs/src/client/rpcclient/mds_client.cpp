@@ -496,7 +496,6 @@ MdsClientImpl::RefreshSession(const std::vector<PartitionTxId> &txIds,
                          << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
-
         FSStatusCode ret = response.statuscode();
         if (ret != FSStatusCode::OK) {
             LOG(WARNING) << "RefreshSession fail, errcode = " << ret

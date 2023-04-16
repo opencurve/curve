@@ -74,6 +74,8 @@ class LeaseExecutor : public LeaseExecutorBase {
        *enableSumInDir_ = flag;
     }
 
+    bool EnableSumInDir() { return *enableSumInDir_; }
+
  private:
     LeaseOpt opt_;
     std::shared_ptr<MetaCache> metaCache_;

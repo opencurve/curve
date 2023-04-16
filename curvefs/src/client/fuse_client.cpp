@@ -314,6 +314,10 @@ CURVEFS_ERROR FuseClient::FuseOpOpen(fuse_req_t req, fuse_ino_t ino,
                 inodeWrapper->MarkDirty();
             }
 
+            if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+                enableSumInDir_ = leaseExecutor_->EnableSumInDir();
+            }
+
             if (enableSumInDir_ && length != 0) {
                 // update parent summary info
                 const Inode *inode = inodeWrapper->GetInodeLocked();
@@ -449,6 +453,10 @@ CURVEFS_ERROR FuseClient::MakeNode(fuse_req_t req, fuse_ino_t parent,
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode;
 
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
+    }
+
     if (enableSumInDir_) {
         // update parent summary info
         XAttr xattr;
@@ -520,6 +528,10 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "UnLink failed, ret = " << ret << ", inodeid = " << ino
                    << ", parent = " << parent << ", name = " << name;
+    }
+
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
     }
 
     if (enableSumInDir_) {
@@ -621,6 +633,10 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req, uint64_t parent,
     VLOG(6) << "dentryManager_ CreateDentry success"
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode;
+
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
+    }
 
     if (enableSumInDir_) {
         // update parent summary info
@@ -975,6 +991,10 @@ CURVEFS_ERROR FuseClient::FuseOpRename(fuse_req_t req, fuse_ino_t parent,
     renameOp.UpdateInodeCtime();
     renameOp.UpdateCache();
 
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
+    }
+
     if (enableSumInDir_) {
         xattrManager_->UpdateParentXattrAfterRename(
             parent, newparent, newname, &renameOp);
@@ -1063,6 +1083,10 @@ CURVEFS_ERROR FuseClient::FuseOpSetAttr(fuse_req_t req, fuse_ino_t ino,
         inodeWrapper->GetInodeAttrLocked(&inodeAttr);
         InodeAttr2ParamAttr(inodeAttr, attrOut);
 
+        if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+            enableSumInDir_ = leaseExecutor_->EnableSumInDir();
+        }
+
         if (enableSumInDir_ && changeSize != 0) {
             // update parent summary info
             const Inode* inode = inodeWrapper->GetInodeLocked();
@@ -1107,6 +1131,10 @@ CURVEFS_ERROR FuseClient::FuseOpGetXattr(fuse_req_t req, fuse_ino_t ino,
         LOG(ERROR) << "inodeManager get inodeAttr fail, ret = " << ret
                     << ", inodeid = " << ino;
         return ret;
+    }
+
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
     }
 
     ret = xattrManager_->GetXattr(name, value, &inodeAttr, enableSumInDir_);
@@ -1276,6 +1304,10 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req, const char *link,
         return ret;
     }
 
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
+    }
+
     if (enableSumInDir_) {
         // update parent summary info
         XAttr xattr;
@@ -1344,6 +1376,10 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req, fuse_ino_t ino,
                    << ", name: " << newname
                    << ", type: " << type;
         return ret;
+    }
+
+    if(leaseExecutor_->EnableSumInDir() != enableSumInDir_) {
+        enableSumInDir_ = leaseExecutor_->EnableSumInDir();
     }
 
     if (enableSumInDir_) {
