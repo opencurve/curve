@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/file"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/update/peer"
 )
 
@@ -38,6 +39,7 @@ var _ basecmd.MidCurveCmdFunc = (*UpdateCommand)(nil)
 func (updateCmd *UpdateCommand) AddSubCommands() {
 	updateCmd.Cmd.AddCommand(
 		peer.NewPeerCommand(),
+		file.NewFileCommand(),
 	)
 }
 

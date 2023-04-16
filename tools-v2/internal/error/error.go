@@ -30,6 +30,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/curvefs/proto/topology"
 	"github.com/opencurve/curve/tools-v2/proto/proto/copyset"
 	"github.com/opencurve/curve/tools-v2/proto/proto/nameserver2"
+	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 	bs_topo_statuscode "github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 )
 
@@ -392,6 +393,12 @@ var (
 	ErrBsGetSegment = func() *CmdError {
 		return NewInternalCmdError(44, "get segments fail, err: %s")
 	}
+	ErrBsGetChunkCopyset = func() *CmdError {
+		return NewInternalCmdError(45, "get copyset of chunk fail, err: %s")
+	}
+	ErrBsChunkServerListInCopySets = func() *CmdError {
+		return NewInternalCmdError(46, "get chunkserver list in copysets fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
@@ -694,9 +701,33 @@ var (
 		code := int(statusCode)
 		switch statusCode {
 		case nameserver2.StatusCode_kOK:
-			message = fmt.Sprintf("getOrAllocateSegment file[%s] offset[%d], successfully", file, offset)
+			message = "getOrAllocateSegment  successfully"
 		default:
 			message = fmt.Sprintf("getOrAllocateSegment file[%s] offset[%d], err: %s", file, offset, statusCode.String())
+		}
+		return NewRpcReultCmdError(code, message)
+	}
+
+	ErrGetChunkServerListInCopySets = func(statusCode statuscode.TopoStatusCode, logicalPool uint32, copysetIds []uint32) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case statuscode.TopoStatusCode_Success:
+			message = "getChunkServerListInCopySets successfully"
+		default:
+			message = fmt.Sprintf("getChunkServerListInCopySets logicalPool[%d] copysets%v, err: %s", logicalPool, copysetIds, statusCode.String())
+		}
+		return NewRpcReultCmdError(-code, message)
+	}
+
+	ErrExtendFile = func(statusCode nameserver2.StatusCode, path, size string) *CmdError {
+		var message string
+		code := int(statusCode)
+		switch statusCode {
+		case nameserver2.StatusCode_kOK:
+			message = "successfully expanded the file"
+		default:
+			message = fmt.Sprintf("failed to expand file[%s] to %s, err: %s", path, size, statusCode.String())
 		}
 		return NewRpcReultCmdError(code, message)
 	}

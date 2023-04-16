@@ -1050,11 +1050,11 @@ Output:
 | chunkserver-list | |
 | cluster-status | |
 | curve_ops_tool list | curve bs list dir |
-| seginfo | |
+| seginfo | curve bs query seginfo |
 | curve_ops_tool delete | curve bs delete file |
 | clean-recycle | |
 | create | |
-| chunk-location | |
+| chunk-location | curve bs query chunk |
 | check-consistency | |
 | remove-peer | curve bs delete peer |
 | transfer-leader | |

@@ -66,6 +66,8 @@ const (
 	VIPER_CURVEBS_PEERS_ADDRESS = "curvebs.peers"
 	CURVEBS_OFFSET              = "offset"
 	VIPER_CURVEBS_OFFSET        = "curvebs.offset"
+	CURVEBS_SIZE                = "size"
+	VIPER_CURVEBS_SIZE          = "curvebs.size"
 )
 
 var (
@@ -87,6 +89,7 @@ var (
 		CURVEBS_PEERS_ADDRESS: VIPER_CURVEBS_PEERS_ADDRESS,
 		CURVEBS_CLUSTERMAP:    VIPER_CURVEBS_CLUSTERMAP,
 		CURVEBS_OFFSET:        VIPER_CURVEBS_OFFSET,
+		CURVEBS_SIZE:          VIPER_CURVEBS_SIZE,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -163,7 +166,6 @@ func AddBsUint32RequiredFlag(cmd *cobra.Command, name string, usage string) {
 	}
 }
 
-
 func AddBsUint64RequiredFlag(cmd *cobra.Command, name string, usage string) {
 	cmd.Flags().Uint64(name, uint64(0), usage+color.Red.Sprint("[required]"))
 	cmd.MarkFlagRequired(name)
@@ -216,12 +218,16 @@ func AddBsFilenameRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_FILENAME, "the full path of file")
 }
 
-func AddBSLogicalPoolIdFlag(cmd *cobra.Command) {
+func AddBSLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
 
-func AddBSCopysetIdFlag(cmd *cobra.Command) {
+func AddBSCopysetIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset id")
+}
+
+func AddBSCopysetIdSliceRequiredFlag(cmd *cobra.Command) {
+	AddBsStringSliceRequiredFlag(cmd, CURVEBS_COPYSET_ID, "copyset ids")
 }
 
 func AddBSPeersConfFlag(cmd *cobra.Command) {
@@ -234,6 +240,10 @@ func AddBsForceDeleteOptionFlag(cmd *cobra.Command) {
 
 func AddBsOffsetRequiredFlag(cmd *cobra.Command) {
 	AddBsUint64RequiredFlag(cmd, CURVEBS_OFFSET, "offset")
+}
+
+func AddBsSizeRequiredFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_SIZE, "size, just like: 10GiB")
 }
 
 // get stingslice flag
@@ -259,7 +269,7 @@ func GetBsFlagString(cmd *cobra.Command, flagName string) string {
 }
 
 // GetBsFlagUint32 get uint32 flag
-func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
+func GetBsFlagUint32(cmd *cobra.Command, flagName string) uint32 {
 	var value string
 	if cmd.Flag(flagName).Changed {
 		value = cmd.Flag(flagName).Value.String()
@@ -268,10 +278,10 @@ func GetBsFlagUint32(cmd *cobra.Command, flagName string) (uint32, error) {
 	}
 	val, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		return 0, err
+		return 0
 	}
 
-	return uint32(val), nil
+	return uint32(val)
 }
 
 // get uint64 flag
